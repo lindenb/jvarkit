@@ -61,9 +61,8 @@ public class TabixKnownGeneFileReader extends AbstractTabixObjectReader<KnownGen
     		{
     		super(delegate);
     		}
-    	
     	@Override
-    	public KnownGene next() {
+    	protected KnownGene convert(String line) {
     		return new KnownGene(this.tab.split(delegate.next()));
     		}
     	}

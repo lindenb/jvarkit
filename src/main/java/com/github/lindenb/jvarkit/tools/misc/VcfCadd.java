@@ -25,8 +25,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -50,6 +50,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -60,6 +61,8 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -117,7 +120,7 @@ public class VcfCadd extends Launcher
 	public static final String DEFAULT_CADD_FLAG_PHRED = "CADD_PHRED";
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs.tsv.gz";
 	private TabixFileReader tabix=null;
 	@Parameter(names={"-u","--uri","--tabix"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
@@ -132,7 +135,9 @@ public class VcfCadd extends Launcher
 			"Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz . Multiple separeted by space, semicolon or comma."
 			+ " Warning: This tool currently uses the first CHROM/POS/REF/ALT values it finds while I saw some duplicated fields in 'whole_genome_SNVs_inclAnno.tsv.gz'.")
 	private String otherFieldsStr = "";
-
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+	
 	
 	private final CharSplitter TAB = CharSplitter.TAB;
 	private ContigNameConverter convertToCaddContigs = null;
@@ -536,9 +541,9 @@ public class VcfCadd extends Launcher
 				this.userFields.add(field);
 				}
 			
-			return doVcfToVcf(args,outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

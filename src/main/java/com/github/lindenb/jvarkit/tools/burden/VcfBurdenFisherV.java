@@ -28,32 +28,37 @@ History:
 package com.github.lindenb.jvarkit.tools.burden;
 
 
-import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamWriter;
+
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
-import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
-import htsjdk.variant.vcf.VCFIterator;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFIteratorBuilder;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import com.beust.jcommander.Parameter;
@@ -65,24 +70,6 @@ BEGIN_DOC
 
 Variant in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
 
-### Output
-
-
-#### INFO column
-
- *  BurdenF1Fisher : Fisher test
-
-
-#### FILTER column
-
- *  BurdenF1Fisher :Fisher test doesn't meet  user's requirements
-
-
-### see also
-
-
- *  VcfBurdenFilter3
-
 
 END_DOC
 */
@@ -91,7 +78,8 @@ END_DOC
 		name="vcfburdenfisherv",
 		description="Fisher Case / Controls per Variant (Vertical)",
 		keywords={"vcf","burden","fisher"},
-		modificationDate="20190521"
+		creationDate="20160418",
+		modificationDate="20200304"
 		)
 public class VcfBurdenFisherV
 	extends Launcher
@@ -99,184 +87,17 @@ public class VcfBurdenFisherV
 	private static final Logger LOG = Logger.build(VcfBurdenFisherV.class).make();
 	public static final String VCF_HEADER_FISHER_VALUE="VCFBurdenFisherV";
 
-	private enum SuperVariant
-		{
-		SV0,AT_LEAST_ONE_VARIANT
-		}
-	
-	private static class Count {
-		int count_case_sv0 =0;
-		int count_ctrl_sv0 = 0;
-		int count_case_sv1 = 0;
-		int count_ctrl_sv1 = 0;
-	}
-
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-p","--pedigree"},description="[20190121] Pedigree file. Default: use the pedigree data in the VCF header." + Pedigree.OPT_DESCRIPTION)
-	private File pedigreeFile=null;
-
-	
-	
+	private Path outputFile = null;
+	@Parameter(names={"-p","--pedigree"},description= PedigreeParser.OPT_DESC,required=true)
+	private Path pedigreeFile=null;
+	@Parameter(names={"-if","--ignore-filter"},description="accept variants having a FILTER column. Default is ignore variants with a FILTER column")
+	private boolean acceptFiltered = false;
+	@Parameter(names={"-table","--table"},description="Write statistics into that X-HTML file instead of inserting a header line the VCF (faster)")
+	private Path tableOut = null;
 	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
-
-	public class CtxWriterFactory 
-		implements VariantContextWriterFactory
-		{
-		@Parameter(names={"-if","--ignorefilter"},
-			description="accept variants having a FILTER column. Default is ignore variants with a FILTER column")
-		private boolean acceptFiltered = false;
-
-
-
-		
-		private class CtxWriter extends DelegateVariantContextWriter
-			{
-			private final File tmpDir;
-			private VCFBuffer tmpw = null;
-			private final Map<Pedigree.Person,SuperVariant> indi2supervariant = new HashMap<>();
-			private Count count= null;
-			private VCFHeader header2 = null;
-			CtxWriter(final VariantContextWriter delegate) {
-				super(delegate);
-				this.tmpDir = IOUtils.getDefaultTmpDir();
-				}
-			
-			@Override
-			public void writeHeader(final VCFHeader header) {
-				this.indi2supervariant.clear();
-				final Set<Pedigree.Person> persons;
-				if(VcfBurdenFisherV.this.pedigreeFile != null) {
-					try {
-						persons = new Pedigree.CaseControlExtractor().extract(
-								header,
-								new Pedigree.Parser().parse(VcfBurdenFisherV.this.pedigreeFile)
-								);
-						}
-					catch(final IOException err)
-						{
-						throw new RuntimeIOException(err);
-						}
-					} 
-				else
-					{
-					persons =  new Pedigree.CaseControlExtractor().extract(header);
-					}
-				
-				for(final Pedigree.Person  person: persons) {
-					this.indi2supervariant.put(person, SuperVariant.SV0);
-					}
-				
-				this.tmpw = new VCFBuffer(1000,tmpDir);
-				this.tmpw.writeHeader(header);
-				this.count = new Count();
-				this.header2 = new VCFHeader(header);
-				if(this.header2.getMetaDataLine(VCF_HEADER_FISHER_VALUE)!=null)
-					{
-					throw new JvarkitException.UserError(
-							"VCF Header "+VCF_HEADER_FISHER_VALUE+" already specified in input");
-					}
-				}
-			
-			@Override
-			public void add(final VariantContext ctx) {
-				this.tmpw.add(ctx);
-				
-				if(ctx.isFiltered() && !CtxWriterFactory.this.acceptFiltered) return;
-				final int n_alts = ctx.getAlternateAlleles().size();
-				
-				if( n_alts == 0) {
-					LOG.warn("ignoring variant without ALT allele.");
-					return;
-				}
-				
-				if( n_alts > 1) {
-					LOG.warn("variant with more than one ALT. Using getAltAlleleWithHighestAlleleCount.");
-					}
-				
-				final Allele observed_alt = ctx.getAltAlleleWithHighestAlleleCount();
-				
-				//loop over person in this pedigree
-				for(final Pedigree.Person person : indi2supervariant.keySet() ) {
-					if(this.indi2supervariant.get(person)==SuperVariant.AT_LEAST_ONE_VARIANT) continue;
-					final Genotype g = ctx.getGenotype(person.getId());	
-					if(g==null) {
-						continue;//not in vcf header
-					}
-					if(g.isFiltered()) {
-						LOG.warn("ignoring filtered genotype");
-						continue;//not filter.
-					}
-					for(final Allele alt : g.getAlleles()) {
-						if(observed_alt.equals(alt)) {
-							this.indi2supervariant.put(person,SuperVariant.AT_LEAST_ONE_VARIANT);
-							break;
-							}
-						}//end of allele
-					}//en dof for[person]			
-				}
-			
-			@Override
-			public void close() {
-				VCFIterator in2  = null;
-				try {
-					for(final Pedigree.Person person : this.indi2supervariant.keySet() ) {
-						final SuperVariant superVariant = indi2supervariant.get(person);
-						if(superVariant==SuperVariant.SV0 ) {
-							if(person.isAffected()) count.count_case_sv0++;
-							else count.count_ctrl_sv0++;
-						} else // AT_LEAST_ONE_VARIANT 
-							{
-							if(person.isAffected()) count.count_case_sv1++;
-							else count.count_ctrl_sv1++;
-							}
-					}//end of person
-				
-				
-				
-				
-					final FisherExactTest fisher = FisherExactTest.compute(
-							count.count_case_sv0, count.count_case_sv1,
-							count.count_ctrl_sv0, count.count_ctrl_sv1
-							);
-					LOG.info("Fisher "+fisher.getAsDouble());
-					
-					this.header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE,
-							String.valueOf(fisher.getAsDouble())));
-					this.header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE+".count",
-							String.join("|",
-							"CASE_SV0="+count.count_case_sv0,
-							"CASE_SV1="+count.count_case_sv1,
-							"CTRL_SV0="+count.count_ctrl_sv0,
-							"CTRL_SV1="+count.count_ctrl_sv1		
-							)));
-	
-					in2 = this.tmpw.iterator();
-					super.writeHeader(this.header2);
-					while(in2.hasNext()) {
-						super.add(in2.next());
-						}
-					}
-				finally {
-					CloserUtil.close(this.tmpw);
-					if(this.tmpw!=null) this.tmpw.dispose();
-					this.tmpw =null;
-					CloserUtil.close(in2);
-					this.indi2supervariant.clear();
-					this.count=null;
-					super.close();
-					}
-				}
-			}
-		
-		@Override
-		public VariantContextWriter open(final VariantContextWriter delegate) {
-			return new CtxWriter(delegate);
-			}
-		}
-	
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	public VcfBurdenFisherV()
 		{
@@ -286,33 +107,262 @@ public class VcfBurdenFisherV
 	protected int doVcfToVcf(
 		final String inputName,
 		final VCFIterator in,
-		final VariantContextWriter delegate)
-		{
-		final VariantContextWriter  out = this.component.open(delegate);
-		final ProgressFactory.Watcher<VariantContext> progess= ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
-		out.writeHeader(in.getHeader());
-		while(in.hasNext())
+		final VariantContextWriter out)
 			{
-			out.add(progess.apply(in.next()));
+			final boolean HAS_VARIANT = true;
+			final boolean NO_VARIANT = false;
+			Path tmVcfOut = null;
+			VariantContextWriter tmpw = null;
+			try {
+				
+			final VCFHeader header = in.getHeader();
+			
+			if(tableOut==null && header.getMetaDataLine(VCF_HEADER_FISHER_VALUE)!=null)
+				{
+				throw new JvarkitException.UserError(
+						"VCF Header "+VCF_HEADER_FISHER_VALUE+" already specified in input");
+				}
+			
+			
+			
+			
+			final VCFHeader header2 = new VCFHeader(header);
+
+						
+			final Set<Sample> persons = new PedigreeParser().
+					parse(this.pedigreeFile).
+					getSamplesInVcfHeader(header).
+					filter(S->S.isStatusSet()).
+					collect(Collectors.toSet());
+			
+			if(persons.isEmpty()) {
+				LOG.warn("No sample in pedigree + vcf header");
+				return -1;
 			}
-		progess.close();
-		out.close();
-		return 0;
+			
+			final Map<Sample,Boolean> indi2supervariant = new HashMap<>(persons.size());
+
+			for(final Sample  person: persons) {
+				indi2supervariant.put(person,NO_VARIANT);
+				}
+			
+			if(this.tableOut!=null) {
+				tmVcfOut  = null;
+				}
+			else if(this.outputFile==null) {
+				tmVcfOut = Files.createTempFile("tmp.", FileExtensions.BCF);	
+				} 
+			else  {
+				tmVcfOut  = Files.createTempFile(this.outputFile.getParent(),"tmp.", FileExtensions.BCF);
+				}
+
+			
+			if(tmVcfOut!=null) {
+				final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+				vcwb.setCreateMD5(false);
+				vcwb.setReferenceDictionary(SequenceDictionaryUtils.extractRequired(header));
+				vcwb.clearOptions();
+				vcwb.setOutputPath(tmVcfOut);
+				tmpw=vcwb.build();
+				tmpw.writeHeader(header);
+				}
+			else
+				{
+				tmpw = null;
+				}
+
+			long count_variants = 0L;
+			while(in.hasNext()) {
+				final VariantContext ctx = in.next();
+				
+				if(tmpw!=null) {
+					tmpw.add(ctx);
+					}
+				else
+					{
+					out.add(ctx);
+					}
+				
+				if(ctx.isFiltered() && !this.acceptFiltered) continue;
+				final int n_alts = ctx.getAlternateAlleles().size();
+				
+				if( n_alts == 0) {
+					LOG.warn("ignoring variant without ALT allele.");
+					continue;
+				}
+				
+				count_variants++;
+				
+				if( n_alts > 1) {
+					LOG.warn("variant with more than one ALT. "+ctx.getContig()+":"+ctx.getStart());
+					}
+				
+				
+				//loop over person in this pedigree
+				for(final Sample person : indi2supervariant.keySet() ) {
+					if(indi2supervariant.get(person)==HAS_VARIANT) continue;
+					final Genotype g = ctx.getGenotype(person.getId());	
+					if(g==null) {
+						continue;//not in vcf header
+						}
+					if(g.isFiltered()) {
+						LOG.warn("ignoring filtered genotype");
+						continue;//not filter.
+						}
+					if(g.getAlleles().stream().anyMatch(A->A.isCalled() && A.isNonReference())) {
+						indi2supervariant.put(person,HAS_VARIANT);
+						}//end of allele
+					}//en dof for[person]
+			} //end of 
+				
+			
+			int count_case_sv0 = 0;
+			int count_ctrl_sv0 = 0;
+			int count_case_sv1 = 0;
+			int count_ctrl_sv1 = 0;
+		
+		
+			for(final Sample person :indi2supervariant.keySet() ) {
+				final boolean hasVariant = indi2supervariant.get(person);
+				if(!hasVariant) {
+					if(person.isAffected()) count_case_sv0++;
+					else count_ctrl_sv0++;
+				} else // AT_LEAST_ONE_VARIANT 
+					{
+					if(person.isAffected()) count_case_sv1++;
+					else count_ctrl_sv1++;
+					}
+			}//end of person
+		
+		
+		
+		
+			final FisherExactTest fisher = FisherExactTest.compute(
+					count_case_sv0, count_case_sv1,
+					count_ctrl_sv0, count_ctrl_sv1
+					);
+			
+			
+			if(this.tableOut==null) {
+				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE,
+						String.valueOf(fisher.getAsDouble())));
+				header2.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_FISHER_VALUE+".count",
+						String.join("|",
+						"CASE_SV0="+count_case_sv0,
+						"CASE_SV1="+count_case_sv1,
+						"CTRL_SV0="+count_ctrl_sv0,
+						"CTRL_SV1="+count_ctrl_sv1		
+						)));
+				try(VCFIterator in2 = new VCFIteratorBuilder().open(tmVcfOut)) {
+					out.writeHeader(header2);
+					while(in2.hasNext()) {
+						out.add(in2.next());
+						}
+					}
+				Files.deleteIfExists(tmVcfOut);
+				tmpw=null;
+				}
+			else
+				{
+				/* save xml report */
+				try(final OutputStream os=super.openPathOrStdoutAsPrintStream(this.tableOut)) {
+					final XMLOutputFactory xof = XMLOutputFactory.newFactory();
+					final XMLStreamWriter w = xof.createXMLStreamWriter(os, "UTF-8");
+					w.writeStartDocument("UTF-8", "1.0");
+					w.writeStartElement("html");
+					w.writeStartElement("head");
+					w.writeStartElement("title");
+					w.writeCharacters(getClass().getSimpleName()+":"+inputName);
+					w.writeEndElement();
+					
+					w.writeEmptyElement("meta");
+					w.writeAttribute("name", "vcf");
+					w.writeAttribute("content",String.valueOf(inputName));
+
+					w.writeEmptyElement("meta");
+					w.writeAttribute("name", "version");
+					w.writeAttribute("content",JVarkitVersion.getInstance().getLabel());
+
+					
+					w.writeEndElement();//hread
+					w.writeStartElement("body");
+					w.writeStartElement("table");
+					w.writeStartElement("caption");
+					w.writeCharacters("Fisher: ");
+					w.writeStartElement("span");
+					w.writeAttribute("id", "fisher");
+					w.writeCharacters(String.valueOf(fisher.getAsDouble()));
+					w.writeEndElement();//span
+					w.writeCharacters(" Variant(s): ");
+					w.writeStartElement("span");
+					w.writeAttribute("id", "variants");
+					w.writeCharacters(String.valueOf(count_variants));
+					w.writeEndElement();//span
+					w.writeEndElement();//caption
+					
+					w.writeStartElement("tr");
+					w.writeEmptyElement("th");
+					w.writeStartElement("th");
+					w.writeCharacters("With Rare");
+					w.writeEndElement();//th
+					w.writeStartElement("th");
+					w.writeCharacters("No Rare");
+					w.writeEndElement();//th
+					w.writeEndElement();//tr
+					
+					w.writeStartElement("tr");
+					w.writeStartElement("th");
+					w.writeCharacters("Case");
+					w.writeEndElement();//th
+					w.writeStartElement("td");
+					w.writeAttribute("id", "case1");
+					w.writeCharacters(String.valueOf(count_case_sv1));
+					w.writeEndElement();//td
+					w.writeStartElement("td");
+					w.writeAttribute("id", "case0");
+					w.writeCharacters(String.valueOf(count_case_sv0));
+					w.writeEndElement();//td
+					w.writeEndElement();//tr
+
+					w.writeStartElement("tr");
+					w.writeStartElement("th");
+					w.writeCharacters("Controls");
+					w.writeEndElement();//th
+					w.writeStartElement("td");
+					w.writeAttribute("id", "ctrl1");
+					w.writeCharacters(String.valueOf(count_ctrl_sv1));
+					w.writeEndElement();//td
+					w.writeStartElement("td");
+					w.writeAttribute("id", "ctrl0");
+					w.writeCharacters(String.valueOf(count_ctrl_sv0));
+					w.writeEndElement();//td
+					w.writeEndElement();//tr
+
+					w.writeEndElement();//table
+					w.writeEndElement();//body
+					w.writeEndElement();//html
+					w.writeEndDocument();
+					w.close();
+					os.flush();
+					}
+				}
+			return 0;
+			}
+		catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally {
+			if(tmVcfOut!=null) try {Files.deleteIfExists(tmVcfOut);} catch(IOException err) {}
+			}
 		}
 	
-	@Override
-	protected int doVcfToVcf(final List<String> args,final File outorNull) {
-		return doVcfToVcfMultipleStream(oneFileOrNull(args), outorNull);
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try 
 			{
-			if(this.component.initialize()!=0) {
-				return -1;
-				}
-			return doVcfToVcf(args,this.outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
 		catch(final Exception err) {
 			LOG.error(err);
@@ -320,11 +370,10 @@ public class VcfBurdenFisherV
 			}
 		finally
 			{
-			CloserUtil.close(this.component);
 			}
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfBurdenFisherV().instanceMainWithExit(args);
 		}

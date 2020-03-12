@@ -24,9 +24,15 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.pedigree;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import htsjdk.variant.vcf.VCFHeader;
 
 /** A collection of samples */
 public interface SampleSet {
@@ -47,7 +53,7 @@ public interface SampleSet {
 	public default Sample getSampleById(final String id) {
 		if(id==null) return null;
 		Sample ret = null;
-		for(final Sample sample: this. getSamples())
+		for(final Sample sample: this.getSamples())
 			{
 			if(!id.equals(sample.getId()) ) continue;
 			if(ret!=null) throw new IllegalStateException("ambigous sample id "+id+" found twice "+ret+" and "+ sample);
@@ -63,4 +69,26 @@ public interface SampleSet {
 			map(S->new TrioImpl(S)).
 			collect(Collectors.toCollection(TreeSet::new));
 		}
+	
+	/** check all samples-ID in this SampleSet are uniq */
+	public default SampleSet checkUniqIds() {
+		final Set<Sample> set = this.getSamples();
+		final Map<String,Sample> seen = new HashMap<>(set.size());
+		for(final Sample sn:set) {
+			if(seen.containsKey(sn.getId())) throw new IllegalStateException(
+					"Pedigree contains two sample with the same ID: "+sn+" and "+seen.get(sn.getId()));
+			seen.put(sn.getId(),sn);
+			}
+		return this;
+		}
+	/** retain samples present in Set of ID . check if samples ID are uniq */
+	public default Stream<Sample> getSamplesInSet(final Set<String> sampleids) {
+		return this.checkUniqIds().getSamples().stream().filter(S->sampleids.contains(S.getId()));
+		}
+	
+	/** retain samples present in VCF header . check if samples ID are uniq */
+	public default Stream<Sample> getSamplesInVcfHeader(final VCFHeader header) {
+		return this.getSamplesInSet(new HashSet<>(header.getSampleNamesInOrder()));
+		}
+
 	}

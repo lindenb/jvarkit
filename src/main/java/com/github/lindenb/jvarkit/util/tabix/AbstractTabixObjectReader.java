@@ -37,6 +37,7 @@ import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.Locatable;
 
 
@@ -63,23 +64,14 @@ public abstract class AbstractTabixObjectReader<T> implements Closeable
     	return this.tabix.getChromosomes();
     	}
     
-    public Iterator<T> iterator(final String chrom)
-		{
-    	return iterator(tabix.iterator(chrom));
-		}
-
-    public Iterator<T> iterator(final String chrom,int start)
-		{
-    	return iterator(tabix.iterator(chrom+":"+start));
-		}
-    public Iterator<T> iterator(final String chrom,int start,int end)
-    	{
-    	return iterator(tabix.iterator(chrom+":"+start+"-"+end));
-    	}
-    
     public Iterator<T> iterator(final Locatable interval)
 		{
-		return iterator(tabix.iterator(interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd()));
+		return iterator(interval.getContig() , interval.getStart() , interval.getEnd());
+		}
+
+    public Iterator<T> iterator(final String contig,int start,int end)
+		{
+		return iterator(tabix.iterator(contig+":"+start+"-"+end));
 		}
     
     /** returns a list of items in the interval */
@@ -105,24 +97,28 @@ public abstract class AbstractTabixObjectReader<T> implements Closeable
     	}
     
     protected abstract class AbstractMyIterator
-    	implements Iterator<T>
+    	extends AbstractIterator<T>
     	{
     	protected final Iterator<String> delegate;
     	protected AbstractMyIterator(final Iterator<String> delegate)
     		{
     		this.delegate=delegate;
     		}
+    	
+    	/** convert line to item. item is ignored if it returns null */
+    	protected abstract T convert(String line) ;
+    	
     	@Override
-    	public boolean hasNext()
-    		{
-    		return this.delegate.hasNext();
+    	protected T advance() {
+    		while(this.delegate.hasNext()) {
+    			final String line  = this.delegate.next();
+    			final T item = convert(line);
+    			if(item==null) continue;
+    			return item;
+    			}
+    		return null;
     		}
-    	@Override
-    	public abstract T next();
-    	@Override
-    	public void remove() {
-    		throw new UnsupportedOperationException();
-    		}
+
     	}	
     
     @Override

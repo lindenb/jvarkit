@@ -67,7 +67,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-import java.util.regex.Pattern;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -99,6 +98,8 @@ import javax.swing.event.InternalFrameEvent;
 import javax.swing.filechooser.FileFilter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -232,7 +233,7 @@ public class SigFrame
 			}
 		public boolean hasDataForChrom(final SAMSequenceRecord rec)
 			{
-			return iterator(rec.getSequenceName(), 1, 1+rec.getSequenceLength()).hasNext();
+			return iterator(rec).hasNext();
 			}
 		
 		@Override
@@ -245,17 +246,14 @@ public class SigFrame
 	    private class MyIterator
     	extends AbstractMyIterator
 	    	{
-	    	private final Pattern tab=Pattern.compile("[\t]");
+	    	private final CharSplitter tab=CharSplitter.TAB;
 	    	MyIterator(final Iterator<String> delegate)
 	    		{
 	    		super(delegate);
 	    		}
-	    	
 	    	@Override
-	    	public SigData next()
-	    		{
-	    		if(!hasNext()) throw new IllegalStateException();
-	    		final String tokens[]=this.tab.split(super.delegate.next());
+	    	protected SigData convert(final String line) {
+	    		final String tokens[]=this.tab.split(line);
 	    		final SigData d=new SigData();
 	    		d.chrom=tokens[0];
 	    		d.start=Integer.parseInt(tokens[1]);
@@ -594,11 +592,11 @@ public class SigFrame
 								y_axis);
 						}
 					/* paint data */
-					Iterator<SigData> iter=this.tabixFile.iterator(
+					Iterator<SigData> iter=this.tabixFile.iterator( new SimpleInterval(
 							ChromView.this.getChromosome().getSequenceName(),
 							(Browser.this.view_start+1),
 							1+Math.min(getChromosome().getSequenceLength(),Browser.this.view_start+Browser.this.view_length)
-							);
+							));
 					/* loop over data */
 					while(iter.hasNext())
 						{
@@ -1293,11 +1291,11 @@ public class SigFrame
 							GC gc=new GC();
 							int chromStart=pixel2base(Math.max(leftMargin(),Math.min(mouseStart.x, mousePrev.x)), gc);
 							int chromEnd=pixel2base(Math.min(drawingArea.getWidth(),Math.max(mouseStart.x, mousePrev.x)), gc);
-							Iterator<SigData> iter=selectedFileFiew.tabixFile.iterator(
+							Iterator<SigData> iter=selectedFileFiew.tabixFile.iterator(new SimpleInterval(
 									selectedFileFiew.getChromosome().getSequenceName(),
 									chromStart,
 									chromEnd
-									);
+									));
 							Table table=new Table(iter);
 							CloserUtil.close(iter);
 							SigFrame.this.desktop.add(table);

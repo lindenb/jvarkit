@@ -42,6 +42,8 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -142,15 +144,14 @@ public class VcfRegulomeDB extends Launcher
 		private class MyIterator
 	    	extends AbstractMyIterator
 	    	{
-	    	private Pattern tab=Pattern.compile("[\t]");
-	    	MyIterator(Iterator<String> delegate)
+	    	private CharSplitter tab=CharSplitter.TAB;
+	    	MyIterator(final Iterator<String> delegate)
 	    		{
 	    		super(delegate);
 	    		}
-	    	
 	    	@Override
-	    	public RegData next() {
-	    		return new RegData(this.tab.split(delegate.next(),5));
+	    	protected RegData convert(String line) {
+	    		return new RegData(this.tab.split(line,5));
 	    		}
 	    	}
 
@@ -190,7 +191,7 @@ public class VcfRegulomeDB extends Launcher
 			int start=Math.max(0,ctx.getStart()-this.extend);
 			int end=ctx.getEnd()+this.extend;
 			
-			for(Iterator<RegData> iter=this.regDataTabixFileReader.iterator(ctx.getContig(), start, end);
+			for(Iterator<RegData> iter=this.regDataTabixFileReader.iterator(new SimpleInterval(ctx.getContig(), start, end));
 					iter.hasNext();
 					)
 				{

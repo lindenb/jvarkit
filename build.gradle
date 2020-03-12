@@ -544,17 +544,6 @@ public class CompileJVarkit extends DefaultTask {
 		return	""+this.getName()+" "+this.mainClass;
 		}
 	
-	private void compileJni() {
-	 try {
-	    project.exec {
-			commandLine "make", "-C" , "src/main/cpp" "--ignore-errors"
-			standardOutput = stderr
-		    }
-		}
-	    catch(Exception err) {
-	        project.logger.warn("Compiling JNI failed. "+err.getMessage());
-	        }
-	}
 	
 
 	private String getExecutablePath(String exe) {
@@ -593,6 +582,40 @@ public class CompileJVarkit extends DefaultTask {
 		return c;	
 		}	
 	*/
+         void installHtsJni() {
+	/** compile jni */
+        if(this.with_jni)  {
+             	try {
+		    final File htsjniDir = new File("lib/htsjni");
+		    if(!htsjniDir.exists()) {
+		    	project.logger.warn("downloading htsjni. Requires git");
+			project.exec {
+				    workingDir "lib"
+			            commandLine "git", "clone", "https://github.com/lindenb/htsjni", "htsjni"
+			            standardOutput = System.err
+		                }
+		    	}
+		    project.logger.warn("updating htsjni. Requires git.");
+		    project.exec {
+				    workingDir htsjniDir.toString()
+			            commandLine "git", "pull", "origin", "master"
+			            standardOutput = System.err
+		                }
+		    project.logger.warn("compiling htsjni. Requires Linux/gcc/ and common C libraries like gz, threads, etc... ");
+		    project.exec {
+			            commandLine "make", "-C", "lib/htsjni"
+			            standardOutput = System.err
+		                }
+		    
+		            }
+	            catch(Exception err) {
+                    throw new GradleException("java/jni Failed.",err);
+	                }
+            	    }
+		/** end C Bindings */
+
+         }
+
 
 	 @TaskAction
 	 void doIt() {
@@ -615,12 +638,14 @@ public class CompileJVarkit extends DefaultTask {
 			{
 			j.download(this.project);
 			}
+		/** htsjni */
+		this.installHtsJni();
 		/** run xjc if needed */
 		this.runXJC();
 		
 		/** copy main source */
 		ant.mkdir(dir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/') )
-			
+		
 		/** opendjk properties , required for external compilation */
 		final File distJar = new File(this.distDir+"/"+this.getName()+".jar")
 
@@ -634,7 +659,7 @@ public class CompileJVarkit extends DefaultTask {
 		/* compile sources */
 		//System.err.println("JAVA_PATH="+getConfiguration().asPath);
 		final Set<File> classpath1 = this.jarLibs.withoutTest().files.collect{it->it.toFile(project)} as Set;
-		
+		if(this.with_jni) classpath1.add(new File("lib/htsjni/htslib.jar"));
 		/** not the 'big test' */
 
 		ant.javac(
@@ -654,24 +679,6 @@ public class CompileJVarkit extends DefaultTask {
 				compilerarg(value:'-Xlint')
 			}
 		
-		/** compile jni */
-		if(this.with_jni) this.compileJni();
-		
-		/** C binding, JNI run javah */
-		final File htslibBindingClass = new File("${this.tmpDir}/com/github/lindenb/jvarkit/htslib/Htslib.class");
-		if(htslibBindingClass.exists()) {
-			project.logger.lifecycle("Starting JNI section" + new File(java.lang.System.getProperty("java.home","")));
-			ant.mkdir(dir:"${this.tmpDir}/cpp")
-			
-			/*
-			project.exec {
-				commandLine 'javah', '-o',"${this.tmpDir}/cpp/htslibjni.h", '-jni', '-classpath'
-				standardOutput = stderr
-		    	}*/
-			
-			
-			}
-		/** end C Bindings */
 		
 		ant.copy(
 			file: this.getMainJavaSource(),
@@ -755,7 +762,7 @@ public class CompileJVarkit extends DefaultTask {
 				if(!f.isTest()) continue;
 				classpath2.add(f.toFile(project));
 				}
-			
+			if(this.with_jni) classpath2.add(new File("lib/htsjni/htslib.jar"));
 			
 			ant.javac(
 				destdir: this.tmpDir,
@@ -2173,7 +2180,7 @@ all.add( task("gbrowserhtml", type: CompileJVarkit) {
 */
 all.add( task("vcfmovefilterstoinfo", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfMoveFiltersToInfo"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
 all.add( task("vcfeigen01", type: CompileJVarkit) {
@@ -2407,6 +2414,17 @@ all2.add(task("bamwithoutbai", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient")
         });
 
+
+
+all2.add(task("jeter", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
+        jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient","gson")
+        });
+all2.add(task("jeter2", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.plateoptimizer.PlateOptimizer"
+        with_jni = true
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 /** bottom task */
 

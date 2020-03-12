@@ -47,8 +47,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 
@@ -232,7 +233,7 @@ public class IndexedBedReader
 		@Override
 		public CloseableIterator<BedLine> query(final String chrom, final int start,final int end)
 				throws IOException {
-			return (CloseableIterator<BedLine>)this.iterator(chrom, start, end);
+			return (CloseableIterator<BedLine>)this.iterator(new SimpleInterval(chrom, start, end));
 			}
 		
 		@Override
@@ -244,15 +245,15 @@ public class IndexedBedReader
     	extends AbstractMyIterator
     	implements CloseableIterator<BedLine>
 	    	{
-	    	private final Pattern tab=Pattern.compile("[\t]");
+	    	private final CharSplitter tab = CharSplitter.TAB;
 	    	MyIterator(final Iterator<String> delegate)
 	    		{
 	    		super(delegate);
 	    		}
-	    	
 	    	@Override
-	    	public BedLine next() {
-	    		final String tokens[]=this.tab.split(delegate.next());
+	    	protected BedLine convert(final String line) {
+	    		if(BedLine.isBedHeader(line)) return null;
+	    		final String tokens[]=this.tab.split(line);
 	    		return new BedLine(tokens);
 	    		}
 	    	@Override

@@ -44,7 +44,10 @@ public interface Sample extends Comparable<Sample> {
 
 	public default boolean isAffected() { return Status.affected.equals(this.getStatus());}
 	public default boolean isUnaffected() { return Status.unaffected.equals(this.getStatus());}
-        
+    /** @return true if statis Affected or Unaffected is set */
+	public default boolean isStatusSet() { return isAffected() || isUnaffected();}
+	
+	
 	public default boolean hasFather() { return getFather()!=null;}
 	public default boolean hasMother() { return getMother()!=null;}
 	/** return the father of this sample, or null */

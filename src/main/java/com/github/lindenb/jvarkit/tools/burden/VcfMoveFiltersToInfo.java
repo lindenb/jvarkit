@@ -27,7 +27,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -35,13 +35,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlType;
-
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -54,12 +47,13 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
-import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 /**
 
@@ -94,7 +88,9 @@ END_DOC
 
 @Program(name="vcfmovefilterstoinfo",
 		description="Move any FILTER to the INFO column. reset FILTER to PASS",
-		keywords={"vcf","burden","format","info"}
+		keywords={"vcf","format","info"},
+		creationDate="20161025",
+		modificationDate="20200302"
 		)
 public class VcfMoveFiltersToInfo
 	extends Launcher
@@ -102,113 +98,17 @@ public class VcfMoveFiltersToInfo
 	private static final Logger LOG = Logger.build(VcfMoveFiltersToInfo.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
+	
+	@Parameter(names={"-f","--filter"},description="INFO name. This tag will be used to store the previous filters")
+	private String infoName = "PREVIOUSLY_FILTERED_AS";
+
+	@Parameter(names={"-t","--limitto"},description="If not empty, limit to those FILTERS. Multiple separated by comma/space.")
+	private Set<String> onlyThoseFiltersTagStr = new HashSet<>();
+
 	@ParametersDelegate
-	private CtxWriterFactory component = new CtxWriterFactory();
-	
-	@XmlType(name="vcfmovefilterstoinfo")
-	@XmlRootElement(name="vcfmovefilterstoinfo")
-	@XmlAccessorType(XmlAccessType.FIELD)
-	public static class CtxWriterFactory 
-		implements VariantContextWriterFactory
-			{
-			@XmlElement(name="filter")
-			@Parameter(names={"-f","--filter"},description="INFO name. This tag will be used to store the previous filters")
-			private String infoName = "PREVIOUSLY_FILTERED_AS";
-		
-			@XmlElement(name="limit")
-			@Parameter(names={"-t","--limitto"},description="If not empty, limit to those FILTERS. Multiple separated by comma/space.")
-			private Set<String> onlyThoseFiltersTagStr = new HashSet<>();
-	
-			private class CtxWriter extends DelegateVariantContextWriter
-				{
-				private VCFInfoHeaderLine infoHeaderLine = null;
-				private Set<String> limitToThoseFilters = null;
-				CtxWriter(final VariantContextWriter delegate) {
-					super(delegate);
-					}
-				@Override
-				public void writeHeader(final VCFHeader header) {
-					this.limitToThoseFilters = 
-							CtxWriterFactory.this.onlyThoseFiltersTagStr.stream().flatMap(
-									S->Arrays.asList(S.split("[, ]")).stream()).
-									filter(S->!StringUtil.isBlank(S)).
-									collect(Collectors.toSet())
-									;
-					this.infoHeaderLine = new VCFInfoHeaderLine(
-							CtxWriterFactory.this.infoName.trim(),
-							VCFHeaderLineCount.UNBOUNDED,
-							VCFHeaderLineType.String,
-							"Variant was previously FILTERed with the given values."
-							);
-					if(header.getInfoHeaderLine(infoHeaderLine.getID())!=null)
-						{
-						throw new JvarkitException.UserError("INFO["+this.infoHeaderLine.getID()+"] already exists in input VCF.");
-						}
-					
-					
-					final VCFHeader h2= new VCFHeader(header);	
-					h2.addMetaDataLine(this.infoHeaderLine);
-					super.writeHeader(h2);
-					}
-				@Override
-				public void add(final VariantContext ctx) {
-					if(ctx.isNotFiltered())
-						{
-						super.add(ctx);
-						}
-					else
-						{
-						final Set<String> INFOfilters = new HashSet<>();
-						final Set<String> FILTERfilters = new HashSet<>();
-						for(final String filter : ctx.getFilters()) {
-							if( filter.equals(VCFConstants.UNFILTERED) ||
-								filter.equals(VCFConstants.PASSES_FILTERS_v3) ||
-								filter.equals(VCFConstants.PASSES_FILTERS_v4)
-								)
-								{
-								continue;
-								}
-							if(!this.limitToThoseFilters.isEmpty() && !this.limitToThoseFilters.contains(filter)) {
-								FILTERfilters.add(filter);
-								}
-							else
-								{
-								INFOfilters.add(filter);
-								}
-							}
-						
-						
-						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-						if(FILTERfilters.isEmpty()) {
-							vcb.unfiltered();
-							}
-						else
-							{
-							vcb.filters(FILTERfilters);
-							}
-						if(!INFOfilters.isEmpty()) {
-							vcb.attribute(this.infoHeaderLine.getID(), new ArrayList<>(INFOfilters));
-							}
-						super.add(vcb.make());
-						}
-					}
-				}
-	
-			@Override
-			public int initialize() {
-				if(StringUtil.isBlank(this.infoName)) {
-					LOG.error("undefined option for infoName");
-					return -1;
-					}
-				return 0;
-				}
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 			
-			@Override
-			public VariantContextWriter open(VariantContextWriter delegate) {
-				return new CtxWriter(delegate);
-				}
-			}
 			
 	public VcfMoveFiltersToInfo()
 		{
@@ -218,30 +118,98 @@ public class VcfMoveFiltersToInfo
 	protected int doVcfToVcf(
 		final String inputName,
 		final VCFIterator in,
-		final VariantContextWriter delegate)
+		final VariantContextWriter out)
 		{
-		final VariantContextWriter  out = this.component.open(delegate);
-		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(in.getHeader()).logger(LOG);
-		out.writeHeader(in.getHeader());
-		while(in.hasNext() &&  !out.checkError())
+		final VCFHeader header = in.getHeader();
+		final VCFHeader header2 = new VCFHeader(header);	
+		
+		final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
+				this.infoName.trim(),
+				VCFHeaderLineCount.UNBOUNDED,
+				VCFHeaderLineType.String,
+				"Variant was previously FILTERed with the given values."
+				);
+		final Set<String> limitToThoseFilters = onlyThoseFiltersTagStr.stream().flatMap(
+				S->Arrays.asList(S.split("[, ]")).stream()).
+				filter(S->!StringUtil.isBlank(S)).
+				collect(Collectors.toSet())
+				;
+
+		if(header.getInfoHeaderLine(infoHeaderLine.getID())!=null)
 			{
-			out.add(progess.watch(in.next()));
+			throw new JvarkitException.UserError("INFO["+infoHeaderLine.getID()+"] already exists in input VCF.");
 			}
-		progess.finish();
+		
+		
+		
+		header2.addMetaDataLine(infoHeaderLine);
+		
+		JVarkitVersion.getInstance().addMetaData(this, header2);
+		
+		final ProgressFactory.Watcher<VariantContext> progess= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+		out.writeHeader(header2);
+		while(in.hasNext())
+			{
+			final VariantContext ctx = progess.apply(in.next());
+			
+			if(ctx.isNotFiltered())
+				{
+				out.add(ctx);
+				}
+			else
+				{
+				final Set<String> INFOfilters = new HashSet<>();
+				final Set<String> FILTERfilters = new HashSet<>();
+				for(final String filter : ctx.getFilters()) {
+					if( filter.equals(VCFConstants.UNFILTERED) ||
+						filter.equals(VCFConstants.PASSES_FILTERS_v3) ||
+						filter.equals(VCFConstants.PASSES_FILTERS_v4)
+						)
+						{
+						continue;
+						}
+					if(!limitToThoseFilters.isEmpty() && !limitToThoseFilters.contains(filter)) {
+						FILTERfilters.add(filter);
+						}
+					else
+						{
+						INFOfilters.add(filter);
+						}
+					}
+				
+				
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				if(FILTERfilters.isEmpty()) {
+					vcb.passFilters();
+					}
+				else
+					{
+					vcb.filters(FILTERfilters);
+					}
+				if(!INFOfilters.isEmpty()) {
+					vcb.attribute(infoHeaderLine.getID(), new ArrayList<>(INFOfilters));
+					}
+				out.add(vcb.make());
+				}
+			
+			}
+		progess.close();
 		out.close();
 		return 0;
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(StringUtil.isBlank(this.infoName)) {
+			LOG.error("undefined value for infoName");
+			return -1;
+			}
 		try
 			{
-			if(this.component.initialize()!=0) return -1;
-			return doVcfToVcf(args, outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate, this.outputFile);
 			}
 		finally
 			{
-			CloserUtil.close(this.component);
 			}
 		}
 	 	

@@ -27,32 +27,44 @@ package com.github.lindenb.jvarkit.htslib;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
-
+import htslib.Htslib;
 import com.github.lindenb.jvarkit.jni.CPtr;
 
-public class HtsFile extends CPtr implements Closeable {
-	
+
+public abstract class HtsFile extends CPtr implements Closeable {
+	private final String filename;
 	public HtsFile(final Path s,final String m) throws IOException {
 		this(s.toString(),m);
 		}
 	
 	public HtsFile(final String s,final String m) throws IOException {
-		super(Htslib.bind_hstfile_open(s,m));
+		super(Htslib.hts_hopen(s,m));
+		this.filename = s;
 		if(isNull()) throw new IOException("Cannot open "+s);
 		}
+	
+	public boolean isOpen() {
+		return !super.isNull();
+		}
+	
 	@Override
-	public void close() {
-		if(!isNull()) Htslib.bind_hstfile_close(this.get());
-		setNull();
+	public final void close() {
+		this.dispose();
 		}
-	
-	public boolean readLine(char delim,final KString ks)  throws IOException {
-		return Htslib.bind_hstfile_getline(get(),delim,ks.get())!=-1;
-		}
-	
+		
 	@Override
 	public void dispose() {
-		close();
+		if(isOpen()) Htslib.hts_hclose(this.getPtr());
+		setNull();
 		super.dispose();
+		}
+	
+	public String getFilename() {
+		return filename;
+		}
+	
+	@Override
+	public String toString() {
+		return this.getClass().getName()+"(" + getFilename() + ")";
 		}
 	}

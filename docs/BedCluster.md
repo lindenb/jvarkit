@@ -57,6 +57,12 @@ Usage: bedcluster [options] Files
  * contig
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/424828](https://www.biostars.org/p/424828)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

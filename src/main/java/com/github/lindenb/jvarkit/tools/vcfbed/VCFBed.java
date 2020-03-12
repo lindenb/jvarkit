@@ -136,7 +136,7 @@ END_DOC
 	keywords={"bed","vcf","annotation"},
 	biostars=247224,
 	creationDate="20180406",
-	modificationDate="20191121"
+	modificationDate="20200303"
 	)
 public class VCFBed extends Launcher
 	{
@@ -376,7 +376,7 @@ public class VCFBed extends Launcher
 					{
 					try(CloseableIterator<BedLine> iter = this.bedReader.iterator(
 								theInterval.getContig(),
-								theInterval.getStart()-1,
+								Math.max(0, theInterval.getStart()-1),
 								theInterval.getEnd()+1
 								)) {
 						while(iter.hasNext())

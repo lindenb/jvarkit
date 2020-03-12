@@ -24,15 +24,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.jni;
 
+/** wrapper for C pointers */
 public class CPtr {
-	private long ptr = 0;
+	private long ptr = 0L;
 	
 	public CPtr()
 		{
 		this(0L);
 		}
 	
-	public CPtr(long n) {
+	public CPtr(final long n) {
 		this.ptr = n;
 		}
 	
@@ -42,8 +43,9 @@ public class CPtr {
 		super.finalize();
 		}
 	
+	/** set ptr to 0L, should be the place to free memory if needed */
 	public void dispose() {
-		this.set(0L);
+		this.setPtr(0L);
 		}
 	
 	public void assertNotNull() {
@@ -52,20 +54,20 @@ public class CPtr {
 	
 	public long getMustBeNotNull() {
 		assertNotNull();
-		return this.get();
+		return this.getPtr();
 		}
 
 	
-	public long get() {
+	public long getPtr() {
 		return this.ptr;
 		}
 	
-	public void set(long n) {
+	public void setPtr(final long n) {
 		this.ptr = n;
 	}
 	
 	public void setNull() {
-		set(0L);
+		setPtr(0L);
 	}
 	
 	public boolean isNull() {
@@ -78,6 +80,6 @@ public class CPtr {
 	
 	@Override
 	public String toString() {
-		return "ptr "+(isNull()?"(null)":" adr:"+this.get());
+		return String.valueOf(this.getClass().getName())+"("+(isNull()?"null":String.format("0x%08X",this.getPtr())+")");
 		}
  	}

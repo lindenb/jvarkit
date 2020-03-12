@@ -27,14 +27,13 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.RuntimeIOException;
@@ -51,8 +50,9 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
-import com.github.lindenb.jvarkit.util.Pedigree;
 import htsjdk.variant.vcf.VCFIterator;
 
 import com.beust.jcommander.Parameter;
@@ -146,8 +146,8 @@ public class VcfBurdenMAF
 	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
 	private boolean ignoreFiltered=false;
 	
-	@Parameter(names={"-p","--pedigree"},description="[20180117] Pedigree file. Default: use the pedigree data in the VCF header." + Pedigree.OPT_DESCRIPTION)
-	private File pedigreeFile=null;
+	@Parameter(names={"-p","--pedigree"},description=PedigreeParser.OPT_DESC,required=true)
+	private Path pedigreeFile=null;
 	
 	@Parameter(names={"-gtf","--gtf","--gtFiltered"},description="[20180117] Ignore FILTERed **Genotype**")
 	private boolean ignore_filtered_genotype=false;
@@ -174,9 +174,6 @@ public class VcfBurdenMAF
 		final VCFHeader header0 = in.getHeader();
 		final ProgressFactory.Watcher<VariantContext> progess = ProgressFactory.newInstance().dictionary(header0).logger(LOG).build();
 		
-		final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = 
-				(header)->  new Pedigree.CaseControlExtractor().extract(header0);
-
 
 		final VCFInfoHeaderLine mafCasInfoHeader = new VCFInfoHeaderLine(
 				this.prefix + "AF_Cases",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"MAF Cases"
@@ -205,27 +202,25 @@ public class VcfBurdenMAF
 
 		
 		final boolean is_lumpy_vcf_header = LumpyConstants.isLumpyHeader(header0);
-		final Set<Pedigree.Person> persons;
-		if( this.pedigreeFile == null)
-			{
-			persons= caseControlExtractor.apply(header0);
-			}
-		else
+		final Set<Sample> persons;
+		
 			{
 			try {
-				persons = new Pedigree.CaseControlExtractor().extract(
-						header0,
-						new Pedigree.Parser().parse(this.pedigreeFile)
-						);
+				persons = new PedigreeParser().
+						parse(this.pedigreeFile).
+						getSamplesInVcfHeader(header0).
+						filter(S->S.isStatusSet()).
+						collect(Collectors.toSet())
+						;
 				}
 			catch(final IOException err)
 				{
 				throw new RuntimeIOException(err);
 				}
 			}
-		final Set<Pedigree.Person> caseSamples = persons.stream().
+		final Set<Sample> caseSamples = persons.stream().
 				filter(I->I.isAffected()).collect(Collectors.toSet());
-		final Set<Pedigree.Person> controlSamples = persons.stream().
+		final Set<Sample> controlSamples = persons.stream().
 				filter(I->I.isUnaffected()).collect(Collectors.toSet());
 
 		final VCFHeader h2= new VCFHeader(header0);
@@ -274,7 +269,7 @@ public class VcfBurdenMAF
 					mafCalculator.setNoCallIsHomRef(this.noCallAreHomRef);
 					
 					/* loop over persons in this pop */
-					for(final Pedigree.Person p:(pop==CASE_POP?caseSamples:controlSamples)) 
+					for(final Sample p:(pop==CASE_POP?caseSamples:controlSamples)) 
 						{
 						/* get genotype for this individual */
 						final Genotype genotype = ctx.getGenotype(p.getId());

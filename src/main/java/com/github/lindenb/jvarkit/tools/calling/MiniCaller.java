@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.calling;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +40,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -118,14 +119,15 @@ END_DOC
  */
 @Program(name="minicaller",
 	description="Simple and Stupid Variant Caller designed for @AdrienLeger2",
-	keywords={"bam","sam","calling","vcf"}
+	keywords={"bam","sam","calling","vcf"},
+	modificationDate="20200304"
 	)
 public class MiniCaller extends Launcher
     {
 	private static final Logger LOG = Logger.build(MiniCaller.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-d","--mindepth"},description="Min depth")
 	private int min_depth = 20 ;
     @Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
@@ -136,6 +138,8 @@ public class MiniCaller extends Launcher
 	private SamRecordFilter readFilter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
 	private String rgnStr  = null;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 	
 	private SAMSequenceDictionary dictionary=null;
@@ -486,7 +490,7 @@ public class MiniCaller extends Launcher
                     );
             vcfHeader.setSequenceDictionary(this.dictionary);
             /* create variant context */
-            this.variantContextWriter = super.openVariantContextWriter(outputFile);
+            this.variantContextWriter = this.writingVariantsDelegate.dictionary(this.dictionary).open(outputFile);
             this.variantContextWriter.writeHeader(vcfHeader);
 
             GenomicSequence genomicSeq=null;

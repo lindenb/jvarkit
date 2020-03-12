@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -243,11 +244,11 @@ public class VcfGnomad extends Launcher{
 						Math.max(0, userVariantCtx.getStart()-10),
 						userVariantCtx.getEnd()+ VcfGnomad.this.gnomadBufferSize
 					);
-				final Iterator<VariantContext> iter= this.gnomad_tabix.iterator(
+				final Iterator<VariantContext> iter= this.gnomad_tabix.iterator(new SimpleInterval(
 						this.lastInterval.getContig(),
 						this.lastInterval.getStart(),
 						this.lastInterval.getEnd()
-						);
+						));
 				while(iter.hasNext())
 					{
 					final VariantContext ctx = iter.next();

@@ -10,9 +10,18 @@ Move any FILTER to the INFO column. reset FILTER to PASS
 ```
 Usage: vcfmovefilterstoinfo [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -f, --filter
       INFO name. This tag will be used to store the previous filters
       Default: PREVIOUSLY_FILTERED_AS
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -31,7 +40,6 @@ Usage: vcfmovefilterstoinfo [options] Files
 ## Keywords
 
  * vcf
- * burden
  * format
  * info
 
@@ -52,6 +60,11 @@ $ ./gradlew vcfmovefilterstoinfo
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20161025
 
 ## Source code 
 

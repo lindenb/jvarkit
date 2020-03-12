@@ -89,7 +89,7 @@ public class TabixVcfFileReader extends AbstractTabixObjectReader<VariantContext
     		super(delegate);
     		}
     	@Override
-    	public VariantContext next() {
+    	protected VariantContext convert(String line) {
     		return getCodec().decode(delegate.next());
     		}
     	}	

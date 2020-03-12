@@ -10,6 +10,15 @@ Fisher Case / Controls per Variant (Vertical)
 ```
 Usage: vcfburdenfisherv [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -20,12 +29,12 @@ Usage: vcfburdenfisherv [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -p, --pedigree
-      [20190121] Pedigree file. Default: use the pedigree data in the VCF 
-      header.A pedigree is a text file delimited with tabs. No header. Columns 
-      are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or 
-      '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
-      affected,-9 unknown
+  * -p, --pedigree
+      A pedigree file. tab delimited. Columns: family,id,father,mother, 
+      sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
+    -table, --table
+      Write statistics into that file instead of the VCF (faster)
     --version
       print version and exit
 
@@ -55,6 +64,11 @@ $ ./gradlew vcfburdenfisherv
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20160418
 
 ## Source code 
 

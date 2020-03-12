@@ -24,8 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.bam2xml;
 
-import java.io.File;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.List;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -37,7 +37,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.util.CloserUtil;
@@ -55,7 +55,9 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 
 /**
 BEGIN_DOC
@@ -205,13 +207,17 @@ END_DOC
  */
 @Program(name="bam2xml",
 	keywords={"sam","bam","xml"},
-	description="converts a BAM to XML")
+	description="converts a BAM to XML",
+	creationDate="20130506",
+	modificationDate="20200304")
 public class Bam2Xml extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Bam2Xml.class).make();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
+	@Parameter(names={"-R","--reference"},description="For Cram. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refPath = null;
 
 	public static class SAMXMLWriter implements SAMFileWriter
 		{
@@ -257,9 +263,9 @@ public class Bam2Xml extends Launcher
 	        		w.writeStartElement("contig");
 	        		w.writeAttribute("index", String.valueOf(ssr.getSequenceIndex()));
 	        		w.writeAttribute("name",ssr.getSequenceName());
-	        		writeText(w,"assembly", String.valueOf(ssr.getAssembly()));
-	        		writeText(w,"species", String.valueOf(ssr.getSpecies()));
-	        		writeText(w,"length", String.valueOf(ssr.getSequenceLength()));
+	        		writeText(w,"assembly",ssr.getAssembly());
+	        		writeText(w,"species",ssr.getSpecies());
+	        		writeText(w,"length", ssr.getSequenceLength());
 	        		writeText(w,"md5",ssr.getMd5());
 	        		w.writeEndElement();
 	        		}
@@ -430,7 +436,7 @@ public class Bam2Xml extends Launcher
 	
 	
 	
-		private int run(SamReader samReader)
+		private int run(final SamReader samReader)
 			{    	
 			OutputStream fout=null;
 	        SAMRecordIterator iter=null;
@@ -441,7 +447,7 @@ public class Bam2Xml extends Launcher
 		        
 		        if(this.outputFile!=null)
 			        {
-		        	fout= IOUtils.openFileForWriting(this.outputFile);
+		        	fout= IOUtils.openPathForWriting(this.outputFile);
 			        w= xmlfactory.createXMLStreamWriter(fout,"UTF-8");
 			        }
 		        else
@@ -450,18 +456,19 @@ public class Bam2Xml extends Launcher
 		        	}
 		        w.writeStartDocument("UTF-8","1.0");
 		        final SAMFileHeader header=samReader.getFileHeader();
-		        final SAMXMLWriter xw =new SAMXMLWriter(w, header);
-		        final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
+		        final SAMXMLWriter xw = new SAMXMLWriter(w, header);
+		        final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 				iter=samReader.iterator();
 				while(iter.hasNext())
 					{
-					xw.addAlignment(progress.watch(iter.next()));
+					xw.addAlignment(progress.apply(iter.next()));
 					}
 				xw.close();
+				progress.close();
 				w.writeEndDocument();
 				if(fout!=null) fout.flush();
 				} 
-	    	catch (Exception e) {
+	    	catch (final Throwable e) {
 	    		e.printStackTrace();
 	    		LOG.error(e);
 	    		return -1;
@@ -481,7 +488,17 @@ public class Bam2Xml extends Launcher
 			SamReader r=null;
 			try
 				{
-				r= openSamReader(oneFileOrNull(args));
+				
+				final String input = oneFileOrNull(args);
+				final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.refPath);
+				if(input==null) {
+					r = srf.open(SamInputResource.of(stdin()));
+					}
+				else
+					{
+					r = srf.open(SamInputResource.of(input));
+					}
+				
 				run(r);
 				return 0;
 				}

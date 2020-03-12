@@ -414,6 +414,91 @@ public  class CoverageServer extends Launcher {
 		 return true;
 		}
 	
+
+	/** return a stream of interval of the known CNV overlapping the region */
+	private Stream<Interval> getKnownCnv(final Locatable region) {
+		if(this.knownCnvFile==null) return Stream.empty();
+		final String fname=this.knownCnvFile.getFileName().toString();
+		if(fname.endsWith(".bed.gz")) {
+			TabixReader tbr = null;
+			try
+				{
+				tbr = new TabixReader(this.knownCnvFile.toString());
+				final TabixReader tbrfinal = tbr;
+				final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+				final String ctg = cvt.apply(region.getContig());
+				if(StringUtils.isBlank(ctg)) {
+					tbr.close();
+					return Stream.empty();
+					}
+				
+				final TabixReader.Iterator iter = tbr.query(ctg,region.getStart(), region.getEnd());
+				final BedLineCodec codec = new BedLineCodec();
+				final AbstractIterator<Interval> iter2= new AbstractIterator<Interval>() {
+					@Override
+					protected Interval advance() {
+						try {
+							for(;;) {
+								final String line = iter.next();
+								if(line==null) return null;
+								final BedLine bed = codec.decode(line);
+								if(bed==null) continue;
+								return new Interval(region.getContig(),bed.getStart(),bed.getEnd(),false,bed.getOrDefault(3, ""));
+								}
+							} catch (final IOException e) {
+							LOG.error(e);
+							return null;
+							}
+						}
+					};
+				return StreamSupport.stream(new IterableAdapter<Interval>(iter2).spliterator(),false).onClose(()->{
+					tbrfinal.close();
+					});
+				}
+			catch(final Throwable err) {
+				if(tbr!=null) tbr.close();
+				LOG.error(err);
+				return Stream.empty();
+				}
+			}
+		else if(FileExtensions.VCF_LIST.stream().anyMatch(X->fname.endsWith(X))) {
+			VCFFileReader vcfFileReader= null;
+			try {
+				vcfFileReader = new VCFFileReader(this.knownCnvFile,true);
+				
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getFileHeader()));
+				final String ctg = cvt.apply(region.getContig());
+				if(StringUtils.isBlank(ctg)) {
+					vcfFileReader.close();
+					return Stream.empty();
+					}
+				final VCFFileReader vcfFileReaderFinal = vcfFileReader;
+				return vcfFileReader.query(ctg, region.getStart(), region.getEnd()).
+						stream().
+						filter(VC->!VC.isSNP()).
+						map(VC->{
+							final List<String> list = new ArrayList<>();
+							if(VC.hasID()) list.add(VC.getID());
+							if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
+							return new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));}).
+						onClose(()->vcfFileReaderFinal.close());
+				}
+			catch(final Throwable err) {
+				if(vcfFileReader!=null) vcfFileReader.close();
+				LOG.error(err);
+				return Stream.empty();
+				}
+		}
+		else
+		{
+			LOG.warn("not a vcf of bed.gz file "+this.knownCnvFile);
+			return Stream.empty();
+		}
+	}
+	
+
+	
+
 	private void writeGenes(final Graphics2D g,final Locatable region) {
 		if(this.gtfFile==null) return;
 		TabixReader tbr = null;

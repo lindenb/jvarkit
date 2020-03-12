@@ -146,7 +146,7 @@ END_DOC
 @Program(name="bam2wig",
 description="Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)",
 keywords={"bam","wig","wiggle","bed"},
-modificationDate="20190417"
+modificationDate="20200304"
 )
 public class Bam2Wig extends Launcher
 	{
@@ -155,7 +155,7 @@ public class Bam2Wig extends Launcher
 	private enum WHAT {COVERAGE,CLIPPING,INSERTION,DELETION,READ_GROUPS,CASE_CTRL};
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-t","--header"},description="print a UCSC custom track header: something lile "+UCSC_HEADER+". Use `sed` to replace the tokens. e.g: `sed '/^track/s/__REPLACE_WIG_NAME__/My data/'` ")
 	private boolean custom_track = false;
 	@Parameter(names={"-s","--windowShift"},description="window shift")
@@ -755,7 +755,7 @@ public class Bam2Wig extends Launcher
 						return -1;
 						}
 					}
-				pw = openFileOrStdoutAsPrintWriter(this.outputFile);
+				pw = openPathOrStdoutAsPrintWriter(this.outputFile);
 				
 				run(
 					pw,
@@ -768,9 +768,9 @@ public class Bam2Wig extends Launcher
 				CloserUtil.close(samReaders);
 				samReaders.clear();
 				pw.flush();
-				return RETURN_OK;
+				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
