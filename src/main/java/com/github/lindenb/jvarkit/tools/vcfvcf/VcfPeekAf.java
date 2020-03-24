@@ -34,11 +34,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -71,26 +73,25 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
 BEGIN_DOC
-
+ALLELE_FREQUENCY_KEY
 END_DOC
 
  */
 @Program(name="vcfpeekaf",
 		description="Peek the AF from another VCF",
 		keywords={"vcf","annotation","af"},
-		modificationDate="20191202",
+		modificationDate="20200324",
 		creationDate="20191202"
 		)
 public class VcfPeekAf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfPeekAf.class).make();
 
-	
 	@Parameter(names={"-F","--database","--tabix","--resource"},description="An indexed VCF file. Source of the annotations",required=true)
-	private Path resourceVcfFile = null;	
+	private Path resourceVcfFile = null;
 	@Parameter(names={"-T","--tag"},description="INFO tag to put found frequency. empty: no extra tag.")
 	private String frequencyTag = "";
-	@Parameter(names={"-f","--filter"},description="soft FILTER the variant of this data if AF is not found or it greater > threshold. If empty, just DISCARD the variant")
+	@Parameter(names={"-f","--filter"},description="soft FILTER the variant of this data if AF is not found or it greater > max-af or lower than min-af. If empty, just DISCARD the variant")
 	private String filterStr = "";
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -100,14 +101,14 @@ public class VcfPeekAf extends Launcher
 	private boolean list_peekers = false;
 	@Parameter(names={"-p","--peeker"},description="Peeker name",required=true)
 	private String peekerName = null;
-	@Parameter(names={"-t","--treshold"},description="AF treshold. Variant is accepted is computed AF <= treshold.",required=true)
-	private double af_treshold = 1.0;
-	@Parameter(names={"--params"},description="Extra parameters for the AF peeker",hidden=true)
-	private List<String> peeker_parameters = new ArrayList<>();
+	@Parameter(names={"-t","--treshold","--max-af"},description="AF max treshold. Variant is accepted is computed AF <= treshold.",converter=FractionConverter.class,required=true)
+	private double af_maximum = 1.0;
+	@Parameter(names={"--min-af"},description="AF min treshold. Variant is accepted is computed AF >= treshold.",converter=FractionConverter.class,required=false)
+	private double af_minimum = 0.0;
 	@Parameter(names={"--no-alt"},description="Do not look at the alternate alleles concordance")
 	private boolean disable_alt_concordance = false;
-
-
+	@Parameter(names={"-P","--peek-info"},description="Name of INFO tag in the vcf database to extract the AF value for exractor .'Custom'"  )
+	private String custom_peek_info_name = null;
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
@@ -121,18 +122,21 @@ public class VcfPeekAf extends Launcher
 		public String toString() {
 			return getName();
 			}
+		/** compare ctx with other variants found in database, ignoring ALT status */
 		abstract VariantContext applyAlt(final VariantContext ctx,final List<VariantContext> overlappers);
+		/** compare ctx with other variants found in database, considering ALT status */
 		abstract VariantContext applyIgnoringAlt(final VariantContext ctx,final List<VariantContext> overlappers);
 		
 		final VariantContext apply(final VariantContext ctx,final List<VariantContext> overlappers) {
 			return disable_alt_concordance ? applyIgnoringAlt(ctx,overlappers):applyAlt(ctx, overlappers);
 			}
 
-		
+		/** simplify database variant */
 		abstract VariantContext sanitize(final VariantContext ctx);
 		
+		/** change variant in VCF, applying filters if needed . Return null if the variant is discarded. */
 		VariantContext addFilters3(final VariantContext ctx,final VariantContextBuilder vcb,boolean accept) {
-			final Set<String> old_filters = ctx.getFilters();
+			final Set<String> old_filters = new HashSet<>(ctx.getFilters());
 			if(!StringUtils.isBlank(VcfPeekAf.this.filterStr)) old_filters.remove(VcfPeekAf.this.filterStr);
 
 			
@@ -156,10 +160,12 @@ public class VcfPeekAf extends Launcher
 			}
 
 		
-		VariantContext addFiltersIgnoreAlt(final VariantContext ctx,final Double minFreq) {
+		VariantContext addFiltersIgnoreAlt(final VariantContext ctx,final OptionalDouble optFreq) {
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-			final boolean foundLt=minFreq==null || minFreq.doubleValue()< VcfPeekAf.this.af_treshold;
-			if(minFreq!=null && !StringUtils.isBlank(VcfPeekAf.this.frequencyTag)) vcb.attribute(VcfPeekAf.this.frequencyTag, minFreq);
+			final boolean foundLt= !optFreq.isPresent() || (optFreq.getAsDouble() >= VcfPeekAf.this.af_minimum && optFreq.getAsDouble() <= VcfPeekAf.this.af_maximum);
+			if(optFreq.isPresent() && !StringUtils.isBlank(VcfPeekAf.this.frequencyTag)) {
+				vcb.attribute(VcfPeekAf.this.frequencyTag, optFreq.getAsDouble());
+				}
 			return addFilters3(ctx, vcb, foundLt);
 			}
 
@@ -169,7 +175,7 @@ public class VcfPeekAf extends Launcher
 		VariantContext addFilters(final VariantContext ctx,final Map<Allele,Double> alt2freq) {			
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			
-			final List<Double> af_vector = new ArrayList<>();
+			final List<Double> af_vector = new ArrayList<>(alt2freq.size());
 			boolean foundLt=false;
 			for(final Allele alt_allele: ctx.getAlternateAlleles()) {
 				final double af;
@@ -179,7 +185,7 @@ public class VcfPeekAf extends Launcher
 				else
 					{
 					af= alt2freq.getOrDefault(alt_allele, 0.0);
-					if(af<=VcfPeekAf.this.af_treshold ) {
+					if(VcfPeekAf.this.af_minimum <= af && af<=VcfPeekAf.this.af_maximum ) {
 						foundLt=true;
 						}
 					}
@@ -191,6 +197,8 @@ public class VcfPeekAf extends Launcher
 			return addFilters3(ctx, vcb, foundLt);
 			}
 		}
+	
+	/** Use INFO/AC and INFO/AN to get frequency */
 	private class InfoAcAnPeeker extends AFPeeker
 		{
 		@Override
@@ -220,8 +228,8 @@ public class VcfPeekAf extends Launcher
 			}
 		
 		@Override
-		VariantContext applyIgnoringAlt(VariantContext ctx, List<VariantContext> overlappers) {
-			Double minFreq=null;
+		VariantContext applyIgnoringAlt(final VariantContext ctx, final List<VariantContext> overlappers) {
+			OptionalDouble optFreq = OptionalDouble.empty();
 			for(final VariantContext ctx2:overlappers) {
 				if(!ctx2.hasAttribute(VCFConstants.ALLELE_COUNT_KEY)) {
 					continue;
@@ -233,11 +241,15 @@ public class VcfPeekAf extends Launcher
 				if(an==0)  {
 					continue;
 					}
-				for(final Double af:ctx2.getAttributeAsDoubleList(VCFConstants.ALLELE_COUNT_KEY,0.0)) {
-					if(minFreq==null || minFreq.doubleValue()>af) minFreq = af;
+				for(final Double ac:ctx2.getAttributeAsDoubleList(VCFConstants.ALLELE_COUNT_KEY,0.0)) {
+					if(ac==null) continue;
+					final double af = ac/an;
+					if(!optFreq.isPresent()|| optFreq.getAsDouble()>af) {
+						optFreq = OptionalDouble.of(af);
+						}
 					}
 				}
-			return addFiltersIgnoreAlt(ctx,minFreq);
+			return addFiltersIgnoreAlt(ctx,optFreq);
 			}
 		
 		@Override
@@ -246,13 +258,12 @@ public class VcfPeekAf extends Launcher
 			final Map<Allele,Double> allele2freq = new HashMap<>(alt_alleles.size());
 			
 			
-			
 			// loop over each ALT from this ctx
 			for(int i=0;i< alt_alleles.size();++i) {
 				final Allele ctx_alt= alt_alleles.get(i);
 				if(ctx_alt.equals(Allele.SPAN_DEL)) {
 					continue;
-				}
+					}
 				
 				// loop over each variant from database
 				for(final VariantContext ctx2:overlappers) {
@@ -291,43 +302,49 @@ public class VcfPeekAf extends Launcher
 			return addFilters(ctx,allele2freq);
 			}
 		}
-	private class InfoAfPeeker extends AFPeeker
+	
+	private abstract class AbstractAFInfoFieldPeeker extends AFPeeker
 		{
-		@Override
-		String getName() { return "AF";}
-		@Override
-		String getDescription() { return "use ratio INFO/AF to compute the Allele frequency";}
+		protected abstract String getPeekInfoTagName();
 		@Override
 		void initialize(final VCFHeader h) {
-			if(h.getInfoHeaderLine(VCFConstants.ALLELE_FREQUENCY_KEY)==null) {
-				throw new IllegalArgumentException("Cannot find INFO="+VCFConstants.ALLELE_FREQUENCY_KEY+" in "+resourceVcfFile);
+			if(StringUtils.isBlank(getPeekInfoTagName())) {
+				throw new IllegalStateException("No INFO tag was defined for extractor "+ this.getName());
+				}
+			final VCFInfoHeaderLine hl= h.getInfoHeaderLine(getPeekInfoTagName());
+			if(hl==null) {
+				throw new IllegalArgumentException("Cannot find INFO="+getPeekInfoTagName()+" in "+resourceVcfFile);
+				}
+			if(!hl.getCountType().equals(VCFHeaderLineCount.A)) {
+				LOG.warn("Expected find INFO="+getPeekInfoTagName()+" Count="+VCFHeaderLineCount.A+" but got "+hl.getCountType());
+				}
+			if(hl.getType().equals(VCFHeaderLineType.Float)) {
+				throw new IllegalArgumentException("Expected find INFO="+getPeekInfoTagName()+" Type="+VCFHeaderLineType.Float+" but got "+hl.getType());
 				}
 			}
+		
 		@Override
 		VariantContext sanitize(final VariantContext ctx) {
 			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.noGenotypes();
 			vcb.noID();
 			for(final String key:new HashSet<>(ctx.getAttributes().keySet())) {
-				if(key.equals(VCFConstants.ALLELE_FREQUENCY_KEY)) continue;
+				if(key.equals(getPeekInfoTagName())) continue;
 				vcb.rmAttribute(key);
 				}
 			return vcb.make();
 			}
 		
 		@Override
-		VariantContext applyIgnoringAlt(VariantContext ctx, List<VariantContext> overlappers) {
-			Double minFreq=null;
-			for(final VariantContext ctx2:overlappers) {
-				if(!ctx2.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY)) {
-					continue;
-					}
-				
-				for(final Double af:ctx2.getAttributeAsDoubleList(VCFConstants.ALLELE_FREQUENCY_KEY,0.0)) {
-					if(minFreq==null || minFreq.doubleValue()>af) minFreq = af;
-					}
-				}
-			return addFiltersIgnoreAlt(ctx,minFreq);
+		VariantContext applyIgnoringAlt(final VariantContext ctx,final List<VariantContext> overlappers) {
+			final OptionalDouble optFreq = overlappers.
+					stream().
+					filter(ctx2->ctx2.hasAttribute(getPeekInfoTagName())).
+					flatMap(ctx2->ctx2.getAttributeAsDoubleList(getPeekInfoTagName(),0.0).stream()).
+					mapToDouble(V->V.doubleValue()).
+					min();
+			
+			return addFiltersIgnoreAlt(ctx,optFreq);
 			}
 
 		
@@ -343,24 +360,23 @@ public class VcfPeekAf extends Launcher
 				final Allele ctx_alt= alt_alleles.get(i);
 				if(ctx_alt.equals(Allele.SPAN_DEL)) {
 					continue;
-				}
+					}
 				
 				// loop over each variant from database
 				for(final VariantContext ctx2:overlappers) {
 					if(!ctx2.hasAllele(ctx_alt)) continue;
 					
-					if(!ctx2.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY)) {
+					if(!ctx2.hasAttribute(getPeekInfoTagName())) {
 						continue;
 						}
 					
-				
 					
 					final int ref_idx = ctx2.getAlleleIndex(ctx_alt);
 					if(ref_idx<1 /* 0 is ref */)   {
 						continue;
 						};
 					
-					final List<Double> af_array = ctx2.getAttributeAsDoubleList(VCFConstants.ALLELE_FREQUENCY_KEY, 1.0);
+					final List<Double> af_array = ctx2.getAttributeAsDoubleList(getPeekInfoTagName(), 1.0);
 					
 					if(ref_idx-1>=af_array.size())   {
 						continue;
@@ -375,6 +391,38 @@ public class VcfPeekAf extends Launcher
 			return addFilters(ctx,allele2freq);
 			}
 		}
+	
+	
+	private class InfoAfPeeker extends AbstractAFInfoFieldPeeker
+		{
+		@Override
+		String getName() {
+			return getPeekInfoTagName();
+			}
+		@Override
+		String getDescription() { return "use  field 'INFO/AF' to extract the Allele frequency";}
+
+		@Override
+		protected String getPeekInfoTagName() {
+			return VCFConstants.ALLELE_FREQUENCY_KEY;
+			}
+		}
+	
+	private class CustomInfoPeeker extends AbstractAFInfoFieldPeeker
+		{
+		@Override
+		String getName() {
+			return "Custom";
+			}
+		@Override
+		String getDescription() { return "use ratio INFO field defined with option -P to compute the Allele frequency";}
+
+		@Override
+		protected String getPeekInfoTagName() {
+			return VcfPeekAf.this.custom_peek_info_name;
+			}
+		}
+	
 	private class GtPeeker extends AFPeeker
 		{
 		@Override
@@ -396,9 +444,9 @@ public class VcfPeekAf extends Launcher
 		
 		@Override
 		VariantContext applyIgnoringAlt(VariantContext ctx, List<VariantContext> overlappers) {
-			Double minFreq=null;
+			OptionalDouble optFreq = OptionalDouble.empty();
 			for(final VariantContext ctx2:overlappers) {
-				double an= ctx2.getGenotypes().stream().filter(G->G.isCalled()).mapToInt(G->G.getAlleles().size()).sum();
+				final double an= ctx2.getGenotypes().stream().filter(G->G.isCalled()).mapToInt(G->G.getAlleles().size()).sum();
 				if(an==0)  {
 					continue;
 					}
@@ -409,10 +457,10 @@ public class VcfPeekAf extends Launcher
 					
 					
 					final double af = ac/an;
-					if(minFreq==null || minFreq.doubleValue()>af) minFreq = af;
+					if(!optFreq.isPresent() || optFreq.getAsDouble()>af) optFreq = OptionalDouble.of(af);
 					}
 				}
-			return addFiltersIgnoreAlt(ctx,minFreq);
+			return addFiltersIgnoreAlt(ctx,optFreq);
 			}
 
 		
@@ -526,7 +574,8 @@ public class VcfPeekAf extends Launcher
 					}
 			}
 			if(!StringUtils.isBlank(this.filterStr)) {
-				h2.addMetaDataLine(new VCFFilterHeaderLine(this.filterStr,"Allele Frequency found in "+resourceVcfFile+" with peeker: "+this.peeker.getName()+" is > "+this.af_treshold));
+				h2.addMetaDataLine(new VCFFilterHeaderLine(this.filterStr,"Allele Frequency found in "+resourceVcfFile+" with peeker failing the following state: "+					
+						this.af_minimum + " <= "+ this.peeker.getName()+" <= "+this.af_maximum));
 			}
 			
 			
@@ -577,6 +626,7 @@ public class VcfPeekAf extends Launcher
 		all_peekers.add(new InfoAcAnPeeker());
 		all_peekers.add(new InfoAfPeeker());
 		all_peekers.add(new GtPeeker());
+		all_peekers.add(new CustomInfoPeeker());
 		this.indexedVcfFileReader = null;
 		if(this.buffer_size<1) {
 			LOG.error("bad buffer-size");

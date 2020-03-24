@@ -27,15 +27,15 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -51,14 +51,16 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
-import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
-import com.github.lindenb.jvarkit.util.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -76,15 +78,6 @@ Variants in that VCF should have one and only one ALT allele. Use https://github
 
 VCF header must contain a pedigree ( see VCFinjectPedigree ) or a pedigree must be defined.
 
-## Lumpy-SV
-
- * 20180115: this tools recognize lumpy-sv genotypes
-
-
-### see also
-
- *  VcfBurdenMAF
- *  VcfBurdenFilterExac
 
 END_DOC
 */
@@ -92,43 +85,42 @@ END_DOC
 @Program(name="vcfburdenfisherh",
 	description="Fisher Case /Controls per Variant",
 	keywords= {"vcf","burden","fisher"},
-	modificationDate="20190418"
+	modificationDate="20200324",
+	creationDate="20160418"
 	)
 public class VcfBurdenFisherH
 	extends Launcher
 	{	
-	public static final double DEFAULT_MIN_FISHER_PVALUE = 0.05;
 	private static final Logger LOG = Logger.build(VcfBurdenFisherH.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-fisher","--minFisherPValue"},description="if p-value fisher(case/control vs have alt/have not alt) lower than 'fisher' the FILTER Column is Filled")
-	private double minFisherPValue = DEFAULT_MIN_FISHER_PVALUE ;
+	@Parameter(names={"-m","--min-fisher"},description="min inclusive value of fisher test. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double min_fisher = 0.0 ;
+	@Parameter(names={"-M","--max-fisher"},description="max inclusive value of fisher test. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double max_fisher = 1.0 ;
 	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
 	private boolean ignoreFiltered=false;
-	@Parameter(names={"-p","--pedigree"},description="[20180115] Pedigree file. Default: use the pedigree data in the VCF header." + Pedigree.OPT_DESCRIPTION)
-	private File pedigreeFile=null;
+	@Parameter(names={"-p","--pedigree"},description=PedigreeParser.OPT_DESC,required=true)
+	private Path pedigreeFile=null;
 	@Parameter(names={"-gtf","--gtf","--gtFiltered"},description="[20180115] Ignore FILTERed **Genotype**")
 	private boolean ignore_filtered_genotype=false;
-	@Parameter(names={"-lumpy-su-min","--lumpy-su-min"},description="[20180115] if variant identified as LUMPy-SV variant. This is the minimal number of 'SU' to consider the genotype as a variant.")
-	private int lumpy_SU_threshold=1;
-	@Parameter(names={"--attribute"},description="[20190418] Name of the attribue used as FILTER and INFO")
-	private String burdenHFisherAttr = "BurdenHFisher";
+
+	@Parameter(names={"--attribute"},description="Name of the attribute used for INFO")
+	private String burdenHFisherTag = "BurdenHFisher";
+	@Parameter(names={"--filter"},description="if this value is not blank, the FILTER will be set for this variant if the fisher values are out of the bounds.")
+	private String softFilterName = "BurdenHFisher";
 	@Parameter(names={"--report"},description="[20190418] save report as bed file")
 	private Path bedExportPath = null;
+	@Parameter(names={"--qual"},description="Overwrite QUAL column with the lowest fisher value.")
+	private boolean overwrite_qual=false;
+
 	@ParametersDelegate
 	private WritingVariantsDelegate variantsDelegate=new WritingVariantsDelegate();
 	
-	
-	
 
 	
-	private static class Count {
-		int case_have_alt =0;
-		int case_miss_alt = 0;
-		int ctrl_have_alt = 0;
-		int ctrl_miss_alt = 0;
-		}
+	
 		
 	public VcfBurdenFisherH() {
 	}
@@ -136,8 +128,6 @@ public class VcfBurdenFisherH
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final VCFIterator r, final VariantContextWriter w) {
-		final Function<VCFHeader,Set<Pedigree.Person>> caseControlExtractor = 
-				(header)->  new Pedigree.CaseControlExtractor().extract(header);
 		
 		final PrintWriter report;		
 				
@@ -149,62 +139,66 @@ public class VcfBurdenFisherH
 			report = new PrintWriter(IOUtil.openFileForBufferedUtf8Writing(this.bedExportPath));
 			}
 		
-		final Set<Pedigree.Person> individualSet;
+		
 		final VCFHeader header = r.getHeader();
-		final boolean is_lumpy_vcf_header = LumpyConstants.isLumpyHeader(header);
 
 		final VCFHeader h2= new VCFHeader(header);
-		if(this.pedigreeFile == null)
-			{
-			individualSet = caseControlExtractor.apply(header);
-			}
-		else
-			{
-			try {
-				individualSet = new Pedigree.CaseControlExtractor().extract(
-						header,
-						new Pedigree.Parser().parse(this.pedigreeFile)
-						);
-				}
-			catch(final IOException err)
-				{
-				throw new RuntimeIOException(err);
-				}
-			}
 		
+	
+		final Pedigree pedigree ;
+		
+		try {
+			pedigree = new PedigreeParser().parse(this.pedigreeFile);
+		} catch(final IOException error) {
+			throw new RuntimeIOException(error);
+		}
+		
+		final Set<Sample> individualSet = pedigree.getSamplesInVcfHeader(header).
+				filter(S->S.isStatusSet()).
+				collect(Collectors.toSet());
+				
+		if(individualSet.isEmpty()) throw new IllegalArgumentException("No overlapping samples between header and pedigree.");
 		
 
 		final VCFInfoHeaderLine fisherAlleleInfoHeader = new VCFInfoHeaderLine(
-				this.burdenHFisherAttr ,
+				this.burdenHFisherTag ,
 				VCFHeaderLineCount.A,
 				VCFHeaderLineType.Float,
 				"Fisher Exact Test Case/Control."
 				);
-		final VCFFilterHeaderLine fisherAlleleFilterHeader = new VCFFilterHeaderLine(
+		final VCFFilterHeaderLine variantFilterHeader;
+		if(StringUtils.isBlank(this.softFilterName)) {
+			variantFilterHeader = null;
+			}
+		else {
+			variantFilterHeader = new VCFFilterHeaderLine(
 				fisherAlleleInfoHeader.getID(),
-				"Fisher case:control vs miss|have ALT is lower than "+ this.minFisherPValue
+				"Fisher case:control vs miss|have ALT not between "+ this.min_fisher+" and "+this.max_fisher
 				);
+			h2.addMetaDataLine(variantFilterHeader);
+			}
 		
 		final VCFInfoHeaderLine fisherDetailInfoHeader = new VCFInfoHeaderLine(
-				this.burdenHFisherAttr + "Detail",
-				VCFHeaderLineCount.A,VCFHeaderLineType.String,
+				this.burdenHFisherTag + "Detail",
+				VCFHeaderLineCount.A,
+				VCFHeaderLineType.String,
 				"Fisher Exact Test Case/Control"
 				);
 		h2.addMetaDataLine(fisherAlleleInfoHeader);
-		h2.addMetaDataLine(fisherAlleleFilterHeader);
 		h2.addMetaDataLine(fisherDetailInfoHeader);
-
+		JVarkitVersion.getInstance().addMetaData(this, h2);
 		w.writeHeader(h2);
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(r.getHeader()).logger(LOG).build();
+		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		while(r.hasNext())
 			{
 			final VariantContext ctx = progress.apply(r.next());
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+			if(this.overwrite_qual) vcb.log10PError(VariantContext.NO_LOG10_PERROR);
 			vcb.rmAttribute(fisherAlleleInfoHeader.getID());
 			vcb.rmAttribute(fisherDetailInfoHeader.getID());
 			
 			final Set<String> oldFilters = new HashSet<>(ctx.getFilters());
-			oldFilters.remove(fisherAlleleFilterHeader.getID());
+			if(variantFilterHeader!=null) oldFilters.remove(variantFilterHeader.getID());
 			
 			
 			if(this.ignoreFiltered && ctx.isFiltered())
@@ -212,10 +206,7 @@ public class VcfBurdenFisherH
 				w.add(vcb.make());
 				continue;
 				}
-			final boolean identified_as_lumpy= 
-					is_lumpy_vcf_header && 
-					LumpyConstants.isLumpyVariant(ctx)
-					;
+			
 			boolean set_filter = true;
 			boolean found_one_alt_to_compute = false;
 			final List<String> infoData = new ArrayList<>(ctx.getAlleles().size());
@@ -226,63 +217,47 @@ public class VcfBurdenFisherH
 					infoData.add(
 							String.join("|",
 							"ALLELE",String.valueOf(observed_alt.getDisplayString()),
-							"FISHER","-1.0"
+							"FISHER","1.0"
 							));
-					fisherValues.add(-1.0);
+					fisherValues.add(1.0);
 					continue;
 					}
 				
 				/* count for fisher allele */
-				final Count count = new Count();
+				int count_case_have_alt =0;
+				int count_case_miss_alt = 0;
+				int count_ctrl_have_alt = 0;
+				int count_ctrl_miss_alt = 0;
+					
 				
 				/* loop over persons in this pop */
-				for(final Pedigree.Person p: individualSet ) 	{
+				for(final Sample p: individualSet ) 	{
 					/* get genotype for this individual */
 					final Genotype genotype = ctx.getGenotype(p.getId());
 					
-					final boolean genotype_contains_allele;
+					/* individual is not in vcf header */
+					if(genotype==null || !genotype.isCalled() || (this.ignore_filtered_genotype && genotype.isFiltered())) {
+						if(genotype==null) LOG.warn("Genotype is null for sample "+p.getId()+" not is pedigree!");
+						//no information , we consider that sample was called AND HOM REF
+						if(p.isAffected()) { count_case_miss_alt++; }
+						else { count_ctrl_miss_alt++; }
+						continue;
+						}
 					
-					if(identified_as_lumpy && !genotype.isCalled())
-						{
-						if(this.ignore_filtered_genotype && genotype.isFiltered())
-							{
-							if(p.isAffected()) { count.case_miss_alt++; }
-							else { count.ctrl_miss_alt++; }
-							continue;
-							}
-						if(!genotype.hasExtendedAttribute("SU"))
-							{
-							throw new JvarkitException.FileFormatError(
-									"Variant identified as lumpysv, but not attribute 'SU' defined in genotye "+genotype);
-							}
-						final int su_count = genotype.getAttributeAsInt("SU", 0);
-						genotype_contains_allele = su_count>= this.lumpy_SU_threshold;
-						}
-					else
-						{
-						/* individual is not in vcf header */
-						if(genotype==null || !genotype.isCalled() || (this.ignore_filtered_genotype && genotype.isFiltered())) {
-							if(genotype==null) LOG.warn("Genotype is null for sample "+p.getId()+" not is pedigree!");
-							//no information , we consider that sample was called AND HOM REF
-							if(p.isAffected()) { count.case_miss_alt++; }
-							else { count.ctrl_miss_alt++; }
-							continue;
-							}
+					/* loop over alleles */
+					final boolean genotype_contains_allele = genotype.getAlleles().stream().
+							anyMatch(A->A.equals(observed_alt));
 						
-						/* loop over alleles */
-						genotype_contains_allele = genotype.getAlleles().stream().
-								anyMatch(A->A.equals(observed_alt));
 						
-						}
 					
 					/* fisher */
 					if(genotype_contains_allele) {
-						if(p.isAffected()) { count.case_have_alt++; ;}
-						else { count.ctrl_have_alt++; }
+						if(p.isAffected()) { count_case_have_alt++; ;}
+						else { count_ctrl_have_alt++; }
 						}
 					else {
-						if(p.isAffected()) { count.case_miss_alt++; }
-						else { count.ctrl_miss_alt++; }
+						if(p.isAffected()) { count_case_miss_alt++; }
+						else { count_ctrl_miss_alt++; }
 						}
 				}/* end of loop over persons */
 				
@@ -291,8 +266,8 @@ public class VcfBurdenFisherH
 				
 				/* fisher test for alleles */
 				final FisherExactTest fisherAlt = FisherExactTest.compute(
-						count.case_have_alt, count.case_miss_alt,
-						count.ctrl_have_alt, count.ctrl_miss_alt
+						count_case_have_alt, count_case_miss_alt,
+						count_ctrl_have_alt, count_ctrl_miss_alt
 						);
 				
 				fisherValues.add(fisherAlt.getAsDouble());
@@ -300,52 +275,55 @@ public class VcfBurdenFisherH
 						String.join("|",
 						"ALLELE",String.valueOf(observed_alt.getDisplayString()),
 						"FISHER",String.valueOf(fisherAlt.getAsDouble()),
-						"CASE_HAVE_ALT",String.valueOf(count.case_have_alt),
-						"CASE_MISS_ALT",String.valueOf(count.case_miss_alt),
-						"CTRL_HAVE_ALT",String.valueOf(count.ctrl_have_alt),
-						"CTRL_MISS_ALT",String.valueOf(count.ctrl_miss_alt)
+						"CASE_HAVE_ALT",String.valueOf(count_case_have_alt),
+						"CASE_MISS_ALT",String.valueOf(count_case_miss_alt),
+						"CTRL_HAVE_ALT",String.valueOf(count_ctrl_have_alt),
+						"CTRL_MISS_ALT",String.valueOf(count_ctrl_miss_alt)
 						));
 				
 				found_one_alt_to_compute = true;
 				
-				report.print(ctx.getContig());
-				report.print('\t');
-				report.print(ctx.getStart()-1);
-				report.print('\t');
-				report.print(ctx.getEnd());
-				report.print('\t');
-				report.print(ctx.getReference().getDisplayString());
-				report.print('\t');
-				report.print(observed_alt.getDisplayString());
-				report.print('\t');
-				report.print(fisherAlt.getAsDouble());
-				report.print('\t');
-				report.print(count.case_have_alt);
-				report.print('\t');
-				report.print(count.case_miss_alt);
-				report.print('\t');
-				report.print(count.ctrl_have_alt);
-				report.print('\t');
-				report.print(count.ctrl_miss_alt);
-				report.print('\t');
+				final boolean is_in_range = this.min_fisher<=fisherAlt.getAsDouble() && fisherAlt.getAsDouble() <=this.max_fisher;
 				
-				if( fisherAlt.getAsDouble() >= this.minFisherPValue ) {
+				if( is_in_range ) {
 					set_filter = false;
-					report.print(fisherAlleleFilterHeader.getID());
-					}
-				else
-					{
-					report.print(".");
-					}
-				
-				report.println();
-				} //end of for each ALT allele
 
+					report.print(ctx.getContig());
+					report.print('\t');
+					report.print(ctx.getStart()-1);
+					report.print('\t');
+					report.print(ctx.getEnd());
+					report.print('\t');
+					report.print(ctx.getReference().getDisplayString());
+					report.print('\t');
+					report.print(observed_alt.getDisplayString());
+					report.print('\t');
+					report.print(fisherAlt.getAsDouble());
+					report.print('\t');
+					report.print(count_case_have_alt);
+					report.print('\t');
+					report.print(count_case_miss_alt);
+					report.print('\t');
+					report.print(count_ctrl_have_alt);
+					report.print('\t');
+					report.print(count_ctrl_miss_alt);
+					report.println();
+					}	
+			} //end of for each ALT allele
+			
+			//soft filter, skip variant
+			if(set_filter  && found_one_alt_to_compute && variantFilterHeader==null) continue;//skip variant
+			
 			vcb.attribute(fisherAlleleInfoHeader.getID(),fisherValues);
 			vcb.attribute(fisherDetailInfoHeader.getID(),infoData );
 			
+			if(this.overwrite_qual) {
+				final OptionalDouble minV = fisherValues.stream().mapToDouble(V->V.doubleValue()).min();
+				if(minV.isPresent()) vcb.log10PError(minV.getAsDouble()/-10);
+			}
+			
 			if( set_filter && found_one_alt_to_compute) {
-				vcb.filter(fisherAlleleFilterHeader.getID());
+				vcb.filter(variantFilterHeader.getID());
 				}
 			w.add(vcb.make());
 			report.println();
@@ -360,8 +338,12 @@ public class VcfBurdenFisherH
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtils.isBlank(this.burdenHFisherAttr)) {
+		if(StringUtils.isBlank(this.burdenHFisherTag)) {
 			LOG.error("empty  burdenHFisherAttr");
+			return -1;
+			}
+		if(this.min_fisher>=this.max_fisher) {
+			LOG.error("bad min/max.");
 			return -1;
 			}
 		return doVcfToVcfPath(args,this.variantsDelegate,this.outputFile);

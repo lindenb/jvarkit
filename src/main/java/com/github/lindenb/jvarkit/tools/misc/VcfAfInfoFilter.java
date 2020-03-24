@@ -25,7 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +33,7 @@ import java.util.Set;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -41,6 +42,8 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.StringUtil;
@@ -80,18 +83,23 @@ END_DOC
  */
 @Program(name="vcfafinfofilter",
 	description="Filter VCF annotated with external (AF or AC/AN) frequency information like vcfgnomad",
-	keywords={"vcf","annotation","gnomad"})
+	keywords={"vcf","annotation","af"},
+	modificationDate="20200324",
+	creationDate="20180625"
+	)
 public class VcfAfInfoFilter extends Launcher{
 	
 	private static final Logger LOG = Logger.build(VcfAfInfoFilter.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"--filter","-f"},description="set this filter if all ALT fails the treshold. If empty :remove the variant")
 	private String filterAllAltInGnomad="";
 	@Parameter(names={"--gtfilter","-gtf"},description="set this *GENOTYPE* filter if all ALT for a Genotype fail the treshold. If empty :set genotype to NO_CALL")
 	private String genotypeFilter="HIGH_AF";
-	@Parameter(names={"--treshold","-t"},description="Treshold for allele Frequency. ALT alleles above this AF value will be subject to filtration. [Default modified 20180905]")
-	private double user_af_treshold = 1E-3;
+	@Parameter(names={"--treshold","-t","--max-af"},description="Treshold for allele Frequency. Maximum. ALT alleles above this AF value will be subject to filtration. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double user_af_maximum = 1E-3;
+	@Parameter(names={"--min-af"},description="Min for allele Frequency. ALT alleles under this AF value will be subject to filtration. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double user_af_minimum = 0.0;
 	@Parameter(names={"-af","--af"},description="A list of AF fields, separated with comma,semicolon or whitespace that will be used to extract a AF field.",hidden=true)
 	private String deprecated_user_af_fields = "";
 	@Parameter(names={"-acn","--acn"},description="A list of pairs of AC/AF fields separated with comma,semicolon or whitespace that will be used to calculate the AF. "
@@ -108,7 +116,8 @@ public class VcfAfInfoFilter extends Launcher{
 	private boolean filter_for_any_allele = false;
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
-
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 
 	public VcfAfInfoFilter() {
@@ -194,16 +203,19 @@ public class VcfAfInfoFilter extends Launcher{
 				LOG.warn("No extractor was defined !");
 				} 
 			
-			
-			
 			final Set<VCFHeaderLine> headerLines = new HashSet<>();
-			final VCFFilterHeaderLine noAltVariantFilter = new VCFFilterHeaderLine(
-					filterAllAltInGnomad,
-					"All ALT alleles don't pass the gnomad treshold AF < "+this.user_af_treshold
-					);
+			final VCFFilterHeaderLine noAltVariantFilter;
 			if(!StringUtil.isBlank(this.filterAllAltInGnomad))
 				{
+				noAltVariantFilter = new VCFFilterHeaderLine(
+						this.filterAllAltInGnomad,
+						"All ALT alleles don't pass the "+this.user_af_minimum+" < gnomad treshold AF < "+this.user_af_maximum
+						);
 				headerLines.add(noAltVariantFilter);
+				}
+			else
+				{
+				noAltVariantFilter = null;
 				}
 			VCFStandardHeaderLines.addStandardFormatLines(headerLines, true, VCFConstants.GENOTYPE_FILTER_KEY);
 			JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), header);
@@ -239,7 +251,7 @@ public class VcfAfInfoFilter extends Launcher{
 						{
 						final Double af = afo_list.get(x);
 						if(af==null) continue;
-						if(af.doubleValue()> this.user_af_treshold)
+						if(af.doubleValue() < this.user_af_minimum || af.doubleValue()> this.user_af_maximum)
 							{
 							if(this.filter_for_any_allele) {
 								ok_alleles.clear();
@@ -254,18 +266,15 @@ public class VcfAfInfoFilter extends Launcher{
 
 				if(ok_alleles.isEmpty() )
 					{
-					if(!StringUtil.isBlank(this.filterAllAltInGnomad))
+					if(noAltVariantFilter!=null)
 						{
-						out.add(new VariantContextBuilder(ctx).filter(this.filterAllAltInGnomad).make());
+						out.add(new VariantContextBuilder(ctx).filter(noAltVariantFilter.getID()).make());
 						}
 					continue;
 					}
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				if(ok_alleles.isEmpty())
-					{
-					vcb.filter(noAltVariantFilter.getID());
-					}
+				
 				final List<Genotype> genotypes = new ArrayList<>(ctx.getNSamples());
 				for(final Genotype gt:ctx.getGenotypes()) {
 					if(gt.isNoCall() || gt.isHomRef())
@@ -306,7 +315,7 @@ public class VcfAfInfoFilter extends Launcher{
 			progress.close();
 			return 0;
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
@@ -314,11 +323,15 @@ public class VcfAfInfoFilter extends Launcher{
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.user_af_minimum >= this.user_af_maximum) {
+			LOG.error("min af > max af");
+			return -1;
+			}
 		try 
 			{
-			return doVcfToVcf(args,this.outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
