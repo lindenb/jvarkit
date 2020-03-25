@@ -100,6 +100,7 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/400463](https://www.biostars.org/p/400463)
  * [https://www.biostars.org/p/409177](https://www.biostars.org/p/409177)
  * [https://www.biostars.org/p/410405](https://www.biostars.org/p/410405)
+ * [https://www.biostars.org/p/428861](https://www.biostars.org/p/428861)
 
 
 ## Compilation

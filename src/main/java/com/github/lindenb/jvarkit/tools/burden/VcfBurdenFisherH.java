@@ -319,7 +319,7 @@ public class VcfBurdenFisherH
 			
 			if(this.overwrite_qual) {
 				final OptionalDouble minV = fisherValues.stream().mapToDouble(V->V.doubleValue()).min();
-				if(minV.isPresent()) vcb.log10PError(minV.getAsDouble()/-10);
+				if(minV.isPresent()) vcb.log10PError(Math.max(1.0E-100,minV.getAsDouble())/-10);
 			}
 			
 			if( set_filter && found_one_alt_to_compute) {

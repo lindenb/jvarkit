@@ -80,7 +80,7 @@ END_DOC
 @Program(name="vcfpeekaf",
 		description="Peek the AF from another VCF",
 		keywords={"vcf","annotation","af"},
-		modificationDate="20200324",
+		modificationDate="20200325",
 		creationDate="20191202"
 		)
 public class VcfPeekAf extends Launcher
@@ -99,7 +99,7 @@ public class VcfPeekAf extends Launcher
 	private int buffer_size = 100_000;
 	@Parameter(names={"-l","--list"},description="List available AF peekers and exit.",help=true)
 	private boolean list_peekers = false;
-	@Parameter(names={"-p","--peeker"},description="Peeker name",required=true)
+	@Parameter(names={"-p","--peeker"},description="AF Peeker name. Use option --list to get a list of peekers.",required=true)
 	private String peekerName = null;
 	@Parameter(names={"-t","--treshold","--max-af"},description="AF max treshold. Variant is accepted is computed AF <= treshold.",converter=FractionConverter.class,required=true)
 	private double af_maximum = 1.0;
@@ -109,6 +109,7 @@ public class VcfPeekAf extends Launcher
 	private boolean disable_alt_concordance = false;
 	@Parameter(names={"-P","--peek-info"},description="Name of INFO tag in the vcf database to extract the AF value for exractor .'Custom'"  )
 	private String custom_peek_info_name = null;
+
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
@@ -219,6 +220,7 @@ public class VcfPeekAf extends Launcher
 			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.noGenotypes();
 			vcb.noID();
+			vcb.unfiltered();
 			for(final String key:new HashSet<>(ctx.getAttributes().keySet())) {
 				if(key.equals(VCFConstants.ALLELE_COUNT_KEY)) continue;
 				if(key.equals(VCFConstants.ALLELE_NUMBER_KEY)) continue;
@@ -328,6 +330,7 @@ public class VcfPeekAf extends Launcher
 			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.noGenotypes();
 			vcb.noID();
+			vcb.unfiltered();
 			for(final String key:new HashSet<>(ctx.getAttributes().keySet())) {
 				if(key.equals(getPeekInfoTagName())) continue;
 				vcb.rmAttribute(key);
@@ -432,7 +435,7 @@ public class VcfPeekAf extends Launcher
 		
 		@Override
 		VariantContext sanitize(VariantContext ctx) {
-			return new VariantContextBuilder(ctx).noID().attributes(Collections.emptyMap()).make();
+			return new VariantContextBuilder(ctx).noID().unfiltered().attributes(Collections.emptyMap()).make();
 			}
 		
 		@Override
@@ -443,7 +446,7 @@ public class VcfPeekAf extends Launcher
 			}
 		
 		@Override
-		VariantContext applyIgnoringAlt(VariantContext ctx, List<VariantContext> overlappers) {
+		VariantContext applyIgnoringAlt(VariantContext ctx, final List<VariantContext> overlappers) {
 			OptionalDouble optFreq = OptionalDouble.empty();
 			for(final VariantContext ctx2:overlappers) {
 				final double an= ctx2.getGenotypes().stream().filter(G->G.isCalled()).mapToInt(G->G.getAlleles().size()).sum();

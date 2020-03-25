@@ -13,10 +13,21 @@ Usage: vcfcombinetwosnvs [options] Files
     -B, --bam
       Optional indexed BAM file used to get phasing information. This can be a 
       list of bam if the filename ends with '.list'
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -P, --bedpe
       save optional report as bedpe
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
   * -g, --gtf
-      A GTF file.
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
@@ -66,6 +77,11 @@ $ ./gradlew vcfcombinetwosnvs
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20160215
 
 ## Source code 
 

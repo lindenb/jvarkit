@@ -71,6 +71,8 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.Cigar;
@@ -88,6 +90,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -179,7 +182,8 @@ END_DOC
 @Program(name="vcfcombinetwosnvs",
 	description="Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert",
 	keywords={"vcf","annotation","prediction","protein","mnv"},
-	modificationDate="20190322"
+	modificationDate="20200425",
+	creationDate="20160215"
 	)
 public class VCFCombineTwoSnvs extends Launcher
 	{
@@ -198,7 +202,8 @@ public class VCFCombineTwoSnvs extends Launcher
 
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
-	
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new  WritingVariantsDelegate();
 	
 	/** known Gene collection */
 	private final IntervalTreeMap<List<Transcript>> knownGenes=new IntervalTreeMap<>();
@@ -1092,7 +1097,7 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 				header2.addMetaDataLine(vcfFilterHeaderLine);
 				}
 			
-			w = super.openVariantContextWriter(saveAs);
+			w = this.writingVariantsDelegate.dictionary(dict).open(IOUtil.toPath(saveAs));
 			w.writeHeader(header2);
 			
 		    ProgressFactory.Watcher<CombinedMutation> progress3= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();

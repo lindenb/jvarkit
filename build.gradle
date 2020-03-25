@@ -2103,7 +2103,7 @@ all.add( task("vcftail", type: CompileJVarkit) {
 	});
 all.add( task("vcffamilies", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("uniprotfilterjs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.UniprotFilterJS"

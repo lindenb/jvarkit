@@ -11,8 +11,21 @@ Fisher Case /Controls per Variant
 Usage: vcfburdenfisherh [options] Files
   Options:
     --attribute
-      [20190418] Name of the attribue used as FILTER and INFO
+      Name of the attribute used for INFO
       Default: BurdenHFisher
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --filter
+      if this value is not blank, the FILTER will be set for this variant if 
+      the fisher values are out of the bounds.
+      Default: BurdenHFisher
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -gtf, --gtf, --gtFiltered
       [20180115] Ignore FILTERed **Genotype**
       Default: false
@@ -24,22 +37,27 @@ Usage: vcfburdenfisherh [options] Files
       [20171031] Don't try to calculate things why variants already FILTERed 
       (faster) 
       Default: false
-    -lumpy-su-min, --lumpy-su-min
-      [20180115] if variant identified as LUMPy-SV variant. This is the 
-      minimal number of 'SU' to consider the genotype as a variant.
-      Default: 1
-    -fisher, --minFisherPValue
-      if p-value fisher(case/control vs have alt/have not alt) lower than 
-      'fisher' the FILTER Column is Filled
-      Default: 0.05
+    -M, --max-fisher
+      max inclusive value of fisher test. A decimal number between 0.0 and 
+      1.0. If the value ends with '%' it is interpretted as a percentage eg. 
+      '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => 
+      '0.01'. 
+      Default: 1.0
+    -m, --min-fisher
+      min inclusive value of fisher test. A decimal number between 0.0 and 
+      1.0. If the value ends with '%' it is interpretted as a percentage eg. 
+      '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => 
+      '0.01'. 
+      Default: 0.0
     -o, --output
       Output file. Optional . Default: stdout
-    -p, --pedigree
-      [20180115] Pedigree file. Default: use the pedigree data in the VCF 
-      header.A pedigree is a text file delimited with tabs. No header. Columns 
-      are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or 
-      '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
-      affected,-9 unknown
+  * -p, --pedigree
+      A pedigree file. tab delimited. Columns: family,id,father,mother, 
+      sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
+    --qual
+      Overwrite QUAL column with the lowest fisher value.
+      Default: false
     --report
       [20190418] save report as bed file
     --version
@@ -71,6 +89,11 @@ $ ./gradlew vcfburdenfisherh
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20160418
 
 ## Source code 
 
@@ -108,13 +131,4 @@ Variants in that VCF should have one and only one ALT allele. Use https://github
 
 VCF header must contain a pedigree ( see VCFinjectPedigree ) or a pedigree must be defined.
 
-## Lumpy-SV
-
- * 20180115: this tools recognize lumpy-sv genotypes
-
-
-### see also
-
- *  VcfBurdenMAF
- *  VcfBurdenFilterExac
 

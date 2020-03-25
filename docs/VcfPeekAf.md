@@ -49,7 +49,7 @@ Usage: vcfpeekaf [options] Files
       Name of INFO tag in the vcf database to extract the AF value for 
       exractor .'Custom'
   * -p, --peeker
-      Peeker name
+      AF Peeker name. Use option --list to get a list of peekers.
     -T, --tag
       INFO tag to put found frequency. empty: no extra tag.
       Default: <empty string>
