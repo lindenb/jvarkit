@@ -19,7 +19,11 @@ Usage: vcfburdenfisherh [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    --filter
+    -F2, --ctrlgtcase
+      Set this FILTER if the proportion of Controls carrying a ALT allele is 
+      creater than proportion of CASES. if blank, variant is discarded.
+      Default: CTRL_CASE_RATIO
+    -F1, --filter
       if this value is not blank, the FILTER will be set for this variant if 
       the fisher values are out of the bounds.
       Default: BurdenHFisher
@@ -55,7 +59,7 @@ Usage: vcfburdenfisherh [options] Files
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
       sex:(0:unknown;1:male;2:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
-    --qual
+    -Q, --qual
       Overwrite QUAL column with the lowest fisher value.
       Default: false
     --report

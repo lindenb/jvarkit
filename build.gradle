@@ -1171,6 +1171,10 @@ all2.add( task("fastqsplitinterleaved", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqSplitInterleaved"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("fastqsplit", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastq.FastqSplit"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("findallcoverageatposition", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

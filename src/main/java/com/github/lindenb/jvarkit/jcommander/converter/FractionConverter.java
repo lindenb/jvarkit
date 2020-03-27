@@ -34,7 +34,7 @@ public class FractionConverter implements IStringConverter<Double> {
 			; 
 	@Override
 	public Double convert(final String s0) {
-		if(StringUtils.isBlank(s0)) throw new IllegalArgumentException("Cannot convert empty string to decimal numnber.");
+		if(StringUtils.isBlank(s0)) throw new IllegalArgumentException("Cannot convert empty string to decimal number.");
 		String s=s0.trim();
 		double value;
 		try {
@@ -42,7 +42,7 @@ public class FractionConverter implements IStringConverter<Double> {
 				s=s.substring(s.length()-1).trim();
 				value = Double.parseDouble(s)/100.0;
 				}
-			else if(s.contains("/'")) {
+			else if(s.contains("/")) {
 				final int slash = s.indexOf("/"); 
 				if(slash==0 || slash+1==s.length()) throw new IllegalArgumentException("bad division in '"+s0+"'");
 				final double v1 = Double.parseDouble(s.substring(0, slash));
@@ -56,10 +56,10 @@ public class FractionConverter implements IStringConverter<Double> {
 				}
 			}
 		catch(final NumberFormatException err) {
-			throw new IllegalArgumentException("Cannot convert "+s0+" to decimal numnber.",err);
+			throw new IllegalArgumentException("Cannot convert "+s0+" to decimal number.",err);
 			}
 		if(Double.isNaN(value) || Double.isInfinite(value) || value < 0.0 || value >1.0) {
-			throw new IllegalArgumentException("Cannot convert "+s0+" to decimal numnber. Value should be between 0 and 1 but got '"+ value+"'.");
+			throw new IllegalArgumentException("Cannot convert "+s0+" to decimal number. Value should be between 0 and 1 but got '"+ value+"'.");
 			}
 		return value;
 		}

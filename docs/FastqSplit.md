@@ -1,31 +1,41 @@
-# FastqSplitInterleaved
+# FastqSplit
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Split interleaved Fastq files.
+Split Fastq files into multiple files.
 
 
 ## Usage
 
 ```
-Usage: fastqsplitinterleaved [options] Files
+Usage: fastqsplit [options] Files
   Options:
     -async, --async
       use async I/O
       Default: false
+    -n, -N, --count
+      number of splits
+      Default: 10
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -ii, --input-interleaved
+      input is paired interleaved
+      Default: false
+    -m, --manifest
+      Optional manifest file
     -md5, --md5
       write md5 file
       Default: false
+  * -o, --output
+      Output file name. It MUST  end with a fastq suffix and MUST contain the 
+      word __TAG__
+    -oi, --output-interleaved
+      output is interleaved
+      Default: false
     --version
       print version and exit
-  * -a, -R1, -F
-      R1 file
-  * -b, -R2, -R
-      R2 file
 
 ```
 
@@ -47,14 +57,19 @@ Usage: fastqsplitinterleaved [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ ./gradlew fastqsplitinterleaved
+$ ./gradlew fastqsplit
 ```
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20200327
+
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplitInterleaved.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplitInterleaved.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplit.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplit.java)
 
 
 ## Contribute
@@ -68,7 +83,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **fastqsplitinterleaved** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **fastqsplit** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -81,7 +96,7 @@ The current reference is:
 ## Example
 
 ```bash
-$ curl -sk "https://raw.githubusercontent.com/bigdatagenomics/adam/fff8ae259e8f6958eefd8de9a3ec39d33392fb21/adam-core/src/test/resources/interleaved_fastq_sample1.fq" |\
-	java -jar dist/fastqsplitinterleaved.jar  -R1 R1.fastq.gz -R2 R1.fastq.gz 
+
+
 ```
 

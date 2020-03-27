@@ -108,11 +108,13 @@ public class VcfBurdenFisherH
 
 	@Parameter(names={"--attribute"},description="Name of the attribute used for INFO")
 	private String burdenHFisherTag = "BurdenHFisher";
-	@Parameter(names={"--filter"},description="if this value is not blank, the FILTER will be set for this variant if the fisher values are out of the bounds.")
+	@Parameter(names={"-F1","--filter"},description="if this value is not blank, the FILTER will be set for this variant if the fisher values are out of the bounds.")
 	private String softFilterName = "BurdenHFisher";
+	@Parameter(names={"-F2","--ctrlgtcase"},description="Set this FILTER if the proportion of Controls carrying a ALT allele is creater than proportion of CASES. if blank, variant is discarded.")
+	private String filterCtrlgtCaseRatioStr = "CTRL_CASE_RATIO";
 	@Parameter(names={"--report"},description="[20190418] save report as bed file")
 	private Path bedExportPath = null;
-	@Parameter(names={"--qual"},description="Overwrite QUAL column with the lowest fisher value.")
+	@Parameter(names={"-Q","--qual"},description="Overwrite QUAL column with the lowest fisher value.")
 	private boolean overwrite_qual=false;
 
 	@ParametersDelegate
@@ -172,10 +174,23 @@ public class VcfBurdenFisherH
 			}
 		else {
 			variantFilterHeader = new VCFFilterHeaderLine(
-				fisherAlleleInfoHeader.getID(),
+				this.softFilterName,
 				"Fisher case:control vs miss|have ALT not between "+ this.min_fisher+" and "+this.max_fisher
 				);
 			h2.addMetaDataLine(variantFilterHeader);
+			}
+		
+		final VCFFilterHeaderLine filterCtrlgtCaseRatio;
+		
+		if(StringUtils.isBlank(this.filterCtrlgtCaseRatioStr)) {
+			filterCtrlgtCaseRatio = null;
+			}
+		else {
+			filterCtrlgtCaseRatio = new VCFFilterHeaderLine(
+					this.filterCtrlgtCaseRatioStr,
+					"The number of CONTROLS carrying the ALT allele is creater than the number of CASES carrying the ALT allele."
+					);
+			h2.addMetaDataLine(filterCtrlgtCaseRatio);
 			}
 		
 		final VCFInfoHeaderLine fisherDetailInfoHeader = new VCFInfoHeaderLine(
@@ -199,6 +214,7 @@ public class VcfBurdenFisherH
 			
 			final Set<String> oldFilters = new HashSet<>(ctx.getFilters());
 			if(variantFilterHeader!=null) oldFilters.remove(variantFilterHeader.getID());
+			if(filterCtrlgtCaseRatio!=null) oldFilters.remove(filterCtrlgtCaseRatio.getID());
 			
 			
 			if(this.ignoreFiltered && ctx.isFiltered())
@@ -206,9 +222,11 @@ public class VcfBurdenFisherH
 				w.add(vcb.make());
 				continue;
 				}
+						
 			
-			boolean set_filter = true;
-			boolean found_one_alt_to_compute = false;
+			boolean set_filter_in_range = true;
+			boolean set_filter_case_ctrl_ratio = true;
+			boolean found_one_alt = false;
 			final List<String> infoData = new ArrayList<>(ctx.getAlleles().size());
 			final List<Double> fisherValues = new ArrayList<>(ctx.getAlleles().size());
 			
@@ -248,8 +266,6 @@ public class VcfBurdenFisherH
 					final boolean genotype_contains_allele = genotype.getAlleles().stream().
 							anyMatch(A->A.equals(observed_alt));
 						
-						
-					
 					/* fisher */
 					if(genotype_contains_allele) {
 						if(p.isAffected()) { count_case_have_alt++; ;}
@@ -261,8 +277,6 @@ public class VcfBurdenFisherH
 						}
 				}/* end of loop over persons */
 				
-				
-
 				
 				/* fisher test for alleles */
 				final FisherExactTest fisherAlt = FisherExactTest.compute(
@@ -280,14 +294,29 @@ public class VcfBurdenFisherH
 						"CTRL_HAVE_ALT",String.valueOf(count_ctrl_have_alt),
 						"CTRL_MISS_ALT",String.valueOf(count_ctrl_miss_alt)
 						));
+				found_one_alt = true;
 				
-				found_one_alt_to_compute = true;
 				
 				final boolean is_in_range = this.min_fisher<=fisherAlt.getAsDouble() && fisherAlt.getAsDouble() <=this.max_fisher;
 				
+				
+				final int total_ctrls = count_ctrl_have_alt + count_ctrl_miss_alt;
+				final int total_cases = count_case_have_alt + count_case_miss_alt;
+				
+				// check ratio case/control
+				if( total_ctrls>0 && total_cases>0 && 
+					(count_case_have_alt/(double)total_cases) >= (count_ctrl_have_alt/(double)total_ctrls)) {
+					set_filter_case_ctrl_ratio = false;
+					}
+			
 				if( is_in_range ) {
-					set_filter = false;
+					set_filter_in_range = false;
+				}
 
+				
+				
+				
+				if( this.bedExportPath != null && is_in_range ) {
 					report.print(ctx.getContig());
 					report.print('\t');
 					report.print(ctx.getStart()-1);
@@ -311,22 +340,35 @@ public class VcfBurdenFisherH
 					}	
 			} //end of for each ALT allele
 			
+			// better than nothing, otherwise i'll mess with the filters
+			if(!found_one_alt) {
+				w.add(vcb.make());
+				continue;
+			}
+			
 			//soft filter, skip variant
-			if(set_filter  && found_one_alt_to_compute && variantFilterHeader==null) continue;//skip variant
+			if(
+				(set_filter_in_range && variantFilterHeader==null) ||
+				(set_filter_case_ctrl_ratio && filterCtrlgtCaseRatio==null)
+				) continue;//skip variant
 			
 			vcb.attribute(fisherAlleleInfoHeader.getID(),fisherValues);
 			vcb.attribute(fisherDetailInfoHeader.getID(),infoData );
 			
 			if(this.overwrite_qual) {
 				final OptionalDouble minV = fisherValues.stream().mapToDouble(V->V.doubleValue()).min();
-				if(minV.isPresent()) vcb.log10PError(Math.max(1.0E-100,minV.getAsDouble())/-10);
-			}
+				if(minV.isPresent()) vcb.log10PError(Math.max(1.0E-100/* arbitrary */,minV.getAsDouble())/-10);
+				}
 			
-			if( set_filter && found_one_alt_to_compute) {
+			if( set_filter_in_range  && variantFilterHeader!=null) {
 				vcb.filter(variantFilterHeader.getID());
 				}
+			
+			if( set_filter_case_ctrl_ratio  && filterCtrlgtCaseRatio!=null) {
+				vcb.filter(filterCtrlgtCaseRatio.getID());
+				}
+			
 			w.add(vcb.make());
-			report.println();
 			}
 		progress.close();
 		w.close();

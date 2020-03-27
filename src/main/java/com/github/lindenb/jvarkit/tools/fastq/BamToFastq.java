@@ -62,7 +62,7 @@ BEGIN_DOC
 
 # Deprecated:
 
-use picard please
+use picard or samtools please
 
 # Warnings
 
