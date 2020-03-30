@@ -179,7 +179,7 @@ public abstract class IntervalListProvider {
 		else if(StringUtils.endsWith(path, ".gtf",".gtf.gz",".gff",".gff.gz")) {
 			return new ProviderGtfGff(path);
 			}
-		else if(path.endsWith(FileExtensions.INTERVAL_LIST)) {
+		else if(path.endsWith(FileExtensions.INTERVAL_LIST) || path.endsWith(FileExtensions.INTERVAL_LIST+".gz")) {
 			return new ProviderIsIntervalList(path);
 			}
 		else

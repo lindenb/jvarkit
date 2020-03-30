@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.structvar;
 
 
+import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -39,11 +40,9 @@ import java.util.function.BiFunction;
 import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
 
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.RunMedian;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -51,7 +50,9 @@ import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.iterator.LineIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -71,6 +72,8 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -86,6 +89,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFIteratorBuilder;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 
@@ -110,7 +114,7 @@ END_DOC
 @Program(name="validatecnv",
 	description="Experimental CNV Genotyping. Look variance of depths before/after putative known CNV.",
 	keywords= {"cnv","bam","sam","vcf","depth"},
-	modificationDate="20200121",
+	modificationDate="20200330",
 	generate_doc=false
 	)
 public class ValidateCnv extends Launcher
@@ -121,9 +125,9 @@ public class ValidateCnv extends Launcher
 	private Path outputFile=null;
 	@Parameter(names={"-B","--bams","--bam"},description="Path to bam. File with suffix .list is interpretted as a file containing a list of paths to bams.")
 	private List<String> bamFiles = new ArrayList<>();
-	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
 	private Path rererencePath = null;
-	@Parameter(names={"-x","--extend"},description="Search the boundaries in a region that is 'x'*(CNV-length)")
+	@Parameter(names={"-x","--extend"},description="Search the boundaries in a region that is 'x'*(CNV-length). So if x if 0.5, a region chr1:100-200 will be searched chr1:50-100 + chr1:200-250")
 	private double extendFactor=0.5;	
 	@Parameter(names={"-md","--min-dp"},description="At least one of the bounds must have a median-depth greater than this value.")
 	private int min_depth = 20;
@@ -141,18 +145,16 @@ public class ValidateCnv extends Launcher
 	private double median_factor = 0.33;
 	@Parameter(names={"--min-read-support-del"},description="min number of read supporting deletion.")
 	private int min_read_supporting_del=3;
+	@Parameter(names={"--mapq"},description="min mapping quality.")
+	private int min_mapq = 20;
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
-	
 
 	private class BamInfo implements Closeable {
-		final Path path;
-		final SamReader samReader;
+	final SamReader samReader;
 		final String sampleName;
-		final ContigNameConverter ctgNameConverter;
 		BamInfo(final Path path) throws IOException {
-			this.path = path;
 			final SamReaderFactory samReaderFactory =  SamReaderFactory.makeDefault().
 					referenceSequence(rererencePath).
 					validationStringency(ValidationStringency.LENIENT)
@@ -162,9 +164,6 @@ public class ValidateCnv extends Launcher
 				throw new IOException("Bam is not indexed : "+path);
 				}
 
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.samReader.getFileHeader());
-			this.ctgNameConverter = ContigNameConverter.fromOneDictionary(dict);
-			
 			
 			this.sampleName =  samReader.getFileHeader().
 					getReadGroups().
@@ -172,7 +171,7 @@ public class ValidateCnv extends Launcher
 					map(R->R.getSample()).
 					filter(S->!StringUtil.isBlank(S)).
 					findFirst().
-					orElseThrow(()->new IOException("no ReadGroup/SM defined in "+path));
+					orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
 			
 			}
 		@Override
@@ -206,7 +205,7 @@ public class ValidateCnv extends Launcher
 				mapToDouble(POS->array[POS]).
 				toArray();
 		return calculateCoverage(cov,0,cov.length);
-	}
+		}
 	
 	
 	private Coverage calculateCoverage(final double array[],int array_start,int array_end) {
@@ -266,6 +265,57 @@ public class ValidateCnv extends Launcher
 		
 	}
 	
+	private CloseableIterator<Locatable> openVcfAsIterable(final String input) throws IOException {
+		final VCFIteratorBuilder vcfIteratorBuilder = new VCFIteratorBuilder();
+		final VCFIterator iter1 = input==null?vcfIteratorBuilder.open(stdin()):vcfIteratorBuilder.open(input);
+		return new CloseableIterator<Locatable>() {
+			@Override
+			public boolean hasNext() {
+				return iter1.hasNext();
+				}
+
+			@Override
+			public Locatable  next() {
+				final VariantContext ctx = iter1.next();
+				final StructuralVariantType svType = ctx.getStructuralVariantType();
+				if(!(svType==StructuralVariantType.DEL || svType==StructuralVariantType.DUP || svType==StructuralVariantType.INS) ) {
+					return null;
+					}
+				
+				if(ctx.getNAlleles()!=2) return null;
+				return new SimpleInterval(iter1.next());
+				}
+
+			@Override
+			public void close() {
+				iter1.close();
+				}
+			};
+		}
+	private CloseableIterator<Locatable> openBedAsIterable(final String input) throws IOException {
+		final BedLineCodec codec = new BedLineCodec();
+		final BufferedReader iter1 = (input==null?IOUtils.openStreamForBufferedReader(stdin()):IOUtils.openURIForBufferedReading(input));
+		final LineIterator iter2 = new LineIterator(iter1);
+		return new CloseableIterator<Locatable>() {
+			@Override
+			public boolean hasNext() {
+				return iter2.hasNext();
+				}
+
+			@Override
+			public Locatable  next() {
+				String line = iter2.next();
+				if(BedLine.isBedHeader(line)) return null;
+				return codec.decode(line);
+				}
+
+			@Override
+			public void close() {
+				iter2.close();
+				CloserUtil.close(iter1);
+				}
+			};
+		}
 	@Override
 	public int doWork(final List<String> args) {		
 		if(this.extendFactor<=0)
@@ -276,20 +326,31 @@ public class ValidateCnv extends Launcher
 		
 		final Map<String,BamInfo> sample2bam = new HashMap<>();
 		VariantContextWriter out = null;
-		VCFIterator iterIn = null;
+		CloseableIterator<Locatable> iterIn = null;
 		final Allele delAllele  = Allele.create("<DEL>", false);
 		final Allele dupAllele  = Allele.create("<DUP>", false);
 		final Allele refAllele  = Allele.create("N", true);
 		try
-			{					;
-			final List<Path> bamPaths =IOUtils.unrollPaths(this.bamFiles);
+			{	
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.rererencePath);
 
-			iterIn = super.openVCFIterator(oneFileOrNull(args));
+			final List<Path> bamPaths =IOUtils.unrollPaths(this.bamFiles);
+			
+			final String input = oneFileOrNull(args);
+			if(input==null) {
+				iterIn = openVcfAsIterable(null);
+				}
+			else if(input.endsWith(FileExtensions.BED) || input.endsWith(FileExtensions.BED+".gz")) {
+				iterIn = openBedAsIterable(input);
+				}
+			else
+				{
+				iterIn = openVcfAsIterable(input);
+				}
+			
 			/* register each bam */
 			for(final Path p2: bamPaths) {				
 				final BamInfo bi = new BamInfo(p2);
-				
-				
 				
 				
 				if(sample2bam.containsKey(bi.sampleName)) {
@@ -304,9 +365,8 @@ public class ValidateCnv extends Launcher
 			if(sample2bam.isEmpty()) {
 				LOG.error("no bam was defined");
 				return -1;
-			}
+				}
 			
-			final SAMSequenceDictionary dict/* may be null*/ = iterIn.getHeader().getSequenceDictionary();
 			
 			final Set<VCFHeaderLine> metadata = new HashSet<>();
 			
@@ -367,7 +427,7 @@ public class ValidateCnv extends Launcher
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			
 			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
-					dictionary(iterIn.getHeader()).
+					dictionary(dict).
 					logger(LOG).
 					build();
 			out =  this.writingVariantsDelegate.
@@ -379,19 +439,13 @@ public class ValidateCnv extends Launcher
 			
 			while(iterIn.hasNext())
 				{
-				final VariantContext ctx = iterIn.next();
-				final StructuralVariantType svType = ctx.getStructuralVariantType();
-				if(!(svType==StructuralVariantType.DEL || svType==StructuralVariantType.DUP || svType==StructuralVariantType.INS) ) {
-					continue;
-					}
+				final Locatable ctx = iterIn.next();
+				if(ctx==null) continue;
+				final SAMSequenceRecord ssr = dict.getSequence(ctx.getContig());
+				if(ssr==null || ctx.getStart()>=ssr.getSequenceLength()) continue;
 				
-				if(ctx.getNAlleles()!=2) continue;
-				final int svLen;
-				if(ctx.hasAttribute("SVLEN")) {
-					svLen = Math.abs(ctx.getAttributeAsInt("SVLEN", -1));
-				} else {
-					svLen = ctx.getLengthOnReference();
-					}
+				final int svLen = ctx.getLengthOnReference();
+
 				if(svLen< this.min_abs_sv_size) continue;
 				if(svLen> this.max_abs_sv_size) continue;
 				
@@ -402,23 +456,20 @@ public class ValidateCnv extends Launcher
 				final int extend = 1+(int)(svLen*this.extendFactor);
 				
 				
-				
 				final int leftPos =  Math.max(1, breakPointLeft.getPosition()-extend);
 				final int array_mid_start = breakPointLeft.getPosition()-leftPos;
 				final int array_mid_end = breakPointRight.getPosition()-leftPos;
-				int rightPos =  breakPointRight.getPosition()+extend;
+				final int rightPos =  Math.min(breakPointRight.getPosition()+extend, ssr.getSequenceLength());
 				
-				if(dict!=null) {
-					final SAMSequenceRecord ssr = dict.getSequence(ctx.getContig());
-					if(ssr!=null) {
-						rightPos = Math.min(rightPos, ssr.getSequenceLength());
-						}
-					}
+					
 				
 				//System.err.println(""+leftPos+" "+ctx.getStart()+" "+ctx.getEnd()+" "+rightPos);
 				
 				
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				final VariantContextBuilder vcb = new VariantContextBuilder();
+				vcb.chr(ctx.getContig());
+				vcb.start(ctx.getStart());
+				vcb.stop(ctx.getEnd());
 				vcb.attributes(new HashMap<>());
 				vcb.attribute(VCFConstants.END_KEY, ctx.getEnd());
 				
@@ -427,31 +478,19 @@ public class ValidateCnv extends Launcher
 				
 				final List<Genotype> genotypes = new ArrayList<>(sample2bam.size());
 				Double badestGQ = null;
+				final double raw_coverage[] = new double[CoordMath.getLength(leftPos,rightPos)];
+
 				for(final String sn : sample2bam.keySet())
 					{
-					final BamInfo bi =sample2bam.get(sn);
+					final BamInfo bi =sample2bam.get(sn);					
 					
-
-					final String newCtg = bi.ctgNameConverter.apply(ctx.getContig());
-					if(StringUtils.isBlank(newCtg)) {
-						System.err.println("No contig for "+ctx.getContig());
-						final Genotype gt2 = GenotypeBuilder.createMissing(sn, 2);
-						genotypes.add(gt2);
-						continue;
-					}
-					
-					
-					final double raw_coverage[] = new double[CoordMath.getLength(leftPos,rightPos)];
 					Arrays.fill(raw_coverage, 0.0);
 
-					
 					int n_reads_supporting_deletions = 0;
 					
 					
-					
-					
 					try(CloseableIterator<SAMRecord> iter2 = bi.samReader.queryOverlapping(
-							newCtg,
+							ctx.getContig(),
 							leftPos,
 							rightPos
 							)) {
@@ -461,6 +500,7 @@ public class ValidateCnv extends Launcher
 							if(rec.getReadFailsVendorQualityCheckFlag()) continue;
 							if(rec.getDuplicateReadFlag()) continue;
 							if(rec.isSecondaryOrSupplementary()) continue;
+							if(rec.getMappingQuality() < this.min_mapq) continue;
 							final Cigar cigar = rec.getCigar();
 							if(cigar==null || cigar.isEmpty()) continue;
 							// any clip supporting deletion ?
@@ -515,8 +555,6 @@ public class ValidateCnv extends Launcher
 							IntStream.range(array_mid_end,smoothed_cov.length)
 							).mapToDouble(IDX->raw_coverage[IDX]).
 						toArray();
-					
-
 					
 					
 					final double medianBound = Percentile.average().evaluate(bounds_cov);
