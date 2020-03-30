@@ -14,7 +14,8 @@ Usage: coverageserver [options] Files
       Optional bed file containing user's intervals. 4th column is used as the 
       name of the interval
     -o, --output, --comment
-      Output file for writing comments as a BED file.
+      Output file for writing comments as a BED file. Very basic= not suitable 
+      for multiple users.
     --extend
       Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> 
       chr1:50-250 
@@ -45,6 +46,9 @@ Usage: coverageserver [options] Files
       gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
       or a list of plain interval separated by '[ \t\n;,]'
       Default: (empty)
+    --known
+      Optional Tabix indexed Bed or VCF file containing known CNV. Both types 
+      must be indexed.
     --mapq
       Min. Read Mapping Quality.
       Default: 0
@@ -159,5 +163,7 @@ java -jar dist/coverageserver.jar \
 ![https://twitter.com/yokofakun/status/1228260742157209601](https://pbs.twimg.com/media/EQuooeGX0AAAHeu?format=jpg&name=medium)
 
 ![https://twitter.com/yokofakun/status/1229343426036076546](https://pbs.twimg.com/media/EQ-BJSXWkAItBtJ?format=jpg&name=medium)
+
+![https://twitter.com/yokofakun/status/1238112128646733824](https://pbs.twimg.com/media/ES6oQbmWoAAxAx9?format=png&name=small)
 
 

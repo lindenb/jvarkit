@@ -379,7 +379,7 @@ END_DOC
 	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,
 		287057,299673,301080,305526,306034,309143,327317,335998,
                 336965,340479,342675,345679,362298,368754,378205,
-                408279,417123,427976},
+                408279,417123,427976,424431},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 	creationDate="20170807",
 	modificationDate="20191119"
@@ -419,7 +419,6 @@ public class SamJdk
 	@Parameter(names={"-R","--reference"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refFaidx =null;
 
-	
 	public static abstract class AbstractBaseFilter<T>
 		implements Function<T,Object>
 		{

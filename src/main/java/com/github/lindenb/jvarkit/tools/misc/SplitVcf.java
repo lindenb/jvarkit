@@ -311,9 +311,7 @@ public class SplitVcf
 			} else {
 				LOG.info("creating default split interval");
 				for (final SAMSequenceRecord seq : samSequenceDictionary.getSequences()) {
-					final String groupName = seq.getSequenceName();
-					final Interval interval = new Interval(groupName, 1, seq.getSequenceLength());
-					this.putInterval(groupName, interval);
+					this.putInterval(seq.getSequenceName(), new Interval(seq));
 				}
 			}
 			

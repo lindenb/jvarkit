@@ -34,6 +34,7 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -48,7 +49,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -60,6 +61,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -134,14 +137,15 @@ END_DOC
 @Program(name="fixvcfmissinggenotypes",
 description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref.",
 biostars={119007,263309,276811,302581},
-keywords={"sam","bam","vcf","sv","genotype"}
+keywords={"sam","bam","vcf","sv","genotype"},
+modificationDate="20200305"
 )
 public class FixVcfMissingGenotypes extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FixVcfMissingGenotypes.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-d","--depth"},description="minimal depth before setting a genotype to HOM_REF")
 	private int minDepth = 10 ;
 	@Parameter(names={"-B","--bams"},description="path of indexed BAM path with read Groups. You can put those paths in a text file having a *.list sufffix")
@@ -156,21 +160,29 @@ public class FixVcfMissingGenotypes extends Launcher
 	private String fixedGenotypesAreFiltered=null;
 	@Parameter(names={"--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition= SAMRecordPartition.sample;
+	@Parameter(names={"--reference","-R"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path refFaidx= null;
+	@Parameter(names={"--stringency"},description="SAM Validation stringency")
+	private ValidationStringency stringency= ValidationStringency.LENIENT;
 	
+
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
-
+	@ParametersDelegate
+	private WritingVariantsDelegate WritingVariantsDelegate = new WritingVariantsDelegate();
 	
 	@Override
 	protected int doVcfToVcf(final String inputName,final VCFIterator in,final VariantContextWriter out) {
-		final List<File> bamFiles=  IOUtils.unrollFiles2018(this.bamList);
+		final List<Path> bamFiles=  IOUtils.unrollPaths(this.bamList);
 		final Map<String,List<SamReader>> sample2bam = new HashMap<>(bamFiles.size());
-		final SamReaderFactory srf = super.createSamReaderFactory();
+		final SamReaderFactory srf = super.createSamReaderFactory().
+				referenceSequence(this.refFaidx).
+				validationStringency(this.stringency);
+		
 		try {
 			final VCFHeader header=in.getHeader();
-			for(final File bamFile: bamFiles)
+			for(final Path bamFile: bamFiles)
 				{
-				LOG.info("Reading header for "+bamFile);
 				final SamReader reader= srf.open(bamFile);
 				if(!reader.hasIndex())
 					{
@@ -343,7 +355,7 @@ public class FixVcfMissingGenotypes extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			return doVcfToVcf(args,this.outputFile);
+			return doVcfToVcfPath(args,this.WritingVariantsDelegate,this.outputFile);
 			}
 		catch(final Exception err)
 			{

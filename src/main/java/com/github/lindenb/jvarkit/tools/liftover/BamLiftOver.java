@@ -32,6 +32,7 @@ BEGIN_DOC
 END_DOC
  */
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 
 import htsjdk.samtools.liftover.LiftOver;
@@ -67,7 +68,7 @@ public class BamLiftOver extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 
 	@Parameter(names={"-f","--chain"},description="LiftOver file. Require")
@@ -77,7 +78,7 @@ public class BamLiftOver extends Launcher
 	private double userMinMatch = -1 ;
 
 	@Parameter(names={"-D","-R","--reference"},description="indexed REFerence file for the new sequence dictionary. Required")
-	private File faidx = null;
+	private Path faidx = null;
 
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs =new WritingBamArgs();
@@ -115,7 +116,7 @@ public class BamLiftOver extends Launcher
 			final SAMFileHeader headerOut=headerIn.clone();
 			headerOut.setSortOrder(SortOrder.unsorted);
 			
-			sfw = this.writingBamArgs.openSAMFileWriter(outputFile,headerOut, true);
+			sfw = this.writingBamArgs.openSamWriter(outputFile,headerOut, true);
 			
 			
 			iter=sfr.iterator();
@@ -210,7 +211,7 @@ public class BamLiftOver extends Launcher
 				}
 			return RETURN_OK;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

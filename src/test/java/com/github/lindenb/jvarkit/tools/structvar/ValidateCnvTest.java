@@ -34,6 +34,7 @@ public class ValidateCnvTest {
 		Assert.assertEquals(new ValidateCnv().instanceMain(new String[] {
 				"-o",out.toString(),
 				"-B",bamlist.toString(),
+				"-R",support.resource("rotavirus_rf.fa"),
 			support.resource("rotavirus_rf.vcf.gz")
 			}),0
 			);

@@ -10,10 +10,19 @@ Creates a Gephi-gexf graph of references-cites for a given PMID
 ```
 Usage: pubmedgraph [options] Files
   Options:
+    -b, --backward
+      disable backward (referenced-in)
+      Default: false
+    -f, --forward
+      disable forward (cited-in)
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -d, --depth, --max-depth
+      max-depth
+      Default: 3
     --ncbi-api-key
       NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ 
       .If undefined, it will try to get in that order:  1) environment 
@@ -23,15 +32,6 @@ Usage: pubmedgraph [options] Files
       Output file. Optional . Default: stdout
     --version
       print version and exit
-    -b
-      disable backward (referenced-in)
-      Default: false
-    -d
-      max-depth
-      Default: 3
-    -f
-      disable forward (cited-in)
-      Default: false
 
 ```
 
@@ -59,6 +59,11 @@ $ ./gradlew pubmedgraph
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20150605
 
 ## Source code 
 

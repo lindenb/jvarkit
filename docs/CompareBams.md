@@ -29,8 +29,15 @@ Usage: cmpbams [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
+    --no-filter
+      Do not filter the reads. Default is to ignore secondary or supplementary 
+      alignments. 
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For CRAM. Indexed fasta Reference file. This file must be indexed with 
+      samtools faidx and with picard CreateSequenceDictionary
     -r, --region
       An interval as the following syntax : "chrom:start-end" or 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 
@@ -73,9 +80,18 @@ $ ./gradlew cmpbams
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20130506
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBams.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBamsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/CompareBamsTest.java)
 
 
 ## Contribute

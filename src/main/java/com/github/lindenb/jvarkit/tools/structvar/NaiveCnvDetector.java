@@ -29,6 +29,7 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -99,7 +100,7 @@ public class NaiveCnvDetector extends Launcher
 	private static final Logger LOG = Logger.build(NaiveCnvDetector.class).make();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 	@Parameter(names={"-c","--config"},description="config file. Tab delimited. Sample-name(tab)mean-depth(tab)integer[affected=1,non-affected=0]. If this file is not specified , all samples are considered unaffected (discovery mode).")
 	private File configFile=null;	
 	/** size of a window */
@@ -125,7 +126,7 @@ public class NaiveCnvDetector extends Launcher
 	@Parameter(names={"-t"},description="DEL must be < median-depth-stdev and DUP must be > median-depth+stdev" )
 	private boolean use_standard_depth = false;
 	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File dictRefFile =  null;
+	private Path dictRefFile =  null;
 
 
 
@@ -480,7 +481,7 @@ public class NaiveCnvDetector extends Launcher
 				}
 			
 			
-			out =  super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out =  super.openPathOrStdoutAsPrintWriter(this.outputFile);
 
 			
 			if(this.configFile!=null)

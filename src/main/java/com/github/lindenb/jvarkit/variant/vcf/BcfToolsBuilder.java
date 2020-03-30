@@ -26,8 +26,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.variant.vcf;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ProcessBuilder.Redirect;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -35,9 +37,15 @@ import java.util.regex.Pattern;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.vcf.readers.DelegateVcfIterator;
 
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.variant.bcf2.BCF2Codec;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
@@ -51,16 +59,17 @@ public interface BcfToolsView {
 	public VCFIterator query(final Locatable locatable);
 }
 
-private class BcfToolsViewImpl implements BcfToolsView {
-	private final String file;
+private static class HtsJdkView implements BcfToolsView {
 	private VCFHeader header = null;
-	BcfToolsViewImpl(final String file) {
+	private final String file;
+	HtsJdkView(final String file) {
 		this.file= file;
 	}
-	
+	@Override
 	public String getFile() {
 		return this.file;
-	}
+		}
+	@Override
 	public VCFHeader getHeader() {
 		if(this.header==null) {
 			try(VCFIterator r=open()) {
@@ -69,9 +78,76 @@ private class BcfToolsViewImpl implements BcfToolsView {
 			}
 		return this.header;
 		}
+	@Override
+	public VCFIterator open() {
+		try {
+			return new VCFIteratorBuilder().open(this.getFile());
+			}
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
+	@Override
+	public VCFIterator query(final Locatable locatable) {
+		final VCFFileReader r = new VCFFileReader(Paths.get(getFile()), true);
+		final CloseableIterator<VariantContext> iter = r.query(locatable);
+		final PeekableIterator<VariantContext> peeker = new PeekableIterator<>(iter);
+		return new VCFIterator() {
+			@Override
+			public VariantContext next() {
+				return peeker.next();
+			}
+			
+			@Override
+			public boolean hasNext() {
+				return peeker.hasNext();
+			}
+			
+			@Override
+			public void close() {
+				peeker.close();
+				iter.close();
+				r.close();
+			}
+			
+			@Override
+			public VariantContext peek() {
+				return peeker.next();
+			}
+			
+			@Override
+			public VCFHeader getHeader() {
+				return r.getFileHeader();
+			}
+		};
+		}
+	}
+
+private class BcfToolsViewImpl implements BcfToolsView {
+	private final String file;
+	private VCFHeader header = null;
+	BcfToolsViewImpl(final String file) {
+		this.file= file;
+	}
+	
+	@Override
+	public String getFile() {
+		return this.file;
+	}
+	@Override
+	public VCFHeader getHeader() {
+		if(this.header==null) {
+			try(VCFIterator r=open()) {
+				r.getHeader();//do nothing but hide warning from javac
+				}
+			}
+		return this.header;
+		}
+	@Override
 	public VCFIterator open() {
 		return _query(null);
 		}
+	@Override
 	public VCFIterator query(final Locatable locatable) {
 		return _query(locatable);
 		}
@@ -116,8 +192,14 @@ private class BcfToolsViewImpl implements BcfToolsView {
 
 
 public BcfToolsView getView(final String file) {
+	if(!IOUtil.isUrl(file)) {
+		final BCF2Codec codec = new BCF2Codec();
+		if(codec.canDecode(file)) {
+			return new HtsJdkView(file);
+			}
+		}
 	return new BcfToolsViewImpl(file);
-}
+	}
 	
 private String bcftools_exe;
 public BcfToolsBuilder() {

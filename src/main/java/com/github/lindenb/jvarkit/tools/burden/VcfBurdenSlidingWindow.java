@@ -142,7 +142,7 @@ extends AbstractVcfBurden
 		if(!StringUtils.isBlank(this.limitContig)) {
 			final SAMSequenceRecord ssr= vcfDict.getSequence(this.limitContig);
 			if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(limitContig, vcfDict);
-			iter = vcfReader.query(ssr.getSequenceName(),1,ssr.getSequenceLength());
+			iter = vcfReader.query(ssr);
 			}
 		else
 			{	

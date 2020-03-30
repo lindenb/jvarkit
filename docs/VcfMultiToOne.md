@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
->Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column
+Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column
 
 
 ## Usage
@@ -10,18 +10,27 @@
 ```
 Usage: vcfmulti2one [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --disable-vc-attribute-recalc
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
       Default: false
-    -r, --discard_hom_ref
+    -r, -hr, --discard_hom_ref
       discard if variant is hom-ref
       Default: false
-    -c, --discard_no_call
+    -c, -nc, --discard_no_call
       discard if variant is no-call
       Default: false
     -a, --discard_non_available
       discard if variant is not available
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
       Default: false
     -h, --help
       print help and exit
@@ -29,6 +38,11 @@ Usage: vcfmulti2one [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    --regions
+      Optional. A source of intervals. The following suffixes are recognized: 
+      vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be 
+      an empty string (no interval) or a list of plain interval separated by 
+      '[ \t\n;,]'
     --vc-attribute-recalc-ignore-filtered
       When recalculating variant attributes like DP AF, AC, AN, ignore 
       FILTERed **Genotypes**
@@ -72,9 +86,18 @@ $ ./gradlew vcfmulti2one
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20150312
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/onesamplevcf/VcfMultiToOne.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/onesamplevcf/VcfMultiToOne.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/onesamplevcf/VcfMultiToOneTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/onesamplevcf/VcfMultiToOneTest.java)
 
 
 ## Contribute
@@ -98,7 +121,36 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Input
+
+if there is only one input with the '.list' suffix, it is interpreted as a file containing the path to the vcf files
+
+A file with the suffixes '.zip' or '.tar' or '.tar.gz' is interpreted as an archive and all the entries looking like a vcf are extracted.
+
+24 fev 2020: refactored, the input is not anymore sorted. Use bcftools sort
+
 ## Example
+
+with zip  and tar
+
+```
+$ tar tvfz ~/jeter.tar.gz && unzip -l ~/jeter.zip && java -jar dist/vcfmulti2one.jar ~/jeter.tar.gz ~/jeter.zip | bcftools view - | wc -l
+-rw-r--r-- lindenb/lindenb 5805 2019-01-11 18:29 src/test/resources/rotavirus_rf.ann.vcf.gz
+-rw-r--r-- lindenb/lindenb 27450 2019-01-11 18:29 src/test/resources/rotavirus_rf.freebayes.vcf.gz
+-rw-r--r-- lindenb/lindenb  7366 2019-01-11 18:29 src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
+Archive:  /home/lindenb/jeter.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+     7366  2019-01-11 18:29   src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
+     5805  2019-01-11 18:29   src/test/resources/rotavirus_rf.ann.vcf.gz
+     3661  2019-01-11 18:29   src/test/resources/rotavirus_rf.vcf.gz
+    27450  2019-01-11 18:29   src/test/resources/rotavirus_rf.freebayes.vcf.gz
+---------                     -------
+    44282                     4 files
+4883
+
+```
+
 
 ```bash
 $ curl -s "http://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.vcf.gz" |\
@@ -153,7 +205,8 @@ $10  SAMPLE : 0|1
 >>> 5
 $1   #CHROM : 1
 $2      POS : 10177
-$3       ID : .
+$3       ID : .import java.util.Comparator;
+
 $4      REF : A
 $5      ALT : AC
 $6     QUAL : 100

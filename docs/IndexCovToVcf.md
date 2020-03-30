@@ -10,26 +10,32 @@ convert indexcov data to vcf
 ```
 Usage: indexcov2vcf [options] Files
   Options:
-    -del, --deletion
-      Deletion treshold
-      Default: 0.6
-    -dup, --duplication
-      Duplication treshold
-      Default: 1.9
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
-    -ped, --pedigree
-      Optional pedigree. A pedigree is a text file delimited with tabs. No 
-      header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' 
-      (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 
-      0 unaffected, 1 affected,-9 unknown
+    -p, --pedigree
+      Optional Pedigree. A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    -t, --treshold
+      DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 
+      0.0-x<=depth<=0.0+x 
+      Default: 0.05
     --version
       print version and exit
 

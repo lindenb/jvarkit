@@ -46,6 +46,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -478,13 +479,7 @@ public class SamFindClippedRegions extends Launcher
 			
 			for(;;) {
 				final SAMRecord rec=(iter.hasNext()?progress.apply(iter.next()):null);
-				if(rec!=null) {
-					if(rec.getReadUnmappedFlag()) continue;
-					if(rec.isSecondaryOrSupplementary()) continue;
-					if(rec.getDuplicateReadFlag()) continue;
-					if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-					if(rec.getMappingQuality() < this.min_mapq) continue;
-					}
+				if(rec!=null && !SAMRecordDefaultFilter.accept(rec,this.min_mapq)) continue;
 				
 				if(rec==null || !rec.getContig().equals(prevContig))
 					{

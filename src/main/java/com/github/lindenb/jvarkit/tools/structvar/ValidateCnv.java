@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
-import java.util.function.IntPredicate;
 import java.util.stream.IntStream;
 
 import com.beust.jcommander.Parameter;
@@ -45,6 +44,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.RunMedian;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -83,6 +83,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -96,9 +97,13 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
 
-## Motivation
+## Input
 
-only SVTYPE=DEL/INS/DUP are considered
+input is a VCF (or a BED file
+
+for VCF, only SVTYPE=DEL/INS/DUP are considered
+
+
 
 ## Example
 
@@ -147,6 +152,9 @@ public class ValidateCnv extends Launcher
 	private int min_read_supporting_del=3;
 	@Parameter(names={"--mapq"},description="min mapping quality.")
 	private int min_mapq = 20;
+	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x")
+	private float treshold = 0.05f;
+
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
@@ -178,92 +186,8 @@ public class ValidateCnv extends Launcher
 		public void close() throws IOException {
 			this.samReader.close();
 			}
-	}
-	
-	
-	
-	private static class Coverage
-		{
-		final Double median;
-		final Double variance;
-		Coverage(final Double median,final Double variance) {
-			this.median= median;
-			this.variance = variance;
-		}
-		
-		@Override
-		public String toString() {
-			return "median:"+ (median==null?".":String.valueOf(median))+" "+
-					"variance:"+(variance==null?".":String.valueOf(variance))
-					;
-			}
 		}
 	
-	private Coverage calculateCoverage(final double array[],IntPredicate acceptPos) {
-		final double cov[] = IntStream.range(0, array.length).
-				filter(acceptPos).
-				mapToDouble(POS->array[POS]).
-				toArray();
-		return calculateCoverage(cov,0,cov.length);
-		}
-	
-	
-	private Coverage calculateCoverage(final double array[],int array_start,int array_end) {
-		final Double median;
-		final Double variance;
-		final int len = array_end-array_start;
-		if(len>0) {
-			final double m = Percentile.median().evaluate(array, array_start, len);
-			median = m;
-			double v = 0;
-			int n=0;
-			for(int i=array_start;i< array_end;i++) {
-				v+=Math.abs(array[i]-m);
-				n++;
-				}
-			variance = (v/n);
-			}
-		else
-			{
-			median = null;
-			variance = null;
-			}
-		return new Coverage(median, variance);
-	}
-	
-
-	private boolean isSameMedianDepth(final Double dp1,final Double dp2) {
-		if(dp1==null) return true;
-		if(dp2==null) return true;
-		double v1=dp1.doubleValue();
-		double v1a  = v1*this.median_factor;
-		double v2=dp2.doubleValue();
-		double v2a  = v2*this.median_factor;
-		if(v2 < v1 - v1a) return false;
-		if(v2 > v1 + v1a) return false;
-		if(v1 < v2 - v2a) return false;
-		if(v1 > v2 + v2a) return false;
-		return true;
-	}
-	private boolean isHightVariance(final Double va) {
-		if(va==null) return false;
-		double v1=va.doubleValue();
-		return v1> this.max_variance;
-	}
-	
-	private enum CnvType {UNDEFINED,WILD,DEL1,DEL2,DUP1,DUP2};
-
-	private CnvType getCNVTypeFromNormDepth(double depth) {
-		if(Double.isNaN(depth)) return CnvType.UNDEFINED;
-		final double dy1=0.3;
-		final double dy2=0.9;
-		if(depth<1.0 - dy2 ) return CnvType.DEL2;
-		if(depth<1.0 - dy1 ) return CnvType.DEL1;
-		if(depth>1.0 + dy2 ) return CnvType.DUP2;
-		if(depth>1.0 + dy1 ) return CnvType.DUP1;
-		return CnvType.WILD;
-		
-	}
 	
 	private CloseableIterator<Locatable> openVcfAsIterable(final String input) throws IOException {
 		final VCFIteratorBuilder vcfIteratorBuilder = new VCFIteratorBuilder();
@@ -323,13 +247,13 @@ public class ValidateCnv extends Launcher
 			LOG.error("bad extend factor "+this.extendFactor);
 			return -1;
 			}
-		
+		if(this.treshold<0f || this.treshold>=0.25f) {
+			LOG.error("Bad treshold 0 < "+this.treshold+" >=0.25 ");
+			return -1;
+		}
 		final Map<String,BamInfo> sample2bam = new HashMap<>();
 		VariantContextWriter out = null;
 		CloseableIterator<Locatable> iterIn = null;
-		final Allele delAllele  = Allele.create("<DEL>", false);
-		final Allele dupAllele  = Allele.create("<DUP>", false);
-		final Allele refAllele  = Allele.create("N", true);
 		try
 			{	
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.rererencePath);
@@ -387,26 +311,22 @@ public class ValidateCnv extends Launcher
 			
 			final BiFunction<String, String, VCFFormatHeaderLine> makeFmt = (TAG,DESC)-> new VCFFormatHeaderLine(TAG,1,VCFHeaderLineType.Integer,DESC);
 			
-			/*
-			final VCFFormatHeaderLine leftMedianDepth = makeFmt.apply("LDP","Left median depth or -1");
-			metadata.add(leftMedianDepth);
-			final VCFFormatHeaderLine rightMedianDepth = makeFmt.apply("RDP","Right median depth or -1");
-			metadata.add(rightMedianDepth);
-			final VCFFormatHeaderLine midMedianDepth = makeFmt.apply("MDP","Middle median depth or -1");
-			metadata.add(midMedianDepth);
-			final VCFFormatHeaderLine leftVarianceDepth = makeFmt.apply("LVA","Left variance depth or -1");
-			metadata.add(leftVarianceDepth);
-			final VCFFormatHeaderLine rightVarianceDepth = makeFmt.apply("RVA","Right variance depth or -1");
-			metadata.add(rightVarianceDepth);
-			final VCFFormatHeaderLine midVarianceDepth = makeFmt.apply("MVA","Middle variance depth or -1");
-			metadata.add(midVarianceDepth);
-			*/
 			final VCFFormatHeaderLine midVarianceDepth = makeFmt.apply("CBN","Middle variance depth or -1");
 			metadata.add(midVarianceDepth);
 			final VCFFormatHeaderLine formatCN =  new VCFFormatHeaderLine("CN",1,VCFHeaderLineType.Float,"normalized copy-number");
 			metadata.add(formatCN);
 			final VCFFormatHeaderLine nReadsSupportingDel = makeFmt.apply("RSD","number of split read supporting SV.");
 			metadata.add(nReadsSupportingDel);
+
+			
+			final VCFFilterHeaderLine filterAllDel = new VCFFilterHeaderLine("ALL_DEL", "number of samples greater than 1 and all are deletions");
+			metadata.add(filterAllDel);
+			final VCFFilterHeaderLine filterAllDup = new VCFFilterHeaderLine("ALL_DUP", "number of samples  greater than  1 and all are duplication");
+			metadata.add(filterAllDup);
+			final VCFFilterHeaderLine filterNoSV= new VCFFilterHeaderLine("NO_SV", "There is no DUP or DEL in this variant");
+			metadata.add(filterNoSV);
+			final VCFFilterHeaderLine filterHomDel = new VCFFilterHeaderLine("HOM_DEL", "There is one Homozygous deletion.");
+			metadata.add(filterHomDel);
 
 			
 			
@@ -435,7 +355,10 @@ public class ValidateCnv extends Launcher
 					open(this.outputFile);
 			out.writeHeader(header);
 			
-			
+			final Allele DUP_ALLELE =Allele.create("<DUP>",false);
+			final Allele DEL_ALLELE =Allele.create("<DEL>",false);
+			final Allele REF_ALLELE =Allele.create("N",true);
+
 			
 			while(iterIn.hasNext())
 				{
@@ -474,15 +397,15 @@ public class ValidateCnv extends Launcher
 				vcb.attribute(VCFConstants.END_KEY, ctx.getEnd());
 				
 			    final Set<Allele> alleles = new HashSet<>();
-			    alleles.add(refAllele);
-				
+			    alleles.add(REF_ALLELE);
+				int count_dup = 0;
+				int count_del = 0;
 				final List<Genotype> genotypes = new ArrayList<>(sample2bam.size());
 				Double badestGQ = null;
 				final double raw_coverage[] = new double[CoordMath.getLength(leftPos,rightPos)];
-
-				for(final String sn : sample2bam.keySet())
+				for(final String sampleName : sample2bam.keySet())
 					{
-					final BamInfo bi =sample2bam.get(sn);					
+					final BamInfo bi =sample2bam.get(sampleName);					
 					
 					Arrays.fill(raw_coverage, 0.0);
 
@@ -496,11 +419,8 @@ public class ValidateCnv extends Launcher
 							)) {
 						while(iter2.hasNext()) {
 							final SAMRecord rec = iter2.next();
-							if(rec.getReadUnmappedFlag()) continue;
-							if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-							if(rec.getDuplicateReadFlag()) continue;
-							if(rec.isSecondaryOrSupplementary()) continue;
-							if(rec.getMappingQuality() < this.min_mapq) continue;
+							if(!SAMRecordDefaultFilter.accept(rec,  this.min_mapq)) continue;
+
 							final Cigar cigar = rec.getCigar();
 							if(cigar==null || cigar.isEmpty()) continue;
 							// any clip supporting deletion ?
@@ -557,9 +477,9 @@ public class ValidateCnv extends Launcher
 						toArray();
 					
 					
-					final double medianBound = Percentile.average().evaluate(bounds_cov);
+					final double medianBound = Percentile.median().evaluate(bounds_cov);
 					if(Double.isNaN(medianBound) || medianBound==0) {
-						final Genotype gt2 = GenotypeBuilder.createMissing(sn, 2);
+						final Genotype gt2 = GenotypeBuilder.createMissing(sampleName, 2);
 						genotypes.add(gt2);
 						continue;
 						}
@@ -568,132 +488,75 @@ public class ValidateCnv extends Launcher
 					final double normalized_coverage[] = new double[smoothed_cov.length];
 					for(int i=0;i< normalized_coverage.length;++i) {
 						normalized_coverage[i] = smoothed_cov[i] / medianBound;
-					}
-					
-					final double midDepth = Percentile.average().evaluate(normalized_coverage, array_mid_start, array_mid_end);
-					final GenotypeBuilder gb;
-					final double theoritical_depth;
-					switch (getCNVTypeFromNormDepth(midDepth)) {
-						case DEL2: gb = new GenotypeBuilder(sn,Arrays.asList(delAllele,delAllele));
-								alleles.add(delAllele);
-								n_samples_with_cnv++;
-								theoritical_depth = 0.0;
-								break;
-						case DEL1: gb = new GenotypeBuilder(sn,Arrays.asList(refAllele,delAllele));
-								alleles.add(delAllele);
-								n_samples_with_cnv++;
-								theoritical_depth = 0.5;
-								break;
-						case WILD: gb = new GenotypeBuilder(sn,Arrays.asList(refAllele,refAllele));
-								theoritical_depth = 1.0;
-								break;
-						case DUP1: gb = new GenotypeBuilder(sn,Arrays.asList(refAllele,dupAllele));
-								alleles.add(dupAllele);
-								n_samples_with_cnv++;
-								theoritical_depth = 1.5;
-								break;
-						case DUP2: gb = new GenotypeBuilder(sn,Arrays.asList(dupAllele,dupAllele));
-								n_samples_with_cnv++;
-								alleles.add(dupAllele);
-								theoritical_depth = 2.0;
-								break;
-						default: throw new IllegalStateException();
 						}
 					
-					double gq = Math.abs(theoritical_depth-midDepth);
+					final double normDepth = Percentile.median().evaluate(normalized_coverage, array_mid_start, array_mid_end);
+					
+					
+					final boolean is_sv;
+					final boolean is_het_deletion = Math.abs(normDepth-0.5)<= this.treshold; 
+					final boolean is_hom_deletion = Math.abs(normDepth-0.0)<= this.treshold; 
+					final boolean is_het_dup = Math.abs(normDepth-1.5)<= this.treshold; 
+					final boolean is_ref = Math.abs(normDepth-1.0)<= this.treshold; 
+					final double theoritical_depth;
+
+					final GenotypeBuilder gb;
+					
+					if(is_ref) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
+						is_sv = false;
+						theoritical_depth = 1.0;
+						}
+					else if(is_het_deletion) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
+						alleles.add(DEL_ALLELE);
+						is_sv = true;
+						theoritical_depth = 0.5;
+						count_del++;
+						}
+					else if(is_hom_deletion) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
+						alleles.add(DEL_ALLELE);
+						vcb.filter(filterHomDel.getID());
+						is_sv = true;
+						theoritical_depth = 0.0;
+						count_del++;
+						}
+					else if(is_het_dup) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
+						alleles.add(DUP_ALLELE);
+						is_sv = true;
+						theoritical_depth = 1.5;
+						count_dup++;
+						}
+					else
+						{
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+						is_sv = false;
+						theoritical_depth = 1.0;
+						}	
+					if(is_sv) {
+						n_samples_with_cnv++;
+					}
+					
+					
+					double gq = Math.abs(theoritical_depth-normDepth);
 					gq = Math.min(0.5, gq);
 					gq = gq * gq;
 					gq = gq / 0.25;
 					gq = 99 * (1.0 - gq);
 					
 					gb.GQ((int)gq);
-					gb.attribute(formatCN.getID(), midDepth);
+					gb.attribute(formatCN.getID(), normDepth);
 					
 					if(badestGQ==null || badestGQ.compareTo(gq)>0) {
 						badestGQ = gq;
 					}
 					
-					//final Coverage covL = calculateCoverage(coverage,0, array_mid_start);
-					//final Coverage covM = calculateCoverage(coverage,array_mid_start, array_mid_end);
-					//final Coverage covR = calculateCoverage(coverage,array_mid_end, coverage.length);
-					//final Coverage coBounds = calculateCoverage(coverage,IDX->IDX< array_mid_start || IDX>array_mid_end);
 										
 					gb.attribute(nReadsSupportingDel.getID(), n_reads_supporting_deletions);
 					
-					/*
-					final Function<Double, Integer> toInt = DBL->DBL==null?-1:DBL.intValue();
-					gb.attribute(leftMedianDepth.getID(),toInt.apply(covL.median));
-					gb.attribute(midMedianDepth.getID(),toInt.apply(covM.median));
-					gb.attribute(rightMedianDepth.getID(),toInt.apply(covR.median));
-					gb.attribute(leftVarianceDepth.getID(),toInt.apply(covL.variance));
-					gb.attribute(midVarianceDepth.getID(),toInt.apply(covM.variance));
-					gb.attribute(rightVarianceDepth.getID(),toInt.apply(covR.variance));
-					*/
-					/*
-					final Set<String> gtFilters = new HashSet<>();
 					
-					//prevent HOM_VAR
-					for(int j=array_mid_start;j< array_mid_end;j++)
-						{
-						if(coverage[j]<this.critical_middle_depth)
-							{
-							gtFilters.add("HOMVAR");
-							break;
-							}
-						}
-					// there are some split read that could support the SV in non-called
-					if(svType==StructuralVariantType.DEL &&
-						n_reads_supporting_deletions < this.min_read_supporting_del ) {
-						gtFilters.add("SPLITREAD");
-						}
-					
-					// high variance left
-					if(isHightVariance(covL.variance)) {
-						gtFilters.add("HIGHVARL");
-						}
-					
-					// high variance left
-					if(isHightVariance(covR.variance)) {
-						gtFilters.add("HIGHVARR");
-						}
-					//low dp left
-					if(covL.median!=null && covL.median.doubleValue() < this.min_depth) {
-						gtFilters.add("LOWDPL");
-						}
-					//low dp right
-					if(covR.median!=null && covR.median.doubleValue() < this.min_depth) {
-						gtFilters.add("LOWDPR");
-						}
-					
-					// big difference of depth left/right
-					if(!isSameMedianDepth(covL.median, covR.median)) {
-						gtFilters.add("DIFFLR");
-						}
-					// no difference between mid and left
-					if(isSameMedianDepth(covL.median, covM.median))
-						{
-						gtFilters.add("DIFFLM");
-						}
-					// no difference between mid and right
-					if(isSameMedianDepth(covM.median, covR.median))
-						{
-						gtFilters.add("DIFFMR");
-						}
-					// no diff beween L and M
-					if(isSameMedianDepth(covL.median, covM.median)) {
-						gtFilters.add("NELM");
-						}
-					
-					// no diff beween M and R
-					if(isSameMedianDepth(covM.median, covR.median)) {
-						gtFilters.add("NEMR");
-						}
-					
-					if(!gtFilters.isEmpty()) {
-						sv_samples.remove(gt.getSampleName());
-						gb.filter(String.join("~",gtFilters));
-						}
-					*/
 					genotypes.add(gb.make());
 					}
 				
@@ -705,9 +568,20 @@ public class ValidateCnv extends Launcher
 				vcb.attribute(infoSVSamples.getID(), n_samples_with_cnv);
 				vcb.attribute(infoSvLen.getID(), svLen);
 				
+				if(count_dup == sample2bam.size() && sample2bam.size()!=1) {
+					vcb.filter(filterAllDup.getID());
+				}
+				if(count_del == sample2bam.size() && sample2bam.size()!=1) {
+					vcb.filter(filterAllDel.getID());
+				}
+				
+				if(n_samples_with_cnv==0) {
+					vcb.filter(filterNoSV.getID());
+					}
+				
 				if(badestGQ!=null ) {
 					vcb.log10PError(badestGQ/-10.0);
-				}
+					}
 				
 				out.add(vcb.make());
 				}

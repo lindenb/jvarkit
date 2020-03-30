@@ -173,7 +173,7 @@ public class FaidxSplitter  extends Launcher
 			dict.getSequences().
 				stream().
 				filter(R->!excludePat.matcher(R.getSequenceName()).matches()).
-				map(SSR->new Interval(SSR.getSequenceName(),1,SSR.getSequenceLength())).
+				map(SSR->new Interval(SSR)).
 				forEach(I->intervals1.put(I, I));		
 			
 			if(intervals1.isEmpty()) {

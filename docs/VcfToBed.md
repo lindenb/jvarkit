@@ -73,6 +73,11 @@ $ ./gradlew vcf2bed
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20181203
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBed.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfToBed.java)
@@ -113,6 +118,9 @@ input is one or more VCF file
 
 one file ending with '.list' is interpreted as a list of paths (one per lines)
 
+one file ending with '.zip' or '.tar' or '.tar.gz' is interpreted an archive and all the files looking like vcf files are extracted
+
+
 if there is no input, the program reads vcf from stdin
 
 ##Example
@@ -149,4 +157,29 @@ $ wget -q -O - "https://github.com/hall-lab/cshl_sv_2014/blob/master/supplementa
 1	5877529	5877602	16	63
 1	6618978	6619069	19_1	0
 ```
+
+### With tar.gz
+
+```
+$ tar cvfz ~/jeter.tar.gz src/test/resources/rotavirus_rf.*.vcf.gz
+$ tar tvfz ~/jeter.tar.gz
+-rw-r--r-- lindenb/lindenb 5805 2019-01-11 18:29 src/test/resources/rotavirus_rf.ann.vcf.gz
+-rw-r--r-- lindenb/lindenb 27450 2019-01-11 18:29 src/test/resources/rotavirus_rf.freebayes.vcf.gz
+-rw-r--r-- lindenb/lindenb  7366 2019-01-11 18:29 src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
+
+
+```
+
+### With zip
+
+```
+$ zip ~/jeter.zip src/test/resources/rotavirus_rf.*.vcf.gz
+$ tar tvfz ~/jeter.tar.gz
+-rw-r--r-- lindenb/lindenb 5805 2019-01-11 18:29 src/test/resources/rotavirus_rf.ann.vcf.gz
+-rw-r--r-- lindenb/lindenb 27450 2019-01-11 18:29 src/test/resources/rotavirus_rf.freebayes.vcf.gz
+-rw-r--r-- lindenb/lindenb  7366 2019-01-11 18:29 src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
+
+$ java -jar dist/vcf2bed.jar ~/jeter.zip  | wc
+```
+
 

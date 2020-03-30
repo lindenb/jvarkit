@@ -46,10 +46,12 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.Vector;
 import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
 import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -158,7 +160,7 @@ END_DOC
 @Program(name="coverageserver",
 	description="Jetty Based http server serving Bam coverage.",
 	creationDate="20200212",
-	modificationDate="20200312",
+	modificationDate="20200330",
 	keywords={"cnv","bam","coverage","server"}
 	)
 public  class CoverageServer extends Launcher {
@@ -184,7 +186,7 @@ public  class CoverageServer extends Launcher {
 	private int images_per_row= 2;
 	@Parameter(names= {"--extend"},description="Extend interval by this factor. e.g: if x='0.5' chr1:100-200 -> chr1:50-250")
 	private double extend_factor=1.0;
-	@Parameter(names= {"-o","--output","--comment"},description="Output file for writing comments as a BED file.")
+	@Parameter(names= {"-o","--output","--comment"},description="Output file for writing comments as a BED file. Very basic= not suitable for multiple users.")
 	private Path commentPath= null; 
 	@Parameter(names= {"--mapq"},description="Min. Read Mapping Quality.")
 	private int min_mapq = 0; 
@@ -196,11 +198,8 @@ public  class CoverageServer extends Launcher {
 	private boolean enable_sashimi = false;
 	@Parameter(names= {"--gtf"},description="Optional Tabix indexed GTF file. Will be used to retrieve an interval by gene name, or to display gene names in a region.")
 	private Path gtfFile = null;
-	@Parameter(names= {"--known"},description="Optional indexed Bed or VCF file containing known CNV. Will be used to retrieve t.")
+	@Parameter(names= {"--known"},description="Optional Tabix indexed Bed or VCF file containing known CNV. Both types must be indexed.")
 	private Path knownCnvFile = null;
-
-	
-
 	
 	
 	private SAMSequenceDictionary dictionary;
@@ -428,7 +427,6 @@ public  class CoverageServer extends Launcher {
 		 return true;
 		}
 	
-
 	/** return a stream of interval of the known CNV overlapping the region */
 	private Stream<Interval> getKnownCnv(final Locatable region) {
 		if(this.knownCnvFile==null) return Stream.empty();
@@ -512,10 +510,55 @@ public  class CoverageServer extends Launcher {
 	
 
 	
-
+	
+	private Stream<GTFLine> getGenes(final Locatable region) {
+		if(this.gtfFile==null) return Stream.empty();
+		TabixReader tbr = null;
+		try {
+			tbr= new TabixReader(this.gtfFile.toString());
+			
+			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+			final String ctg = cvt.apply(region.getContig());
+			if(StringUtils.isBlank(ctg)) {
+				tbr.close();
+				return Stream.empty();
+				}
+			
+			final GTFCodec codec = new GTFCodec();
+			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
+			final TabixReader tbrfinal = tbr;
+			final AbstractIterator<GTFLine> iter2= new AbstractIterator<GTFLine>() {
+				@Override
+				protected GTFLine advance() {
+					try {
+						for(;;) {
+							final String line = iter.next();
+							if(line==null) return null;
+							if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+							final String tokens[]= CharSplitter.TAB.split(line);
+							if(tokens.length<9 ) continue;
+							tokens[0]=region.getContig();
+							final GTFLine gtfline = codec.decode(line);
+							if(gtfline==null) continue;
+							return gtfline;
+							}
+						} catch (final IOException e) {
+						LOG.error(e);
+						return null;
+						}
+					}
+				};
+			return StreamSupport.stream(new IterableAdapter<GTFLine>(iter2).spliterator(),false).
+					onClose(()->{ tbrfinal.close(); });
+			}
+		catch(Throwable err) {
+			if(tbr!=null) tbr.close();
+			return Stream.empty();
+			}
+	}
+	
 	private void writeGenes(final Graphics2D g,final Locatable region) {
 		if(this.gtfFile==null) return;
-		TabixReader tbr = null;
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
 		final Composite oldComposite = g.getComposite();
 		final Stroke oldStroke = g.getStroke();
@@ -523,38 +566,24 @@ public  class CoverageServer extends Launcher {
 		g.setColor(Color.ORANGE);
 		final double y= image_height-4.0;
 		try {
-			tbr= new TabixReader(this.gtfFile.toString());
-			
-			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
-			final String ctg = cvt.apply(region.getContig());
-			if(StringUtils.isBlank(ctg)) return;
-			final GTFCodec codec = new GTFCodec();
-			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
-			for(;;) {
-				String line=iter.next();
-				if(line==null) break;
-				if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
-				final String tokens[]= CharSplitter.TAB.split(line);
-				if(tokens.length<9 ) continue;
-				if(!(tokens[2].equals("exon") || tokens[2].equals("transcript"))) continue;
-				final GTFLine gtfLine = codec.decode(line);
-				if(gtfLine==null) continue;
-				final double x1 = position2pixel.applyAsDouble(gtfLine.getStart());
-				final double x2 = position2pixel.applyAsDouble(gtfLine.getEnd());
-				if(tokens[2].equals("exon") ) {
-					g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
-				}
-				else if(tokens[2].equals("transcript") ) {
-					g.draw(new Line2D.Double(x1, y, x2, y));
-					}
-				}
+			getGenes(region).
+				filter(G->G.getType().equals("exon") || G.getType().equals("transcript")).
+				forEach(feature->{
+					final double x1 = position2pixel.applyAsDouble(feature.getStart());
+					final double x2 = position2pixel.applyAsDouble(feature.getEnd());
+					if(feature.getType().equals("exon") ) {
+						g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
+						}
+					else if(feature.getType().equals("transcript") ) {
+						g.draw(new Line2D.Double(x1, y, x2, y));
+						}
+					});
 
 			}
 		catch(Throwable err) {
 			
 			}
 		finally {
-			if(tbr!=null) tbr.close();
 			g.setComposite(oldComposite);
 			g.setStroke(oldStroke);
 			}
@@ -828,7 +857,7 @@ public  class CoverageServer extends Launcher {
 	     
 	     writeGenes(g,region);
 	     writeKnownCnv(g,region);
-	     
+
 	     g.setColor(Color.PINK);
 	     g.draw(new Line2D.Double(mid_start,0,mid_start,image_height));
 	     g.draw(new Line2D.Double(mid_end,0,mid_end,image_height));
@@ -1055,7 +1084,6 @@ public  class CoverageServer extends Launcher {
 			 
 			 writeGenes(g,region);
 			 writeKnownCnv(g,region);
-			 
 			 g.setColor(Color.GRAY);
 			 g.drawRect(0, 0, img.getWidth(),  img.getHeight());
 			 
@@ -1209,11 +1237,12 @@ public  class CoverageServer extends Launcher {
 					+ ".comment {background-color:khaki;text-align:center;font-size:14px;}"
 					+ ".highlight {background-color:#DB7093;}"
 					+ ".parents {font-size:75%;color:gray;}"
+					+ ".children {font-size:75%;color:gray;}"
 					+ ".allsamples {font-size:125%;}"
 					+ ".message {color:red;}"
 					+ ".affected {background-color:#e6cccc;}"
 					+ ".gtf {background-color:moccasin;text-align:center;}"
-					+ ".known {background-color:#ccb690;text-align:center;}"
+					+ ".known {background-color:wheat;text-align:center;}"
 					);
 			w.writeEndElement();//title
 			
@@ -1481,24 +1510,11 @@ public  class CoverageServer extends Launcher {
 			if(this.gtfFile!=null ) {
 				w.writeStartElement("div");
 				w.writeAttribute("class", "gtf");
-				TabixReader tbr =null;
-				try {
-					tbr= new TabixReader(this.gtfFile.toString());
-					final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
-					final String ctg = cvt.apply(interval.getContig());
-					if(!StringUtils.isBlank(ctg)) {
-						final GTFCodec codec = new GTFCodec();
-						final TabixReader.Iterator xiter = tbr.query(ctg, interval.getStart(), interval.getEnd());
-						for(;;) {
-							final String line= xiter.next();
-							if(line==null) break;
-							if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
-							final String tokens[]= CharSplitter.TAB.split(line);
-							if(tokens.length<9 ) continue;
-							if(!tokens[2].equals("gene")) continue;
-							if(StringUtils.indexOfIgnoreCase(line,tokens[8])==-1) continue;
-							final GTFLine gtfLine = codec.decode(line);
-							if(gtfLine==null) continue;
+				
+				getGenes(interval).
+					filter(G->G.getType().equals("gene")).
+					forEach(gtfLine->{
+						try {
 							String key=null;
 							if(gtfLine.getAttributes().containsKey("gene_id")) {
 								key = gtfLine.getAttribute("gene_id");
@@ -1507,7 +1523,7 @@ public  class CoverageServer extends Launcher {
 							if(gtfLine.getAttributes().containsKey("gene_name")) {
 								key = gtfLine.getAttribute("gene_name");
 								}
-							if(StringUtils.isBlank(key)) continue;
+							if(StringUtils.isBlank(key)) return;
 							final String url="https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(key);
 							w.writeStartElement("a");
 							w.writeAttribute("href", url);
@@ -1517,15 +1533,12 @@ public  class CoverageServer extends Launcher {
 							w.writeEndElement();
 							w.writeCharacters(" ");
 							}
+					catch(final XMLStreamException err) {
+						
 						}
-					}
-				catch(final Throwable err) {
-					LOG.warn(err);
-					}
-				finally
-					{
-					if(tbr!=null) tbr.close();
-					}
+					
+					});
+				
 				w.writeEndElement();//div
 				}
 			
@@ -1541,11 +1554,15 @@ public  class CoverageServer extends Launcher {
 				
 				w.writeStartElement("div");
 				w.writeAttribute("class", "known");
+				w.writeStartElement("label");
+				w.writeCharacters("Known: ");
+				w.writeEndElement();
 				getKnownCnv(interval).
 					sorted((A,B)->Double.compare(getOvelap.applyAsDouble(B), (getOvelap.applyAsDouble(A)))).
 					limit(100).
 					forEach(R->{
 					try {
+						w.writeStartElement("span");
 						w.writeCharacters(new SimpleInterval(R).toNiceString());
 						if(!StringUtils.isBlank(R.getName())) {
 							w.writeCharacters(" ");
@@ -1553,6 +1570,7 @@ public  class CoverageServer extends Launcher {
 							}
 						w.writeEndElement();
 						w.writeCharacters("; ");
+						w.writeEndElement();//span
 						}
 					catch(final Throwable err) {
 						LOG.warn(err);
@@ -1640,8 +1658,32 @@ public  class CoverageServer extends Launcher {
 							}
 						w.writeEndElement();
 						
+						final Set<Sample> children=sample.getChildren();
+						if(!children.isEmpty()) {
+							w.writeStartElement("span");
+							w.writeAttribute("class","children");
+							w.writeCharacters(" Has Children :");
+							for(final Sample child:children) {
+								boolean has_bam= this.bamInput.stream().anyMatch(B->B.sample.equals(child.getId()));
+								w.writeCharacters(" ");
+								if(has_bam) {
+									w.writeStartElement("a");
+									w.writeAttribute("href","#"+child.getId());
+									w.writeAttribute("title",child.getId());
+									w.writeAttribute("onclick", "highlight('"+child.getId()+"');");
+									w.writeCharacters("["+child.getId()+"].");
+									w.writeEndElement();
+									}
+								else
+									{
+									w.writeCharacters(child.getId());
+									}
+								writeSample(w,child);
+								}
+							w.writeEndElement();
+							}//end has children
+						}
 					}
-				}
 				
 				w.writeEndElement();
 				
