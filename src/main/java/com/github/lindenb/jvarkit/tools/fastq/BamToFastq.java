@@ -31,6 +31,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -39,13 +40,16 @@ import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.fastq.FastqWriter;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.fastq.FastqUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -161,13 +165,13 @@ public class BamToFastq
 
 	private static final Logger LOG = Logger.build(BamToFastq.class).make();
 
+	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path faidx = null;
 
-
-
-	@Parameter(names={"-F","--forward"},description="Save fastq_R1 to file (default: stdout)")
+	@Parameter(names={"-R1","--forward"},description="Save fastq_R1 to file (default: stdout)")
 	private File forwardFile = null;
 
-	@Parameter(names={"-R","--reverse"},description="Save fastq_R2 to file (default: interlaced with forward)")
+	@Parameter(names={"-R2","--reverse"},description="Save fastq_R2 to file (default: interlaced with forward)")
 	private File reverseFile = null;
 
 	@Parameter(names={"-r","--repair"},description="repair: insert missing read")
@@ -270,8 +274,9 @@ public class BamToFastq
 			boolean found_single=false;
 			boolean found_paired=false;
 			long non_primary_alignmaned_flag=0L;
-			
-			sfr = super.openSamReader(oneFileOrNull(args));
+			final String input = oneFileOrNull(args);
+			final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.faidx);
+			sfr = (input==null? srf.open(SamInputResource.of(stdin())):srf.open(SamInputResource.of(input)));
 			
 			fastqCollection = SortingCollection.newInstance(
 					MappedFastq.class,
@@ -362,7 +367,7 @@ public class BamToFastq
 				if(forwardFile!=null)
 					{
 					LOG.info("Writing to "+forwardFile);
-					fqw1=new BasicFastqWriter(forwardFile);
+					fqw1=new BasicFastqWriter(FastqUtils.validateFastqFilename(forwardFile));
 					}
 				else
 					{
@@ -372,7 +377,7 @@ public class BamToFastq
 				if(reverseFile!=null)
 					{
 					LOG.info("Writing to "+reverseFile);
-					fqw2=new BasicFastqWriter(reverseFile);
+					fqw2=new BasicFastqWriter(FastqUtils.validateFastqFilename(reverseFile));
 					}
 				else
 					{

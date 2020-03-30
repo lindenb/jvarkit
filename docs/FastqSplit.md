@@ -14,8 +14,8 @@ Usage: fastqsplit [options] Files
       use async I/O
       Default: false
     -n, -N, --count
-      number of splits
-      Default: 10
+      number of reads per file. will be generated. Or use option 's'.
+      Default: -1
     -h, --help
       print help and exit
     --helpFormat
@@ -30,9 +30,16 @@ Usage: fastqsplit [options] Files
       Default: false
   * -o, --output
       Output file name. It MUST  end with a fastq suffix and MUST contain the 
-      word __TAG__
+      word __TOKEN__
     -oi, --output-interleaved
       output is interleaved
+      Default: false
+    -s, -S, --splits
+      number of splits. At most 'x' (pair-of)files will be generated. Or use 
+      option 'n'
+      Default: -1
+    -validate, --validate
+      validate read names
       Default: false
     --version
       print version and exit
@@ -70,6 +77,10 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplit.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplit.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplitTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/fastq/FastqSplitTest.java)
 
 
 ## Contribute

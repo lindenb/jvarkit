@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.fastq;
 import java.util.AbstractList;
 import java.util.List;
 
+import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.fastq.FastqRecord;
 
 /** a pair of FastqRecord */
@@ -35,6 +36,16 @@ public interface FastqRecordPair extends List<FastqRecord> {
 public FastqRecord getFirstInPair();
 /** get second of pair */
 public FastqRecord getSecondInPair();
+/** check names R1 and R2 are valid */
+public boolean isValidName();
+/** assert names R1 and R2 are valid  and return this*/
+public default FastqRecordPair validateName() {
+	if(!isValidName()) throw new IllegalArgumentException("Bad Fastq R1 and R2 names: "
+			+ getFirstInPair().getReadName()+" "
+			+ getSecondInPair().getReadName()
+			);
+	return this;
+	}
 
 
 public static FastqRecordPair of(final FastqRecord fq1, final FastqRecord fq2) {
@@ -70,6 +81,29 @@ static class FastqRecordPairImpl extends AbstractList<FastqRecord>  implements F
 			case 1: return this.r2;
 			default: throw new IndexOutOfBoundsException("0<="+index+"<2");
 			}
+		}
+	
+	/** normalize read name */
+	private String normalize(String s, int side) {
+		int w = s.indexOf(' ');
+		if(w==-1) w=s.indexOf('\t');
+		if(w!=-1) s=s.substring(0,w);
+		if(
+			(side==0 && s.endsWith(FastqConstants.FIRST_OF_PAIR)) || 
+			(side==1 && s.endsWith(FastqConstants.SECOND_OF_PAIR))) {
+			s=s.substring(0,s.length()-2);
+			}
+		return s;
+		}
+	
+	@Override
+	public boolean isValidName() {
+		String n1 = this.getFirstInPair().getReadName();
+		String n2 = this.getSecondInPair().getReadName();
+		if(n1.equals(n2)) return true;
+		n1 = normalize(n1,0);
+		n2 = normalize(n2,0);
+		return n1.equals(n2);
 		}
 	
 	@Override

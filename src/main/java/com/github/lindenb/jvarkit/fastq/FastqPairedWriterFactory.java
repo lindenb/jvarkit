@@ -69,8 +69,8 @@ private FastqWriterFactory newFastqWriterFactory() {
 /** write interleaved reads into two files */
 public FastqPairedWriter open(final File f1,final File f2) throws IOException {
 	final FastqWriterFactory qfw = newFastqWriterFactory();
-	final FastqWriter w1 = qfw.newWriter(f1);
-	final FastqWriter w2 = qfw.newWriter(f2);
+	final FastqWriter w1 = qfw.newWriter(FastqUtils.validateFastqFilename(f1));
+	final FastqWriter w2 = qfw.newWriter(FastqUtils.validateFastqFilename(f2));
 	return new TwoWriter(w1,w2);
 	}
 

@@ -40,7 +40,17 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class FastqPairedReaderFactory {
-
+	private boolean validate_read_names = false;
+	
+	public FastqPairedReaderFactory setValidateReadNames(boolean validate_read_names) {
+		this.validate_read_names = validate_read_names;
+		return this;
+		}
+	
+	public boolean isValidateReadNames() {
+		return validate_read_names;
+		}
+	
 	/** 
 	if args is empty, read from interleaved stdin
 	if args.size==1 read from one interleaved file
@@ -75,8 +85,9 @@ public CloseableIterator<FastqRecordPair> open(final Path path) throws IOExcepti
 
 	
 /** read interleaved reads in one file */
+@SuppressWarnings("resource")
 public CloseableIterator<FastqRecordPair> open(final File fqFile) throws IOException {
-	return new InterleavedOneReader( new FastqReader(fqFile));
+	return new InterleavedOneReader( new FastqReader(fqFile)).setValidateReadName(this.isValidateReadNames());
 	}
 
 /** read interleaved reads from input stream */
@@ -84,8 +95,9 @@ public CloseableIterator<FastqRecordPair> open(final InputStream is) throws IOEx
 	return open(new BufferedReader(new InputStreamReader(is)));
 	}
 /** read interleaved reads from buffered reader  */
+@SuppressWarnings("resource")
 public CloseableIterator<FastqRecordPair> open(final BufferedReader br) throws IOException {
-	return new InterleavedOneReader( new FastqReader(br));
+	return new InterleavedOneReader( new FastqReader(br)).setValidateReadName(this.isValidateReadNames());
 	}
 
 
@@ -94,9 +106,15 @@ private static abstract class AbstractInterleavedPairReader extends AbstractIter
 implements CloseableIterator<FastqRecordPair> {
 	final protected FastqReader fq1Reader;
 	final protected FastqReader fq2Reader;
+	protected boolean validate_read_name =false;
 	protected AbstractInterleavedPairReader(final FastqReader fqReader1,final FastqReader fqReader2) {
-	this.fq1Reader = fqReader1;
-	this.fq2Reader = fqReader2;
+		this.fq1Reader = fqReader1;
+		this.fq2Reader = fqReader2;
+		}
+	
+	AbstractInterleavedPairReader setValidateReadName(boolean b) {
+		this.validate_read_name = b;
+		return this;
 	}
 	
 @Override
@@ -119,9 +137,13 @@ protected FastqRecordPair advance() {
 				"Expected Read in file "+this.fq2Reader.getFile()
 				+ " after reading read "+r1+" in file "+this.fq1Reader.getFile());
 		}
-	final FastqRecord r2 = this.fq1Reader.next();
+	final FastqRecord r2 = this.fq2Reader.next();
 	
-	return FastqRecordPair.of(r1,r2);
+	final FastqRecordPair pair =  FastqRecordPair.of(r1,r2);
+	
+	if(this.validate_read_name) pair.validateName();
+	
+	return pair;
 	}
 }
 

@@ -70,6 +70,8 @@ public class FastqSplitInterleaved extends Launcher
 	private boolean write_md5=false;
 	@Parameter(names={"-async","--async"},description="use async I/O")
 	private boolean with_asynio=false;
+	@Parameter(names={"-validate","--validate"},description="validate read names")
+	private boolean validate_read_names=false;
 
 	
 	private FastqSplitInterleaved() {
@@ -87,7 +89,7 @@ public class FastqSplitInterleaved extends Launcher
 		try
 			{
 			final String input = oneFileOrNull(args);
-			final FastqPairedReaderFactory fqprf = new FastqPairedReaderFactory();
+			final FastqPairedReaderFactory fqprf = new FastqPairedReaderFactory().setValidateReadNames(this.validate_read_names);
 			if(input==null)
 				{
 				iter1 = fqprf.open(stdin());	
