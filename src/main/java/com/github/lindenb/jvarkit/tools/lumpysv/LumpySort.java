@@ -25,6 +25,7 @@ package com.github.lindenb.jvarkit.tools.lumpysv;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
 
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -49,6 +51,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.sleepycat.bind.tuple.TupleBinding;
 import com.sleepycat.bind.tuple.TupleInput;
 import com.sleepycat.bind.tuple.TupleOutput;
@@ -113,7 +116,7 @@ public class LumpySort
 	
 	private static final Logger LOG = Logger.build(LumpySort.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-f","--fraction"},description="Required Overlap fraction between two intervals.")
 	private double fraction_overlap = 0.8;
 	@Parameter(names={"-slop","--slop"},description="slop for 'x' bases in both directions.")
@@ -130,6 +133,8 @@ public class LumpySort
 	private File bedFile = null;
 	@Parameter(names={"-bdb","--bdb"},description="Berkeley DB working directory. It must exists and must be writeable.",required=true)
 	private File bdbHomeDir = null;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	/** encoder for VariantCtx -> line */
 	private VCFEncoder vcfEncoder = null;
@@ -605,7 +610,7 @@ public class LumpySort
 		final Cursor cursor = variantsDb1.openCursor(txn, null);
 
 
-		vcw = super.openVariantContextWriter(this.outputFile);
+		vcw = this.writingVariantsDelegate.open(this.outputFile);
 		vcw.writeHeader(outHeader);
 		
 		for(;;)
@@ -688,7 +693,7 @@ public class LumpySort
 					);
 			vcb.attribute("END", variantEndB);
 			vcb.attribute("SVTYPE", first.ctx.getAttribute("SVTYPE"));
-			vcb.attribute("SVLEN", (int)Percentile.median().evaluate(buffer.stream().mapToInt(V->V.ctx.getEnd()-V.ctx.getStart())));
+			vcb.attribute("SVLEN", (int)Percentile.median().evaluate(buffer.stream().mapToInt(V->V.ctx.getEnd()-V.ctx.getStart())).getAsDouble());
 			vcb.attribute("CIPOS",Arrays.asList(variantStartB-variantStartA,variantStartC-variantStartB));
 			vcb.attribute("CIEND",Arrays.asList(variantEndB-variantEndA,variantEndC-variantEndB));
 			vcb.attribute("SU",buffer.stream().flatMap(V->V.ctx.getGenotypes().stream()).mapToInt(G->G.getAttributeAsInt("SU", 0)).sum());

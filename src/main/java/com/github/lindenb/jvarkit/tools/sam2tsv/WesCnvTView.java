@@ -675,7 +675,7 @@ public class WesCnvTView  extends Launcher {
 				int pos1 = (int)Math.ceil(((x+1)/(double)si.pixel_coverage.length)*base_coverage.length);
 				pos1 = Math.min(pos1,base_coverage.length);
 				if(pos0>=pos1) continue;
-				si.pixel_coverage[x] = Percentile.of(this.percentile).evaluate(base_coverage,pos0,(pos1-pos0));
+				si.pixel_coverage[x] = Percentile.of(this.percentile).evaluate(base_coverage,pos0,(pos1-pos0)).getAsDouble();
 				}
 			
 		w.sampleInfos.add(si);

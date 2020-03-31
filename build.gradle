@@ -862,6 +862,10 @@ all2.add( task("bedcluster", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedCluster"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("bedmergecnv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 all2.add( task("almostsortedvcf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sortvcfonref.AlmostSortedVcf"

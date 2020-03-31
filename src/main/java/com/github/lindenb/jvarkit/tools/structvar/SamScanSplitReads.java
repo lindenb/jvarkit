@@ -289,7 +289,7 @@ END_DOC
 					
 					if(countCat1>0)
 						{
-						gb.attribute("M5",Percentile.median().evaluate(sampleArcs.stream().filter(A->A.type==VOID_TO_LEFT).mapToInt(A->A.length())));
+						gb.attribute("M5",Percentile.median().evaluate(sampleArcs.stream().filter(A->A.type==VOID_TO_LEFT).mapToInt(A->A.length())).getAsDouble());
 						}
 					else
 						{
@@ -297,7 +297,7 @@ END_DOC
 						}
 					if(countCat2>0) 
 						{
-						gb.attribute("M3", Percentile.median().evaluate(sampleArcs.stream().filter(A->A.type==RIGHT_TO_VOID).mapToInt(A->A.length())));
+						gb.attribute("M3", Percentile.median().evaluate(sampleArcs.stream().filter(A->A.type==RIGHT_TO_VOID).mapToInt(A->A.length())).getAsDouble());
 						}
 					else
 						{

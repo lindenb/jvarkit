@@ -384,11 +384,11 @@ public class BamStats04 extends Launcher
 							
 							final double mean= Percentile.average().evaluate(Arrays.stream(stat.counts).
 									map(depthAdjuster)
-									);
+									).getAsDouble();
 							
 			                final double median_depth = Percentile.median().evaluate(Arrays.stream(stat.counts).
 									map(depthAdjuster)
-									);
+									).getAsDouble();
 			                
 							
 							pw.print("\t"+

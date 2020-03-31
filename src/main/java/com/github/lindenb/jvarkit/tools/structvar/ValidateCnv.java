@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.structvar;
 
 
-import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -33,8 +32,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
@@ -42,17 +43,16 @@ import java.util.stream.IntStream;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.math.RunMedian;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.iterator.LineIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -72,7 +72,6 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -134,25 +133,23 @@ public class ValidateCnv extends Launcher
 	private Path rererencePath = null;
 	@Parameter(names={"-x","--extend"},description="Search the boundaries in a region that is 'x'*(CNV-length). So if x if 0.5, a region chr1:100-200 will be searched chr1:50-100 + chr1:200-250")
 	private double extendFactor=0.5;	
-	@Parameter(names={"-md","--min-dp"},description="At least one of the bounds must have a median-depth greater than this value.")
-	private int min_depth = 20;
-	@Parameter(names={"-cd","--critical-dp"},description="The middle section shouldn't have any point with a DP lower than this value (prevent HOM_VAR deletions)")
-	private int critical_middle_depth = 1;
-	@Parameter(names={"--min"},description="Min abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	//@Parameter(names={"-md","--min-dp"},description="At least one of the bounds must have a median-depth greater than this value.")
+	//private int min_depth = 20;
+	//@Parameter(names={"-cd","--critical-dp"},description="The middle section shouldn't have any point with a DP lower than this value (prevent HOM_VAR deletions)")
+	//private int critical_middle_depth = 1;
+	@Parameter(names={"--min","--min-size"},description="Min abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_abs_sv_size = 50;
-	@Parameter(names={"--max"},description="Max abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"--max","--max-size"},description="Max abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_abs_sv_size = 1_000_000;
-	@Parameter(names={"--dicard"},description="Dicard variant where all Called Genotypes have been filtered.")
-	private boolean discard_all_filtered_variant = false;
-	@Parameter(names={"--max-variance"},description="Maximum tolerated variance in one genomic segment.")
-	private double max_variance = 10.0;
-	@Parameter(names={"--median-adjust"},description="TODO.")
-	private double median_factor = 0.33;
+	//@Parameter(names={"--max-variance"},description="Maximum tolerated variance in one genomic segment.")
+	//private double max_variance = 10.0;
+	//@Parameter(names={"--median-adjust"},description="TODO.")
+	//private double median_factor = 0.33;
 	@Parameter(names={"--min-read-support-del"},description="min number of read supporting deletion.")
 	private int min_read_supporting_del=3;
 	@Parameter(names={"--mapq"},description="min mapping quality.")
 	private int min_mapq = 20;
-	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x")
+	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x . "+ FractionConverter.OPT_DESC,converter=FractionConverter.class)
 	private float treshold = 0.05f;
 
 	@ParametersDelegate
@@ -188,58 +185,7 @@ public class ValidateCnv extends Launcher
 			}
 		}
 	
-	
-	private CloseableIterator<Locatable> openVcfAsIterable(final String input) throws IOException {
-		final VCFIteratorBuilder vcfIteratorBuilder = new VCFIteratorBuilder();
-		final VCFIterator iter1 = input==null?vcfIteratorBuilder.open(stdin()):vcfIteratorBuilder.open(input);
-		return new CloseableIterator<Locatable>() {
-			@Override
-			public boolean hasNext() {
-				return iter1.hasNext();
-				}
-
-			@Override
-			public Locatable  next() {
-				final VariantContext ctx = iter1.next();
-				final StructuralVariantType svType = ctx.getStructuralVariantType();
-				if(!(svType==StructuralVariantType.DEL || svType==StructuralVariantType.DUP || svType==StructuralVariantType.INS) ) {
-					return null;
-					}
-				
-				if(ctx.getNAlleles()!=2) return null;
-				return new SimpleInterval(iter1.next());
-				}
-
-			@Override
-			public void close() {
-				iter1.close();
-				}
-			};
-		}
-	private CloseableIterator<Locatable> openBedAsIterable(final String input) throws IOException {
-		final BedLineCodec codec = new BedLineCodec();
-		final BufferedReader iter1 = (input==null?IOUtils.openStreamForBufferedReader(stdin()):IOUtils.openURIForBufferedReading(input));
-		final LineIterator iter2 = new LineIterator(iter1);
-		return new CloseableIterator<Locatable>() {
-			@Override
-			public boolean hasNext() {
-				return iter2.hasNext();
-				}
-
-			@Override
-			public Locatable  next() {
-				String line = iter2.next();
-				if(BedLine.isBedHeader(line)) return null;
-				return codec.decode(line);
-				}
-
-			@Override
-			public void close() {
-				iter2.close();
-				CloserUtil.close(iter1);
-				}
-			};
-		}
+		
 	@Override
 	public int doWork(final List<String> args) {		
 		if(this.extendFactor<=0)
@@ -253,7 +199,7 @@ public class ValidateCnv extends Launcher
 		}
 		final Map<String,BamInfo> sample2bam = new HashMap<>();
 		VariantContextWriter out = null;
-		CloseableIterator<Locatable> iterIn = null;
+		Iterator<? extends Locatable> iterIn = null;
 		try
 			{	
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.rererencePath);
@@ -262,20 +208,16 @@ public class ValidateCnv extends Launcher
 			
 			final String input = oneFileOrNull(args);
 			if(input==null) {
-				iterIn = openVcfAsIterable(null);
+				iterIn = IntervalListProvider.empty().dictionary(dict).skipUnknownContigs().fromInputStream(stdin(),"bed").iterator();
 				}
-			else if(input.endsWith(FileExtensions.BED) || input.endsWith(FileExtensions.BED+".gz")) {
-				iterIn = openBedAsIterable(input);
-				}
-			else
-				{
-				iterIn = openVcfAsIterable(input);
+			else {
+				final IntervalListProvider ilp = IntervalListProvider.from(input).dictionary(dict).skipUnknownContigs();
+				iterIn = ilp.stream().iterator();
 				}
 			
 			/* register each bam */
 			for(final Path p2: bamPaths) {				
 				final BamInfo bi = new BamInfo(p2);
-				
 				
 				if(sample2bam.containsKey(bi.sampleName)) {
 					LOG.error("sample "+ bi.sampleName +" specified twice.");
@@ -311,8 +253,6 @@ public class ValidateCnv extends Launcher
 			
 			final BiFunction<String, String, VCFFormatHeaderLine> makeFmt = (TAG,DESC)-> new VCFFormatHeaderLine(TAG,1,VCFHeaderLineType.Integer,DESC);
 			
-			final VCFFormatHeaderLine midVarianceDepth = makeFmt.apply("CBN","Middle variance depth or -1");
-			metadata.add(midVarianceDepth);
 			final VCFFormatHeaderLine formatCN =  new VCFFormatHeaderLine("CN",1,VCFHeaderLineType.Float,"normalized copy-number");
 			metadata.add(formatCN);
 			final VCFFormatHeaderLine nReadsSupportingDel = makeFmt.apply("RSD","number of split read supporting SV.");
@@ -351,7 +291,7 @@ public class ValidateCnv extends Launcher
 					logger(LOG).
 					build();
 			out =  this.writingVariantsDelegate.
-					dictionary(header.getSequenceDictionary()).
+					dictionary(dict).
 					open(this.outputFile);
 			out.writeHeader(header);
 			
@@ -465,7 +405,7 @@ public class ValidateCnv extends Launcher
 									}
 								}
 							}// end while iter record
-						}//end try
+						}//end try query for iterator
 					
 					//run median to smooth spline
 					final double smoothed_cov[]= new RunMedian(RunMedian.getTurlachSize(raw_coverage.length)).apply(raw_coverage);
@@ -477,20 +417,25 @@ public class ValidateCnv extends Launcher
 						toArray();
 					
 					
-					final double medianBound = Percentile.median().evaluate(bounds_cov);
-					if(Double.isNaN(medianBound) || medianBound==0) {
+					final OptionalDouble optMedianBound = Percentile.median().evaluate(bounds_cov);
+					if(!optMedianBound.isPresent() || optMedianBound.getAsDouble()==0) {
 						final Genotype gt2 = GenotypeBuilder.createMissing(sampleName, 2);
 						genotypes.add(gt2);
 						continue;
 						}
 					
+					final double medianBound = optMedianBound.getAsDouble();
 					// divide coverage per medianBound
 					final double normalized_coverage[] = new double[smoothed_cov.length];
 					for(int i=0;i< normalized_coverage.length;++i) {
 						normalized_coverage[i] = smoothed_cov[i] / medianBound;
 						}
 					
-					final double normDepth = Percentile.median().evaluate(normalized_coverage, array_mid_start, array_mid_end);
+					final double normDepth = Percentile.median().evaluate(
+							normalized_coverage, 
+							array_mid_start,
+							array_mid_end-array_mid_start
+							).getAsDouble();
 					
 					
 					final boolean is_sv;
@@ -561,7 +506,7 @@ public class ValidateCnv extends Launcher
 					}
 				
 				
-				if(alleles.size()<=1) continue;
+				//if(alleles.size()<=1) continue;
 				vcb.alleles(alleles);
 				vcb.noID();
 				vcb.genotypes(genotypes);
@@ -587,7 +532,7 @@ public class ValidateCnv extends Launcher
 				}
 			progress.close();
 			out.close();
-			iterIn.close();
+			
 			return 0;
 			}
 		catch(final Throwable err)

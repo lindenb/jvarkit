@@ -474,11 +474,11 @@ public class Bam2Wig extends Launcher
 				final double median_cases = Percentile.median().evaluate(this.case2person.keySet().
 						stream().
 						mapToDouble(ID->sample2coverage.count(ID))
-						);
+						).getAsDouble();
 				final double median_ctrl = Percentile.median().evaluate(this.ctrl2person.keySet().
 						stream().
 						mapToDouble(ID->sample2coverage.count(ID))
-						);
+						).getAsDouble();
 
 				final double ratio = median_cases / median_ctrl;
 				
@@ -589,7 +589,7 @@ public class Bam2Wig extends Launcher
 									array,
 									start0,
 									Math.min(this.window_span,array.length-start0)
-									);
+									).getAsDouble();
 						if(this.bedGraph)
 							{
 							pw.print(ssr.getSequenceName());

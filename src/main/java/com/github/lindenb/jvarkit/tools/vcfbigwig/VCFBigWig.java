@@ -431,14 +431,14 @@ public class VCFBigWig extends Launcher
 						break;
 					case avg:
 						vcb.attribute(rsrc.getToken(),
-								(float)Percentile.average().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
+								(float)Percentile.average().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()).getAsDouble());
 						break;
 					case first:
 						vcb.attribute(rsrc.getToken(),values.get(0));
 						break;
 					case median:
 						vcb.attribute(rsrc.getToken(),
-								(float)Percentile.median().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()));
+								(float)Percentile.median().evaluate(values.stream().mapToDouble(V->V.doubleValue()).toArray()).getAsDouble());
 						break;
 					default: throw new IllegalStateException();
 					}

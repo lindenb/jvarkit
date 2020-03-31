@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.math.stats;
 
 import java.util.Arrays;
+import java.util.OptionalDouble;
 import java.util.Random;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -36,27 +37,31 @@ public abstract class Percentile {
 protected Percentile() {
 }
 
-public double evaluate(double[] values, int start, int length)
+public OptionalDouble evaluate(final double[] values, final int start, final int length)
 	{
+	if(length==0) return OptionalDouble.empty();
 	return evaluate(Arrays.stream(values,start,start+length));
 	}
-public double evaluate(double[] values)
+public OptionalDouble evaluate(final double[] values)
 	{
+	if(values.length==0) return OptionalDouble.empty();
 	return evaluate(values,0,values.length);
 	}
 
-public double evaluate(int[] values, int start, int length)
+public OptionalDouble evaluate(int[] values, int start, int length)
 	{
+	if(length==0) return OptionalDouble.empty();
 	return evaluate(Arrays.stream(values,start,start+length));
 	}
-public double evaluate(int[] values)
+public OptionalDouble evaluate(int[] values)
 	{
+	if(values.length==0) return OptionalDouble.empty();
 	return evaluate(values,0,values.length);
 	}
 
-public abstract double evaluate(final DoubleStream stream);
+public abstract OptionalDouble evaluate(final DoubleStream stream);
 
-public double evaluate(final IntStream stream) {
+public OptionalDouble evaluate(final IntStream stream) {
 	return evaluate(stream.mapToDouble(I->I));
 	}
 
@@ -82,8 +87,8 @@ public static Percentile of(final Type t) {
 
 private static final  Percentile _PMin = new Percentile() {
 	@Override
-	public double evaluate(final DoubleStream stream) {
-		return stream.min().getAsDouble();
+	public OptionalDouble evaluate(final DoubleStream stream) {
+		return stream.min();
 		}
 	
 	@Override public String toString() {return "min";}
@@ -91,70 +96,80 @@ private static final  Percentile _PMin = new Percentile() {
 	
 private static final  Percentile _PMax = new Percentile() {
 	@Override
-	public double evaluate(final DoubleStream stream) {
-		return stream.max().getAsDouble();
+	public OptionalDouble evaluate(final DoubleStream stream) {
+		return stream.max();
 		}
 	@Override public String toString() {return "max";}
 	};
 
 private static final  Percentile _PAvg = new Percentile() {
 	@Override
-	public double evaluate(final DoubleStream stream) {
-		return stream.average().getAsDouble();
+	public OptionalDouble evaluate(final DoubleStream stream) {
+		return stream.average();
 		}
 	@Override public String toString() {return "average";}
 	};
 
 private static final  Percentile _PSum = new Percentile() {
 	@Override
-	public double evaluate(final DoubleStream stream) {
-		return stream.sum();
+	public OptionalDouble evaluate(final DoubleStream stream) {
+		return OptionalDouble.of(stream.sum());
 		}
 	@Override public String toString() {return "sum";}
 	};
 	
 private static final  Percentile _PMedian = new Percentile() {
+	
 	@Override
-	public double evaluate(final DoubleStream stream) {
-		final double copy[]= stream.sorted().toArray();
+	public OptionalDouble evaluate(final DoubleStream stream) {
+		return evaluate(stream.toArray());
+		}
+	
+	@Override
+	public OptionalDouble evaluate(final double[] values, final int start, final int length)
+		{
+		if(length==0) return OptionalDouble.empty();
+		final double copy[]= Arrays.copyOfRange(values, start, start+length);
+		Arrays.sort(copy);
 		final int mid_x= copy.length/2;
 		if(copy.length==0) {
-			return Double.NaN;
+			return OptionalDouble.empty();
 			}
 		else if(copy.length==1)
 			{
-			return copy[0];
+			return OptionalDouble.of(copy[0]);
 			}
 		else if(copy.length%2==0)
 	        {
-			return (copy[mid_x-1]+copy[mid_x])/2.0;
+			return OptionalDouble.of((copy[mid_x-1]+copy[mid_x])/2.0);
 	        }
 		else
 	        {
-	        return copy[mid_x];
+	        return OptionalDouble.of(copy[mid_x]);
 	        }
 		}
 	@Override public String toString() {return "median";}
 	};
 
 private static final  Percentile _PRandom = new Percentile() {
-	final Random rnd = new Random();
+	private final Random rnd = new Random();
 	
 	private int index(int start, int length)
 		{
 		return start + this.rnd.nextInt(length);
 		}
-	public double evaluate(final DoubleStream stream)
+	public OptionalDouble evaluate(final DoubleStream stream)
 		{
 		return evaluate(stream.toArray());
 		}
 	@Override
-	public double evaluate(double[] values, int start, int length) {
-		return values[index(start,length)];
+	public OptionalDouble evaluate(double[] values, int start, int length) {
+		if(length==0) return OptionalDouble.empty();
+		return OptionalDouble.of(values[index(start,length)]);
 		}
 	@Override
-	public double evaluate(int[] values, int start, int length) {
-		return values[index(start,length)];
+	public OptionalDouble evaluate(int[] values, int start, int length) {
+		return OptionalDouble.of(values[index(start,length)]);
 		}
 	@Override public String toString() {return "random";}
 	};

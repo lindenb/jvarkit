@@ -26,6 +26,9 @@ package com.github.lindenb.jvarkit.samtools.util;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -70,10 +73,15 @@ public abstract class IntervalListProvider {
 	protected boolean enable_breakend_vcf = false;
 	private SAMSequenceDictionary dictionary = null;
 	private ContigNameConverter contigNameConverter = null;
-	final protected String path;
+	final protected String pathStr;
 	
 	protected IntervalListProvider(final String path) {
-		this.path =path;
+		this.pathStr =path;
+	}
+	
+	protected String getRequiredPath() {
+		if(StringUtils.isBlank(this.pathStr)) throw new IllegalStateException("path is unspecified");
+		return this.pathStr;
 	}
 	
 	/** set dictionary that can be of help to decode contig names . Can be null */
@@ -166,6 +174,28 @@ public abstract class IntervalListProvider {
 			};
 		}
 	
+	/** creates a stream when reading from a java.io.Reader */
+	public Stream<? extends Locatable> fromInputStream(final InputStream r,final String format) {
+		return fromReader(new InputStreamReader(r),format);
+	}
+	
+	/** creates a stream when reading from a java.io.Reader */
+	public Stream<? extends Locatable> fromReader(final Reader r,final String format) {
+		final  Stream<? extends Locatable> st;
+		if(format.equalsIgnoreCase("bed")) {
+			st = fromBedReader(r);
+			} 
+		else if(format.equalsIgnoreCase("gff") || format.equalsIgnoreCase("gtf")) {
+			st =  fromGffGtfReader(r);
+			}
+		else
+			{
+			throw new IllegalArgumentException("unsupported format "+format+".");
+			}
+		return st.onClose(()->CloserUtil.close(r));
+		}
+
+	
 	public static final IntervalListProvider from(final String path) {
 		if(StringUtils.isBlank(path)) {
 			return empty();
@@ -201,7 +231,7 @@ public abstract class IntervalListProvider {
 					enableSinglePoint(this.enable_single_point).
 					make();
 			return Arrays.
-					stream(path.split("[ ;,\t\n]+")).
+					stream(getRequiredPath().split("[ ;,\t\n]+")).
 					filter(S->!StringUtils.isBlank(S)).
 					map(S->(Locatable)parser.apply(S).orElseThrow(()->new IllegalArgumentException("Cannot convert interval \""+S+"\""))).
 					map(L->this.remapContig(L)).filter(L->L!=null)
@@ -219,7 +249,7 @@ public abstract class IntervalListProvider {
 		public Stream<? extends Locatable> stream() {
 			try {
 				return new VCFIteratorBuilder().
-						open(path).
+						open(getRequiredPath()).
 						stream().
 						flatMap(V->{
 							/* enable break end ?*/
@@ -238,6 +268,17 @@ public abstract class IntervalListProvider {
 			}
 		}	
 	
+	public Stream<? extends Locatable> fromBedReader(final Reader r) {
+		final BedLineCodec codec = new BedLineCodec();
+		final BufferedReader br = (r instanceof BufferedReader ? BufferedReader.class.cast(r):new BufferedReader(r));
+			return br.lines().
+				filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
+				map(L->codec.decode(L)).
+				filter(L->L!=null).
+				map(L->this.remapContig(L)).filter(L->L!=null)
+				;
+		}
+	
 	private static class ProviderIsBed extends IntervalListProvider
 		{
 		ProviderIsBed(final String path) {
@@ -246,14 +287,8 @@ public abstract class IntervalListProvider {
 		@Override
 		public Stream<? extends Locatable> stream() {
 			try {
-				final BedLineCodec codec = new BedLineCodec();
-				final BufferedReader r = IOUtils.openURIForBufferedReading(this.path);
-				return r.lines().
-						filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
-						map(L->codec.decode(L)).
-						filter(L->L!=null).
-						map(L->this.remapContig(L)).filter(L->L!=null).
-						onClose(()->CloserUtil.close(r));
+				final BufferedReader r = IOUtils.openURIForBufferedReading(getRequiredPath());
+				return fromBedReader(r).onClose(()->CloserUtil.close(r));
 				}
 			catch(final IOException err) {
 				throw new RuntimeIOException(err);
@@ -261,6 +296,17 @@ public abstract class IntervalListProvider {
 			}
 		}	
 
+	public Stream<? extends Locatable> fromGffGtfReader(final Reader r) {
+		final BufferedReader br = (r instanceof BufferedReader ? BufferedReader.class.cast(r):new BufferedReader(r));
+			return br.lines().
+					filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
+					map(L->CharSplitter.TAB.split(L)).
+					map(L->new SimpleInterval(L[0],Integer.parseInt(L[3]),Integer.parseInt(L[4]))).
+					map(L->this.remapContig(L)).
+					filter(L->L!=null)
+				;
+		}
+	
 	private static class ProviderGtfGff extends IntervalListProvider
 		{
 		ProviderGtfGff(final String path) {
@@ -269,13 +315,8 @@ public abstract class IntervalListProvider {
 		@Override
 		public Stream<? extends Locatable> stream() {
 			try {
-				final BufferedReader r = IOUtils.openURIForBufferedReading(this.path);
-				return r.lines().
-						filter(L->!(StringUtils.isBlank(L) || L.startsWith("#"))).
-						map(L->CharSplitter.TAB.split(L)).
-						map(L->new SimpleInterval(L[0],Integer.parseInt(L[3]),Integer.parseInt(L[4]))).
-						map(L->this.remapContig(L)).filter(L->L!=null).
-						onClose(()->CloserUtil.close(r));
+				final BufferedReader r = IOUtils.openURIForBufferedReading(this.getRequiredPath());
+				return fromGffGtfReader(r).onClose(()->CloserUtil.close(r));
 				}
 			catch(final IOException err) {
 				throw new RuntimeIOException(err);
@@ -292,7 +333,7 @@ public abstract class IntervalListProvider {
 		public Stream<? extends Locatable> stream() {
 			try {
 				final IntervalListCodec codec=new IntervalListCodec();
-				final BufferedReader r = IOUtils.openURIForBufferedReading(this.path);
+				final BufferedReader r = IOUtils.openURIForBufferedReading(this.getRequiredPath());
 				final LineIterator lr = new LineIterator(r);
 				codec.readActualHeader(lr);
 				return lr.stream().
@@ -308,7 +349,7 @@ public abstract class IntervalListProvider {
 
 	@Override
 	public String toString() {
-		return this.path;
+		return String.valueOf(this.pathStr);
 		}
 }
 

@@ -176,7 +176,7 @@ public class SamAddPI extends Launcher
 				final List<Integer> insertlist = rg2insertsize.get(rg.getId());
 				if(insertlist==null || insertlist.isEmpty()) continue;
 				rg.setPredictedMedianInsertSize((int)Percentile.median().
-						evaluate(insertlist.stream().mapToDouble(I->I.doubleValue())));
+						evaluate(insertlist.stream().mapToDouble(I->I.doubleValue())).getAsDouble());
 				}
 			header.addComment("Processed with "+getClass().getSimpleName()+" "+getProgramCommandLine());
 			outWriter =  this.writingBamArgs.openSAMFileWriter(this.outputFile, header,true);

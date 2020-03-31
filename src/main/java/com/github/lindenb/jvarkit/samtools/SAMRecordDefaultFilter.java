@@ -37,7 +37,7 @@ public static boolean accept(final SAMRecord rec) {
 	return true;
 	}
 /** accept mapped read with default filters and mapping quality */
-public static boolean accept(final SAMRecord rec,int mapq) {
+public static boolean accept(final SAMRecord rec,final int mapq) {
 	return accept(rec) && rec.getMappingQuality()>=mapq;
 	}
 }

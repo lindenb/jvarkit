@@ -117,9 +117,6 @@ public class GcPercentAndDepth extends Launcher
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-partition","--partition"},description="[20171219]"+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
-	//@Parameter(names={"-percentile","--percentile"},description="[20171219] data percentile method")
-	//private Percentile percentile = Percentile.average();
-	
 	
 	private SAMSequenceDictionary samSequenceDictionary=null;
 

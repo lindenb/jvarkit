@@ -154,7 +154,7 @@ public class Biostar78285 extends Launcher
 	@Parameter(names={"-f","--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-B","--bed","--capture"},description="Limit analysis to this bed file")
-	private File captureBed = null;
+	private Path captureBed = null;
 	@Parameter(names={"--partition"},description="When using display READ_GROUPS, how should we partition the ReadGroup ? "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition= SAMRecordPartition.sample;
 	@Parameter(names={"-m","--min-depth"},description="Min depth tresholds.")
@@ -243,7 +243,7 @@ public class Biostar78285 extends Launcher
 				ContigNameConverter.setDefaultAliases(dict);
 				final List<QueryInterval> L = new ArrayList<>();
 				final BedLineCodec codec= new BedLineCodec();
-				final LineIterator li = IOUtils.openFileForLineIterator(this.captureBed);
+				final LineIterator li = IOUtils.openPathForLineIterator(this.captureBed);
 				while(li.hasNext()) {
 					final BedLine bed = codec.decode(li.next());
 					if(bed==null) continue;
@@ -502,10 +502,10 @@ public class Biostar78285 extends Launcher
 						final int array[] =  count.values().stream().
 							mapToInt(S->S.dp).
 							toArray();
-						vcb.attribute("AVG_DP",Percentile.average().evaluate(array));
-						vcb.attribute("MEDIAN_DP",Percentile.median().evaluate(array));
-						vcb.attribute("MIN_DP",(int)Percentile.min().evaluate(array));
-						vcb.attribute("MAX_DP",(int)Percentile.max().evaluate(array));
+						vcb.attribute("AVG_DP",Percentile.average().evaluate(array).getAsDouble());
+						vcb.attribute("MEDIAN_DP",Percentile.median().evaluate(array).getAsDouble());
+						vcb.attribute("MIN_DP",(int)Percentile.min().evaluate(array).getAsDouble());
+						vcb.attribute("MAX_DP",(int)Percentile.max().evaluate(array).getAsDouble());
 						}
 					
 					if(filters.isEmpty())
