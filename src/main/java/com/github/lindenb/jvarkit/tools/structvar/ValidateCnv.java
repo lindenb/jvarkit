@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
@@ -77,7 +78,6 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
-import htsjdk.variant.variantcontext.StructuralVariantType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -88,8 +88,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 
@@ -133,25 +131,19 @@ public class ValidateCnv extends Launcher
 	private Path rererencePath = null;
 	@Parameter(names={"-x","--extend"},description="Search the boundaries in a region that is 'x'*(CNV-length). So if x if 0.5, a region chr1:100-200 will be searched chr1:50-100 + chr1:200-250")
 	private double extendFactor=0.5;	
-	//@Parameter(names={"-md","--min-dp"},description="At least one of the bounds must have a median-depth greater than this value.")
-	//private int min_depth = 20;
-	//@Parameter(names={"-cd","--critical-dp"},description="The middle section shouldn't have any point with a DP lower than this value (prevent HOM_VAR deletions)")
-	//private int critical_middle_depth = 1;
 	@Parameter(names={"--min","--min-size"},description="Min abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_abs_sv_size = 50;
 	@Parameter(names={"--max","--max-size"},description="Max abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_abs_sv_size = 1_000_000;
-	//@Parameter(names={"--max-variance"},description="Maximum tolerated variance in one genomic segment.")
-	//private double max_variance = 10.0;
-	//@Parameter(names={"--median-adjust"},description="TODO.")
-	//private double median_factor = 0.33;
 	@Parameter(names={"--min-read-support-del"},description="min number of read supporting deletion.")
 	private int min_read_supporting_del=3;
 	@Parameter(names={"--mapq"},description="min mapping quality.")
 	private int min_mapq = 20;
 	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x . "+ FractionConverter.OPT_DESC,converter=FractionConverter.class)
-	private float treshold = 0.05f;
-
+	private double treshold = 0.05;
+	@Parameter(names={"--min-depth"},description="If minimum depth in region is lower than 'x', set the genotype as NO_CALL")
+	private int min_depth = 15;
+	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
@@ -193,7 +185,7 @@ public class ValidateCnv extends Launcher
 			LOG.error("bad extend factor "+this.extendFactor);
 			return -1;
 			}
-		if(this.treshold<0f || this.treshold>=0.25f) {
+		if(this.treshold<0 || this.treshold>=0.25) {
 			LOG.error("Bad treshold 0 < "+this.treshold+" >=0.25 ");
 			return -1;
 		}
@@ -253,7 +245,7 @@ public class ValidateCnv extends Launcher
 			
 			final BiFunction<String, String, VCFFormatHeaderLine> makeFmt = (TAG,DESC)-> new VCFFormatHeaderLine(TAG,1,VCFHeaderLineType.Integer,DESC);
 			
-			final VCFFormatHeaderLine formatCN =  new VCFFormatHeaderLine("CN",1,VCFHeaderLineType.Float,"normalized copy-number");
+			final VCFFormatHeaderLine formatCN =  new VCFFormatHeaderLine("CN",1,VCFHeaderLineType.Float,"normalized copy-number. Treshold was "+this.treshold);
 			metadata.add(formatCN);
 			final VCFFormatHeaderLine nReadsSupportingDel = makeFmt.apply("RSD","number of split read supporting SV.");
 			metadata.add(nReadsSupportingDel);
@@ -267,6 +259,8 @@ public class ValidateCnv extends Launcher
 			metadata.add(filterNoSV);
 			final VCFFilterHeaderLine filterHomDel = new VCFFilterHeaderLine("HOM_DEL", "There is one Homozygous deletion.");
 			metadata.add(filterHomDel);
+			final VCFFilterHeaderLine filterHomDup = new VCFFilterHeaderLine("HOM_DUP", "There is one Homozygous duplication.");
+			metadata.add(filterHomDup);
 
 			
 			
@@ -407,6 +401,14 @@ public class ValidateCnv extends Launcher
 							}// end while iter record
 						}//end try query for iterator
 					
+					final OptionalDouble optMinDepth = Arrays.stream(raw_coverage).min();
+					
+					if(!optMinDepth.isPresent() || optMinDepth.getAsDouble()< this.min_depth) {
+						final Genotype gt2 = GenotypeBuilder.createMissing(sampleName, 2);
+						genotypes.add(gt2);
+						continue;
+						}
+					
 					//run median to smooth spline
 					final double smoothed_cov[]= new RunMedian(RunMedian.getTurlachSize(raw_coverage.length)).apply(raw_coverage);
 
@@ -426,25 +428,22 @@ public class ValidateCnv extends Launcher
 					
 					final double medianBound = optMedianBound.getAsDouble();
 					// divide coverage per medianBound
-					final double normalized_coverage[] = new double[smoothed_cov.length];
-					for(int i=0;i< normalized_coverage.length;++i) {
-						normalized_coverage[i] = smoothed_cov[i] / medianBound;
+					final double normalized_mid_coverage[] = new double[array_mid_end-array_mid_start];
+					for(int i=0;i< normalized_mid_coverage.length;++i) {
+						normalized_mid_coverage[i] = smoothed_cov[array_mid_start + i] / medianBound;
 						}
 					
-					final double normDepth = Percentile.median().evaluate(
-							normalized_coverage, 
-							array_mid_start,
-							array_mid_end-array_mid_start
-							).getAsDouble();
+					final double normDepth = Percentile.median().evaluate(normalized_mid_coverage).getAsDouble();
 					
 					
 					final boolean is_sv;
-					final boolean is_het_deletion = Math.abs(normDepth-0.5)<= this.treshold; 
-					final boolean is_hom_deletion = Math.abs(normDepth-0.0)<= this.treshold; 
-					final boolean is_het_dup = Math.abs(normDepth-1.5)<= this.treshold; 
+					final boolean is_hom_deletion = Math.abs(normDepth-0.0)<= this.treshold;
+					final boolean is_het_deletion = Math.abs(normDepth-0.5)<= this.treshold || (!is_hom_deletion && normDepth<=0.5); 
+					final boolean is_hom_dup = Math.abs(normDepth-2.0)<= this.treshold || normDepth>2.0;
+					final boolean is_het_dup = Math.abs(normDepth-1.5)<= this.treshold || (!is_hom_dup && normDepth >=1.5);
 					final boolean is_ref = Math.abs(normDepth-1.0)<= this.treshold; 
 					final double theoritical_depth;
-
+					
 					final GenotypeBuilder gb;
 					
 					if(is_ref) {
@@ -474,6 +473,14 @@ public class ValidateCnv extends Launcher
 						theoritical_depth = 1.5;
 						count_dup++;
 						}
+					else if(is_hom_dup) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(DUP_ALLELE,DUP_ALLELE));
+						alleles.add(DUP_ALLELE);
+						vcb.filter(filterHomDup.getID());
+						is_sv = true;
+						theoritical_depth = 2.0;
+						count_dup++;
+						}
 					else
 						{
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
@@ -482,8 +489,7 @@ public class ValidateCnv extends Launcher
 						}	
 					if(is_sv) {
 						n_samples_with_cnv++;
-					}
-					
+						}
 					
 					double gq = Math.abs(theoritical_depth-normDepth);
 					gq = Math.min(0.5, gq);
@@ -492,11 +498,17 @@ public class ValidateCnv extends Launcher
 					gq = 99 * (1.0 - gq);
 					
 					gb.GQ((int)gq);
-					gb.attribute(formatCN.getID(), normDepth);
 					
 					if(badestGQ==null || badestGQ.compareTo(gq)>0) {
 						badestGQ = gq;
-					}
+						}
+					
+					
+					
+					
+					gb.attribute(formatCN.getID(), normDepth);
+					
+					
 					
 										
 					gb.attribute(nReadsSupportingDel.getID(), n_reads_supporting_deletions);
@@ -520,7 +532,7 @@ public class ValidateCnv extends Launcher
 					vcb.filter(filterAllDel.getID());
 				}
 				
-				if(n_samples_with_cnv==0) {
+				if(n_samples_with_cnv==0 ) {
 					vcb.filter(filterNoSV.getID());
 					}
 				

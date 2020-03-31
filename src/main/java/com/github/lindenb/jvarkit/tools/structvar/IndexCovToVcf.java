@@ -36,6 +36,7 @@ import java.util.Set;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
@@ -118,8 +119,8 @@ public class IndexCovToVcf extends Launcher {
 	private static final Logger LOG = Logger.build(IndexCovToVcf.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x")
-	private float treshold = 0.05f;
+	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double treshold = 0.05f;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refFile = null;
 	@Parameter(names={"-p","--pedigree"},description="Optional Pedigree. "+PedigreeParser.OPT_DESC)
@@ -191,6 +192,8 @@ public class IndexCovToVcf extends Launcher {
 			metaData.add(filterNoSV);
 			final VCFFilterHeaderLine filterHomDel = new VCFFilterHeaderLine("HOM_DEL", "There is one Homozygous deletion.");
 			metaData.add(filterHomDel);
+			final VCFFilterHeaderLine filterHomDup = new VCFFilterHeaderLine("HOM_DUP", "There is one Homozygous duplication.");
+			metaData.add(filterHomDup);
 
 			
 			final VCFInfoHeaderLine infoNumDup = new VCFInfoHeaderLine("NDUP", 1, VCFHeaderLineType.Integer,"Number of samples being duplicated");
@@ -291,20 +294,24 @@ public class IndexCovToVcf extends Launcher {
 					final GenotypeBuilder gb;
 					
 					final boolean is_sv;
-					final boolean is_het_deletion = Math.abs(normDepth-0.5)<= this.treshold; 
 					final boolean is_hom_deletion = Math.abs(normDepth-0.0)<= this.treshold; 
-					final boolean is_het_dup = Math.abs(normDepth-1.5)<= this.treshold; 
+					final boolean is_het_deletion = Math.abs(normDepth-0.5)<= this.treshold || (!is_hom_deletion && normDepth<=0.5); 
+					final boolean is_hom_dup = Math.abs(normDepth-2.0)<= this.treshold  || normDepth>2.0 ; 
+					final boolean is_het_dup = Math.abs(normDepth-1.5)<= this.treshold || (!is_hom_dup && normDepth>=1.5);
 					final boolean is_ref = Math.abs(normDepth-1.0)<= this.treshold; 
 
+					final double theoritical_depth;
 					if(is_ref) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
 						is_sv = false;
+						theoritical_depth = 1.0;
 						}
 					else if(is_het_deletion) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
 						alleles.add(DEL_ALLELE);
 						count_del++;
 						is_sv = true;
+						theoritical_depth= 0.5;
 						}
 					else if(is_hom_deletion) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
@@ -312,20 +319,42 @@ public class IndexCovToVcf extends Launcher {
 						count_del++;
 						vcb.filter(filterHomDel.getID());
 						is_sv = true;
+						theoritical_depth = 0.0;
 						}
 					else if(is_het_dup) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
 						alleles.add(DUP_ALLELE);
 						count_dup++;
 						is_sv = true;
+						theoritical_depth = 1.5;
+						}
+					else if(is_hom_dup) {
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(DUP_ALLELE,DUP_ALLELE));
+						alleles.add(DUP_ALLELE);
+						vcb.filter(filterHomDup.getID());
+						count_dup++;
+						is_sv = true;
+						theoritical_depth = 2.0;
 						}
 					else
 						{
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
 						is_sv = false;
+						theoritical_depth = -1;
 						}	
 					if(is_sv) got_sv=true;
 					gb.attribute(foldHeader.getID(),normDepth);
+					
+					if(is_sv) {
+						double gq = Math.abs(theoritical_depth-normDepth);
+						gq = Math.min(0.5, gq);
+						gq = gq * gq;
+						gq = gq / 0.25;
+						gq = 99 * (1.0 - gq);
+						
+						gb.GQ((int)gq);
+						}
+					
 					
 					final Sample sn = pedigree.getSampleById(sampleName);
 					if(sn!=null) {

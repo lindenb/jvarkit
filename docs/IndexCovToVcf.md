@@ -34,8 +34,10 @@ Usage: indexcov2vcf [options] Files
       faidx and with picard CreateSequenceDictionary
     -t, --treshold
       DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 
-      0.0-x<=depth<=0.0+x 
-      Default: 0.05
+      0.0-x<=depth<=0.0+x A decimal number between 0.0 and 1.0. If the value 
+      ends with '%' it is interpretted as a percentage eg. '1%' => '0.01'. A 
+      slash '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
+      Default: 0.05000000074505806
     --version
       print version and exit
 
