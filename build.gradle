@@ -2140,7 +2140,7 @@ all2.add( task("coverageserver", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.server.CoverageServer"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jetty")
 	});
-all.add( task("vcfderby01", type: CompileJVarkit) {
+all2.add( task("vcfderby01", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfDerby01"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","derby")
 	});
