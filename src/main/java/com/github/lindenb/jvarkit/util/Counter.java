@@ -81,14 +81,11 @@ public class Counter<T>
 		return incr(object,1L);
 		}
 	/**  increase by n, returns the new count */
-	public long incr(final T object,long n)
+	public long incr(final T object,final long n)
 		{
 		if(n<=0) throw new IllegalArgumentException("n<=0 :"+n);
 		if(object==null) throw new IllegalArgumentException("null argument in "+getClass());
-		Long count=this.object2count.get(object);
-		if(count==null) count=0L;
-		//increase
-		count+=n;
+		final long count = this.object2count.getOrDefault(object,0L) + n;
 		this.object2count.put(object,count);
 		this.total+=n;
 		return count;

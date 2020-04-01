@@ -54,7 +54,7 @@ public double[] apply(final double input[]) {
 	else
 		{
 		final int halfw = w/2;
-		double buffer[]=new double[w];
+		final double buffer[]=new double[w];
 		final double[] dest = new double[input.length];
 		for(int i=0;i< input.length;i++) {
 			final int beg_idx = Math.max(0,i-halfw);
@@ -63,7 +63,7 @@ public double[] apply(final double input[]) {
 			
 			System.arraycopy(input, beg_idx, buffer, 0, len);
 			Arrays.sort(buffer,0,len);
-			int mid = len/2;
+			final int mid = len/2;
 			if(len%2==1 || mid==0) {
 				dest[i] = buffer[mid];
 				}
@@ -71,7 +71,6 @@ public double[] apply(final double input[]) {
 				{
 				dest[i]= (buffer[mid-1]+buffer[mid])/2.0;
 				}
-			
 			}
 		
 		return dest;

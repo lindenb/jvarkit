@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import com.beust.jcommander.IStringConverter;
@@ -55,6 +56,7 @@ import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.IntervalList.IntervalListCodec;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 public abstract class IntervalListProvider {
@@ -73,6 +75,7 @@ public abstract class IntervalListProvider {
 	protected boolean enable_breakend_vcf = false;
 	private SAMSequenceDictionary dictionary = null;
 	private ContigNameConverter contigNameConverter = null;
+	protected Predicate<VariantContext> variantPredicate = null;
 	final protected String pathStr;
 	
 	protected IntervalListProvider(final String path) {
@@ -83,6 +86,12 @@ public abstract class IntervalListProvider {
 		if(StringUtils.isBlank(this.pathStr)) throw new IllegalStateException("path is unspecified");
 		return this.pathStr;
 	}
+	
+	/** use this predicate when input source is a VCF */
+	public IntervalListProvider setVariantPredicate(final Predicate<VariantContext> variantPredicate) {
+		this.variantPredicate = variantPredicate;
+		return this;
+		}
 	
 	/** set dictionary that can be of help to decode contig names . Can be null */
 	public IntervalListProvider dictionary(final SAMSequenceDictionary dictionary) {
@@ -251,6 +260,7 @@ public abstract class IntervalListProvider {
 				return new VCFIteratorBuilder().
 						open(getRequiredPath()).
 						stream().
+						filter(CTX->variantPredicate==null ||variantPredicate.test(CTX) ).
 						flatMap(V->{
 							/* enable break end ?*/
 							final List<Locatable> L = new ArrayList<>();

@@ -30,13 +30,13 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -106,8 +107,7 @@ for VCF, only SVTYPE=DEL/INS/DUP are considered
 
 ```
 find DIR -type f -name "*.bam" > bam.list
-$ java -jar ${JVARKIT_HOME}/dist/validatecnv.jar \
-	-B bam.list --min-read-support-del 1 --median-adjust 0.5 --max-variance 15 --extend 0.33 20190320.MANTA.vcf 
+$ java -jar ${JVARKIT_HOME}/dist/validatecnv.jar -R reference.fa -B bam.list  20190320.MANTA.vcf 
 ```
 
 END_DOC
@@ -116,8 +116,8 @@ END_DOC
 @Program(name="validatecnv",
 	description="Experimental CNV Genotyping. Look variance of depths before/after putative known CNV.",
 	keywords= {"cnv","bam","sam","vcf","depth"},
-	modificationDate="20200330",
-	generate_doc=false
+	creationDate="20190914",
+	modificationDate="20200330"
 	)
 public class ValidateCnv extends Launcher
 	{
@@ -130,23 +130,26 @@ public class ValidateCnv extends Launcher
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
 	private Path rererencePath = null;
 	@Parameter(names={"-x","--extend"},description="Search the boundaries in a region that is 'x'*(CNV-length). So if x if 0.5, a region chr1:100-200 will be searched chr1:50-100 + chr1:200-250")
-	private double extendFactor=0.5;	
+	private double extendFactor=0.5;
 	@Parameter(names={"--min","--min-size"},description="Min abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_abs_sv_size = 50;
 	@Parameter(names={"--max","--max-size"},description="Max abs(SV) size to consider." +DistanceParser.OPT_DESCRIPTION ,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_abs_sv_size = 1_000_000;
-	@Parameter(names={"--min-read-support-del"},description="min number of read supporting deletion.")
-	private int min_read_supporting_del=3;
+	@Parameter(names={"--min-read-support-sv"},description="min number of read supporting SV.")
+	private int min_read_supporting_sv =3;
 	@Parameter(names={"--mapq"},description="min mapping quality.")
 	private int min_mapq = 20;
-	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x . "+ FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	@Parameter(names={"-t","--treshold"},description="HOM_DUP if 2.0-x<=depth<=2.0+x DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x . "+ FractionConverter.OPT_DESC,converter=FractionConverter.class)
 	private double treshold = 0.05;
 	@Parameter(names={"--min-depth"},description="If minimum depth in region is lower than 'x', set the genotype as NO_CALL")
 	private int min_depth = 15;
-	
+	@Parameter(names={"--stringency"},description="SAM Validation Stringency.")
+	private ValidationStringency validationStringency = ValidationStringency.LENIENT;
+
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
+	
 
 	private class BamInfo implements Closeable {
 	final SamReader samReader;
@@ -154,10 +157,11 @@ public class ValidateCnv extends Launcher
 		BamInfo(final Path path) throws IOException {
 			final SamReaderFactory samReaderFactory =  SamReaderFactory.makeDefault().
 					referenceSequence(rererencePath).
-					validationStringency(ValidationStringency.LENIENT)
+					validationStringency(validationStringency)
 					;
 			this.samReader = samReaderFactory.open(path) ;
 			if(!this.samReader.hasIndex()) {
+				this.samReader.close();
 				throw new IOException("Bam is not indexed : "+path);
 				}
 
@@ -203,7 +207,12 @@ public class ValidateCnv extends Launcher
 				iterIn = IntervalListProvider.empty().dictionary(dict).skipUnknownContigs().fromInputStream(stdin(),"bed").iterator();
 				}
 			else {
-				final IntervalListProvider ilp = IntervalListProvider.from(input).dictionary(dict).skipUnknownContigs();
+				final IntervalListProvider ilp = IntervalListProvider.from(input).setVariantPredicate(CTX->{
+					if(CTX.isSNP()) return false;
+					final String svType = CTX.getAttributeAsString(VCFConstants.SVTYPE, "");
+					if(svType!=null && (svType.equals("INV") || svType.equals("BND"))) return false;
+					return true;
+				}).dictionary(dict).skipUnknownContigs();
 				iterIn = ilp.stream().iterator();
 				}
 			
@@ -247,9 +256,8 @@ public class ValidateCnv extends Launcher
 			
 			final VCFFormatHeaderLine formatCN =  new VCFFormatHeaderLine("CN",1,VCFHeaderLineType.Float,"normalized copy-number. Treshold was "+this.treshold);
 			metadata.add(formatCN);
-			final VCFFormatHeaderLine nReadsSupportingDel = makeFmt.apply("RSD","number of split read supporting SV.");
-			metadata.add(nReadsSupportingDel);
-
+			final VCFFormatHeaderLine nReadsSupportingSv = makeFmt.apply("RSD","number of split reads supporting SV.");
+			metadata.add(nReadsSupportingSv);
 			
 			final VCFFilterHeaderLine filterAllDel = new VCFFilterHeaderLine("ALL_DEL", "number of samples greater than 1 and all are deletions");
 			metadata.add(filterAllDel);
@@ -272,7 +280,10 @@ public class ValidateCnv extends Launcher
 					);
 			VCFStandardHeaderLines.addStandardInfoLines(metadata, true,
 					VCFConstants.DEPTH_KEY,
-					VCFConstants.END_KEY
+					VCFConstants.END_KEY,
+					VCFConstants.ALLELE_COUNT_KEY,
+					VCFConstants.ALLELE_FREQUENCY_KEY,
+					VCFConstants.ALLELE_NUMBER_KEY
 					);
 
 			
@@ -318,22 +329,19 @@ public class ValidateCnv extends Launcher
 				final int array_mid_end = breakPointRight.getPosition()-leftPos;
 				final int rightPos =  Math.min(breakPointRight.getPosition()+extend, ssr.getSequenceLength());
 				
-					
-				
-				//System.err.println(""+leftPos+" "+ctx.getStart()+" "+ctx.getEnd()+" "+rightPos);
-				
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder();
 				vcb.chr(ctx.getContig());
 				vcb.start(ctx.getStart());
 				vcb.stop(ctx.getEnd());
-				vcb.attributes(new HashMap<>());
 				vcb.attribute(VCFConstants.END_KEY, ctx.getEnd());
 				
 			    final Set<Allele> alleles = new HashSet<>();
 			    alleles.add(REF_ALLELE);
 				int count_dup = 0;
 				int count_del = 0;
+				int an = 0;
+				final Counter<Allele> countAlleles = new Counter<>();
 				final List<Genotype> genotypes = new ArrayList<>(sample2bam.size());
 				Double badestGQ = null;
 				final double raw_coverage[] = new double[CoordMath.getLength(leftPos,rightPos)];
@@ -343,7 +351,7 @@ public class ValidateCnv extends Launcher
 					
 					Arrays.fill(raw_coverage, 0.0);
 
-					int n_reads_supporting_deletions = 0;
+					int n_reads_supporting_sv = 0;
 					
 					
 					try(CloseableIterator<SAMRecord> iter2 = bi.samReader.queryOverlapping(
@@ -378,7 +386,7 @@ public class ValidateCnv extends Launcher
 								}
 							
 							if(read_supports_cnv) {
-								n_reads_supporting_deletions++;
+								n_reads_supporting_sv++;
 							}
 							
 							
@@ -401,13 +409,35 @@ public class ValidateCnv extends Launcher
 							}// end while iter record
 						}//end try query for iterator
 					
-					final OptionalDouble optMinDepth = Arrays.stream(raw_coverage).min();
+					//test for great difference between DP left and DP right
+					final OptionalDouble medianDepthLeft =  Percentile.median().evaluate(raw_coverage, 0, array_mid_start);
+					final OptionalDouble medianDepthRight =  Percentile.median().evaluate(raw_coverage, array_mid_end, raw_coverage.length-array_mid_end);
+							
 					
-					if(!optMinDepth.isPresent() || optMinDepth.getAsDouble()< this.min_depth) {
-						final Genotype gt2 = GenotypeBuilder.createMissing(sampleName, 2);
+					// any is just too low
+					if(!medianDepthLeft.isPresent() ||
+						medianDepthLeft.getAsDouble()< this.min_depth ||
+						!medianDepthRight.isPresent() || 
+						medianDepthRight.getAsDouble() < this.min_depth) {
+						final Genotype gt2 = new GenotypeBuilder(sampleName, Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)).
+								filter("LowDp").
+								make();
 						genotypes.add(gt2);
 						continue;
 						}
+					
+					final double difference_factor = 2.0;
+					// even if a value is divided , it remains greater than the other size
+					if(	medianDepthLeft.getAsDouble()/difference_factor > medianDepthRight.getAsDouble() || 
+						medianDepthRight.getAsDouble()/difference_factor > medianDepthLeft.getAsDouble()
+						) {
+						final Genotype gt2 = new GenotypeBuilder(sampleName, Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)).
+								filter("DiffLR").
+								make();
+						genotypes.add(gt2);
+						continue;
+						}
+					
 					
 					//run median to smooth spline
 					final double smoothed_cov[]= new RunMedian(RunMedian.getTurlachSize(raw_coverage.length)).apply(raw_coverage);
@@ -421,12 +451,16 @@ public class ValidateCnv extends Launcher
 					
 					final OptionalDouble optMedianBound = Percentile.median().evaluate(bounds_cov);
 					if(!optMedianBound.isPresent() || optMedianBound.getAsDouble()==0) {
-						final Genotype gt2 = GenotypeBuilder.createMissing(sampleName, 2);
+						final Genotype gt2 = new GenotypeBuilder(sampleName, Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)).
+								filter("MedZero").
+								make();
 						genotypes.add(gt2);
 						continue;
 						}
 					
 					final double medianBound = optMedianBound.getAsDouble();
+					
+					
 					// divide coverage per medianBound
 					final double normalized_mid_coverage[] = new double[array_mid_end-array_mid_start];
 					for(int i=0;i< normalized_mid_coverage.length;++i) {
@@ -450,6 +484,7 @@ public class ValidateCnv extends Launcher
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
 						is_sv = false;
 						theoritical_depth = 1.0;
+						an += 2;
 						}
 					else if(is_het_deletion) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
@@ -457,6 +492,8 @@ public class ValidateCnv extends Launcher
 						is_sv = true;
 						theoritical_depth = 0.5;
 						count_del++;
+						an += 2;
+						countAlleles.incr(DEL_ALLELE);
 						}
 					else if(is_hom_deletion) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
@@ -465,6 +502,8 @@ public class ValidateCnv extends Launcher
 						is_sv = true;
 						theoritical_depth = 0.0;
 						count_del++;
+						an += 2;
+						countAlleles.incr(DEL_ALLELE,2);
 						}
 					else if(is_het_dup) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
@@ -472,6 +511,8 @@ public class ValidateCnv extends Launcher
 						is_sv = true;
 						theoritical_depth = 1.5;
 						count_dup++;
+						an += 2;
+						countAlleles.incr(DUP_ALLELE);
 						}
 					else if(is_hom_dup) {
 						gb = new GenotypeBuilder(sampleName,Arrays.asList(DUP_ALLELE,DUP_ALLELE));
@@ -480,13 +521,17 @@ public class ValidateCnv extends Launcher
 						is_sv = true;
 						theoritical_depth = 2.0;
 						count_dup++;
+						an += 2;
+						countAlleles.incr(DUP_ALLELE,2);
 						}
 					else
 						{
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+						gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL)).
+								filter("Ambigous");
 						is_sv = false;
 						theoritical_depth = 1.0;
-						}	
+						}
+					
 					if(is_sv) {
 						n_samples_with_cnv++;
 						}
@@ -503,23 +548,32 @@ public class ValidateCnv extends Launcher
 						badestGQ = gq;
 						}
 					
-					
-					
-					
 					gb.attribute(formatCN.getID(), normDepth);
-					
-					
-					
-										
-					gb.attribute(nReadsSupportingDel.getID(), n_reads_supporting_deletions);
-					
-					
+					gb.attribute(nReadsSupportingSv.getID(), n_reads_supporting_sv);
 					genotypes.add(gb.make());
 					}
 				
+				vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, an);
+				
+				final List<Allele> orderedAlleles = new ArrayList<>(alleles);
+				Collections.sort(orderedAlleles);
+
+				if(orderedAlleles.size()>1)
+					{
+					final List<Integer> acL = new ArrayList<>();
+					final List<Double> afL = new ArrayList<>();
+					for(int i=1;i< orderedAlleles.size();i++) {
+						final Allele a = orderedAlleles.get(i);
+						final int c = (int)countAlleles.count(a);
+						acL.add(c);
+						if(an>0) afL.add(c/(double)an);
+						}
+					vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, acL);
+					if(an>0) vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, afL);
+					}
 				
 				//if(alleles.size()<=1) continue;
-				vcb.alleles(alleles);
+				vcb.alleles(orderedAlleles);
 				vcb.noID();
 				vcb.genotypes(genotypes);
 				vcb.attribute(infoSVSamples.getID(), n_samples_with_cnv);

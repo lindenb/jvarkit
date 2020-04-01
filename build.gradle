@@ -2150,7 +2150,7 @@ all.add( task("indexcov2vcf", type: CompileJVarkit) {
 	});
 all2.add( task("validatecnv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.ValidateCnv"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","math")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfburdenfisherh", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH"
