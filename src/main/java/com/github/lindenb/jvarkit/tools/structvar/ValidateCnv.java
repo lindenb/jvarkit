@@ -71,6 +71,8 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.cram.ref.CRAMReferenceSource;
+import htsjdk.samtools.cram.ref.ReferenceSource;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
@@ -154,9 +156,9 @@ public class ValidateCnv extends Launcher
 	private class BamInfo implements Closeable {
 	final SamReader samReader;
 		final String sampleName;
-		BamInfo(final Path path) throws IOException {
+		BamInfo(final Path path,final CRAMReferenceSource cramReferenceSource) throws IOException {
 			final SamReaderFactory samReaderFactory =  SamReaderFactory.makeDefault().
-					referenceSequence(rererencePath).
+					referenceSource(cramReferenceSource).
 					validationStringency(validationStringency)
 					;
 			this.samReader = samReaderFactory.open(path) ;
@@ -199,6 +201,7 @@ public class ValidateCnv extends Launcher
 		try
 			{	
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.rererencePath);
+			final CRAMReferenceSource cramReferenceSource = new ReferenceSource(this.rererencePath);
 
 			final List<Path> bamPaths =IOUtils.unrollPaths(this.bamFiles);
 			
@@ -218,7 +221,7 @@ public class ValidateCnv extends Launcher
 			
 			/* register each bam */
 			for(final Path p2: bamPaths) {				
-				final BamInfo bi = new BamInfo(p2);
+				final BamInfo bi = new BamInfo(p2,cramReferenceSource);
 				
 				if(sample2bam.containsKey(bi.sampleName)) {
 					LOG.error("sample "+ bi.sampleName +" specified twice.");

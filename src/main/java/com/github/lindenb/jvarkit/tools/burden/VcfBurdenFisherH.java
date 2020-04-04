@@ -380,6 +380,7 @@ public class VcfBurdenFisherH
 	
 	@Override
 	public int doWork(final List<String> args) {
+		
 		if(StringUtils.isBlank(this.burdenHFisherTag)) {
 			LOG.error("empty  burdenHFisherAttr");
 			return -1;

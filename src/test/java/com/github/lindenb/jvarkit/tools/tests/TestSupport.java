@@ -374,6 +374,7 @@ public class TestSupport {
 			int sex=0;
 			int status=0;
 			}
+		int status =0;
 		final Path vcfIn = Paths.get(vcfFile);
 		final VCFFileReader r= new VCFFileReader(vcfIn,false);
 		final VCFHeader header=r.getFileHeader();
@@ -399,6 +400,9 @@ public class TestSupport {
 				{
 				indi.sex = this.random.nextBoolean()?1:2;
 				}
+			//TODO
+			indi.sex  = 0;
+			
 			if(random.nextBoolean())
 				{
 				final List<String> remain=new ArrayList<>(samples);
@@ -425,7 +429,7 @@ public class TestSupport {
 				indi.mother = "0";
 				}
 			
-			indi.status = this.random.nextInt(2);
+			indi.status = (status++)%2;
 			ped.add(indi);
 			}
 		final Path pedFile = createTmpPath(".ped");

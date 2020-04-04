@@ -30,16 +30,13 @@ package com.github.lindenb.jvarkit.tools.burden;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.DoublePredicate;
 import java.util.stream.Collectors;
 
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -49,14 +46,15 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
-import com.github.lindenb.jvarkit.tools.lumpysv.LumpyConstants;
 import htsjdk.variant.vcf.VCFIterator;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -69,18 +67,6 @@ BEGIN_DOC
 Variant in that VCF should have one and **only one** ALT allele. Use [https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele](https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele) if needed.
 
 ### Output
-
-
-#### INFO column
-
-  * **BurdenMAFCas** : MAF cases
-  * **BurdenMAFControls** : MAF controls
-
-#### FILTER column
-
-  * **BurdenMAFCas** : MAF for cases  doesn't meet  user's requirements
-  * **BurdenMAFControls** : MAF for controls  doesn't meet  user's requirements
-  * **BurdenMAFCaseOrControls** : MAF for controls or cases  doesn't meet  user's requirements
 
 # Example
 
@@ -122,14 +108,14 @@ END_DOC
 
 */
 @Program(name="vcfburdenmaf",
-	description="Burden : MAF for Cases / Controls ",
+	description="MAF for Cases / Controls ",
 	keywords={"vcf","burden","maf","case","control"},
-	modificationDate="20200218"
+	modificationDate="202000403",
+	creationDate="20160418"
 	)
 public class VcfBurdenMAF
 	extends Launcher
 	{
-	private static final int CASE_POP=0;
 	
 	private static final Logger LOG = Logger.build(VcfBurdenMAF.class).make();
 
@@ -137,13 +123,16 @@ public class VcfBurdenMAF
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
-	@Parameter(names={"-maxMAF","--maxMAF","-maxAF","--maxAF"},description="if MAF of cases OR MAF of control is greater than maxMAF, the the FILTER Column is Filled")
-	private double maxMAF = 0.05 ;
+	@Parameter(names={"-m","--min-maf","--min-af"},description="select variants where MAF of cases OR MAF of control is greater or equals than min-maf. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double min_AF = 0.0 ;
+
+	@Parameter(names={"-M","--max-maf","--max-af"},description="select variants where MAF of cases OR MAF of control is lower or equal than max-maf. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double max_AF = 0.05 ;
 	
-	@Parameter(names={"-c","--homref"},description="Treat No Call './.' genotypes as HomRef")
+	@Parameter(names={"-c","-hr","--hr","--homref"},description="Treat No Call './.' genotypes as HOM_REF '0/0' ")
 	private boolean noCallAreHomRef = false;
 	
-	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Don't try to calculate things why variants already FILTERed (faster)")
+	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="Don't try to calculate things why variants already FILTERed (faster)")
 	private boolean ignoreFiltered=false;
 	
 	@Parameter(names={"-p","--pedigree"},description=PedigreeParser.OPT_DESC,required=true)
@@ -152,10 +141,7 @@ public class VcfBurdenMAF
 	@Parameter(names={"-gtf","--gtf","--gtFiltered"},description="[20180117] Ignore FILTERed **Genotype**")
 	private boolean ignore_filtered_genotype=false;
 	
-	@Parameter(names={"-lumpy-su-min","--lumpy-su-min"},description="[20180117] if variant identified as LUMPy-SV variant. This is the minimal number of 'SU' to consider the genotype as a variant.")
-	private int lumpy_SU_threshold=1;
-
-	@Parameter(names={"-pfx","--prefix"},description="Prefix for FILTER/INFO")
+	@Parameter(names={"-pfx","--prefix"},description="Prefix for FILTER/INFO. If it is empty and the variant is FILTERed, the variant won'be written to output.")
 	private String prefix="Burden";
 
 	@ParametersDelegate
@@ -171,37 +157,36 @@ public class VcfBurdenMAF
 		final VCFIterator in,
 		final VariantContextWriter out)
 		{
+		final int CASE_POP=0;
+
 		final VCFHeader header0 = in.getHeader();
 		final ProgressFactory.Watcher<VariantContext> progess = ProgressFactory.newInstance().dictionary(header0).logger(LOG).build();
 		
-
-		final VCFInfoHeaderLine mafCasInfoHeader = new VCFInfoHeaderLine(
+		final String maf_label = "("+this.min_AF+"<= maf <= "+this.max_AF+")";
+		final VCFInfoHeaderLine mafCasInfoHeader = (StringUtils.isBlank(this.prefix)?null:new VCFInfoHeaderLine(
 				this.prefix + "AF_Cases",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"MAF Cases"
-				);
-		final VCFInfoHeaderLine mafControlsInfoHeader = new VCFInfoHeaderLine(
+				));
+		final VCFInfoHeaderLine mafControlsInfoHeader =  (StringUtils.isBlank(this.prefix)?null:new VCFInfoHeaderLine(
 				this.prefix + "AF_Controls",VCFHeaderLineCount.A,VCFHeaderLineType.Float,"MAF Controls"
-				);
+				));
 		
-		final VCFInfoHeaderLine acCasInfoHeader = new VCFInfoHeaderLine(
+		final VCFInfoHeaderLine acCasInfoHeader =  (StringUtils.isBlank(this.prefix)?null:new VCFInfoHeaderLine(
 				this.prefix + "AC_Cases",VCFHeaderLineCount.A,VCFHeaderLineType.Integer,"AC Cases"
-				);
-		final VCFInfoHeaderLine acControlsInfoHeader = new VCFInfoHeaderLine(
+				));
+		final VCFInfoHeaderLine acControlsInfoHeader =  (StringUtils.isBlank(this.prefix)?null:new VCFInfoHeaderLine(
 				this.prefix + "AC_Controls",VCFHeaderLineCount.A,VCFHeaderLineType.Integer,"AC Controls"
-				);
+				));
 		
-		final VCFFilterHeaderLine filterCasHeader = new VCFFilterHeaderLine(
-				mafCasInfoHeader.getID(),"MAF of cases is greater than "+this.maxMAF
-				);
-		final VCFFilterHeaderLine filterControlsHeader = new VCFFilterHeaderLine(
-				mafControlsInfoHeader.getID(),"MAF of controls is greater than "+this.maxMAF
-				);
-		final VCFFilterHeaderLine filterCaseOrControlsHeader = new VCFFilterHeaderLine(
-				this.prefix + "MAFCaseOrControls","MAF of (cases OR controls) is greater than "+this.maxMAF
-				);			
-		
-
-		
-		final boolean is_lumpy_vcf_header = LumpyConstants.isLumpyHeader(header0);
+		final VCFFilterHeaderLine filterCasHeader =  (StringUtils.isBlank(this.prefix)?null:new VCFFilterHeaderLine(
+				mafCasInfoHeader.getID(),"MAF of case failed: "+maf_label
+				));
+		final VCFFilterHeaderLine filterControlsHeader = (StringUtils.isBlank(this.prefix)?null:new VCFFilterHeaderLine(
+				mafControlsInfoHeader.getID(),"MAF of controls failed: "+maf_label
+				));
+		final VCFFilterHeaderLine filterCaseOrControlsHeader =  (StringUtils.isBlank(this.prefix)?null:new VCFFilterHeaderLine(
+				this.prefix + "MAFCaseOrControls","MAF of cases OR MAF of controls failed: "+maf_label
+				));
+	
 		final Set<Sample> persons;
 		
 			{
@@ -215,22 +200,39 @@ public class VcfBurdenMAF
 				}
 			catch(final IOException err)
 				{
-				throw new RuntimeIOException(err);
+				LOG.error(err);
+				return -1;
 				}
 			}
+			
+		final DoublePredicate isInAfRange = AF-> this.min_AF <= AF && AF <= this.max_AF;	
+			
 		final Set<Sample> caseSamples = persons.stream().
-				filter(I->I.isAffected()).collect(Collectors.toSet());
+				filter(I->I.isAffected()).
+				collect(Collectors.toSet());
 		final Set<Sample> controlSamples = persons.stream().
-				filter(I->I.isUnaffected()).collect(Collectors.toSet());
+				filter(I->I.isUnaffected()).
+				collect(Collectors.toSet());
 
+		if(caseSamples.isEmpty()) {
+			LOG.warn("NO case in "+this.pedigreeFile);
+		}
+		if(controlSamples.isEmpty()) {
+			LOG.warn("NO control in "+this.pedigreeFile);
+		}
+		
 		final VCFHeader h2= new VCFHeader(header0);
-		h2.addMetaDataLine(mafCasInfoHeader);
-		h2.addMetaDataLine(mafControlsInfoHeader);
-		h2.addMetaDataLine(acCasInfoHeader);
-		h2.addMetaDataLine(acControlsInfoHeader);
-		h2.addMetaDataLine(filterCasHeader);
-		h2.addMetaDataLine(filterControlsHeader);
-		h2.addMetaDataLine(filterCaseOrControlsHeader);
+		
+		if(!StringUtils.isBlank(this.prefix)) {
+			h2.addMetaDataLine(mafCasInfoHeader);
+			h2.addMetaDataLine(mafControlsInfoHeader);
+			h2.addMetaDataLine(acCasInfoHeader);
+			h2.addMetaDataLine(acControlsInfoHeader);
+			h2.addMetaDataLine(filterCasHeader);
+			h2.addMetaDataLine(filterControlsHeader);
+			h2.addMetaDataLine(filterCaseOrControlsHeader);
+			}
+		JVarkitVersion.getInstance().addMetaData(this, h2);
 		
 		out.writeHeader(h2);
 		while(in.hasNext())
@@ -239,20 +241,15 @@ public class VcfBurdenMAF
 			
 			if(this.ignoreFiltered && ctx.isFiltered())
 				{
-				out.add(ctx);
+				if(!StringUtils.isBlank(this.prefix)) out.add(ctx);
 				continue;
 				}
 			if(!ctx.hasGenotypes())
 				{
-				out.add(ctx);
+				if(!StringUtils.isBlank(this.prefix)) out.add(ctx);
 				continue;
 				}
 			
-			final boolean identified_as_lumpy= 
-					is_lumpy_vcf_header && 
-					LumpyConstants.isLumpyVariant(ctx)
-					;
-			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			final List<Double> mafCasList = new ArrayList<>(); 
 			final List<Double> mafCtrlList = new ArrayList<>(); 
 			final List<Integer> acCasList = new ArrayList<>(); 
@@ -260,6 +257,8 @@ public class VcfBurdenMAF
 			boolean set_max_maf_cas=true;
 			boolean set_max_maf_control=true;
 			boolean seen_data=false;
+			
+			
 			
 			for(final Allele observed_alt : ctx.getAlternateAlleles() )
 				{
@@ -275,31 +274,11 @@ public class VcfBurdenMAF
 						final Genotype genotype = ctx.getGenotype(p.getId());
 						if(this.ignore_filtered_genotype && genotype.isFiltered()) continue;
 						
-						/* this is a lumpy genotype */
-						if(identified_as_lumpy)
-							{
-							if(!genotype.hasExtendedAttribute("SU"))
-								{
-								throw new JvarkitException.FileFormatError(
-										"Variant identified as lumpysv, but not attribute 'SU' defined in genotye "+genotype);
-								}
-							@SuppressWarnings("deprecation")
-							final int su_count = genotype.getAttributeAsInt("SU", 0);
-							final boolean genotype_contains_allele = su_count>= this.lumpy_SU_threshold;
-							mafCalculator.add(
-									new GenotypeBuilder(genotype.getSampleName(),
-											genotype_contains_allele ?
-											Arrays.asList(observed_alt,observed_alt):
-											Arrays.asList(ctx.getReference(),ctx.getReference())
-											).make()
-									, p.isMale());
-							}
-						else /* this is a not a lumpy genotype , regular case...*/
-							{
-							mafCalculator.add(genotype, p.isMale());
-							}
+						mafCalculator.add(genotype, p.isMale());
+						
 						/* if(pop==CASE_POP && genotype.isCalled()) LOG.info("DEBUGMAF: "+p+" "+genotype); */
 						}/* end of loop over persons */
+					
 					/* at least one genotype found */
 					if(!mafCalculator.isEmpty())
 						{
@@ -313,7 +292,7 @@ public class VcfBurdenMAF
 							mafCasList.add(maf);
 							acCasList.add((int)ac);
 							/* remove FILTER if needed */
-							if(maf<=this.maxMAF)  set_max_maf_cas=false;
+							if(isInAfRange.test(maf))  set_max_maf_cas=false;
 							}
 						else
 							{
@@ -321,7 +300,7 @@ public class VcfBurdenMAF
 							mafCtrlList.add(maf);
 							acCtrlList.add((int)ac);
 							/* remove FILTER if needed */
-							if(maf<=this.maxMAF)  set_max_maf_control=false;
+							if(isInAfRange.test(maf))  set_max_maf_control=false;
 							}
 						} 
 					else
@@ -331,30 +310,37 @@ public class VcfBurdenMAF
 							acCasList.add(0);
 							set_max_maf_cas=false;
 						} else
-						{
+							{
 							mafCtrlList.add(0.0);
 							acCtrlList.add(0);
 							set_max_maf_control=false;
-						}
+							}
 						}
 					}/* end of loop over pop */
 				}/* end loop over alt allele */
 			
-			
-			vcb.attribute(mafCasInfoHeader.getID(),mafCasList);
-			vcb.attribute(mafControlsInfoHeader.getID(),mafCtrlList);
-			vcb.attribute(acCasInfoHeader.getID(),acCasList);
-			vcb.attribute(acControlsInfoHeader.getID(),acCtrlList);
-			
-			if(seen_data) {
-				if(set_max_maf_cas) vcb.filter(filterCasHeader.getID());
-				if(set_max_maf_control) vcb.filter(filterControlsHeader.getID());
-				if(set_max_maf_cas || set_max_maf_control) {
-					vcb.filter(filterCaseOrControlsHeader.getID());
-					}
+			if(StringUtils.isBlank(this.prefix)) {
+				if(!seen_data || set_max_maf_cas || set_max_maf_control) continue;
+				out.add(ctx);
 				}
-
-			out.add(vcb.make());
+			else
+				{
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				vcb.attribute(mafCasInfoHeader.getID(),mafCasList);
+				vcb.attribute(mafControlsInfoHeader.getID(),mafCtrlList);
+				vcb.attribute(acCasInfoHeader.getID(),acCasList);
+				vcb.attribute(acControlsInfoHeader.getID(),acCtrlList);
+				
+				if(seen_data) {
+					if(set_max_maf_cas) vcb.filter(filterCasHeader.getID());
+					if(set_max_maf_control) vcb.filter(filterControlsHeader.getID());
+					if(set_max_maf_cas || set_max_maf_control) {
+						vcb.filter(filterCaseOrControlsHeader.getID());
+						}
+					}
+				
+				out.add(vcb.make());
+				}
 			}
 		progess.close();
 		return 0;
@@ -363,6 +349,11 @@ public class VcfBurdenMAF
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(this.min_AF>this.max_AF) {
+			LOG.error("bad values for min/max af");
+			return -1;
+		}
+		
 		try 
 			{
 			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
@@ -373,8 +364,6 @@ public class VcfBurdenMAF
 			}
 		}
 
-	 	
-	
 	public static void main(final String[] args)
 		{
 		new VcfBurdenMAF().instanceMainWithExit(args);
