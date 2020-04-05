@@ -104,6 +104,10 @@ input is a set of indexed Vcf/Bam file or a file with the suffix `.list` contain
 java -jar dist/htsfileserver.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam  src/test/resources/rotavirus_rf.*.vcf.gz
 ```
 
+# Screenshot
+
+![https://i.imgur.com/ObRsVxE.png](https://i.imgur.com/ObRsVxE.png)
+
 END_DOC
  
  */
@@ -113,6 +117,7 @@ END_DOC
 	creationDate="20200405",
 	modificationDate="20200405",
 	keywords={"vcf","bam","server"},
+	biostars={430718},
 	generate_doc=true
 	)
 public  class HtsFileServer extends Launcher {
@@ -487,7 +492,7 @@ public  class HtsFileServer extends Launcher {
 			
 			w.writeComment("BEGIN FORM");
 			w.writeStartElement("form");
-			w.writeAttribute("method", "GET");
+			w.writeAttribute("method", "POST");
 			w.writeAttribute("action", "/page");
 			
 			w.writeStartElement("div");

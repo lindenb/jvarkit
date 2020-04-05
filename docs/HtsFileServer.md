@@ -38,6 +38,12 @@ Usage: htsfileserver [options] Files
  * server
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/430718](https://www.biostars.org/p/430718)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -95,4 +101,8 @@ input is a set of indexed Vcf/Bam file or a file with the suffix `.list` contain
 ```
 java -jar dist/htsfileserver.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam  src/test/resources/rotavirus_rf.*.vcf.gz
 ```
+
+# Screenshot
+
+![https://i.imgur.com/ObRsVxE.png](https://i.imgur.com/ObRsVxE.png)
 
