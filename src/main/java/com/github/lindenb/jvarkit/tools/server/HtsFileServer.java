@@ -24,18 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.server;
 
-import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Composite;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.Stroke;
-import java.awt.geom.GeneralPath;
-import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -48,24 +37,16 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
-import java.util.function.IntFunction;
-import java.util.function.IntToDoubleFunction;
-import java.util.function.ToDoubleFunction;
-import java.util.function.ToIntFunction;
-import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import javax.imageio.ImageIO;
+
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -120,6 +101,7 @@ import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
@@ -129,6 +111,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFConstants;
@@ -142,8 +125,13 @@ BEGIN_DOC
 
 ## input
 
-input is a set of indexed Vcf file or a file with the suffix `.list` containing the path to the vcfs.
+input is a set of indexed Vcf/Bam file or a file with the suffix `.list` containing the path to the files.
  
+## Example
+
+```
+java -jar dist/htsfileserver.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam  src/test/resources/rotavirus_rf.*.vcf.gz
+```
 
 END_DOC
  
@@ -153,10 +141,15 @@ END_DOC
 	description="Jetty Based http server serving Vcf and Bam files.",
 	creationDate="20200405",
 	modificationDate="20200405",
-	keywords={"vcf","server"},
-	generate_doc=false
+	keywords={"vcf","bam","server"},
+	generate_doc=true
 	)
 public  class HtsFileServer extends Launcher {
+	private static final String KEY_INTERVAL="interval";
+	private static final String KEY_ACTION="action";
+	private static final String KEY_FILEID="fid";
+	private static final String VALUE_DUMP="dump";
+	
 	private static final Logger LOG = Logger.build(HtsFileServer.class).make();
 	
 	@Parameter(names="--port",description="server port.")
@@ -165,8 +158,9 @@ public  class HtsFileServer extends Launcher {
 	private Path gtfFile = null;
 	@Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxRef = null;
+	@Parameter(names= {"-G","--no-genotype"},description="remove genotypes from vcf")
+	private boolean remove_genotype_vcf = false;
 
-	
 	private abstract class AbstractInput {
 		private final Path path;
 		private final String md5;
@@ -185,17 +179,20 @@ public  class HtsFileServer extends Launcher {
 			}
 		abstract String getOutputName();
 
-		abstract void dump(final Locatable loc,final OutputStream os) throws IOException;
+		abstract void dump(final Locatable loc,final OutputStream os,final CRAMReferenceSource ref) throws IOException;
 		}
 	
 	private class VcfInput extends AbstractInput {
+		private boolean has_genotypes;
 		VcfInput(final Path path) throws IOException{
 			super(path);
 			// try open with index
 			try(VCFFileReader ignore= new VCFFileReader(path, true)) {
+				has_genotypes = ignore.getFileHeader().hasGenotypingData();
 				//nothing
 				}
 			}
+		
 		@Override
 		String getOutputName()
 			{
@@ -205,16 +202,29 @@ public  class HtsFileServer extends Launcher {
 			}
 		
 		@Override
-		void dump(Locatable loc, OutputStream os) throws IOException
+		void dump(Locatable loc, OutputStream os,final CRAMReferenceSource ignore) throws IOException
 			{
+			if(loc==null && (!this.has_genotypes || !remove_genotype_vcf) && getPath().getFileName().toString().endsWith(FileExtensions.COMPRESSED_VCF)) {
+				IOUtils.copyTo(getPath(), os);
+				return;
+			}
+			final BlockCompressedOutputStream bos = new BlockCompressedOutputStream(os,(Path)null);
 			VariantContextWriterBuilder vcb = new VariantContextWriterBuilder();
-			vcb.setOutputStream(os);
+			vcb.setOutputStream(bos);
 			vcb.setCreateMD5(false);
+			vcb.setReferenceDictionary(dictionary);
+			vcb.clearOptions();
 			try(VariantContextWriter w=vcb.build()) {
 				try(VCFFileReader r = new VCFFileReader(getPath(), true)) {
 					final VCFHeader header = r.getFileHeader();
 					final SAMSequenceDictionary dict = header.getSequenceDictionary();
-					w.writeHeader(header);
+					if(remove_genotype_vcf && this.has_genotypes) {
+						w.writeHeader(new VCFHeader(header.getMetaDataInInputOrder(),Collections.emptyList()));
+						}
+					else
+						{
+						w.writeHeader(header);
+						}
 					
 					CloseableIterator<VariantContext> iter;
 					if(loc==null) {
@@ -225,20 +235,24 @@ public  class HtsFileServer extends Launcher {
 						iter = r.query(loc);
 						}
 					while(iter.hasNext()) {
-						w.add(iter.next());
+						VariantContext ctx=iter.next();
+						if(remove_genotype_vcf) {
+							ctx =  new VariantContextBuilder(ctx).noGenotypes().make();
+							}
+						w.add(ctx);
 						}
 					}
-				
 				}
+			bos.flush();
+			bos.close();
 			}
 		}
 	
 	private class BamInput extends AbstractInput {
-		final CRAMReferenceSource ref;
-		BamInput(final Path path,final CRAMReferenceSource ref) throws IOException{
+		BamInput(final Path path) throws IOException{
 			super(path);
-			this.ref = ref;
 			}
+		
 		@Override
 		String getOutputName()
 			{
@@ -247,13 +261,21 @@ public  class HtsFileServer extends Launcher {
 			return s;
 			}
 		@Override
-		void dump(Locatable loc, OutputStream os) throws IOException
+		void dump(final Locatable loc, OutputStream os,final CRAMReferenceSource ref) throws IOException
 			{
-			SAMFileWriterFactory vcb = new SAMFileWriterFactory();
-		
+			if(loc==null && getPath().getFileName().toString().endsWith(FileExtensions.BAM)) {
+				IOUtils.copyTo(getPath(), os);
+				return;
+				}
 			
-			try(SamReader r = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).
-						referenceSource(this.ref).
+			final SAMFileWriterFactory vcb = new SAMFileWriterFactory()
+					.setCreateIndex(false)
+					.setCreateMd5File(false)
+					;
+			
+			try(SamReader r = SamReaderFactory.makeDefault().
+						validationStringency(ValidationStringency.SILENT).
+						referenceSource(ref).
 						open(getPath())) {
 				final SAMFileHeader header = r.getFileHeader();
 				try(SAMFileWriter w=vcb.makeBAMWriter(header, true, os)) {
@@ -287,8 +309,8 @@ public  class HtsFileServer extends Launcher {
 			}
 		@Override
 		protected void doPost(final HttpServletRequest request, final HttpServletResponse response) throws ServletException, IOException {
-			final String action = request.getParameter("action");
-			if("dump".equals(action))
+			final String action = request.getParameter(KEY_ACTION);
+			if(VALUE_DUMP.equals(action))
 				{
 				dumpData(request,response);
 				}
@@ -300,32 +322,11 @@ public  class HtsFileServer extends Launcher {
 		}
 		
 	
-	private SimpleInterval parseInterval(final String s) {
-		if(StringUtils.isBlank(s)) return null;
-		
-		/* search in GTF file */
-		if(this.gtfFile!=null && !s.contains(":")) {
-			final String geneName  = s.trim();
-			TabixReader tbr =null;
-			
-			}
-		
-		
-		return IntervalParserFactory.newInstance(this.dictionary).
-			enableSinglePoint().
-			make().
-			apply(s.trim()).
-			orElse(null);
-	}
-	
-
-			
-	
 	
 	/** dumpData */
 	private void dumpData(final HttpServletRequest request,final HttpServletResponse response)	throws IOException, ServletException
 		{
-		final String fileids[]  = request.getParameterValues("htsfileid");
+		final String fileids[]  = request.getParameterValues(KEY_FILEID);
 		final List<AbstractInput> selected = new ArrayList<>();
 		if(fileids!=null) {
 			for(final String fid: fileids) {
@@ -333,64 +334,63 @@ public  class HtsFileServer extends Launcher {
 				if(input!=null) selected.add(input);
 			}
 		}
-		
-		if(selected.isEmpty()) selected.addAll(this.htsMap.values());
-		
-		Locatable loc = null;
-		String intervalstr = request.getParameter("interval");
-		if(!StringUtils.isBlank(intervalstr)) {
-			 loc = IntervalParserFactory.newInstance().enableWholeContig().dictionary(this.dictionary).make().apply(intervalstr).orElse(null);
-		}
-		if(!StringUtils.isBlank(intervalstr) && this.gtfFile!=null && loc==null && !intervalstr.contains(':')) {
-			TabixReader tbr;
-			try {
-			String geneName = intervalstr;
-			final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(this.dictionary);
-			tbr= new TabixReader(this.gtfFile.toString());
-			final GTFCodec codec = new GTFCodec();
-			String line;
-			while((line=tbr.readLine())!=null) {
-				if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
-				final String tokens[]= CharSplitter.TAB.split(line);
-				if(tokens.length<9 ) continue;
-				if(!(tokens[2].equals("gene") || tokens[2].equals("transcript"))) continue;
-				if(StringUtils.indexOfIgnoreCase(tokens[8],geneName)==-1) continue;
-				final GTFLine gtfLine = codec.decode(line);
-				if(gtfLine==null) continue;
-				
-				if(tokens[2].equals("gene") ) {
-					if(!(geneName.equals(gtfLine.getAttribute("gene_id")) || geneName.equals(gtfLine.getAttribute("gene_name")))) continue;
-				}
-				else if(tokens[2].equals("transcript") ) {
-					if(!(geneName.equals(gtfLine.getAttribute("transcript_id")))) continue;
-				}
-				
-				final String ctg = cvt.apply(gtfLine.getContig());
-				if(StringUtils.isBlank(ctg)) continue;
-				tbr.close();
-				tbr = null;
-				loc = new SimpleInterval(ctg,gtfLine.getStart(),gtfLine.getEnd());
-				break;
-				}
+		// default: add all
+		if(selected.isEmpty()) {
+			selected.addAll(this.htsMap.values());
 			}
-	catch(final Throwable err) {
-		
-		}
-	finally
-		{
-		if(tbr!=null) tbr.close();
-		}
-	}
-		
-		if(!StringUtils.isBlank(intervalstr) && this.gtfFile!=null && loc==null ) {
-			loc = new SimpleInterval("undefined_interval",1,1);
-		}
+		Locatable loc = null;
+		/* parse user interval */
+		final String intervalstr = request.getParameter(KEY_INTERVAL);
+		if(!StringUtils.isBlank(intervalstr)) {
+			loc = IntervalParserFactory.newInstance().
+					dictionary(this.dictionary).
+					make().
+					apply(intervalstr).
+					orElse(null);
+			if(loc==null && this.gtfFile!=null) {
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(this.dictionary);
+				final String geneName=intervalstr.trim();
+				final GTFCodec codec = new GTFCodec();
+				try(BufferedReader br = IOUtils.openPathForBufferedReading(gtfFile)) {
+					br.lines().map(line->{
+						if(StringUtils.isBlank(line) ||  line.startsWith("#"))return null;
+						final String tokens[]= CharSplitter.TAB.split(line);
+						if(tokens.length<9 ) return null;
+						if(!(tokens[2].equals("gene") || tokens[2].equals("transcript"))) return null;
+						if(StringUtils.indexOfIgnoreCase(tokens[8],geneName)==-1) return null;
+						final GTFLine gtfLine = codec.decode(line);
+						if(gtfLine==null) return null;
+						
+						if(tokens[2].equals("gene") ) {
+							if(!(geneName.equals(gtfLine.getAttribute("gene_id")) || geneName.equals(gtfLine.getAttribute("gene_name")))) return null;
+							}
+						else if(tokens[2].equals("transcript") ) {
+							if(!(geneName.equals(gtfLine.getAttribute("transcript_id")))) return null;
+							}
+					
+						final String ctg = cvt.apply(gtfLine.getContig());
+						if(StringUtils.isBlank(ctg)) return null;
+							return new SimpleInterval(ctg,gtfLine.getStart(),gtfLine.getEnd());
+							}).
+						filter(R->R!=null).
+						findFirst().
+						orElse(null);
+					}
+				}	
+			if(loc==null) loc = new SimpleInterval("undefined_interval",1,1);
+			}
 		
 		
 		String prefix= StringUtils.now()+".";
 		if(loc!=null) {
-			prefix += new SimpleInterval(loc).toNiceString()+".";
+			prefix += loc.getContig()+"_"+loc.getStart()+"_"+loc.getEnd()+".";
 			}
+		
+		final CRAMReferenceSource referenceSource = (
+				selected.stream().anyMatch(I->I instanceof BamInput)?
+				new ReferenceSource(faidxRef)
+				: null
+				);
 		
 		try(PrintStream out = new PrintStream(response.getOutputStream())) {
 			final String charset = StringUtils.ifBlank(request.getCharacterEncoding(), "UTF-8");
@@ -399,21 +399,22 @@ public  class HtsFileServer extends Launcher {
 			if(selected.size()==1) {
 				final String fname = prefix+selected.get(0).getOutputName();
 				response.addHeader("Content-Disposition","form-data; name=\""+ fname +"\"; filename=\""+ fname +"\"");
-				response.setContentType("text/html; charset="+charset.toLowerCase());
+				response.setContentType("data/binary; charset="+charset.toLowerCase());
 
-				selected.get(0).dump(loc, out);
+				selected.get(0).dump(loc, out,referenceSource);
 				}
 			else
 				{
-				final String fname = prefix+HtsFileServer.class.getSimpleName();
+				final String fname = prefix+HtsFileServer.class.getSimpleName()+".zip";
 				 response.addHeader("Content-Disposition","form-data; name=\""+ fname +"\"; filename=\""+ fname +"\"");
 
-				response.setContentType("text/html; charset="+charset.toLowerCase());
+				response.setContentType("data/binary; charset="+charset.toLowerCase());
 				final ZipOutputStream zout = new ZipOutputStream(out, Charset.forName(charset));
 				for(AbstractInput input: selected) {
 					final ZipEntry zipEntry= new ZipEntry(prefix+input.getOutputName());
 					zout.putNextEntry(zipEntry);
-					input.dump(loc, zout);
+					OutputStream uos = IOUtils.uncloseableOutputStream(zout);
+					input.dump(loc, uos,referenceSource);
 					zout.closeEntry();
 					if(out.checkError()) break;
 					}
@@ -422,7 +423,6 @@ public  class HtsFileServer extends Launcher {
 				}
 			out.flush();
 			}
-		
 		
 		}
 
@@ -437,8 +437,8 @@ public  class HtsFileServer extends Launcher {
 		
 		
 		 
-		 final String title = "HtsFileServer";
-				
+		 final String title = ("HtsFileServer "+SequenceDictionaryUtils.getBuildName(this.dictionary).orElse("")).trim();
+		
 		 
 		 try {
 			final XMLStreamWriter w=XMLOutputFactory.newFactory().createXMLStreamWriter(pw);
@@ -457,23 +457,36 @@ public  class HtsFileServer extends Launcher {
 			w.writeCharacters(
 					"body {background-color:#f0f0f0;color:#070707;font-size:18px;}"
 					+ "h1 {text-align:center;color:#070707;}"
-					+ ".span1 {border:1px dotted blue;}"
 					+ ".lbl {font-weight: bold;}"
-					+ ".bampath {font-family:monospace;font-size:12px; font-style: normal;color:gray;}"
+					+ ".files {font-family:monospace;font-size:12px; font-style: normal;color:gray;}"
 					+ ".headerform {background-color:lavender;text-align:center;font-size:14px;}"
-					+ ".comment {background-color:khaki;text-align:center;font-size:14px;}"
-					+ ".highlight {background-color:#DB7093;}"
-					+ ".parents {font-size:75%;color:gray;}"
-					+ ".children {font-size:75%;color:gray;}"
-					+ ".allsamples {font-size:125%;}"
-					+ ".message {color:red;}"
-					+ ".affected {background-color:#e6cccc;}"
-					+ ".gtf {background-color:moccasin;text-align:center;}"
-					+ ".known {background-color:wheat;text-align:center;}"
 					);
 			w.writeEndElement();//title
 			
 			w.writeStartElement("script");
+			w.writeCharacters("var htsFiles={");
+			boolean first=true;
+			for(final AbstractInput input: this.htsMap.values()) {
+				if(!first) w.writeCharacters(",");
+				w.writeCharacters("\""+input.getMd5()+"\":\"");
+				w.writeCharacters(input.getPath().toString());
+				w.writeCharacters("\"");
+				first = false;
+				}
+			w.writeCharacters("};");
+			w.writeCharacters("function selectBams() {"+
+					"for(k in htsFiles) {var f=htsFiles[k]; if(f.endsWith(\".bam\") || f.endsWith(\".cram\")) document.getElementById(k).checked=true;}"+
+					"}\n");
+			w.writeCharacters("function selectVcfs() {"+
+					"for(k in htsFiles) {var f=htsFiles[k]; if(f.endsWith(\".vcf\") || f.endsWith(\".vcf.gz\")) document.getElementById(k).checked=true;}"+
+					"}\n");
+			w.writeCharacters("function selectInvert() {"+
+					"for(k in htsFiles) { var e=document.getElementById(k); e.checked=!e.checked;}"+
+					"}\n");
+			w.writeCharacters("function selectAll(b) {"+
+				"for(k in htsFiles) { document.getElementById(k).checked=b;}"+
+				"}\n");	
+					
 			w.writeEndElement();//script
 			
 			w.writeEndElement();//head
@@ -483,56 +496,89 @@ public  class HtsFileServer extends Launcher {
 			
 			
 			w.writeStartElement("h1");
-			
 			w.writeCharacters(title);
-			
-			
-			
-			w.writeEmptyElement("a");
-			w.writeAttribute("name", "top");
-
+			w.writeEndElement();//h1
 			
 			w.writeComment("BEGIN FORM");
-			w.writeStartElement("div");
-			w.writeAttribute("class", "headerform");
 			w.writeStartElement("form");
 			w.writeAttribute("method", "GET");
 			w.writeAttribute("action", "/page");
 			
-			w.writeEmptyElement("input");
-			w.writeAttribute("name", "action");
-			w.writeAttribute("type", "hidden");
-			w.writeAttribute("value","dump");
+			w.writeStartElement("div");
+			w.writeAttribute("class", "headerform");
 
-				
+			
 			w.writeEmptyElement("input");
-			w.writeAttribute("name", "interval");
-			w.writeAttribute("id", "interval");
+			w.writeAttribute("name", KEY_ACTION);
+			w.writeAttribute("type", "hidden");
+			w.writeAttribute("value",VALUE_DUMP);
+
+			w.writeStartElement("label");
+			w.writeAttribute("class", "lbl");
+			w.writeAttribute("for", KEY_INTERVAL);
+			w.writeCharacters("Interval"+(this.gtfFile==null?"":" or Gene")+":");
+			w.writeEndElement();//label
+			
+			w.writeEmptyElement("input");
+			w.writeAttribute("name", KEY_INTERVAL);
+			w.writeAttribute("id", KEY_INTERVAL);
 			w.writeAttribute("type", "text");
 			w.writeAttribute("value","");
+			w.writeAttribute("placeholder","chrom:start-end");
+			
+			w.writeEmptyElement("input");
+			w.writeAttribute("type", "Submit");
+			w.writeAttribute("class", "btn");
+			w.writeAttribute("value", "Go");
+
+				
+			w.writeEmptyElement("br");
+
+			
 			
 			w.writeStartElement("button");
 			w.writeAttribute("class", "btn");
-			w.writeAttribute("name", "go");
-			w.writeCharacters("GO");
+			w.writeAttribute("onclick", "selectBams(); return false;");
+			w.writeCharacters("Select Bams");
 			w.writeEndElement();//button
-				
-			w.writeEndElement();//form
+			w.writeCharacters(" ");
+			w.writeStartElement("button");
+			w.writeAttribute("class", "btn");
+			w.writeAttribute("onclick", "selectVcfs();return false;");
+			w.writeCharacters("Select Vcfs");
+			w.writeEndElement();//button
+			w.writeCharacters(" ");
+			w.writeStartElement("button");
+			w.writeAttribute("class", "btn");
+			w.writeAttribute("onclick", "selectInvert();return false;");
+			w.writeCharacters("Invert Selection");
+			w.writeEndElement();//button
+			w.writeCharacters(" ");
+			w.writeStartElement("button");
+			w.writeAttribute("class", "btn");
+			w.writeAttribute("onclick", "selectAll(true);return false;");
+			w.writeCharacters("Select All");
+			w.writeEndElement();//button
+			w.writeCharacters(" ");
+			w.writeStartElement("button");
+			w.writeAttribute("class", "btn");
+			w.writeAttribute("onclick", "selectAll(false);return false;");
+			w.writeCharacters("Select None");
+			w.writeEndElement();//button
+
 			w.writeEndElement();//div
 			
-			w.writeComment("END FORM");
 			
-			
-			
+			w.writeStartElement("div");
+			w.writeAttribute("class", "files");
 			w.writeStartElement("ul");
-			w.writeAttribute("class", "grid-container");
 			
 			for( AbstractInput htsFile: this.htsMap.values()) {
 				w.writeStartElement("li");
 			
 				w.writeEmptyElement("input");
 				w.writeAttribute("type", "checkbox");
-				w.writeAttribute("name","htsfileid");
+				w.writeAttribute("name",KEY_FILEID);
 				w.writeAttribute("id",htsFile.getMd5());
 				w.writeAttribute("value",htsFile.getMd5());
 				
@@ -540,16 +586,23 @@ public  class HtsFileServer extends Launcher {
 				w.writeAttribute("for",htsFile.getMd5());
 				w.writeCharacters(htsFile.getPath().toString());
 				w.writeEndElement();//label
+				
 				w.writeEndElement(); //lli
 			}
 			
 			w.writeEndElement();//ul
+			w.writeEndElement();//div
+			
+			w.writeEndElement();//form
+			
+			w.writeComment("END FORM");
 			
 			w.writeEmptyElement("hr");
 			w.writeStartElement("div");
 			w.writeCharacters("Author: Pierre Lindenbaum. ");
 			w.writeCharacters(JVarkitVersion.getInstance().getLabel());
 			w.writeEndElement();
+			
 			
 			w.writeEndElement();//body
 			w.writeEndElement();//html
@@ -568,23 +621,19 @@ public  class HtsFileServer extends Launcher {
 	
 	
 		try {
-			final CRAMReferenceSource ref;
-			if(this.faidxRef!=null) {
-				ref = new ReferenceSource(this.faidxRef);
-				this.dictionary  = SequenceDictionaryUtils.extractRequired(this.faidxRef);
-				}
-			else
-				{
-				ref = null;
-				}
-		
+			this.dictionary  = SequenceDictionaryUtils.extractRequired(this.faidxRef);
+			
 			for(final Path path: IOUtils.unrollPaths(args)) {
 				final String fn = path.getFileName().toString();
 				final AbstractInput input;
+				final SAMSequenceDictionary dict;
 				if(fn.endsWith(FileExtensions.BAM) || fn.endsWith(FileExtensions.CRAM)) {
-					input = new BamInput(path,ref);
+					dict = SequenceDictionaryUtils.extractRequired(path);
+					input = new BamInput(path);
+					
 					}
 				else if(fn.endsWith(FileExtensions.VCF) || fn.endsWith(FileExtensions.COMPRESSED_VCF)) {
+					dict = SequenceDictionaryUtils.extractRequired(path);
 					input = new VcfInput(path);
 					}
 				else
@@ -592,6 +641,9 @@ public  class HtsFileServer extends Launcher {
 					LOG.error("unsupported format "+path);
 					return -1;
 					}
+				
+				SequenceUtil.assertSequenceDictionariesEqual(this.dictionary, dict);
+				
 				if(this.htsMap.containsKey(input.getMd5())) {
 					LOG.error("duplicate key "+input.getMd5()+" "+input.getPath());
 					return -1;
