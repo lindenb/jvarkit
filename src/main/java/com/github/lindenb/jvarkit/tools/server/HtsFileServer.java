@@ -20,32 +20,27 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
+et
 */
 package com.github.lindenb.jvarkit.tools.server;
 
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -55,71 +50,47 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.net.Hyperlink;
-import com.github.lindenb.jvarkit.pedigree.Pedigree;
-import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
-import com.github.lindenb.jvarkit.pedigree.Sample;
-import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.cram.ref.CRAMReferenceSource;
 import htsjdk.samtools.cram.ref.ReferenceSource;
-import htsjdk.samtools.reference.ReferenceSequence;
-import htsjdk.samtools.reference.ReferenceSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
-import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.log.Logger;
 /**
 BEGIN_DOC
 
@@ -178,7 +149,7 @@ public  class HtsFileServer extends Launcher {
 			return path;
 			}
 		abstract String getOutputName();
-
+		abstract String getContentType();
 		abstract void dump(final Locatable loc,final OutputStream os,final CRAMReferenceSource ref) throws IOException;
 		}
 	
@@ -202,14 +173,20 @@ public  class HtsFileServer extends Launcher {
 			}
 		
 		@Override
-		void dump(Locatable loc, OutputStream os,final CRAMReferenceSource ignore) throws IOException
+		String getContentType()
+			{
+			return "application/vcf+gzip";
+			}
+		
+		@Override
+		void dump(final Locatable loc, final OutputStream os,final CRAMReferenceSource ignore) throws IOException
 			{
 			if(loc==null && (!this.has_genotypes || !remove_genotype_vcf) && getPath().getFileName().toString().endsWith(FileExtensions.COMPRESSED_VCF)) {
 				IOUtils.copyTo(getPath(), os);
 				return;
 			}
 			final BlockCompressedOutputStream bos = new BlockCompressedOutputStream(os,(Path)null);
-			VariantContextWriterBuilder vcb = new VariantContextWriterBuilder();
+			final VariantContextWriterBuilder vcb = new VariantContextWriterBuilder();
 			vcb.setOutputStream(bos);
 			vcb.setCreateMD5(false);
 			vcb.setReferenceDictionary(dictionary);
@@ -217,7 +194,6 @@ public  class HtsFileServer extends Launcher {
 			try(VariantContextWriter w=vcb.build()) {
 				try(VCFFileReader r = new VCFFileReader(getPath(), true)) {
 					final VCFHeader header = r.getFileHeader();
-					final SAMSequenceDictionary dict = header.getSequenceDictionary();
 					if(remove_genotype_vcf && this.has_genotypes) {
 						w.writeHeader(new VCFHeader(header.getMetaDataInInputOrder(),Collections.emptyList()));
 						}
@@ -241,6 +217,7 @@ public  class HtsFileServer extends Launcher {
 							}
 						w.add(ctx);
 						}
+					iter.close();
 					}
 				}
 			bos.flush();
@@ -252,7 +229,11 @@ public  class HtsFileServer extends Launcher {
 		BamInput(final Path path) throws IOException{
 			super(path);
 			}
-		
+		@Override
+		String getContentType()
+			{
+			return "application/bam";
+			}
 		@Override
 		String getOutputName()
 			{
@@ -279,7 +260,7 @@ public  class HtsFileServer extends Launcher {
 						open(getPath())) {
 				final SAMFileHeader header = r.getFileHeader();
 				try(SAMFileWriter w=vcb.makeBAMWriter(header, true, os)) {
-					CloseableIterator<SAMRecord> iter;
+					final CloseableIterator<SAMRecord> iter;
 					if(loc==null) {
 						iter = r.iterator();
 						}
@@ -290,6 +271,7 @@ public  class HtsFileServer extends Launcher {
 					while(iter.hasNext()) {
 						w.addAlignment(iter.next());
 						}
+					iter.close();
 					}
 				
 				}
@@ -397,19 +379,23 @@ public  class HtsFileServer extends Launcher {
 			response.setCharacterEncoding(charset);
 
 			if(selected.size()==1) {
-				final String fname = prefix+selected.get(0).getOutputName();
-				response.addHeader("Content-Disposition","form-data; name=\""+ fname +"\"; filename=\""+ fname +"\"");
+				final AbstractInput first=selected.get(0);
+				final String fname = prefix+first.getOutputName();
+				response.addHeader("Content-Type",first.getContentType());
+				response.addHeader("Content-Disposition","attachment; name=\""+ fname +"\"; filename=\""+ fname +"\"");
 				response.setContentType("data/binary; charset="+charset.toLowerCase());
 
-				selected.get(0).dump(loc, out,referenceSource);
+				first.dump(loc, out,referenceSource);
 				}
 			else
 				{
 				final String fname = prefix+HtsFileServer.class.getSimpleName()+".zip";
-				 response.addHeader("Content-Disposition","form-data; name=\""+ fname +"\"; filename=\""+ fname +"\"");
+				response.addHeader("Content-Type","application/zip");
+				response.addHeader("Content-Disposition","attachment; name=\""+ fname +"\"; filename=\""+ fname +"\"");
 
 				response.setContentType("data/binary; charset="+charset.toLowerCase());
 				final ZipOutputStream zout = new ZipOutputStream(out, Charset.forName(charset));
+				zout.setLevel(0);
 				for(AbstractInput input: selected) {
 					final ZipEntry zipEntry= new ZipEntry(prefix+input.getOutputName());
 					zout.putNextEntry(zipEntry);
@@ -475,10 +461,10 @@ public  class HtsFileServer extends Launcher {
 				}
 			w.writeCharacters("};");
 			w.writeCharacters("function selectBams() {"+
-					"for(k in htsFiles) {var f=htsFiles[k]; if(f.endsWith(\".bam\") || f.endsWith(\".cram\")) document.getElementById(k).checked=true;}"+
+					"for(k in htsFiles) {var f=htsFiles[k]; if(f.endsWith(\""+ FileExtensions.BAM+"\") || f.endsWith(\""+ FileExtensions.CRAM+"\")) document.getElementById(k).checked=true;}"+
 					"}\n");
 			w.writeCharacters("function selectVcfs() {"+
-					"for(k in htsFiles) {var f=htsFiles[k]; if(f.endsWith(\".vcf\") || f.endsWith(\".vcf.gz\")) document.getElementById(k).checked=true;}"+
+					"for(k in htsFiles) {var f=htsFiles[k]; if(f.endsWith(\""+ FileExtensions.VCF+"\") || f.endsWith(\""+ FileExtensions.COMPRESSED_VCF+"\")) document.getElementById(k).checked=true;}"+
 					"}\n");
 			w.writeCharacters("function selectInvert() {"+
 					"for(k in htsFiles) { var e=document.getElementById(k); e.checked=!e.checked;}"+
@@ -623,14 +609,18 @@ public  class HtsFileServer extends Launcher {
 		try {
 			this.dictionary  = SequenceDictionaryUtils.extractRequired(this.faidxRef);
 			
+			final Set<String> filenames = new HashSet<>();
 			for(final Path path: IOUtils.unrollPaths(args)) {
 				final String fn = path.getFileName().toString();
+				if(!filenames.add(fn)) {
+					LOG.error("duplicate filename "+fn);
+					return -1;
+					}
 				final AbstractInput input;
 				final SAMSequenceDictionary dict;
 				if(fn.endsWith(FileExtensions.BAM) || fn.endsWith(FileExtensions.CRAM)) {
 					dict = SequenceDictionaryUtils.extractRequired(path);
 					input = new BamInput(path);
-					
 					}
 				else if(fn.endsWith(FileExtensions.VCF) || fn.endsWith(FileExtensions.COMPRESSED_VCF)) {
 					dict = SequenceDictionaryUtils.extractRequired(path);
