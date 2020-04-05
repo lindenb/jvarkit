@@ -21,11 +21,13 @@ Usage: biostar336589 [options] Files
       overlap 
       Default: false
     -u, --url, --hyperlink
-      creates a hyperlink when 'click' in an area. The URL must contains 
-      __CHROM__, __START__ and __END__ that will be replaced by their values. 
-      IGV : "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" 
-      , UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
-      Default: none
+      creates a hyperlink when a area is clicked. creates a hyperlink when 
+      'click' in an area. The URL must contains __CHROM__, __START__ and 
+      __END__ that will be replaced by their values. Predefined values are 
+      'hg19','hg38','igv'. IGV : 
+      "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" , 
+      UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
+      Default: <empty string>
     -o, --out
       Output file. Optional . Default: stdout
     --score-end-color
