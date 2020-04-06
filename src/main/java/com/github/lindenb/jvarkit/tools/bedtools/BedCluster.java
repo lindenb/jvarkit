@@ -26,7 +26,7 @@ History:
 * 2014 creation
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.bedtools;
 
 import java.io.BufferedReader;
 import java.io.IOException;

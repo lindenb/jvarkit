@@ -139,6 +139,8 @@ public class FindAllCoverageAtPosition extends Launcher
 	private Path referenceFileFile=null;
 	@Parameter(names={"-x","--extend"},description="[20190218]extend by 'x' base to try to catch close with clipped reads. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend=500;
+	@Parameter(names={"-Q","--mapq"},description="Min mapping quality. Dicard reads having MAPQ < 'x'")
+	private int mapq=1;
 
 	
 	
@@ -262,6 +264,7 @@ public class FindAllCoverageAtPosition extends Launcher
 						{
 						final SAMRecord rec=iter.next();
 						if(rec.getReadUnmappedFlag()) continue;
+						if(rec.getMappingQuality() < this.mapq) continue;
 						if(this.filter.filterOut(rec)) continue;
 						final Cigar cigar=rec.getCigar();
 						if(cigar==null || cigar.isEmpty()) continue;

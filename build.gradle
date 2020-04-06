@@ -859,7 +859,7 @@ all2.add( task("allelefreqcalc", type: CompileJVarkit) {
 	});
 
 all2.add( task("bedcluster", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedCluster"
+	mainClass = "com.github.lindenb.jvarkit.tools.bedtools.BedCluster"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("bedmergecnv", type: CompileJVarkit) {

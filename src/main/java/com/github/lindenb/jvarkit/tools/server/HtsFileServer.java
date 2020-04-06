@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -79,12 +80,16 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.cram.ref.CRAMReferenceSource;
 import htsjdk.samtools.cram.ref.ReferenceSource;
+import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -113,10 +118,10 @@ END_DOC
  */
 
 @Program(name="htsfileserver",
-	description="Jetty Based http server serving Vcf and Bam files.",
+	description="Jetty Based http server serving Vcf,Bam,Tabix files.",
 	creationDate="20200405",
-	modificationDate="20200405",
-	keywords={"vcf","bam","server"},
+	modificationDate="20200406",
+	keywords={"vcf","bam","server","tabix"},
 	biostars={430718},
 	generate_doc=true
 	)
@@ -137,6 +142,8 @@ public  class HtsFileServer extends Launcher {
 	@Parameter(names= {"-G","--no-genotype"},description="remove genotypes from vcf")
 	private boolean remove_genotype_vcf = false;
 
+	
+	/** base handler for any data that can be querid by interval */
 	private abstract class AbstractInput {
 		private final Path path;
 		private final String md5;
@@ -158,6 +165,7 @@ public  class HtsFileServer extends Launcher {
 		abstract void dump(final Locatable loc,final OutputStream os,final CRAMReferenceSource ref) throws IOException;
 		}
 	
+	/** vcf implementation */
 	private class VcfInput extends AbstractInput {
 		private boolean has_genotypes;
 		VcfInput(final Path path) throws IOException{
@@ -180,7 +188,7 @@ public  class HtsFileServer extends Launcher {
 		@Override
 		String getContentType()
 			{
-			return "application/vcf+gzip";
+			return "application/gzip";
 			}
 		
 		@Override
@@ -229,7 +237,7 @@ public  class HtsFileServer extends Launcher {
 			bos.close();
 			}
 		}
-	
+	/** implementation for Bam */
 	private class BamInput extends AbstractInput {
 		BamInput(final Path path) throws IOException{
 			super(path);
@@ -282,9 +290,108 @@ public  class HtsFileServer extends Launcher {
 				}
 			}
 		}
+	
+	/** implementation for tabix files */
+	private class TabixInput extends AbstractInput {
+		public TabixInput(final Path path) throws IOException{
+			super(path);
+			try(TabixReader tr=new TabixReader(path.toString())) {
+				//do nothing
+				}
+			}
+		@Override
+		String getOutputName() {
+			return getPath().getFileName().toString();
+			}
 
-		
-		
+		@Override
+		String getContentType() {
+			return "application/gzip";
+		}
+
+		@Override
+		void dump(Locatable loc, OutputStream os, CRAMReferenceSource ref) throws IOException {
+			if(loc==null) {
+				IOUtils.copyTo(getPath(), os);
+				return;
+			}
+			try(TabixReader tb = new TabixReader(getPath().toString())) {
+				try(final BlockCompressedOutputStream bos = new BlockCompressedOutputStream(os,(Path)null)) {
+					final PrintWriter pw = new PrintWriter(bos);
+					final ContigNameConverter converter = ContigNameConverter.fromContigSet(tb.getChromosomes());
+					final Optional<SimpleInterval> r= converter.convertToSimpleInterval(loc);
+					if(r.isPresent()) {
+						final Locatable loc2 = r.get();
+						final TabixReader.Iterator iter = tb.query(loc2.getContig(),loc2.getStart(),loc2.getEnd());
+						for(;;) {
+							final String line = iter.next();
+							if(line==null) break;
+							pw.println(line);
+							}
+						}
+					pw.flush();
+					pw.close();
+					}
+				}
+			}
+		}
+	
+	/** implementation for tabix files */
+	private class FastaInput extends AbstractInput {
+		public FastaInput(final Path path) throws IOException{
+			super(path);
+			try(ReferenceSequenceFile ref= ReferenceSequenceFileFactory.getReferenceSequenceFile(path)) {
+				SequenceDictionaryUtils.extractRequired(ref);
+				}
+			}
+		@Override
+		String getOutputName() {
+			String s= getPath().getFileName().toString();
+			if(!s.endsWith(".gz")) s+=".gz";
+			return s;
+			}
+
+		@Override
+		String getContentType() {
+			return "application/gzip";
+		}
+
+		@Override
+		void dump(Locatable loc, OutputStream os, CRAMReferenceSource ignore) throws IOException {
+			if(loc==null) {
+				if(getPath().getFileName().toString().endsWith(".gz")) {
+					IOUtils.copyTo(getPath(), os);
+					}
+				else
+					{
+					try(final BlockCompressedOutputStream bos = new BlockCompressedOutputStream(os,(Path)null)) {
+						IOUtils.copyTo(getPath(), bos);
+						}
+					}
+				return;
+				}
+			try(ReferenceSequenceFile ref= ReferenceSequenceFileFactory.getReferenceSequenceFile(getPath())) {
+				try(final BlockCompressedOutputStream bos = new BlockCompressedOutputStream(os,(Path)null)) {
+					final PrintWriter pw = new PrintWriter(bos);
+					final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(ref.getSequenceDictionary());
+					final Optional<SimpleInterval> r= converter.convertToSimpleInterval(loc);
+					if(r.isPresent()) {
+						final SimpleInterval loc2 = r.get();
+						final ReferenceSequence refseq = ref.getSubsequenceAt(loc2.getContig(), loc2.getStart(), loc2.getEnd());
+						pw.print(">"+loc2.toNiceString());
+						for(int i=0;i< refseq.length();i++) {
+							if(i%60==0) pw.println();
+							pw.print((char)refseq.getBases()[i]);
+							}
+						pw.println();
+						}
+					pw.flush();
+					pw.close();
+					}
+				}
+			}
+		}
+	
 	private final Map<String,AbstractInput> htsMap = new HashMap<>();
 	private SAMSequenceDictionary dictionary = null;
 	
@@ -631,13 +738,21 @@ public  class HtsFileServer extends Launcher {
 					dict = SequenceDictionaryUtils.extractRequired(path);
 					input = new VcfInput(path);
 					}
+				else if(FileExtensions.FASTA.stream().anyMatch(X->fn.endsWith(X))) {
+					dict = SequenceDictionaryUtils.extractRequired(path);
+					input = new FastaInput(path);
+					}
+				else if(fn.endsWith(".gz")) {
+					input = new TabixInput(path);
+					dict = null;
+					}
 				else
 					{
 					LOG.error("unsupported format "+path);
 					return -1;
 					}
 				
-				SequenceUtil.assertSequenceDictionariesEqual(this.dictionary, dict);
+				if(dict!=null) SequenceUtil.assertSequenceDictionariesEqual(this.dictionary, dict);
 				
 				if(this.htsMap.containsKey(input.getMd5())) {
 					LOG.error("duplicate key "+input.getMd5()+" "+input.getPath());
@@ -646,7 +761,7 @@ public  class HtsFileServer extends Launcher {
 				this.htsMap.put(input.getMd5(), input);
 				}
 			if(this.htsMap.isEmpty()) {
-				LOG.error("No VCF/BAM defined.");
+				LOG.error("No VCF/BAM/Tabix defined.");
 				return -1;
 				}
 			

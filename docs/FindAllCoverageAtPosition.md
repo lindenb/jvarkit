@@ -27,6 +27,9 @@ Usage: findallcoverageatposition [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -Q, --mapq
+      Min mapping quality. Dicard reads having MAPQ < 'x'
+      Default: 1
     -o, --out
       Output file. Optional . Default: stdout
     --groupby, --partition
