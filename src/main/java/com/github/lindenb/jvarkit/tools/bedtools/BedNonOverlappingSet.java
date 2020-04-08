@@ -22,18 +22,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.bedtools;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -44,11 +45,12 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 /**
 BEGIN_DOC
@@ -64,7 +66,7 @@ GATK DepthOfCoverage merge overlapping segments (see https://gatkforums.broadins
 ```bash
 $ awk '{printf("%s\t0\t%s\n",$1,$2);}' src/test/resources/rotavirus_rf.fa.fai |\
 bedtools makewindows  -w 500 -s 100 -b - |\
-java -jar dist/bednonoverlappingset.jar  -o tmp.__SETID__.bed -m tmp.manifest
+java -jar dist/bednonoverlappingset.jar  -o out.zip -m tmp.manifest
 
 [INFO][BedNonOverlappingSet]saving tmp.00001.bed 44
 [INFO][BedNonOverlappingSet]saving tmp.00002.bed 39
@@ -127,22 +129,24 @@ END_DOC
 @Program(
 		name="bednonoverlappingset",
 		description="Split a Bed file into non-overlapping data set.",
-		keywords={"bed"}
+		keywords={"bed"},
+		creationDate="20180607",
+		modificationDate="20200408"
 		)
 public class BedNonOverlappingSet extends Launcher {
 	private static final Logger LOG = Logger.build(BedNonOverlappingSet.class).make();
 
-	private static final String SET_NAME = "__SETID__";
-	@Parameter(names = { "-o", "--out" }, description = "Output file. Filename *Must* contains the word "+SET_NAME+" and end with '.bed' .",required=true)
-	private String outputFile = null;
+	@Parameter(names = { "-o", "--out" }, description = ArchiveFactory.OPT_DESC,required=true)
+	private Path archivePath = null;
 	@Parameter(names = { "-m", "--manifset" }, description = "Manifest file file containing the generated filenames/number of item.")
-	private File manifestFile = null;
+	private Path manifestFile = null;
 	@Parameter(names = { "-R", "-r","--reference" }, description = INDEXED_FASTA_REFERENCE_DESCRIPTION +
 						" If defined, will be used to sort the bed record on chrom/pos before writing the bed records.")
-	private File refFile = null;
+	private Path refFile = null;
 	@Parameter(names = { "-x", "--extend" }, description = "Extend intervals by 'x' bases")
 	private int extend = 0;
-
+	@Parameter(names={"--compress"},description="Bgzip outut bed files")
+	private boolean compressed = false;
 	
 	private class BedRecord
 		implements Locatable
@@ -192,25 +196,12 @@ public class BedNonOverlappingSet extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtil.isBlank(this.outputFile))
-			{
-			LOG.info("ouput file is empty");
-			return -1;
-			}
-		if(!this.outputFile.contains(SET_NAME))
-			{
-			LOG.info("ouput file MUST contain the word '"+SET_NAME+"'");
-			return -1;
-			}
-		if(!this.outputFile.endsWith(".bed") && !this.outputFile.endsWith(".bed.gz"))
-			{
-			LOG.info("ouput file must have a bed or bed.gz suffix");
-			return -1;
-			}
+		
 		if(this.extend<0) {
 			LOG.info("extend cannot be negative.");
 			return -1;
 			}
+		ArchiveFactory archiveFactory = null;
 		PrintWriter manifest = null;
 		BufferedReader br;
 		try {
@@ -234,7 +225,7 @@ public class BedNonOverlappingSet extends Launcher {
 				};
 			
 			if(this.manifestFile!=null) {
-				manifest = new PrintWriter(this.manifestFile);
+				manifest = IOUtils.openPathForPrintWriter(this.manifestFile);
 				}
 			else
 				{
@@ -258,12 +249,28 @@ public class BedNonOverlappingSet extends Launcher {
 			if(this.bedsets.isEmpty()) {
 				LOG.warn("No set was created");
 				}
+			
+			archiveFactory = ArchiveFactory.open(this.archivePath);
+			if(compressed) archiveFactory.setCompressionLevel(0);
+			
 			for(int i=0;i< this.bedsets.size();i++){
-				final File filename = new File(this.outputFile.replaceAll(SET_NAME, String.format("%05d", (i+1))));
-				if(filename.getParentFile()!=null && !filename.getParentFile().exists())
-					{
-					filename.getParentFile().mkdirs();
+				final BlockCompressedOutputStream bcos;
+				final PrintWriter pw;
+				String filename =  String.format("%05d", (i+1));
+				filename+= FileExtensions.BED;
+					
+				if(this.compressed) {
+					filename += ".gz";
+					bcos = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename),(Path)null);
+					pw = new PrintWriter(bcos);
 					}
+				else
+					{
+					bcos=null;
+					pw = archiveFactory.openWriter(filename);
+					}
+				
+				
 				final IntervalTreeMap<BedRecord> itm = this.bedsets.get(i);
 				final List<BedLine> list = 
 						itm.values().
@@ -272,16 +279,20 @@ public class BedNonOverlappingSet extends Launcher {
 						sorted(cmpbed).
 						collect(Collectors.toList());
 				LOG.info("saving "+filename+" "+list.size());
-				final PrintWriter pw = IOUtils.openFileForPrintWriter(filename);
+				
+				
 				for(final BedLine bl:list)
 					{
 					pw.println(bl.join());
 					}
+				if(bcos!=null) bcos.flush();
 				pw.flush();
 				pw.close();
 				
 				manifest.println(filename+"\t"+list.size());
 				}
+			archiveFactory.close();
+			archiveFactory=null;
 			manifest.flush();
 			manifest.close();
 			return 0;
@@ -292,6 +303,7 @@ public class BedNonOverlappingSet extends Launcher {
 			}
 		finally
 			{
+			CloserUtil.close(archiveFactory);
 			CloserUtil.close(manifest);
 			}
 		}

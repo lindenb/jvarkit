@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.bedtools;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 
@@ -28,7 +29,7 @@ public class BedNonOverlappingSetTest {
 	pw.flush();
 	pw.close();
 	support.assertIsBed(tmpBed);
-	Path pat= Files.createTempFile("tmp.__SETID__.", ".bed");
+	Path pat= Files.createTempFile("tmp.zip", ".bed");
 	Assert.assertEquals(
 			new BedNonOverlappingSet().instanceMain(new String[] {
 					"-o",pat.toString(),
@@ -36,12 +37,7 @@ public class BedNonOverlappingSetTest {
 					"-R",support.resource("rotavirus_rf.fa"),
 					tmpBed.toString()
 			}),0);
-	for(final Path bf: Files.list(pat.getParent()).filter(F->F.getFileName().toString().startsWith("tmp.") && F.getFileName().toString().endsWith(".bed")).collect(Collectors.toList()))
-		{
-		support.assertIsBed(bf);
-		Files.deleteIfExists(bf);
-		}
-	
+	support.assertZip(pat);
 	Files.deleteIfExists(pat);
 	} finally {
 		support.removeTmpFiles();

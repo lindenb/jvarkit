@@ -10,6 +10,9 @@ Split a Bed file into non-overlapping data set.
 ```
 Usage: bednonoverlappingset [options] Files
   Options:
+    --compress
+      Bgzip outut bed files
+      Default: false
     -x, --extend
       Extend intervals by 'x' bases
       Default: 0
@@ -20,8 +23,8 @@ Usage: bednonoverlappingset [options] Files
     -m, --manifset
       Manifest file file containing the generated filenames/number of item.
   * -o, --out
-      Output file. Filename *Must* contains the word __SETID__ and end with 
-      '.bed' .
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
     -R, -r, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary If defined, will be used 
@@ -54,13 +57,18 @@ $ ./gradlew bednonoverlappingset
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20180607
+
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BedNonOverlappingSet.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/BedNonOverlappingSet.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bedtools/BedNonOverlappingSet.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bedtools/BedNonOverlappingSet.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/BedNonOverlappingSetTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/BedNonOverlappingSetTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bedtools/BedNonOverlappingSetTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bedtools/BedNonOverlappingSetTest.java)
 
 
 ## Contribute
@@ -95,7 +103,7 @@ GATK DepthOfCoverage merge overlapping segments (see https://gatkforums.broadins
 ```bash
 $ awk '{printf("%s\t0\t%s\n",$1,$2);}' src/test/resources/rotavirus_rf.fa.fai |\
 bedtools makewindows  -w 500 -s 100 -b - |\
-java -jar dist/bednonoverlappingset.jar  -o tmp.__SETID__.bed -m tmp.manifest
+java -jar dist/bednonoverlappingset.jar  -o out.zip -m tmp.manifest
 
 [INFO][BedNonOverlappingSet]saving tmp.00001.bed 44
 [INFO][BedNonOverlappingSet]saving tmp.00002.bed 39

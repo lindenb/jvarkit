@@ -951,7 +951,7 @@ all2.add( task("bedliftover", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("bednonoverlappingset", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.BedNonOverlappingSet"
+	mainClass = "com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("bedrenamechr", type: CompileJVarkit) {
