@@ -81,7 +81,7 @@ END_DOC
 */
 @Program(name="biostar251649",
 	description=" Annotating the flanking bases of SNPs in a VCF file",
-	biostars={251649,334253},
+	biostars={251649,334253,251649},
 	keywords={"vcf","annotation","sequence","reference"},
 	creationDate="20170508",
 	modificationDate="20200213"
