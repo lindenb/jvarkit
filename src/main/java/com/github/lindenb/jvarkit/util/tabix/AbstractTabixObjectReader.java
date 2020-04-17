@@ -35,8 +35,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
-
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.Locatable;
 

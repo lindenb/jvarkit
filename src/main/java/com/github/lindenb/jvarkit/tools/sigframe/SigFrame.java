@@ -106,7 +106,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
-import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 
 
@@ -1644,7 +1644,7 @@ public class SigFrame
 			@Override
 			public boolean accept(File f)
 				{
-				return f.isDirectory() || TabixFileReader.isValidTabixFile(f);
+				return f.isDirectory() || VCFUtils.isTabixVcfFile(f);
 				}
 			});
 		if(chooser.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION) return;
@@ -1731,7 +1731,7 @@ public class SigFrame
 	                for(final String fname:args)
 	                        {
 	                		final File f=new File(fname);
-	                		if(!TabixFileReader.isValidTabixFile(f))
+	                		if(!VCFUtils.isTabixVcfFile(f))
 	                			{
 	                			LOG.error("Not a valid tabix file:"+f);
 	                			return -1;

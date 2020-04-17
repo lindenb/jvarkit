@@ -737,11 +737,14 @@ public class IOUtils {
 	}
 	
 	//http://stackoverflow.com/a/4818946/58082
-	/** uncompress IF needed if the input stream is a gzipped stream */
+	/** uncompress IF needed if the input stream is a gzipped stream 
+	 * 
+	 * */
 	public static InputStream uncompress(final InputStream input) throws IOException {
 		 if(input==null) throw new NullPointerException("input is null");
 		 if(input instanceof GZIPInputStream) return input;
-	     final PushbackInputStream pb = new PushbackInputStream( input, 2 ); //we need a pushbackstream to look ahead
+		 if(input instanceof BlockCompressedInputStream) return input;
+		 final PushbackInputStream pb = new PushbackInputStream( input, 2 ); //we need a pushbackstream to look ahead
 	     final byte [] signature = new byte[2];
 	     pb.read( signature ); //read the signature
 	     pb.unread( signature ); //push back the signature to the stream
