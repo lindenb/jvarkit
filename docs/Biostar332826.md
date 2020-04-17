@@ -10,9 +10,21 @@ Fast Extraction of Variants from a list of IDs
 ```
 Usage: biostar332826 [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -d, --delete
-      When found , remove the ID from the list of identifiers. Should be 
-      faster but don't use it if two variants have the same ID.
+      When found , remove the ID from the list of identifiers unless it's a 
+      '.'. Should be faster but don't use it if two variants have the same ID.
+      Default: false
+    -f, --filter
+      if not blank soft filter the variants that are NOT in the list. If 
+      '--inverse' is specified then soft-filter the variants IN the list.
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
       Default: false
     -h, --help
       print help and exit
@@ -20,7 +32,7 @@ Usage: biostar332826 [options] Files
       What kind of help. One of [usage,markdown,xml].
     -r, -i, --ids
       A list of identifiers, one per line
-    -v, --inverse
+    --inverse
       Inverse: don't print the variants containing the IDS.
       Default: false
     -o, --output
@@ -44,6 +56,7 @@ Usage: biostar332826 [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/332826](https://www.biostars.org/p/332826)
+ * [https://www.biostars.org/p/433062](https://www.biostars.org/p/433062)
 
 
 ## Compilation
@@ -62,6 +75,11 @@ $ ./gradlew biostar332826
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20180817
 
 ## Source code 
 

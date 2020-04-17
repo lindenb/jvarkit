@@ -24,25 +24,32 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFIterator;
 /**
  BEGIN_DOC
  
@@ -59,103 +66,122 @@ import htsjdk.variant.vcf.VCFConstants;
 @Program(name="biostar332826",
 description="Fast Extraction of Variants from a list of IDs",
 keywords= {"vcf","rs"},
-biostars=332826
+modificationDate="20200417",
+creationDate="20180817",
+biostars={332826,433062}
 )
 public class Biostar332826 extends Launcher {
 private static final Logger LOG = Logger.build(Biostar332826.class).make();
 
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-private File outputFile = null;
+private Path outputFile = null;
 @Parameter(names={"-r","-i","--ids"},description="A list of identifiers, one per line")
-private File rsFile = null;
+private Path rsFile = null;
 @Parameter(names={"-R","-I"},description="A semicolon/comma/space separated list of identifiers")
 private String rsStr = "";
-@Parameter(names={"-d","--delete"},description="When found , remove the ID from the list of identifiers. Should be faster but don't use it if two variants have the same ID.")
+@Parameter(names={"-d","--delete"},description="When found , remove the ID from the list of identifiers unless it's a '.'. Should be faster but don't use it if two variants have the same ID.")
 private boolean removeIfFound=false;
-@Parameter(names={"-v","--inverse"},description="Inverse: don't print the variants containing the IDS.")
-private boolean inverseSelection =false;
+@Parameter(names={"--inverse"},description="Inverse: don't print the variants containing the IDS.")
+private boolean filterOutVariantsInSet =false;
+@Parameter(names={"-f","--filter"},description="if not blank soft filter the variants that are NOT in the list. "
+		+ "If '--inverse' is specified then soft-filter the variants IN the list.")
+private String filterName = null;
 
 
-@Override
-public int doWork(final List<String> args) {
-	final Set<String> rsSet = new HashSet<>();
-	BufferedReader br = null;
-	PrintWriter pw = null;
-	try {
+
+@ParametersDelegate
+private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+
+	
+
+	@Override
+	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {
+		final Set<String> rsSet = new HashSet<>(10_000);
+		
 		if(this.rsFile!=null)
 			{
-			rsSet.addAll(IOUtil.slurpLines(this.rsFile));
-			}	
+			try {
+				rsSet.addAll(Files.readAllLines(this.rsFile));
+				}
+			catch(final IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		
 		for(final String str:this.rsStr.split("[ ;,]"))
 			{
 			if(StringUtil.isBlank(str)) continue;
 			rsSet.add(str);
 			}
-		LOG.info("rs list size: "+rsSet.size());
 		rsSet.remove("");
 		if(rsSet.isEmpty()) LOG.warn("NO IDENTIFIER WAS SPECIFIED");
-		br = super.openBufferedReader(oneFileOrNull(args));
-		pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-		String line;
-		while((line=br.readLine())!=null) {
-			if(!line.startsWith("#")) {
-				LOG.error("VCF header line doesn't start with '#' "+line);
-				return -1;
+		
+		final Predicate<VariantContext> findID = (CTX)->{
+			final String id = (!CTX.hasID()?VCFConstants.EMPTY_ID_FIELD:CTX.getID());
+			if(removeIfFound && !VCFConstants.EMPTY_ID_FIELD.equals(id)) {
+				return rsSet.remove(id);
 				}
-			pw.println(line);
-			if(line.startsWith("#CHROM")) break;
+			else
+				{
+				return rsSet.contains(id);
+				}
+			};
+			
+		
+		final VCFHeader header= iterin.getHeader();
+		final VCFFilterHeaderLine filterHeader;
+		if(StringUtils.isBlank(this.filterName)) {
+			filterHeader= null;
+		} else 
+			{
+			filterHeader = new VCFFilterHeaderLine(this.filterName, "Variant filtered for their IDs (N="+rsSet.size()+")");
+			header.addMetaDataLine(filterHeader);
 			}
 		
-		final CharSplitter tab = CharSplitter.TAB;
 		
-		if(this.inverseSelection)
-			{
-			while((line=br.readLine())!=null) {
-				final List<CharSequence> tokens = tab.splitAsCharSequenceList(line, 4);
-				if(tokens.size() != 4) {
-					LOG.error("expected at least four tokens in "+line);
-					return -1;
+		JVarkitVersion.getInstance().addMetaData(this, header);
+		out.writeHeader(header);
+		if(filterHeader!=null) {
+			while(iterin.hasNext() && !rsSet.isEmpty()) {
+				final VariantContext ctx = iterin.next();
+				boolean keep=  findID.test(ctx);
+				if(this.filterOutVariantsInSet) keep=!keep;
+				if(keep) {
+					out.add(ctx);
 					}
-				final String id = tokens.get(2).toString();
-				
-				if(!(this.removeIfFound && !id.equals(VCFConstants.EMPTY_ID_FIELD) ?
-						rsSet.remove(id):rsSet.contains(id)))
+				else
 					{
-					pw.println(line);
+					out.add(new VariantContextBuilder(ctx).filter(filterHeader.getID()).make());
 					}
 				}
-			IOUtils.copyTo(br, pw);
+			}
+		else if(this.filterOutVariantsInSet)
+			{
+			while(iterin.hasNext() && !rsSet.isEmpty()) {
+				final VariantContext ctx = iterin.next();
+				if(!findID.test(ctx)) {
+					out.add(ctx);
+					}
+				}
+			//remaining variants
+			while(iterin.hasNext()) out.add(iterin.next());
 			}
 		else
 			{
-			while((line=br.readLine())!=null && !rsSet.isEmpty()) {
-				final List<CharSequence> tokens = tab.splitAsCharSequenceList(line, 4);
-				if(tokens.size() !=4) {
-					LOG.error("expected at least four tokens in "+line);
-					return -1;
+			while(iterin.hasNext() && !rsSet.isEmpty()) {
+				final VariantContext ctx = iterin.next();
+				if(findID.test(ctx)) {
+					out.add(ctx);
 					}
-				final String id = tokens.get(2).toString();
-				if(id.isEmpty()) continue;
-				if(this.removeIfFound && !id.equals(VCFConstants.EMPTY_ID_FIELD) ? rsSet.remove(id):rsSet.contains(id))
-					{
-					pw.println(line);
-					}	
 				}
 			}
-		pw.flush();
-		pw.close();pw = null;
-		br.close();br=null;
 		return 0;
 		}
-	catch(final Exception err) {
-		LOG.error(err);
-		return -1;
-		}
-	finally
-		{
-		CloserUtil.close(br);
-		CloserUtil.close(pw);
-		}
+
+
+@Override
+public int doWork(final List<String> args) {
+	return super.doVcfToVcfPath(args, this.writingVariantsDelegate,this.outputFile);
 	}	
 public static void main(final String[] args) throws IOException
 	{
