@@ -31,7 +31,7 @@ Usage: goutils [options] Files
     -go-relations, --go-relations
       limit the gene ontology tree to those relationships. empty: all possible 
       relationships. 
-      Default: [regulates, positively_regulates, is_a, negatively_regulates, part_of]
+      Default: [part_of, regulates, negatively_regulates, positively_regulates, is_a]
     -h, --help
       print help and exit
     --helpFormat

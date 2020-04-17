@@ -38,7 +38,8 @@ Usage: groupbygene [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -p, --ped, --pedigree
-      [20170725] A pedigree file. sex:(0:unknown;1:male;2:female), phenotype 
+      [20170725] A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --tmpDir
       tmp working directory. Default: java.io.tmpDir

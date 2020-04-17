@@ -22,6 +22,9 @@ Usage: bamrenamechr [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -i, --ignore
+      If the tool cannot convert a contig, skip the read
+      Default: false
     -f, --mapping, -m
       load a custom name mapping. Format (chrom-source\tchrom-dest\n)+
     -o, --out
@@ -35,9 +38,6 @@ Usage: bamrenamechr [options] Files
       Possible Values: [BAM, SAM, CRAM]
     --version
       print version and exit
-    -i, -ignore
-      If the tool cannot convert a contig, skip the read
-      Default: false
 
 ```
 
