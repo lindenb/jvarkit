@@ -41,6 +41,7 @@ import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.reference.ReferenceSequence;
@@ -91,7 +92,7 @@ public class Biostar398854 extends Launcher {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceSequenceFile);
 			
 			
-			try(VCFFileReader in = new VCFFileReader(Paths.get(oneAndOnlyOneFile(args)),true)) {
+			try(VCFFileReader in = VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)),true)) {
 				out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 				final PrintWriter final_out= out;
 				final List<String> samples = in.getFileHeader().getSampleNamesInOrder();

@@ -121,6 +121,7 @@ import htsjdk.variant.vcf.VCFFileReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 /**
 BEGIN_DOC
 
@@ -476,7 +477,7 @@ public  class CoverageServer extends Launcher {
 		else if(FileExtensions.VCF_LIST.stream().anyMatch(X->fname.endsWith(X))) {
 			VCFFileReader vcfFileReader= null;
 			try {
-				vcfFileReader = new VCFFileReader(this.knownCnvFile,true);
+				vcfFileReader = VCFReaderFactory.makeDefault().open(this.knownCnvFile,true);
 				
 				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getFileHeader()));
 				final String ctg = cvt.apply(region.getContig());

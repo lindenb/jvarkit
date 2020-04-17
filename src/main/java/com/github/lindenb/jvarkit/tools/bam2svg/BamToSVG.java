@@ -80,6 +80,7 @@ import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 
 /**
@@ -216,7 +217,7 @@ public class BamToSVG extends Launcher
 			}
 		private void readVariantFile(final Path vcf)  throws IOException
 			{
-			try(VCFFileReader r=new VCFFileReader(vcf, true)) {
+			try(VCFFileReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
 				r.query(this.interval).stream().forEach(ctx->this.pos2variant.add(ctx));
 				}
 			}

@@ -69,6 +69,7 @@ import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -171,7 +172,7 @@ public  class HtsFileServer extends Launcher {
 		VcfInput(final Path path) throws IOException{
 			super(path);
 			// try open with index
-			try(VCFFileReader ignore= new VCFFileReader(path, true)) {
+			try(VCFFileReader ignore= VCFReaderFactory.makeDefault().open(path, true)) {
 				has_genotypes = ignore.getFileHeader().hasGenotypingData();
 				//nothing
 				}
@@ -205,7 +206,7 @@ public  class HtsFileServer extends Launcher {
 			vcb.setReferenceDictionary(dictionary);
 			vcb.clearOptions();
 			try(VariantContextWriter w=vcb.build()) {
-				try(VCFFileReader r = new VCFFileReader(getPath(), true)) {
+				try(VCFFileReader r = VCFReaderFactory.makeDefault().open(getPath(), true)) {
 					final VCFHeader header = r.getFileHeader();
 					if(remove_genotype_vcf && this.has_genotypes) {
 						w.writeHeader(new VCFHeader(header.getMetaDataInInputOrder(),Collections.emptyList()));

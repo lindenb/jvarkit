@@ -64,6 +64,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
@@ -147,7 +149,7 @@ public int doWork(final List<String> args) {
 	PrintWriter manifestW=null;
 	ArchiveFactory archiveFactory = null;
 	try {
-		r= new VCFFileReader(Paths.get(oneAndOnlyOneFile(args)), true);
+		r= VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)), true);
 		final VCFHeader header=r.getFileHeader();
 		final List<String> samples= new ArrayList<>(header.getSampleNamesInOrder());
 		/* read pedigree if any */

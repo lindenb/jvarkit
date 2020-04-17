@@ -58,6 +58,7 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
@@ -406,7 +407,7 @@ public class TView implements Closeable
 			final VcfSource vcfSource = new VcfSource();
 			LOG.debug("OPEN "+vcfFile);
 			vcfSource.vcfFile = vcfFile;
-			vcfSource.vcfFileReader = new VCFFileReader(vcfFile,true);
+			vcfSource.vcfFileReader = VCFReaderFactory.makeDefault().open((vcfFile,true);
 			this.vcfReaders.add(vcfSource);
 			}
 		if(this.tabixKnownGene!=null) {

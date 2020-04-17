@@ -125,6 +125,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ReferenceGenomeFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -258,7 +259,7 @@ class TestNg01 {
 		}
 	
 	 static Stream<VariantContext> streamVcf(final File f) {
-		final VCFFileReader r = new VCFFileReader(f,false);
+		final VCFFileReader r = VCFReaderFactory.makeDefault().open(f,false);
 		final CloseableIterator<VariantContext> iter = r.iterator();
 		return StreamSupport.stream(new IterableAdapter<VariantContext>(iter).spliterator(), false).onClose(()->{iter.close();r.close();});
 		}
@@ -267,7 +268,7 @@ class TestNg01 {
 		}
 	
 	 static VCFHeader getVcfHeader(final File f) {
-		final VCFFileReader r = new VCFFileReader(f,false);
+		final VCFFileReader r = VCFReaderFactory.makeDefault().open(f,false);
 		final VCFHeader h = r.getFileHeader();
 		r.close();
 		return h;

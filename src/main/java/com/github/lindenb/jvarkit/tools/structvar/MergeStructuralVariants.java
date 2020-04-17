@@ -48,6 +48,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -107,7 +108,7 @@ public class MergeStructuralVariants extends Launcher{
 		
 		VcfInput(final Path path) {
 			//this.path = path;
-			final VCFFileReader vcfFileReader = new VCFFileReader(path,false);
+			final VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(path,false);
 			final VCFHeader header = vcfFileReader.getFileHeader();
 			
 			this.dict = SequenceDictionaryUtils.extractRequired(header);

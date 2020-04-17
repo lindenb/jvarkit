@@ -61,6 +61,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 /**
 BEGIN_DOC
@@ -222,7 +223,7 @@ public class NgsFilesSummary extends Launcher
     		
     		in=IOUtils.openPathForReading(f);
     		
-    		r= new VCFFileReader(f,false);
+    		r= VCFReaderFactory.makeDefault().open(f,false);
         	final VCFHeader header=r.getFileHeader();
         	
     		if(this.dict!=null) {

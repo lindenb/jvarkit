@@ -70,6 +70,7 @@ BEGIN_DOC
 END_DOC
 */
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 @Program(name="vcfgeneepistasis",
 		description="Burden: gene 1 vs gene 2",
@@ -160,7 +161,7 @@ public class VcfGeneEpistasis
 		try
 			{
 			final File vcfFile = new File(oneAndOnlyOneFile(args));
-			this.vcfFileReader = new VCFFileReader(vcfFile,true);
+			this.vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),true);
 			final VCFHeader header = this.vcfFileReader.getFileHeader();
 			final Pedigree pedigree;
 			if(this.pedigreeFile!=null)

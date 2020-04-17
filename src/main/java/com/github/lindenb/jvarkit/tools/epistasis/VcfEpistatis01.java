@@ -47,6 +47,7 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -236,7 +237,7 @@ public class VcfEpistatis01 extends Launcher {
 				return -1;
 				}
 			
-			VCFFileReader vcfFileReader = new VCFFileReader(vcfFile,false);
+			VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
 			final VCFHeader header =  vcfFileReader.getFileHeader();
 
 			

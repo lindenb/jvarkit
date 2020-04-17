@@ -70,6 +70,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 /**
 BEGIN_DOC
@@ -289,7 +290,7 @@ public class VCFCompareGT extends Launcher
 				final File vcfFile= new File(arguments.get(i));
 				
 				LOG.info("Opening "+vcfFile);
-				final VCFFileReader vcfFileReader = new VCFFileReader(vcfFile,false);
+				final VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile,false);
 				final CloseableIterator<VariantContext> iter = vcfFileReader.iterator();
 				final VCFHeader header = vcfFileReader.getFileHeader();
 				sampleNames.addAll(header.getSampleNamesInOrder());

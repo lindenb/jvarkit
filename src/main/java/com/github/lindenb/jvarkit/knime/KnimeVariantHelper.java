@@ -31,6 +31,8 @@ package com.github.lindenb.jvarkit.knime;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -63,6 +65,7 @@ import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -662,9 +665,9 @@ public static abstract class VariantData
 
 public Stream<VariantContext> forEachVariants(final String vcfFile) throws IOException
 	{
-	final File file = new File(vcfFile);
+	final Path file = Paths.get(vcfFile);
 	IOUtil.assertFileIsReadable(file);
-	final VCFFileReader r= new VCFFileReader(file, false);
+	final VCFFileReader r= VCFReaderFactory.makeDefault().open(file, false);
 	final VCFHeader header = r.getFileHeader();
 	this.init(header);
 	final CloseableIterator<VariantContext> iter = r.iterator();
@@ -677,9 +680,9 @@ public Stream<VariantContext> forEachVariants(final String vcfFile) throws IOExc
 
 public Stream<VariantData> forEachVariantData(final String vcfFile) throws IOException
 	{
-	final File file = new File(vcfFile);
+	final Path file = Paths.get(vcfFile);
 	IOUtil.assertFileIsReadable(file);
-	final VCFFileReader r= new VCFFileReader(file, false);
+	final VCFFileReader r= VCFReaderFactory.makeDefault().open(file, false);
 	final VCFHeader header = r.getFileHeader();
 	this.init(header);
 	final VcfTools vcfTools = new VcfTools(header);

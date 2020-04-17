@@ -54,6 +54,7 @@ import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
@@ -270,7 +271,7 @@ public class IgvReview extends Application
 		final Set<String> sampleNames;
 		try {
 			this.variants.clear();
-			vfr=new VCFFileReader(vcfFile, false);
+			vfr= VCFReaderFactory.makeDefault().open(vcfFile.toPath(), false);
 			
 			this.vcfHeader = vfr.getFileHeader();
 			sampleNames = new HashSet<>(this.vcfHeader.getSampleNamesInOrder());

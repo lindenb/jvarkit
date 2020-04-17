@@ -61,6 +61,8 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -169,7 +171,7 @@ public class VcfCalledWithAnotherMethod extends Launcher
 		ExternalVcf(final File vcfFile)
 			{
 			this.vcfFile = vcfFile;
-			this.reader = new VCFFileReader(this.vcfFile, false);
+			this.reader = VCFReaderFactory.makeDefault().open(this.vcfFile, false);
 			this.citer = this.reader.iterator();
 			this.iter = new PeekIterator<>(this.citer);
 			this.key = VCFUtils.escapeInfoField(this.vcfFile.getName());

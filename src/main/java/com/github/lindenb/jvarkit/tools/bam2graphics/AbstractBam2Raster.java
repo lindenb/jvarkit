@@ -33,6 +33,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -57,6 +58,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -206,7 +208,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 		}
 	protected void loadVCFs() {
 		for(final String vcfFile: IOUtils.unrollFiles(variants)) {
-			final VCFFileReader vcfFileReader = new VCFFileReader(new File(vcfFile),true);
+			final VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(vcfFile),true);
 			final VCFHeader header = vcfFileReader.getFileHeader();
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			final ContigNameConverter converter;

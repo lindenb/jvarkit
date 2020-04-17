@@ -45,6 +45,8 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -142,7 +144,7 @@ public class VcfSkatSlidingWindow extends Launcher
 			try
 				{
 				final List<VariantContext> variants = new ArrayList<>();
-				vcfFileReader=new VCFFileReader(this.vcfFile,true);
+				vcfFileReader = VCFReaderFactory.makeDefault().open(this.vcfFile,true);
 				
 				while(x<this.fromTo.getEnd())
 					{
@@ -223,7 +225,7 @@ public class VcfSkatSlidingWindow extends Launcher
 			final VCFHeader header;
 			final SAMSequenceDictionary dict;
 			final File vcfFile= new File(oneAndOnlyOneFile(args));
-			try (final VCFFileReader vr=new VCFFileReader(vcfFile, true))
+			try (final VCFFileReader vr= VCFReaderFactory.makeDefault().open(vcfFile, true))
 				{
 				header=vr.getFileHeader();
 				dict=header.getSequenceDictionary();

@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -84,7 +85,7 @@ public class FastGenotypeGVCFs extends Launcher {
 		private final List<String> samples;
 		GVCFVariantIterator(final File vcf) {
 			this.gvcfFile = vcf;
-			this.vcfFileReader = new VCFFileReader(vcf,false);
+			this.vcfFileReader = VCFReaderFactory.makeDefault().open(vcf.toPath(),false);
 			this.iter = this.vcfFileReader.iterator();
 			this.samples = this.vcfFileReader.getFileHeader().getSampleNamesInOrder();
 			}

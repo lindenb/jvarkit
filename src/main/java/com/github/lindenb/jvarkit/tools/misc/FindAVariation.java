@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.BcfToolsBuilder;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
 /** 
@@ -302,7 +303,7 @@ public class FindAVariation extends Launcher
 			else if(VCFUtils.isTribbleVcfPath(vcfPath) || 
 				VCFUtils.isTabixVcfPath(vcfPath))
 				{
-				r=new VCFFileReader(vcfPath,true);
+				r= VCFReaderFactory.makeDefault().open(vcfPath,true);
 				final VCFHeader header =r.getFileHeader();
 				for(final SimplePosition m:convertFromVcfHeader(vcfPath.toString(),header))
 					{

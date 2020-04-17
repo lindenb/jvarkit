@@ -56,6 +56,7 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -537,7 +538,7 @@ public class PrettySam extends Launcher {
 				}
 			/* load vcf file */
 			if(PrettySam.this.vcfFile!=null) {
-				this.vcfFileReader  = new VCFFileReader(PrettySam.this.vcfFile, true);
+				this.vcfFileReader  = VCFReaderFactory.makeDefault().open(PrettySam.this.vcfFile, true);
 			}
 			
 			/* load known genes */

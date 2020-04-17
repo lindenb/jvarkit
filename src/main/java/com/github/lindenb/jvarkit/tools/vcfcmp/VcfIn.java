@@ -47,6 +47,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.variant.variantcontext.Allele;
@@ -413,7 +415,7 @@ public class VcfIn extends Launcher
 		final ContigNameConverter contigNameConverter;
 		TabixVcf(SAMSequenceDictionary dictIn,final String file) {
 			this.file = new File(file);
-			this.vcfFileReader = new VCFFileReader(this.file,true);
+			this.vcfFileReader =VCFReaderFactory.makeDefault().open(this.file,true);
 			this.header = this.vcfFileReader.getFileHeader();
 			this.dict = this.header.getSequenceDictionary();
 			

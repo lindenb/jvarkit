@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -203,7 +204,7 @@ public int doWork(final List<String> args) {
 				throw new JvarkitException.DictionariesAreNotTheSame(dict1, dict);
 				}
 			if(tokens.length<2 || StringUtils.isBlank(tokens[1])) {
-				try(VCFFileReader r=new VCFFileReader(vcfInput.vcfPath, false)) {
+				try(VCFFileReader r= VCFReaderFactory.makeDefault().open(vcfInput.vcfPath, false)) {
 					List<String> snl = r.getFileHeader().getSampleNamesInOrder();
 					if(snl.size()==1) {
 						vcfInput.sample = snl.get(0);
@@ -301,7 +302,7 @@ public int doWork(final List<String> args) {
 			for(final VcfInput vcfinput: sample2inputs.values()) {
 				vcfinput.contigCount=0;//reset count for this contig
 				
-				try(VCFFileReader vcfFileReader = new VCFFileReader(vcfinput.vcfPath,true)) {
+				try(VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
 					vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength()).
 						stream().
 						filter(V->discard_bnd==false || !V.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")).
@@ -359,7 +360,7 @@ public int doWork(final List<String> args) {
 
 			
 			for(final VcfInput vcfinput: sample2inputs.values()) {
-				try(VCFFileReader vcfFileReader = new VCFFileReader(vcfinput.vcfPath,true)) {
+				try(VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
 					
 					final CloseableIterator<VariantContext> iter = vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength());
 					while(iter.hasNext()) {

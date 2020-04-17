@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -44,6 +45,7 @@ import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -109,7 +111,7 @@ public class Biostar322664 extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-V","--variant"},description="Variant VCF file. This tool **doesn't work** with INDEL/SV.",required=true)
-	private File vcfFile = null;
+	private Path vcfFile = null;
 	@Parameter(names={"-nm","--no-mate"},description="Disable the 'mate' function. BAM is not expected to be sorted with picard (bam can be sorted on coordinate), but mate will not be written.")
 	private boolean input_is_not_sorted_on_queryname = false;
 	@Parameter(names={"-index","--index"},description="Use the VCF input to query the BAM using bai index. Faster for large bam + small VCF. Require option `--no-mate` and the bam file to be indexed. ")
@@ -163,7 +165,7 @@ public class Biostar322664 extends Launcher
 		SAMFileWriter samFileWriter = null;
 		try {
 			LOG.info("reading VCF "+this.vcfFile+" in memory...");
-			vcfFileReader = new VCFFileReader(this.vcfFile, false);
+			vcfFileReader = VCFReaderFactory.makeDefault().open(this.vcfFile, false);
 			viter= vcfFileReader.iterator();
 			viter.stream().
 				filter(V->V.isVariant() && V.getReference().length()==1 && V.getAlternateAlleles().stream().anyMatch(A->A.length()==1)).

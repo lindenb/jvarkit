@@ -59,6 +59,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -602,7 +603,7 @@ private class ViewVcfHandler extends AbstractHandler
 			CloseableIterator<VariantContext> iter=null;
 			try
 				{
-				reader = new VCFFileReader(vcfFile, true);
+				reader = VCFReaderFactory.makeDefault().open(vcfFile, true);
 				final VCFHeader header = reader.getFileHeader();
 				if(header==null)
 					{

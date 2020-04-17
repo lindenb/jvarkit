@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
@@ -349,7 +350,7 @@ public class VcfPhased01 extends Launcher {
 	}
 	private void openPhasedVcf(final Path path) throws IOException {
 		final PhasedVcf phased = new PhasedVcf(path);
-		try(final VCFFileReader vcfFileReader  = new VCFFileReader(path,true)) {
+		try(final VCFFileReader vcfFileReader  = VCFReaderFactory.makeDefault().open(path,true)) {
 			final VCFHeader header = vcfFileReader.getFileHeader();
 			final List<String> samples = header.getSampleNamesInOrder();
 			if(samples.isEmpty()) throw new IOException("no sample in "+path);

@@ -20,6 +20,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -90,7 +92,7 @@ public class VcfGapFrequent extends Launcher {
 		
 		
 		FreqentDB(final File f) {
-			this.vcfFileReader = new VCFFileReader(f,true);
+			this.vcfFileReader = VCFReaderFactory.makeDefault().open(f,true);
 			final VCFHeader header= this.vcfFileReader.getFileHeader();
 			this.afExtractors.addAll(new AFExtractorFactory().parseFieldExtractors(user_fields_str));
 			

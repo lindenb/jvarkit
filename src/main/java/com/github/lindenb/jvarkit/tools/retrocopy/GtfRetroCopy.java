@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -157,7 +158,7 @@ public class GtfRetroCopy extends Launcher
 				}
 			// open the sam file
 			final String input = oneAndOnlyOneFile(args);
-			vcfFileReader = new VCFFileReader(Paths.get(input), true);
+			vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input), true);
 			final VCFHeader header = vcfFileReader.getFileHeader();
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			

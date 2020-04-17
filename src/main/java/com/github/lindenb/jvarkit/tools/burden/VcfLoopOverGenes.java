@@ -35,6 +35,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -69,6 +71,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -336,8 +339,8 @@ public class VcfLoopOverGenes extends Launcher {
 		try {
 			
 			
-			final File vcf =new File(oneAndOnlyOneFile(args));
-			vcfFileReader = new VCFFileReader(vcf,(this.geneFile!=null || !StringUtil.isBlank(this.regionStr)));
+			final Path vcf = Paths.get(oneAndOnlyOneFile(args));
+			vcfFileReader = VCFReaderFactory.makeDefault().open(vcf,(this.geneFile!=null || !StringUtil.isBlank(this.regionStr)));
 			this.dictionary = vcfFileReader.getFileHeader().getSequenceDictionary();
 			if(this.dictionary==null)
 				{

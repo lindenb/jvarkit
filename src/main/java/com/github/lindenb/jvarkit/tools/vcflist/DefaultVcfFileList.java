@@ -33,6 +33,7 @@ import java.util.Arrays;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.BlockCompressedInputStream;
 import htsjdk.samtools.util.CloserUtil;
@@ -69,7 +70,7 @@ class DefaultVcfFileList extends AbstractList<VariantContext>
 		if(indexFile.lastModified()< this.vcfFile.lastModified()) {
 			LOG.warn("index "+indexFile+" is older than vcf file "+this.vcfFile);
 			}
-		try (final VCFFileReader r=new VCFFileReader(this.vcfFile, false)){
+		try (final VCFFileReader r= VCFReaderFactory.makeDefault().open(this.vcfFile, false)){
 			this.header = r.getFileHeader();
 			}
 		this.codec.readHeader(VCFUtils.convertVCFHeaderToLineIterator(header));

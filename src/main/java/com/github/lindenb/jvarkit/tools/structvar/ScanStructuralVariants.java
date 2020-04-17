@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -129,7 +130,7 @@ public class ScanStructuralVariants extends Launcher{
 			}
 		CloseableIterator<VariantContext> query(String contig, int start, int end) {
 			if(this.vcfReader==null) {
-				this.vcfReader = new VCFFileReader(this.vcfPath, true);
+				this.vcfReader = VCFReaderFactory.makeDefault().open(this.vcfPath, true);
 				}
 			return this.vcfReader.query(contig, start, end);
 			}
@@ -289,7 +290,7 @@ public class ScanStructuralVariants extends Launcher{
 			
 			for(int side=0;side<2;side++) {
 			for(final Path input: (side==0?casesPaths:this.controlsPath)) {
-				final VCFFileReader vcfInput = new VCFFileReader(input,true);
+				final VCFFileReader vcfInput = VCFReaderFactory.makeDefault().open(input,true);
 				
 				final VCFHeader header = vcfInput.getFileHeader();
 				

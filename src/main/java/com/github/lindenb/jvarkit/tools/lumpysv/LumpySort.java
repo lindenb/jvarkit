@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import com.sleepycat.bind.tuple.TupleBinding;
 import com.sleepycat.bind.tuple.TupleInput;
 import com.sleepycat.bind.tuple.TupleOutput;
@@ -444,7 +445,7 @@ public class LumpySort
 			{
 			final File vcfFile = inputs.get(idx);
 			LOG.info("Read header "+(idx+1)+"/"+inputs.size());
-			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
+			final VCFFileReader r  = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
 			final VCFHeader header = r.getFileHeader();
 			if(!LumpyConstants.isLumpyHeader(header))
 				{
@@ -523,7 +524,7 @@ public class LumpySort
 			final long millisecstart = System.currentTimeMillis();
 			final File vcfFile = inputs.get(idx);
 			int nVariant = 0;
-			final VCFFileReader r  = new VCFFileReader(vcfFile,false);
+			final VCFFileReader r  = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
 			
 			final List<Genotype> missing =new ArrayList<>(sampleNames.size());
 			for(final String sn:sampleNames)

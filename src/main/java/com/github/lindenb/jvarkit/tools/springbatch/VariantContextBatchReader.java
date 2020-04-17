@@ -42,6 +42,8 @@ import org.springframework.batch.item.UnexpectedInputException;
 import org.springframework.batch.item.file.ResourceAwareItemReaderItemStream;
 import org.springframework.core.io.Resource;
 
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -88,7 +90,7 @@ public class VariantContextBatchReader implements
 			if(LOG.isInfoEnabled()) LOG.info("Opening "+this.rsrc);
 			vcfFile = this.rsrc.getFile();
 			IOUtil.assertFileIsReadable(vcfFile);
-			this.vcfFileReader = new VCFFileReader(
+			this.vcfFileReader = VCFReaderFactory.makeDefault().open(
 				vcfFile,
 				this.interval!=null
 				);

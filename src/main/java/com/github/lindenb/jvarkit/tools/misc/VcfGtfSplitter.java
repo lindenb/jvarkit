@@ -58,6 +58,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.AttributeCleaner;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -485,7 +486,7 @@ public class VcfGtfSplitter
 			
 			final Path tmpVcf = Files.createTempFile("tmp.",(use_bcf?FileExtensions.BCF:FileExtensions.COMPRESSED_VCF));
 			String input = oneAndOnlyOneFile(args);
-			vcfFileReader = new VCFFileReader(Paths.get(input),true);
+			vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input),true);
 			final VCFHeader header1 = vcfFileReader.getFileHeader();
 			final SAMSequenceDictionary dict = header1.getSequenceDictionary();
 			if(dict==null && this.use_bcf) {

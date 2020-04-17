@@ -51,6 +51,8 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -154,7 +156,7 @@ public class VcfBurdenFilterExac
 					LOG.info("open "+CtxWriterFactory.this.exacFile);
 					if(CtxWriterFactory.this.useTabixIndex && VCFUtils.isTabixVcfFile(CtxWriterFactory.this.exacFile))
 						{
-						this.tabix = new VCFFileReader(CtxWriterFactory.this.exacFile,true);
+						this.tabix = VCFReaderFactory.makeDefault().open(CtxWriterFactory.this.exacFile.toPath(),true);
 						this.exacIn = null;
 						this.equalRange = null;
 						this.exacHeader = tabix.getFileHeader();

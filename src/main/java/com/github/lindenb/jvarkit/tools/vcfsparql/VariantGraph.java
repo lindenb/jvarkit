@@ -45,6 +45,7 @@ import org.apache.jena.vocabulary.RDF;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
 import htsjdk.samtools.util.AbstractIterator;
@@ -69,7 +70,7 @@ public class VariantGraph extends GraphBase {
 	
 	public VariantGraph(final Path variantFile) {
 		this.variantFile = variantFile;
-		try(final VCFFileReader r=new VCFFileReader(variantFile,false)) {
+		try(final VCFFileReader r=VCFReaderFactory.makeDefault().open(variantFile,false)) {
 			final VCFHeader header  = r.getFileHeader();
 			final AnnPredictionParserFactory f = new AnnPredictionParserFactory(header);
 			this.annParser = f.get();

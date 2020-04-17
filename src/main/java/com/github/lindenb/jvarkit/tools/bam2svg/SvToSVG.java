@@ -66,6 +66,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -915,7 +916,7 @@ public class SvToSVG extends Launcher
 				
 				if(this.vcfFile!=null)
 					{
-					this.vcfFileReader = new VCFFileReader(this.vcfFile,true);
+					this.vcfFileReader = VCFReaderFactory.makeDefault().open(this.vcfFile,true);
 					}
 				
 				final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();

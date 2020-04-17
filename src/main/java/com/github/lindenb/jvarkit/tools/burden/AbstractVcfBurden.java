@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -151,7 +152,7 @@ extends Launcher
 			
 			
 			final String vcfIn = super.oneAndOnlyOneFile(args);
-			vcfReader = new VCFFileReader(Paths.get(vcfIn),true);
+			vcfReader = VCFReaderFactory.makeDefault().open(Paths.get(vcfIn),true);
 			final VCFHeader header = vcfReader.getFileHeader();
 			final Set<String> samplesInVcf = new HashSet<>(header.getSampleNamesInOrder());
 			

@@ -41,6 +41,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -102,7 +103,7 @@ public class VcfGnomadSV extends Launcher{
 			final VariantContextWriter out
 			)
 		{
-		final VCFFileReader gnomadVcfReader = new VCFFileReader(this.gnomadVcfSvPath,true);
+		final VCFFileReader gnomadVcfReader = VCFReaderFactory.makeDefault().open(this.gnomadVcfSvPath,true);
 		final VCFHeader gnomadHeader = gnomadVcfReader.getFileHeader();
 		final SAMSequenceDictionary gnomadDict= SequenceDictionaryUtils.extractRequired(gnomadHeader);
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(gnomadDict);

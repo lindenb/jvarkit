@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,6 +62,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.Cigar;
@@ -855,7 +858,7 @@ public class WesCnvTView  extends Launcher {
 						{
 						for(final String vcfFile:inputs)
 							{
-							final VCFFileReader fr = new VCFFileReader(new File(vcfFile), false);
+							final VCFFileReader fr = VCFReaderFactory.makeDefault().open(Paths.get(vcfFile), false);
 							fr.iterator().stream().
 								filter(acceptVariant).
 								map(mapper).

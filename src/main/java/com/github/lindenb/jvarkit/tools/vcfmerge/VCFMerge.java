@@ -82,6 +82,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 /*
 BEGIN_DOC
@@ -440,13 +442,13 @@ public class VCFMerge
 			this.uri = uri;
 			if(StringUtil.isBlank(VCFMerge.this.regionStr))
 				{
-				this.reader = new VCFFileReader(new File(uri),false);
+				this.reader = VCFReaderFactory.makeDefault().open(new File(uri),false);
 				this.header = this.reader.getFileHeader();
 				this.iter0  = this.reader.iterator();
 				}
 			else
 				{
-				this.reader = new VCFFileReader(new File(uri),true);
+				this.reader = VCFReaderFactory.makeDefault().open(new File(uri),true);
 				this.header = this.reader.getFileHeader();
 				final SimpleInterval rgn = IntervalParserFactory.
 						newInstance().
