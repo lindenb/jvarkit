@@ -696,7 +696,7 @@ public class CompileJVarkit extends DefaultTask {
 				project.logger.warn("download to "+soOwlFile);
 				ant.mkdir(dir:soOwlFile.parent)
 				ant.get(
-					src:"https://github.com/The-Sequence-Ontology/SO-Ontologies/raw/master/so-simple.owl",
+					src:"https://raw.githubusercontent.com/The-Sequence-Ontology/SO-Ontologies/master/Ontology_Files/so-simple.owl",
 					verbose:true,
 					dest:soOwlFile
 					);
