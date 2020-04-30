@@ -362,11 +362,12 @@ public class VcfBurdenFisherH
 			
 			if( set_filter_in_range  && variantFilterHeader!=null) {
 				vcb.filter(variantFilterHeader.getID());
+				// only set this one if the filter is set above
+				if( set_filter_case_ctrl_ratio  && filterCtrlgtCaseRatio!=null) {
+					vcb.filter(filterCtrlgtCaseRatio.getID());
+					}
 				}
 			
-			if( set_filter_case_ctrl_ratio  && filterCtrlgtCaseRatio!=null) {
-				vcb.filter(filterCtrlgtCaseRatio.getID());
-				}
 			
 			w.add(vcb.make());
 			}
