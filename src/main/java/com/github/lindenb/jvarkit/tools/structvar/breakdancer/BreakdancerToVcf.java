@@ -28,7 +28,6 @@ import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -102,10 +101,10 @@ $ wget -O - -q "https://raw.githubusercontent.com/genome/breakdancer/master/test
 ##contig=<ID=Y,length=59373566>
 ##contig=<ID=MT,length=16569>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	H_IJ-NA19238-NA19238-extlibs	H_IJ-NA19240-NA19240-extlibs
-21	29185056	.	N	<INS>	99	.	DP=2;END=29185377;SVLEN=-226;SVTYPE=INS	GT:DP:GQ	0/1:1:99	0/1:1:99
-21	29185462	.	N	<DEL>	99	.	DP=21;END=29186122;SVLEN=545;SVTYPE=DEL	GT:AF:DP:GQ	0/1:176.58:21:99	0/1:167.89:.:99
-21	34807694	.	N	<INS>	99	.	DP=3;END=34808852;SVLEN=-304;SVTYPE=INS	GT:DP:GQ	0/1:1:99	0/1:2:99
-21	34808937	.	N	<INV>	99	.	DP=2;END=34809799;SVLEN=737;SVTYPE=INV	GT:AF:DP:GQ	0/1:847.39:.:99	0/1:878.83:2:99
+21	29185056	.	N	<INS>	99	.	DP=2;END=29185377;SVLEN=226;SVTYPE=INS	GT:DP:GQ	0/1:1:99	0/1:1:99
+21	29185462	.	N	<DEL>	99	.	DP=21;END=29186122;SVLEN=-545;SVTYPE=DEL	GT:AF:DP:GQ	0/1:176.58:21:99	0/1:167.89:.:99
+21	34807694	.	N	<INS>	99	.	DP=3;END=34808852;SVLEN=304;SVTYPE=INS	GT:DP:GQ	0/1:1:99	0/1:2:99
+21	34808937	.	N	<INV>	99	.	DP=2;END=34809799;SVLEN=-737;SVTYPE=INV	GT:AF:DP:GQ	0/1:847.39:.:99	0/1:878.83:2:99
 ```
 
 
@@ -202,7 +201,14 @@ public class BreakdancerToVcf extends Launcher {
 								LOG.error("Cannot handler Duplicate sample: "+sample);
 								return -1;
 								}
-							bam2sample.put(tokens[0].substring(1)/* remove hash */, sample);
+							String bam = tokens[0].substring(1)/* remove hash */;
+							bam2sample.put(bam, sample);
+							/* in header , it's the bam name Without the path (!!!) */
+							final int slash = bam.lastIndexOf('/');
+							if(slash!=-1) {
+								bam = bam.substring(slash+1);
+								bam2sample.put(bam, sample);
+							}
 						}
 					}
 				}
