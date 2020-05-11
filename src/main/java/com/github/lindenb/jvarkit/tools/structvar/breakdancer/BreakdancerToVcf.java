@@ -151,7 +151,6 @@ public class BreakdancerToVcf extends Launcher {
 			metadata.add(new VCFInfoHeaderLine("ORIENT2",1, VCFHeaderLineType.String, "Orientation 2"));
 			metadata.add(new VCFInfoHeaderLine("CHROM2",1, VCFHeaderLineType.String, "Chromosome 2"));
 			metadata.add(new VCFInfoHeaderLine("POS2",1, VCFHeaderLineType.String, "Position 2"));
-			metadata.add(new VCFFormatHeaderLine("AF",1, VCFHeaderLineType.Float, "Estimate allele Frequency"));
 						
 			final Map<String, String> bam2sample =  new HashMap<>();
 			
@@ -234,9 +233,9 @@ public class BreakdancerToVcf extends Launcher {
 					return -1;
 					}
 				final String tokens[]= CharSplitter.TAB.split(line);
-				if(tokens.length < 12) {
-					LOG.error("Expected 12 columns in "+line+" but got "+tokens.length);
-					return -1;
+				if(tokens.length < 11) {
+					LOG.error("Expected 12 columns in "+line.replaceAll("[\t]","<TAB>")+" but got "+tokens.length+". Skipping");
+					continue;
 					}
 				if(dict!=null && dict.getSequence(tokens[0])==null) throw new JvarkitException.ContigNotFoundInDictionary(tokens[0], dict);
 				if(dict!=null && dict.getSequence(tokens[3])==null) throw new JvarkitException.ContigNotFoundInDictionary(tokens[3], dict);
@@ -254,7 +253,7 @@ public class BreakdancerToVcf extends Launcher {
 				
 				
 				if(!tokens[0].equals(tokens[3])) {
-					vcb.attribute("CHROM2", tokens);
+					vcb.attribute("CHROM2", tokens[3]);
 					vcb.attribute("POS2", stop);
 					vcb.stop(start);
 					}
@@ -271,30 +270,25 @@ public class BreakdancerToVcf extends Launcher {
 				
 				final List<Genotype> genotypes = new ArrayList<>(bam2sample.size());
 				
-				for(int sample_idx = 11;sample_idx< tokens.length;sample_idx++) {
-					final String bam = header_tokens[sample_idx];
+				for(String bamStr:  CharSplitter.COLON.splitAsStringList(tokens[10]) ) {
+						
+					final int pipe = bamStr.indexOf('|');
+					if(pipe==-1) {
+						LOG.error("Pipe missing in "+tokens[10]);
+						return -1;
+						}
+					final String bam = bamStr.substring(0,pipe);
+					final int dp = Integer.parseInt(bamStr.substring(pipe+1));
+
 					final String sampleName = bam2sample.get(bam);
 					if(StringUtils.isBlank(sampleName)) {
 						LOG.error("Cannot get sample associated to bam:"+bam);
 						return -1;
 						}
 					
-					final OptionalInt dp = CharSplitter.COLON.splitAsStringList(tokens[10]).stream().map(S->{
-						final int pipe = S.indexOf('|');
-						if(pipe==-1) return null;
-						if(!S.substring(0,pipe).equals(bam)) return null;
-						return new Integer(S.substring(pipe+1));
-						}).
-						filter(P->P!=null).
-						mapToInt(P->P.intValue()).findFirst();
-					
 					final GenotypeBuilder gbuilder = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,ALT_ALLELE));
-					if(dp.isPresent()) gbuilder.DP(dp.getAsInt());
+					gbuilder.DP(dp);
 					gbuilder.GQ(Integer.parseInt(tokens[8]));
-					if(!tokens[sample_idx].equals("NA")) {
-						final double gt_af = Double.parseDouble(tokens[sample_idx]);
-						gbuilder.attribute("AF", gt_af);
-						}
 					genotypes.add(gbuilder.make());
 					}
 				vcb.genotypes(genotypes);
