@@ -10,6 +10,12 @@ Simple and Stupid Variant Caller designed for @AdrienLeger2
 ```
 Usage: minicaller [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -f, --filter
       [20171130](replaced with jexl expression). A JEXL Expression that will 
       be used to filter out some sam-records (see 
@@ -18,6 +24,9 @@ Usage: minicaller [options] Files
       the read). An empty expression keeps everything. The variable 'record' 
       is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
       Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
@@ -34,8 +43,8 @@ Usage: minicaller [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
-      Indexed Genome Reference. A fasta file that must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary.
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     -r, --region
       An interval as the following syntax : "chrom:start-end" or 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 
@@ -102,6 +111,7 @@ The current reference is:
 ## Cited-In
 
   * "Direct Head-to-Head Evaluation of Recombinant Adeno-associated Viral Vectors Manufactured in Human versus Insect Cells". Kondratov & al. Molecular Therapy. [https://doi.org/10.1016/j.ymthe.2017.08.003](https://doi.org/10.1016/j.ymthe.2017.08.003).
+  *  METHODS OF ENHANCING BIOLOGICAL POTENCY OF BACULOVIRUS SYSTEM-PRODUCED RECOMBINANT ADENO-ASSOCIATED VIRUS   United States Patent Application 20200123572 . United States Patent Application 20200123572
 
 ## Example
 
