@@ -32,15 +32,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.eclipse.jetty.io.RuntimeIOException;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.io.MayBeGzipInputStream;
 
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.bcf2.BCF2Codec;
-import htsjdk.variant.bcf2.BCFVersion;
 import htsjdk.variant.vcf.VCFFileReader;
 
 /** Factory creating VCFReader */
@@ -70,7 +67,7 @@ public abstract class VCFReaderFactory {
 		if(requireIndex) {
 			final String tbiUrl= url + FileExtensions.TABIX_INDEX;
 			try(InputStream is=new URL(tbiUrl).openStream()) {
-				Path tmpTbi = Files.createTempFile(IOUtils.getDefaultTempDir(),"tabix", FileExtensions.TABIX_INDEX);
+				final Path tmpTbi = Files.createTempFile(IOUtils.getDefaultTempDir(),"tabix", FileExtensions.TABIX_INDEX);
 				IOUtils.copyTo(is, tmpTbi);
 				}
 			}
@@ -98,18 +95,8 @@ public abstract class VCFReaderFactory {
 	
 	/** open new VCFReader */
 	public VCFFileReader open(final Path path,boolean requireIndex) {
-		if(path.getFileName().toString().endsWith(FileExtensions.BCF)) {
-			final BCFVersion version;
-			try(InputStream is = new MayBeGzipInputStream(path)) {
-				version = BCFVersion.readBCFVersion(is);
-				if(version==null) throw new IllegalArgumentException("File "+path+" doesn't look like a BCF file.");
-				}
-			catch(final IOException err) {
-				throw new RuntimeIOException(err);
-				}
-			if(!BCF2Codec.ALLOWED_BCF_VERSION.equals(version)) {
-				throw new IllegalArgumentException("path is bcf version "+version +" but support is for "+BCF2Codec.ALLOWED_BCF_VERSION);
-				}
+		if(BcfToolsUtils.isBcfToolsRequired(path)) {
+			throw new IllegalArgumentException("sorry, cannot open \""+path+"\" support is only for "+BCF2Codec.ALLOWED_BCF_VERSION);
 			}
 		
 		return new VCFFileReader(path, requireIndex);

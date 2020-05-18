@@ -84,6 +84,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 public class VCFUtils
 	{	
@@ -275,7 +276,7 @@ public class VCFUtils
 	public static  VCFIterator createVCFIteratorFromPath(final Path vcfOrBcfFile) throws IOException
 		{
 		IOUtil.assertFileIsReadable(vcfOrBcfFile);
-		return new VCFIteratorBuilder().open(vcfOrBcfFile);
+		return new BcfIteratorBuilder().open(vcfOrBcfFile);
 		}
 
 	

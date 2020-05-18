@@ -29,24 +29,15 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.nio.file.Path;
-import java.util.List;
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
-
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
-
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -77,49 +68,43 @@ NG|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;Inb
 		name="vcfhead",
 		description="print the first variants of a vcf",
 		keywords={"vcf"},
-		modificationDate="20191115",
+		modificationDate="20200518",
 		creationDate="20131210"
 		)
-public class VcfHead extends Launcher
+public class VcfHead extends OnePassVcfLauncher
 	{
 	private static final Logger LOG=Logger.build(VcfHead.class).make();
 	
-	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path output=null;
 	@Parameter(names={"-n","-N","--count"},description="number of variants")
 	private long count=10;
 	@Parameter(names={"-c","--bycontig"},description="Print first variant for each contig; Implies VCF is sorted",order=1)
 	private boolean by_contig=false;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	public VcfHead()
 		{
 		}
 	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter w) {
 		if(count<0) {
 			LOG.error("count < 0");
 			return -1;
 			}
-		VCFIterator in = null;
-		VariantContextWriter w = null;
 		try {
-			in = super.openVCFIterator(oneFileOrNull(args));
 			final VCFHeader header = in.getHeader();
-
-			w  = this.writingVariantsDelegate.dictionary(header).open(this.output);
 			
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			String prev_contig=null;
 			long n=0L;
-			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			w.writeHeader(header);
 			while(in.hasNext())
 				{
-				final VariantContext ctx = progress.apply(in.next());
+				final VariantContext ctx = in.next();
 				if(this.by_contig && 
 						(prev_contig==null ||
 						!prev_contig.equals(ctx.getContig())))
@@ -137,18 +122,11 @@ public class VcfHead extends Launcher
 					break;
 					}
 				}
-			progress.close();
-			w.close();w=null;
-			in.close();in=null;
 			return 0;
 		} catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
-		} finally
-		{
-			CloserUtil.close(in);
-			CloserUtil.close(w);
-		}
+			} 
 		}
 		
 	public static void main(final String[] args)

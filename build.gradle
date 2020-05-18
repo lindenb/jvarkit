@@ -2427,6 +2427,15 @@ all2.add(task("breakdancer2vcf", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
+all2.add(task("gridssmergebnd", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.structvar.gridss.GridssMergeBnd"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+all2.add(task("gridsspostprocessvcf", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.structvar.gridss.GridssPostProcessVcf"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
 
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"

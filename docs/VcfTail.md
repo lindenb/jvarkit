@@ -16,7 +16,8 @@ Usage: vcftail [options] Files
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 
-      version is: 2.1 (last checked 2019-11-15)
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
       Default: false
     -n, -N, --count
       number of variants

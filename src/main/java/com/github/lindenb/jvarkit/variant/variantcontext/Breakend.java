@@ -43,14 +43,50 @@ import htsjdk.variant.vcf.VCFConstants;
  */
 public interface Breakend extends Locatable {
 	
+	
 	/** Return the printed representation of this allele. */
 	public String getDisplayString();
 	
 	/** Return  BDN delimiter :  '[' or ']'. */
 	public char getDelimiter();
-
+	/** the position of the breakend */
+	public int getPosition();
 	public String getLeftSequence();
 	public String getRightSequence();
+	
+	/** return '+' is delimiter is '+' otherwise '-' */ 
+	public default char getStrand() {
+		return getDelimiter()=='['?'+':'-';
+	}
+	
+	/** return true if strand is '+' */ 
+	public default boolean isStrandPlus() {
+		return getStrand()=='+';
+	}
+	
+	/** return true if strand is '-' */ 
+	public default boolean isStrandMinus() {
+		return getStrand()=='-';
+	}
+
+	public default boolean isLeft() {
+		return !StringUtils.isBlank(getLeftSequence());
+	}
+	
+	public default boolean isRight() {
+		return !StringUtils.isBlank(getRightSequence());
+	}
+
+	@Override
+	public default int getStart() {
+		return getPosition();
+		}
+	
+	@Override
+	public default int getEnd() {
+		return getPosition();
+		}
+	
 	/** yes, it can be a List, see vcf spec "Multiple mates" */
 	public static List<Breakend> parse(final VariantContext ctx) {
 		if(ctx==null || !ctx.isVariant() || !ctx.getAttributeAsString(VCFConstants.SVTYPE,"").equals("BND")) return Collections.emptyList();
@@ -65,6 +101,7 @@ public interface Breakend extends Locatable {
 	public static Optional<Breakend> parse(final Allele alt) {
 		if(alt==null) return Optional.empty();
 		if(alt.isReference()) return Optional.empty();
+		if(!alt.isBreakpoint()) return Optional.empty();
 		return parse(alt.getDisplayString());
 	}
 	
@@ -85,7 +122,7 @@ public interface Breakend extends Locatable {
 		final int x2 = alt.indexOf(delim,x1+1);
 		if(x2==-1) return Optional.empty();
 		
-		final int colon = alt.indexOf(delim,x1+1);
+		final int colon = alt.indexOf(':',x1+1);
 		if(colon==-1 || colon >= x2) return Optional.empty();
 		final String contig = alt.substring(x1+1, colon);
 		if(StringUtils.isBlank(alt)) return Optional.empty();
@@ -130,15 +167,12 @@ public interface Breakend extends Locatable {
 			return this.contig;
 			}
 		
-		@Override
-		public int getStart() {
+		/** the position of the breakend */
+		public int getPosition() {
 			return this.pos;
-			}
+		}
 		
-		@Override
-		public int getEnd() {
-			return this.pos;
-			}
+
 		
 		@Override
 		public String getDisplayString() {

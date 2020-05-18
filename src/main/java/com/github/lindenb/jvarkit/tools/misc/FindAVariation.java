@@ -59,7 +59,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.variant.vcf.BcfToolsBuilder;
+import com.github.lindenb.jvarkit.variant.vcf.BcfToolsReader;
+import com.github.lindenb.jvarkit.variant.vcf.BcfToolsUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
@@ -264,12 +265,10 @@ public class FindAVariation extends Launcher
 		VCFIterator iter=null;
 		VCFFileReader r=null;
 		try {
-			if(vcfPathString.endsWith(FileExtensions.BCF)) {
-				if(!this.use_bcf) return;
-				BcfToolsBuilder bcftoolsBuilder = new BcfToolsBuilder();
-				BcfToolsBuilder.BcfToolsView view = bcftoolsBuilder.getView(vcfPathString);
+			if(vcfPathString.endsWith(FileExtensions.BCF) && this.use_bcf && BcfToolsUtils.isBcfToolsRequired(Paths.get(vcfPathString))) {
+				BcfToolsReader view = new BcfToolsReader(vcfPathString);
 				final VCFHeader header =view.getHeader();
-				if(Files.exists(Paths.get(vcfPathString+FileExtensions.CSI))) {
+				if(view.isQueryable()) {
 					for(final SimplePosition m:convertFromVcfHeader(vcfPath.toString(),header))
 						{
 						try( CloseableIterator<VariantContext> iter2 = view.query(m)) {
@@ -285,7 +284,7 @@ public class FindAVariation extends Launcher
 				else if(!this.indexedOnly)
 					{
 					final Set<SimplePosition> mutlist=convertFromVcfHeader(vcfPath.toString(),header);
-					try(VCFIterator iter2=view.open()) {
+					try(CloseableIterator<VariantContext> iter2=view.iterator()) {
 						while(iter2.hasNext())
 							{
 							final VariantContext ctx=iter2.next();
@@ -299,6 +298,7 @@ public class FindAVariation extends Launcher
 							}
 						}
 					}
+				view.close();
 				}
 			else if(VCFUtils.isTribbleVcfPath(vcfPath) || 
 				VCFUtils.isTabixVcfPath(vcfPath))

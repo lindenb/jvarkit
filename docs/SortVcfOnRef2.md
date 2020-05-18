@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Sort a VCF using the internal dictionary or an external reference order (Deprecated: use picard SortVcf).
+Sort a VCF using the internal dictionary or an external reference order (Deprecated: use bcftools sort).
 
 
 ## DEPRECATED
@@ -14,6 +14,15 @@ use picard sortvcf
 ```
 Usage: sortvcfonref2 [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -24,7 +33,7 @@ Usage: sortvcfonref2 [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
@@ -90,6 +99,8 @@ The current reference is:
 ### Deprecated
 
 Use picard SortVcf  http://broadinstitute.github.io/picard/command-line-overview.html#SortVcf.
+
+Use `bcftools sort`
 
 ### Example
 

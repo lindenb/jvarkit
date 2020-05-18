@@ -1,38 +1,68 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2020 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.variant.vcf;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.util.AbstractIterator;
-import htsjdk.samtools.util.BufferedLineReader;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.LineReader;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.AsciiLineReader;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
+import htsjdk.tribble.readers.PositionalBufferedStream;
+import htsjdk.variant.bcf2.BCF2Codec;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 public class BcfToolsReader implements Closeable {
+	private static final Logger LOG = Logger.build(BcfToolsReader.class).make();
+
+	private static int WARNING = 0;
 	private final VCFCodec codec = new VCFCodec();
 	private final VCFHeader header;
 	private final String path;
 	public BcfToolsReader(final String path) {
 		this.path = path;
 		Process proc = null;
+		if(WARNING==0) {
+			WARNING=1;
+			LOG.warn("the htsjdk library is current not able to read bcf file version > " + BCF2Codec.ALLOWED_BCF_VERSION + 
+					". This tool will try to read bcf file using bcftools.");
+			}
 		final String cmd[] = {
 				BcfToolsUtils.getBcftoolsExecutable() ,
 				"view",
@@ -43,7 +73,7 @@ public class BcfToolsReader implements Closeable {
 			proc =new ProcessBuilder(cmd).
 				redirectError(Redirect.INHERIT).
 				start();
-			try(htsjdk.tribble.readers.LineReader  in = AsciiLineReader.from(proc.getInputStream())) {
+			try(htsjdk.tribble.readers.LineReader  in = AsciiLineReader.from(new PositionalBufferedStream(proc.getInputStream()))) {
 				final LineIterator r= new LineIteratorImpl(in);
 				this.header = (VCFHeader)codec.readActualHeader(r);
 				}
@@ -61,15 +91,15 @@ public class BcfToolsReader implements Closeable {
 		return header;
 		}
 	
-	public boolean isQueryAble() {
+	public boolean isQueryable () {
 		return Files.exists(Paths.get(getPath()+FileExtensions.CSI)) || Files.exists(Paths.get(getPath()+FileExtensions.TABIX_INDEX));
-	}
+		}
 	
 	public CloseableIterator<VariantContext> iterator() {
 		return create(null);
 	}
 	
-	public CloseableIterator<VariantContext> query(Locatable loc) {
+	public CloseableIterator<VariantContext> query(final Locatable loc) {
 		return query(loc.getContig(),loc.getStart(),loc.getEnd());
 	}
 	
@@ -89,10 +119,10 @@ public class BcfToolsReader implements Closeable {
 		cmd.add(getPath());
 		if(location!=null) cmd.add(location);
 		try {
-		return new BcfIterator(this.codec,new ProcessBuilder(cmd).
-				redirectError(Redirect.INHERIT).
-				start());
-		} catch(IOException err) {
+			return new BcfIterator(this.codec,new ProcessBuilder(cmd).
+					redirectError(Redirect.INHERIT).
+					start());
+		} catch(final IOException err) {
 			throw new RuntimeIOException(err);
 			}
 		}
@@ -110,8 +140,7 @@ public class BcfToolsReader implements Closeable {
 		BcfIterator(final VCFCodec codec,final Process proc) {
 			this.proc = proc;
 			this.codec = codec;
-			r = AsciiLineReader.from(proc.getInputStream());
-			
+			this.r = AsciiLineReader.from(new PositionalBufferedStream(proc.getInputStream()));
 			}
 		@Override
 		protected VariantContext advance() {
@@ -121,7 +150,7 @@ public class BcfToolsReader implements Closeable {
 					this.proc.waitFor();
 					return null;
 					}
-				return codec.decode(line);
+				return this.codec.decode(line);
 				}
 			catch(final Throwable err) {
 				throw new RuntimeIOException(err);
