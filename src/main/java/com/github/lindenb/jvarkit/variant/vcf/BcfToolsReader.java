@@ -30,6 +30,7 @@ import java.lang.ProcessBuilder.Redirect;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -55,8 +56,18 @@ public class BcfToolsReader implements Closeable {
 	private final VCFCodec codec = new VCFCodec();
 	private final VCFHeader header;
 	private final String path;
+	private List<String> extraParams;
 	public BcfToolsReader(final String path) {
+		this(path,null);
+		}
+	public BcfToolsReader(final String path,final List<String> extraParams) {
 		this.path = path;
+		if(extraParams==null || extraParams.isEmpty()) {
+			this.extraParams= Collections.emptyList();
+		} else {
+			this.extraParams = new ArrayList<>(this.extraParams);
+		}
+		
 		Process proc = null;
 		if(WARNING==0) {
 			WARNING=1;
@@ -116,6 +127,7 @@ public class BcfToolsReader implements Closeable {
 		cmd.add(BcfToolsUtils.getBcftoolsExecutable());
 		cmd.add("view");
 		cmd.add("--no-header");
+		cmd.addAll(this.extraParams);
 		cmd.add(getPath());
 		if(location!=null) cmd.add(location);
 		try {

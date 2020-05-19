@@ -31,7 +31,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -57,11 +56,10 @@ import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.PeekableIterator;
+import htsjdk.samtools.util.PeekIterator;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
-import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -90,7 +88,10 @@ public class GridssMergeBnd extends Launcher{
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	@Parameter(names={"-d","--distance"},description="within distance. Two bnd are considered the same they're withing that distance.")
-	int withinDistance = 0;
+	private int withinDistance = 0;
+	@Parameter(names={"-a","--attributes"},description="add VCF attributes AC/AN/AF")
+	private boolean add_attributes = false;
+
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	@ParametersDelegate
@@ -176,6 +177,7 @@ public class GridssMergeBnd extends Launcher{
 	@Override
 	public int doWork(List<String> args)
 		{
+
 		try {
 			final Map<String,Integer> sample2index = new HashMap<>();			
 			final List<String> idx2sample = new ArrayList<>();
@@ -190,27 +192,24 @@ public class GridssMergeBnd extends Launcher{
 			
 			for(final Path path: IOUtils.unrollPaths(args)) {
 				LOG.info("Reading "+path);
+				
 				try(VCFIterator iter= new BcfIteratorBuilder().open(path)) {
 					final VCFHeader header= iter.getHeader();
-					final List<String> vcfsamples;
-					if(header.getNGenotypeSamples()>0) {
-						vcfsamples = header.getSampleNamesInOrder();
-						}
-					else
-						{
-						vcfsamples = Collections.singletonList(path.toString());
-						}
 					
-					for(final String sn: vcfsamples) {
-						if(sample2index.containsKey(sn)) {
-							LOG.error("Duplicate sample "+sn+" from "+path);
-							return -1;
-							}
-						final int sample_id = idx2sample.size();
-						idx2sample.add(sn);
-						sample2index.put(sn, sample_id);
+					if(header.getNGenotypeSamples()!=1) {
+						LOG.error("Expected one sample in "+path);
+						return -1;
 						}
+					final String sn = header.getSampleNamesInOrder().get(0);
 					
+					if(sample2index.containsKey(sn)) {
+						LOG.error("Duplicate sample "+sn+" from "+path);
+						return -1;
+						}
+					final int sample_id = idx2sample.size();
+					idx2sample.add(sn);
+					sample2index.put(sn, sample_id);
+						
 					
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 					if(this.theDict==null) {
@@ -262,30 +261,15 @@ public class GridssMergeBnd extends Launcher{
 							{
 							qintervals = new QueryInterval[]{qi1};
 							}
-						if(ctx.hasGenotypes()) {
-							final int sample_id = idx2sample.size()-1;
-							for(QueryInterval qi: qintervals) {
-								sorter.add(new BreakPoint(qi.referenceIndex, qi.start, qi.end, sample_id));
-								}
+						for(QueryInterval qi: qintervals) {
+							sorter.add(new BreakPoint(qi.referenceIndex, qi.start, qi.end, sample_id));
 							}
-						else 
-							{
-							for(int gidx=0;gidx< ctx.getNSamples();gidx++) {
-								final Genotype gt = ctx.getGenotype(gidx);
-								if(gt.isHomRef() || gt.isNoCall()) continue;
-								final int sample_id = sample2index.get(gt.getSampleName());
-								for(QueryInterval qi: qintervals) {
-									sorter.add(new BreakPoint(qi.referenceIndex, qi.start, qi.end, sample_id));
-									}
-								}
-							}
-						}
-						
+						}//end while
+					
 					}
 				}
-			
 			sorter.doneAdding();
-			LOG.info("Done sorting");
+			
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY,VCFConstants.ALLELE_COUNT_KEY,VCFConstants.ALLELE_FREQUENCY_KEY,VCFConstants.ALLELE_NUMBER_KEY);
@@ -294,26 +278,29 @@ public class GridssMergeBnd extends Launcher{
 			header.setSequenceDictionary(this.theDict);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			
-			VariantContextWriter vcw = this.writingVariantsDelegate.
-						dictionary(this.theDict).
-						open(this.outputFile);
-			vcw.writeHeader(header);
+			
+			
 			
 			final Allele ref_allele = Allele.create("N", true);
 			final Allele alt_allele = Allele.create("<BND>", false);
 			final List<Allele> alleles = Arrays.asList(ref_allele,alt_allele);
-			try(CloseableIterator<BreakPoint> iter = sorter.iterator())  {
-				PeekableIterator<BreakPoint> peek = new PeekableIterator<>(iter);
-				while(peek.hasNext()) {
-					final BreakPoint first = peek.next();
+			try(CloseableIterator<BreakPoint> iter0 = sorter.iterator();
+				VariantContextWriter vcw = this.writingVariantsDelegate.
+						dictionary(this.theDict).
+						open(this.outputFile);
+				)  {
+				vcw.writeHeader(header);
+				final PeekIterator<BreakPoint> iter = new PeekIterator<>(iter0);
+				while(iter.hasNext()) {
+					final BreakPoint first = iter.next();
 					final List<BreakPoint> array = new ArrayList<GridssMergeBnd.BreakPoint>();
 					array.add(first);
-					while(peek.hasNext()) {
-						final BreakPoint bp2 = peek.peek();
+					while(iter.hasNext()) {
+						final BreakPoint bp2 = iter.peek();
 						if(array.stream().noneMatch(BP->BP.withinDistanceOf(bp2,this.withinDistance))) {
 							break;
 							}
-						array.add(peek.next());
+						array.add(iter.next());
 						}
 					
 					final Set<Integer> uniq_sample_idx = array.stream().map(BP->BP.sample_id).collect(Collectors.toSet());
@@ -322,19 +309,18 @@ public class GridssMergeBnd extends Launcher{
 					
 					final VariantContextBuilder vcb = new VariantContextBuilder(null,first.getContig(),first.getStart(),end,alleles);
 					if(first.getStart()!=end) vcb.attribute(VCFConstants.END_KEY,end);
-					vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, uniq_sample_idx.size());
-					vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, idx2sample.size()*2);
-					vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, uniq_sample_idx.size()/(2.0*idx2sample.size()));
+					if(this.add_attributes) {
+						vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, uniq_sample_idx.size());
+						vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, idx2sample.size()*2);
+						vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, uniq_sample_idx.size()/(2.0*idx2sample.size()));
+						}
 					vcb.genotypes(array.
 						stream().
 						map(BP->new GenotypeBuilder(idx2sample.get(BP.sample_id), alleles).make()).
 						collect(Collectors.toList()));
 					vcw.add(vcb.make());
 					}
-				peek.close();
 				}
-			vcw.close();
-			sorter.cleanup();
 			return 0;
 			}
 		catch(final Throwable err) {
@@ -342,7 +328,6 @@ public class GridssMergeBnd extends Launcher{
 			return -1;
 			}
 		finally {
-		
 			}
 		}
 	public static void main(final String[] args) {

@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2020 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.treepack;
 
 import java.util.ArrayList;
@@ -11,24 +35,15 @@ public class TreePacker
 	private enum Orientation { VERTICAL, HORIZONTAL};
     private enum Direction { ASCENDING, DESCENDING}
 	
-	private Comparator<TreePack> comparator=new Comparator<TreePack>()
-				{
-				public int compare(TreePack pack1, TreePack pack2)
-						{
-						double w1=pack1.getWeight();
-						double w2=pack2.getWeight();
-						if(w1<w2) return 1;
-						if(w1>w2) return -1;
-						return 0;
-						}
-				};
+	private final Comparator<TreePack> comparator=(pack1,pack2)->Double.compare(pack1.getWeight(),pack2.getWeight())*-1 ;
+	
     
-	public void layout(List<TreePack> items,final Rectangle2D bounds)
+	public void layout(final List<TreePack> items,final Rectangle2D bounds)
     	{
         layout(sortDescending(items),0,items.size()-1,bounds);
     	}
     
-	private double sum(List<TreePack> items, int start, int end)
+	private double sum(final List<TreePack> items, int start, int end)
 	    {
 	    double sum=0;
 	    while(start<=end)//yes <=
@@ -38,14 +53,14 @@ public class TreePacker
 	    return sum;
 	    }
 	
-	private List<TreePack> sortDescending(List<TreePack> items)
+	private List<TreePack> sortDescending(final List<TreePack> items)
 	    {
-	    List<TreePack> L=new ArrayList<TreePack>(items);
+	    final List<TreePack> L=new ArrayList<TreePack>(items);
 	    Collections.sort(L,comparator);
 	    return L;
 	    }
 	
-	private void layout(List<TreePack> items, int start, int end,
+	private void layout(final List<TreePack> items, int start, int end,
 			final Rectangle2D bounds)
     {
         if (start>end) return;
@@ -106,7 +121,7 @@ public class TreePacker
         return x;
     }
 
-    private void layoutBest(List<TreePack> items, int start, int end, final Rectangle2D bounds)
+    private void layoutBest(final List<TreePack> items, int start, int end, final Rectangle2D bounds)
 	    {
 	    sliceLayout(
 	    		items,start,end,bounds,
@@ -116,7 +131,7 @@ public class TreePacker
     
     
 
-    private  void sliceLayout(List<TreePack> items, int start, int end, final Rectangle2D bounds, Orientation orientation, Direction order)
+    private  void sliceLayout(final List<TreePack> items, int start, int end, final Rectangle2D bounds, Orientation orientation, Direction order)
         {
             double total=sum(items, start, end);
             double a=0;
@@ -124,7 +139,7 @@ public class TreePacker
            
             for (int i=start; i<=end; i++)
             {
-            	Rectangle2D.Double r=new Rectangle2D.Double();
+            	final Rectangle2D.Double r=new Rectangle2D.Double();
                 double b=items.get(i).getWeight()/total;
                 if (vertical)
                 {

@@ -195,6 +195,10 @@ public class WritingSortingCollection
 				map(F->F.toPath()).
 				toArray((i)->new Path[i]);
 		}
+	/** get One path */
+	public Path getTmpPath() {
+		return getTmpPaths()[0];
+		}
 	}	
 
 public static enum WritingSamReaderType
