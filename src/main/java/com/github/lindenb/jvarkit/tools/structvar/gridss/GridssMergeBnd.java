@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.PeekIterator;
 import htsjdk.samtools.util.SequenceUtil;
@@ -99,7 +100,7 @@ public class GridssMergeBnd extends Launcher{
 
 	private SAMSequenceDictionary theDict = null;
 	
-	private class BreakPoint implements Comparable<BreakPoint>,Locatable {
+	private class BreakPoint implements Locatable {
 		final int tid;
 		final int start;
 		final int end;
@@ -127,12 +128,28 @@ public class GridssMergeBnd extends Launcher{
 			{
 			return end;
 			}
-		@Override
-		public int compareTo(final BreakPoint o)
+		
+	    public boolean withinDistance(final BreakPoint other, int distance) {
+	        return this.tid == other.tid && 
+	                CoordMath.overlaps(this.start, this.end, other.start-distance, other.end+distance);
+	    	}
+
+		
+		public int compare1(final BreakPoint o)
 			{
 			int i= Integer.compare(this.tid, o.tid);
 			if(i!=0) return i;
-			return Integer.compare(this.start, o.start);
+			i= Integer.compare(this.start, o.start);
+			return i;
+			}
+		
+		public int compare2(final BreakPoint o)
+			{
+			int i= compare1(o);
+			if(i!=0) return i;
+			i= Integer.compare(this.end, o.end);
+			if(i!=0) return i;
+			return Integer.compare(this.sample_id, o.sample_id);
 			}
 		@Override
 		public String toString() {
@@ -184,10 +201,11 @@ public class GridssMergeBnd extends Launcher{
 			
 			SortingCollection<BreakPoint> sorter = SortingCollection.newInstance(
 					BreakPoint.class,
-					new BreakPointCodec(),(A,B)->A.compareTo(B),
+					new BreakPointCodec(),(A,B)->A.compare2(B),
 					this.sortingDelegate.maxRecordsInRam,
 					this.sortingDelegate.getTmpPaths()
 					);
+			
 			sorter.setDestructiveIteration(true);
 			
 			for(final Path path: IOUtils.unrollPaths(args)) {
@@ -269,7 +287,8 @@ public class GridssMergeBnd extends Launcher{
 					}
 				}
 			sorter.doneAdding();
-			
+			LOG.info("Done adding");
+			boolean debug=false;
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY,VCFConstants.ALLELE_COUNT_KEY,VCFConstants.ALLELE_FREQUENCY_KEY,VCFConstants.ALLELE_NUMBER_KEY);
@@ -291,18 +310,39 @@ public class GridssMergeBnd extends Launcher{
 				)  {
 				vcw.writeHeader(header);
 				final PeekIterator<BreakPoint> iter = new PeekIterator<>(iter0);
+				final List<BreakPoint> array = new ArrayList<GridssMergeBnd.BreakPoint>();
+
 				while(iter.hasNext()) {
+					if(debug) System.err.print("A\n");
 					final BreakPoint first = iter.next();
-					final List<BreakPoint> array = new ArrayList<GridssMergeBnd.BreakPoint>();
-					array.add(first);
-					while(iter.hasNext()) {
-						final BreakPoint bp2 = iter.peek();
-						if(array.stream().noneMatch(BP->BP.withinDistanceOf(bp2,this.withinDistance))) {
-							break;
-							}
-						array.add(iter.next());
+					if(debug) {
+						System.err.print("B"+first);
+						if(!first.getContig().equals("chr2")) debug=false;
+						if(first.getStart()> 100_000_000) debug=false;
+					} else
+						{
+						if(first.getContig().equals("chr2") && first.getStart()>=30538162) debug=true;
 						}
 					
+					array.clear();
+					array.add(first);
+					if(debug) System.err.print("D\n");
+					while(iter.hasNext()) {
+						if(debug) System.err.print("E\n");
+						final BreakPoint bp2 = iter.peek();
+						if(debug) System.err.print("F\n"+bp2);
+						if(array.stream().noneMatch(BP->BP.withinDistance(bp2,this.withinDistance))) {
+							if(debug) System.err.print("G\n");
+							break;
+							}
+						if(debug) System.err.print("H\n");
+						array.add(iter.next());
+						if(array.size()>1_000_000) {
+							LOG.error("Too big for "+first);
+							return -1;
+							}
+						}
+					if(debug) System.err.println("I"+array.size());
 					final Set<Integer> uniq_sample_idx = array.stream().map(BP->BP.sample_id).collect(Collectors.toSet());
 
 					final int end = array.stream().mapToInt(BP->BP.end).max().orElse(first.end);
@@ -319,6 +359,7 @@ public class GridssMergeBnd extends Launcher{
 						map(BP->new GenotypeBuilder(idx2sample.get(BP.sample_id), alleles).make()).
 						collect(Collectors.toList()));
 					vcw.add(vcb.make());
+					if(debug) System.err.print("J\n");
 					}
 				}
 			return 0;
