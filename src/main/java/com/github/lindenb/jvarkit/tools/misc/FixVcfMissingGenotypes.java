@@ -56,6 +56,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
@@ -138,7 +140,8 @@ END_DOC
 description="After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref.",
 biostars={119007,263309,276811,302581},
 keywords={"sam","bam","vcf","sv","genotype"},
-modificationDate="20200305"
+creationDate="20141109",
+modificationDate="20200525"
 )
 public class FixVcfMissingGenotypes extends Launcher
 	{
@@ -190,11 +193,15 @@ public class FixVcfMissingGenotypes extends Launcher
 					return -1;
 					}		
 				final SAMFileHeader samHeader=reader.getFileHeader();
-				for(final SAMReadGroupRecord g:samHeader.getReadGroups())
+				final Set<String> bam_samples = samHeader.getReadGroups().
+						stream().
+						map(RG->this.partition.apply(RG)).
+						filter(SN->!StringUtil.isBlank(SN)).
+						filter(SN->header.getSampleNamesInOrder().contains(SN)).
+						collect(Collectors.toSet())
+						;
+				for(final String sample:bam_samples)
 					{
-					final String sample = this.partition.apply(g);
-					if(StringUtil.isBlank(sample)) continue;
-					if(!header.getSampleNamesInOrder().contains(sample)) continue;
 					List<SamReader> readers = sample2bam.get(sample);
 					if(readers==null)
 						{
