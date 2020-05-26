@@ -49,7 +49,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
-public class BcfToolsReader implements Closeable {
+public class BcfToolsReader implements VCFReader {
 	private static final Logger LOG = Logger.build(BcfToolsReader.class).make();
 
 	private static int WARNING = 0;
@@ -97,7 +97,7 @@ public class BcfToolsReader implements Closeable {
 			{
 			}
 		}
-	
+	@Override
 	public VCFHeader getHeader() {
 		return header;
 		}
@@ -105,7 +105,7 @@ public class BcfToolsReader implements Closeable {
 	public boolean isQueryable () {
 		return Files.exists(Paths.get(getPath()+FileExtensions.CSI)) || Files.exists(Paths.get(getPath()+FileExtensions.TABIX_INDEX));
 		}
-	
+	@Override
 	public CloseableIterator<VariantContext> iterator() {
 		return create(null);
 	}
@@ -113,7 +113,7 @@ public class BcfToolsReader implements Closeable {
 	public CloseableIterator<VariantContext> query(final Locatable loc) {
 		return query(loc.getContig(),loc.getStart(),loc.getEnd());
 	}
-	
+	@Override
 	public CloseableIterator<VariantContext> query(String s,int start,int end) {
 		return create(s+":"+start+"-"+end);
 	}
