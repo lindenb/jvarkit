@@ -177,7 +177,7 @@ public class IndexCovToVcf extends Launcher {
 				}
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
-			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, "GT");
+			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, "GT","GQ");
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, "END");
 			
 			/** raw value in indexcov */
