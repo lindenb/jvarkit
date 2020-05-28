@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.structvar;
+package com.github.lindenb.jvarkit.tools.structvar.indexcov;
 import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -36,12 +36,14 @@ import java.util.Set;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -51,7 +53,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -112,15 +113,15 @@ END_DOC
 @Program(
 		name="indexcov2vcf",
 		description="convert indexcov data to vcf",
-		keywords={"cnv","jfx","duplication","deletion","sv"},
+		keywords={"cnv","duplication","deletion","sv","indexcov"},
 		modificationDate="20200227"
 		)
 public class IndexCovToVcf extends Launcher {
 	private static final Logger LOG = Logger.build(IndexCovToVcf.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-t","--treshold"},description="DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
-	private double treshold = 0.05f;
+	@Parameter(names={"-t","--treshold"},description=IndexCovUtils.TRESHOLD_OPT_DESC+". " +FractionConverter.OPT_DESC,converter=FractionConverter.class)
+	private double treshold = IndexCovUtils.DEFAULT_TRESHOLD;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refFile = null;
 	@Parameter(names={"-p","--pedigree"},description="Optional Pedigree. "+PedigreeParser.OPT_DESC)
@@ -136,11 +137,8 @@ public class IndexCovToVcf extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.treshold<0f || this.treshold>=0.25f) {
-			LOG.error("Bad treshold 0 < "+this.treshold+" >=0.25 ");
-			return -1;
-		}
-
+		final IndexCovUtils indexCovUtils = new IndexCovUtils(this.treshold);
+		
 		final CharSplitter tab = CharSplitter.TAB;
 		BufferedReader r = null;
 		VariantContextWriter vcw  = null;
@@ -152,11 +150,7 @@ public class IndexCovToVcf extends Launcher {
 				dict = null;
 			} else
 			{
-				dict= SAMSequenceDictionaryExtractor.extractDictionary(this.refFile);
-				if(dict==null) {
-					LOG.error("Cannot find dict in "+this.refFile);
-					return -1;
-				}
+				dict= SequenceDictionaryUtils.extractRequired(this.refFile);
 			}
 			
 			
@@ -177,8 +171,8 @@ public class IndexCovToVcf extends Launcher {
 				}
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
-			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, "GT","GQ");
-			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, "END");
+			VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_KEY,VCFConstants.GENOTYPE_QUALITY_KEY);
+			VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY);
 			
 			/** raw value in indexcov */
 			final VCFFormatHeaderLine foldHeader = new VCFFormatHeaderLine("F", 1, VCFHeaderLineType.Float,"Relative number of copy: 0.5 deletion 1 normal 2.0 duplication");
@@ -291,90 +285,70 @@ public class IndexCovToVcf extends Launcher {
 				for(final String sampleName:sample2fold.keySet())
 					{
 					final float normDepth = sample2fold.get(sampleName);
+					final IndexCovUtils.SvType type = indexCovUtils.getType(normDepth);
+					
 					final GenotypeBuilder gb;
-					
-					final boolean is_sv;
-					final boolean is_hom_deletion = Math.abs(normDepth-0.0)<= this.treshold; 
-					final boolean is_het_deletion = Math.abs(normDepth-0.5)<= this.treshold || (!is_hom_deletion && normDepth<=0.5); 
-					final boolean is_hom_dup = Math.abs(normDepth-2.0)<= this.treshold  || normDepth>2.0 ; 
-					final boolean is_het_dup = Math.abs(normDepth-1.5)<= this.treshold || (!is_hom_dup && normDepth>=1.5);
-					final boolean is_ref = Math.abs(normDepth-1.0)<= this.treshold; 
 
-					final double theoritical_depth;
-					if(is_ref) {
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
-						is_sv = false;
-						theoritical_depth = 1.0;
+					switch(type) {
+						case REF: {
+							gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));
+							break;
+							}
+						case HET_DEL:{
+							gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
+							alleles.add(DEL_ALLELE);
+							count_del++;
+							break;
+							}
+						case HOM_DEL: {
+							gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
+							alleles.add(DEL_ALLELE);
+							count_del++;
+							vcb.filter(filterHomDel.getID());
+							break;
+							}
+						case HET_DUP: {
+							gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
+							alleles.add(DUP_ALLELE);
+							count_dup++;
+							break;
+							}
+						case HOM_DUP: {
+							gb = new GenotypeBuilder(sampleName,Arrays.asList(DUP_ALLELE,DUP_ALLELE));
+							alleles.add(DUP_ALLELE);
+							vcb.filter(filterHomDup.getID());
+							count_dup++;
+							break;
+							}
+						default:
+							{
+							gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+							break;
+							}
 						}
-					else if(is_het_deletion) {
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
-						alleles.add(DEL_ALLELE);
-						count_del++;
-						is_sv = true;
-						theoritical_depth= 0.5;
-						}
-					else if(is_hom_deletion) {
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
-						alleles.add(DEL_ALLELE);
-						count_del++;
-						vcb.filter(filterHomDel.getID());
-						is_sv = true;
-						theoritical_depth = 0.0;
-						}
-					else if(is_het_dup) {
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
-						alleles.add(DUP_ALLELE);
-						count_dup++;
-						is_sv = true;
-						theoritical_depth = 1.5;
-						}
-					else if(is_hom_dup) {
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(DUP_ALLELE,DUP_ALLELE));
-						alleles.add(DUP_ALLELE);
-						vcb.filter(filterHomDup.getID());
-						count_dup++;
-						is_sv = true;
-						theoritical_depth = 2.0;
-						}
-					else
-						{
-						gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
-						is_sv = false;
-						theoritical_depth = -1;
-						}	
-					if(is_sv) got_sv=true;
+					if(type.isVariant()) got_sv=true;
 					gb.attribute(foldHeader.getID(),normDepth);
-					
-					if(is_sv) {
-						double gq = Math.abs(theoritical_depth-normDepth);
-						gq = Math.min(0.5, gq);
-						gq = gq * gq;
-						gq = gq / 0.25;
-						gq = 99 * (1.0 - gq);
-						
-						gb.GQ((int)gq);
-						}
-					
-					
+					gb.GQ(type.getGenotypeQuality(normDepth));
+
 					final Sample sn = pedigree.getSampleById(sampleName);
 					if(sn!=null) {
-						if(is_sv) {
-							if(sn.isAffected()) 
+						if(type.isVariant()) {
+							if(sn.isAffected())
 								{
 								count_sv_cases++;
 								}
-							else if(sn.isUnaffected()) 
+							else if(sn.isUnaffected())
 								{
 								count_sv_controls++;
 								}
 							}
 						else
 							{
-							if(sn.isAffected()) 
+							if(sn.isAffected())
 								{
 								count_ref_cases++;
 								}
-							else if(sn.isUnaffected()) 
+							else if(sn.isUnaffected())
 								{
 								count_ref_controls++;
 								}

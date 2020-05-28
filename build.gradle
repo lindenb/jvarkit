@@ -1261,7 +1261,7 @@ all2.add( task("impactofduplicates", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("indexcovjfx", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.structvar.IndexCovJfx"
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovJfx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	requireJfx = true
 	});
@@ -2145,7 +2145,11 @@ all2.add( task("vcfderby01", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","derby")
 	});
 all.add( task("indexcov2vcf", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.structvar.IndexCovToVcf"
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("indexcov2sv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToSV"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("validatecnv", type: CompileJVarkit) {

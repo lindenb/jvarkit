@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.structvar;
+package com.github.lindenb.jvarkit.tools.structvar.indexcov;
 
 import java.io.IOException;
 
@@ -9,7 +9,7 @@ import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 @AlsoTest(LauncherTest.class)
 public class IndexCovJfxTest {
-	
+
 @Test(enabled=false)
 public void test01() throws IOException
 	{

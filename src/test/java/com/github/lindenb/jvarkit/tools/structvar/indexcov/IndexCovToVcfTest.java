@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.structvar;
+package com.github.lindenb.jvarkit.tools.structvar.indexcov;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -17,7 +17,6 @@ public class IndexCovToVcfTest {
 
 	private final TestSupport support = new TestSupport();
 
-	
 private Path createDataFile(int nsamples) throws IOException
 	{
 	final Path dataFile = support.createTmpPath(".tsv");
