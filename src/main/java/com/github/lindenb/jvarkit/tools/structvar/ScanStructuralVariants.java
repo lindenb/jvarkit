@@ -51,7 +51,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
-import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReader;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -62,7 +63,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -70,7 +70,7 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
-
+import htsjdk.samtools.util.*;
 /**
 BEGIN_DOC
 
@@ -92,7 +92,7 @@ END_DOC
 description="Scan structural variants for case/controls data",
 keywords= {"cnv","indel","sv","pedigree"},
 creationDate="20190815",
-modificationDate="20190815"
+modificationDate="20200524"
 )
 public class ScanStructuralVariants extends Launcher{
 	private static final Logger LOG = Logger.build(ScanStructuralVariants.class).make();
@@ -101,6 +101,9 @@ public class ScanStructuralVariants extends Launcher{
 	private static final String ATT_CONTROL="FOUND_IN_CONTROL";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
+
+	@Parameter(names={"--bed"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class)
+	private IntervalListProvider intervalListProvider = null;
 
 	@Parameter(names={"-c","--controls"},description="Controls indexed VCF files. a file endings with the suffix '.list' is interpretted as a list of path.")
 	private List<Path> controlsPath =new ArrayList<>();
@@ -119,9 +122,9 @@ public class ScanStructuralVariants extends Launcher{
 	private int ID_GENERATOR=0;
 
 
-	/** wrap a VCFFileReader to be used with option control_large_flag : will really close the vcf reader if needed */
+	/** wrap a VCFReader to be used with option control_large_flag : will really close the vcf reader if needed */
 	private static class ShadowedVcfReader implements Closeable {
-		private VCFFileReader vcfReader  = null;
+		private VCFReader vcfReader  = null;
 		final Path vcfPath;
 		private final boolean closeOnclose;
 		ShadowedVcfReader(final Path vcfPath,boolean closeOnclose) {
@@ -130,14 +133,14 @@ public class ScanStructuralVariants extends Launcher{
 			}
 		CloseableIterator<VariantContext> query(String contig, int start, int end) {
 			if(this.vcfReader==null) {
-				this.vcfReader = VCFReaderFactory.makeDefault().open(this.vcfPath, true);
+				this.vcfReader = VCFReader.open(this.vcfPath);
 				}
 			return this.vcfReader.query(contig, start, end);
 			}
 		void realClose() {
 			if(this.vcfReader!=null)
 				{
-				this.vcfReader.close();
+				try {this.vcfReader.close();} catch(Exception err) {}
 				this.vcfReader=null;
 				}
 			}
@@ -150,7 +153,7 @@ public class ScanStructuralVariants extends Launcher{
 
 	private int recursive(final VariantContext ctx,
 			final List<VariantContext> candidates,
-			final List<VCFFileReader> vcfFilesInput,
+			final List<VCFReader> vcfFilesInput,
 			final List<ShadowedVcfReader> shadowControls,
 			final VariantContextWriter out) {
 		if(candidates.size()==vcfFilesInput.size()) {
@@ -258,7 +261,7 @@ public class ScanStructuralVariants extends Launcher{
 	
 	@Override
 	public int doWork(final List<String> args) {
-		final List<VCFFileReader> casesFiles = new ArrayList<>();
+		final List<VCFReader> casesFiles = new ArrayList<>();
 
 		if(this.svComparator.getBndDistance()<0) {
 			LOG.error("bad max_distance :" +this.svComparator.getBndDistance());
@@ -290,9 +293,9 @@ public class ScanStructuralVariants extends Launcher{
 			
 			for(int side=0;side<2;side++) {
 			for(final Path input: (side==0?casesPaths:this.controlsPath)) {
-				final VCFFileReader vcfInput = VCFReaderFactory.makeDefault().open(input,true);
+				final VCFReader vcfInput = VCFReader.open(input);
 				
-				final VCFHeader header = vcfInput.getFileHeader();
+				final VCFHeader header = vcfInput.getHeader();
 				
 				if(side==0)
 					{
@@ -316,9 +319,21 @@ public class ScanStructuralVariants extends Launcher{
 				}
 			}
 			
+			final IntervalTreeMap<Boolean> intervalTreeMap;
+			if(intervalListProvider!=null) {
+				intervalTreeMap = new IntervalTreeMap<>();
+				intervalListProvider.
+					dictionary(dict).
+					stream().
+					forEach(R->intervalTreeMap.put(new Interval(R),true));
+				}
+			else
+				{
+				intervalTreeMap = null;
+				}
 			
 			casesFiles.stream().
-				flatMap(F->F.getFileHeader().getMetaDataInInputOrder().stream()).
+				flatMap(F->F.getHeader().getMetaDataInInputOrder().stream()).
 				forEach(H->metadata.add(H));	
 			
 			
@@ -410,6 +425,8 @@ public class ScanStructuralVariants extends Launcher{
 				
 				if(Breakend.parse(ctx).stream().anyMatch(B->decoy.isDecoy(B.getContig()))) continue;
 				
+				if(intervalTreeMap!=null && !intervalTreeMap.containsOverlapping(ctx)) continue;
+				
 				// in manta, I see the same variant multiple times in the same vcf
 				if(prevCtx!=null &&
 					ctx.getContig().equals(prevCtx.getContig()) &&
@@ -428,7 +445,7 @@ public class ScanStructuralVariants extends Launcher{
 			
 			out.close();
 			out=null;
-			casesFiles.stream().forEach(F->F.close());
+			casesFiles.stream().forEach(F->{try{F.close();}catch(Exception err) {} });
 			controlShadowReaders.stream().forEach(F->F.realClose());
 			return 0;
 		} catch(final Throwable err) {

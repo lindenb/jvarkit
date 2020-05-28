@@ -86,12 +86,15 @@ END_DOC
 	)
 public class GridssMergeBnd extends Launcher{
 	private static final Logger LOG = Logger.build(GridssMergeBnd.class).make();
+	private static long ID_GENERATOR = 0L;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	@Parameter(names={"-d","--distance"},description="within distance. Two bnd are considered the same they're withing that distance.")
 	private int withinDistance = 0;
 	@Parameter(names={"-a","--attributes"},description="add VCF attributes AC/AN/AF")
 	private boolean add_attributes = false;
+	@Parameter(names={"-C","--contig"},description="limit to that contig")
+	private String onlyContig = null;
 
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
@@ -105,12 +108,14 @@ public class GridssMergeBnd extends Launcher{
 		final int start;
 		final int end;
 		final int sample_id;
+		final long id;
 		
-		BreakPoint(int tid,int start,int end,int sample_id) {
+		BreakPoint(int tid,int start,int end,int sample_id,long id) {
 			this.tid=tid;
 			this.start=start;
 			this.end=end;
 			this.sample_id = sample_id;
+			this.id = id;
 		}
 		
 		@Override
@@ -135,22 +140,15 @@ public class GridssMergeBnd extends Launcher{
 	    	}
 
 		
-		public int compare1(final BreakPoint o)
+		public int compare(final BreakPoint o)
 			{
 			int i= Integer.compare(this.tid, o.tid);
 			if(i!=0) return i;
 			i= Integer.compare(this.start, o.start);
-			return i;
+			if(i!=0) return i;
+			return Long.compare(this.id,o.id);
 			}
 		
-		public int compare2(final BreakPoint o)
-			{
-			int i= compare1(o);
-			if(i!=0) return i;
-			i= Integer.compare(this.end, o.end);
-			if(i!=0) return i;
-			return Integer.compare(this.sample_id, o.sample_id);
-			}
 		@Override
 		public String toString() {
 			return getContig()+":"+getStart()+"-"+getEnd()+" "+sample_id;
@@ -171,7 +169,8 @@ public class GridssMergeBnd extends Launcher{
 			int start = dis.readInt();
 			int end = dis.readInt();
 			int sample_id = dis.readInt();
-			return new BreakPoint(tid,start,end,sample_id);
+			long id = dis.readLong();
+			return new BreakPoint(tid,start,end,sample_id,id);
 			}
 	
 		@Override
@@ -182,6 +181,7 @@ public class GridssMergeBnd extends Launcher{
 			dos.writeInt(o.start);
 			dos.writeInt(o.end);
 			dos.writeInt(o.sample_id);
+			dos.writeLong(o.id);
 			}
 		
 		@Override
@@ -194,14 +194,14 @@ public class GridssMergeBnd extends Launcher{
 	@Override
 	public int doWork(List<String> args)
 		{
-
+		int onlyContigTid = -1;
 		try {
 			final Map<String,Integer> sample2index = new HashMap<>();			
 			final List<String> idx2sample = new ArrayList<>();
 			
 			SortingCollection<BreakPoint> sorter = SortingCollection.newInstance(
 					BreakPoint.class,
-					new BreakPointCodec(),(A,B)->A.compare2(B),
+					new BreakPointCodec(),(A,B)->A.compare(B),
 					this.sortingDelegate.maxRecordsInRam,
 					this.sortingDelegate.getTmpPaths()
 					);
@@ -232,6 +232,10 @@ public class GridssMergeBnd extends Launcher{
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 					if(this.theDict==null) {
 						this.theDict = dict;
+						if(this.onlyContig!=null) {
+							onlyContigTid = this.theDict.getSequenceIndex(this.onlyContig);
+							if(onlyContigTid<0) throw new JvarkitException.ContigNotFoundInDictionary(this.onlyContig,this.theDict);
+							}
 						}
 					else
 						{
@@ -243,6 +247,8 @@ public class GridssMergeBnd extends Launcher{
 						final VariantContext ctx = iter.next();
 						final int tid = this.theDict.getSequenceIndex(ctx.getContig());
 						if(tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), this.theDict);
+						if(onlyContigTid!=-1 && onlyContigTid!=tid) continue;
+						if(onlyContigTid!=-1 && onlyContigTid<tid) break;
 						int start = ctx.getStart();
 						int end = ctx.getStart();//yes start
 						if(ctx.hasAttribute("CIPOS")) {
@@ -280,7 +286,7 @@ public class GridssMergeBnd extends Launcher{
 							qintervals = new QueryInterval[]{qi1};
 							}
 						for(QueryInterval qi: qintervals) {
-							sorter.add(new BreakPoint(qi.referenceIndex, qi.start, qi.end, sample_id));
+							sorter.add(new BreakPoint(qi.referenceIndex, qi.start, qi.end, sample_id,++ID_GENERATOR));
 							}
 						}//end while
 					
@@ -289,7 +295,6 @@ public class GridssMergeBnd extends Launcher{
 			sorter.doneAdding();
 			LOG.info("Done adding");
 			boolean debug=false;
-			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY,VCFConstants.ALLELE_COUNT_KEY,VCFConstants.ALLELE_FREQUENCY_KEY,VCFConstants.ALLELE_NUMBER_KEY);
 			VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_KEY);
@@ -299,9 +304,9 @@ public class GridssMergeBnd extends Launcher{
 			
 			
 			
-			
+			long count=0L;
 			final Allele ref_allele = Allele.create("N", true);
-			final Allele alt_allele = Allele.create("<BND>", false);
+			final Allele alt_allele = Allele.create("<B>", false);
 			final List<Allele> alleles = Arrays.asList(ref_allele,alt_allele);
 			try(CloseableIterator<BreakPoint> iter0 = sorter.iterator();
 				VariantContextWriter vcw = this.writingVariantsDelegate.
@@ -310,56 +315,55 @@ public class GridssMergeBnd extends Launcher{
 				)  {
 				vcw.writeHeader(header);
 				final PeekIterator<BreakPoint> iter = new PeekIterator<>(iter0);
-				final List<BreakPoint> array = new ArrayList<GridssMergeBnd.BreakPoint>();
+				final Map<Integer,BreakPoint> sample2bnd = new HashMap<>();
 
 				while(iter.hasNext()) {
-					if(debug) System.err.print("A\n");
 					final BreakPoint first = iter.next();
-					if(debug) {
-						System.err.print("B"+first);
-						if(!first.getContig().equals("chr2")) debug=false;
-						if(first.getStart()> 100_000_000) debug=false;
-					} else
-						{
-						if(first.getContig().equals("chr2") && first.getStart()>=30538162) debug=true;
-						}
-					
-					array.clear();
-					array.add(first);
-					if(debug) System.err.print("D\n");
+					//debug = first.getStart() >= 32_552_334 && first.getStart()< 50_000_000 && first.getContig().equals("chr2");
+					if(debug) System.err.println("A "+first);
+					sample2bnd.clear();
+					sample2bnd.put(first.sample_id,first);
 					while(iter.hasNext()) {
-						if(debug) System.err.print("E\n");
+						if(debug) System.err.println("B "+first);
 						final BreakPoint bp2 = iter.peek();
-						if(debug) System.err.print("F\n"+bp2);
-						if(array.stream().noneMatch(BP->BP.withinDistance(bp2,this.withinDistance))) {
-							if(debug) System.err.print("G\n");
+						if(debug) System.err.println("C "+bp2);
+
+						if(sample2bnd.values().stream().noneMatch(BP->BP.withinDistance(bp2,this.withinDistance))) {
+							if(debug) System.err.println("D "+first+" "+bp2);
 							break;
 							}
-						if(debug) System.err.print("H\n");
-						array.add(iter.next());
-						if(array.size()>1_000_000) {
-							LOG.error("Too big for "+first);
-							return -1;
-							}
-						}
-					if(debug) System.err.println("I"+array.size());
-					final Set<Integer> uniq_sample_idx = array.stream().map(BP->BP.sample_id).collect(Collectors.toSet());
+						if(debug) System.err.println("E "+first+" "+bp2+" ");
 
-					final int end = array.stream().mapToInt(BP->BP.end).max().orElse(first.end);
+						sample2bnd.put(bp2.sample_id,iter.next());
+						}
+
+					final int end = sample2bnd.values().stream().mapToInt(BP->BP.end).max().orElse(first.end);
 					
+					if(end-first.getStart() > 1000) continue;
+
 					final VariantContextBuilder vcb = new VariantContextBuilder(null,first.getContig(),first.getStart(),end,alleles);
 					if(first.getStart()!=end) vcb.attribute(VCFConstants.END_KEY,end);
 					if(this.add_attributes) {
-						vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, uniq_sample_idx.size());
-						vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, idx2sample.size()*2);
-						vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, uniq_sample_idx.size()/(2.0*idx2sample.size()));
+						vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, sample2bnd.size());
+						vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, sample2index.size()*2);
+						vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, sample2bnd.size()/(2.0*sample2index.size()));
 						}
-					vcb.genotypes(array.
+					vcb.genotypes(
+						sample2bnd.keySet().
 						stream().
-						map(BP->new GenotypeBuilder(idx2sample.get(BP.sample_id), alleles).make()).
+						map(SIDX->new GenotypeBuilder(idx2sample.get(SIDX), alleles).make()).
 						collect(Collectors.toList()));
+					if(debug) System.err.println("F "+first+" "+count);
+
 					vcw.add(vcb.make());
-					if(debug) System.err.print("J\n");
+					count++;
+					if(count%10_000==0) {
+						LOG.info("N="+count+" last:"+first);
+						if(vcw.checkError()) {
+							LOG.error("Cannot write!!! "+count+"/"+first);
+							return -1;
+							}
+						}
 					}
 				}
 			return 0;

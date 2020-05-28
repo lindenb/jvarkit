@@ -13,6 +13,11 @@ Usage: scansv [options] Files
     --all
       Print all original variants from each file instead of printing just one.
       Default: false
+    --bed
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
     --bnd-distance
       Two BND variants are the same if their bounds are distant by less than 
       xxx bases. A distance specified as a positive integer.Commas are 
