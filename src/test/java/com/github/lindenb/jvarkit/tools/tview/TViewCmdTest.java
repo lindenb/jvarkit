@@ -39,7 +39,7 @@ public void test01(final String rgn) throws IOException {
 		args.add("-V");
 		args.add(support.resource("rotavirus_rf.vcf.gz"));
 		args.add("-R");
-		args.add(support.resource("rotavirus_rf.vcf.fa"));
+		args.add(support.resource("rotavirus_rf.fa"));
 		args.add("-r");
 		args.add(rgn);
 		args.add("-o");

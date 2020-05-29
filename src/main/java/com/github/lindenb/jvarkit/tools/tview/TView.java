@@ -407,7 +407,7 @@ public class TView implements Closeable
 			final VcfSource vcfSource = new VcfSource();
 			LOG.debug("OPEN "+vcfFile);
 			vcfSource.vcfFile = vcfFile;
-			vcfSource.vcfFileReader = VCFReaderFactory.makeDefault().open((vcfFile,true);
+			vcfSource.vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile,true);
 			this.vcfReaders.add(vcfSource);
 			}
 		if(this.tabixKnownGene!=null) {
