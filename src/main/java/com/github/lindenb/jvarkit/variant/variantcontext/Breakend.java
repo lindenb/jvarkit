@@ -69,10 +69,12 @@ public interface Breakend extends Locatable {
 		return getStrand()=='-';
 	}
 
+	/** @return true if left/5' DNA Sequence is not empty */
 	public default boolean isLeft() {
 		return !StringUtils.isBlank(getLeftSequence());
 	}
 	
+	/** @return true if right/3' DNA Sequence is not empty */
 	public default boolean isRight() {
 		return !StringUtils.isBlank(getRightSequence());
 	}
