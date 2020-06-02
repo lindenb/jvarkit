@@ -2440,6 +2440,11 @@ all2.add(task("gridsspostprocessvcf", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
+all2.add(task("vcfpostprocesssv", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.structvar.VcfPostProcessSV"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
 all2.add(task("baicov", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.structvar.BaiCov"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
