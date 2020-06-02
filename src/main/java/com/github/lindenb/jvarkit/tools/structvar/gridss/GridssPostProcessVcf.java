@@ -28,9 +28,14 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import com.beust.jcommander.ParametersDelegate;
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -110,26 +115,78 @@ modificationDate="20200518"
 public class GridssPostProcessVcf extends OnePassVcfLauncher {
 	private static final String EVENT_KEY="EVENT";
 	private static final Logger LOG = Logger.build(GridssPostProcessVcf.class).make();
+	@Parameter(names={"-D","--debug-file"},description="Debug File.",hidden=true)
+	private Path debugFile=null;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
+	
+	private enum BndType { DNA_OPEN,OPEN_DNA, DNA_CLOSE,CLOSE_DNA};
 	
 	private String toString(final VariantContext ctx) {
 		final StringBuilder sb = new StringBuilder(ctx.getContig()).
 				append(":").
 				append(ctx.getStart()).
+				append("-").
 				append(ctx.getEnd()).
 				append(" ").
-				append(ctx.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
+				append(ctx.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))).
+				append(" ").
+				append(ctx.getAttributeAsString(EVENT_KEY, ""));
 		return sb.toString();
 	}
-
+	
+	private BndType getBndType(final Breakend brk) {
+	if(brk.getDelimiter() =='[' ) {
+		return brk.isRight() ? BndType.OPEN_DNA : BndType.DNA_OPEN ;
+		}
+	else // ']'
+		{
+		return brk.isRight() ? BndType.CLOSE_DNA : BndType.DNA_CLOSE ;
+		}
+	}
+	
+	/* cannot use AcidNucleics.isATGC because there can be a dot */
+	private boolean isATGC(final Allele a) {
+	// do not test isSymbolic because '.' at the beginning of DNA string makes it symbolic ??
+	final String s = a.getDisplayString();
+	for(int i=0;i< s.length();i++) {
+		switch(s.charAt(i)) {
+		case '.' : case 'A': case 'T' : case 'C': case 'G': case 'N': break;
+		default: return false;
+		}
+	}
+	return true;
+	}
+	
+	/* symbolic allele like '.AATCGTACGAT' have length =0, so I cannot use Allele.length() */
+	private int length(final Allele a) {
+	int n=0;
+	final String s = a.getDisplayString();
+	for(int i=0;i< s.length();i++) {
+		switch(s.charAt(i)) {
+		case '.' : break;
+		case 'A': case 'T' : case 'C': case 'G': case 'N': n++; break;
+		default: return 0;
+		}
+	}
+	return n;
+	}
+	
+	
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {	
 		SortingCollection<VariantContext> sorter1 = null;
 		SortingCollection<VariantContext> sorter2 = null;
+		PrintWriter debug = null;
 		try {
+			debug = this.debugFile == null?
+				new PrintWriter(new NullOuputStream()):
+				new PrintWriter(Files.newBufferedWriter(this.debugFile))
+				;
+		
+		
 			final VCFHeader header= iterin.getHeader();
-			
+			LOG.info("reading input.");
 			final Comparator<VariantContext> comparator = (A,B)->  A.getAttributeAsString(EVENT_KEY, "").compareTo(B.getAttributeAsString(EVENT_KEY, ""));
 			sorter1 = SortingCollection.newInstance(
 					VariantContext.class,
@@ -141,13 +198,14 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 			while(iterin.hasNext()) {
 				final VariantContext ctx = iterin.next();
 				if(!ctx.hasAttribute(EVENT_KEY)) {
-					LOG.warn("skipping variant without INFO/"+EVENT_KEY+" at "+ctx.getContig()+":"+ctx.getEnd());
+					LOG.warn("skipping variant without INFO/"+EVENT_KEY+" at "+toString(ctx));
 					continue;
 					}
 				sorter1.add(ctx);
 				}
 			sorter1.doneAdding();
 			sorter1.setDestructiveIteration(true);
+			LOG.info("done adding");
 			
 			CloseableIterator<VariantContext> iter2=sorter1.iterator();
 			@SuppressWarnings("resource")
@@ -165,16 +223,35 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 				final List<VariantContext> variants = equal_range.next();
 				if(variants.size()==1) {
 					final VariantContext ctx = variants.get(0);
-					sorter2.add(ctx);
-					System.out.print("ALONE "+toString(ctx));
-					System.out.println();
+					final Allele alt = ctx.getAlleles().get(1);
+					// INSERTION LIKE. chr22:1234 A/.AAAACAAGGAG
+					if(	isATGC(ctx.getReference()) &&
+						isATGC(alt) &&
+						length(ctx.getReference())< length(alt) ) {
+						final VariantContextBuilder vcb1 = new VariantContextBuilder(ctx);		
+						vcb1.attribute(VCFConstants.SVTYPE, "INS");
+						vcb1.attribute("SVLEN",length(alt) - length(ctx.getReference()) );
+						sorter2.add(vcb1.make());
+						}
+					//STRANGE ? no ? change
+					else if(	
+						isATGC(ctx.getReference()) &&
+						isATGC(alt) &&
+						length(ctx.getReference()) ==1 &&
+						length(alt)==1 ) {
+						sorter2.add(ctx);
+						}
+					else
+						{
+						sorter2.add(ctx);
+						debug.println("ALONE "+toString(ctx));
+						}
 					}
 				else if(variants.size()!=2) {
 					for(final VariantContext ctx:variants) {
-						System.out.println("SIZE>2 "+toString(ctx));
+						debug.println("SIZE>2 "+toString(ctx));
 						sorter2.add(ctx);
 						}
-					System.out.println();
 					}
 				else  {
 					final VariantContext ctx1 = variants.get(0);
@@ -182,13 +259,7 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 					final Breakend brk1 = Breakend.parse(ctx1.getAlleles().get(1)).orElse(null);
 					final Breakend brk2 = Breakend.parse(ctx2.getAlleles().get(1)).orElse(null);
 					if(brk1==null || brk2==null) {
-						System.err.println("boum1 "+ctx1.getAlleles().get(1));
-						System.err.println("boum1 "+ctx2.getAlleles().get(1));
-						System.err.println(ctx1);
-						System.err.println(ctx2);
-						System.err.println(brk1);
-						System.err.println(brk2);
-						System.err.println();
+						debug.println("expected two bnd "+ toString(ctx1)+" "+toString(ctx2));
 						sorter2.add(ctx1);
 						sorter2.add(ctx2);
 						return -1;
@@ -199,10 +270,7 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 						!ctx2.getContig().equals(brk1.getContig()) ||
 						ctx1.getStart()!=brk2.getStart()  ||
 						ctx2.getStart()!=brk1.getStart()) {
-						System.err.println("boum2");
-						System.err.println(ctx1);
-						System.err.println(ctx2);
-						System.err.println();
+						debug.println("expected concordant bnd "+ toString(ctx1)+" "+toString(ctx2));
 						sorter2.add(ctx1);
 						sorter2.add(ctx2);
 						return -1;
@@ -220,17 +288,34 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 						}
 					
 					if(ctx1.getStart()>ctx2.getStart()) {
+						debug.println("CTX1>CTX2?" +toString(ctx1)+" "+toString(ctx2));
 						sorter2.add(vcb1.make());
 						sorter2.add(vcb2.make());
 						continue;
 						}
-					
-					if(brk1.getDelimiter()==']' && brk1.isRight() &&
-						brk2.getDelimiter()=='[' && brk2.isLeft()
-						) {
+						
+					final BndType bndType1  = getBndType(brk1);
+					final BndType bndType2  = getBndType(brk2);
+						
+					if(bndType1.equals(BndType.DNA_OPEN) && bndType2.equals(BndType.CLOSE_DNA)) {
 						final Allele ctx1_alt = ctx1.getAlleles().get(1);
-						final List<Allele> alleles = Arrays.asList(ctx1.getReference(),Allele.create("<INS>",false));
-						vcb1.attribute(VCFConstants.SVTYPE, "INS");
+						final List<Allele> alleles = Arrays.asList(ctx1.getReference(),Allele.create("<DEL>",false));
+						vcb1.attribute(VCFConstants.SVTYPE, "DEL");
+						vcb1.alleles(alleles);
+						vcb1.attribute("SVLEN",ctx1.getEnd() - ctx2.getStart()  +1 );
+						vcb1.genotypes(ctx1.getGenotypes().stream().map(GT->new GenotypeBuilder(GT).
+								alleles(GT.getAlleles().
+									stream().
+									map(A->A.equals(ctx1_alt)?alleles.get(1):A).
+									collect(Collectors.toList())).
+									make()
+							).collect(Collectors.toList()));
+						sorter2.add(vcb1.make());
+						}
+					else if(bndType1.equals(BndType.CLOSE_DNA) && bndType2.equals(BndType.DNA_OPEN)) {
+						final Allele ctx1_alt = ctx1.getAlleles().get(1);
+						final List<Allele> alleles = Arrays.asList(ctx1.getReference(),Allele.create("<DUP>",false));
+						vcb1.attribute(VCFConstants.SVTYPE, "DUP");
 						vcb1.alleles(alleles);
 						vcb1.attribute("SVLEN",ctx2.getEnd() - ctx1.getStart()  +1 );
 						vcb1.genotypes(ctx1.getGenotypes().stream().map(GT->new GenotypeBuilder(GT).
@@ -241,36 +326,46 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 									make()
 							).collect(Collectors.toList()));
 						sorter2.add(vcb1.make());
-						continue;
 						}
-					
-					if(brk1.getDelimiter()==brk2.getDelimiter() &&
-							((brk1.isRight() && brk2.isRight()) || (brk1.isLeft()&& brk2.isLeft()))
-							) {
-							final Allele ctx1_alt = ctx1.getAlleles().get(1);
-							final List<Allele> alleles = Arrays.asList(ctx1.getReference(),Allele.create("<INS>",false));
-							vcb1.attribute(VCFConstants.SVTYPE, "INV");
-							vcb1.alleles(alleles);
-							vcb1.attribute("SVLEN",ctx2.getEnd() - ctx1.getStart()  +1 );
-							vcb1.genotypes(ctx1.getGenotypes().stream().map(GT->new GenotypeBuilder(GT).
-									alleles(GT.getAlleles().
-										stream().
-										map(A->A.equals(ctx1_alt)?alleles.get(1):A).
-										collect(Collectors.toList())).
-										make()
-								).collect(Collectors.toList()));
-							sorter2.add(vcb1.make());
-							continue;
-							}
-					
-					
-					System.err.println(ctx1);
-					System.err.println(ctx2);
-					System.err.println();
-					return -1;
-					//break;
+					else if(bndType1.equals(BndType.OPEN_DNA) && bndType2.equals(BndType.OPEN_DNA)) {
+						final Allele ctx1_alt = ctx1.getAlleles().get(1);
+						final List<Allele> alleles = Arrays.asList(ctx1.getReference(),Allele.create("<INV>",false));
+						vcb1.attribute(VCFConstants.SVTYPE, "INV");
+						vcb1.alleles(alleles);
+						vcb1.attribute("SVLEN",ctx2.getEnd() - ctx1.getStart()  +1 );
+						vcb1.genotypes(ctx1.getGenotypes().stream().map(GT->new GenotypeBuilder(GT).
+								alleles(GT.getAlleles().
+									stream().
+									map(A->A.equals(ctx1_alt)?alleles.get(1):A).
+									collect(Collectors.toList())).
+									make()
+							).collect(Collectors.toList()));
+						sorter2.add(vcb1.make());
+						}
+					else if(bndType1.equals(BndType.DNA_CLOSE) && bndType2.equals(BndType.DNA_CLOSE)) {
+						final Allele ctx1_alt = ctx1.getAlleles().get(1);
+						final List<Allele> alleles = Arrays.asList(ctx1.getReference(),Allele.create("<SV>",false));
+						vcb1.attribute(VCFConstants.SVTYPE, "SV");
+						vcb1.alleles(alleles);
+						vcb1.attribute("SVLEN",ctx2.getEnd() - ctx1.getStart()  +1 );
+						vcb1.genotypes(ctx1.getGenotypes().stream().map(GT->new GenotypeBuilder(GT).
+								alleles(GT.getAlleles().
+									stream().
+									map(A->A.equals(ctx1_alt)?alleles.get(1):A).
+									collect(Collectors.toList())).
+									make()
+							).collect(Collectors.toList()));
+						sorter2.add(vcb1.make());
+						}
+					else
+						{
+						debug.println("How to handle "+toString(ctx1)+" "+toString(ctx2));
+						sorter2.add(ctx1);
+						sorter2.add(ctx2);
+						}
+						
+					}
 				}
-			}
 			equal_range.close();
 			iter2.close();
 			sorter1.cleanup();
@@ -299,7 +394,9 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 		    iter2.close();
 		    sorter2.cleanup();
 		    sorter2=null;
-		
+		    debug.flush();
+		    debug.close();
+		    debug=null;
 		return 0;
 	} catch(final Throwable err) {
 		err.printStackTrace();
@@ -308,6 +405,7 @@ public class GridssPostProcessVcf extends OnePassVcfLauncher {
 	} finally {
 		if(sorter1!=null) sorter1.cleanup();
 		if(sorter2!=null) sorter2.cleanup();
+		if(debug!=null) try{debug.close();} catch(final Throwable err2) {}
 	}
 }
 	
