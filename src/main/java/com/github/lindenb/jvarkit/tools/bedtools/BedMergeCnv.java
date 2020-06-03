@@ -35,9 +35,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -52,13 +54,18 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.variant.variantcontext.VariantContext;
 
 /**
 BEGIN_DOC
 
 input is bed on standard input or it's a set of interval files (.bed, .interval_list, .gtf, etc... )
 
-output is a BED file, 4th column: number of items merged, 5th column: fraction overlap with previous record.
+output is a BED file:
+
+* 4th column: number of items merged
+* 5th column: fraction overlap with previous record
+* 6th column an optional label. Concatenation of the distinct label. For a bed record the label is the 4th column. For a VCF record, the label is the name of the samples
 
 ## Example
 
@@ -93,10 +100,10 @@ END_DOC
  */
 @Program(
 		name="bedmergecnv",
-		description="Merge Bed records if they overlap a fraction of their lentgths.",
+		description="Merge Bed records if they overlap a fraction of their lengths.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200330",
-		modificationDate="20200331"
+		modificationDate="20200603"
 		)
 public class BedMergeCnv
 	extends Launcher
@@ -129,7 +136,16 @@ public class BedMergeCnv
 		public int getEnd() {
 			return this.intervals.stream().mapToInt(R->R.getEnd()).max().orElse(-1);
 			}
-
+		
+		public String getLabel() {
+			final String s =  this.intervals.stream().
+					map(L->labelFor(L)).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toSet()).
+					stream().
+					collect(Collectors.joining(","));
+			return StringUtils.isBlank(s)?".":s;
+			}
 		
 		private boolean test(final Locatable R1,final Locatable R2) {
 			return fractionOverlap(R1,R2) >= BedMergeCnv.this.fraction;
@@ -140,6 +156,18 @@ public class BedMergeCnv
 			this.intervals.add(si);
 			return true;
 			}
+		}
+	
+	private String labelFor(final Locatable loc) {
+		if(loc instanceof BedLine) {
+			final BedLine bed = BedLine.class.cast(loc);
+			if(bed.getColumnCount()>3) return bed.get(3);
+			}
+		if(loc instanceof VariantContext) {
+			final VariantContext ctx = VariantContext.class.cast(loc);
+			if(ctx.hasGenotypes()) return ctx.getGenotypes().stream().map(G->G.getSampleName()).collect(Collectors.toSet()).stream().collect(Collectors.joining(","));
+			}
+		return null;
 		}
 	
 	private double fractionOverlap(final Locatable R1,final Locatable R2) {
@@ -166,7 +194,7 @@ public class BedMergeCnv
 		}
 	private void parseBed(final Iterator<String> iter) {
 		final BedLineCodec codec = new BedLineCodec();
-		Iterator<Locatable> iter2 = new AbstractIterator<Locatable>() {
+		final Iterator<Locatable> iter2 = new AbstractIterator<Locatable>() {
 			@Override
 			protected Locatable advance() {
 				while(iter.hasNext()) {
@@ -222,6 +250,8 @@ public class BedMergeCnv
 				w.print(bc.intervals.size());
 				w.print("\t");
 				w.print(prev!=null && prev.contigsMatch(bc)?String.format("%.2f",this.fractionOverlap(prev,bc)):"0.0");
+				w.print("\t");
+				w.print(bc.getLabel());
 				w.println();
 				prev = bc;
 				}

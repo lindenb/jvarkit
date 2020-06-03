@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Merge Bed records if they overlap a fraction of their lentgths.
+Merge Bed records if they overlap a fraction of their lengths.
 
 
 ## Usage
@@ -85,7 +85,11 @@ The current reference is:
 
 input is bed on standard input or it's a set of interval files (.bed, .interval_list, .gtf, etc... )
 
-output is a BED file, 4th column: number of items merged, 5th column: fraction overlap with previous record.
+output is a BED file:
+
+* 4th column: number of items merged
+* 5th column: fraction overlap with previous record
+* 6th column an optional label. Concatenation of the distinct label. For a bed record the label is the 4th column. For a VCF record, the label is the name of the samples
 
 ## Example
 

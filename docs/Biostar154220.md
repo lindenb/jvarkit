@@ -17,10 +17,12 @@ Usage: biostar154220 [options] Files
       number of reads
       Default: 20
     -filter, --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      A JEXL Expression that will be used to filter out some sam-records (see 
+      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
+      An expression should return a boolean value (true=exclude, false=keep 
+      the read). An empty expression keeps everything. The variable 'record' 
+      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
+      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
     -h, --help
       print help and exit
     --helpFormat
@@ -66,6 +68,11 @@ $ ./gradlew biostar154220
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20150812
 
 ## Source code 
 

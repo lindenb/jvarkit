@@ -28,8 +28,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,8 +55,9 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -90,7 +93,9 @@ END_DOC
 		name="biostar130456",
 		description="Split individual VCF files from multisamples VCF file",
 		keywords={"vcf","samples","sample"},
-		biostars=130456
+		biostars=130456,
+		modificationDate="20200603",
+		creationDate="20150210"
 		)
 public class Biostar130456 extends Launcher
 	{
@@ -98,7 +103,7 @@ public class Biostar130456 extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	private final static String SAMPLE_TAG="__SAMPLE__";
 	@Parameter(names={"-p","--pattern"},description="output file pattern. Must contain the word "+SAMPLE_TAG,required=true)
@@ -113,6 +118,8 @@ public class Biostar130456 extends Launcher
 	
 	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 	
 	
@@ -129,7 +136,7 @@ public class Biostar130456 extends Launcher
 
 			try
 				{
-				out = openFileOrStdoutAsPrintStream(outputFile);
+				out = openPathOrStdoutAsPrintStream(outputFile);
 				in = super.openVCFIterator(inputName);
 				final VCFHeader header=in.getHeader();
 				this.recalculator.setHeader(header);
@@ -152,9 +159,9 @@ public class Biostar130456 extends Launcher
 					super.addMetaData(h2);
 					final String sampleFile= filepattern.replaceAll(SAMPLE_TAG,sample);
 					out.println(sampleFile);
-					final File fout = new File(sampleFile);
-					if(fout.getParentFile()!=null) fout.getParentFile().mkdirs();
-					final VariantContextWriter w= VCFUtils.createVariantContextWriter(fout);
+					final Path fout = Paths.get(sampleFile);
+					if(fout.getParent()!=null && !Files.exists(fout.getParent())) Files.createDirectories(fout.getParent());
+					final VariantContextWriter w= this.writingVariantsDelegate.dictionary(header).open(fout);
 					w.writeHeader(h2);
 					
 					sample2writer.put(sample, w);

@@ -10,12 +10,21 @@ Split individual VCF files from multisamples VCF file
 ```
 Usage: biostar130456 [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --disable-vc-attribute-recalc
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
       Default: false
     -f, --filtered
       remove filtered Genotype
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
       Default: false
     -h, --help
       print help and exit
@@ -74,6 +83,11 @@ $ ./gradlew biostar130456
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20150210
 
 ## Source code 
 
