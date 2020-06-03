@@ -88,7 +88,8 @@ END_DOC
 	biostars=81455,
 	keywords={"bed","gene","gtf"},
 	description="Defining precisely the exonic genomic context based on a position .",
-	modificationDate="20191206"
+	modificationDate="20200603",
+	creationDate="20130918"
 	)
 public class Biostar81455 extends Launcher
 	{
@@ -105,13 +106,12 @@ public class Biostar81455 extends Launcher
 	private final IntervalTreeMap<Gene> geneMap= new IntervalTreeMap<>();
 	
     
-    private static int distance(int pos1,Locatable loc)
+    private static int distance(final int pos1,final Locatable loc)
     	{
     	if(pos1<loc.getStart()) return loc.getStart()-pos1;
     	if(pos1>loc.getEnd())  return loc.getEnd()-pos1;
     	return 0;
     	}
-    
     @Override
     public int doWork(final List<String> args) {
 		BufferedReader r=null;
@@ -183,13 +183,24 @@ public class Biostar81455 extends Launcher
 							}
 						if(bestExon!=null)
 							{
-							out.println(
-									line+"\t"+
-									bestExon.getTranscript().getId()+"\t"+
-									(kg.getStart()-1)+"\t"+kg.getEnd()+"\t"+kg.getStrand()+"\t"+
-									bestExon.getName()+"\t"+(bestExon.getStart()-1)+"\t"+bestExon.getEnd()+"\t"+
-									distance(position.getPosition(),bestExon)
-									);
+							out.print(line);
+							out.print("\t");
+							out.print(bestExon.getTranscript().getId());
+							out.print("\t");
+							out.print(kg.getStart()-1);
+							out.print("\t");
+							out.print(kg.getEnd());
+							out.print("\t");
+							out.print(kg.getStrand());
+							out.print("\t");
+							out.print(bestExon.getName());
+							out.print("\t");
+							out.print(bestExon.getStart()-1);
+							out.print("\t");
+							out.print(bestExon.getEnd());
+							out.print("\t");
+							out.print(distance(position.getPosition(),bestExon));
+							out.println();
 							found=true;
 							}
 						}
