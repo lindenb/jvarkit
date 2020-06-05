@@ -1273,6 +1273,10 @@ all2.add( task("depthanomaly", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.DepthAnomaly"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("coverageplotter", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotter"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("cnvslidingwindow", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.CnvSlidingWindow"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

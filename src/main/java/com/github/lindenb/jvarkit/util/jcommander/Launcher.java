@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.jcommander;
 
-import java.awt.Dimension;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -293,24 +292,6 @@ public class WritingBamArgs
 	}
 
 
-
-public static class DimensionConverter
-	implements IStringConverter<Dimension>
-{
-	@Override
-	public Dimension convert(String v) {
-		int x=v.indexOf('x');
-		if(x<1)
-			{
-			throw new ParameterException("bad size. Expected (width)x(heigh) "+v);
-			}
-		int width=Integer.parseInt(v.substring(0, x));
-		int height=Integer.parseInt(v.substring(x+1));
-		return new Dimension(width, height);
-		}
-}
-
-
 public static class RandomConverter
 implements IStringConverter<Random>
 {
@@ -434,7 +415,6 @@ public Launcher()
 	
 	@SuppressWarnings({"rawtypes","serial"})
 	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
-		    put(Dimension.class,DimensionConverter.class);
 		    put(SamRecordFilter.class,SamRecordFilterFactory.class);
 		    put(Random.class,RandomConverter.class);
 		}};	
