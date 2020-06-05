@@ -432,6 +432,10 @@ public int doWork(final List<String> args) {
 			
 			final int depth[]= new int[extendedRegion.getLengthOnReference()];
 			final int copy[]= new int[depth.length];
+			// smooth
+			final int bases_per_pixel = (int)Math.ceil((double)depth.length/image.getWidth());
+
+
 			for(final Path path: inputBams) {
 				try(SamReader sr = samReaderFactory.open(path)) {
 					final SAMFileHeader header= sr.getFileHeader();
@@ -462,6 +466,25 @@ public int doWork(final List<String> args) {
 							}
 						}// loop cigar
 					}// end samItere
+	
+				if(bases_per_pixel>1) {
+					//smooth
+					System.arraycopy(depth, 0, copy, 0, depth.length);
+					for(int i=0;i< depth.length;i++) {
+						double t=0;
+						int count=0;
+						for(int j=i-bases_per_pixel;j<=i+bases_per_pixel && j< depth.length;j++) {
+							if(j<0) continue;
+							t+=copy[j];
+							count++;
+							}
+						if(count==0) continue;
+						depth[i]=(int)(t/count);
+						}
+					}
+				
+
+
 				System.arraycopy(depth, 0, copy, 0, depth.length);
 				final double median = median(copy);
 				if(median<=0) continue;
