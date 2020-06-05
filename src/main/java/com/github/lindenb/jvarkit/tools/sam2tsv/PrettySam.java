@@ -42,6 +42,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.ansi.AnsiUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -322,8 +323,8 @@ public class PrettySam extends Launcher {
     	}
 
 	
-	public static final String ANSI_ESCAPE = "\u001B[";
-	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
+	public static final String ANSI_ESCAPE = AnsiUtils.ANSI_ESCAPE;
+	public static final String ANSI_RESET = AnsiUtils.ANSI_RESET;
 	private static String HISTOGRAM_CHARS[] = new String[]{
 			"\u2581", "\u2582", "\u2583", "\u2584", "\u2585", 
 			"\u2586", "\u2587", "\u2588"

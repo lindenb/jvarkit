@@ -27,6 +27,8 @@ package com.github.lindenb.jvarkit.util.iterator;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,6 +48,7 @@ public class LineIterator
 	CloseableIterator<String> {
 
 	private final Iterator<String> delegate;
+	
 	private static class BuffReadIter 
 	extends AbstractIterator<String>
 	implements Closeable
@@ -92,6 +95,10 @@ public class LineIterator
 	
 	public LineIterator(final Reader br) {
 		this(new BuffReadIter(br));
+		}
+	
+	public LineIterator(final InputStream io) {
+		this(new InputStreamReader(io));
 		}
 	
 	public LineIterator(final LineReader lt) {
