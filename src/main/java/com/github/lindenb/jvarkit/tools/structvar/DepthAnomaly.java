@@ -29,6 +29,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -40,6 +41,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovUtils;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -100,8 +102,8 @@ public class DepthAnomaly extends Launcher {
 	private int min_mapq=1;
 	@Parameter(names={"--length","-n"},description = "min anomaly length. Input interval must have length>= 'x'*3.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_anomaly_length=100;
-	@Parameter(names={"--treshold","-t"},description = "consider it's an anomaly if  depth > (1.0 + x) or depth < (1.0-x)")
-	private double treshold = 0.45;
+	@Parameter(names={"--treshold","-t"},description = IndexCovUtils.TRESHOLD_OPT_DESC)
+	private double treshold = IndexCovUtils.DEFAULT_TRESHOLD;
 	@Parameter(names={"--screen-width","-w"},description = "screen width. Disabled if <=0.")
 	private int screen_width= 100;
 	@Parameter(names={"--force-screen"},description = "For screen display even if there is no cnv.")
@@ -112,15 +114,14 @@ public class DepthAnomaly extends Launcher {
 	private int max_depth=500;
 
 	private class CovInterval extends SimpleInterval {
-		final List<Double> depths =new ArrayList<>();
-		CovInterval(final String contig,int start,int end) {
-			super(contig,start,end);
+		final List<Double> depths;
+		final IndexCovUtils.SvType svtype;
+			CovInterval(final String contig,int start,int end,IndexCovUtils.SvType svtype,List<Double> depths) {
+				super(contig,start,end);
+				this.svtype = svtype;
+				this.depths=new ArrayList<>(depths); 
+				}
 		}
-		CovInterval add(double d) {
-			this.depths.add(d);
-			return this;
-		}
-	}
 
 private double median(final int array[]) {
 	int len = array.length;
@@ -142,6 +143,7 @@ public int doWork(final List<String> args) {
 	PrintWriter pw = null;
 	try
 		{
+		final IndexCovUtils indexCovUtils = new IndexCovUtils(this.treshold);
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
 		final SamReaderFactory samReaderFactory = SamReaderFactory.
 					makeDefault().
@@ -230,29 +232,50 @@ public int doWork(final List<String> args) {
 					}// end samItere
 				System.arraycopy(depth, 0, copy, 0, depth.length);
 				final double median = median(copy);
-				LOG.debug("median "+median);
 				final List<CovInterval> anomalies = new ArrayList<>();
 				//int minDepth = Arrays.stream(depth).min().orElse(0);	
 				int x0=0;
-				while(x0 < depth.length) {
+				while(x0 < depth.length && median >0.0) {
 					final int xi = x0;
-					while(x0< depth.length) {
-						final double normDepth = depth[x0]/(median==0?1.0:median);
-						final boolean is_anomaly =  depth[x0] < this.max_depth && (normDepth>=1.0+treshold /*DUP*/|| normDepth<=1.0-treshold /* DEL */);
+					double total=0;
+					double count=0;
+					IndexCovUtils.SvType prevType = null;
+					while(x0< depth.length ) {
+						final IndexCovUtils.SvType type;
+						final  int depthHere = depth[x0];
+						final double normDepth = depthHere/(median==0?1.0:median);
+						if(depthHere > this.max_depth) {
+							type  = null;
+							}
+						else
+							{
+							type = indexCovUtils.getType(normDepth);
+							}
 						x0++;
-						if(!is_anomaly) break;
+						if(type==null || !type.isVariant()) break;
+						if(prevType!=null &&  !type.equals(prevType)) break;
+						if(prevType==null) prevType = type;
+						total+= depthHere;
+						count++;
 						}
-					if(x0-xi >= this.min_anomaly_length) {
-						anomalies.add(new CovInterval(locatable.getContig(), locatable.getStart()+xi,locatable.getStart()+x0-1));
+					if(prevType!=null && count  >= this.min_anomaly_length) {
+						anomalies.add(new CovInterval(locatable.getContig(),
+								locatable.getStart()+xi,
+								locatable.getStart()+x0-1,
+								prevType,
+								Collections.singletonList(total/count)
+								));
 						}
 					}
 				if(!anomalies.isEmpty() || force_screen) {
 					int i=0;
 					while(i +1 < anomalies.size() && this.merge_intervals) {
-						final Locatable loc1= anomalies.get(i);
-						final Locatable loc2= anomalies.get(i+1);
-						if(loc1.withinDistanceOf(loc2,this.min_anomaly_length)) {
-							anomalies.set(i, new CovInterval(loc1.getContig(),loc1.getStart(),loc2.getEnd()));
+						final CovInterval loc1= anomalies.get(i);
+						final CovInterval loc2= anomalies.get(i+1);
+						if(loc1.svtype.equals(loc2.svtype) && loc1.withinDistanceOf(loc2,this.min_anomaly_length)) {
+							final List<Double> newdepths = new ArrayList<>(loc1.depths);
+							newdepths.addAll(loc2.depths);
+							anomalies.set(i, new CovInterval(loc1.getContig(),loc1.getStart(),loc2.getEnd(),loc1.svtype,newdepths));
 							anomalies.remove(i+1);
 							}
 						else
@@ -304,6 +327,8 @@ public int doWork(final List<String> args) {
 						pw.print("\t");
 						pw.print(anomalie.getLengthOnReference());
 						pw.print("\t");
+						pw.print(anomalie.svtype.name());
+						pw.print("\t");
 						pw.print(sample);
 						pw.print("\t");
 						pw.print(path);
@@ -315,6 +340,9 @@ public int doWork(final List<String> args) {
 						pw.print(locatable.toNiceString());
 						pw.print("\t");
 						pw.print((int)median);
+						pw.print("\t");
+						pw.print((int)anomalie.depths.stream().mapToDouble(X->X.doubleValue()).average().orElse(0));
+						pw.print("\t");
 						pw.println();
 						}
 					}
@@ -322,7 +350,8 @@ public int doWork(final List<String> args) {
 			}
 			
 			if(found_anomaly_here) {
-				pw.println("<<< "+ locatable.toNiceString()+" length:"+StringUtils.niceInt(locatable.getLengthOnReference()));
+				pw.println("<<< "+ locatable.toNiceString()+" length:"+
+						StringUtils.niceInt(locatable.getLengthOnReference()));
 				pw.println();
 			}
 		}// end while iter
