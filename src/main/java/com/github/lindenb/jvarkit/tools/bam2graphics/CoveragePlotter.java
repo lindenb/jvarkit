@@ -26,27 +26,31 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.bam2graphics;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.Stroke;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.function.IntToDoubleFunction;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import javax.imageio.ImageIO;
+
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
@@ -85,9 +89,9 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -136,128 +140,77 @@ public class CoveragePlotter extends Launcher {
 	private String prefix="";
 
 	
-	/** return a stream of interval of the known CNV overlapping the region */
-	private Stream<Interval> getKnownCnv(final Locatable region) {
-		if(this.knownCnvFile==null) return Stream.empty();
+	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region,final Locatable R) {
+		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
+		final double y= rectangle.getHeight()-8.0;
+		final double x1 = position2pixel.applyAsDouble(R.getStart());
+		final double x2 = position2pixel.applyAsDouble(R.getEnd());
+		g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1), 3));	
+		}
+
+	
+	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region) {
+		if(this.knownCnvFile==null) return;
 		final String fname=this.knownCnvFile.getFileName().toString();
+		final Composite oldComposite = g.getComposite();
+		final Stroke oldStroke = g.getStroke();
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+		g.setColor(Color.MAGENTA);
+
 		if(fname.endsWith(".bed.gz")) {
 			try(TabixReader tbr = new TabixReader(this.knownCnvFile.toString())) {
-				final TabixReader tbrfinal = tbr;
 				final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
 				final String ctg = cvt.apply(region.getContig());
-				if(StringUtils.isBlank(ctg)) {
-					return Stream.empty();
-					}
-				
-				final TabixReader.Iterator iter = tbr.query(ctg,region.getStart(), region.getEnd());
-				final BedLineCodec codec = new BedLineCodec();
-				final AbstractIterator<Interval> iter2= new AbstractIterator<Interval>() {
-					@Override
-					protected Interval advance() {
-						try {
-							for(;;) {
-								final String line = iter.next();
-								if(line==null) return null;
-								final BedLine bed = codec.decode(line);
-								if(bed==null) continue;
-								return new Interval(region.getContig(),bed.getStart(),bed.getEnd(),false,bed.getOrDefault(3, ""));
-								}
-							} catch (final IOException e) {
-							LOG.error(e);
-							return null;
+					if(!StringUtils.isBlank(ctg)) {
+						final BedLineCodec codec = new BedLineCodec();
+						final TabixReader.Iterator iter = tbr.query(ctg,region.getStart(), region.getEnd());
+						for(;;) {
+							final String line = iter.next();
+							if(line==null) break;
+							final BedLine bed = codec.decode(line);
+							if(bed==null) continue;
+							final Interval rgn = new Interval(region.getContig(),bed.getStart(),bed.getEnd(),false,bed.getOrDefault(3, ""));
+							drawKnownCnv(g,rectangle,region,rgn);
 							}
-						}
-					};
-				return StreamSupport.stream(new IterableAdapter<Interval>(iter2).spliterator(),false).onClose(()->{
-					tbrfinal.close();
-					});
+					}
 				}
 			catch(final Throwable err) {
 				LOG.error(err);
-				return Stream.empty();
 				}
 			}
 		else if(FileExtensions.VCF_LIST.stream().anyMatch(X->fname.endsWith(X))) {
-			VCFFileReader vcfFileReader= null;
-			try {
-				vcfFileReader = VCFReaderFactory.makeDefault().open(this.knownCnvFile,true);
-				
+			try(VCFFileReader vcfFileReader= VCFReaderFactory.makeDefault().open(this.knownCnvFile,true)) {
 				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getFileHeader()));
 				final String ctg = cvt.apply(region.getContig());
-				if(StringUtils.isBlank(ctg)) {
-					vcfFileReader.close();
-					return Stream.empty();
+				if(!StringUtils.isBlank(ctg)) {
+					vcfFileReader.query(ctg, region.getStart(), region.getEnd()).
+							stream().
+							filter(VC->!VC.isSNP()).
+							forEach(VC->{
+								final List<String> list = new ArrayList<>();
+								if(VC.hasID()) list.add(VC.getID());
+								if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
+								final Interval rgn= new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));
+								drawKnownCnv(g,rectangle,region,rgn);
+								});
 					}
-				final VCFFileReader vcfFileReaderFinal = vcfFileReader;
-				return vcfFileReader.query(ctg, region.getStart(), region.getEnd()).
-						stream().
-						filter(VC->!VC.isSNP()).
-						map(VC->{
-							final List<String> list = new ArrayList<>();
-							if(VC.hasID()) list.add(VC.getID());
-							if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
-							return new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));}).
-						onClose(()->vcfFileReaderFinal.close());
 				}
 			catch(final Throwable err) {
-				if(vcfFileReader!=null) vcfFileReader.close();
 				LOG.error(err);
-				return Stream.empty();
 				}
-		}
+			}
 		else
-		{
+			{
 			LOG.warn("not a vcf of bed.gz file "+this.knownCnvFile);
-			return Stream.empty();
+			}
+		g.setComposite(oldComposite);
+		g.setStroke(oldStroke);
 		}
-	}
 	
 
 	
 	
-	private Stream<GTFLine> getGenes(final Locatable region) {
-		if(this.gtfFile==null) return Stream.empty();
-		try (TabixReader tbr = new TabixReader(this.gtfFile.toString())) {
-			
-			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
-			final String ctg = cvt.apply(region.getContig());
-			if(StringUtils.isBlank(ctg)) {
-				return Stream.empty();
-				}
-			
-			final GTFCodec codec = new GTFCodec();
-			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
-			final TabixReader tbrfinal = tbr;
-			final AbstractIterator<GTFLine> iter2= new AbstractIterator<GTFLine>() {
-				@Override
-				protected GTFLine advance() {
-					try {
-						for(;;) {
-							final String line = iter.next();
-							if(line==null) return null;
-							if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
-							final String tokens[]= CharSplitter.TAB.split(line);
-							if(tokens.length<9 ) continue;
-							tokens[0]=region.getContig();
-							final GTFLine gtfline = codec.decode(line);
-							if(gtfline==null) continue;
-							return gtfline;
-							}
-						} catch (final IOException e) {
-						LOG.error(e);
-						return null;
-						}
-					}
-				};
-			return StreamSupport.stream(new IterableAdapter<GTFLine>(iter2).spliterator(),false).
-					onClose(()->{ tbrfinal.close(); });
-			}
-		catch(Throwable err) {
-			return Stream.empty();
-			}
-	}
-	
-	private void writeGenes(final Graphics2D g,final Rectangle rect,final Locatable region) {
+	private void drawGenes(final Graphics2D g,final Rectangle rect,final Locatable region) {
 		if(this.gtfFile==null) return;
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect.getWidth();
 		final Composite oldComposite = g.getComposite();
@@ -265,20 +218,37 @@ public class CoveragePlotter extends Launcher {
 		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
 		g.setColor(Color.ORANGE);
 		final double y= rect.getMaxY()-4.0;
-		try {
-			getGenes(region).
-				filter(G->G.getType().equals("exon") || G.getType().equals("transcript")).
-				forEach(feature->{
-					final double x1 = position2pixel.applyAsDouble(feature.getStart());
-					final double x2 = position2pixel.applyAsDouble(feature.getEnd());
-					if(feature.getType().equals("exon") ) {
-						g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
-						}
-					else if(feature.getType().equals("transcript") ) {
-						g.draw(new Line2D.Double(x1, y, x2, y));
-						}
-					});
-
+		
+		try (TabixReader tbr = new TabixReader(this.gtfFile.toString())) {
+			
+			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+			final String ctg = cvt.apply(region.getContig());
+			if(StringUtils.isBlank(ctg)) {
+				}
+			
+			final GTFCodec codec = new GTFCodec();
+			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
+			for(;;) {
+				final String line = iter.next();
+				if(line==null) break;
+				if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+				final String tokens[]= CharSplitter.TAB.split(line);
+				if(tokens.length<9 ) continue;
+				tokens[0]=region.getContig();
+				final GTFLine gtfline = codec.decode(line);
+				if(gtfline==null) continue;
+				if(!(gtfline.getType().equals("exon") || gtfline.getType().equals("transcript"))) continue;
+				
+				final double x1 = position2pixel.applyAsDouble(gtfline.getStart());
+				final double x2 = position2pixel.applyAsDouble(gtfline.getEnd());
+				if(gtfline.getType().equals("exon") ) {
+					g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
+					}
+				else if(gtfline.getType().equals("transcript") ) {
+					g.draw(new Line2D.Double(x1, y, x2, y));
+					}
+				}
+				
 			}
 		catch(Throwable err) {
 			
@@ -289,29 +259,7 @@ public class CoveragePlotter extends Launcher {
 			}
 		}
 	
-	private void writeKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region) {
-		if(this.knownCnvFile==null) return;
-		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
-		final Composite oldComposite = g.getComposite();
-		final Stroke oldStroke = g.getStroke();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
-		g.setColor(Color.MAGENTA);
-		final double y= rectangle.getHeight()-8.0;
-		try {
-			this.getKnownCnv(region).forEach(R->{
-				final double x1 = position2pixel.applyAsDouble(R.getStart());
-				final double x2 = position2pixel.applyAsDouble(R.getEnd());
-				g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1), 3));
-				});
-
-			}
-		catch(Throwable err) {
-			}
-		finally {
-			g.setComposite(oldComposite);
-			g.setStroke(oldStroke);
-			}
-		}
+	
 	
 	
 	private double median(final int array[]) {
@@ -378,6 +326,7 @@ public int doWork(final List<String> args) {
 			iter = IntervalListProvider.from(input).dictionary(dict).stream().iterator();
 		 	}
 		final BufferedImage image = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_RGB);
+		final BufferedImage offscreen = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_ARGB);
 		archive = ArchiveFactory.open(this.outputFile);
 		while(iter.hasNext()) {
 			final Locatable the_locatable = iter.next();
@@ -406,6 +355,15 @@ public int doWork(final List<String> args) {
 				{
 				extendedRegion=rawRegion;
 				}
+			final Function<Integer, Double> pos2pixel = POS-> (POS - extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference() * this.dimension.getWidth();
+
+			
+			final Graphics2D g2= offscreen.createGraphics();
+			g2.setColor(Color.BLACK);
+			g2.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
+			g2.fillRect(0, 0, this.dimension.width,this.dimension.height);
+			g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+
 			
 			final Graphics2D g= image.createGraphics();
 			g.setColor(Color.WHITE);
@@ -420,8 +378,8 @@ public int doWork(final List<String> args) {
 			g.drawLine(0, y,image.getWidth(),y );
 			g.setColor(Color.DARK_GRAY);
 			g.drawRect(0, 0, this.dimension.width-1,this.dimension.height-1);
-			writeGenes(g, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
-			writeKnownCnv(g, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
+			drawGenes(g, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
+			drawKnownCnv(g, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
 			if(this.extend>1) {
 				g.setColor(Color.GREEN);
 				int x = (int)(((rawRegion.getStart()-extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference())*image.getWidth());
@@ -433,12 +391,18 @@ public int doWork(final List<String> args) {
 			final int depth[]= new int[extendedRegion.getLengthOnReference()];
 			final int copy[]= new int[depth.length];
 			// smooth
-			final int bases_per_pixel = (int)Math.ceil((double)depth.length/image.getWidth());
-
-
+			final Map<String,Point2D> sample2maxPoint = new HashMap<>(inputBams.size());
+			boolean drawAbove = false;
 			for(final Path path: inputBams) {
+				LOG.debug(extendedRegion.toNiceString()+" "+path);
 				try(SamReader sr = samReaderFactory.open(path)) {
 					final SAMFileHeader header= sr.getFileHeader();
+					
+					final String sample = header.getReadGroups().stream().
+							map(RG->RG.getSample()).
+							filter(S->!StringUtil.isBlank(S)).
+							findFirst().
+							orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
 					SequenceUtil.assertSequenceDictionariesEqual(dict,header.getSequenceDictionary());
 					Arrays.fill(depth, 0);
 					try(CloseableIterator<SAMRecord> siter = sr.queryOverlapping(extendedRegion.getContig(), extendedRegion.getStart(), extendedRegion.getEnd())) {
@@ -449,6 +413,29 @@ public int doWork(final List<String> args) {
 							int ref=rec.getStart();
 							final Cigar cigar = rec.getCigar();
 							if(cigar==null) continue;
+							
+							if(rec.getReadPairedFlag() && 
+								!rec.getMateUnmappedFlag() && 
+								!rec.getProperPairFlag() && 
+								rec.getReferenceIndex().equals(rec.getMateReferenceIndex()))
+								{
+								final double xstart = pos2pixel.apply(rec.getAlignmentStart());
+								final double xend = pos2pixel.apply(rec.getMateAlignmentStart());
+								final double y_mid = this.dimension.getHeight()/2.0;
+								final double len = (xend - xstart)/2.0;
+								
+								final double y2 = y_mid + (drawAbove?-1:1)*Math.max(y_mid,x2);
+								final Composite oldComposite = g2.getComposite();
+								g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+								g2.setColor(Color.ORANGE);
+								final GeneralPath curve = new GeneralPath();
+								curve.moveTo(xstart,y_mid);
+								curve.quadTo(x_mid, y2, xend, y_mid);
+								g2.draw(curve);
+								g2.setComposite(oldComposite);
+								drawAbove = !drawAbove;
+								}
+							
 							for(CigarElement ce:cigar) {
 								final CigarOperator op = ce.getOperator();
 								final int len = ce.getLength();
@@ -467,10 +454,11 @@ public int doWork(final List<String> args) {
 						}// loop cigar
 					}// end samItere
 	
-				if(bases_per_pixel>1) {
+				if(extendedRegion.getLengthOnReference()>image.getWidth()) {
 					//smooth
+					final int bases_per_pixel = (int)Math.ceil(extendedRegion.getLengthOnReference()/100.0);
 					System.arraycopy(depth, 0, copy, 0, depth.length);
-					for(int i=0;i< depth.length;i++) {
+					for(int i=0;i< depth.length && bases_per_pixel>1;i++) {
 						double t=0;
 						int count=0;
 						for(int j=i-bases_per_pixel;j<=i+bases_per_pixel && j< depth.length;j++) {
@@ -487,25 +475,71 @@ public int doWork(final List<String> args) {
 
 				System.arraycopy(depth, 0, copy, 0, depth.length);
 				final double median = median(copy);
-				if(median<=0) continue;
-				g.setColor(Color.GRAY);
+				if(median<=0) {
+					LOG.warning("Skipping "+sample +" "+extendedRegion+" because median is 0");
+					continue;
+				}
 				
-				
-				for(int i=0;i+1<depth.length;i++) {
-					double x1 = (((i+0)/(double)depth.length))*image.getWidth();
-					double x2 = (((i+1)/(double)depth.length))*image.getWidth();
-					double y1= image.getHeight() - (depth[i+0]/median)*(image.getHeight()/2.0);
-					double y2= image.getHeight() - (depth[i+1]/median)*(image.getHeight()/2.0);
-					g.draw(new Line2D.Double(x1, y1, x2, y2));
+				Point2D max_position=null;
+				double max_distance_to_1=0.0;
+				final GeneralPath line = new GeneralPath();
+				for(int x=0;x< image.getWidth();x++) {
+					int pos1= (int)Math.floor(((x+0)/(double)image.getWidth())*depth.length);
+					final int pos2= (int)Math.ceil(((x+0)/(double)image.getWidth())*depth.length);
+					double t=0;
+					int n=0;
+					while(pos1 <= pos2 && pos1 < depth.length) {
+						t+= depth[pos1];
+						n++;
+						pos1++;
+						}
+					final double average = (n==0?0:t/n);
+					final double normDepth = (average/median);
+					
+					final double y2 = image.getHeight() - normDepth *(image.getHeight()/2.0);
+					double distance_to_1 = Math.abs(normDepth-1.0);
+					if(distance_to_1 > 0.3 && (max_position==null || distance_to_1 > max_distance_to_1)) {
+						max_distance_to_1 = distance_to_1;
+						max_position = new Point2D.Double(x,y);
+						}
+					if(x==0) {
+						line.moveTo(x, y2);
+						}
+					else
+						{
+						line.lineTo(x, y2);
+						}
 					}
+				
+				g.setColor(Color.GRAY);
+				final Stroke oldStroke = g.getStroke();
+				g.setStroke(new BasicStroke(0.5f,BasicStroke.CAP_BUTT,BasicStroke.JOIN_ROUND));
+				g.draw(line);
+				g.setStroke(oldStroke);
+				
+				if(max_position!=null) sample2maxPoint.put(sample,max_position);
 				}
 			}
 		
-		g.setColor(Color.DARK_GRAY);
-		g.drawString(extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+" "+label, 10, 10);
+			
+
+		g2.dispose();
+		g.drawImage(offscreen,0,0,null);
+				
+			
+			
+		g.setColor(Color.BLACK);
+		g.drawString(extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+
+				" Sample(s):"+StringUtils.niceInt(inputBams.size())+" "+label, 10, 10);
+		
+		
+		g.setColor(Color.BLUE);
+		for(final String sample:sample2maxPoint.keySet()) {
+			final Point2D pt = sample2maxPoint.get(sample);
+			g.drawString(sample, (int)pt.getX(), (int)Math.min(this.dimension.height-12,Math.max(12,pt.getY())));
+		}
 		
 		g.dispose();
-			
 		final String fname=prefix + extendedRegion.getContig()+"_"+extendedRegion.getStart()+"_"+extendedRegion.getEnd()+
 				(StringUtils.isBlank(label)?"":"."+label.replaceAll("[^A-Za-z\\-\\.0-9]+", "_"))+".png";
 		try(OutputStream out=archive.openOuputStream(fname)){
