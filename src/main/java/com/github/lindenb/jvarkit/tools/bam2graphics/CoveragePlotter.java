@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
@@ -266,20 +267,6 @@ public class CoveragePlotter extends Launcher {
 	
 	
 	
-	private double median(final int array[]) {
-		int len = array.length;
-		Arrays.sort(array,0,len);
-		while(len>0 && array[len-1]>=this.max_depth) {
-			len--;
-			}
-		if(len==0) return 0;
-		int mid_x = len/2;
-		if(len%2==0) {
-			return (array[mid_x-1]+array[mid_x])/2.0;
-		} else {
-			return array[mid_x];
-		}
-	}
 
 @Override
 public int doWork(final List<String> args) {
@@ -334,7 +321,8 @@ public int doWork(final List<String> args) {
 		final BufferedImage offscreen = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_ARGB);
 		final double y_mid = this.dimension.getHeight()/2.0;
 		final ToDoubleFunction<Double> normToPixelY = NORM->  this.dimension.getHeight() - NORM*y_mid;
-
+		final DiscreteMedian<Integer> discreteMedian = new DiscreteMedian<>();
+		
 		manifest = (this.manifestPath==null?new PrintWriter(new NullOuputStream()):IOUtils.openPathForPrintWriter(this.manifestPath));
 		archive = ArchiveFactory.open(this.outputFile);
 		while(iter.hasNext()) {
@@ -484,10 +472,13 @@ public int doWork(final List<String> args) {
 						}
 					}
 				
+				discreteMedian.clear();
+				for(int i=0;i< depth.length;i++) {
+					if(depth[i]>this.max_depth) continue;
+					discreteMedian.add(depth[i]);
+				}
 
-
-				System.arraycopy(depth, 0, copy, 0, depth.length);
-				final double median = median(copy);
+				final double median = discreteMedian.getMedian().orElse(0);
 				if(median<=0) {
 					LOG.warning("Skipping "+sample +" "+extendedRegion+" because median is 0");
 					continue;
