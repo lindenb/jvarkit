@@ -30,8 +30,10 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
@@ -39,6 +41,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,8 +49,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.function.IntToDoubleFunction;
+import java.util.function.ToDoubleFunction;
 
 import javax.imageio.ImageIO;
 
@@ -55,9 +58,11 @@ import javax.imageio.ImageIO;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -101,7 +106,7 @@ input is an interval of a file source of interval (bed, vcf, gtf, interval_list 
 
 
 ```
-java -jar dist/depthanomaly.jar -R src/test/resources/rotavirus_rf.fa -B src/test/resources/S1.bam -B src/test/resources/S2.bam "RF01:1-4000" -w 50 | less -r
+java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa -B src/test/resources/S1.bam -B src/test/resources/S2.bam "RF01:1-4000" -w 50 | less -r
 ```
 
 
@@ -129,15 +134,18 @@ public class CoveragePlotter extends Launcher {
 	private int max_depth=500;
 	@Parameter(names={"--dimension"},description = "Image Dimension. " + com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter.OPT_DESC, converter=com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter.StringConverter.class,splitter=NoSplitter.class)
 	private Dimension dimension = new Dimension(1000,300);
-	@Parameter(names={"--extend","-x"},description = FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"--extend","-x"},description = "extend original interval by this fraction")
 	private double extend=1.0;
-
 	@Parameter(names= {"--gtf"},description="Optional Tabix indexed GTF file. Will be used to retrieve an interval by gene name, or to display gene names in a region.")
 	private Path gtfFile = null;
 	@Parameter(names= {"--known"},description="Optional Tabix indexed Bed or VCF file containing known CNV. Both types must be indexed.")
 	private Path knownCnvFile = null;
 	@Parameter(names= {"--prefix"},description="Image File Prefix.")
 	private String prefix="";
+	@Parameter(names= {"--alpha"},description="line opacity. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double alpha=1.0;
+	@Parameter(names= {"--manifest"},description="Optional. Manifest file")
+	private Path manifestPath =null;
 
 	
 	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region,final Locatable R) {
@@ -145,10 +153,10 @@ public class CoveragePlotter extends Launcher {
 		final double y= rectangle.getHeight()-8.0;
 		final double x1 = position2pixel.applyAsDouble(R.getStart());
 		final double x2 = position2pixel.applyAsDouble(R.getEnd());
-		g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1), 3));	
+		g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1), 3));
 		}
 
-	
+
 	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region) {
 		if(this.knownCnvFile==null) return;
 		final String fname=this.knownCnvFile.getFileName().toString();
@@ -206,10 +214,7 @@ public class CoveragePlotter extends Launcher {
 		g.setComposite(oldComposite);
 		g.setStroke(oldStroke);
 		}
-	
 
-	
-	
 	private void drawGenes(final Graphics2D g,final Rectangle rect,final Locatable region) {
 		if(this.gtfFile==null) return;
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect.getWidth();
@@ -218,14 +223,12 @@ public class CoveragePlotter extends Launcher {
 		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
 		g.setColor(Color.ORANGE);
 		final double y= rect.getMaxY()-4.0;
-		
+
 		try (TabixReader tbr = new TabixReader(this.gtfFile.toString())) {
-			
 			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
 			final String ctg = cvt.apply(region.getContig());
 			if(StringUtils.isBlank(ctg)) {
 				}
-			
 			final GTFCodec codec = new GTFCodec();
 			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
 			for(;;) {
@@ -237,21 +240,22 @@ public class CoveragePlotter extends Launcher {
 				tokens[0]=region.getContig();
 				final GTFLine gtfline = codec.decode(line);
 				if(gtfline==null) continue;
-				if(!(gtfline.getType().equals("exon") || gtfline.getType().equals("transcript"))) continue;
-				
+
 				final double x1 = position2pixel.applyAsDouble(gtfline.getStart());
 				final double x2 = position2pixel.applyAsDouble(gtfline.getEnd());
-				if(gtfline.getType().equals("exon") ) {
+
+				if(gtfline.getType().equals("gene") ) {
+					g.drawString(gtfline.getAttribute("gene_name"),(int)Math.max(x1,1),(int)(y+3));
+					}
+				else if(gtfline.getType().equals("exon") ) {
 					g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
 					}
 				else if(gtfline.getType().equals("transcript") ) {
 					g.draw(new Line2D.Double(x1, y, x2, y));
 					}
 				}
-				
 			}
 		catch(Throwable err) {
-			
 			}
 		finally {
 			g.setComposite(oldComposite);
@@ -274,12 +278,13 @@ public class CoveragePlotter extends Launcher {
 			return (array[mid_x-1]+array[mid_x])/2.0;
 		} else {
 			return array[mid_x];
-		}	
+		}
 	}
 
 @Override
 public int doWork(final List<String> args) {
 	ArchiveFactory archive = null;
+	PrintWriter manifest = null;
 	try
 		{
 		if(extend<1.0) {
@@ -327,6 +332,10 @@ public int doWork(final List<String> args) {
 		 	}
 		final BufferedImage image = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_RGB);
 		final BufferedImage offscreen = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_ARGB);
+		final double y_mid = this.dimension.getHeight()/2.0;
+		final ToDoubleFunction<Double> normToPixelY = NORM->  this.dimension.getHeight() - NORM*y_mid;
+
+		manifest = (this.manifestPath==null?new PrintWriter(new NullOuputStream()):IOUtils.openPathForPrintWriter(this.manifestPath));
 		archive = ArchiveFactory.open(this.outputFile);
 		while(iter.hasNext()) {
 			final Locatable the_locatable = iter.next();
@@ -355,7 +364,7 @@ public int doWork(final List<String> args) {
 				{
 				extendedRegion=rawRegion;
 				}
-			final Function<Integer, Double> pos2pixel = POS-> (POS - extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference() * this.dimension.getWidth();
+			final ToDoubleFunction<Integer> pos2pixel = POS-> (POS - extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference() * this.dimension.getWidth();
 
 			
 			final Graphics2D g2= offscreen.createGraphics();
@@ -363,16 +372,20 @@ public int doWork(final List<String> args) {
 			g2.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
 			g2.fillRect(0, 0, this.dimension.width,this.dimension.height);
 			g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 
 			
 			final Graphics2D g= image.createGraphics();
 			g.setColor(Color.WHITE);
+			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 			g.fillRect(0, 0, this.dimension.width,this.dimension.height);
 			int y =(int)(this.dimension.height/2.0);
 			g.setColor(Color.BLUE);
 			g.drawLine(0, y, image.getWidth(),y );
 			y=(int)(this.dimension.height/4.0);
-			g.setColor(Color.ORANGE);
+			g.setColor(Color.CYAN);
 			g.drawLine(0, y,image.getWidth(),y );
 			y=(int)(3.0*this.dimension.height/4.0);
 			g.drawLine(0, y,image.getWidth(),y );
@@ -382,19 +395,17 @@ public int doWork(final List<String> args) {
 			drawKnownCnv(g, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
 			if(this.extend>1) {
 				g.setColor(Color.GREEN);
-				int x = (int)(((rawRegion.getStart()-extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference())*image.getWidth());
+				int x =(int) pos2pixel.applyAsDouble(rawRegion.getStart());
 				g.drawLine(x, 0, x, image.getHeight() );
-				x = (int)(((rawRegion.getEnd()-extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference())*image.getWidth());
+				x = (int) pos2pixel.applyAsDouble(rawRegion.getEnd());
 				g.drawLine(x, 0, x, image.getHeight() );
 				}
 			
 			final int depth[]= new int[extendedRegion.getLengthOnReference()];
 			final int copy[]= new int[depth.length];
-			// smooth
 			final Map<String,Point2D> sample2maxPoint = new HashMap<>(inputBams.size());
 			boolean drawAbove = false;
 			for(final Path path: inputBams) {
-				LOG.debug(extendedRegion.toNiceString()+" "+path);
 				try(SamReader sr = samReaderFactory.open(path)) {
 					final SAMFileHeader header= sr.getFileHeader();
 					
@@ -419,21 +430,22 @@ public int doWork(final List<String> args) {
 								!rec.getProperPairFlag() && 
 								rec.getReferenceIndex().equals(rec.getMateReferenceIndex()))
 								{
-								final double xstart = pos2pixel.apply(rec.getAlignmentStart());
-								final double xend = pos2pixel.apply(rec.getMateAlignmentStart());
-								final double y_mid = this.dimension.getHeight()/2.0;
-								final double len = (xend - xstart)/2.0;
+								final double xstart = pos2pixel.applyAsDouble(rec.getAlignmentStart());
+								final double xend = pos2pixel.applyAsDouble(rec.getMateAlignmentStart());
+								final double len = (xend - xstart);
 								
-								final double y2 = y_mid + (drawAbove?-1:1)*Math.max(y_mid,x2);
-								final Composite oldComposite = g2.getComposite();
-								g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
-								g2.setColor(Color.ORANGE);
-								final GeneralPath curve = new GeneralPath();
-								curve.moveTo(xstart,y_mid);
-								curve.quadTo(x_mid, y2, xend, y_mid);
-								g2.draw(curve);
-								g2.setComposite(oldComposite);
-								drawAbove = !drawAbove;
+								if(Math.abs(len)>10) {
+									final double y2 = y_mid + (drawAbove?-1:1)*Math.min(y_mid,Math.abs(len/2.0));
+									final Composite oldComposite = g2.getComposite();
+									g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+									g2.setColor(Color.ORANGE);
+									final GeneralPath curve = new GeneralPath();
+									curve.moveTo(xstart,y_mid);
+									curve.quadTo(xstart + len/2.0, y2, xend, y_mid);
+									g2.draw(curve);
+									g2.setComposite(oldComposite);
+									drawAbove = !drawAbove;
+									}
 								}
 							
 							for(CigarElement ce:cigar) {
@@ -454,6 +466,7 @@ public int doWork(final List<String> args) {
 						}// loop cigar
 					}// end samItere
 	
+				
 				if(extendedRegion.getLengthOnReference()>image.getWidth()) {
 					//smooth
 					final int bases_per_pixel = (int)Math.ceil(extendedRegion.getLengthOnReference()/100.0);
@@ -483,24 +496,24 @@ public int doWork(final List<String> args) {
 				Point2D max_position=null;
 				double max_distance_to_1=0.0;
 				final GeneralPath line = new GeneralPath();
+				
 				for(int x=0;x< image.getWidth();x++) {
+					int n=0;
 					int pos1= (int)Math.floor(((x+0)/(double)image.getWidth())*depth.length);
 					final int pos2= (int)Math.ceil(((x+0)/(double)image.getWidth())*depth.length);
-					double t=0;
-					int n=0;
 					while(pos1 <= pos2 && pos1 < depth.length) {
-						t+= depth[pos1];
+						copy[n]=(depth[pos1]);
 						n++;
 						pos1++;
 						}
-					final double average = (n==0?0:t/n);
+					final double average =Percentile.median().evaluate(copy,0,n).orElse(0);
 					final double normDepth = (average/median);
 					
-					final double y2 = image.getHeight() - normDepth *(image.getHeight()/2.0);
+					final double y2 = normToPixelY.applyAsDouble(normDepth);
 					double distance_to_1 = Math.abs(normDepth-1.0);
 					if(distance_to_1 > 0.3 && (max_position==null || distance_to_1 > max_distance_to_1)) {
 						max_distance_to_1 = distance_to_1;
-						max_position = new Point2D.Double(x,y);
+						max_position = new Point2D.Double(x,y2);
 						}
 					if(x==0) {
 						line.moveTo(x, y2);
@@ -511,11 +524,14 @@ public int doWork(final List<String> args) {
 						}
 					}
 				
-				g.setColor(Color.GRAY);
+				g.setColor(max_distance_to_1<0.1?Color.lightGray:Color.GRAY);
 				final Stroke oldStroke = g.getStroke();
+				final Composite oldComposite = g.getComposite();
+				g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,(float)this.alpha));
 				g.setStroke(new BasicStroke(0.5f,BasicStroke.CAP_BUTT,BasicStroke.JOIN_ROUND));
 				g.draw(line);
 				g.setStroke(oldStroke);
+				g.setComposite(oldComposite);
 				
 				if(max_position!=null) sample2maxPoint.put(sample,max_position);
 				}
@@ -532,12 +548,23 @@ public int doWork(final List<String> args) {
 		g.drawString(extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+
 				" Sample(s):"+StringUtils.niceInt(inputBams.size())+" "+label, 10, 10);
 		
-		
-		g.setColor(Color.BLUE);
-		for(final String sample:sample2maxPoint.keySet()) {
-			final Point2D pt = sample2maxPoint.get(sample);
-			g.drawString(sample, (int)pt.getX(), (int)Math.min(this.dimension.height-12,Math.max(12,pt.getY())));
-		}
+		if(!sample2maxPoint.isEmpty())
+			{
+			/** draw sample names */
+			g.setColor(Color.BLUE);
+			final int sampleFontSize = 7;
+			final Font oldFont = g.getFont();
+			g.setFont(new Font(oldFont.getName(), Font.PLAIN, sampleFontSize));
+			for(final String sample:sample2maxPoint.keySet()) {
+				final Point2D pt = sample2maxPoint.get(sample);
+				double sny = pt.getY();
+				if(sny>y_mid) sny+=sampleFontSize;
+				g.drawString(sample, (int)pt.getX(),
+						(int)Math.min(this.dimension.height-sampleFontSize,Math.max(sampleFontSize,sny))
+						);
+				}
+			g.setFont(oldFont);
+			}
 		
 		g.dispose();
 		final String fname=prefix + extendedRegion.getContig()+"_"+extendedRegion.getStart()+"_"+extendedRegion.getEnd()+
@@ -546,9 +573,21 @@ public int doWork(final List<String> args) {
 			ImageIO.write(image, "PNG", out);
 			out.flush();
 			}
+		manifest.print(rawRegion.getContig());
+		manifest.print("\t");
+		manifest.print(rawRegion.getStart()-1);
+		manifest.print("\t");
+		manifest.print(rawRegion.getEnd());
+		manifest.print("\t");
+		manifest.print(fname);
+		manifest.println();
+		
 		}// end while iter
 		archive.close();
 		archive=null;
+		manifest.flush();
+		manifest.close();
+		manifest=null;
 		return 0;
 		}
 	catch(final Throwable err)
@@ -558,6 +597,7 @@ public int doWork(final List<String> args) {
 		}
 	finally
 		{
+		CloserUtil.close(manifest);
 		CloserUtil.close(archive);
 		}
 	}
