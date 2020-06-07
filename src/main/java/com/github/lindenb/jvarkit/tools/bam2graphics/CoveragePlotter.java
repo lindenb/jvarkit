@@ -63,7 +63,6 @@ import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
-import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -489,15 +488,14 @@ public int doWork(final List<String> args) {
 				final GeneralPath line = new GeneralPath();
 				
 				for(int x=0;x< image.getWidth();x++) {
-					int n=0;
+					discreteMedian.clear();
 					int pos1= (int)Math.floor(((x+0)/(double)image.getWidth())*depth.length);
 					final int pos2= (int)Math.ceil(((x+0)/(double)image.getWidth())*depth.length);
 					while(pos1 <= pos2 && pos1 < depth.length) {
-						copy[n]=(depth[pos1]);
-						n++;
+						discreteMedian.add(depth[pos1]);
 						pos1++;
-						}
-					final double average =Percentile.median().evaluate(copy,0,n).orElse(0);
+						} 
+					final double average = discreteMedian.getMedian().orElse(0);
 					final double normDepth = (average/median);
 					
 					final double y2 = normToPixelY.applyAsDouble(normDepth);

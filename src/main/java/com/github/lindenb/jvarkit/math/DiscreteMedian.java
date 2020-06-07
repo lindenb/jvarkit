@@ -25,6 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.math;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.OptionalDouble;
 import java.util.TreeMap;
@@ -49,15 +50,38 @@ public class DiscreteMedian<T extends Number>
 		return counter.isEmpty();
 		}
 	
-	public void clear() {
+	public DiscreteMedian<T> clear() {
 		this.size = 0L;
 		this.counter.clear();
+		return this;
 	}
 	
-	public void add(final T value) {
+	public DiscreteMedian<T> add(final T value) {
 		long n = this.counter.getOrDefault(value, 0L);
 		this.counter.put(value, n+1L);
 		this.size++;
+		return this;
+		}
+	public DiscreteMedian<T> addAll(final Collection<T> col) {
+		Iterator<T> iter = col.iterator();
+		T prev=null;
+		long n=0L;
+		for(;;) {
+			T curr = iter.hasNext()?iter.next():null; 
+			if(curr==null || (prev!=null && !prev.equals(curr))) {
+				if(prev!=null) {
+					long prev_count = this.counter.getOrDefault(prev, 0L);
+					this.counter.put(prev, prev_count+n);
+					this.size+=n;
+					}
+				if(curr==null) break;
+				prev=curr;
+				n=0L;
+				}
+			n++;
+			}
+		
+		return this;
 		}
 	
 	public OptionalDouble getAverage() {
@@ -93,7 +117,9 @@ public class DiscreteMedian<T extends Number>
 		 			continue;
 		 			}
 		 		double v1= key.doubleValue();
-		 		if((mid_x)< n+count) return OptionalDouble.of(v1);
+		 		if((mid_x)< n+count) {
+		 			return OptionalDouble.of(v1);
+		 			}
 		 		if(!iter.hasNext()) throw new IllegalStateException();
 		 		key = iter.next();
 				double v2= key.doubleValue();
