@@ -45,6 +45,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -54,11 +55,12 @@ import java.util.function.ToDoubleFunction;
 
 import javax.imageio.ImageIO;
 
-
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -66,6 +68,8 @@ import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.swing.GraphicsState;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -132,7 +136,7 @@ public class CoveragePlotter extends Launcher {
 	private int min_mapq=1;
 	@Parameter(names={"--max-depth"},description = "ignore position if depth > 'x'")
 	private int max_depth=500;
-	@Parameter(names={"--dimension"},description = "Image Dimension. " + com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter.OPT_DESC, converter=com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"--dimension"},description = "Image Dimension. " + DimensionConverter.OPT_DESC, converter=DimensionConverter.StringConverter.class,splitter=NoSplitter.class)
 	private Dimension dimension = new Dimension(1000,300);
 	@Parameter(names={"--extend","-x"},description = "extend original interval by this fraction")
 	private double extend=1.0;
@@ -144,9 +148,22 @@ public class CoveragePlotter extends Launcher {
 	private String prefix="";
 	@Parameter(names= {"--alpha"},description="line opacity. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double alpha=1.0;
+	@Parameter(names= {"--arc-alpha"},description="arc opacity. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double alpha_arc=1.0;
+	
 	@Parameter(names= {"--manifest"},description="Optional. Manifest file")
 	private Path manifestPath =null;
+	@Parameter(names= {"--min-arc"},description="min arc length in bp.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int min_invert = 1000;
+	@Parameter(names= {"--max-arc"},description="max arc length in bp.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int max_invert = 10_000_000;
+	@DynamicParameter(names = "-D", description = "colors",hidden=true)
+	private Map<String, String> dynaParams = new HashMap<>();
+	@Parameter(names = {"--black","--exclude"}, description = "Optional. BED Tabix indexed black-listed region")
+	private Path blackListedPath=null;
+	
 
+	
 	
 	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region,final Locatable R) {
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
@@ -218,16 +235,17 @@ public class CoveragePlotter extends Launcher {
 	private void drawGenes(final Graphics2D g,final Rectangle rect,final Locatable region) {
 		if(this.gtfFile==null) return;
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect.getWidth();
-		final Composite oldComposite = g.getComposite();
-		final Stroke oldStroke = g.getStroke();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
-		g.setColor(Color.ORANGE);
 		final double y= rect.getMaxY()-4.0;
 
-		try (TabixReader tbr = new TabixReader(this.gtfFile.toString())) {
+		try (TabixReader tbr = new TabixReader(this.gtfFile.toString());
+			GraphicsState state = GraphicsState.of(g)) {
+			final int geneSize = 10;
+			g.setFont(new Font(g.getFont().getName(), Font.PLAIN, geneSize));
+			g.setColor(Color.DARK_GRAY);
 			final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
 			final String ctg = cvt.apply(region.getContig());
 			if(StringUtils.isBlank(ctg)) {
+				return;
 				}
 			final GTFCodec codec = new GTFCodec();
 			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
@@ -245,7 +263,7 @@ public class CoveragePlotter extends Launcher {
 				final double x2 = position2pixel.applyAsDouble(gtfline.getEnd());
 
 				if(gtfline.getType().equals("gene") ) {
-					g.drawString(gtfline.getAttribute("gene_name"),(int)Math.max(x1,1),(int)(y+3));
+					g.drawString(gtfline.getAttribute("gene_name"),(int)Math.max(x1,1),(int)(y-(geneSize+3)));
 					}
 				else if(gtfline.getType().equals("exon") ) {
 					g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
@@ -256,11 +274,9 @@ public class CoveragePlotter extends Launcher {
 				}
 			}
 		catch(Throwable err) {
+			LOG.error(err);
 			}
-		finally {
-			g.setComposite(oldComposite);
-			g.setStroke(oldStroke);
-			}
+		
 		}
 	
 	
@@ -316,7 +332,7 @@ public int doWork(final List<String> args) {
 		 	{
 			iter = IntervalListProvider.from(input).dictionary(dict).stream().iterator();
 		 	}
-		final BufferedImage image = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_RGB);
+		final BufferedImage image = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_ARGB);
 		final BufferedImage offscreen = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_ARGB);
 		final double y_mid = this.dimension.getHeight()/2.0;
 		final ToDoubleFunction<Double> normToPixelY = NORM->  this.dimension.getHeight() - NORM*y_mid;
@@ -390,8 +406,37 @@ public int doWork(final List<String> args) {
 			
 			final int depth[]= new int[extendedRegion.getLengthOnReference()];
 			final int copy[]= new int[depth.length];
+			final BitSet blackListedPositions = new BitSet(depth.length);
 			final Map<String,Point2D> sample2maxPoint = new HashMap<>(inputBams.size());
 			boolean drawAbove = false;
+			
+			// fill black listed regions
+			if(this.blackListedPath!=null) {
+				try(TabixReader tbr= new TabixReader(this.blackListedPath.toString())) {
+					final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+					final String ctg = cvt.apply(extendedRegion.getContig());
+					if(!StringUtils.isBlank(ctg)) {
+						final BedLineCodec codec = new BedLineCodec();
+						final TabixReader.Iterator tbxr = tbr.query(ctg,extendedRegion.getStart(), extendedRegion.getEnd());
+						for(;;) {
+							final String line = tbxr.next();
+							if(line==null) break;
+							final BedLine bed = codec.decode(line);
+							if(bed==null) continue;
+							int p1 = Math.max(bed.getStart(), extendedRegion.getStart());
+							while(p1 <= extendedRegion.getEnd()  && p1 <= bed.getEnd()) {
+								blackListedPositions.set(p1-extendedRegion.getStart());
+								++p1;
+								}
+							}
+						}
+					}
+				catch(Throwable err) {
+					LOG.warn(err);
+					}
+				}
+			
+			
 			for(final Path path: inputBams) {
 				try(SamReader sr = samReaderFactory.open(path)) {
 					final SAMFileHeader header= sr.getFileHeader();
@@ -415,13 +460,14 @@ public int doWork(final List<String> args) {
 							if(rec.getReadPairedFlag() && 
 								!rec.getMateUnmappedFlag() && 
 								!rec.getProperPairFlag() && 
-								rec.getReferenceIndex().equals(rec.getMateReferenceIndex()))
+								rec.getReferenceIndex().equals(rec.getMateReferenceIndex())
+								)
 								{
 								final double xstart = pos2pixel.applyAsDouble(rec.getAlignmentStart());
 								final double xend = pos2pixel.applyAsDouble(rec.getMateAlignmentStart());
 								final double len = (xend - xstart);
 								
-								if(Math.abs(len)>10) {
+								if(Math.abs(len)>this.min_invert && Math.abs(len)<this.max_invert ) {
 									final double y2 = y_mid + (drawAbove?-1:1)*Math.min(y_mid,Math.abs(len/2.0));
 									final Composite oldComposite = g2.getComposite();
 									g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
@@ -456,7 +502,8 @@ public int doWork(final List<String> args) {
 				
 				if(extendedRegion.getLengthOnReference()>image.getWidth()) {
 					//smooth
-					final int bases_per_pixel = (int)Math.ceil(extendedRegion.getLengthOnReference()/100.0);
+					final int window_smooth_size = 250;
+					final int bases_per_pixel = window_smooth_size;
 					System.arraycopy(depth, 0, copy, 0, depth.length);
 					for(int i=0;i< depth.length && bases_per_pixel>1;i++) {
 						double t=0;
@@ -474,6 +521,7 @@ public int doWork(final List<String> args) {
 				discreteMedian.clear();
 				for(int i=0;i< depth.length;i++) {
 					if(depth[i]>this.max_depth) continue;
+					if(blackListedPositions.get(i)) continue;
 					discreteMedian.add(depth[i]);
 				}
 
