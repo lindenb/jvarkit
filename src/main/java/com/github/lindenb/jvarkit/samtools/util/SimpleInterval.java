@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
+import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
 /**
@@ -195,4 +197,12 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 	public SimplePosition getCenter() {
 		return new SimplePosition(getContig(), getStart()+this.getLengthOnReference()/2);
 		}
+	
+	/** return intersection length. 0 if not same contig */
+	 public int getIntersectionLength(final Locatable other) {
+     if (this.overlaps(other)) {
+         return CoordMath.getOverlap(this.getStart(), this.getEnd(), other.getStart(), other.getEnd());
+     	}
+     return 0;
+	 }
 	}
