@@ -51,7 +51,6 @@ import java.util.Vector;
 import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
 import java.util.function.ToDoubleFunction;
-import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;

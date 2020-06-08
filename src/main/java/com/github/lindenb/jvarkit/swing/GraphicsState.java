@@ -73,4 +73,8 @@ public class GraphicsState implements AutoCloseable
 	public static GraphicsState of(final Graphics2D g0) {
 		return new GraphicsState(g0);
 		}
+	
+	public Graphics2D getGraphics()  {
+		return this.g;
+		}
 	}
