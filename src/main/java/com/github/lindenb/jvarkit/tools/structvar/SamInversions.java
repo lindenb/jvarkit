@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -58,6 +59,7 @@ import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -99,7 +101,7 @@ END_DOC
 	description="Scan inversions in SAM",
 	keywords={"sam","bam","sv","inversion"},
 	modificationDate="20200608",
-	creationDate="20200608",
+	creationDate="20200609",
 	generate_doc=false
 	)
 public class SamInversions extends Launcher
@@ -109,18 +111,18 @@ public class SamInversions extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-t","--treshold"},description="Two SV are the same if they overlap and share the 'x' fraction of their length. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class)
-	private double fraction=0.75;
+	private double fraction=0.70;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFaidx = null;
 	@Parameter(names={"--max-size"},description="max size of inversion.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_size_inversion = 10_000_000 ;
 	@Parameter(names={"--min-size"},description="min size of inversion.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
-	private int min_size_inversion = 1_000 ;
+	private int min_size_inversion = 150 ;
 	@Parameter(names={"-B","--bed","-r","--rgn"},description=IntervalListProvider.OPT_DESC,splitter= NoSplitter.class,converter=IntervalListProvider.StringConverter.class)
 	private IntervalListProvider intervallistProvider = null;
 	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
-	@Parameter(names={"-s","-supporting"},description="Don't print the variant if INFO/DP <= 's'")
+	@Parameter(names={"-s","-supporting"},description="Don't print the variant if max FORMAT/DP < 's'")
 	private int min_supporting_reads = 1;
 	@Parameter(names={"--mapq"},description="min MAPQ")
 	private int mapq = 1;
@@ -148,9 +150,11 @@ public class SamInversions extends Launcher
 		final Allele SPLIT = Allele.create("<INV>", false);
 		
 		for(Arc arc:database.values()) {
-			if(before.isPresent() && arc.getEnd() > before.getAsInt()) continue;
+			if(before.isPresent() && arc.getEnd() >= before.getAsInt()) continue;
+			final int maxdp = (int)arc.samples.getMaxCount().orElse(0L);
+			if(maxdp < this.min_supporting_reads) continue;
 			
-			int maxdp = 0;
+			
 			final VariantContextBuilder vcb = new VariantContextBuilder();
 			final Set<Allele> alleles = new HashSet<>();
 			alleles.add(REF);
@@ -164,7 +168,6 @@ public class SamInversions extends Launcher
 			vcb.stop(chromEnd);
 			
 			vcb.attribute(VCFConstants.END_KEY, chromEnd);
-			vcb.attribute("SVLEN", CoordMath.getLength(chromStart,chromEnd));
 			
 			int depth = 0;
 			int nsamples = 0;
@@ -183,17 +186,15 @@ public class SamInversions extends Launcher
 					depth+=dp;
 					genotypes.add(gb.make());
 					++nsamples;
-					maxdp= Math.max(maxdp, dp);
 					}
 				}
-			if(maxdp<=this.min_supporting_reads) continue;
 			
 			vcb.genotypes(genotypes);
 			vcb.alleles(alleles);
 			vcb.attribute(VCFConstants.DEPTH_KEY, depth);
 			vcb.attribute("NSAMPLES", nsamples);
 			vcb.attribute(VCFConstants.SVTYPE, "INV");
-			vcb.attribute("SVLEN", arc.getLengthOnReference());
+			vcb.attribute("SVLEN", CoordMath.getLength(chromStart,chromEnd));
 			vcb.attribute("DPMAX", maxdp);
 			vcw.add(vcb.make());
 			}
@@ -207,11 +208,26 @@ public class SamInversions extends Launcher
 			LOG.error("max size inversion must be >=100");
 			return -1;
 			}
+		if(this.fraction<=0.0) {
+			LOG.error("bad fraction: " + this.fraction);
+			return -1;
+			}
 	 	final Map<SamReader,CloseableIterator<SAMRecord>> samReaders = new HashMap<>();
 	 	VariantContextWriter vcw= null;
 	 	final  IntervalTreeMap<Arc> database = new IntervalTreeMap<>(); 
 		try {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceFaidx);
+			
+			final ToIntFunction<SAMRecord> mateEnd = REC->SAMUtils.getMateCigar(REC)!=null?
+				SAMUtils.getMateAlignmentEnd(REC):
+				REC.getMateAlignmentStart();
+			
+			final ToIntFunction<SAMRecord> recordLen = REC->{
+				final int start = Math.min(REC.getStart(), REC.getMateAlignmentStart());
+				final int end = Math.max(REC.getEnd(), mateEnd.applyAsInt(REC));
+				return CoordMath.getLength(start, end);
+				};
+				
 			
 			final QueryInterval queryIntervals[] = this.intervallistProvider==null?
 				null:
@@ -227,7 +243,7 @@ public class SamInversions extends Launcher
 							new FailsVendorReadQualityFilter(),
 							new SamRecordFilter() {
 								@Override
-								public boolean filterOut(SAMRecord first, SAMRecord second) {
+								public boolean filterOut(final SAMRecord first, final SAMRecord second) {
 									return filterOut(first) || filterOut(second);
 								}
 								@Override
@@ -238,6 +254,9 @@ public class SamInversions extends Launcher
  									if(rec.getMateUnmappedFlag()) return true;
 									if(!rec.getReferenceIndex().equals(rec.getReferenceIndex())) return true;
 									if(rec.getReadNegativeStrandFlag()!=rec.getMateNegativeStrandFlag()) return true;
+									final int len =  recordLen.applyAsInt(rec);
+									if(len < min_size_inversion) return true;
+									if(len > max_size_inversion) return true;
 									return false;
 								}
 							}
@@ -292,7 +311,7 @@ public class SamInversions extends Launcher
 					VCFConstants.END_KEY
 					);
 			meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
-			meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of sample having some split reads"));
+			meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of samples with SV."));
 			meta.add(new VCFInfoHeaderLine("DPMAX", 1, VCFHeaderLineType.Integer,"MAX DP among samples"));
 			meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
 			
@@ -314,11 +333,11 @@ public class SamInversions extends Launcher
 			while(iter.hasNext())
 				{
 				final SAMRecord rec = progress.apply(iter.next());
-								
-				final String sample= this.partition.getPartion(rec,null);
-				if(StringUtil.isBlank(sample))continue;
 				
-				final SimpleInterval r = new SimpleInterval(rec.getContig() ,Math.min(rec.getStart(),rec.getMateAlignmentStart()),Math.max(rec.getEnd(),rec.getMateAlignmentStart()));
+				final SimpleInterval r = new SimpleInterval(rec.getContig() ,
+						Math.min(rec.getStart(),rec.getMateAlignmentStart()),
+						Math.max(rec.getEnd(),mateEnd.applyAsInt(rec))
+						);
 				if(r.getLengthOnReference() < min_size_inversion) continue;
 				if(r.getLengthOnReference() > max_size_inversion) continue;
 				
@@ -334,9 +353,12 @@ public class SamInversions extends Launcher
 					}
 				boolean found=false;
 				
+				final String sample= this.partition.getPartion(rec,null);
+				if(StringUtil.isBlank(sample))continue;
+
 				
 				for(Arc arc:database.getOverlapping(r)) {
-					final double L1= arc.getLengthOnReference();
+					final double L1 = arc.getLengthOnReference();
 					final double L2 = r.getLengthOnReference();
 					final double L3 = r.getIntersectionLength(arc);
 					if(L3/L1 < this.fraction ) continue;
