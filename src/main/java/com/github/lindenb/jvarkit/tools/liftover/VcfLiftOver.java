@@ -59,12 +59,15 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
@@ -124,7 +127,7 @@ END_DOC
 		name="vcfliftover",
 		description="Lift-over a VCF file",
 		keywords={"vcf","liftover"},
-		modificationDate="20190924",
+		modificationDate="20200610",
 		deprecatedMsg="Use picard LiftOverVcf"
 		)
 public class VcfLiftOver extends Launcher
@@ -134,8 +137,7 @@ public class VcfLiftOver extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
+	private Path outputFile = null;
 	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
 	private File liftOverFile = null;
 	@Parameter(names={"-x","--failed"},description="(file.vcf) write variants failing the liftOver here. Optional.")
@@ -158,7 +160,10 @@ public class VcfLiftOver extends Launcher
 	private boolean ignoreIndels=false;
 	@Parameter(names={"--info"},description="remove attribute from INFO on the fly")
 	private Set<String> removeInfo=new HashSet<>();
+	@ParametersDelegate
+	protected WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
 
+	
 	private LiftOver liftOver=null;
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	
@@ -365,7 +370,7 @@ public class VcfLiftOver extends Launcher
 			if(!this.ignoreLiftOverValidation) {
 				this.liftOver.validateToSequences(this.indexedFastaSequenceFile.getSequenceDictionary());
 				}
-			return doVcfToVcf(args,outputFile);
+			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
 		catch(final Exception err) {
 			LOG.error(err);

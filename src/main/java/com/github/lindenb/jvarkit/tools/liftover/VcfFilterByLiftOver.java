@@ -29,10 +29,12 @@ History:
 package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -40,6 +42,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.liftover.LiftOver;
@@ -65,7 +68,7 @@ END_DOC
 		name="vcffilterbyliftover",
 		description="Add FILTER(s) to a variant when it is known to map elsewhere after liftover.",
 		keywords={"vcf","liftover"},
-		modificationDate="20190408",
+		modificationDate="20200610",
 		generate_doc=false
 		)
 public class VcfFilterByLiftOver extends Launcher
@@ -75,8 +78,7 @@ public class VcfFilterByLiftOver extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
+	private Path outputFile = null;
 	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
 	private File liftOverFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
@@ -88,7 +90,10 @@ public class VcfFilterByLiftOver extends Launcher
 	private int max_distance = 1_500;
 	@Parameter(names={"--no-validation"},description="Disable dictionary validation")
 	private boolean disableValidation = false;
-
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
+	
+	
 	private int distance(final Locatable L1,final Locatable L2) {
 		if( CoordMath.overlaps(
 				L1.getStart(), L1.getEnd(), 
@@ -211,7 +216,7 @@ public class VcfFilterByLiftOver extends Launcher
 			LOG.error("LiftOver file is undefined.");
 			return -1;
 			}
-		return doVcfToVcf(args,outputFile);
+		return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 		}
 
 	public static void main(final String[] args)
