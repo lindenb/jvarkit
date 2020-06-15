@@ -51,6 +51,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.IntToDoubleFunction;
 import java.util.function.ToDoubleFunction;
@@ -168,6 +169,8 @@ public class CoveragePlotter extends Launcher {
 	private Path blackListedPath=null;
 	@Parameter(names= {"--smooth"},description="sliding window smooth size.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int window_smooth_size = 250;
+	@Parameter(names= {"--skip-center"},description="When calculating the median depth, only consider the extended region, not the original interval.")
+	private boolean skip_original_interval_for_median = false;
 
 	
 	
@@ -323,6 +326,8 @@ public int doWork(final List<String> args) {
 	PrintWriter manifest = null;
 	try
 		{
+	
+		
 		if(extend<1.0) {
 			LOG.error("extend is lower than 1 :"+this.extend);
 			return -1;
@@ -479,7 +484,14 @@ public int doWork(final List<String> args) {
 					}
 				}
 			
+			if(this.skip_original_interval_for_median) {
+				for(int i=the_locatable.getStart();i<=the_locatable.getEnd();i++) {
+					blackListedPositions.set(i-extendedRegion.getStart());
+					}
+				}
 			
+			
+			final Set<String> sampleNames = new TreeSet<>();
 			for(final Path path: inputBams) {
 				try(SamReader sr = samReaderFactory.open(path)) {
 					final SAMFileHeader header= sr.getFileHeader();
@@ -489,6 +501,9 @@ public int doWork(final List<String> args) {
 							filter(S->!StringUtil.isBlank(S)).
 							findFirst().
 							orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
+					
+					sampleNames.add(sample);
+					
 					SequenceUtil.assertSequenceDictionariesEqual(dict,header.getSequenceDictionary());
 					Arrays.fill(depth, 0);
 					try(CloseableIterator<SAMRecord> siter = sr.queryOverlapping(extendedRegion.getContig(), extendedRegion.getStart(), extendedRegion.getEnd())) {
@@ -500,7 +515,8 @@ public int doWork(final List<String> args) {
 							final Cigar cigar = rec.getCigar();
 							if(cigar==null) continue;
 							
-							if(rec.getReadPairedFlag() && 
+							if(this.alpha_arc > 0.0 &&
+								rec.getReadPairedFlag() && 
 								!rec.getMateUnmappedFlag() && 
 								!rec.getProperPairFlag() && 
 								rec.getReferenceIndex().equals(rec.getMateReferenceIndex())
@@ -513,7 +529,7 @@ public int doWork(final List<String> args) {
 								if(Math.abs(len)>this.min_invert && Math.abs(len)<this.max_invert ) {
 									final double y2 = y_mid + (drawAbove?-1:1)*Math.min(y_mid,Math.abs(len/2.0));
 									final Composite oldComposite = g2.getComposite();
-									g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+									g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,(float)this.alpha_arc));
 									g2.setColor(Color.ORANGE);
 									final GeneralPath curve = new GeneralPath();
 									curve.moveTo(xstart,y_mid);
@@ -624,15 +640,20 @@ public int doWork(final List<String> args) {
 			
 			
 		g.setColor(Color.BLACK);
-		g.drawString(extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+
-				" Sample(s):"+StringUtils.niceInt(inputBams.size())+" "+label+" Genes:"+
-				getGenes(extendedRegion).
+		
+		final String label_samples = sampleNames.size()>10?"N="+StringUtils.niceInt(sampleNames.size()):String.join(";",sampleNames);
+		final Set<String> all_genes = getGenes(extendedRegion).
 				filter(G->G.getType().equals("gene")).
 				map(G->G.getAttribute("gene_name")).
 				filter(F->!StringUtils.isBlank(F)).
-				collect(Collectors.toCollection(TreeSet::new)).
-				stream().
-				collect(Collectors.joining(";")), 10, 10);
+				collect(Collectors.toCollection(TreeSet::new))
+				;
+		
+		g.drawString(extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+
+				" Sample(s):"+label_samples+" "+label+" Gene(s):"+
+				(all_genes.size()>20?"N="+StringUtils.niceInt(all_genes.size()):String.join(";", StringUtils.niceInt(all_genes.size()))),
+				10,10
+				);
 		
 		if(!sample2maxPoint.isEmpty())
 			{

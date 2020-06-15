@@ -65,6 +65,10 @@ Usage: coverageplotter [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --skip-center
+      When calculating the median depth, only consider the extended region, 
+      not the original interval.
+      Default: false
     --smooth
       sliding window smooth size.
       Default: 250
