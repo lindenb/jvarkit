@@ -1426,8 +1426,12 @@ all2.add( task("samretrieveseqandqual", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SamRetrieveSeqAndQual"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("samshortinvert", type: CompileJVarkit) {
+all2.add( task("samshortinvert", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamShortInvertion"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("saminversions", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.SamInversions"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("samtranslocations", type: CompileJVarkit) {
