@@ -39,6 +39,10 @@ Usage: coverageplotter [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore-known-containing
+      Ignore known CNV containing the whole region (prevent large known CNV to 
+      be displayed)
+      Default: false
     --known
       Optional Tabix indexed Bed or VCF file containing known CNV. Both types 
       must be indexed.
@@ -65,6 +69,10 @@ Usage: coverageplotter [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --rrff
+      Only display arcs where the strands the the read and its mate are 
+      Forward-Forward or Reverse-Reverse
+      Default: false
     --skip-center
       When calculating the median depth, only consider the extended region, 
       not the original interval.

@@ -166,7 +166,7 @@ public class CoveragePlotter extends Launcher {
 	private int min_invert = 1000;
 	@Parameter(names= {"--max-arc"},description="max arc length in bp.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_invert = 10_000_000;
-	@DynamicParameter(names = "-D", description = "colors",hidden=true)
+	@DynamicParameter(names = "-D", description = "style",hidden=true)
 	private Map<String, String> dynaParams = new HashMap<>();
 	@Parameter(names = {"--black","--exclude"}, description = "Optional. BED Tabix indexed black-listed region")
 	private Path blackListedPath=null;
@@ -182,10 +182,6 @@ public class CoveragePlotter extends Launcher {
 	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region) {
 		if(this.knownCnvFile==null) return;
 		final String fname=this.knownCnvFile.getFileName().toString();
-		final Composite oldComposite = g.getComposite();
-		final Stroke oldStroke = g.getStroke();
-		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
-		g.setColor(Color.MAGENTA);
 
 		final Pileup<Interval> pileup = new Pileup<>();
 		final Predicate<Interval> rejectCnv = cnv->(this.ignore_cnv_overlapping && cnv.getStart() < region.getStart() && cnv.getEnd() > region.getEnd());
@@ -238,18 +234,25 @@ public class CoveragePlotter extends Launcher {
 			{
 			LOG.warn("not a vcf of bed.gz file "+this.knownCnvFile);
 			}
-		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
-		final double featureHeight = 4.0/pileup.getRowCount();
-		for(int row=0;row< pileup.getRowCount();++row) {
-			for(final Interval cnv:pileup.getRow(row)) {
-				final double y= rectangle.getHeight()-8.0 + row*featureHeight;
-				final double x1 = position2pixel.applyAsDouble(cnv.getStart());
-				final double x2 = position2pixel.applyAsDouble(cnv.getEnd());
-				g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1),featureHeight*0.9));
+		if(!pileup.isEmpty() ) {
+			final Composite oldComposite = g.getComposite();
+			final Stroke oldStroke = g.getStroke();
+			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+			g.setColor(Color.MAGENTA);
+
+			final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
+			final double featureHeight = 4.0/pileup.getRowCount();
+			for(int row=0;row< pileup.getRowCount();++row) {
+				for(final Interval cnv:pileup.getRow(row)) {
+					final double y= rectangle.getHeight()-8.0 + row*featureHeight;
+					final double x1 = position2pixel.applyAsDouble(cnv.getStart());
+					final double x2 = position2pixel.applyAsDouble(cnv.getEnd());
+					g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1),featureHeight*0.9));
+					}
 				}
+			g.setComposite(oldComposite);
+			g.setStroke(oldStroke);
 			}
-		g.setComposite(oldComposite);
-		g.setStroke(oldStroke);
 		}
 
 	
@@ -506,7 +509,7 @@ public int doWork(final List<String> args) {
 					}
 				}
 			
-			if(this.skip_original_interval_for_median) {
+			if(this.skip_original_interval_for_median && this.extend>1) {
 				for(int i=the_locatable.getStart();i<=the_locatable.getEnd();i++) {
 					blackListedPositions.set(i-extendedRegion.getStart());
 					}
@@ -687,6 +690,7 @@ public int doWork(final List<String> args) {
 				manifest.print(count_has_dp_le_0_5);
 				manifest.print("\t");
 				manifest.print((int)((count_has_dp_le_0_5/(double)extendedRegion.getLengthOnReference())*100.0));
+				manifest.print("\t");
 				manifest.print(count_has_dp_ge_1_5);
 				manifest.print("\t");
 				manifest.print((int)((count_has_dp_ge_1_5/(double)extendedRegion.getLengthOnReference())*100.0));
@@ -720,13 +724,13 @@ public int doWork(final List<String> args) {
 				filter(F->!StringUtils.isBlank(F)).
 				collect(Collectors.toCollection(TreeSet::new))
 				;
-		
+
 		g.drawString(extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+
 				" Sample(s):"+label_samples+" "+label+" Gene(s):"+
-				(all_genes.size()>20?"N="+StringUtils.niceInt(all_genes.size()):String.join(";", StringUtils.niceInt(all_genes.size()))),
+				(all_genes.size()>20?"N="+StringUtils.niceInt(all_genes.size()):String.join(";", all_genes)),
 				10,10
 				);
-		
+
 		if(!sample2maxPoint.isEmpty())
 			{
 			/** draw sample names */

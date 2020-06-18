@@ -80,6 +80,7 @@ import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -637,11 +638,11 @@ public  class CoverageServer extends Launcher {
 	private void printRaster(final BamInput bam,final SimpleInterval midRegion,final SimpleInterval region,final HttpServletRequest request,final HttpServletResponse response) throws IOException, ServletException {
 		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*(double)image_width;
 		final SamReaderFactory srf = SamReaderFactory.make().validationStringency(ValidationStringency.LENIENT).referenceSequence(this.faidxRef);
-		final List<List<SAMRecord>> rows = new ArrayList<>();
+		final Pileup<SAMRecord> pileup = new Pileup<>((L,R)->position2pixel.applyAsDouble(L.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(R.getUnclippedStart()));
 		try(SamReader sr=srf.open(bam.bamPath)) {
 			 try(CloseableIterator<SAMRecord> iter=sr.query(
 					 region.getContig(),
-					 Math.max(0,region.getStart()-this.small_region_size), //extend to get clip
+					 Math.max(0,region.getStart()-this.small_region_size), //extend to get clipR
 					 region.getEnd()+this.small_region_size,false)) {
 				 while(iter.hasNext()) {
 					 final SAMRecord rec=iter.next();
@@ -650,24 +651,10 @@ public  class CoverageServer extends Launcher {
 					 if(rec.getUnclippedStart() > region.getEnd()) continue;
 					 final Cigar cigar = rec.getCigar();
 					 if(cigar==null || cigar.isEmpty()) continue;
-
-					 int y=0;
-					 for(y=0;y< rows.size();++y) {
-						 final List<SAMRecord> row = rows.get(y);
-						 final SAMRecord last = row.get(row.size()-1);
-						 if(position2pixel.applyAsDouble(last.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(rec.getUnclippedStart())) {
-							 row.add(rec);
-							 break;
-						 	}
-					 	}
-				     if(y==rows.size()) {
-						 final List<SAMRecord> row = new ArrayList<>();
-						 row.add(rec);
-						 rows.add(row);
-				     	} 
-				 	}
+					 pileup.add(rec);
+				 	 }
 				 }//end iterator
-			}//end samreder
+			}//end samreader
 		ReferenceSequence refInInterval=null;
 		 try (ReferenceSequenceFile refseq=ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxRef)) {
 			 
@@ -702,11 +689,11 @@ public  class CoverageServer extends Launcher {
 	     final int int_coverage[]=new int[region.getLengthOnReference()];
 	     final int margin_top=12;
 	     
-	     final double featureHeight= Math.min(20,(this.image_height-margin_top)/Math.max(1.0,(double)rows.size()));
+	     final double featureHeight= Math.min(20,(this.image_height-margin_top)/Math.max(1.0,(double)pileup.getRowCount()));
 	     
 	     double y=image_height-featureHeight;
 	     
-	     for(final List<SAMRecord> row:rows) {
+	     for(final List<SAMRecord> row:pileup) {
 	    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
 
 	    	for(final SAMRecord rec: row) {

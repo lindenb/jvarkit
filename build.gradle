@@ -2461,6 +2461,10 @@ all2.add(task("baicov", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.structvar.BaiCov"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("coveragematrix", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.structvar.CoverageMatrix"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
