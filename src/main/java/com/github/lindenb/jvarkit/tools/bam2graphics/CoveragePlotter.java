@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.IntToDoubleFunction;
+import java.util.function.Predicate;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -73,6 +74,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.swing.GraphicsState;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -128,7 +130,7 @@ END_DOC
 	description="Find anomaly of depth in intervals+bams",
 	keywords={"cnv","bam","depth","coverage"},
 	creationDate="20200605",
-	modificationDate="20200608"
+	modificationDate="20200618"
 	)
 public class CoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( CoveragePlotter.class).make();
@@ -156,7 +158,8 @@ public class CoveragePlotter extends Launcher {
 	private double alpha=1.0;
 	@Parameter(names= {"--arc-alpha"},description="arc opacity. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double alpha_arc=1.0;
-	
+	@Parameter(names= {"--rrff"},description="Only display arcs where the strands the the read and its mate are Forward-Forward or Reverse-Reverse")
+	private boolean arc_only_rr_ff;
 	@Parameter(names= {"--manifest"},description="Optional. Manifest file")
 	private Path manifestPath =null;
 	@Parameter(names= {"--min-arc"},description="min arc length in bp.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
@@ -171,17 +174,10 @@ public class CoveragePlotter extends Launcher {
 	private int window_smooth_size = 250;
 	@Parameter(names= {"--skip-center"},description="When calculating the median depth, only consider the extended region, not the original interval.")
 	private boolean skip_original_interval_for_median = false;
-
+	@Parameter(names= {"--ignore-known-containing"},description="Ignore known CNV containing the whole region (prevent large known CNV to be displayed) ")
+	private boolean ignore_cnv_overlapping = false;
 	
 	
-	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region,final Locatable R) {
-		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
-		final double y= rectangle.getHeight()-8.0;
-		final double x1 = position2pixel.applyAsDouble(R.getStart());
-		final double x2 = position2pixel.applyAsDouble(R.getEnd());
-		g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1), 3));
-		}
-
 
 	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region) {
 		if(this.knownCnvFile==null) return;
@@ -190,6 +186,9 @@ public class CoveragePlotter extends Launcher {
 		final Stroke oldStroke = g.getStroke();
 		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
 		g.setColor(Color.MAGENTA);
+
+		final Pileup<Interval> pileup = new Pileup<>();
+		final Predicate<Interval> rejectCnv = cnv->(this.ignore_cnv_overlapping && cnv.getStart() < region.getStart() && cnv.getEnd() > region.getEnd());
 
 		if(fname.endsWith(".bed.gz")) {
 			try(TabixReader tbr = new TabixReader(this.knownCnvFile.toString())) {
@@ -204,7 +203,8 @@ public class CoveragePlotter extends Launcher {
 							final BedLine bed = codec.decode(line);
 							if(bed==null) continue;
 							final Interval rgn = new Interval(region.getContig(),bed.getStart(),bed.getEnd(),false,bed.getOrDefault(3, ""));
-							drawKnownCnv(g,rectangle,region,rgn);
+							if(rejectCnv.test(rgn)) return;
+							pileup.add(rgn);
 							}
 					}
 				}
@@ -225,7 +225,8 @@ public class CoveragePlotter extends Launcher {
 								if(VC.hasID()) list.add(VC.getID());
 								if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
 								final Interval rgn= new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));
-								drawKnownCnv(g,rectangle,region,rgn);
+								if(rejectCnv.test(rgn)) return;
+								pileup.add(rgn);
 								});
 					}
 				}
@@ -236,6 +237,16 @@ public class CoveragePlotter extends Launcher {
 		else
 			{
 			LOG.warn("not a vcf of bed.gz file "+this.knownCnvFile);
+			}
+		final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
+		final double featureHeight = 4.0/pileup.getRowCount();
+		for(int row=0;row< pileup.getRowCount();++row) {
+			for(final Interval cnv:pileup.getRow(row)) {
+				final double y= rectangle.getHeight()-8.0 + row*featureHeight;
+				final double x1 = position2pixel.applyAsDouble(cnv.getStart());
+				final double x2 = position2pixel.applyAsDouble(cnv.getEnd());
+				g.draw(new Rectangle2D.Double(x1, y-1, Math.max(1.0,x2-x1),featureHeight*0.9));
+				}
 			}
 		g.setComposite(oldComposite);
 		g.setStroke(oldStroke);
@@ -409,6 +420,17 @@ public int doWork(final List<String> args) {
 			final ToDoubleFunction<Integer> pos2pixel = POS-> (POS - extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference() * this.dimension.getWidth();
 
 			
+			final String theGeneName = this.getGenes(extendedRegion).
+					filter(G->G.getType().equals("gene")).
+					map(G->G.getAttribute("gene_name")).
+					filter(S->!StringUtils.isBlank(S)).findFirst().orElse(null);
+			
+			final String outputFilename = this.prefix + extendedRegion.getContig()+"_"+extendedRegion.getStart()+"_"+extendedRegion.getEnd()+
+					(StringUtils.isBlank(label)?"":"."+label.replaceAll("[^A-Za-z\\-\\.0-9]+", "_")) + 
+					(StringUtils.isBlank(theGeneName) || !StringUtils.isBlank(label)?"":"."+theGeneName.replaceAll("[^A-Za-z\\-\\.0-9]+", "_")) + 
+					".png";
+			
+			
 			final Graphics2D g2= offscreen.createGraphics();
 			g2.setColor(Color.BLACK);
 			g2.setComposite(AlphaComposite.getInstance(AlphaComposite.CLEAR));
@@ -503,6 +525,12 @@ public int doWork(final List<String> args) {
 							orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
 					
 					sampleNames.add(sample);
+					/* sample has deletion */
+					int count_has_dp_le_0_5 = 0;
+					/* sample has dup */
+					int count_has_dp_ge_1_5 = 0;
+					/* longest arc */
+					int longest_arc = 0;
 					
 					SequenceUtil.assertSequenceDictionariesEqual(dict,header.getSequenceDictionary());
 					Arrays.fill(depth, 0);
@@ -519,9 +547,12 @@ public int doWork(final List<String> args) {
 								rec.getReadPairedFlag() && 
 								!rec.getMateUnmappedFlag() && 
 								!rec.getProperPairFlag() && 
-								rec.getReferenceIndex().equals(rec.getMateReferenceIndex())
+								rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) && 
+								(!this.arc_only_rr_ff || (rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag()))
 								)
 								{
+								longest_arc = Math.max(longest_arc, Math.abs(rec.getMateAlignmentStart()-rec.getAlignmentStart()));
+								
 								final double xstart = pos2pixel.applyAsDouble(rec.getAlignmentStart());
 								final double xend = pos2pixel.applyAsDouble(rec.getMateAlignmentStart());
 								final double len = (xend - xstart);
@@ -585,7 +616,9 @@ public int doWork(final List<String> args) {
 
 				final double median = discreteMedian.getMedian().orElse(0);
 				if(median<=0) {
-					LOG.warning("Skipping "+sample +" "+extendedRegion+" because median is 0");
+					final String msg = "Skipping "+sample +" "+extendedRegion+" because median is 0";
+					LOG.warning(msg);
+					manifest.println("#"+msg);
 					continue;
 				}
 				
@@ -603,6 +636,9 @@ public int doWork(final List<String> args) {
 						} 
 					final double average = discreteMedian.getMedian().orElse(0);
 					final double normDepth = (average/median);
+					
+					if(normDepth<=0.5) count_has_dp_le_0_5++;
+					if(normDepth>=1.5) count_has_dp_ge_1_5++;
 					
 					final double y2 = normToPixelY.applyAsDouble(normDepth);
 					double distance_to_1 = Math.abs(normDepth-1.0);
@@ -629,7 +665,43 @@ public int doWork(final List<String> args) {
 				g.setComposite(oldComposite);
 				
 				if(max_position!=null) sample2maxPoint.put(sample,max_position);
-				}
+				
+				
+				// fill manifest
+				manifest.print(rawRegion.getContig());
+				manifest.print("\t");
+				manifest.print(rawRegion.getStart()-1);
+				manifest.print("\t");
+				manifest.print(rawRegion.getEnd());
+				manifest.print("\t");
+				manifest.print(extendedRegion.getStart()-1);
+				manifest.print("\t");
+				manifest.print(extendedRegion.getEnd());
+				manifest.print("\t");
+				manifest.print(outputFilename);
+				manifest.print("\t");
+				manifest.print(StringUtils.isBlank(theGeneName)?".":theGeneName);
+				manifest.print("\t");
+				manifest.print(sample);
+				manifest.print("\t");
+				manifest.print(count_has_dp_le_0_5);
+				manifest.print("\t");
+				manifest.print((int)((count_has_dp_le_0_5/(double)extendedRegion.getLengthOnReference())*100.0));
+				manifest.print(count_has_dp_ge_1_5);
+				manifest.print("\t");
+				manifest.print((int)((count_has_dp_ge_1_5/(double)extendedRegion.getLengthOnReference())*100.0));
+				manifest.print("\t");
+				manifest.print(median);
+				manifest.print("\t");
+				manifest.print(discreteMedian.getStandardDeviation().orElse(-99999));
+				manifest.print("\t");
+				manifest.print(longest_arc);
+				manifest.println();
+				}//end loop over samples
+			
+				
+				
+				
 			}
 		
 			
@@ -675,28 +747,12 @@ public int doWork(final List<String> args) {
 		
 		g.dispose();
 		
-		final String theGeneName = this.getGenes(extendedRegion).
-				filter(G->G.getType().equals("gene")).
-				map(G->G.getAttribute("gene_name")).
-				filter(S->!StringUtils.isBlank(S)).findFirst().orElse(null);
 		
-		final String fname = this.prefix + extendedRegion.getContig()+"_"+extendedRegion.getStart()+"_"+extendedRegion.getEnd()+
-				(StringUtils.isBlank(label)?"":"."+label.replaceAll("[^A-Za-z\\-\\.0-9]+", "_")) + 
-				(StringUtils.isBlank(theGeneName) || !StringUtils.isBlank(label)?"":"."+theGeneName.replaceAll("[^A-Za-z\\-\\.0-9]+", "_")) + 
-				".png";
 		
-		try(OutputStream out=archive.openOuputStream(fname)){
+		try(OutputStream out=archive.openOuputStream(outputFilename)){
 			ImageIO.write(image, "PNG", out);
 			out.flush();
 			}
-		manifest.print(rawRegion.getContig());
-		manifest.print("\t");
-		manifest.print(rawRegion.getStart()-1);
-		manifest.print("\t");
-		manifest.print(rawRegion.getEnd());
-		manifest.print("\t");
-		manifest.print(fname);
-		manifest.println();
 		
 		}// end while iter
 		archive.close();

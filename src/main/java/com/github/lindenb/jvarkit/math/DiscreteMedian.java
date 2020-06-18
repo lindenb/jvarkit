@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.math;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.TreeMap;
 
@@ -94,6 +95,23 @@ public class DiscreteMedian<T extends Number>
 			);
 		}
 	
+	public OptionalDouble getStandardDeviation() {
+		final OptionalDouble avg = getAverage();
+		if(!avg.isPresent()) return OptionalDouble.empty();
+		final double v1 = avg.getAsDouble();
+		double sum=0;
+		for(Map.Entry<T,Long> key: this.counter.entrySet()) {
+			final double v2 = Math.pow(key.getKey().doubleValue() - v1,2.0);
+			for(long n1=0;n1< key.getValue();++n1) {
+				sum+=v2;
+				}
+			}
+		sum/=this.size;
+		if(sum<=0) return OptionalDouble.empty();
+		return OptionalDouble.of(Math.sqrt(sum));
+	}
+	
+	/** get median for this dataset */
 	public OptionalDouble getMedian() {
 		if(isEmpty()) return OptionalDouble.empty();
 		final long mid_x = this.size/2L;
