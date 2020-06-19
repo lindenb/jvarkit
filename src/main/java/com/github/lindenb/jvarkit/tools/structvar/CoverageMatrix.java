@@ -84,6 +84,7 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
@@ -94,11 +95,18 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
 
+## Example
+
+```
+ java -jar dist/coveragematrix.jar -R src/test/resources/rotavirus_rf.fa --exclude gaps.tsv.gz src/test/resources/S*.bam
+```
+
+
 END_DOC 
  */
 @Program(
 	name="coveragematrix",
-	description="TODO",
+	description="generate a VCF file from bam coverage",
 	keywords={"cnv","bam","depth","coverage"},
 	creationDate="20200618",
 	modificationDate="20200618",
@@ -120,19 +128,21 @@ public class CoverageMatrix extends Launcher {
 	private int bin_size = 1_000;
 	@Parameter(names = {"--chrom","--contig"}, description = "Restrict to that contig.")
 	private String restrictContig = null;
+	@Parameter(names = {"--treshold"}, description = IndexCovUtils.TRESHOLD_OPT_DESC)
+	private double indexCovTreshold = IndexCovUtils.DEFAULT_TRESHOLD;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection= new WritingSortingCollection();
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 
-	private SAMSequenceDictionary dict;
 	
 
-	private class CovItem {
+	private static class CovItem {
 		int sample_idx;
 		int pos;
 		float depth;
+		float stddev;
 		int compare0(CovItem item) {
 			int i = Integer.compare(this.pos, item.pos);
 			if(i!=0) return i;
@@ -140,11 +150,11 @@ public class CoverageMatrix extends Launcher {
 			}
 		}
 
-	private class CovItemCodec extends AbstractDataCodec<CovItem> {
+	private static class CovItemCodec extends AbstractDataCodec<CovItem> {
 		@Override
-		public CovItem decode(DataInputStream dis) throws IOException
+		public CovItem decode(final DataInputStream dis) throws IOException
 			{
-			CovItem item = new CovItem();
+			final CovItem item = new CovItem();
 			try {
 				item.sample_idx = dis.readInt();
 				}
@@ -153,18 +163,19 @@ public class CoverageMatrix extends Launcher {
 				}
 			item.pos= dis.readInt();
 			item.depth = dis.readFloat();
+			item.stddev = dis.readFloat();
 			return item;
 			}
 		@Override
-		public void encode(DataOutputStream dos, CovItem o)
-				throws IOException
+		public void encode(final DataOutputStream dos,final  CovItem o) throws IOException
 			{
 			dos.writeInt(o.sample_idx);
 			dos.writeInt(o.pos);
 			dos.writeFloat(o.depth);
+			dos.writeFloat(o.stddev);
 			}
 		@Override
-		public AbstractDataCodec<CovItem> clone()
+		public CovItemCodec clone()
 			{
 			return new CovItemCodec();
 			}
@@ -177,8 +188,8 @@ public class CoverageMatrix extends Launcher {
 		VariantContextWriter w = null;
 		try
 			{
-			final IndexCovUtils indexCovUtils = new IndexCovUtils(IndexCovUtils.DEFAULT_TRESHOLD);
-			this.dict = SequenceDictionaryUtils.extractRequired(this.refPath);
+			final IndexCovUtils indexCovUtils = new IndexCovUtils(this.indexCovTreshold);
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
 			final SamReaderFactory samReaderFactory = SamReaderFactory.
 						makeDefault().
 						referenceSequence(CoverageMatrix.this.refPath).
@@ -187,8 +198,8 @@ public class CoverageMatrix extends Launcher {
 			
 			 final List<Path> inputBams =  IOUtils.unrollPaths(args);
 			
-			if(inputBams.isEmpty()) {
-				LOG.error("input bam file missing.");
+			if(inputBams.size()<3) {
+				LOG.error("not enough input bam file defined.");
 				return -1;
 				}
 			
@@ -214,11 +225,14 @@ public class CoverageMatrix extends Launcher {
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			
-			w = this.writingVariantsDelegate.dictionary(this.dict).open(this.outputFile);
+			w = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
 			
 			final VCFFormatHeaderLine fmtNormDepth = new VCFFormatHeaderLine("D",1,VCFHeaderLineType.Float,"norm Depth");
 			metaData.add(fmtNormDepth);
-			final VCFInfoHeaderLine infoStdDev = new VCFInfoHeaderLine("STDDEV",1,VCFHeaderLineType.Float,"standard deviation");
+			final VCFFormatHeaderLine fmtStdDev = new VCFFormatHeaderLine("STDDEV",1,VCFHeaderLineType.Float,"standard deviation");
+			metaData.add(fmtStdDev);
+
+			final VCFInfoHeaderLine infoStdDev = new VCFInfoHeaderLine(fmtStdDev.getID(),1,VCFHeaderLineType.Float,"standard deviation");
 			metaData.add(infoStdDev);
 			final VCFInfoHeaderLine infoMedianD = new VCFInfoHeaderLine("MEDIAN",1,VCFHeaderLineType.Float,"median depth");
 			metaData.add(infoMedianD);
@@ -226,24 +240,22 @@ public class CoverageMatrix extends Launcher {
 			metaData.add(infoNSamples);
 			final VCFInfoHeaderLine infoSamples = new VCFInfoHeaderLine("SAMPLES",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Samples");
 			metaData.add(infoSamples);
-
+			final VCFFilterHeaderLine filterAll = new VCFFilterHeaderLine("ALL_AFFECTED","All Samples carry a variant");
+			metaData.add(filterAll);
 			
 			
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.END_KEY);
 			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
 			final VCFHeader vcfheader= new VCFHeader(metaData,idx2samples);
-			vcfheader.setSequenceDictionary(this.dict);
+			vcfheader.setSequenceDictionary(dict);
 			JVarkitVersion.getInstance().addMetaData(this, vcfheader);
 			w.writeHeader(vcfheader);
 			
-			for(final SAMSequenceRecord ssr: this.dict.getSequences()) {
+			for(final SAMSequenceRecord ssr: dict.getSequences()) {
 				if(!StringUtils.isBlank(restrictContig) && !restrictContig.equals(ssr.getSequenceName())) continue;
 				final int depth[]= new int[ssr.getSequenceLength()];
 				final BitSet blackListedPositions = new BitSet(depth.length);
-				
-				
-				
-				
+								
 				// fill black listed regions
 				if(this.blackListedPath!=null) {
 					try(TabixReader tbr= new TabixReader(this.blackListedPath.toString())) {
@@ -280,10 +292,11 @@ public class CoverageMatrix extends Launcher {
 				
 				for(int bam_idx=0;bam_idx<inputBams.size();++bam_idx) {
 					final Path path = inputBams.get(bam_idx);
+					LOG.info(ssr.getContig()+":"+path+" "+bam_idx+"/"+inputBams.size());
 					try(SamReader sr = samReaderFactory.open(path)) {
 						final SAMFileHeader header= sr.getFileHeader();
 						
-						SequenceUtil.assertSequenceDictionariesEqual(this.dict,header.getSequenceDictionary());
+						SequenceUtil.assertSequenceDictionariesEqual(dict,header.getSequenceDictionary());
 						Arrays.fill(depth, 0);
 						try(CloseableIterator<SAMRecord> siter = sr.queryOverlapping(ssr.getContig(), 1, ssr.getLengthOnReference())) {
 							while(siter.hasNext()) {
@@ -315,25 +328,25 @@ public class CoverageMatrix extends Launcher {
 					final DiscreteMedian<Integer> discreteMedian = new DiscreteMedian<>();
 					int pos=0;
 					while(pos< depth.length) {
-						if(blackListedPositions.get(pos) || depth[pos]>this.max_depth) {
-							++pos;
-							continue;
+						if(!blackListedPositions.get(pos) && depth[pos]<=this.max_depth) {
+							discreteMedian.add(depth[pos]);
 							}
-						discreteMedian.add(depth[pos]);
 						++pos;
 						}
 					final double median = discreteMedian.getMedian().orElse(1.0);
+					LOG.info(idx2samples.get(bam_idx)+ " :"+ssr.getSequenceName()+" median depth:"+median);
 					
 					final DiscreteMedian<Integer> localMedian = new DiscreteMedian<>();
 					pos=0;
 					while(pos< depth.length) {
-						if(blackListedPositions.get(pos) || depth[pos]>this.max_depth) {
+						if(blackListedPositions.get(pos) /* non pas maxdepth */) {
 							++pos;
 							continue;
 							}
-						int pos2=pos+1;
+						int pos2=pos;
 						localMedian.clear();
 						while(pos2 -pos < this.bin_size && pos2< depth.length && !blackListedPositions.get(pos2)) {
+							// consider this.max_depth here ?
 							localMedian.add(depth[pos2]);
 							++pos2;
 							}
@@ -343,43 +356,35 @@ public class CoverageMatrix extends Launcher {
 							item.pos = pos;
 							item.sample_idx = bam_idx;
 							item.depth = (float)(localMed/median);
+							item.stddev = (float)localMedian.getStandardDeviation().orElse(-1.0);
 							sorter.add(item);
 							}
 						pos = pos2;
 						}
-					
-
 					}//end loop over samples
-				
-				
-					
-					
 				}//end loop over bams
 			sorter.doneAdding();
 			sorter.setDestructiveIteration(true);
 				
-			CloseableIterator<CovItem> iter = sorter.iterator();
-			EqualRangeIterator<CovItem> iter2 = new EqualRangeIterator<>(iter,(A,B)->Integer.compare(A.pos, B.pos));
-			
+			final CloseableIterator<CovItem> iter = sorter.iterator();
+			final EqualRangeIterator<CovItem> iter2 = new EqualRangeIterator<>(iter,(A,B)->Integer.compare(A.pos, B.pos));
 			final Allele REF = Allele.create("N", true);
 			final Allele DEL = Allele.create("<DEL>", false);
 			final Allele DUP = Allele.create("<DUP>", false);
 			while(iter2.hasNext()) {
 				final List<CovItem> list = iter2.next();
 				final CovItem first = list.get(0);
-				double avg_depth = list.stream().mapToDouble(F->F.depth).average().orElse(0);
-				double sum =0;
-				for(int i=0;i< list.size();i++) {
-					sum += Math.pow(list.get(i).depth - avg_depth,2.0);
-					}
+				final double avg_depth = list.stream().mapToDouble(F->F.depth).average().orElse(0);
+				final double sum =  list.stream().mapToDouble(F->F.depth).map(D->Math.pow(D - avg_depth,2.0)).sum();
 				final double stdDev = Math.sqrt(sum/list.size());
 				
 				final OptionalDouble optMedianOfmedian = Percentile.median().evaluate(list.stream().mapToDouble(I->I.depth));
-				if(!optMedianOfmedian.isPresent()) continue;
 				final double medianOfmedian = optMedianOfmedian.orElse(1.0);
+				if(medianOfmedian<=0) continue;
 				for(int i=0;i< list.size();i++) {
 					list.get(i).depth/=medianOfmedian;
 					}
+				if( list.stream().allMatch(F->Float.isNaN(F.depth) || Float.isInfinite(F.depth))) continue;
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder();
 				vcb.chr(ssr.getContig());
@@ -400,20 +405,30 @@ public class CoverageMatrix extends Launcher {
 					final GenotypeBuilder gb;
 					switch(indexCovUtils.getType(item.depth))
 						{
-						case AMBIGOUS: continue;
-						case HET_DEL: gb = new GenotypeBuilder(sn,Arrays.asList(REF,DEL));affected.add(sn);break;
-						case HOM_DEL: gb = new GenotypeBuilder(sn,Arrays.asList(DEL,DEL));affected.add(sn);break;
-						case HET_DUP: gb = new GenotypeBuilder(sn,Arrays.asList(REF,DUP));affected.add(sn);break;
-						case HOM_DUP: gb = new GenotypeBuilder(sn,Arrays.asList(DUP,DUP));affected.add(sn);break;
+						case AMBIGOUS: gb = new GenotypeBuilder(sn,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));break;
+						case HET_DEL: alleles.add(DEL);gb = new GenotypeBuilder(sn,Arrays.asList(REF,DEL));affected.add(sn);break;
+						case HOM_DEL: alleles.add(DEL);gb = new GenotypeBuilder(sn,Arrays.asList(DEL,DEL));affected.add(sn);break;
+						case HET_DUP: alleles.add(DUP);gb = new GenotypeBuilder(sn,Arrays.asList(REF,DUP));affected.add(sn);break;
+						case HOM_DUP: alleles.add(DUP);gb = new GenotypeBuilder(sn,Arrays.asList(DUP,DUP));affected.add(sn);break;
 						case REF: gb = new GenotypeBuilder(sn,Arrays.asList(REF,REF));break;
-						default: continue;
+						default: throw new IllegalStateException();
 						}
 					gb.attribute(fmtNormDepth.getID(), item.depth);
+					gb.attribute(fmtStdDev.getID(), item.stddev);
 					genotypes.add(gb.make());
 					}
 				if(affected.isEmpty()) continue;
+				
+				if(affected.size()==inputBams.size()) {
+					vcb.filter(filterAll.getID());
+					}
+				else
+					{
+					vcb.passFilters();
+					}
 				vcb.attribute(infoSamples.getID(), new ArrayList<>(affected));
 				vcb.attribute(infoNSamples.getID(), affected.size());
+				
 				vcb.genotypes(genotypes);
 				vcb.alleles(alleles);
 				w.add(vcb.make());
