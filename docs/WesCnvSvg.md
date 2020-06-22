@@ -16,8 +16,10 @@ Usage: wescnvsvg [options] Files
     -css, --css
       custom svg css stylesheet
     -x, --extend
-      Extend each region in the bed by 'x' bases. If the argument ends with 
-      '%' it is interpreted as a percentage.
+      Extend each region by this factor. 100bp + 150% -> 150bp.If the value 
+      ends with '%' it is interpretted as a percentage eg. '1%' => '0.01'. A 
+      slash '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
+      Default: 1.0
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
@@ -33,11 +35,13 @@ Usage: wescnvsvg [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -u, --url, --hyperlink
-      creates a hyperlink when 'click' in an area. The URL must contains 
-      __CHROM__, __START__ and __END__ that will be replaced by their values. 
-      IGV : "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" 
-      , UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
-      Default: none
+      creates a hyperlink an area is 'clicked'. creates a hyperlink when 
+      'click' in an area. The URL must contains __CHROM__, __START__ and 
+      __END__ that will be replaced by their values. Predefined values are 
+      'hg19','hg38','igv'. IGV : 
+      "http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__" , 
+      UCSC: "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__"
+      Default: <empty string>
     -B, --bed, -b, --capture, -r, -rgn, --region, --interval
       A source of intervals. The following suffixes are recognized: vcf, 
       vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
@@ -97,6 +101,11 @@ $ ./gradlew wescnvsvg
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20180726
 
 ## Source code 
 
