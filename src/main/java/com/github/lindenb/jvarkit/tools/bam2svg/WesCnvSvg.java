@@ -30,8 +30,9 @@ import java.awt.geom.Point2D;
 import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -49,7 +50,9 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.converter.RatioConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
@@ -149,13 +152,14 @@ END_DOC
 @Program(name="wescnvsvg",
 description="SVG visualization of bam DEPTH for multiple regions",
 keywords={"bam","alignment","graphics","visualization","svg","wes","bed","capture","exome"},
-modificationDate="20190904"
+modificationDate="20200622",
+creationDate="20180726"
 )
 public class WesCnvSvg  extends Launcher {
 	private static final Logger LOG = Logger.build(WesCnvSvg.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-B","--bed","-b","--capture","-r","-rgn","--region","--interval"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 	@Parameter(names={"-R","--ref","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
@@ -178,8 +182,8 @@ public class WesCnvSvg  extends Launcher {
 	private Percentile.Type percentile = Percentile.Type.AVERAGE;
 	@Parameter(names={"-css","--css"},description="custom svg css stylesheet")
 	private File cssFile = null;
-	@Parameter(names={"-x","--extend"},description="Extend each region in the bed by 'x' bases. If the argument ends with '%' it is interpreted as a percentage.")
-	private String extendStr = null;
+	@Parameter(names={"-x","--extend"},description="Extend each region by this factor. 100bp + 150% -> 150bp." + RatioConverter.OPT_DESC,converter=RatioConverter.class,splitter=NoSplitter.class)
+	private double extendFactor= 1.0;
 	
 	
 	private class BamInput implements Closeable
@@ -242,7 +246,7 @@ public class WesCnvSvg  extends Launcher {
 		}
 		
 		String getName() {
-			return this.getContig()+":"+niceIntFormat.format(this.getStart())+"-"+niceIntFormat.format(this.getEnd());
+			return this.getContig()+":"+StringUtils.niceInt(this.getStart())+"-"+StringUtils.niceInt(this.getEnd());
 			}
 		String getId() {
 			return String.valueOf(this.queryInterval.referenceIndex)+"_"+this.getStart()+"_"+this.getEnd();
@@ -254,7 +258,6 @@ public class WesCnvSvg  extends Launcher {
 	private ReferenceSequenceFile indexedFastaSequenceFile;
 	private SAMSequenceDictionary refDict; 
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
-	private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 	private double globalMaxDepth = 0.0;
 	private double globalMaxClip = 0.0;
 	private int countBasesToBeDisplayed = 0;
@@ -270,7 +273,7 @@ public class WesCnvSvg  extends Launcher {
 		return this.decimalFormater.format(v);
 		}
 	
-	private double getGcPercent(GenomicSequence seq,int chromStart,int chromEnd)
+	private double getGcPercent(final GenomicSequence seq,int chromStart,int chromEnd)
 		{
 		final SAMSequenceRecord ssr = seq.getSAMSequenceRecord();
 		while(chromEnd-chromStart+1< this.gc_win)
@@ -291,7 +294,11 @@ public class WesCnvSvg  extends Launcher {
 	public int doWork(final List<String> args) {
 		XMLStreamWriter w = null;
 		BufferedReader r = null;
-		FileOutputStream fout=null;
+		OutputStream fout=null;
+		if(this.extendFactor<1.0) {
+			LOG.error("extend factor <1.0");
+			return -1;
+			}
 		try
 			{
 			
@@ -352,27 +359,15 @@ public class WesCnvSvg  extends Launcher {
 				if(tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(), refDict);
 				
 				//user asked to extend the regions
-				if(!StringUtil.isBlank(this.extendStr))
+				if(this.extendFactor>1.0)
 					{
 					final SAMSequenceRecord ssr = Objects.requireNonNull(this.refDict.getSequence(tid),"??");
-					final int halflen = (interval.getEnd() - interval.getStart())/2;
-					final int mid = interval.getStart()+halflen;
-					final int len;
-					if(this.extendStr.endsWith("%"))
-						{
-						double x = Double.parseDouble(this.extendStr.substring(0, this.extendStr.length()-1).trim())/100.0;
-						if(x<=0) x=0.0;
-						len = halflen + (int)(halflen*x/2.0);
-						}
-					else
-						{
-						len = halflen + Integer.parseInt(this.extendStr.trim());
-						}
-					interval = new SimpleInterval(
-							interval.getContig(),
-							Math.max(1, mid-len),
-							Math.min(ssr.getSequenceLength(),mid+len)
-							);
+					final int mid = interval.getStart()+interval.getLengthOnReference()/2;
+					final int len2= (int)(interval.getLengthOnReference()*this.extendFactor);
+					final int start2= Math.max(1,mid-len2/2);
+					final int end2 = Math.min(ssr.getSequenceLength(),mid+len2/2);
+
+					interval = new SimpleInterval(interval.getContig(),start2,end2);
 					}
 				
 				final QueryInterval qInterval = new QueryInterval(tid, interval.getStart(), interval.getEnd());
@@ -542,7 +537,7 @@ public class WesCnvSvg  extends Launcher {
 				}
 			else
 				{
-				fout = new FileOutputStream(this.outputFile);
+				fout =Files.newOutputStream(this.outputFile);
 				w=xof.createXMLStreamWriter(fout, "UTF-8");
 				}
 			

@@ -116,7 +116,7 @@ END_DOC
 		keywords={"bam","alignment","graphics","visualization","png","gtf"},
 		biostars= 293741,
 		creationDate="20170523",
-		modificationDate="20191129"
+		modificationDate="20200622"
 		)
 public class LowResBam2Raster extends AbstractBam2Raster {
 	private static final Logger LOG = Logger.build(LowResBam2Raster.class).make();
@@ -182,7 +182,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			}
 		
 		@Override
-		public int compareTo(SamRecordPair o) {
+		public int compareTo(final SamRecordPair o) {
 			int i=getContig().compareTo(o.getContig());
 			if(i!=0) return i;
 			i=getStart()-o.getStart();

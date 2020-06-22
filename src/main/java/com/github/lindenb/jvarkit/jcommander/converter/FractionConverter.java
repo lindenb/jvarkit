@@ -24,49 +24,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.jcommander.converter;
 
-import java.util.function.ToDoubleFunction;
 
-import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.ParameterException;
 
-import com.github.lindenb.jvarkit.lang.StringUtils;
-
-public class FractionConverter implements IStringConverter<Double>,ToDoubleFunction<String> {
-	public static final String OPT_DESC="A decimal number between 0.0 and 1.0. "
-			+ "If the value ends with '%' it is interpretted as a percentage eg. '1%' => '0.01'."   
-			+ " A slash '/' is interpretted as a ratio. e.g: '1/100' => '0.01'."
-			; 
-	@Override
-	public Double convert(final String s0) {
-		return this.applyAsDouble(s0);
-		}
+/** same as RatioConverter but check it between 0 and 1 */
+public class FractionConverter extends RatioConverter {
+	public static final String OPT_DESC="A decimal number between 0.0 and 1.0. " + RatioConverter.OPT_DESC;
 	
 	@Override
 	public double applyAsDouble(final String s0) {
-		if(StringUtils.isBlank(s0)) throw new IllegalArgumentException("Cannot convert empty string to decimal number.");
-		String s=s0.trim();
-		double value;
-		try {
-			if(s.endsWith("%")) {
-				s=s.substring(s.length()-1).trim();
-				value = Double.parseDouble(s)/100.0;
-				}
-			else if(s.contains("/")) {
-				final int slash = s.indexOf("/"); 
-				if(slash==0 || slash+1==s.length()) throw new ParameterException("bad division in '"+s0+"'");
-				final double v1 = Double.parseDouble(s.substring(0, slash));
-				final double v2 = Double.parseDouble(s.substring(slash+1));
-				if(v2==0) throw new ParameterException("division by zero in "+s0);
-				value = v1/v2;
-				}
-			else
-				{
-				value = Double.parseDouble(s);
-				}
-			}
-		catch(final NumberFormatException err) {
-			throw new ParameterException("Cannot convert "+s0+" to decimal number.",err);
-			}
+		final double value = super.applyAsDouble(s0);
 		if(Double.isNaN(value) || Double.isInfinite(value) || value < 0.0 || value >1.0) {
 			throw new ParameterException("Cannot convert "+s0+" to decimal number. Value should be between 0 and 1 but got '"+ value+"'.");
 			}
