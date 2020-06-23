@@ -336,7 +336,11 @@ public class VCFBed extends OnePassVcfLauncher
 			final SimpleInterval theInterval;
 			
 			if(bndOpt.isPresent()) {
-				theInterval = new SimpleInterval(bndOpt.get());
+				theInterval = new SimpleInterval(
+						normalizedContig,
+						bndOpt.get().getStart(),
+						bndOpt.get().getEnd()
+						);
 				}
 			else
 				{
