@@ -35,7 +35,7 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -43,12 +43,9 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -91,9 +88,9 @@ END_DOC
 	description="Basic Variant Effect prediction using gtf",
 	keywords={"vcf","annotation","prediction","sv"},
 	creationDate="20190815",
-	modificationDate="20191005"
+	modificationDate="20200623"
 	)
-public class SVPredictions extends Launcher
+public class SVPredictions extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(SVPredictions.class).make();
 	private final IntervalTreeMap<Gene> all_gene = new IntervalTreeMap<>();
@@ -119,14 +116,12 @@ public class SVPredictions extends Launcher
 		 	}
 		}
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
 	private Path gtfPath = null;
 	@Parameter(names={"-u","--upstream"},description="Gene Upstream/Downstream length. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int upstream_size =  5_000;
 	@Parameter(names={"--max-genes"},description="don't print the genes names if their count exceed 'x'. '-1' = ignore/unlimited")
-	private int max_genes_count =  20;
+	private int max_genes_count =  -1;
 	@Parameter(names={"-nti","--no-transcript-id"},description="don't print transcript id (reduce length of annotation)")
 	private boolean ignore_transcript_id = false;
 	@Parameter(names={"--tag"},description="VCF info attribute")
@@ -140,8 +135,6 @@ public class SVPredictions extends Launcher
 	private boolean remove_attributes =  false;
 	@Parameter(names={"--bnd"},description="Ignore the INFO/END attribute for SVTYPE=BND, so it is just considered as a single point mutation.")
 	private boolean ignore_bnd_end =  false;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
 	
 	private final Set<WhereInGene> limitWhere = new HashSet<>();
@@ -200,22 +193,19 @@ public class SVPredictions extends Launcher
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
-		VCFIterator r=null;
-		VariantContextWriter w = null;
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int doVcfToVcf(String inputName, VCFIterator r, VariantContextWriter w) {
 		try {
-			r= super.openVCFIterator(oneFileOrNull(args));
-			
-				
 			final VCFHeader header= r.getHeader();
 			final SAMSequenceDictionary dict=  header.getSequenceDictionary();
 			try(final GtfReader gtfReader=new GtfReader(this.gtfPath)) {
 				if(dict!=null) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 				gtfReader.getAllGenes().stream().forEach(G->this.all_gene.put(new Interval(G), G));
 				}
-			
-			
-			
 			
 			final VCFHeader h2=new VCFHeader(header);
 			
@@ -272,15 +262,12 @@ public class SVPredictions extends Launcher
 					VCFHeaderLineType.String,
 					"Structural variant consequence."
 					));
-			JVarkitVersion.getInstance().addMetaData(this, h2);
-			
-			w= this.writingVariants.dictionary(dict).open(this.outputFile);
+			JVarkitVersion.getInstance().addMetaData(this, h2);			
 			w.writeHeader(h2);
 	
-			final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			while(r.hasNext())
 				{
-				final VariantContext ctx=progress.apply(r.next());
+				final VariantContext ctx= r.next();
 				
 				final int ctx_bnd_end;
 				if(this.ignore_bnd_end &&
@@ -397,9 +384,6 @@ public class SVPredictions extends Launcher
 					w.add(vcb.make());
 					}
 				}
-			w.close();w=null;
-			r.close();r=null;
-			progress.close();
 			return 0;
 		} catch(final Throwable err ) {
 			LOG.error(err);

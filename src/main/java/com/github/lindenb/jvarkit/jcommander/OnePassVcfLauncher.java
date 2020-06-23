@@ -98,6 +98,14 @@ private void deleteOutputOnError() {
 		//ignore
 	}
 }
+/** initialize things before opening the vcf */
+protected int beforeVcf() {
+	return 0;
+	}
+
+/** initialize things after closing the vcf */
+protected void afterVcf() {
+	}
 
 @Override
 public int doWork(final List<String> args) {
@@ -108,6 +116,17 @@ public int doWork(final List<String> args) {
 		this.outputFile!=null &&
 		!IOUtil.isUrl(input) && Paths.get(input).equals(this.outputFile)) {
 		LOG.error("Input == output : "+ input);
+		return -1;
+		}
+	
+	try {
+		if(beforeVcf()!=0) {
+			LOG.error("initialization failed");
+			return -1;
+			}
+		}
+	catch (final Throwable err) {
+		LOG.error(err);
 		return -1;
 		}
 	
@@ -139,6 +158,12 @@ public int doWork(final List<String> args) {
 		}
 	finally
 		{
+		try {
+			afterVcf();
+			}
+		catch (final Throwable err) {
+			LOG.error(err);
+			}	
 		if(in!=null) in.close();
 		if(vcw!=null) vcw.close();
 		}

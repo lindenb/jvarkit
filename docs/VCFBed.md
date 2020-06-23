@@ -10,10 +10,16 @@ Transfer information from a BED to a VCF
 ```
 Usage: vcfbed [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
   * -B, --bed, -m, --map
       Tribble or Tabix bed file. Files must be indexed unless option --fast is 
       selected. 
-    -e, --expr, --jexl
+    -e, --expr, --jexl, --format
       [20180124]A JEXL Expression returning a string JEXL stands for Java 
       EXpression Language.  See 
       https://commons.apache.org/proper/commons-jexl/reference/syntax.html . 
@@ -21,48 +27,46 @@ Usage: vcfbed [options] Files
       ).  The variable 'ctx' or 'variant' is the current observed variant. The 
       variable 'line' is the original bed line
       Default: bed.get(0)+":"+bed.get(1)+"-"+bed.get(2)
-    -x, --extend
-      [20180123]if nothing was found in the BED file, extends the interval by 
-      'x' bases and try again. Do not extend  if 'x' <1. Require that the VCF 
-      file has a Dictionary (##contig lines). A distance specified as a 
-      positive integer.Comma are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb
-      Default: 0
-    -fn, --filternooverlap
-      if defined, set this as a FILTER column if not any BED line overlap a 
-      variant 
-    -fo, --filteroverlap
-      if defined, set this as a FILTER column if one or more BED line overlap 
-      a variant
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -ignoreFiltered, --ignoreFiltered
-      [20171031] Ignore FILTERed Variants (should be faster)
+      [20171031] Ignore FILTERed Variants (should be faster)
       Default: false
-    -mx, --max-extend
-      [20180123] used with option 'x': don't extend to more than 'max' bases.A 
-      distance specified as a positive integer.Comma are removed. The 
-      following suffixes are interpreted : b,bp,k,kb,m,mb
-      Default: 1000
     --fast, --memory
       Load files in memory (faster than tribble/tabix but memory consumming)
       Default: false
     -mofb, --min-overlap-bed-fraction
-      [20180822]	Minimum overlap required as a fraction of BED record.
+      Minimum overlap required as a fraction of BED record. A decimal number 
+      between 0.0 and 1.0. If the value ends with '%' it is interpretted as a 
+      percentage eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. 
+      e.g: '1/100' => '0.01'.
     -mofr, --min-overlap-fraction
-      [20180822] Require that the minimum fraction be satisfied for VCF OR 
-      BED. 
+      Require that the minimum fraction be satisfied for VCF OR BED.A decimal 
+      number between 0.0 and 1.0. If the value ends with '%' it is 
+      interpretted as a percentage eg. '1%' => '0.01'. A slash '/' is 
+      interpretted as a ratio. e.g: '1/100' => '0.01'.
     -mofv, --min-overlap-vcf-fraction
-      [20180822]	Minimum overlap required as a fraction of VCF record.
-    -o, --output
+      Minimum overlap required as a fraction of VCF record. A decimal number 
+      between 0.0 and 1.0. If the value ends with '%' it is interpretted as a 
+      percentage eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. 
+      e.g: '1/100' => '0.01'.
+    -o, --out
       Output file. Optional . Default: stdout
     -T, --tag
-      Name of the INFO tag name
+      Name for the INFO tag name
       Default: VCFBED
     --version
       print version and exit
+    -extend, --extend, --within-distance
+      Variant and BED must be within 'x' bp.A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb 
+      Default: 0
 
 ```
 
@@ -96,6 +100,11 @@ $ ./gradlew vcfbed
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20180406
 
 ## Source code 
 

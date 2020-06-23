@@ -44,7 +44,7 @@ public class VCFBedSetFilterTest {
 		Assert.assertEquals(new VCFBedSetFilter().instanceMain(new String[] {
 			"-o",out.toString(),
 			"--memory",
-			"-m",bedout.toString(),
+			"--include",bedout.toString(),
 			invcf
 			}),0);
 		support.assertIsVcf(out);
