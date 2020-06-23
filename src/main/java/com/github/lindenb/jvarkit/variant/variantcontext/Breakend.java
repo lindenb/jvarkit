@@ -30,6 +30,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
@@ -99,6 +100,18 @@ public interface Breakend extends Locatable {
 				map(O->O.get()).
 				collect(Collectors.toList());
 		}
+	
+	/** find the FIRST BND mappend on the same contig than ctx and return the interval between the ctx and the bnd.*/
+	public static Optional<? extends Locatable> parseInterval(final VariantContext ctx) {
+		return parse(ctx).
+				stream().
+				filter(B->B.contigsMatch(ctx)).
+				map(B->new SimpleInterval(ctx.getContig(),
+						Math.min(ctx.getStart(),B.getStart()),
+						Math.max(ctx.getEnd(),B.getEnd()))).
+				findFirst();
+		}
+
 	
 	public static Optional<Breakend> parse(final Allele alt) {
 		if(alt==null) return Optional.empty();

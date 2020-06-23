@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -64,6 +65,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
 
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -164,7 +166,11 @@ public class VCFBed extends OnePassVcfLauncher
 	private Double min_overlap_bed_fraction=  null;	
 	@Parameter(names={"-mofr","--min-overlap-fraction"},description="Require that the minimum fraction be satisfied for VCF OR BED."+FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private Double min_overlap_both_fraction=  null;
+	@Parameter(names={"--bnd"},description="for SVTYPE=BND do not try to extend the interval to the variant and the mate breakend.")
+	private boolean disable_bnd_eval  = false;
 
+	
+	
 	private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
 	private IndexedBedReader bedReader =null;
 	private ContigNameConverter contigNameConverter = null;
@@ -324,12 +330,22 @@ public class VCFBed extends OnePassVcfLauncher
 				continue;
 				}
 			
-			final SimpleInterval theInterval = new SimpleInterval(
-					normalizedContig,
-					ctx.getStart(),
-					ctx.getEnd()
-					);
 			
+			final Optional<? extends Locatable> bndOpt = this.disable_bnd_eval?Optional.empty():Breakend.parseInterval(ctx);
+			
+			final SimpleInterval theInterval;
+			
+			if(bndOpt.isPresent()) {
+				theInterval = new SimpleInterval(bndOpt.get());
+				}
+			else
+				{
+				theInterval = new SimpleInterval(
+						normalizedContig,
+						ctx.getStart(),
+						ctx.getEnd()
+						);
+				}
 			final SimpleInterval extendedInterval;
 			if(this.within_distance<=0) {
 				extendedInterval = theInterval;
@@ -338,8 +354,8 @@ public class VCFBed extends OnePassVcfLauncher
 				{
 				extendedInterval= new SimpleInterval(
 					theInterval.getContig(),
-					Math.max(1,ctx.getStart()+this.within_distance),
-					ctx.getEnd()+this.within_distance
+					Math.max(1,theInterval.getStart()+this.within_distance),
+					theInterval.getEnd()+this.within_distance
 					);
 				}
 			int count_basic_overlap = 0;
@@ -351,7 +367,7 @@ public class VCFBed extends OnePassVcfLauncher
 				for(final Set<BedLine> bedLines :this.intervalTreeMap.getOverlapping(extendedInterval)) {
 					for(final BedLine bedLine:bedLines) {
 						count_basic_overlap++;
-						if(!testFinerIntersection(ctx,bedLine)) continue;
+						if(!testFinerIntersection(theInterval,bedLine)) continue;
 						count_finer_overlap++;
 						final String newannot= this.bedJexlToString.apply(new BedJEXLContext(bedLine,ctx));
 						if(!StringUtil.isBlank(newannot))
@@ -375,7 +391,7 @@ public class VCFBed extends OnePassVcfLauncher
 						if(!theInterval.contigsMatch(bedLine)) continue;
 						if(!extendedInterval.withinDistanceOf(bedLine, this.within_distance)) continue;
 						count_basic_overlap++;
-						if(!testFinerIntersection(ctx,bedLine)) continue;
+						if(!testFinerIntersection(theInterval,bedLine)) continue;
 						count_finer_overlap++;
 	
 						final String newannot= this.bedJexlToString.apply(new BedJEXLContext(bedLine, ctx));

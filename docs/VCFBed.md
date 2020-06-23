@@ -19,6 +19,10 @@ Usage: vcfbed [options] Files
   * -B, --bed, -m, --map
       Tribble or Tabix bed file. Files must be indexed unless option --fast is 
       selected. 
+    --bnd
+      for SVTYPE=BND do not try to extend the interval to the variant and the 
+      mate breakend.
+      Default: false
     -e, --expr, --jexl, --format
       [20180124]A JEXL Expression returning a string JEXL stands for Java 
       EXpression Language.  See 
