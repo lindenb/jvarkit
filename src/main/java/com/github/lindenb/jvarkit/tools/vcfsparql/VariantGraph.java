@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfsparql;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,12 +51,13 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactor
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 
 public class VariantGraph extends GraphBase {
@@ -68,10 +70,10 @@ public class VariantGraph extends GraphBase {
 	private Locatable interval = null;
 	private AnnPredictionParser annParser = null;
 	
-	public VariantGraph(final Path variantFile) {
+	public VariantGraph(final Path variantFile) throws IOException {
 		this.variantFile = variantFile;
-		try(final VCFFileReader r=VCFReaderFactory.makeDefault().open(variantFile,false)) {
-			final VCFHeader header  = r.getFileHeader();
+		try(final VCFReader r=VCFReaderFactory.makeDefault().open(variantFile,false)) {
+			final VCFHeader header  = r.getHeader();
 			final AnnPredictionParserFactory f = new AnnPredictionParserFactory(header);
 			this.annParser = f.get();
 			}
@@ -222,12 +224,12 @@ public class VariantGraph extends GraphBase {
 		extends AbstractIterator<Triple>
 		implements CloseableIterator<Triple>
 		{
-		private final VCFFileReader vcfFileReader;
+		private final VCFReader vcfFileReader;
 		private final CloseableIterator<VariantContext> vcfIterator;
 		private final List<Triple> buffer=new ArrayList<>();
 		private long nLines=0;
 		TripleVcfIterator() {
-			this.vcfFileReader = new VCFFileReader(VariantGraph.this.variantFile,
+			this.vcfFileReader = VCFReaderFactory.makeDefault().open(VariantGraph.this.variantFile,
 					interval==null?false:true);
 			this.vcfIterator = 
 					interval==null?
@@ -253,7 +255,7 @@ public class VariantGraph extends GraphBase {
 		public void close() {
 			this.buffer.clear();
 			this.vcfIterator.close();
-			this.vcfFileReader.close();
+			CloserUtil.close(this.vcfFileReader);
 			}
 		}
 	

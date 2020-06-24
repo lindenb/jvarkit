@@ -34,6 +34,7 @@ import java.net.URL;
 import java.nio.charset.Charset;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -43,8 +44,8 @@ import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.FeatureReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
     private static final Logger LOG= Logger.build(VcfFile.class).make();
@@ -153,18 +154,18 @@ public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
 	
 	
 	private static class LocalVcf extends VcfFile {
-	private final VCFFileReader vcfFileReader;
+	private final VCFReader vcfFileReader;
 	private final File file;
 	LocalVcf(final File f,final PedFile ped) throws IOException
 		{
 		super(ped);
 		this.file=f;
-		this.vcfFileReader = new VCFFileReader(f, true);
+		this.vcfFileReader = VCFReaderFactory.makeDefault().open(f, true);
 		}
 	
 	@Override
 	public VCFHeader getHeader() {
-		return this.vcfFileReader.getFileHeader();
+		return this.vcfFileReader.getHeader();
 	}
 
 
@@ -179,7 +180,7 @@ public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
 	}
 
 	public void close() {
-		this.vcfFileReader.close();
+		CloserUtil.close(this.vcfFileReader);
 		}
 	
 	@Override

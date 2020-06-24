@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.tview;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -69,9 +68,8 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
@@ -107,7 +105,7 @@ public class TView implements Closeable
 	@Parameter(names={"--hideBases"},description="Hide bases")
 	private boolean hideBases=false;
 	@Parameter(names={"-V","--variant","--variants","--vcf"},description="Variant file. "+IOUtils.UNROLL_FILE_MESSAGE)
-	private File variantFiles = null;
+	private Path variantFiles = null;
 	@Parameter(names="--filter",description=SamRecordFilterFactory.FILTER_DESCRIPTION,splitter=NoSplitter.class)
 	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
 	@Parameter(names={"-left","--leftmargin"},description="left margin width")
@@ -265,8 +263,8 @@ public class TView implements Closeable
 	
 	private static class VcfSource
 		{
-		File vcfFile;
-		VCFFileReader vcfFileReader;
+		Path vcfFile;
+		VCFReader vcfFileReader;
 		}
 	
 	private static class Consensus
@@ -402,7 +400,7 @@ public class TView implements Closeable
 			this.samReaders.add(samReader);
 			}
 		
-		for(final File vcfFile:IOUtils.unrollFile(this.variantFiles))
+		for(final Path vcfFile:IOUtils.unrollPath(this.variantFiles))
 			{
 			final VcfSource vcfSource = new VcfSource();
 			LOG.debug("OPEN "+vcfFile);
@@ -1066,7 +1064,7 @@ public class TView implements Closeable
 			for(final VcfSource r:this.vcfReaders)
 				{
 				if(out.checkError()) break;
-				final VCFHeader header = r.vcfFileReader.getFileHeader();
+				final VCFHeader header = r.vcfFileReader.getHeader();
 				final CloseableIterator<VariantContext> iter = r.vcfFileReader.query(this.interval.getContig(), interval.getStart(), interval.getEnd());
 				final List<VariantContext> variants = new ArrayList<>();
 				while(iter.hasNext())
@@ -1076,7 +1074,7 @@ public class TView implements Closeable
 				iter.close();
 				if(variants.isEmpty()) continue;
 				
-				out.println(r.vcfFile.getPath());
+				out.println(r.vcfFile.toString());
 				if(header.hasGenotypingData())
 					{
 					for(final String sample:header.getSampleNamesInOrder()) {

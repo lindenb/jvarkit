@@ -66,13 +66,13 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
@@ -136,7 +136,7 @@ public class GtfRetroCopy extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		VCFFileReader vcfFileReader = null;
+		VCFReader vcfFileReader = null;
 		VariantContextWriter vcw0=null;
 		try {
 			/* load the reference genome */
@@ -159,7 +159,7 @@ public class GtfRetroCopy extends Launcher
 			// open the sam file
 			final String input = oneAndOnlyOneFile(args);
 			vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input), true);
-			final VCFHeader header = vcfFileReader.getFileHeader();
+			final VCFHeader header = vcfFileReader.getHeader();
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			
 			final Comparator<String> contigCmp =

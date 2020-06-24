@@ -10,9 +10,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 
 public class JexlVariantPredicateTest {
 	private final TestSupport support = new TestSupport();
@@ -33,7 +33,7 @@ public void test01(final String inputFile,final String expr)
 	throws IOException
 	{
 	Predicate<VariantContext> pred = JexlVariantPredicate.create(expr);
-	final VCFFileReader r =new VCFFileReader(Paths.get(inputFile),false);
+	final htsjdk.variant.vcf.VCFReader r =VCFReaderFactory.makeDefault().open(Paths.get(inputFile),false);
 	r.iterator().stream().filter(pred);
 	r.close();
 	}

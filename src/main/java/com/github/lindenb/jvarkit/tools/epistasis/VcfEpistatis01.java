@@ -55,9 +55,9 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 
@@ -237,8 +237,8 @@ public class VcfEpistatis01 extends Launcher {
 				return -1;
 				}
 			
-			VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
-			final VCFHeader header =  vcfFileReader.getFileHeader();
+			VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
+			final VCFHeader header =  vcfFileReader.getHeader();
 
 			
 			final Pedigree pedigree;

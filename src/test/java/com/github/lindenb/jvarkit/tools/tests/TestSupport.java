@@ -31,6 +31,7 @@ import com.github.lindenb.jvarkit.dict.ReferenceRegistry;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
@@ -51,8 +52,8 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 public class TestSupport {
 	public final Random random = new Random();
@@ -72,7 +73,7 @@ public class TestSupport {
 	public Predicate<String> vcfhasIndex = (F)->{
 		final Path p = Paths.get(F);
 		if(!Files.exists(p)) return false;
-		try (VCFFileReader sr = new VCFFileReader(p,true)) {
+		try (VCFReader sr = VCFReaderFactory.makeDefault().open(p,true)) {
 			return sr.isQueryable();
 			}
 		catch(Throwable err) {
@@ -130,7 +131,7 @@ public class TestSupport {
 		}
 	
 	public Stream<VariantContext> variantStream(final Path vcfFile ) {
-		final VCFFileReader r = new VCFFileReader(vcfFile,false);
+		final VCFReader r = VCFReaderFactory.makeDefault().open(vcfFile,false);
 		final CloseableIterator<VariantContext> iter = r.iterator();
 		return iter.stream().onClose(()->{CloserUtil.close(iter);CloserUtil.close(r);});
 		}
@@ -342,7 +343,7 @@ public class TestSupport {
 			return n;
 			}
 		else if(f.getFileName().toString().endsWith(".vcf") || f.getFileName().toString().endsWith(".vcf.gz")) {
-			final VCFFileReader sr = new VCFFileReader(f,false);
+			final VCFReader sr = VCFReaderFactory.makeDefault().open(f,false);
 			final CloseableIterator<VariantContext> iter =sr.iterator();
 			final long n= iter.stream().count();
 			iter.close();
@@ -376,8 +377,8 @@ public class TestSupport {
 			}
 		int status =0;
 		final Path vcfIn = Paths.get(vcfFile);
-		final VCFFileReader r= new VCFFileReader(vcfIn,false);
-		final VCFHeader header=r.getFileHeader();
+		final VCFReader r= VCFReaderFactory.makeDefault().open(vcfIn,false);
+		final VCFHeader header=r.getHeader();
 		r.close();
 		final List<String> samples= new ArrayList<>(header.getSampleNamesInOrder());
 		final List<TmpSample> ped= new ArrayList<>();

@@ -12,13 +12,14 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 @AlsoTest(LauncherTest.class)
 public class VCFCompareGTTest{
@@ -36,8 +37,8 @@ private VariantContext mute(final VariantContext ctx) {
 private Path mute(final Path in) throws IOException {	
 	Path outVcf = support.createTmpPath(".vcf");
 	final VariantContextWriter w = VCFUtils.createVariantContextWriterToPath(outVcf);
-	final VCFFileReader r = new VCFFileReader(in,true);
-	w.writeHeader(r.getFileHeader());
+	final VCFReader r = VCFReaderFactory.makeDefault().open(in,true);
+	w.writeHeader(r.getHeader());
 	final CloseableIterator<VariantContext> iter = r.iterator();
 	while(iter.hasNext())
 		{

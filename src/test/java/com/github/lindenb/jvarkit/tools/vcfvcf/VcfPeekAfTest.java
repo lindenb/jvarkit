@@ -8,11 +8,12 @@ import org.testng.Assert;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 @AlsoTest(LauncherTest.class)
 public class VcfPeekAfTest {
@@ -35,7 +36,7 @@ public void testACAN01()
 					}),0);
 			support.assertIsVcf(out);
 			
-			try(VCFFileReader r1= new VCFFileReader(out,false)) {
+			try(VCFReader r1= VCFReaderFactory.makeDefault().open(out,false)) {
 				Assert.assertEquals(
 					r1.iterator().
 					stream().
@@ -67,7 +68,7 @@ public void testGT01()
 					}),0);
 			support.assertIsVcf(out);
 			
-			try(VCFFileReader r1= new VCFFileReader(out,false)) {
+			try(VCFReader r1= VCFReaderFactory.makeDefault().open(out,false)) {
 				Assert.assertEquals(
 					r1.iterator().
 					stream().
@@ -100,7 +101,7 @@ public void testAF01()
 				}),0);
 		support.assertIsVcf(out);
 		
-		try(VCFFileReader r1= new VCFFileReader(out,false)) {
+		try(VCFReader r1= VCFReaderFactory.makeDefault().open(out,false)) {
 			Assert.assertEquals(
 				r1.iterator().
 				stream().
@@ -133,7 +134,7 @@ public void testAF02()
 					}),0);
 			support.assertIsVcf(out);
 			
-			try(VCFFileReader r1= new VCFFileReader(out,false)) {
+			try(VCFReader r1= VCFReaderFactory.makeDefault().open(out,false)) {
 				CloseableIterator<VariantContext> iter= r1.iterator();
 				while(iter.hasNext()) {
 					VariantContext ctx = iter.next();

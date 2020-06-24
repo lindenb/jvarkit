@@ -54,14 +54,15 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import htsjdk.variant.vcf.VCFIterator;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
@@ -151,7 +152,7 @@ public class VcfPeekVcf extends Launcher
 	
 
 	private final Set<String> peek_info_tags=new HashSet<String>();
-	private VCFFileReader indexedVcfFileReader=null;
+	private VCFReader indexedVcfFileReader=null;
 	private final List<VariantContext> buffer = new ArrayList<>();
 	private Interval last_buffer_interval = null;
 	
@@ -242,7 +243,7 @@ public class VcfPeekVcf extends Launcher
 			
 			final Map<String,VCFInfoHeaderLine> databaseTags = new HashMap<String, VCFInfoHeaderLine>();
 			
-			final VCFHeader databaseHeader= this.indexedVcfFileReader.getFileHeader();
+			final VCFHeader databaseHeader= this.indexedVcfFileReader.getHeader();
 			
 			 
 
@@ -479,7 +480,7 @@ public class VcfPeekVcf extends Launcher
 				{
 				LOG.warn("No tag defined");
 				}
-			this.indexedVcfFileReader = new VCFFileReader(resourceVcfFile,true);
+			this.indexedVcfFileReader = VCFReaderFactory.makeDefault().open(resourceVcfFile,true);
 
 			return doVcfToVcf(args, this.outputFile);
 			} 

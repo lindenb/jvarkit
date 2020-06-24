@@ -11,8 +11,8 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 @AlsoTest({StringUtilsTest.class})
@@ -43,9 +43,9 @@ void test01(String key,int expect,int expectValids) {
 @Test(dataProvider="data01")
 void testValid(String key,int expect,int expectValids) throws IOException
 	{
-	final VCFFileReader ft =  new VCFFileReader(Paths.get(support.resource("test_vcf01.vcf")),false);
+	final htsjdk.variant.vcf.VCFReader ft =  VCFReaderFactory.makeDefault().open(Paths.get(support.resource("test_vcf01.vcf")),false);
 	final AFExtractorFactory ex = new AFExtractorFactory();
-	final VCFHeader header =  ft.getFileHeader();
+	final VCFHeader header =  ft.getHeader();
 	
 	final List<AFExtractorFactory.AFExtractor> L=ex.parseFieldExtractors(key);
 	int n_valid =  0;

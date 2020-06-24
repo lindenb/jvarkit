@@ -87,8 +87,8 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 
 /**
@@ -175,7 +175,7 @@ public class SvToSVG extends Launcher
 	private Document document = null;
 	private final double arrow_w = 5;
 	private ReferenceSequenceFile indexedFastaSequenceFile = null;
-	private VCFFileReader vcfFileReader = null;
+	private VCFReader vcfFileReader = null;
 	
 	private final String DEBUG_READ="___";
 	
@@ -691,7 +691,7 @@ public class SvToSVG extends Launcher
 				/** print variants */
 				if(this.vcfFileReader!=null)
 					{
-					final VCFHeader header = this.vcfFileReader.getFileHeader();
+					final VCFHeader header = this.vcfFileReader.getHeader();
 					final SAMSequenceDictionary vcfdict = header.getSequenceDictionary();
 					final ContigNameConverter ctgConver = (vcfdict==null?null:ContigNameConverter.fromOneDictionary(vcfdict));
 					final String sname = ctgConver==null?null:ctgConver.apply(region.interval.getContig());

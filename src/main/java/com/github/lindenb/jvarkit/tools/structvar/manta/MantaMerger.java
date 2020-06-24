@@ -78,13 +78,13 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
@@ -204,8 +204,8 @@ public int doWork(final List<String> args) {
 				throw new JvarkitException.DictionariesAreNotTheSame(dict1, dict);
 				}
 			if(tokens.length<2 || StringUtils.isBlank(tokens[1])) {
-				try(VCFFileReader r= VCFReaderFactory.makeDefault().open(vcfInput.vcfPath, false)) {
-					List<String> snl = r.getFileHeader().getSampleNamesInOrder();
+				try(VCFReader r= VCFReaderFactory.makeDefault().open(vcfInput.vcfPath, false)) {
+					List<String> snl = r.getHeader().getSampleNamesInOrder();
 					if(snl.size()==1) {
 						vcfInput.sample = snl.get(0);
 						}
@@ -302,7 +302,7 @@ public int doWork(final List<String> args) {
 			for(final VcfInput vcfinput: sample2inputs.values()) {
 				vcfinput.contigCount=0;//reset count for this contig
 				
-				try(VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
+				try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
 					vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength()).
 						stream().
 						filter(V->discard_bnd==false || !V.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")).
@@ -360,7 +360,7 @@ public int doWork(final List<String> args) {
 
 			
 			for(final VcfInput vcfinput: sample2inputs.values()) {
-				try(VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
+				try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
 					
 					final CloseableIterator<VariantContext> iter = vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength());
 					while(iter.hasNext()) {

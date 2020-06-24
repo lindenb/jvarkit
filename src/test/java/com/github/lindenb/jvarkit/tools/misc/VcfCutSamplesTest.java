@@ -16,10 +16,12 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
-@AlsoTest(VCFUtilsTest.class,LauncherTest.class)
+
+@AlsoTest({VCFUtilsTest.class,LauncherTest.class})
 public class VcfCutSamplesTest  {
 
 	private final TestSupport support = new TestSupport();
@@ -35,8 +37,8 @@ public class VcfCutSamplesTest  {
 	@Test(dataProvider="src01")
 	public void test01(final String vcfpath) throws IOException {
 		try {
-			VCFFileReader r= new VCFFileReader(Paths.get(vcfpath),false);
-			final List<String> samples = new ArrayList<>(r.getFileHeader().getSampleNamesInOrder());
+			VCFReader r= VCFReaderFactory.makeDefault().open(Paths.get(vcfpath),false);
+			final List<String> samples = new ArrayList<>(r.getHeader().getSampleNamesInOrder());
 			r.close();	
 			if(samples.isEmpty() ) return;
 			Collections.shuffle(samples, support.random);
@@ -55,8 +57,8 @@ public class VcfCutSamplesTest  {
 			Assert.assertEquals(new VcfCutSamples().instanceMain(args),0);
 			support.assertIsVcf(vcfOut);
 			
-			r= new VCFFileReader(vcfOut,false);
-			Assert.assertEquals(new TreeSet<>(keep), new TreeSet<>(r.getFileHeader().getSampleNamesInOrder()));
+			r= VCFReaderFactory.makeDefault().open(vcfOut,false);
+			Assert.assertEquals(new TreeSet<>(keep), new TreeSet<>(r.getHeader().getSampleNamesInOrder()));
 			r.close(); 
 			}
 		finally {

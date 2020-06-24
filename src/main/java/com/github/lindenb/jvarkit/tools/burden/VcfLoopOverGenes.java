@@ -82,9 +82,9 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 
 /***
 BEGIN_DOC
@@ -331,7 +331,7 @@ public class VcfLoopOverGenes extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		PrintWriter pw=null;
-		VCFFileReader vcfFileReader=null;
+		VCFReader vcfFileReader=null;
 		CloseableIterator<VariantContext> iter=null;
 		CloseableIterator<GeneLoc> iter2=null;
 		BufferedReader br=null;
@@ -341,13 +341,13 @@ public class VcfLoopOverGenes extends Launcher {
 			
 			final Path vcf = Paths.get(oneAndOnlyOneFile(args));
 			vcfFileReader = VCFReaderFactory.makeDefault().open(vcf,(this.geneFile!=null || !StringUtil.isBlank(this.regionStr)));
-			this.dictionary = vcfFileReader.getFileHeader().getSequenceDictionary();
+			this.dictionary = vcfFileReader.getHeader().getSequenceDictionary();
 			if(this.dictionary==null)
 				{
 				throw new JvarkitException.VcfDictionaryMissing(vcf);
 				}
 
-			final VcfTools tools = new VcfTools(vcfFileReader.getFileHeader());
+			final VcfTools tools = new VcfTools(vcfFileReader.getHeader());
 
 			if(!this.prefix.isEmpty() && !this.prefix.endsWith("."))
 				{	
@@ -381,7 +381,7 @@ public class VcfLoopOverGenes extends Launcher {
 					iter = vcfFileReader.query(interval.getContig(), interval.getStart(), interval.getEnd());
 					}
 				
-				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(vcfFileReader.getFileHeader()).logger(LOG);
+				final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(vcfFileReader.getHeader()).logger(LOG);
 				
 				/** split VCF per annotations */
 
@@ -674,7 +674,7 @@ public class VcfLoopOverGenes extends Launcher {
 					OutputStream vcfOutputStream=null;
 					VariantContextWriter vw=null;
 					int countVariants=0;
-					final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(vcfFileReader.getFileHeader()).logger(LOG).prefix(geneName+" "+bedLine.getContig()+":"+bedLine.getStart()+"-"+bedLine.getEnd());
+					final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(vcfFileReader.getHeader()).logger(LOG).prefix(geneName+" "+bedLine.getContig()+":"+bedLine.getStart()+"-"+bedLine.getEnd());
 					iter = vcfFileReader.query(bedLine.getContig(), bedLine.getStart(),bedLine.getEnd());
 					while(iter.hasNext())
 						{
@@ -765,7 +765,7 @@ public class VcfLoopOverGenes extends Launcher {
 							{
 							LOG.info(filename);							
 							manifest.println(outputVcfName);
-							final VCFHeader header= new VCFHeader(vcfFileReader.getFileHeader());
+							final VCFHeader header= new VCFHeader(vcfFileReader.getHeader());
 							header.addMetaDataLine(new VCFHeaderLine(VCF_HEADER_SPLITKEY, filename));
 							vcfOutputStream = archive.openOuputStream(outputVcfName);
 							vw = VCFUtils.createVariantContextWriterToOutputStream(vcfOutputStream);

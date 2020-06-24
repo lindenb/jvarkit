@@ -39,6 +39,7 @@ import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.bcf2.BCF2Codec;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 /** Factory creating VCFReader */
 public abstract class VCFReaderFactory {
@@ -74,12 +75,12 @@ public abstract class VCFReaderFactory {
 		} 
 	
 	/** open new VCFReader with default {@link #isRequireIndex()} */
-	public VCFFileReader open(final String pathOrUrl) {
+	public VCFReader open(final String pathOrUrl) {
 		return open(pathOrUrl,isRequireIndex());
 	}
 	
 	/** open new VCFReader */
-	public VCFFileReader open(final String pathOrUrl,boolean requireIndex) {
+	public VCFReader open(final String pathOrUrl,boolean requireIndex) {
 		if(IOUtil.isUrl(pathOrUrl)) {
 			
 		}
@@ -89,12 +90,12 @@ public abstract class VCFReaderFactory {
 
 	
 	/** open new VCFReader with default {@link #isRequireIndex()} */
-	public VCFFileReader open(final Path p) {
+	public VCFReader open(final Path p) {
 		return open(p,isRequireIndex());
 		}
 	
 	/** open new VCFReader */
-	public VCFFileReader open(final Path path,boolean requireIndex) {
+	public VCFReader open(final Path path,boolean requireIndex) {
 		if(BcfToolsUtils.isBcfToolsRequired(path)) {
 			throw new IllegalArgumentException("sorry, cannot open \""+path+"\" support is only for "+BCF2Codec.ALLOWED_BCF_VERSION);
 			}
@@ -103,12 +104,12 @@ public abstract class VCFReaderFactory {
 		}
 	
 	/** open new VCFReader */
-	public final VCFFileReader open(final File path,boolean requireIndex) {
+	public final VCFReader open(final File path,boolean requireIndex) {
 		return open(path.toPath(),requireIndex);
 		}
 	
 	/** open new VCFReader with default {@link #isRequireIndex()} */
-	public final VCFFileReader open(final File p) {
+	public final VCFReader open(final File p) {
 		return open(p,isRequireIndex());
 		}
 

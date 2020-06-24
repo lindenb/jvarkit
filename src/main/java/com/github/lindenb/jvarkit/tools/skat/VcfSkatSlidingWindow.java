@@ -48,14 +48,13 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
@@ -138,7 +137,7 @@ public class VcfSkatSlidingWindow extends Launcher
 		@Override
 		public Integer call() throws Exception {
 			LOG.info("calling "+this.fromTo);
-			VCFFileReader vcfFileReader = null;
+			VCFReader vcfFileReader = null;
 			CloseableIterator<VariantContext> iter=null;
 			int x=1;
 			try
@@ -225,9 +224,9 @@ public class VcfSkatSlidingWindow extends Launcher
 			final VCFHeader header;
 			final SAMSequenceDictionary dict;
 			final File vcfFile= new File(oneAndOnlyOneFile(args));
-			try (final VCFFileReader vr= VCFReaderFactory.makeDefault().open(vcfFile, true))
+			try (final VCFReader vr= VCFReaderFactory.makeDefault().open(vcfFile, true))
 				{
-				header=vr.getFileHeader();
+				header=vr.getHeader();
 				dict=header.getSequenceDictionary();
 				}
 			if(dict==null || dict.isEmpty())

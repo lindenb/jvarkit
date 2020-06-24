@@ -38,6 +38,8 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
+
 import com.github.lindenb.jvarkit.util.vcf.readers.DelegateVcfIterator;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -51,7 +53,6 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 public class ProgressFactory {
@@ -182,8 +183,8 @@ public ProgressFactory dictionary(final SamReader r) {
 	return dictionary(r==null?null:r.getFileHeader());
 	}
 
-public ProgressFactory dictionary(final VCFFileReader r) {
-	return dictionary(r==null?null:r.getFileHeader());
+public ProgressFactory dictionary(final VCFReader r) {
+	return dictionary(r==null?null:r.getHeader());
 	}
 
 /** when we know that we're only reading a defined region of the genome, create a one-record dictionary from this locatable */

@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.PeekIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
@@ -39,7 +40,6 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -64,6 +64,8 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
+
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -162,7 +164,7 @@ public class VcfCalledWithAnotherMethod extends Launcher
 	private class ExternalVcf
 		{
 		private final File vcfFile;
-		private VCFFileReader reader;
+		private VCFReader reader;
 		private VariantContext prev_ctx=null;
 		private final List<VariantContext> buffer=new ArrayList<>();
 		final CloseableIterator<VariantContext> citer;
@@ -179,10 +181,10 @@ public class VcfCalledWithAnotherMethod extends Launcher
 			if(key.endsWith(".vcf")) key = key.substring(0, key.length()-4);
 			if(key.endsWith(".bcf")) key = key.substring(0, key.length()-4);
 			
-			if(this.reader.getFileHeader().getSequenceDictionary()==null) {
+			if(this.reader.getHeader().getSequenceDictionary()==null) {
 				throw new JvarkitException.VcfDictionaryMissing(this.vcfFile);
 				}
-			if(!SequenceUtil.areSequenceDictionariesEqual(this.reader.getFileHeader().getSequenceDictionary(), dictionary))
+			if(!SequenceUtil.areSequenceDictionariesEqual(this.reader.getHeader().getSequenceDictionary(), dictionary))
 				{
 				throw new JvarkitException.UserError("not same sequence dictionary between input and "+this.vcfFile);
 				}
@@ -237,7 +239,7 @@ public class VcfCalledWithAnotherMethod extends Launcher
 			}
 		
 		void close() {
-			this.reader.close();
+			CloserUtil.close(this.reader);
 			this.citer.close();
 			this.buffer.clear();
 			}

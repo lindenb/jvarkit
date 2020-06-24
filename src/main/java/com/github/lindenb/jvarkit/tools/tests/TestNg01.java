@@ -28,7 +28,6 @@ import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
@@ -133,8 +132,8 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 class TestNg01 {
 	static final File TEST_RESULTS_DIR= new File("test-results");
@@ -259,18 +258,18 @@ class TestNg01 {
 		}
 	
 	 static Stream<VariantContext> streamVcf(final File f) {
-		final VCFFileReader r = VCFReaderFactory.makeDefault().open(f,false);
+		final VCFReader r = VCFReaderFactory.makeDefault().open(f,false);
 		final CloseableIterator<VariantContext> iter = r.iterator();
-		return StreamSupport.stream(new IterableAdapter<VariantContext>(iter).spliterator(), false).onClose(()->{iter.close();r.close();});
+		return StreamSupport.stream(new IterableAdapter<VariantContext>(iter).spliterator(), false).onClose(()->{iter.close();CloserUtil.close(r);});
 		}
 	 static Stream<VariantContext> streamJeterVcf() {
 		return streamVcf(JETER_VCF);
 		}
 	
 	 static VCFHeader getVcfHeader(final File f) {
-		final VCFFileReader r = VCFReaderFactory.makeDefault().open(f,false);
-		final VCFHeader h = r.getFileHeader();
-		r.close();
+		final VCFReader r = VCFReaderFactory.makeDefault().open(f,false);
+		final VCFHeader h = r.getHeader();
+		CloserUtil.close(r);
 		return h;
 	 	}
     

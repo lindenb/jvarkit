@@ -65,7 +65,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -86,7 +86,6 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 
 
 /**
@@ -858,7 +857,7 @@ public class WesCnvTView  extends Launcher {
 						{
 						for(final String vcfFile:inputs)
 							{
-							final VCFFileReader fr = VCFReaderFactory.makeDefault().open(Paths.get(vcfFile), false);
+							final VCFReader fr = VCFReaderFactory.makeDefault().open(Paths.get(vcfFile), false);
 							fr.iterator().stream().
 								filter(acceptVariant).
 								map(mapper).

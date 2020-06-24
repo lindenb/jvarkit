@@ -110,6 +110,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IterableAdapter;
@@ -117,7 +118,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -475,17 +476,17 @@ public  class CoverageServer extends Launcher {
 				}
 			}
 		else if(FileExtensions.VCF_LIST.stream().anyMatch(X->fname.endsWith(X))) {
-			VCFFileReader vcfFileReader= null;
+			VCFReader vcfFileReader= null;
 			try {
 				vcfFileReader = VCFReaderFactory.makeDefault().open(this.knownCnvFile,true);
 				
-				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getFileHeader()));
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getHeader()));
 				final String ctg = cvt.apply(region.getContig());
 				if(StringUtils.isBlank(ctg)) {
 					vcfFileReader.close();
 					return Stream.empty();
 					}
-				final VCFFileReader vcfFileReaderFinal = vcfFileReader;
+				final VCFReader vcfFileReaderFinal = vcfFileReader;
 				return vcfFileReader.query(ctg, region.getStart(), region.getEnd()).
 						stream().
 						filter(VC->!VC.isSNP()).
@@ -494,10 +495,10 @@ public  class CoverageServer extends Launcher {
 							if(VC.hasID()) list.add(VC.getID());
 							if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
 							return new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));}).
-						onClose(()->vcfFileReaderFinal.close());
+						onClose(()->CloserUtil.close(vcfFileReaderFinal));
 				}
 			catch(final Throwable err) {
-				if(vcfFileReader!=null) vcfFileReader.close();
+				if(vcfFileReader!=null) CloserUtil.close(vcfFileReader);
 				LOG.error(err);
 				return Stream.empty();
 				}

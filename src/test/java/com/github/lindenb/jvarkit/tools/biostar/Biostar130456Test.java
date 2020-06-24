@@ -15,8 +15,9 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 public class Biostar130456Test {
 	private final TestSupport support = new TestSupport();
@@ -33,8 +34,8 @@ public class Biostar130456Test {
 @Test(dataProvider="src1")
 public void test01(final String vcfpath) throws IOException {
 	try {
-	final VCFFileReader r= new VCFFileReader(new File(vcfpath),false);
-	final Set<String> samples = new HashSet<>(r.getFileHeader().getSampleNamesInOrder());
+	final VCFReader r= VCFReaderFactory.makeDefault().open(new File(vcfpath),false);
+	final Set<String> samples = new HashSet<>(r.getHeader().getSampleNamesInOrder());
 	r.close();	
 	if(samples.isEmpty()) return;
 	
@@ -51,8 +52,8 @@ public void test01(final String vcfpath) throws IOException {
 	for(final String s:samples) {
 		final Path vcfIn2 = Paths.get(vcfOut.replaceAll("__SAMPLE__", s));
 		support.assertIsVcf(vcfIn2);
-		final VCFFileReader r2= new VCFFileReader(vcfIn2,false);
-		final List<String> samples2 = r2.getFileHeader().getSampleNamesInOrder();
+		final VCFReader r2= VCFReaderFactory.makeDefault().open(vcfIn2,false);
+		final List<String> samples2 = r2.getHeader().getSampleNamesInOrder();
 		r2.close();
 		Assert.assertTrue(samples2.size()==1);
 		Assert.assertEquals(samples2.get(0), s);

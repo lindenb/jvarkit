@@ -62,7 +62,7 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 /**
  BEGIN_DOC
@@ -134,8 +134,8 @@ extends AbstractVcfBurden
 	
 
 	@Override
-	protected void runBurden(PrintWriter pw, VCFFileReader vcfReader, VariantContextWriter vcw) throws IOException {
-			final SAMSequenceDictionary vcfDict = SequenceDictionaryUtils.extractRequired(vcfReader.getFileHeader());
+	protected void runBurden(PrintWriter pw, VCFReader vcfReader, VariantContextWriter vcw) throws IOException {
+			final SAMSequenceDictionary vcfDict = SequenceDictionaryUtils.extractRequired(vcfReader.getHeader());
 			final List<Gene> all_genes;
 			try(GtfReader gtfReader = new GtfReader(this.gtfFile)){
 				gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(vcfDict));

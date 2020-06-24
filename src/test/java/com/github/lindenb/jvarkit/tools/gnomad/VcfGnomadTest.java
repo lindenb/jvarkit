@@ -14,17 +14,18 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.tribble.index.IndexFactory;
 import htsjdk.tribble.index.tabix.TabixIndex;
 import htsjdk.variant.vcf.VCFCodec;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 
 @AlsoTest(LauncherTest.class)
 public class VcfGnomadTest {
@@ -113,8 +114,8 @@ public void testHeaderV2_1(final String vcfpath) throws IOException {
 				vcfpath
 				}),0);
 		support.assertIsVcf(vcfOut);
-		try (VCFFileReader vcg=new VCFFileReader(vcfOut, false)) {
-			VCFHeader h = vcg.getFileHeader();
+		try (VCFReader vcg= VCFReaderFactory.makeDefault().open(vcfOut, false)) {
+			VCFHeader h = vcg.getHeader();
 			Assert.assertNotNull(h);
 			for(int i=0;i< 2;++i) {
 				String prefix="gnomad_"+(i==0?"exome":"genome")+"_";

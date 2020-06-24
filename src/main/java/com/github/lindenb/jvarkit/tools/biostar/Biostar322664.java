@@ -64,7 +64,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 /** 
 
@@ -159,7 +159,7 @@ public class Biostar322664 extends Launcher
 		}
 		
 		final IntervalTreeMap<VariantContext> variantMap=new IntervalTreeMap<>();
-		VCFFileReader vcfFileReader=null;
+		VCFReader vcfFileReader=null;
 		CloseableIterator<VariantContext> viter=null;
 		SamReader samReader = null;
 		SAMFileWriter samFileWriter = null;

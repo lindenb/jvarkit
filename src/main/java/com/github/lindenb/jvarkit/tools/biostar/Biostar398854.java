@@ -52,7 +52,7 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 /**
  BEGIN_DOC
  ## Example
@@ -92,14 +92,14 @@ public class Biostar398854 extends Launcher {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceSequenceFile);
 			
 			
-			try(VCFFileReader in = VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)),true)) {
+			try(VCFReader in = VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)),true)) {
 				out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 				final PrintWriter final_out= out;
-				final List<String> samples = in.getFileHeader().getSampleNamesInOrder();
+				final List<String> samples = in.getHeader().getSampleNamesInOrder();
 
 				
 				try(GtfReader gtfReader= new GtfReader(this.gtfIn)) {
-					final SAMSequenceDictionary dict2 = in.getFileHeader().getSequenceDictionary();
+					final SAMSequenceDictionary dict2 = in.getHeader().getSequenceDictionary();
 					if(dict2!=null) SequenceUtil.assertSequenceDictionariesEqual(dict, dict2);
 					gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 					gtfReader.getAllGenes().

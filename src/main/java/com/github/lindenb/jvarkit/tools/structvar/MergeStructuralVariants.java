@@ -65,12 +65,12 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
@@ -108,8 +108,8 @@ public class MergeStructuralVariants extends Launcher{
 		
 		VcfInput(final Path path) {
 			//this.path = path;
-			final VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(path,false);
-			final VCFHeader header = vcfFileReader.getFileHeader();
+			final VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(path,false);
+			final VCFHeader header = vcfFileReader.getHeader();
 			
 			this.dict = SequenceDictionaryUtils.extractRequired(header);
 			
@@ -117,7 +117,7 @@ public class MergeStructuralVariants extends Launcher{
 				this.sample = path.toString();
 				}
 			else if(header.getNGenotypeSamples()!=1) {
-				vcfFileReader.close();
+				CloserUtil.close(vcfFileReader);
 				throw new IllegalArgumentException("Expected one and only one genotyped sample in "+path);
 				}
 			else
@@ -137,7 +137,7 @@ public class MergeStructuralVariants extends Launcher{
 							);
 					this.callMap.put(key,V);
 					});
-			vcfFileReader.close();
+			CloserUtil.close(vcfFileReader);
 			}
 		}
 

@@ -70,8 +70,8 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 /**
 BEGIN_DOC
@@ -350,8 +350,8 @@ public class VcfPhased01 extends Launcher {
 	}
 	private void openPhasedVcf(final Path path) throws IOException {
 		final PhasedVcf phased = new PhasedVcf(path);
-		try(final VCFFileReader vcfFileReader  = VCFReaderFactory.makeDefault().open(path,true)) {
-			final VCFHeader header = vcfFileReader.getFileHeader();
+		try(final VCFReader vcfFileReader  = VCFReaderFactory.makeDefault().open(path,true)) {
+			final VCFHeader header = vcfFileReader.getHeader();
 			final List<String> samples = header.getSampleNamesInOrder();
 			if(samples.isEmpty()) throw new IOException("no sample in "+path);
 			if(samples.size()>1) throw new IOException("more than one sample in "+path);

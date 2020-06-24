@@ -70,8 +70,8 @@ import htsjdk.variant.variantcontext.VariantContextUtils;
 import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.filter.JavascriptVariantFilter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 
 /**
@@ -599,12 +599,12 @@ private class ViewVcfHandler extends AbstractHandler
 			flush();
 			
 			
-			VCFFileReader reader=null;
+			VCFReader reader=null;
 			CloseableIterator<VariantContext> iter=null;
 			try
 				{
 				reader = VCFReaderFactory.makeDefault().open(vcfFile, true);
-				final VCFHeader header = reader.getFileHeader();
+				final VCFHeader header = reader.getHeader();
 				if(header==null)
 					{
 					writeError("Cannot get header of "+header);

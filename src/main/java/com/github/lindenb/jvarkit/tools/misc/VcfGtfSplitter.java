@@ -71,9 +71,9 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 
 /**
 
@@ -350,7 +350,7 @@ public class VcfGtfSplitter
 	
 	private void split(
 			final AbstractSplitter splitter,
-			final VCFFileReader vcfFileReader,
+			final VCFReader vcfFileReader,
 			final VCFHeader header,
 			final SAMSequenceDictionary dict,
 			final ArchiveFactory archiveFactory,
@@ -456,7 +456,7 @@ public class VcfGtfSplitter
 	public int doWork(final List<String> args) {
 		ArchiveFactory archiveFactory = null;
 		PrintWriter manifest = null;
-		VCFFileReader vcfFileReader = null;
+		VCFReader vcfFileReader = null;
 		try {
 			this.attCleaner = AttributeCleaner.compile(this.xannotatePattern);
 			
@@ -487,7 +487,7 @@ public class VcfGtfSplitter
 			final Path tmpVcf = Files.createTempFile("tmp.",(use_bcf?FileExtensions.BCF:FileExtensions.COMPRESSED_VCF));
 			String input = oneAndOnlyOneFile(args);
 			vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input),true);
-			final VCFHeader header1 = vcfFileReader.getFileHeader();
+			final VCFHeader header1 = vcfFileReader.getHeader();
 			final SAMSequenceDictionary dict = header1.getSequenceDictionary();
 			if(dict==null && this.use_bcf) {
 				throw new JvarkitException.VcfDictionaryMissing(input);

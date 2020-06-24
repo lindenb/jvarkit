@@ -57,9 +57,9 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 
@@ -79,7 +79,7 @@ public class FastGenotypeGVCFs extends Launcher {
 		implements Closeable
 		{
 		private final File gvcfFile;
-		private final VCFFileReader vcfFileReader;
+		private final VCFReader vcfFileReader;
 		private final CloseableIterator<VariantContext> iter;
 		private final List<VariantContext> buffer = new ArrayList<>();
 		private final List<String> samples;
@@ -87,7 +87,7 @@ public class FastGenotypeGVCFs extends Launcher {
 			this.gvcfFile = vcf;
 			this.vcfFileReader = VCFReaderFactory.makeDefault().open(vcf.toPath(),false);
 			this.iter = this.vcfFileReader.iterator();
-			this.samples = this.vcfFileReader.getFileHeader().getSampleNamesInOrder();
+			this.samples = this.vcfFileReader.getHeader().getSampleNamesInOrder();
 			}
 		
 		String getSource() {
@@ -280,7 +280,7 @@ public class FastGenotypeGVCFs extends Launcher {
 				LOG.error("No gvcf file was given");
 				return -1;
 				}
-			this.dictionary  = gvcfSources.get(0).vcfFileReader.getFileHeader().getSequenceDictionary();
+			this.dictionary  = gvcfSources.get(0).vcfFileReader.getHeader().getSequenceDictionary();
 			if(this.dictionary==null)
 				{
 				LOG.error("Dict missing in "+gvcfSources.get(0).gvcfFile);
@@ -288,7 +288,7 @@ public class FastGenotypeGVCFs extends Launcher {
 				}
 			this.contigComparator = new ContigDictComparator(this.dictionary);
 			
-			gvcfSources.stream().map(S->S.vcfFileReader.getFileHeader().getSequenceDictionary()).forEach(D->{
+			gvcfSources.stream().map(S->S.vcfFileReader.getHeader().getSequenceDictionary()).forEach(D->{
 				if(D==null || !SequenceUtil.areSequenceDictionariesEqual(D, dictionary))
 					{
 					throw new JvarkitException.UserError("dict missing or dict are not the same");
@@ -313,7 +313,7 @@ public class FastGenotypeGVCFs extends Launcher {
 					VCFConstants.GENOTYPE_QUALITY_KEY,
 					VCFConstants.GENOTYPE_PL_KEY
 					);
-			metaData.addAll(gvcfSources.stream().flatMap(S->S.vcfFileReader.getFileHeader().getFormatHeaderLines().stream()).collect(Collectors.toSet()));
+			metaData.addAll(gvcfSources.stream().flatMap(S->S.vcfFileReader.getHeader().getFormatHeaderLines().stream()).collect(Collectors.toSet()));
 			
 			final VCFHeader header= new VCFHeader(
 					metaData, 

@@ -50,10 +50,10 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 
 
 public abstract class AbstractVcfBurden
@@ -135,14 +135,14 @@ extends Launcher
 	
 	protected abstract void runBurden(
 			final PrintWriter out,
-			final VCFFileReader vcfReader,
+			final VCFReader vcfReader,
 			final VariantContextWriter vcw
 			) throws IOException;
 	
 	@Override
 	public int doWork(final List<String> args) {
 		PrintWriter pw = null;
-		VCFFileReader vcfReader = null;
+		VCFReader vcfReader = null;
 		VariantContextWriter vcw = null;
 		try {
 			this.pedigree = new PedigreeParser().parse(this.pedFile);
@@ -153,7 +153,7 @@ extends Launcher
 			
 			final String vcfIn = super.oneAndOnlyOneFile(args);
 			vcfReader = VCFReaderFactory.makeDefault().open(Paths.get(vcfIn),true);
-			final VCFHeader header = vcfReader.getFileHeader();
+			final VCFHeader header = vcfReader.getHeader();
 			final Set<String> samplesInVcf = new HashSet<>(header.getSampleNamesInOrder());
 			
 			if(this.outputVcfPath!=null) {

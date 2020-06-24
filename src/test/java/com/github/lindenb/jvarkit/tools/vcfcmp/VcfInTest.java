@@ -17,6 +17,7 @@ import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.variant.variantcontext.Allele;
@@ -24,7 +25,7 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 @AlsoTest(LauncherTest.class)
 public class VcfInTest  {
@@ -115,9 +116,9 @@ private Path makeVcfIn(final String vcfpath,String other_args) throws Exception
 	Path outVcf = support.createTmpPath(".vcf");
 	
 	final VariantContextWriter w = VCFUtils.createVariantContextWriterToPath(tmpIn);
-	final VCFFileReader r = new VCFFileReader(vcfDbIn,true);
+	final VCFReader r = VCFReaderFactory.makeDefault().open(vcfDbIn,true);
 	
-	w.writeHeader(r.getFileHeader());
+	w.writeHeader(r.getHeader());
 	int n=0;
 	final CloseableIterator<VariantContext> iter = r.iterator();
 	

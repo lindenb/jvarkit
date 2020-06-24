@@ -64,6 +64,8 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
+
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -89,7 +91,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFEncoder;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
@@ -667,8 +668,8 @@ public Stream<VariantContext> forEachVariants(final String vcfFile) throws IOExc
 	{
 	final Path file = Paths.get(vcfFile);
 	IOUtil.assertFileIsReadable(file);
-	final VCFFileReader r= VCFReaderFactory.makeDefault().open(file, false);
-	final VCFHeader header = r.getFileHeader();
+	final VCFReader r= VCFReaderFactory.makeDefault().open(file, false);
+	final VCFHeader header = r.getHeader();
 	this.init(header);
 	final CloseableIterator<VariantContext> iter = r.iterator();
 	final Iterable<VariantContext> iterable = () -> iter;
@@ -682,8 +683,8 @@ public Stream<VariantData> forEachVariantData(final String vcfFile) throws IOExc
 	{
 	final Path file = Paths.get(vcfFile);
 	IOUtil.assertFileIsReadable(file);
-	final VCFFileReader r= VCFReaderFactory.makeDefault().open(file, false);
-	final VCFHeader header = r.getFileHeader();
+	final VCFReader r= VCFReaderFactory.makeDefault().open(file, false);
+	final VCFHeader header = r.getHeader();
 	this.init(header);
 	final VcfTools vcfTools = new VcfTools(header);
 	final CloseableIterator<VariantContext> iter = r.iterator();

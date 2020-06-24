@@ -52,7 +52,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -60,6 +59,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
@@ -290,9 +290,9 @@ public class VCFCompareGT extends Launcher
 				final File vcfFile= new File(arguments.get(i));
 				
 				LOG.info("Opening "+vcfFile);
-				final VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile,false);
+				final VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile,false);
 				final CloseableIterator<VariantContext> iter = vcfFileReader.iterator();
-				final VCFHeader header = vcfFileReader.getFileHeader();
+				final VCFHeader header = vcfFileReader.getHeader();
 				sampleNames.addAll(header.getSampleNamesInOrder());
 				
 				metaData.add(new VCFHeaderLine(

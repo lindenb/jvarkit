@@ -81,13 +81,13 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFEncoder;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 
 
 /**
@@ -445,8 +445,8 @@ public class LumpySort
 			{
 			final File vcfFile = inputs.get(idx);
 			LOG.info("Read header "+(idx+1)+"/"+inputs.size());
-			final VCFFileReader r  = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
-			final VCFHeader header = r.getFileHeader();
+			final VCFReader r  = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
+			final VCFHeader header = r.getHeader();
 			if(!LumpyConstants.isLumpyHeader(header))
 				{
 				LOG.error("doesn't look like a Lumpy-SV vcf header "+vcfFile);
@@ -524,12 +524,12 @@ public class LumpySort
 			final long millisecstart = System.currentTimeMillis();
 			final File vcfFile = inputs.get(idx);
 			int nVariant = 0;
-			final VCFFileReader r  = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
+			final VCFReader r  = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),false);
 			
 			final List<Genotype> missing =new ArrayList<>(sampleNames.size());
 			for(final String sn:sampleNames)
 				{
-				if(r.getFileHeader().getSampleNamesInOrder().contains(sn)) continue;
+				if(r.getHeader().getSampleNamesInOrder().contains(sn)) continue;
 				missing.add(GenotypeBuilder.createMissing(sn, 2));
 				}
 			

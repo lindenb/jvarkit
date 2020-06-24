@@ -8,12 +8,13 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 
 public class ProgressFactoryTest{
@@ -31,13 +32,13 @@ public Object[][] createData1() {
 	
 @Test
 void test01() throws IOException {
-	final VCFFileReader r=new VCFFileReader(Paths.get(support.resource("rotavirus_rf.vcf.gz")),false);
+	final VCFReader r= VCFReaderFactory.makeDefault().open(Paths.get(support.resource("rotavirus_rf.vcf.gz")),false);
 	Assert.assertTrue(ProgressFactory.newInstance().dictionary(r).stream(r.iterator()).count()>0);
 	r.close();
 	}
 @Test
 void test02() throws IOException {
-	final VCFFileReader r=new VCFFileReader(Paths.get(support.resource("rotavirus_rf.vcf.gz")),false);
+	final VCFReader r=VCFReaderFactory.makeDefault().open(Paths.get(support.resource("rotavirus_rf.vcf.gz")),false);
 	Assert.assertTrue(ProgressFactory.newInstance().stream(r.iterator()).count()>0);
 	r.close();
 	}

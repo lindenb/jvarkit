@@ -71,10 +71,10 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFReader;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
@@ -266,14 +266,14 @@ public class IgvReview extends Application
 		
 		
 		LOG.info("Opening vcf file and loading in memory");
-		VCFFileReader vfr=null;
+		VCFReader vfr=null;
 		CloseableIterator<VariantContext> iter=null;
 		final Set<String> sampleNames;
 		try {
 			this.variants.clear();
 			vfr= VCFReaderFactory.makeDefault().open(vcfFile.toPath(), false);
 			
-			this.vcfHeader = vfr.getFileHeader();
+			this.vcfHeader = vfr.getHeader();
 			sampleNames = new HashSet<>(this.vcfHeader.getSampleNamesInOrder());
 			if(sampleNames.isEmpty())
 				{

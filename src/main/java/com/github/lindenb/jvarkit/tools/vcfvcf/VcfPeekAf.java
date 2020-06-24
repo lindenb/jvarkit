@@ -57,15 +57,15 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -503,7 +503,7 @@ public class VcfPeekAf extends Launcher
 			}
 		}
 
-	private VCFFileReader indexedVcfFileReader=null;
+	private VCFReader indexedVcfFileReader=null;
 	private final List<VariantContext> buffer = new ArrayList<>();
 	private Locatable last_buffer_interval = null;
 	private AFPeeker peeker;
@@ -560,7 +560,7 @@ public class VcfPeekAf extends Launcher
 		try
 			{
 			final VCFHeader h = vcfIn.getHeader();
-			final SAMSequenceDictionary dictDatabase = this.indexedVcfFileReader.getFileHeader().getSequenceDictionary();  
+			final SAMSequenceDictionary dictDatabase = this.indexedVcfFileReader.getHeader().getSequenceDictionary();  
 			final ContigNameConverter dbCtgConverter = dictDatabase==null || dictDatabase.isEmpty()?
 					ContigNameConverter.getIdentity():
 					ContigNameConverter.fromOneDictionary(dictDatabase)
@@ -659,8 +659,8 @@ public class VcfPeekAf extends Launcher
 				return -1;
 				}
 						
-			this.indexedVcfFileReader = new VCFFileReader(this.resourceVcfFile,true);
-			this.peeker.initialize(this.indexedVcfFileReader.getFileHeader());			
+			this.indexedVcfFileReader = VCFReaderFactory.makeDefault().open(this.resourceVcfFile,true);
+			this.peeker.initialize(this.indexedVcfFileReader.getHeader());			
 			return doVcfToVcfPath(args,this.writingVariantsDelegate, this.outputFile);
 			} 
 		catch(final Throwable err)

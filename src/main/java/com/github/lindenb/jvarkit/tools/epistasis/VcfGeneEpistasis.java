@@ -48,9 +48,10 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.tools.skat.SkatFactory;
@@ -98,7 +99,7 @@ public class VcfGeneEpistasis
 	private SkatFactory skatFactory = new SkatFactory();
 	
 
-	private VCFFileReader vcfFileReader = null;
+	private VCFReader vcfFileReader = null;
 	private VcfTools vcfTools = null;
 	private final Map<String,Pedigree.Person> id2samples = new HashMap<>();
 	
@@ -162,7 +163,7 @@ public class VcfGeneEpistasis
 			{
 			final File vcfFile = new File(oneAndOnlyOneFile(args));
 			this.vcfFileReader = VCFReaderFactory.makeDefault().open(vcfFile.toPath(),true);
-			final VCFHeader header = this.vcfFileReader.getFileHeader();
+			final VCFHeader header = this.vcfFileReader.getHeader();
 			final Pedigree pedigree;
 			if(this.pedigreeFile!=null)
 				{

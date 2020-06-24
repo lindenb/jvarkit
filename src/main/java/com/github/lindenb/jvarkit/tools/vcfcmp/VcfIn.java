@@ -50,12 +50,11 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -409,14 +408,14 @@ public class VcfIn extends Launcher
 		implements Closeable
 		{
 		final File file;
-		final VCFFileReader vcfFileReader;
+		final VCFReader vcfFileReader;
 		final VCFHeader header;
 		final SAMSequenceDictionary dict;
 		final ContigNameConverter contigNameConverter;
 		TabixVcf(SAMSequenceDictionary dictIn,final String file) {
 			this.file = new File(file);
 			this.vcfFileReader =VCFReaderFactory.makeDefault().open(this.file,true);
-			this.header = this.vcfFileReader.getFileHeader();
+			this.header = this.vcfFileReader.getHeader();
 			this.dict = this.header.getSequenceDictionary();
 			
 			if(dictIn!=null && this.dict!=null)

@@ -95,8 +95,8 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 
@@ -172,8 +172,8 @@ public  class HtsFileServer extends Launcher {
 		VcfInput(final Path path) throws IOException{
 			super(path);
 			// try open with index
-			try(VCFFileReader ignore= VCFReaderFactory.makeDefault().open(path, true)) {
-				has_genotypes = ignore.getFileHeader().hasGenotypingData();
+			try(VCFReader ignore= VCFReaderFactory.makeDefault().open(path, true)) {
+				has_genotypes = ignore.getHeader().hasGenotypingData();
 				//nothing
 				}
 			}
@@ -206,8 +206,8 @@ public  class HtsFileServer extends Launcher {
 			vcb.setReferenceDictionary(dictionary);
 			vcb.clearOptions();
 			try(VariantContextWriter w=vcb.build()) {
-				try(VCFFileReader r = VCFReaderFactory.makeDefault().open(getPath(), true)) {
-					final VCFHeader header = r.getFileHeader();
+				try(VCFReader r = VCFReaderFactory.makeDefault().open(getPath(), true)) {
+					final VCFHeader header = r.getHeader();
 					if(remove_genotype_vcf && this.has_genotypes) {
 						w.writeHeader(new VCFHeader(header.getMetaDataInInputOrder(),Collections.emptyList()));
 						}

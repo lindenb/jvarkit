@@ -54,7 +54,7 @@ import com.github.lindenb.jvarkit.util.vcf.VariantContextWriterFactory;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -62,7 +62,6 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -143,7 +142,7 @@ public class VcfBurdenFilterExac
 			{
 			private final String exacPopulations[];
 			private final VCFIterator exacIn;
-			private final VCFFileReader tabix;
+			private final VCFReader tabix;
 			private final EqualRangeVcfIterator equalRange;
 			private final VCFHeader exacHeader;
 			private VCFFilterHeaderLine filter = null;
@@ -159,7 +158,7 @@ public class VcfBurdenFilterExac
 						this.tabix = VCFReaderFactory.makeDefault().open(CtxWriterFactory.this.exacFile.toPath(),true);
 						this.exacIn = null;
 						this.equalRange = null;
-						this.exacHeader = tabix.getFileHeader();
+						this.exacHeader = tabix.getHeader();
 						}
 					else
 						{

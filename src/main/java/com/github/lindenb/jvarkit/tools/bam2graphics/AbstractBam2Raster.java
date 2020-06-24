@@ -66,10 +66,11 @@ import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 public abstract class AbstractBam2Raster extends Launcher{
 	protected static final Color ALMOST_BLACK = new Color(20,20,20);
@@ -208,28 +209,31 @@ public abstract class AbstractBam2Raster extends Launcher{
 		}
 	protected void loadVCFs() {
 		for(final String vcfFile: IOUtils.unrollFiles(variants)) {
-			final VCFFileReader vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(vcfFile),true);
-			final VCFHeader header = vcfFileReader.getFileHeader();
-			final SAMSequenceDictionary dict = header.getSequenceDictionary();
-			final ContigNameConverter converter;
-			if(dict!=null)
-				{
-				converter = ContigNameConverter.fromOneDictionary(dict);
-				}
-			else
-				{
-				converter = ContigNameConverter.getIdentity();
-				}
-			final String newCtg = converter.apply(this.interval.getContig());
-			if(!StringUtil.isBlank(newCtg)) {
-				final CloseableIterator<VariantContext> r=vcfFileReader.query(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd());
-				while(r.hasNext())
+				try(final VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(vcfFile),true)) {
+				final VCFHeader header = vcfFileReader.getHeader();
+				final SAMSequenceDictionary dict = header.getSequenceDictionary();
+				final ContigNameConverter converter;
+				if(dict!=null)
 					{
-					this.highlightPositions.add(r.next().getStart());
+					converter = ContigNameConverter.fromOneDictionary(dict);
 					}
-				r.close();
+				else
+					{
+					converter = ContigNameConverter.getIdentity();
+					}
+				final String newCtg = converter.apply(this.interval.getContig());
+				if(!StringUtil.isBlank(newCtg)) {
+					final CloseableIterator<VariantContext> r=vcfFileReader.query(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd());
+					while(r.hasNext())
+						{
+						this.highlightPositions.add(r.next().getStart());
+						}
+					r.close();
+					}
 				}
-			vcfFileReader.close();
+			catch(final IOException err) {
+				throw new RuntimeIOException(err);
+				}
 			}
 		}
 	protected  Shape createTriange(double cx,double cy,double r,double angle)

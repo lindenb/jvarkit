@@ -51,8 +51,8 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.filter.FilteringVariantContextIterator;
 import htsjdk.variant.variantcontext.filter.VariantContextFilter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 public class VariantContextBatchReader implements 
 	ResourceAwareItemReaderItemStream<List<VariantContext>>,
@@ -64,7 +64,7 @@ public class VariantContextBatchReader implements
 
 	private Resource rsrc = null;
 	private CloseableIterator<VariantContext> iter = null;
-	private VCFFileReader vcfFileReader = null;
+	private VCFReader vcfFileReader = null;
 	private Interval interval = null;
 	private VariantContextFilter filter = V->true;
     private long currentIndex=0L;
@@ -94,7 +94,7 @@ public class VariantContextBatchReader implements
 				vcfFile,
 				this.interval!=null
 				);
-			final VCFHeader header = this.vcfFileReader.getFileHeader();
+			final VCFHeader header = this.vcfFileReader.getHeader();
 			
 			executionContext.put(SpringBatchUtils.VCF_HEADER_KEY, header);
 			

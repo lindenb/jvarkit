@@ -23,7 +23,7 @@ import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
@@ -32,7 +32,6 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 /**
@@ -85,7 +84,7 @@ public class VcfGapFrequent extends Launcher {
 	private class FreqentDB
 		implements Closeable
 		{
-		final VCFFileReader vcfFileReader;
+		final VCFReader vcfFileReader;
 		final ContigNameConverter converter;
 		final List<AFExtractor> afExtractors = new ArrayList<>();
 
@@ -93,7 +92,7 @@ public class VcfGapFrequent extends Launcher {
 		
 		FreqentDB(final File f) {
 			this.vcfFileReader = VCFReaderFactory.makeDefault().open(f,true);
-			final VCFHeader header= this.vcfFileReader.getFileHeader();
+			final VCFHeader header= this.vcfFileReader.getHeader();
 			this.afExtractors.addAll(new AFExtractorFactory().parseFieldExtractors(user_fields_str));
 			
 			this.afExtractors.removeIf(EX->{

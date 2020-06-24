@@ -38,9 +38,8 @@ import java.util.List;
 import java.util.Set;
 
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
-
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -214,7 +213,7 @@ public class NgsFilesSummary extends Launcher
     
     private void readVCF(final Path f)
 		{
-    	VCFFileReader r=null;
+    	VCFReader r=null;
     	InputStream in=null;
     	try
     		{
@@ -224,7 +223,7 @@ public class NgsFilesSummary extends Launcher
     		in=IOUtils.openPathForReading(f);
     		
     		r= VCFReaderFactory.makeDefault().open(f,false);
-        	final VCFHeader header=r.getFileHeader();
+        	final VCFHeader header=r.getHeader();
         	
     		if(this.dict!=null) {
     			SAMSequenceDictionary dict2 = header.getSequenceDictionary();

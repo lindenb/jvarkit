@@ -40,7 +40,6 @@ import java.util.stream.Collectors;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -64,6 +63,7 @@ import com.github.lindenb.jvarkit.variant.vcf.BcfToolsUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 /** 
  BEGIN_DOC
  
@@ -263,7 +263,7 @@ public class FindAVariation extends Launcher
     	if(Files.isDirectory(vcfPath)) return;
     	if(!Files.isReadable(vcfPath)) return;
 		VCFIterator iter=null;
-		VCFFileReader r=null;
+		VCFReader r=null;
 		try {
 			if(vcfPathString.endsWith(FileExtensions.BCF) && this.use_bcf && BcfToolsUtils.isBcfToolsRequired(Paths.get(vcfPathString))) {
 				BcfToolsReader view = new BcfToolsReader(vcfPathString);
@@ -304,7 +304,7 @@ public class FindAVariation extends Launcher
 				VCFUtils.isTabixVcfPath(vcfPath))
 				{
 				r= VCFReaderFactory.makeDefault().open(vcfPath,true);
-				final VCFHeader header =r.getFileHeader();
+				final VCFHeader header =r.getHeader();
 				for(final SimplePosition m:convertFromVcfHeader(vcfPath.toString(),header))
 					{
 					try( CloseableIterator<VariantContext> iter2 = r.query(m)) {

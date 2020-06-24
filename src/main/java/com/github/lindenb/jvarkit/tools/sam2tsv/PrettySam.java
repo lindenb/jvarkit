@@ -83,7 +83,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 
@@ -399,7 +399,7 @@ public class PrettySam extends Launcher {
 		private final Map<String,String> readgroupAtt2def = new HashMap<>();
 		private ContigNameConverter contigNameConverter=null;
 		private final IntervalTreeMap<List<KnownGeneInfo>> knownGenes = new IntervalTreeMap<>();
-		private VCFFileReader vcfFileReader = null;
+		private VCFReader vcfFileReader = null;
 		
 		
 		public PrettySAMWriter(final PrintWriter pw) {

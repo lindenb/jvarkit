@@ -11,9 +11,10 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 @AlsoTest(LauncherTest.class)
 public class VcfBurdenMAFTest {
@@ -28,8 +29,8 @@ public class VcfBurdenMAFTest {
 		try {
 			final String inputFile = support.resource("rotavirus_rf.vcf.gz");
 			
-			try(final VCFFileReader r0 = new VCFFileReader(Paths.get(inputFile),false)) {
-					final VCFHeader vcfheader = r0.getFileHeader();
+			try(final VCFReader r0 = VCFReaderFactory.makeDefault().open(Paths.get(inputFile),false)) {
+					final VCFHeader vcfheader = r0.getHeader();
 					if(vcfheader.getNGenotypeSamples()<1) {
 						return;
 					}

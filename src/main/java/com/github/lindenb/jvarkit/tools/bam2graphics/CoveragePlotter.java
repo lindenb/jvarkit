@@ -112,7 +112,7 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 input is an interval of a file source of interval (bed, vcf, gtf, interval_list , ,etc...)
@@ -209,8 +209,8 @@ public class CoveragePlotter extends Launcher {
 				}
 			}
 		else if(FileExtensions.VCF_LIST.stream().anyMatch(X->fname.endsWith(X))) {
-			try(VCFFileReader vcfFileReader= VCFReaderFactory.makeDefault().open(this.knownCnvFile,true)) {
-				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getFileHeader()));
+			try(VCFReader vcfFileReader= VCFReaderFactory.makeDefault().open(this.knownCnvFile,true)) {
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getHeader()));
 				final String ctg = cvt.apply(region.getContig());
 				if(!StringUtils.isBlank(ctg)) {
 					vcfFileReader.query(ctg, region.getStart(), region.getEnd()).

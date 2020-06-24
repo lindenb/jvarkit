@@ -55,7 +55,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.AbstractVCFCodec;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -85,6 +84,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 /*
 BEGIN_DOC
 
@@ -432,7 +432,7 @@ public class VCFMerge
 	private class PeekVCF implements Closeable
 		{
 		final String uri;
-		final VCFFileReader reader;
+		final VCFReader reader;
 		final PeekableIterator<VariantContext> iter;
 		final CloseableIterator<VariantContext> iter0;
 		final VCFHeader header;
@@ -443,13 +443,13 @@ public class VCFMerge
 			if(StringUtil.isBlank(VCFMerge.this.regionStr))
 				{
 				this.reader = VCFReaderFactory.makeDefault().open(new File(uri),false);
-				this.header = this.reader.getFileHeader();
+				this.header = this.reader.getHeader();
 				this.iter0  = this.reader.iterator();
 				}
 			else
 				{
 				this.reader = VCFReaderFactory.makeDefault().open(new File(uri),true);
-				this.header = this.reader.getFileHeader();
+				this.header = this.reader.getHeader();
 				final SimpleInterval rgn = IntervalParserFactory.
 						newInstance().
 						enableWholeContig().

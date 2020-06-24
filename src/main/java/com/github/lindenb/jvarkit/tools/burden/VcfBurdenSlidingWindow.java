@@ -51,7 +51,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 /**
 BEGIN_DOC
@@ -104,11 +104,11 @@ extends AbstractVcfBurden
 	}
 
 	@Override
-	protected void runBurden(final PrintWriter pw, final VCFFileReader vcfReader, final VariantContextWriter vcw) throws IOException {
+	protected void runBurden(final PrintWriter pw, final VCFReader vcfReader, final VariantContextWriter vcw) throws IOException {
 		if(this.window_size<=0) throw new IllegalArgumentException("bad window size: "+this.window_size);
 		if(this.window_shift<=0) throw new IllegalArgumentException("bad window shift:" + this.window_shift);
 		
-		final SAMSequenceDictionary vcfDict = SequenceDictionaryUtils.extractRequired(vcfReader.getFileHeader());
+		final SAMSequenceDictionary vcfDict = SequenceDictionaryUtils.extractRequired(vcfReader.getHeader());
 		
 		pw.print("#chrom");
 		pw.print("\t");

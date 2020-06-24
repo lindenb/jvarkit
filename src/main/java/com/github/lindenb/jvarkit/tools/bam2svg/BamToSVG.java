@@ -61,7 +61,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -217,7 +217,7 @@ public class BamToSVG extends Launcher
 			}
 		private void readVariantFile(final Path vcf)  throws IOException
 			{
-			try(VCFFileReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
+			try(VCFReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
 				r.query(this.interval).stream().forEach(ctx->this.pos2variant.add(ctx));
 				}
 			}

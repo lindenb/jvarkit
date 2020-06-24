@@ -66,7 +66,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 
 
 /**
@@ -184,7 +184,7 @@ public class Biostar404363 extends Launcher {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			final ContigNameConverter contigNameConverter=ContigNameConverter.fromOneDictionary(dict);
 			
-			try(VCFFileReader vcfReader= VCFReaderFactory.makeDefault().open(this.vcfPath,false)) {
+			try(VCFReader vcfReader= VCFReaderFactory.makeDefault().open(this.vcfPath,false)) {
 				try(CloseableIterator<VariantContext> iter=vcfReader.iterator()) {
 					while(iter.hasNext()) {
 						final VariantContext ctx=iter.next();

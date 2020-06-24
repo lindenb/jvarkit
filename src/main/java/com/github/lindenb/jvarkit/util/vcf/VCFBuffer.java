@@ -32,6 +32,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -39,7 +40,6 @@ import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -106,7 +106,7 @@ public Stream<VariantContext> stream()
 		}
 	else
 		{
-		final VCFFileReader reader= new VCFFileReader(this.tmpFile,false);
+		final htsjdk.variant.vcf.VCFReader reader= VCFReaderFactory.makeDefault().open(this.tmpFile,false);
 		final CloseableIterator<VariantContext> iter = reader.iterator();
 		return  StreamSupport.stream(new IterableAdapter<VariantContext>(iter).spliterator(), false).onClose(
 				()->{CloserUtil.close(iter);CloserUtil.close(reader);}

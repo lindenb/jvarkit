@@ -50,7 +50,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -103,8 +103,8 @@ public class VcfGnomadSV extends Launcher{
 			final VariantContextWriter out
 			)
 		{
-		final VCFFileReader gnomadVcfReader = VCFReaderFactory.makeDefault().open(this.gnomadVcfSvPath,true);
-		final VCFHeader gnomadHeader = gnomadVcfReader.getFileHeader();
+		final VCFReader gnomadVcfReader = VCFReaderFactory.makeDefault().open(this.gnomadVcfSvPath,true);
+		final VCFHeader gnomadHeader = gnomadVcfReader.getHeader();
 		final SAMSequenceDictionary gnomadDict= SequenceDictionaryUtils.extractRequired(gnomadHeader);
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(gnomadDict);
 		this.svComparator.setContigComparator((A,B)->{

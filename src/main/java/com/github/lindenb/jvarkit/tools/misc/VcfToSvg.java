@@ -48,7 +48,6 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
@@ -74,8 +73,8 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 
@@ -142,25 +141,16 @@ private void title(final XMLStreamWriter w,final String title) throws XMLStreamE
 
 @Override
 public int doWork(final List<String> args) {
-	
-	VCFFileReader r=null;
+	VCFReader r=null;
 	OutputStream outputStream=null;
 	XMLStreamWriter w=null;
 	PrintWriter manifestW=null;
 	ArchiveFactory archiveFactory = null;
 	try {
 		r= VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)), true);
-		final VCFHeader header=r.getFileHeader();
+		final VCFHeader header=r.getHeader();
 		final List<String> samples= new ArrayList<>(header.getSampleNamesInOrder());
-		/* read pedigree if any */
-		final Pedigree pedigree;
-		if(this.pedPath!=null) {
-			pedigree = new PedigreeParser().parse(pedPath);
-			}
-		else
-			{
-			pedigree=null;
-			}
+	
 		
 		
 		final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(header);

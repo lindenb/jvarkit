@@ -41,8 +41,8 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 /** default implementation of a VcfList */
 class DefaultVcfFileList extends AbstractList<VariantContext>
@@ -70,8 +70,8 @@ class DefaultVcfFileList extends AbstractList<VariantContext>
 		if(indexFile.lastModified()< this.vcfFile.lastModified()) {
 			LOG.warn("index "+indexFile+" is older than vcf file "+this.vcfFile);
 			}
-		try (final VCFFileReader r= VCFReaderFactory.makeDefault().open(this.vcfFile, false)){
-			this.header = r.getFileHeader();
+		try (final VCFReader r= VCFReaderFactory.makeDefault().open(this.vcfFile, false)){
+			this.header = r.getHeader();
 			}
 		this.codec.readHeader(VCFUtils.convertVCFHeaderToLineIterator(header));
 		if(vcf.getName().endsWith(".gz"))
