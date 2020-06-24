@@ -1,6 +1,5 @@
 package com.github.lindenb.jvarkit.tools.vcfvcf;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -8,7 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.util.CloseableIterator;
@@ -33,20 +32,15 @@ END_DOC
 	description="Get the INFO from a VCF and use it for another VCF",
 	deprecatedMsg="obsolete. use GATK"
 	)
-public class VcfVcf extends Launcher
+public class VcfVcf extends OnePassVcfLauncher
 	{
 	 private static Logger LOG=Logger.build(VcfVcf.class).make(); 
 	
-	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	 private File outputFile = null;
-
 	@Parameter(names="-TBX",description="The VCF file indexed with TABIX. Source of the annotations")
 	public String TABIX;
 	
 	@Parameter(names="-INFO",description="The INFO keys to grab.")
 	public Set<String> INFO_IDS=new LinkedHashSet<String>();
-	
-	
 	
 	
 	@Parameter(names="-RIF",description="Replace the INFO field if it exists.")	
@@ -60,6 +54,11 @@ public class VcfVcf extends Launcher
 	@Parameter(names="-ACF",description="Flag to set if alternate alleles conflict.")			
 	public String ALT_CONFLICT_FLAG=null;
 	
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator r, VariantContextWriter w) {
@@ -198,10 +197,6 @@ public class VcfVcf extends Launcher
 			}
 		}
 	
-	@Override
-	public int doWork(List<String> args) {
-		return doVcfToVcf(args, outputFile);
-		}
 	
 	
 	public static void main(String[] args) throws IOException

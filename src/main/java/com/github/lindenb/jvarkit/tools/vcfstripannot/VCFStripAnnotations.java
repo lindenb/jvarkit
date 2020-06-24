@@ -29,20 +29,14 @@ History:
 package com.github.lindenb.jvarkit.tools.vcfstripannot;
 
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.variant.variantcontext.AttributeCleaner;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
@@ -86,17 +80,11 @@ END_DOC
 	keywords={"vcf"},
 	modificationDate="20191127"
 	)
-public class VCFStripAnnotations extends Launcher
+public class VCFStripAnnotations extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VCFStripAnnotations.class).make();	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-x","--exclude"},description="Use bcftools syntax INFO/x,INFO/y. "+AttributeCleaner.OPT_DESC)
 	private String pattern = null;
-
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
-	
 	
 	private AttributeCleaner cleaner = null;
 		
@@ -110,28 +98,25 @@ public class VCFStripAnnotations extends Launcher
 		{	
 		final VCFHeader h2 = this.cleaner.cleanHeader(iter.getHeader());
 		JVarkitVersion.getInstance().addMetaData(this, h2);
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(h2).logger(LOG).build();
 		out.writeHeader(h2);
 		while(iter.hasNext())
 			{
-			out.add(this.cleaner.apply(progress.apply(iter.next())));
+			out.add(this.cleaner.apply(iter.next()));
 			}
-		progress.close();
 		return 0;
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
-		try 
-			{
-			this.cleaner = AttributeCleaner.compile(this.pattern);
-			return doVcfToVcfPath(args,this.writingVariants, outputFile);
-			}
-		catch(final Throwable err) {
-			LOG.error(err);
-			return -1;
-			}
+	protected int beforeVcf() {
+		this.cleaner = AttributeCleaner.compile(this.pattern);
+		return 0;
 		}
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
 	
 	public static void main(final String[] args) throws IOException
 		{

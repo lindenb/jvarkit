@@ -30,22 +30,18 @@ package com.github.lindenb.jvarkit.tools.vcfrebase;
 
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.Rebase;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
@@ -109,12 +105,10 @@ $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resou
 	description="Restriction sites overlaping variations in a vcf",
 	keywords={"vcf","rebase","restriction","enzyme"},
 	creationDate="20131115",
-	modificationDate="20191113"
+	modificationDate="20200624"
 	)
-public class VcfRebase extends Launcher {
+public class VcfRebase extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfRebase.class).make();
-	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile=null;
 	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute")
 	private String ATT="ENZ";
 	@Parameter(names={"-R","-reference","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
@@ -123,19 +117,18 @@ public class VcfRebase extends Launcher {
 	private Set<String> selEnzymesStr = new HashSet<>();
 	@Parameter(names={"-w","-weight","--weight"},description="min enzyme weight 6 = 6 cutter like GAATTC, 2 = 2 cutter like ATNNNNNNAT  ")
 	private float weight= 5f;		
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 	
 	
 	public VcfRebase() {
 		}
 	
-	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
-	public int doWork(final List<String> args) {
-		VariantContextWriter out = null;
-		VCFIterator iter = null;
+	protected int doVcfToVcf(String inputName, VCFIterator iter, VariantContextWriter out) {
 		 ReferenceSequenceFile indexedFastaSequenceFile=null;
 		 GenomicSequence genomicSequence=null;			
 
@@ -192,8 +185,6 @@ public class VcfRebase extends Launcher {
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 			
 			
-			iter = super.openVCFIterator(oneFileOrNull(args));
-			out= this.writingVariants.dictionary(dict).open(this.outputFile);
 			
 			
 			final VCFHeader header= iter.getHeader();
@@ -208,12 +199,11 @@ public class VcfRebase extends Launcher {
 							"Enzyme overlapping: Format: (Name|Site|Sequence|pos|strand)")
 						);
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 
 			out.writeHeader(header2);
 			while(iter.hasNext())
 				{
-				final VariantContext var = progress.apply(iter.next());
+				final VariantContext var = iter.next();
 				final String refContig = contigNameConverter.apply(var.getContig());
 				if(StringUtils.isBlank(refContig))
 					{
@@ -284,11 +274,6 @@ public class VcfRebase extends Launcher {
 					out.add(vcb.make());
 					}
 				}
-			iter.close();
-			iter=null;
-			out.close();
-			out=null;
-			progress.close();
 			return 0;
 			}
 		catch(final Throwable err)
@@ -298,7 +283,6 @@ public class VcfRebase extends Launcher {
 			}
 		finally
 			{
-			CloserUtil.close(out);
 			CloserUtil.close(indexedFastaSequenceFile);
 			}
 		}

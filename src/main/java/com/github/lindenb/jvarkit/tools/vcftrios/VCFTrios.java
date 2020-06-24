@@ -33,17 +33,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.pedigree.Trio;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -135,15 +133,12 @@ END_DOC
 		description="Find mendelian incompatibilitie / denovo variants in a VCF",
 		keywords={"vcf","mendelian","pedigree","denovo"},
 		creationDate="20130705",
-		modificationDate="20191115"
+		modificationDate="20200624"
 		)
-public class VCFTrios
-	extends Launcher
+public class VCFTrios extends OnePassVcfLauncher
 	{
 	private static final  Logger LOG = Logger.build(VCFTrios.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+PedigreeParser.OPT_DESC,required=true)
 	private Path pedigreeFile = null;
 	@Parameter(names={"-fo","--filter-out","--filter-no-denovo"},description="FILTER name if there is NO mendelian violation.")
@@ -158,8 +153,6 @@ public class VCFTrios
 	private boolean discard_variants_without_mendelian_incompat=false;	
 	@Parameter(names={"-hr","--hom-ref"},description="[20180705] treat NO_CALL genotypes as HOM_REF (when individual VCF/Sample have been merged).")
 	private boolean nocall_to_homref = false;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	private static class TrioTriple
 		{
@@ -325,16 +318,21 @@ public class VCFTrios
     	{
     	}
 
-	@Override
-	public int doWork(final List<String> args) {
-		if(!StringUtil.isBlank(this.filterAnyIncompat) && !StringUtil.isBlank(this.filterNoIncompat))
+    
+    @Override
+    protected int beforeVcf() {
+    	if(!StringUtil.isBlank(this.filterAnyIncompat) && !StringUtil.isBlank(this.filterNoIncompat))
 			{
 			LOG.error("Filters no/any incompatibilities both defined.");
 			return -1;
 			}
-		return doVcfToVcfPath(args,this.writingVariantsDelegate, this.outputFile);
+		return 0;
 		}
 	
+    @Override
+    protected Logger getLogger() {
+    	return LOG;
+    	}
 	
 	public static void main(final String[] args)
 		{

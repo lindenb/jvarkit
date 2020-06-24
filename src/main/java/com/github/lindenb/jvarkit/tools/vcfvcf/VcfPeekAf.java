@@ -39,14 +39,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -56,7 +55,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
@@ -81,9 +79,9 @@ END_DOC
 		description="Peek the AF from another VCF",
 		keywords={"vcf","annotation","af"},
 		modificationDate="20200325",
-		creationDate="20191202"
+		creationDate="20200624"
 		)
-public class VcfPeekAf extends Launcher
+public class VcfPeekAf extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfPeekAf.class).make();
 
@@ -93,8 +91,6 @@ public class VcfPeekAf extends Launcher
 	private String frequencyTag = "";
 	@Parameter(names={"-f","--filter"},description="soft FILTER the variant of this data if AF is not found or it greater > max-af or lower than min-af. If empty, just DISCARD the variant")
 	private String filterStr = "";
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variants in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
 	private int buffer_size = 100_000;
 	@Parameter(names={"-l","--list"},description="List available AF peekers and exit.",help=true)
@@ -109,9 +105,6 @@ public class VcfPeekAf extends Launcher
 	private boolean disable_alt_concordance = false;
 	@Parameter(names={"-P","--peek-info"},description="Name of INFO tag in the vcf database to extract the AF value for exractor .'Custom'"  )
 	private String custom_peek_info_name = null;
-
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	/* a class extracting the allele frequency from another VCF */
 	private abstract class AFPeeker
@@ -622,9 +615,14 @@ public class VcfPeekAf extends Launcher
 			return -1;
 			}
 		}
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf() {
 		final List<AFPeeker> all_peekers = new ArrayList<>();
 		all_peekers.add(new InfoAcAnPeeker());
 		all_peekers.add(new InfoAfPeeker());
@@ -642,12 +640,13 @@ public class VcfPeekAf extends Launcher
 				for(final AFPeeker p:all_peekers) out.println(p.getName()+"\n\t"+p.getDescription());
 				out.flush();
 				}
+			System.exit(0);
 			}
 			
 			if(StringUtils.isBlank(this.peekerName)) {
 				LOG.error("peeker name is empty");
 				return -1;
-			}
+				}
 			
 			this.peeker = all_peekers.stream().filter(P->P.getName().equals(this.peekerName)).findFirst().orElse(null);
 			if(this.peeker==null) {
@@ -660,19 +659,19 @@ public class VcfPeekAf extends Launcher
 				}
 						
 			this.indexedVcfFileReader = VCFReaderFactory.makeDefault().open(this.resourceVcfFile,true);
-			this.peeker.initialize(this.indexedVcfFileReader.getHeader());			
-			return doVcfToVcfPath(args,this.writingVariantsDelegate, this.outputFile);
+			this.peeker.initialize(this.indexedVcfFileReader.getHeader());
+			return 0;
 			} 
 		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.indexedVcfFileReader);
-			this.indexedVcfFileReader=null;
-			}
+		}
+	@Override
+	protected void afterVcf() {
+		CloserUtil.close(this.indexedVcfFileReader);
+		this.indexedVcfFileReader=null;
 		}
 	
 	

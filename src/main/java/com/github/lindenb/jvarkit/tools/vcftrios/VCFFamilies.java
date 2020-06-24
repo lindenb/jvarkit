@@ -55,14 +55,13 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.pedigree.Family;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 /**
 BEGIN_DOC
@@ -78,12 +77,12 @@ END_DOC
 		name="vcffamilies",
 		description="Fills family-based informations in a VCF.",
 		keywords={"vcf","pedigree"},
-		modificationDate="20200325",
+		modificationDate="20200724",
 		creationDate="20171123",
 		generate_doc=false
 		)
 public class VCFFamilies
-	extends Launcher
+	extends OnePassVcfLauncher
 	{
 	private static final  Logger LOG = Logger.build(VCFFamilies.class).make();
 
@@ -191,7 +190,12 @@ public class VCFFamilies
     public VCFFamilies()
     	{
     	}
-		
+	
+    @Override
+    protected Logger getLogger() {
+    	return LOG;
+    	}
+    
 	@Override
 	public int doVcfToVcf(final String inputName, VCFIterator r, final VariantContextWriter w)
 		{
@@ -228,7 +232,6 @@ public class VCFFamilies
 		JVarkitVersion.getInstance().addMetaData(this, h2);
 		
 		
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		w.writeHeader(h2);
 		while(r.hasNext())
 			{
@@ -239,24 +242,9 @@ public class VCFFamilies
 			w.add(vcb.make());	
 			}
 		w.close();
-		progress.close();
 		return 0;
 		}
 
-	@Override
-	public int doWork(final List<String> args) {
-		try {
-			return doVcfToVcfPath(args,this.writingVariantsDelegate, this.outputFile);
-			}
-		catch(final Throwable err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			}
-		}
 	
 	public static void main(final String[] args)
 		{

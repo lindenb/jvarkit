@@ -25,8 +25,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfvcf;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -37,11 +37,11 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -108,15 +108,14 @@ END_DOC
 @Program(name="vcfpeekvcf",
 		description="Get the INFO from a VCF and use it for another VCF",
 		keywords={"vcf","annotation"},
-		modificationDate="20190627"
+		modificationDate="20200624"
 		)
-public class VcfPeekVcf extends Launcher
+public class VcfPeekVcf extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfPeekVcf.class).make();
 	
-	
 	@Parameter(names={"-f","--tabix","--resource"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
-	private File resourceVcfFile = null;
+	private Path resourceVcfFile = null;
 	
 	@Parameter(names={"-t","--tags"},description="tag1,tag2,tag... the INFO keys to peek from the indexed file")
 	private Set<String> tagsAsString = new HashSet<>();
@@ -138,8 +137,6 @@ public class VcfPeekVcf extends Launcher
 	@Parameter(names={"-span","--span"},description="[20180713] when checking for the '--alt' option, ignore spanning deletion: "+Allele.SPAN_DEL_STRING)
 	private boolean ignoreSpanningDel = false;
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
 	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variants in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
 	private int buffer_size = 100_000;
 	@Parameter(names={"--default-int"},description="default value for Type=Integer")
@@ -459,9 +456,14 @@ public class VcfPeekVcf extends Launcher
 			return -1;
 			}
 		}
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf() {
 		this.indexedVcfFileReader = null;
 		if(this.buffer_size<1) {
 			LOG.error("bad buffer-size");
@@ -481,20 +483,20 @@ public class VcfPeekVcf extends Launcher
 				LOG.warn("No tag defined");
 				}
 			this.indexedVcfFileReader = VCFReaderFactory.makeDefault().open(resourceVcfFile,true);
-
-			return doVcfToVcf(args, this.outputFile);
+			return 0;
 			} 
 		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.indexedVcfFileReader);
-			this.indexedVcfFileReader=null;
-			this.peek_info_tags.clear();
-			}
+		}
+	
+	@Override
+	protected void afterVcf() {
+		CloserUtil.close(this.indexedVcfFileReader);
+		this.indexedVcfFileReader=null;
+		this.peek_info_tags.clear();	
 		}
 	
 	
