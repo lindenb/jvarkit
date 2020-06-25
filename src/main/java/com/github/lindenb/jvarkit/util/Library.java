@@ -22,11 +22,9 @@ import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VCFFilterJS;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcfgo.VcfGeneOntology;
-import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge2;
 import com.github.lindenb.jvarkit.tools.vcfstripannot.VCFReplaceTag;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.util.igv.IgvSocket;
-import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -54,7 +52,6 @@ private Library()
 			VcfFilterSequenceOntology.class,
 			VcfHead.class,
 			VcfTail.class,
-			VCFMerge2.class,
 			VcfIn.class,
 			GroupByGene.class,
 			VCFTrios.class,
@@ -72,7 +69,7 @@ private Library()
 			SortVcfOnInfo.class,
 			VCFBedSetFilter.class,
 			VCFReplaceTag.class,
-			VcfIndexTabix.class,IndexedVcfFileReader.class,
+			VcfIndexTabix.class,
 			IgvSocket.class,
 			VcfMultiToOneAllele.class,
 			BedIndexTabix.class,

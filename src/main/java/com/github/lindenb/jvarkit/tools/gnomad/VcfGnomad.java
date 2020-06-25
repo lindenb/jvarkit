@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -44,7 +43,6 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -53,9 +51,11 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
-import htsjdk.variant.vcf.VCFIterator;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
@@ -185,7 +185,7 @@ public class VcfGnomad extends Launcher{
 		String contig;
 		String uri;
 		/** when using Tabix reader */
-		private TabixVcfFileReader gnomad_tabix=null;
+		private VCFReader gnomad_tabix=null;
 		
 		private Interval lastInterval = null;
 		final List<VariantContext> buffer = new ArrayList<>();
@@ -203,10 +203,10 @@ public class VcfGnomad extends Launcher{
 		public void open()
 			{
 			try {
-				this.gnomad_tabix=new TabixVcfFileReader(this.uri);
-				this.ctgNameConverter = ContigNameConverter.fromContigSet(this.gnomad_tabix.getChromosomes());
+				this.gnomad_tabix= VCFReaderFactory.makeDefault().open(this.uri);
+				this.ctgNameConverter = ContigNameConverter.fromOneDictionary(this.gnomad_tabix.getHeader().getSequenceDictionary());
 				}
-			catch(final IOException err)
+			catch(final Throwable err)
 				{
 				throw new RuntimeIOException("Cannot open "+this.uri,err);
 				}
@@ -244,19 +244,15 @@ public class VcfGnomad extends Launcher{
 						Math.max(0, userVariantCtx.getStart()-10),
 						userVariantCtx.getEnd()+ VcfGnomad.this.gnomadBufferSize
 					);
-				final Iterator<VariantContext> iter= this.gnomad_tabix.iterator(new SimpleInterval(
-						this.lastInterval.getContig(),
-						this.lastInterval.getStart(),
-						this.lastInterval.getEnd()
-						));
-				while(iter.hasNext())
-					{
-					final VariantContext ctx = iter.next();
-					if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
-					if( VcfGnomad.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
-					this.buffer.add(ctx);
+				try( CloseableIterator<VariantContext> iter= this.gnomad_tabix.query(this.lastInterval)) {
+					while(iter.hasNext())
+						{
+						final VariantContext ctx = iter.next();
+						if( VcfGnomad.this.filteredGnomad && ctx.isFiltered()) continue;
+						if( VcfGnomad.this.noMultiAltGnomad && ctx.getAlternateAlleles().size()>1) continue;
+						this.buffer.add(ctx);
+						}
 					}
-				CloserUtil.close(iter);
 				}
 			
 			return this.buffer.stream().

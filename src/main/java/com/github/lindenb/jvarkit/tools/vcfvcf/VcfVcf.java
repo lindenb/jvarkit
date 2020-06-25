@@ -10,16 +10,18 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 
 /*
 BEGIN_DOC
@@ -67,7 +69,7 @@ public class VcfVcf extends OnePassVcfLauncher
 			CloseableIterator<VariantContext> iter=null;
 			
 			LOG.info("opening file: "+this.TABIX);
-		    IndexedVcfFileReader tabix= new IndexedVcfFileReader(this.TABIX);
+		    VCFReader tabix=  VCFReaderFactory.makeDefault().open(this.TABIX,true);
 			VCFHeader header3=tabix.getHeader();
 			VCFHeader header1=r.getHeader();
 			
@@ -104,7 +106,7 @@ public class VcfVcf extends OnePassVcfLauncher
 				List<VariantContext> variantsList=new ArrayList<VariantContext>();
 				
 			
-				iter=tabix.iterator(ctx1.getChr(),
+				iter=tabix.query(ctx1.getContig(),
 						Math.max(0,ctx1.getStart()-1),
 						(ctx1.getEnd()+1)
 						);

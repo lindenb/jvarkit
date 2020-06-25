@@ -26,19 +26,16 @@ package com.github.lindenb.jvarkit.variant.vcf;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-
-import com.github.lindenb.jvarkit.io.IOUtils;
-
-import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.variant.bcf2.BCF2Codec;
+import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFReader;
 
 /** Factory creating VCFReader */
@@ -62,18 +59,7 @@ public abstract class VCFReaderFactory {
 	public boolean isRequireIndex() {
 		return requireIndex;
 		}
-	
-	private void tabixedURL(String url,boolean requireIndex) throws IOException
-		{
-		if(requireIndex) {
-			final String tbiUrl= url + FileExtensions.TABIX_INDEX;
-			try(InputStream is=new URL(tbiUrl).openStream()) {
-				final Path tmpTbi = Files.createTempFile(IOUtils.getDefaultTempDir(),"tabix", FileExtensions.TABIX_INDEX);
-				IOUtils.copyTo(is, tmpTbi);
-				}
-			}
-		} 
-	
+		
 	/** open new VCFReader with default {@link #isRequireIndex()} */
 	public VCFReader open(final String pathOrUrl) {
 		return open(pathOrUrl,isRequireIndex());
@@ -81,9 +67,23 @@ public abstract class VCFReaderFactory {
 	
 	/** open new VCFReader */
 	public VCFReader open(final String pathOrUrl,boolean requireIndex) {
-		if(IOUtil.isUrl(pathOrUrl)) {
-			
-		}
+		if(pathOrUrl.startsWith("file://")) {
+			return open(pathOrUrl.substring(7),requireIndex);
+			}
+		if(IOUtil.isUrl(pathOrUrl) ) {
+			if(requireIndex) {
+				return new TabixVcfReader(pathOrUrl);
+				}
+			else
+				{	
+				try {
+					return new SimpleVcfIteratorWrapper(  new BcfIteratorBuilder().open(pathOrUrl));
+					}
+				catch(IOException err) {
+					throw new RuntimeIOException(err);
+					}
+				}
+			}
 
 		return open(Paths.get(pathOrUrl), requireIndex);
 		}
@@ -97,7 +97,7 @@ public abstract class VCFReaderFactory {
 	/** open new VCFReader */
 	public VCFReader open(final Path path,boolean requireIndex) {
 		if(BcfToolsUtils.isBcfToolsRequired(path)) {
-			throw new IllegalArgumentException("sorry, cannot open \""+path+"\" support is only for "+BCF2Codec.ALLOWED_BCF_VERSION);
+			return new BcfToolsReader(path.toString());
 			}
 		
 		return new VCFFileReader(path, requireIndex);
@@ -113,4 +113,31 @@ public abstract class VCFReaderFactory {
 		return open(p,isRequireIndex());
 		}
 
+	private static class SimpleVcfIteratorWrapper implements VCFReader {
+		private final VCFIterator iter;
+		SimpleVcfIteratorWrapper(VCFIterator iter) {
+			this.iter = iter;
+		 	}
+		@Override
+		public VCFHeader getHeader() {
+			return this.iter.getHeader();
+			}
+		@Override
+		public boolean isQueryable() {
+			return false;
+			}
+		@Override
+		public CloseableIterator<VariantContext> iterator() {
+			return this.iter;
+			}
+		@Override
+		public CloseableIterator<VariantContext> query(String chrom, int start, int end) {
+			throw new IllegalStateException("Cannot query a VCF iterator because index was not required");
+			}
+		@Override
+		public void close() throws IOException {
+			this.iter.close();
+			}
+		}
+	
 }

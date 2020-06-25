@@ -61,7 +61,6 @@ import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.IndexedVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFReader;
@@ -143,7 +142,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 public class KnimeVariantHelper extends VcfTools {
 	public static final Logger LOG = Logger.build(KnimeVariantHelper.class).make();
 	private final Map<String,IndexedBedReader> bedReaders=new HashMap<>();
-	private final Map<String,IndexedVcfFileReader> vcfReaders=new HashMap<>();
+	private final Map<String,VCFReader> vcfReaders=new HashMap<>();
 	private enum ForceSuffix { No, ForceTabix,ForceTribble};
 	private ForceSuffix forceSuffix=ForceSuffix.No;
 	private final int SUFFIX_LENGTH=20;
@@ -175,7 +174,7 @@ public class KnimeVariantHelper extends VcfTools {
 	public void dispose()
 		{
 		for(final IndexedBedReader r:this.bedReaders.values()) CloserUtil.close(r);
-		for(final IndexedVcfFileReader r:this.vcfReaders.values()) CloserUtil.close(r);
+		for(final VCFReader r:this.vcfReaders.values()) CloserUtil.close(r);
 		}	
 	
 	/** get current Logger */
@@ -215,9 +214,9 @@ public class KnimeVariantHelper extends VcfTools {
 		this.bedReaders.put(resourceName, reader);
 		return reader;
 		}
-	public IndexedVcfFileReader openVcf(final String resourceName,String path) throws IOException {
+	public VCFReader openVcf(final String resourceName,String path) throws IOException {
 		failIf(this.vcfReaders.containsKey(resourceName), "duplicate resource "+resourceName);
-		final IndexedVcfFileReader reader = new IndexedVcfFileReader(path);
+		final VCFReader reader = VCFReaderFactory.makeDefault().open(path,true);
 		this.vcfReaders.put(resourceName,  reader);
 		return reader;
 		}
@@ -234,12 +233,12 @@ public class KnimeVariantHelper extends VcfTools {
 	
 	public List<VariantContext> getVcfLines(final String resourceName,final VariantContext ctx) throws IOException
 		{
-		IndexedVcfFileReader bedReader = this.vcfReaders.get(resourceName);
+		VCFReader bedReader = this.vcfReaders.get(resourceName);
 		if(bedReader==null) {
 			LOG.error("No such vcfReader "+resourceName);
 			return Collections.emptyList();
 			}
-		return bedReader.getVariants(ctx.getContig(),ctx.getStart(),ctx.getEnd());
+		return bedReader.query(ctx.getContig(),ctx.getStart(),ctx.getEnd()).stream().collect(Collectors.toList());
 		}
 
 	

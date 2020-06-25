@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -34,20 +35,21 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 
-import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
+
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 
 /**
@@ -73,18 +75,18 @@ END_DOC
 	description="Reset Genotypes in VCF (./.) if they've been found in another VCF indexed with tabix",
 	keywords={"vcf","genotype"}
 )
-public class VcfRemoveGenotypeIfInVcf extends Launcher {
-	private TabixVcfFileReader tabix=null;
-	
-	@Parameter(names="-x",description="remove variant if there is no called genotype")
-	private boolean removeVariantNoGenotype=false;
-	
-
+public class VcfRemoveGenotypeIfInVcf extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfRemoveGenotypeIfInVcf.class).make();
 
+	@Parameter(names="-x",description="remove variant if there is no called genotype")
+	private boolean removeVariantNoGenotype=false;
+	@Parameter(names={"-t","--tabix"},description="Tabix indexed VCF file",required=true)
+	private String tabixFilePath=null;
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private VCFReader tabix=null;
+
+
+
 
 
 	
@@ -113,8 +115,8 @@ public class VcfRemoveGenotypeIfInVcf extends Launcher {
 				}
 			/* get overlapping variants */
 			overlappingList.clear();
-			Iterator<VariantContext> iter = this.tabix.iterator(
-					ctx.getContig(), ctx.getStart(), ctx.getEnd()+1);
+			Iterator<VariantContext> iter = this.tabix.query(new Interval(
+					ctx.getContig(), ctx.getStart(), ctx.getEnd()+1));
 			while(iter.hasNext())
 				{
 				VariantContext ctx2=iter.next();
@@ -202,35 +204,34 @@ public class VcfRemoveGenotypeIfInVcf extends Launcher {
 		return 0;
 		}
 	
-	@Parameter(names={"-t","--tabix"},description="Tabix indexed VCF file",required=true)
-	private String tabixFilePath=null;
-	
 	@Override
-	public int doWork(List<String> args) {
-
-		if( tabixFilePath==null)
-			{
+	protected int beforeVcf() {
+		if( StringUtils.isBlank(tabixFilePath)) {
 			LOG.error("Undefined VCF tabix  file");
 			return -1;
 			}
-		
 		try
 			{
-			LOG.info("Opening "+tabixFilePath);
-			this.tabix=new TabixVcfFileReader(tabixFilePath);
-			return doVcfToVcf(args, outputFile);
+			this.tabix= VCFReaderFactory.makeDefault().open(tabixFilePath);
+			return 0;
 			}
 		catch(Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.tabix);
-			}
 		}
-
+	
+	@Override
+	protected void afterVcf() {
+		CloserUtil.close(this.tabix);
+		}
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
 	/**
 	 * @param args
 	 */

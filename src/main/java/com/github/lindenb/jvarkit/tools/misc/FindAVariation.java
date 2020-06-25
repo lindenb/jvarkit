@@ -56,9 +56,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.TabixVcfFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.variant.vcf.BcfToolsReader;
 import com.github.lindenb.jvarkit.variant.vcf.BcfToolsUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -222,15 +220,15 @@ public class FindAVariation extends Launcher
     		}
     	}
     private void scanRemote(final String url)  {
-    	TabixVcfFileReader tabix = null;
+    	VCFReader tabix = null;
     	try {
-    		tabix=new TabixVcfFileReader(url);
+    		tabix=VCFReaderFactory.makeDefault().open(url);
     		final VCFHeader header = tabix.getHeader();
-    		final Set<String> chromosomes = tabix.getChromosomes();
+    		final SAMSequenceDictionary dict = header.getSequenceDictionary();
     		for(final SimplePosition m:convertFromVcfHeader(url,header))
     			{
-    			if(!chromosomes.contains(m.getContig())) continue;
-    			final java.util.Iterator<VariantContext> iter2 = tabix.iterator(new Interval(m));
+    			if(dict.getSequence(m.getContig())==null) continue;
+    			final java.util.Iterator<VariantContext> iter2 = tabix.query(new Interval(m));
     		    while(iter2.hasNext())
                       {
                       final VariantContext ctx=iter2.next();
@@ -255,8 +253,25 @@ public class FindAVariation extends Launcher
     		CloserUtil.close(tabix);
     		}
     	}
+    private boolean isVcf(final Path f) {
+    	final String filename=f.getFileName().toString();
+    	return FileExtensions.VCF_LIST.stream().anyMatch(EXT->filename.endsWith(EXT)) ||
+    		filename.endsWith(".vcf.bgz");
+    	}
+    private boolean isIndexed(final Path f) {
+    	if(!isVcf(f)) return false;
+    	final String filename=f.getFileName().toString();
 
-    
+    	for(final String suff:new String[]{FileExtensions.TRIBBLE_INDEX,FileExtensions.TABIX_INDEX,FileExtensions.CSI}) {
+    	
+			final Path index=Paths.get(
+					f.getParent().toString(),
+					filename+ suff
+					);
+			if( Files.exists(index) && !Files.isDirectory(index)) return true;
+	    	}
+    	return false;
+    	}
     
     private void scanPath(final String vcfPathString)  {
     	final Path vcfPath=Paths.get(vcfPathString);
@@ -265,43 +280,11 @@ public class FindAVariation extends Launcher
 		VCFIterator iter=null;
 		VCFReader r=null;
 		try {
-			if(vcfPathString.endsWith(FileExtensions.BCF) && this.use_bcf && BcfToolsUtils.isBcfToolsRequired(Paths.get(vcfPathString))) {
-				BcfToolsReader view = new BcfToolsReader(vcfPathString);
-				final VCFHeader header =view.getHeader();
-				if(view.isQueryable()) {
-					for(final SimplePosition m:convertFromVcfHeader(vcfPath.toString(),header))
-						{
-						try( CloseableIterator<VariantContext> iter2 = view.query(m)) {
-							while(iter2.hasNext())
-								{
-								final VariantContext ctx=iter2.next();
-						    	if(this.onlySnp  && (ctx.getStart()!=m.getPosition() || ctx.getEnd()!=m.getPosition())) continue;
-								report(vcfPathString,header,ctx,m);
-								}
-							}
-						}
-					}
-				else if(!this.indexedOnly)
-					{
-					final Set<SimplePosition> mutlist=convertFromVcfHeader(vcfPath.toString(),header);
-					try(CloseableIterator<VariantContext> iter2=view.iterator()) {
-						while(iter2.hasNext())
-							{
-							final VariantContext ctx=iter2.next();
-							if(this.onlySnp && ctx.getLengthOnReference()!=1) continue;
-							for(final SimplePosition m2: mutlist)
-								{
-								if(!m2.overlaps(ctx)) continue;
-						    	if(this.onlySnp  && (ctx.getStart()!=m2.getPosition() || ctx.getEnd()!=m2.getPosition())) continue;
-								report(vcfPathString,header,ctx,m2);
-								}
-							}
-						}
-					}
-				view.close();
+			if(vcfPathString.endsWith(FileExtensions.BCF) && BcfToolsUtils.isBcfToolsRequired(Paths.get(vcfPathString))) {
+				if(!this.use_bcf ) return;
 				}
-			else if(VCFUtils.isTribbleVcfPath(vcfPath) || 
-				VCFUtils.isTabixVcfPath(vcfPath))
+			
+			if(isIndexed(vcfPath))
 				{
 				r= VCFReaderFactory.makeDefault().open(vcfPath,true);
 				final VCFHeader header =r.getHeader();
