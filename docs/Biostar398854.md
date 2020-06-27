@@ -11,7 +11,9 @@ Extract every CDS sequences from a VCF file
 Usage: biostar398854 [options] Files
   Options:
   * -gtf, --gtf
-      A GTF file.
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat

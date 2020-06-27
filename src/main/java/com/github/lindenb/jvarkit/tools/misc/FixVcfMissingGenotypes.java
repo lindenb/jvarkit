@@ -123,7 +123,7 @@ gzip --best > out.vcf.gz
 ## Cited in 
 
  * "Exome sequencing in genomic regions related to racing performance of Quarter Horses" Pereira, G.L., Malheiros, J.M., Ospina, A.M.T. et al. J Appl Genetics (2019). https://doi.org/10.1007/s13353-019-00483-1
- 
+ * Lin, B.D., Colas, F., Nijman, I.J. et al. The role of rare compound heterozygous events in autism spectrum disorder. Transl Psychiatry 10, 204 (2020). https://doi.org/10.1038/s41398-020-00866-7
 
 ### History
 
