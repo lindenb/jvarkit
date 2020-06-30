@@ -30,49 +30,47 @@ package com.github.lindenb.jvarkit.tools.groupbygene;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.AbstractVCFCodec;
-import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.variant.vcf.VCFHeaderVersion;
+import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
-import htsjdk.tribble.readers.LineIterator;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 /**
 BEGIN_DOC
@@ -116,7 +114,8 @@ END_DOC
 		keywords={"vcf","gene"},
 		biostars={342790},
 		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff",
-		modificationDate="20190626"
+		modificationDate="20200630",
+		creationDate="20131209"
 		)
 public class GroupByGene
 	extends Launcher
@@ -131,6 +130,8 @@ public class GroupByGene
 	private Path outFile=null;
 	@Parameter(names={"-p","--ped","--pedigree"},description="[20170725] "+ PedigreeParser.OPT_DESC)
 	private Path pedigreePath=null;
+	@Parameter(names={"-positions"},description="include variants positions in the output table.")
+	private boolean print_positions=false;
 
 	@Parameter(names={"--fisher"},description="[20170726] Print fisher for case/control (experimental, need to work on this)")
 	private boolean print_fisher=false;
@@ -143,25 +144,9 @@ public class GroupByGene
 
 	
 	/** the SAMSequenceDictionary used to sort reference */
-	private SAMSequenceDictionary the_dictionary = null;
-	/** the VCFCodec used to serialize variant */
-	private AbstractVCFCodec the_codec = null;
+	private ContigDictComparator contigDictComparator = null;
 
 
-	private final Function<String, Integer> contig2tid = (S)->{
-		final int tid = the_dictionary.getSequenceIndex(S);
-		if(tid<0) throw new JvarkitException.ContigNotFoundInDictionary(S, the_dictionary);
-		return tid;
-		};
-	
-	private final Comparator<String> contigComparator = (S1,S2) -> {
-		if(S1.equals(S2)) return 0;
-		if(the_dictionary==null || the_dictionary.isEmpty()) {
-			return S1.compareTo(S2);
-			} else {
-				return contig2tid.apply(S1) - contig2tid.apply(S2);
-			}
-		};
 
 	
 	
@@ -205,30 +190,51 @@ public class GroupByGene
 	private class Call implements Comparable<Call>
 		{
 		GeneName gene;
-		String line;
+		VariantContext ctx;
 		
 		
 		String getContig()
 			{
-			final int tab=this.line.indexOf(VCFConstants.FIELD_SEPARATOR);
-			if(tab<1) throw new IllegalStateException("Cannot find tab in "+this.line);
-			return this.line.substring(0, tab);
+			return ctx.getContig();
 			}
 		
 		@Override
 		public int compareTo(final Call o) {
-			int i= contigComparator.compare(this.getContig(),o.getContig());
+			int i= contigDictComparator.compare(this.getContig(),o.getContig());
 			if(i!=0) return i;
 			i= this.gene.name.compareTo(o.gene.name);
 			if(i!=0) return i;
 			i= this.gene.type.compareTo(o.gene.type);
 			return i;
 			}
+		
+		public int compare2(final Call C2) {
+			int i= this.compareTo(C2);
+			if(i!=0) return i;
+			i =  this.ctx.getContig().compareTo(C2.ctx.getContig());
+			if(i!=0) return i;
+			i =  Integer.compare(this.ctx.getStart(),C2.ctx.getStart());
+			if(i!=0) return i;
+			i =  this.ctx.getReference().compareTo(C2.ctx.getReference());
+			return i;
+			}
+		
+		
 		}
 	
-	private class CallCodec
+	private class CallCodec 
 		extends AbstractDataCodec<Call>
 		{
+		final VCFHeader header;
+		private final VCFCodec vCodec;
+		private final VCFEncoder vcfEncoder;
+
+		CallCodec(final VCFHeader header) {
+			this.header= header;
+			this.vCodec = new VCFCodec();
+			this.vcfEncoder = new VCFEncoder(header, false, false);
+			this.vCodec.setVCFHeader(header, VCFHeaderVersion.VCF4_2);
+			}
 		@Override
 		public void encode(final DataOutputStream dos,final Call c)
 				throws IOException
@@ -236,7 +242,7 @@ public class GroupByGene
 			dos.writeUTF(c.gene.name);
 			dos.writeUTF(c.gene.label);
 			dos.writeUTF(c.gene.type);
-			writeString(dos, c.line);
+			writeString(dos, this.vcfEncoder.encode(c.ctx));
 			}
 		
 		@Override
@@ -245,19 +251,19 @@ public class GroupByGene
 			final String gName;
 			try {
 				gName=dis.readUTF();
-			} catch (final Exception e) {
+			} catch (final EOFException e) {
 				return null;
 				}
 			final String gLbl=dis.readUTF();
 			final String gType=dis.readUTF();
 			final Call c= new Call();
 			c.gene=new GeneName(gName,gLbl, gType);
-			c.line = readString(dis);
+			c.ctx = this.vCodec.decode(readString(dis));
 			return c;
 			}
 		@Override
 		public CallCodec clone() {
-			return new CallCodec();
+			return new CallCodec(this.header);
 			}
 		}
 	
@@ -271,45 +277,35 @@ public class GroupByGene
 	
 	private void read(final String input) throws IOException
 		{
-		LineIterator lineiter=null;
 		SortingCollection<Call> sortingCollection=null;
-		
+		VCFIterator vcfIterator = null;
 		
 		
 		try {
-			
-			lineiter = (input==null?
-						IOUtils.openStreamForLineIterator(stdin()):
-						IOUtils.openURIForLineIterator(input)
+			final BcfIteratorBuilder iterbuilder = new BcfIteratorBuilder();
+			vcfIterator = (input==null?
+						iterbuilder.open(stdin()):
+						iterbuilder.open(input)
 						);
+			final VCFHeader header = vcfIterator.getHeader();
+			this.contigDictComparator = new ContigDictComparator(SequenceDictionaryUtils.extractRequired(header));
+
 
 			sortingCollection =SortingCollection.newInstance(
 					Call.class,
-					new CallCodec(),
-					(C1,C2)->{
-						int i= C1.compareTo(C2);
-						if(i!=0) return i;
-						return C1.line.compareTo(C2.line);
-					},
+					new CallCodec(header),
+					(C1,C2)->C1.compare2(C2),
 					this.writingSortingCollection.getMaxRecordsInRam(),
 					this.writingSortingCollection.getTmpPaths()
 					);
 			sortingCollection.setDestructiveIteration(true);
 	
 			
-			final VCFUtils.CodecAndHeader cah =VCFUtils.parseHeader(lineiter);
-			final VCFHeader header = cah.header;
 			
 			final GeneExtractorFactory geneExtractorFactory = new GeneExtractorFactory(header);
 			final List<GeneExtractorFactory.GeneExtractor> geneExtractors = geneExtractorFactory.parse(this.extractorsNames);
 
 			
-			this.the_dictionary = header.getSequenceDictionary();
-			if(this.the_dictionary==null || this.the_dictionary.isEmpty())
-				{
-				throw new JvarkitException.DictionaryMissing(input);
-				}
-			this.the_codec = cah.codec;
 			
 			final List<String> sampleNames;
 			if(header.getSampleNamesInOrder()!=null)
@@ -331,34 +327,33 @@ public class GroupByGene
 				pedigree = PedigreeParser.empty();
 				}
 			
-			final CharSplitter tab = CharSplitter.TAB;
-			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(the_dictionary).logger(LOG).build();
-			while(lineiter.hasNext())
+			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			while(vcfIterator.hasNext())
 				{
-				final String line1 = lineiter.next();
-				final VariantContext ctx = progress.apply(this.the_codec.decode(line1));
+				final VariantContext ctx = progress.apply(vcfIterator.next());
 				if(!ctx.isVariant()) continue;
 				if(ignore_filtered && ctx.isFiltered()) continue;
 				
 				//simplify line
-				final String tokens[]=tab.split(line1);
-				tokens[2]=VCFConstants.EMPTY_ID_FIELD;//ID
-				tokens[5]=VCFConstants.MISSING_VALUE_v4;//QUAL
-				tokens[6]=VCFConstants.UNFILTERED;//FILTER
-				tokens[7]=VCFConstants.EMPTY_INFO_FIELD;//INFO
-				final String line2 = String.join(VCFConstants.FIELD_SEPARATOR, Arrays.asList(tokens));
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				vcb.noID();
+				vcb.log10PError(VariantContext.NO_LOG10_PERROR);
+				vcb.unfiltered();
+				vcb.attributes(Collections.emptyMap());
+				final VariantContext ctx2 = vcb.make();
+				
 				final SortingCollection<Call> finalSorter = sortingCollection; 
 				geneExtractors.stream().
 					flatMap(EX->EX.apply(ctx).keySet().stream()).
 					forEach(KG->{
 						final Call c=new Call();
-						c.line=line2;
+						c.ctx=ctx2;
 						c.gene=new GeneName(KG.getKey(),KG.getGene(),KG.getMethod());
 						finalSorter.add(c);
 					});
 				
 				}
-			CloserUtil.close(lineiter);lineiter=null;
+			CloserUtil.close(vcfIterator);vcfIterator=null;
 			sortingCollection.doneAdding();
 			progress.close();
 			
@@ -418,6 +413,10 @@ public class GroupByGene
 			pw.print("samples.affected");
 			pw.print('\t');
 			pw.print("count.variations");
+			if(this.print_positions) {
+				pw.print('\t');
+				pw.print("positions");
+				}
 			
 			if(!casesSamples.isEmpty())
 				{
@@ -463,7 +462,7 @@ public class GroupByGene
 				final List<Call> row = eqiter.next();
 				final Call first= row.get(0);
 	
-				final List<VariantContext> variantList =row.stream().map(R-> GroupByGene.this.the_codec.decode(R.line)).collect(Collectors.toList());
+				final List<VariantContext> variantList =row.stream().map(R-> R.ctx).collect(Collectors.toList());
 				final int minPos = variantList.stream().mapToInt(R->R.getStart()).min().getAsInt();
 				final int maxPos = variantList.stream().mapToInt(R->R.getEnd()).max().getAsInt();
 				final Set<String> sampleCarryingMut = new HashSet<String>();
@@ -517,6 +516,15 @@ public class GroupByGene
 					pw.print(sampleCarryingMut.size());
 					pw.print('\t');
 					pw.print(variantList.size());
+					if(this.print_positions) {
+						pw.print('\t');
+						pw.print(variantList.stream().
+								map(CTX->String.valueOf(CTX.getStart())+":"+CTX.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/"))).
+								collect(Collectors.joining(";"))
+							);
+						}
+					
+					
 					
 					if(!casesSamples.isEmpty())
 						{
@@ -601,7 +609,7 @@ public class GroupByGene
 			}
 		finally
 			{
-			CloserUtil.close(lineiter);
+			CloserUtil.close(vcfIterator);
 			if(sortingCollection!=null) sortingCollection.cleanup();
 			}
 		}

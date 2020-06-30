@@ -46,6 +46,9 @@ Usage: groupbygene [options] Files
       Default: []
     --version
       print version and exit
+    -positions
+      include variants positions in the output table.
+      Default: false
 
 ```
 
@@ -78,6 +81,11 @@ $ ./gradlew groupbygene
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20131209
 
 ## Source code 
 
