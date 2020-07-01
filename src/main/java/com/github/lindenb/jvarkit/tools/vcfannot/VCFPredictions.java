@@ -39,7 +39,7 @@ import java.util.WeakHashMap;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -54,12 +54,9 @@ import com.github.lindenb.jvarkit.util.bio.structure.RNASequence;
 import com.github.lindenb.jvarkit.util.bio.structure.RNASequenceFactory;
 import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.bio.structure.UTR;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
@@ -142,9 +139,9 @@ END_DOC
 	description="Basic Variant Effect prediction using gtf",
 	keywords={"vcf","annotation","prediction","gtf"},
 	creationDate="20160318",
-	modificationDate="20191113"
+	modificationDate="20200701"
 	)
-public class VCFPredictions extends Launcher
+public class VCFPredictions extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VCFPredictions.class).make();
 	private enum OutputSyntax {Native,Vep,SnpEff };
@@ -152,10 +149,6 @@ public class VCFPredictions extends Launcher
 	private ReferenceSequenceFile referenceGenome = null;
 	private final WeakHashMap<String, RNASequence> transcriptId2cdna = new WeakHashMap<>();
 	private GenomicSequence genomicSequence = null;
-
-	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 
 	@Parameter(names={"-k","-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
 	private Path gtfPath = null;
@@ -166,8 +159,6 @@ public class VCFPredictions extends Launcher
 	@Parameter(names={"-R","--reference"},description= INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxPath = null;
 	
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariant = new WritingVariantsDelegate();
 
 	/** a sequence with one or more altered base/amino-acid */
 	private static class MutedSequence extends DelegateCharSequence
@@ -361,10 +352,14 @@ public class VCFPredictions extends Launcher
 		return this.genomicSequence;
 		}
 	
+	
 	@Override
-	public int doWork(final List<String> args) {
-		VCFIterator r = null;
-		VariantContextWriter w = null;
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int doVcfToVcf(String inputName, VCFIterator r, VariantContextWriter w) {
 			try {
 			this.referenceGenome= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxPath);
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceGenome);
@@ -372,7 +367,6 @@ public class VCFPredictions extends Launcher
 			
 			loadGtf(dict);
 			
-			r = super.openVCFIterator(oneFileOrNull(args));
 			final VCFHeader header= r.getHeader();
 			final VCFHeader h2=new VCFHeader(header);
 			JVarkitVersion.getInstance().addMetaData(this, h2);
@@ -415,17 +409,15 @@ public class VCFPredictions extends Launcher
 					}
 				}
 			
-			w = this.writingVariant.dictionary(dict).open(this.outputFile);
 	        w.writeHeader(h2);
 	
 	
 			final RNASequenceFactory rnaSeqFactory = new RNASequenceFactory();
 			rnaSeqFactory.setContigToGenomicSequence(S->getGenomicSequence(S));
 			
-			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			while(r.hasNext())
 				{
-				final VariantContext ctx=progress.apply(r.next());
+				final VariantContext ctx= r.next();
 				
 				
 				
@@ -690,9 +682,6 @@ public class VCFPredictions extends Launcher
 				vb.attribute(thetag, info.toArray());
 				w.add(vb.make());
 				}
-			w.close();w=null;
-			r.close();r=null;
-			progress.close();
 			return 0;
 			}
 		catch(final Throwable err ) {

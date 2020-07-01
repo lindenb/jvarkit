@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfgo;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,18 +32,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import javax.xml.stream.XMLStreamException;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.go.GoTree;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
@@ -53,7 +51,6 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -159,15 +156,13 @@ END_DOC
 		name="vcfgo",
 		description="Find the GO terms for VCF annotated with SNPEFF or VEP",
 		deprecatedMsg="do not use this",
-		keywords={"vcf","go"}
+		keywords={"vcf","go"},
+		modificationDate="20200701"
 		)
-public class VcfGeneOntology
-	extends Launcher
+public class VcfGeneOntology extends OnePassVcfLauncher
 	{
 	 private static Logger LOG=Logger.build(VcfGeneOntology.class).make(); 
 		
-	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	 private File outputFile = null;
 
 	@Parameter(names="-G",description="(go  url)",required=true)
 	private String GO="http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz";
@@ -197,6 +192,11 @@ public class VcfGeneOntology
 		}
 	
 
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
     
 	private void readGO() throws IOException
 		{
@@ -204,10 +204,10 @@ public class VcfGeneOntology
 		LOG.info("read GO "+GO);
 		try
 			{
-			goTree=GoTree.parse(GO);
+			goTree= new GoTree.Parser().parse(GO);
 			LOG.info("GO size:"+goTree.size());
 			}
-		catch(XMLStreamException err)
+		catch(final XMLStreamException err)
 			{
 			throw new IOException(err);
 			}
@@ -217,7 +217,7 @@ public class VcfGeneOntology
 		if(this.name2go!=null) return;
 		this.name2go = new HashMap<String, Set<GoTree.Term>>();
 		LOG.info("read GOA "+GOA);
-		Pattern tab=Pattern.compile("[\t]");
+		final CharSplitter tab= CharSplitter.TAB;
 		BufferedReader in=IOUtils.openURIForBufferedReading(GOA);
 		String line;
 		while((line=in.readLine())!=null)
@@ -250,9 +250,8 @@ public class VcfGeneOntology
 	
 	
 	
-	
-	private int initializeThings()
-		{
+	@Override
+	protected int beforeVcf() {
 		try
 			{
 			readGO();
@@ -291,30 +290,9 @@ public class VcfGeneOntology
 		return 0;
 		}
 
-	public int executeThings(List<String> args)
-		{
-		VCFIterator vcfIn=null;
-		try
-			{
-			vcfIn = super.openVCFIterator(oneFileOrNull(args));
-			this.filterVCFIterator(vcfIn);
-			return 0;
-			}
-		catch(Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(vcfIn);
-			}
-		}
 
-    
-	private void filterVCFIterator(final VCFIterator in) throws IOException
-		{
-		VariantContextWriter w = null;
+    @Override
+    protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter w) {
 		try {
 			VCFHeader header=in.getHeader();
 			VCFHeader h2=new VCFHeader(header);
@@ -331,17 +309,14 @@ public class VcfGeneOntology
 						));
 				}
 			
-			w = super.openVariantContextWriter(outputFile);
 
 			w.writeHeader(h2);
-			final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(header.getSequenceDictionary());
 			final SnpEffPredictionParser snpEffPredictionParser= new SnpEffPredictionParserFactory().header(header).get();
 			final VepPredictionParser vepPredictionParser = new VepPredictionParserFactory().header(header).get();
 			
 			while(in.hasNext())
 				{
-				if(System.out.checkError()) break;
-				VariantContext ctx=progess.watch(in.next());
+				VariantContext ctx= in.next();
 				
 				/* symbols for this variant */
 				Set<String> symbols=new HashSet<String>();
@@ -450,14 +425,10 @@ public class VcfGeneOntology
 				vcb.attribute(this.TAG, atts);
 				w.add(vcb.make());
 				}
-			progess.finish();
-			w.close();
-			w=null;
+			return 0;
 			}
 		finally
 			{
-			CloserUtil.close(w);
-			w=null;
 			}
 		}
 
@@ -466,20 +437,12 @@ public class VcfGeneOntology
 		this.strGoTermToFilter.add(term);
 		}
 	
-	@Override
-		public int doWork(final List<String> args) {			
-			if(this.initializeThings()!=0)
-				{
-				return -1;
-				}
-			return this.executeThings(args);
-			}
 	
 		
-		public static void main(String[] args)
-			{
-			new VcfGeneOntology().instanceMainWithExit(args);
-			}
-
-
+	public static void main(String[] args)
+		{
+		new VcfGeneOntology().instanceMainWithExit(args);
 		}
+
+
+	}
