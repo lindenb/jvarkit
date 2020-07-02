@@ -86,6 +86,7 @@ public class BufferedVCFReader implements VCFReader {
 	public BufferedVCFReader(final VCFReader delegate,int buffSizeInBp) {
 		this.delegate = delegate;
 		this.buffSizeInBp = buffSizeInBp;
+		if(buffSizeInBp<1) throw new IllegalArgumentException("bad buffer size "+buffSizeInBp);
 		}
 	
 	public VCFReader getDelegate() {
@@ -120,7 +121,7 @@ public class BufferedVCFReader implements VCFReader {
 		final Locatable query = new SimpleInterval(chrom,start,end);
 		if(this.lastInterval==null || !this.lastInterval.contains(query)) {
 			this.buffer.clear();
-			this.lastInterval = new SimpleInterval(chrom, start, end+this.buffSizeInBp);
+			this.lastInterval = new SimpleInterval(chrom, start, Math.max(end, start+this.buffSizeInBp));
 			try(CloseableIterator<VariantContext> iter = this.getDelegate().query(this.lastInterval)) {
 				while(iter.hasNext()) {
 					final VariantContext ctx=simplify(iter.next());
