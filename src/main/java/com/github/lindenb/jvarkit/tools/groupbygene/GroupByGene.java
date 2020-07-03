@@ -114,7 +114,7 @@ END_DOC
 		keywords={"vcf","gene"},
 		biostars={342790},
 		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff",
-		modificationDate="20200630",
+		modificationDate="20200702",
 		creationDate="20131209"
 		)
 public class GroupByGene
@@ -361,7 +361,6 @@ public class GroupByGene
 			/** dump */			
 	
 			final Set<String> casesSamples = pedigree.getAffectedSamples().stream().
-						filter(P->P.isAffected()).
 						map(P->P.getId()).
 						filter(ID->sampleNames.contains(ID)).
 						collect(Collectors.toSet())
@@ -371,7 +370,7 @@ public class GroupByGene
 					filter(ID->sampleNames.contains(ID)).
 					collect(Collectors.toSet())
 					;
-			
+
 			final Set<String> maleSamples = pedigree.getSamples().stream().
 					filter(P->P.isMale()).
 					map(P->P.getId()).
@@ -391,7 +390,7 @@ public class GroupByGene
 				if(genotype.isHomRef()) return false;
 				if(this.ignore_filtered_genotype && genotype.isFiltered()) return false;
 				return true;
-			};
+				};
 			
 			
 			
@@ -554,34 +553,32 @@ public class GroupByGene
 						int count_case_wild = 0;
 						int count_ctrl_wild = 0;
 						
-						for(final VariantContext ctx: variantList) {
-							for(final Genotype genotype:ctx.getGenotypes())
-								{
-								final String sampleName =  genotype.getSampleName();
-								final boolean has_mutation = genotypeFilter.test(genotype);
-								if( controlsSamples.contains(sampleName)) {
-									if(has_mutation)
-										{
-										count_ctrl_mut++;
-										}
-									else
-										{
-										count_ctrl_wild++;
-										}
+						for(final String sampleName : header.getSampleNamesInOrder())  {
+							final boolean has_mutation  = variantList.stream().
+									map(V->V.getGenotype(sampleName)).
+									anyMatch(G->G!=null && genotypeFilter.test(G));
+							if( controlsSamples.contains(sampleName)) {
+								if(has_mutation)
+									{
+									count_ctrl_mut++;
 									}
-								else if( casesSamples.contains(sampleName)) {
-									if(has_mutation)
-										{
-										count_case_mut++;
-										}
-									else
-										{
-										count_case_wild++;
-										}
+								else
+									{
+									count_ctrl_wild++;
 									}
 								}
-							}
-						
+							else if( casesSamples.contains(sampleName)) {
+								if(has_mutation)
+									{
+									count_case_mut++;
+									}
+								else
+									{
+									count_case_wild++;
+									}
+								}
+							}					
+
 						final FisherExactTest fisher = FisherExactTest.compute(
 								count_case_mut,count_case_wild,
 								count_ctrl_mut,count_ctrl_wild
