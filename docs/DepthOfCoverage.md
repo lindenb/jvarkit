@@ -25,6 +25,9 @@ Usage: depthofcoverage [options] Files
       Default: 1
     -B, --mask
       optional bed containing regions to be MASKED
+    --max-depth
+      Ignore depth if it is bigger than this value.
+      Default: 10000000
     -o, --out
       Output file. Optional . Default: stdout
     -R, --reference

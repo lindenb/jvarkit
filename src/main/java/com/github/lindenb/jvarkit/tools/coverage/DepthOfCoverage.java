@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -38,6 +39,8 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -97,7 +100,7 @@ END_DOC
 	description="A custom 'Depth of Coverage'.",
 	keywords={"depth","bam","sam","coverage"},
 	creationDate="20190927",
-	modificationDate="20190928"
+	modificationDate="20200706"
 	)
 public class DepthOfCoverage extends Launcher
 	{
@@ -120,6 +123,10 @@ public class DepthOfCoverage extends Launcher
 	private boolean asyncIo=false;
 	@Parameter(names={"--disable-paired-overlap"},description="Count overlapping bases with mate for paired-end")
 	private boolean disable_paired_overlap_flag=false;
+	@Parameter(names={"--max-depth"},description="Ignore depth if it is bigger than this value.")
+	private int max_depth = 10_000_000;
+
+	
 	@Override
 	public int doWork(final List<String> args)
 		{
@@ -150,7 +157,7 @@ public class DepthOfCoverage extends Launcher
 				}
 			
 			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			out.println("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth");
+			out.println("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth\tMedian");
 			
 			for(final Path path: IOUtils.unrollPaths(args)) {
 				
@@ -177,6 +184,7 @@ public class DepthOfCoverage extends Launcher
 					long count_raw_bases = 0L;
 					long count_bases = 0L;
 					long sum_coverage = 0L;
+					final DiscreteMedian<Integer> discreteMedian_wg = new DiscreteMedian<>();
 					final String sample = header.getReadGroups().
 							stream().
 							map(RG->RG.getSample()).
@@ -194,11 +202,7 @@ public class DepthOfCoverage extends Launcher
 							final SAMRecord rec = iter.hasNext()?progress.apply(iter.next()):null;
 							
 							if(rec!=null) {
-								if(rec.getReadUnmappedFlag()) continue;
-								if(rec.isSecondaryOrSupplementary()) continue;
-								if(rec.getDuplicateReadFlag()) continue;
-								if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-								if(rec.getMappingQuality() < this.mapping_quality ) continue;				
+								if(!SAMRecordDefaultFilter.accept(rec,this.mapping_quality)) continue;
 								if(rejectContigSet.contains(rec.getContig())) continue;
 								}
 							
@@ -206,11 +210,15 @@ public class DepthOfCoverage extends Launcher
 								if(coverage!=null) {//DUMP
 									long count_bases_ctg = 0L;
 									long sum_coverage_ctg = 0L;
+									final DiscreteMedian<Integer> discreteMedian_ctg = new DiscreteMedian<>();
 									
 									for(int i=0;i< coverage.length;i++) {
 										if(mask.get(i)) continue;
+										final int covi = coverage[i];
+										if(covi> this.max_depth) continue;
 										count_bases_ctg++;
-										sum_coverage_ctg += coverage[i];
+										sum_coverage_ctg += covi;
+										discreteMedian_ctg.add(covi);
 										}
 									out.print(path);
 									out.print("\t");
@@ -231,12 +239,21 @@ public class DepthOfCoverage extends Launcher
 										{
 										out.print("N/A");
 										}
+									out.print("\t");
+									final OptionalDouble median = discreteMedian_ctg.getMedian();
+									if(median.isPresent()) {
+										out.print(median.getAsDouble());
+										}
+									else
+										{
+										out.print("N/A");
+										}
 									out.println();
 									
 									count_bases += count_bases_ctg;
 									sum_coverage += sum_coverage_ctg;
 									count_raw_bases += coverage.length;
-									
+									discreteMedian_wg.add(discreteMedian_ctg);
 									}
 								coverage=null;
 								mask=null;
@@ -290,7 +307,7 @@ public class DepthOfCoverage extends Launcher
 								}
 							
 							for(final AlignmentBlock block:rec.getAlignmentBlocks()) {
-								int pos1=block.getReferenceStart();
+								final int pos1=block.getReferenceStart();
 								final int len = block.getLength();
 								for(int i=0;i< len;i++) {
 									if(pos1>0 && pos1 <= max_end1) {
@@ -324,10 +341,17 @@ public class DepthOfCoverage extends Launcher
 						{
 						out.print("N/A");
 						}
+					out.print("\t");
+					final OptionalDouble median = discreteMedian_wg.getMedian();
+					if(median.isPresent()) {
+						out.print(median.getAsDouble());
+						}
+					else
+						{
+						out.print("N/A");
+						}
 					out.println();
 					}
-					
-					
 				}
 			out.flush();
 			out.close();

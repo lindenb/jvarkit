@@ -58,11 +58,22 @@ public class DiscreteMedian<T extends Number>
 	}
 	
 	public DiscreteMedian<T> add(final T value) {
-		long n = this.counter.getOrDefault(value, 0L);
+		final long n = this.counter.getOrDefault(value, 0L);
 		this.counter.put(value, n+1L);
 		this.size++;
 		return this;
 		}
+	
+	public DiscreteMedian<T> add(final DiscreteMedian<T> other) {
+		for(T t: other.counter.keySet()) {
+			final long n1 = other.counter.get(t);
+			final long n2 = this.counter.getOrDefault(t, 0L);
+			this.counter.put(t, n1+n2);
+			this.size+=n1;
+			}
+		return this;
+		}
+	
 	public DiscreteMedian<T> addAll(final Collection<T> col) {
 		Iterator<T> iter = col.iterator();
 		T prev=null;
