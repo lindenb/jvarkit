@@ -30,18 +30,24 @@ Usage: vcfgnomad [options] Files
       Default: false
   * -g, --gnomad
       Path to Indexed Gnomad VCF file.
-    -gnomad-filter-prefix, --gnomad-filter-prefix
-      [20181214] if not empty, include the Gnomad FILTERs using this prefix.
-      Default: GNOMAD
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --max-af
+      Max allele frequency
+      Default: 1.0
+    --min-af
+      Min allele frequency
+      Default: 0.0
     --noUpdateId
       do Not Update ID if it is missing in user's variant
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
+    --prefix
+      If not empty, include the Gnomad FILTERs using this prefix.
+      Default: GNOMAD
     --version
       print version and exit
 
@@ -75,7 +81,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-20170404
+20170407
 
 ## Source code 
 

@@ -37,12 +37,14 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
@@ -81,7 +83,7 @@ END_DOC
 	description="Peek annotations from gnomad",
 	keywords={"vcf","annotation","gnomad"},
 	modificationDate="20200702",
-	creationDate="20170404"
+	creationDate="20170407"
 )
 public class VcfGnomad extends OnePassVcfLauncher {
 	
@@ -90,15 +92,21 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	
 	@Parameter(names={"-g","--gnomad"},description="Path to Indexed Gnomad VCF file.",required=true)
 	private Path gnomadPath =null;
-	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Gnomad, load the variants for 'N' bases instead of doing a random access for each variant. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
+	@Parameter(names={"--bufferSize"},description= BufferedVCFReader.OPT_BUFFER_DESC+" "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int gnomadBufferSize= 10_000;
 	@Parameter(names={"-F","--fields"},description="AF fields to peek-up from gnomad. Space/comma/semicolon separated")
 	private String infoFieldStr="AF_popmax,AF_nfe";
 	@Parameter(names={"--noUpdateId"},description="do Not Update ID if it is missing in user's variant")
 	private boolean doNotUpdateId=false;
-	@Parameter(names={"-gnomad-filter-prefix","--gnomad-filter-prefix"},description="[20181214] if not empty, include the Gnomad FILTERs using this prefix.")
+	@Parameter(names={"--prefix"},description="If not empty, include the Gnomad FILTERs using this prefix.")
 	private String filteredInGnomadFilterPrefix="GNOMAD";
 	
+	@Parameter(names={"--min-af"},description="Min allele frequency",converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double min_af = 0.0;
+	@Parameter(names={"--max-af"},description="Max allele frequency",converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double max_af = 1.0;
+
+
 	
 	private BufferedVCFReader gnomadReader = null;
 	private ContigNameConverter ctgNameConverter = null;
@@ -235,6 +243,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		
 		
 		final VCFHeader gnomadHeader = this.gnomadReader.getHeader();
+		final VCFFilterHeaderLine filterFrequencyHeader;
 		
 		/* peek FILTER from GNOMAD */
 		if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix))
@@ -248,6 +257,14 @@ public class VcfGnomad extends OnePassVcfLauncher {
 						);
 				h2.addMetaDataLine(fh2);
 				}
+			filterFrequencyHeader = new VCFFilterHeaderLine(this.filteredInGnomadFilterPrefix+"_"+ome.toUpperCase()+"_BAD_AF",
+					"AF if not between "+this.min_af+"<= 'af' <="+this.max_af+" for "+this.gnomadPath
+					);
+			h2.addMetaDataLine(filterFrequencyHeader);
+			}
+		else
+			{
+			filterFrequencyHeader = null;
 			}
 		
 		/* peek INFO from GNOMAD */
@@ -278,7 +295,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 				"N_GNOMAD_"+ome.toUpperCase(),
 				1,
 				VCFHeaderLineType.Integer,
-				"Gnomad Variant was found overlapping the variant, not necessarily at the same CHROM/POS in "+this.gnomadPath
+				"Count Gnomad Variants that were found overlapping the user variant, not necessarily at the same CHROM/POS in "+this.gnomadPath
 				);
 		h2.addMetaDataLine(infoNumOverlapping);
 		
@@ -293,6 +310,11 @@ public class VcfGnomad extends OnePassVcfLauncher {
 
 			
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+			
+			for(final String infoField: this.gnomad_info_af_attributes) {
+				vcb.rmAttribute(toNewInfo.apply(infoField));
+				}
+			
 			final List<Allele> alternateAlleles = ctx.getAlternateAlleles();
 			String newid = null;
 			
@@ -307,9 +329,20 @@ public class VcfGnomad extends OnePassVcfLauncher {
 						filter(V->V.getStart()==ctx.getStart() && V.getReference().equals(ctx.getReference())).
 						collect(Collectors.toList());
 
-				
-				
-			if(!gnomadVariants.isEmpty()) {
+			double ctx_min_AF = 1.0;
+			if(!ctx.isVariant() ||
+				gnomadVariants.isEmpty() ||
+				(alternateAlleles.size()==1 && alternateAlleles.get(0).equals(Allele.SPAN_DEL)
+				)) {
+				ctx_min_AF = 0.0;// not in gnomad
+				for(final String infoField: this.gnomad_info_af_attributes) {
+					final double numbers[]=new double[alternateAlleles.size()];
+					Arrays.fill(numbers,0.0);
+					vcb.attribute(toNewInfo.apply(infoField), numbers);
+					}
+				}
+			else
+				{
 				vcb.attribute(infoFlagContigStartRef.getID(), true);
 				
 				// set new id ?
@@ -337,8 +370,6 @@ public class VcfGnomad extends OnePassVcfLauncher {
 				
 				// loop over each field
 				for(final String infoField: this.gnomad_info_af_attributes) {
-					if(gnomadVariants.stream().noneMatch(V->V.hasAttribute(infoField))) continue;
-					
 					final double numbers[]=new double[alternateAlleles.size()];
 					Arrays.fill(numbers,0.0);
 					for(int x=0;x< alternateAlleles.size();++x)
@@ -348,17 +379,35 @@ public class VcfGnomad extends OnePassVcfLauncher {
 						for(final VariantContext gv:gnomadVariants)
 							{
 							final int idx = gv.getAlternateAlleles().indexOf(alt);
-							if(idx==-1) continue;
-							if(!gv.hasAttribute(infoField)) continue;
+							if(idx==-1) {
+								ctx_min_AF = 0.0; // this ALT is NOT in gnomad variant
+								continue;
+								}
+							if(!gv.hasAttribute(infoField)) {
+								ctx_min_AF = 0.0; // no info is available ?
+								continue;
+								}
 							final List<Double> array = gv.getAttributeAsDoubleList(infoField,0.0);
 							if(idx>=array.size()) continue;
-							numbers[x] = array.get(idx);
+							final double af = array.get(idx);
+							ctx_min_AF =  Math.min(ctx_min_AF  , af);
+							numbers[x] = af;
 							}
 						}
-					vcb.attribute(infoField, numbers);
+					vcb.attribute(toNewInfo.apply(infoField), numbers);
 					}
 				}
-			
+			// test for frequency
+			if(!(this.min_af<=ctx_min_AF && ctx_min_AF<=this.max_af) ) {
+				// skip variants
+				if(filterFrequencyHeader==null) {
+					continue;
+					}
+				else
+					{
+					filters.add(filterFrequencyHeader.getID());
+					}
+				}
 			
 			if(!this.doNotUpdateId && !ctx.hasID() && !StringUtil.isBlank(newid)) vcb.id(newid);
 			vcb.filters(filters);
