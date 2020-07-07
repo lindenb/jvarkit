@@ -105,13 +105,18 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	private double min_af = 0.0;
 	@Parameter(names={"--max-af"},description="Max allele frequency",converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double max_af = 1.0;
-
+	@Parameter(names={"--debug"},description="debug",hidden=true)
+	private boolean debug = false;
 
 	
 	private BufferedVCFReader gnomadReader = null;
 	private ContigNameConverter ctgNameConverter = null;
 	private final Set<String> gnomad_info_af_attributes = new HashSet<>();
 	
+	private String toString(final VariantContext vc) {
+	return vc.getContig()+":"+vc.getStart()+":"+vc.getReference();
+	}
+
 	@Override
 	protected Logger getLogger() {
 		return LOG;
@@ -255,12 +260,15 @@ public class VcfGnomad extends OnePassVcfLauncher {
 						toNewFilter.apply(fh.getID()),
 						"[gnomad-"+ome+"]" + fh.getDescription()+" in "+ gnomadPath
 						);
+				if(this.debug) LOG.debug("adding vcf filter "+fh2.getID());
 				h2.addMetaDataLine(fh2);
 				}
 			filterFrequencyHeader = new VCFFilterHeaderLine(this.filteredInGnomadFilterPrefix+"_"+ome.toUpperCase()+"_BAD_AF",
 					"AF if not between "+this.min_af+"<= 'af' <="+this.max_af+" for "+this.gnomadPath
 					);
 			h2.addMetaDataLine(filterFrequencyHeader);
+			if(this.debug) LOG.debug("adding filter "+ filterFrequencyHeader.getID());
+
 			}
 		else
 			{
@@ -280,6 +288,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 					"[gnomad-"+ome+"]" + fh.getDescription()+" in "+ gnomadPath
 					);
 			h2.addMetaDataLine(fh2);
+			if(this.debug) LOG.debug("Adding INFO vcf "+fh2.getID());
 			}
 		
 		
@@ -290,7 +299,8 @@ public class VcfGnomad extends OnePassVcfLauncher {
 				"Variant CHROM/POS/REF was found in gnomad "+this.gnomadPath
 				);
 		h2.addMetaDataLine(infoFlagContigStartRef);
-		
+		if(this.debug) LOG.debug("adding vcfheader "+infoFlagContigStartRef.getID());
+
 		final VCFInfoHeaderLine infoNumOverlapping = new VCFInfoHeaderLine(
 				"N_GNOMAD_"+ome.toUpperCase(),
 				1,
@@ -298,6 +308,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 				"Count Gnomad Variants that were found overlapping the user variant, not necessarily at the same CHROM/POS in "+this.gnomadPath
 				);
 		h2.addMetaDataLine(infoNumOverlapping);
+		if(this.debug) LOG.debug("adding vcfheader "+infoNumOverlapping.getID());
 		
 		
 		JVarkitVersion.getInstance().addMetaData(this, h2);
@@ -376,35 +387,44 @@ public class VcfGnomad extends OnePassVcfLauncher {
 						{
 						final Allele alt= alternateAlleles.get(x);
 						if(alt.equals(Allele.SPAN_DEL)) continue;
+						Double alt_af = null;
 						for(final VariantContext gv:gnomadVariants)
 							{
 							final int idx = gv.getAlternateAlleles().indexOf(alt);
+							// this ALT is NOT in gnomad variant
 							if(idx==-1) {
-								ctx_min_AF = 0.0; // this ALT is NOT in gnomad variant
-								continue;
+								if(this.debug) LOG.debug(toString(ctx)+ " no allele "+alt+ " in gnomad "+ toString(gv));continue;
 								}
 							if(!gv.hasAttribute(infoField)) {
-								ctx_min_AF = 0.0; // no info is available ?
-								continue;
+								if(this.debug) LOG.debug(toString(ctx)+ " no info "+ infoField +" in gnomad "+ toString(gv));continue;
 								}
 							final List<Double> array = gv.getAttributeAsDoubleList(infoField,0.0);
-							if(idx>=array.size()) continue;
-							final double af = array.get(idx);
-							ctx_min_AF =  Math.min(ctx_min_AF  , af);
-							numbers[x] = af;
+							if(idx>=array.size()) {
+								if(this.debug) LOG.debug(toString(ctx)+ " array out of bound for "+ infoField + " in gnomad "+ toString(gv));
+								continue;
+								}
+							alt_af = array.get(idx);
+							if(this.debug) LOG.debug(toString(ctx)+ " "+infoField+" got AF="+alt_af);
+							break;
 							}
+						if(alt_af==null) alt_af = 0.0;
+						ctx_min_AF =  Math.min(ctx_min_AF  , alt_af);
+						if(this.debug) LOG.debug(toString(ctx)+ " "+infoField+":"+alt_af+" min"+ctx_min_AF);
+						numbers[x] = alt_af;
 						}
 					vcb.attribute(toNewInfo.apply(infoField), numbers);
 					}
 				}
 			// test for frequency
 			if(!(this.min_af<=ctx_min_AF && ctx_min_AF<=this.max_af) ) {
+				if(this.debug) LOG.debug(toString(ctx)+ "fails  "+ this.min_af +"<="+ctx_min_AF+"<="+this.max_af);
 				// skip variants
 				if(filterFrequencyHeader==null) {
 					continue;
 					}
 				else
 					{
+					if(this.debug) LOG.debug(toString(ctx)+ "set filter "+filterFrequencyHeader.getID());
 					filters.add(filterFrequencyHeader.getID());
 					}
 				}
