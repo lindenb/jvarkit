@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.gnomad;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -193,6 +194,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		{
 		final String normContig = this.ctgNameConverter.apply(userVariantCtx.getContig());
 		final Locatable loc;
+		if(StringUtil.isBlank(normContig)) return Collections.emptyList();
 		if(normContig.equals(userVariantCtx.getContig())) {
 			loc = userVariantCtx;
 			}
