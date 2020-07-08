@@ -395,10 +395,12 @@ public class VcfGnomad extends OnePassVcfLauncher {
 							final int idx = gv.getAlternateAlleles().indexOf(alt);
 							// this ALT is NOT in gnomad variant
 							if(idx==-1) {
-								if(this.debug) LOG.debug(toString(ctx)+ " no allele "+alt+ " in gnomad "+ toString(gv));continue;
+								if(this.debug) LOG.debug(toString(ctx)+ " no allele "+alt+ " in gnomad "+ toString(gv));
+								continue;
 								}
 							if(!gv.hasAttribute(infoField)) {
-								if(this.debug) LOG.debug(toString(ctx)+ " no info "+ infoField +" in gnomad "+ toString(gv));continue;
+								if(this.debug) LOG.debug(toString(ctx)+ " no info "+ infoField +" in gnomad "+ toString(gv));
+								continue;
 								}
 							final List<Double> array = gv.getAttributeAsDoubleList(infoField,0.0);
 							if(idx>=array.size()) {
