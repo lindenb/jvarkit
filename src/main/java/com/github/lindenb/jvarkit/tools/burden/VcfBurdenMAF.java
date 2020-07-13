@@ -35,6 +35,17 @@ import java.util.Set;
 import java.util.function.DoublePredicate;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -45,21 +56,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
-import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
-import com.github.lindenb.jvarkit.pedigree.Sample;
 import htsjdk.variant.vcf.VCFIterator;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 /**
 BEGIN_DOC
@@ -110,18 +107,15 @@ END_DOC
 @Program(name="vcfburdenmaf",
 	description="MAF for Cases / Controls ",
 	keywords={"vcf","burden","maf","case","control"},
-	modificationDate="202000403",
+	modificationDate="202000713",
 	creationDate="20160418"
 	)
 public class VcfBurdenMAF
-	extends Launcher
+	extends OnePassVcfLauncher
 	{
 	
 	private static final Logger LOG = Logger.build(VcfBurdenMAF.class).make();
 
-
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 
 	@Parameter(names={"-m","--min-maf","--min-af"},description="select variants where MAF of cases OR MAF of control is greater or equals than min-maf. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
 	private double min_AF = 0.0 ;
@@ -144,13 +138,17 @@ public class VcfBurdenMAF
 	@Parameter(names={"-pfx","--prefix"},description="Prefix for FILTER/INFO. If it is empty and the variant is FILTERed, the variant won'be written to output.")
 	private String prefix="Burden";
 
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	public VcfBurdenMAF()
 		{
 		}
 	 	
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
@@ -160,7 +158,6 @@ public class VcfBurdenMAF
 		final int CASE_POP=0;
 
 		final VCFHeader header0 = in.getHeader();
-		final ProgressFactory.Watcher<VariantContext> progess = ProgressFactory.newInstance().dictionary(header0).logger(LOG).build();
 		
 		final String maf_label = "("+this.min_AF+"<= maf <= "+this.max_AF+")";
 		final VCFInfoHeaderLine mafCasInfoHeader = (StringUtils.isBlank(this.prefix)?null:new VCFInfoHeaderLine(
@@ -237,7 +234,7 @@ public class VcfBurdenMAF
 		out.writeHeader(h2);
 		while(in.hasNext())
 			{
-			final VariantContext ctx = progess.apply(in.next());
+			final VariantContext ctx = in.next();
 			
 			if(this.ignoreFiltered && ctx.isFiltered())
 				{
@@ -342,27 +339,18 @@ public class VcfBurdenMAF
 				out.add(vcb.make());
 				}
 			}
-		progess.close();
 		return 0;
 		}
 
-	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf() {
 		if(this.min_AF>this.max_AF) {
 			LOG.error("bad values for min/max af");
 			return -1;
-		}
-		
-		try 
-			{
-			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
-		catch(final Throwable err) {
-			LOG.error(err);
-			return -1;
-			}
+		return 0;
 		}
+	
 
 	public static void main(final String[] args)
 		{

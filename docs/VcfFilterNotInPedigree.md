@@ -10,10 +10,19 @@ Adds a FILTER 'NotInPedigree' if the only not(homref) genotypes are not in a ped
 ```
 Usage: vcffilternotinpedigree [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -f, --filter
       FILTER name. Will be set for variant where the only genotypes non-homref 
       are NOT in the pedigree
       Default: NoGenotypeInPedigree
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -21,14 +30,12 @@ Usage: vcffilternotinpedigree [options] Files
     -gtf, --ignore-filtered-gt
       [20180406] Do not consider a *genotype* if it is FILTERED.
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
-    -p, --pedigree
-      [20180406]A pedigree is a text file delimited with tabs. No header. 
-      Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother 
-      Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 
-      unaffected, 1 affected,-9 unknown  Default is to try to read the 
-      pedigree in the VCF header
+  * -p, --pedigree
+      A pedigree file. tab delimited. Columns: family,id,father,mother, 
+      sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -r, --remove
       remove the variant instead of setting the FILTER (hard filtering)
       Default: false

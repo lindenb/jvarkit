@@ -29,7 +29,7 @@ Usage: vcfmovefilterstoinfo [options] Files
     -t, --limitto
       If not empty, limit to those FILTERS. Multiple separated by comma/space.
       Default: []
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     --version
       print version and exit

@@ -53,7 +53,7 @@ Usage: vcfburdenfisherh [options] Files
       '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => 
       '0.01'. 
       Default: 0.0
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
   * -p, --pedigree
       A pedigree file. tab delimited. Columns: family,id,father,mother, 

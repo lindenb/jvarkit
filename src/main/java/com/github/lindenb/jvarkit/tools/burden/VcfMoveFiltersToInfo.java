@@ -27,13 +27,18 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -44,16 +49,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
-
 import htsjdk.variant.vcf.VCFIterator;
 /**
 
@@ -90,15 +85,13 @@ END_DOC
 		description="Move any FILTER to the INFO column. reset FILTER to PASS",
 		keywords={"vcf","format","info"},
 		creationDate="20161025",
-		modificationDate="20200302"
+		modificationDate="20200713"
 		)
 public class VcfMoveFiltersToInfo
-	extends Launcher
+	extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfMoveFiltersToInfo.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	
 	@Parameter(names={"-f","--filter"},description="INFO name. This tag will be used to store the previous filters")
 	private String infoName = "PREVIOUSLY_FILTERED_AS";
@@ -106,14 +99,18 @@ public class VcfMoveFiltersToInfo
 	@Parameter(names={"-t","--limitto"},description="If not empty, limit to those FILTERS. Multiple separated by comma/space.")
 	private Set<String> onlyThoseFiltersTagStr = new HashSet<>();
 
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 			
 			
 	public VcfMoveFiltersToInfo()
 		{
 		}
 	 
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
 	@Override
 	protected int doVcfToVcf(
 		final String inputName,
@@ -146,11 +143,10 @@ public class VcfMoveFiltersToInfo
 		
 		JVarkitVersion.getInstance().addMetaData(this, header2);
 		
-		final ProgressFactory.Watcher<VariantContext> progess= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		out.writeHeader(header2);
 		while(in.hasNext())
 			{
-			final VariantContext ctx = progess.apply(in.next());
+			final VariantContext ctx = in.next();
 			
 			if(ctx.isNotFiltered())
 				{
@@ -193,26 +189,21 @@ public class VcfMoveFiltersToInfo
 				}
 			
 			}
-		progess.close();
 		out.close();
 		return 0;
 		}
 	
+	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf() {
 		if(StringUtil.isBlank(this.infoName)) {
 			LOG.error("undefined value for infoName");
 			return -1;
 			}
-		try
-			{
-			return doVcfToVcfPath(args,this.writingVariantsDelegate, this.outputFile);
-			}
-		finally
-			{
-			}
+		return 0;
 		}
-	 	
+	
+
 	
 	public static void main(final String[] args)
 		{

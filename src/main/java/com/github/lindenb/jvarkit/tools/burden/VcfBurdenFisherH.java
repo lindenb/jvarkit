@@ -51,6 +51,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
@@ -59,13 +60,10 @@ import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
 import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 
 /**
@@ -85,16 +83,14 @@ END_DOC
 @Program(name="vcfburdenfisherh",
 	description="Fisher Case /Controls per Variant",
 	keywords= {"vcf","burden","fisher"},
-	modificationDate="20200324",
+	modificationDate="20200713",
 	creationDate="20160418"
 	)
 public class VcfBurdenFisherH
-	extends Launcher
+	extends OnePassVcfLauncher
 	{	
 	private static final Logger LOG = Logger.build(VcfBurdenFisherH.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-m","--min-fisher"},description="min inclusive value of fisher test. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
 	private double min_fisher = 0.0 ;
 	@Parameter(names={"-M","--max-fisher"},description="max inclusive value of fisher test. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
@@ -117,16 +113,16 @@ public class VcfBurdenFisherH
 	@Parameter(names={"-Q","--qual"},description="Overwrite QUAL column with the lowest fisher value.")
 	private boolean overwrite_qual=false;
 
-	@ParametersDelegate
-	private WritingVariantsDelegate variantsDelegate=new WritingVariantsDelegate();
-	
-
-	
 	
 		
 	public VcfBurdenFisherH() {
 	}
 	
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
 	protected int doVcfToVcf(final String inputName, final VCFIterator r, final VariantContextWriter w) {
@@ -203,10 +199,9 @@ public class VcfBurdenFisherH
 		h2.addMetaDataLine(fisherDetailInfoHeader);
 		JVarkitVersion.getInstance().addMetaData(this, h2);
 		w.writeHeader(h2);
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		while(r.hasNext())
 			{
-			final VariantContext ctx = progress.apply(r.next());
+			final VariantContext ctx = r.next();
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			if(this.overwrite_qual) vcb.log10PError(VariantContext.NO_LOG10_PERROR);
 			vcb.rmAttribute(fisherAlleleInfoHeader.getID());
@@ -371,7 +366,6 @@ public class VcfBurdenFisherH
 			
 			w.add(vcb.make());
 			}
-		progress.close();
 		w.close();
 		report.flush();
 		report.close();
@@ -380,8 +374,7 @@ public class VcfBurdenFisherH
 
 	
 	@Override
-	public int doWork(final List<String> args) {
-		
+	protected int beforeVcf() {
 		if(StringUtils.isBlank(this.burdenHFisherTag)) {
 			LOG.error("empty  burdenHFisherAttr");
 			return -1;
@@ -390,9 +383,9 @@ public class VcfBurdenFisherH
 			LOG.error("bad min/max.");
 			return -1;
 			}
-		return doVcfToVcfPath(args,this.variantsDelegate,this.outputFile);
+		return 0;
 		}
-	 	
+	
 	
 	public static void main(final String[] args)
 		{
