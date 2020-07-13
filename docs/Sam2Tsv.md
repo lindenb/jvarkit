@@ -16,12 +16,12 @@ Usage: sam2tsv [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
-    -A, --printAlignments
-      Print Alignments
-      Default: false
     -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    -N, --skip-N
+      Skip 'N' operator
+      Default: false
     --version
       print version and exit
 
@@ -99,67 +99,52 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-### Output
-
-Columns are:
-
- *  read name
- *  read flags
- *  reference name
- *  read-pos
- *  read-base
- *  read-qual
- *  ref-pos
- *  ref-base
- *  cigar-op
-
-
 
 ### Example
  
 
 
 ```
-$ java -jar dist/sam2tsv.jar -A  \
-    -r samtools-0.1.18/examples/toy.fa 
-      samtools-0.1.18/examples/toy.sam
-r001	163	ref	0	T	.	7	T	M
-r001	163	ref	1	T	.	8	T	M
-r001	163	ref	2	A	.	9	A	M
-r001	163	ref	3	G	.	10	G	M
-r001	163	ref	4	A	.	11	A	M
-r001	163	ref	5	T	.	12	T	M
-r001	163	ref	6	A	.	13	A	M
-r001	163	ref	7	A	.	14	A	M
-r001	163	ref	8	A	.	.	.	I
-r001	163	ref	9	G	.	.	.	I
-r001	163	ref	10	A	.	.	.	I
-r001	163	ref	11	G	.	.	.	I
-r001	163	ref	12	G	.	15	G	M
-r001	163	ref	13	A	.	16	A	M
-r001	163	ref	14	T	.	17	T	M
-r001	163	ref	15	A	.	18	A	M
-r001	163	ref	.	.	.	19	G	D
-r001	163	ref	16	C	.	20	C	M
-r001	163	ref	17	T	.	21	T	M
-r001	163	ref	18	G	.	22	G	M
-:   ref        7 TTAGATAAAGAGGATA-CTG 22      
-:                ||||||||    |||| |||
-:  r001        1 TTAGATAA----GATAGCTG 19      
-r002	0	ref	1	A	.	.	.	I
-r002	0	ref	2	A	.	.	.	I
-r002	0	ref	3	A	.	9	A	M
-r002	0	ref	4	G	.	10	G	M
-r002	0	ref	5	A	.	11	A	M
-r002	0	ref	6	T	.	12	T	M
-r002	0	ref	7	A	.	13	A	M
-r002	0	ref	8	A	.	14	A	M
-r002	0	ref	9	G	.	.	.	I
-r002	0	ref	10	G	.	.	.	I
-r002	0	ref	11	G	.	15	G	M
-r002	0	ref	12	A	.	16	A	M
-r002	0	ref	13	T	.	17	T	M  
-(...)   
+$  java -jar dist/sam2tsv.jar -R src/test/resources/toy.fa src/test/resources/toy.bam 
+
+
+#Read-Name  Flag  MAPQ  CHROM  READ-POS0  READ-BASE  READ-QUAL  REF-POS1  REF-BASE  CIGAR-OP
+r001        163   30    ref    0          T          .          7         T         M
+r001        163   30    ref    1          T          .          8         T         M
+r001        163   30    ref    2          A          .          9         A         M
+r001        163   30    ref    3          G          .          10        G         M
+r001        163   30    ref    4          A          .          11        A         M
+r001        163   30    ref    5          T          .          12        T         M
+r001        163   30    ref    6          A          .          13        A         M
+r001        163   30    ref    7          A          .          14        A         M
+r001        163   30    ref    8          A          .          .         .         I
+r001        163   30    ref    9          G          .          .         .         I
+r001        163   30    ref    10         A          .          .         .         I
+r001        163   30    ref    11         G          .          .         .         I
+r001        163   30    ref    12         G          .          15        G         M
+r001        163   30    ref    13         A          .          16        A         M
+r001        163   30    ref    14         T          .          17        T         M
+r001        163   30    ref    15         A          .          18        A         M
+r001        163   30    ref    .          .          .          19        G         D
+r001        163   30    ref    16         C          .          20        C         M
+r001        163   30    ref    17         T          .          21        T         M
+r001        163   30    ref    18         G          .          22        G         M
+r002        0     30    ref    0          A          .          8         T         S
+r002        0     30    ref    1          A          .          .         .         I
+r002        0     30    ref    2          A          .          .         .         I
+r002        0     30    ref    3          A          .          9         A         M
+r002        0     30    ref    4          G          .          10        G         M
+r002        0     30    ref    5          A          .          11        A         M
+r002        0     30    ref    6          T          .          12        T         M
+r002        0     30    ref    7          A          .          13        A         M
+r002        0     30    ref    8          A          .          14        A         M
+r002        0     30    ref    .          .          .          .         .         P
+r002        0     30    ref    9          G          .          .         .         I
+r002        0     30    ref    .          .          .          .         .         P
+r002        0     30    ref    10         G          .          .         .         I
+r002        0     30    ref    11         G          .          15        G         M
+r002        0     30    ref    12         A          .          16        A         M
+(...)
 
 ```
 
@@ -173,14 +158,6 @@ samtools view -h input.bam | java -jar dist/sam2tsv.jar
 ```
 
 
-
-
-### History
-
- *  Moved to a standard argc/argv command line
- *  2014-04: added qual and samflag. Fixed a bug in soft-clip
- *  2014-11: manage hard+soft clip
- *  2019-02 : manage reads without qualities, contig name converter
 
 ### Citations
 
