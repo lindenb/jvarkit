@@ -48,7 +48,9 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -100,7 +102,7 @@ END_DOC
 @Program(name="vcf2svg",
 	description="write a vcf to svg , with gene context",
 	keywords={"vcf","svg","xlm","visualization"},
-	modificationDate="20191121",
+	modificationDate="20200715",
 	creationDate="20170411"
 	)
 public class VcfToSvg extends Launcher {
@@ -176,6 +178,13 @@ public int doWork(final List<String> args) {
 			{
 			manifestW= new PrintWriter(new NullOuputStream());
 			}
+		
+		final Pedigree pedigree;
+		if(this.pedPath==null) {
+			pedigree = PedigreeParser.empty();
+		} else {
+			pedigree = new PedigreeParser().parse(this.pedPath);
+		}
 
 		final Path tmpSvg = Files.createTempFile("vcf.", ".svg");
 		final XMLOutputFactory xof=XMLOutputFactory.newInstance();
@@ -257,6 +266,7 @@ public int doWork(final List<String> args) {
             //defs
             w.writeStartElement("defs");
 			
+            
     		//genotypes
     		
     		w.writeStartElement("g");
@@ -516,45 +526,62 @@ public int doWork(final List<String> args) {
 			y+=featureHeight*interline_weight;
 			
 			w.writeStartElement("g");
-			for(final String sample: samples )
-				{
-				for(int vidx=0;vidx < variants.size();++vidx)
+			/* step 0: affected, 1: unaffected, 2: others */
+			for(int step=0;step<3;++step) {
+				for(final String sample: samples )
 					{
-					final VariantContext vc=variants.get(vidx);
-					final Genotype g=vc.getGenotype(sample);
-					double opacity= 1.0;
+					final Sample individual = pedigree.getSampleById(sample);
+					if(step==0 && (individual==null || !individual.isAffected())) continue;
+					if(step==1 && (individual==null || !individual.isUnaffected())) continue;
+					if(step==2 && individual!=null && individual.isStatusSet()) continue;
 					
-					if(vc.isIndel())  opacity*=this.variantIndelOpacity;
-					if(vc.isFiltered())  opacity*=this.variantFILTEREDOpacity;
-					if(opacity>1) opacity=1;
-					if(opacity<=0) continue;
-					if(opacity<1)
-						{
-						w.writeStartElement("g");
-						w.writeAttribute("style","opacity:"+opacity+";");
+					w.writeStartElement("g");//sample
+					switch(step) {
+						case 0: w.writeAttribute("style", "hue-rotate(195deg);");break;
+						case 1: w.writeAttribute("style", "hue-rotate(45deg);");break;
+						default:break;
 						}
 					
-					w.writeEmptyElement("use");
-					w.writeAttribute("x",String.valueOf(variantIndexToPixel.apply(vidx)));
-					w.writeAttribute("y",String.valueOf(y));
-					w.writeAttribute("xlink", XLINK.NS, "href", "#g_"+g.getType());
-					
-					if(opacity<1)
+					for(int vidx=0;vidx < variants.size();++vidx)
 						{
-						w.writeEndElement();
+						final VariantContext vc=variants.get(vidx);
+						final Genotype g=vc.getGenotype(sample);
+						double opacity= 1.0;
+						
+						if(vc.isIndel())  opacity*=this.variantIndelOpacity;
+						if(vc.isFiltered())  opacity*=this.variantFILTEREDOpacity;
+						if(opacity>1) opacity=1;
+						if(opacity<=0) continue;
+						if(opacity<1)
+							{
+							w.writeStartElement("g");
+							w.writeAttribute("style","opacity:"+opacity+";");
+							}
+						
+						w.writeEmptyElement("use");
+						w.writeAttribute("x",String.valueOf(variantIndexToPixel.apply(vidx)));
+						w.writeAttribute("y",String.valueOf(y));
+						w.writeAttribute("xlink", XLINK.NS, "href", "#g_"+g.getType());
+						
+						if(opacity<1)
+							{
+							w.writeEndElement();
+							}
+						
 						}
+					w.writeCharacters("\n");
+					w.writeStartElement("text");
+					w.writeAttribute("x",String.valueOf(margin_left-10));
+					w.writeAttribute("y",String.valueOf(y + this.genotype_width/2.0));
+					w.writeAttribute("style","text-anchor:end;");
+					w.writeCharacters(sample);
+					w.writeEndElement();//text
 					
+					w.writeEndElement();//g for sample
+					
+					y+=this.genotype_width;
 					}
-				w.writeCharacters("\n");
-				w.writeStartElement("text");
-				w.writeAttribute("x",String.valueOf(margin_left-10));
-				w.writeAttribute("y",String.valueOf(y + this.genotype_width/2.0));
-				w.writeAttribute("style","text-anchor:end;");
-				w.writeCharacters(sample);
-				w.writeEndElement();
-				
-				y+=this.genotype_width;
-				}
+			}
 			w.writeCharacters("\n");
 			
 			
@@ -612,7 +639,7 @@ public int doWork(final List<String> args) {
 
 		return 0;
 		}
-	catch(Throwable err)
+	catch(final Throwable err)
 		{
 		LOG.error(err);
 		return -1;
@@ -627,8 +654,7 @@ public int doWork(final List<String> args) {
 	}
 	
 	
-public static void main(String[] args) {
-	
+public static void main(final String[] args) {
 	new VcfToSvg().instanceMainWithExit(args);
 	}
 }

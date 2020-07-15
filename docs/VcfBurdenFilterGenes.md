@@ -14,17 +14,26 @@ Usage: vcfburdenfiltergenes [options] Files
       [20180627] Gene Names: Add this gene, multiple separated by 
       comma,spaces,semicolon 
       Default: <empty string>
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -filter, --filter
       If empty: remove the variants from the VCF. If not empty, add a token in 
       the column FILTER.
       Default: <empty string>
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -g, --genes
       Gene/transcript file: one name per line
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     --version
       print version and exit
@@ -115,10 +124,4 @@ $ wget -O - -q "https://github.com/immune-health/antigen.garnish/raw/f0453336a48
 T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_206933.2|protein_coding|18/72|c.3884G>A|p.Arg1295Gln|4271/18883|3884/15609|1295/5202||
 ```
 
-
-
-## History
-
-  * 20181205 : snpeff scan transcriptID
-  * 20180617 : for SNpEFF, now looks into GeneName OR GeneId (was only GeneName)
 
