@@ -91,7 +91,8 @@ END_DOC
 		description="Filter VEP/SnpEff Output from a list of genes.",
 		keywords={"gene","vcf","vep","snpeff"},
 		biostars=353011,
-		modificationDate="20200715"
+		modificationDate="20200715",
+		creationDate="20160322"
 		)
 public class VcfBurdenFilterGenes
 	extends OnePassVcfLauncher
