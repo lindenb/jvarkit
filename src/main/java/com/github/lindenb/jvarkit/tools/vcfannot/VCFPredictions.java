@@ -458,7 +458,9 @@ public class VCFPredictions extends OnePassVcfLauncher
 						String leftName="";
 						
 						for(Iterator<Transcript> iter=this.transcriptTreeMap.getOverlapping(new SimpleInterval(normalizedContig,1,ctx.getStart())).
-								stream().flatMap(L->L.stream()).iterator();
+								stream().
+								flatMap(L->L.stream()).
+								iterator();
 								iter.hasNext();
 								)
 							{

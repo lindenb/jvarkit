@@ -26,23 +26,22 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.onekgenomes;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -131,15 +130,14 @@ END_DOC
  */
 @Program(name="vcfancestralalleles",
 description="Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README",
-keywords={"vcf","sort"},
-modificationDate="20190926"
+keywords={"vcf","ancestral","1000k","allele"},
+modificationDate="20200717",
+creationDate="20180418"
 )
 public class VcfAncestralAllele
-extends Launcher
+extends OnePassVcfLauncher
 	{
 	private static final  Logger LOG = Logger.build(VcfAncestralAllele.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
 	@Parameter(names={"-m","--manifest"},description="Manifest file containing the path to the fasta files. See doc. ALL fasta files must be indexed with `samtools faidx`", required=true)
 	private Path manifestFile = null;
 	@Parameter(names={"-t","--tag"},description="Ancestral allele INFO attribute")
@@ -150,16 +148,12 @@ extends Launcher
 	private static class Mapping
 		{
 		final String ancestralContig;
-		final File ancestralFile;
-		Mapping(final String ancestralContig,final File ancestralFile) {
+		final Path ancestralFile;
+		Mapping(final String ancestralContig,final Path ancestralFile) {
 			this.ancestralContig = ancestralContig;
 			this.ancestralFile = ancestralFile;
 			}
 		}
-	
-	VcfAncestralAllele() {
-		
-	}
 	
 	private void loadManifest() throws IOException
 		{
@@ -174,14 +168,14 @@ extends Launcher
 				final String tokens[] = tab.split(line);
 				if(tokens.length<3) throw new JvarkitException.TokenErrors("expected two columns", tokens);
 				final String ancestralContig  = tokens[1];
-				final File fastaPath  = new File(tokens[2]);
+				final Path fastaPath  = Paths.get(tokens[2]);
 				IOUtil.assertFileIsReadable(fastaPath);
 				/* no, one fasta can contains more than one sequence
 				if(contigName2ancestralFasta.values().contains(fastaPath)) {
 					throw new IOException("fasta already defined for  "+fastaPath);
 					}
 				*/
-				final File faiPath  = new File(tokens[2]+".fai");
+				final Path faiPath  = Paths.get(tokens[2]+".fai");
 				IOUtil.assertFileIsReadable(faiPath);
 				for(final String sn:pipe.split(tokens[0])) {
 					if( StringUtil.isBlank(line)) {
@@ -220,10 +214,10 @@ extends Launcher
 			final VCFHeader header = iterin.getHeader();
 			if(header.getInfoHeaderLine(aaAttribute)!=null) {
 				throw new JvarkitException.DuplicateVcfHeaderInfo(aaAttribute);
-			}
+				}
 			final VCFHeader header2 = new VCFHeader(header);
 			header2.addMetaDataLine(AAheaderLine);
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
+			JVarkitVersion.getInstance().addMetaData(this,header2);
 			out.writeHeader(header2);
 			
 			String prev_contig = null;
@@ -231,7 +225,7 @@ extends Launcher
 	
 			while(iterin.hasNext())
 				{
-				final VariantContext ctx = progress.watch(iterin.next());
+				final VariantContext ctx = iterin.next();
 				if(prev_contig==null || !prev_contig.equals(ctx.getContig()))
 					{
 					prev_contig = null;
@@ -277,13 +271,12 @@ extends Launcher
 				out.add(vcb.make());
 				}
 			out.close();
-			progress.finish();
 			if(!unmapped_contigs.isEmpty()) {
 				LOG.warn("UNMAPPED CONTIGS :"+unmapped_contigs);
 				}
 			return 0;
 			}
-		catch(final Exception error) {
+		catch(final Throwable error) {
 			LOG.error(error);
 			return -1;
 			}
@@ -295,25 +288,24 @@ extends Launcher
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf() {
 		try {
 			loadManifest();
-			return doVcfToVcf(args, this.outputFile);
 			}
 		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			
-			}
+		return 0;
 		}
 	
-	public static void main(final String[] args)
-	{
-	new VcfAncestralAllele().instanceMainWithExit(args);
-	}
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
-}
+	public static void main(final String[] args) {
+		new VcfAncestralAllele().instanceMainWithExit(args);
+		}
+	}

@@ -10,6 +10,15 @@ Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.
 ```
 Usage: vcfancestralalleles [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -17,7 +26,7 @@ Usage: vcfancestralalleles [options] Files
   * -m, --manifest
       Manifest file containing the path to the fasta files. See doc. ALL fasta 
       files must be indexed with `samtools faidx`
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -t, --tag
       Ancestral allele INFO attribute
@@ -31,7 +40,9 @@ Usage: vcfancestralalleles [options] Files
 ## Keywords
 
  * vcf
- * sort
+ * ancestral
+ * 1000k
+ * allele
 
 
 ## Compilation
@@ -50,6 +61,11 @@ $ ./gradlew vcfancestralalleles
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20180418
 
 ## Source code 
 
