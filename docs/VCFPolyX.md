@@ -10,15 +10,24 @@ Number of repeated REF bases around POS.
 ```
 Usage: vcfpolyx [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -n, --filter
       if number of repeated bases is greater or equal to 'n' set a FILTER = 
       (tag) 
       Default: -1
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
@@ -57,6 +66,11 @@ $ ./gradlew vcfpolyx
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20200930
 
 ## Source code 
 

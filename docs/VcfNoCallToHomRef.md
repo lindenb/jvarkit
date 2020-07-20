@@ -10,11 +10,20 @@ Convert the UNCALLED gentoypes in a VCF to HOM_REF. This tool can be used after 
 ```
 Usage: vcfnocall2homref [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -dp, --depth
       Default DEPTH. negative = don't set depth.
       Default: 10
     -f, --filter
       Set this **Genotype** FILTER for converted genotype
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -gq, --gq, --GQ
       Default Genotype quality: negative : don't set GQ.
       Default: 1
@@ -66,6 +75,11 @@ $ ./gradlew vcfnocall2homref
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20200914
 
 ## Source code 
 

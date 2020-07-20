@@ -10,17 +10,24 @@ Basic Variant Effect prediction using gtf
 ```
 Usage: vcfpredictions [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
   * -k, -g, --gtf
       A GTF (General Transfer Format) file. See 
-      https://www.ensembl.org/info/website/upload/gff.html .
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -os, --output-syntax, --syntax
       [20180122]output formatting syntax. SnpEff is still not complete.

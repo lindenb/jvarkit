@@ -29,7 +29,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,12 +53,11 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -126,16 +124,14 @@ END_DOC
 	name="vcfnocall2homref",
 	description="Convert the UNCALLED gentoypes in a VCF to HOM_REF. This tool can be used after using GATK CombineVariants.",
 	keywords={"vcf"},
-	modificationDate="20190612",
+	creationDate="20200914",
+	modificationDate="20200720",
 	biostars={276811}
 	)
-public class VcfNoCallToHomRef extends  Launcher
+public class VcfNoCallToHomRef extends OnePassVcfLauncher
 	{
 	private static final Logger LOG=Logger.build(VcfNoCallToHomRef.class).make();
-	
-	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File output=null;
-	
+		
 	@Parameter(names={"-s","--includeSamples"},description="only converts those samples. Default: all samples are converted.")
 	private  Set<String> includeSamples = new HashSet<>();
 	@Parameter(names={"-sf","--includeSamplesFile"},description="only converts those samples. Default: all samples are converted. One sample per line.")
@@ -149,6 +145,11 @@ public class VcfNoCallToHomRef extends  Launcher
 	@Parameter(names={"-p","--ploidy"},description="ploidy")
 	private int ploidy = 2;	
 	
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
 	protected int doVcfToVcf(
@@ -208,10 +209,9 @@ public class VcfNoCallToHomRef extends  Launcher
 		JVarkitVersion.getInstance().addMetaData(this, header2);
 		out.writeHeader(header2);
 		long countFixedGenotypes = 0L;
-		final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 		while(in.hasNext())
 			{
-			final VariantContext ctx = progress.apply(in.next());				
+			final VariantContext ctx = in.next();				
 
 			final List<Genotype> sample2genotypes = new ArrayList<>(ctx.getNSamples());
 			
@@ -257,17 +257,10 @@ public class VcfNoCallToHomRef extends  Launcher
 			vcb.genotypes(sample2genotypes);
 			out.add(recalc.apply(vcb.make()));
 			}
-		progress.close();
 		LOG.info("Number of fixed genotypes : "+countFixedGenotypes);
 		return 0;
 		}
-	
-	
-	
-	@Override
-	public int doWork(final List<String> args) {
-		return doVcfToVcf(args, this.output);
-		}
+
 		
 	public static void main(final String[] args)
 		{

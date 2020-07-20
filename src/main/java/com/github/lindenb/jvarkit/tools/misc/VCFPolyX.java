@@ -29,7 +29,6 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.nio.file.Path;
-import java.util.List;
 
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
@@ -45,17 +44,14 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -78,14 +74,13 @@ END_DOC
 @Program(name="vcfpolyx",
 	description="Number of repeated REF bases around POS.",
 	keywords={"vcf","repeat"},
-	modificationDate="20191129"
+	creationDate="20200930",
+	modificationDate="20200720"
 	)
-public class VCFPolyX extends Launcher
+public class VCFPolyX extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VCFPolyX.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-n","--filter"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
 	private int filterTrehsold = -1 ;
 	@Parameter(names={"-t","--tag"},description="Tag used in INFO and FILTER columns.")
@@ -94,8 +89,11 @@ public class VCFPolyX extends Launcher
 	private Path faixPath = null;
 	@Parameter(names={"--skip-filtered"},description="Don't spend some time to calculate the tag if the variant is FILTERed")
 	private boolean skip_filtered=false;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
 	protected int doVcfToVcf(
@@ -140,10 +138,9 @@ public class VCFPolyX extends Launcher
 			ChromosomeSequence genomicContig=null;
 			JVarkitVersion.getInstance().addMetaData(this, h2);
 			w.writeHeader(h2);
-			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(r.getHeader()).logger(LOG).build();
 			while(r.hasNext())
 				{
-				final VariantContext ctx = progress.apply(r.next());
+				final VariantContext ctx = r.next();
 				if(this.skip_filtered && ctx.isFiltered())
 					{
 					w.add(ctx);
@@ -194,7 +191,6 @@ public class VCFPolyX extends Launcher
 				
 				w.add(b.make());			
 				}
-			progress.close();
 			w.close();
 			}
 		finally
@@ -202,11 +198,6 @@ public class VCFPolyX extends Launcher
 			CloserUtil.close(referenceSequenceFile);
 			}
 		return RETURN_OK;
-		}
-	
-	@Override
-	public int doWork(final List<String> args) {
-		return doVcfToVcfPath(args,this.writingVariants,this.outputFile);
 		}
 
 	public static void main(final String[] args)
