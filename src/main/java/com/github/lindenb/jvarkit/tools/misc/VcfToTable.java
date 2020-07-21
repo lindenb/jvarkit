@@ -265,7 +265,7 @@ END_DOC
 		references="Vcf2table : a VCF prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853801](https://doi.org/10.6084/m9.figshare.5853801)",
 		biostars=293855,
 		creationDate="20170511",
-		modificationDate="20200131"
+		modificationDate="20200720"
 		)
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
@@ -372,6 +372,13 @@ public class VcfToTable extends Launcher {
 	
 	private static class HyperlinkDecorator extends Decorator
 		{
+		private final Pattern ensgPattern = Pattern.compile("ENS[TPGR][0-9]+");
+		private final Pattern enstPattern = Pattern.compile("ENSEST[TGP][0-9]+");
+		private final Pattern rsPattern = Pattern.compile("[rR][sS][0-9]+");
+		private final Pattern acc1Pattern = Pattern.compile("[XN][MR]_[0-9\\.]+");
+		private final Pattern acc2Pattern = Pattern.compile("[NX]P_[0-9\\.]+");
+		private final Pattern acc3Pattern = Pattern.compile("CCDS[0-9\\.]+");
+		
 		HyperlinkDecorator(final Object o) {
 			super(o);
 			}
@@ -379,27 +386,27 @@ public class VcfToTable extends Launcher {
 		protected String getURL()  	{
 			final String str= this.toString();
 			if(StringUtil.isBlank(str)) return null;
-			if(Pattern.compile("rs[0-9]+").matcher(str.toLowerCase()).matches())
+			if(this.rsPattern.matcher(str).matches())
 				{
 				return "https://www.ncbi.nlm.nih.gov/projects/SNP/snp_ref.cgi?rs="+str.substring(2);
 				}
 			else if(
-					Pattern.compile("ENS[TPGR][0-9]+").matcher(str.toUpperCase()).matches() ||
-					Pattern.compile("ENSEST[TGP][0-9]+").matcher(str.toUpperCase()).matches() 
+					this.ensgPattern.matcher(str.toUpperCase()).matches() ||
+					this.enstPattern.matcher(str.toUpperCase()).matches() 
 
 					)
 				{
 				return "http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q="+str.toUpperCase()+";species=;site=ensembl";
 				}
-			else if(Pattern.compile("[XN][MR]_[0-9\\.]+").matcher(str.toUpperCase()).matches())
+			else if(this.acc1Pattern.matcher(str.toUpperCase()).matches())
 				{
 				return "https://www.ncbi.nlm.nih.gov/nuccore/"+str;
 				}
-			else if(Pattern.compile("[NX]P_[0-9\\.]+").matcher(str.toUpperCase()).matches())
+			else if(this.acc2Pattern.matcher(str.toUpperCase()).matches())
 				{
 				return "https://www.ncbi.nlm.nih.gov/protein/"+str;
 				}
-			else if(Pattern.compile("CCDS[0-9\\.]+").matcher(str.toUpperCase()).matches())
+			else if(this.acc3Pattern.matcher(str.toUpperCase()).matches())
 				{
 				return "https://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&GO=MainBrowse&DATA="+str;
 				}
@@ -1146,6 +1153,20 @@ public class VcfToTable extends Launcher {
 				
 								
 				if(SequenceDictionaryUtils.isGRCh37(header)) {
+					/* BDV https://www.biorxiv.org/content/10.1101/2020.07.16.207688v1 */
+					for(final Allele alt: vc.getAlternateAlleles())
+						{
+						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
+						// marvel https://twitter.com/julawang/status/1094666160711323649
+						t.addRow("bvdv",new HyperlinkDecorator("https://bibliome.ai/variant/"+
+							ensemblContig.apply(vc) +
+							"-"+vc.getStart()+
+							"-"+
+							vc.getReference().getDisplayString()+
+							"-"+
+							alt.getDisplayString()
+							));
+						}
 					
 					for(final Allele alt: vc.getAlternateAlleles())
 						{
