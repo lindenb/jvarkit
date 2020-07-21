@@ -94,8 +94,8 @@ First described in http://plindenbaum.blogspot.fr/2011/01/my-tool-to-annotate-vc
 ```
 $java -jar  dist/vcfpredictions.jar  \
 	-R human_g1k_v37.fasta \
-	-k <(curl  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '   ' '{if($2 ~ ".*_.*") next; OFS="        "; gsub(/chr/,"",$2);print;}'  ) \
-	I=~/WORK/variations.gatk.annotations.vcf.gz | bgzip > result.vcf.gz
+	--gtf Homo_sapiens.GRCh37.75.gtf \
+	input.vcf.gz | bgzip > result.vcf.gz
 
 ```
 
@@ -107,7 +107,7 @@ $  curl "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr1.phas
 gunzip -c |\
 java -jar dist/vcfpredictions.jar \
   -R  human_g1k_v37.fasta \
-  -k <(curl  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '      ' '{if($2 ~ ".*_.*") next; OFS=" "; gsub(/chr/,"",$2);print;}'  )  |\
+  --gtf Homo_sapiens.GRCh37.75.gtf  |\
 cut -d '    ' -f 1-8 | grep -A 10 CHROM
 
 
@@ -153,8 +153,8 @@ public class VCFPredictions extends OnePassVcfLauncher
 	@Parameter(names={"-k","-g","--gtf"},description=GtfReader.OPT_DESC,required=true)
 	private Path gtfPath = null;
 
-	@Parameter(names={"-os","--output-syntax","--syntax"},description="[20180122]output formatting syntax. SnpEff is still not complete.")
-	private OutputSyntax outputSyntax = OutputSyntax.Native;
+	@Parameter(names={"-os","--output-syntax","--syntax"},description="Output formatting syntax.")
+	private OutputSyntax outputSyntax = OutputSyntax.SnpEff;
 
 	@Parameter(names={"-R","--reference"},description= INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxPath = null;
@@ -253,12 +253,12 @@ public class VCFPredictions extends OnePassVcfLauncher
 					b.append('|');
 					b.append(this.seqont.stream().map(T->T.replaceAll("[ ]", "_")).collect(Collectors.joining("&")));
 					b.append('|');
-					b.append("MODIFIER");//impact 
+					b.append("MODIFIER|");//impact 
 					b.append(kg==null?"":kg.getGene().getGeneName());// gene name
 					b.append('|');
 					b.append(kg==null?"":kg.getGene().getId()); //gene id
 					b.append('|');//
-					b.append("transcript");//Feature_Type
+					b.append("transcript|");//Feature_Type
 					b.append(kg==null?"":kg.getId());//Feature_ID
 					b.append('|');
 					b.append(kg==null?"":kg.getGene().getGeneBiotype());//Transcript_BioType
@@ -658,7 +658,7 @@ public class VCFPredictions extends OnePassVcfLauncher
 				    				}
 				    			else
 				    				{
-				    				annotation.seqont.add("non_synonymous");
+				    				annotation.seqont.add("missense_variant");
 				    				}								
 								}
 							}

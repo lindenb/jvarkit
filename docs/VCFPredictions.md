@@ -10,21 +10,28 @@ Basic Variant Effect prediction using gtf
 ```
 Usage: vcfpredictions [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
   * -k, -g, --gtf
       A GTF (General Transfer Format) file. See 
-      https://www.ensembl.org/info/website/upload/gff.html .
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -os, --output-syntax, --syntax
-      [20180122]output formatting syntax. SnpEff is still not complete.
-      Default: Native
+      Output formatting syntax.
+      Default: SnpEff
       Possible Values: [Native, Vep, SnpEff]
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
@@ -106,8 +113,8 @@ First described in http://plindenbaum.blogspot.fr/2011/01/my-tool-to-annotate-vc
 ```
 $java -jar  dist/vcfpredictions.jar  \
 	-R human_g1k_v37.fasta \
-	-k <(curl  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '   ' '{if($2 ~ ".*_.*") next; OFS="        "; gsub(/chr/,"",$2);print;}'  ) \
-	I=~/WORK/variations.gatk.annotations.vcf.gz | bgzip > result.vcf.gz
+	--gtf Homo_sapiens.GRCh37.75.gtf \
+	input.vcf.gz | bgzip > result.vcf.gz
 
 ```
 
@@ -119,7 +126,7 @@ $  curl "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20110521/ALL.chr1.phas
 gunzip -c |\
 java -jar dist/vcfpredictions.jar \
   -R  human_g1k_v37.fasta \
-  -k <(curl  "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '      ' '{if($2 ~ ".*_.*") next; OFS=" "; gsub(/chr/,"",$2);print;}'  )  |\
+  --gtf Homo_sapiens.GRCh37.75.gtf  |\
 cut -d '    ' -f 1-8 | grep -A 10 CHROM
 
 
