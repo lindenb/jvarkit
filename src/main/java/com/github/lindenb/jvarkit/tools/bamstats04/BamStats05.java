@@ -27,15 +27,14 @@ package com.github.lindenb.jvarkit.tools.bamstats04;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -44,6 +43,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -56,7 +56,6 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -105,9 +104,6 @@ $ head out.txt
 1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
 ```
 
-## History
-
- * 20181122 : added `--merge`, added column count.intervals
 
 END_DOC
 
@@ -117,7 +113,8 @@ END_DOC
 description="Coverage statistics for a BED file, group by gene",
 keywords={"bam","coverage","statistics","bed"},
 biostars={324639,194393,35083},
-modificationDate="20190826"
+modificationDate="20200729",
+creationDate="20151012"
 )
 public class BamStats05 extends Launcher
 	{
@@ -241,8 +238,6 @@ public class BamStats05 extends Launcher
 				if(partition.isEmpty()) throw new IOException("Empty read group: "+groupBy.name()+" for "+filename);
 				for(final String gene: gene2interval.keySet())
 					{
-					int geneStart = Integer.MAX_VALUE;
-					int geneEnd = 0;
 					final List<Integer> counts = new ArrayList<>();
 					final List<SimpleInterval> intervals = gene2interval.get(gene);
 					final String newContig = contigNameConverter.apply(intervals.get(0).getContig());
@@ -251,10 +246,7 @@ public class BamStats05 extends Launcher
 						}
 										
 					for(final SimpleInterval interval:intervals)
-						{
-						geneStart = Math.min(geneStart, interval.getStart()-1);
-						geneEnd = Math.max(geneEnd, interval.getEnd());
-		
+						{		
 						/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
 						int interval_counts[]=new int[interval.getLengthOnReference()];
 						if(interval_counts.length==0) continue;
@@ -318,7 +310,8 @@ public class BamStats05 extends Launcher
 						
 					pw.print(
 							intervals.get(0).getContig()+"\t"+
-							geneStart+"\t"+geneEnd+"\t"+gene+"\t"+partition+"\t"+
+							intervals.stream().mapToInt(R->R.getStart()-1).min().orElse(-1)+"\t"+
+							intervals.stream().mapToInt(R->R.getEnd()).max().orElse(-1)+"\t"+gene+"\t"+partition+"\t"+
 							intervals.size()+"\t"+
 							counts.size()+"\t"+
 							counts.get(0)+"\t"+
@@ -327,17 +320,21 @@ public class BamStats05 extends Launcher
 					
 					for(final int mc:this.min_coverages)
 						{
+						final DiscreteMedian<Integer> discreteMedian = new DiscreteMedian<>();
 						int count_no_coverage=0;
-						double mean=0;
 						for(int cov:counts)
 							{
 							if(cov<=mc) ++count_no_coverage;
-							mean+=cov;
+							discreteMedian.add(cov);
 							}
-						mean/=counts.size();
+						
+						final OptionalDouble average = discreteMedian.getAverage();
+						final OptionalDouble median = discreteMedian.getMedian();
+						
 						
 						pw.print("\t"+
-								String.format("%.2f",mean)+"\t"+
+								(average.isPresent()?String.format("%.2f",average.orElse(0.0)):".")+"\t"+
+								(median.isPresent()?String.format("%.2f",median.orElse(-1.0)):".")+"\t"+
 								count_no_coverage+"\t"+
 								(int)(((counts.size()-count_no_coverage)/(double)counts.size())*100.0)
 								);
@@ -346,9 +343,9 @@ public class BamStats05 extends Launcher
 					pw.println();
 					}//end gene
 				}//end sample
-		return RETURN_OK;
+		return 0;
 		}
-	catch(final Exception err)
+	catch(final Throwable err)
 		{
 		LOG.error(err);
 		return -1;
@@ -378,7 +375,7 @@ public class BamStats05 extends Launcher
 			//print header
 			pw.print(
 					"#chrom\t"+
-					"gene.Start"+"\t"+"gene.End"+"\t"+"gene.Name"+"\t"+groupBy.name()+"\t"+
+					"gene.start.0"+"\t"+"gene.end.0"+"\t"+"gene.Name"+"\t"+groupBy.name()+"\t"+
 					"count.intervals\t"+
 					"length"+"\t"+
 					"min.cov"+"\t"+
@@ -388,6 +385,7 @@ public class BamStats05 extends Launcher
 				{
 				pw.print("\t"+
 						"mean.GT_"+mc+"\t"+
+						"median.GT_"+mc+"\t"+
 						"no_coverage.GT_"+mc+"\t"+
 						"percent_covered.GT_"+mc
 						);
@@ -397,25 +395,7 @@ public class BamStats05 extends Launcher
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
 			if(this.faidx!=null) srf.referenceSequence(this.faidx);
 			
-			List<Path> files = IOUtils.unrollPaths(args);
-			if(args.isEmpty())
-				{
-				files = new ArrayList<>();
-				LOG.info("reading BAM paths from stdin");
-				r = new BufferedReader(new InputStreamReader(stdin()));
-				String line;
-				while((line=r.readLine())!=null)
-					{
-					if(line.startsWith("#") || StringUtil.isBlank(line)) continue;
-					if(!line.endsWith(FileExtensions.BAM))
-						{
-						LOG.error("line should end with "+FileExtensions.BAM+" :"+line);
-						return -1;
-						}
-					files.add(Paths.get(line));
-					}
-				CloserUtil.close(r);
-				}
+			final List<Path> files = IOUtils.unrollPaths(args);
 			
 			
 			for(final Path f:files)
@@ -429,9 +409,9 @@ public class BamStats05 extends Launcher
 			pw.flush();
 			pw.close();
 			pw=null;
-			return RETURN_OK;
+			return 0;
 			}
-		catch (final Exception e) {
+		catch (final Throwable e) {
 			LOG.error(e);
 			return -1;
 			}

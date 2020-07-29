@@ -80,6 +80,11 @@ $ ./gradlew bamstats05
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20151012
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats04/BamStats05.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bamstats04/BamStats05.java)
