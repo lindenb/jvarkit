@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.tools.upstreamorf;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Optional;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -20,13 +21,15 @@ public class VcfScanUpstreamOrfTest {
 	@Test
 	public void testBasicVcf() throws IOException {
 		try {
-			Path out = support.createTmpPath(".vcf");
+			Optional<Path> ref=support.getGRCh37Path();
+			if(!ref.isPresent()) return;
 			
+			Path out = support.createTmpPath(".vcf");
 			Assert.assertEquals(new VcfScanUpstreamOrf().instanceMain(new String[] {
 				"-o",out.toString(),
-				"-R",support.resource("rotavirus_rf.fa"),
-				"-k",support.resource("rotavirus_rf.knowngenes.tsv.gz"),
-				support.resource("rotavirus_rf.vcf.gz")
+				"-R",ref.get().toString(),
+				"--gtf",support.resource("Homo_sapiens.GRCh37.87.gtf.gz"),
+				support.resource("test_vcf01.vcf")
 				}),0);
 			support.assertIsVcf(out);
 			}

@@ -10,6 +10,16 @@ Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGeneti
 ```
 Usage: vcfscanupstreamorf [options] Files
   Options:
+    --archive
+      Export an archive containing the fasta+bed of the uORF is created and 
+      the program exits. An existing directory or a filename ending with the 
+      '.zip' or '.tar' or '.tar.gz' suffix.
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --canonical
       reduce the number of transcripts. Keep one if some share the same UTR
       Default: false
@@ -29,6 +39,13 @@ Usage: vcfscanupstreamorf [options] Files
       remove a uORF it if enterely overlaps a coding region of the exon of an 
       alternative transcript.
       Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
+  * -gtf, --gtf
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
@@ -36,19 +53,8 @@ Usage: vcfscanupstreamorf [options] Files
     --kal
       disable scan for Kozak change
       Default: false
-    -k, -K, --kg, -kg
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
-    -o, --output
-      Output file. Optional . Default: stdout. If there is no argument and 
-      'output' is a directory or it ends with '.zip' an archive containing the 
-      fasta+bed of the uORF is created and the program exits.
+    -o, --out
+      Output file. Optional . Default: stdout
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -90,7 +96,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-2019-02-18
+20190218
 
 ## Source code 
 

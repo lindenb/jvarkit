@@ -92,8 +92,8 @@ END_DOC
 @Program(name="gtfupstreamorf",
 description="Takes a standard GTF and generate a GTF containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
 keywords={"gtf","uorf"},
-creationDate="2019-07-18",
-modificationDate="2019-07-23",
+creationDate="20190718",
+modificationDate="20200804",
 generate_doc=false
 )
 public class GtfUpstreamOrf extends Launcher

@@ -915,21 +915,28 @@ public class GtfReader implements Closeable {
 		@Override
 		public Optional<UTR> getUTR5() {
 			if(isNonCoding()) return Optional.empty();
-			if(
-				(isPositiveStrand() && hasCodonStartDefined()) || 
-				(isNegativeStrand() && hasCodonStopDefined())
-				) return Optional.of(new UTR5Impl());
+			if(isPositiveStrand() && hasCodonStartDefined()) {
+				if(this.getStart()>= this.getCodonStart().get().getStart()) return Optional.empty();
+				return Optional.of(new UTR5Impl());
+				}
+			if(isNegativeStrand() && hasCodonStopDefined()) {
+				if(this.getStart()>= this.getCodonStop().get().getStart()) return Optional.empty();
+				return Optional.of(new UTR5Impl());
+				}
 			return Optional.empty();
 			}
 		
 		@Override
 		public Optional<UTR> getUTR3() {
 			if(isNonCoding()) return Optional.empty();
-			if(
-					(isPositiveStrand() && hasCodonStopDefined()) || 
-					(isNegativeStrand() && hasCodonStartDefined())
-					) return Optional.of(new UTR3Impl());
-			
+			if(isPositiveStrand() && hasCodonStopDefined()) {
+				if(this.getCodonStop().get().getEnd()>= this.getEnd()) return Optional.empty();
+				return Optional.of(new UTR3Impl());
+				}
+			if(isNegativeStrand() && hasCodonStartDefined()) {
+				if(this.getCodonStart().get().getEnd()>= this.getEnd()) return Optional.empty();
+				return Optional.of(new UTR3Impl());
+				}
 			return Optional.empty();
 			}
 
