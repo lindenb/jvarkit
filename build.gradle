@@ -1529,7 +1529,11 @@ all.add( task("vcfafinfofilter", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("vcfallelebalance", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfAlleleBalance"
+	mainClass = "com.github.lindenb.jvarkit.tools.allelebalance.VcfAlleleBalance"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("bamallelebalance", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.allelebalance.BamAlleleBalance"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("vcfadfraction", type: CompileJVarkit) {

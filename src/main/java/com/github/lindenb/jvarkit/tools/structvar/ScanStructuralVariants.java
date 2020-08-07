@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.Closeable;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -51,7 +50,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
-import com.github.lindenb.jvarkit.variant.vcf.VCFReader;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -69,6 +68,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 import htsjdk.samtools.util.*;
 /**
@@ -123,7 +123,7 @@ public class ScanStructuralVariants extends Launcher{
 
 
 	/** wrap a VCFReader to be used with option control_large_flag : will really close the vcf reader if needed */
-	private static class ShadowedVcfReader implements Closeable {
+	private static class ShadowedVcfReader implements VCFReader {
 		private VCFReader vcfReader  = null;
 		final Path vcfPath;
 		private final boolean closeOnclose;
@@ -131,9 +131,10 @@ public class ScanStructuralVariants extends Launcher{
 			this.vcfPath=vcfPath;
 			this.closeOnclose = closeOnclose;
 			}
-		CloseableIterator<VariantContext> query(String contig, int start, int end) {
+		@Override
+		public CloseableIterator<VariantContext> query(String contig, int start, int end) {
 			if(this.vcfReader==null) {
-				this.vcfReader = VCFReader.open(this.vcfPath);
+				this.vcfReader =  VCFReaderFactory.makeDefault().open(this.vcfPath,true);
 				}
 			return this.vcfReader.query(contig, start, end);
 			}
@@ -148,6 +149,18 @@ public class ScanStructuralVariants extends Launcher{
 		public void close()  {
 			if(closeOnclose) realClose();
 			}
+		@Override
+		public boolean isQueryable() {
+			return true;
+			}
+		@Override
+		public CloseableIterator<VariantContext> iterator() {
+			throw new IllegalStateException();
+			}
+		@Override
+		public VCFHeader getHeader() {
+			throw new IllegalStateException();
+			}	
 		}
 		
 
@@ -293,7 +306,7 @@ public class ScanStructuralVariants extends Launcher{
 			
 			for(int side=0;side<2;side++) {
 			for(final Path input: (side==0?casesPaths:this.controlsPath)) {
-				final VCFReader vcfInput = VCFReader.open(input);
+				final VCFReader vcfInput = VCFReaderFactory.makeDefault().open(input);
 				
 				final VCFHeader header = vcfInput.getHeader();
 				

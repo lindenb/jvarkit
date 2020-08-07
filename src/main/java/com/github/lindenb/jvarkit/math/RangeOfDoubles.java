@@ -31,6 +31,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class RangeOfDoubles {
+	public static final String OPT_DESC="A 'range of double' is a list of floating number in ascending order separated with semicolons. ";
+
 	/** generate RangeOfIntegers from a String with values separated with semicolons */
 public static class StringConverter 
 	implements com.beust.jcommander.IStringConverter<RangeOfDoubles>
