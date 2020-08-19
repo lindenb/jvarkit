@@ -27,10 +27,11 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -53,6 +54,7 @@ import javax.xml.transform.stream.StreamSource;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -220,7 +222,8 @@ END_DOC
  */
 @Program(name="ncbigenedump",
 	keywords={"ncbi","gene","xml"}, 
-	description="Dump XML results from a list of gene using NCBI/Eutils"
+	description="Dump XML results from a list of gene using NCBI/Eutils",
+	modificationDate="20200818"
 	)
 public class NcbiGeneDump
 	extends Launcher
@@ -232,11 +235,11 @@ public class NcbiGeneDump
 	@Parameter(names={"-e","--email"},description="optional user email")
 	private String email = null;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-skip","--skip"},description="Optional set of elements names to be ignored in the output. Spaces or comma separated. .eg: 'Gene-track '")
 	private String skipTagsStr = "";
 	@Parameter(names={"-L","-G","--list","--genes"},description="File containing a list of genes, can be a gene name or a ncbi gene id, one per line.")
-	private File userGeneFile = null;
+	private Path userGeneFile = null;
 	@Parameter(names={"-T","--taxon"},description="taxon id.")
 	private String taxonId = "9606";
 	@Parameter(names={"--stdin"},description="read list of genes from stdin.")
@@ -247,7 +250,7 @@ public class NcbiGeneDump
 	private boolean abortOnNotFound=false;
 	@Parameter(names={"-C","--custom"},description=
 			"Custom annotation file. See the main documentation.")
-	private File customAnnotationFile=null;
+	private Path customAnnotationFile=null;
 
 	@ParametersDelegate
 	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
@@ -302,7 +305,7 @@ public class NcbiGeneDump
 			
 			final Set<String> geneIdentifiers = new HashSet<>();
 			if(this.userGeneFile!=null) {
-				IOUtil.slurpLines(this.userGeneFile).stream().map(S->S.trim()).forEach(G->geneIdentifiers.add(G));
+				Files.lines(this.userGeneFile).map(S->S.trim()).forEach(G->geneIdentifiers.add(G));
 				}
 			
 			if(!args.isEmpty()) {
@@ -418,7 +421,7 @@ public class NcbiGeneDump
 				try { if(!geneNames.isEmpty()) Thread.sleep(this.wait_seconds * 1000); } catch(final Throwable err) {}
 				}
 			
-			pw=super.openFileOrStdoutAsPrintWriter(outputFile);
+			pw=super.openPathOrStdoutAsPrintWriter(outputFile);
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			final XMLEventWriter w=xof.createXMLEventWriter(pw);
 			final XMLEventFactory eventFactory = XMLEventFactory.newInstance();
@@ -585,7 +588,7 @@ public class NcbiGeneDump
 		final String geneid = geneid_int.toString();
 		IOUtil.assertFileIsReadable(customAnnotationFile);
 		
-		final String suffix = IOUtil.fileSuffix(this.customAnnotationFile);
+		final String suffix = IOUtils.getFileSuffix(this.customAnnotationFile);
 		final BufferedReader br = IOUtil.openFileForBufferedReading(this.customAnnotationFile);
 		if(suffix!=null && (suffix.equals(".xml") || suffix.equals(".xml.gz") || suffix.equals(".html") || suffix.equals(".html.gz")))
 			{

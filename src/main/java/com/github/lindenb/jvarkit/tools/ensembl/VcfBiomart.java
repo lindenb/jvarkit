@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -63,10 +62,10 @@ import org.w3c.dom.Node;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.TeeInputStream;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -135,12 +134,12 @@ END_DOC
 @Program(
 		name="vcfbiomart",
 		description="BiomartQueries with VCF",
-		keywords={"vcf","ensembl","biomart","annotation"})
-public class VcfBiomart extends Launcher
+		keywords={"vcf","ensembl","biomart","annotation"},
+		creationDate="20180219",
+		modificationDate="20200818")
+public class VcfBiomart extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfBiomart.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
 	@Parameter(names= {"-X","--xml"},description=" (XML-file) XML biomart template. <Query>...</Query>",required=true)
 	private File xmlTemplate=null;
 	@Parameter(names= {"-T","--tag"},description=" (string) VCF output tag.")
@@ -158,7 +157,7 @@ public class VcfBiomart extends Launcher
 	@Parameter(names={"-label","--label","--labels"},description="Add the field label in the INFO attribute 'label1|value1|label2|value2'")
 	private boolean printLabels = false;
 
-	private class FilterColumn
+	private static class FilterColumn
 		{
 		final String name;
 		final Element element;
@@ -201,7 +200,7 @@ public class VcfBiomart extends Launcher
 		final VariantContextWriter out) 
 		{
 		HttpGet httpGet = null;
-		final Pattern tab=Pattern.compile("[\t]");
+		final CharSplitter tab=CharSplitter.TAB;
 		try
 			{
 			final TransformerFactory factory=TransformerFactory.newInstance();		
@@ -223,10 +222,9 @@ public class VcfBiomart extends Launcher
 				));
 			out.writeHeader(header);
 			
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
 			while(iter.hasNext())
 				{
-				final VariantContext ctx = progress.watch(iter.next());
+				final VariantContext ctx = iter.next();
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				vcb.rmAttribute(this.TAG);
 				
@@ -285,7 +283,6 @@ public class VcfBiomart extends Launcher
 					}
 				out.add(vcb.make());
 				}
-			progress.finish();
 			return 0;
 			}
 		catch(final Exception err)
@@ -296,10 +293,8 @@ public class VcfBiomart extends Launcher
 	
 		}
 	
-	
 	@Override
-	public int doWork(final List<String> args) {
-		
+	protected int beforeVcf() {
 		if(this.xmlTemplate==null)
 			{
 			LOG.error("Undefined XML template");
@@ -416,21 +411,20 @@ public class VcfBiomart extends Launcher
 		try
 			{
 			/** create http client */
-			this.httpClient = HttpClients.createSystem();
-			
-			return doVcfToVcf(args, this.outputFile);
+			this.httpClient = HttpClients.createSystem();	
 			}
 		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.httpClient);
-			this.httpClient=null;
-			}
-		
+		return 0;
+		}
+	
+	@Override
+	protected void afterVcf() {
+		CloserUtil.close(this.httpClient);
+		this.httpClient=null;
 		}
 	
 	public static void main(final String[] args)

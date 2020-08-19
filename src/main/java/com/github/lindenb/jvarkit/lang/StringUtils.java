@@ -25,6 +25,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.lang;
 
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
@@ -32,12 +35,17 @@ import java.security.NoSuchAlgorithmException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
+
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 
 public class StringUtils extends StringUtil {
@@ -336,6 +344,35 @@ public static int indexOfIgnoreCase(final String haystack,final String needle) {
 		if(j==needle.length()) return i;
 	 	}
     return -1;
+	}
+
+/** compress string as gzipped bytes */
+public byte[] compressString(final String str) {
+	try(ByteArrayOutputStream baos = new ByteArrayOutputStream(Math.max(32,str.length()/2))) {
+		try(GZIPOutputStream gzout = new GZIPOutputStream(baos)) {
+			gzout.write(str.getBytes());
+			gzout.finish();
+			gzout.flush();
+			}
+		return baos.toByteArray();
+		}
+	catch(final IOException err) {
+		throw new RuntimeIOException(err);
+		}
+	}
+/** compress string as gzipped bytes */
+public String uncompressString(final byte[] compressed) {
+	try(ByteArrayInputStream bis = new ByteArrayInputStream(compressed)) {
+		try(GZIPInputStream gzin = new GZIPInputStream(bis)) {
+			try(ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+				IOUtils.copyTo(gzin, bos);
+				return new String(bos.toByteArray());
+				}
+			}
+		}
+	catch(final IOException err) {
+		throw new RuntimeIOException(err);
+		}
 	}
 
 }

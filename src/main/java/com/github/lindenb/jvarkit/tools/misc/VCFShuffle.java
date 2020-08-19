@@ -28,13 +28,10 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.nio.file.Path;
-import java.util.List;
 import java.util.Random;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -42,17 +39,19 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFCodec;
+import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderVersion;
+import htsjdk.variant.vcf.VCFIterator;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 /**
 BEGIN_DOC
 
@@ -62,29 +61,37 @@ BEGIN_DOC
 $ java -jar dist/vcfshuffle.jar input.vcf
 ```
 
+## native alternative
+
+```
+bcftools view --header-only in.vcf > tmp1.vcf
+bcftools view --no-header in.vcf |\
+	awk '{printf("%d\t%s\n",int(rand()*10000),$0);}' |\
+	sort -t $'\t' -k1,1n -T . |\
+	cut -f 1 > tmp2.vcf
+	
+cat tmp1.vcf tmp2.vcf > shuffled.vcf
+```
 
 END_DOC
  */
 @Program(
 	name="vcfshuffle",
 	description="Shuffle a VCF",
-	keywords={"vcf"}
+	keywords={"vcf"},
+	creationDate="20131210",
+	modificationDate="20200818"
 	)
-public class VCFShuffle extends Launcher
+public class VCFShuffle extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VCFShuffle.class).make();
-
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	
-	@Parameter(names={"-N","--seed"},description="random seed. Optional. -1 = time.")
+	@Parameter(names={"-N","--seed"},description="random seed. Optional. -1 = use current time.")
 	private long seed = -1L ;
 	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	private static class RLine
 		{
@@ -127,28 +134,13 @@ public class VCFShuffle extends Launcher
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
-		if(seed==-1L) seed= System.currentTimeMillis();
+	protected int doVcfToVcf(final String inputName, final VCFIterator in, final VariantContextWriter out) {
 		SortingCollection<RLine> shuffled=null;
-		VariantContextWriter out=null;
-		BufferedReader lr=null;
-		try
-			{
-			lr = super.openBufferedReader(oneFileOrNull(args));
-			final VCFUtils.CodecAndHeader cah=VCFUtils.parseHeader(lr);
-			final VCFHeader header=cah.header;
-			JVarkitVersion.getInstance().addMetaData(this, header);
-			super.addMetaData(header);
 
-			
-			out = this.writingVariantsDelegate.dictionary(header).open(this.outputFile);
-			
-			
+		try {			
 			final Random random=new Random(this.seed);
-
-			out.writeHeader(header);
-			LOG.info("shuffling");
-			
+			final VCFHeader header = in.getHeader();
+			final VCFEncoder vcfEncoder = new VCFEncoder(header, false, false);
 			shuffled=SortingCollection.newInstance(
 					RLine.class,
 					new RLineCodec(),
@@ -161,38 +153,46 @@ public class VCFShuffle extends Launcher
 					this.writingSortingCollection.getTmpPaths()
 					);
 			shuffled.setDestructiveIteration(true);
-			String line;
-			while((line= lr.readLine())!=null)
+
+			while(in.hasNext())
 				{
 				final RLine rLine=new RLine();
 				rLine.rand=random.nextLong();
-				rLine.line=line;
+				rLine.line=vcfEncoder.encode(in.next());
 				shuffled.add(rLine);
 				}
 			shuffled.doneAdding();
 			
-			final CloseableIterator<RLine> iter=shuffled.iterator();
-			while(iter.hasNext())
-				{
-				final VariantContext ctx=cah.codec.decode(iter.next().line);
-				out.add(ctx);
-				if(out.checkError()) break;
+			JVarkitVersion.getInstance().addMetaData(this, header);
+			out.writeHeader(header);
+			final VCFCodec vcfCodec = new VCFCodec();
+			vcfCodec.setVCFHeader(header, VCFHeaderVersion.VCF4_3);
+			try(final CloseableIterator<RLine> iter=shuffled.iterator()) {
+				while(iter.hasNext())
+					{
+					final VariantContext ctx= vcfCodec.decode(iter.next().line);
+					out.add(ctx);
+					}
 				}
-			return RETURN_OK;
+			shuffled.cleanup();
+			shuffled=null;
+			return 0;
 			}
-	catch(final Exception err)
-		{
-		LOG.error(err);
-		return -1;
+		catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
+			}
+		finally {
+			if(shuffled!=null) shuffled.cleanup();
+			CloserUtil.close(shuffled);
+			}
 		}
-	finally
-		{
-		if(shuffled!=null) shuffled.cleanup();
-		CloserUtil.close(shuffled);
-		CloserUtil.close(lr);
-		CloserUtil.close(out);
+	
+	@Override
+	protected int beforeVcf() {
+		if(seed==-1L) seed= System.currentTimeMillis();
+		return 0;
 		}
-	}
 	
 
 	public static void main(final String[] args)
