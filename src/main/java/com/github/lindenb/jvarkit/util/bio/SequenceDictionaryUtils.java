@@ -124,9 +124,8 @@ public static SAMSequenceDictionary extractRequired(final SAMFileHeader h) {
 public static SAMSequenceDictionary extractRequired(final VCFHeader h) {
 	if(h==null) throw new IllegalArgumentException("Cannot extract dictionary because VCF header was not provided.");
 	final SAMSequenceDictionary dict = h.getSequenceDictionary();
-	if(dict==null || dict.isEmpty()) 
-		{
-		throw new JvarkitException.BamDictionaryMissing("<vcf>");
+	if(dict==null || dict.isEmpty())  {
+		throw new JvarkitException.VcfDictionaryMissing("<vcf>");
 		}
 	return dict;
 	}

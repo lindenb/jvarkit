@@ -95,7 +95,9 @@ END_DOC
 @Program(name="blastn2snp",
 	keywords={"blast","snp"},
 	description="print indel/mismatch in a blastn stream",
-	biostars={89151}
+	biostars={89151,455765},
+	modificationDate="20200831",
+	creationDate="20131126"
 	)
 public class BlastNToSnp extends Launcher
 {

@@ -53,6 +53,7 @@ import java.util.TreeSet;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -111,8 +112,8 @@ END_DOC
 	description="vcf to bam",
 	keywords={"ref","vcf","bam"},
 	creationDate="20150612",
-	modificationDate="20200205",
-	biostars=420363
+	modificationDate="20200831",
+	biostars= {420363,458494}
 	)
 public class VcfToBam extends Launcher
 	{
@@ -140,8 +141,7 @@ public class VcfToBam extends Launcher
 		 SAMFileWriter samFileWriter =null;
 		
 		final VCFHeader header = vcfIterator.getHeader();
-		SAMSequenceDictionary dict = header.getSequenceDictionary();
-		if(dict==null) throw new IOException("Sequence Dictionary missing in VCF");
+		SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 		if(!SequenceUtil.areSequenceDictionariesEqual(dict, indexedFastaSequenceFile.getSequenceDictionary()))
 			{
 			LOG.warning(

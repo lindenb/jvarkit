@@ -35,6 +35,7 @@ Usage: blastn2snp [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/89151](https://www.biostars.org/p/89151)
+ * [https://www.biostars.org/p/455765](https://www.biostars.org/p/455765)
 
 
 ## Compilation
@@ -53,6 +54,11 @@ $ ./gradlew blastn2snp
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20131126
 
 ## Source code 
 

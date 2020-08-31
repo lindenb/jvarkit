@@ -69,6 +69,10 @@ $ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
 (...)
 ```
 
+## Cited in:
+
+  * "Multiscale heterogeneity in gastric adenocarcinomaevolution is an obstacle to precision medicine" https://assets.researchsquare.com/files/rs-62554/v1/7883b5d6-a5e6-4d39-8554-e9fef719ac42.pdf
+
 END_DOC
 */
 @Program(name="vcfpolyx",
