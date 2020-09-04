@@ -5,11 +5,24 @@
 Convert zips of Integrative Japanese Genome Variation to VCF file.
 
 
+## DEPRECATED
+
+Deprecated since data are now available as VCF
+
 ## Usage
 
 ```
 Usage: ijgv2vcf [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -86,6 +99,12 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## DEPRECATED
+
+Deprecated since data are now available as VCF
+
+## DESCRIPTION
 
 Integrative Japanese Genome Variation (iJGVD https://ijgvd.megabank.tohoku.ac.jp/ ) provides data of genomic variations obtained by whole-genome sequencing of Japanese individuals, who participate in the genome cohort study by ToMMo, IMM and other cohort projects in Japan.
 

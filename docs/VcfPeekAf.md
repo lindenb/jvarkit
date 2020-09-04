@@ -17,11 +17,11 @@ Usage: vcfpeekaf [options] Files
       checked 2019-11-15)
       Default: false
     -b, --buffer-size
-      buffer size (in bp). We don't do a random access for each variant. 
-      Instead of this, load all the variants in a defined window. A distance 
+      When we're looking for variant in Gnomad, load the variants for 'N' 
+      bases instead of doing a random access for each variant. A distance 
       specified as a positive integer.Commas are removed. The following 
       suffixes are interpreted : b,bp,k,kb,m,mb
-      Default: 100000
+      Default: 10000
   * -F, --database, --tabix, --resource
       An indexed VCF file. Source of the annotations
     -f, --filter
@@ -43,7 +43,7 @@ Usage: vcfpeekaf [options] Files
     --no-alt
       Do not look at the alternate alleles concordance
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -P, --peek-info
       Name of INFO tag in the vcf database to extract the AF value for 
@@ -89,7 +89,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-20191202
+20200624
 
 ## Source code 
 

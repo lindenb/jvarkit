@@ -124,7 +124,7 @@ END_DOC
 	name="vcfnocall2homref",
 	description="Convert the UNCALLED gentoypes in a VCF to HOM_REF. This tool can be used after using GATK CombineVariants.",
 	keywords={"vcf"},
-	creationDate="20200914",
+	creationDate="20170914",
 	modificationDate="20200720",
 	biostars={276811}
 	)

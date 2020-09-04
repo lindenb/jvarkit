@@ -60,6 +60,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -71,13 +72,19 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
 
 BEGIN_DOC
+
+## DEPRECATED
+
+Deprecated since data are now available as VCF
+
+## DESCRIPTION
 
 Integrative Japanese Genome Variation (iJGVD https://ijgvd.megabank.tohoku.ac.jp/ ) provides data of genomic variations obtained by whole-genome sequencing of Japanese individuals, who participate in the genome cohort study by ToMMo, IMM and other cohort projects in Japan.
 
@@ -130,7 +137,8 @@ END_DOC
 	keywords={"vcf","jgvd","japan","tommo"},
 	description="Convert zips of Integrative Japanese Genome Variation to VCF file.",
 	creationDate="20190717",
-	modificationDate="20190717")
+	modificationDate="20190717",
+	deprecatedMsg="Deprecated since data are now available as VCF")
 public class IjgvdToVcf extends Launcher
 	{
 	private static final Logger LOG=Logger.build(IjgvdToVcf.class).make();
@@ -173,6 +181,8 @@ public class IjgvdToVcf extends Launcher
     private boolean skip_filtered= false;
     @Parameter(names={"-M","--no-multiallelic"},description="ignore 'multiallelic' entries")
     private boolean skip_multiallelic= false;
+    @ParametersDelegate
+    private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
     
     private ContigNameConverter ctgNameConverter = null;
@@ -344,7 +354,7 @@ public class IjgvdToVcf extends Launcher
 			final MergingIterator<VariantContext> iter = new MergingIterator<>(comparator, iterators);
 			
 			
-			final VariantContextWriter vcw = VCFUtils.createVariantContextWriterToPath(this.out);
+			final VariantContextWriter vcw = writingVariantsDelegate.dictionary(dict).open(out);
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true,

@@ -42,7 +42,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -54,7 +53,8 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Locatable;
+
+import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
@@ -78,8 +78,8 @@ END_DOC
 @Program(name="vcfpeekaf",
 		description="Peek the AF from another VCF",
 		keywords={"vcf","annotation","af"},
-		modificationDate="20200325",
-		creationDate="20200624"
+		creationDate="20200624",
+		modificationDate="20200904"
 		)
 public class VcfPeekAf extends OnePassVcfLauncher
 	{
@@ -91,8 +91,8 @@ public class VcfPeekAf extends OnePassVcfLauncher
 	private String frequencyTag = "";
 	@Parameter(names={"-f","--filter"},description="soft FILTER the variant of this data if AF is not found or it greater > max-af or lower than min-af. If empty, just DISCARD the variant")
 	private String filterStr = "";
-	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variants in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
-	private int buffer_size = 100_000;
+	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description=BufferedVCFReader.OPT_BUFFER_DESC+" "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
+	private int buffer_size = 10_000;
 	@Parameter(names={"-l","--list"},description="List available AF peekers and exit.",help=true)
 	private boolean list_peekers = false;
 	@Parameter(names={"-p","--peeker"},description="AF Peeker name. Use option --list to get a list of peekers.",required=true)
@@ -496,9 +496,7 @@ public class VcfPeekAf extends OnePassVcfLauncher
 			}
 		}
 
-	private VCFReader indexedVcfFileReader=null;
-	private final List<VariantContext> buffer = new ArrayList<>();
-	private Locatable last_buffer_interval = null;
+	private BufferedVCFReader indexedVcfFileReader=null;
 	private AFPeeker peeker;
 	
 	public VcfPeekAf()
@@ -511,37 +509,9 @@ public class VcfPeekAf extends OnePassVcfLauncher
 			final String dbContig,
 			final VariantContext userCtx
 			) {
-		final int start = userCtx.getStart();
-		final int end = userCtx.getEnd();
-		if(	!(
-			this.last_buffer_interval!=null &&
-			this.last_buffer_interval.getContig().equals(dbContig) &&
-			this.last_buffer_interval.getStart() < start && 
-			end < this.last_buffer_interval.getEnd()
-			))
-			{
-			this.buffer.clear();
-			
-			this.last_buffer_interval = new SimpleInterval(
-					dbContig,
-					Math.max(0,start-1),
-					(end+1+this.buffer_size)
-					);
-			
-			try( CloseableIterator<VariantContext> t = this.indexedVcfFileReader.query(
-					dbContig,
-					Math.max(0,start-1),
-					(end+1+this.buffer_size)
-					)) {
-				while(t.hasNext())
-					{
-					this.buffer.add(this.peeker.sanitize(t.next()));
-					}
-				}
+		try(CloseableIterator<VariantContext> iter = this.indexedVcfFileReader.query(dbContig, userCtx.getStart(), userCtx.getEnd())) {
+			return iter.stream().collect(Collectors.toList());
 			}
-		return this.buffer.stream().
-				filter(V->V.getContig().equals(dbContig) && V.getStart()==start && V.getReference().equals(userCtx.getReference())).
-				collect(Collectors.toList());
 		}
 	
 	@Override
@@ -658,7 +628,8 @@ public class VcfPeekAf extends OnePassVcfLauncher
 				return -1;
 				}
 						
-			this.indexedVcfFileReader = VCFReaderFactory.makeDefault().open(this.resourceVcfFile,true);
+			final VCFReader reader0 = VCFReaderFactory.makeDefault().open(this.resourceVcfFile,true);
+			this.indexedVcfFileReader = new BufferedVCFReader(reader0,this.buffer_size);
 			this.peeker.initialize(this.indexedVcfFileReader.getHeader());
 			return 0;
 			} 
