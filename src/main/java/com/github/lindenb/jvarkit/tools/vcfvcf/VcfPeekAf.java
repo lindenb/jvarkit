@@ -105,6 +105,9 @@ public class VcfPeekAf extends OnePassVcfLauncher
 	private boolean disable_alt_concordance = false;
 	@Parameter(names={"-P","--peek-info"},description="Name of INFO tag in the vcf database to extract the AF value for exractor .'Custom'"  )
 	private String custom_peek_info_name = null;
+	@Parameter(names={"--peek-id"},description="Peek database variant ID if it is missing in the processed VCF."  )
+	private boolean peek_variant_id=false;
+
 	
 	/* a class extracting the allele frequency from another VCF */
 	private abstract class AFPeeker
@@ -209,10 +212,10 @@ public class VcfPeekAf extends OnePassVcfLauncher
 				}
 			}
 		@Override
-		VariantContext sanitize(final VariantContext ctx) {
+		final VariantContext sanitize(final VariantContext ctx) {
 			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.noGenotypes();
-			vcb.noID();
+			if(!peek_variant_id) vcb.noID();
 			vcb.unfiltered();
 			for(final String key:new HashSet<>(ctx.getAttributes().keySet())) {
 				if(key.equals(VCFConstants.ALLELE_COUNT_KEY)) continue;
@@ -319,10 +322,10 @@ public class VcfPeekAf extends OnePassVcfLauncher
 			}
 		
 		@Override
-		VariantContext sanitize(final VariantContext ctx) {
+		final VariantContext sanitize(final VariantContext ctx) {
 			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 			vcb.noGenotypes();
-			vcb.noID();
+			if(!peek_variant_id) vcb.noID();
 			vcb.unfiltered();
 			for(final String key:new HashSet<>(ctx.getAttributes().keySet())) {
 				if(key.equals(getPeekInfoTagName())) continue;
@@ -427,8 +430,10 @@ public class VcfPeekAf extends OnePassVcfLauncher
 		String getDescription() { return "compute Allele frequency from the Genotypes";}
 		
 		@Override
-		VariantContext sanitize(VariantContext ctx) {
-			return new VariantContextBuilder(ctx).noID().unfiltered().attributes(Collections.emptyMap()).make();
+		final VariantContext sanitize(final VariantContext ctx) {
+			final VariantContextBuilder vcb = new VariantContextBuilder(ctx).unfiltered().attributes(Collections.emptyMap());
+			if(!peek_variant_id) vcb.noID();
+			return vcb.make();
 			}
 		
 		@Override
@@ -514,6 +519,20 @@ public class VcfPeekAf extends OnePassVcfLauncher
 			}
 		}
 	
+	private boolean alleles_match_for_id(final VariantContext userCtx,final VariantContext databaseV) {
+		if(userCtx.hasID()) return false;
+		if(!databaseV.hasID()) return false;
+		if(userCtx.getStart()!=databaseV.getStart()) return false;
+		
+		final Set<Allele> set1 = new HashSet<>(userCtx.getAlleles());
+		set1.remove(Allele.NO_CALL);
+		set1.remove(Allele.SPAN_DEL);
+		final Set<Allele> set2 = new HashSet<>(databaseV.getAlleles());
+		set2.remove(Allele.NO_CALL);
+		set2.remove(Allele.SPAN_DEL);
+		return set2.containsAll(set1);
+		}
+	
 	@Override
 	public int doVcfToVcf(
 			final String inputName, 
@@ -572,8 +591,22 @@ public class VcfPeekAf extends OnePassVcfLauncher
 					overlappers = this.getOverlappingBuffer(dbContig,ctx);
 					}
 				
-				final VariantContext ctx2 = this.peeker.apply(ctx,overlappers);
+				VariantContext ctx2 = this.peeker.apply(ctx,overlappers);
 				if(ctx2==null) continue;
+				
+				/* peek variant ID */
+				if(this.peek_variant_id && !ctx2.hasID() && !overlappers.isEmpty()) {
+					final VariantContext ctx2_final = ctx2;
+					final String id = overlappers.stream().
+						filter(V-> alleles_match_for_id(ctx2_final,V)).
+						map(V->V.getID()).		
+						findFirst().
+						orElse(null);
+					if(!StringUtils.isBlank(id)) {
+						ctx2 = new VariantContextBuilder(ctx).id(id).make();
+						}
+					}
+				
 				out.add(ctx2);
 				}
 			progress.close();
@@ -631,6 +664,7 @@ public class VcfPeekAf extends OnePassVcfLauncher
 			final VCFReader reader0 = VCFReaderFactory.makeDefault().open(this.resourceVcfFile,true);
 			this.indexedVcfFileReader = new BufferedVCFReader(reader0,this.buffer_size);
 			this.peeker.initialize(this.indexedVcfFileReader.getHeader());
+			this.indexedVcfFileReader.setSimplifier(peeker::sanitize);
 			return 0;
 			} 
 		catch(final Throwable err)

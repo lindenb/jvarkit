@@ -45,6 +45,9 @@ Usage: vcfpeekaf [options] Files
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
+    --peek-id
+      Peek database variant ID if it is missing in the processed VCF.
+      Default: false
     -P, --peek-info
       Name of INFO tag in the vcf database to extract the AF value for 
       exractor .'Custom'

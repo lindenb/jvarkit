@@ -174,4 +174,5 @@ Sam2tsv was cited in :
   * "Evolutionary forces on A-to-I RNA editing revealed by sequencing individual honeybee drones". Yuange Duan, Shengqian Dou, Jiaxing Huang, Eli Eisenberg, Jian Lu . 2020 . https://doi.org/10.1101/2020.01.15.907287
   * "Sci-fate characterizes the dynamics of gene expression in single cells" (2020) Nat Biotechnol (2020). https://doi.org/10.1038/s41587-020-0480-9
   * "Mutations in virus-derived small RNAs" Nigam Deepti; LaTourrette, Katherine; Garcia-Ruiz, Hernan. Scientific Reports (Nature Publisher Group); London Vol. 10, Iss. 1,  (2020). DOI:10.1038/s41598-020-66374-2 
+  * Qiu, Q., Hu, P., Qiu, X. et al. Massively parallel and time-resolved RNA sequencing in single cells with scNT-seq. Nat Methods (2020). https://doi.org/10.1038/s41592-020-0935-4
 

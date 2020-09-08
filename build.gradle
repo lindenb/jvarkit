@@ -2473,9 +2473,16 @@ all2.add(task("builddbsnp", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("telseq", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.telseq.TelSeq"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 
-
+all2.add(task("vcfpar", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.vcfpar.VcfPseudoAutosomalRegion"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
@@ -2487,6 +2494,7 @@ all2.add(task("jeter2", type: CompileJVarkit) {
         with_jni = true
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+
 
 /** bottom task */
 
