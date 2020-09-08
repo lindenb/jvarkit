@@ -66,14 +66,12 @@ public class VcfPseudoAutosomalRegion extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfPseudoAutosomalRegion.class).make();
 
-
 	@Parameter(names={"--tag"},description="VCF info TAG")
 	private String tag = "SEX";
 	@Parameter(names={"--autosome"},description="if not empty, autosomal and PAR regions will be annotated with this flag. Ignoring the chromosome looking like mitochondrial chromosome.")
 	private String autosome_tag = null;
 
-	public VcfPseudoAutosomalRegion()
-		{
+	public VcfPseudoAutosomalRegion() {
 		}
 	
 	@Override
@@ -167,7 +165,7 @@ public class VcfPseudoAutosomalRegion extends OnePassVcfLauncher
 		
 		
 		final VCFInfoHeaderLine autosome;
-
+        
 		if(!StringUtils.isBlank(this.autosome_tag)) {
 			if(this.tag.equals(this.autosome_tag)) {
 				LOG.error("autosome INFO/TAG is same as sexual INFO/TAG.");
