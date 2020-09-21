@@ -106,7 +106,8 @@ java -jar dist/samjs.jar -e 'function accept(r) { if(r.getReadUnmappedFlag()) re
 
 ## Cited in
 
-  *  "Nanopore Targeted Sequencing for Rapid Gene Mutations Detection in Acute Myeloid Leukemia "  Genes 2019, 10(12), 1026; https://doi.org/10.3390/genes10121026  
+  * "Nanopore Targeted Sequencing for Rapid Gene Mutations Detection in Acute Myeloid Leukemia "  Genes 2019, 10(12), 1026; https://doi.org/10.3390/genes10121026  
+  * Liu, X., Ouyang, J.F., Rossello, F.J. et al. Reprogramming roadmap reveals route to human induced trophoblast stem cells. Nature (2020). https://doi.org/10.1038/s41586-020-2734-6
 
 END_DOC
 */
