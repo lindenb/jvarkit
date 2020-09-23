@@ -171,6 +171,44 @@ private class VepGeneExtractor   extends AbstractGeneExtractorImpl {
 		return gene2values;
 		}
 	}
+
+
+/** bcftools csq extractor */
+private class BcftoolsCsqExtractor  extends AbstractGeneExtractorImpl {
+	private final BcfToolsCsqParser parser;
+	private final Function<BcfToolsCsqParser.BCsqPrediction, String> pred2gene;
+
+	BcftoolsCsqExtractor(final BcfToolsCsqParser parser,final String name,final Function<BcfToolsCsqParser.BCsqPrediction, String> pred2gene)
+		{
+		super(name);
+		this.parser= parser;
+		this.pred2gene = pred2gene;
+		}
+	@Override
+	public String getInfoTag() {
+		return parser.getTag();
+		}
+	
+	@Override
+	public Map<KeyAndGene,Set<String>> apply(final VariantContext ctx) {
+		final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
+		for(final BcfToolsCsqParser.BCsqPrediction pred:this.parser.getPredictions(ctx)){
+			if(pred.isIntergenicRegion()) continue;
+			final String geneName=this.pred2gene.apply(pred);
+			if(StringUtils.isBlank(geneName)) continue;
+			final KeyAndGene keyAndGene = new KeyAndGeneImpl(geneName, pred.getGeneName(),this.getName());
+			Set<String> values = gene2values.get(keyAndGene);
+			if(values==null)  {
+				values = new LinkedHashSet<>();
+				gene2values.put(keyAndGene,values);
+				}
+			values.add(pred.getOriginalAttributeAsString());
+			}
+		return gene2values;
+		}
+	}
+
+/** SNPEFF/ANN extractor */
 private class AnnGeneExtractor   extends AbstractGeneExtractorImpl {
 	private final AnnPredictionParser parser;
 	private final Function<AnnPrediction, String> pred2gene;
@@ -243,9 +281,10 @@ private class SnpEffGeneExtractor   extends AbstractGeneExtractorImpl {
 private final List<GeneExtractor> extractors =  new ArrayList<>();
 /* WARNING keep that order: see constuctor */
 private static List<String> AVAILABLE_EXTRACTORS_NAMES = Collections.unmodifiableList(Arrays.asList(
-		"ANN/GeneId","ANN/FeatureId","ANN/GeneName",
-		"VEP/GeneId","VEP/Ensp","VEP/Feature",
-		"EFF/Gene","EFF/Transcript"
+		"ANN/GeneId","ANN/FeatureId","ANN/GeneName",// 0 & 1 & 2
+		"VEP/GeneId","VEP/Ensp","VEP/Feature",// 3 & 4 & 5
+		"EFF/Gene","EFF/Transcript",// 6 & 7
+		"BCSQ/gene","BCSQ/transcript"//8 & 9
 		))
 		;
 
@@ -271,6 +310,10 @@ public GeneExtractorFactory(final VCFHeader header) {
 	final SnpEffPredictionParser effparser = new SnpEffPredictionParser(header);
 	extractors.add( new SnpEffGeneExtractor(effparser,AVAILABLE_EXTRACTORS_NAMES.get(6), P->P.getGeneName()));
 	extractors.add( new SnpEffGeneExtractor(effparser,AVAILABLE_EXTRACTORS_NAMES.get(7), P->P.getEnsemblTranscript()));
+
+	final BcfToolsCsqParser csqParser = new BcfToolsCsqParser(header);
+	extractors.add( new BcftoolsCsqExtractor(csqParser,AVAILABLE_EXTRACTORS_NAMES.get(8), P->P.getGeneName()));
+	extractors.add( new BcftoolsCsqExtractor(csqParser,AVAILABLE_EXTRACTORS_NAMES.get(9), P->P.getTranscript()));
 
 	}
 
