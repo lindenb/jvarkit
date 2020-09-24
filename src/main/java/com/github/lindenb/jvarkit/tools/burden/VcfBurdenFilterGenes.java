@@ -43,6 +43,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
@@ -91,7 +93,7 @@ END_DOC
 		description="Filter VEP/SnpEff Output from a list of genes.",
 		keywords={"gene","vcf","vep","snpeff"},
 		biostars=353011,
-		modificationDate="20200715",
+		modificationDate="20200924",
 		creationDate="20160322"
 		)
 public class VcfBurdenFilterGenes
@@ -154,6 +156,7 @@ public class VcfBurdenFilterGenes
 					);
 			final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
 			final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
+			final BcfToolsPredictionParser bcftoolsParser = new BcfToolsPredictionParserFactory(header).get();
 			JVarkitVersion.getInstance().addMetaData(this, h2);
 			out.writeHeader(h2);
 			while(in.hasNext())
@@ -210,12 +213,31 @@ public class VcfBurdenFilterGenes
 						}
 					}
 				
+				final List<String> newBcfList=new ArrayList<>();
+				for(final String predStr: ctx.getAttributeAsStringList(bcftoolsParser.getTag(), "")) {
+					final BcfToolsPredictionParser.BcfToolsPrediction pred = bcftoolsParser.parseOnePrediction(ctx,predStr);
+					String token = pred.getGeneName();
+					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
+						{
+						newBcfList.add(predStr);
+						keep=true;
+						continue;
+						}
+					token = pred.getTranscript();
+					if(!StringUtil.isBlank(token) && this.geneNames.contains(token))
+						{
+						newBcfList.add(predStr);
+						keep=true;
+						continue;
+						}
+					}
 				
 				
 				//not just set FILTER ?
 				if(filterControlsHeader==null) {
 					if(!newVepList.isEmpty()) vcb.attribute(vepParser.getTag(),newVepList);
 					if(!newEffList.isEmpty()) vcb.attribute(annParser.getTag(),newEffList);
+					if(!newBcfList.isEmpty()) vcb.attribute(bcftoolsParser.getTag(),newBcfList);
 					}
 				
 				
@@ -237,7 +259,7 @@ public class VcfBurdenFilterGenes
 					}
 				}
 			return 0;
-			} catch(final Exception err) {
+			} catch(final Throwable err) {
 				LOG.error(err);
 				return -1;
 			}

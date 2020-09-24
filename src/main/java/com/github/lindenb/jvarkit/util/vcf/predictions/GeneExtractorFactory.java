@@ -175,10 +175,10 @@ private class VepGeneExtractor   extends AbstractGeneExtractorImpl {
 
 /** bcftools csq extractor */
 private class BcftoolsCsqExtractor  extends AbstractGeneExtractorImpl {
-	private final BcfToolsCsqParser parser;
-	private final Function<BcfToolsCsqParser.BCsqPrediction, String> pred2gene;
+	private final BcfToolsPredictionParser parser;
+	private final Function<BcfToolsPredictionParser.BcfToolsPrediction, String> pred2gene;
 
-	BcftoolsCsqExtractor(final BcfToolsCsqParser parser,final String name,final Function<BcfToolsCsqParser.BCsqPrediction, String> pred2gene)
+	BcftoolsCsqExtractor(final BcfToolsPredictionParser parser,final String name,final Function<BcfToolsPredictionParser.BcfToolsPrediction, String> pred2gene)
 		{
 		super(name);
 		this.parser= parser;
@@ -192,7 +192,7 @@ private class BcftoolsCsqExtractor  extends AbstractGeneExtractorImpl {
 	@Override
 	public Map<KeyAndGene,Set<String>> apply(final VariantContext ctx) {
 		final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
-		for(final BcfToolsCsqParser.BCsqPrediction pred:this.parser.getPredictions(ctx)){
+		for(final BcfToolsPredictionParser.BcfToolsPrediction pred:this.parser.getPredictions(ctx)){
 			if(pred.isIntergenicRegion()) continue;
 			final String geneName=this.pred2gene.apply(pred);
 			if(StringUtils.isBlank(geneName)) continue;
@@ -311,7 +311,7 @@ public GeneExtractorFactory(final VCFHeader header) {
 	extractors.add( new SnpEffGeneExtractor(effparser,AVAILABLE_EXTRACTORS_NAMES.get(6), P->P.getGeneName()));
 	extractors.add( new SnpEffGeneExtractor(effparser,AVAILABLE_EXTRACTORS_NAMES.get(7), P->P.getEnsemblTranscript()));
 
-	final BcfToolsCsqParser csqParser = new BcfToolsCsqParser(header);
+	final BcfToolsPredictionParser csqParser = new BcfToolsPredictionParser(header);
 	extractors.add( new BcftoolsCsqExtractor(csqParser,AVAILABLE_EXTRACTORS_NAMES.get(8), P->P.getGeneName()));
 	extractors.add( new BcftoolsCsqExtractor(csqParser,AVAILABLE_EXTRACTORS_NAMES.get(9), P->P.getTranscript()));
 

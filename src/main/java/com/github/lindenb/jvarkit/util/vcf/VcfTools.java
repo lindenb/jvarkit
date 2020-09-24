@@ -35,6 +35,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -56,6 +58,7 @@ private VCFHeader header=null;
 private SnpEffPredictionParser snpEffPredictionParser=null;
 private VepPredictionParser vepPredictionParser=null;
 private AnnPredictionParser annPredictionParser=null;
+private BcfToolsPredictionParser bcftoolsCsqPredictionParser=null;
 private final DeNovoDetector deNovoDetector = new DeNovoDetector();
 public VcfTools() {
 	init(null);
@@ -73,6 +76,7 @@ public void init(final VCFHeader header) {
 	this.snpEffPredictionParser=new SnpEffPredictionParserFactory().header(header).get();
 	this.vepPredictionParser=new VepPredictionParserFactory().header(header).get();
 	this.annPredictionParser=new AnnPredictionParserFactory(header).get();	
+	this.bcftoolsCsqPredictionParser = new BcfToolsPredictionParserFactory(header).get();
 	}
 
 public VepPredictionParser getVepPredictionParser() {
@@ -86,6 +90,11 @@ public SnpEffPredictionParser getSnpEffPredictionParser() {
 public AnnPredictionParser getAnnPredictionParser() {
 	return annPredictionParser;
 	}
+
+public BcfToolsPredictionParser getBcftoolsPredictionParser() {
+	return this.bcftoolsCsqPredictionParser;
+}
+
 public void initSnpEffParser(final String definition)
 	{
 	failIf(definition==null || definition.trim().isEmpty(),"SnpEff definition is empty");
@@ -124,6 +133,10 @@ public List<SnpEffPredictionParser.SnpEffPrediction> getSnpEffPredictions(final 
 	return this.getSnpEffPredictionParser().getPredictions(ctx);
 	}
 
+public List<BcfToolsPredictionParser.BcfToolsPrediction> getBcftoolsPredictions(final VariantContext ctx) {
+	if(this.getBcftoolsPredictionParser()==null) return Collections.emptyList();
+	return this.getBcftoolsPredictionParser().getPredictions(ctx);
+	}
 
 /** return true if variant has any prediction with a SO term (or its children) with this label */
 public boolean hasSequenceOntologyLabel(final VariantContext ctx,final String lbl)
@@ -156,7 +169,9 @@ public boolean hasSequenceOntologyTerm(final VariantContext ctx,final SequenceOn
 	for(final SnpEffPredictionParser.SnpEffPrediction a: getSnpEffPredictions(ctx)) {
 		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
 		}
-	
+	for(final BcfToolsPredictionParser.BcfToolsPrediction a: getBcftoolsPredictions(ctx)) {
+		if(!Collections.disjoint(a.getSOTerms(),children)) return true;
+		}
 	
 	return false;
 	}

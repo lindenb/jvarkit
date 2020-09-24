@@ -42,7 +42,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -61,22 +60,22 @@ import htsjdk.variant.vcf.VCFIterator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 
 /**
@@ -155,19 +154,15 @@ END_DOC
 	keywords={"vcf","filter","sequenceontology","prediction","so"},
 	description="Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.",
 	creationDate="20170331",
-	modificationDate="20191115"
+	modificationDate="20200924"
 	)
 public class VcfFilterSequenceOntology
-	extends Launcher
+	extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfFilterSequenceOntology.class).make();
 	private static final String GT_FILTER_RESET_TO_NOCALL="NO_CALL";
 	
-	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVcfConfig = new WritingVariantsDelegate();
-	@Parameter(names={"-S","--showacn"},description="list the available SO accession and exit.")
+	@Parameter(names={"-S","--showacn"},description="list the available SO terms and exit.")
 	private boolean showList = false;
 
 	@Parameter(names={"-i","--invert"},description="invert SO:Term selection")
@@ -338,7 +333,7 @@ public class VcfFilterSequenceOntology
 			}
 		}
 				
-	/** prediction for ANN person */
+	/** prediction for ANN  */
 	private class AnnPredictionHandler extends AbstractPredictionHandler
 		{
 		private final AnnPredictionParser parser;
@@ -381,7 +376,53 @@ public class VcfFilterSequenceOntology
 			}
 		}
 				
-		private void run(final VCFIterator iter,final VariantContextWriter out)  {
+	
+	/** prediction for BCFTools CSQ */
+	private class BcftoolsCsqPredictionHandler extends AbstractPredictionHandler
+		{
+		private final BcfToolsPredictionParser parser;
+		BcftoolsCsqPredictionHandler(final VCFHeader header)
+			{
+			this.parser = new BcfToolsPredictionParserFactory().header(header).get().
+					sequenceOntologyTree(VcfFilterSequenceOntology.this.sequenceOntologyTree);
+			}
+		@Override
+		String getTag() {
+			return this.parser.getTag();
+			}
+		@Override
+		boolean isValid() { return this.parser.isValid();}
+		@Override
+		boolean supportFilterAlleles() {
+			return true;
+			}
+		
+		AbstractPredictionHandler visit(final VariantContext ctx,final VariantContextBuilder vcb)
+			{
+			if(!ctx.hasAttribute(this.getTag())) return this;
+			for(final BcfToolsPredictionParser.BcfToolsPrediction pred : this.parser.getPredictions(ctx))
+				{
+				if(pred==null) continue;
+				if(hasUserTemLabel(pred.getSOTerms()))
+					{
+					if(isRecodingGenotypes() && !StringUtil.isBlank(pred.getAllele()))
+						{
+						this.matching_alleles.add(Allele.create(pred.getAllele(),false));
+						}
+					this.keepFlag=true;
+					if(VcfFilterSequenceOntology.this.removeUnusedAttribute) {
+						this.predStrings.add(pred.getOriginalAttributeAsString());
+						}
+					}
+				}
+			updateInfo(ctx,vcb);
+			return this;
+			}
+		}
+	
+	
+		@Override
+		protected int doVcfToVcf(String inputName, VCFIterator iter, VariantContextWriter out) {
 			final List<AbstractPredictionHandler> predictionHandlers = new ArrayList<>();				
 			
 			final VCFHeader header0 = iter.getHeader();
@@ -419,13 +460,14 @@ public class VcfFilterSequenceOntology
 			if(ph.isValid()) predictionHandlers.add(ph);
 			ph = new AnnPredictionHandler(header0);
 			if(ph.isValid()) predictionHandlers.add(ph);
+			ph = new BcftoolsCsqPredictionHandler(header0);
+			if(ph.isValid()) predictionHandlers.add(ph);
 			
 			this.recalculator.setHeader(header2);
 			out.writeHeader(header2);
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header0).build();
 			while(iter.hasNext()) {
-				final VariantContext ctx = progress.apply(iter.next());
+				final VariantContext ctx = iter.next();
 				
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
@@ -545,7 +587,7 @@ public class VcfFilterSequenceOntology
 				 	}
 				out.add(ctx3);
 				}
-			progress.close();
+			return 0;
 			}
 			
 				
@@ -583,21 +625,30 @@ public class VcfFilterSequenceOntology
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
-		VCFIterator in = null;
-		VariantContextWriter out = null;
-		try {
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int beforeVcf() {
 			if(this.showList)
 				{
-				final SequenceOntologyTree tree = readSequenceOntologyTree(this.owluri);
-				final PrintWriter pw=super.openPathOrStdoutAsPrintWriter(this.outputFile);
-				for(final SequenceOntologyTree.Term t: tree.getTerms())
+				try {
+					final SequenceOntologyTree tree = readSequenceOntologyTree(this.owluri);
+					final PrintWriter pw=super.openPathOrStdoutAsPrintWriter(this.outputFile);
+					for(final SequenceOntologyTree.Term t: tree.getTerms())
+						{
+						pw.println(t.getAcn()+"\t"+t.getLabel());
+						}
+					pw.flush();
+					pw.close();
+					System.exit(0);
+					} 
+				catch(final Throwable err)
 					{
-					pw.println(t.getAcn()+"\t"+t.getLabel());
+					LOG.error(err);
+					return -1;
 					}
-				pw.flush();
-				pw.close();
-				return 0;
 				}
 
 			/* load sequence ontology */
@@ -679,25 +730,10 @@ public class VcfFilterSequenceOntology
 			if(!StringUtil.isBlank(this.filterIn) && !StringUtil.isBlank(this.filterOut)) {
 				LOG.error("Option filterIn && filterOut both defined.");
 				return -1;
-			}
-			
-			in = super.openVCFIterator(oneFileOrNull(args));
-			out = this.writingVcfConfig.dictionary(in.getHeader()).open(this.outputFile);
-			run(in,out);
-			in.close();in=null;
-			out.close();out=null;
+				}
 			return 0;
 			}
-		catch(final Throwable err) {
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(in);
-			CloserUtil.close(out);
-			}
-		}
+			
 		
 	
 	public static void main(final String[] args)

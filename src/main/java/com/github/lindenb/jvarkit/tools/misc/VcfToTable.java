@@ -67,6 +67,7 @@ import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
+import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -1232,6 +1233,7 @@ public class VcfToTable extends Launcher {
 					{
 					if(key.equals(this.vcfTools.getVepPredictionParser().getTag()) && this.vcfTools.getVepPredictionParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getAnnPredictionParser().getTag()) && this.vcfTools.getAnnPredictionParser().isValid()) continue;
+					if(key.equals(this.vcfTools.getBcftoolsPredictionParser().getTag()) && this.vcfTools.getBcftoolsPredictionParser().isValid()) continue;
 					Object v= atts.get(key);
 					final List<?> L;
 					if(v instanceof List)
@@ -1330,6 +1332,28 @@ public class VcfToTable extends Launcher {
 					t.removeEmptyColumns();
 					this.writeTable(margin, t);
 					}
+				
+				/** BCSQ */
+				if(!getOwner().hidePredictions && this.vcfTools.getBcftoolsPredictionParser().isValid())
+					{
+					final Table t = new Table("Consequence","allele","gene","transcript","biotype","strand","amino_acid_change","dna_change").setCaption("BCSQ");
+					
+					for(final BcfToolsPredictionParser.BcfToolsPrediction P: this.vcfTools.getBcftoolsPredictionParser().getPredictions(vc)) {
+						final List<Object> r=new ArrayList<>();
+						r.add(new SODecorator(P.getSOTermsString()));
+						r.add(P.getAllele());
+						r.add(new GenelinkDecorator(P.getGeneName()));
+						r.add(new GenelinkDecorator(P.getTranscript()));
+						r.add(P.getTranscriptBioType());
+						r.add(P.getStrand());
+						r.add(P.getAminoAcidChange());
+						r.add(P.getDnaChange());
+						t.addList(r);
+						}			
+					t.removeEmptyColumns();
+					this.writeTable(margin, t);
+					}
+				
 				
 				printGenotypesTypes(margin,vc);
 				printCharts(margin,vc);
