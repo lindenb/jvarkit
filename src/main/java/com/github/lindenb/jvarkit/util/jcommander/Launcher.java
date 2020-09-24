@@ -88,6 +88,9 @@ public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Re
 		"This file must be indexed with samtools faidx and with picard CreateSequenceDictionary";
 public static final String DICTIONARY_SOURCE="A SAM Sequence dictionary source: it can be a *.dict file, a fasta file indexed with 'picard CreateSequenceDictionary', or any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)";
 
+public static final String CRAM_INDEXED_REFENCE="For reading/writing CRAM files. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION;
+
+
 /** description used when building custom URLs (e.g: VcfServer ) */
 public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web browser. The following words will be replaced by their values: ${CHROM}, ${START}, ${END}. "
 		+ "For example for IGV that would be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see http://software.broadinstitute.org/software/igv/book/export/html/189)";

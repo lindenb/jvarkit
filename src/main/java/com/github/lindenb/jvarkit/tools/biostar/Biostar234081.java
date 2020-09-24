@@ -25,7 +25,7 @@ SOFTWARE.
 
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -71,15 +71,20 @@ END_DOC
 @Program(name="biostar234081",
 	description="convert extended CIGAR to regular CIGAR ('X','=' -> 'M')",
 	keywords={"sam","bam","cigar"},
-	biostars=234081
+	biostars=234081,
+	creationDate="20170130",
+	modificationDate="20200409"
 	)
 public class Biostar234081 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar234081.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path reference = null;
 
+	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
@@ -96,7 +101,7 @@ public class Biostar234081 extends Launcher
 		prg.setProgramName(this.getProgramName());
 		prg.setProgramVersion(this.getGitHash());
 		prg.setCommandLine(this.getProgramCommandLine());
-		w = this.writingBamArgs.openSAMFileWriter(this.outputFile,header,true);
+		w = this.writingBamArgs.setReferencePath(this.reference).openSamWriter(this.outputFile,header,true);
 		final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		iter=in.iterator();
 		while(iter.hasNext())

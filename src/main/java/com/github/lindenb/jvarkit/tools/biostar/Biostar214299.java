@@ -25,8 +25,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -59,6 +60,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 /**
 BEGIN_DOC
 
@@ -106,17 +108,16 @@ rotavirus_311_846_10:0:0_11:0:0_3d7     141     *       0       0       *       
 rotavirus_85_600_7:0:0_9:0:0_3e0        77      *       0       0       *       *       0       0       AGCTGCAGTTGTTTCTGCTCCTTCAACATTAGAATTACTGGGTATTGAATATGATTCCAATGAAGTCTAT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       *       0       0       TATTTCTCCTTAAGCCTGTGTTTTATTGCATCAAATCTTTTTTCAAACTGCTCATAACGAGATTTCCACT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 ```
-## History
 
-* 20180808: fixing bug https://github.com/lindenb/jvarkit/issues/108
-* 20180212: fixing bug https://github.com/lindenb/jvarkit/issues/95
 
 END_DOC
  */
 @Program(name="biostar214299",
 	description="Extract allele specific reads from bamfiles",
 	biostars=214299,
-	keywords={"sam","bam","variant","snp"}
+	keywords={"sam","bam","variant","snp"},
+	creationDate="20160930",
+	modificationDate="20200924"
 	)
 public class Biostar214299 extends Launcher
 	{
@@ -124,11 +125,13 @@ public class Biostar214299 extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-p","--positions"},description="Position file. A Tab delimited file containing the following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample name.",required=true)
-	private File positionFile = null;
-	
+	private Path positionFile = null;
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path reference = null;
+
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
@@ -161,19 +164,13 @@ public class Biostar214299 extends Launcher
 			{
 			sfr = openSamReader(oneFileOrNull(args));
 			final SAMFileHeader header=sfr.getFileHeader();
-			final SAMSequenceDictionary dict =header.getSequenceDictionary();
-			if(dict==null) 
-				{
-				LOG.error("Dictionary missing in input sam");
-				return -1;
-				}
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			
-			
-			try ( BufferedReader br = IOUtils.openFileForBufferedReading(this.positionFile)) {
+			try ( BufferedReader br = IOUtils.openPathForBufferedReading(this.positionFile)) {
 				String line;
 				final CharSplitter tab = CharSplitter.TAB;
 				while((line=br.readLine())!=null) {
-					if(line.trim().isEmpty() || line.startsWith("#")) continue;
+					if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
 					final String tokens[]=tab.split(line);
 					if(tokens.length<4) {
 						LOG.error("Not enough columns in "+line);
@@ -198,7 +195,7 @@ public class Biostar214299 extends Launcher
 					final String bases = tokens[2].toUpperCase();
 					if(bases.length()!=1 || !bases.matches("[ATGC]"))
 						{
-						LOG.error("in "+line+" bases should be one letter an ATGC");
+						LOG.error("in "+line+" bases should be one letter and ATGC");
 						return -1;
 						}
 					if(position.base2sample.containsKey(bases.charAt(0))) {
@@ -256,7 +253,7 @@ public class Biostar214299 extends Launcher
 			}
 			
 			
-			sfw = this.writingBamArgs.openSAMFileWriter(this.outputFile,newHeader, true);
+			sfw = this.writingBamArgs.setReferencePath(this.reference).openSamWriter(this.outputFile,newHeader, true);
 			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header).logger(LOG);
 			final SAMRecordIterator iter = sfr.iterator();
 			while(iter.hasNext())
@@ -333,10 +330,9 @@ public class Biostar214299 extends Launcher
 				sfw.addAlignment(rec);
 				}
 			progress.finish();
-			LOG.info("done");
-			return RETURN_OK;
+			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

@@ -63,6 +63,11 @@ $ ./gradlew biostar214299
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20160930
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar214299.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar214299.java)
@@ -138,8 +143,4 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        77      *       0       0       *       
 rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       *       0       0       TATTTCTCCTTAAGCCTGTGTTTTATTGCATCAAATCTTTTTTCAAACTGCTCATAACGAGATTTCCACT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 ```
 
-## History:
-
-* 20180808: fixing bug https://github.com/lindenb/jvarkit/issues/108
-* 20180212: fixing bug https://github.com/lindenb/jvarkit/issues/95
 
