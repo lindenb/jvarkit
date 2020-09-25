@@ -148,7 +148,7 @@ public class BamStats01
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 
-	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+SAMRecordPartition.OPT_DESC)
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
 	private Path faidx=null;
 
 

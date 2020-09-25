@@ -114,9 +114,9 @@ public class Biostar234230 extends Launcher
 		int pairs_partial_overlap=0;
 		
 		SlidingWindow(int start,int end) {
-		this.start = start;
-		this.end=end;
-		}
+			this.start = start;
+			this.end=end;
+			}
 		
 		void print(PrintWriter out ,final String contig) {
 			out.print(contig);

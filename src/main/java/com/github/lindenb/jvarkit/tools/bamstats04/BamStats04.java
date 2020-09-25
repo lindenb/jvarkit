@@ -122,7 +122,7 @@ public class BamStats04 extends Launcher
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-B","--bed"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
 	private IntervalListProvider intervalListProvider = null;
-	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added. Also used to read CRAM.")
+	@Parameter(names={"-R","--ref"},description="[20180126]If set, a column with the GC% will be added. Also used to read CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidxUri = null;
 	@Parameter(names={"-partition","--partition"},description="[20171120]"+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;

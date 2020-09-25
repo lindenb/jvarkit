@@ -134,7 +134,7 @@ public class BamStats05 extends Launcher
 	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	
-	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
 	private Path faidx = null;
 
 	
@@ -150,7 +150,7 @@ public class BamStats05 extends Launcher
     		String line=null;
 			while((line=bedIn.readLine())!=null)
 				{
-				if(line.isEmpty() || line.startsWith("#")) continue;
+				if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
 				final BedLine bedLine = codec.decode(line);
 				if(bedLine==null) continue;
 				if(bedLine.getColumnCount()<4)

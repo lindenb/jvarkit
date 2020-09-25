@@ -165,7 +165,7 @@ public class BamStats02
 
 	@Parameter(names={"-B","--bed"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class)
 	private IntervalListProvider intervalListProvider = null;
-	@Parameter(names={"-R","--ref"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--ref"},description=CRAM_INDEXED_REFENCE)
 	private Path faidx = null;
 
 

@@ -11,7 +11,10 @@ Statistics about the reads in a BAM.
 Usage: samstats01 [options] Files
   Options:
     -B, --bed
-      capture bed file. Optional
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
@@ -27,10 +30,21 @@ Usage: samstats01 [options] Files
     -q, --qual
       min mapping quality
       Default: 30.0
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+
 
 ## Compilation
 
@@ -76,19 +90,13 @@ The current reference is:
 
 
 
-
-
 ### History
-
-
 
 * Dec 2013 Added PROPER_PAIR_HMQ for @SolenaLS
 * Dec 2013 Added X and Y for @SolenaLS
 
 
-
 ### Output
-
 
 See also: http://picard.sourceforge.net/explain-flags.html
 

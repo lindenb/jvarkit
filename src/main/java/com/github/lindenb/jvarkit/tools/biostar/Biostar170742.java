@@ -211,7 +211,7 @@ public class Biostar170742 extends Launcher
 			progress.finish();
 			iter.close();
 			out.flush();
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Throwable err)
 			{

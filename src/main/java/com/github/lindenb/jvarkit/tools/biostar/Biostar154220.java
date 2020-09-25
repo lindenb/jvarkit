@@ -115,6 +115,10 @@ public class Biostar154220 extends Launcher
 	@Parameter(names={"-filter","--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class,splitter=NoSplitter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path faidx = null;
+
+	
 	@ParametersDelegate
 	private WritingBamArgs writingBams=new WritingBamArgs();
 	
@@ -135,7 +139,7 @@ public class Biostar154220 extends Launcher
 			{
 			final SAMFileHeader header2=header.clone();
 			JVarkitVersion.getInstance().addMetaData(this, header2);
-			out = this.writingBams.openSamWriter(this.outputFile,header2, true);
+			out = this.writingBams.setReferencePath(this.faidx).openSamWriter(this.outputFile,header2, true);
 			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			iter = in.iterator();
 			final List<SAMRecord> buffer=new ArrayList<>();
@@ -240,7 +244,7 @@ public class Biostar154220 extends Launcher
 			progress.close();
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

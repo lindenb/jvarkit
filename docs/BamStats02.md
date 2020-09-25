@@ -11,17 +11,31 @@ Statistics about the flags and reads in a BAM
 Usage: bamstats02 [options] Files
   Options:
     -B, --bed
-      Optional Bed File
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --ref
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+
 
 ## Compilation
 

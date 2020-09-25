@@ -110,7 +110,9 @@ public class Biostar173114 extends Launcher
 	private boolean keepQualities = false;
 	@Parameter(names={"-keepCigar","--keepCigar"},description="keep cigar : don't remove hard clip")
 	private boolean keepCigar = false;
-	
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path faidx = null;
+
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs =new WritingBamArgs().setBestCompression();
@@ -124,7 +126,7 @@ public class Biostar173114 extends Launcher
 		try
 			{
 			sfr = super.openSamReader(oneFileOrNull(args));
-			sfw = this.writingBamArgs.openSamWriter(this.outputFile,sfr.getFileHeader(), true);
+			sfw = this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(this.outputFile,sfr.getFileHeader(), true);
 			
 			iter = sfr.iterator();
 			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(sfr.getFileHeader()).logger(LOG);
@@ -176,10 +178,9 @@ public class Biostar173114 extends Launcher
 			progress.finish();
 			sfw.close();
 			sfw = null;
-			LOG.info("done");
 			return RETURN_OK;
 		}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
