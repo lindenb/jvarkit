@@ -1336,11 +1336,12 @@ public class VcfToTable extends Launcher {
 				/** BCSQ */
 				if(!getOwner().hidePredictions && this.vcfTools.getBcftoolsPredictionParser().isValid())
 					{
-					final Table t = new Table("Consequence","allele","gene","transcript","biotype","strand","amino_acid_change","dna_change").setCaption("BCSQ");
+					final Table t = new Table("Consequence","uSTOP","allele","gene","transcript","biotype","strand","amino_acid_change","dna_change").setCaption("BCSQ");
 					
 					for(final BcfToolsPredictionParser.BcfToolsPrediction P: this.vcfTools.getBcftoolsPredictionParser().getPredictions(vc)) {
 						final List<Object> r=new ArrayList<>();
 						r.add(new SODecorator(P.getSOTermsString()));
+						r.add(P.isDownstreamAStop()?"*":"");
 						r.add(P.getAllele());
 						r.add(new GenelinkDecorator(P.getGeneName()));
 						r.add(new GenelinkDecorator(P.getTranscript()));

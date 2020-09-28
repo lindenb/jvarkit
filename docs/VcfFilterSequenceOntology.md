@@ -15,6 +15,12 @@ Usage: vcffilterso [options] Files
       Default: []
     -f, --acnfile
       file of SO accession numbers, one per line
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --disable-vc-attribute-recalc
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
@@ -52,7 +58,7 @@ Usage: vcffilterso [options] Files
       remove the variant if option -r was used and the is no more attribute
       Default: false
     -S, --showacn
-      list the available SO accession and exit.
+      list the available SO terms and exit.
       Default: false
     --vc-attribute-recalc-ignore-filtered
       When recalculating variant attributes like DP AF, AC, AN, ignore 

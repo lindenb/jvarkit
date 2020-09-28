@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.Set;
 
 import htsjdk.samtools.util.StringUtil;
@@ -59,6 +60,7 @@ public class BcfToolsPredictionParser implements PredictionParser
 	private final String tag;
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	private final boolean valid;
+	private final Map<String, String> bcftools2so = new HashMap<>();
 	
 	BcfToolsPredictionParser(final VCFHeader header)
 		{		
@@ -114,6 +116,13 @@ public class BcfToolsPredictionParser implements PredictionParser
 			this.col2colidx.put(token, i);
 			}
 		this.valid=true;
+		
+		this.bcftools2so.put("3_prime_utr", "3_prime_UTR_variant");
+		this.bcftools2so.put("5_prime_utr", "5_prime_UTR_variant");
+		this.bcftools2so.put("non_coding","non_coding_transcript_variant");
+		this.bcftools2so.put("missense","missense_variant");
+		this.bcftools2so.put("splice_acceptor","splice_acceptor_variant");
+		this.bcftools2so.put("splice_donor","splice_donor_variant");
 		}
 	
 	public boolean isValid() {
@@ -143,7 +152,7 @@ public class BcfToolsPredictionParser implements PredictionParser
 			}
 		final String s=String.class.cast(o).trim();
 		final String tokens[]= this.pipe.split(s);
-		return new BcfToolsPrediction(s,tokens);
+		return new BcfToolsPrediction(ctx,s,tokens);
 		}
 	
 	private void _predictions(final List<BcfToolsPrediction> preds,final Object o,final VariantContext ctx)
@@ -158,10 +167,12 @@ public class BcfToolsPredictionParser implements PredictionParser
 		{
 		private final String originalAttributeAsString;
 		private final String tokens[];
-		BcfToolsPrediction(final String originalAttributeAsString,final String tokens[])
+		private final VariantContext ctx;
+		BcfToolsPrediction(final VariantContext ctx,final String originalAttributeAsString,final String tokens[])
 			{
 			this.originalAttributeAsString = originalAttributeAsString;
 			this.tokens=tokens;
+			this.ctx = ctx;
 			}
 		/** get column by name, may return null. Returns null if column is empty */
 		private String getByCol(final String col)
@@ -205,7 +216,7 @@ public class BcfToolsPredictionParser implements PredictionParser
 		
 		private Map<String,String> getMap()
 			{
-			final Map<String, String> hash = new HashMap<String,String>();
+			final Map<String, String> hash = new HashMap<String,String>(col2colidx.size());
 			for(final String c: col2colidx.keySet())
 				{
 				int idx=col2colidx.get(c);
@@ -214,39 +225,64 @@ public class BcfToolsPredictionParser implements PredictionParser
 				}
 			return hash;
 			}
+		
 		public String getSOTermsString()
 			{
-			return	getByCol("Consequence");
+			/* reference to another position */
+			if(this.originalAttributeAsString.startsWith("@")) return null;
+			final String s = getByCol("Consequence");
+			// " The consequence can start with the asterisk '*' prefix indicating a consequence downstream from a stop"
+			if(s==null ) return null;
+			return s.startsWith("*")?s.substring(1):s;
 			}
 		
+		/** The consequence can start with the asterisk '*' prefix indicating a consequence downstream from a stop" */
+		public boolean isDownstreamAStop() {
+			final String s = getByCol("Consequence");
+			return s!=null && s.startsWith("*");
+		}
+		/** Consequences of compound variants which span multiple sites are printed in one record only, the remaining records link to it by '@position */
+		public OptionalInt getReferencePosition() {
+			if(!this.originalAttributeAsString.startsWith("@")) return OptionalInt.empty();
+			return OptionalInt.of(Integer.parseInt(this.originalAttributeAsString.substring(1)));
+		}
+		
+		/** BCFtools csq doesn't use SO !!! */
+		private String mapSoTerm(final String s) {
+			return bcftools2so.getOrDefault(s, s);
+		}
 		
 		public Set<SequenceOntologyTree.Term> getSOTerms()
 			{
 			final String EFFs=getSOTermsString();
-			if(EFFs.isEmpty()) return Collections.emptySet();
+			if(StringUtil.isBlank(EFFs)) return Collections.emptySet();
 			final String tokens[] = ampRegex.split(EFFs);
 			final Set<SequenceOntologyTree.Term> set=new LinkedHashSet<>(tokens.length);
 
 			for(final String EFF: tokens) {
-				final SequenceOntologyTree.Term t = BcfToolsPredictionParser.this.soTree.getTermByLabel(EFF);
+				final String soTerm = mapSoTerm(EFF);
+				final SequenceOntologyTree.Term t = BcfToolsPredictionParser.this.soTree.getTermByLabel(soTerm);
 				if(t==null) {
-					LOG.warn("Cannot get snpeff prediction \""+EFF+"\" in Sequence Ontology");
+					LOG.warn("Cannot get CSQ prediction \""+EFF+"\"/\""+soTerm+"\" in Sequence Ontology.");
 					}
 				set.add(t);
 				}
 			return set;
 			}
 		
-		/** return ALT allele DNA change e.g: 48305542T>TGGGCCTGGGATC */
+		/** return ALT allele DNA change e.g: 48305542T>TGGGCCTGGGATC+48305543C>A */
 		public String getAllele()  {
 			final String s = getDnaChange();
 			if(StringUtil.isBlank(s)) return null;
-			int i = s.indexOf(">");
-			if(i==-1) return null;
-			String allele = s.substring(i+1).trim();
-			if(StringUtil.isBlank(s)) return null;
-			// a priori , no need to reverse complement according to strand
-			return allele;
+			final String prefix= String.valueOf(this.ctx.getStart())+ this.ctx.getReference().getDisplayString()+">";
+			for(final String token: CharSplitter.of('+').split(s)) {
+				if(!token.startsWith(prefix)) continue;
+				String allele =  token.substring(prefix.length()).trim();
+				if(StringUtil.isBlank(s)) continue;
+				// a priori , no need to reverse complement according to strand
+				return allele;
+				}
+			return null;
 			}
 
 		
