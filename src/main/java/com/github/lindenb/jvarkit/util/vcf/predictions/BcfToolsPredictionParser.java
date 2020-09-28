@@ -117,12 +117,20 @@ public class BcfToolsPredictionParser implements PredictionParser
 			}
 		this.valid=true;
 		
+		// https://github.com/samtools/bcftools/blob/master/csq.c#L229
 		this.bcftools2so.put("3_prime_utr", "3_prime_UTR_variant");
 		this.bcftools2so.put("5_prime_utr", "5_prime_UTR_variant");
 		this.bcftools2so.put("non_coding","non_coding_transcript_variant");
 		this.bcftools2so.put("missense","missense_variant");
 		this.bcftools2so.put("splice_acceptor","splice_acceptor_variant");
 		this.bcftools2so.put("splice_donor","splice_donor_variant");
+		this.bcftools2so.put("synonymous", "synonymous_variant");
+		this.bcftools2so.put("stop_retained", "stop_retained_variant");
+		this.bcftools2so.put("intron", "intron_variant");
+		this.bcftools2so.put("intergenic", "intergenic_variant");
+		this.bcftools2so.put("inframe_altering", "inframe_variant");//?
+		this.bcftools2so.put("start_retained", "start_retained_variant");
+		this.bcftools2so.put("coding_sequence", "coding_sequence_variant");
 		}
 	
 	public boolean isValid() {
@@ -278,7 +286,7 @@ public class BcfToolsPredictionParser implements PredictionParser
 			for(final String token: CharSplitter.of('+').split(s)) {
 				if(!token.startsWith(prefix)) continue;
 				String allele =  token.substring(prefix.length()).trim();
-				if(StringUtil.isBlank(s)) continue;
+				if(StringUtil.isBlank(allele)) continue;
 				// a priori , no need to reverse complement according to strand
 				return allele;
 				}

@@ -12,7 +12,7 @@ Usage: groupbygene [options] Files
   Options:
     -e, -E, --extractors
       [20190626]Gene Extractors Name. Space/semicolon/Comma separated
-      Default: ANN/GeneId VEP/GeneId
+      Default: ANN/GeneId VEP/GeneId BCSQ/gene
     --filtered
       ignore FILTERED variants
       Default: false

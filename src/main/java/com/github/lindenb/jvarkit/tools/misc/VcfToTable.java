@@ -1340,11 +1340,13 @@ public class VcfToTable extends Launcher {
 					
 					for(final BcfToolsPredictionParser.BcfToolsPrediction P: this.vcfTools.getBcftoolsPredictionParser().getPredictions(vc)) {
 						final List<Object> r=new ArrayList<>();
-						r.add(new SODecorator(P.getSOTermsString()));
+						r.add(new SODecorator(P.getSOTerms().stream().map(T->T.getLabel()).collect(Collectors.joining("&"))));
 						r.add(P.isDownstreamAStop()?"*":"");
 						r.add(P.getAllele());
-						r.add(new GenelinkDecorator(P.getGeneName()));
-						r.add(new GenelinkDecorator(P.getTranscript()));
+						String identifier = P.getGeneName();
+						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
+						identifier = P.getTranscript();
+						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
 						r.add(P.getTranscriptBioType());
 						r.add(P.getStrand());
 						r.add(P.getAminoAcidChange());
