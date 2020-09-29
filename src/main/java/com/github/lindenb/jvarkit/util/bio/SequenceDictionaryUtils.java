@@ -61,6 +61,7 @@ public static Optional<String> getBuildName(final SAMSequenceDictionary dict) {
 	if(dict==null || dict.isEmpty()) return Optional.empty();
 	if(isGRCh37(dict)) return Optional.of("GRCh37");
 	if(isGRCh38(dict)) return Optional.of("GRCh38");
+	if(isGRCm38(dict)) return Optional.of("GRCm38");
 	return Optional.empty();
 }
 
@@ -87,6 +88,19 @@ public static boolean isGRCh38(final SAMSequenceDictionary dict) {
 	return false;
 	}
 
+/** test if dict looks like MusMusculus isGRCm38  */
+public static boolean isGRCm38(final SAMSequenceDictionary dict) {
+	if(dict==null || dict.isEmpty()) return false;
+	SAMSequenceRecord rec = dict.getSequence("chr1");
+	if(rec==null)  rec = dict.getSequence("1");
+	if(rec!=null) {
+		if(rec.getSequenceLength()==195_471_971) return true;	
+		}
+	return false;
+	}
+
+
+
 /** test if dict looks like a human dict  */
 public static boolean isHuman(final VCFHeader h) {
 	return isHuman(h.getSequenceDictionary());
@@ -97,6 +111,19 @@ public static boolean isHuman(final VCFHeader h) {
 public static boolean isHuman(final SAMSequenceDictionary dict) {
 	return isGRCh37(dict) || isGRCh38(dict);
 	}
+
+
+/** test if dict looks like a mouse dict  */
+public static boolean isMusMusculus(final VCFHeader h) {
+	return isMusMusculus(h.getSequenceDictionary());
+	}
+
+
+/** test if dict looks like a human dict  */
+public static boolean isMusMusculus(final SAMSequenceDictionary dict) {
+	return isGRCm38(dict);
+	}
+
 
 /** extract required from ReferenceSequenceFile */
 public static SAMSequenceDictionary extractRequired(final ReferenceSequenceFile faidx) {
