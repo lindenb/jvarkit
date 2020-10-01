@@ -38,9 +38,9 @@ import java.util.List;
 import java.util.function.BiFunction;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -168,8 +168,7 @@ protected FastaSequence read(final PushbackReader reader) throws IOException {
 		throw new RuntimeIOException(e);
 		}}
 
-private class MyIterator extends AbstractIterator<FastaSequence>
-	implements CloseableIterator<FastaSequence>
+private class MyIterator extends AbstractCloseableIterator<FastaSequence>
 	{
 	PushbackReader r;
 	MyIterator(final Reader r) {

@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -50,11 +51,9 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.MergingIterator;
-import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -129,7 +128,7 @@ public class BuildDbsnp extends Launcher {
 			}
 	}
 	
-	private static class VCFSource extends AbstractIterator<Variant> implements CloseableIterator<Variant> {
+	private static class VCFSource extends AbstractCloseableIterator<Variant> {
 		String name;
 		Path filePath;
 		VCFReader reader;

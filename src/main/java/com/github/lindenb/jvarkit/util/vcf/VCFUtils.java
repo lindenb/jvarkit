@@ -50,7 +50,6 @@ import java.util.TreeSet;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
@@ -81,6 +80,7 @@ import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -827,8 +827,7 @@ public class VCFUtils
     	}
     
     
-    private static class VcfFileIterator extends AbstractIterator<VCFIterator>
-    	implements CloseableIterator<VCFIterator>{
+    private static class VcfFileIterator extends AbstractCloseableIterator<VCFIterator> {
     	private  LineIterator lr;
     	public VcfFileIterator(final LineIterator lr) {
 		this.lr = lr;

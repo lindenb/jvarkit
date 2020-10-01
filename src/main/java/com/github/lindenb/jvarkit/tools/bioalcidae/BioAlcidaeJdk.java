@@ -45,6 +45,7 @@ import java.util.stream.StreamSupport;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
@@ -70,7 +71,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
@@ -1145,7 +1145,7 @@ public class BioAlcidaeJdk
     
     public static class SimpleLineHandlerHandlerFactory extends AbstractHandlerFactory<SimpleLineHandler>
 		{
-    	private static class LineIterator extends AbstractIterator<String> implements CloseableIterator<String> {
+    	private static class LineIterator extends AbstractCloseableIterator<String> {
     		private final BufferedReader br;
     		LineIterator(final BufferedReader br) {
     			this.br = br;

@@ -28,7 +28,8 @@ package com.github.lindenb.jvarkit.variant.vcf;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-import htsjdk.samtools.util.AbstractIterator;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
+
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.TabixReader;
@@ -114,9 +115,7 @@ public class TabixVcfReader implements VCFReader
     	}
     
     
-    private abstract class AbstractCtxIterator
-	extends AbstractIterator<VariantContext>
-	implements CloseableIterator<VariantContext>
+    private abstract class AbstractCtxIterator extends AbstractCloseableIterator<VariantContext>
 		{
 	    protected abstract String nextLine() throws IOException;
 		@Override
@@ -126,7 +125,7 @@ public class TabixVcfReader implements VCFReader
 	    		if(line==null) return null;
 	    		return TabixVcfReader.this.vcfCodec.decode(line);
 	    		}
-			catch(IOException err) {
+			catch(final IOException err) {
 				throw new RuntimeIOException(err);
 				}
 			}

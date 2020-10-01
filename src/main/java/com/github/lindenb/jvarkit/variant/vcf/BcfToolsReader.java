@@ -32,9 +32,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
@@ -144,8 +144,7 @@ public class BcfToolsReader implements VCFReader {
 		//nothing
 		}
 	
-	private class BcfIterator extends AbstractIterator<VariantContext>
-		implements CloseableIterator<VariantContext> {
+	private class BcfIterator extends AbstractCloseableIterator<VariantContext> {
 		final Process proc;
 		final VCFCodec codec;
 		final htsjdk.tribble.readers.LineReader r;

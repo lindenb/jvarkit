@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.hmm;
 
 import java.io.BufferedReader;
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -36,6 +35,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -48,7 +48,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.MergingIterator;
@@ -157,8 +156,7 @@ public class HmmMergeBed extends Launcher {
 	
 	/** iterator over all the bases of a bed record */
 	private static class BedLineToBaseIterator 
-		extends AbstractIterator<Base> 
-		implements CloseableIterator<Base> {
+		extends AbstractCloseableIterator<Base> {
 		final BedLineIterator delegate;
 		/* current bed line */
 		BedLine bedline = null;
@@ -191,7 +189,7 @@ public class HmmMergeBed extends Launcher {
 			}
 		}
 	
-	private static class BedLineIterator extends AbstractIterator<BedLine> implements Closeable {
+	private static class BedLineIterator extends AbstractCloseableIterator<BedLine> {
 		final BedLineCodec codec = new BedLineCodec();
 		private BedLine prevRec = null;
 		private BufferedReader br ;
@@ -298,7 +296,7 @@ public class HmmMergeBed extends Launcher {
 			}
 		}
 	
-	private class BaseMergerIterator extends AbstractIterator<BaseMerge> implements CloseableIterator<BaseMerge> {
+	private class BaseMergerIterator extends AbstractCloseableIterator<BaseMerge>  {
 		private final List<CloseableIterator<Base>> baseiterators;
 		private final MergingIterator<Base> mergingIter;
 		private final EqualRangeIterator<Base> equalIter;

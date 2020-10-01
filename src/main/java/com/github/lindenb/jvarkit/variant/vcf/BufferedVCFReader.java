@@ -29,9 +29,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -49,7 +49,7 @@ public class BufferedVCFReader implements VCFReader {
 	private final List<VariantContext> buffer = new ArrayList<>();
 	private Locatable lastInterval = null;
 	private UnaryOperator<VariantContext> simplifier = V->V;
-	private class MyIter extends AbstractIterator<VariantContext> implements CloseableIterator<VariantContext> {
+	private class MyIter extends AbstractCloseableIterator<VariantContext> {
 		int i=0;
 		final Locatable query;
 		MyIter(Locatable query) {

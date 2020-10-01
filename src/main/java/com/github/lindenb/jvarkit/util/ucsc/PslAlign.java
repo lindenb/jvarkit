@@ -4,11 +4,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
-import htsjdk.samtools.util.AbstractIterator;
-import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Locatable;
 
@@ -365,9 +364,7 @@ public class PslAlign implements Locatable
     	return new MyIter(iter);
     	}
     
-    private static class MyIter extends AbstractIterator<PslAlign>
-    	implements CloseableIterator<PslAlign>
-    	{
+    private static class MyIter extends AbstractCloseableIterator<PslAlign> {
     	private final CharSplitter tab=CharSplitter.TAB;
     	private final Iterator<String> delegate;
     	MyIter(final Iterator<String> delegate)
