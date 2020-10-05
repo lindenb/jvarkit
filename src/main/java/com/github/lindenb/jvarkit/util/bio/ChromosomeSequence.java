@@ -24,12 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio;
 
+import htsjdk.samtools.util.Locatable;
+
 /**
  * CharSequence of a chromosome 
  * @author lindenb
  *
  */
-public interface ChromosomeSequence extends CharSequence
+public interface ChromosomeSequence extends CharSequence, Locatable
 	{
 	/** get the chromosome name of that genomic sequence */
 	public String getChrom();
@@ -37,5 +39,18 @@ public interface ChromosomeSequence extends CharSequence
 	/** return true if getChrom().equals(name) */
 	public default boolean hasName(final String name) {
 		return getChrom().equals(name);
+		}
+
+	@Override
+	default String getContig() {
+		return getChrom();
+		}
+	@Override
+	default int getStart() {
+		return 1;
+		}
+	@Override
+	default int getEnd() {
+		return length();
 		}
 	}

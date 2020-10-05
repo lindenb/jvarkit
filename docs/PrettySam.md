@@ -59,11 +59,8 @@ Usage: prettysam [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -r, -R, --reference
-      Indexed Genome Reference. It can be a the path to fasta file that must 
-      be indexed with samtools faidx and with picard CreateSequenceDictionary. 
-      It can also be a BioDAS dsn url like 
-      `http://genome.cse.ucsc.edu/cgi-bin/das/hg19/` . BioDAS references are 
-      slower, but allow to work without a local reference file.
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
     --trim
       trim long string to this length. <1 = do not trim.
       Default: 50
@@ -102,6 +99,11 @@ $ ./gradlew prettysam
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20171215
 
 ## Source code 
 

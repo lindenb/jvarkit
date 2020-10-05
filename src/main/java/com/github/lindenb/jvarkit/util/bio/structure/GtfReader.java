@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -70,10 +71,11 @@ public class GtfReader implements Closeable {
 	
 	private final GtfResource resource;
 	/** type of  input detected: ucsc knownGene or gtf */
-	private enum InputFormat {undefined,knowngene,gtf};
+	private enum InputFormat {undefined,knowngene,gtf,gff};
 	private InputFormat format = InputFormat.undefined;
 	private Function<String,String> contigNameConverter  = S->S;
 	private TabixReader tabixReader = null;
+	private static final boolean SUPPORTS_GFF = false;
 	
 	public GtfReader(final InputStream in) {
 		this.resource = new InputStreamGtfResource(in);
@@ -201,7 +203,100 @@ public class GtfReader implements Closeable {
 	        transcript.exonEnds =  Arrays.stream(CharSplitter.COMMA.split(tokens[binIdx + 9])).limit(exonCount).mapToInt(S->Integer.parseInt(S)).toArray();
 	        
 	        this.id2gene.put(gene.gene_id, gene);
-			}		
+			}
+		
+		private Map<String,String> extractGffProperties(final String str) {
+			final Map<String,String> properties = new HashMap<>();
+			int i=0;
+			final StringBuilder key = new StringBuilder();
+			final StringBuilder value = new StringBuilder();
+			while(i<str.length()) {
+				key.setLength(0);
+				value.setLength(0);
+				while(i<str.length() && str.charAt(i)!='=') {
+					key.append(str.charAt(i));
+					i++;
+					}
+				if(key.length()==0) throw new IllegalArgumentException("Empty key in "+str);
+				if(i>=str.length()) throw new IllegalArgumentException("No value for "+key+" in "+str);
+				if(str.charAt(i)!='=')  throw new IllegalArgumentException("Expected '=' after key="+key+" in "+str);
+				i++;//skip '='
+				while(i<str.length() && str.charAt(i)!=';') {
+					value.append(str.charAt(i));
+					i++;
+					}
+				final String k = key.toString();
+				if(properties.containsKey(k)) throw new IllegalArgumentException("duplicate key="+k+" in "+str);
+				properties.put(k, value.toString());
+				}
+			return properties;
+			}
+		
+		private  void visitGff(final String line) {
+			final String tokens[] = CharSplitter.TAB.split(line);
+			final String source = tokens[1];
+			final String type = tokens[2];
+			if(type.equals("chromosome")) return;
+			final String contig = contigNameConverter.apply(tokens[0]);
+		
+			if(StringUtils.isBlank(contig)) return;
+			final int start = Integer.parseInt(tokens[3]);
+			final int end = Integer.parseInt(tokens[4]);
+			if(start<=0) throw new IllegalArgumentException("Bad start in "+line);
+			if(end<=0) throw new IllegalArgumentException("Bad start in "+line);
+
+			final Map<String,String> properties = extractGffProperties(tokens[8]);
+			
+			if(type.equals("gene"))
+				{
+				String geneid = getRequiredProperty(line,properties, "ID");
+				if(geneid.startsWith("gene:")) geneid=geneid.substring(5);
+				final GeneImpl g = this.getGene(geneid);
+				g.properties.putAll(properties);
+				g.contig = contig;
+				g.start = start;
+				g.end = end;
+				g.strand = tokens[6].charAt(0);
+				}
+			else if(type.equals("transcript") || type.equals("processed_transcript"))
+				{
+				String geneid = getRequiredProperty(line,properties, "Parent");
+				if(geneid.startsWith("gene:")) geneid=geneid.substring(5);
+
+				
+				final GeneImpl g = this.getGene(geneid);
+				
+				String transcriptid = getRequiredProperty(line,properties, "ID");
+				if(transcriptid.startsWith("transcript:")) transcriptid=transcriptid.substring(11);
+
+				
+				final TranscriptImpl t = this.getTranscript(transcriptid);
+				t.properties.putAll(properties);
+				t.gene = g;
+				t.txStart = start;
+				t.txEnd = end;
+				t.strand =tokens[6].charAt(0);
+				g.transcripts.add(t);
+				}
+			else if(type.equals("exon"))
+				{
+				String transcriptid = getRequiredProperty(line,properties, "Parent");
+				if(transcriptid.startsWith("transcript:")) transcriptid=transcriptid.substring(11);
+
+				final TranscriptImpl t = this.getTranscript(transcriptid);
+				
+				List<Coords> coords = this.transcript2exons.get(t.transcript_id);
+				if(coords==null) {
+					coords = new ArrayList<>();
+					this.transcript2exons.put(t.transcript_id,coords);
+					}
+				final Coords coord = new Coords();
+				coord.start = start;
+				coord.end = end;
+				coords.add(coord);
+				}
+			throw new UnsupportedOperationException("input looks like gff but gff is currently not supported");
+		}
 		
 		private  void visitGtf(final String line) {
 			final GTFLine T = this.codec.decode(line);
@@ -343,7 +438,13 @@ public class GtfReader implements Closeable {
 			}
 		return s;
 		}
-
+	private static String getRequiredProperty(final String line,final Map<String,String> map,String prop)  {
+		final String s = map.get(prop);
+		if(StringUtils.isBlank(s)) {
+			throw new RuntimeIOException("cannot find property \""+prop+"\" in "+line);
+			}
+		return s;
+		}
 	
 	public List<Gene> getAllGenes() {
 		return fetchGenes(null);
@@ -400,13 +501,28 @@ public class GtfReader implements Closeable {
 		try(final BufferedReader br=this.resource.openReader())
 			{
 			br.lines().
-				filter(S->!S.startsWith("#")).
 				filter(S->!StringUtils.isBlank(S)).
 				forEach(L->{
+					if(L.startsWith("#")) {
+						if(this.format.equals(InputFormat.undefined)) {
+							if(L.startsWith("##gff-version") && SUPPORTS_GFF) {
+								this.format = InputFormat.gff;
+								}
+							}
+						return;
+					}
+
+					
 					if(this.format.equals(InputFormat.undefined)) {
 						final String tokens[] = CharSplitter.TAB.split(L);
 						if(tokens.length>6 && (tokens[6].equals(".") || tokens[6].equals("+") || tokens[6].equals("-"))) {
-							this.format = InputFormat.gtf;
+							if(SUPPORTS_GFF && tokens.length>8 && Pattern.compile("^[A-Za-z_][^ \t\"]*=").matcher(tokens[9]).find()) {
+								this.format = InputFormat.gff;
+								}
+							else
+								{
+								this.format = InputFormat.gtf;
+								}
 							}
 						else
 							{
@@ -415,6 +531,7 @@ public class GtfReader implements Closeable {
 						}
 					switch(this.format) {
 						case gtf: state.visitGtf(L);break;
+						case gff: state.visitGff(L);break;
 						case knowngene: state.visitKg(L);break;
 						default: throw new IllegalStateException();
 					}

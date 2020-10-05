@@ -54,7 +54,7 @@ public class GenomicSequence
 	private final SAMSequenceRecord samSequenceRecord;
 	private byte buffer[]=null;
 	private int buffer_pos=-1;
-	private int half_buffer_capacity=1000000;
+	private int half_buffer_capacity = 1_000_000;
 	
 	public static interface GCPercent extends Locatable
 		{

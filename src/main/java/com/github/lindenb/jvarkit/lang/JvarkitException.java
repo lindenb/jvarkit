@@ -28,9 +28,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
-import java.text.DecimalFormat;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -46,11 +44,6 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 @SuppressWarnings("serial")
 public class JvarkitException   {
-
-private static String niceInt(int pos) {
-	final DecimalFormat niceIntFmt = new DecimalFormat("###,###");
-	return niceIntFmt.format(pos);
-}
 	
 /** convert stack trace to String */
 public static String toString(final Throwable err) {
@@ -232,8 +225,8 @@ public static class BadLocatableSortOrder extends Error
 	private static String str(final Locatable loc,final SAMSequenceDictionary dict) {
 		if(loc==null) return "(null)";
 		return loc.getContig()+(dict==null?":":"(tid="+ dict.getSequenceIndex(loc.getContig())+"):")+
-				":"+niceInt(loc.getStart())+
-				"-"+niceInt(loc.getEnd())
+				":"+StringUtils.niceInt(loc.getStart())+
+				"-"+StringUtils.niceInt(loc.getEnd())
 				;
 		}
 	public static String getMessage(final Locatable loc1,final Locatable loc2,final SAMSequenceDictionary dict)

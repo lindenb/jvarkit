@@ -48,66 +48,164 @@ jint QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong ptr,jobjectAr
 }
 
 
-jint QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong ptr,jobjectArray array) {
+typedef struct VcfShuttle {
+    htsFile *in;
+    bcf_hdr_t *header;
+    bcf1_t* bcf;
+    //
+    tbx_t *tbx_idx;
+    hts_idx_t *bcf_idx;
+    //
+    hts_itr_t *itr;
+} VcfStuff ;
+
+void VcfShuttleDestroy(VcfShuttle* vcf) {
+if (vcf==NULL) return;
+if (vcf->in!=NULL) hts_close(vcf->in);
+if (vcf->header!=NULL) bcf_hdr_destroy(vcf->header);
+if (vcf->bcf!=NULL) bcf_destroy(vcf->bcf);
+if (vcf->itr!=NULL) hts_itr_destroy(vcf->itr);
+if ( vcf->tbx_idx!=NULL ) tbx_destroy(vcf->tbx_idx);
+if ( vcf->bcf_idx!=NULL ) hts_idx_destroy(vcf->bcf_idx);
+free(vcf);
+}
+
+jlong QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong ptr,jbool require_index) {
+  VcfShuttle* vcf  = (VcfShuttle*)calloc(1,sizeof(VcfShuttle));
   const char* fn = (*env)->GetStringUTFChars(env,(jstring) filename, NULL);
-  htsFile *in = hts_open(fn,"r");
-  if(in==NULL) {
+  vcf->in = hts_open(fn,"r");
+  if(vcf->in==NULL) {
     ERROR("Cannot open input vcf %s. (%s)",fn,strerror(errno));
-    return -1;    
+    VcfShuttleDestroy(vcf);    
+    return 0L;    
     }
- bcf_hdr_t *header = bcf_hdr_read(in);
- if(header==NULL) {
+ vcf->header = bcf_hdr_read(in);
+ if(vcf->header==NULL) {
     ERROR("Cannot read header for input vcf %s.",fn);
-    return -1;    
+    VcfShuttleDestroy(vcf);    
+    return 0L;    
     }
 
+ if(require_index) {
+    if ( vcf->in->format.format==vcf ) {
+        vcf->tbx_idx = tbx_index_load(fn);
+        if(vcf->tbx_idx==NULL) {
+            ERROR("Cannot read index for input vcf %s.",fn);
+            VcfShuttleDestroy(vcf);    
+            return 0L;    
+            }
+        }
+    else  if ( vcf->in->format.format==bcf ) {
+        reader->bcf_idx = bcf_index_load(fn);
+        if(vcf->bcf_idx==NULL) {
+            ERROR("Cannot read index for input bcf %s.",fn);
+            VcfShuttleDestroy(vcf);    
+            return 0L;    
+            }
+        }
+    else {
+        ERROR("Unknown filetype for input vcf %s.",fn);
+        VcfShuttleDestroy(vcf);    
+        return 0L;
+        }
+    }
 
- bcf1_t* bcf = bcf_init();
- if(bcf==NULL) {
+ vcf->bcf = bcf_init();
+ if(vcf->bcf==NULL) {
     ERROR("Out of memory.");
+    VcfShuttleDestroy(vcf);    
     return -1;    
     }
-  (*env)->ReleaseStringUTFChars(env,filename, fn);
-  (*env)->SetLongArrayElement(env,array,0,(jlong)in);
-  (*env)->SetLongArrayElement(env,array,1,(jlong)header);
-  (*env)->SetLongArrayElement(env,array,2,(jlong)bcf);
-  return 0;
+
+  return (jlong)vcf;
   }
 
-jint QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong ptr,jobjectArray array) {
-
-htsFile *in = (htsFile*) (*env)->GetLongArrayElement(env,array,0);
-if(in!=NULL) hts_close(in);
-
-bcf_hdr_t *header = (bcf_hdr_t *) (*env)->GetLongArrayElement(env,array,1);
-if(header!=NULL) bcf_hdr_destroy(header);
-
-bcf1_t* bcf = (bcf1_t *) (*env)->GetLongArrayElement(env,array,2);
-i(bcf!=NULL) bcf_destroy(bcf);
+jint QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong ptr) {
+VcfShuttle* vcf  = (VcfShuttle*)ptr;
+VcfShuttleDestroy(ptr);
+return 0;
 }
 
 
-jint QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong hdrptr) {
-bcf_hdr_t *h = (bcf_hdr_t *)hdrptr;
+jlong QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong hdrptr) {
+VcfShuttle* vcf  = (VcfShuttle*)ptr;
 kstring_t htxt = {0,0,0};
-if (bcf_hdr_format(h, 1, &htxt) < 0) {
+if (bcf_hdr_format(vcf->header, 1, &htxt) < 0) {
      free(htxt.s);
     return -1;
 }
 kputc('\0', &htxt); // include the \0 byte
 jobject s =  (*env)->NewStringUTF(env,htxt.s);
 free(htxt.s);
-return s;
+return  (jlong)s;
 }
 
-jint QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong fpptr,jlong hdrptr,jlong bcfptr) {
+jlong QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong ptr) {
 {
-htsFile *fp = (htsFile*)fpptr;
-bcf_hdr_t *h = (bcf_hdr_t *)hdrptr;
-bcf1_t* v = (bcf1_t *) bcfptr;
-int rez= bcf_read(fp,h,v);
-if (vcf_format1(h, v, &fp->line) != 0)
+VcfShuttle* vcf  = (VcfShuttle*)ptr;
+int rez= bcf_read(vcf->in,vcf->header,vcf->bcf);
+if (vcf_format1(vcf->header, vcf->bcf, &(vcf->in->line)) != 0)
         return -1;
-jobject s =  (*env)->NewStringUTF(env,fp->line.s);
-return s;
+jobject s =  (*env)->NewStringUTF(env,vcf->in->line.s);
+return (jlong)s;
 }
+
+jint QUALIFIEDMETHOD(kseq_1read4y)(JNIEnv *env, jclass clazz,jlong ptr) {
+VcfShuttle* vcf  = (VcfShuttle*)ptr;
+if ( vcf->itr!=NULL )
+    {
+        hts_itr_destroy(vcf->itr);
+        vcf->itr = NULL;
+    }
+if ( vcf->tbx_idx !=NULL)
+    {
+        int tid = tbx_name2id(vcf->tbx_idx, seq);
+        if ( tid==-1 ) return -1;    // the sequence not present in this file
+        vcf->itr = tbx_itr_queryi(vcf->tbx_idx,tid,start,end+1);
+    }
+else
+    {
+        int tid = bcf_hdr_name2id(vcf->header, seq);
+        if ( tid==-1 ) return -1;    // the sequence not present in this file
+        vcf->itr = bcf_itr_queryi(vcf->bcf_idx,tid,start,end+1);
+    }
+}
+
+
+
+
+ int ret = 0;
+ if ( reader->tbx_idx )
+        {
+            if ( (ret=tbx_itr_next(vcf->in, vcf->tbx_idx, vcf->itr, &files->tmps)) < 0 ) break;  // no more lines
+            ret = vcf_parse1(&files->tmps, vcf->header, reader->buffer[reader->nbuffer+1]);
+            if ( ret<0 ) { files->errnum = vcf_parse_error; break; }
+        }
+else
+        {
+            ret = bcf_itr_next(reader->file, reader->itr, reader->buffer[reader->nbuffer+1]);
+            if ( ret < -1 ) files->errnum = bcf_read_error;
+            if ( ret < 0 ) break; // no more lines or an error
+            bcf_subset_format(reader->header,reader->buffer[reader->nbuffer+1]);
+        }
+if ( files->streaming )
+        {
+            if ( reader->file->format.format==vcf )
+            {
+                if ( (ret=hts_getline(reader->file, KS_SEP_LINE, &files->tmps)) < 0 ) break;   // no more lines
+                ret = vcf_parse1(&files->tmps, reader->header, reader->buffer[reader->nbuffer+1]);
+                if ( ret<0 ) { files->errnum = vcf_parse_error; break; }
+            }
+            else if ( reader->file->format.format==bcf )
+            {
+                ret = bcf_read1(reader->file, reader->header, reader->buffer[reader->nbuffer+1]);
+                if ( ret < -1 ) files->errnum = bcf_read_error;
+                if ( ret < 0 ) break; // no more lines or an error
+            }
+            else
+            {
+                hts_log_error("Fixme: not ready for this");
+                exit(1);
+            }
+        }
+

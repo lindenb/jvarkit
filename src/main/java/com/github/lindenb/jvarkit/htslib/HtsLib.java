@@ -30,9 +30,11 @@ public class HtsLib {
 	public static native void kseq_destroy(long ptr);
 	public static native int kseq_read4(long ptr,final String array[]);
 	/** bcf */
-	public static native int bcf_open(final String filename,boolean requireIndex,long array[]);
-	public static native String bcf_hdr_to_string(final long hdrptr);
-	public static native void bcf_close(long array[]);
+	public static native long bcf_open(final String filename,boolean requireIndex);
+	public static native String bcf_hdr_to_string(final long bcfptr);
+	public static native void bcf_close(long bcfptr);
+	public static native int bcf_itr_init(long bcfptr,String contig,int start,int end);
+	public static native String bcf_itr_next(long bcfptr);
 	
 	
 }
