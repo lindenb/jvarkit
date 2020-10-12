@@ -45,6 +45,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -79,7 +80,7 @@ END_DOC
 	description="Number of repeated REF bases around POS.",
 	keywords={"vcf","repeat"},
 	creationDate="20200930",
-	modificationDate="20200720"
+	modificationDate="20201112"
 	)
 public class VCFPolyX extends OnePassVcfLauncher
 	{
@@ -132,9 +133,8 @@ public class VCFPolyX extends OnePassVcfLauncher
 
 			final VCFFilterHeaderLine filterHeaderLine = new VCFFilterHeaderLine(
 					infoHeaderLine.getID()+"_ge_"+this.filterTrehsold,
-					"Number of repeated bases around REF is greater or equal to " +
-							this.filterTrehsold)
-					;
+					"Number of repeated bases around REF is greater or equal to " + this.filterTrehsold
+					);
 			
 			if( this.filterTrehsold>-1) {
 				h2.addMetaDataLine(filterHeaderLine);
@@ -152,7 +152,7 @@ public class VCFPolyX extends OnePassVcfLauncher
 					}
 				
 				final String normalizedContig = contigNameConverter.apply(ctx.getContig());
-				if(normalizedContig==null) {
+				if(StringUtils.isBlank(normalizedContig)) {
 					w.add(ctx);
 					continue;
 					}
@@ -164,10 +164,16 @@ public class VCFPolyX extends OnePassVcfLauncher
 				
 				final VariantContextBuilder b = new VariantContextBuilder(ctx);
 
+				// https://github.com/lindenb/jvarkit/issues/165
+				final boolean indel_flag = ctx.isIndel();
 				
-				int pos0=ctx.getStart()-1;
 				int count=1;
-				char c0=Character.toUpperCase(genomicContig.charAt(pos0));
+				int pos0 = ctx.getStart()-1;
+				// https://github.com/lindenb/jvarkit/issues/165
+				if(indel_flag) {
+					pos0++;
+					}
+				char c0 = Character.toUpperCase(genomicContig.charAt(pos0));
 				//go left
 				pos0--;
 				while(pos0>=0 && c0==Character.toUpperCase(genomicContig.charAt(pos0)))
@@ -176,8 +182,13 @@ public class VCFPolyX extends OnePassVcfLauncher
 					pos0--;
 					}
 				//go right
-				pos0=ctx.getEnd()-1;
-				c0=Character.toUpperCase(genomicContig.charAt(pos0));
+				pos0 = ctx.getEnd()-1;
+				// https://github.com/lindenb/jvarkit/issues/165
+				if(indel_flag) {
+					pos0++;
+					}
+				
+				c0 = Character.toUpperCase(genomicContig.charAt(pos0));
 				pos0++;
 				while(pos0< genomicContig.length()
 					&& c0==Character.toUpperCase(genomicContig.charAt(pos0)))
@@ -188,9 +199,14 @@ public class VCFPolyX extends OnePassVcfLauncher
 				b.attribute(infoHeaderLine.getID(),count);
 				
 				/* filter */
-				if(this.filterTrehsold>-1 && count>=this.filterTrehsold)
+				if(this.filterTrehsold>-1 )
 					{
-					b.filter(filterHeaderLine.getID());
+					if(count>=this.filterTrehsold) {
+						b.filter(filterHeaderLine.getID());
+						}
+					else if(!ctx.isFiltered()) {
+						b.passFilters();
+						}
 					}
 				
 				w.add(b.make());			
@@ -201,7 +217,7 @@ public class VCFPolyX extends OnePassVcfLauncher
 			{
 			CloserUtil.close(referenceSequenceFile);
 			}
-		return RETURN_OK;
+		return 0;
 		}
 
 	public static void main(final String[] args)
