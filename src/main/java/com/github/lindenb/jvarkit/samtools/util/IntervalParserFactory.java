@@ -209,7 +209,7 @@ class IntervalParserFactoryImpl implements IntervalParserFactory {
 		
 		private Optional<SimpleInterval> parse(final String s)
 			{
-			final int colon=s.indexOf(':');
+			final int colon=s.lastIndexOf(':');
 			if(colon<1 || colon+1==s.length()) {
 				/* chromosome alone */
 				if(colon==-1 && this.enableWholeContig)
