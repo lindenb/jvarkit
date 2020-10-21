@@ -26,24 +26,24 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
+import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloserUtil;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 /**
 BEGIN_DOC
@@ -51,24 +51,57 @@ BEGIN_DOC
 ## Example
 
 ```
-$ find PROJ/ -name "accepted_hits.bam" |\
- java -jar dist/howmanybamdict.jar
-
-DICT	208e057b92b5c45262c59b40209b5fde	22	2725537669	chr1=195471971;chr10=130694993;chr11=122082543;chr12=120129022;chr13=120421639;chr14=124902244;chr15=104043685;chr16=98207768;chr17=94987271;chr18=90702639;chr19=61431566;chr2=182113224;chr3=160039680;chr4=156508116;chr5=151834684;chr6=149736546;chr7=145441459;chr8=129401213;chr9=124595110;chrM=16299;chrX=171031299;chrY=91744698	PROJ/S1/accepted_hits.bams.bam
-BAM	PROJ/S1/accepted_hits.bam	208e057b92b5c45262c59b40209b5fde
-DICT	86b39aef44f740da797b89baf3f505d8	66	2730871774	chr1=195471971;chr10=130694993;chr11=122082543;chr12=120129022;chr13=120421639;chr14=124902244;chr15=104043685;chr16=98207768;chr17=94987271;chr18=90702639;chr19=61431566;chr1_GL456210_random=169725;chr1_GL456211_random=241735;chr1_GL456212_random=153618;chr1_GL456213_random=39340;chr1_GL456221_random=206961;chr2=182113224;chr3=160039680;chr4=156508116;chr4_GL456216_random=66673;chr4_GL456350_random=227966;chr4_JH584292_random=14945;chr4_JH584293_random=207968;chr4_JH584294_random=191905;chr4_JH584295_random=1976;chr5=151834684;chr5_GL456354_random=195993;chr5_JH584296_random=199368;chr5_JH584297_random=205776;chr5_JH584298_random=184189;chr5_JH584299_random=953012;chr6=149736546;chr7=145441459;chr7_GL456219_random=175968;chr8=129401213;chr9=124595110;chrM=16299;chrUn_GL456239=40056;chrUn_GL456359=22974;chrUn_GL456360=31704;chrUn_GL456366=47073;chrUn_GL456367=42057;chrUn_GL456368=20208;chrUn_GL456370=26764;chrUn_GL456372=28664;chrUn_GL456378=31602;chrUn_GL456379=72385;chrUn_GL456381=25871;chrUn_GL456382=23158;chrUn_GL456383=38659;chrUn_GL456385=35240;chrUn_GL456387=24685;chrUn_GL456389=28772;chrUn_GL456390=24668;chrUn_GL456392=23629;chrUn_GL456393=55711;chrUn_GL456394=24323;chrUn_GL456396=21240;chrUn_JH584304=114452;chrX=171031299;chrX_GL456233_random=336933;chrY=91744698;chrY_JH584300_random=182347;chrY_JH584301_random=259875;chrY_JH584302_random=155838;chrY_JH584303_random=158099	PROJ/S2/accepted_hits.bam	ROJ/S2/accepted_hits.bam
-BAM	PROJ/S2/accepted_hits.bam	86b39aef44f740da797b89baf3f505d8
-BAM	PROJ/S3/accepted_hits.bam	86b39aef44f740da797b89baf3f505d8
+t$ find /home/lindenb/src/jvarkit/src/test/resources -name "*.vcf.gz" -o -name "*.bam" -o -name "*.cram" | java -jar dist/howmanybamdict.jar | cut -c 1-${COLUMNS}
+9a5c58c2c91e731135b27ed14974523a	.	85	3101976562	1=249250621;2=243199373;3=198022430;4=191154276;5=180915260;6=17111
+9a5c58c2c91e731135b27ed14974523a	/home/lindenb/src/jvarkit/src/test/resources/ExAC.r1.sites.vep.vcf.gz
+4677ece43eea2b029d0d33fe130ea6c7	.	86	3137454505	chr1=249250621;chr2=243199373;chr3=198022430;chr4=191154276;chr5=18
+4677ece43eea2b029d0d33fe130ea6c7	/home/lindenb/src/jvarkit/src/test/resources/manta.B00I9CJ.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	.	11	18490	RF01=3302;RF02=2687;RF03=2592;RF04=2362;RF05=1579;RF06=1356;RF07=1074;RF
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S2.vcf.gz
+9a5c58c2c91e731135b27ed14974523a	/home/lindenb/src/jvarkit/src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S3.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S1.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S4.vcf.gz
+635de5cb51973d45844fa713ac0b7719	.	2	85	ref=45;ref2=40	/home/lindenb/src/jvarkit/src/test/resources/toy.vcf.gz
+635de5cb51973d45844fa713ac0b7719	/home/lindenb/src/jvarkit/src/test/resources/toy.vcf.gz
+635de5cb51973d45844fa713ac0b7719	/home/lindenb/src/jvarkit/src/test/resources/toy.bam
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S4.bam
+4677ece43eea2b029d0d33fe130ea6c7	/home/lindenb/src/jvarkit/src/test/resources/roxan.hs37d5.csq.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/rotavirus_rf.ann.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/rotavirus_rf.vcf.gz
+df8200dd2a49e25bc98df5f2c45ac36a	.	2	85	ref=45;ref2=40	/home/lindenb/src/jvarkit/src/test/resources/toy.cram
+df8200dd2a49e25bc98df5f2c45ac36a	/home/lindenb/src/jvarkit/src/test/resources/toy.cram
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/rotavirus_rf.freebayes.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S1.bam
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S2.bam
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S5.bam
+4677ece43eea2b029d0d33fe130ea6c7	/home/lindenb/src/jvarkit/src/test/resources/manta.B00GWIU.vcf.gz
+5de1aef8e9e3be34ae7696779a4791c7	.	3366	3217346917	chr1=248956422;chr2=242193529;chr3=198295559;chr4=190214555;chr5=
+5de1aef8e9e3be34ae7696779a4791c7	/home/lindenb/src/jvarkit/src/test/resources/FAB23716.nanopore.bam
+e07f3b093938833945fa357c4b37bdf9	.	292	3100014256	chr1=248956422;chr2=242193529;chr3=198295559;chr4=190214555;chr5=1
+e07f3b093938833945fa357c4b37bdf9	/home/lindenb/src/jvarkit/src/test/resources/ENCFF331CGL.rnaseq.b38.bam
+4677ece43eea2b029d0d33fe130ea6c7	/home/lindenb/src/jvarkit/src/test/resources/retrocopy01.bwa.bam
+4677ece43eea2b029d0d33fe130ea6c7	/home/lindenb/src/jvarkit/src/test/resources/manta.B00GWGD.vcf.gz
+4677ece43eea2b029d0d33fe130ea6c7	/home/lindenb/src/jvarkit/src/test/resources/manta.D000Q1R.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S5.vcf.gz
+bd7e0928fc3c810e48fafc53a4222ed5	/home/lindenb/src/jvarkit/src/test/resources/S3.bam
+f8d942cb3fc6ebef618a0b0ba3f4ef99	.	24	3095677412	1=249250621;2=243199373;3=198022430;4=191154276;5=180915260;6=17111
+f8d942cb3fc6ebef618a0b0ba3f4ef99	/home/lindenb/src/jvarkit/src/test/resources/gnomad_v2_sv.sites.vcf.gz
+4327878bf3a3073edf6e77fda48033fe	.	86	3137454505	1=249250621;2=243199373;3=198022430;4=191154276;5=180915260;6=17111
+4327878bf3a3073edf6e77fda48033fe	/home/lindenb/src/jvarkit/src/test/resources/HG02260.transloc.chr9.14.bam
+9a5c58c2c91e731135b27ed14974523a	/home/lindenb/src/jvarkit/src/test/resources/gnomad.genomes.r2.0.1.sites.1.vcf.gz
+(...)
 ```
 
 END_DOC
  */
-
-
 @Program(name="howmanybamdict",
 	description="finds if there's are some differences in the sequence dictionaries.",
-	keywords={"sam","bam","dict"},
-	modificationDate="20190912"
+	keywords={"sam","bam","dict","vcf"},
+	biostars=468541,
+	creationDate="20131108",
+	modificationDate="20201021"
 	)
 public class HowManyBamDict extends Launcher {
 	private static final Logger LOG = Logger.build(HowManyBamDict.class).make();
@@ -76,104 +109,52 @@ public class HowManyBamDict extends Launcher {
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
-	private class Dict
-		{
-		SAMSequenceDictionary ssd;
-		String hash;
-		File representative;
-		Dict(SAMSequenceDictionary ssd,File representative)
-			{
-			this.ssd=ssd;
-			this.representative=representative;
-	    	this.hash =ssd.md5();
-			}
-		
-		@Override
-		public boolean equals(Object obj)
-			{
-			if(this==obj) return true;
-			if(obj==null) return false;
-			return this.ssd.equals(Dict.class.cast(obj).ssd);
-			}
-		
-		@Override
-		public int hashCode() {
-			return ssd.hashCode();
-			}
-		void print()
-			{
-			System.out.print("DICT");
-			System.out.print("\t");
-			System.out.print(this.hash);
-			System.out.print("\t");
-			System.out.print(ssd.size());
-			System.out.print("\t");
-			System.out.print(ssd.getReferenceLength());
-			System.out.print("\t");
-			boolean first=true;
-			for(SAMSequenceRecord ssr:ssd.getSequences())
-				{
-				if(!first) System.out.print(";");
-				first=false;
-				System.out.print(ssr.getSequenceName());
-				System.out.print('=');
-				System.out.print(ssr.getSequenceLength());
-				}
-			System.out.print("\t");
-			System.out.print(this.representative);
-			System.out.println();
-			}
-		}
-
-	private Dict empty=null;
-	private Set<Dict>  allditcs=new LinkedHashSet<Dict>();
+	private final Set<String>  all_md5 = new HashSet<>();
 	
-	
- 	
- 	private void handle(PrintWriter out,File f) throws IOException
+ 	private void handle(final PrintWriter out,final Path f)
  		{
- 		SamReader sfr=null;
+		final SAMSequenceDictionary dict0;
  		try {
- 			LOG.info(f.getPath());
-			sfr= super.openSamReader(f.getPath());
-			SAMFileHeader header=sfr.getFileHeader();
-			if(header==null || header.getSequenceDictionary()==null)
-				{
-				if(this.empty==null)
-					{
-					this.empty=new Dict(new SAMSequenceDictionary(),f);
-					allditcs.add(this.empty);
-					this.empty.print();
-					}
-				out.print("BAM\t");
-				out.print(f.getPath());
-				out.print("\t");
-				out.print(this.empty.hash);
-				out.println();
-				}
-			else
-				{
-				Dict d=new Dict(header.getSequenceDictionary(), f);
-				if(this.allditcs.add(d))
-					{
-					d.print();
-					}
-				out.print("BAM\t");
-				out.print(f.getPath());
-				out.print("\t");
-				out.print(d.hash);
-				out.println();
-				}
- 			} 
- 		catch (Exception e)
-			{
-			LOG.error(e.getMessage(),e);
-			throw new IOException(e);
-			}
- 		finally
- 			{
- 			CloserUtil.close(sfr);
+			dict0 = SAMSequenceDictionaryExtractor.extractDictionary(f);
  			}
+		catch(final Throwable err) {
+			LOG.warn(err);
+			out.print("#ERROR");
+			out.print("\t");
+			out.print(f);
+			out.println();
+			return;
+			}
+		
+		if(dict0==null) {
+			out.print("#DICT_MISSING");
+			out.print("\t");
+			out.print(f);
+			out.println();
+			}
+		else
+			{
+			final String md5 = dict0.md5();
+			if(!this.all_md5.contains(md5)) {
+				this.all_md5.add(md5);
+				out.print(md5);
+				out.print("\t");
+				out.print(".");
+				out.print("\t");
+				out.print(dict0.size());
+				out.print("\t");
+				out.print(dict0.getReferenceLength());
+				out.print("\t");
+				out.print(dict0.getSequences().stream().map(ssr->ssr.getSequenceName()+"="+ssr.getSequenceLength()).collect(Collectors.joining(";")));
+				out.print("\t");
+				out.print(f);
+				out.println();
+				}
+			out.print(md5);
+			out.print("\t");
+			out.print(f);
+			out.println();
+			}
  		}
 	
  	@Override
@@ -184,29 +165,24 @@ public class HowManyBamDict extends Launcher {
 			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			if(args.isEmpty())
 				{
-				LOG.info("Reading from stdin");
-				String line;
-				
-					BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
-					while((line=in.readLine())!=null)
-						{
-						if(line.isEmpty() || line.endsWith(File.separator) || line.startsWith("#")) continue;
-						handle(out,new File(line));
-						}
-					in.close();
-					
+				final PrintWriter fout = out;
+				try(BufferedReader in=new BufferedReader(new InputStreamReader(stdin()))) {
+					in.lines().
+						filter(line->!(StringUtils.isBlank(line) || line.endsWith(File.separator) || line.startsWith("#"))).
+						forEach(line->handle(fout,Paths.get(line)));
+					}
 				}
 			else
 				{
 				for(String filename:args)
 					{
-					handle(out,new File(filename));
+					handle(out,Paths.get(filename));
 					}
 				}
 			out.flush();
-			return RETURN_OK;
+			return 0;
 			}
-		catch(IOException err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -216,7 +192,7 @@ public class HowManyBamDict extends Launcher {
 			}
 		}
 
- 	public static void main(String[] args)
+ 	public static void main(final String[] args)
 		{
 		new HowManyBamDict().instanceMainWithExit(args);
 		}
