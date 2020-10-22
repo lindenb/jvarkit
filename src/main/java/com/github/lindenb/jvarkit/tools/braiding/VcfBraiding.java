@@ -61,6 +61,12 @@ bcftools view src/test/resources/rotavirus_rf.vcf.gz "RF02" "RF03" |\
   
   ![https://twitter.com/yokofakun/status/1319221221611941889](https://pbs.twimg.com/media/Ek7QRz9WMAApITu?format=jpg&name=large)
 
+  https://twitter.com/yokofakun/status/1319228442043387905
+  
+  ![https://twitter.com/yokofakun/status/1319228442043387905](https://pbs.twimg.com/media/Ek7W9jaXEAEQ_TN?format=png&name=small)
+
+
+
 ## See also:
  
   * https://visdunneright.github.io/sequence_braiding/docs/
@@ -84,14 +90,16 @@ public class VcfBraiding extends Launcher {
 	private String base = DEFAULT_BASE;
 	@Parameter(names={"--id"},description="id for svg element.")
 	private String svg_element_id = "vcfid";
-	@DynamicParameter(names = "-D", description = "Dynamic parameters for options. (TODO)")
+	@DynamicParameter(names = "-D", description = "Dynamic parameters for API 'options'. -Dkey=value . Keys are currently: show_seq_names forceLevelName animate  colorbysequence width height fontSize padding.")
 	private Map<String, String> parameters = new HashMap<>();
 	@Parameter(names={"-T","--title"},description="title")
 	private String title="";
-	@Parameter(names={"--hom-ref","-hr"},description="remove sample that are all HOM_REF for the variants.")
+	@Parameter(names={"--hom-ref","-hr"},description="remove sample that are all HOM_REF for all variants.")
 	private boolean remove_all_hom_ref = false;
-	@Parameter(names={"--no-call","-nc"},description="remove sample that are all NO_CALL for the variants.")
+	@Parameter(names={"--no-call","-nc"},description="remove sample that are all NO_CALL for all variants.")
 	private boolean remove_all_nocall = false;
+	@Parameter(names={"--alleles"},description="show alleles in header.")
+	private boolean show_alleles = false;
 
 
 
@@ -133,14 +141,14 @@ public class VcfBraiding extends Launcher {
 			
 			final boolean one_contig = variants.stream().map(V->V.getContig()).collect(Collectors.toSet()).size()==1;
 			final Function<VariantContext, String> variantToStr = (V)->{
-				final String s = String.valueOf(V.getStart());
+				final String s = String.valueOf(V.getStart()) + (show_alleles?":"+V.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/")):"");
 				if(one_contig) return s;
 				return V.getContig()+":"+s;
 				};
 			
 			
 			
-				try(PrintStream out = super.openPathOrStdoutAsPrintStream(this.outputFile)) {
+			try(PrintStream out = super.openPathOrStdoutAsPrintStream(this.outputFile)) {
 				
 				final XMLOutputFactory factory= XMLOutputFactory.newInstance();
 				final XMLStreamWriter w= factory.createXMLStreamWriter(out,"UTF-8");
@@ -159,7 +167,7 @@ public class VcfBraiding extends Launcher {
 					
 					w.writeEmptyElement("meta");
 					w.writeAttribute("name","description");
-					w.writeAttribute("content","");
+					w.writeAttribute("content",StringUtil.isBlank(title)?(input==null?"Sequence Braiding":input):title);
 			
 					w.writeEmptyElement("meta");
 					w.writeAttribute("name","author");
@@ -248,11 +256,13 @@ public class VcfBraiding extends Launcher {
 				out.println("var options = {");
 				out.println("   numSequences: "+samples.size()+",");
 				out.println("   show_seq_names: "+show_seq_names+",");
+				out.println("   forceLevelName: "+this.parameters.getOrDefault("forceLevelName", "true")+",");
 				out.println("   animate: "+this.parameters.getOrDefault("animate", "false")+",");
 				out.println("   colorbysequence: "+this.parameters.getOrDefault("colorbysequence", "true")+",");
-				//out.println("   fontSize: "+quote(this.parameters.getOrDefault("fontSize", "0.9em"))+",");
+				if(this.parameters.containsKey("fontSize")) out.println("   fontSize: "+quote(this.parameters.getOrDefault("fontSize", "0.9em"))+",");
 				out.println("   width: "+this.parameters.getOrDefault("width", "window.innerWidth*0.9")+",");
-				//out.println("   padding: "+ this.parameters.getOrDefault("passing", "200")+",");
+				out.println("   height: "+this.parameters.getOrDefault("height", "800")+",");
+				if(this.parameters.containsKey("padding"))  out.println("   padding: "+ this.parameters.getOrDefault("padding", "200")+",");
 				out.println("   levels: [ "+ quote("NO_CALL") +"," + quote("HOM_REF")+","+ quote("HET")+","+quote("HOM_VAR")+"]");
 				out.println("  }");
 
@@ -268,8 +278,9 @@ public class VcfBraiding extends Launcher {
 					out.print("]\n");
 					}
 				out.println("];");
-				out.println("console.log(data);");
-				out.println("    graph_sandbox = new SequenceBraiding(data, '"+svg_element_id+"', options)");
+				//out.println("console.log(data);");
+				
+				out.println("    graph_sandbox = new SequenceBraiding(data, '"+svg_element_id+"', options);");
 
 				
 				//out.println("    d3.selectAll('.lvlname').select('text').attr('x', 200)");
@@ -279,7 +290,7 @@ public class VcfBraiding extends Launcher {
 				for(int i=0;i< variants.size();i++) {
 					out.println("case "+i+": return "+quote(variantToStr.apply(variants.get(i)))+"; break;");
 					}
-				out.println("    }})");
+				out.println("    }});");
 
 				
 				out.println("  }");

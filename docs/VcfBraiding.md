@@ -10,6 +10,9 @@ visualization for variants and attributes using https://visdunneright.github.io/
 ```
 Usage: vcfbraiding [options] Files
   Options:
+    --alleles
+      show alleles in header.
+      Default: false
     -B, --base
       Base URL for code 
       :https://visdunneright.github.io/sequence_braiding/docs/ 
@@ -19,13 +22,13 @@ Usage: vcfbraiding [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     --hom-ref, -hr
-      remove sample that are all HOM_REF for the variants.
+      remove sample that are all HOM_REF for all variants.
       Default: false
     --id
       id for svg element.
       Default: vcfid
     --no-call, -nc
-      remove sample that are all NO_CALL for the variants.
+      remove sample that are all NO_CALL for all variants.
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
@@ -35,7 +38,9 @@ Usage: vcfbraiding [options] Files
     --version
       print version and exit
     -D
-      Dynamic parameters for options. (TODO)
+      Dynamic parameters for API 'options'. -Dkey=value . Keys are currently: 
+      show_seq_names forceLevelName animate  colorbysequence width height 
+      fontSize padding.
       Syntax: -Dkey=value
       Default: {}
 
@@ -107,6 +112,12 @@ bcftools view src/test/resources/rotavirus_rf.vcf.gz "RF02" "RF03" |\
   https://twitter.com/yokofakun/status/1319221221611941889
   
   ![https://twitter.com/yokofakun/status/1319221221611941889](https://pbs.twimg.com/media/Ek7QRz9WMAApITu?format=jpg&name=large)
+
+  https://twitter.com/yokofakun/status/1319228442043387905
+  
+  ![https://twitter.com/yokofakun/status/1319228442043387905](https://pbs.twimg.com/media/Ek7W9jaXEAEQ_TN?format=png&name=small)
+
+
 
 ## See also:
  
