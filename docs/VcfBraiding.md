@@ -10,14 +10,34 @@ visualization for variants and attributes using https://visdunneright.github.io/
 ```
 Usage: vcfbraiding [options] Files
   Options:
+    -B, --base
+      Base URL for code 
+      :https://visdunneright.github.io/sequence_braiding/docs/ 
+      Default: https://visdunneright.github.io/sequence_braiding/docs/
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --hom-ref, -hr
+      remove sample that are all HOM_REF for the variants.
+      Default: false
+    --id
+      id for svg element.
+      Default: vcfid
+    --no-call, -nc
+      remove sample that are all NO_CALL for the variants.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -T, --title
+      title
+      Default: <empty string>
     --version
       print version and exit
+    -D
+      Dynamic parameters for options. (TODO)
+      Syntax: -Dkey=value
+      Default: {}
 
 ```
 
@@ -74,4 +94,21 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+## Example
+
+```
+bcftools view src/test/resources/rotavirus_rf.vcf.gz "RF02" "RF03" |\
+	java -jar /home/lindenb/src/jvarkit-git/dist/vcfbraiding.jar --title "Rotavirus Variants" > variants.html
+```
+
+## Screenshots
+
+  https://twitter.com/yokofakun/status/1319221221611941889
+  
+  ![https://twitter.com/yokofakun/status/1319221221611941889](https://pbs.twimg.com/media/Ek7QRz9WMAApITu?format=jpg&name=large)
+
+## See also:
+ 
+  * https://visdunneright.github.io/sequence_braiding/docs/
 

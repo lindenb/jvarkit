@@ -1,54 +1,114 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2020 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.braiding;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.GenotypeType;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 /**
- * 
- * # See also:
- *    * https://visdunneright.github.io/sequence_braiding/docs/
- * 
+BEGIN_DOC
+## Example
+
+```
+bcftools view src/test/resources/rotavirus_rf.vcf.gz "RF02" "RF03" |\
+	java -jar /home/lindenb/src/jvarkit-git/dist/vcfbraiding.jar --title "Rotavirus Variants" > variants.html
+```
+
+## Screenshots
+
+  https://twitter.com/yokofakun/status/1319221221611941889
+  
+  ![https://twitter.com/yokofakun/status/1319221221611941889](https://pbs.twimg.com/media/Ek7QRz9WMAApITu?format=jpg&name=large)
+
+## See also:
+ 
+  * https://visdunneright.github.io/sequence_braiding/docs/
+
+END_DOC
+
  */
 @Program(name="vcfbraiding",
 	description="visualization for variants and attributes using https://visdunneright.github.io/sequence_braiding/docs/ .",
 	keywords={"vcf","visualization"},
 	creationDate="20201021",
-	modificationDate="20201021"
+	modificationDate="20201022"
 	)
 public class VcfBraiding extends Launcher {
 	private static final Logger LOG = Logger.build(VcfBraiding.class).make();
-
+	private static final String DEFAULT_BASE = "https://visdunneright.github.io/sequence_braiding/docs/";
+	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
+	@Parameter(names={"-B","--base"},description="Base URL for code :" + DEFAULT_BASE)
+	private String base = DEFAULT_BASE;
+	@Parameter(names={"--id"},description="id for svg element.")
+	private String svg_element_id = "vcfid";
+	@DynamicParameter(names = "-D", description = "Dynamic parameters for options. (TODO)")
+	private Map<String, String> parameters = new HashMap<>();
+	@Parameter(names={"-T","--title"},description="title")
+	private String title="";
+	@Parameter(names={"--hom-ref","-hr"},description="remove sample that are all HOM_REF for the variants.")
+	private boolean remove_all_hom_ref = false;
+	@Parameter(names={"--no-call","-nc"},description="remove sample that are all NO_CALL for the variants.")
+	private boolean remove_all_nocall = false;
 
 
+
+	private static String quote(String s) {
+		return "\""+ s +"\"";
+	}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			List<String> samples = null;
-			final List<VariantContext> variants = new ArrayList<VariantContext>();
+			final List<String> samples = new ArrayList<>();
+			final List<VariantContext> variants = new ArrayList<>();
 			final String input = oneFileOrNull(args);
 
 			try(VCFIterator r= super.openVCFIterator(input)) {
 				final VCFHeader header = r.getHeader();
-				samples = header.getGenotypeSamples();
+				samples.addAll(header.getGenotypeSamples());
 				while(r.hasNext()) {
 					final VariantContext vc = r.next();
 					if(!vc.isVariant()) continue;
@@ -56,19 +116,41 @@ public class VcfBraiding extends Launcher {
 					}
 				}
 
-			final String base="https://visdunneright.github.io/sequence_braiding/docs/";
-			final String svgid="vcfid";
+			if(remove_all_hom_ref) samples.removeIf(S-> variants.stream().map(V->V.getGenotype(S)).allMatch(G->G.isHomRef()));
+			if(remove_all_nocall) samples.removeIf(S-> variants.stream().map(V->V.getGenotype(S)).allMatch(G->G.isNoCall()));
+
+			
+			
+			if(variants.size()<3) {
+				LOG.error("Not enough variant was found. N=" + variants.size());
+				return -1;
+				}
+			
+			if(samples.size()<1) {
+				LOG.error("Not enough samples was found. N=" + samples.size());
+				return -1;
+				}
+			
+			final boolean one_contig = variants.stream().map(V->V.getContig()).collect(Collectors.toSet()).size()==1;
+			final Function<VariantContext, String> variantToStr = (V)->{
+				final String s = String.valueOf(V.getStart());
+				if(one_contig) return s;
+				return V.getContig()+":"+s;
+				};
+			
+			
+			
 				try(PrintStream out = super.openPathOrStdoutAsPrintStream(this.outputFile)) {
 				
-				XMLOutputFactory factory= XMLOutputFactory.newInstance();
-				XMLStreamWriter w= factory.createXMLStreamWriter(out,"UTF-8");
-				w.writeStartDocument("UTF-8","1.0");
+				final XMLOutputFactory factory= XMLOutputFactory.newInstance();
+				final XMLStreamWriter w= factory.createXMLStreamWriter(out,"UTF-8");
+				//w.writeStartDocument("UTF-8","1.0");
 				w.writeStartElement("html");
 				w.writeAttribute("lang","en");
 				w.writeCharacters("\n");
 				w.writeStartElement("head");
 					w.writeStartElement("title");
-						w.writeCharacters(input==null?"Sequence Braiding":input);
+						w.writeCharacters(StringUtil.isBlank(title)?(input==null?"Sequence Braiding":input):title);
 					w.writeEndElement();//title
 					
 					w.writeEmptyElement("meta");
@@ -85,7 +167,7 @@ public class VcfBraiding extends Launcher {
 					
 					
 			
-					w.writeEmptyElement("meta");
+					w.writeEmptyElement("meta"); 
 					w.writeAttribute("name","viewport");
 					w.writeAttribute("content","width=device-width, initial-scale=1");
 			
@@ -98,11 +180,13 @@ public class VcfBraiding extends Launcher {
 					w.writeStartElement("link");
 					w.writeAttribute("rel","stylesheet");
 					w.writeAttribute("href",base + "css/normalize.css");
+					w.writeCharacters("");
 					w.writeEndElement();
 			
 					w.writeStartElement("link");
 					w.writeAttribute("rel","stylesheet");
 					w.writeAttribute("href",base + "css/skeleton.css");
+					w.writeCharacters("");
 					w.writeEndElement();
 					
 					w.writeStartElement("link");
@@ -113,82 +197,105 @@ public class VcfBraiding extends Launcher {
 			
 					w.writeStartElement("script");
 					w.writeAttribute("src","https://d3js.org/d3.v5.min.js");
+					w.writeCharacters("");
 					w.writeEndElement();
 					
 				w.writeEndElement();//head
 				w.writeStartElement("body");
+				w.writeStartElement("h3");
+				w.writeCharacters(StringUtil.isBlank(this.title)?(getClass().getSimpleName()+(input==null?"":" : " +input)):title);
+				w.writeEndElement();
+				
 	
+				w.writeStartElement("div");
 				w.writeStartElement("svg");
-				w.writeAttribute("id",svgid);
+				w.writeAttribute("id",svg_element_id);
 				w.writeAttribute("style","margin-left: 5%");
 				w.writeEndElement();//svg
+				w.writeEndElement();//div
+				w.writeEmptyElement("hr");
+				
+				w.writeStartElement("div");
+				w.writeCharacters("Made with "+getClass().getSimpleName()+" version:"+getVersion()+". Pierre Lindenbaum PhD. 2020. See also:");
+				w.writeStartElement("a");
+				w.writeAttribute("href", "https://visdunneright.github.io/sequence_braiding/docs/");
+				w.writeCharacters("https://visdunneright.github.io/sequence_braiding/docs/");
+				w.writeEndElement();//a
+				w.writeCharacters(".");
+				w.writeEndElement();//div
 				w.writeEndElement();//body
 				
-				w.writeStartElement("script");
-				w.writeAttribute("src",base+"../dist/sequence_braiding.js");
-				w.writeEndElement();//script
-					
+				
+				for(String js : new String[] {
+						"../lib/align_pair_quad.js",
+						"../lib/pairwise_alignment_dna.js",
+						"../js/util.js",
+						"../js/SequenceBraiding.js",
+						}) {
+					w.writeStartElement("script");
+					w.writeAttribute("src",base+js);
+					w.writeCharacters("");
+					w.writeEndElement();//script
+					}
 				//
 				w.writeStartElement("script");
 				w.writeAttribute("type","text/javascript");
-
-				w.writeCharacters("");
+				w.writeCharacters("\n");
 				w.flush();
 				
+				final boolean show_seq_names = this.parameters.getOrDefault("show_seq_names", "true").equals("true");
 				
-				out.println(" var graph1_options = {");
-				out.println("    numSequences: "+ variants.size() +",");
-				out.println("    levels: [" + Arrays.stream(GenotypeType.values()).map(T->"\""+T.name()+"\"").collect(Collectors.joining(","))+"],");
+				out.println("var options = {");
+				out.println("   numSequences: "+samples.size()+",");
+				out.println("   show_seq_names: "+show_seq_names+",");
+				out.println("   animate: "+this.parameters.getOrDefault("animate", "false")+",");
+				out.println("   colorbysequence: "+this.parameters.getOrDefault("colorbysequence", "true")+",");
+				//out.println("   fontSize: "+quote(this.parameters.getOrDefault("fontSize", "0.9em"))+",");
+				out.println("   width: "+this.parameters.getOrDefault("width", "window.innerWidth*0.9")+",");
+				//out.println("   padding: "+ this.parameters.getOrDefault("passing", "200")+",");
+				out.println("   levels: [ "+ quote("NO_CALL") +"," + quote("HOM_REF")+","+ quote("HET")+","+quote("HOM_VAR")+"]");
 				out.println("  }");
 
 				out.println("  {");
 				out.println("  var data=[");
 				for(int i=0;i< samples.size();i++) {
 					final String sn = samples.get(i);
-					out.print("[");
-					boolean first = true;
-					for(int j=0;j < variants.size();j++ ) {
-						final VariantContext ctx = variants.get(j);
-						if(!ctx.isVariant()) continue;
-						final Genotype gt = ctx.getGenotype(sn);
-						if(gt.isHomRef()) continue;
-						if(!first) out.print(",");
-						out.println("{\"type\": \""+ ctx.getContig()+":"+ctx.getStart() +"\",\"level\": \""+ gt.getType().name()+"\"}");
-						first=false;
-						}
-					out.print("]"+(i+1 < variants.size()?",":""));
+					out.print((i==0?"":",") + "[");
+					out.print(variants.stream().
+						map(V->"\t{\"type\": "+ quote(variantToStr.apply(V)) +",\"level\": "+ quote(V.getGenotype(sn).getType().name())+
+								(show_seq_names?","+quote("seq_name")+":"+quote(sn):"")+"}").
+						collect(Collectors.joining(",")));
+					out.print("]\n");
 					}
-				out.println("    ];");
+				out.println("];");
 				out.println("console.log(data);");
-				out.println("    graph_sandbox = new SequenceBraiding(data, '"+svgid+"', graph1_options)");
+				out.println("    graph_sandbox = new SequenceBraiding(data, '"+svg_element_id+"', options)");
 
 				
-				out.println("    d3.selectAll('.lvlname').select('text').attr('x', 200)");
-				out.println("    d3.selectAll('.lvlname').select('circle').attr('cx', 193)");
+				//out.println("    d3.selectAll('.lvlname').select('text').attr('x', 200)");
+				//out.println("    d3.selectAll('.lvlname').select('circle').attr('cx', 193)");
 				out.println("    d3.selectAll('.path_top_text').text((d, i) => {");
 				out.println("    switch(i) {");
-				for(int i=0;i< samples.size();i++) {
-					out.println("case "+i+": return \""+samples.get(i)+"\"; break;");
+				for(int i=0;i< variants.size();i++) {
+					out.println("case "+i+": return "+quote(variantToStr.apply(variants.get(i)))+"; break;");
 					}
 				out.println("    }})");
 
 				
 				out.println("  }");
 	
-	
-				
 				
 				out.flush();
 				w.writeEndElement();//script
 				w.writeEndElement();//html
 	
-				w.writeEndDocument();
+				//w.writeEndDocument();
 				w.flush();
 				out.flush();
 				}
 			return 0;
 			}
-		catch(Throwable err ) {
+		catch(final Throwable err ) {
 			LOG.error(err);
 			return -1;
 			}
