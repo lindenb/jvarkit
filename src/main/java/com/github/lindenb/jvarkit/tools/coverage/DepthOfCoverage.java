@@ -215,6 +215,7 @@ public class DepthOfCoverage extends Launcher
 									for(int i=0;i< coverage.length;i++) {
 										if(mask.get(i)) continue;
 										final int covi = coverage[i];
+										
 										if(covi> this.max_depth) continue;
 										count_bases_ctg++;
 										sum_coverage_ctg += covi;
@@ -249,7 +250,7 @@ public class DepthOfCoverage extends Launcher
 										out.print("N/A");
 										}
 									out.println();
-									
+
 									count_bases += count_bases_ctg;
 									sum_coverage += sum_coverage_ctg;
 									count_raw_bases += coverage.length;
@@ -310,8 +311,8 @@ public class DepthOfCoverage extends Launcher
 								final int pos1=block.getReferenceStart();
 								final int len = block.getLength();
 								for(int i=0;i< len;i++) {
-									if(pos1>0 && pos1 <= max_end1) {
-										coverage[pos1-1]++;
+									if(pos1>0 && pos1 +i <= max_end1) {
+										coverage[pos1 + i -1]++;
 										}
 									}
 								}

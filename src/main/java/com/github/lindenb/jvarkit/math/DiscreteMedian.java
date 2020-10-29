@@ -43,6 +43,35 @@ public class DiscreteMedian<T extends Number>
 	public DiscreteMedian() {
 		}
 	
+	@Override
+	public String toString() {
+		final StringBuilder sb=new StringBuilder();
+		sb.append("size:").append(size()).append(" ");
+		OptionalDouble opt = getMedian();
+		sb.append("median:");
+		if(opt.isPresent()) {
+			sb.append(opt.getAsDouble());
+			}
+		else
+			{
+			sb.append("N/A");
+			}
+		opt = getAverage();
+		sb.append(" average :");
+		if(opt.isPresent()) {
+			sb.append(opt.getAsDouble());
+			}
+		else
+			{
+			sb.append("N/A");
+			}
+		sb.append("\n");
+		for(T key : counter.keySet()) {
+			sb.append("\t[").append(key).append("]\t").append(counter.get(key)).append("\n");
+			}
+		sb.append("\n");
+		return sb.toString();
+		}
 	public long size() {
 		return this.size;
 		}
