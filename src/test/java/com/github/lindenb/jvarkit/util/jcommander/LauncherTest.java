@@ -6,6 +6,7 @@ import com.github.lindenb.jvarkit.lang.StringUtilsTest;
 import com.github.lindenb.jvarkit.samtools.reference.TwoBitSequenceFileTest;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactoryTest;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.math.DiscreteMedianTest;
 import com.github.lindenb.jvarkit.util.CounterTest;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactoryTest;
@@ -24,7 +25,8 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 	LineIteratorTest.class,
 	MergingIteratorTest.class,
 	SamRecordFilterFactoryTest.class,
-	TwoBitSequenceFileTest.class
+	TwoBitSequenceFileTest.class,
+	DiscreteMedianTest.class
 	})
 public class LauncherTest {
 
