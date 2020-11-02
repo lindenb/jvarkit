@@ -28,6 +28,7 @@ import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.BitSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalDouble;
@@ -40,13 +41,16 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
@@ -100,7 +104,7 @@ END_DOC
 	description="A custom 'Depth of Coverage'.",
 	keywords={"depth","bam","sam","coverage"},
 	creationDate="20190927",
-	modificationDate="20200706"
+	modificationDate="20201102"
 	)
 public class DepthOfCoverage extends Launcher
 	{
@@ -119,13 +123,16 @@ public class DepthOfCoverage extends Launcher
 	private boolean auto_mask = false;
 	@Parameter(names={"--skip"},description="Chromosomes to skip (regular expression)")
 	private String skipContigExpr = "(NC_007605|hs37d5)";
+	@Parameter(names={"--min-length"},description="Chromosomes to skip if their length is lower than this value.")
+	private int skipContigLength = 0;
 	@Parameter(names={"--async"},description="use async I/O",hidden=true)
 	private boolean asyncIo=false;
 	@Parameter(names={"--disable-paired-overlap"},description="Count overlapping bases with mate for paired-end")
 	private boolean disable_paired_overlap_flag=false;
 	@Parameter(names={"--max-depth"},description="Ignore depth if it is bigger than this value.")
 	private int max_depth = 10_000_000;
-
+	@Parameter(names={"-ct","--ct"},description="summary Coverage Threshold. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class,splitter=NoSplitter.class)
+	private RangeOfIntegers summaryCov = new RangeOfIntegers(0,10,20,30,40,50,100,200,300,400,500,1000,2000,3000,4000,5000);
 	
 	@Override
 	public int doWork(final List<String> args)
@@ -138,15 +145,15 @@ public class DepthOfCoverage extends Launcher
 		ReferenceSequenceFile referenceSequenceFile=null;
 		try
 			{
-			final Predicate<String> isRejectContig;
+			final Predicate<String> isRejectContigRegex;
 			if(!StringUtils.isBlank(this.skipContigExpr)) {
 				final Pattern pat = Pattern.compile(this.skipContigExpr);
-				isRejectContig = S-> pat.matcher(S).matches();
+				isRejectContigRegex = S-> pat.matcher(S).matches();
 				}
 			else
 				{
-				isRejectContig = S -> false;
-				}	
+				isRejectContigRegex = S -> false;
+				}
 			
 			final SamReaderFactory srf = super.createSamReaderFactory();
 			if(this.faidx!=null) 
@@ -157,7 +164,13 @@ public class DepthOfCoverage extends Launcher
 				}
 			
 			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			out.println("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth\tMedian");
+			out.print("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth\tMedian\tMin\tMax");
+			for(RangeOfIntegers.Range r: this.summaryCov.getRanges()) {
+				if(r.getMinInclusive()==null) continue;
+				out.print("\t");
+				out.print(r.toString());
+			}
+			out.println();
 			
 			for(final Path path: IOUtils.unrollPaths(args)) {
 				
@@ -171,20 +184,30 @@ public class DepthOfCoverage extends Launcher
 					final Set<String> rejectContigSet = dict.getSequences()
 							.stream()
 							.map(SSR->SSR.getSequenceName())
-							.filter(isRejectContig)
-							.collect(Collectors.toSet())
+							.filter(isRejectContigRegex)
+							.collect(Collectors.toCollection(HashSet::new))
 							;
-							
+					rejectContigSet.addAll(dict.getSequences()
+						.stream()
+						.filter(SSR->SSR.getSequenceLength() < this.skipContigLength)
+						.map(SSR->SSR.getSequenceName())
+						.collect(Collectors.toCollection(HashSet::new)));
+						
 					
 					
 					if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
 						LOG.error("file is not sorted on coordinate :"+header.getSortOrder()+" "+path);
 						return -1;
 						}
+					Integer minCov = null;
+					Integer maxCov = null;
 					long count_raw_bases = 0L;
 					long count_bases = 0L;
 					long sum_coverage = 0L;
 					final DiscreteMedian<Integer> discreteMedian_wg = new DiscreteMedian<>();
+					final Counter<RangeOfIntegers.Range> countMap_wg = new Counter<>();
+
+					
 					final String sample = header.getReadGroups().
 							stream().
 							map(RG->RG.getSample()).
@@ -210,13 +233,19 @@ public class DepthOfCoverage extends Launcher
 								if(coverage!=null) {//DUMP
 									long count_bases_ctg = 0L;
 									long sum_coverage_ctg = 0L;
+									Integer minV_ctg=null;
+									Integer maxV_ctg=null;
 									final DiscreteMedian<Integer> discreteMedian_ctg = new DiscreteMedian<>();
+									final Counter<RangeOfIntegers.Range> countMap_ctg = new Counter<>();
 									
 									for(int i=0;i< coverage.length;i++) {
 										if(mask.get(i)) continue;
 										final int covi = coverage[i];
 										
 										if(covi> this.max_depth) continue;
+										if(minV_ctg==null || minV_ctg.intValue() > covi) minV_ctg=covi;
+										if(maxV_ctg==null || maxV_ctg.intValue() < covi) maxV_ctg=covi;
+										countMap_ctg.incr(this.summaryCov.getRange(covi));
 										count_bases_ctg++;
 										sum_coverage_ctg += covi;
 										discreteMedian_ctg.add(covi);
@@ -249,12 +278,44 @@ public class DepthOfCoverage extends Launcher
 										{
 										out.print("N/A");
 										}
+									out.print("\t");
+									if(minV_ctg!=null)  {
+										out.print(minV_ctg);
+										}
+									else
+										{
+										out.print("N/A");
+										}
+									out.print("\t");
+									if(maxV_ctg!=null)  {
+										out.print(maxV_ctg);
+										}
+									else
+										{
+										out.print("N/A");
+										}
+									
+									for(final RangeOfIntegers.Range r: this.summaryCov.getRanges()) {
+										if(r.getMinInclusive()==null) continue;
+										out.print("\t");
+										out.print(countMap_ctg.count(r));
+										if(!countMap_ctg.isEmpty()) {
+											out.print(" ");
+											out.printf("(%.2f%%)",(countMap_ctg.count(r)/(countMap_ctg.getTotal()*1.0))*100.0);
+											}
+									}
+									
 									out.println();
+
+									
+									if(minCov==null || (minV_ctg!=null && minV_ctg.compareTo(minCov)<0)) minCov=minV_ctg;
+									if(maxCov==null || (maxV_ctg!=null && maxV_ctg.compareTo(maxCov)>0)) maxCov=maxV_ctg;
 
 									count_bases += count_bases_ctg;
 									sum_coverage += sum_coverage_ctg;
 									count_raw_bases += coverage.length;
 									discreteMedian_wg.add(discreteMedian_ctg);
+									countMap_wg.putAll(countMap_ctg);
 									}
 								coverage=null;
 								mask=null;
@@ -351,6 +412,33 @@ public class DepthOfCoverage extends Launcher
 						{
 						out.print("N/A");
 						}
+					out.print("\t");
+					if(minCov!=null)  {
+						out.print(minCov);
+						}
+					else
+						{
+						out.print("N/A");
+						}
+					out.print("\t");
+					if(maxCov!=null)  {
+						out.print(maxCov);
+						}
+					else
+						{
+						out.print("N/A");
+						}
+					for(final RangeOfIntegers.Range r: this.summaryCov.getRanges()) {
+						if(r.getMinInclusive()==null) continue;
+						out.print("\t");
+						out.print(countMap_wg.count(r));
+						if(!countMap_wg.isEmpty()) {
+							out.print(" ");
+							out.printf("(%.2f%%)",(countMap_wg.count(r)/(countMap_wg.getTotal()*1.0))*100.0);
+							}
+						}
+
+					
 					out.println();
 					}
 				}
