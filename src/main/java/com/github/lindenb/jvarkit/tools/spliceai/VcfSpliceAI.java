@@ -102,6 +102,10 @@ public class VcfSpliceAI  extends OnePassVcfLauncher {
 	private String base="https://spliceailookup-api.broadinstitute.org/spliceai/";
 	@Parameter(names={"--hg"},description="genome version. Must be 37 or 38. Otherwise, the dictionary is used to detect the version.")
 	private int build=-1;
+	@Parameter(names={"--distance"},description="For each variant, SpliceAI looks within a window (+/- 50bp by default) to see how the variant affects the probabilities of different positions being splice acceptors or donors. The distance specified here controls the size of this window. The maximum allowed value is 10,000bp")
+	private int distance=50;
+	@Parameter(names={"--raw"},description="Splicing changes corresponding to strengthening annotated splice sites and weakening unannotated splice sites are typically much less pathogenic than weakening annotated splice sites and strengthening unannotated splice sites. Selecting 'masked' (default) will hide the score for such splicing changes and show 0 instead. Selecting 'raw' will show all scores. SpliceAI developers recommend using 'raw' scores for alternative splicing analysis and 'masked' scores for variant interpretation.")
+	private boolean raw = false;
 
 	@Override
 	protected Logger getLogger()
@@ -142,6 +146,8 @@ public class VcfSpliceAI  extends OnePassVcfLauncher {
 		try {
 			final String urlstr = new StringBuilder(this.base).append("?hg=").
 					append(this.build).
+					append("&distance=").append(this.distance).
+					append("&mask=").append(this.raw?0:1).
 					append("&variant=").
 					append(contig).append("-").
 					append(start).append("-").
