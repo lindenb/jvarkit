@@ -25,7 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.BufferedReader;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -39,6 +39,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
@@ -46,6 +47,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
@@ -109,16 +111,22 @@ END_DOC
  */
 @Program(name="mergecnvnator",
 description="Merge CNVNator results",
-keywords= {"cnv","indel","cnvnator"}
+keywords= {"cnv","indel","cnvnator"},
+biostars={472699},
+modificationDate="20201111",
+creationDate="20181003"
 )
 public class MergeCnvNator extends Launcher{
 	private static final Logger LOG = Logger.build(MergeCnvNator.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File dictRefFile =  null;
+	private Path dictRefFile =  null;
 	@Parameter(names={"-r","--ratio"},description="two intervals are the same if they both have more or equals of this fraction of length in common")
 	private double region_are_same_ratio=0.75;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
+	
 	
 	private final Allele REF_ALLELE = Allele.create("N", true);
 	private final Allele DEL_ALLELE = Allele.create("<DEL>", false);
@@ -288,7 +296,7 @@ public class MergeCnvNator extends Launcher{
 			}
 		VariantContextWriter out = null;
 		try {
-			final List<File> inputs = IOUtils.unrollFiles2018(args);
+			final List<Path> inputs = IOUtils.unrollPaths(args);
 			if(inputs.isEmpty()) {
 				LOG.error("input is empty");
 				return -1;
@@ -307,12 +315,12 @@ public class MergeCnvNator extends Launcher{
 			final IntervalTreeMap<List<CnvNatorCall>> all_calls = new IntervalTreeMap<>();
 			final Set<String> all_samples = new TreeSet<>();
 			
-			for(final File input: inputs) {
-				String sample = input.getName();
+			for(final Path input: inputs) {
+				String sample = input.getFileName().toString();
 				int dot = sample.indexOf('.');
 				if(dot>0) sample=sample.substring(0,dot);
 				all_samples.add(sample);
-				final BufferedReader br = IOUtils.openFileForBufferedReading(input);
+				final BufferedReader br = IOUtils.openPathForBufferedReading(input);
 				String line;
 				while((line=br.readLine())!=null) {
 					if(StringUtil.isBlank(line)) continue;
@@ -437,7 +445,7 @@ public class MergeCnvNator extends Launcher{
 					);
 			if(dict!=null) header.setSequenceDictionary(dict);
 			
-			out =  super.openVariantContextWriter(this.outputFile);
+			out =  this.writingVariants.dictionary(dict).open(this.outputFile);
 			out.writeHeader(header);
 			for(final CNVNatorInterval interval:intervals_list)
 				{

@@ -10,6 +10,15 @@ Merge CNVNator results
 ```
 Usage: mergecnvnator [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -36,6 +45,12 @@ Usage: mergecnvnator [options] Files
  * cnvnator
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/472699](https://www.biostars.org/p/472699)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -52,6 +67,11 @@ $ ./gradlew mergecnvnator
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20181003
 
 ## Source code 
 
