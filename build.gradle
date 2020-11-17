@@ -263,6 +263,10 @@ libraries.put("arq",new Library().
 	add("org.apache.jena:jena-shaded-guava:jar:3.10.0").
 	add("org.apache.thrift:libthrift:jar:0.10.0")
 	);
+libraries.put("leveldb",new Library().
+	add("org.iq80.leveldb:leveldb:jar:0.12").
+	add("com.google.guava:guava:jar:21.0")
+	);
 
 // https://stackoverflow.com/questions/28498688
 

@@ -39,8 +39,9 @@ Usage: bamstats05 [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
-      For reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --version
       print version and exit
 
@@ -127,10 +128,8 @@ If there is no argument, stdin is interpreted as a list of path to the bam like 
 ## Cited In:
 
   * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
+  * "Future MicrobiologyVol. 15, No. 15  Comparative genomics of Sporothrix species and identification of putative pathogenic-gene determinants.  Published Online:12 Nov 2020https://doi.org/10.2217/fmb-2019-0302"
 
-## History
-
-  * 20180710 : added header, added multiple values for min_cov
 
 ## Example
 
@@ -146,7 +145,4 @@ $ head out.txt
 1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
 ```
 
-## History
-
- * 20181122 : added `--merge`, added column count.intervals
 

@@ -85,10 +85,8 @@ If there is no argument, stdin is interpreted as a list of path to the bam like 
 ## Cited In:
 
   * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
+  * "Future MicrobiologyVol. 15, No. 15  Comparative genomics of Sporothrix species and identification of putative pathogenic-gene determinants.  Published Online:12 Nov 2020https://doi.org/10.2217/fmb-2019-0302"
 
-## History
-
-  * 20180710 : added header, added multiple values for min_cov
 
 ## Example
 

@@ -21,4 +21,12 @@ public void test2() {
 	int m= (int)d.getMedian().orElse(0.0);
 	Assert.assertEquals(m,15);
 	}
+@Test
+public void test3() {
+	DiscreteMedian<Integer> d = new DiscreteMedian<>();
+	d.add(0);
+	d.add(1);
+	double m= d.getMedian().orElse(0.0);
+	Assert.assertTrue(0.49 < m && m  < 0.51);
+	}
 }

@@ -28,7 +28,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -62,44 +61,44 @@ public static Optional<String> getBuildName(final SAMSequenceDictionary dict) {
 	if(isGRCh37(dict)) return Optional.of("GRCh37");
 	if(isGRCh38(dict)) return Optional.of("GRCh38");
 	if(isGRCm38(dict)) return Optional.of("GRCm38");
+	if(isGRCm39(dict)) return Optional.of("GRCm39");
+	if(isCanFam3(dict)) return Optional.of("CanFam3");
 	return Optional.empty();
+}
+
+private static boolean hasChrom1(final SAMSequenceDictionary dict,int expect) {
+	if(dict==null || dict.isEmpty()) return false;
+	SAMSequenceRecord rec = dict.getSequence("chr1");
+	if(rec==null)  rec = dict.getSequence("1");
+	if(rec!=null) {
+		if(rec.getSequenceLength()==expect) return true;
+		}
+	return false;
 }
 
 /** test if dict looks like GRCh37  */
 public static boolean isGRCh37(final SAMSequenceDictionary dict) {
-	if(dict==null || dict.isEmpty()) return false;
-	SAMSequenceRecord rec = dict.getSequence("chr1");
-	if(rec==null)  rec = dict.getSequence("1");
-	if(rec!=null) {
-		
-		if(rec.getSequenceLength()==249_250_621) return true;
-		
-		}
-	return false;
+	return hasChrom1(dict,249_250_621);
 	}
 /** test if dict looks like GRCh38  */
 public static boolean isGRCh38(final SAMSequenceDictionary dict) {
-	if(dict==null || dict.isEmpty()) return false;
-	SAMSequenceRecord rec = dict.getSequence("chr1");
-	if(rec==null)  rec = dict.getSequence("1");
-	if(rec!=null) {
-		if(rec.getSequenceLength()==248_956_422) return true;	
-		}
-	return false;
+	return hasChrom1(dict,248_956_422);
 	}
 
 /** test if dict looks like MusMusculus isGRCm38  */
 public static boolean isGRCm38(final SAMSequenceDictionary dict) {
-	if(dict==null || dict.isEmpty()) return false;
-	SAMSequenceRecord rec = dict.getSequence("chr1");
-	if(rec==null)  rec = dict.getSequence("1");
-	if(rec!=null) {
-		if(rec.getSequenceLength()==195_471_971) return true;	
-		}
-	return false;
+	return hasChrom1(dict,195_471_971);
 	}
 
+/** test if dict looks like MusMusculus isGRCm39  */
+public static boolean isGRCm39(final SAMSequenceDictionary dict) {
+	return hasChrom1(dict,195_154_279);
+	}
 
+/** test if dict looks like CanFam3  */
+public static boolean isCanFam3(final SAMSequenceDictionary dict) {
+	return hasChrom1(dict,122_678_785);
+	}
 
 /** test if dict looks like a human dict  */
 public static boolean isHuman(final VCFHeader h) {
@@ -121,7 +120,7 @@ public static boolean isMusMusculus(final VCFHeader h) {
 
 /** test if dict looks like a human dict  */
 public static boolean isMusMusculus(final SAMSequenceDictionary dict) {
-	return isGRCm38(dict);
+	return isGRCm38(dict) || isGRCm39(dict);
 	}
 
 

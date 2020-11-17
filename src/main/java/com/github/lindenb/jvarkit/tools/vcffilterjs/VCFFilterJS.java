@@ -338,6 +338,10 @@ java -jar dist/vcffilterjs.jar -e 'variant.getGenotype("NA12878").isHom()'
 
 ```
 
+## Cited In
+
+  * "Genetic admixture increases phenotypic diversity in the nectar yeast Metschnikowia reukaufii" https://doi.org/10.1016/j.funeco.2020.101016 . Fungal Ecology Volume 49, February 2021, 101016
+
 
 END_DOC
  */
