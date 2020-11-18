@@ -28,6 +28,10 @@ Usage: lowresbam2raster [options] Files
       be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    -gtf, --gtf
+      A GTF (General Transfer Format) file. See 
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
@@ -38,14 +42,6 @@ Usage: lowresbam2raster [options] Files
     --highlight
       hightligth those positions.
       Default: []
-    -kg, --knownGene
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
     --mapqopacity
       How to handle the MAPQ/ opacity of the reads. all_opaque: no opacity, 
       handler 1: transparency under MAPQ=60
@@ -104,7 +100,7 @@ Usage: lowresbam2raster [options] Files
  * graphics
  * visualization
  * png
- * knowngene
+ * gtf
 
 
 
@@ -129,6 +125,11 @@ $ ./gradlew lowresbam2raster
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20170523
 
 ## Source code 
 
