@@ -26,9 +26,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -39,13 +39,13 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -176,29 +176,21 @@ output:
 
 Please note that variant 1	11167517 is not flagged because is alternate allele is not contained in 'bad.vcf'
 
-
-### History
-
- *  2018-08-31: database must be specified with '-D'. ContigName conversion applied for tabix/tribble data.
- *  2015-02-24: rewritten. all files must be sorted: avoid to sort on disk. Support for tabix. Option -A
- *  2015-01-26: changed option '-v' to option '-i' (-v is for version)
- *  2014: Creation
-
 END_DOC
 */
 
 @Program(name="vcfin",
 	description="Only prints variants that are contained/not contained into another VCF",
 	keywords={"vcf","compare"},
+	modificationDate="20201119",
+	creationDate="20140204",
 	biostars={287815}
 	)
-public class VcfIn extends Launcher
+public class VcfIn extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfIn.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-i","--inverse"},description="Print variant that are not part of the VCF-database.")
+	@Parameter(names={"-i","--inverse"},description="Print variants that are not part of the VCF-database.")
 	private boolean inverse = false;
 	@Parameter(names={"-t","--tabix","--tribble","--indexed"},description=
 			"Database is indexed with tabix or tribble. I will use random access to get the data. Otherwise, VCF are assumed to be sorted the same way."
@@ -235,7 +227,11 @@ public class VcfIn extends Launcher
 	public VcfIn()
 		{
 		}
-		
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	/** if dict are different , ignore contig*/
 	private boolean sameContextIgnoreContig(			
 			final VariantContext ctx1,
@@ -360,19 +356,12 @@ public class VcfIn extends Launcher
 
 			this.addMetaData(header);
 			vcw.writeHeader(header);
-			
-			final ProgressFactory.Watcher<VariantContext> progress= 
-					ProgressFactory.newInstance().
-						dictionary(header).
-						logger(LOG).
-						build();
-			
+						
 			equalRangeUserVcf = new EqualRangeIterator<>(userVcfIn, userVcfComparator);
 			
 			while(equalRangeUserVcf.hasNext())
 				{
 				final List<VariantContext> ctxList = equalRangeUserVcf.next();
-				progress.apply(ctxList.get(0));
 				
 				//fill both contextes
 				final List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctxList.get(0)));
@@ -388,7 +377,6 @@ public class VcfIn extends Launcher
 				if(vcw.checkError()) break;
 				}
 			equalRangeUserVcf.close();
-			progress.close();
 			return RETURN_OK;
 			}
 		catch(final Exception err)
@@ -407,13 +395,13 @@ public class VcfIn extends Launcher
 	private class TabixVcf
 		implements Closeable
 		{
-		final File file;
+		final Path file;
 		final VCFReader vcfFileReader;
 		final VCFHeader header;
 		final SAMSequenceDictionary dict;
 		final ContigNameConverter contigNameConverter;
 		TabixVcf(SAMSequenceDictionary dictIn,final String file) {
-			this.file = new File(file);
+			this.file = Paths.get(file);
 			this.vcfFileReader =VCFReaderFactory.makeDefault().open(this.file,true);
 			this.header = this.vcfFileReader.getHeader();
 			this.dict = this.header.getSequenceDictionary();
@@ -461,15 +449,10 @@ public class VcfIn extends Launcher
 			this.addMetaData(header2);
 			vcw.writeHeader(header2);
 			
-			final ProgressFactory.Watcher<VariantContext> progress= 
-					ProgressFactory.newInstance().
-						dictionary(dictIn).
-						logger(LOG).
-						build();
 			
 			while(vcfIn.hasNext())
 				{
-				final VariantContext userCtx= progress.apply(vcfIn.next());
+				final VariantContext userCtx=  vcfIn.next();
 				
 				int number_of_time_ctx_was_found = 0;
 				for(final TabixVcf tabix:tabixList)  {
@@ -504,7 +487,6 @@ public class VcfIn extends Launcher
 				addVariant(vcw,userCtx,keep);
 				if(vcw.checkError()) break;
 				}
-			progress.close();
 			return RETURN_OK;
 			}
 		catch(final Exception err)
@@ -515,55 +497,46 @@ public class VcfIn extends Launcher
 		finally
 			{
 			CloserUtil.close(tabixList);
-			CloserUtil.close(vcfIn);
 			}
+		}
+	@Override
+	protected int beforeVcf() {
+		try {
+			if(!StringUtils.isBlank(this.filterIn) && !StringUtils.isBlank(this.filterOut)) {
+				 LOG.error("Option filterIn/filterOut both defined.");
+				 return -1;
+			}
+			if(this.inverse && (!StringUtils.isBlank(this.filterIn) || !StringUtils.isBlank(this.filterOut))) {
+				 LOG.error("Option inverse cannot be used when Option filterin/filterou is defined.");
+				 return -1;
+				}
+			}
+		catch(final Throwable err ) {
+			return -1;
+			}
+		return super.beforeVcf();
+		}
+	@Override
+	protected void afterVcf() {
+		super.afterVcf();
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter w) {
+		try {
+		final List<String> externalDatabaseUris = 
+				this.externalDatabaseList.size() ==1 && this.externalDatabaseList.get(0).endsWith(".list") ?
+				Files.lines(Paths.get(this.externalDatabaseList.get(0))).filter(L->!StringUtil.isBlank(L)).collect(Collectors.toList())
+				:
+				this.externalDatabaseList
+				;
 		
-		if(!this.filterIn.isEmpty() && !this.filterOut.isEmpty()) {
-			 LOG.error("Option filterIn/filterOut both defined.");
-			 return -1;
-		}
-		if(this.inverse && (!this.filterIn.isEmpty() || !this.filterOut.isEmpty())) {
-			 LOG.error("Option inverse cannot be used when Option filterin/filterou is defined.");
-			 return -1;
-		}
-		
-		if(args.size()==2) {
-			LOG.error("cmd-line syntax has changed. Database must be specified with --database/-D");
+		if(externalDatabaseUris.isEmpty()) {
+			LOG.error("Empty external database URI");
 			return -1;
 			}
-		
-		
-		
-		
-		
-		
-		final String userVcfUri = oneFileOrNull(args);
-		VariantContextWriter w=null;
-		VCFIterator in=null;
-		try {
-			in = (userVcfUri==null?
-					VCFUtils.createVCFIteratorFromInputStream(stdin()):
-					VCFUtils.createVCFIterator(userVcfUri)
-					);
-			
-			final List<String> externalDatabaseUris = 
-					this.externalDatabaseList.size() ==1 && this.externalDatabaseList.get(0).endsWith(".list") ?
-					Files.lines(Paths.get(this.externalDatabaseList.get(0))).filter(L->!StringUtil.isBlank(L)).collect(Collectors.toList())
-					:
-					this.externalDatabaseList
-					;
-			
-			if(externalDatabaseUris.isEmpty()) {
-				LOG.error("Empty external database URI");
-				return -1;
-				}
-			
-			w= super.openVariantContextWriter(outputFile);
-			if(this.databaseIsIndexed)
+
+		if(this.databaseIsIndexed)
 				{
 				return this.scanUsingTabix(w,in,externalDatabaseUris);
 				}
@@ -580,15 +553,13 @@ public class VcfIn extends Launcher
 					}
 				return this.scanFileSorted(w,in,externalDatabaseUris.get(0));
 				}
-			} catch (final Exception err) {
-				LOG.error(err);
-				return -1;
-			} finally
-			{
-			CloserUtil.close(in);
-			CloserUtil.close(w);
 			}
+		catch(final Throwable err ) {
+			LOG.error(err);
+			return -1;
 		}
+	}
+		
 
 	public static void main(final String[] args) {
 		new VcfIn().instanceMainWithExit(args);

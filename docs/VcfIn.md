@@ -13,6 +13,12 @@ Usage: vcfin [options] Files
     -A, --allalt
       ALL user ALT must be found in VCF-database ALT
       Default: false
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
   * -D, --database
       external database uri
       Default: []
@@ -24,12 +30,15 @@ Usage: vcfin [options] Files
       Do not discard variant but add this FILTER if the variant is NOT found 
       in the database(s)
       Default: <empty string>
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -i, --inverse
-      Print variant that are not part of the VCF-database.
+      Print variants that are not part of the VCF-database.
       Default: false
     -cp, --only-contig-pos
       Two variants are the same if they have the same CONTIG/POS. Do NOT Look 
@@ -38,7 +47,7 @@ Usage: vcfin [options] Files
       [19	45454285 TAA	TA,T,TAAA ] in my VCF: [19	45454285	TA	T]. Only works 
       with --tabix option
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -t, --tabix, --tribble, --indexed
       Database is indexed with tabix or tribble. I will use random access to 
@@ -89,6 +98,11 @@ $ ./gradlew vcfin
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20140204
 
 ## Source code 
 
@@ -229,12 +243,4 @@ output:
 ```
 
 Please note that variant 1	11167517 is not flagged because is alternate allele is not contained in 'bad.vcf'
-
-
-### History
-
- *  2018-08-31: database must be specified with '-D'. ContigName conversion applied for tabix/tribble data.
- *  2015-02-24: rewritten. all files must be sorted: avoid to sort on disk. Support for tabix. Option -A
- *  2015-01-26: changed option '-v' to option '-i' (-v is for version)
- *  2014: Creation
 
