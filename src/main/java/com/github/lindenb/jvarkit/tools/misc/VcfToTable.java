@@ -373,7 +373,7 @@ public class VcfToTable extends Launcher {
 	
 	private static class HyperlinkDecorator extends Decorator
 		{
-		private final Pattern ensgPattern = Pattern.compile("ENS[TPGR][0-9]+");
+		private final Pattern ensgPattern = Pattern.compile("ENS(MUS|CAF)?[TPGR][0-9]+");
 		private final Pattern enstPattern = Pattern.compile("ENSEST[TGP][0-9]+");
 		private final Pattern rsPattern = Pattern.compile("[rR][sS][0-9]+");
 		private final Pattern acc1Pattern = Pattern.compile("[XN][MR]_[0-9\\.]+");

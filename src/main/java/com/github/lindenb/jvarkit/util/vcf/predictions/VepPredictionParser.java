@@ -44,6 +44,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
@@ -312,10 +313,12 @@ public class VepPredictionParser implements PredictionParser
 			}
 		
 		
-		/** alias of getHGNC */
+		/**  getHGNC || getSymbol */
 		public String getGeneName()
 			{
-			return getByCol("HGNC");
+			String s= getByCol("HGNC");
+			if(StringUtils.isBlank(s)) s = getSymbol();
+			return s;
 			}
 		
 		public String getHGNC()
