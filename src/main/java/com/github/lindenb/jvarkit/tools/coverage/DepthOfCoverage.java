@@ -127,7 +127,7 @@ public class DepthOfCoverage extends Launcher
 	private int skipContigLength = 0;
 	@Parameter(names={"--async"},description="use async I/O",hidden=true)
 	private boolean asyncIo=false;
-	@Parameter(names={"--disable-paired-overlap"},description="Count overlapping bases with mate for paired-end")
+	@Parameter(names={"--disable-paired-overlap"},description="Disable: Count overlapping bases with mate for paired-end")
 	private boolean disable_paired_overlap_flag=false;
 	@Parameter(names={"--max-depth"},description="Ignore depth if it is bigger than this value.")
 	private int max_depth = 10_000_000;

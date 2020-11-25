@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.tools.bam2graphics;
 
 import java.awt.Dimension;
 import java.awt.geom.Point2D;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -53,8 +52,8 @@ import org.w3c.dom.Text;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -63,6 +62,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.AlignmentBlock;
@@ -74,7 +74,6 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 /**
 BEGIN_DOC
@@ -97,12 +96,15 @@ END_DOC
 	)
 public class WGSCoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( WGSCoveragePlotter.class).make();
-	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC)
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path refPath = null;
 	@Parameter(names={"--min-contig-length"},description="Skip chromosome with length < 'x'",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_contig_length = 0;
+	@Parameter(names={"--skip-contig-regex"},description="Skip chromosome matching this regular expression")
+	private String skipContigExpr = "(NC_007605|hs37d5)";
+
 	@Parameter(names={"--mapq"},description = "min mapping quality")
 	private int min_mapq=1;
 	@Parameter(names={"-C","--max-depth"},description = "Max depth to display")
@@ -114,7 +116,7 @@ public class WGSCoveragePlotter extends Launcher {
 	private Dimension dimension = new Dimension(1000,500);
 	@DynamicParameter(names = "-D", description = "style",hidden=true)
 	private Map<String, String> dynaParams = new HashMap<>();
-	@Parameter(names={"--disable-paired-overlap"},description="Count overlapping bases with mate for paired-end")
+	@Parameter(names={"--disable-paired-overlap"},description="Disable: Count overlapping bases with mate for paired-end")
 	private boolean disable_paired_overlap_flag=false;
 
 	
@@ -150,8 +152,6 @@ private Element element(final String tag,final Object content) {
 
 @Override
 public int doWork(final List<String> args) {
-	ArchiveFactory archive = null;
-	PrintWriter manifest = null;
 	try
 		{
 		final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
@@ -176,18 +176,15 @@ public int doWork(final List<String> args) {
 		svgRoot.appendChild(style);
 		style.appendChild(text(
 				"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
-				".maintitle {stroke:blue;fill:none;}\n"+
 				"text.title {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
 				"rect.frame {stroke:darkgray;fill:none;stroke-width:0.5px;}\n" + 
 				"text.ruler {stroke:none;fill:black;stroke-width:1px;text-anchor:end;}\n"+
 				"text.chromName {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
 				"polygon.cov0 {stroke:lightgray;fill:antiquewhite;stroke-width:0.5px;}\n"+
 				"polygon.cov1 {stroke:lightgray;fill:beige;stroke-width:0.5px;}\n"+
-				"rect.average {stroke:green;fill:none;stroke-width:0.5px;}\n"+
-				"rect.median {stroke:red;fill:none;stroke-width:0.5px;}\n"+
-				"pol.samplename {stroke:none;fill:black;stroke-width:1px;}\n"+
+				"rect.average {stroke:green;fill:green;stroke-width:0.5px;}\n"+
+				"rect.median {stroke:red;fill:red;stroke-width:0.5px;}\n"+
 				"line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}\n"+
-				"path.coverage {stroke:darkslateblue;fill:darkseaGreen}\n"+
 				""
 				));
 
@@ -199,7 +196,11 @@ public int doWork(final List<String> args) {
 
 		
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
-		final List<ChromInfo> chromInfos = dict.getSequences().stream().filter(SR->SR.getSequenceLength()>=0).map(SR->new ChromInfo(SR)).collect(Collectors.toList());
+		final List<ChromInfo> chromInfos = dict.getSequences().stream().
+				filter(SR->SR.getSequenceLength()>=this.min_contig_length).
+				filter(SR->StringUtils.isBlank(this.skipContigExpr) || !SR.getSequenceName().matches(this.skipContigExpr)).
+				map(SR->new ChromInfo(SR)).
+				collect(Collectors.toList());
 		if(chromInfos.isEmpty()) {
 			LOG.info("no valid chromosome was found in "+this.refPath);
 			return -1;
@@ -249,6 +250,7 @@ public int doWork(final List<String> args) {
 		g_label.appendChild(element("title",input.toString()));
 		mainG.appendChild(g_label);
 		
+		final ProgressFactory.Watcher<SAMSequenceRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 		try(SamReader sr = samReaderFactory.open(input)) {
 			if(!sr.hasIndex()) {
 				LOG.error("input bam "+input+" is not indexed.");
@@ -258,6 +260,7 @@ public int doWork(final List<String> args) {
 						
 			SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(header));
 			for(final ChromInfo ci: chromInfos) {
+				progress.apply(ci.ssr);
 				int coverage[]  = new int[ci.ssr.getSequenceLength()];
 				Arrays.fill(coverage, 0);
 				try(SAMRecordIterator iter= sr.queryOverlapping(ci.ssr.getSequenceName(), 1, ci.ssr.getSequenceLength())) {
@@ -362,6 +365,7 @@ public int doWork(final List<String> args) {
 				coverage=null;
 				System.gc();
 				}
+			progress.close();
 			
 			final Element rulers= element("g");
 			g_chroms.appendChild(rulers);
@@ -410,8 +414,6 @@ public int doWork(final List<String> args) {
 		}
 	finally
 		{
-		CloserUtil.close(manifest);
-		CloserUtil.close(archive);
 		}
 	}
 

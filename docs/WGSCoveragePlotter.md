@@ -17,7 +17,7 @@ Usage: wgscoverageplotter [options] Files
       Image Dimension.
       Default: java.awt.Dimension[width=1000,height=500]
     --disable-paired-overlap
-      Count overlapping bases with mate for paired-end
+      Disable: Count overlapping bases with mate for paired-end
       Default: false
     -h, --help
       print help and exit
@@ -33,11 +33,13 @@ Usage: wgscoverageplotter [options] Files
       Skip chromosome with length < 'x'
       Default: 0
     -o, --output
-      An existing directory or a filename ending with the '.zip' or '.tar' or 
-      '.tar.gz' suffix.
+      Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --skip-contig-regex
+      Skip chromosome matching this regular expression
+      Default: (NC_007605|hs37d5)
     --version
       print version and exit
 
