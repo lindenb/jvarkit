@@ -18,7 +18,7 @@ Usage: depthofcoverage [options] Files
       in ascending order separated with semicolons.
       Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/40[, [40/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/2000[, [2000/3000[, [3000/4000[, [4000/5000[, [5000/Inf[]
     --disable-paired-overlap
-      Count overlapping bases with mate for paired-end
+      Disable: Count overlapping bases with mate for paired-end
       Default: false
     -h, --help
       print help and exit

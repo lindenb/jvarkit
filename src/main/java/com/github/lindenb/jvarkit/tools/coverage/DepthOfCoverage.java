@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -54,6 +55,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.vcf.ContigPos;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
@@ -164,7 +166,7 @@ public class DepthOfCoverage extends Launcher
 				}
 			
 			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			out.print("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth\tMedian\tMin\tMax");
+			out.print("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth\tMedian\tMin\tMax\tMaxPos");
 			for(RangeOfIntegers.Range r: this.summaryCov.getRanges()) {
 				if(r.getMinInclusive()==null) continue;
 				out.print("\t");
@@ -201,6 +203,7 @@ public class DepthOfCoverage extends Launcher
 						}
 					Integer minCov = null;
 					Integer maxCov = null;
+					ContigPos maxCovPosition = null;
 					long count_raw_bases = 0L;
 					long count_bases = 0L;
 					long sum_coverage = 0L;
@@ -235,6 +238,7 @@ public class DepthOfCoverage extends Launcher
 									long sum_coverage_ctg = 0L;
 									Integer minV_ctg=null;
 									Integer maxV_ctg=null;
+									ContigPos maxPos_ctg = null;
 									final DiscreteMedian<Integer> discreteMedian_ctg = new DiscreteMedian<>();
 									final Counter<RangeOfIntegers.Range> countMap_ctg = new Counter<>();
 									
@@ -244,7 +248,10 @@ public class DepthOfCoverage extends Launcher
 										
 										if(covi> this.max_depth) continue;
 										if(minV_ctg==null || minV_ctg.intValue() > covi) minV_ctg=covi;
-										if(maxV_ctg==null || maxV_ctg.intValue() < covi) maxV_ctg=covi;
+										if(maxV_ctg==null || maxV_ctg.intValue() < covi) {
+											maxV_ctg=covi;
+											maxPos_ctg = new ContigPos(prevContig,i+1);
+											}
 										countMap_ctg.incr(this.summaryCov.getRange(covi));
 										count_bases_ctg++;
 										sum_coverage_ctg += covi;
@@ -289,10 +296,12 @@ public class DepthOfCoverage extends Launcher
 									out.print("\t");
 									if(maxV_ctg!=null)  {
 										out.print(maxV_ctg);
+										out.print("\t");
+										out.print(maxPos_ctg);
 										}
 									else
 										{
-										out.print("N/A");
+										out.print("N/A\tN/A");
 										}
 									
 									for(final RangeOfIntegers.Range r: this.summaryCov.getRanges()) {
@@ -309,7 +318,10 @@ public class DepthOfCoverage extends Launcher
 
 									
 									if(minCov==null || (minV_ctg!=null && minV_ctg.compareTo(minCov)<0)) minCov=minV_ctg;
-									if(maxCov==null || (maxV_ctg!=null && maxV_ctg.compareTo(maxCov)>0)) maxCov=maxV_ctg;
+									if(maxCov==null || (maxV_ctg!=null && maxV_ctg.compareTo(maxCov)>0)) {
+										maxCov=maxV_ctg;
+										maxCovPosition=maxPos_ctg;
+										}
 
 									count_bases += count_bases_ctg;
 									sum_coverage += sum_coverage_ctg;
@@ -422,11 +434,11 @@ public class DepthOfCoverage extends Launcher
 						}
 					out.print("\t");
 					if(maxCov!=null)  {
-						out.print(maxCov);
+						out.print(maxCov+"\t"+maxCovPosition);
 						}
 					else
 						{
-						out.print("N/A");
+						out.print("N/A\tN/A");
 						}
 					for(final RangeOfIntegers.Range r: this.summaryCov.getRanges()) {
 						if(r.getMinInclusive()==null) continue;

@@ -336,7 +336,7 @@ public int doWork(final List<String> args) {
 					if(g_dbl.isPresent() && g_dbl.orElse(0) < this.max_depth) {
 						double h = drawingHeight - ((g_dbl.getAsDouble()/this.max_depth)*drawingHeight);
 						final Element hline = element("rect");
-						hline.appendChild(element("title",(side==0?"average:":"median:")+g_dbl.orElse(0)));
+						hline.appendChild(element("title",(side==0?"average:":"median:")+format(g_dbl.orElse(0))));
 						g.appendChild(hline);
 						hline.setAttribute("class",(side==0?"average":"median"));
 						hline.setAttribute("x", "0");
