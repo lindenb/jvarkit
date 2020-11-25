@@ -38,6 +38,12 @@ import java.util.TreeMap;
  */
 public class DiscreteMedian<T extends Number>
 	{
+	public static enum Tendency  {
+		median,
+		average,
+		min,
+		max
+		};
 	private final TreeMap<T,Long> counter = new TreeMap<>();
 	private long size = 0L;
 	public DiscreteMedian() {
@@ -123,6 +129,41 @@ public class DiscreteMedian<T extends Number>
 			}
 		
 		return this;
+		}
+	
+	public OptionalDouble getTendency(final Tendency tendency) {
+		switch(tendency) {
+		case average: return getAverage();
+		case max: return getMax();
+		case median: return getMedian();
+		case min: return getMin();
+		default: throw new IllegalStateException();
+		}
+	}
+	
+	
+	public OptionalDouble getMin() {
+		T k = null;
+		long count=0L;
+		for(Map.Entry<T,Long> key: this.counter.entrySet()) {
+			if(k==null || count > key.getValue()) {
+				k = key.getKey();
+				count = key.getValue();
+				}
+			}
+		return k==null?OptionalDouble.empty():OptionalDouble.of(count);
+		}
+	
+	public OptionalDouble getMax() {
+		T k = null;
+		long count=0L;
+		for(Map.Entry<T,Long> key: this.counter.entrySet()) {
+			if(k==null || count < key.getValue()) {
+				k = key.getKey();
+				count = key.getValue();
+				}
+			}
+		return k==null?OptionalDouble.empty():OptionalDouble.of(count);
 		}
 	
 	public OptionalDouble getAverage() {

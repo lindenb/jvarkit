@@ -100,10 +100,13 @@ public class WGSCoveragePlotter extends Launcher {
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path refPath = null;
-	@Parameter(names={"--min-contig-length"},description="Skip chromosome with length < 'x'",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"--min-contig-length"},description="Skip chromosome with length < 'x'. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_contig_length = 0;
 	@Parameter(names={"--skip-contig-regex"},description="Skip chromosome matching this regular expression")
 	private String skipContigExpr = "(NC_007605|hs37d5)";
+
+	@Parameter(names={"--percentile"},description="How to we bin values")
+	private DiscreteMedian.Tendency percentile = DiscreteMedian.Tendency.median;
 
 	@Parameter(names={"--mapq"},description = "min mapping quality")
 	private int min_mapq=1;
@@ -306,7 +309,7 @@ public int doWork(final List<String> args) {
 				
 				for(int i=0;i< coverage.length;++i) {
 					ctg_median.add(coverage[i]);
-				}
+					}
 				
 				for(x=0;x< ci.width;x++) {
 					int x1 = (int)((x+0)*(1.0/pixelsPerBase));
@@ -318,7 +321,7 @@ public int doWork(final List<String> args) {
 						
 						++x1;
 					    }
-					OptionalDouble dbl = median.getMedian();
+					final OptionalDouble dbl = median.getTendency(this.percentile);
 					if(dbl.isPresent()) {
 						double dbl2 = dbl.getAsDouble();
 						if(dbl2 > this.max_depth && this.cap_depth) dbl2=this.max_depth;

@@ -30,10 +30,16 @@ Usage: wgscoverageplotter [options] Files
       Max depth to display
       Default: 100
     --min-contig-length
-      Skip chromosome with length < 'x'
+      Skip chromosome with length < 'x'. A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb 
       Default: 0
     -o, --output
       Output file. Optional . Default: stdout
+    --percentile
+      How to we bin values
+      Default: median
+      Possible Values: [median, average, min, max]
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
