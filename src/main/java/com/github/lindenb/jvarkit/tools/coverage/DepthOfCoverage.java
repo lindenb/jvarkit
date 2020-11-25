@@ -358,7 +358,7 @@ public class DepthOfCoverage extends Launcher
 							
 							int max_end1 = coverage.length;
 							
-							if(this.disable_paired_overlap_flag && 
+							if(!this.disable_paired_overlap_flag && 
 								rec.getReadPairedFlag() && 
 								!rec.getMateUnmappedFlag() &&
 								rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) &&
@@ -372,7 +372,7 @@ public class DepthOfCoverage extends Launcher
 								final int pos1=block.getReferenceStart();
 								final int len = block.getLength();
 								for(int i=0;i< len;i++) {
-									if(pos1>0 && pos1 +i <= max_end1) {
+									if(pos1+i-1>=0 && pos1 +i <= max_end1) {
 										coverage[pos1 + i -1]++;
 										}
 									}
