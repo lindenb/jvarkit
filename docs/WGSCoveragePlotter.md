@@ -11,7 +11,7 @@ Whole genome coverage plotter
 Usage: wgscoverageplotter [options] Files
   Options:
     --clip, --cap
-      Don't allow coverage to be greater than 'max-depth' in the SVG file.
+      Don't show coverage to be greater than 'max-depth' in the SVG file.
       Default: false
     --dimension
       Image Dimension.
@@ -23,11 +23,15 @@ Usage: wgscoverageplotter [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -I, --include-contig-regex
+      Only keep chromosomes matching this regular expression. Ignore if blank.
+      Default: <empty string>
     --mapq
       min mapping quality
       Default: 1
     -C, --max-depth
-      Max depth to display
+      Max depth to display. The special value '-1' will first compute the 
+      average depth and the set the max depth to 2*average
       Default: 100
     --min-contig-length
       Skip chromosome with length < 'x'. A distance specified as a positive 
@@ -37,15 +41,15 @@ Usage: wgscoverageplotter [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     --percentile
-      How to we bin values
+      How to we bin the coverage under one pixel.
       Default: median
       Possible Values: [median, average, min, max]
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
-    --skip-contig-regex
-      Skip chromosome matching this regular expression
-      Default: (NC_007605|hs37d5)
+    -X, --skip-contig-regex
+      Skip chromosomes matching this regular expression. Ignore if blank.
+      Default: <empty string>
     --version
       print version and exit
 
@@ -54,7 +58,7 @@ Usage: wgscoverageplotter [options] Files
 
 ## Keywords
 
- * cnv
+ * svg
  * bam
  * depth
  * coverage
@@ -86,6 +90,10 @@ The java jar file will be installed in the `dist` directory.
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2graphics/WGSCoveragePlotter.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bam2graphics/WGSCoveragePlotter.java)
 
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2graphics/WGSCoveragePlotterTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bam2graphics/WGSCoveragePlotterTest.java)
+
 
 ## Contribute
 
@@ -107,11 +115,21 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
-input is an interval of a file source of interval (bed, vcf, gtf, interval_list , ,etc...)
 
+## Files
 
+Input is an indexed BAM or CRAM file
+
+Output is a SVG file
+
+## Example
 ```
-java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa -B src/test/resources/S1.bam -B src/test/resources/S2.bam "RF01:1-4000" -w 50 | less -r
+java -jar dist/wgscoverageplotter.jar --dimension 1500x500 -C -1 --clip -R src/test/resources/rotavirus_rf.fa src/test/resources/S1.bam --include-contig-regex "RF.*" --percentile median  > ~/jeter.svg
 ```
 
+## Screenshot
+
+https://twitter.com/yokofakun/status/1331898068002861056
+
+![twitter](https://pbs.twimg.com/media/EnvaOnNW4AAkGTz?format=jpg&name=medium "Screenshot")
 

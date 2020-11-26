@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -74,25 +75,38 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalList;
+import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SequenceUtil;
 /**
 BEGIN_DOC
-input is an interval of a file source of interval (bed, vcf, gtf, interval_list , ,etc...)
 
+## Files
 
+Input is an indexed BAM or CRAM file
+
+Output is a SVG file
+
+## Example
 ```
-java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa -B src/test/resources/S1.bam -B src/test/resources/S2.bam "RF01:1-4000" -w 50 | less -r
+java -jar dist/wgscoverageplotter.jar --dimension 1500x500 -C -1 --clip -R src/test/resources/rotavirus_rf.fa src/test/resources/S1.bam --include-contig-regex "RF.*" --percentile median  > ~/jeter.svg
 ```
 
+## Screenshot
+
+https://twitter.com/yokofakun/status/1331898068002861056
+
+![twitter](https://pbs.twimg.com/media/EnvaOnNW4AAkGTz?format=jpg&name=medium "Screenshot")
 
 END_DOC 
  */
 @Program(
 	name="wgscoverageplotter",
 	description="Whole genome coverage plotter",
-	keywords={"cnv","bam","depth","coverage"},
+	keywords={"svg","bam","depth","coverage"},
 	creationDate="20201125",
-	modificationDate="20201125"
+	modificationDate="20201126"
 	)
 public class WGSCoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( WGSCoveragePlotter.class).make();
@@ -102,17 +116,17 @@ public class WGSCoveragePlotter extends Launcher {
 	private Path refPath = null;
 	@Parameter(names={"--min-contig-length"},description="Skip chromosome with length < 'x'. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_contig_length = 0;
-	@Parameter(names={"--skip-contig-regex"},description="Skip chromosome matching this regular expression")
-	private String skipContigExpr = "(NC_007605|hs37d5)";
-
-	@Parameter(names={"--percentile"},description="How to we bin values")
+	@Parameter(names={"-X","--skip-contig-regex"},description="Skip chromosomes matching this regular expression. Ignore if blank.")
+	private String skipContigExpr = "";
+	@Parameter(names={"-I","--include-contig-regex"},description="Only keep chromosomes matching this regular expression. Ignore if blank.")
+	private String includeContigExpr = "";
+	@Parameter(names={"--percentile"},description="How to we bin the coverage under one pixel.")
 	private DiscreteMedian.Tendency percentile = DiscreteMedian.Tendency.median;
-
 	@Parameter(names={"--mapq"},description = "min mapping quality")
 	private int min_mapq=1;
-	@Parameter(names={"-C","--max-depth"},description = "Max depth to display")
+	@Parameter(names={"-C","--max-depth"},description = "Max depth to display. The special value '-1' will first compute the average depth and the set the max depth to 2*average")
 	private int max_depth=100;
-	@Parameter(names={"--clip","--cap"},description = "Don't allow coverage to be greater than 'max-depth' in the SVG file.")
+	@Parameter(names={"--clip","--cap"},description = "Don't show coverage to be greater than 'max-depth' in the SVG file.")
 	private boolean cap_depth= false;
 
 	@Parameter(names={"--dimension"},description = "Image Dimension. " + DimensionConverter.OPT_DESC, converter=DimensionConverter.StringConverter.class,splitter=NoSplitter.class)
@@ -121,7 +135,6 @@ public class WGSCoveragePlotter extends Launcher {
 	private Map<String, String> dynaParams = new HashMap<>();
 	@Parameter(names={"--disable-paired-overlap"},description="Disable: Count overlapping bases with mate for paired-end")
 	private boolean disable_paired_overlap_flag=false;
-
 	
 	private Document document = null;
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
@@ -157,6 +170,11 @@ private Element element(final String tag,final Object content) {
 public int doWork(final List<String> args) {
 	try
 		{
+		if(!StringUtils.isBlank(this.skipContigExpr) && !StringUtils.isBlank(this.includeContigExpr)) {
+			LOG.error("Both include/exclude patterns are not blank.");
+			return -1;
+		}
+		
 		final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		dbf.setNamespaceAware(true);
 		final DocumentBuilder db = dbf.newDocumentBuilder();
@@ -181,12 +199,14 @@ public int doWork(final List<String> args) {
 				"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
 				"text.title {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
 				"rect.frame {stroke:darkgray;fill:none;stroke-width:0.5px;}\n" + 
-				"text.ruler {stroke:none;fill:black;stroke-width:1px;text-anchor:end;}\n"+
-				"text.chromName {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
-				"polygon.cov0 {stroke:lightgray;fill:antiquewhite;stroke-width:0.5px;}\n"+
-				"polygon.cov1 {stroke:lightgray;fill:beige;stroke-width:0.5px;}\n"+
-				"rect.average {stroke:green;fill:green;stroke-width:0.5px;}\n"+
-				"rect.median {stroke:red;fill:red;stroke-width:0.5px;}\n"+
+				"text.ruler {stroke:none;fill:darkgray;stroke-width:1px;text-anchor:end;}\n"+
+				"text.chromName {stroke:none;fill:darkgray;stroke-width:1px;text-anchor:middle;}\n"+
+				"text.xLabel {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
+				"text.yLabel {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
+				"polygon.cov0 {stroke:gray;fill:"+dynaParams.getOrDefault("fill-cov0","antiquewhite")+";stroke-width:0.5px;}\n"+
+				"polygon.cov1 {stroke:gray;fill:beige;stroke-width:0.5px;}\n"+
+				"rect.average {stroke:green;fill:green;stroke-width:0.5px;opacity:0.7;}\n"+
+				"rect.median {stroke:red;fill:red;stroke-width:0.5px;opacity:0.7;}\n"+
 				"line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}\n"+
 				""
 				));
@@ -202,6 +222,7 @@ public int doWork(final List<String> args) {
 		final List<ChromInfo> chromInfos = dict.getSequences().stream().
 				filter(SR->SR.getSequenceLength()>=this.min_contig_length).
 				filter(SR->StringUtils.isBlank(this.skipContigExpr) || !SR.getSequenceName().matches(this.skipContigExpr)).
+				filter(SR->StringUtils.isBlank(this.includeContigExpr) || SR.getSequenceName().matches(this.includeContigExpr)).
 				map(SR->new ChromInfo(SR)).
 				collect(Collectors.toList());
 		if(chromInfos.isEmpty()) {
@@ -212,7 +233,7 @@ public int doWork(final List<String> args) {
 		final double marginLeft = Double.parseDouble(dynaParams.getOrDefault("margin-left", "100"));
 		final double marginRight = Double.parseDouble(dynaParams.getOrDefault("margin-right", "10"));
 		final double marginTop = Double.parseDouble(dynaParams.getOrDefault("margin-top", "80"));
-		final double marginBottom = Double.parseDouble(dynaParams.getOrDefault("margin-bottom", "10"));
+		final double marginBottom = Double.parseDouble(dynaParams.getOrDefault("margin-bottom", "50"));
 		final double drawingWidth= this.dimension.width - (marginLeft+marginRight);
 		final double drawingHeight = this.dimension.height - (marginTop+marginBottom);
 		
@@ -226,8 +247,8 @@ public int doWork(final List<String> args) {
 		g_chroms.setAttribute("id", "chromosomes");
 		mainG.appendChild(g_chroms);
 		
-		final long sumLength = chromInfos.stream().mapToLong(CI->CI.ssr.getSequenceLength()).sum();
-		final double pixelsPerBase = (drawingWidth - (pixelsBetweenChromosomes*(chromInfos.size()-1)))/(double)sumLength;
+		final long genomeLength = chromInfos.stream().mapToLong(CI->CI.ssr.getSequenceLength()).sum();
+		final double pixelsPerBase = (drawingWidth - (pixelsBetweenChromosomes*(chromInfos.size()-1)))/(double)genomeLength;
 		double x = marginRight;
 		for(int i=0;i< chromInfos.size();i++) {
 			final ChromInfo ci = chromInfos.get(i);
@@ -246,22 +267,58 @@ public int doWork(final List<String> args) {
 		maintitle.appendChild(text(input.getFileName().toString()));
 		
 		
-		final Element g_label = element("text",input.getFileName().toString());
-		g_label.setAttribute("class", "title");
-		g_label.setAttribute("x", format(marginLeft+drawingWidth/2.0));
-		g_label.setAttribute("y", format(marginTop/2.0));
-		g_label.appendChild(element("title",input.toString()));
-		mainG.appendChild(g_label);
 		
-		final ProgressFactory.Watcher<SAMSequenceRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 		try(SamReader sr = samReaderFactory.open(input)) {
 			if(!sr.hasIndex()) {
 				LOG.error("input bam "+input+" is not indexed.");
 				return -1;
 				}
 			final SAMFileHeader header = sr.getFileHeader();
-						
+			
+			//title is path + sample(s)
+			final Element g_label = element("text",input.getFileName().toString() + " " + header.getReadGroups().stream().
+					map(RG->RG.getSample()).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toCollection(TreeSet::new)).stream().
+					collect(Collectors.joining(" "))
+					);
+			mainG.appendChild(g_label);
+			g_label.setAttribute("class", "title");
+			g_label.setAttribute("x", format(marginLeft+drawingWidth/2.0));
+			g_label.setAttribute("y", format(marginTop/2.0));
+			g_label.appendChild(element("title",input.toString()));
+			
 			SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(header));
+			
+			
+			if(this.max_depth==-1) {
+				LOG.info("Computing mean depth...");
+				final IntervalList intervalList = new IntervalList(header);
+				intervalList.addall(
+							chromInfos.stream().
+							map(CI->new Interval(CI.ssr)).
+							collect(Collectors.toList()));
+				long T=0;
+				double N=0.0;
+				try(SamLocusIterator sli = new SamLocusIterator(sr, intervalList, true)) {
+					sli.setEmitUncoveredLoci(true);
+					sli.setMappingQualityScoreCutoff(this.min_mapq);
+					while(sli.hasNext()) {
+						N++;
+						T+=sli.next().size();
+					}
+				if(N>0) max_depth=(int)(2.0*(T/N));
+				if(max_depth<=0) max_depth = 1;
+				LOG.info("Now using max depth="+this.max_depth);
+				}
+			}
+			
+			if(max_depth<1) {
+				LOG.error("Bad user 'max-depth':"+max_depth);
+				return -1;
+				}
+			
+			final ProgressFactory.Watcher<SAMSequenceRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			for(final ChromInfo ci: chromInfos) {
 				progress.apply(ci.ssr);
 				int coverage[]  = new int[ci.ssr.getSequenceLength()];
@@ -385,7 +442,7 @@ public int doWork(final List<String> args) {
 				hline.setAttribute("x2", format(drawingWidth));
 				hline.setAttribute("y2", format(h));
 
-				final Element label = element("text",""+y);
+				final Element label = element("text",StringUtils.niceInt(y));
 				label.setAttribute("class", "ruler");
 				label.setAttribute("x", "-5");
 				label.setAttribute("y", format(h));
@@ -393,7 +450,22 @@ public int doWork(final List<String> args) {
 				
 				prev_y=y;
 				}
+			final Element xLabel = element("text",this.refPath.getFileName().toString()+" "+
+					SequenceDictionaryUtils.getBuildName(dict).orElse("")+
+					" ("+ StringUtils.niceInt(genomeLength)+" bp)");
+			xLabel.setAttribute("class", "xLabel");
+			xLabel.setAttribute("x", format(marginLeft+drawingWidth/2.0));
+			xLabel.setAttribute("y", format(this.dimension.height - marginBottom/2.0));
+			xLabel.appendChild(element("title",this.refPath.toString()));
+			mainG.appendChild(xLabel);
 			
+			
+			final Element yLabel = element("text","Coverage bp ("+this.percentile.name()+")");
+			yLabel.setAttribute("class", "yLabel");
+			yLabel.setAttribute("x","0");
+			yLabel.setAttribute("y","0");
+			yLabel.setAttribute("transform", "translate("+format(marginLeft/4.0)+","+format(marginTop+drawingHeight/2.0)+") rotate(90)");
+			mainG.appendChild(yLabel);
 			}
 		final Transformer tr = TransformerFactory.newInstance().newTransformer();
 		final Result result;
@@ -417,6 +489,7 @@ public int doWork(final List<String> args) {
 		}
 	finally
 		{
+		document=null;
 		}
 	}
 
