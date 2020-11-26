@@ -2,9 +2,6 @@ package com.github.lindenb.jvarkit.tools.bam2graphics;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 import org.testng.Assert;
 
@@ -26,6 +23,9 @@ public class WGSCoveragePlotterTest {
 				"--percentile","median",
 				"-C","-1",
 				"-o",out.toString(),
+				"--partition","sample",
+				"--samples","S1,Sx",
+				"--points",
 				support.resource("S1.bam")
 				}),
 				0);

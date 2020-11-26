@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -64,10 +65,12 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -75,6 +78,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.SamLocusIterator;
@@ -138,6 +142,10 @@ public class WGSCoveragePlotter extends Launcher {
 	private boolean disable_paired_overlap_flag=false;
 	@Parameter(names={"--points"},description="Plot the coverage using points instead of areas.")
 	private boolean plot_using_points =false;
+	@Parameter(names={"--partition"},description="When using the option --samples, use this partition "+SAMRecordPartition.OPT_DESC)
+	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
+	@Parameter(names={"--samples"},description="Limit to those groups. See also --partition. Multiple separated with commas.")
+	private String limitSamples = "";
 
 	
 	
@@ -300,6 +308,42 @@ public int doWork(final List<String> args) {
 				}
 			final SAMFileHeader header = sr.getFileHeader();
 			
+			final Set<String> limitRGIds;
+			if(StringUtils.isBlank(this.limitSamples)) {
+				limitRGIds = null;
+				}
+			else
+				{
+				final Set<String> sampleSet = Arrays.stream(this.limitSamples.split("[ ,]+")).
+						filter(S->!StringUtils.isBlank(S)).
+						collect(Collectors.toSet());
+				limitRGIds = header.getReadGroups().stream().
+					filter(RG->sampleSet.contains(this.groupBy.apply(RG, ""))).
+					map(RG->RG.getId()).
+					collect(Collectors.toSet());
+				if(limitRGIds.isEmpty()) {
+					LOG.error("samples are specified "+groupBy.name()+":("+this.limitSamples+") but I cannot find any in the read groups of "+input);
+					return -1;
+					}
+				}
+			
+			final SamRecordFilter samReadFilter = new SamRecordFilter() {
+				@Override
+				public boolean filterOut(final SAMRecord rec) {
+					if(!SAMRecordDefaultFilter.accept(rec, min_mapq)) return true;
+					if(limitRGIds!=null) {
+						final SAMReadGroupRecord rg = rec.getReadGroup();
+						if(rg==null) return true;
+						if(!limitRGIds.contains(rg.getId())) return true;
+						}
+					return false;
+					}
+				@Override
+				public boolean filterOut(SAMRecord first, SAMRecord second) {
+					return filterOut(first) && filterOut(second);
+					}
+				};
+			
 			//title is path + sample(s)
 			final Element g_label = element("text",input.getFileName().toString() + " " + header.getReadGroups().stream().
 					map(RG->RG.getSample()).
@@ -327,7 +371,7 @@ public int doWork(final List<String> args) {
 				double N=0.0;
 				try(SamLocusIterator sli = new SamLocusIterator(sr, intervalList, true)) {
 					sli.setEmitUncoveredLoci(true);
-					sli.setMappingQualityScoreCutoff(this.min_mapq);
+					sli.setSamFilters(Arrays.asList(samReadFilter));
 					while(sli.hasNext()) {
 						N++;
 						T+=sli.next().size();
@@ -351,8 +395,7 @@ public int doWork(final List<String> args) {
 				try(SAMRecordIterator iter= sr.queryOverlapping(ci.ssr.getSequenceName(), 1, ci.ssr.getSequenceLength())) {
 						while(iter.hasNext()) {
 						final SAMRecord rec= iter.next();
-						
-						if(!SAMRecordDefaultFilter.accept(rec, this.min_mapq)) continue;
+						if(samReadFilter.filterOut(rec)) continue;
 						
 						int max_end1 = coverage.length;
 						

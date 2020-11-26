@@ -41,6 +41,13 @@ Usage: wgscoverageplotter [options] Files
       Default: 0
     -o, --output
       Output file. Optional . Default: stdout
+    --partition
+      When using the option --samples, use this partition Data partitioning 
+      using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     --percentile
       How to we bin the coverage under one pixel.
       Default: median
@@ -51,6 +58,10 @@ Usage: wgscoverageplotter [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --samples
+      Limit to those groups. See also --partition. Multiple separated with 
+      commas. 
+      Default: <empty string>
     -X, --skip-contig-regex
       Skip chromosomes matching this regular expression. Ignore if blank.
       Default: <empty string>
