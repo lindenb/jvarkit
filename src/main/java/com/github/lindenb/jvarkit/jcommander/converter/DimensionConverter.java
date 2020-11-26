@@ -33,10 +33,17 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.function.Function;
+import java.util.zip.GZIPInputStream;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import javax.xml.namespace.QName;
+import javax.xml.stream.XMLEventReader;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.events.Attribute;
+import javax.xml.stream.events.StartElement;
+import javax.xml.stream.events.XMLEvent;
 
 import com.beust.jcommander.IStringConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -45,7 +52,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 public class DimensionConverter
 	implements Function<String,Dimension>
 	{
-	public static final String OPT_DESC="";
+	public static final String OPT_DESC="a dimension can be specified as '[integer]x[integer]' or it can be the path to an existing png,jpg,xcf,svg file. ";
 	
 	public static class StringConverter implements IStringConverter<Dimension> {
 		@Override
@@ -70,6 +77,42 @@ public class DimensionConverter
 		if(!Files.exists(f) || !Files.isRegularFile(f)) {
 			throw new IllegalArgumentException("not an existing file: "+f);
 			}
+		if(f.getFileName().toString().endsWith(".svg") || f.getFileName().toString().endsWith(".svg.gz")) {
+			try(InputStream fis=Files.newInputStream(f))
+				{
+				InputStream in=fis;
+				if( f.getFileName().toString().endsWith(".gz")) {
+					in=new GZIPInputStream(fis);
+					}
+				Integer w = null;
+				Integer h = null;
+				XMLEventReader r = XMLInputFactory.newInstance().createXMLEventReader(in);
+				while(r.hasNext()) {
+					final XMLEvent evt = r.nextEvent();
+					if(!evt.isStartElement()) continue;
+					final StartElement E = evt.asStartElement();
+					if("svg".equals(E.getName().getLocalPart())) {
+						Attribute att = E.getAttributeByName(new QName("width"));
+						if(att!=null) {
+							w= (int)Double.parseDouble(att.getValue());
+							}
+						 att = E.getAttributeByName(new QName("height"));
+						if(att!=null) {
+							h= (int)Double.parseDouble(att.getValue());
+							}
+						}
+					break;
+					}
+				r.close();
+				if(w!=null && h!=null) return new Dimension(w,h);
+				}
+			catch(final Exception err) {
+				throw new IllegalArgumentException(err);
+				}
+			throw new IllegalArgumentException("cannot get dimension from SVG file "+f);
+			}
+		
+		
 		if(f.getFileName().toString().endsWith(".xcf"))
 				{
 				try(InputStream fis=Files.newInputStream(f))

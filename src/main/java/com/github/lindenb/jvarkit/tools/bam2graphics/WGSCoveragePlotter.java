@@ -106,7 +106,8 @@ END_DOC
 	description="Whole genome coverage plotter",
 	keywords={"svg","bam","depth","coverage"},
 	creationDate="20201125",
-	modificationDate="20201126"
+	modificationDate="20201126",
+	biostars={104063,475162}
 	)
 public class WGSCoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( WGSCoveragePlotter.class).make();
@@ -131,10 +132,14 @@ public class WGSCoveragePlotter extends Launcher {
 
 	@Parameter(names={"--dimension"},description = "Image Dimension. " + DimensionConverter.OPT_DESC, converter=DimensionConverter.StringConverter.class,splitter=NoSplitter.class)
 	private Dimension dimension = new Dimension(1000,500);
-	@DynamicParameter(names = "-D", description = "style",hidden=true)
+	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
 	private Map<String, String> dynaParams = new HashMap<>();
 	@Parameter(names={"--disable-paired-overlap"},description="Disable: Count overlapping bases with mate for paired-end")
 	private boolean disable_paired_overlap_flag=false;
+	@Parameter(names={"--points"},description="Plot the coverage using points instead of areas.")
+	private boolean plot_using_points =false;
+
+	
 	
 	private Document document = null;
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
@@ -144,6 +149,7 @@ public class WGSCoveragePlotter extends Launcher {
 	
 private class ChromInfo {
 	final SAMSequenceRecord ssr;
+	int idx = 0;
 	double x = 0;
 	double width=0;
 	ChromInfo(final SAMSequenceRecord ssr) {
@@ -173,7 +179,7 @@ public int doWork(final List<String> args) {
 		if(!StringUtils.isBlank(this.skipContigExpr) && !StringUtils.isBlank(this.includeContigExpr)) {
 			LOG.error("Both include/exclude patterns are not blank.");
 			return -1;
-		}
+			}
 		
 		final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		dbf.setNamespaceAware(true);
@@ -183,15 +189,15 @@ public int doWork(final List<String> args) {
 		
 		final Element svgRoot = element("svg");
 		this.document.appendChild(svgRoot);
-		svgRoot.setAttribute("width",format(dimension.width+1));
-		svgRoot.setAttribute("height",format(dimension.height+1));
+		svgRoot.setAttribute("width",format(dimension.width));
+		svgRoot.setAttribute("height",format(dimension.height));
 			
 		final Element maintitle = element("title");
 		svgRoot.appendChild(maintitle);
 		
 		final Element descr = element("desc");
 		svgRoot.appendChild(descr);
-		descr.appendChild(text("Author: Pierre Lindenbaum"));
+		descr.appendChild(text("Made with "+ getProgramName()+" "+getVersion()+" Author: Pierre Lindenbaum"));
 		
 		final Element style = element("style");
 		svgRoot.appendChild(style);
@@ -203,14 +209,32 @@ public int doWork(final List<String> args) {
 				"text.chromName {stroke:none;fill:darkgray;stroke-width:1px;text-anchor:middle;}\n"+
 				"text.xLabel {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
 				"text.yLabel {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
-				"polygon.cov0 {stroke:gray;fill:"+dynaParams.getOrDefault("fill-cov0","antiquewhite")+";stroke-width:0.5px;}\n"+
-				"polygon.cov1 {stroke:gray;fill:beige;stroke-width:0.5px;}\n"+
+				".cov0 {stroke:"+dynaParams.getOrDefault("stroke-cov0",plot_using_points?"slategray":"gray")+";fill:"+dynaParams.getOrDefault("fill-cov0","antiquewhite")+";stroke-width:0.5px;}\n"+
+				".cov1 {stroke:"+dynaParams.getOrDefault("stroke-cov1",plot_using_points?"#61666B":"gray")+";fill:"+dynaParams.getOrDefault("fill-cov0","beige")+";stroke-width:0.5px;}\n"+
 				"rect.average {stroke:green;fill:green;stroke-width:0.5px;opacity:0.7;}\n"+
 				"rect.median {stroke:red;fill:red;stroke-width:0.5px;opacity:0.7;}\n"+
 				"line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}\n"+
 				""
 				));
 
+		if(this.plot_using_points) {
+			final int dz = Integer.parseInt(dynaParams.getOrDefault("point-size","5"));
+			final Element defsE = element("defs");
+			svgRoot.appendChild(defsE);
+			final Element g = element("g");
+			defsE.appendChild(g);
+
+			g.setAttribute("id", "cross");
+			Element L= element("line");
+			L.setAttribute("x1",format(-dz));L.setAttribute("x2",format(dz));
+			L.setAttribute("y1",format(0));L.setAttribute("y2",format(0));
+			g.appendChild(L);
+			L= element("line");
+			L.setAttribute("x1",format(0));L.setAttribute("x2",format(0));
+			L.setAttribute("y1",format(-dz));L.setAttribute("y2",format(dz));
+			g.appendChild(L);
+			}
+				
 		final Element mainG = element("g");
 		mainG.setAttribute("class","maing");
 		svgRoot.appendChild(mainG);
@@ -252,6 +276,7 @@ public int doWork(final List<String> args) {
 		double x = marginRight;
 		for(int i=0;i< chromInfos.size();i++) {
 			final ChromInfo ci = chromInfos.get(i);
+			ci.idx = i;
 			ci.x = x;
 			ci.width = ci.ssr.getSequenceLength() * pixelsPerBase;
 			x=(ci.x+ci.width)+pixelsBetweenChromosomes;
@@ -358,11 +383,11 @@ public int doWork(final List<String> args) {
 				
 				final DiscreteMedian<Integer> ctg_median = new DiscreteMedian<>();
 
-				final Element polyline = element("polygon");
+				final Element polyline = element(this.plot_using_points?"g":"polygon");
 				g.appendChild(polyline);
 				final List<Point2D> points  = new ArrayList<>((int)ci.width);
-				polyline.setAttribute("class", "cov"+(ci.ssr.getSequenceIndex()%2));
-				points.add(new Point2D.Double(0,drawingHeight));
+				polyline.setAttribute("class", "cov"+(ci.idx%2));
+				if(!plot_using_points) points.add(new Point2D.Double(0,drawingHeight));
 				
 				for(int i=0;i< coverage.length;++i) {
 					ctg_median.add(coverage[i]);
@@ -381,15 +406,29 @@ public int doWork(final List<String> args) {
 					final OptionalDouble dbl = median.getTendency(this.percentile);
 					if(dbl.isPresent()) {
 						double dbl2 = dbl.getAsDouble();
-						if(dbl2 > this.max_depth && this.cap_depth) dbl2=this.max_depth;
+						if(dbl2 > this.max_depth && this.cap_depth) {
+							if(this.plot_using_points) continue;
+							dbl2=this.max_depth;
+						}
 						points.add(new Point2D.Double(x,drawingHeight - (dbl2/this.max_depth)*drawingHeight));
 						}
 					
 					}
-				points.add(new Point2D.Double(ci.width,drawingHeight));
+				if(!plot_using_points)  points.add(new Point2D.Double(ci.width,drawingHeight));
 				
-				polyline.setAttribute("points",points.stream().map(P->format(P.getX())+","+format(P.getY())).collect(Collectors.joining(" ")));
-				polyline.appendChild(element("title", ci.ssr.getSequenceName()));
+				if(this.plot_using_points) {
+					for(final Point2D pt: points) {
+						final Element use = element("use");
+						use.setAttribute("href", "#cross");
+						use.setAttribute("x",format(pt.getX()));
+						use.setAttribute("y",format(pt.getY()));
+						polyline.appendChild(use);
+						}
+					}
+				else {
+					polyline.setAttribute("points",points.stream().map(P->format(P.getX())+","+format(P.getY())).collect(Collectors.joining(" ")));
+					polyline.appendChild(element("title", ci.ssr.getSequenceName()));
+					}
 				
 				for(int side=0;side<2;++side) {
 					final OptionalDouble g_dbl = (side==0?ctg_median.getAverage():ctg_median.getMedian());

@@ -14,7 +14,8 @@ Usage: wgscoverageplotter [options] Files
       Don't show coverage to be greater than 'max-depth' in the SVG file.
       Default: false
     --dimension
-      Image Dimension.
+      Image Dimension. a dimension can be specified as '[integer]x[integer]' 
+      or it can be the path to an existing png,jpg,xcf,svg file.
       Default: java.awt.Dimension[width=1000,height=500]
     --disable-paired-overlap
       Disable: Count overlapping bases with mate for paired-end
@@ -44,6 +45,9 @@ Usage: wgscoverageplotter [options] Files
       How to we bin the coverage under one pixel.
       Default: median
       Possible Values: [median, average, min, max]
+    --points
+      Plot the coverage using points instead of areas.
+      Default: false
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -52,6 +56,10 @@ Usage: wgscoverageplotter [options] Files
       Default: <empty string>
     --version
       print version and exit
+    -D
+      set some css style elements. '-Dkey=value'. Undocumented.
+      Syntax: -Dkey=value
+      Default: {}
 
 ```
 
@@ -62,6 +70,13 @@ Usage: wgscoverageplotter [options] Files
  * bam
  * depth
  * coverage
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/104063](https://www.biostars.org/p/104063)
+ * [https://www.biostars.org/p/475162](https://www.biostars.org/p/475162)
 
 
 ## Compilation
