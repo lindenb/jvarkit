@@ -138,7 +138,7 @@ public class WGSCoveragePlotter extends Launcher {
 	private Dimension dimension = new Dimension(1000,500);
 	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
 	private Map<String, String> dynaParams = new HashMap<>();
-	@Parameter(names={"--disable-paired-overlap"},description="Disable: Count overlapping bases with mate for paired-end")
+	@Parameter(names={"--disable-paired-overlap"},description="Count overlapping bases with mate for paired-end")
 	private boolean disable_paired_overlap_flag=false;
 	@Parameter(names={"--points"},description="Plot the coverage using points instead of areas.")
 	private boolean plot_using_points =false;

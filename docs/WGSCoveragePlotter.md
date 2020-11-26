@@ -18,7 +18,7 @@ Usage: wgscoverageplotter [options] Files
       or it can be the path to an existing png,jpg,xcf,svg file.
       Default: java.awt.Dimension[width=1000,height=500]
     --disable-paired-overlap
-      Disable: Count overlapping bases with mate for paired-end
+      Count overlapping bases with mate for paired-end
       Default: false
     -h, --help
       print help and exit

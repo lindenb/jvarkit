@@ -25,17 +25,23 @@ Usage: faidxsplitter [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -x, --overlap
-      Overlap  Size. The resulting BED region should overlap with 'x' bases.
+      Overlap  Size. The resulting BED region should overlap with 'x' bases. A 
+      distance specified as a positive integer.Commas are removed. The 
+      following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 1000
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     -w, --size
-      BED Size. The genome should be split into BED of 'w' size.
+      BED Size. The genome should be split into BED of 'w' size. A distance 
+      specified as a positive integer.Commas are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 1000000
     -s, --small
       If it remains 's' bases in the BED split to the end of the chromosome, 
-      extends the current BED.
+      extends the current BED. A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb 
       Default: 1000
     --version
       print version and exit
@@ -48,6 +54,12 @@ Usage: faidxsplitter [options] Files
  * vcf
  * reference
  * bed
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/475627](https://www.biostars.org/p/475627)
 
 
 ## Compilation
@@ -66,6 +78,11 @@ $ ./gradlew faidxsplitter
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20181011
 
 ## Source code 
 
@@ -124,5 +141,4 @@ $ java -jar dist/faidxsplitter.jar -gap jeter.gaps.txt -gene jeter.genes.txt -R 
 
 ```
 
- 
 

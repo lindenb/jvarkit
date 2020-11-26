@@ -86,7 +86,6 @@ $ java -jar dist/faidxsplitter.jar -gap jeter.gaps.txt -gene jeter.genes.txt -R 
 
 ```
 
- 
 
 END_DOC
  */
@@ -95,7 +94,9 @@ END_DOC
 	name="faidxsplitter",
 	description="Split bed of reference genome into overlapping parts",
 	keywords={"vcf","reference","bed"},
-	modificationDate="20190307"
+	modificationDate="20190307",
+	creationDate="20181011",
+	biostars={475627}
 	)
 public class FaidxSplitter  extends Launcher
 	{
