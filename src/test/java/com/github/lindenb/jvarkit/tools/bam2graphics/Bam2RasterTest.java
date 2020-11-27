@@ -11,9 +11,9 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest(Launcher.class)
+@AlsoTest(LauncherTest.class)
 public class Bam2RasterTest {
 	private final TestSupport support = new TestSupport();
 

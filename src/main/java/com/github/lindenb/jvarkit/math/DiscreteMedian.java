@@ -25,12 +25,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.math;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.List;
 import java.util.OptionalDouble;
-import java.util.TreeMap;
-
+import java.util.stream.DoubleStream;
 /*
  * see https://stackoverflow.com/questions/3052924
  * @author lindenb
@@ -44,8 +44,13 @@ public class DiscreteMedian<T extends Number>
 		min,
 		max
 		};
-	private final TreeMap<T,Long> counter = new TreeMap<>();
-	private long size = 0L;
+		
+	private class Entry {
+		final T key;
+		long count = 0L;
+		Entry(final T key) { this.key = key;}
+		}
+	private final List<Entry> counter = new ArrayList<>(1000);
 	public DiscreteMedian() {
 		}
 	
@@ -72,14 +77,14 @@ public class DiscreteMedian<T extends Number>
 			sb.append("N/A");
 			}
 		sb.append("\n");
-		for(T key : counter.keySet()) {
-			sb.append("\t[").append(key).append("]\t").append(counter.get(key)).append("\n");
+		for(final Entry kv : this.counter) {
+			sb.append("\t[").append(kv.key).append("]\t").append(kv.count).append("\n");
 			}
 		sb.append("\n");
 		return sb.toString();
 		}
 	public long size() {
-		return this.size;
+		return  this.counter.stream().mapToLong(KV->KV.count).sum();
 		}
 	
 	public boolean isEmpty() {
@@ -87,24 +92,55 @@ public class DiscreteMedian<T extends Number>
 		}
 	
 	public DiscreteMedian<T> clear() {
-		this.size = 0L;
 		this.counter.clear();
 		return this;
 	}
 	
+	@SuppressWarnings("unchecked")
+	private int lower_bound(final T select) {
+	    int len = this.counter.size();
+	    int first = 0;
+	    while (len > 0)
+	            {
+	            final int half = len / 2;
+	            final int middle = first + half;
+
+	            final T mid  = this.counter.get(middle).key;
+	            if (Comparable.class.cast(mid).compareTo(select)<0)
+	                    {
+	                    first = middle + 1;
+	                    len = len - half - 1;
+	                    }
+	            else
+	                    {
+	                    len = half;
+	                    }
+	            }
+	    return first;
+		}
+	
+	private void add(final T value,long incr) {
+		final int idx = lower_bound(value);
+		final Entry entry;
+		if(idx>=this.counter.size() || !counter.get(idx).key.equals(value)) {
+			entry = new Entry(value);
+			this.counter.add(idx, entry);
+			}
+		else
+			{
+			entry = this.counter.get(idx);
+			}
+		entry.count+=incr;
+		}
+	
 	public DiscreteMedian<T> add(final T value) {
-		final long n = this.counter.getOrDefault(value, 0L);
-		this.counter.put(value, n+1L);
-		this.size++;
+		add(value,1L);
 		return this;
 		}
 	
 	public DiscreteMedian<T> add(final DiscreteMedian<T> other) {
-		for(T t: other.counter.keySet()) {
-			final long n1 = other.counter.get(t);
-			final long n2 = this.counter.getOrDefault(t, 0L);
-			this.counter.put(t, n1+n2);
-			this.size+=n1;
+		for(final Entry t: other.counter) {
+			this.add(t.key,t.count);
 			}
 		return this;
 		}
@@ -117,9 +153,7 @@ public class DiscreteMedian<T extends Number>
 			T curr = iter.hasNext()?iter.next():null; 
 			if(curr==null || (prev!=null && !prev.equals(curr))) {
 				if(prev!=null) {
-					long prev_count = this.counter.getOrDefault(prev, 0L);
-					this.counter.put(prev, prev_count+n);
-					this.size+=n;
+					this.add(prev,n);
 					}
 				if(curr==null) break;
 				prev=curr;
@@ -141,90 +175,48 @@ public class DiscreteMedian<T extends Number>
 		}
 	}
 	
+	public DoubleStream getAsDoubleStream() {
+		return  this.counter.stream().flatMapToDouble(
+				KV->DoubleStream.generate(()->KV.key.doubleValue()).limit(KV.count)
+				);
+		}
 	
 	public OptionalDouble getMin() {
-		T k = null;
-		long count=0L;
-		for(Map.Entry<T,Long> key: this.counter.entrySet()) {
-			if(k==null || count > key.getValue()) {
-				k = key.getKey();
-				count = key.getValue();
-				}
-			}
-		return k==null?OptionalDouble.empty():OptionalDouble.of(count);
+		return getAsDoubleStream().min();
 		}
 	
 	public OptionalDouble getMax() {
-		T k = null;
-		long count=0L;
-		for(Map.Entry<T,Long> key: this.counter.entrySet()) {
-			if(k==null || count < key.getValue()) {
-				k = key.getKey();
-				count = key.getValue();
-				}
-			}
-		return k==null?OptionalDouble.empty():OptionalDouble.of(count);
+		return getAsDoubleStream().max();
 		}
 	
 	public OptionalDouble getAverage() {
-		if(isEmpty()) return OptionalDouble.empty();
-		return OptionalDouble.of(
-			counter.entrySet().
-			stream().
-			mapToDouble(KV->KV.getKey().doubleValue()* KV.getValue()).
-			sum()/this.size
-			);
+		return getAsDoubleStream().average();
 		}
 	
 	public OptionalDouble getStandardDeviation() {
 		final OptionalDouble avg = getAverage();
 		if(!avg.isPresent()) return OptionalDouble.empty();
 		final double v1 = avg.getAsDouble();
-		double sum=0;
-		for(Map.Entry<T,Long> key: this.counter.entrySet()) {
-			final double v2 = Math.pow(key.getKey().doubleValue() - v1,2.0);
-			for(long n1=0;n1< key.getValue();++n1) {
-				sum+=v2;
-				}
-			}
-		sum/=this.size;
-		if(sum<=0) return OptionalDouble.empty();
-		return OptionalDouble.of(Math.sqrt(sum));
-	}
+		
+		final OptionalDouble optdbl =  getAsDoubleStream().map(V-> Math.pow(V- v1,2.0)).average();
+		if(!optdbl.isPresent() || optdbl.orElse(0.0)<=0.0) return OptionalDouble.empty();
+		return OptionalDouble.of(Math.sqrt(optdbl.getAsDouble()));
+		}
 	
 	/** get median for this dataset */
 	public OptionalDouble getMedian() {
 		if(isEmpty()) return OptionalDouble.empty();
-		final long mid_x = this.size/2L;
-		if (this.size%2==1) {
-			long n=0;
-			for(T key : this.counter.keySet())   {
-				final long c = this.counter.get(key);
-				if(mid_x< n+c) return OptionalDouble.of(key.doubleValue());
-				n+=c;
-				}
+		final long L= this.size();
+		final long mid_x = L/2L;
+		if (L%2==1) {
+			// if size==1 , midx_x=0, we peek mid_x
+			// if size==3 , midx_x=1, we peek mid_x
+			return getAsDoubleStream().skip(mid_x).findFirst();
 			}
 		else {
-			long n=0;
-		 	final Iterator<T> iter = this.counter.keySet().iterator();
-		 	while(iter.hasNext()) {
-		 		T key =  iter.next();
-		 		final long count = this.counter.get(key);
-		 		if((mid_x-1)>= n+count)
-		 			{
-		 			n+=count;
-		 			continue;
-		 			}
-		 		double v1= key.doubleValue();
-		 		if((mid_x)< n+count) {
-		 			return OptionalDouble.of(v1);
-		 			}
-		 		if(!iter.hasNext()) throw new IllegalStateException();
-		 		key = iter.next();
-				double v2= key.doubleValue();
-				return OptionalDouble.of((v1+v2)/2.0);	
-		 		}
+			// if size==2 , midx_x=1, we peek 0 and 1
+			// if size==4, mid_dx=2, we peek 1 and 2
+			return getAsDoubleStream().skip(mid_x-1L).limit(2).average();
 		  }
-		throw new IllegalStateException();
 		}
 	}

@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.bam2graphics;
 
 import java.awt.Dimension;
 import java.awt.geom.Point2D;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
@@ -79,9 +80,6 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalList;
-import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SequenceUtil;
 /**
 BEGIN_DOC
@@ -179,6 +177,44 @@ private Element element(final String tag,final Object content) {
 	E.appendChild(text(content));
 	return E;
 	}
+/** get coverage in given chromosome for all bases of the chromosome */
+private int[] getContigCoverage(final SamReader sr, final SAMSequenceRecord ssr,final SamRecordFilter samReadFilter) throws IOException {
+	final int[] coverage;
+	try {
+		coverage = new int[ssr.getSequenceLength()];
+	} catch(final Throwable err) {
+		throw new OutOfMemoryError("Error: cannot alloc memory for sizeof(int)*"+ssr.getSequenceLength()+" (chrom "+ssr.getSequenceName()+")");
+		}
+	Arrays.fill(coverage, 0);
+	try(SAMRecordIterator iter= sr.queryOverlapping(ssr.getSequenceName(), 1, ssr.getSequenceLength())) {
+			while(iter.hasNext()) {
+			final SAMRecord rec= iter.next();
+			if(samReadFilter.filterOut(rec)) continue;
+			
+			int max_end1 = coverage.length;
+			
+			if(!this.disable_paired_overlap_flag && 
+				rec.getReadPairedFlag() && 
+				!rec.getMateUnmappedFlag() &&
+				rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) &&
+				rec.getAlignmentStart() < rec.getMateAlignmentStart() &&
+				rec.getAlignmentEnd() > rec.getMateAlignmentStart()
+				) {
+				max_end1 = rec.getMateAlignmentStart() - 1;
+				}
+			for(final AlignmentBlock block:rec.getAlignmentBlocks()) {
+				final int pos1=block.getReferenceStart();
+				final int len = block.getLength();
+				for(int i=0;i< len;i++) {
+					if(pos1+i-1>=0 && pos1 +i <= max_end1) {
+						coverage[pos1 + i -1]++;
+						}
+					}
+				}
+			}
+		}
+	return coverage;
+	}
 
 @Override
 public int doWork(final List<String> args) {
@@ -219,8 +255,8 @@ public int doWork(final List<String> args) {
 				"text.yLabel {stroke:none;fill:black;stroke-width:1px;text-anchor:middle;}\n"+
 				".cov0 {stroke:"+dynaParams.getOrDefault("stroke-cov0",plot_using_points?"slategray":"gray")+";fill:"+dynaParams.getOrDefault("fill-cov0","antiquewhite")+";stroke-width:0.5px;}\n"+
 				".cov1 {stroke:"+dynaParams.getOrDefault("stroke-cov1",plot_using_points?"#61666B":"gray")+";fill:"+dynaParams.getOrDefault("fill-cov0","beige")+";stroke-width:0.5px;}\n"+
-				"rect.average {stroke:green;fill:green;stroke-width:0.5px;opacity:0.7;}\n"+
-				"rect.median {stroke:red;fill:red;stroke-width:0.5px;opacity:0.7;}\n"+
+				"rect.average {stroke:green;fill:green;stroke-width:0.5px;opacity:"+dynaParams.getOrDefault("average-opacity","0.3")+";}\n"+
+				"rect.median {stroke:red;fill:red;stroke-width:0.5px;opacity:"+dynaParams.getOrDefault("median-opacity","0.3")+";}\n"+
 				"line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}\n"+
 				""
 				));
@@ -361,26 +397,31 @@ public int doWork(final List<String> args) {
 			
 			
 			if(this.max_depth==-1) {
-				LOG.info("Computing mean depth...");
-				final IntervalList intervalList = new IntervalList(header);
-				intervalList.addall(
-							chromInfos.stream().
-							map(CI->new Interval(CI.ssr)).
-							collect(Collectors.toList()));
-				long T=0;
-				double N=0.0;
-				try(SamLocusIterator sli = new SamLocusIterator(sr, intervalList, true)) {
-					sli.setEmitUncoveredLoci(true);
-					sli.setSamFilters(Arrays.asList(samReadFilter));
-					while(sli.hasNext()) {
-						N++;
-						T+=sli.next().size();
+				LOG.info("Computing "+ this.percentile.name() +" depth...");
+				final ProgressFactory.Watcher<SAMSequenceRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
+				final DiscreteMedian<Integer> median = new DiscreteMedian<>();
+				for(final ChromInfo ci: chromInfos) {
+					int coverage[]  = getContigCoverage(sr, progress.apply(ci.ssr), samReadFilter);
+					for(int i=0;i<coverage.length;i++) {
+						median.add(coverage[i]);
+						}
+					coverage=null;
+					System.gc();
 					}
-				if(N>0) max_depth=(int)(2.0*(T/N));
+				progress.close();
+				final DiscreteMedian.Tendency t;
+				
+				if(this.percentile.equals(DiscreteMedian.Tendency.median)) {
+					t = this.percentile;
+				} else {
+					// if percentile is min, everything will be at 0...
+					t = DiscreteMedian.Tendency.average;
+					}
+				max_depth=median.isEmpty()?0:(int)(Double.parseDouble(dynaParams.getOrDefault("factor-y", "2.0"))*median.getTendency(t).orElse(0.0));
 				if(max_depth<=0) max_depth = 1;
-				LOG.info("Now using max depth="+this.max_depth);
+				LOG.info("Now using max depth for y axis="+this.max_depth);
 				}
-			}
+			
 			
 			if(max_depth<1) {
 				LOG.error("Bad user 'max-depth':"+max_depth);
@@ -390,35 +431,8 @@ public int doWork(final List<String> args) {
 			final ProgressFactory.Watcher<SAMSequenceRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			for(final ChromInfo ci: chromInfos) {
 				progress.apply(ci.ssr);
-				int coverage[]  = new int[ci.ssr.getSequenceLength()];
-				Arrays.fill(coverage, 0);
-				try(SAMRecordIterator iter= sr.queryOverlapping(ci.ssr.getSequenceName(), 1, ci.ssr.getSequenceLength())) {
-						while(iter.hasNext()) {
-						final SAMRecord rec= iter.next();
-						if(samReadFilter.filterOut(rec)) continue;
-						
-						int max_end1 = coverage.length;
-						
-						if(!this.disable_paired_overlap_flag && 
-							rec.getReadPairedFlag() && 
-							!rec.getMateUnmappedFlag() &&
-							rec.getReferenceIndex().equals(rec.getMateReferenceIndex()) &&
-							rec.getAlignmentStart() < rec.getMateAlignmentStart() &&
-							rec.getAlignmentEnd() > rec.getMateAlignmentStart()
-							) {
-							max_end1 = rec.getMateAlignmentStart() - 1;
-							}
-						for(final AlignmentBlock block:rec.getAlignmentBlocks()) {
-							final int pos1=block.getReferenceStart();
-							final int len = block.getLength();
-							for(int i=0;i< len;i++) {
-								if(pos1+i-1>=0 && pos1 +i <= max_end1) {
-									coverage[pos1 + i -1]++;
-									}
-								}
-							}
-						}
-					}
+				int coverage[]  = getContigCoverage(sr, ci.ssr, samReadFilter);
+
 				final Element g = element("g");
 				g.setAttribute("transform", "translate("+ci.x+",0)");
 				g.setAttribute("id", "chrom-"+ci.ssr.getSequenceName());
@@ -469,6 +483,21 @@ public int doWork(final List<String> args) {
 						}
 					}
 				else {
+					//simplify, remove points on the same line y
+					int i=1;
+					while(i+3< points.size())/* ignore first and last */ {
+						final Point2D p1 = points.get(i+0);
+						final Point2D p2 = points.get(i+1);
+						final Point2D p3 = points.get(i+2);
+						if(p1.getY()==p2.getY() && p2.getY()==p3.getY()) {
+							points.remove(i+1);
+							}
+						else
+							{
+							i++;
+							}
+						}
+					
 					polyline.setAttribute("points",points.stream().map(P->format(P.getX())+","+format(P.getY())).collect(Collectors.joining(" ")));
 					polyline.appendChild(element("title", ci.ssr.getSequenceName()));
 					}
@@ -494,6 +523,7 @@ public int doWork(final List<String> args) {
 				title.setAttribute("x", format(ci.width/2.0));
 				title.setAttribute("y", format(-12.0));
 				title.setAttribute("class", "chromName");
+				title.appendChild(element("title",ci.ssr.getSequenceName()+" "+StringUtils.niceInt(ci.ssr.getSequenceLength())+" bp"));
 				g.appendChild(title);
 				
 				final Element rect= element("rect");
@@ -515,7 +545,7 @@ public int doWork(final List<String> args) {
 			for(int i=1;i <= 10.0;i++) {
 				final int y = (int)((i/10.0)*this.max_depth);
 				if(y==prev_y ||y==0) continue;
-				double h = drawingHeight - ((i/10.0)*drawingHeight);
+				final double h = drawingHeight - ((i/10.0)*drawingHeight);
 				final Element hline = element("line");
 				rulers.appendChild(hline);
 				hline.setAttribute("class", "ruler");
@@ -523,6 +553,7 @@ public int doWork(final List<String> args) {
 				hline.setAttribute("y1", format(h));
 				hline.setAttribute("x2", format(drawingWidth));
 				hline.setAttribute("y2", format(h));
+				hline.appendChild(element("title",StringUtils.niceInt(y)));
 
 				final Element label = element("text",StringUtils.niceInt(y));
 				label.setAttribute("class", "ruler");
