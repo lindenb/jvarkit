@@ -16,6 +16,8 @@ Usage: mergecnvnator [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    --bed
+      limit to the calls overlaping that bed FILE
     --do-no-reuse
       Do not reuse a CNV if it was already used. Undocumented
       Default: false
@@ -42,6 +44,12 @@ Usage: mergecnvnator [options] Files
       the value ends with '%' it is interpretted as a percentage eg. '1%' => 
       '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
       Default: 0.75
+    --treshold
+      Treshold between HET and HOM genotypes.A decimal number between 0.0 and 
+      1.0. If the value ends with '%' it is interpretted as a percentage eg. 
+      '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => 
+      '0.01'. 
+      Default: 0.2
     --version
       print version and exit
     -R, -reference
@@ -144,6 +152,15 @@ chr1	1	.	N	<DEL>	.	.	END=10000;IMPRECISE;SVLEN=10000;SVTYPE=DEL	GT:CN:P1:P2:P3:P
 chr1	40001	.	N	<DEL>	.	.	END=48000;IMPRECISE;SVLEN=8000;SVTYPE=DEL	GT:CN:P1:P2:P3:P4:Q0:RD	./.	./.	0/1:1:34.95:5.850e-06:323.37:2.143e-03:0.889:0.603
 (...)
 ```
+
+with bed files:
+
+```
+find . -type f -name "*.bed.gz" > jeter.list
+java -jar ${JVARKIT_DIST}/mergecnvnator.jar --input-type bed 
+-R ref.fasta jeter.list | bcftools sort -T . -O b -o 20201130.merge.bcf
+```
+
 
 ## See also
 

@@ -44,11 +44,16 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
@@ -104,6 +109,15 @@ chr1	40001	.	N	<DEL>	.	.	END=48000;IMPRECISE;SVLEN=8000;SVTYPE=DEL	GT:CN:P1:P2:P
 (...)
 ```
 
+with bed files:
+
+```
+find . -type f -name "*.bed.gz" > jeter.list
+java -jar ${JVARKIT_DIST}/mergecnvnator.jar --input-type bed 
+-R ref.fasta jeter.list | bcftools sort -T . -O b -o 20201130.merge.bcf
+```
+
+
 ## See also
 
   * https://github.com/abyzovlab/CNVnator
@@ -132,6 +146,10 @@ public class MergeCnvNator extends Launcher{
 	private boolean uniq_use_of_one_cnv =false;
 	@Parameter(names={"--one-cnv-type"},description="Only one CNV type (del/dup) per variant.")
 	private boolean one_cnv_type =false;
+	@Parameter(names={"--treshold"},description="Treshold between HET and HOM genotypes." + FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double treshold =0.2;
+	@Parameter(names={"--bed"},description="limit to the calls overlaping that bed FILE")
+	private Path includeBed=null;
 
 	
 	@ParametersDelegate
@@ -240,6 +258,7 @@ public class MergeCnvNator extends Launcher{
 		final Double e_val_3 ;
 		final Double e_val_4 ;
 		final Double q0;
+		@SuppressWarnings("unused")
 		final Integer pe;
 		boolean echoed_flag = false;
 		
@@ -330,6 +349,11 @@ public class MergeCnvNator extends Launcher{
 			LOG.error("bad region_are_same_ratio :" +this.region_are_same_ratio);
 			return -1;
 			}
+		if(this.treshold< 0 || this.treshold >= 0.5) {
+			LOG.error("Bad treshold 0< "+this.treshold+" < 0.5");
+			return -1;
+			}
+		
 		try {
 			final List<Path> inputs = IOUtils.unrollPaths(args);
 			if(inputs.isEmpty()) {
@@ -337,13 +361,37 @@ public class MergeCnvNator extends Launcher{
 				return -1;
 				}
 			final SAMSequenceDictionary dict;
+			final ContigNameConverter contigNameConverter;
 			if(this.dictRefFile!=null)
 				{
 				dict = SAMSequenceDictionaryExtractor.extractDictionary(this.dictRefFile);
+				contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 				}
 			else
 				{	
+				contigNameConverter = null;
 				dict=null;
+				}
+			
+			final IntervalTreeMap<Boolean> limitBedIntervalTreeMap;
+			if(this.includeBed!=null) {
+				limitBedIntervalTreeMap = new IntervalTreeMap<>();
+				final BedLineCodec codec=new BedLineCodec();
+				
+				try(BufferedReader br= IOUtils.openPathForBufferedReading(this.includeBed)) {
+					br.lines().
+						filter(S->!StringUtils.isBlank(S) && !BedLine.isBedHeader(S)).
+						map(L->codec.decode(L)).
+						filter(B->B!=null).
+						forEach(B->{
+							final String ctg = contigNameConverter==null?B.getContig():contigNameConverter.apply(B.getContig());
+							if(StringUtils.isBlank(ctg)) return;
+							limitBedIntervalTreeMap.put(new Interval(ctg,B.getStart(),B.getEnd()),Boolean.TRUE);
+						});
+					}
+				}
+			else {
+				limitBedIntervalTreeMap = null;
 				}
 			
 			final Set<CNVNatorInterval> intervals_set = new HashSet<>();
@@ -352,6 +400,7 @@ public class MergeCnvNator extends Launcher{
 			
 			for(final Path input: inputs) {
 				final String fileSample;
+				LOG.info("Reading "+input);
 				if(this.inputType.equals(InputType.cnvnator)) {
 					fileSample = IOUtils.getFilenameWithoutCommonSuffixes(input);
 					all_samples.add(fileSample);
@@ -373,7 +422,10 @@ public class MergeCnvNator extends Launcher{
 						{
 						call = new CnvNatorCall(null,Arrays.asList(tokens));
 						all_samples.add(call.sample);
-						}	
+						}
+					if(limitBedIntervalTreeMap!=null && !limitBedIntervalTreeMap.containsOverlapping(call)) {
+						continue;
+						}
 					if(dict!=null && dict.getSequence(call.getContig())==null)
 						{
 						LOG.warn("skipping "+line+" because contig "+call.getContig()+" is not defined in dictionary");
@@ -391,6 +443,7 @@ public class MergeCnvNator extends Launcher{
 				br.close();
 			}
 			
+			// contig comparator
 			final Comparator<String> contigComparator;
 			if(dict!=null)
 				{
@@ -402,6 +455,7 @@ public class MergeCnvNator extends Launcher{
 				contigComparator = (A,B)-> smartComparator.compare(A, B);
 				}
 			
+			// call comparator
 			final Comparator<CNVNatorInterval> comparator = (A,B)->{
 				int i = contigComparator.compare(A.getContig(), B.getContig());
 				if(i!=0) return i;
@@ -409,7 +463,9 @@ public class MergeCnvNator extends Launcher{
 				if(i!=0) return i;
 				i = Integer.compare(A.getEnd(), B.getEnd());
 				if(i!=0) return i;
-				i = A.type.compareTo(B.type);
+				if( one_cnv_type) {
+					i = A.type.compareTo(B.type);
+					}
 				return i;
 			};
 			final List<CNVNatorInterval> intervals_list = 
@@ -417,6 +473,7 @@ public class MergeCnvNator extends Launcher{
 					sorted(comparator).
 					collect(Collectors.toList());
 			
+			LOG.info("Identified "+ intervals_list.size()+ " intervals");
 			
 			final Set<VCFHeaderLine> metadata = new HashSet<>();
 			
@@ -507,9 +564,11 @@ public class MergeCnvNator extends Launcher{
 			
 			try(VariantContextWriter out =  this.writingVariants.dictionary(dict).open(this.outputFile)) {
 				out.writeHeader(header);
+				final ProgressFactory.Watcher<CNVNatorInterval> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 				for(final CNVNatorInterval interval:intervals_list)
 					{
 					final Set<String> warnings = new HashSet<>();
+					progress.apply(interval);
 					
 					final List<CnvNatorCall> overlappingList = all_calls.
 						getOverlapping(interval).
@@ -578,27 +637,27 @@ public class MergeCnvNator extends Launcher{
 								);
 						
 						if (call.interval.type==CnvType.deletion &&
-							call.normalized_RD!=null && call.normalized_RD <0.20) {
+							call.normalized_RD!=null && call.normalized_RD < this.treshold) {
 						    gb.alleles(Arrays.asList(DEL_ALLELE,DEL_ALLELE));
 						    altAlleles.add(DEL_ALLELE);
 						    gb.attribute("CN", 0);
 							}
 						else if(call.interval.type==CnvType.deletion &&
-							call.normalized_RD!=null && call.normalized_RD >=0.20)
+							call.normalized_RD!=null && call.normalized_RD >= this.treshold)
 							{
 							gb.alleles(Arrays.asList(REF_ALLELE,DEL_ALLELE));
 							altAlleles.add(DEL_ALLELE);
 							gb.attribute("CN", 1);
 							}
 						else if(call.interval.type==CnvType.duplication &&
-							call.normalized_RD!=null && call.normalized_RD <=1.7)
+							call.normalized_RD!=null && call.normalized_RD <= (1.5 + this.treshold))
 							{
 							gb.alleles(Arrays.asList(REF_ALLELE,DUP_ALLELE));
 							altAlleles.add(DUP_ALLELE);
 							gb.attribute("CN",2);
 							}
 						else if(call.interval.type==CnvType.duplication &&
-							call.normalized_RD!=null && call.normalized_RD >1.7)
+							call.normalized_RD!=null && call.normalized_RD > (1.5 + this.treshold))
 							{
 							gb.alleles(Arrays.asList(DUP_ALLELE,DUP_ALLELE));
 							gb.attribute("CN",9999);
@@ -640,6 +699,7 @@ public class MergeCnvNator extends Launcher{
 					vcb.genotypes(sample2gt.values());
 					out.add(vcb.make());
 					}
+				progress.close();
 				}
 			
 			if(uniq_use_of_one_cnv) {
