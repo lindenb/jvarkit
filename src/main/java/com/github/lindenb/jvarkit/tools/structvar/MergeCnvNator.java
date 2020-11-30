@@ -41,16 +41,18 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -113,7 +115,7 @@ END_DOC
 description="Merge CNVNator results",
 keywords= {"cnv","indel","cnvnator"},
 biostars={472699},
-modificationDate="20201111",
+modificationDate="20201130",
 creationDate="20181003"
 )
 public class MergeCnvNator extends Launcher{
@@ -122,8 +124,16 @@ public class MergeCnvNator extends Launcher{
 	private Path outputFile=null;
 	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path dictRefFile =  null;
-	@Parameter(names={"-r","--ratio"},description="two intervals are the same if they both have more or equals of this fraction of length in common")
+	@Parameter(names={"-r","--ratio"},description="Two intervals are the same if they both have more or equals of this fraction of length in common. " + FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double region_are_same_ratio=0.75;
+	@Parameter(names={"--input-type"},description="Input type. Bed type is like cnvnator BUT the 4 first columns are chrom,start,end,sample-name.")
+	private InputType inputType = InputType.cnvnator;
+	@Parameter(names={"--do-no-reuse"},description="Do not reuse a CNV if it was already used. Undocumented")
+	private boolean uniq_use_of_one_cnv =false;
+	@Parameter(names={"--one-cnv-type"},description="Only one CNV type (del/dup) per variant.")
+	private boolean one_cnv_type =false;
+
+	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 	
@@ -132,6 +142,11 @@ public class MergeCnvNator extends Launcher{
 	private final Allele DEL_ALLELE = Allele.create("<DEL>", false);
 	private final Allele DUP_ALLELE = Allele.create("<DUP>", false);
 
+	private enum InputType {
+		cnvnator,
+		bed
+	}
+	
 	private enum CnvType {
 		deletion,
 		duplication
@@ -143,16 +158,22 @@ public class MergeCnvNator extends Launcher{
 		final String contig;
 		final int start;
 		final int end;
-		CNVNatorInterval(final String tokens[]) {
-			this.type = CnvType.valueOf(tokens[0]);
-			final int col = tokens[1].indexOf(":");
-			if(col<=0) throw new IllegalArgumentException("no colon in "+tokens[1]);
-			this.contig = tokens[1].substring(0, col);
-			final int hyphen = tokens[1].indexOf("-",col+1);
-			if(hyphen<0) throw new IllegalArgumentException("no hyphen in "+tokens[1]);
-			this.start= Integer.parseInt(tokens[1].substring(col+1, hyphen));
-			this.end= Integer.parseInt(tokens[1].substring(hyphen+1));
-			if(this.start>=this.end)  throw new IllegalArgumentException("bad start/end in "+tokens[1]);
+		CNVNatorInterval(final List<String> tokens) {
+			this.type = CnvType.valueOf(tokens.get(0));
+			final int col = tokens.get(1).indexOf(":");
+			if(col<=0) throw new IllegalArgumentException("no colon in "+tokens.get(1));
+			this.contig = tokens.get(1).substring(0, col);
+			final int hyphen = tokens.get(1).indexOf("-",col+1);
+			if(hyphen<0) throw new IllegalArgumentException("no hyphen in "+tokens.get(1));
+			this.start= Integer.parseInt(tokens.get(1).substring(col+1, hyphen));
+			this.end= Integer.parseInt(tokens.get(1).substring(hyphen+1));
+			if(this.start>=this.end)  throw new IllegalArgumentException("bad start/end in "+tokens.get(1));
+			}
+		CNVNatorInterval(String contig,int start,int end,CnvType type) {
+			this.type = type;
+			this.contig = contig;
+			this.start = start;
+			this.end = end;
 			}
 		
 		@Override
@@ -222,13 +243,27 @@ public class MergeCnvNator extends Launcher{
 		final Integer pe;
 		boolean echoed_flag = false;
 		
-		CnvNatorCall(String sample,final String tokens[]) {
-			this.sample = sample;
-			this.interval =new CNVNatorInterval(tokens);
-		
+		CnvNatorCall(String sample /** may be null if input is bed*/, List<String> tokens) {
+			final int shift;
+			if(sample==null) {
+				shift=4;
+				this.interval =new CNVNatorInterval(
+						tokens.get(0),
+						Integer.parseInt(tokens.get(1))+1 /* +1 because BED */,
+						Integer.parseInt(tokens.get(2)),
+						CnvType.valueOf(tokens.get(4))
+						);
+				this.sample = tokens.get(3);
+				}
+			else
+				{
+				shift = 0;
+				this.sample = sample;
+				this.interval =new CNVNatorInterval(tokens);
+				}
 			final Function<Integer,Double> toDbl = IDX->{
-				if(IDX>=tokens.length) return null;
-				final String s = tokens[IDX];
+				if(IDX>=tokens.size()) return null;
+				final String s = tokens.get(IDX);
 				if(s.isEmpty()) return null;
 				if(s.equals("nan") || s.equals("-nan")) return null;
 				try {
@@ -239,22 +274,23 @@ public class MergeCnvNator extends Launcher{
 					return null;
 					}
 				};
-			this.size = toDbl.apply(2).intValue();//got scientific notation in this column
+			this.size = toDbl.apply(2 + shift).intValue();//got scientific notation in this column
 				
-			this.normalized_RD = toDbl.apply(3);
-			this.e_val_1 = toDbl.apply(4);
-			this.e_val_2 = toDbl.apply(5);
-			this.e_val_3 = toDbl.apply(6);
-			this.e_val_4 =toDbl.apply(7);
-			this.q0 = toDbl.apply(8);
-			if(tokens.length>9 ) {
-				this.pe = new Integer(tokens[9]);
+			this.normalized_RD = toDbl.apply(3 + shift);
+			this.e_val_1 = toDbl.apply(4 + shift);
+			this.e_val_2 = toDbl.apply(5 + shift);
+			this.e_val_3 = toDbl.apply(6 + shift);
+			this.e_val_4 =toDbl.apply(7 + shift);
+			this.q0 = toDbl.apply(8 + shift);
+			if(tokens.size()>9+shift ) {
+				this.pe = new Integer(tokens.get(9 + shift));
 				}
 			else
 				{
 				this.pe = null;
 				}
 			}
+		
 		@Override
 		public String getContig() {
 			return interval.getContig();
@@ -294,7 +330,6 @@ public class MergeCnvNator extends Launcher{
 			LOG.error("bad region_are_same_ratio :" +this.region_are_same_ratio);
 			return -1;
 			}
-		VariantContextWriter out = null;
 		try {
 			final List<Path> inputs = IOUtils.unrollPaths(args);
 			if(inputs.isEmpty()) {
@@ -316,30 +351,43 @@ public class MergeCnvNator extends Launcher{
 			final Set<String> all_samples = new TreeSet<>();
 			
 			for(final Path input: inputs) {
-				String sample = input.getFileName().toString();
-				int dot = sample.indexOf('.');
-				if(dot>0) sample=sample.substring(0,dot);
-				all_samples.add(sample);
+				final String fileSample;
+				if(this.inputType.equals(InputType.cnvnator)) {
+					fileSample = IOUtils.getFilenameWithoutCommonSuffixes(input);
+					all_samples.add(fileSample);
+					}
+				else
+					{
+					fileSample = null;
+					}
 				final BufferedReader br = IOUtils.openPathForBufferedReading(input);
 				String line;
 				while((line=br.readLine())!=null) {
-					if(StringUtil.isBlank(line)) continue;
+					if(StringUtil.isBlank(line) || line.startsWith("#")) continue;
 					final String tokens[]= CharSplitter.TAB.split(line);
-					final CnvNatorCall call = new CnvNatorCall(sample, tokens);
+					final CnvNatorCall call;
+					if(this.inputType.equals(InputType.cnvnator)) {
+						call = new CnvNatorCall(fileSample, Arrays.asList(tokens));
+						}
+					else
+						{
+						call = new CnvNatorCall(null,Arrays.asList(tokens));
+						all_samples.add(call.sample);
+						}	
 					if(dict!=null && dict.getSequence(call.getContig())==null)
 						{
 						LOG.warn("skipping "+line+" because contig "+call.getContig()+" is not defined in dictionary");
 						continue;
 						}
 					intervals_set.add(call.interval);
-					final Interval key = new Interval(call.getContig(), call.getStart(), call.getEnd());
+					final Interval key = new Interval(call);
 					List<CnvNatorCall> callList = all_calls.get(key);
 					if(callList==null) {
 						callList = new ArrayList<>();
 						all_calls.put(key, callList);
 						}
 					callList.add(call);
-				}
+					}
 				br.close();
 			}
 			
@@ -388,8 +436,18 @@ public class MergeCnvNator extends Launcher{
 					VCFHeaderLineType.String,
 					"Samples carrying the CNV"
 					));
+			metadata.add(new VCFInfoHeaderLine("NSAMPLES",
+					1,
+					VCFHeaderLineType.Integer,
+					"Number of Samples carrying the CNV"
+					));
 
-			
+			metadata.add(new VCFFormatHeaderLine(
+					"WARN",1,
+					VCFHeaderLineType.String,
+					"WARNINGS"
+					));
+
 			metadata.add(new VCFFormatHeaderLine(
 					"RD",1,
 					VCFHeaderLineType.Float,
@@ -439,138 +497,162 @@ public class MergeCnvNator extends Launcher{
 					"Number calls (with different sample) overlapping this genotype"
 					));
 			
+			
 			final VCFHeader header = new VCFHeader(
 					metadata,
 					all_samples
 					);
+			JVarkitVersion.getInstance().addMetaData(this, header);
 			if(dict!=null) header.setSequenceDictionary(dict);
 			
-			out =  this.writingVariants.dictionary(dict).open(this.outputFile);
-			out.writeHeader(header);
-			for(final CNVNatorInterval interval:intervals_list)
-				{
-				final List<CnvNatorCall> overlappingList = all_calls.
-					getOverlapping(interval).
-					stream().
-					flatMap(L->L.stream()).
-					filter(C->C.interval.type.equals(interval.type)).
-					filter(C->!C.echoed_flag).
-					collect(Collectors.toList());
-				
-				if(overlappingList.isEmpty()) continue;
-				final CnvNatorCall baseCall = overlappingList.stream().
-						filter(C->C.interval.equals(interval)).
-						findFirst().
-						orElse(null);
-				if(baseCall==null)
+			try(VariantContextWriter out =  this.writingVariants.dictionary(dict).open(this.outputFile)) {
+				out.writeHeader(header);
+				for(final CNVNatorInterval interval:intervals_list)
 					{
-					continue;
-					}
-				final List<CnvNatorCall> callsToPrint = overlappingList.stream().
-						filter(C->testOverlapping(C,baseCall)).
-						collect(Collectors.toList())
-						;
-				
-				if(callsToPrint.isEmpty()) throw new IllegalStateException();
-				
-				final VariantContextBuilder vcb= new VariantContextBuilder();
-				vcb.chr(baseCall.getContig());
-				vcb.start(baseCall.getStart());
-				vcb.stop(baseCall.getEnd());
-				vcb.attribute(VCFConstants.END_KEY, baseCall.getEnd());
-				vcb.attribute("SVLEN", baseCall.size);
-				vcb.attribute("IMPRECISE",true);
-				
-				switch(baseCall.interval.type)
-					{
-					case deletion:
-						vcb.alleles(Arrays.asList(REF_ALLELE,DEL_ALLELE));
-						vcb.attribute(VCFConstants.SVTYPE, "DEL");
-						break;
-					case duplication:
-						vcb.alleles(Arrays.asList(REF_ALLELE,DUP_ALLELE));
-						vcb.attribute(VCFConstants.SVTYPE, "DUP");
-						break;
-					default: throw new IllegalStateException();
-					}
-				
-				
-				final Map<String,Genotype> sample2gt = new HashMap<>(callsToPrint.size());
-				for(final CnvNatorCall call: callsToPrint)
-					{
-					if(sample2gt.containsKey(call.sample))
+					final Set<String> warnings = new HashSet<>();
+					
+					final List<CnvNatorCall> overlappingList = all_calls.
+						getOverlapping(interval).
+						stream().
+						flatMap(L->L.stream()).
+						filter(C->!one_cnv_type || C.interval.type.equals(interval.type)).
+						filter(C->!uniq_use_of_one_cnv || !C.echoed_flag).
+						collect(Collectors.toList());
+					
+					if(overlappingList.isEmpty()) continue;
+					//main call for this interval
+					final CnvNatorCall baseCall = overlappingList.stream().
+							filter(C->C.interval.equals(interval)).
+							findFirst().
+							orElse(null);
+					
+					if(baseCall==null)
 						{
-						LOG.warn("Sample "+call.sample+" exits twice at the same loc " + call+" could be two small SV overlapping a big one.");
 						continue;
 						}
-					call.echoed_flag  = true;
+					// filter calls matching the overlapping with baseCall
+					final List<CnvNatorCall> callsToPrint = overlappingList.stream().
+							filter(C->testOverlapping(C,baseCall)).
+							collect(Collectors.toList())
+							;
 					
-					final GenotypeBuilder gb = new GenotypeBuilder(call.sample);
+					if(callsToPrint.isEmpty()) {
+						throw new IllegalStateException();
+						}
 					
-					if( call.normalized_RD!=null) gb.attribute("RD", call.normalized_RD);
-					if( call.e_val_1!=null) gb.attribute("P1", call.e_val_1);
-					if( call.e_val_2!=null) gb.attribute("P2", call.e_val_2);
-					if( call.e_val_3!=null) gb.attribute("P3", call.e_val_3);
-					if( call.e_val_4!=null) gb.attribute("P4", call.e_val_4);
-					if( call.q0!=null) gb.attribute("Q0", call.q0);
-					gb.attribute("OV",
-							all_calls.getOverlapping(call).
-								stream().
-								flatMap(col->col.stream()).
-								filter(C->!C.sample.equals(call.sample)).
-								count()
-							);
 					
-					if (call.interval.type==CnvType.deletion &&
-						call.normalized_RD!=null && call.normalized_RD <0.20) {
-					    gb.alleles(Arrays.asList(DEL_ALLELE,DEL_ALLELE));
-					    gb.attribute("CN", 0);
-						}
-					else if(call.interval.type==CnvType.deletion &&
-						call.normalized_RD!=null && call.normalized_RD >=0.20)
+					final VariantContextBuilder vcb= new VariantContextBuilder();
+					final Set<Allele> altAlleles = new HashSet<>();
+					vcb.chr(baseCall.getContig());
+					vcb.start(baseCall.getStart());
+					vcb.stop(baseCall.getEnd());
+					vcb.attribute(VCFConstants.END_KEY, baseCall.getEnd());
+					vcb.attribute("SVLEN", baseCall.size);
+					vcb.attribute("IMPRECISE",true);
+					
+					final Map<String,Genotype> sample2gt = new HashMap<>(callsToPrint.size());
+					for(final CnvNatorCall call: callsToPrint)
 						{
-						gb.alleles(Arrays.asList(REF_ALLELE,DEL_ALLELE));
-						gb.attribute("CN", 1);
+						if(sample2gt.containsKey(call.sample))
+							{
+							warnings.add("SAMPLE_"+call.sample+"_MULTIPLE");
+							LOG.warn("Sample "+call.sample+" exits twice at the same loc " + call+" could be two small SV overlapping a big one.");
+							continue;
+							}
+						if(uniq_use_of_one_cnv) call.echoed_flag  = true;
+						
+						final GenotypeBuilder gb = new GenotypeBuilder(call.sample);
+						
+						if( call.normalized_RD!=null) gb.attribute("RD", call.normalized_RD);
+						if( call.e_val_1!=null) gb.attribute("P1", call.e_val_1);
+						if( call.e_val_2!=null) gb.attribute("P2", call.e_val_2);
+						if( call.e_val_3!=null) gb.attribute("P3", call.e_val_3);
+						if( call.e_val_4!=null) gb.attribute("P4", call.e_val_4);
+						if( call.q0!=null) gb.attribute("Q0", call.q0);
+						gb.attribute("OV",
+								all_calls.getOverlapping(call).
+									stream().
+									flatMap(col->col.stream()).
+									filter(C->!C.sample.equals(call.sample)).
+									count()
+								);
+						
+						if (call.interval.type==CnvType.deletion &&
+							call.normalized_RD!=null && call.normalized_RD <0.20) {
+						    gb.alleles(Arrays.asList(DEL_ALLELE,DEL_ALLELE));
+						    altAlleles.add(DEL_ALLELE);
+						    gb.attribute("CN", 0);
+							}
+						else if(call.interval.type==CnvType.deletion &&
+							call.normalized_RD!=null && call.normalized_RD >=0.20)
+							{
+							gb.alleles(Arrays.asList(REF_ALLELE,DEL_ALLELE));
+							altAlleles.add(DEL_ALLELE);
+							gb.attribute("CN", 1);
+							}
+						else if(call.interval.type==CnvType.duplication &&
+							call.normalized_RD!=null && call.normalized_RD <=1.7)
+							{
+							gb.alleles(Arrays.asList(REF_ALLELE,DUP_ALLELE));
+							altAlleles.add(DUP_ALLELE);
+							gb.attribute("CN",2);
+							}
+						else if(call.interval.type==CnvType.duplication &&
+							call.normalized_RD!=null && call.normalized_RD >1.7)
+							{
+							gb.alleles(Arrays.asList(DUP_ALLELE,DUP_ALLELE));
+							gb.attribute("CN",9999);
+							altAlleles.add(DUP_ALLELE);
+							}
+						else
+							{
+							gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+							}
+						
+						
+						sample2gt.put(call.sample,gb.make());
+						
 						}
-					else if(call.interval.type==CnvType.duplication &&
-						call.normalized_RD!=null && call.normalized_RD <=1.7)
-						{
-						gb.alleles(Arrays.asList(REF_ALLELE,DUP_ALLELE));
-						gb.attribute("CN",2);
+					
+					
+					if(altAlleles.isEmpty()) {
+						vcb.attribute(VCFConstants.SVTYPE, "UNDEFINED");
 						}
-					else if(call.interval.type==CnvType.duplication &&
-						call.normalized_RD!=null && call.normalized_RD >1.7)
-						{
-						gb.alleles(Arrays.asList(DUP_ALLELE,DUP_ALLELE));
-						gb.attribute("CN",9999);
+					if(altAlleles.size()==1 && altAlleles.contains(DEL_ALLELE)) {
+						vcb.attribute(VCFConstants.SVTYPE, "DEL");
+						}
+					else if(altAlleles.size()==1 && altAlleles.contains(DUP_ALLELE)) {
+						vcb.attribute(VCFConstants.SVTYPE, "DUP");
 						}
 					else
 						{
-						gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+						vcb.attribute(VCFConstants.SVTYPE, "MIXED");
 						}
-					
-					
-					sample2gt.put(call.sample,gb.make());
-					
+					final List<Allele> alleles = new ArrayList<>();
+					alleles.add(REF_ALLELE);
+					alleles.addAll(altAlleles);
+					vcb.alleles(alleles);
+					vcb.attribute("SAMPLES",new ArrayList<>(sample2gt.keySet()));
+					vcb.attribute("NSAMPLES",sample2gt.size());
+					if(!warnings.isEmpty()) {
+						vcb.attribute("WARN",new ArrayList<>(warnings));
+						}
+					vcb.genotypes(sample2gt.values());
+					out.add(vcb.make());
 					}
-				vcb.attribute("SAMPLES",new ArrayList<>(sample2gt.keySet()));
-				vcb.genotypes(sample2gt.values());
-				out.add(vcb.make());
 				}
 			
-			all_calls.values().stream().
-				flatMap(C->C.stream()).
-				filter(C->!C.echoed_flag).
-				forEach(C->LOG.warn("Bug: Not printed "+C));
-			
-			out.close();
-			out=null;
+			if(uniq_use_of_one_cnv) {
+				all_calls.values().stream().
+					flatMap(C->C.stream()).
+					filter(C->!C.echoed_flag).
+					forEach(C->LOG.warn("Bug: Not printed "+C));
+				}
 			return 0;
 		} catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 		} finally {
-			CloserUtil.close(out);
 		}
 		}
 	

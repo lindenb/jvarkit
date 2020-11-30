@@ -16,6 +16,9 @@ Usage: mergecnvnator [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    --do-no-reuse
+      Do not reuse a CNV if it was already used. Undocumented
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -23,11 +26,21 @@ Usage: mergecnvnator [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --input-type
+      Input type. Bed type is like cnvnator BUT the 4 first columns are 
+      chrom,start,end,sample-name. 
+      Default: cnvnator
+      Possible Values: [cnvnator, bed]
+    --one-cnv-type
+      Only one CNV type (del/dup) per variant.
+      Default: false
     -o, --out
       Output file. Optional . Default: stdout
     -r, --ratio
-      two intervals are the same if they both have more or equals of this 
-      fraction of length in common
+      Two intervals are the same if they both have more or equals of this 
+      fraction of length in common. A decimal number between 0.0 and 1.0. If 
+      the value ends with '%' it is interpretted as a percentage eg. '1%' => 
+      '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
       Default: 0.75
     --version
       print version and exit
