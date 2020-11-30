@@ -28,6 +28,9 @@ Usage: mergecnvnator [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --hom-ref
+      generate HOM_REF instead of NO_CALL for missing genotypes.
+      Default: false
     --input-type
       Input type. Bed type is like cnvnator BUT the 4 first columns are 
       chrom,start,end,sample-name. 

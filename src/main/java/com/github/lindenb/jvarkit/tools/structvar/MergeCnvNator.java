@@ -150,6 +150,8 @@ public class MergeCnvNator extends Launcher{
 	private double treshold =0.2;
 	@Parameter(names={"--bed"},description="limit to the calls overlaping that bed FILE")
 	private Path includeBed=null;
+	@Parameter(names={"--hom-ref"},description="generate HOM_REF instead of NO_CALL for missing genotypes.")
+	private boolean hom_ref_instead_of_nocall = false;
 
 	
 	@ParametersDelegate
@@ -563,6 +565,7 @@ public class MergeCnvNator extends Launcher{
 			if(dict!=null) header.setSequenceDictionary(dict);
 			
 			try(VariantContextWriter out =  this.writingVariants.dictionary(dict).open(this.outputFile)) {
+				long id_generator=0L;
 				out.writeHeader(header);
 				final ProgressFactory.Watcher<CNVNatorInterval> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 				for(final CNVNatorInterval interval:intervals_list)
@@ -663,6 +666,9 @@ public class MergeCnvNator extends Launcher{
 							gb.attribute("CN",9999);
 							altAlleles.add(DUP_ALLELE);
 							}
+						else if(hom_ref_instead_of_nocall) {
+							gb.alleles(Arrays.asList(REF_ALLELE,REF_ALLELE));
+							}
 						else
 							{
 							gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
@@ -690,6 +696,8 @@ public class MergeCnvNator extends Launcher{
 					final List<Allele> alleles = new ArrayList<>();
 					alleles.add(REF_ALLELE);
 					alleles.addAll(altAlleles);
+					
+					vcb.id(String.format("cnv%05d"+(++id_generator)));
 					vcb.alleles(alleles);
 					vcb.attribute("SAMPLES",new ArrayList<>(sample2gt.keySet()));
 					vcb.attribute("NSAMPLES",sample2gt.size());
