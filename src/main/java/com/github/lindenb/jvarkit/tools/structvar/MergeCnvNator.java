@@ -129,7 +129,7 @@ END_DOC
 description="Merge CNVNator results",
 keywords= {"cnv","indel","cnvnator"},
 biostars={472699},
-modificationDate="20201130",
+modificationDate="20201201",
 creationDate="20181003"
 )
 public class MergeCnvNator extends Launcher{
@@ -339,8 +339,8 @@ public class MergeCnvNator extends Launcher{
 	
 	private boolean testOverlapping(final Locatable a,final Locatable b )
 		{
-		final Interval A = new Interval(a.getContig(), a.getStart(), a.getEnd());
-		final Interval B = new Interval(b.getContig(), b.getStart(), b.getEnd());
+		final Interval A = new Interval(a);
+		final Interval B = new Interval(b);
 		if(!A.intersects(B)) return false;// can happen if baseCall below overlap both
 		return testOverlapping2(A,B) &&  testOverlapping2(B,A);
 		}
@@ -500,6 +500,12 @@ public class MergeCnvNator extends Launcher{
 					VCFHeaderLineType.Integer,
 					"Number of Samples carrying the CNV"
 					));
+			
+			metadata.add(new VCFInfoHeaderLine(
+					"OV",1,
+					VCFHeaderLineType.Integer,
+					"Number calls overlapping this genotype region, whatever their size."
+					));
 
 			metadata.add(new VCFFormatHeaderLine(
 					"WARN",1,
@@ -568,11 +574,20 @@ public class MergeCnvNator extends Launcher{
 				long id_generator=0L;
 				out.writeHeader(header);
 				final ProgressFactory.Watcher<CNVNatorInterval> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
+				String prevContig=null;
 				for(final CNVNatorInterval interval:intervals_list)
 					{
 					final Set<String> warnings = new HashSet<>();
 					progress.apply(interval);
 					
+					if(!interval.getContig().equals(prevContig)) {
+						//cleanup memory, increase speed ?
+						final String finalPrevCtg = prevContig;
+						all_calls.keySet().removeIf(R->R.getContig().equals(finalPrevCtg));
+						prevContig = interval.getContig();
+						}
+					
+					// find all call overlapping this call
 					final List<CnvNatorCall> overlappingList = all_calls.
 						getOverlapping(interval).
 						stream().
@@ -582,6 +597,7 @@ public class MergeCnvNator extends Launcher{
 						collect(Collectors.toList());
 					
 					if(overlappingList.isEmpty()) continue;
+					
 					//main call for this interval
 					final CnvNatorCall baseCall = overlappingList.stream().
 							filter(C->C.interval.equals(interval)).
@@ -697,13 +713,23 @@ public class MergeCnvNator extends Launcher{
 					alleles.add(REF_ALLELE);
 					alleles.addAll(altAlleles);
 					
-					vcb.id(String.format("cnv%05d"+(++id_generator)));
+					vcb.id(String.format("cnv%05d",(++id_generator)));
 					vcb.alleles(alleles);
 					vcb.attribute("SAMPLES",new ArrayList<>(sample2gt.keySet()));
 					vcb.attribute("NSAMPLES",sample2gt.size());
 					if(!warnings.isEmpty()) {
 						vcb.attribute("WARN",new ArrayList<>(warnings));
 						}
+					
+					vcb.attribute(
+							"OV",
+							 all_calls.
+								getOverlapping(baseCall).
+								stream().
+								flatMap(L->L.stream()).
+								count()
+							);
+					
 					vcb.genotypes(sample2gt.values());
 					out.add(vcb.make());
 					}

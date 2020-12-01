@@ -1114,9 +1114,12 @@ public class VcfToTable extends Launcher {
 						));
 			
 				
-				for(final String build: new String[] {"hg19","hg38"}) {
+				for(final String build: new String[] {"hg19","hg38","mm10","canFam3","canFam4"}) {
 					if(build.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(header)) continue;
 					if(build.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(header)) continue;
+					if(build.equals("mm10") && !SequenceDictionaryUtils.isGRCm38(header)) continue;
+					if(build.equals("canFam3") && !SequenceDictionaryUtils.isCanFam3(header)) continue;
+					if(build.equals("canFam4") && !SequenceDictionaryUtils.isCanFam4(header)) continue;
 					
 					t.addRow("UCSC "+build,new HyperlinkDecorator("http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
 						ucscContig.apply(vc) +
