@@ -46,6 +46,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -152,7 +153,8 @@ public class MergeCnvNator extends Launcher{
 	private Path includeBed=null;
 	@Parameter(names={"--hom-ref"},description="generate HOM_REF instead of NO_CALL for missing genotypes.")
 	private boolean hom_ref_instead_of_nocall = false;
-
+	@Parameter(names={"--max-cnv-size"},description="Skip CNVs having a length > 'x'. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int max_cnv_size = 0;
 	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
@@ -426,6 +428,9 @@ public class MergeCnvNator extends Launcher{
 						all_samples.add(call.sample);
 						}
 					if(limitBedIntervalTreeMap!=null && !limitBedIntervalTreeMap.containsOverlapping(call)) {
+						continue;
+						}
+					if(call.size > this.max_cnv_size) {
 						continue;
 						}
 					if(dict!=null && dict.getSequence(call.getContig())==null)
