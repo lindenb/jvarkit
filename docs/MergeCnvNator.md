@@ -36,6 +36,11 @@ Usage: mergecnvnator [options] Files
       chrom,start,end,sample-name. 
       Default: cnvnator
       Possible Values: [cnvnator, bed]
+    --max-cnv-size
+      Skip CNVs having a length > 'x'. A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb 
+      Default: 0
     --one-cnv-type
       Only one CNV type (del/dup) per variant.
       Default: false
