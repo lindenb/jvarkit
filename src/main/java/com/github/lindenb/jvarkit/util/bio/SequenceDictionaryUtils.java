@@ -55,6 +55,9 @@ public static boolean isGRCh38(final VCFHeader h) {
 return h!=null && isGRCh38(h.getSequenceDictionary());
 }
 
+public static boolean isGRCm38(final VCFHeader h) {
+return h!=null && isGRCm38(h.getSequenceDictionary());
+}
 /** return a label for is dictionary or an empty optional */
 public static Optional<String> getBuildName(final SAMSequenceDictionary dict) {
 	if(dict==null || dict.isEmpty()) return Optional.empty();
@@ -63,6 +66,7 @@ public static Optional<String> getBuildName(final SAMSequenceDictionary dict) {
 	if(isGRCm38(dict)) return Optional.of("GRCm38");
 	if(isGRCm39(dict)) return Optional.of("GRCm39");
 	if(isCanFam3(dict)) return Optional.of("CanFam3");
+	if(isCanFam4(dict)) return Optional.of("CanFam4");
 	return Optional.empty();
 }
 
@@ -95,10 +99,22 @@ public static boolean isGRCm39(final SAMSequenceDictionary dict) {
 	return hasChrom1(dict,195_154_279);
 	}
 
+public static boolean isCanFam3(final VCFHeader h) {
+return h!=null && isCanFam3(h.getSequenceDictionary());
+}
 /** test if dict looks like CanFam3  */
 public static boolean isCanFam3(final SAMSequenceDictionary dict) {
 	return hasChrom1(dict,122_678_785);
 	}
+
+public static boolean isCanFam4(final VCFHeader h) {
+return h!=null && isCanFam4(h.getSequenceDictionary());
+}
+/** test if dict looks like CanFam4  */
+public static boolean isCanFam4(final SAMSequenceDictionary dict) {
+	return hasChrom1(dict,123_556_469);
+	}
+
 
 /** test if dict looks like a human dict  */
 public static boolean isHuman(final VCFHeader h) {
