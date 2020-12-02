@@ -155,6 +155,9 @@ public class MergeCnvNator extends Launcher{
 	private boolean hom_ref_instead_of_nocall = false;
 	@Parameter(names={"--max-cnv-size"},description="Skip CNVs having a length > 'x'. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_cnv_size = 0;
+	@Parameter(names={"--ovr"},description="When counting the number of other CNVs overlapping the current CNV in INFO/OV. Just report those having an overlap of at most 'x' with the current variant. The idea is to ignore the big CNVs overlapping the variant." + FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double min_overlapping_ratio=1.0;
+	
 	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
@@ -509,7 +512,7 @@ public class MergeCnvNator extends Launcher{
 			metadata.add(new VCFInfoHeaderLine(
 					"OV",1,
 					VCFHeaderLineType.Integer,
-					"Number calls overlapping this genotype region, whatever their size."
+					"Number calls overlapping this genotype region, whatever their size ( with at most fraction :"+min_overlapping_ratio+")."
 					));
 
 			metadata.add(new VCFFormatHeaderLine(
@@ -732,6 +735,14 @@ public class MergeCnvNator extends Launcher{
 								getOverlapping(baseCall).
 								stream().
 								flatMap(L->L.stream()).
+								filter(L->{
+									final Interval r1 = new Interval(L);
+									final Interval r2 = new Interval(baseCall);
+									if(!r1.overlaps(r2)) return false;
+									final double L1 = r1.getIntersectionLength(r2);
+									if(  (L1 /r1.length() )  < min_overlapping_ratio) return false;
+									return true;
+									}).
 								count()
 							);
 					

@@ -46,6 +46,14 @@ Usage: mergecnvnator [options] Files
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
+    --ovr
+      When counting the number of other CNVs overlapping the current CNV in 
+      INFO/OV. Just report those having an overlap of at most 'x' with the 
+      current variant. The idea is to ignore the big CNVs overlapping the 
+      variant.A decimal number between 0.0 and 1.0. If the value ends with '%' 
+      it is interpretted as a percentage eg. '1%' => '0.01'. A slash '/' is 
+      interpretted as a ratio. e.g: '1/100' => '0.01'.
+      Default: 1.0
     -r, --ratio
       Two intervals are the same if they both have more or equals of this 
       fraction of length in common. A decimal number between 0.0 and 1.0. If 
