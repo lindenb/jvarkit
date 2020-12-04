@@ -36,6 +36,7 @@ import java.util.Set;
 import javax.xml.stream.XMLStreamException;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.goa.GOAFileIterator;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
@@ -167,7 +168,7 @@ public class VcfGeneOntology extends OnePassVcfLauncher
 	@Parameter(names="-G",description="(go  url)",required=true)
 	private String GO="http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz";
 	@Parameter(names="-A",description="(goa input url)",required=true)
-	private String GOA="http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD";
+	private String GOA=GOAFileIterator.DEFAULT_GOA_URI;
 	private GoTree goTree=null;
 	private Map<String,Set<GoTree.Term>> name2go=null;
 	@Parameter(names="-T",description="INFO tag.")

@@ -28,31 +28,27 @@ package com.github.lindenb.jvarkit.tools.sortvcfonref;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFRecordCodec;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
-
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.SortingCollection;
 
 /**
 BEGIN_DOC
@@ -79,31 +75,34 @@ END_DOC
 @Program(name="sortvcfoninfo",
 description="Sort a VCF a field in the INFO column",
 keywords={"vcf","sort","annotation"},
-modificationDate="20191210"
+creationDate="20140218",
+modificationDate="20201204"
 )
-public class SortVcfOnInfo extends Launcher
-	{
+public class SortVcfOnInfo extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(SortVcfOnInfo.class).make();
 
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-
 	@Parameter(names={"-T","--tag","-t"},description="INFO tag. Special words are '<ID>' to sort on ID, and <QUAL> to sort on QUAL ",required=true)
     private String infoField=null;
-	
+	@Parameter(names={"-r","--reverse"},description="reverse order")
+    private boolean reverse_it = false;
+
     private VCFInfoHeaderLine infoDecl;
     
     @ParametersDelegate
     private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
-    @ParametersDelegate
-    private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
-    
+
     
     
     public SortVcfOnInfo()
 	    {
 	    }
+    
+    @Override
+    protected Logger getLogger() {
+    	return LOG;
+    	}
+    
     
     public String getObject(final VariantContext ctx)
 		{
@@ -228,25 +227,19 @@ public class SortVcfOnInfo extends Launcher
 			}
     }
     
-	@Override
-	public int doWork(final List<String> args)
-		{
-		CloseableIterator<VariantContext> iter=null;
-		VariantContextWriter w=null;
-		SortingCollection<VariantContext> sorted=null;
-		VCFIterator r=null;
-		try {
-			r= super.openVCFIterator(oneFileOrNull(args));
-				
-			final Comparator<VariantContext> cmp;
+    @Override
+    protected int doVcfToVcf(String inputName, VCFIterator r, VariantContextWriter w) {
+    	SortingCollection<VariantContext> sorted=null;
+		try {				
+			final Comparator<VariantContext> cmp2;
 			final VCFHeader header=r.getHeader();
 			if(this.infoField!=null && this.infoField.equals("<ID>")) 
 				{
-				cmp = (A,B)->compareID(A, B);
+				cmp2 = (A,B)->compareID(A, B);
 				}
 			else if(this.infoField!=null && this.infoField.equals("<QUAL>")) 
 				{
-				cmp = (A,B)->compareQUAL(A, B);
+				cmp2 = (A,B)->compareQUAL(A, B);
 				}
 			else
 				{
@@ -257,13 +250,12 @@ public class SortVcfOnInfo extends Launcher
 							header.getInfoHeaderLines().stream().map(H->H.getID()).collect(Collectors.joining(" ")));
 					return -1;
 					}
-				cmp = (V1,V2)->compareVariants(V1,V2);
+				cmp2 = (V1,V2)->compareVariants(V1,V2);
 				}	
 				
-			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
+			final Comparator<VariantContext> cmp = (reverse_it?cmp2.reversed():cmp2);
+			
 			JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), header);
-			
-			
 			
 			sorted=SortingCollection.newInstance(
 					VariantContext.class,
@@ -275,25 +267,19 @@ public class SortVcfOnInfo extends Launcher
 			sorted.setDestructiveIteration(true);
 			while(r.hasNext())
 				{
-				sorted.add(progress.apply(r.next()));
+				sorted.add(r.next());
 				}
 			CloserUtil.close(r);r=null;
 			
-			sorted.doneAdding();
-			progress.close();
-			w= this.writingVariantsDelegate.dictionary(header.getSequenceDictionary()).open(this.outputFile);
-			
+			sorted.doneAdding();			
 			w.writeHeader(header);
 			
-			iter =sorted.iterator();
-			while(iter.hasNext())
-				{
-				w.add(iter.next());
+			try(CloseableIterator<VariantContext> iter =sorted.iterator()) {
+				while(iter.hasNext())
+					{
+					w.add(iter.next());
+					}
 				}
-			iter.close();
-			iter=null;
-			w.close();
-			w=null;
 			return 0;
 			} 
 		catch(final Throwable err)
@@ -304,7 +290,6 @@ public class SortVcfOnInfo extends Launcher
 		finally
 			{
 			CloserUtil.close(r);
-			CloserUtil.close(iter);
 			try {
 				if(sorted!=null) sorted.cleanup();
 				} catch(Exception err){}

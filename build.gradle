@@ -1239,6 +1239,10 @@ all.add( task("groupbygene", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all.add( task("gogenereporter", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.groupbygene.GoGeneReporter"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("gtf2xml", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.Gtf2Xml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
