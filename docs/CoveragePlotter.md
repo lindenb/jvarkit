@@ -25,7 +25,8 @@ Usage: coverageplotter [options] Files
       path to the bams
       Default: []
     --dimension
-      Image Dimension.
+      Image Dimension. a dimension can be specified as '[integer]x[integer]' 
+      or it can be the path to an existing png,jpg,xcf,svg file.
       Default: java.awt.Dimension[width=1000,height=300]
     --black, --exclude
       Optional. BED Tabix indexed black-listed region

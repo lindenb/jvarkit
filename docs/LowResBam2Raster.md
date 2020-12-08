@@ -89,6 +89,10 @@ Usage: lowresbam2raster [options] Files
     -w, --width
       Image width
       Default: 1000
+    -D
+      set some css style elements. '-Dkey=value'. Undocumented.
+      Syntax: -Dkey=value
+      Default: {}
 
 ```
 

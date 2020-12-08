@@ -42,7 +42,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
-
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -133,6 +133,8 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	private boolean printReadNames=false;
 	@Parameter(names={"-hideInsert","--hideInsertions"},description="Hide insertions")
 	private boolean hideInsertions=false;
+	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
+	private Map<String, String> dynaParams = new HashMap<>();
 
 	
 	private final int featureHeight=5;
@@ -140,6 +142,16 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	private final Map<String, PartitionImage> key2partition=new TreeMap<>();
 	private SAMSequenceDictionary refDict = null;
 	private ContigNameConverter contigNameConverter = null;
+	private final ColorUtils colorUtils = new ColorUtils();
+	
+	private Color getColor(final String key,final Color defColor) {
+		if(!this.dynaParams.containsKey(key)) {
+			return defColor;
+			}
+		Color c = colorUtils.parse(this.dynaParams.get(key));
+		return c==null?defColor:c;
+		}
+	
 	
 	/** return true if interval converted is same that interval.getContig() */
 	private boolean isQueryIntervalContig(final String ctg)
@@ -244,7 +256,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			}
 		public Color getColor()
 			{
-			if(samRecordFilter.filterOut(R1)) return Color.PINK;
+			if(samRecordFilter.filterOut(R1)) return LowResBam2Raster.this.getColor("filtered-out",Color.PINK);
 			
 			/** try the yc_color */
 			final Color yc_color1= LowResBam2Raster.this.samRecord2color.apply(R1);
@@ -260,23 +272,23 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 				{
 				if(R1.getMateUnmappedFlag())
 					{
-					return Color.RED;
+					return LowResBam2Raster.this.getColor("mate-unmapped",Color.RED);
 					}
 				else if(!R1.getMateReferenceName().equals(R1.getReferenceName()))
 					{
-					return Color.ORANGE;
+					return LowResBam2Raster.this.getColor("discordant",Color.ORANGE);
 					}
 				else if(!R1.getProperPairFlag() || R1.getReadNegativeStrandFlag()==R1.getMateNegativeStrandFlag())
 					{
-					return Color.ORANGE;
+					return LowResBam2Raster.this.getColor("not-proper-pair",Color.ORANGE);
 					}
 				// not R2 was not necessarily fetched by samReader if it is not in interval
 				else  if(R2!=null) 
 					{
-					if(LowResBam2Raster.this.samRecordFilter.filterOut(R2)) return Color.PINK;
+					if(LowResBam2Raster.this.samRecordFilter.filterOut(R2)) return LowResBam2Raster.this.getColor("filtered-out",Color.PINK);
 					}
 				}
-			return Color.GRAY;
+			return LowResBam2Raster.this.getColor("normal",Color.GRAY);
 			}
 		
 		Integer closeReadsMergePosition()
@@ -861,7 +873,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							hersheyFont.paint(
 								g,
 								readName,
-								(pos2pixel.apply((int)rp.getStart())).intValue(),
+								(pos2pixel.apply(rp.getStart())).intValue(),
 								y0,
 								readName.length()*9,
 								featureHeight
@@ -961,51 +973,52 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			//paranoid
 			if(!isQueryIntervalContig(normalizedContig)) throw new IllegalStateException(normalizedContig);
 			
-			final SAMRecordIterator iter=r.query(
+			try(SAMRecordIterator iter=r.query(
 						normalizedContig,
 						interval.getStart(),
 						interval.getEnd(),
 						false
-						);
-			while(iter.hasNext())
+							)) 
 				{
-				final SAMRecord rec=iter.next();
-				if(rec.getReadUnmappedFlag()) continue;
-				
-				if(this.samRecordFilter.filterOut(rec)) 
+				while(iter.hasNext())
 					{
-					//don't dicard now, we need to build pairs of reads
-					if(!rec.getReadPairedFlag()) continue;
-					if(rec.getMateUnmappedFlag()) continue;
-					if(!normalizedContig.equals(rec.getMateReferenceName())) continue;
-					}
-			
-				if(!normalizedContig.equals(rec.getReferenceName())) continue;
-				
-				final SamRecordPair srp = new SamRecordPair(rec);
-				
-				if(srp.getEnd() < this.interval.getStart()) 
+					final SAMRecord rec=iter.next();
+					if(rec.getReadUnmappedFlag()) continue;
+
+					if(this.samRecordFilter.filterOut(rec)) 
 					{
-					continue;
+						//don't discard now, we need to build pairs of reads
+						if(!rec.getReadPairedFlag()) continue;
+						if(rec.getMateUnmappedFlag()) continue;
+						if(!normalizedContig.equals(rec.getMateReferenceName())) continue;
+						}
+					
+					if(!normalizedContig.equals(rec.getReferenceName())) continue;
+					
+					final SamRecordPair srp = new SamRecordPair(rec);
+					
+					if(srp.getEnd() < this.interval.getStart()) 
+						{
+						continue;
+						}
+					if(srp.getStart() > this.interval.getEnd()) {
+						break;
+						}
+					
+					final String group=this.groupBy.apply(rec.getReadGroup());
+					if(StringUtil.isBlank(group)) continue;
+					PartitionImage partition =  this.key2partition.get(group);
+					if( partition == null)
+						{
+						partition=new PartitionImage(group);
+						this.key2partition.put(group,partition);
+						}
+					partition.visit(rec);
+					
+					
+					
 					}
-				if(srp.getStart() > this.interval.getEnd()) {
-					break;
-					}
-				
-				final String group=this.groupBy.apply(rec.getReadGroup());
-				if(StringUtil.isBlank(group)) continue;
-				PartitionImage partition =  this.key2partition.get(group);
-				if( partition == null)
-					{
-					partition=new PartitionImage(group);
-					this.key2partition.put(group,partition);
-					}
-				partition.visit(rec);
-				
-				
-				
 				}
-			iter.close();
 			
 			
 			

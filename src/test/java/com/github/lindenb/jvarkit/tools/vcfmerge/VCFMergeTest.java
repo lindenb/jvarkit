@@ -47,11 +47,6 @@ public void testUnsorted() throws IOException
 	basetest("");
 	}
 
-@Test
-public void testSorted() throws IOException
-	{
-	basetest("--sorted");
-	}
 
 @Test
 public void testRegion() throws IOException

@@ -89,6 +89,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.Cigar;
@@ -166,7 +167,7 @@ public class CoveragePlotter extends Launcher {
 	private int min_invert = 1000;
 	@Parameter(names= {"--max-arc"},description="max arc length in bp.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int max_invert = 10_000_000;
-	@DynamicParameter(names = "-D", description = "style",hidden=true)
+	@DynamicParameter(names = "-D", description = "style. Undocumented.",hidden=true)
 	private Map<String, String> dynaParams = new HashMap<>();
 	@Parameter(names = {"--black","--exclude"}, description = "Optional. BED Tabix indexed black-listed region")
 	private Path blackListedPath=null;
@@ -177,7 +178,16 @@ public class CoveragePlotter extends Launcher {
 	@Parameter(names= {"--ignore-known-containing"},description="Ignore known CNV containing the whole region (prevent large known CNV to be displayed) ")
 	private boolean ignore_cnv_overlapping = false;
 	
+	private final ColorUtils colorUtils = new ColorUtils();
 	
+	private Color getColor(final String key,final Color defColor) {
+		if(!this.dynaParams.containsKey(key)) {
+			return defColor;
+			}
+		Color c = colorUtils.parse(this.dynaParams.get(key));
+		return c==null?defColor:c;
+		}
+
 
 	private void drawKnownCnv(final Graphics2D g,final Rectangle rectangle,final Locatable region) {
 		if(this.knownCnvFile==null) return;
@@ -238,7 +248,7 @@ public class CoveragePlotter extends Launcher {
 			final Composite oldComposite = g.getComposite();
 			final Stroke oldStroke = g.getStroke();
 			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
-			g.setColor(Color.MAGENTA);
+			g.setColor(getColor("known",Color.MAGENTA));
 
 			final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
 			final double featureHeight = 4.0/pileup.getRowCount();
@@ -311,7 +321,7 @@ public class CoveragePlotter extends Launcher {
 			final int geneSize = 10;
 			state.getGraphics().setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
 			g.setFont(new Font(g.getFont().getName(), Font.PLAIN, geneSize));
-			g.setColor(Color.DARK_GRAY);
+			g.setColor(getColor("gene",Color.DARK_GRAY));
 	
 			getGenes(region).forEach(gtfline->{
 					final double x1 = position2pixel.applyAsDouble(gtfline.getStart());
@@ -564,7 +574,7 @@ public int doWork(final List<String> args) {
 									final double y2 = y_mid + (drawAbove?-1:1)*Math.min(y_mid,Math.abs(len/2.0));
 									final Composite oldComposite = g2.getComposite();
 									g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,(float)this.alpha_arc));
-									g2.setColor(Color.ORANGE);
+									g2.setColor(getColor("arc",Color.ORANGE));
 									final GeneralPath curve = new GeneralPath();
 									curve.moveTo(xstart,y_mid);
 									curve.quadTo(xstart + len/2.0, y2, xend, y_mid);
@@ -734,7 +744,7 @@ public int doWork(final List<String> args) {
 		if(!sample2maxPoint.isEmpty())
 			{
 			/** draw sample names */
-			g.setColor(Color.BLUE);
+			g.setColor(getColor("sample",Color.BLUE));
 			final int sampleFontSize = 7;
 			final Font oldFont = g.getFont();
 			g.setFont(new Font(oldFont.getName(), Font.PLAIN, sampleFontSize));
