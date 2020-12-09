@@ -16,6 +16,9 @@ Usage: vcfmerge [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    --fields
+      print the following INFO/FORMAT Fields.
+      Default: AC,AN,AF,DP,GQ,AD,PL
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false

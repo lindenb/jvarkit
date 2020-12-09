@@ -112,7 +112,7 @@ END_DOC
 	description="Merge a large number of VCF Files",
 	keywords={"vcf","sort","merge"},
 	creationDate="20130916",
-	modificationDate="20201208"
+	modificationDate="20201209"
 	)
 public class VCFMerge
 	extends Launcher
@@ -127,56 +127,51 @@ public class VCFMerge
 	private String regionStr = "";
 	@Parameter(names={"--ploidy"},description="Ploidy")
 	private int ploidy=2;
+	@Parameter(names={"--fields"},description="print the following INFO/FORMAT Fields.")
+	private String fieldsString= String.join(",",VCFConstants.ALLELE_COUNT_KEY,
+			VCFConstants.ALLELE_NUMBER_KEY,
+			VCFConstants.ALLELE_FREQUENCY_KEY,
+			VCFConstants.DEPTH_KEY,
+			VCFConstants.GENOTYPE_QUALITY_KEY,
+			VCFConstants.GENOTYPE_ALLELE_DEPTHS,
+			VCFConstants.GENOTYPE_PL_KEY
+			);;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
 	
-	
-	
-	
 	@Override
 	public int doWork(final List<String> args) {
 		final List<Path> userVcfFiles=new ArrayList<Path>();
+		final Set<String> genotypeSampleNames=new TreeSet<String>();
+		SAMSequenceDictionary dict=null;
+		VariantContextWriter w=null;
+		SortingCollection<VariantContext> array = null;
+		CloseableIterator<VariantContext> iter=null;
 		try
 			{
 			userVcfFiles.addAll(IOUtils.unrollPaths(args));
+			final Set<String> fieldsSet = Arrays.stream(this.fieldsString.split("[,; ]")).collect(Collectors.toSet());
+			final boolean with_ac = fieldsSet.contains(VCFConstants.ALLELE_COUNT_KEY);
+			final boolean with_an = fieldsSet.contains(VCFConstants.ALLELE_NUMBER_KEY);
+			final boolean with_af = fieldsSet.contains(VCFConstants.ALLELE_FREQUENCY_KEY);
+			final boolean with_dp = fieldsSet.contains(VCFConstants.DEPTH_KEY);
+			final boolean with_gq = fieldsSet.contains(VCFConstants.GENOTYPE_QUALITY_KEY);
+			final boolean with_ad = fieldsSet.contains(VCFConstants.GENOTYPE_ALLELE_DEPTHS);
+			final boolean with_pl = fieldsSet.contains(VCFConstants.GENOTYPE_PL_KEY);
+			
+			
 			
 			if(userVcfFiles.isEmpty())
 				{
 				LOG.error("No input");
 				return -1;
 				}
-			else
-				{
-				return workUsingSortingCollection(userVcfFiles);
-				}
-			}
-		catch(final Throwable err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			}
-
-		}
-	
-	
-	
 		
-	private int workUsingSortingCollection(final List<Path> userVcfFiles) 
-		{
-		VariantContextWriter w=null;
-		SortingCollection<VariantContext> array = null;
-		CloseableIterator<VariantContext> iter=null;
-			try {
-			final Set<String> genotypeSampleNames=new TreeSet<String>();
-			SAMSequenceDictionary dict=null;
 			final boolean requireIndex = !StringUtils.isBlank(this.regionStr);
-			
+
 			for(final Path vcfFile:userVcfFiles) {
 				try(VCFReader in= VCFReaderFactory.makeDefault().open(vcfFile,requireIndex)){
 					final VCFHeader header= in.getHeader();
@@ -246,19 +241,20 @@ public class VCFMerge
 				}
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
-			VCFStandardHeaderLines.addStandardFormatLines(metaData, true,
-					VCFConstants.GENOTYPE_KEY,
-					VCFConstants.DEPTH_KEY,
-					VCFConstants.GENOTYPE_QUALITY_KEY,
-					VCFConstants.GENOTYPE_ALLELE_DEPTHS,
-					VCFConstants.GENOTYPE_PL_KEY
-					);
-			VCFStandardHeaderLines.addStandardInfoLines(metaData, true,
-					VCFConstants.DEPTH_KEY,
-					VCFConstants.ALLELE_COUNT_KEY,
-					VCFConstants.ALLELE_NUMBER_KEY,
-					VCFConstants.ALLELE_FREQUENCY_KEY
-					);
+			VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_KEY);
+			
+	
+	
+			if(with_dp) VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.DEPTH_KEY);
+			if(with_gq) VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_QUALITY_KEY);
+			if(with_pl) VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_PL_KEY);
+			if(with_ad) VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_ALLELE_DEPTHS);			
+			
+			if(with_ac) VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.ALLELE_COUNT_KEY);
+			if(with_an) VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.ALLELE_NUMBER_KEY);
+			if(with_af) VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.ALLELE_FREQUENCY_KEY);
+			if(with_dp) VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.DEPTH_KEY);
+			
 			final 	VCFHeader	mergedHeader=new VCFHeader(
 					metaData,
 					genotypeSampleNames
@@ -329,6 +325,7 @@ public class VCFMerge
 				final Map<String,Genotype> sample2genotypes = new HashMap<>(genotypeSampleNames.size());
 				final Set<String> remainingSamples=new HashSet<String>(genotypeSampleNames);
 				int an=0;
+				int dp=-1;
 				final Counter<Allele> ac = new Counter<>();
 				
 				for(final VariantContext ctx:row)
@@ -340,16 +337,20 @@ public class VCFMerge
 							an++;
 							}
 						final GenotypeBuilder gb=new GenotypeBuilder(gt.getSampleName(), gt.getAlleles());
-						if(gt.hasDP()) gb.DP(gt.getDP());
-						if(gt.hasGQ()) gb.GQ(gt.getGQ());
-						if(gt.hasPL()) gb.PL(gt.getPL());
-						if(gt.hasAD()) {
+						if(with_dp && gt.hasDP()) {
+							if(dp<0) dp=0;
+							dp+= gt.getDP();
+							gb.DP(gt.getDP());
+						}
+						if(with_gq && gt.hasGQ()) gb.GQ(gt.getGQ());
+						if(with_pl && gt.hasPL()) gb.PL(gt.getPL());
+						if(with_ad && gt.hasAD()) {
 							final int src_ad[]= gt.getAD();
 							final int dest_ad[]= new int[alleles.size()];
 							Arrays.fill(dest_ad, 0);
 							for(int i=0;i< src_ad.length && i< ctx.getAlleles().size();i++) {
-								Allele a1 = ctx.getAlleles().get(i);
-								int dest_idx = alleles.indexOf(a1);
+								final Allele a1 = ctx.getAlleles().get(i);
+								final int dest_idx = alleles.indexOf(a1);
 								if(dest_idx>=0 && dest_idx < dest_ad.length) {
 									dest_ad[dest_idx] = src_ad[i];
 								}
@@ -378,19 +379,21 @@ public class VCFMerge
 					
 					sample2genotypes.put(sampleName,gt);
 					}
-				vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, an);
-				vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, 
+				if(with_an) vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, an);
+				if(with_ac) vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, 
 						alleles.subList(1, alleles.size()).stream().mapToInt(A->(int)ac.count(A)).toArray()
 						);
 
-				if(an>0) {
+				if(with_af && an>0) {
 					final double finalAn = an;
 					vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, 
 							alleles.subList(1, alleles.size()).stream().mapToDouble(A->ac.count(A)/finalAn).toArray()
 							);
 
 					}
-				
+				if(with_dp && dp>=0) {
+					vcb.attribute(VCFConstants.DEPTH_KEY,dp);
+					}
 				vcb.genotypes(sample2genotypes.values());
 				
 				w.add(vcb.make());
@@ -413,6 +416,7 @@ public class VCFMerge
 			if(array!=null) array.cleanup();
 			}
 		}
+	
 
 	public static void main(final String[] args)
 		{
