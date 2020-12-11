@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Scan short inversions in SAM
+Scan short inversions in SAM using supplementary reads.
 
 
 ## Usage
@@ -21,9 +21,6 @@ Usage: samshortinvert [options] Files
       vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
       empty string (no interval) or a list of plain interval separated by '[ 
       \t\n;,]' 
-    -x, --extend
-      extends interval by 'x' pb before merging.
-      Default: 50
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -31,6 +28,9 @@ Usage: samshortinvert [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --mapq
+      min mapping quality
+      Default: 1
     -m, --maxsize
       max size of inversion.
       Default: 10000
@@ -42,6 +42,12 @@ Usage: samshortinvert [options] Files
       be any combination of sample, library....
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    -F, --ratio
+      Two intervals are the same if they both have more or equals of this 
+      fraction of length in common. A decimal number between 0.0 and 1.0. If 
+      the value ends with '%' it is interpretted as a percentage eg. '1%' => 
+      '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
+      Default: 0.75
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary

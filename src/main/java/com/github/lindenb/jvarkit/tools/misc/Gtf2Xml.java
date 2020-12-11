@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -166,13 +163,15 @@ $ java -jar dist/gtf2xml.jar src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | 
         </exon>
         (...)
 ```
- 
+
 END_DOC
  */
 @Program(name="gtf2xml",
 	description="Convert GTF/GFF to XML",
 	keywords={"xml","gtf","gff","gff3"},
-	modificationDate="20190823"
+	creationDate="20150811",
+	modificationDate="20190823",
+	biostars={478242}
 	)
 public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.build(FixVCF.class).make();

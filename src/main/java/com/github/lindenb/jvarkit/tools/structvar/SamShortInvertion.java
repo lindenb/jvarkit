@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -71,6 +72,7 @@ import htsjdk.samtools.filter.AggregateFilter;
 import htsjdk.samtools.filter.DuplicateReadFilter;
 import htsjdk.samtools.filter.FailsVendorReadQualityFilter;
 import htsjdk.samtools.filter.FilteringSamIterator;
+import htsjdk.samtools.filter.MappingQualityFilter;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.filter.SecondaryOrSupplementaryFilter;
 import htsjdk.samtools.util.CloseableIterator;
@@ -89,6 +91,7 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -128,9 +131,9 @@ END_DOC
 **/
 
 @Program(name="samshortinvert",
-	description="Scan short inversions in SAM",
+	description="Scan short inversions in SAM using supplementary reads.",
 	keywords={"sam","bam","sv","inversion"},
-	modificationDate="20200129",
+	modificationDate="20201210",
 	creationDate="20140228"
 	)
 public class SamShortInvertion extends Launcher
@@ -149,12 +152,17 @@ public class SamShortInvertion extends Launcher
 	private IntervalListProvider intervallistProvider = null;
 	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
-	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
-	private int extend=50;
+	@Parameter(names={"-F","--ratio"},description="Two intervals are the same if they both have more or equals of this fraction of length in common. " + FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double region_are_same_ratio=0.75;
 	@Parameter(names={"-s","-supporting"},description="Don't print the variant if INFO/DP <= 's'")
 	private int min_supporting_reads = 1;
 	@Parameter(names={"--debug"},description="Debug",hidden=true)
 	private boolean debug = false;
+	@Parameter(names={"--keep"},description="keep interval if they were used.",hidden=true)
+	private boolean keep_flag = false;
+	@Parameter(names={"--mapq"},description="min mapping quality")
+	private int mapq=1;
+
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
@@ -177,7 +185,19 @@ public class SamShortInvertion extends Launcher
 			}
 		}
 	
+	private boolean testOverlapping2(final int start1,final int end1,final int start2,final int end2 )
+		{
+		double lenA = CoordMath.getLength(start1, end1);
+		double len2 = CoordMath.getOverlap(start1, end1, start2, end2);
+		return len2/lenA >= this.region_are_same_ratio;
+		}
 	
+	private boolean testOverlapping(final Locatable a,final Arc b )
+		{
+		if(!CoordMath.overlaps(a.getStart(), a.getEnd(), b.chromStart, b.chromEnd)) return false;
+		return testOverlapping2(a.getStart(), a.getEnd(), b.chromStart, b.chromEnd) && 
+				testOverlapping2(b.chromStart, b.chromEnd,a.getStart(), a.getEnd());
+		}
 
 	private void dump(
 			final SAMSequenceDictionary dict,
@@ -191,12 +211,8 @@ public class SamShortInvertion extends Launcher
 		final Allele SPLIT = Allele.create("<INV>", false);
 		final Comparator<Locatable> cmp = new ContigDictComparator(dict).createLocatableComparator();
 		final List<SimpleInterval> intervals  = database.keySet().stream().
-				map(R-> new SimpleInterval(
-					R.getContig(),
-					Math.max(1,R.getStart() - this.extend),
-					R.getEnd() + this.extend
-					)).
-				filter(R->(before==null?true:R.getEnd() < before.intValue())).
+				filter(R->(before==null?true:R.getEnd() > before.intValue())).
+				map(R-> new SimpleInterval(R)).
 				sorted(cmp).
 				collect(Collectors.toList());
 		
@@ -206,13 +222,11 @@ public class SamShortInvertion extends Launcher
 					stream().
 					flatMap(L->L.stream()).
 					filter(A->!A.consummed).
-					filter(A->
-						Math.abs(interval0.getStart()-A.chromStart) <= this.extend &&
-						Math.abs(interval0.getEnd()-A.chromEnd) <= this.extend).
+					filter(A->testOverlapping(interval0, A)).
 					collect(Collectors.toList());
 			
 			if(arcs.isEmpty()) continue;
-			arcs.forEach(A->A.consummed=true);
+			if(!keep_flag) arcs.forEach(A->A.consummed=true);
 			
 			int maxdp = 0;
 			final VariantContextBuilder vcb = new VariantContextBuilder();
@@ -231,7 +245,7 @@ public class SamShortInvertion extends Launcher
 			vcb.attribute("SVLEN", CoordMath.getLength(chromStart,chromEnd));
 			
 			int depth = 0;
-			int nsamples = 0;
+			final Set<String> gotSamples = new TreeSet<>();
 			for(final String sample : samples) {
 			
 				final List<Arc> sampleArcs = arcs.stream().
@@ -256,7 +270,7 @@ public class SamShortInvertion extends Launcher
 					
 					depth+=countCat1+countCat2;
 					genotypes.add(gb.make());
-					++nsamples;
+					gotSamples.add(sample);
 					}
 				}
 			if(depth<=this.min_supporting_reads) continue;
@@ -264,7 +278,8 @@ public class SamShortInvertion extends Launcher
 			vcb.genotypes(genotypes);
 			vcb.alleles(alleles);
 			vcb.attribute(VCFConstants.DEPTH_KEY, depth);
-			vcb.attribute("NSAMPLES", nsamples);
+			vcb.attribute("NSAMPLES", gotSamples.size());
+			vcb.attribute("SAMPLES", new ArrayList<>(gotSamples));
 			vcb.attribute(VCFConstants.SVTYPE, "INV");
 			vcb.attribute("DPMAX", maxdp);
 			vcw.add(vcb.make());
@@ -297,6 +312,7 @@ public class SamShortInvertion extends Launcher
 			
 			final AggregateFilter theFilter = new AggregateFilter(
 					Arrays.asList(
+							new MappingQualityFilter(this.mapq),
 							new DuplicateReadFilter(),
 							new SecondaryOrSupplementaryFilter(),
 							new FailsVendorReadQualityFilter(),
@@ -380,6 +396,7 @@ public class SamShortInvertion extends Launcher
 			meta.add(new VCFFormatHeaderLine("N3", 1, VCFHeaderLineType.Integer,"Number of validating clipped reads in 3'"));
 			meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
 			meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of sample having some split reads"));
+			meta.add(new VCFInfoHeaderLine("SAMPLES", VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,"Samples having some split reads"));
 			meta.add(new VCFInfoHeaderLine("DPMAX", 1, VCFHeaderLineType.Integer,"MAX DP among samples"));
 			meta.add(new VCFInfoHeaderLine("SVTYPE", 1, VCFHeaderLineType.String,"Structural variant type"));
 			
@@ -482,7 +499,7 @@ public class SamShortInvertion extends Launcher
 				sr.close();
 			}
 			return 0;
-			} 
+			}
 		catch (final Throwable e) {
 			LOG.error(e);
 			return -1;

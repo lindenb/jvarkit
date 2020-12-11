@@ -1,12 +1,6 @@
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -18,9 +12,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.BAMFileSpan;
-import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.BAMIndexMetaData;
-import htsjdk.samtools.BamFileIoUtils;
 import htsjdk.samtools.Chunk;
 import htsjdk.samtools.DiskBasedBAMFileIndex;
 import htsjdk.samtools.SAMFileHeader;
@@ -31,9 +23,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.BlockCompressedFilePointerUtil;
 import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 /**
 BEGIN_DOC

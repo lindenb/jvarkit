@@ -42,6 +42,12 @@ Usage: gtf2xml [options] Files
  * gff3
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/478242](https://www.biostars.org/p/478242)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -195,4 +201,4 @@ $ java -jar dist/gtf2xml.jar src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | 
         </exon>
         (...)
 ```
- 
+
