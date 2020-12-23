@@ -971,6 +971,10 @@ all2.add( task("biostar59647", type: CompileJVarkit) {
 	mainClass = biostar2java(59647)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("biostar480685", type: CompileJVarkit) {
+	mainClass = biostar2java(480685)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("biostar76892", type: CompileJVarkit) {
 	mainClass = biostar2java(76892)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

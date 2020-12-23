@@ -30,8 +30,9 @@ Usage: biostar404363 [options] Files
       VCF File containing the positions to change. if INFO/AF(allele 
       frequency) field is present, variant is inserted if rand()<= AF.
     -R, --reference
-      For reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -53,6 +54,7 @@ Usage: biostar404363 [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/404363](https://www.biostars.org/p/404363)
+ * [https://www.biostars.org/p/416897](https://www.biostars.org/p/416897)
 
 
 ## Compilation
