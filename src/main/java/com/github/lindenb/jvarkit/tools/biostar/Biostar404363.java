@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
@@ -139,7 +135,7 @@ public class Biostar404363 extends Launcher {
 	private Path outputFile = null;
 	@Parameter(names={"-p","--position","--vcf"},description="VCF File containing the positions to change. if INFO/AF(allele frequency) field is present, variant is inserted if rand()<= AF. ",required=true)
 	private Path vcfPath=null;
-	@Parameter(names= {"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names= {"-R","--reference"},description=CRAM_INDEXED_REFENCE)
 	private Path faidx;
 	@Parameter(names= {"--disable-nm"},description="Disable NM change. By default the value of NM is increasing to each change.")
 	private boolean keep_original_nm = false;

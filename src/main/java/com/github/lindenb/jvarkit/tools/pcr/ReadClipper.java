@@ -38,7 +38,7 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMUtils;
-import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.Locatable;
 
 public class ReadClipper
 	{
@@ -80,14 +80,14 @@ public class ReadClipper
 			}
 		}
 	
-	public SAMRecord clip(final SAMRecord rec,final Interval fragment)
+	public SAMRecord clip(final SAMRecord rec,final Locatable fragment)
 		{
 		if(rec.getReadUnmappedFlag())
 			{
 			return rec;	
 			}
 		
-		if(!fragment.getContig().equals(rec.getContig()))
+		if(!fragment.contigsMatch(rec))
 			{
 			return rec;
 			}
@@ -219,7 +219,7 @@ public class ReadClipper
 		rec.setAlignmentStart(newStart);
 		if(this.programGroup!=null) {
 			rec.setAttribute("PG",programGroup);
-		}
+			}
 		return rec;
 		}
 	}
