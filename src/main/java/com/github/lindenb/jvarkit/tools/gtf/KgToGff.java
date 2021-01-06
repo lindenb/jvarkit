@@ -157,22 +157,37 @@ public class KgToGff extends Launcher {
 			if(cDNA!=null && !(exon.getEnd() <= kg.getCdsStart() || kg.getCdsEnd()<=exon.getStart())) {
 				final int cdsStart = Math.max(exon.getStart(),kg.getCdsStart());
 				final int cdsEnd = Math.min(exon.getEnd(),kg.getCdsEnd());
+				if(cdsStart >= cdsEnd ) continue;
 				atts.clear();
 				atts.put("Parent", "transcript"+delim+geneId);
 				atts.put("ID", "CDS"+delim+kg.getName()+delim+"CDS"+exon.getIndex());
 				atts.put("protein_id",kg.getName());
 				int i= 0;
+				int firstExonPos=-1;
 				int phase = -1;
 				while(i< cDNA.length()) {
 					int pos = cDNA.convertToGenomicCoordinate(i);
-					if( cdsStart<=pos && pos < cdsEnd && i%3==0) {
-						phase = (i%3);
+					if( cdsStart<=pos && pos < cdsEnd && firstExonPos==-1) {
+						firstExonPos=pos;
+						if( firstExonPos == -1) {
+							LOG.error("Cannot extract first base of exon!!!");
+							}
+						 while(i< cDNA.length()) {
+							pos = cDNA.convertToGenomicCoordinate(i);
+							if(i%3==0) { phase = Math.abs( pos - firstExonPos ); break;}
+							i++;
+							}
 						break;
 						}
 					i++;
 					}
-				if(phase==-1) {
-					LOG.warn("cannot get phase for "+exon);
+				if(phase<0  || phase>2) {
+					LOG.warn("cannot get phase for "+kg.getName()+" "+exon.getName()+
+						" kg="+ kg.getCdsStart()+"-"+kg.getCdsEnd()+
+						" ex="+exon.getStart()+"-"+exon.getEnd()+
+						" rn:"+cdsStart+"-"+cdsEnd +
+						" first:"+firstExonPos +
+						" phase="+phase+" leng="+cDNA.length()+" "+line);
 					phase = UNDEFINED_PHASE;
 					}
 				out.addFeature(new Gff3FeatureImpl(
