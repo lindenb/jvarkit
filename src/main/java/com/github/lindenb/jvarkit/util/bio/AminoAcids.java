@@ -37,6 +37,7 @@ public class AminoAcids {
 		public String getName();
 		public String getThreeLettersCode();
 		public char getOneLetterCode();
+		public boolean isStop();
 		}
 	private static class AminoAcidImpl implements AminoAcid
 		{
@@ -64,6 +65,10 @@ public class AminoAcids {
 		@Override
 		public String toString() {
 			return this.fullName;
+			}
+		@Override
+		public boolean isStop() {
+			return code1=='X';
 			}
 		}
 	

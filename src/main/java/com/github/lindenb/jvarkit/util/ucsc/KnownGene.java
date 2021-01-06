@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -92,7 +91,8 @@ public class KnownGene implements Iterable<Integer>,Feature
 	private int exonStarts[];
 	private int exonEnds[];
 	private Map<String,String> attributes;
-	
+	private String name2;
+
 	
 	@Override
 	@Deprecated
@@ -478,7 +478,8 @@ public class KnownGene implements Iterable<Integer>,Feature
 			"cdsStart","cdsEnd",
 			"exonCount",
 			"exonStarts",
-			"exonEnds"
+			"exonEnds",
+			"name2"
 			};
 		
 		public KnownGene(final ResultSet row) throws SQLException
@@ -504,7 +505,10 @@ public class KnownGene implements Iterable<Integer>,Feature
             	{
             	this.exonEnds[index++]=Integer.parseInt(s);
             	}
-
+            if(row.getMetaData().getColumnCount()>=10 &&
+            	row.getMetaData().getColumnName(10+1).equals( SQL_COLUMNS[10])) {
+				this.name2 = row.getString(10 + 1);
+	            }
 			}
 		
 		private static final CharSplitter COMMA = CharSplitter.COMMA;
@@ -536,6 +540,9 @@ public class KnownGene implements Iterable<Integer>,Feature
             	{
             	this.exonEnds[index++]=Integer.parseInt(s);
             	}
+            if(binIdx + 10 < tokens.length) {
+            	this.name2 = tokens[binIdx + 10 ];
+            	}
 			}
 		
 		/** returns knownGene ID */
@@ -547,6 +554,12 @@ public class KnownGene implements Iterable<Integer>,Feature
 		public void setName(final String name) {
 			this.name = name;
 		}
+		
+		/** returns name2 may be null or empty */
+		public String getName2()
+			{
+			return this.name2;
+			}
 		
 		/** returns chromosome name */
 		public String getChromosome()

@@ -17,7 +17,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "2.22.0"
+	htsjdkVersion = "2.23.0"
 	jettyVersion = "9.4.26.v20200117"
 	}
 
@@ -1875,6 +1875,11 @@ all.add( task("gb2gff", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["gb"]
 	});
+all2.add( task("kg2gff", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gtf.KgToGff"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 all2.add( task("blastmapannots", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.blastmapannots.BlastMapAnnotations"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
