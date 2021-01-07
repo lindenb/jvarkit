@@ -479,6 +479,7 @@ public class KnownGene implements Iterable<Integer>,Feature
 			"exonCount",
 			"exonStarts",
 			"exonEnds",
+			"score",
 			"name2"
 			};
 		
@@ -505,9 +506,9 @@ public class KnownGene implements Iterable<Integer>,Feature
             	{
             	this.exonEnds[index++]=Integer.parseInt(s);
             	}
-            if(row.getMetaData().getColumnCount()>=10 &&
-            	row.getMetaData().getColumnName(10+1).equals( SQL_COLUMNS[10])) {
-				this.name2 = row.getString(10 + 1);
+            if(row.getMetaData().getColumnCount()>=11 &&
+            	row.getMetaData().getColumnName(11+1).equals( SQL_COLUMNS[11])) {
+				this.name2 = row.getString(11 + 1);
 	            }
 			}
 		
@@ -540,8 +541,8 @@ public class KnownGene implements Iterable<Integer>,Feature
             	{
             	this.exonEnds[index++]=Integer.parseInt(s);
             	}
-            if(binIdx + 10 < tokens.length) {
-            	this.name2 = tokens[binIdx + 10 ];
+            if(binIdx + 11 < tokens.length) {
+            	this.name2 = tokens[binIdx + 11 ];
             	}
 			}
 		
