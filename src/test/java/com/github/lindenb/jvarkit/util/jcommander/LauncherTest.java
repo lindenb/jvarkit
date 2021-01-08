@@ -3,6 +3,8 @@ package com.github.lindenb.jvarkit.util.jcommander;
 import com.github.lindenb.jvarkit.io.IOUtilsTest;
 import com.github.lindenb.jvarkit.lang.SmartComparatorTest;
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
+import com.github.lindenb.jvarkit.lang.primitive.DoubleArrayTest;
+import com.github.lindenb.jvarkit.lang.primitive.IntArrayTest;
 import com.github.lindenb.jvarkit.samtools.reference.TwoBitSequenceFileTest;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactoryTest;
 import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
@@ -26,7 +28,9 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 	MergingIteratorTest.class,
 	SamRecordFilterFactoryTest.class,
 	TwoBitSequenceFileTest.class,
-	DiscreteMedianTest.class
+	DiscreteMedianTest.class,
+	IntArrayTest.class,
+	DoubleArrayTest.class
 	})
 public class LauncherTest {
 

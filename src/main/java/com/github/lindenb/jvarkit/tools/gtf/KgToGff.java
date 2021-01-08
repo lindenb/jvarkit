@@ -124,7 +124,7 @@ public class KgToGff extends Launcher {
 
 	private static int ID_GENERATOR=0;
 	
-	private KgToGff() {}
+	KgToGff() {}
 
 	private static Map<String,List<String>> convertMap(final Map<String,String> map) {
 		final Map<String,List<String>> atts = new LinkedHashMap<>(map.size());
