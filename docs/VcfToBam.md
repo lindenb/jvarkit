@@ -49,6 +49,7 @@ Usage: vcf2bam [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/420363](https://www.biostars.org/p/420363)
+ * [https://www.biostars.org/p/458494](https://www.biostars.org/p/458494)
 
 
 ## Compilation

@@ -112,7 +112,7 @@ END_DOC
 	description="vcf to bam",
 	keywords={"ref","vcf","bam"},
 	creationDate="20150612",
-	modificationDate="20200831",
+	modificationDate="20210111",
 	biostars= {420363,458494}
 	)
 public class VcfToBam extends Launcher
@@ -139,7 +139,6 @@ public class VcfToBam extends Launcher
 		{
 		 long id_generator=0L;
 		 SAMFileWriter samFileWriter =null;
-		
 		final VCFHeader header = vcfIterator.getHeader();
 		SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 		if(!SequenceUtil.areSequenceDictionariesEqual(dict, indexedFastaSequenceFile.getSequenceDictionary()))
@@ -159,7 +158,7 @@ public class VcfToBam extends Launcher
 			rg.setSample(sample);
 			rg.setLibrary(sample);
 			rg.setDescription(sample);
-			rg.setPlatform("illumina");
+			rg.setPlatform("ILLUMINA");
 			samHeader.addReadGroup(rg);
 			}
 		JVarkitVersion.getInstance().addMetaData(this, samHeader);
@@ -171,6 +170,7 @@ public class VcfToBam extends Launcher
 		/* looping over sequences */
 		for(final SAMSequenceRecord ssr: dict.getSequences())
 			{
+			final String MC = "MC";
 			final LinkedList<VariantContext> variantBuffer = new LinkedList<>();
 			GenomicSequence genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, ssr.getSequenceName());
 			int x=1;
@@ -281,13 +281,16 @@ public class VcfToBam extends Launcher
 									
 									if(overlap!=null)
 										{
-										Genotype genotype = overlap.getGenotype(sample);
+										final Genotype genotype = overlap.getGenotype(sample);
 										if(genotype.isCalled() && !genotype.isMixed())
 											{
-											List<Allele> alleles = genotype.getAlleles();
-											if(alleles.size()!=2) throw new RuntimeException("Not a diploid organism.");
-											Allele allele=null;
-											if(genotype.isPhased())
+											final List<Allele> alleles = genotype.getAlleles();
+											if(alleles.size()>2) throw new RuntimeException("Not a haploid|diploid organism.");
+											final Allele allele;
+											if(alleles.size()==1) {
+												allele = alleles.get(0);
+												}
+											else if(genotype.isPhased())
 												{
 												allele =alleles.get(g_strand);
 												}
@@ -358,7 +361,7 @@ public class VcfToBam extends Launcher
 								}//end loop over R1/R2
 							
 							if(Math.random()<0.5)
-								{	 
+								{
 								records[0].setFirstOfPairFlag(true);records[0].setSecondOfPairFlag(false);
 								records[1].setFirstOfPairFlag(false);records[1].setSecondOfPairFlag(true);
 								}
@@ -374,6 +377,8 @@ public class VcfToBam extends Launcher
 							records[0].setInferredInsertSize(records[1].getAlignmentStart() - records[0].getAlignmentStart());
 							records[1].setInferredInsertSize(records[0].getAlignmentStart() - records[1].getAlignmentStart());
 		
+							records[0].setAttribute(MC, records[1].getCigarString());
+							records[1].setAttribute(MC, records[0].getCigarString());
 							
 							samFileWriter.addAlignment(records[0]);
 							samFileWriter.addAlignment(records[1]);
