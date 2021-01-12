@@ -82,9 +82,9 @@ END_DOC
 
 @Program(
 		name="sortsamrefname",
-		description="Sort a BAM of contig and then on name",
+		description="Sort a BAM of contig and then on read name",
 		keywords={"sam","sort"},
-		biostars=154220,
+		biostars= {154220,483658},
 		modificationDate="20191010"
 		)
 public class SortSamRefName extends Launcher
