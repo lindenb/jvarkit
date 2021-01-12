@@ -5,7 +5,7 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.CharSplitterTest;
-import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tests.AlsoTest;
 
 @AlsoTest(CharSplitterTest.class)
 public class KnownGeneTest {

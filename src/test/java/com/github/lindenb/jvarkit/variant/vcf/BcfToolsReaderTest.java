@@ -7,7 +7,7 @@ import java.nio.file.Paths;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 import htsjdk.samtools.util.CloseableIterator;

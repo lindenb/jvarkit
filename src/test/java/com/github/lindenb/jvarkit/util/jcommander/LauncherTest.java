@@ -7,7 +7,7 @@ import com.github.lindenb.jvarkit.lang.primitive.DoubleArrayTest;
 import com.github.lindenb.jvarkit.lang.primitive.IntArrayTest;
 import com.github.lindenb.jvarkit.samtools.reference.TwoBitSequenceFileTest;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactoryTest;
-import com.github.lindenb.jvarkit.tools.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tests.AlsoTest;
 import com.github.lindenb.jvarkit.math.DiscreteMedianTest;
 import com.github.lindenb.jvarkit.util.CounterTest;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
