@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import com.github.lindenb.jvarkit.tests.AlsoTest;
 
 import org.testng.ITestNGListener;
 import org.testng.TestListenerAdapter;
