@@ -13,10 +13,12 @@ Usage: depthofcoverage [options] Files
     --auto-mask
       Use REFerence sequence to automatically mask bases that are not ATGC
       Default: false
+    -B, --bed
+      optional bed containing regions to be SCANNED (inverse of --mask)
     -ct, --ct
       summary Coverage Threshold. A 'range of integers' is a list of integers 
       in ascending order separated with semicolons.
-      Default: [[-Inf/0[, [0/10[, [10/20[, [20/30[, [30/40[, [40/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/2000[, [2000/3000[, [3000/4000[, [4000/5000[, [5000/Inf[]
+      Default: [[-Inf/0[, [0/5[, [5/10[, [10/20[, [20/30[, [30/40[, [40/50[, [50/100[, [100/200[, [200/300[, [300/400[, [400/500[, [500/1000[, [1000/2000[, [2000/3000[, [3000/4000[, [4000/5000[, [5000/Inf[]
     --disable-paired-overlap
       Disable: Count overlapping bases with mate for paired-end
       Default: false
@@ -27,7 +29,7 @@ Usage: depthofcoverage [options] Files
     --mapq
        min mapping quality.
       Default: 1
-    -B, --mask
+    -M, --mask
       optional bed containing regions to be MASKED
     --max-depth
       Ignore depth if it is bigger than this value.

@@ -27,7 +27,9 @@ package com.github.lindenb.jvarkit.tools.coverage;
 import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -43,7 +45,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -68,6 +70,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Locatable;
 
 /**
 BEGIN_DOC
@@ -115,8 +118,11 @@ public class DepthOfCoverage extends Launcher
 	
 	@Parameter(names={"-R","--reference"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx = null;
-	@Parameter(names={"-B","--mask"},description="optional bed containing regions to be MASKED")
+	@Parameter(names={"-M","--mask"},description="optional bed containing regions to be MASKED")
 	private Path maskBed = null;
+	@Parameter(names={"-B","--bed"},description="optional bed containing regions to be SCANNED (inverse of --mask)")
+	private Path includeBed = null;
+
 	@Parameter(names={"--mapq"},description=" min mapping quality.")
 	private int mapping_quality=1;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -134,7 +140,7 @@ public class DepthOfCoverage extends Launcher
 	@Parameter(names={"--max-depth"},description="Ignore depth if it is bigger than this value.")
 	private int max_depth = 10_000_000;
 	@Parameter(names={"-ct","--ct"},description="summary Coverage Threshold. "+RangeOfIntegers.OPT_DESC,converter=RangeOfIntegers.StringConverter.class,splitter=NoSplitter.class)
-	private RangeOfIntegers summaryCov = new RangeOfIntegers(0,10,20,30,40,50,100,200,300,400,500,1000,2000,3000,4000,5000);
+	private RangeOfIntegers summaryCov = new RangeOfIntegers(0,5,10,20,30,40,50,100,200,300,400,500,1000,2000,3000,4000,5000);
 	
 	@Override
 	public int doWork(final List<String> args)
@@ -142,6 +148,10 @@ public class DepthOfCoverage extends Launcher
 		PrintWriter out=null;
 		if(this.auto_mask && this.faidx==null) {
 			LOG.error("Cannot auto mask if REF is not defined");
+			return -1;
+			}
+		if(this.maskBed!=null && this.includeBed!=null) {
+			LOG.error("both --mask and --bed both defined");
 			return -1;
 			}
 		ReferenceSequenceFile referenceSequenceFile=null;
@@ -364,7 +374,37 @@ public class DepthOfCoverage extends Launcher
 											}
 										}
 									}
-								
+								else if(this.includeBed!=null) {
+									final List<Locatable> list = new ArrayList<>();
+									final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
+									final BedLineCodec codec= new BedLineCodec();
+									try(BufferedReader br=IOUtils.openPathForBufferedReading(this.includeBed)) {
+										String line;
+										while((line=br.readLine())!=null) {
+											final BedLine bed = codec.decode(line);
+											if(bed==null) continue;
+											String ctg = contigNameConverter.apply(bed.getContig());
+											if(StringUtils.isBlank(ctg)) continue;
+											if(!rec.getContig().equals(ctg)) continue;
+											list.add(new SimpleInterval(ctg,bed.getStart(),bed.getEnd()));
+											}
+										}
+									//sort on starts
+									Collections.sort(list,(A,B)->Integer.compare(A.getStart(),B.getStart()));
+									int p1=1;
+									while(p1 <= coverage.length) {
+										while(!list.isEmpty() && list.get(0).getEnd()<p1) {
+											list.remove(0);
+											}
+										if(!list.isEmpty() && list.get(0).getStart()<=p1 && p1<=list.get(0).getEnd()) {
+											++p1;
+											continue;
+											}
+										mask.set(p1-1);
+										p1++;
+									}
+									
+								}
 								prevContig=rec.getContig();
 								}
 							
