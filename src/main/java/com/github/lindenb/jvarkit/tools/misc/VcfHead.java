@@ -31,6 +31,8 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.tests.TestIt;
+import com.github.lindenb.jvarkit.tests.TestRunner;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -128,7 +130,12 @@ public class VcfHead extends OnePassVcfLauncher
 			return -1;
 			} 
 		}
+	
+	@TestIt
+	private static void test01(final TestRunner tr) {
 		
+	}
+	
 	public static void main(final String[] args)
 		{
 		new VcfHead().instanceMainWithExit(args);

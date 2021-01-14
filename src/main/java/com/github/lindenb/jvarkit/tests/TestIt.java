@@ -25,9 +25,13 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tests;
 
-import java.nio.file.Path;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
-public interface TestRunner {
-public void register(final Class<?> c);
-public int run(final Path path);
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
+
+@Retention(RUNTIME)
+@Target(ElementType.METHOD)
+public @interface TestIt {
 }

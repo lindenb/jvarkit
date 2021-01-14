@@ -25,11 +25,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tests;
 
+import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
 
 
 public class TestRunnerImpl implements TestRunner {
@@ -39,9 +42,11 @@ public class TestRunnerImpl implements TestRunner {
 	private int nMethods=0;
 	private int nSuccess=0;
 	private int nFailures=0;
+	private PrintWriter pw = null;
 	
 	private void begin(final String title) {
-		
+		for(int i=0;i< level*4;i++) pw.print(' ');
+		pw.println(title);
 		++level;
 	}
 	
@@ -65,7 +70,7 @@ public class TestRunnerImpl implements TestRunner {
 			}
 		}
 	
-	private void run(Method m) {
+	private void run(final Class<?> clazz,Method m) {
 		this.nMethods++;
 		begin(m.getName());
 		try {
@@ -73,35 +78,54 @@ public class TestRunnerImpl implements TestRunner {
 			this.nSuccess++;
 			}
 		catch(final Throwable err) {
-			
+			err.printStackTrace(this.pw);
 			this.nFailures++;
 			}
 		end();
 		}
 	
-	private void run(Class<?> C) {
+	private void run(final Class<?> C) {
 		this.nClasses++;
 		begin(C.getName());
 		for(Method m:C.getDeclaredMethods()) {
 			final Class<?> paramTypes[] = m.getParameterTypes();
-			if(!m.getName().startsWith("test")) continue;
+			final TestIt testit = m.getAnnotation(TestIt.class);
+			if(testit==null) continue;
 			if(paramTypes.length!=1) continue;
-			if(paramTypes[0].equals(TestRunner.class)) continue;
-			if(!Modifier.isStatic(m.getModifiers())) continue;
+			if(!paramTypes[0].equals(TestRunner.class)) continue;
+			if(!Modifier.isStatic(m.getModifiers())) {
+				System.err.println("Method "+C+"/"+m.getName()+"is not static");
+				continue;
+			}
 			m.setAccessible(true);
-			run(m);
+			run(C,m);
 		}
 		end();
 	}
 	
 	@Override
-	public void run(final Path path) {
-		this.nClasses = 0;
-		this.nMethods = 0;
-		begin(String.valueOf(this.classToTest.size())+" classes(s)");
-		for(final Class<?> c: this.classToTest) {
-			run(c);
+	public int run(final Path path) {
+		try(PrintWriter out = IOUtils.openPathForPrintWriter(path)) {
+			this.pw = out;
+			this.nClasses = 0;
+			this.nMethods = 0;
+			this.nFailures = 0;
+			begin(String.valueOf(this.classToTest.size())+" classes(s)");
+			for(final Class<?> c: this.classToTest) {
+				run(c);
+			}
+			end();
+			out.flush();
+			if(this.nFailures==0) {
+				System.err.println("Tests were successful.");
+				}
+			else {
+				System.err.println("Tests failed.");
+				}
+			return nFailures;
+			}
+		catch(final Throwable err) {
+			return -1;
 		}
-		end();
 	}
 }

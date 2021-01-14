@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,7 +47,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
-
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IStringConverterFactory;
 import com.beust.jcommander.IValueValidator;
@@ -57,6 +57,8 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.tests.TestRunner;
+import com.github.lindenb.jvarkit.tests.TestRunnerImpl;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -96,7 +98,7 @@ public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web
 		+ "For example for IGV that would be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see http://software.broadinstitute.org/software/igv/book/export/html/189)";
 
 protected static final int RETURN_OK=0;
-public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
+public enum Status { OK, PRINT_HELP,PRINT_VERSION,RUN_TESTS,EXIT_SUCCESS,EXIT_FAILURE};
 
 
 
@@ -458,6 +460,21 @@ protected JCommander getJCommander()
 	{
 	return this.jcommander;
 	}
+protected TestRunner createTestRunner() {
+	return new TestRunnerImpl();
+}
+private int runInternalTests() {
+	try {
+		final TestRunner r= createTestRunner();
+		r.register(this.getClass());
+		final Path path = Paths.get(getProgramName()+".tests.txt");
+		return r.run(path);
+		}
+	catch(final Throwable err) {
+		err.printStackTrace();
+		return -1;
+		}
+	}
 
 /** called AFTER argc/argv has been initialized */
 protected int initialize() {
@@ -493,6 +510,7 @@ protected Status parseArgs(final String args[])
 	 	}
 	
 	 if (this.usageBuilder.shouldPrintUsage()) return Status.PRINT_HELP;
+	 if (this.usageBuilder.shouldRunTests()) return Status.RUN_TESTS;
 	 if (this.usageBuilder.print_version) return Status.PRINT_VERSION;
 	 return Status.OK;
 	}
@@ -745,6 +763,7 @@ public int instanceMain(final String args[]) {
 			case EXIT_SUCCESS: return 0;
 			case PRINT_HELP: this.usageBuilder.usage(getJCommander()); return 0;
 			case PRINT_VERSION: System.out.println(getVersion());return 0;
+			case RUN_TESTS: return this.runInternalTests();
 			case OK:break;
 			}
 		
