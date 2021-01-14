@@ -45,6 +45,9 @@ Usage: depthofcoverage [options] Files
     --skip
       Chromosomes to skip (regular expression)
       Default: (NC_007605|hs37d5)
+    --use-index
+      use bam index to query intervals if --bed is defined.
+      Default: false
     --version
       print version and exit
 

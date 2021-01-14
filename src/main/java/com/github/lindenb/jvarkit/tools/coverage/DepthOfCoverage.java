@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.ContigPos;
 
 import htsjdk.samtools.AlignmentBlock;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -109,7 +110,7 @@ END_DOC
 	description="A custom 'Depth of Coverage'.",
 	keywords={"depth","bam","sam","coverage"},
 	creationDate="20190927",
-	modificationDate="20201102"
+	modificationDate="20210124"
 	)
 public class DepthOfCoverage extends Launcher
 	{
@@ -122,6 +123,8 @@ public class DepthOfCoverage extends Launcher
 	private Path maskBed = null;
 	@Parameter(names={"-B","--bed"},description="optional bed containing regions to be SCANNED (inverse of --mask)")
 	private Path includeBed = null;
+	@Parameter(names={"--use-index"},description="use bam index to query intervals if --bed is defined.")
+	private boolean useBamIndexFlag = false;
 
 	@Parameter(names={"--mapq"},description=" min mapping quality.")
 	private int mapping_quality=1;
@@ -211,6 +214,35 @@ public class DepthOfCoverage extends Launcher
 						LOG.error("file is not sorted on coordinate :"+header.getSortOrder()+" "+path);
 						return -1;
 						}
+					
+					final QueryInterval intervals[];
+					if(this.useBamIndexFlag && this.includeBed!=null) {
+						if(!sr.hasIndex()) {
+							LOG.error("Bam is not indexed. " + path);
+							return -1;
+							}
+						final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
+						final List<QueryInterval> L = new ArrayList<>();
+						final BedLineCodec codec= new BedLineCodec();
+						try(BufferedReader br=IOUtils.openPathForBufferedReading(this.includeBed)) {
+							String line;
+							while((line=br.readLine())!=null) {
+								final BedLine bed = codec.decode(line);
+								if(bed==null) continue;
+								final String ctg = contigNameConverter.apply(bed.getContig());
+								if(StringUtils.isBlank(ctg)) continue;
+								final int tid  = dict.getSequenceIndex(ctg);
+								if(tid<0) continue;
+								L.add(new QueryInterval(tid,bed.getStart(),bed.getEnd()));
+								}
+							}
+						intervals = QueryInterval.optimizeIntervals(L.toArray(new QueryInterval[L.size()]));
+						}
+					else
+						{
+						intervals = null;
+						}
+					
 					Integer minCov = null;
 					Integer maxCov = null;
 					ContigPos maxCovPosition = null;
@@ -232,7 +264,7 @@ public class DepthOfCoverage extends Launcher
 					
 					BitSet mask=null;
 					final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
-					try(CloseableIterator<SAMRecord> iter=sr.iterator()) {
+					try(CloseableIterator<SAMRecord> iter= intervals==null?sr.iterator():sr.queryOverlapping(intervals)) {
 						for(;;)
 							{
 							final SAMRecord rec = iter.hasNext()?progress.apply(iter.next()):null;
