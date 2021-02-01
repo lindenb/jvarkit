@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfucsc;
 
-import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -44,6 +43,17 @@ import java.util.function.Predicate;
 
 import org.apache.commons.jexl2.JexlContext;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jexl.BaseJexlHandler;
+import com.github.lindenb.jvarkit.jexl.JexlPredicate;
+import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -55,63 +65,16 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
 import htsjdk.variant.vcf.VCFIterator;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.jexl.BaseJexlHandler;
-import com.github.lindenb.jvarkit.jexl.JexlPredicate;
-import com.github.lindenb.jvarkit.jexl.JexlToString;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-/**
-BEGIN_DOC
-
-## JEXL expressions:
-
-## Jexl expression
-
-Filtering and conversion to string are performed using a JEXL expression. See https://commons.apache.org/proper/commons-jexl/reference/syntax.html
-
-the following names are defined for the jexl context:
-
- * **variant** : the observed **VariantContext** https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
- * **row** : a **ResultSet** https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSet.html
- * **meta** : a **ResultSetMetaData** https://docs.oracle.com/javase/8/docs/api/java/sql/ResultSetMetaData.html
- * other fields are the names of the column in the table.
-
-
-
-## History
-
-20190424: switch to jexl expressions
-20180206: faster creating a prepared statement for each bin.size. fix chromContig
-
-## Example
-
-
-```
-java -jar dist/vcfucsc.jar -a 'score > 200 ' -e ' chromStart + "|" + chromEnd + "|" + name + "|"+ score' --table vistaEnhancers input.vcf 
-```
-
-END_DOC
- */
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 @Program(
 		name="vcfucsc",
 		description="annotate an VCF with mysql UCSC data",
 		keywords={"ucsc","mysql","vcf"},
 		creationDate="20160105",
-		modificationDate="20191121"
+		modificationDate="20210201"
 		)
-public class VcfUcsc extends Launcher
-	{
+public class VcfUcsc extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfUcsc.class).make();
 
 	
@@ -160,8 +123,6 @@ public class VcfUcsc extends Launcher
 	private Predicate<JexlContext> acceptRowFunc = ROW->true;
 
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-e","--expression"},description="JEXL expression used to convert a row to String. Empty=default. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
 	private String convertToStrExpr ="";
 	@Parameter(names={"-a","--accept"},description="JEXL expression used to accept a result set. Must return a boolean. Empty=defaul/accept all. See the manual. " + BaseJexlHandler.OPT_WHAT_IS_JEXL)
@@ -183,8 +144,6 @@ public class VcfUcsc extends Launcher
 	private String filterIn=null;
 	@Parameter(names={"-fo","--filterOut"},description="Set this FILTER if no item is found in the database")
 	private String filterOut=null;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	private Connection connection=null;
 	private boolean has_bin_column=false;
@@ -319,10 +278,9 @@ public class VcfUcsc extends Launcher
 				{
 				bin2pstmt.put(0, createPreparedStatement(0));
 				}
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			while(in.hasNext())
 				{
-				final VariantContext ctx= progress.apply(in.next());
+				final VariantContext ctx=  in.next();
 				int start0 ,end0;
 				
 				if(ctx.isIndel()) //mutation starts *after* the base
@@ -386,7 +344,6 @@ public class VcfUcsc extends Launcher
 					}
 				out.add(vcb.make());
 				}
-			progress.close();
 			return 0;
 			}
 		catch(final SQLException err)
@@ -405,7 +362,12 @@ public class VcfUcsc extends Launcher
 		}
 
 	@Override
-	public int doWork(final List<String> args) {
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int beforeVcf() {
 		int max_column_index=0;
 		try
 			{
@@ -504,16 +466,21 @@ public class VcfUcsc extends Launcher
 				LOG.error("cannot find endColumn in "+cols);
 				return -1;
 				}
-			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
+			return 0;
 			}
 		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
+		}
+	
+	@Override
+	protected void afterVcf() {
+		try {
 			CloserUtil.close(this.connection);
+			} catch(final Throwable err) {
+			LOG.error(err);
 			}
 		}
 

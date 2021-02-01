@@ -65,24 +65,5 @@ public class VcfSetSequenceDictionaryTest {
 			support.removeTmpFiles();
 		}
 		}
-	
-	@Test(dataProvider="all-vcf-files")
-	public void testHeaderOnly(final String inputFile) 
-		throws IOException
-		{
-		try {
-		final Path dictF = prepare(inputFile);
-		final Path output = support.createTmpPath(".vcf");
-        Assert.assertEquals(new VcfSetSequenceDictionary().instanceMain(new String[]{
-        		"-o",output.toString(),
-        		"-R",dictF.toString(),
-        		"-ho",
-        		inputFile
-        	}),0);
-        support.assertIsVcf(output);
-		} finally {
-			support.removeTmpFiles();
-		}
-		}
 
 }
