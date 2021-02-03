@@ -35,27 +35,27 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.AbstractList;
 import java.util.PrimitiveIterator;
-import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 /**
- * wrapper for an array of double.
+ * wrapper for an array of long.
  * GENERATED : DO NOT EDIT.
  */
-public class DoubleArray extends BaseArray<Double> {
+public class LongArray extends BaseArray<Long> {
 	private static final long serialVersionUID = 1L;
-	private double[] array;
+	private long[] array;
 	
 	/** default constructor */
-	public DoubleArray() {
+	public LongArray() {
 		this(100);
 	}
 	/** copy constructor */
-	public DoubleArray(final DoubleArray copy) {
+	public LongArray(final LongArray copy) {
 		this(copy.array,0,copy.mSize);
 	}
 
 	/** constructor with prefilled 'N' values  */
-	public DoubleArray(final int size,final double defaultValue) {
+	public LongArray(final int size,final long defaultValue) {
 		this(size);
 		super.mSize = size;
 		Arrays.fill(this.array,defaultValue);
@@ -63,58 +63,58 @@ public class DoubleArray extends BaseArray<Double> {
 
 
 	/** constructor with defined buffer capacity */
-	public DoubleArray(final int capacity) {
+	public LongArray(final int capacity) {
 		super();
 		if(capacity < 0) throw new IllegalArgumentException("capacity <0 : "+ capacity);
-		this.array = new double[capacity];
+		this.array = new long[capacity];
 	}
 	
 	/** create a copy of values from off with size=len */
-	public DoubleArray(final double values[],int off, int len) {
+	public LongArray(final long values[],int off, int len) {
 		this(len);
 		System.arraycopy(values, off, this.array, 0, len);
 		super.mSize = len;
 		}
 	/** create a copy of values */
-	public DoubleArray(final double values[]) {
+	public LongArray(final long values[]) {
 		this(values,0,values.length);
 	}
 	
 	/** create a IntArray by wrapping the already existing array 'values'
 	 * returned IntArray is now owner of the array
 	 * */
-	public static DoubleArray wrap(final double values[]) {
-		final DoubleArray a = new DoubleArray(0);
+	public static LongArray wrap(final long values[]) {
+		final LongArray a = new LongArray(0);
 		a.array = values;
 		a.mSize = values.length;
 		return a;
 	}
 	
 	/** slice a copy of the array */
-	public DoubleArray slice(final int off,final int len) {
+	public LongArray slice(final int off,final int len) {
 		if(off+len>size()) throw new IndexOutOfBoundsException("0<="+(off+len)+"<="+size());
-		return new DoubleArray(this.array,off,len);
+		return new LongArray(this.array,off,len);
 	}
 	
 	/** slice a copy of the array.  It extracts through the end of the sequence  */
-	public DoubleArray slice(final int off) {
-		return new DoubleArray(this.array,off,size()-off);
+	public LongArray slice(final int off) {
+		return new LongArray(this.array,off,size()-off);
 	}
 	
 	/** set size to zero */
-	public DoubleArray clear() {
+	public LongArray clear() {
 		super.mSize = 0;
 		return this;
 	}
 	
 	/** return index-th value */
-	public double get(int index) {
+	public long get(int index) {
 		return this.array[check(index)];
 	}
 
 	/** set index-th value , return previous value*/
-	public double set(int index,final double value) {
-		final double old = this.array[check(index)];
+	public long set(int index,final long value) {
+		final long old = this.array[check(index)];
 		this.array[index] = value;
 		return old;
 	}
@@ -127,31 +127,31 @@ public class DoubleArray extends BaseArray<Double> {
 		}
 	
 	/** push back the value */
-	public double add(final double value) {
+	public long add(final long value) {
 		ensure(1);
 		this.array[super.mSize] = value;
 		super.mSize++;
 		return value;
 	}
 	
-	public DoubleArray addAll(final DoubleArray o) {
+	public LongArray addAll(final LongArray o) {
 		return addAll(o.array,0,o.mSize);
 		}
 	
-	public DoubleArray addAll(final double[] values) {
+	public LongArray addAll(final long[] values) {
 		return addAll(values,0,values.length);
 		}
 	
-	public DoubleArray addAll(final double[] values,int off,int len) {
+	public LongArray addAll(final long[] values,int off,int len) {
 		ensure(len);
 		System.arraycopy(values, off, this.array, super.mSize, len);
 		super.mSize+=len;
 		return this;
 		}
 	
-	public DoubleArray addAll(final Collection<Double> col) {
+	public LongArray addAll(final Collection<Long> col) {
 		ensure(col.size());
-		final Iterator<Double> iter = col.iterator();
+		final Iterator<Long> iter = col.iterator();
 		while(iter.hasNext()) {
 			this.array[super.mSize] = iter.next();
 			super.mSize++;
@@ -160,19 +160,19 @@ public class DoubleArray extends BaseArray<Double> {
 	}
 	
 	/** remove 1st value */
-	public double popFront() {
+	public long popFront() {
 		return remove(0);
 		}
 	
 	/** remove last value */
-	public double popBack() {
+	public long popBack() {
 		return remove(size()-1);
 		}
 	
 	
 	/** remove idx-th value */
-	public double remove(final int idx) {
-		final double old = this.array[check(idx)];
+	public long remove(final int idx) {
+		final long old = this.array[check(idx)];
 		if(idx+1< super.mSize) {
 			System.arraycopy(
 				this.array, idx+1,
@@ -183,7 +183,7 @@ public class DoubleArray extends BaseArray<Double> {
 		return old;
 	}
 
-	public int indexOf(int index,final double value) {
+	public int indexOf(int index,final long value) {
 		while(index < size()) {
 			if(get(index)==value) return index;
 			index++;
@@ -191,15 +191,15 @@ public class DoubleArray extends BaseArray<Double> {
 		return -1;
 		}
 		
-	public int indexOf(final double value) {
+	public int indexOf(final long value) {
 		return isEmpty()?-1:indexOf(0,value);
 		}
 	
-	public boolean contains(final double value) {
+	public boolean contains(final long value) {
 		return indexOf(value)!=-1;
 	}
 	
-	public double insert(int index,double value) {
+	public long insert(int index,long value) {
 		ensure(1);
 		if(index<= super.mSize) {
 			System.arraycopy(
@@ -212,70 +212,70 @@ public class DoubleArray extends BaseArray<Double> {
 		return value;
 	}
 	
-		public DoubleStream stream() {
+		public LongStream stream() {
 		return Arrays.stream(this.array, 0, super.mSize);
 	}
 	
 	
 	@Override
-	public PrimitiveIterator.OfDouble iterator() {
+	public PrimitiveIterator.OfLong iterator() {
 		return stream().iterator();
 	}
 		
 	/** sort this data */
-	public DoubleArray sort() {
+	public LongArray sort() {
 		Arrays.sort(this.array,0,super.mSize);
 		return this;
 	}
 	
 	/** convert to array. The array is a *copy* of the original data */
-	public double[] toArray() {
+	public long[] toArray() {
 		return Arrays.copyOf(this.array, super.mSize);
 	}
 	
 	/** clone this object */
-	public DoubleArray clone() {
-		return new DoubleArray(this);
+	public LongArray clone() {
+		return new LongArray(this);
 	}
 	
 	@Override
 	public int hashCode() {
 		int result = 0;
 		for(int i=0;i< super.mSize;i++) {
-	        result = 31 * result + Double.hashCode(this.array[i]);
+	        result = 31 * result + Long.hashCode(this.array[i]);
 			}
 		return result;
 		}
 	
 	@Override
-	public List<Double> asList() {
-		return new AbstractList<Double>()
+	public List<Long> asList() {
+		return new AbstractList<Long>()
 			{
 			@Override
-			public Double remove(final int index)
+			public Long remove(final int index)
 				{
-				return DoubleArray.this.remove(index);
+				return LongArray.this.remove(index);
 				}
 			@Override
-			public boolean add(final Double e)
+			public boolean add(final Long e)
 				{
-				DoubleArray.this.add(e);
+				LongArray.this.add(e);
 				return true;
 				}
 			@Override
-			public Double set(final int index, final Double element)
+			public Long set(final int index, final Long element)
 				{
-				return DoubleArray.this.set(index, element);
+				return LongArray.this.set(index, element);
 				}
 			@Override
-			public Double get(final int index)
+			public Long get(final int index)
 				{
-				return DoubleArray.this.get(index);
+				return LongArray.this.get(index);
 				}
 			@Override
 			public int size()
 				{
-				return DoubleArray.this.size();
+				return LongArray.this.size();
 				}
 			};
 		}
@@ -292,19 +292,19 @@ public class DoubleArray extends BaseArray<Double> {
 		return sb.toString();
 		}
 	
-	public static DoubleArray read(final DataInputStream in) throws IOException {
+	public static LongArray read(final DataInputStream in) throws IOException {
 		final int n=in.readInt();
-		final DoubleArray vec = new DoubleArray(n);
+		final LongArray vec = new LongArray(n);
 		for(int i=0;i< n;i++) {
-			vec.add(in.readDouble());
+			vec.add(in.readLong());
 			}
 		return vec;
 		}
 	
-	public static void write(final DataOutputStream out,DoubleArray vec) throws IOException {
+	public static void write(final DataOutputStream out,LongArray vec) throws IOException {
 		out.writeInt(vec.size());
 		for(int i=0;i< vec.size();i++) {
-			out.writeDouble(vec.get(i));
+			out.writeLong(vec.get(i));
 			}
 		}
 	}
