@@ -131,7 +131,9 @@ END_DOC
 @Program(
 		name="goutils",
 		description="Gene Ontology Utils. Retrieves terms from Gene Ontology",
-		keywords={"geneontology","go","gexf"}
+		keywords={"geneontology","go","gexf"},
+		biostars={488538},
+		creationDate="20180130"
 		)
 public class GoUtils
 	extends Launcher
