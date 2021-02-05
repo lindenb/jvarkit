@@ -36,7 +36,7 @@ Usage: vcfbigwig [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -T, --tag, -tag
       Name of the INFO tag. default: name of the bigwig

@@ -10,9 +10,14 @@ Set the `##contig` lines in a VCF header on the fly
 ```
 Usage: vcfsetdict [options] Files
   Options:
-    -ho, --header-only
-      only change the vcf header. Keep the whole VCF body unchanged. The idea 
-      is to use a faster(?) `sed sed 's/^chr//' ` for the VCF body.
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
       Default: false
     -h, --help
       print help and exit
@@ -24,7 +29,7 @@ Usage: vcfsetdict [options] Files
       with different notations
       Default: SKIP
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
@@ -58,6 +63,11 @@ $ ./gradlew vcfsetdict
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20140105
 
 ## Source code 
 

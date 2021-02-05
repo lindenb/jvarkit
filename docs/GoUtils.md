@@ -27,11 +27,11 @@ Usage: goutils [options] Files
     -go-divisions, --go-divisions
       limit the gene ontology tree to those divisions. empty: all possible 
       divisions. 
-      Default: [cellular_component, biological_process, molecular_function]
+      Default: [cellular_component, molecular_function, biological_process]
     -go-relations, --go-relations
       limit the gene ontology tree to those relationships. empty: all possible 
       relationships. 
-      Default: [regulates, is_a, negatively_regulates, part_of, positively_regulates]
+      Default: [negatively_regulates, is_a, part_of, positively_regulates, regulates]
     -h, --help
       print help and exit
     --helpFormat
@@ -54,6 +54,12 @@ Usage: goutils [options] Files
  * gexf
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/488538](https://www.biostars.org/p/488538)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -70,6 +76,11 @@ $ ./gradlew goutils
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20180130
 
 ## Source code 
 

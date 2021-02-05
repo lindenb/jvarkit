@@ -25,22 +25,24 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.lang.primitive;
 
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
+import java.util.AbstractList;
 import java.util.PrimitiveIterator;
 import java.util.stream.IntStream;
 
 /**
  * wrapper for an array of int.
+ * GENERATED : DO NOT EDIT.
  */
-public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
+public class IntArray extends BaseArray<Integer> {
 	private static final long serialVersionUID = 1L;
-	private int mSize = 0;
 	private int[] array;
 	
 	/** default constructor */
@@ -52,21 +54,29 @@ public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
 		this(copy.array,0,copy.mSize);
 	}
 
+	/** constructor with prefilled 'N' values  */
+	public IntArray(final int size,final int defaultValue) {
+		this(size);
+		super.mSize = size;
+		Arrays.fill(this.array,defaultValue);
+	}
+
+
 	/** constructor with defined buffer capacity */
 	public IntArray(final int capacity) {
-		if(this.mSize<0) throw new IllegalArgumentException("capacity <0 : "+ capacity);
-		this.mSize = 0;
+		super();
+		if(capacity < 0) throw new IllegalArgumentException("capacity <0 : "+ capacity);
 		this.array = new int[capacity];
 	}
 	
 	/** create a copy of values from off with size=len */
-	public IntArray(int values[],int off, int len) {
+	public IntArray(final int values[],int off, int len) {
 		this(len);
 		System.arraycopy(values, off, this.array, 0, len);
-		this.mSize = len;
+		super.mSize = len;
 		}
 	/** create a copy of values */
-	public IntArray(int values[]) {
+	public IntArray(final int values[]) {
 		this(values,0,values.length);
 	}
 	
@@ -81,33 +91,20 @@ public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
 	}
 	
 	/** slice a copy of the array */
-	public IntArray slice(int off, int len) {
+	public IntArray slice(final int off,final int len) {
 		if(off+len>size()) throw new IndexOutOfBoundsException("0<="+(off+len)+"<="+size());
 		return new IntArray(this.array,off,len);
 	}
 	
-	
-	private int check(final int idx) {
-		if(idx < 0 || idx >= this.mSize) {
-			throw new IndexOutOfBoundsException("0<="+idx+"<idx="+this.mSize);
-		}
-		return idx;
+	/** slice a copy of the array.  It extracts through the end of the sequence  */
+	public IntArray slice(final int off) {
+		return new IntArray(this.array,off,size()-off);
 	}
 	
 	/** set size to zero */
 	public IntArray clear() {
-		this.mSize = 0;
+		super.mSize = 0;
 		return this;
-	}
-
-	/** get size */
-	public int size() {
-		return this.mSize;
-	}
-	
-	/** return true if size==0 */
-	public boolean isEmpty() {
-		return size() == 0;
 	}
 	
 	/** return index-th value */
@@ -115,29 +112,25 @@ public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
 		return this.array[check(index)];
 	}
 
-	/** set index-th value */
-	public IntArray set(int index,int value) {
-		this.array[check(index)]= value;
-		return this;
+	/** set index-th value , return previous value*/
+	public int set(int index,final int value) {
+		final int old = this.array[check(index)];
+		this.array[index] = value;
+		return old;
 	}
 	
-	private void ensure(int n) {
-		final int avail = this.array.length - this.mSize;
-		if(avail<= n) {
-			final long L0x = (long)this.mSize+(long)n;
-			final long L1x = Math.min((long)Integer.MAX_VALUE,(long)(this.array.length)+(long)(this.array.length)/2L);
-			final long L2x = Math.max(L0x,L1x);
-			if(L2x>=(long)Integer.MAX_VALUE) throw new IllegalStateException("Array too large "+ L2x);
-			
-			this.array  = Arrays.copyOf(this.array, (int)L2x);
+	private void ensure(final int n) {
+		final int avail = this.array.length - super.mSize;
+		if(avail < n) {
+			this.array  = Arrays.copyOf(this.array,extendSize(this.array.length,n));
 			}
 		}
 	
-	/** push bash the value */
-	public int add(int value) {
+	/** push back the value */
+	public int add(final int value) {
 		ensure(1);
-		this.array[this.mSize] = value;
-		this.mSize++;
+		this.array[super.mSize] = value;
+		super.mSize++;
 		return value;
 	}
 	
@@ -145,14 +138,14 @@ public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
 		return addAll(o.array,0,o.mSize);
 		}
 	
-	public IntArray addAll(int[] values) {
+	public IntArray addAll(final int[] values) {
 		return addAll(values,0,values.length);
 		}
 	
 	public IntArray addAll(final int[] values,int off,int len) {
 		ensure(len);
-		System.arraycopy(values, off, this.array, this.mSize, len);
-		this.mSize+=len;
+		System.arraycopy(values, off, this.array, super.mSize, len);
+		super.mSize+=len;
 		return this;
 		}
 	
@@ -160,71 +153,84 @@ public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
 		ensure(col.size());
 		final Iterator<Integer> iter = col.iterator();
 		while(iter.hasNext()) {
-			this.array[this.mSize] = iter.next();
-			this.mSize++;
+			this.array[super.mSize] = iter.next();
+			super.mSize++;
 			}
 		return this;
 	}
-	// 0123456789
-	public int remove(int idx) {
-		int old = this.array[check(idx)];
-		if(idx+1< this.mSize) {
+	
+	/** remove 1st value */
+	public int popFront() {
+		return remove(0);
+		}
+	
+	/** remove last value */
+	public int popBack() {
+		return remove(size()-1);
+		}
+	
+	
+	/** remove idx-th value */
+	public int remove(final int idx) {
+		final int old = this.array[check(idx)];
+		if(idx+1< super.mSize) {
 			System.arraycopy(
 				this.array, idx+1,
 				this.array, idx,
-				this.mSize - (idx+1));
+				super.mSize - (idx+1));
 			}
-		this.mSize--;
+		super.mSize--;
 		return old;
 	}
 
-	public int indexOf(int index,int value) {
+	public int indexOf(int index,final int value) {
 		while(index < size()) {
 			if(get(index)==value) return index;
 			index++;
 			}
 		return -1;
 		}
-	public int indexOf(int value) {
+		
+	public int indexOf(final int value) {
 		return isEmpty()?-1:indexOf(0,value);
 		}
 	
-	public boolean contains(int value) {
-		return indexOf(value)==-1;
+	public boolean contains(final int value) {
+		return indexOf(value)!=-1;
 	}
 	
 	public int insert(int index,int value) {
 		ensure(1);
-		if(index<= this.mSize) {
+		if(index<= super.mSize) {
 			System.arraycopy(
 				this.array, index,
 				this.array, index+1,
-				this.mSize - index);
+				super.mSize - index);
 			}
 		this.array[index]=value;
-		this.mSize++;
+		super.mSize++;
 		return value;
 	}
 	
- 	
-	public IntStream stream() {
-		return Arrays.stream(this.array, 0, this.mSize);
+		public IntStream stream() {
+		return Arrays.stream(this.array, 0, super.mSize);
 	}
+	
 	
 	@Override
 	public PrimitiveIterator.OfInt iterator() {
 		return stream().iterator();
 	}
-	
+		
 	/** sort this data */
 	public IntArray sort() {
-		Arrays.sort(this.array,0,this.mSize);
+		Arrays.sort(this.array,0,super.mSize);
 		return this;
 	}
 	
 	/** convert to array. The array is a *copy* of the original data */
 	public int[] toArray() {
-		return Arrays.copyOf(this.array, this.mSize);
+		return Arrays.copyOf(this.array, super.mSize);
 	}
 	
 	/** clone this object */
@@ -235,11 +241,46 @@ public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
 	@Override
 	public int hashCode() {
 		int result = 0;
-		for(int i=0;i< this.mSize;i++) {
-	        result = 31 * result + this.array[i];
+		for(int i=0;i< super.mSize;i++) {
+	        result = 31 * result + Integer.hashCode(this.array[i]);
 			}
 		return result;
 		}
+	
+	@Override
+	public List<Integer> asList() {
+		return new AbstractList<Integer>()
+			{
+			@Override
+			public Integer remove(final int index)
+				{
+				return IntArray.this.remove(index);
+				}
+			@Override
+			public boolean add(final Integer e)
+				{
+				IntArray.this.add(e);
+				return true;
+				}
+			@Override
+			public Integer set(final int index, final Integer element)
+				{
+				return IntArray.this.set(index, element);
+				}
+			@Override
+			public Integer get(final int index)
+				{
+				return IntArray.this.get(index);
+				}
+			@Override
+			public int size()
+				{
+				return IntArray.this.size();
+				}
+			};
+		}
+	
+	
 	
 	@Override
 	public String toString() {
@@ -251,15 +292,16 @@ public class IntArray implements Cloneable,Serializable,Iterable<Integer> {
 		return sb.toString();
 		}
 	
-	public static IntArray read(DataInputStream in) throws IOException {
+	public static IntArray read(final DataInputStream in) throws IOException {
 		final int n=in.readInt();
-		IntArray vec = new IntArray(n);
+		final IntArray vec = new IntArray(n);
 		for(int i=0;i< n;i++) {
 			vec.add(in.readInt());
 			}
 		return vec;
 		}
-	public static void write(DataOutputStream out,IntArray vec) throws IOException {
+	
+	public static void write(final DataOutputStream out,IntArray vec) throws IOException {
 		out.writeInt(vec.size());
 		for(int i=0;i< vec.size();i++) {
 			out.writeInt(vec.get(i));

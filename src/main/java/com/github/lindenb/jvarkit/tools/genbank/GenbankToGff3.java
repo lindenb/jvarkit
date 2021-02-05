@@ -100,8 +100,10 @@ Input is a list of *.xml genbank files (DTD/Schema: https://www.ncbi.nlm.nih.gov
 END_DOC
  */
 @Program(name="gb2gff",
-description="Experimental genbank to GFF",
-keywords={"xml","ncbi","genbank","convert","gff","gb"}
+description="Experimental Genbank XML to GFF",
+keywords={"xml","ncbi","genbank","convert","gff","gb"},
+modificationDate="20210429",
+creationDate="20180215"
 )
 public class GenbankToGff3 extends Launcher {
 	private static final Logger LOG = Logger.build(GenbankToGff3.class).make();
@@ -343,9 +345,11 @@ public class GenbankToGff3 extends Launcher {
 	private void dump() {
 		this.buffer.forEach(B->B.print());
 		this.buffer.clear();
-		}	
+		}
+	
+	
+	
 	private void parseGenBank(final XMLEventReader r) throws JAXBException,XMLStreamException,IOException{
-		
 		while(r.hasNext())
 			{
 			final XMLEvent evt= r.peek();
@@ -399,22 +403,21 @@ public class GenbankToGff3 extends Launcher {
 			
 			if(inputs.isEmpty()) {
 				LOG.info("reading stdin");
-				final Reader r = new InputStreamReader(stdin());
-				final XMLEventReader xr = xif.createXMLEventReader(r);
-				parseGenBank(xr);
-				xr.close();
-				r.close();
+				try(final Reader r = new InputStreamReader(stdin())) {
+					final XMLEventReader xr = xif.createXMLEventReader(r);
+					parseGenBank(xr);
+					xr.close();
+					}
 				} 
 			else for(final Path path:inputs)
 				{
 				LOG.info("reading "+path);
-				final Reader r = Files.newBufferedReader(path);
-				final XMLEventReader xr = xif.createXMLEventReader(r);
-				parseGenBank(xr);
-				xr.close();
-				r.close();
+				try(final Reader r = Files.newBufferedReader(path)) {
+					final XMLEventReader xr = xif.createXMLEventReader(r);
+					parseGenBank(xr);
+					xr.close();
+					}
 				}
-			
 			
 			this.tmpWriter.flush();
 			this.tmpWriter.close();

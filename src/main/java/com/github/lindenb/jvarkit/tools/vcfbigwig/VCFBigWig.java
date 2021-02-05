@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -46,15 +45,13 @@ import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -70,7 +67,6 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.vcf.VCFIterator;
 /*
@@ -105,10 +101,9 @@ END_DOC
 	description="Annotate a VCF with values from a bigwig file",
 	keywords={"vcf","wig","wiggle","bigwig"},
 	creationDate="20200506",
-	modificationDate="20200227"
+	modificationDate="20210201"
 	)
-public class VCFBigWig extends Launcher
-	{
+public class VCFBigWig extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VCFBigWig.class).make();
 
 	/** wraps a BigWigIterator */
@@ -210,13 +205,6 @@ public class VCFBigWig extends Launcher
 		}
 	
 	private final List<BigWigResource> bigwigResources = new ArrayList<>();
-
-	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingDelegate = new WritingVariantsDelegate();
-
 	
 	@Parameter(names={"-B","--bigwig"},description=
 			"Path to the bigwig file. "
@@ -238,12 +226,14 @@ public class VCFBigWig extends Launcher
 
 		
 
-		
-		
-		
-		
-		private int initBigWig() {
-			Reader fr =null;
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}	
+	
+	@Override
+	protected int beforeVcf() {
+		Reader fr =null;
 			try
 				{
 				if(StringUtil.isBlank(this.userBigWigFileUri))
@@ -339,8 +329,6 @@ public class VCFBigWig extends Launcher
 		
 		
 	
-		
-	
 	
 	private enum AggregateMethod
 		{
@@ -384,12 +372,11 @@ public class VCFBigWig extends Launcher
 		JVarkitVersion.getInstance().addMetaData(this, h2);
 		w.writeHeader(h2);
 		
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		long count=0L;
 		final List<Float> values = new ArrayList<>();
 		while(r.hasNext())
 			{
-			final VariantContext ctx = progress.apply(r.next());
+			final VariantContext ctx = r.next();
 			VariantContextBuilder vcb = null;
 			
 			for(final BigWigResource rsrc: this.bigwigResources) {
@@ -458,7 +445,6 @@ public class VCFBigWig extends Launcher
 				System.gc();
 				}
 			}
-		progress.close();
 		w.close();
 		
 		for(final BigWigResource rsrc:this.bigwigResources)
@@ -475,20 +461,8 @@ public class VCFBigWig extends Launcher
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
-		try 
-			{
-			if(this.initBigWig()!=0) return -1;
-			return doVcfToVcfPath(args,this.writingDelegate,this.outputFile);
-			}
-		catch(final Throwable err) {
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(this.bigwigResources);
-			}
+	protected void afterVcf() {
+		CloserUtil.close(this.bigwigResources);
 		}
 	
 	public static void main(final String[] args) throws IOException

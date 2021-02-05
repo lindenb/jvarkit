@@ -24,36 +24,23 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
-
 import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
@@ -77,25 +64,17 @@ END_DOC
 @Program(name="vcfsetdict",
 	description="Set the `##contig` lines in a VCF header on the fly",
 	keywords={"vcf","dict","fai"},
-	modificationDate="20191129"
+	creationDate="20140105",
+	modificationDate="20210201"
 	)
-public class VcfSetSequenceDictionary extends Launcher
-	{
+public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
 	private static final Logger LOG=Logger.build(VcfSetSequenceDictionary.class).make();
 	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx=null;
 	@Parameter(names={"-n","--onNotFound"},description=ContigNameConverter.OPT_ON_NT_FOUND_DESC)
 	private OnNotFound onContigNotFound = OnNotFound.SKIP;			
-	@Parameter(names={"-ho","--header-only"},description=
-			"only change the vcf header. Keep the whole VCF body unchanged. The idea is to use a faster(?) `sed sed 's/^chr//' ` for the VCF body. " )
-	private boolean header_only=false;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
-
 	
 	private SAMSequenceDictionary dict=null;
 	
@@ -130,19 +109,14 @@ public class VcfSetSequenceDictionary extends Launcher
 		w.writeHeader(header2);
 		
 		
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
-				dictionary(header).
-				validatingContig(false).
-				logger(LOG).
-				build();
 		while(in.hasNext())
 			{
-			final VariantContext ctx=progress.apply(in.next());
+			final VariantContext ctx = in.next();
 			
 			String newContig = contigNameConverter.apply(ctx.getContig());
 			
 			
-			if(newContig==null)
+			if(StringUtils.isBlank(newContig))
 				{
 				if(this.onContigNotFound.equals(OnNotFound.RAISE_EXCEPTION))
 					{
@@ -171,7 +145,6 @@ public class VcfSetSequenceDictionary extends Launcher
 				w.add(new VariantContextBuilder(ctx).chr(newContig).make());
 				}
 			}
-		progress.close();
 		inputContigsNotFound.stream().forEach(chrom->
 			{
 			LOG.warn("Variant(s) with Contig \'"+chrom+"\' could not be converted to new Dictionary and where ignored");
@@ -180,52 +153,20 @@ public class VcfSetSequenceDictionary extends Launcher
 		return 0;
 	    }
 
-	private int headerOnly(final String inputName,final File outputFile) throws IOException {
-		BufferedReader br = null;
-		PrintWriter pw = null;
-		try {
-			br = super.openBufferedReader(inputName);
-			pw = super.openFileOrStdoutAsPrintWriter(outputFile);
-			VCFUtils.CodecAndHeader cah =  VCFUtils.parseHeader(br);
-			final VCFHeader header2 = new VCFHeader(cah.header);
-			header2.setSequenceDictionary(this.dict);
-			final ByteArrayOutputStream baos=new ByteArrayOutputStream();
-			final VariantContextWriter vcw=VCFUtils.createVariantContextWriterToOutputStream(baos);
-			vcw.writeHeader(header2);
-			vcw.close();
-			pw.print(new String(baos.toByteArray()));
-			IOUtils.copyTo(br, pw);
-			pw.flush();
-			pw.close();pw=null;
-			br.close();br=null;
-			return 0;
-			}
-		catch(final Throwable err) {
-			LOG.error(err);
-			return -1;
-		} finally {
-			CloserUtil.close(br);
-			CloserUtil.close(pw);
-			}
+	@Override
+	protected Logger getLogger() {
+		return LOG;
 		}
 	
-	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf() {
 		if(this.faidx==null) {
 			LOG.error("REF not defined");
 			return -1;
 			}
 		try {
 			this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
-			if(this.header_only)
-				{
-				return headerOnly(oneFileOrNull(args), this.outputFile);
-				}
-			else
-				{
-				return doVcfToVcf(args, this.outputFile);
-				}
+			return 0;
 			}
 		catch (final Exception err2)
 			{
