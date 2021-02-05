@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.AbstractList;
 import java.util.PrimitiveIterator;
 import java.util.stream.LongStream;
 
@@ -246,40 +244,27 @@ public class LongArray extends BaseArray<Long> {
 			}
 		return result;
 		}
-	
+		
 	@Override
-	public List<Long> asList() {
-		return new AbstractList<Long>()
-			{
-			@Override
-			public Long remove(final int index)
-				{
-				return LongArray.this.remove(index);
-				}
-			@Override
-			public boolean add(final Long e)
-				{
-				LongArray.this.add(e);
-				return true;
-				}
-			@Override
-			public Long set(final int index, final Long element)
-				{
-				return LongArray.this.set(index, element);
-				}
-			@Override
-			public Long get(final int index)
-				{
-				return LongArray.this.get(index);
-				}
-			@Override
-			public int size()
-				{
-				return LongArray.this.size();
-				}
-			};
+	protected final Long getElementAt(final int idx)
+		{
+		return get(idx);
 		}
-	
+	@Override
+	protected final Long setElementAt(final int idx,final Long value)
+		{
+		return set(idx,value);
+		}
+	@Override
+	protected final void addElement(final Long value)
+		{
+		this.add(value);
+		}
+	@Override
+	protected final Long removeElementAt(final int idx)
+		{
+		return this.remove(idx);
+		}
 	
 	
 	@Override

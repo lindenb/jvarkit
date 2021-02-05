@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.AbstractList;
 import java.util.stream.Stream;
 
 /**
@@ -246,40 +244,27 @@ public class ByteArray extends BaseArray<Byte> {
 			}
 		return result;
 		}
-	
+		
 	@Override
-	public List<Byte> asList() {
-		return new AbstractList<Byte>()
-			{
-			@Override
-			public Byte remove(final int index)
-				{
-				return ByteArray.this.remove(index);
-				}
-			@Override
-			public boolean add(final Byte e)
-				{
-				ByteArray.this.add(e);
-				return true;
-				}
-			@Override
-			public Byte set(final int index, final Byte element)
-				{
-				return ByteArray.this.set(index, element);
-				}
-			@Override
-			public Byte get(final int index)
-				{
-				return ByteArray.this.get(index);
-				}
-			@Override
-			public int size()
-				{
-				return ByteArray.this.size();
-				}
-			};
+	protected final Byte getElementAt(final int idx)
+		{
+		return get(idx);
 		}
-	
+	@Override
+	protected final Byte setElementAt(final int idx,final Byte value)
+		{
+		return set(idx,value);
+		}
+	@Override
+	protected final void addElement(final Byte value)
+		{
+		this.add(value);
+		}
+	@Override
+	protected final Byte removeElementAt(final int idx)
+		{
+		return this.remove(idx);
+		}
 	
 	
 	@Override

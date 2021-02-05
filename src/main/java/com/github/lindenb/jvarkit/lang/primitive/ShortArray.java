@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.AbstractList;
 import java.util.stream.Stream;
 
 /**
@@ -246,40 +244,27 @@ public class ShortArray extends BaseArray<Short> {
 			}
 		return result;
 		}
-	
+		
 	@Override
-	public List<Short> asList() {
-		return new AbstractList<Short>()
-			{
-			@Override
-			public Short remove(final int index)
-				{
-				return ShortArray.this.remove(index);
-				}
-			@Override
-			public boolean add(final Short e)
-				{
-				ShortArray.this.add(e);
-				return true;
-				}
-			@Override
-			public Short set(final int index, final Short element)
-				{
-				return ShortArray.this.set(index, element);
-				}
-			@Override
-			public Short get(final int index)
-				{
-				return ShortArray.this.get(index);
-				}
-			@Override
-			public int size()
-				{
-				return ShortArray.this.size();
-				}
-			};
+	protected final Short getElementAt(final int idx)
+		{
+		return get(idx);
 		}
-	
+	@Override
+	protected final Short setElementAt(final int idx,final Short value)
+		{
+		return set(idx,value);
+		}
+	@Override
+	protected final void addElement(final Short value)
+		{
+		this.add(value);
+		}
+	@Override
+	protected final Short removeElementAt(final int idx)
+		{
+		return this.remove(idx);
+		}
 	
 	
 	@Override

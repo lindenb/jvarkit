@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.lang.primitive;
 
 
 import java.io.Serializable;
+import java.util.AbstractList;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -68,6 +69,42 @@ public abstract class BaseArray<T> implements Cloneable,Serializable,Iterable<T>
 		return (int)L2x;
 		}
 	
+	
+	protected abstract T getElementAt(int idx);
+	protected abstract T setElementAt(int idx,final T value);
+	protected abstract void addElement(final T value);
+	protected abstract T removeElementAt(int idx);
+	
 	/** return a backed List for this data */ 
-	public abstract List<T> asList();
-	}
+	public List<T> asList() {
+		return new AbstractList<T>()
+			{
+			@Override
+			public T remove(final int index)
+				{
+				return BaseArray.this.removeElementAt(index);
+				}
+			@Override
+			public boolean add(final T e)
+				{
+				BaseArray.this.addElement(e);
+				return true;
+				}
+			@Override
+			public T set(final int index, final T element)
+				{
+				return BaseArray.this.setElementAt(index, element);
+				}
+			@Override
+			public T get(final int index)
+				{
+				return BaseArray.this.getElementAt(index);
+				}
+			@Override
+			public int size()
+				{
+				return BaseArray.this.size();
+				}
+			};
+		}
+		}

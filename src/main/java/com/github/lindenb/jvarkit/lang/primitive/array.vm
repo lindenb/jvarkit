@@ -54,8 +54,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.AbstractList;
 #if($primitive=="float" || $primitive=="byte"|| $primitive=="short"|| $primitive=="char")
 import java.util.stream.Stream;
 #else
@@ -285,40 +283,27 @@ public class ${className}Array extends BaseArray<${javaName}> {
 			}
 		return result;
 		}
-	
+		
 	@Override
-	public List<${javaName}> asList() {
-		return new AbstractList<${javaName}>()
-			{
-			@Override
-			public ${javaName} remove(final int index)
-				{
-				return ${className}Array.this.remove(index);
-				}
-			@Override
-			public boolean add(final ${javaName} e)
-				{
-				${className}Array.this.add(e);
-				return true;
-				}
-			@Override
-			public ${javaName} set(final int index, final ${javaName} element)
-				{
-				return ${className}Array.this.set(index, element);
-				}
-			@Override
-			public ${javaName} get(final int index)
-				{
-				return ${className}Array.this.get(index);
-				}
-			@Override
-			public int size()
-				{
-				return ${className}Array.this.size();
-				}
-			};
+	protected final ${javaName} getElementAt(final int idx)
+		{
+		return get(idx);
 		}
-	
+	@Override
+	protected final ${javaName} setElementAt(final int idx,final ${javaName} value)
+		{
+		return set(idx,value);
+		}
+	@Override
+	protected final void addElement(final ${javaName} value)
+		{
+		this.add(value);
+		}
+	@Override
+	protected final ${javaName} removeElementAt(final int idx)
+		{
+		return this.remove(idx);
+		}
 	
 	
 	@Override

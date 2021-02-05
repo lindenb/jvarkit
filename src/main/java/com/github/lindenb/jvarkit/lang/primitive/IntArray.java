@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.AbstractList;
 import java.util.PrimitiveIterator;
 import java.util.stream.IntStream;
 
@@ -246,40 +244,27 @@ public class IntArray extends BaseArray<Integer> {
 			}
 		return result;
 		}
-	
+		
 	@Override
-	public List<Integer> asList() {
-		return new AbstractList<Integer>()
-			{
-			@Override
-			public Integer remove(final int index)
-				{
-				return IntArray.this.remove(index);
-				}
-			@Override
-			public boolean add(final Integer e)
-				{
-				IntArray.this.add(e);
-				return true;
-				}
-			@Override
-			public Integer set(final int index, final Integer element)
-				{
-				return IntArray.this.set(index, element);
-				}
-			@Override
-			public Integer get(final int index)
-				{
-				return IntArray.this.get(index);
-				}
-			@Override
-			public int size()
-				{
-				return IntArray.this.size();
-				}
-			};
+	protected final Integer getElementAt(final int idx)
+		{
+		return get(idx);
 		}
-	
+	@Override
+	protected final Integer setElementAt(final int idx,final Integer value)
+		{
+		return set(idx,value);
+		}
+	@Override
+	protected final void addElement(final Integer value)
+		{
+		this.add(value);
+		}
+	@Override
+	protected final Integer removeElementAt(final int idx)
+		{
+		return this.remove(idx);
+		}
 	
 	
 	@Override

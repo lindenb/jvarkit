@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.AbstractList;
 import java.util.PrimitiveIterator;
 import java.util.stream.DoubleStream;
 
@@ -246,40 +244,27 @@ public class DoubleArray extends BaseArray<Double> {
 			}
 		return result;
 		}
-	
+		
 	@Override
-	public List<Double> asList() {
-		return new AbstractList<Double>()
-			{
-			@Override
-			public Double remove(final int index)
-				{
-				return DoubleArray.this.remove(index);
-				}
-			@Override
-			public boolean add(final Double e)
-				{
-				DoubleArray.this.add(e);
-				return true;
-				}
-			@Override
-			public Double set(final int index, final Double element)
-				{
-				return DoubleArray.this.set(index, element);
-				}
-			@Override
-			public Double get(final int index)
-				{
-				return DoubleArray.this.get(index);
-				}
-			@Override
-			public int size()
-				{
-				return DoubleArray.this.size();
-				}
-			};
+	protected final Double getElementAt(final int idx)
+		{
+		return get(idx);
 		}
-	
+	@Override
+	protected final Double setElementAt(final int idx,final Double value)
+		{
+		return set(idx,value);
+		}
+	@Override
+	protected final void addElement(final Double value)
+		{
+		this.add(value);
+		}
+	@Override
+	protected final Double removeElementAt(final int idx)
+		{
+		return this.remove(idx);
+		}
 	
 	
 	@Override

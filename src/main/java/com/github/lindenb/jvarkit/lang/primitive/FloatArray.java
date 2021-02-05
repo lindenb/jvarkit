@@ -32,8 +32,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.AbstractList;
 import java.util.stream.Stream;
 
 /**
@@ -246,40 +244,27 @@ public class FloatArray extends BaseArray<Float> {
 			}
 		return result;
 		}
-	
+		
 	@Override
-	public List<Float> asList() {
-		return new AbstractList<Float>()
-			{
-			@Override
-			public Float remove(final int index)
-				{
-				return FloatArray.this.remove(index);
-				}
-			@Override
-			public boolean add(final Float e)
-				{
-				FloatArray.this.add(e);
-				return true;
-				}
-			@Override
-			public Float set(final int index, final Float element)
-				{
-				return FloatArray.this.set(index, element);
-				}
-			@Override
-			public Float get(final int index)
-				{
-				return FloatArray.this.get(index);
-				}
-			@Override
-			public int size()
-				{
-				return FloatArray.this.size();
-				}
-			};
+	protected final Float getElementAt(final int idx)
+		{
+		return get(idx);
 		}
-	
+	@Override
+	protected final Float setElementAt(final int idx,final Float value)
+		{
+		return set(idx,value);
+		}
+	@Override
+	protected final void addElement(final Float value)
+		{
+		this.add(value);
+		}
+	@Override
+	protected final Float removeElementAt(final int idx)
+		{
+		return this.remove(idx);
+		}
 	
 	
 	@Override
