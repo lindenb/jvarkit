@@ -93,10 +93,14 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 input must be sorted on read name using `samtools sort -n` or ` samtools collate`
 
+it will be **much** faster is the reads belong to one chromosome
+
 ## Example
 
 ```
-samtools collate -O input.bam| java -jar dist/biostar489074.jar -R S1;bam
+$ samtools view -O BAM --reference "ref.fasta" in.cram "chr22:41201525-41490147" |\
+	samtools collate -O -u - |\
+	java -jar dist/biostar489074.jar --reference "ref.fasta"
 ```
 
  END_DOC
@@ -109,7 +113,7 @@ description="call variants for every paired overlaping read",
 biostars= {489074},
 creationDate="20200205",
 modificationDate="20200205",
-generate_doc=false
+generate_doc=true
 )
 public class Biostar489074 extends Launcher {			
 private static final Logger LOG = Logger.build(Biostar489074.class).make();
@@ -311,19 +315,15 @@ public int doWork(final List<String> args) {
 			final SAMRecord rec1a = buffer.get(read1_idx);
 			final SAMRecord rec2a = buffer.get(read2_idx);
 			if(!rec1a.overlaps(rec2a)) continue;
-			System.err.println("okz");
 			final int chromStart = Math.max(rec1a.getStart(),rec2a.getStart());
 			final int chromEnd  = Math.min(rec1a.getEnd(),rec2a.getEnd());
-			System.err.println("oky");
 			if(chromStart > chromEnd)  continue;
-			System.err.println("okx");
 			final Integer sampleid = rgid2idx.get(rec1a.getReadGroup().getId());
 			if(sampleid==null) continue;
 			
 			if(genome==null || !genome.contigsMatch(rec1a)) {
 				genome = new GenomicSequence(this.indexedFastaRef, rec1a.getContig());
 			}
-			System.err.println("ok");
 			final Set<Call> calls1 = new HashSet<>();
 			final Set<Call> calls2 = new HashSet<>();
 			
@@ -339,7 +339,7 @@ public int doWork(final List<String> args) {
 						if(ref<0 || ref>= genome.length()) continue;
 						final byte refBase = (byte)Character.toUpperCase(genome.charAt(ref-1));//0 based
 						if(!AcidNucleics.isATGC(refBase)) continue;
-						final byte readBase = (byte)Character.toUpperCase(bases[ab.getReadStart() + n]);//0 based
+						final byte readBase = (byte)Character.toUpperCase(bases[(ab.getReadStart()-1/* 1 based */)+n]);//0 based
 						if(readBase==refBase) continue;
 						final Call call = new Call();
 						call.sampleid = sampleid;
@@ -352,10 +352,10 @@ public int doWork(final List<String> args) {
 					}
 				}
 			calls1.retainAll(calls2);
-			System.err.println("ok2"+calls1.size());
 			if(calls1.isEmpty()) continue;
 			for(final Call c:calls1) {
 				sorting.add(c);
+	
 				}
 			}
 		sorting.doneAdding();
@@ -370,6 +370,7 @@ public int doWork(final List<String> args) {
 		VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.DEPTH_KEY);
 		VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.GENOTYPE_ALLELE_DEPTHS);
 		final VCFHeader header2 = new VCFHeader(metaData, samples);
+		header2.setSequenceDictionary(dict);
 		JVarkitVersion.getInstance().addMetaData(this, header2);
 		out.writeHeader(header2);
 		try(CloseableIterator<Call> iter1 = sorting.iterator()) {
@@ -378,8 +379,9 @@ public int doWork(final List<String> args) {
 					final List<Call> calls = iter2.next();
 					if(calls.isEmpty()) continue;
 					final Call first = calls.get(0);
-					
-					final Set<Allele> altAllelesSet = calls.stream().map(A->Allele.create(A.alt,false)).collect(Collectors.toSet());
+					final Set<Allele> altAllelesSet = calls.stream().
+						map(A->Allele.create(A.alt,false)).
+						collect(Collectors.toSet());
 					final List<Allele> altAllelesList = new ArrayList<>(altAllelesSet);
 					final List<Allele> vcAlleles = new ArrayList<>(altAllelesList.size()+1);
 					vcAlleles.add(Allele.create(first.ref,true));
