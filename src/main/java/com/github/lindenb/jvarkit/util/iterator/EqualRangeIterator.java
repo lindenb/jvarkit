@@ -41,7 +41,7 @@ public class EqualRangeIterator<T>
 	implements CloseableIterator<List<T>>
 	{	
 	private final Iterator<T> delegate;
-	private final Comparator<T> comparator;
+	private final Comparator<T> orderComparator;
 	private T lastPeek = null;
 	private boolean closed = false;
 	public EqualRangeIterator(
@@ -49,7 +49,7 @@ public class EqualRangeIterator<T>
 			final Comparator<T> comparator)
 		{
 		this.delegate = delegate;
-		this.comparator = comparator;
+		this.orderComparator = comparator;
 		}
 	
 	/** advance until the current item in the iterator is equal to target.
@@ -63,7 +63,7 @@ public class EqualRangeIterator<T>
 		for(;;)
 			{
 			if(this.lastPeek!=null) {
-				final int diff = this.comparator.compare(this.lastPeek, target);
+				final int diff = this.orderComparator.compare(this.lastPeek, target);
 				if(diff > 0) 
 					{
 					return buffer;
@@ -103,7 +103,7 @@ public class EqualRangeIterator<T>
 				}
 			else
 				{
-				final int d= this.comparator.compare(buffer.get(0), curr);
+				final int d= this.orderComparator.compare(buffer.get(0), curr);
 				if(d==0 ) {
 					buffer.add(curr);
 					}
