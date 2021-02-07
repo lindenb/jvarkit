@@ -31,6 +31,12 @@ Usage: biostar489074 [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    --groupby, --partition
+      Group Reads by. Data partitioning using the SAM Read Group (see 
+      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
+      be any combination of sample, library....
+      Default: sample
+      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     --ploidy
       default ploidy
       Default: 2

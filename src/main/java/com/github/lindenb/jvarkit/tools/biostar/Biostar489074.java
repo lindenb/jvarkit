@@ -41,8 +41,6 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.tools.pcr.ReadClipper;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
@@ -53,24 +51,21 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.AbstractIterator;
-import htsjdk.samtools.util.CigarUtil;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.PeekableIterator;
@@ -121,6 +116,8 @@ private static final Logger LOG = Logger.build(Biostar489074.class).make();
 private Path outputFile = null;
 @Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 private Path faidx;
+@Parameter(names={"--groupby","--partition"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
+private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 @Parameter(names= {"--ploidy"},description="default ploidy")
 private int ploidy=2;
 
@@ -272,7 +269,7 @@ public int doWork(final List<String> args) {
 		sorting.setDestructiveIteration(true);
 		
 		final List<String> samples = header.getReadGroups().stream().
-			map(R->R.getSample()).
+			map(R->this.groupBy.apply(R)).
 			filter(S->!StringUtils.isBlank(S)).
 			sorted().
 			collect(Collectors.toSet()).
@@ -281,7 +278,7 @@ public int doWork(final List<String> args) {
 		
 		final Map<String,Integer> rgid2idx = new HashMap<>();
 		for(final SAMReadGroupRecord rg : header.getReadGroups()) {
-			final String sn = rg.getSample();
+			final String sn = this.groupBy.apply(rg);
 			if(StringUtils.isBlank(sn)) continue;
 			int idx = samples.indexOf(sn);
 			if(idx==-1) continue;
