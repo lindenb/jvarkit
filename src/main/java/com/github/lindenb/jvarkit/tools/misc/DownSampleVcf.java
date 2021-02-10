@@ -45,6 +45,12 @@ import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
 
+## How about bcftools ?
+
+```
+bcftools view --header-only  input.vcf > subsample.vcf
+bcftools view --no-header input.vcf | awk '{printf("%f\t%s\n",rand(),$0);}' | sort -t $'\t' -k1,1g | cut -f2-  | head -n 1000 >>  subsample.vcf
+```
 
 ## Example
 
@@ -60,7 +66,10 @@ END_DOC
 @Program(
 	name="downsamplevcf",
 	description="DownSample a VCF. Will keep 'n' random variants in a vcf.",
-	keywords={"vcf"}
+	keywords={"vcf"},
+	biostars={489965},
+	creationDate="20131210",
+	modificationDate="20210113"
 	)
 public class DownSampleVcf extends Launcher
 	{
@@ -107,6 +116,7 @@ public class DownSampleVcf extends Launcher
 		progess.close();
 		return 0;
 		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		return doVcfToVcf(args, outputFile);

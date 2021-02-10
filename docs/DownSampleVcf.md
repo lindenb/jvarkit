@@ -33,6 +33,12 @@ Usage: downsamplevcf [options] Files
  * vcf
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/489965](https://www.biostars.org/p/489965)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -49,6 +55,11 @@ $ ./gradlew downsamplevcf
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20131210
 
 ## Source code 
 
@@ -80,6 +91,12 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## How about bcftools ?
+
+```
+bcftools view --header-only  input.vcf > subsample.vcf
+bcftools view --no-header input.vcf | awk '{printf("%f\t%s\n",rand(),$0);}' | sort -t $'\t' -k1,1g | cut -f2-  | head -n 1000 >>  subsample.vcf
+```
 
 ## Example
 
