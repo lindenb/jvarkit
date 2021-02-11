@@ -80,8 +80,7 @@ END_DOC
 description="Merge Vcf from ExpansionHunter.",
 keywords= {"vcf","merge","ExpansionHunter"},
 creationDate="20210210",
-modificationDate="20210210",
-generate_doc=false
+modificationDate="20210210"
 )
 public class ExpansionHunterMerge extends Launcher {
 	private static final Logger LOG = Logger.build( ExpansionHunterMerge.class).make();
@@ -136,6 +135,7 @@ public class ExpansionHunterMerge extends Launcher {
 							LOG.error("duplicate sample "+sn+" in "+path);
 							return -1;
 							}
+						metaData.addAll(header.getMetaDataInInputOrder());
 						samples.add(sn);
 						}
 					}
@@ -218,6 +218,7 @@ public class ExpansionHunterMerge extends Launcher {
 									flatMap(GT->GT.getAlleles().stream()).
 									filter(A->!(A.isReference() || A.isNoCall())).
 									collect(Collectors.toSet());
+								if(altAllelesSet.isEmpty()) continue;
 								final List<Allele> altAllelesList = new ArrayList<>(altAllelesSet);
 								final List<Allele> vcAlleles = new ArrayList<>(altAllelesList.size()+1);
 								vcAlleles.add(first.getReference());

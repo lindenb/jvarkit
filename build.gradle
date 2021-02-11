@@ -2514,6 +2514,11 @@ all2.add(task("vcfpar", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
+all2.add(task("expansionhuntermerge", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.expansionhunter.ExpansionHunterMerge"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
 all2.add(task("vcfbraiding", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.braiding.VcfBraiding"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
