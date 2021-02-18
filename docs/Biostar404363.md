@@ -109,6 +109,10 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## History
+
+major bug detected after https://github.com/lindenb/jvarkit/issues/178 . Some reads with INDEL might have been ignored.
+
 ##Example
 
 ```

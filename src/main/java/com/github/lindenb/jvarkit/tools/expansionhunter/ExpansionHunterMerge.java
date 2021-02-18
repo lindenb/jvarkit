@@ -40,6 +40,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -101,6 +102,7 @@ public class ExpansionHunterMerge extends Launcher {
 					return -1;
 					}
 				final String REPID="REPID";
+				final String RU="RU";
 				final String fakeSample="___FAKE";
 				SAMSequenceDictionary dict = null;
 				final Set<String> samples = new TreeSet<>();
@@ -206,6 +208,7 @@ public class ExpansionHunterMerge extends Launcher {
 				sorter.doneAdding();
 				final VCFHeader outputHeader = new VCFHeader(metaData, samples);
 				if(dict!=null) outputHeader.setSequenceDictionary(dict);
+				JVarkitVersion.getInstance().addMetaData(this, outputHeader);
 				try(VariantContextWriter w= writingVariants.dictionary(dict).open(this.outputFile)) {
 					w.writeHeader(outputHeader);
 					try(CloseableIterator<VariantContext> iter = sorter.iterator()) {
@@ -249,6 +252,7 @@ public class ExpansionHunterMerge extends Launcher {
 										);
 								vcb.attribute(VCFConstants.END_KEY, first.getEnd());
 								vcb.attribute(REPID, getAtt.apply(first, REPID));
+								vcb.attribute(RU, getAtt.apply(first, RU));
 								vcb.genotypes(genotypes);
 								w.add(vcb.make());
 							}

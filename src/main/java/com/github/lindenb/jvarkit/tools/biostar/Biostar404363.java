@@ -68,6 +68,10 @@ import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 
+## History
+
+major bug detected after https://github.com/lindenb/jvarkit/issues/178 . Some reads with INDEL might have been ignored.
+
 ##Example
 
 ```
@@ -150,6 +154,10 @@ public class Biostar404363 extends Launcher {
 		PosToChange(final String ctg,int pos) {
 			super(ctg,pos);
 		}
+		@Override
+		public String toString() {
+			return super.toString()+" "+(char)base+" "+proba;
+			}
 	}
 
 	@Override
@@ -229,6 +237,7 @@ public class Biostar404363 extends Launcher {
 				final List<PosToChange> changes = intervalTreeMap.getOverlapping(new SimpleInterval(rec.getContig(), rec.getUnclippedStart(), rec.getUnclippedEnd())).
 						stream().
 						collect(Collectors.toList());
+				
 				if(changes.isEmpty()) {
 					out.addAlignment(rec);
 					continue;
@@ -244,13 +253,11 @@ public class Biostar404363 extends Launcher {
 				
 				for(final CigarElement ce:cigar) {
 					final CigarOperator op =ce.getOperator();
-					
 					if( (op.equals(CigarOperator.S) && !this.ignore_clip) || 
 						(op.consumesReadBases() &&  op.consumesReferenceBases() )) {
-						{
 						for(int i=0;i< ce.getLength();i++) {
 							final int the_pos = ref+i;
-							final byte the_base = bases[readpos+i]; 
+							final byte the_base = bases[readpos+i];
 							final PosToChange pos2change = changes.stream().
 									filter(P->P.getPosition()==the_pos).
 									filter(P->P.base!=the_base).
@@ -258,13 +265,12 @@ public class Biostar404363 extends Launcher {
 									findFirst().
 									orElse(null);
 							if(pos2change==null) continue;
-							
 							bases[readpos+i]=pos2change.base;
 							if(op.isAlignment()) NM++;
 							changed=true;
 							}
 						}
-					if(op.equals(CigarOperator.S) || op.consumesReadBases())
+					if(op.equals(CigarOperator.S) || op.consumesReadBases()) {
 						readpos+=ce.getLength();
 						}
 					if(op.isClipping() || op.consumesReferenceBases()) {
