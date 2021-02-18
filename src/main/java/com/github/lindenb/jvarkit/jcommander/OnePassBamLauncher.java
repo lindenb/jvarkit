@@ -188,7 +188,7 @@ public int doWork(final List<String> args) {
 		catch (final Throwable err) {
 			LOG.error(err);
 			}	
-		if(in!=null) in.close();
+		try {if(in!=null) in.close(); } catch (final Throwable err) {LOG.error(err);}
 		}
 	}
 }
