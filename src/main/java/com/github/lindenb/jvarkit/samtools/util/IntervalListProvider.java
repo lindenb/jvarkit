@@ -53,6 +53,8 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.IntervalList.IntervalListCodec;
@@ -106,6 +108,14 @@ public abstract class IntervalListProvider {
 	
 	public abstract Stream<? extends Locatable> stream();
 
+	/** convert stream to IntervalTreeMap */
+	public IntervalTreeMap<Locatable> toIntervalTreeMap() {
+		final IntervalTreeMap<Locatable> intervalTreeMap = new IntervalTreeMap<>();
+		this.stream().map(T->new Interval(T)).forEach(I->intervalTreeMap.put(I, I));
+		return intervalTreeMap;
+		}
+	
+	
 	/** convert stream to optimizedQueryIntervals for reading indexed bam */
 	public QueryInterval[] optimizedQueryIntervals() {
 		if(this.dictionary==null) throw new IllegalStateException("No dictionary available.");

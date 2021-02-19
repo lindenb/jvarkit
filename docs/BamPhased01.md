@@ -14,8 +14,9 @@ Usage: bamphased01 [options] Files
       Compression Level.
       Default: 5
     --buffer-size
-      When we're looking for variant in Gnomad, load the variants for 'N' 
-      bases instead of doing a random access for each variant.
+      When we're looking for variant in a lare VCF file, load the variants in 
+      an interval of 'N' bases instead of doing a random access for each 
+      variant. 
       Default: 1000
     -h, --help
       print help and exit
@@ -32,6 +33,11 @@ Usage: bamphased01 [options] Files
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM

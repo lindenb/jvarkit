@@ -32,23 +32,32 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.filter.FilteringSamIterator;
+import htsjdk.samtools.filter.IntervalFilter;
+import htsjdk.samtools.util.AbstractProgressLogger;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.ProgressLoggerInterface;
 
 public abstract class OnePassBamLauncher extends Launcher {
 private static final Logger LOG = Logger.build(OnePassBamLauncher.class).make();
@@ -58,9 +67,11 @@ protected Path outputFile=null;
 protected Path faidxPath =null;
 @Parameter(names={"--validation-stringency"},description="SAM Reader Validation Stringency")
 protected ValidationStringency validationStringency = ValidationStringency.LENIENT;
-
 @ParametersDelegate
 protected WritingBamArgs writingBamArgs = new WritingBamArgs();
+@Parameter(names={"--regions"},description="Limit analysis to this interval. "+ IntervalListProvider.OPT_DESC,splitter=NoSplitter.class,converter=IntervalListProvider.StringConverter.class)
+protected IntervalListProvider regionFiles = null;
+
 
 protected Logger getLogger() {
 	return null;
@@ -113,8 +124,42 @@ protected SAMFileWriter openSamFileWriter(final SAMFileHeader headerIn) {
 			openSamWriter(this.outputFile, headerOut, isPresorted());
 }
 
+/** the very basic filter , for one read return all the reads that should be produced by one record. Outut can be empty */
 protected Function<SAMRecord,List<SAMRecord>> createSAMRecordFunction() {
 	return R->Collections.singletonList(R);
+}
+
+/** create input SAMRecord iterator */
+protected CloseableIterator<SAMRecord> openSamIterator(final SamReader sr) {
+	
+	if(this.regionFiles!=null) {
+		this.regionFiles.dictionary(SequenceDictionaryUtils.extractRequired(sr.getFileHeader()));
+
+		if(!sr.hasIndex()) {
+			final List<Interval> L = this.regionFiles.stream().map(x->new Interval(x)).collect(Collectors.toList());
+			final SAMRecordIterator st0 = sr.iterator();
+			return new FilteringSamIterator(st0,new IntervalFilter(L, sr.getFileHeader()));
+			}
+		else
+			{
+			return sr.query(this.regionFiles.optimizedQueryIntervals(), false);
+			}
+		}
+	return sr.iterator();
+	}
+
+/** create a progress logger for the BAM writer. Result may be null */
+protected ProgressLoggerInterface createProgressLogger() {
+	final Logger log = getLogger();
+	if(log==null) return null;
+	return new AbstractProgressLogger(getProgramName(),"Writer",1_000_000)
+		{
+		@Override
+		protected void log(String... message)
+			{
+			log.info(String.join(" ", message));
+			}
+		};
 }
 
 @Override
@@ -153,13 +198,14 @@ public int doWork(final List<String> args) {
 			{
 			in = srf.open(Paths.get(input));
 			}
-		if(getLogger()!=null) {
-			}
+		
 		int err= 0;
 		final Function<SAMRecord,List<SAMRecord>> modifier = createSAMRecordFunction();
 		final SAMFileHeader headerIn = in.getFileHeader();
 		try(SAMFileWriter sfw = openSamFileWriter(headerIn)) {
-			try(CloseableIterator<SAMRecord> iter= in.iterator()) {
+			final ProgressLoggerInterface progress = createProgressLogger();
+			if(progress!=null) sfw.setProgressLogger( progress);
+			try(CloseableIterator<SAMRecord> iter= openSamIterator(in)) {
 				while(iter.hasNext()) {
 				final SAMRecord rec = iter.next();
 				for(final SAMRecord R :modifier.apply(rec)) {

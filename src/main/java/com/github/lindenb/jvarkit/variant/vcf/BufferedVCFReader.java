@@ -43,7 +43,7 @@ import htsjdk.variant.vcf.VCFReader;
  *
  */
 public class BufferedVCFReader implements VCFReader {
-	public static final String OPT_BUFFER_DESC = "When we're looking for variant in Gnomad, load the variants for 'N' bases instead of doing a random access for each variant.";
+	public static final String OPT_BUFFER_DESC = "When we're looking for variant in a lare VCF file, load the variants in an interval of 'N' bases instead of doing a random access for each variant.";
 	private final VCFReader delegate;
 	private final int buffSizeInBp;
 	private final List<VariantContext> buffer = new ArrayList<>();
