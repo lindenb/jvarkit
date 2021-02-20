@@ -32,7 +32,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +39,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -58,17 +58,14 @@ import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -107,7 +104,7 @@ keywords={"sam","bam","vcf","call"},
 description="call variants for every paired overlaping read",
 biostars= {489074},
 creationDate="20200205",
-modificationDate="20200205",
+modificationDate="20200220",
 generate_doc=true
 )
 public class Biostar489074 extends Launcher {			
@@ -213,27 +210,6 @@ private static class CallCodec extends AbstractDataCodec<Call> {
 		}
 	}
 
-private static class EqualIterator extends AbstractIterator<List<SAMRecord>> {
-	private final PeekableIterator<SAMRecord> delegate;
-	EqualIterator(Iterator<SAMRecord> delegate) {
-		this.delegate = new PeekableIterator<>(delegate);
-		}
-	@Override
-	protected List<SAMRecord> advance() {
-		if(!delegate.hasNext()) return null;
-		final List<SAMRecord> L= new ArrayList<>();
-		L.add(delegate.next());
-		while(delegate.hasNext()) {
-			final SAMRecord rec2 = delegate.peek();
-			if(!L.get(0).getReadName().equals(rec2.getReadName())) {
-				break;
-			}
-			L.add(delegate.next());
-		}
-		return L;
-		}
-	}
-
 @Override
 public int doWork(final List<String> args) {
 	SamReader in=null;
@@ -286,150 +262,152 @@ public int doWork(final List<String> args) {
 			}
 
 			
-		final SAMRecordIterator iter0 = in.iterator();
-		final Iterator<List<SAMRecord>> iter = new EqualIterator(iter0);
-		while(iter.hasNext()) {
-			final List<SAMRecord> buffer = iter.next();
-			int read1_idx = -1;
-			int read2_idx = -1;
-			for(int i=0;i< buffer.size();i++) {
-				final SAMRecord rec = buffer.get(i);
-				if(!rec.getReadPairedFlag()) continue;
-				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getMateUnmappedFlag()) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) continue;
-				if(rec.getFirstOfPairFlag()) {
-					read1_idx = i;
-				}
-				else if(rec.getSecondOfPairFlag()) {
-					read2_idx = i;
-				}
-			}
-			
-			
-			if(read1_idx==-1 || read2_idx==-1 || read1_idx==read2_idx)  continue;
-			final SAMRecord rec1a = buffer.get(read1_idx);
-			final SAMRecord rec2a = buffer.get(read2_idx);
-			if(!rec1a.overlaps(rec2a)) continue;
-			final int chromStart = Math.max(rec1a.getStart(),rec2a.getStart());
-			final int chromEnd  = Math.min(rec1a.getEnd(),rec2a.getEnd());
-			if(chromStart > chromEnd)  continue;
-			final Integer sampleid = rgid2idx.get(rec1a.getReadGroup().getId());
-			if(sampleid==null) continue;
-			
-			if(genome==null || !genome.contigsMatch(rec1a)) {
-				genome = new GenomicSequence(this.indexedFastaRef, rec1a.getContig());
-			}
-			final Set<Call> calls1 = new HashSet<>();
-			final Set<Call> calls2 = new HashSet<>();
-			
-			for(int side=0;side<2;side++) {
-				final SAMRecord rec = (side==0?rec1a:rec2a);
-				final Set<Call> calls = (side==0?calls1:calls2);
-				final byte[] bases = rec.getReadBases();
-				for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
-					for(int n=0;n< ab.getLength();++n) {
-						final int ref= ab.getReferenceStart() + n;
-						if(ref <chromStart) continue;
-						if(ref >chromEnd) break;
-						if(ref<0 || ref>= genome.length()) continue;
-						final byte refBase = (byte)Character.toUpperCase(genome.charAt(ref-1));//0 based
-						if(!AcidNucleics.isATGC(refBase)) continue;
-						final byte readBase = (byte)Character.toUpperCase(bases[(ab.getReadStart()-1/* 1 based */)+n]);//0 based
-						if(readBase==refBase) continue;
-						final Call call = new Call();
-						call.sampleid = sampleid;
-						call.tid = rec1a.getReferenceIndex().intValue();
-						call.ref= refBase;
-						call.alt = readBase;
-						call.pos = ref;
-						calls.add(call);
-						}
+		try(CloseableIterator<List<SAMRecord>> iter = new EqualIterator<>(
+				in.iterator(),
+				(A,B)->A.getReadName().compareTo(B.getReadName()))
+					) {
+			while(iter.hasNext()) {
+				final List<SAMRecord> buffer = iter.next();
+				int read1_idx = -1;
+				int read2_idx = -1;
+				for(int i=0;i< buffer.size();i++) {
+					final SAMRecord rec = buffer.get(i);
+					if(!rec.getReadPairedFlag()) continue;
+					if(rec.getReadUnmappedFlag()) continue;
+					if(rec.getMateUnmappedFlag()) continue;
+					if(rec.isSecondaryOrSupplementary()) continue;
+					if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) continue;
+					if(rec.getFirstOfPairFlag()) {
+						read1_idx = i;
+					}
+					else if(rec.getSecondOfPairFlag()) {
+						read2_idx = i;
 					}
 				}
-			calls1.retainAll(calls2);
-			if(calls1.isEmpty()) continue;
-			for(final Call c:calls1) {
-				sorting.add(c);
-	
+				
+				
+				if(read1_idx==-1 || read2_idx==-1 || read1_idx==read2_idx)  continue;
+				final SAMRecord rec1a = buffer.get(read1_idx);
+				final SAMRecord rec2a = buffer.get(read2_idx);
+				if(!rec1a.overlaps(rec2a)) continue;
+				final int chromStart = Math.max(rec1a.getStart(),rec2a.getStart());
+				final int chromEnd  = Math.min(rec1a.getEnd(),rec2a.getEnd());
+				if(chromStart > chromEnd)  continue;
+				final Integer sampleid = rgid2idx.get(rec1a.getReadGroup().getId());
+				if(sampleid==null) continue;
+				
+				if(genome==null || !genome.contigsMatch(rec1a)) {
+					genome = new GenomicSequence(this.indexedFastaRef, rec1a.getContig());
 				}
-			}
-		sorting.doneAdding();
-		out = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
-		
-		final Set<VCFHeaderLine> metaData = new HashSet<>();
-		VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.DEPTH_KEY);
-		VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.ALLELE_COUNT_KEY);
-		VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.ALLELE_NUMBER_KEY);
-		VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.ALLELE_FREQUENCY_KEY);
-		VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.GENOTYPE_KEY);
-		VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.DEPTH_KEY);
-		VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.GENOTYPE_ALLELE_DEPTHS);
-		final VCFHeader header2 = new VCFHeader(metaData, samples);
-		header2.setSequenceDictionary(dict);
-		JVarkitVersion.getInstance().addMetaData(this, header2);
-		out.writeHeader(header2);
-		try(CloseableIterator<Call> iter1 = sorting.iterator()) {
-			try(EqualRangeIterator<Call> iter2 = new EqualRangeIterator<>(iter1, (A,B)->A.compare1(B))) {
-				while(iter2.hasNext()) {
-					final List<Call> calls = iter2.next();
-					if(calls.isEmpty()) continue;
-					final Call first = calls.get(0);
-					final Set<Allele> altAllelesSet = calls.stream().
-						map(A->Allele.create(A.alt,false)).
-						collect(Collectors.toSet());
-					final List<Allele> altAllelesList = new ArrayList<>(altAllelesSet);
-					final List<Allele> vcAlleles = new ArrayList<>(altAllelesList.size()+1);
-					vcAlleles.add(Allele.create(first.ref,true));
-					vcAlleles.addAll(altAllelesList);
-
-					
-					final List<Genotype> genotypes = new ArrayList<>(samples.size());
-					int DP=0;
-					
-					for(int i=0;i<samples.size();i++) {
-						final String sn = samples.get(i);
-						final Counter<Allele> allele2count = new Counter<>();
-						for(Call c:calls) {
-							if(c.sampleid!=i) continue;
-							allele2count.incr(Allele.create(c.alt,false));
+				final Set<Call> calls1 = new HashSet<>();
+				final Set<Call> calls2 = new HashSet<>();
+				
+				for(int side=0;side<2;side++) {
+					final SAMRecord rec = (side==0?rec1a:rec2a);
+					final Set<Call> calls = (side==0?calls1:calls2);
+					final byte[] bases = rec.getReadBases();
+					for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
+						for(int n=0;n< ab.getLength();++n) {
+							final int ref= ab.getReferenceStart() + n;
+							if(ref <chromStart) continue;
+							if(ref >chromEnd) break;
+							if(ref<0 || ref>= genome.length()) continue;
+							final byte refBase = (byte)Character.toUpperCase(genome.charAt(ref-1));//0 based
+							if(!AcidNucleics.isATGC(refBase)) continue;
+							final byte readBase = (byte)Character.toUpperCase(bases[(ab.getReadStart()-1/* 1 based */)+n]);//0 based
+							if(readBase==refBase) continue;
+							final Call call = new Call();
+							call.sampleid = sampleid;
+							call.tid = rec1a.getReferenceIndex().intValue();
+							call.ref= refBase;
+							call.alt = readBase;
+							call.pos = ref;
+							calls.add(call);
 							}
-						Genotype gt;
-						if(allele2count.isEmpty()) {
-							gt=GenotypeBuilder.createMissing(sn,this.ploidy);
-							}
-						else
-							{
-							final int[] array = new int[vcAlleles.size()];
-							for(int j=0;j< vcAlleles.size();j++) {
-								array[j] = (int)allele2count.count(vcAlleles.get(j));
-								}
-							final GenotypeBuilder gb=new GenotypeBuilder(sn, new ArrayList<>(allele2count.keySet()));
-							gb.AD(array);
-							gb.DP((int)allele2count.getTotal());
-							DP+=(int)allele2count.getTotal();
-							gt= gb.make();
-							}
-						genotypes.add(gt);
 						}
-					
-					final VariantContextBuilder vcb = new VariantContextBuilder(null,
-							dict.getSequence(first.tid).getContig(),
-							first.pos, first.pos,
-							vcAlleles
-							);
-					vcb.attribute(VCFConstants.DEPTH_KEY, DP);
-					vcb.genotypes(genotypes);
-					
-					out.add(vcb.make());
+					}
+				calls1.retainAll(calls2);
+				if(calls1.isEmpty()) continue;
+				for(final Call c:calls1) {
+					sorting.add(c);
+		
+					}
+				}
+			sorting.doneAdding();
+			out = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
+			
+			final Set<VCFHeaderLine> metaData = new HashSet<>();
+			VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.DEPTH_KEY);
+			VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.ALLELE_COUNT_KEY);
+			VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.ALLELE_NUMBER_KEY);
+			VCFStandardHeaderLines.addStandardInfoLines(metaData,true,VCFConstants.ALLELE_FREQUENCY_KEY);
+			VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.GENOTYPE_KEY);
+			VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.DEPTH_KEY);
+			VCFStandardHeaderLines.addStandardFormatLines(metaData,true,VCFConstants.GENOTYPE_ALLELE_DEPTHS);
+			final VCFHeader header2 = new VCFHeader(metaData, samples);
+			header2.setSequenceDictionary(dict);
+			JVarkitVersion.getInstance().addMetaData(this, header2);
+			out.writeHeader(header2);
+			try(CloseableIterator<Call> iter1 = sorting.iterator()) {
+				try(EqualRangeIterator<Call> iter2 = new EqualRangeIterator<>(iter1, (A,B)->A.compare1(B))) {
+					while(iter2.hasNext()) {
+						final List<Call> calls = iter2.next();
+						if(calls.isEmpty()) continue;
+						final Call first = calls.get(0);
+						final Set<Allele> altAllelesSet = calls.stream().
+							map(A->Allele.create(A.alt,false)).
+							collect(Collectors.toSet());
+						final List<Allele> altAllelesList = new ArrayList<>(altAllelesSet);
+						final List<Allele> vcAlleles = new ArrayList<>(altAllelesList.size()+1);
+						vcAlleles.add(Allele.create(first.ref,true));
+						vcAlleles.addAll(altAllelesList);
+	
+						
+						final List<Genotype> genotypes = new ArrayList<>(samples.size());
+						int DP=0;
+						
+						for(int i=0;i<samples.size();i++) {
+							final String sn = samples.get(i);
+							final Counter<Allele> allele2count = new Counter<>();
+							for(Call c:calls) {
+								if(c.sampleid!=i) continue;
+								allele2count.incr(Allele.create(c.alt,false));
+								}
+							Genotype gt;
+							if(allele2count.isEmpty()) {
+								gt=GenotypeBuilder.createMissing(sn,this.ploidy);
+								}
+							else
+								{
+								final int[] array = new int[vcAlleles.size()];
+								for(int j=0;j< vcAlleles.size();j++) {
+									array[j] = (int)allele2count.count(vcAlleles.get(j));
+									}
+								final GenotypeBuilder gb=new GenotypeBuilder(sn, new ArrayList<>(allele2count.keySet()));
+								gb.AD(array);
+								gb.DP((int)allele2count.getTotal());
+								DP+=(int)allele2count.getTotal();
+								gt= gb.make();
+								}
+							genotypes.add(gt);
+							}
+						
+						final VariantContextBuilder vcb = new VariantContextBuilder(null,
+								dict.getSequence(first.tid).getContig(),
+								first.pos, first.pos,
+								vcAlleles
+								);
+						vcb.attribute(VCFConstants.DEPTH_KEY, DP);
+						vcb.genotypes(genotypes);
+						
+						out.add(vcb.make());
+						}
 					}
 				}
 			}
 		sorting.cleanup();
 		out.close();
 		out=null;
-		iter0.close();
 		in.close();
 		in=null;
 		out=null;

@@ -25,12 +25,11 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.pcr.ReadClipper;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -42,13 +41,11 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.PeekableIterator;
 
 /**
  * 
@@ -73,7 +70,7 @@ keywords={"sam","bam","clip"},
 description="paired-end bam clip bases outside insert range",
 biostars= {480685},
 creationDate="20201223",
-modificationDate="20201223"
+modificationDate="20200220"
 )
 public class Biostar480685 extends Launcher {			
 private static final Logger LOG = Logger.build(Biostar480685.class).make();
@@ -84,27 +81,6 @@ private Path faidx;
 @ParametersDelegate
 private WritingBamArgs writingBamArgs=new WritingBamArgs();
 
-
-private static class EqualIterator extends AbstractIterator<List<SAMRecord>> {
-	private final PeekableIterator<SAMRecord> delegate;
-	EqualIterator(Iterator<SAMRecord> delegate) {
-		this.delegate = new PeekableIterator<>(delegate);
-		}
-	@Override
-	protected List<SAMRecord> advance() {
-		if(!delegate.hasNext()) return null;
-		final List<SAMRecord> L= new ArrayList<>();
-		L.add(delegate.next());
-		while(delegate.hasNext()) {
-			final SAMRecord rec2 = delegate.peek();
-			if(!L.get(0).getReadName().equals(rec2.getReadName())) {
-				break;
-			}
-			L.add(delegate.next());
-		}
-		return L;
-		}
-	}
 
 @Override
 public int doWork(final List<String> args) {
@@ -137,62 +113,64 @@ public int doWork(final List<String> args) {
 		prg.setProgramVersion(this.getGitHash());		
 		JVarkitVersion.getInstance().addMetaData(this, header);
 		out = this.writingBamArgs.openSamWriter(this.outputFile, header, true);
-		final SAMRecordIterator iter0 = in.iterator();
-		final Iterator<List<SAMRecord>> iter = new EqualIterator(iter0);
-		while(iter.hasNext()) {
-			final List<SAMRecord> buffer = iter.next();
-			int read1_idx = -1;
-			int read2_idx = -1;
-			for(int i=0;i< buffer.size();i++) {
-				final SAMRecord rec = buffer.get(i);
-				if(!rec.getReadPairedFlag()) continue;
-				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getMateUnmappedFlag()) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				if(rec.getFirstOfPairFlag()) {
-					read1_idx = i;
+		try(CloseableIterator<List<SAMRecord>> iter = new EqualIterator<>(
+				in.iterator(),
+				(A,B)->A.getReadName().compareTo(B.getReadName()))
+				) {
+			while(iter.hasNext()) {
+				final List<SAMRecord> buffer = iter.next();
+				int read1_idx = -1;
+				int read2_idx = -1;
+				for(int i=0;i< buffer.size();i++) {
+					final SAMRecord rec = buffer.get(i);
+					if(!rec.getReadPairedFlag()) continue;
+					if(rec.getReadUnmappedFlag()) continue;
+					if(rec.getMateUnmappedFlag()) continue;
+					if(rec.isSecondaryOrSupplementary()) continue;
+					if(rec.getFirstOfPairFlag()) {
+						read1_idx = i;
+					}
+					else if(rec.getSecondOfPairFlag()) {
+						read2_idx = i;
+					}
 				}
-				else if(rec.getSecondOfPairFlag()) {
-					read2_idx = i;
+				
+				if(read1_idx==-1 || read2_idx==-1 || read1_idx==read2_idx)  continue;
+				final SAMRecord rec1a = buffer.get(read1_idx);
+				final SAMRecord rec2a = buffer.get(read2_idx);
+				if(!rec1a.overlaps(rec2a)) continue;
+				final int chromStart = Math.max(rec1a.getStart(),rec2a.getStart());
+				final int chromEnd  = Math.min(rec1a.getEnd(),rec2a.getEnd());
+				if(chromStart > chromEnd)  continue;
+				
+				final SimpleInterval rgn = new SimpleInterval(rec1a.getContig(), chromStart, chromEnd);
+				final SAMRecord rec1b = clipper.clip(rec1a, rgn);
+				if(rec1b==null || rec1b.getReadUnmappedFlag()) continue;
+				final SAMRecord rec2b = clipper.clip(rec2a, rgn);
+				if(rec2b==null || rec2b.getReadUnmappedFlag()) continue;
+				
+				rec1b.setAttribute("PG", prg.getId());
+				rec2b.setAttribute("PG", prg.getId());
+				
+				
+				rec1b.setAlignmentStart(chromStart);
+				rec1b.setMateAlignmentStart(rec2b.getAlignmentStart());
+				rec2b.setAlignmentStart(chromStart);
+				rec2b.setMateAlignmentStart(rec1b.getAlignmentStart());
+				
+				rec1b.setAttribute("MC", rec2b.getCigarString());
+				rec2b.setAttribute("MC", rec1b.getCigarString());
+				rec1b.setAttribute("NM", null);
+				rec2b.setAttribute("NM", null);
+	
+				
+				buffer.set(read1_idx, rec1b);
+				buffer.set(read2_idx, rec2b);
+				for(SAMRecord rec: buffer) {
+					out.addAlignment(rec);
+					}
 				}
-			}
-			
-			if(read1_idx==-1 || read2_idx==-1 || read1_idx==read2_idx)  continue;
-			final SAMRecord rec1a = buffer.get(read1_idx);
-			final SAMRecord rec2a = buffer.get(read2_idx);
-			if(!rec1a.overlaps(rec2a)) continue;
-			final int chromStart = Math.max(rec1a.getStart(),rec2a.getStart());
-			final int chromEnd  = Math.min(rec1a.getEnd(),rec2a.getEnd());
-			if(chromStart > chromEnd)  continue;
-			
-			final SimpleInterval rgn = new SimpleInterval(rec1a.getContig(), chromStart, chromEnd);
-			final SAMRecord rec1b = clipper.clip(rec1a, rgn);
-			if(rec1b==null || rec1b.getReadUnmappedFlag()) continue;
-			final SAMRecord rec2b = clipper.clip(rec2a, rgn);
-			if(rec2b==null || rec2b.getReadUnmappedFlag()) continue;
-			
-			rec1b.setAttribute("PG", prg.getId());
-			rec2b.setAttribute("PG", prg.getId());
-			
-			
-			rec1b.setAlignmentStart(chromStart);
-			rec1b.setMateAlignmentStart(rec2b.getAlignmentStart());
-			rec2b.setAlignmentStart(chromStart);
-			rec2b.setMateAlignmentStart(rec1b.getAlignmentStart());
-			
-			rec1b.setAttribute("MC", rec2b.getCigarString());
-			rec2b.setAttribute("MC", rec1b.getCigarString());
-			rec1b.setAttribute("NM", null);
-			rec2b.setAttribute("NM", null);
-
-			
-			buffer.set(read1_idx, rec1b);
-			buffer.set(read2_idx, rec2b);
-			for(SAMRecord rec: buffer) {
-				out.addAlignment(rec);
-				}
-			}
-		iter0.close();
+		}
 		in.close();
 		in=null;
 		out.close();

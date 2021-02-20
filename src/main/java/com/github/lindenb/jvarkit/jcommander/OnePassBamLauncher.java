@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -162,6 +163,17 @@ protected ProgressLoggerInterface createProgressLogger() {
 		};
 }
 
+protected void scanIterator(final CloseableIterator<SAMRecord> iter,final SAMFileWriter sfw) {
+final Function<SAMRecord,List<SAMRecord>> modifier = createSAMRecordFunction();
+while(iter.hasNext()) {
+	final SAMRecord rec = iter.next();
+	for(final SAMRecord R :modifier.apply(rec)) {
+		sfw.addAlignment(R);
+		}
+	}
+}
+
+
 @Override
 public int doWork(final List<String> args) {
 	SamReader in = null;
@@ -200,20 +212,15 @@ public int doWork(final List<String> args) {
 			}
 		
 		int err= 0;
-		final Function<SAMRecord,List<SAMRecord>> modifier = createSAMRecordFunction();
 		final SAMFileHeader headerIn = in.getFileHeader();
 		try(SAMFileWriter sfw = openSamFileWriter(headerIn)) {
 			final ProgressLoggerInterface progress = createProgressLogger();
 			if(progress!=null) sfw.setProgressLogger( progress);
+			
 			try(CloseableIterator<SAMRecord> iter= openSamIterator(in)) {
-				while(iter.hasNext()) {
-				final SAMRecord rec = iter.next();
-				for(final SAMRecord R :modifier.apply(rec)) {
-					sfw.addAlignment(R);
-					}
+				scanIterator(iter,sfw);
 				}
 			}
-		}
 
 		
 		in.close();
