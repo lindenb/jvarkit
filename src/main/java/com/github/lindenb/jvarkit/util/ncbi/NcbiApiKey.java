@@ -44,7 +44,7 @@ see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-util
 > After May 1, 2018, NCBI will limit your access to the E-utilities
 > unless you have one of these keys. Obtaining an API key is quick,
 > and simple, and will allow you to access NCBI data faster.
-> If you don’t have an API key, E-utilities will still work, but
+> If you don't have an API key, E-utilities will still work, but
 > you may be limited to fewer requests than allowed with an API key.
 
 
