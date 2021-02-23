@@ -29,10 +29,10 @@ History:
 package com.github.lindenb.jvarkit.tools.pubmed;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -119,6 +119,8 @@ END_DOC
 @Program(name="pubmedcodinglang",
 	description="Programming language use distribution from recent programs / articles",
 	keywords={"pubmed","xml","code","programming"},
+	creationDate="20170404",
+	modificationDate="20200223",
 	biostars=251002
 	)
 public class PubmedCodingLanguages
@@ -126,7 +128,7 @@ public class PubmedCodingLanguages
 	{
 	private static final Logger LOG = Logger.build(PubmedCodingLanguages.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outFile=null;
+	private Path outFile=null;
 	@Parameter(names={"-c","--common"},description="[20180302] only common languages. What is a 'common' language ? well .. it's subjective...")
 	private boolean common_only_false;
 
@@ -211,7 +213,7 @@ public class PubmedCodingLanguages
 		});
 		
 		this.languages.add(new ProgLanguageImpl("ruby","rails").flagHasNotCommon());
-		this.languages.add(new ProgLanguageImpl("python","cython","django","python3","python2.7","biopython"));
+		this.languages.add(new ProgLanguageImpl("python","cython","django","python3","python2.7","biopython","jupyter"));
 		this.languages.add(new ProgLanguageImpl("awk","nawk","gawk").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("golang","go language","go programming").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("couchdb","couch database").flagHasNotCommon());
@@ -257,6 +259,7 @@ public class PubmedCodingLanguages
 				m = super.search("and R", s);if(m!=null) return m;
 				m = super.search("CRAN", s);if(m!=null) return m;
 				m = super.search("Bioconductor", s);if(m!=null) return m;
+				m = super.search("r shiny", s);if(m!=null) return m;
 				return null;
 			}
 		});
@@ -286,6 +289,7 @@ public class PubmedCodingLanguages
 		this.languages.add(new ProgLanguageImpl("mathlab","matlab"));
 		this.languages.add(new ProgLanguageImpl("groovy").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("javascript"));
+		this.languages.add(new ProgLanguageImpl("rust"));
 		this.languages.add(new ProgLanguageImpl("nodejs").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("pascal").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("erlang").flagHasNotCommon());
@@ -294,7 +298,10 @@ public class PubmedCodingLanguages
 		this.languages.add(new ProgLanguageImpl("macro excel","excel macros","excel macro","spreadsheet excel","microsoft excel").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("microsoft access").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("visual basic").flagHasNotCommon());
-		
+		this.languages.add(new ProgLanguageImpl("nextflow").flagHasNotCommon());
+		this.languages.add(new ProgLanguageImpl("snakemake","snakefile").flagHasNotCommon());
+		this.languages.add(new ProgLanguageImpl("wdl","cromwell").flagHasNotCommon());
+		this.languages.add(new ProgLanguageImpl("cwl").flagHasNotCommon());
 		}
 	
 	/** extract text from stream. Cannot use XMLEventReader.getTextContent() 
@@ -408,7 +415,7 @@ public class PubmedCodingLanguages
 			in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
 			r = xmlInputFactory.createXMLEventReader(in);
 			
-			out = super.openFileOrStdoutAsPrintStream(this.outFile);
+			out = super.openPathOrStdoutAsPrintStream(this.outFile);
 			while(r.hasNext()) {
 				final XMLEvent evt= r.nextEvent();
 				if(evt.isStartElement() )	{

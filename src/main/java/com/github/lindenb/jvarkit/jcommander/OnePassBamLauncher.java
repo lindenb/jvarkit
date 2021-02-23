@@ -53,6 +53,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
@@ -66,6 +67,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.ProgressLoggerInterface;
+import htsjdk.samtools.util.SequenceUtil;
 
 public abstract class OnePassBamLauncher extends Launcher {
 private static final Logger LOG = Logger.build(OnePassBamLauncher.class).make();
@@ -104,6 +106,13 @@ protected int beforeSam() {
 protected void afterSam() {
 	}
 
+/** assert REF was declarated by user */
+protected Path getRequiredReferencePath() {
+	if(this.faidxPath==null) {
+		throw new IllegalStateException("Reference was not specified. " + INDEXED_FASTA_REFERENCE_DESCRIPTION);
+		}
+	return this.faidxPath;
+	}
 
 /** create a new SamReaderFactory */
 @Override
@@ -288,6 +297,11 @@ public int doWork(final List<String> args0) {
 				final MergingSamRecordIterator iter = new MergingSamRecordIterator( headerMerger,sam2iterator, false);
 				mainIterator = iter;
 				}
+			if(this.faidxPath!=null) {
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidxPath);
+				SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(mainHeader));
+			}
+			
 			
 			try(SAMFileWriter sfw = openSamFileWriter(mainHeader)) {
 				final ProgressLoggerInterface progress = createProgressLogger();
