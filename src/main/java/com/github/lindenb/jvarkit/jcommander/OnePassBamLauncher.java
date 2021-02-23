@@ -29,14 +29,18 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -44,10 +48,12 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.MergingSamRecordIterator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -56,6 +62,7 @@ import htsjdk.samtools.filter.FilteringSamIterator;
 import htsjdk.samtools.filter.IntervalFilter;
 import htsjdk.samtools.util.AbstractProgressLogger;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.ProgressLoggerInterface;
@@ -130,7 +137,7 @@ protected Function<SAMRecord,List<SAMRecord>> createSAMRecordFunction() {
 	return R->Collections.singletonList(R);
 }
 
-/** create input SAMRecord iterator */
+/** create input SAMRecord iterator for one sample*/
 protected CloseableIterator<SAMRecord> openSamIterator(final SamReader sr) {
 	
 	if(this.regionFiles!=null) {
@@ -174,74 +181,146 @@ while(iter.hasNext()) {
 }
 
 
+
 @Override
-public int doWork(final List<String> args) {
-	SamReader in = null;
-	final String input = super.oneFileOrNull(args);
-	if(input!=null &&
-		this.outputFile!=null &&
-		!IOUtil.isUrl(input) && Paths.get(input).equals(this.outputFile)) {
-		LOG.error("Input == output : "+ input);
-		return -1;
-		}
-	
-	try {
-		if(beforeSam()!=0) {
-			LOG.error("initialization failed");
+public int doWork(final List<String> args0) {
+	final Map<SamReader,CloseableIterator<SAMRecord>> sam2iterator = new HashMap<>();
+	final CloseableIterator<SAMRecord> mainIterator;
+	final SAMFileHeader mainHeader;
+	final List<String> inputs = new ArrayList<>(args0.size());
+		
+		/* parse input */
+		try {
+			// unroll list
+			if(args0.size()==1 && args0.get(0).endsWith(".list")) {
+				final Path p1 = Paths.get(args0.get(0));
+				IOUtil.assertFileIsReadable(p1);
+				inputs.addAll(Files.
+						lines(p1).
+						filter(S->!S.startsWith("#")).
+						filter(S->!StringUtils.isBlank(S)).
+						collect(Collectors.toList())
+						);
+				if(inputs.isEmpty()) {
+					LOG.error("List is empty " + p1);
+					return -1;
+					}
+				}
+			else
+				{
+				inputs.addAll(args0);
+				}
+		} catch(final IOException err) {
+			LOG.error(err);
 			return -1;
 			}
-		}
-	catch (final Throwable err) {
-		LOG.error(err);
-		return -1;
-		}
-	
-	
-	
-	try {
-		final SamReaderFactory srf = createSamReaderFactory();
-		if(input==null) {
-			in = srf.open(SamInputResource.of(stdin()));
-			}
-		else if(IOUtil.isUrl(input)){
-			in = srf.open(SamInputResource.of(new URL(input)));
-			}
-		else
-			{
-			in = srf.open(Paths.get(input));
+		
+		/* check input is not output */
+		if(!inputs.isEmpty() &&
+			this.outputFile!=null &&
+			inputs.stream().
+				filter(F->!IOUtil.isUrl(F)).
+				map(F->Paths.get(F)).
+				anyMatch(F->F.equals(this.outputFile))) {
+			LOG.error("Input file == output file : "+ inputs);
+			return -1;
 			}
 		
-		int err= 0;
-		final SAMFileHeader headerIn = in.getFileHeader();
-		try(SAMFileWriter sfw = openSamFileWriter(headerIn)) {
-			final ProgressLoggerInterface progress = createProgressLogger();
-			if(progress!=null) sfw.setProgressLogger( progress);
-			
-			try(CloseableIterator<SAMRecord> iter= openSamIterator(in)) {
-				scanIterator(iter,sfw);
-				}
-			}
-
-		
-		in.close();
-		in = null;
-		if(err!=0) deleteOutputOnError();
-		return err;
-		}
-	catch (final Throwable err) {
-		LOG.error(err);
-		deleteOutputOnError();
-		return -1;
-		}
-	finally
-		{
+		/* before SAM */
 		try {
-			afterSam();
+			if(beforeSam()!=0) {
+				LOG.error("initialization failed");
+				return -1;
+				}
 			}
 		catch (final Throwable err) {
 			LOG.error(err);
-			}	
-		try {if(in!=null) in.close(); } catch (final Throwable err) {LOG.error(err);}
+			return -1;
+			}
+		
+		
+		
+		try {
+			final SamReaderFactory srf = createSamReaderFactory();
+			if(inputs.isEmpty() || inputs.size()==1) {
+				final SamReader in;
+				if(inputs.isEmpty()) {
+					in = srf.open(SamInputResource.of(stdin()));
+					}
+				else if(IOUtil.isUrl(inputs.get(0))){
+					in = srf.open(SamInputResource.of(new URL(inputs.get(0))));
+					}
+				else 
+					{
+					in = srf.open(Paths.get(inputs.get(0)));
+					}
+				final CloseableIterator<SAMRecord> iter= openSamIterator(in);
+				sam2iterator.put(in, iter);
+				mainHeader = in.getFileHeader();
+				mainIterator = iter;
+				}
+			else
+				{
+				for(final String bamPath: inputs) {
+					final SamReader  in = srf.open(Paths.get(bamPath));
+					final CloseableIterator<SAMRecord> iter= openSamIterator(in);
+					sam2iterator.put(in, iter);
+					}
+				final Set<SAMFileHeader.SortOrder> all_sort_orders = sam2iterator.
+						keySet().
+						stream().
+						map(SR->SR.getFileHeader()).
+						map(H->H.getSortOrder()).
+						collect(Collectors.toSet());
+				
+				if(all_sort_orders.size()!=1) {
+					LOG.error("Heterogenous sort order in input bams : " + all_sort_orders);
+					return -1;
+					}
+				final SAMFileHeader.SortOrder sortOrder = all_sort_orders.iterator().next();
+				
+				final SamFileHeaderMerger headerMerger  = new SamFileHeaderMerger(
+						sortOrder,
+						sam2iterator.keySet().stream().map(SR->SR.getFileHeader()).collect(Collectors.toList()),
+						false);
+				mainHeader  = headerMerger.getMergedHeader();
+				@SuppressWarnings("resource")
+				final MergingSamRecordIterator iter = new MergingSamRecordIterator( headerMerger,sam2iterator, false);
+				mainIterator = iter;
+				}
+			
+			try(SAMFileWriter sfw = openSamFileWriter(mainHeader)) {
+				final ProgressLoggerInterface progress = createProgressLogger();
+				if(progress!=null) sfw.setProgressLogger( progress);
+				scanIterator(mainIterator,sfw);	
+				}
+	
+			mainIterator.close();
+			for(final SamReader sr: sam2iterator.keySet()) {
+				sam2iterator.get(sr).close();
+				sr.close();
+				}
+			sam2iterator.clear();
+			return 0;
+			}
+		catch (final Throwable err) {
+			LOG.error(err);
+			deleteOutputOnError();
+			return -1;
+			}
+		finally
+			{
+			try {
+				afterSam();
+				}
+			catch (final Throwable err) {
+				LOG.error(err);
+				}
+			
+			for(final SamReader sr: sam2iterator.keySet()) {
+				CloserUtil.close(sam2iterator.get(sr));
+				CloserUtil.close(sr);
+				}
+			}
 		}
 	}
-}
