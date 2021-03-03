@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -108,6 +104,9 @@ $ find ./testdata/ -type f -name "*.bam" | \
  * [https://twitter.com/pjacock/status/538299549455233024](https://twitter.com/pjacock/status/538299549455233024)
  * FindAVariation
 
+## History
+
+ + 20210303 : bug fixed in https://github.com/lindenb/jvarkit/issues/180
 
 
 END_DOC
@@ -116,7 +115,8 @@ END_DOC
 	keywords={"bam","coverage","search","depth"},
 	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
 	biostars= {259223,250099,409942},
-	modificationDate="20190905"
+	modificationDate="20200303",
+	creationDate="20141128"
 	)
 public class FindAllCoverageAtPosition extends Launcher
 	{
@@ -330,7 +330,6 @@ public class FindAllCoverageAtPosition extends Launcher
 													break;
 												default:break;
 												}
-											break;
 											}	
 										if(op.consumesReadBases()) ++readPos;
 										ref++;
@@ -383,7 +382,7 @@ public class FindAllCoverageAtPosition extends Launcher
 						}
 					}//end of loop over mutations
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				throw err;

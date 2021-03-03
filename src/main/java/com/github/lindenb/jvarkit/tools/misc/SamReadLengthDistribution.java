@@ -64,10 +64,12 @@ BEGIN_DOC
 
 Because gatk is buggy: http://gatkforums.broadinstitute.org/gatk/discussion/8342/duplicate-columns-in-readlengthdistribution#latest
 
+duplicate, secondary , supplementary, failing quality reads are discarded
 
 ## Input
 
 input is a set of bam file or a file with suffix '.list' containing the path to the bam
+
 
 
 ## Example
