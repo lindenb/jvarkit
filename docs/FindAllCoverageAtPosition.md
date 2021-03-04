@@ -10,6 +10,9 @@ Find depth at specific position in a list of BAM files. My colleague Estelle ask
 ```
 Usage: findallcoverageatposition [options] Files
   Options:
+    -clip, --clip
+      use clipped bases.
+      Default: false
     -x, --extend
       [20190218]extend by 'x' base to try to catch close with clipped reads. A 
       distance specified as a positive integer.Commas are removed. The 
@@ -144,5 +147,8 @@ $ find ./testdata/ -type f -name "*.bam" | \
  * [https://twitter.com/pjacock/status/538299549455233024](https://twitter.com/pjacock/status/538299549455233024)
  * FindAVariation
 
+## History
+
+ + 20210303 : bug fixed in https://github.com/lindenb/jvarkit/issues/180
 
 

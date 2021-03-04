@@ -44,7 +44,6 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
@@ -52,10 +51,10 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.beust.jcommander.Parameter;
@@ -141,6 +140,8 @@ public class FindAllCoverageAtPosition extends Launcher
 	private int extend=500;
 	@Parameter(names={"-Q","--mapq"},description="Min mapping quality. Dicard reads having MAPQ < 'x'")
 	private int mapq=1;
+	@Parameter(names={"-clip","--clip"},description="use clipped bases.")
+	private boolean use_clipped_bases = false;
 
 	
 	
@@ -220,167 +221,168 @@ public class FindAllCoverageAtPosition extends Launcher
 				filename.endsWith(FileExtensions.CRAM))) continue;
 						
     			
-			SamReader samReader=null;
-			SAMRecordIterator iter=null;
+		
 			try
 				{
-				samReader = this.samReaderFactory.open(f);
-				if(!samReader.hasIndex())
-					{
-					LOG.warn("no index for "+f);
-					continue;
-					}
-				final SAMFileHeader header=samReader.getFileHeader();
-				for(final SimplePosition src:mutations)
-					{
-					final Map<String, CigarAndBases> sample2count=new TreeMap<String,CigarAndBases>();
-					for(final SAMReadGroupRecord rg:header.getReadGroups())
+				try(SamReader samReader = this.samReaderFactory.open(f)) {
+					if(!samReader.hasIndex())
 						{
-						if(rg!=null)
-							{
-							String sn=this.groupBy.apply(rg);
-							if(sn!=null && !sn.trim().isEmpty())
-								{
-								sample2count.put(sn, new CigarAndBases());
-								}
-							}
+						LOG.warn("no index for "+f);
+						continue;
 						}
-					
-					if(sample2count.isEmpty())
+					final SAMFileHeader header=samReader.getFileHeader();
+					for(final SimplePosition src:mutations)
 						{
-						sample2count.put(DEFAULT_SAMPLE_NAME, new CigarAndBases());
-						}
-
-					
-					
-					final SimplePosition m = convertFromSamHeader(f,header,src);
-					if(m==null) continue;
-					iter = samReader.query(m.getContig(),
-							Math.max(1,m.getPosition()-this.extend),
-							m.getPosition()+this.extend,
-							false
-							);
-					while(iter.hasNext())
-						{
-						final SAMRecord rec=iter.next();
-						if(rec.getReadUnmappedFlag()) continue;
-						if(rec.getMappingQuality() < this.mapq) continue;
-						if(this.filter.filterOut(rec)) continue;
-						final Cigar cigar=rec.getCigar();
-						if(cigar==null || cigar.isEmpty()) continue;
-						if(rec.getUnclippedEnd() < m.getPosition()) continue;
-						if(rec.getUnclippedStart() > m.getPosition()) continue;
-						if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) continue;
-						
-						final String readString = rec.getReadString().toUpperCase();
-						String sampleName=DEFAULT_SAMPLE_NAME;
-						final SAMReadGroupRecord rg=rec.getReadGroup();
-						if(rg!=null)
+						final Map<String, CigarAndBases> sample2count=new TreeMap<String,CigarAndBases>();
+						for(final SAMReadGroupRecord rg:header.getReadGroups())
 							{
-							String sn= groupBy.apply(rg);
-							if(!StringUtil.isBlank(sn))
+							if(rg!=null)
 								{
-								sampleName=sn;
-								}
-							}
-						CigarAndBases counter= sample2count.get(sampleName);
-						if(counter==null)
-							{
-							counter=new CigarAndBases();
-							sample2count.put(sampleName, counter);
-							}	
-						
-						
-						int ref= rec.getUnclippedStart();
-						int readPos = 0;
-						for(int k=0;k<cigar.numCigarElements() && ref< m.getPosition()+1;++k)
-							{
-							final CigarElement ce=cigar.getCigarElement(k);
-							final CigarOperator op=ce.getOperator();
-							switch(op)
-								{
-								case P: break;
-								case I: 
+								String sn=this.groupBy.apply(rg);
+								if(sn!=null && !sn.trim().isEmpty())
 									{
-									if(ref==m.getPosition())
-										{
-										counter.operators.incr(op);
-										counter.bases.incr(INSERTION_CHAR);
-										}
-									readPos += ce.getLength();
-									break;
+									sample2count.put(sn, new CigarAndBases());
 									}
-								case D:case N:
-								case M: case X: case EQ: 
-								case H:
-								case S:
+								}
+							}
+						
+						if(sample2count.isEmpty())
+							{
+							sample2count.put(DEFAULT_SAMPLE_NAME, new CigarAndBases());
+							}
+	
+						
+						
+						final SimplePosition m = convertFromSamHeader(f,header,src);
+						if(m==null) continue;
+						try(CloseableIterator<SAMRecord> iter = samReader.query(m.getContig(),
+								Math.max(1,m.getPosition()-this.extend),
+								m.getPosition()+this.extend,
+								false
+								)) {
+							while(iter.hasNext())
+								{
+								final SAMRecord rec=iter.next();
+								if(rec.getReadUnmappedFlag()) continue;
+								if(rec.getMappingQuality() < this.mapq) continue;
+								if(this.filter.filterOut(rec)) continue;
+								final Cigar cigar=rec.getCigar();
+								if(cigar==null || cigar.isEmpty()) continue;
+								if(rec.getUnclippedEnd() < m.getPosition()) continue;
+								if(rec.getUnclippedStart() > m.getPosition()) continue;
+								if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) continue;
+								
+								final String readString = rec.getReadString().toUpperCase();
+								final String sampleName= this.groupBy.getPartion(rec,DEFAULT_SAMPLE_NAME);
+								
+								CigarAndBases counter= sample2count.get(sampleName);
+								if(counter==null)
 									{
-									for(int i=0;i< ce.getLength();++i )
+									counter=new CigarAndBases();
+									sample2count.put(sampleName, counter);
+									}	
+								
+								
+								int ref= rec.getUnclippedStart();
+								int readPos = 0;
+								for(int k=0;k<cigar.numCigarElements() && ref< m.getPosition()+1;++k)
+									{
+									final CigarElement ce=cigar.getCigarElement(k);
+									final CigarOperator op=ce.getOperator();
+									switch(op)
 										{
-										if(ref==m.getPosition())
+										case P: break;
+										case I: 
 											{
-											counter.operators.incr(op);
-											switch(op)
+											if(ref==m.getPosition())
 												{
-												case M:case X:case EQ:
-													counter.bases.incr(readString.charAt(readPos));
-													break;
-												case D:case N:
-													counter.bases.incr(DELETION_CHAR);
-													break;
-												default:break;
+												counter.operators.incr(op);
+												counter.bases.incr(INSERTION_CHAR);
 												}
-											}	
-										if(op.consumesReadBases()) ++readPos;
-										ref++;
+											readPos += ce.getLength();
+											break;
+											}
+										case D:case N:
+										case M: case X: case EQ: 
+										case H: case S:
+											{
+											for(int i=0;i< ce.getLength();++i )
+												{
+												if(ref==m.getPosition())
+													{
+													counter.operators.incr(op);
+													switch(op)
+														{
+														case H:
+															{
+															if(use_clipped_bases) counter.bases.incr('N');
+															break;
+															}
+														case S:
+															{
+															if(use_clipped_bases) counter.bases.incr(readString.charAt(readPos));
+															break;
+															}
+														case M:case X:case EQ:
+															counter.bases.incr(readString.charAt(readPos));
+															break;
+														case D:case N:
+															counter.bases.incr(DELETION_CHAR);
+															break;
+														default:break;
+														}
+													}	
+												if(op.consumesReadBases()) ++readPos;
+												ref++;
+												}
+											break;
+											}
+										default: throw new RuntimeException("unknown operator:"+op);
 										}
-									break;
 									}
-								default: throw new RuntimeException("unknown operator:"+op);
 								}
-							}
 						}
-					iter.close();
-					iter=null;
+							
 						
-					
-					for(final String sample:sample2count.keySet())
-						{
-						final CigarAndBases counter= sample2count.get(sample);
-						
-						out.print(f);
-						out.print('\t');
-						out.print(m.getContig());
-						out.print('\t');
-						out.print(m.getPosition());
-						
-						if(this.indexedFastaSequenceFile!=null) {
-							out.print('\t');
-							out.print(getReferenceAt(m.getContig(),m.getPosition()));
-							}
-						
-						out.print('\t');
-						out.print(sample);
-						out.print('\t');
-						out.print(
-								counter.operators.count(CigarOperator.M)+
-								counter.operators.count(CigarOperator.EQ)+
-								counter.operators.count(CigarOperator.X)
-								);
-						for(final CigarOperator op:CigarOperator.values())
+						for(final String sample:sample2count.keySet())
 							{
+							final CigarAndBases counter= sample2count.get(sample);
+							
+							out.print(f);
 							out.print('\t');
-							out.print(counter.operators.count(op));
-							}
-						for(char c:BASES_To_PRINT)
-							{
+							out.print(m.getContig());
 							out.print('\t');
-							out.print(counter.bases.count(c));
+							out.print(m.getPosition());
+							
+							if(this.indexedFastaSequenceFile!=null) {
+								out.print('\t');
+								out.print(getReferenceAt(m.getContig(),m.getPosition()));
+								}
+							
+							out.print('\t');
+							out.print(sample);
+							out.print('\t');
+							out.print(
+									counter.operators.count(CigarOperator.M)+
+									counter.operators.count(CigarOperator.EQ)+
+									counter.operators.count(CigarOperator.X)
+									);
+							for(final CigarOperator op:CigarOperator.values())
+								{
+								out.print('\t');
+								out.print(counter.operators.count(op));
+								}
+							for(char c:BASES_To_PRINT)
+								{
+								out.print('\t');
+								out.print(counter.bases.count(c));
+								}
+							
+							out.println();
 							}
-						
-						out.println();
-						}
-					}//end of loop over mutations
+							
+						}//end of loop mutations
+				}//end of samReader
 				}
 			catch(final Throwable err)
 				{
@@ -389,8 +391,6 @@ public class FindAllCoverageAtPosition extends Launcher
 				}
 			finally
 				{
-				CloserUtil.close(iter);
-				CloserUtil.close(samReader);
 				}    				
 			}		
 	    
