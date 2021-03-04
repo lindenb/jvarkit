@@ -47,8 +47,8 @@ public class RatioConverter implements IStringConverter<Double>,ToDoubleFunction
 		double value;
 		try {
 			if(s.endsWith("%")) {
-				s=s.substring(s.length()-1).trim();
-				value = Double.parseDouble(s)/100.0;
+				final String s2=s.substring(0,s.length()-1).trim();
+				value = Double.parseDouble(s2)/100.0;
 				}
 			else if(s.contains("/")) {
 				final int slash = s.indexOf("/"); 
@@ -64,7 +64,7 @@ public class RatioConverter implements IStringConverter<Double>,ToDoubleFunction
 				}
 			}
 		catch(final NumberFormatException err) {
-			throw new ParameterException("Cannot convert "+s0+" to decimal number.",err);
+			throw new ParameterException("Cannot convert '"+s0+"' to decimal number. ("+err.getMessage()+")",err);
 			}
 		if(Double.isNaN(value) || Double.isInfinite(value)) {
 			throw new ParameterException("Cannot convert "+s0+" to decimal number. Value is not a number or infinite '"+ value+"'.");

@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -226,7 +227,7 @@ public class WesCnvTView  extends Launcher {
 	private static final Logger LOG = Logger.build(WesCnvTView.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-l","-B","--bams"},description=
 			"The Bam file(s) to be displayed. If there is only one file which ends with '.list' it is interpreted as a file containing a list of paths")
 	private List<File> theBamFiles = new ArrayList<>();
@@ -807,7 +808,7 @@ public class WesCnvTView  extends Launcher {
 				return -1;
 				}
 			
-			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			final AbstractViewWriter w = plain_flag?
 					new PlainTerminalWriter(out):
 					new DefaultTerminalWriter(out);
