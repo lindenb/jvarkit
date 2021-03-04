@@ -31,10 +31,9 @@ package com.github.lindenb.jvarkit.tools.sam2tsv;
 
 import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -42,14 +41,12 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMUtils;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 /**
 
@@ -140,18 +137,16 @@ END_DOC
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","cram","tsv"},
 	biostars={157232,59647,253828,264875,277493},
-	modificationDate="20200713",
+	modificationDate="20210304",
 	creationDate="20170712"
 	)
 public class Sam2Tsv
-	extends Launcher
+	extends MultiBamLauncher
 	{
 	private static final Logger LOG = Logger.build(Sam2Tsv.class).make();
 
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private Path refFile = null;
 	@Parameter(names={"-N","--skip-N"},description="Skip 'N' operator")
 	private boolean skip_N=false;
 
@@ -359,14 +354,12 @@ public class Sam2Tsv
 	
 	
 	
-	private void scan(final SamReader r) 
+	private void scan(final SAMFileHeader header,final CloseableIterator<SAMRecord> iter) 
 		{
 		long n_total=0L;
 		long n_null_sequence  = 0L;
 		long n_unmapped  = 0L;
-		SAMRecordIterator iter=null;
 		try{
-			iter=r.iterator();	
 			while(iter.hasNext())
 				{
 				this.rec = iter.next();
@@ -398,27 +391,16 @@ public class Sam2Tsv
 			CloserUtil.close(iter);
 			}
 		}
+	
 	@Override
-	public int doWork(final List<String> args) {
-		SamReader samFileReader=null;
+	protected int processInput(SAMFileHeader samHeader, CloseableIterator<SAMRecord> iter) {
 		try
 			{
-			final SamReaderFactory srf = super.createSamReaderFactory();
-			if(this.refFile!=null)
+			if(super.faidxPath!=null)
 				{
-				this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(refFile);
-				srf.referenceSequence(this.refFile);
+				this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(super.faidxPath);
 				}
 			
-			final String input = oneFileOrNull(args);
-			if(input==null)
-				{
-				samFileReader = srf.open(SamInputResource.of(stdin()));
-				}
-			else
-				{
-				samFileReader = srf.open(SamInputResource.of(input));
-				}
 			
 			this.out  =  openPathOrStdoutAsPrintWriter(this.outputFile);
 			out.print("#Read-Name");
@@ -442,10 +424,7 @@ public class Sam2Tsv
 			out.print("CIGAR-OP");
 			out.println();
 
-			scan(samFileReader);
-			
-			samFileReader.close();
-			samFileReader = null;
+			scan(samHeader,iter);			
 			this.out.flush();this.out.close();this.out=null;
 			return 0;
 			}
@@ -457,7 +436,6 @@ public class Sam2Tsv
 		finally
 			{
 			CloserUtil.close(this.indexedFastaSequenceFile);
-			CloserUtil.close(samFileReader);
 			CloserUtil.close(out);
 			}
 		}

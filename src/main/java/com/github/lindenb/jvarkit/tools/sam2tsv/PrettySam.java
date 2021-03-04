@@ -44,13 +44,12 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.ansi.AnsiUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.util.bio.AminoAcids;
 import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -69,9 +68,6 @@ import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -253,14 +249,11 @@ description="Pretty SAM alignments",
 references="PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853798.v1](https://doi.org/10.6084/m9.figshare.5853798.v1)",
 keywords={"sam","bam"},
 creationDate="20171215",
-modificationDate="20200206"
+modificationDate="20210304"
 )
-public class PrettySam extends Launcher {
+public class PrettySam extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private Path faidx = null ;
+
 	@Parameter(names={"--no-unicode"},description="disable unicode to display ascii histogram")
 	private boolean disable_unicode=false;
 	@Parameter(names={"--trim"},description="trim long string to this length. <1 = do not trim.")
@@ -384,7 +377,7 @@ public class PrettySam extends Launcher {
 		return AnsiColor.base(C);
 		};
 
-		
+	
 	public class PrettySAMWriter implements SAMFileWriter
 		{
 		private final NumberFormat fmt = new DecimalFormat("#,###");
@@ -1303,50 +1296,37 @@ public class PrettySam extends Launcher {
 			this.genomicSequence=null;
 			}
 		}
+	
 	@Override
-	public int doWork(final List<String> args) {
-		SamReader r = null;
-		PrettySAMWriter out = null;
-		CloseableIterator<SAMRecord> iter = null;
-		try 
-			{
-			final SamReaderFactory srf= super.createSamReaderFactory();
-			srf.referenceSequence(this.faidx);
-			final String input = oneFileOrNull(args);
-			if(StringUtils.isBlank(input)) {
-				r= srf.open(SamInputResource.of(stdin()));
-			} else
-			{
-				r= srf.open(SamInputResource.of(input));
-			}
-			
-			this.referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
-			
-			out = new PrettySAMWriter(super.openPathOrStdoutAsPrintWriter(this.outputFile));
-			out.writeHeader(r.getFileHeader());
-			iter = r.iterator();
-			while(iter.hasNext())
-				{
-				out.addAlignment(iter.next());
-				if(out.pw.checkError()) break;
-				}
-			out.close();out=null;
-			return 0;
-			}
-		catch(final Throwable err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(iter);
-			CloserUtil.close(r);
-			CloserUtil.close(out);
-			CloserUtil.close(this.referenceSequenceFile);
-			}
+	protected Logger getLogger() {
+		return LOG;
 		}
 	
+	@Override
+	protected int beforeSam() {
+		this.referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(super.getRequiredReferencePath());
+		return super.beforeSam();
+		}
+	
+	@Override
+	protected void afterSam() {
+		CloserUtil.close(this.referenceSequenceFile);
+		super.afterSam();
+		}
+	
+	@Override
+	protected SAMFileWriter openSamFileWriter(SAMFileHeader headerIn) {
+		try {
+			final PrettySAMWriter w= new PrettySAMWriter(super.openPathOrStdoutAsPrintWriter(super.outputFile));
+			w.referenceSequenceFile = this.referenceSequenceFile;
+			w.writeHeader(headerIn);
+			return w;
+			}
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
+		
 	public static void main(final String[] args) {
 		new PrettySam().instanceMainWithExit(args);
 	}

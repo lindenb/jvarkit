@@ -24,32 +24,34 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.BufferedReader;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
-import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.Cigar;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.StringUtil;
@@ -182,20 +184,19 @@ END_DOC
 	description="scan split reads",
 	keywords={"sam","sv","splitreads","clip"}
 		)
-	public class SamScanSplitReads extends Launcher {
+	public class SamScanSplitReads extends MultiBamLauncher {
 	private static final Logger LOG = Logger.build(SamScanSplitReads.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")
 	private int extentd=10;
 	@Parameter(names={"-partition","--partition"},description=SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
-	@Parameter(names={"-r","--rgn"},description="limit to that region CHROM:START-END")
-	private String intervalStr = null;
-	@Parameter(names={"-B","--bed"},description="limit to that bed file")
-	private File intervalBed = null;
 	@Parameter(names={"--buffer-size"},description="dump buffer every 'x' bases. Most users should not use this.")
 	private int buffer_dump_size = 10_000;
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVcfConfig = new WritingVariantsDelegate();
+
 
 	private static final byte VOID_TO_LEFT = (byte)1; 
 	private static final byte RIGHT_TO_VOID = (byte)2; 
@@ -212,7 +213,11 @@ END_DOC
 			return chromEnd-chromStart;
 			}
 		}
-		
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	private void dump(
 			final SAMSequenceDictionary dict,
@@ -318,71 +323,49 @@ END_DOC
 		}
 		
 
-		
 	@Override
-	public int doWork(final List<String> args) {
-	 	ConcatSam.ConcatSamIterator iter = null;
-	 	VariantContextWriter vcw= null;
+	protected int processInput(final SAMFileHeader samHeader, final CloseableIterator<SAMRecord> iter) {
 	 	final  IntervalTreeMap<List<Arc>> database = new IntervalTreeMap<>(); 
-		try {
-			final ConcatSam.Factory concatFactory = new ConcatSam.Factory();
-			concatFactory.setEnableUnrollList(true);
-			concatFactory.addInterval(this.intervalStr);
-			if(this.intervalBed!=null)
-				{
-				final BedLineCodec codec = new BedLineCodec();
-				final BufferedReader br = IOUtils.openFileForBufferedReading(this.intervalBed);
-				br.lines().
-					filter(L->!StringUtil.isBlank(L)).
-					map(L->codec.decode(L)).
-					filter(L->L!=null).
-					forEach(B->concatFactory.addInterval(B.getContig()+":"+B.getStart()+"-"+B.getEnd()));
-				br.close();
-				}
-			
-			
-			iter = concatFactory.open(args);
-			
-			final SAMSequenceDictionary dict = iter.getFileHeader().getSequenceDictionary();
-			
-			final Set<String> samples = iter.getFileHeader().getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtil.isBlank(S)).collect(Collectors.toSet());
-			if(samples.isEmpty())
-				{
-				iter.close();
-				LOG.error("No samples defined");
-				return -1;
-				}
-			
-			
+
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samHeader);
+		final Set<String> samples = samHeader.getReadGroups().stream().map(RG->this.partition.apply(RG)).
+				filter(S->!StringUtil.isBlank(S)).
+				collect(Collectors.toCollection(TreeSet::new));
+		if(samples.isEmpty())
+			{
+			iter.close();
+			LOG.error("No samples defined");
+			return -1;
+			}
 		
-			
-			final Set<VCFHeaderLine> meta=new HashSet<>();
-			VCFStandardHeaderLines.addStandardFormatLines(meta,false,
-					VCFConstants.GENOTYPE_KEY,
-					VCFConstants.DEPTH_KEY
-					);
-			VCFStandardHeaderLines.addStandardInfoLines(meta,false,
-					VCFConstants.DEPTH_KEY,
-					VCFConstants.END_KEY
-					);
-			meta.add(new VCFFormatHeaderLine("N5", 1, VCFHeaderLineType.Integer,"Number of clipped reads in 5'"));
-			meta.add(new VCFFormatHeaderLine("N3", 1, VCFHeaderLineType.Integer,"Number of clipped reads in 3'"));
-			meta.add(new VCFFormatHeaderLine("M5", 1, VCFHeaderLineType.Float,"Median size of the clip in 5'"));
-			meta.add(new VCFFormatHeaderLine("M3", 1, VCFHeaderLineType.Float,"Median size of the clip in 3'"));
-			meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
-			meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of sample having some split reads"));
-			
-			
-			final VCFHeader header=new VCFHeader(meta,samples);
-			JVarkitVersion.getInstance().addMetaData(this, header);
-			header.setSequenceDictionary(dict);
-			vcw = super.openVariantContextWriter(outputFile);
+		
+		final Set<VCFHeaderLine> meta=new HashSet<>();
+		VCFStandardHeaderLines.addStandardFormatLines(meta,false,
+				VCFConstants.GENOTYPE_KEY,
+				VCFConstants.DEPTH_KEY
+				);
+		VCFStandardHeaderLines.addStandardInfoLines(meta,false,
+				VCFConstants.DEPTH_KEY,
+				VCFConstants.END_KEY
+				);
+		meta.add(new VCFFormatHeaderLine("N5", 1, VCFHeaderLineType.Integer,"Number of clipped reads in 5'"));
+		meta.add(new VCFFormatHeaderLine("N3", 1, VCFHeaderLineType.Integer,"Number of clipped reads in 3'"));
+		meta.add(new VCFFormatHeaderLine("M5", 1, VCFHeaderLineType.Float,"Median size of the clip in 5'"));
+		meta.add(new VCFFormatHeaderLine("M3", 1, VCFHeaderLineType.Float,"Median size of the clip in 3'"));
+		meta.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
+		meta.add(new VCFInfoHeaderLine("NSAMPLES", 1, VCFHeaderLineType.Integer,"Number of sample having some split reads"));
+		final VCFHeader header=new VCFHeader(meta,samples);
+		JVarkitVersion.getInstance().addMetaData(this, header);
+		header.setSequenceDictionary(dict);
+
+		try {
+			try(VariantContextWriter vcw = this.writingVcfConfig.dictionary(dict).open(outputFile)) {
 			vcw.writeHeader(header);
 			
 			
 			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
 					newInstance().
-					dictionary(iter.getFileHeader().getSequenceDictionary()).
+					dictionary(dict).
 					logger(LOG).
 					build();
 			
@@ -390,12 +373,8 @@ END_DOC
 			while(iter.hasNext())
 				{
 				final SAMRecord rec = progress.apply(iter.next());
-				
-				if(rec.getReadUnmappedFlag()) continue;
-				if(rec.getReadFailsVendorQualityCheckFlag()) continue;
-				if(rec.isSecondaryOrSupplementary()) continue;
-				if(rec.getDuplicateReadFlag()) continue;
-				
+				if(!SAMRecordDefaultFilter.accept(rec)) continue;
+							
 				
 				final Cigar cigar = rec.getCigar();
 				if(cigar==null || cigar.isEmpty() || !cigar.isClipped()) continue;
@@ -414,7 +393,7 @@ END_DOC
 					dump(dict,database,vcw,samples,before);
 					database.entrySet().removeIf(entries->entries.getKey().getEnd()< before);
 					}
-
+		
 				
 				
 				for(int side=0;side<2;++side) {
@@ -457,26 +436,17 @@ END_DOC
 						}
 					list.add(arc);
 					}
-				}
+				}//end iter
 			dump(dict,database,vcw,samples,null);
-			iter.close();iter=null;
-			progress.close();
-			vcw.close();vcw=null;
-			return 0;
-			} 
-		catch (final Exception e) {
-			LOG.error(e);
+			}//end writer
+		return 0;
+		} catch(final Throwable err) {
+			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(iter);	
-			CloserUtil.close(vcw);	
-			}
 		}
-	
+		
 	public static void main(final String[] args) {
 		new SamScanSplitReads().instanceMainWithExit(args);
 	}
-	// 
 }

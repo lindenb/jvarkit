@@ -35,27 +35,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamReader;
 
-@Program(name="splitbytile",description="Split Bam By tile",keywords={"sam","bam"})
-public class SplitByTile  extends Launcher
-	{
+@Program(name="splitbytile",description="Split Bam By tile",
+		keywords={"sam","bam"},
+		modificationDate="20210304",
+		creationDate="20130406"
+		)
+public class SplitByTile  extends MultiBamLauncher {
 	private static final String TILEWORD="__TILE__";
     private static final Logger LOG = Logger.build(SplitByTile.class).make();
     @Parameter(names={"-o","--output"},description="Output file. Must contain "+TILEWORD,required=true)
@@ -64,30 +64,29 @@ public class SplitByTile  extends Launcher
     private WritingBamArgs writingBamArgs =new WritingBamArgs();
     
     
-    public static void main(final String[] argv)
-		{
-	    new SplitByTile().instanceMainWithExit(argv);
-		}	
+    @Override
+    protected Logger getLogger() {
+    	return LOG;
+    	}
+    @Override
+    protected int beforeSam() {
+    	if(OUTPUT==null || !OUTPUT.toString().contains(TILEWORD) ||
+    			!(OUTPUT.toString().endsWith(FileExtensions.BAM) || OUTPUT.toString().endsWith(FileExtensions.CRAM)))
+			{
+			LOG.error("Bad OUPUT name "+OUTPUT+". must contain "+TILEWORD+" and ends with .bam|.cram");
+			return -1;
+			}    
+    	return super.beforeSam();
+    	}
+    
     
     @Override
-    public int doWork(final List<String> args) {
-    	if(OUTPUT==null || !OUTPUT.toString().contains(TILEWORD) || !OUTPUT.toString().endsWith(FileExtensions.BAM))
-    		{
-    		LOG.error("Bad OUPUT name "+OUTPUT+". must contain "+TILEWORD+" and ends with .bam");
-    		return -1;
-    		}
-    	
-        SamReader samReader = null;
+    protected int processInput(SAMFileHeader header, CloseableIterator<SAMRecord> iter) {
         final  Map<Integer, SAMFileWriter> tile2writer=new HashMap<Integer, SAMFileWriter>();
         final CharSplitter  colon= CharSplitter.COLON;
-        SAMRecordIterator iter=null;
      
-        
         try
 	        {
-	        samReader= super.openSamReader(oneFileOrNull(args));
-	        final SAMFileHeader header=samReader.getFileHeader();
-			iter=samReader.iterator();
 			while(iter.hasNext())
 				{
 				final SAMRecord rec=iter.next();
@@ -95,21 +94,19 @@ public class SplitByTile  extends Launcher
 				if(tokens.length<5)
 					{
 		    		LOG.error("Cannot get the 6th field in "+rec.getReadName());
-		    		samReader.close();samReader=null;
 		    		return -1;
 					}
 				int tile=-1;
 				try {
 					tile=Integer.parseInt(tokens[4]);
 					}
-				catch (Exception e)
+				catch(Throwable e)
 					{
 					tile=-1;
 					}
 				if(tile<0)
 					{
 					LOG.error("Bad tile in read: "+rec.getReadName());
-					samReader.close();samReader=null;
 					return -1;
 					}
 				
@@ -122,7 +119,9 @@ public class SplitByTile  extends Launcher
 						{
 						Files.createDirectories(outFile.getParent());
 						}
-					sfw= this.writingBamArgs.openSamWriter(outFile,header,true);
+					sfw= this.writingBamArgs.
+							setReferencePath(super.faidxPath).
+							openSamWriter(outFile,header,true);
 					tile2writer.put(tile, sfw);
 					}
 				sfw.addAlignment(rec);
@@ -140,9 +139,13 @@ public class SplitByTile  extends Launcher
         finally
 	    	{
 	    	if(iter!=null) iter.close();
-	    	CloserUtil.close(samReader);
 	    	}
     	return 0;
     	}
     
+    public static void main(final String[] argv)
+		{
+	    new SplitByTile().instanceMainWithExit(argv);
+		}
+
 	}

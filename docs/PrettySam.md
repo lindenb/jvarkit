@@ -10,6 +10,9 @@ Pretty SAM alignments
 ```
 Usage: prettysam [options] Files
   Options:
+    --bamcompression
+      Compression Level.
+      Default: 5
     -cN, --collapse-N
       collapse cigar operator 'N'
       Default: false
@@ -56,17 +59,30 @@ Usage: prettysam [options] Files
     --no-unicode
       disable unicode to display ascii histogram
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
-    -r, -R, --reference
+    -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
+    --samoutputformat
+      Sam output format.
+      Default: SAM
+      Possible Values: [BAM, SAM, CRAM]
     --trim
       trim long string to this length. <1 = do not trim.
       Default: 50
     -u, --unstranslated
       [20171219]Show untranslated regions (used with option -kg)
       Default: false
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     -V, --variant, --vcf
       [20171220]Show VCF data. VCf must be indexed. if VCF has no genotype, 
       the variant positions are shown, otherwise, the genotypes associated to 

@@ -19,10 +19,22 @@ Usage: splitbytile [options] Files
       What kind of help. One of [usage,markdown,xml].
   * -o, --output
       Output file. Must contain __TILE__
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -51,6 +63,11 @@ $ ./gradlew splitbytile
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20130406
 
 ## Source code 
 
