@@ -17,10 +17,10 @@ Usage: vcfpeekaf [options] Files
       checked 2019-11-15)
       Default: false
     -b, --buffer-size
-      When we're looking for variant in Gnomad, load the variants for 'N' 
-      bases instead of doing a random access for each variant. A distance 
-      specified as a positive integer.Commas are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      When we're looking for variant in a lare VCF file, load the variants in 
+      an interval of 'N' bases instead of doing a random access for each 
+      variant. A distance specified as a positive integer.Commas are removed. 
+      The following suffixes are interpreted : b,bp,k,kb,m,mb
       Default: 10000
   * -F, --database, --tabix, --resource
       An indexed VCF file. Source of the annotations
