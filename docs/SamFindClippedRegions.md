@@ -44,7 +44,7 @@ Usage: samfindclippedregions [options] Files
     --min-ratio
       Ignore genotypes where count(clip)/(count(clip)+DP) < x
       Default: 0.1
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     --groupby, --partition
       Group Reads by. Data partitioning using the SAM Read Group (see 
@@ -53,13 +53,17 @@ Usage: samfindclippedregions [options] Files
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --reference
-      For reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
-    --region, --bed, -B
-      A source of intervals. The following suffixes are recognized: vcf, 
-      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
-      empty string (no interval) or a list of plain interval separated by '[ 
-      \t\n;,]' 
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
     -c
