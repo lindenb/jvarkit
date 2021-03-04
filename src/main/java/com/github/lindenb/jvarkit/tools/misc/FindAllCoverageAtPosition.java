@@ -365,7 +365,8 @@ public class FindAllCoverageAtPosition extends Launcher
 							out.print(
 									counter.operators.count(CigarOperator.M)+
 									counter.operators.count(CigarOperator.EQ)+
-									counter.operators.count(CigarOperator.X)
+									counter.operators.count(CigarOperator.X)+
+									(use_clipped_bases?counter.operators.count(CigarOperator.H)+counter.operators.count(CigarOperator.S):0)
 									);
 							for(final CigarOperator op:CigarOperator.values())
 								{
