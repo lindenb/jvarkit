@@ -30,10 +30,13 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
+import java.util.OptionalDouble;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
@@ -46,6 +49,7 @@ import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.Text;
 
 import com.beust.jcommander.DynamicParameter;
@@ -54,6 +58,7 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -84,15 +89,24 @@ BEGIN_DOC
 
 another VCF to SVG
 
+plot  allele ratio for each sample for each diallelic variant in a given region
+
+colors define the genotype type : HOM_REF, HET, HOM_VAR
+
+the size the dots represent the inverse internal allele frequency.
+
 ## Example
 
-
-
-## See also
-
 ```
-bcftools roh
+java -jar dist/vcfstrech2svg.jar --bed intervals.bed  -o TMP indexed.vcf.gz
 ```
+
+## Screenshot
+
+![twitter](https://pbs.twimg.com/media/EvtRyyXWEAEqpz7?format=jpg&name=small "Screenshot")
+
+[https://twitter.com/yokofakun/status/1367778079813341185](https://twitter.com/yokofakun/status/1367778079813341185)
+
 
 END_DOC
 */
@@ -101,7 +115,7 @@ description="another VCF to SVG",
 keywords={"vcf","deletion","cnv","svg"},
 creationDate="20210304",
 modificationDate="20210304",
-generate_doc=false
+generate_doc=true
 )
 public class VcfStrechToSvg extends Launcher
 	{
@@ -115,9 +129,9 @@ public class VcfStrechToSvg extends Launcher
 	private boolean compressed_svg=false;
 	@Parameter(names={"-w","--width"},description="image width.")
 	private int image_width_pixel  = 1_000;
-	@Parameter(names={"-GQ"},description="minimum FORMAT/GQ")
+	@Parameter(names={"--gq"},description="minimum FORMAT/GQ")
 	private int minGQ  = 1;
-	@Parameter(names={"-DP"},description="minimum sum(FORMAT/AD[0]+FORMAT/AD[1])")
+	@Parameter(names={"--dp"},description="minimum sum(FORMAT/AD[0]+FORMAT/AD[1])")
 	private int minDP  = 1;
 	@Parameter(names={"--keep-filtered"},description="keep FILTERed variants")
 	private boolean accept_filtered=false;
@@ -129,12 +143,18 @@ public class VcfStrechToSvg extends Launcher
 	private double maxAf  = 1.0;
 	@Parameter(names={"--min-af"},description="Discard variant with an internal AF < 'x' "+FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double minAF  = 0.0;
-
+	@Parameter(names={"-u","--url","--hyperlink"},description= "creates a hyperlink an area is clicked. " + Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
+	private Hyperlink hyperlinkType = Hyperlink.empty();
+	@Parameter(names={"--samples"},description= "Limit to those samples. (comma or space separated). If the list starst with '^' then the samples are excluded.")
+	private String sampleStr= null;
+	@Parameter(names= {"--no-tooltip"},description="remove contextual tooltip (reduce the size of the svg)")
+	private boolean remove_tooltip=false;
 
 	@SuppressWarnings("serial")
 	@DynamicParameter(names = "--param", description = "Other parameters. Undocumented")
 	public Map<String, String> dynamicParams = new HashMap<String,String>() {{{
-		put("gt.r","2");
+		put("gt.r1","1");
+		put("gt.r2","7");
 		put("sample.height","50");
 		}}};
 
@@ -165,54 +185,90 @@ public class VcfStrechToSvg extends Launcher
 			return getContig()+":"+StringUtils.niceInt(getStart())+"-"+StringUtils.niceInt(getEnd()) +" N="+variants.size();
 			}
 		}
-	
+	/** wrape node into a genomic hyperlink if needed */
+	private Node wrapLoc(final Element node,final Locatable loc) {
+		if(loc==null) return node;
+		final String url = this.hyperlinkType.apply(loc);
+		if(StringUtils.isBlank(url)) return node;
+		final Element a = element("a");
+		a.setAttribute("target","_blank");
+		a.setAttribute("href",url);
+		a.appendChild(node);
+		return a;
+		}
+
+	/** creates a SVG element */
 	private Element element(final String tag) {
 		return this.document.createElementNS(SVG.NS, tag);
 		}
+	/** creates a DOM Text element */
 	private Text text(final Object o) {
 		return this.document.createTextNode(o==null?"":String.valueOf(o));
 		}
+	/** creates a SVG element with a simple text */
 	private Element element(final String tag,final Object content) {
 		final Element E = element(tag);
 		E.appendChild(text(content));
 		return E;
 		}
-	
+	/** format a double number */
 	private String format(double v) {
 		return this.decimalFormater.format(v);
 	}
 	
+	/** get allele frequency for this variant */
+	private OptionalDouble getAF(final VariantContext ctx) {
+		int ac=0;
+		int an=0;
+		for(final Genotype gt: ctx.getGenotypes())  {
+			if(gt.isNoCall()) continue;
+			for(final Allele a:gt.getAlleles()) {
+				an++;
+				if(!a.isReference()) ac++;
+				}
+			}
+		if(an==0) return OptionalDouble.empty();
+		return OptionalDouble.of(ac/(double)an);
+		}
+	/** shall we accept a variant */
+	private boolean acceptVariant(final VariantContext V) {
+		if(!accept_filtered && V.isFiltered()) return false;
+		if(!V.isBiallelic()) return false;
+		final OptionalDouble af = getAF(V);
+		if(!af.isPresent()) return false;
+		if(af.getAsDouble() > this.maxAf) return false;
+		if(af.getAsDouble() < this.minAF) return false;
+		return true;
+		}
+	
 	private void run(final ArchiveFactory archive,final BedLine bed,final VCFHeader header,final VCFReader in) {
 		LOG.info("processing "+bed);
-		final Predicate<VariantContext> acceptVariant= V->{
-			if(!accept_filtered && V.isFiltered()) return false;
-			if(!V.isBiallelic()) return false;
-			if(this.maxAf<1.0 || this.minAF>0.0) {
-				int ac=0;
-				int an=0;
-				for(final Genotype gt: V.getGenotypes())  {
-					if(gt.isNoCall()) continue;
-					for(final Allele a:gt.getAlleles()) {
-						an++;
-						if(!a.isReference()) ac++;
-						}
-					}
-				if(an==0) return false;
-				final double af = ac/(double)an;
-				if(af > this.maxAf) return false;
-				if(af < this.minAF) return false;
-				}
-			return true;
-			};
-		
-		
+		final Set<String> limitSamples;
+		if(StringUtils.isBlank(this.sampleStr)) {
+			limitSamples = new TreeSet<>(header.getSampleNamesInOrder());
+			}
+		else if(this.sampleStr.startsWith("^")) {
+			limitSamples = new TreeSet<>(header.getSampleNamesInOrder());
+			limitSamples.removeAll(Arrays.stream(this.sampleStr.substring(1).split("[, ]+")).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toSet()));
+			}
+		else
+			{
+			limitSamples = Arrays.stream(this.sampleStr.split("[, ]+")).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toCollection(TreeSet::new));
+			}
 		final SAMSequenceDictionary dict=header.getSequenceDictionary();
 		try(CloseableIterator<VariantContext> iter=in.query(bed)){
 			final List<VariantSet> L = iter.stream().
-					filter(acceptVariant).
+					filter(V->acceptVariant(V)).
 					map(V->new VariantSet(V)).
 					collect(Collectors.toCollection(ArrayList::new));
-			if(L.isEmpty()) return;
+			if(L.isEmpty()) {
+				LOG.warn("No valid variant found for \""+bed+"\"");
+				return;
+				}
 			int i=0;
 			while(i +1 < L.size()) {
 				if(L.get(i).withinDistanceOf(L.get(i+1), this.withinDistance)) {
@@ -250,6 +306,7 @@ public class VcfStrechToSvg extends Launcher
 
 			/* SVG style */
 			{
+			final String gtopacity = this.dynamicParams.getOrDefault("gt.opacity","0.7");
 			final Element style = element("style");
 			svgRoot.appendChild(style);
 			style.appendChild(text(
@@ -259,9 +316,9 @@ public class VcfStrechToSvg extends Launcher
 					".frame { fill:none; stroke: darkgray;} " +
 					".area0 {fill:white;}\n" +
 					".area1 {fill:floralwhite;}\n" +
-					"circle.HOM_REF {fill:green;stroke-width:0.5px;}\n" +
-					"circle.HET {fill:blue;stroke-width:0.5px;}\n" +
-					"circle.HOM_VAR {fill:red;stroke-width:0.5px;}\n" +
+					"circle.HOM_REF {fill:green;opacity:"+gtopacity+";stroke-width:0.5px;}\n" +
+					"circle.HET {fill:blue;opacity:"+gtopacity+";stroke-width:0.5px;}\n" +
+					"circle.HOM_VAR {fill:red;opacity:"+gtopacity+";stroke-width:0.5px;}\n" +
 					"a {cursor: pointer;}\n"
 					));
 			}
@@ -281,49 +338,40 @@ public class VcfStrechToSvg extends Launcher
 			
 			// main title
 			{
-			Element gtitle= element("text",mainTitleStr);
+			final Element gtitle= element("text",mainTitleStr);
 			gtitle.setAttribute("class", "maintitle");
 			gtitle.setAttribute("x", format(this.image_width_pixel/2.0));
 			gtitle.setAttribute("y", "15");
-			svgRoot.appendChild(gtitle);
+			svgRoot.appendChild(wrapLoc(gtitle,bed));
 			}
 			
 			int margin_top= 50;
 			double y = margin_top;
-			final double circle_radius = Double.parseDouble(this.dynamicParams.getOrDefault("gt.r","2"));
+			
+			final double min_circle_radius = Double.parseDouble(this.dynamicParams.getOrDefault("gt.r1","1"));
+			final double max_circle_radius = Double.parseDouble(this.dynamicParams.getOrDefault("gt.r2","7"));
 			final Element main_g = element("g");
 			svgRoot.appendChild(main_g);
 			
 			
 			final double sample_height= Double.parseDouble(this.dynamicParams.getOrDefault("sample.height","25"));
-			final double sample_height2 = sample_height - (circle_radius*2.0);
+			final double sample_height2 = sample_height - (max_circle_radius*2.0);
 			
 			int space_between_samples =2;
-			boolean got_one_sample = false;
-			for(final String sn:header.getSampleNamesInOrder()) {
-				if(L.stream().flatMap(L2->L2.variants.stream()).map(V->V.getGenotype(sn)).noneMatch(G->G.hasAD() && (G.isHomRef() ||G.isHet() || G.isHomVar()))) {
-					LOG.info("no data for "+sn);
-					continue;
-				}
+			int got_n_samples = 0;
+			for(final String sn: header.getSampleNamesInOrder()) {
+				if(!limitSamples.contains(sn)) continue;
 				
+				boolean got_this_sample = false;
 				final Element g_sample = element("g");
 				g_sample.setAttribute("transform", "translate("+margin_left+","+format(y)+")");
-				main_g.appendChild(g_sample);
 				
-				final Element label = element("text",sn);
-				label.setAttribute("class","samplelabel");
-				label.setAttribute("x","0");
-				label.setAttribute("y","0");
-				label.setAttribute("transform", "translate("+format(-10)+","+0+") rotate(90) ");
-				g_sample.appendChild(label);
+				
 
-				
-				
-				final Text title = text(sn);
-				g_sample.appendChild(title);
-
+				/* loop over each variant set */
 				for(i=0;i< L.size();i++) {
 					final VariantSet vset = L.get(i);
+					/* width on of this variantset screen */
 					final double vsetwidth=(i+1<L.size()?L.get(i+1).x:drawingAreaWidth)-vset.x;
 					
 					final Element rect  = element("rect");
@@ -332,10 +380,11 @@ public class VcfStrechToSvg extends Launcher
 					rect.setAttribute("y", "0");
 					rect.setAttribute("width",format(vsetwidth));
 					rect.setAttribute("height", format(sample_height));
-					rect.appendChild(element("title",vset.toString()));
+					if(!remove_tooltip) rect.appendChild(element("title",vset.toString()));
 					g_sample.appendChild(rect);
 					
-					for(VariantContext vc: vset.variants) {
+					// print all variants in this vcfset for this sample
+					for(final VariantContext vc: vset.variants) {
 						final Genotype gt= vc.getGenotype(sn);
 						if(gt.isNoCall() || !gt.hasAD()) continue;
 						final int ad[]= gt.getAD();
@@ -346,23 +395,27 @@ public class VcfStrechToSvg extends Launcher
 						final double countA = ad[1];
 						final double DP = countR + countA;
 						if(DP<=0 || DP <= this.minDP) continue;
+						
+						final OptionalDouble af = getAF(vc);
+						final double circle_radius = min_circle_radius + (max_circle_radius - min_circle_radius)*(1.0-af.orElse(1.0));
+						
 						//  HOMREF=0;  HET =0.5; HOMVAR = 1;
-						double alt_ratio  = countA/DP;
+						final double alt_ratio  = countA/DP;
 
-						double gtx = vset.x + ((vc.getStart()-vset.getStart())/(double)vset.getLengthOnReference())*vsetwidth;
-						double gty= sample_height- ( sample_height2*alt_ratio + (sample_height-sample_height2)/2.0);
+						final double gtx = vset.x + ((vc.getStart()-vset.getStart())/(double)vset.getLengthOnReference())*vsetwidth;
+						final double gty= sample_height- ( sample_height2*alt_ratio + (sample_height-sample_height2)/2.0);
 						final Element circle  = element("circle");
 						circle.setAttribute("class",gt.getType().name());
 						circle.setAttribute("cx", format(gtx));
 						circle.setAttribute("cy", format(gty));
 						circle.setAttribute("r", format(circle_radius));
-						circle.appendChild(element("title",vc.getStart()+" "+(vc.hasID()?vc.getID():"")+" "+vc.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/"))+" "+gt.getType().name()));
-						g_sample.appendChild(circle);
-						got_one_sample =  true;
+						if(!remove_tooltip) circle.appendChild(element("title",vc.getStart()+" "+(vc.hasID()?vc.getID():"")+" "+
+								vc.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/"))+" "+
+								gt.getType().name()+" AF="+format(af.orElse(-1))));
+						g_sample.appendChild(wrapLoc(circle,vc));
+						got_this_sample = true;
 						}
-					
 					}
-				
 				
 				final Element frame_sample = element("rect");
 				frame_sample.setAttribute("class", "frame");
@@ -370,12 +423,26 @@ public class VcfStrechToSvg extends Launcher
 				frame_sample.setAttribute("y", "0");
 				frame_sample.setAttribute("width",format(drawingAreaWidth));
 				frame_sample.setAttribute("height", format(sample_height));
-
-				
-				
 				g_sample.appendChild(frame_sample);
+				
+				final Element label = element("text",sn);
+				label.setAttribute("class","samplelabel");
+				label.setAttribute("x","0");
+				label.setAttribute("y","0");
+				//label.setAttribute("transform", "translate("+format(-10)+","+0+") rotate(90) ");
+				label.setAttribute("transform", "translate(12,12)");
+				if(!remove_tooltip) label.appendChild(element("title",sn));
+				g_sample.appendChild(label);
 
-				y+= sample_height + space_between_samples;
+				if(got_this_sample) {
+					got_n_samples++;
+					main_g.appendChild(g_sample);
+					y+= sample_height + space_between_samples;
+					}
+				else
+					{
+					LOG.warn("no valid data for sample "+ sn+" in "+bed);
+					}
 				}
 			// remove extra sample space
 			y-=space_between_samples;
@@ -384,10 +451,10 @@ public class VcfStrechToSvg extends Launcher
 			svgRoot.setAttribute("height",format(y+1));
 
 			
-			if(!got_one_sample) {
+			if(got_n_samples==0) {
 				LOG.info("no sample/genotype found for "+bed);
 				return;
-			}
+				}
 			//save
 			final Transformer tr = TransformerFactory.newInstance().newTransformer();
 			final String filename =    bed.getContig()+"_"+bed.getStart()+"_"+bed.getEnd()+ ".svg"+(this.compressed_svg?".gz":"");
@@ -419,14 +486,11 @@ public class VcfStrechToSvg extends Launcher
 			}
 		}
 	}
-	
-	
-	
+
 	@Override
 	public int doWork(final List<String> args) {
 		try {
 			final String input = super.oneAndOnlyOneFile(args);
-			
 			try (VCFReader r= VCFReaderFactory.makeDefault().open(input, true)) {
 				final VCFHeader header=r.getHeader();
 				if(header.getFormatHeaderLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)==null) {
@@ -449,7 +513,6 @@ public class VcfStrechToSvg extends Launcher
 						}
 					}
 				}
-			
 			return 0;
 			}
 		catch(final Throwable err) {
@@ -463,6 +526,5 @@ public class VcfStrechToSvg extends Launcher
 	public static void main(final String[] args)
 		{
 		new VcfStrechToSvg().instanceMainWithExit(args);
-		}	
-
-}
+		}
+	}
