@@ -18,6 +18,8 @@ Usage: vcfstrech2svg [options] Files
       integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb 
       Default: 1000
+    --gff3, --gtf
+      Plot exons using this tabix-indexed GFF3/GTF file.
     --gq
       minimum FORMAT/GQ
       Default: 1
@@ -39,6 +41,8 @@ Usage: vcfstrech2svg [options] Files
     --keep-filtered
       keep FILTERed variants
       Default: false
+    --manifest
+      Output BED manifest
     --max-af
       Discard variant with an internal AF > 'x' A decimal number between 0.0 
       and 1.0. If the value ends with '%' it is interpretted as a percentage 
