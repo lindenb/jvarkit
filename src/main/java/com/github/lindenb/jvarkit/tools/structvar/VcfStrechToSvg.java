@@ -175,6 +175,8 @@ public class VcfStrechToSvg extends Launcher
 	private List<String> bamListPath=new ArrayList<>();
 	@Parameter(names= {"--format"},description="wich format to use to calculate the allele depth ratio.")
 	private FORMAT useFormat = FORMAT.AD;
+	@Parameter(names= {"-hr","--hom-ref"},description="Hide HOM_REF genotypes (0/0)")
+	private boolean hide_hom_ref=false;
 
 	
 	@SuppressWarnings("serial")
@@ -537,6 +539,7 @@ public class VcfStrechToSvg extends Launcher
 					for(final VariantContext vc: vset.variants) {
 						final Genotype gt= vc.getGenotype(sn);
 						if(gt.isNoCall()) continue;
+						if(hide_hom_ref && gt.isHomRef()) continue;
 						if(gt.hasGQ() && gt.getGQ() < this.minGQ) continue;
 						final OptionalDouble alt_ratio  = getAltRatio(gt);
 						if(!alt_ratio.isPresent()) continue;
@@ -570,7 +573,7 @@ public class VcfStrechToSvg extends Launcher
 				frame_sample.setAttribute("height", format(sample_height));
 				g_sample.appendChild(frame_sample);
 				
-				final Element label = element("text",sn +( maxCoverage==0?"":"Max Cov. "+maxCoverage));
+				final Element label = element("text",sn +( maxCoverage==0?"":" Max Cov. "+maxCoverage));
 				label.setAttribute("class","samplelabel");
 				label.setAttribute("x","0");
 				label.setAttribute("y","0");

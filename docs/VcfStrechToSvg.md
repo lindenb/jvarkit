@@ -41,6 +41,9 @@ Usage: vcfstrech2svg [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -hr, --hom-ref
+      Hide HOM_REF genotypes (0/0)
+      Default: false
     -u, --url, --hyperlink
       creates a hyperlink an area is clicked. creates a hyperlink when 'click' 
       in an area. The URL must contains __CHROM__, __START__ and __END__ that 
