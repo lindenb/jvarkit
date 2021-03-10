@@ -10,14 +10,25 @@ another VCF to SVG
 ```
 Usage: vcfstrech2svg [options] Files
   Options:
+    --bam-list, --bam, --bams
+      Add BAM/CRAM for plotting the depth. A file with the suffix '.list' is a 
+      list of path to the bams/crams.
+      Default: []
+    --color-tag
+      specify the optional INFO/tag defining a named svg color. If defined for 
+      a variant, a vertical line with the color will be painted.
     --dp
-      minimum sum(FORMAT/AD[0]+FORMAT/AD[1])
+      minimum sum(FORMAT/AD[0]+FORMAT/AD[1]). Doesn't work with FORMAT/PL.
       Default: 1
     --extend
       Extend each area with 'x' bp. A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb 
       Default: 1000
+    --format
+      wich format to use to calculate the allele depth ratio.
+      Default: AD
+      Possible Values: [PL, AD]
     --gff3, --gtf
       Plot exons using this tabix-indexed GFF3/GTF file.
     --gq
@@ -70,6 +81,10 @@ Usage: vcfstrech2svg [options] Files
       Other parameters. Undocumented
       Syntax: --paramkey=value
       Default: {gt.r1=1, gt.r2=7, sample.height=50}
+    --reference, -R
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
   * -r, --region, --bed
       BED File
     --samples

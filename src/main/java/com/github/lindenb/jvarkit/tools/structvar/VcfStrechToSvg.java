@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -62,6 +63,7 @@ import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -76,11 +78,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.samtools.SAMException;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -126,7 +132,9 @@ modificationDate="20210309"
 public class VcfStrechToSvg extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfStrechToSvg.class).make();
-
+	/** which format to use */
+	private enum FORMAT {PL ,AD}
+	
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile = null;
 	@Parameter(names={"-r","--region","--bed"},description="BED File",required=true)
@@ -137,7 +145,7 @@ public class VcfStrechToSvg extends Launcher
 	private int image_width_pixel  = 1_000;
 	@Parameter(names={"--gq"},description="minimum FORMAT/GQ")
 	private int minGQ  = 1;
-	@Parameter(names={"--dp"},description="minimum sum(FORMAT/AD[0]+FORMAT/AD[1])")
+	@Parameter(names={"--dp"},description="minimum sum(FORMAT/AD[0]+FORMAT/AD[1]). Doesn't work with FORMAT/PL.")
 	private int minDP  = 1;
 	@Parameter(names={"--keep-filtered"},description="keep FILTERed variants")
 	private boolean accept_filtered=false;
@@ -159,6 +167,15 @@ public class VcfStrechToSvg extends Launcher
 	private String gff3Path = null;
 	@Parameter(names= {"--manifest"},description="Output BED manifest")
 	private Path manifestPath = null;
+	@Parameter(names= {"--color-tag"},description="specify the optional INFO/tag defining a named svg color. If defined for a variant, a vertical line with the color will be painted. ")
+	private String colorTag = null;
+	@Parameter(names= {"--reference","-R"},description=CRAM_INDEXED_REFENCE)
+	private Path refFaidx=null;
+	@Parameter(names= {"--bam-list","--bam","--bams"},description="Add BAM/CRAM for plotting the depth. A file with the suffix '.list' is a list of path to the bams/crams.")
+	private List<String> bamListPath=new ArrayList<>();
+	@Parameter(names= {"--format"},description="wich format to use to calculate the allele depth ratio.")
+	private FORMAT useFormat = FORMAT.AD;
+
 	
 	@SuppressWarnings("serial")
 	@DynamicParameter(names = "--param", description = "Other parameters. Undocumented")
@@ -169,12 +186,16 @@ public class VcfStrechToSvg extends Launcher
 		}}};
 
 	
-	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+	private final DecimalFormat decimalFormater = new DecimalFormat("##.#");
 	private Document document = null;
+	private final Map<String, Path> sample2bam = new HashMap<>();
 	
 	private class VariantSet implements Locatable {
 		private final List<VariantContext> variants = new ArrayList<>();
 		double x = 0.0;
+		double width = 0.0;
+		CoverageFactory.SimpleCoverage coverage = null;
+		
 		VariantSet(final VariantContext vc) {
 			this.variants.add(vc);
 			}
@@ -329,6 +350,10 @@ public class VcfStrechToSvg extends Launcher
 			L.get(i).x = x;
 			x+= (L.get(i).getLengthOnReference()/(double)intervalLength)*drawingAreaWidth;
 			}
+		for(i=0;i< L.size();i++) {
+			L.get(i).width = (i+1<L.size()?L.get(i+1).x:drawingAreaWidth)-L.get(i).x;
+			}
+		
 		try {
 			final DocumentBuilderFactory db = DocumentBuilderFactory.newInstance();
 			final DocumentBuilder dom = db.newDocumentBuilder();
@@ -351,8 +376,10 @@ public class VcfStrechToSvg extends Launcher
 			svgRoot.appendChild(style);
 			style.appendChild(text(
 					".maintitle {text-anchor:middle;fill:blue} "+
+					".vc {stroke-width:0.5px;} "+
 					".sample {fill:blue;font-size:7px;} "+
 					".samplelabel {stroke:gray;stroke-width:0.5px;font-size:"+this.dynamicParams.getOrDefault("sample.fontsize","7")+"px;}\n" +
+					".coverage { fill:gray; stroke:yellow;opacity:0.2;} " +
 					".frame { fill:none; stroke: darkgray;} " +
 					".area0 {fill:white;}\n" +
 					".area1 {fill:floralwhite;}\n" +
@@ -407,7 +434,30 @@ public class VcfStrechToSvg extends Launcher
 				final Element g_sample = element("g");
 				g_sample.setAttribute("transform", "translate("+margin_left+","+format(y)+")");
 				
-				
+				/* get coverage */
+				final int maxCoverage;
+				if(this.sample2bam.containsKey(sn)) {
+					final CoverageFactory coverageFactory = new CoverageFactory();
+					
+					
+					try(SamReader sr= this.openSamReader(this.sample2bam.get(sn))) {
+						/* loop over each variant set */
+						for(final VariantSet vset: L) {
+							vset.coverage = coverageFactory.getSimpleCoverage(sr, vset, sn);
+							}
+						}
+					maxCoverage = L.stream().
+							flatMapToInt(V->V.coverage.stream()).
+							max().
+							orElse(0);
+					}
+				else
+					{
+					maxCoverage = 0;
+					for(final VariantSet vset: L) {
+						vset.coverage=null;
+						}
+					}
 
 				/* loop over each variant set */
 				for(i=0;i< L.size();i++) {
@@ -417,16 +467,15 @@ public class VcfStrechToSvg extends Launcher
 					g_sample.appendChild(g_vset);
 					
 					/* width on of this variantset screen */
-					final double vsetwidth=(i+1<L.size()?L.get(i+1).x:drawingAreaWidth)-vset.x;
 					/* convert base to pixel */
-					final ToDoubleFunction<Integer> base2pixel = POS-> ((POS-vset.getStart())/(double)vset.getLengthOnReference()) * vsetwidth;
+					final ToDoubleFunction<Integer> base2pixel = POS-> ((POS-vset.getStart())/(double)vset.getLengthOnReference()) * vset.width;
 					
 					// plot set length
 					final Element rect  = element("rect");
 					rect.setAttribute("class", "area"+(i%2));
 					rect.setAttribute("x", "0");
 					rect.setAttribute("y", "0");
-					rect.setAttribute("width",format(vsetwidth));
+					rect.setAttribute("width",format(vset.width));
 					rect.setAttribute("height", format(sample_height));
 					if(!remove_tooltip) rect.appendChild(element("title",vset.toString()));
 					g_vset.appendChild(rect);
@@ -435,7 +484,7 @@ public class VcfStrechToSvg extends Launcher
 					for(final Interval exon: exonMap.getOverlapping(vset)) {
 						final Element exonRect  = element("rect");
 						final double x0 = Math.max(0,base2pixel.applyAsDouble(exon.getStart()));
-						final double x1 = Math.min(vsetwidth,base2pixel.applyAsDouble(exon.getEnd()));
+						final double x1 = Math.min(vset.width,base2pixel.applyAsDouble(exon.getEnd()));
 						
 						rect.setAttribute("class", "exon");
 						rect.setAttribute("x", format(x0));
@@ -445,27 +494,61 @@ public class VcfStrechToSvg extends Launcher
 						g_vset.appendChild(exonRect);
 						}
 					
+					// plot coverage
+					if(maxCoverage>0 && this.sample2bam.containsKey(sn)) {
+						final double[] scaled = vset.coverage.scaleAverage((int)vset.width);
+						final StringBuilder sb=new StringBuilder();
+						sb.append("0,"+sample_height);
+						for(int t=0;t< scaled.length;t++) {
+							if(t>1 && t+1 < scaled.length &&
+									format(scaled[t-1]).equals(format(scaled[t+1])) &&
+									format(scaled[t-1]).equals(format(scaled[t]))) continue;
+							sb.append(" ").append(t).append(",");
+							sb.append(format(sample_height*(1.0 - scaled[t]/maxCoverage)));
+							}
+						sb.append(" "+format(vset.width)+","+sample_height);
+						final Element polyline  = element("polyline");
+						polyline.setAttribute("class", "coverage");
+						polyline.setAttribute("points",sb.toString());
+						g_vset.appendChild(polyline);
+						vset.coverage=null;
+						}
+					
+					
+					//plot vertical line if colorTag defined
+					if(!StringUtils.isBlank(this.colorTag)) {
+						for(final VariantContext vc: vset.variants) {
+							if(!vc.hasAttribute(this.colorTag)) continue;
+							final String cssColor = vc.getAttributeAsString(this.colorTag, "");
+							if(StringUtils.isBlank(cssColor)) continue;
+							final double x0 = base2pixel.applyAsDouble(vc.getStart());
+							final Element line  = element("line");
+							line.setAttribute("class", "vc");
+							line.setAttribute("style", "stroke:"+cssColor);
+							line.setAttribute("x1", format(x0));
+							line.setAttribute("y1", "0");
+							line.setAttribute("x2", format(x0));
+							line.setAttribute("y2", format(sample_height));
+							g_vset.appendChild(line);
+							}
+						}
+					
 					// print all variants in this vcfset for this sample
 					for(final VariantContext vc: vset.variants) {
 						final Genotype gt= vc.getGenotype(sn);
-						if(gt.isNoCall() || !gt.hasAD()) continue;
-						final int ad[]= gt.getAD();
-						if(ad==null || ad.length!=2) continue;
+						if(gt.isNoCall()) continue;
 						if(gt.hasGQ() && gt.getGQ() < this.minGQ) continue;
-						
-						final double countR = ad[0];
-						final double countA = ad[1];
-						final double DP = countR + countA;
-						if(DP<=0 || DP <= this.minDP) continue;
+						final OptionalDouble alt_ratio  = getAltRatio(gt);
+						if(!alt_ratio.isPresent()) continue;
+
 						
 						final OptionalDouble af = getAF(vc);
 						final double circle_radius = min_circle_radius + (max_circle_radius - min_circle_radius)*(1.0-af.orElse(1.0));
 						
 						//  HOMREF=0;  HET =0.5; HOMVAR = 1;
-						final double alt_ratio  = countA/DP;
 
 						final double gtx = base2pixel.applyAsDouble(vc.getStart());
-						final double gty= sample_height- ( sample_height2*alt_ratio + (sample_height-sample_height2)/2.0);
+						final double gty= sample_height- ( sample_height2*alt_ratio.getAsDouble() + (sample_height-sample_height2)/2.0);
 						final Element circle  = element("circle");
 						circle.setAttribute("class",gt.getType().name());
 						circle.setAttribute("cx", format(gtx));
@@ -487,7 +570,7 @@ public class VcfStrechToSvg extends Launcher
 				frame_sample.setAttribute("height", format(sample_height));
 				g_sample.appendChild(frame_sample);
 				
-				final Element label = element("text",sn);
+				final Element label = element("text",sn +( maxCoverage==0?"":"Max Cov. "+maxCoverage));
 				label.setAttribute("class","samplelabel");
 				label.setAttribute("x","0");
 				label.setAttribute("y","0");
@@ -547,7 +630,7 @@ public class VcfStrechToSvg extends Launcher
 			manifest.print(filename);
 			manifest.println();
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			throw new RuntimeException(err);
 			}
 		finally {
@@ -555,20 +638,93 @@ public class VcfStrechToSvg extends Launcher
 			}
 		}
 	}
+	
+	private OptionalDouble getAltRatio(final Genotype gt) {
+	switch(this.useFormat) {
+		case PL: {
+			if(!gt.hasPL()) return OptionalDouble.empty();
+			final int pl[]= gt.getPL();
+			if( pl==null ||  pl.length!=3)  return OptionalDouble.empty();
+			final double countR = pl[2 /* yes, inversion */]*2 + pl[1];
+			final double countA = pl[0 /* yes, inversion */]*2 + pl[1];
+			final double DP = countR + countA;
+			final double alt_ratio  = countA/DP;
+			return OptionalDouble.of(alt_ratio);
+			}
+		case AD:
+		default:{
+			if(!gt.hasAD()) return OptionalDouble.empty();
+			final int ad[]= gt.getAD();
+			if(ad==null || ad.length!=2)  return OptionalDouble.empty();
+			
+			final double countR = ad[0];
+			final double countA = ad[1];
+			final double DP = countR + countA;
+			if(DP<=0 || DP <= this.minDP) return OptionalDouble.empty();;
+			
+			//  HOMREF=0;  HET =0.5; HOMVAR = 1;
+			final double alt_ratio  = countA/DP;
+			return OptionalDouble.of(alt_ratio);
+			}
+		}
+	}
+	
 
+	/** open a sam file. Check it is indexed */
+	private SamReader openSamReader(final Path path) throws IOException {
+		final SamReader sr= super.createSamReaderFactory().
+				referenceSequence(this.refFaidx).
+				open(path);
+		if(!sr.hasIndex()) {
+			sr.close();
+			throw new SAMException("File "+path+" is not indexed.");
+			}
+		return sr;
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
 			final String input = super.oneAndOnlyOneFile(args);
+			
+			if(!this.bamListPath.isEmpty()) {
+				for(Path bamPath:IOUtils.unrollPaths(this.bamListPath)) {
+					try(SamReader sr = openSamReader(bamPath)) {
+						final SAMFileHeader hdr = sr.getFileHeader();
+						for(final String sn:hdr.getReadGroups().
+								stream().
+								map(RG->RG.getSample()).
+								filter(S->!StringUtils.isBlank(S)).collect(Collectors.toSet())) {
+							if(this.sample2bam.containsKey(sn)) {
+								LOG.info("duplicate sample in bam "+bamPath+" and "+ this.sample2bam.get(sn));
+								return -1;
+								}
+							this.sample2bam.put(sn, bamPath);
+							}
+						}
+					}
+				}
+			
 			try (VCFReader r= VCFReaderFactory.makeDefault().open(input, true)) {
 				final VCFHeader header=r.getHeader();
-				if(header.getFormatHeaderLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)==null) {
-					LOG.error("FORMAT/"+VCFConstants.GENOTYPE_ALLELE_DEPTHS+" undefined in "+input);
+				final String searchFormat;
+				switch(this.useFormat) {
+					case PL: searchFormat = VCFConstants.GENOTYPE_PL_KEY;break;
+					case AD://through
+					default: searchFormat = VCFConstants.GENOTYPE_ALLELE_DEPTHS; break;
+					}
+				if(header.getFormatHeaderLine(searchFormat)==null) {
+					LOG.error("FORMAT/"+searchFormat+" undefined in "+input);
 					return -1;
 					}
+				
 				if(!header.hasGenotypingData()) {
 					LOG.error("No genotype in input");
 					return -1;
+					}
+				final SAMSequenceDictionary dict = header.getSequenceDictionary();
+				if(dict!=null && this.refFaidx!=null) {
+					SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(this.refFaidx));
 					}
 				try(BufferedReader br = IOUtils.openPathForBufferedReading(this.bedFile)) {
 					try(PrintWriter manifest = (this.manifestPath==null?
