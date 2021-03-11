@@ -60,7 +60,6 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
@@ -71,11 +70,16 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.structure.Exon;
+import com.github.lindenb.jvarkit.util.bio.structure.Gene;
+import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMException;
@@ -87,8 +91,6 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.tribble.readers.TabixReader;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
@@ -161,10 +163,10 @@ public class VcfStrechToSvg extends Launcher
 	private Hyperlink hyperlinkType = Hyperlink.empty();
 	@Parameter(names={"--samples"},description= "Limit to those samples. (comma or space separated). If the list starst with '^' then the samples are excluded.")
 	private String sampleStr= null;
-	@Parameter(names= {"--no-tooltip"},description="remove contextual tooltip (reduce the size of the svg)")
+	@Parameter(names= {"--no-tooltip"},description="remove contextual tooltips (reduce the size of the svg)")
 	private boolean remove_tooltip=false;
-	@Parameter(names= {"--gff3","--gtf"},description="Plot exons using this tabix-indexed GFF3/GTF file.")
-	private String gff3Path = null;
+	@Parameter(names= {"--gtf"},description="Plot gene structure using this GTF file.")
+	private Path gff3Path = null;
 	@Parameter(names= {"--manifest"},description="Output BED manifest")
 	private Path manifestPath = null;
 	@Parameter(names= {"--color-tag"},description="specify the optional INFO/tag defining a named svg color. If defined for a variant, a vertical line with the color will be painted. ")
@@ -177,6 +179,8 @@ public class VcfStrechToSvg extends Launcher
 	private FORMAT useFormat = FORMAT.AD;
 	@Parameter(names= {"-hr","--hom-ref"},description="Hide HOM_REF genotypes (0/0)")
 	private boolean hide_hom_ref=false;
+	@Parameter(names= {"--af"},description=AFExtractorFactory.OPT_DESC)
+	private String afExtractorFactoryStr= AFExtractorFactory.FORMAT_GT;
 
 	
 	@SuppressWarnings("serial")
@@ -191,6 +195,8 @@ public class VcfStrechToSvg extends Launcher
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.#");
 	private Document document = null;
 	private final Map<String, Path> sample2bam = new HashMap<>();
+	private AFExtractorFactory.AFExtractor afExtractor = null;
+	private IntervalTreeMap<Gene> all_genes = new IntervalTreeMap<>();
 	
 	private class VariantSet implements Locatable {
 		private final List<VariantContext> variants = new ArrayList<>();
@@ -216,6 +222,9 @@ public class VcfStrechToSvg extends Launcher
 		@Override
 		public String toString() {
 			return getContig()+":"+StringUtils.niceInt(getStart())+"-"+StringUtils.niceInt(getEnd()) +" N="+variants.size();
+			}
+		public ToDoubleFunction<Integer> createBaseToPixelFunction() {
+			return POS-> ((POS-this.getStart())/(double)this.getLengthOnReference()) * this.width;
 			}
 		}
 	/** wrape node into a genomic hyperlink if needed */
@@ -251,18 +260,9 @@ public class VcfStrechToSvg extends Launcher
 	
 	/** get allele frequency for this variant */
 	private OptionalDouble getAF(final VariantContext ctx) {
-		int ac=0;
-		int an=0;
-		for(final Genotype gt: ctx.getGenotypes())  {
-			if(gt.isNoCall()) continue;
-			for(final Allele a:gt.getAlleles()) {
-				an++;
-				if(!a.isReference()) ac++;
-				}
-			}
-		if(an==0) return OptionalDouble.empty();
-		return OptionalDouble.of(ac/(double)an);
+		return this.afExtractor.getMinAlleleFrequency(ctx);
 		}
+	
 	/** shall we accept a variant */
 	private boolean acceptVariant(final VariantContext V) {
 		if(!accept_filtered && V.isFiltered()) return false;
@@ -320,28 +320,6 @@ public class VcfStrechToSvg extends Launcher
 					}
 			}
 		
-		/* fetch exons */	
-		final IntervalTreeMap<Interval> exonMap = new IntervalTreeMap<>();
-		if(!StringUtils.isBlank(this.gff3Path)) {
-			try(TabixReader tbx=new TabixReader(this.gff3Path)) {
-				final String ctg = ContigNameConverter.fromContigSet(tbx.getChromosomes()).apply(bed.getContig());
-				if(!StringUtils.isBlank(ctg)) {
-					final TabixReader.Iterator lr = tbx.query(ctg,bed.getStart(),bed.getEnd());
-					for(;;) {
-						String line = lr.next();
-						if(line==null) break;
-						final String tokens[]=CharSplitter.TAB.split(line);
-						if(tokens.length<5) continue;
-						if(!tokens[2].equals("exon")) continue;
-						final Interval rgn = new Interval(bed.getContig(),Integer.parseInt(tokens[3]),Integer.parseInt(tokens[4]));
-						exonMap.put(rgn, rgn);
-						}
-					}
-				}
-			catch(final Throwable err) {
-				LOG.warn(err);
-				}
-			}
 		
 		final int margin_left= 50;
 		final int margin_right= 10;
@@ -379,6 +357,8 @@ public class VcfStrechToSvg extends Launcher
 			style.appendChild(text(
 					".maintitle {text-anchor:middle;fill:blue} "+
 					".vc {stroke-width:0.5px;} "+
+					".transcript {stroke:black;stroke-width:1px;}"+
+					".exon {stroke:black;stroke-width:0.5px;fill:blue;}"+
 					".sample {fill:blue;font-size:7px;} "+
 					".samplelabel {stroke:gray;stroke-width:0.5px;font-size:"+this.dynamicParams.getOrDefault("sample.fontsize","7")+"px;}\n" +
 					".coverage { fill:gray; stroke:yellow;opacity:0.2;} " +
@@ -401,9 +381,7 @@ public class VcfStrechToSvg extends Launcher
 					JVarkitVersion.getInstance().getGitHash()
 					));
 			
-
 			}
-
 			
 			
 			// main title
@@ -415,14 +393,80 @@ public class VcfStrechToSvg extends Launcher
 			svgRoot.appendChild(wrapLoc(gtitle,bed));
 			}
 			
+			
+			
 			int margin_top= 50;
 			double y = margin_top;
-			
+
 			final double min_circle_radius = Double.parseDouble(this.dynamicParams.getOrDefault("gt.r1","1"));
 			final double max_circle_radius = Double.parseDouble(this.dynamicParams.getOrDefault("gt.r2","7"));
 			final Element main_g = element("g");
 			svgRoot.appendChild(main_g);
 			
+			
+			/** plot genes */
+			if(!this.all_genes.isEmpty())
+				{
+				final double transcript_height = 3;
+				final double exon_height = (transcript_height-1);
+				final double save_y = y;
+				final Element g_genes= element("g");
+				g_genes.setAttribute("transform", "translate("+margin_left+",0)");
+				main_g.appendChild(g_genes);
+
+				/* loop over each vset */
+				for(i=0;i< L.size();i++) {
+					final VariantSet vset = L.get(i);
+					// find transcript in this vset
+					final List<Transcript> transcripts = this.all_genes.getOverlapping(vset).
+							stream().
+							flatMap(G->G.getTranscripts().stream()).
+							filter(T->T.overlaps(vset)).
+							collect(Collectors.toList());
+					if(transcripts.isEmpty()) continue;
+					final Element g_vset = element("g");
+					g_vset.setAttribute("transform", "translate("+format(vset.x)+",0)");
+					g_genes.appendChild(g_vset);
+					// y in this vset
+					double y2 = save_y;
+					
+					/* convert base to pixel */
+					final ToDoubleFunction<Integer> base2pixel = vset.createBaseToPixelFunction();
+
+					/* loop over transcripts */
+					for(final Transcript tr: transcripts) {
+						final Element g_tr = element("g");
+						g_vset.appendChild(g_tr);
+						final Element line = element("line");
+						line.setAttribute("class", "transcript");
+						line.setAttribute("x1", format(Math.max(0, base2pixel.applyAsDouble(tr.getStart()))));
+						line.setAttribute("y1", format(transcript_height/2.0));
+						line.setAttribute("x2", format(Math.min(vset.width, base2pixel.applyAsDouble(tr.getEnd()))));
+						line.setAttribute("y1", format(transcript_height/2.0));
+						line.appendChild(element("title",tr.getId()));
+						g_tr.appendChild(line);
+						
+						/* loop over exons */
+						for(final Exon exon:tr.getExons()) {
+							if(!exon.overlaps(vset)) continue;
+							final Element exRect = element("rect");
+							exRect.setAttribute("class", "exon");
+							final double x_start = Math.max(0, base2pixel.applyAsDouble(exon.getStart()));
+							exRect.setAttribute("x", format(x_start));
+							exRect.setAttribute("y", format(-exon_height/2.0));
+							final double x_end = Math.min(vset.width,base2pixel.applyAsDouble(exon.getEnd()));
+							exRect.setAttribute("width", format(x_end  - x_start));
+							exRect.setAttribute("height", format(exon_height));
+							exRect.appendChild(element("title",exon.getName()));
+							g_tr.appendChild(exRect);
+							}
+						y2+= transcript_height+0.5;
+						}
+					y= Math.max(y, y2);
+					}
+				y++;
+				}
+
 			
 			final double sample_height= Double.parseDouble(this.dynamicParams.getOrDefault("sample.height","25"));
 			final double sample_height2 = sample_height - (max_circle_radius*2.0);
@@ -468,9 +512,8 @@ public class VcfStrechToSvg extends Launcher
 					g_vset.setAttribute("transform", "translate("+format(vset.x)+",0)");
 					g_sample.appendChild(g_vset);
 					
-					/* width on of this variantset screen */
 					/* convert base to pixel */
-					final ToDoubleFunction<Integer> base2pixel = POS-> ((POS-vset.getStart())/(double)vset.getLengthOnReference()) * vset.width;
+					final ToDoubleFunction<Integer> base2pixel = vset.createBaseToPixelFunction();
 					
 					// plot set length
 					final Element rect  = element("rect");
@@ -481,21 +524,7 @@ public class VcfStrechToSvg extends Launcher
 					rect.setAttribute("height", format(sample_height));
 					if(!remove_tooltip) rect.appendChild(element("title",vset.toString()));
 					g_vset.appendChild(rect);
-					
-					// plot exons
-					for(final Interval exon: exonMap.getOverlapping(vset)) {
-						final Element exonRect  = element("rect");
-						final double x0 = Math.max(0,base2pixel.applyAsDouble(exon.getStart()));
-						final double x1 = Math.min(vset.width,base2pixel.applyAsDouble(exon.getEnd()));
-						
-						rect.setAttribute("class", "exon");
-						rect.setAttribute("x", format(x0));
-						rect.setAttribute("y", "0");
-						rect.setAttribute("width",format(x1-x0));
-						rect.setAttribute("height", format(sample_height));
-						g_vset.appendChild(exonRect);
-						}
-					
+										
 					// plot coverage
 					if(maxCoverage>0 && this.sample2bam.containsKey(sn)) {
 						final double[] scaled = vset.coverage.scaleAverage((int)vset.width);
@@ -688,6 +717,8 @@ public class VcfStrechToSvg extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		try {
+			this.afExtractor = new AFExtractorFactory().parseFieldExtractor(this.afExtractorFactoryStr);
+			
 			final String input = super.oneAndOnlyOneFile(args);
 			
 			if(!this.bamListPath.isEmpty()) {
@@ -710,6 +741,8 @@ public class VcfStrechToSvg extends Launcher
 			
 			try (VCFReader r= VCFReaderFactory.makeDefault().open(input, true)) {
 				final VCFHeader header=r.getHeader();
+				this.afExtractor.validateHeader(header);
+				
 				final String searchFormat;
 				switch(this.useFormat) {
 					case PL: searchFormat = VCFConstants.GENOTYPE_PL_KEY;break;
@@ -729,6 +762,16 @@ public class VcfStrechToSvg extends Launcher
 				if(dict!=null && this.refFaidx!=null) {
 					SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(this.refFaidx));
 					}
+				
+				if(this.gff3Path!=null) {
+					try(GtfReader gtfReader = new GtfReader(this.gff3Path)) {
+						if(dict!=null)gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+						gtfReader.getAllGenes().forEach(G->{
+							this.all_genes.put(new Interval(G), G);
+						});
+					}
+				}
+				
 				try(BufferedReader br = IOUtils.openPathForBufferedReading(this.bedFile)) {
 					try(PrintWriter manifest = (this.manifestPath==null?
 							new PrintWriter(new NullOuputStream()):

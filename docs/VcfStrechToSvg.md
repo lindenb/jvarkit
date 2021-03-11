@@ -10,6 +10,16 @@ another VCF to SVG
 ```
 Usage: vcfstrech2svg [options] Files
   Options:
+    --af
+      How to extract the AlleleFrequencies from a variant. Multiple separated 
+      with comma or semicolon. e.g: 
+      "AC/AN;exome_CEU_*;genome_NFE_AF;another_AC/another/AN". Input is a set 
+      of AC/AN field pairs or/and AF field separated by semicolon. The special 
+      value 'FORMAT/GT' will re-compute the Frequencies from the 
+      genotypes.'x/y' means AC/AN fields. '*' will be replaced with AC and AN, 
+      hence, 'exome_CEU_*' will be interpreted as exome_CEU_AC/exome_CEU_AN. 
+      Other field will be interpreted as an AF field.
+      Default: FORMAT/GT
     --bam-list, --bam, --bams
       Add BAM/CRAM for plotting the depth. A file with the suffix '.list' is a 
       list of path to the bams/crams.
@@ -29,11 +39,11 @@ Usage: vcfstrech2svg [options] Files
       wich format to use to calculate the allele depth ratio.
       Default: AD
       Possible Values: [PL, AD]
-    --gff3, --gtf
-      Plot exons using this tabix-indexed GFF3/GTF file.
     --gq
       minimum FORMAT/GQ
       Default: 1
+    --gtf
+      Plot gene structure using this GTF file.
     --gzip
       Generate gzipped compressed svg files.
       Default: false
@@ -70,7 +80,7 @@ Usage: vcfstrech2svg [options] Files
       => '0.01'.
       Default: 0.0
     --no-tooltip
-      remove contextual tooltip (reduce the size of the svg)
+      remove contextual tooltips (reduce the size of the svg)
       Default: false
   * -o, --output
       An existing directory or a filename ending with the '.zip' or '.tar' or 

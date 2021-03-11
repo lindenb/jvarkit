@@ -29,13 +29,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -44,7 +49,8 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /** utility to extract allele frequencies from AC/AN or AF */
 public class AFExtractorFactory {
 	private static final Logger LOG = Logger.build(AFExtractorFactory.class).make();
-
+	public static final String FORMAT_GT="FORMAT/"+VCFConstants.GENOTYPE_KEY;
+	
 /** an interface that can extract allele frequencies for each allele in a variant */
 public static interface AFExtractor
 	{
@@ -54,10 +60,17 @@ public static interface AFExtractor
 	public List<Double> parse(final VariantContext ctx);
 	/** return a now for this extractor */
 	public String getName();
+	/** return the minimal AF for this variant for all ALT alleles */
+	public default OptionalDouble getMinAlleleFrequency(final VariantContext ctx) {
+		return parse(ctx).stream().
+				filter(V->V!=null).
+				mapToDouble(V->V.doubleValue()).min();
+		}
 	}
 
 public static final String OPT_DESC= 
 	"How to extract the AlleleFrequencies from a variant. Multiple separated with comma or semicolon. e.g: \"AC/AN;exome_CEU_*;genome_NFE_AF;another_AC/another/AN\". Input is a set of AC/AN field pairs or/and AF field separated by semicolon. "
+	+ "The special value '"+FORMAT_GT+"' will re-compute the Frequencies from the genotypes."
 	+ "'x/y' means AC/AN fields. "
 	+ "'*' will be replaced with AC and AN, hence, 'exome_CEU_*' will be interpreted as exome_CEU_AC/exome_CEU_AN. "
 	+ "Other field will be interpreted as an AF field.";
@@ -67,34 +80,98 @@ public List<AFExtractor>  parseFieldExtractors(final String userStr) {
 	if(!StringUtil.isBlank(userStr)) {
 		for(final String s1:userStr.split("[;,]+")) {
 			if(StringUtil.isBlank(s1)) continue;
-			if(s1.contains("*") && s1.contains("/")) {
-				throw new IllegalArgumentException("found both '/' and '*' in "+s1+" of "+userStr);
-				}
-			else if(s1.contains("*")) {
-				afset.add(createAcAnFieldsExtractor(
-						s1.replace("*","AC").trim(),
-						s1.replace("*","AN").trim()
-						));
-				}
-			else if(s1.contains("/")) {
-				final int slash = s1.indexOf('/');
-				afset.add(createAcAnFieldsExtractor(
-						s1.substring(0,slash).trim(),
-						s1.substring(slash+1).trim()
-						));
-				}
-			else
-				{
-				afset.add(createAFFieldExtractor(s1));
-				}
+			afset.add(parseFieldExtractor(s1));
 			}
 		}
 	return new ArrayList<>(afset);
 	}
 
+/** par one AFExtractor Throw error if not found or empty */
+public AFExtractor  parseFieldExtractor(final String userStr) {
+	if(StringUtil.isBlank(userStr)) throw new IllegalArgumentException("cannot create AF extractor from empty string");
+	if(userStr.equals(FORMAT_GT)) {
+		return new GenotypeCountExtractor();
+		}
+	else if(userStr.contains("*") && userStr.contains("/")) {
+		throw new IllegalArgumentException("found both '/' and '*' in "+userStr+" of "+userStr);
+		}
+	else if(userStr.contains("*")) {
+		return createAcAnFieldsExtractor(
+				userStr.replace("*","AC").trim(),
+				userStr.replace("*","AN").trim()
+				);
+		}
+	else if(userStr.contains("/")) {
+		final int slash = userStr.indexOf('/');
+		return createAcAnFieldsExtractor(
+				userStr.substring(0,slash).trim(),
+				userStr.substring(slash+1).trim()
+				);
+		}
+	else
+		{
+		return createAFFieldExtractor(userStr);
+		}
+	}
+
 
 public AFExtractor createAFFieldExtractor(final String afAttr) {
 	return new AFFieldExtractor(afAttr);
+	}
+
+private static class GenotypeCountExtractor implements AFExtractor {
+	@Override
+	public boolean validateHeader(final VCFHeader header) {
+		if(!header.hasGenotypingData()) {
+			final String msg = "VCF header doesn't have any genotype";
+			LOG.warn(msg);
+			return false;
+			}
+		final VCFFormatHeaderLine hdr = header.getFormatHeaderLine(VCFConstants.GENOTYPE_KEY);
+		if(hdr==null) {
+			final String msg = "VCF header doesn't contain the FORMAT field " +VCFConstants.GENOTYPE_KEY;
+			LOG.warn(msg);
+			return false;
+			}
+		return true;
+		}
+	@Override
+	public String getName() {
+		return FORMAT_GT;
+		}
+	@Override
+	public List<Double> parse(final VariantContext ctx) {
+		final List<Allele> alts= ctx.getAlternateAlleles();
+		final List<Double> afList = new ArrayList<>(alts.size());
+		for(int i=0;i< alts.size();i++) {
+			final Allele alt = alts.get(i);
+			int an=0;
+			int ac=0;
+			for(final Genotype gt: ctx.getGenotypes()) {
+				if(gt.isNoCall()) continue;
+				for(final Allele a2: gt.getAlleles())  {
+					an++;
+					if(a2.equals(alt)) ac++;
+					}
+				}
+			afList.set(i, an==0?null:ac/(double)an);
+			}
+		return afList;
+		}
+	@Override
+	public int hashCode() {
+		return FORMAT_GT.hashCode();
+		}
+	@Override
+	public boolean equals(Object obj) {
+		if(obj==this) return true;
+		if(obj==null || !(obj instanceof GenotypeCountExtractor)) return false;
+		return true;
+		}
+	@Override
+	public String toString() {
+		return getName();
+		}
 	}
 
 private static class AFFieldExtractor implements AFExtractor
@@ -159,7 +236,6 @@ public AFExtractor createAcAnFieldsExtractor(final String acAttr,final String an
 
 private static final List<Double> double_list1 = Arrays.asList((Double)null);
 private static final List<Double> double_list2 = Arrays.asList((Double)null,(Double)null);
-
 private static class ACANFieldsExtractor implements AFExtractor
 	{
 	private final String acAttr;
