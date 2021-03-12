@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Sort a BAM of contig and then on read name
+Sort a BAM on chromosome/contig and then on read/querty name
 
 
 ## Usage
@@ -11,7 +11,7 @@ Sort a BAM of contig and then on read name
 Usage: sortsamrefname [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -23,11 +23,16 @@ Usage: sortsamrefname [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -R, --reference
-      For reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -35,6 +40,10 @@ Usage: sortsamrefname [options] Files
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -70,6 +79,11 @@ $ ./gradlew sortsamrefname
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20150812
 
 ## Source code 
 

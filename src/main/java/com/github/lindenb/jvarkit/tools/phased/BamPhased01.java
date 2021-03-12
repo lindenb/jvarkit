@@ -280,7 +280,7 @@ public class BamPhased01 extends OnePassBamLauncher {
 		}
 	
 	@Override
-	protected void scanIterator(final CloseableIterator<SAMRecord> iter0,final SAMFileWriter sfw) {
+	protected void scanIterator(final SAMFileHeader headerIn,final CloseableIterator<SAMRecord> iter0,final SAMFileWriter sfw) {
 		if(this.paired_mode) {
 			try(EqualIterator<SAMRecord> iter = new EqualIterator<>(iter0,(A,B)->A.getReadName().compareTo(B.getReadName()))) {
 			while(iter.hasNext()) {

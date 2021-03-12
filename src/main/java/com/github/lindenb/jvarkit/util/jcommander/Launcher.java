@@ -214,7 +214,7 @@ public class WritingBamArgs
 	{
 	private Path referenceFile = null;
 	
-	@Parameter(names={"--bamcompression"},description="Compression Level.")
+	@Parameter(names={"--bamcompression"},description="Compression Level. 0: no compression. 9: max compression;")
 	public int compressionLevel=5;
 	@Parameter(names={"--samoutputformat"},description="Sam output format.")
 	public WritingSamReaderType samoutputformat = WritingSamReaderType.SAM;

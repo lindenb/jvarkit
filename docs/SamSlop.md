@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-extends sam by 'x' bases
+extends sam by 'x' bases using the reference sequence
 
 
 ## Usage
@@ -11,7 +11,7 @@ extends sam by 'x' bases
 Usage: SamSlop [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -q, --defaultQual
       default base quality (one letter)
@@ -26,10 +26,16 @@ Usage: SamSlop [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
-    -r, --reference
-      Indexed fasta Reference
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     -c, --rmClip
       remove clipped bases
       Default: false
@@ -37,10 +43,21 @@ Usage: SamSlop [options] Files
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+
 
 ## Compilation
 
@@ -58,6 +75,11 @@ $ ./gradlew SamSlop
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20160119
 
 ## Source code 
 

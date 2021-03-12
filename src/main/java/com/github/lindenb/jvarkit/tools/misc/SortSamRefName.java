@@ -26,31 +26,23 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
+import java.io.IOException;
+import java.util.Comparator;
+
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
 import htsjdk.samtools.BAMRecordCodec;
+import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.List;
-
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
 BEGIN_DOC
@@ -82,25 +74,17 @@ END_DOC
 
 @Program(
 		name="sortsamrefname",
-		description="Sort a BAM of contig and then on read name",
+		description="Sort a BAM on chromosome/contig and then on read/querty name",
 		keywords={"sam","sort"},
 		biostars= {154220,483658},
-		modificationDate="20191010"
+		creationDate="20150812",
+		modificationDate="20210312"
 		)
-public class SortSamRefName extends Launcher
-	{
+public class SortSamRefName extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(SortSamRefName.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-	@Parameter(names={"-R","--reference"},description="For reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private Path faidx = null;
+
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs=new WritingBamArgs();
-
-
-	
 	
 	private static class RefNameComparator implements
 		Comparator<SAMRecord>
@@ -125,34 +109,30 @@ public class SortSamRefName extends Launcher
 		
 		}
 	
-	public SortSamRefName()
+	@Override
+	protected Logger getLogger()
 		{
+		return LOG;
 		}
 
 	@Override
-	public int doWork(final List<String> args) {
-		SamReader in=null;
-		SAMFileWriter out=null;
-		SAMRecordIterator iter=null;
-		CloseableIterator<SAMRecord> iter2=null;
+	protected SAMFileHeader createOutputHeader(SAMFileHeader headerIn) {
+		final SAMFileHeader hOut =  super.createOutputHeader(headerIn);
+		hOut.setSortOrder(SAMFileHeader.SortOrder.unsorted);
+		return hOut;
+		}
+	
+	@Override
+	protected void scanIterator(
+			final SAMFileHeader headerIn,
+			final CloseableIterator<SAMRecord> iter,
+			final SAMFileWriter out)
+		{
+		
 		SortingCollection<SAMRecord> sorter=null;
 		try
 			{
-			final SamReaderFactory srf = super.createSamReaderFactory();
-			if(this.faidx!=null) srf.referenceSequence(this.faidx);
-			final String input = oneFileOrNull(args);
-			
-			if(input==null)
-				{
-				in = srf.open(SamInputResource.of(stdin()));
-				}
-			else
-				{
-				in =  srf.open(SamInputResource.of(input));
-				}
-			final SAMFileHeader header= in.getFileHeader();
-			
-			final BAMRecordCodec bamRecordCodec=new BAMRecordCodec(header);
+			final BAMRecordCodec bamRecordCodec=new BAMRecordCodec(headerIn);
 			final RefNameComparator refNameComparator=new RefNameComparator();
 			sorter =SortingCollection.newInstance(
 					SAMRecord.class,
@@ -163,40 +143,29 @@ public class SortSamRefName extends Launcher
 					);
 			sorter.setDestructiveIteration(true);
 			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
-			iter = in.iterator();
 			while(iter.hasNext())
 				{
-				sorter.add( progress.watch(iter.next()));
+				sorter.add(iter.next());
 				}
-			in.close();in=null;
 			sorter.doneAdding();
 			
-			final SAMFileHeader header2=header.clone();
-			header2.addComment(getProgramName()+" "+getVersion()+" "+getProgramCommandLine());
-			header2.setSortOrder(SortOrder.unsorted);
-			out = this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(outputFile,header2, true);
-			iter2 = sorter.iterator();
-			while(iter2.hasNext())
-				{
-				out.addAlignment(iter2.next());
+			
+			try(CloseableIterator<SAMRecord> iter2 = sorter.iterator()) {
+				while(iter2.hasNext())
+					{
+					out.addAlignment(iter2.next());
+					}
 				}
-			out.close();out=null;
 			sorter.cleanup();
-			progress.finish();
-			return RETURN_OK;
+			sorter=null;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
-			LOG.error(err);
-			return -1;
+			throw new SAMException(err);
 			}
 		finally
 			{
-			CloserUtil.close(iter2);
 			CloserUtil.close(iter);
-			CloserUtil.close(out);
-			CloserUtil.close(in);
 			}
 		}
 	

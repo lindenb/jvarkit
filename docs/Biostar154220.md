@@ -11,10 +11,10 @@ Cap BAM to a given coverage
 Usage: biostar154220 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
-    -n, --depth
-      number of reads
+    -d, -n, --depth
+      expected coverage.
       Default: 20
     -filter, --filter
       A JEXL Expression that will be used to filter out some sam-records (see 
@@ -27,16 +27,32 @@ Usage: biostar154220 [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    --keep-unmapped
+      write unmapped reads
+      Default: false
+    -o, --out
       Output file. Optional . Default: stdout
+    --query-sorted
+      Input was sorted on query name but I promess there is one and only one 
+      chromosome: e.g: samtools view -h in.bam 'chr1:234-567' | samtools sort 
+      -n -) .
+      Default: false
     -R, --reference
-      For reading/writing CRAM files. Indexed fasta Reference file. This file 
-      must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary 
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -48,6 +64,7 @@ Usage: biostar154220 [options] Files
  * bam
  * sam
  * coverage
+ * depth
 
 
 

@@ -28,30 +28,28 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import htsjdk.samtools.reference.ReferenceSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SAMValidationError;
-import htsjdk.samtools.util.CloserUtil;
 
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMException;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMValidationError;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 
 
 /**
@@ -96,18 +94,13 @@ rotavirus_2_478_5:0:0_5:0:0_35c 163     rotavirus       1       60      4M      
 
 END_DOC
 */
-@Program(name="SamSlop",description="extends sam by 'x' bases",
+@Program(name="SamSlop",description="extends sam by 'x' bases using the reference sequence",
 keywords= {"sam","bam"},
-modificationDate="20190528"
+creationDate="20160119",
+modificationDate="20210312"
 )
-public class SamSlop extends Launcher
-	{
+public class SamSlop extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(SamSlop.class).make();
-
-
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-
 
 	@Parameter(names={"-m","--extend5"},description="num bases to extends on 5'")
 	private int extend5 = 0 ;
@@ -121,16 +114,16 @@ public class SamSlop extends Launcher
 	@Parameter(names={"-c","--rmClip"},description="remove clipped bases")
 	private boolean removeClip = false;
 
-	@Parameter(names={"-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private Path faidx = null;
-	
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs=new WritingBamArgs();
-	
+
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
-	public int doWork(List<String> args) {
-		if(this.faidx==null)
+	protected int beforeSam()
+		{
+		if(super.faidxPath==null)
 			{
 			LOG.error("Reference was not specified.");
 			return -1;
@@ -139,25 +132,32 @@ public class SamSlop extends Launcher
 			{
 			LOG.error("default quality should have length==1 "+this.defaultQual);
 			}
+		return super.beforeSam();
+		}
+	
+	@Override
+	protected SAMFileHeader createOutputHeader(final SAMFileHeader headerIn)
+		{
+		final SAMFileHeader h= super.createOutputHeader(headerIn);
+		h.setSortOrder(SortOrder.unsorted);
+		return h;
+		}
+	
+	@Override
+	protected void scanIterator(
+			final SAMFileHeader headerIn,
+			final CloseableIterator<SAMRecord> iter, 
+			final SAMFileWriter sfw)
+		{
 		GenomicSequence genomicSequence=null;
-		SamReader sfr=null;
-		SAMFileWriter sfw=null;
 		ReferenceSequenceFile indexedFastaSequenceFile=null;
 		final char defaultQUAL=this.defaultQual.charAt(0);
 		try
 			{
-			final String inputName= oneFileOrNull(args);
-			indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(faidx);
-			sfr = openSamReader(inputName);
-			final SAMFileHeader header=sfr.getFileHeader();
-			header.setSortOrder(SortOrder.unsorted);
-			writingBamArgs.setReferencePath(faidx);
-			sfw = writingBamArgs.openSamWriter(outputFile,header, true);
-			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header);
-			final SAMRecordIterator iter=sfr.iterator();
+			indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(getRequiredReferencePath());
 			while(iter.hasNext())
 				{
-				final SAMRecord rec=progress.watch(iter.next());
+				final SAMRecord rec= iter.next();
 				final Cigar cigar=rec.getCigar();
 				if( rec.getReadUnmappedFlag() ||
 					cigar==null ||
@@ -303,19 +303,14 @@ public class SamSlop extends Launcher
 				
 				sfw.addAlignment(rec);
 				}
-			progress.finish();
-			return RETURN_OK;
 			}
 		catch(final Throwable err)
 			{
-			LOG.error(err);
-			return -1;
+			throw new SAMException(err);
 			}
 		finally
 			{
 			CloserUtil.close(indexedFastaSequenceFile);
-			CloserUtil.close(sfr);
-			CloserUtil.close(sfw);
 			}
 		}
 

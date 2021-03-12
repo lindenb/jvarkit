@@ -123,7 +123,7 @@ protected ProgressLoggerInterface createProgressLogger() {
 		};
 }
 
-protected void scanIterator(final CloseableIterator<SAMRecord> iter,final SAMFileWriter sfw) {
+protected void scanIterator(final SAMFileHeader headerIn,final CloseableIterator<SAMRecord> iter,final SAMFileWriter sfw) {
 final Function<SAMRecord,List<SAMRecord>> modifier = createSAMRecordFunction();
 while(iter.hasNext()) {
 	final SAMRecord rec = iter.next();
@@ -134,11 +134,11 @@ while(iter.hasNext()) {
 }
 
 @Override
-protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter) {
-	try(SAMFileWriter sfw = openSamFileWriter(header)) {
+protected int processInput(final SAMFileHeader headerIn, final CloseableIterator<SAMRecord> iter) {
+	try(SAMFileWriter sfw = openSamFileWriter(headerIn)) {
 		final ProgressLoggerInterface progress = createProgressLogger();
 		if(progress!=null) sfw.setProgressLogger( progress);
-		scanIterator(iter,sfw);	
+		scanIterator(headerIn,iter,sfw);	
 		}
 	return 0;
 	}
