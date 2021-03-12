@@ -357,15 +357,14 @@ public class VcfStrechToSvg extends Launcher
 			style.appendChild(text(
 					".maintitle {text-anchor:middle;fill:blue} "+
 					".vc {stroke-width:0.5px;} "+
-					".transcript {stroke:black;stroke-width:1px;}"+
-					".exon {stroke:black;stroke-width:0.5px;fill:blue;}"+
+					".transcript {stroke:black;stroke-width:1px;opacity:1;}"+
+					".exon {stroke:black;stroke-width:0.5px;fill:blue;opacity:1;}"+
 					".sample {fill:blue;font-size:7px;} "+
 					".samplelabel {stroke:gray;stroke-width:0.5px;font-size:"+this.dynamicParams.getOrDefault("sample.fontsize","7")+"px;}\n" +
 					".coverage { fill:gray; stroke:yellow;opacity:0.2;} " +
 					".frame { fill:none; stroke: darkgray;} " +
 					".area0 {fill:white;}\n" +
 					".area1 {fill:floralwhite;}\n" +
-					".exon {fill:pink;stroke:yellow;opacity:0.3;}\n" +
 					"circle.HOM_REF {fill:green;opacity:"+gtopacity+";stroke-width:0.5px;}\n" +
 					"circle.HET {fill:blue;opacity:"+gtopacity+";stroke-width:0.5px;}\n" +
 					"circle.HOM_VAR {fill:red;opacity:"+gtopacity+";stroke-width:0.5px;}\n" +
@@ -407,7 +406,7 @@ public class VcfStrechToSvg extends Launcher
 			/** plot genes */
 			if(!this.all_genes.isEmpty())
 				{
-				final double transcript_height = 3;
+				final double transcript_height = 5;
 				final double exon_height = (transcript_height-1);
 				final double save_y = y;
 				final Element g_genes= element("g");
@@ -436,15 +435,16 @@ public class VcfStrechToSvg extends Launcher
 					/* loop over transcripts */
 					for(final Transcript tr: transcripts) {
 						final Element g_tr = element("g");
+						g_tr.setAttribute("transform", "translate(0,"+format(y2)+")");
 						g_vset.appendChild(g_tr);
 						final Element line = element("line");
 						line.setAttribute("class", "transcript");
 						line.setAttribute("x1", format(Math.max(0, base2pixel.applyAsDouble(tr.getStart()))));
 						line.setAttribute("y1", format(transcript_height/2.0));
 						line.setAttribute("x2", format(Math.min(vset.width, base2pixel.applyAsDouble(tr.getEnd()))));
-						line.setAttribute("y1", format(transcript_height/2.0));
+						line.setAttribute("y2", format(transcript_height/2.0));
 						line.appendChild(element("title",tr.getId()));
-						g_tr.appendChild(line);
+						g_tr.appendChild(wrapLoc(line,tr));
 						
 						/* loop over exons */
 						for(final Exon exon:tr.getExons()) {
@@ -453,12 +453,12 @@ public class VcfStrechToSvg extends Launcher
 							exRect.setAttribute("class", "exon");
 							final double x_start = Math.max(0, base2pixel.applyAsDouble(exon.getStart()));
 							exRect.setAttribute("x", format(x_start));
-							exRect.setAttribute("y", format(-exon_height/2.0));
+							exRect.setAttribute("y", format(transcript_height/2.0 - exon_height/2.0));
 							final double x_end = Math.min(vset.width,base2pixel.applyAsDouble(exon.getEnd()));
 							exRect.setAttribute("width", format(x_end  - x_start));
 							exRect.setAttribute("height", format(exon_height));
 							exRect.appendChild(element("title",exon.getName()));
-							g_tr.appendChild(exRect);
+							g_tr.appendChild(wrapLoc(exRect,exon));
 							}
 						y2+= transcript_height+0.5;
 						}
@@ -722,6 +722,7 @@ public class VcfStrechToSvg extends Launcher
 			final String input = super.oneAndOnlyOneFile(args);
 			
 			if(!this.bamListPath.isEmpty()) {
+				LOG.info("reading bam list");
 				for(Path bamPath:IOUtils.unrollPaths(this.bamListPath)) {
 					try(SamReader sr = openSamReader(bamPath)) {
 						final SAMFileHeader hdr = sr.getFileHeader();
@@ -764,6 +765,7 @@ public class VcfStrechToSvg extends Launcher
 					}
 				
 				if(this.gff3Path!=null) {
+					LOG.info("reading gtf" + this.gff3Path);
 					try(GtfReader gtfReader = new GtfReader(this.gff3Path)) {
 						if(dict!=null)gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 						gtfReader.getAllGenes().forEach(G->{

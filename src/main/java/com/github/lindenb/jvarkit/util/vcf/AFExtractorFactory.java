@@ -154,7 +154,7 @@ private static class GenotypeCountExtractor implements AFExtractor {
 					if(a2.equals(alt)) ac++;
 					}
 				}
-			afList.set(i, an==0?null:ac/(double)an);
+			afList.add(an==0?null:ac/(double)an);
 			}
 		return afList;
 		}

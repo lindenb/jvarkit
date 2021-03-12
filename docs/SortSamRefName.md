@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Sort a BAM of contig and then on name
+Sort a BAM of contig and then on read name
 
 
 ## Usage
@@ -25,6 +25,9 @@ Usage: sortsamrefname [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For reading CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -48,6 +51,7 @@ Usage: sortsamrefname [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/154220](https://www.biostars.org/p/154220)
+ * [https://www.biostars.org/p/483658](https://www.biostars.org/p/483658)
 
 
 ## Compilation
