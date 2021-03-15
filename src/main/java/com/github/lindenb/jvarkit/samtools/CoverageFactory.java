@@ -32,12 +32,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
@@ -49,7 +51,6 @@ import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloseableIterator;
@@ -242,7 +243,6 @@ public class CoverageFactory
 			return getMax(this);
 			}
 
-		
 		 @Override
 		public int get(int i) {
 			return this.coverage[i];
@@ -278,11 +278,37 @@ public class CoverageFactory
 		}	
 	
 	public SimpleCoverage getSimpleCoverage(final SamReader reader,final Locatable loc,final String sample) {
+		return getSimpleCoverage(reader,Collections.singletonList(loc),sample);
+	}
+	
+	/** 
+	 * 
+	 * @param reader 
+	 * @param locCollection collection of items. must not be empty, all position must belong to the sampel contig
+	 * @param sample
+	 * @return
+	 */
+	public SimpleCoverage getSimpleCoverage(final SamReader reader,final Collection<? extends Locatable> locCollection,final String sample) {
 		if(reader==null) throw new IllegalArgumentException("reader==null");
 		if(!reader.hasIndex()) throw new IllegalArgumentException("SamReader is not indexed. "+reader.getResourceDescription());
-		final SimpleCoverageImpl cov = new SimpleCoverageImpl(loc);
-		
+		if(locCollection.isEmpty()) throw new IllegalArgumentException("Empty Query");
 		final SAMFileHeader header= reader.getFileHeader();
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+		final Set<String> contigs = locCollection.stream().map(L->L.getContig()).collect(Collectors.toSet());
+		if(contigs.size()!=1)  throw new IllegalArgumentException("Expected only one chromosome but got:"+String.join(",", contigs));
+		final String contig = contigs.iterator().next();
+		
+		final int chromStart = locCollection.stream().mapToInt(L->L.getStart()).min().orElse(0);
+		final int chromEnd = locCollection.stream().mapToInt(L->L.getEnd()).max().orElse(0);
+						
+		
+		final Locatable loc = new SimpleInterval(contig,chromStart,chromEnd);
+		final SimpleCoverageImpl cov = new SimpleCoverageImpl(loc);
+		final int tid = dict.getSequenceIndex(contig);
+		if(tid<0) {
+			return cov;
+		}
+		
 		if(!StringUtils.isBlank(sample) &&
 				header.getReadGroups().stream().
 				map(RG->this.partition.apply(RG)).
@@ -290,8 +316,15 @@ public class CoverageFactory
 			return cov;
 			}
 
+		int idx=0;
+		QueryInterval[] array = new QueryInterval[locCollection.size()];
+		for(final Locatable item: locCollection) {
+			array[idx] = new QueryInterval(tid, item.getStart(), item.getEnd());
+			idx++;
+		}
+		array  = QueryInterval.optimizeIntervals(array);
 		
-		try(CloseableIterator<SAMRecord> iter = reader.query(loc.getContig(), loc.getStart(), loc.getEnd(), false) ) {
+		try(CloseableIterator<SAMRecord> iter = reader.query(array, false) ) {
 			while(iter.hasNext()) {
 				final SAMRecord rec = iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
