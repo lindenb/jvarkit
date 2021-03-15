@@ -13,6 +13,9 @@ Usage: sam2json [options] Files
     -atts, --atts
       do not print attributes
       Default: false
+    --bamcompression
+      Compression Level. 0: no compression. 9: max compression;
+      Default: 5
     -cigar, --cigar
       expand cigar
       Default: false
@@ -29,8 +32,24 @@ Usage: sam2json [options] Files
     -name, --name
       do not print read name
       Default: false
-    -out, --out
+    -o, --out
       Output file. Optional . Default: stdout
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
+    --samoutputformat
+      Sam output format.
+      Default: SAM
+      Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -60,6 +79,11 @@ $ ./gradlew sam2json
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20210402
 
 ## Source code 
 
