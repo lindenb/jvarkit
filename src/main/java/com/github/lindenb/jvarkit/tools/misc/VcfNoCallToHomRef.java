@@ -22,10 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-* 2015 moving to knime
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -63,6 +59,11 @@ import htsjdk.variant.vcf.VCFIterator;
 
 /**
  BEGIN_DOC
+
+## Deprecated
+
+
+deprecated. Use `bcftools +setGT`
 
 ## Example
 
@@ -126,7 +127,8 @@ END_DOC
 	keywords={"vcf"},
 	creationDate="20170914",
 	modificationDate="20200720",
-	biostars={276811}
+	biostars={276811},
+	deprecatedMsg="use bcftools plugin: +setGT"
 	)
 public class VcfNoCallToHomRef extends OnePassVcfLauncher
 	{

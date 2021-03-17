@@ -165,8 +165,14 @@ public class CopyNumber01 extends Launcher
 	private File blackListedBedFile=null;
 	@Parameter(names={"--gcDepthInterpolation"},description="Method to interpolate GC% and depth. See https://commons.apache.org/proper/commons-math/javadocs/api-3.0/org/apache/commons/math3/analysis/interpolation/UnivariateInterpolator.html ")
 	private UnivariateInerpolation gcDepthInterpolation=UnivariateInerpolation.loess;
-	@Parameter(names={"--weirdDepth"},description="Treat depth greater than this value as 'weird' and discard the sliding windows at this place.")
-	private int weirdDepth=500;
+	@Parameter(names={"--min-depth"},description="Treat depth lower than this value as 'weird' and discard the sliding windows at this place.")
+	private int weirdMinDepth= 0;
+	@Parameter(names={"--max-depth"},description="Treat depth greater than this value as 'weird' and discard the sliding windows at this place.")
+	private int weirdMaxDepth= 500;
+	@Parameter(names={"--min-gc"},description="Min GC%")
+	private double minGC = 0.0;
+	@Parameter(names={"--max-gc"},description="Max GC%")
+	private double maxGC = 1.0;
 	@Parameter(names={"--mapq"},description="Min mapping quality")
 	private int mappingQuality = 1;
 	@DynamicParameter(names = "-D", description = "style. Undocumented.",hidden=true)
@@ -328,9 +334,10 @@ public class CopyNumber01 extends Launcher
 					}
 				}
 			//remove strange gc
-			LOG.info("remove string gc%");
+			LOG.info("remove  gc%");
 			for(List<GCAndDepth> items:contig2items.values()) {
-				items.removeIf(B->B.gc<=0.0);
+				items.removeIf(B->B.gc < this.minGC);
+				items.removeIf(B->B.gc > this.maxGC);
 				}
 			
 			final CoverageFactory coverageFactory = new CoverageFactory().setMappingQuality(this.mappingQuality);
@@ -362,7 +369,7 @@ public class CopyNumber01 extends Launcher
 						/* loop over contigs */
 						for(final SAMSequenceRecord ssr:dict.getSequences()) {
 							if(!contig2items.containsKey(ssr.getSequenceName())) continue;
-							
+							LOG.info(ssr.getSequenceName());
 							final Function<Integer, Long> genomicIndex = START ->
 								{
 								long n= START;
@@ -389,8 +396,9 @@ public class CopyNumber01 extends Launcher
 								gc.raw_depth = optCov.orElse(-1.0);
 								gc.norm_depth = gc.raw_depth;
 								}
-							items.removeIf(V->V.raw_depth<0);
-							items.removeIf(V->V.raw_depth>this.weirdDepth);
+							items.removeIf(V->V.raw_depth < 0);
+							items.removeIf(V->V.raw_depth > this.weirdMaxDepth);
+							items.removeIf(V->V.raw_depth < this.weirdMinDepth);
 							if(items.isEmpty()) continue;
 							
 							Collections.sort(items,(a,b)->{
@@ -467,7 +475,7 @@ public class CopyNumber01 extends Launcher
 										++points_removed;
 										continue;
 										}
-									r.norm_depth = norm; 
+									r.norm_depth = norm;
 									++i;
 									}
 								}
@@ -475,29 +483,28 @@ public class CopyNumber01 extends Launcher
 							spline=null;
 							final double min_norm_depth  = items.stream().mapToDouble(G->G.norm_depth).min().orElse(Double.NaN);
 							if(Double.isNaN(min_norm_depth)) continue;
-							
+							LOG.info("min norm depth " + min_norm_depth);
 							//fit to min, fill new y for median calculation
 							for(final GCAndDepth gc:items) {
 								gc.norm_depth -= min_norm_depth;
 								}
-							
-							
 							//normalize on median
 							y= items.stream().mapToDouble(G->G.getY()).toArray();
 
 							final double median_depth =  this.univariateMid.create().evaluate(y, 0, y.length);
+							LOG.info("median norm depth : " + median_depth);
+
 							for(i=0;median_depth>0 && i< items.size();++i)
 								{
 								final GCAndDepth gc = items.get(i);
 								gc.norm_depth /= median_depth;
 								}
-														
+
 							//restore genomic order
 							Collections.sort(items,locComparator);
-							
-							//  smoothing values with neighbours 
+							// smoothing values with neighbours
 							y= items.stream().mapToDouble(V->V.getY()).toArray();
-							
+
 							for(i=0;i< items.size();++i)
 								{
 								final GCAndDepth gc = items.get(i);

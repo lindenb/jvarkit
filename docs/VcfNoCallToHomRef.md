@@ -5,6 +5,10 @@
 Convert the UNCALLED gentoypes in a VCF to HOM_REF. This tool can be used after using GATK CombineVariants.
 
 
+## DEPRECATED
+
+use bcftools plugin: +setGT
+
 ## Usage
 
 ```
@@ -79,7 +83,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-20200914
+20170914
 
 ## Source code 
 
@@ -106,6 +110,11 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Deprecated
+
+
+deprecated. Use `bcftools +setGT`
 
 ## Example
 
