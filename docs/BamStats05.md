@@ -29,6 +29,9 @@ Usage: bamstats05 [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --mapq
+      Min mapping quality
+      Default: 1
     -merge, --merge
       [20181122] Merge overlapping intervals for the same gene.
       Default: false

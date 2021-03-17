@@ -92,6 +92,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -168,6 +169,8 @@ public class CopyNumber01 extends Launcher
 	private int weirdDepth=500;
 	@Parameter(names={"--mapq"},description="Min mapping quality")
 	private int mappingQuality = 1;
+	@DynamicParameter(names = "-D", description = "style. Undocumented.",hidden=true)
+	private Map<String, String> dynaParams = new HashMap<>();
 
 	
 	private enum UnivariateStatistic
@@ -224,7 +227,10 @@ public class CopyNumber01 extends Launcher
 		{	
 		switch(this.gcDepthInterpolation)
 			{
-			case loess: return new LoessInterpolator(0.5,4);
+			case loess: return new LoessInterpolator(
+					Double.parseDouble(dynaParams.getOrDefault("loess.bandwith","0.75")),
+					Integer.parseInt(dynaParams.getOrDefault("loess.robustness","4"))
+					);
 			case neville: return new NevilleInterpolator();
 			case difference  : return new DividedDifferenceInterpolator();
 			case linear: return new LinearInterpolator();
@@ -252,7 +258,7 @@ public class CopyNumber01 extends Launcher
 			/* loading REF Reference */
 			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(refFile);
 			final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
-			
+			final Comparator<Locatable> locComparator = new ContigDictComparator(dict).createLocatableComparator();
 			
 			final List<Locatable> intervals = new ArrayList<>();
 			if(this.bedFile==null) {
@@ -312,7 +318,7 @@ public class CopyNumber01 extends Launcher
 			for(final String ctg:contig2items.keySet()) {
 				final List<GCAndDepth> items = contig2items.get(ctg);
 				/* sort interval */
-				Collections.sort(items,new ContigDictComparator(dict).createLocatableComparator());
+				Collections.sort(items,locComparator);
 				
 				final GenomicSequence gseq = new GenomicSequence(indexedFastaSequenceFile, ctg);
 				for(final GCAndDepth dataRow:items) {
@@ -373,7 +379,13 @@ public class CopyNumber01 extends Launcher
 							final CoverageFactory.SimpleCoverage coverage = coverageFactory.getSimpleCoverage(samReader,items, sampleName);
 							// fill coverage
 							for(final GCAndDepth gc:items) {
-								final OptionalDouble optCov = coverage.getMedian(gc);
+								final OptionalDouble optCov;
+								switch(this.univariateDepth) {
+									case median : optCov =  coverage.getMedian(gc); break;
+									case mean : optCov =  coverage.getAverage(gc); break;
+									default: throw new IllegalStateException();
+									}
+								
 								gc.raw_depth = optCov.orElse(-1.0);
 								gc.norm_depth = gc.raw_depth;
 								}
@@ -407,7 +419,7 @@ public class CopyNumber01 extends Launcher
 									++j;
 									}
 								x[k] = x[i];
-								y[k] = CopyNumber01.this.univariateGCLoess.create().evaluate(y, i, j-i);
+								y[k] = this.univariateGCLoess.create().evaluate(y, i, j-i);
 								++k;
 								i=j;
 								}
@@ -465,16 +477,14 @@ public class CopyNumber01 extends Launcher
 							if(Double.isNaN(min_norm_depth)) continue;
 							
 							//fit to min, fill new y for median calculation
-					
-							y= new double[items.size()];
-							for(i=0;i< items.size();++i)
-								{
-								final GCAndDepth gc= items.get(i);
+							for(final GCAndDepth gc:items) {
 								gc.norm_depth -= min_norm_depth;
-								y[i] = gc.norm_depth;
 								}
 							
+							
 							//normalize on median
+							y= items.stream().mapToDouble(G->G.getY()).toArray();
+
 							final double median_depth =  this.univariateMid.create().evaluate(y, 0, y.length);
 							for(i=0;median_depth>0 && i< items.size();++i)
 								{
@@ -483,7 +493,7 @@ public class CopyNumber01 extends Launcher
 								}
 														
 							//restore genomic order
-							Collections.sort(items,new ContigDictComparator(dict).createLocatableComparator());
+							Collections.sort(items,locComparator);
 							
 							//  smoothing values with neighbours 
 							y= items.stream().mapToDouble(V->V.getY()).toArray();

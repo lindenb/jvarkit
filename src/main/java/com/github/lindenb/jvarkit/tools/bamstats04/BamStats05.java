@@ -30,20 +30,20 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeMap;
-
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -55,20 +55,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.StringUtil;
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.StringUtil;
 
 /**
 BEGIN_DOC
@@ -111,7 +106,7 @@ END_DOC
 description="Coverage statistics for a BED file, group by gene",
 keywords={"bam","coverage","statistics","bed"},
 biostars={324639,194393,35083},
-modificationDate="20200729",
+modificationDate="20210317",
 creationDate="20151012"
 )
 public class BamStats05 extends Launcher
@@ -128,12 +123,12 @@ public class BamStats05 extends Launcher
 	private Path BEDILE = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
-
 	@Parameter(names={"-f","--filter","--jexl"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
-	
 	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
 	private Path faidx = null;
+	@Parameter(names={"--mapq"},description="Min mapping quality")
+	private int mapq = 1;
 
 	
 	private Map<String, List<SimpleInterval>> readBedFile(final Path bedFile) throws IOException
@@ -228,88 +223,45 @@ public class BamStats05 extends Launcher
 			final Set<String> groupNames = this.groupBy.getPartitions(rgs);
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-			
-			
+			final CoverageFactory coverageFactory = new CoverageFactory().
+					setMappingQuality(this.mapq).
+					setPartition(this.groupBy).
+					setRecordFilter(R->!filter.filterOut(R));
 			
 			for(final String partition : groupNames)
 				{
-				if(partition.isEmpty()) throw new IOException("Empty read group: "+groupBy.name()+" for "+filename);
+				if(StringUtils.isBlank(partition)) throw new IOException("Empty read group: "+groupBy.name()+" for "+filename);
 				for(final String gene: gene2interval.keySet())
 					{
+					
 					final List<Integer> counts = new ArrayList<>();
 					final List<SimpleInterval> intervals = gene2interval.get(gene);
 					final String newContig = contigNameConverter.apply(intervals.get(0).getContig());
 					if(StringUtil.isBlank(newContig)) {
 						throw new JvarkitException.ContigNotFoundInDictionary(intervals.get(0).getContig(), dict);
 						}
-										
-					for(final SimpleInterval interval:intervals)
-						{		
-						/* picard javadoc:  - Sequence name - Start position (1-based) - End position (1-based, end inclusive)  */
-						int interval_counts[]=new int[interval.getLengthOnReference()];
-						if(interval_counts.length==0) continue;
-						Arrays.fill(interval_counts, 0);
-						
-						
-						
-						/**
-						 *     start - 1-based, inclusive start of interval of interest. Zero implies start of the reference sequence.
-			    		*	   end - 1-based, inclusive end of interval of interest. Zero implies end of the reference sequence. 
-						 */
 					
-						final SAMRecordIterator r=IN.query(
-								newContig,
-								interval.getStart(),
-								interval.getEnd()
-								,false)
-								;
-						while(r.hasNext())
-							{
-							final SAMRecord rec=r.next();
-							if(rec.getReadUnmappedFlag()) continue;
-							if(filter.filterOut(rec)) continue;
-							
-							if(!rec.getReferenceName().equals(interval.getContig())) continue;
-							
-							
-							final SAMReadGroupRecord rg = rec.getReadGroup();
-							if(rg==null || !partition.equals(this.groupBy.apply(rg))) continue;
-							final Cigar cigar=rec.getCigar();
-							if(cigar==null) continue;
-				    		int refpos1=rec.getAlignmentStart();
-				    		for(final CigarElement ce:cigar.getCigarElements())
-				    			{
-				    			final CigarOperator op=ce.getOperator();
-				    			if(!op.consumesReferenceBases()) continue;
-				    			if(op.consumesReadBases())
-				    				{
-				    				for(int i=0;i< ce.getLength();++i)
-			    		    			{
-										if(refpos1+i>= interval.getStart() && refpos1+i<=interval.getEnd())
-											{
-											interval_counts[refpos1+i-interval.getStart()]++;
-											}
-					    				}
-				    				}
-				    			refpos1+=ce.getLength();
-				    			}
-							}/* end while r */
-						r.close();
-						for(int d: interval_counts)
-							{
+					final CoverageFactory.SimpleCoverage coverage = coverageFactory.getSimpleCoverage(
+							IN,
+							intervals.stream().map(R->R.renameContig(newContig)).collect(Collectors.toList()),
+							partition
+							);
+					
+					for(final SimpleInterval interval:intervals)
+						{
+						for(int i=interval.getStart();i<=interval.getEnd() && i <= coverage.getEnd();i++) {
+							final int d = coverage.get(i-coverage.getStart());
 							counts.add(d);
 							}
-						}/* end interval */
-						
-						
+						}
+					
 					Collections.sort(counts);
-						
 						
 						
 					pw.print(
 							intervals.get(0).getContig()+"\t"+
-							intervals.stream().mapToInt(R->R.getStart()-1).min().orElse(-1)+"\t"+
-							intervals.stream().mapToInt(R->R.getEnd()).max().orElse(-1)+"\t"+gene+"\t"+partition+"\t"+
+							(coverage.getStart()-1)+"\t"+
+							coverage.getEnd() +"\t"+gene+"\t"+partition+"\t"+
 							intervals.size()+"\t"+
 							counts.size()+"\t"+
 							counts.get(0)+"\t"+
@@ -363,50 +315,45 @@ public class BamStats05 extends Launcher
 			}
 		if(this.min_coverages.isEmpty()) min_coverages.add(0);
 
-		SamReader in=null;
-		BufferedReader r=null;
-		PrintWriter pw=null;
 		try
 			{
 			final Map<String, List<SimpleInterval>> gene2interval = readBedFile(BEDILE);
-			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			//print header
-			pw.print(
-					"#chrom\t"+
-					"gene.start.0"+"\t"+"gene.end.0"+"\t"+"gene.Name"+"\t"+groupBy.name()+"\t"+
-					"count.intervals\t"+
-					"length"+"\t"+
-					"min.cov"+"\t"+
-					"max.cov");
-			
-			for(final int mc:this.min_coverages)
-				{
-				pw.print("\t"+
-						"mean.GT_"+mc+"\t"+
-						"median.GT_"+mc+"\t"+
-						"no_coverage.GT_"+mc+"\t"+
-						"percent_covered.GT_"+mc
-						);
-				}		
-			pw.println();
-			
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
-			if(this.faidx!=null) srf.referenceSequence(this.faidx);
-			
-			final List<Path> files = IOUtils.unrollPaths(args);
-			
-			
-			for(final Path f:files)
-				{
-				in = srf.open(f);
-				int tl = doWork(pw,gene2interval,f.toString(),in);
-				CloserUtil.close(in);
-				in=null;
-				if(tl!=0) return tl;
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				//print header
+				pw.print(
+						"#chrom\t"+
+						"gene.start.0"+"\t"+"gene.end.0"+"\t"+"gene.Name"+"\t"+groupBy.name()+"\t"+
+						"count.intervals\t"+
+						"length"+"\t"+
+						"min.cov"+"\t"+
+						"max.cov");
+				
+				for(final int mc:this.min_coverages)
+					{
+					pw.print("\t"+
+							"mean.GT_"+mc+"\t"+
+							"median.GT_"+mc+"\t"+
+							"no_coverage.GT_"+mc+"\t"+
+							"percent_covered.GT_"+mc
+							);
+					}		
+				pw.println();
+				
+				final SamReaderFactory srf = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
+				if(this.faidx!=null) srf.referenceSequence(this.faidx);
+				
+				final List<Path> files = IOUtils.unrollPaths(args);
+				
+				
+				for(final Path f:files)
+					{
+					try(SamReader in = srf.open(f)) {
+						int tl = doWork(pw,gene2interval,f.toString(),in);
+						if(tl!=0) return tl;
+						}
+					}
+				pw.flush();
 				}
-			pw.flush();
-			pw.close();
-			pw=null;
 			return 0;
 			}
 		catch (final Throwable e) {
@@ -415,9 +362,6 @@ public class BamStats05 extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(in);
-			CloserUtil.close(r);
-			CloserUtil.close(pw);
 			}
 		}
 

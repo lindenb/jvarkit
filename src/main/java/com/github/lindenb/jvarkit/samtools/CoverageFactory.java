@@ -84,6 +84,11 @@ public class CoverageFactory
 		this.useClip = useClip;
 		return this;
 		}
+	/** set function to accept read */
+	public CoverageFactory setRecordFilter(final Predicate<SAMRecord> accept) {
+		this.samRecordFilter = accept;
+		return this;
+		}
 
 	 static interface BaseCoverage  {
 		public OptionalDouble getMedian();
@@ -100,11 +105,18 @@ public class CoverageFactory
 		}
 	
 	public static interface SimpleCoverage extends BaseCoverage,Locatable {
-		public int[] toByteArray();
+		public int[] toIntArray();
+		/** I should have called it toIntArray */
+		@Deprecated
+		public default int[] toByteArray() {
+			return toIntArray();
+			}
 		public int get(int array_index);
 		public OptionalDouble getMedian(final Locatable loc);
+		public OptionalDouble getAverage(final Locatable loc);
 		public OptionalInt getMax(final Locatable loc);
 		public OptionalDouble getMedian();
+		public OptionalDouble getAverage();
 		public OptionalInt getMax();
 		public double[] scaleMedian(int length);
 		public double[] scaleAverage(int length);
@@ -225,6 +237,20 @@ public class CoverageFactory
 			}
 		
 		@Override
+		public OptionalDouble getAverage(final Locatable loc) {
+			if(!this.contains(loc)) throw new IllegalArgumentException(loc.toString()+" is not contained in "+this.toString());
+			long count=0L;
+			double sum=0.0;
+			final int i0 = loc.getStart() - this.getStart();
+			final int L = loc.getLengthOnReference();
+			for(int i=0;i< L;i++) {
+				sum+= this.coverage[i0 + i];
+				count++;
+				}
+			return count==0L?OptionalDouble.empty():OptionalDouble.of(sum/count);
+			}
+		
+		@Override
 		public OptionalInt getMax(final Locatable loc) {
 			if(!this.contains(loc)) throw new IllegalArgumentException(loc.toString()+" is not contained in "+this.toString());
 			return Arrays.stream(this.coverage,
@@ -236,6 +262,10 @@ public class CoverageFactory
 		@Override
 		public OptionalDouble getMedian()  {
 			return getMedian(this);
+			}
+		@Override
+		public OptionalDouble getAverage()  {
+			return getAverage(this);
 			}
 
 		@Override
@@ -252,7 +282,7 @@ public class CoverageFactory
 			return Arrays.stream(this.coverage);
 			}
 		@Override
-		public int[] toByteArray() {
+		public int[] toIntArray() {
 			return this.coverage;
 			}
 		@Override
