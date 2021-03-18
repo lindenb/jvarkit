@@ -140,8 +140,7 @@ END_DOC
 	description="experimental CNV detection.",
 	keywords= {"cnv","bam","sam"},
 	creationDate="20140201",
-	modificationDate="20210318",
-	generate_doc=false
+	modificationDate="20210318"
 	)
 public class CopyNumber01 extends Launcher
 	{
@@ -156,22 +155,24 @@ public class CopyNumber01 extends Launcher
 
 	
 	/** size of a window */
-	@Parameter(names={"-w"},description="window size. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
-	private int windowSize=1000;
-	@Parameter(names={"-s"},description="window shift. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"-w","--win-size"},description="window size. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int windowSize=1_000;
+	@Parameter(names={"-s","--win-shift"},description="window shift. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int windowShift=500;
 	
-	@Parameter(names={"--univariateDepth"},description="How to calculate depth in a sliding window")
+	@Parameter(names={"--univariateDepth"},description="How to calculate depth in a BAM interval.")
 	private UnivariateStatistic univariateDepth = UnivariateStatistic.mean;
 	@Parameter(names={"--univariateGC"},description="Loess needs only one GC value: we need to merge Depth with same GC%. How do we merge ?")
 	private UnivariateStatistic univariateGCLoess = UnivariateStatistic.median;
-	@Parameter(names={"--univariateMid"},description="Vertical Depth normalization")
+	@Parameter(names={"--univariateMid"},description="Depth normalization. Used when we want to normalize the depths between 0.0 and 1.0")
 	private UnivariateStatistic univariateMid = UnivariateStatistic.median;
-	@Parameter(names={"--univariateSmooth"},description="How to smooth data")
+	@Parameter(names={"--univariateSmooth"},description="How to smooth data with the --smooth option.")
 	private UnivariateStatistic univariateSmooth = UnivariateStatistic.mean;
 	
-	@Parameter(names={"--smooth"},description="Smooth window. smooth normalized depth with the 'n' neightbours")
+	@Parameter(names={"--smooth"},description="Smooth normalized depth window. smooth normalized depth with the 'n' neightbours")
 	private int smooth_window = 5;
+	@Parameter(names={"--smooth-distance"},description="When using --smooth. Only merge if windows are within that distance." + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int smoothDistance = 1_000;
 	@Parameter(names={"--gcDepthInterpolation"},description="Method to interpolate GC% and depth. See https://commons.apache.org/proper/commons-math/javadocs/api-3.0/org/apache/commons/math3/analysis/interpolation/UnivariateInterpolator.html ")
 	private UnivariateInerpolation gcDepthInterpolation=UnivariateInerpolation.loess;
 	@Parameter(names={"--min-depth"},description="Treat depth lower than this value as 'weird' and discard the sliding windows at this place.")
@@ -316,6 +317,10 @@ public class CopyNumber01 extends Launcher
 				LOG.error("no interval defined.");
 				return -1;
 				}
+			
+			LOG.info("intervals N=" + intervals.size()+" mean-size:" + intervals.stream().mapToInt(R->R.getLengthOnReference()).average().orElse(0.0));
+				
+			
 			final List<GCAndDepth> user_items = new ArrayList<>();	
 			//split intervals
 			for(final Locatable loc:intervals) {
@@ -324,7 +329,7 @@ public class CopyNumber01 extends Launcher
 					{
 					final int pos_end = Math.min(pos + this.windowSize,loc.getEnd());
 					
-					if( (pos_end - pos) < this.windowSize*0.8) {
+					if( (pos_end - pos) < this.windowSize* Double.parseDouble(this.dynaParams.getOrDefault("min.win.fract","0.8"))) {
 						break;
 						}
 					
@@ -335,11 +340,11 @@ public class CopyNumber01 extends Launcher
 					}
 				}
 			intervals.clear();//free memory
-			LOG.info("sorting...");
+			LOG.info("sorting N=" + user_items.size());
 			Collections.sort(user_items,locComparator);
 
 			//fill gc percent
-			LOG.info("fill gc%");
+			LOG.info("fill gc% N=" + user_items.size());
 			for(final String ctg: user_items.stream().map(T->T.getContig()).collect(Collectors.toSet())) {
 				
 				final GenomicSequence gseq = new GenomicSequence(indexedFastaSequenceFile, ctg);
@@ -355,6 +360,11 @@ public class CopyNumber01 extends Launcher
 			user_items.removeIf(B->B.gc < this.minGC);
 			user_items.removeIf(B->B.gc > this.maxGC);
 			
+			
+			if(user_items.stream().allMatch(P->isSex(P.getContig()))) {
+				LOG.error("All chromosomes are defined as sexual. Cannot normalize");
+				return -1;
+				}
 			
 			final CoverageFactory coverageFactory = new CoverageFactory().setMappingQuality(this.mappingQuality);
 			
@@ -524,14 +534,14 @@ public class CopyNumber01 extends Launcher
 							int left=i;
 							for(int j=Math.max(0,i-this.smooth_window);j<=i;++j) {
 								final GCAndDepth gc2 = bam_items.get(j);
-								if(!gc2.contigsMatch(gc)) continue;
+								if(!gc2.withinDistanceOf(gc,this.smoothDistance)) continue;
 								left=j;
 								break;
 								}
 							int right=i;
 							for(int j=i;j<=i+this.smooth_window && j< bam_items.size();++j) {
 								final GCAndDepth gc2 = bam_items.get(j);
-								if(!gc2.contigsMatch(gc)) break;
+								if(!gc2.withinDistanceOf(gc,this.smoothDistance)) break;
 								right=j;
 								// no break;
 								}
