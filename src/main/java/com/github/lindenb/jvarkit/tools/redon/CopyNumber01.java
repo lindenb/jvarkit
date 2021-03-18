@@ -21,36 +21,23 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.redon;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.function.Identity;
@@ -66,70 +53,94 @@ import org.apache.commons.math3.stat.descriptive.AbstractUnivariateStatistic;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
-import htsjdk.tribble.bed.BEDCodec;
-import htsjdk.tribble.readers.LineIterator;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMReadGroupRecord;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTree;
-import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.samtools.util.StringUtil;
-
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
-import com.github.lindenb.jvarkit.tools.misc.GcPercentAndDepth;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence.GCPercent;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.StringUtil;
 
 
 /**
 BEGIN_DOC
 
+## Example:
+
+```
+$ java -jar dist/copynumber01.jar  -R src/test/resources/rotavirus_rf.fa src/test/resources/S1.bam
+[INFO][CopyNumber01]sorting...
+[INFO][CopyNumber01]fill gc%
+[INFO][CopyNumber01]remove high/low gc%
+[INFO][CopyNumber01]Getting coverage for RF01 N=6
+[INFO][CopyNumber01]Getting coverage for RF02 N=4
+[INFO][CopyNumber01]Getting coverage for RF03 N=4
+[INFO][CopyNumber01]Getting coverage for RF04 N=4
+[INFO][CopyNumber01]Getting coverage for RF05 N=2
+[INFO][CopyNumber01]Getting coverage for RF06 N=2
+[INFO][CopyNumber01]Getting coverage for RF07 N=1
+[INFO][CopyNumber01]Getting coverage for RF08 N=1
+[INFO][CopyNumber01]Getting coverage for RF09 N=1
+[INFO][CopyNumber01]removed 0. now N=25
+[INFO][CopyNumber01]median norm depth : 8.331950991034539
+#CHROM	START	END	Sample	IDX	GC	RAW-DEPTH	NORM-DEPTH
+RF01	0	1001	S1	0	0.321	6.410	1.015
+RF01	500	1501	S1	500	0.349	8.446	1.015
+RF01	1000	2001	S1	1000	0.371	9.479	1.015
+RF01	1500	2501	S1	1500	0.374	9.445	1.015
+RF01	2000	3001	S1	2000	0.354	7.921	1.015
+RF01	2500	3302	S1	2500	0.331	5.766	1.015
+RF02	0	1001	S1	3302	0.347	7.380	0.998
+RF02	500	1501	S1	3802	0.348	9.189	0.998
+RF02	1000	2001	S1	4302	0.341	8.672	0.998
+RF02	1500	2501	S1	4802	0.344	7.977	0.998
+RF03	0	1001	S1	5989	0.314	7.060	0.931
+RF03	500	1501	S1	6489	0.332	9.967	0.931
+RF03	1000	2001	S1	6989	0.319	9.193	0.931
+RF03	1500	2501	S1	7489	0.315	7.012	0.931
+RF04	0	1001	S1	8581	0.352	6.119	1.021
+RF04	500	1501	S1	9081	0.344	9.554	1.021
+RF04	1000	2001	S1	9581	0.374	10.000	1.021
+RF04	1500	2362	S1	10081	0.359	7.396	1.021
+RF05	0	1001	S1	10943	0.326	8.827	0.980
+RF05	500	1501	S1	11443	0.327	8.996	0.980
+RF06	0	1001	S1	12522	0.363	8.571	1.035
+RF06	500	1356	S1	13022	0.421	8.384	1.035
+RF07	0	1001	S1	13878	0.329	7.900	0.996
+RF08	0	1001	S1	14952	0.358	7.876	1.008
+RF09	0	1001	S1	16011	0.374	7.919	1.089
+```
 
 END_DOC
 
  */
-@SuppressWarnings("unused")
 @Program(name="copynumber01",
-	description="experimental CNV detection. Doesn't work for now.",
+	description="experimental CNV detection.",
 	keywords= {"cnv","bam","sam"},
 	creationDate="20140201",
-	modificationDate="20210315",
+	modificationDate="20210318",
 	generate_doc=false
 	)
 public class CopyNumber01 extends Launcher
@@ -159,10 +170,8 @@ public class CopyNumber01 extends Launcher
 	@Parameter(names={"--univariateSmooth"},description="How to smooth data")
 	private UnivariateStatistic univariateSmooth = UnivariateStatistic.mean;
 	
-	@Parameter(names={"--smooth"},description="Smooth window")
-	private int SMOOTH_WINDOW=5;
-	@Parameter(names={"--blackListedBed"},description="Black Listed Bed Regions")
-	private File blackListedBedFile=null;
+	@Parameter(names={"--smooth"},description="Smooth window. smooth normalized depth with the 'n' neightbours")
+	private int smooth_window = 5;
 	@Parameter(names={"--gcDepthInterpolation"},description="Method to interpolate GC% and depth. See https://commons.apache.org/proper/commons-math/javadocs/api-3.0/org/apache/commons/math3/analysis/interpolation/UnivariateInterpolator.html ")
 	private UnivariateInerpolation gcDepthInterpolation=UnivariateInerpolation.loess;
 	@Parameter(names={"--min-depth"},description="Treat depth lower than this value as 'weird' and discard the sliding windows at this place.")
@@ -175,9 +184,13 @@ public class CopyNumber01 extends Launcher
 	private double maxGC = 1.0;
 	@Parameter(names={"--mapq"},description="Min mapping quality")
 	private int mappingQuality = 1;
+	@Parameter(names={"--sex"},description="Sexual contigs, comma or space separated")
+	private String sexContigStr="chrX,chrY,X,Y";
 	@DynamicParameter(names = "-D", description = "style. Undocumented.",hidden=true)
 	private Map<String, String> dynaParams = new HashMap<>();
 
+	private final Set<String> sexContigSet = new HashSet<>();
+	
 	
 	private enum UnivariateStatistic
 		{
@@ -195,9 +208,6 @@ public class CopyNumber01 extends Launcher
 		};
 		
 		abstract  AbstractUnivariateStatistic  create();
-		public double evaluate(final double array[]) {
-			return create().evaluate(array); 
-			}
 		}
 	
 	
@@ -253,14 +263,28 @@ public class CopyNumber01 extends Launcher
 			}
 		}
 	
-
+	private boolean isSex(final String s) {
+		return sexContigSet.contains(s);
+		}
 	
+	private long getGenomicIndex(final SAMSequenceDictionary dict,final String ctg,int start) {
+		long n= start;
+		for(final SAMSequenceRecord ssr:dict.getSequences()) {
+			if(ctg.equals(ssr.getSequenceName())) return n;
+			n+=  ssr.getSequenceLength();
+			}
+		throw new IllegalArgumentException(ctg);
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		ReferenceSequenceFile indexedFastaSequenceFile = null;
 		try
 			{
+			this.sexContigSet.addAll(Arrays.stream(this.sexContigStr.split("[, \t]")).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toSet()));
+			
 			/* loading REF Reference */
 			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(refFile);
 			final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
@@ -292,16 +316,9 @@ public class CopyNumber01 extends Launcher
 				LOG.error("no interval defined.");
 				return -1;
 				}
-			
-			final Map<String,List<GCAndDepth>> contig2items = new HashMap<>(dict.size());
-			
+			final List<GCAndDepth> user_items = new ArrayList<>();	
 			//split intervals
 			for(final Locatable loc:intervals) {
-				List<GCAndDepth> L = contig2items.get(loc.getContig());
-				if(L==null) {
-					L  = new ArrayList<>();
-					contig2items.put(loc.getContig(),L);
-					}
 				int pos = loc.getStart();
 				while(pos <  loc.getEnd())
 					{
@@ -312,33 +329,32 @@ public class CopyNumber01 extends Launcher
 						}
 					
 					final GCAndDepth dataRow = new GCAndDepth(loc.getContig(),pos,pos_end);
-					L.add(dataRow);
+					user_items.add(dataRow);
 					
 					pos += this.windowShift;
 					}
 				}
 			intervals.clear();//free memory
-			
+			LOG.info("sorting...");
+			Collections.sort(user_items,locComparator);
+
 			//fill gc percent
 			LOG.info("fill gc%");
-			for(final String ctg:contig2items.keySet()) {
-				final List<GCAndDepth> items = contig2items.get(ctg);
-				/* sort interval */
-				Collections.sort(items,locComparator);
+			for(final String ctg: user_items.stream().map(T->T.getContig()).collect(Collectors.toSet())) {
 				
 				final GenomicSequence gseq = new GenomicSequence(indexedFastaSequenceFile, ctg);
-				for(final GCAndDepth dataRow:items) {
-					final GCPercent gc=gseq.getGCPercent(dataRow.getStart(),dataRow.getEnd());
+				for(final GCAndDepth dataRow: user_items) {
+					if(!dataRow.getContig().equals(ctg)) continue;
+ 					final GCPercent gc=gseq.getGCPercent(dataRow.getStart(),dataRow.getEnd());
 					if(gc.isEmpty()) continue;
 					dataRow.gc = gc.getGCPercent();
 					}
 				}
 			//remove strange gc
-			LOG.info("remove  gc%");
-			for(List<GCAndDepth> items:contig2items.values()) {
-				items.removeIf(B->B.gc < this.minGC);
-				items.removeIf(B->B.gc > this.maxGC);
-				}
+			LOG.info("remove high/low gc%");
+			user_items.removeIf(B->B.gc < this.minGC);
+			user_items.removeIf(B->B.gc > this.maxGC);
+			
 			
 			final CoverageFactory coverageFactory = new CoverageFactory().setMappingQuality(this.mappingQuality);
 			
@@ -366,26 +382,24 @@ public class CopyNumber01 extends Launcher
 								stream().
 								collect(HtsCollectors.toSingleton());
 						
+						final List<GCAndDepth> bam_items = new ArrayList<>(user_items.size());
+
+						
 						/* loop over contigs */
 						for(final SAMSequenceRecord ssr:dict.getSequences()) {
-							if(!contig2items.containsKey(ssr.getSequenceName())) continue;
-							LOG.info(ssr.getSequenceName());
-							final Function<Integer, Long> genomicIndex = START ->
-								{
-								long n= START;
-								for(int i=0;i< ssr.getSequenceIndex();++i) n+=  dict.getSequence(i).getSequenceLength();
-								return n;
-								};
-						
-
 							/* create a **COPY** of the intervals */
-							final List<GCAndDepth> items = new ArrayList<>(contig2items.get(ssr.getContig()));
-							if(items.isEmpty()) continue;
+							final List<GCAndDepth> ctgitems = user_items.
+									stream().
+									filter(T->T.contigsMatch(ssr)).
+									collect(Collectors.toList());
+							if(ctgitems.isEmpty()) continue;
+							LOG.info("Getting coverage for "+ ssr.getSequenceName()+" N="+ctgitems.size());
+
 							
 							// get coverage
-							final CoverageFactory.SimpleCoverage coverage = coverageFactory.getSimpleCoverage(samReader,items, sampleName);
+							final CoverageFactory.SimpleCoverage coverage = coverageFactory.getSimpleCoverage(samReader,ctgitems, sampleName);
 							// fill coverage
-							for(final GCAndDepth gc:items) {
+							for(final GCAndDepth gc:ctgitems) {
 								final OptionalDouble optCov;
 								switch(this.univariateDepth) {
 									case median : optCov =  coverage.getMedian(gc); break;
@@ -396,145 +410,156 @@ public class CopyNumber01 extends Launcher
 								gc.raw_depth = optCov.orElse(-1.0);
 								gc.norm_depth = gc.raw_depth;
 								}
-							items.removeIf(V->V.raw_depth < 0);
-							items.removeIf(V->V.raw_depth > this.weirdMaxDepth);
-							items.removeIf(V->V.raw_depth < this.weirdMinDepth);
-							if(items.isEmpty()) continue;
-							
-							Collections.sort(items,(a,b)->{
-								final int i = Double.compare(a.getX(), b.getX());
-								if(i!=0) return i;
-								return Double.compare(a.getY(), b.getY());
-								});
-						
-						
-							double x[]= items.stream().mapToDouble(R->R.getX()).toArray();
-							double y[]= items.stream().mapToDouble(R->R.getY()).toArray();
-							
-							// get min GC
-							final double min_x=x[0];
-							// get max GC
-							final double max_x=x[x.length-1];
-							
-							/* merge adjacent x (GC%) having same values */
-							int i=0;
-							int k=0;
-							while(i  < x.length)
-								{
-								int j = i+1;
-								while(j< x.length && Double.compare(x[i],x[j])==0)
-									{
-									++j;
-									}
-								x[k] = x[i];
-								y[k] = this.univariateGCLoess.create().evaluate(y, i, j-i);
-								++k;
-								i=j;
-								}
-					
-							/* reduce size of x et y */
-							if(k != x.length)
-								{
-								x = Arrays.copyOf(x, k);
-								y = Arrays.copyOf(y, k);
-								}
-							
-							
-							final UnivariateInterpolator interpolator = createInterpolator();
-							UnivariateFunction  spline = null;
-							try {
-								spline = interpolator.interpolate(x, y);
-								}
-							catch(final org.apache.commons.math3.exception.NumberIsTooSmallException err)
-								{
-								spline=null;
-								LOG.error("Cannot use "+interpolator.getClass().getName()+":"+err.getMessage());
-								}
-							//min depth cal
-							int points_removed=0;
-							i=0;
-							while(i<items.size())
-								{
-								final GCAndDepth r= items.get(i);
-								if(spline==null)
-									{
-									++i;
-									}
-								else if(r.getX()< min_x || r.getX()> max_x)
-									{
-									items.remove(i);
-									++points_removed;
-									}
-								else
-									{
-									final double norm = spline.value(r.getX());
-									if(Double.isNaN(norm) || Double.isInfinite(norm)  )
-										{
-										LOG.info("NAN "+r);
-										items.remove(i);
-										++points_removed;
-										continue;
-										}
-									r.norm_depth = norm;
-									++i;
-									}
-								}
-							if(items.isEmpty()) continue;
-							spline=null;
-							final double min_norm_depth  = items.stream().mapToDouble(G->G.norm_depth).min().orElse(Double.NaN);
-							if(Double.isNaN(min_norm_depth)) continue;
-							LOG.info("min norm depth " + min_norm_depth);
-							//fit to min, fill new y for median calculation
-							for(final GCAndDepth gc:items) {
-								gc.norm_depth -= min_norm_depth;
-								}
-							//normalize on median
-							y= items.stream().mapToDouble(G->G.getY()).toArray();
-
-							final double median_depth =  this.univariateMid.create().evaluate(y, 0, y.length);
-							LOG.info("median norm depth : " + median_depth);
-
-							for(i=0;median_depth>0 && i< items.size();++i)
-								{
-								final GCAndDepth gc = items.get(i);
-								gc.norm_depth /= median_depth;
-								}
-
-							//restore genomic order
-							Collections.sort(items,locComparator);
-							// smoothing values with neighbours
-							y= items.stream().mapToDouble(V->V.getY()).toArray();
-
-							for(i=0;i< items.size();++i)
-								{
-								final GCAndDepth gc = items.get(i);
-								final int left = Math.max(i,i-SMOOTH_WINDOW);
-								final int right = Math.min(y.length-1,i+SMOOTH_WINDOW);
-								gc.norm_depth = this.univariateSmooth.create().evaluate(y, left,(right-left)+1);
-								}
-
-							/* print data */
-							for(final GCAndDepth r:items)
-								{
-								pw.print(ssr.getSequenceName());
-								pw.print('\t');
-								pw.print( r.getStart() - 1);
-								pw.print('\t');
-								pw.print( r.getEnd());
-								pw.print('\t');
-								pw.print( sampleName);
-								pw.print('\t');
-								pw.print(genomicIndex.apply(r.getStart() -1));
-								pw.print('\t');
-								pw.printf("%.3f",r.gc);
-								pw.print('\t');
-								pw.printf("%.3f",r.raw_depth);
-								pw.print('\t');
-								pw.printf("%.3f",r.norm_depth);
-								pw.println();
-								}
-							pw.flush();
+							ctgitems.removeIf(V->V.raw_depth < 0);
+							ctgitems.removeIf(V->V.raw_depth > this.weirdMaxDepth);
+							ctgitems.removeIf(V->V.raw_depth < this.weirdMinDepth);
+							if(ctgitems.isEmpty()) continue;
+							bam_items.addAll(ctgitems);
 							}
+							
+						Collections.sort(bam_items,(a,b)->{
+							final int i = Double.compare(a.getX(), b.getX());
+							if(i!=0) return i;
+							return Double.compare(a.getY(), b.getY());
+							});
+					
+					
+						double x[]= bam_items.stream().filter(R->!isSex(R.getContig())).mapToDouble(R->R.getX()).toArray();
+						double y[]= bam_items.stream().filter(R->!isSex(R.getContig())).mapToDouble(R->R.getY()).toArray();
+						
+						// get min GC
+						final double min_x=x[0];
+						// get max GC
+						final double max_x=x[x.length-1];
+						
+						/* merge adjacent x (GC%) having same values */
+						int i=0;
+						int k=0;
+						while(i  < x.length)
+							{
+							int j = i+1;
+							while(j< x.length && Double.compare(x[i],x[j])==0)
+								{
+								++j;
+								}
+							x[k] = x[i];
+							y[k] = this.univariateGCLoess.create().evaluate(y, i, j-i);
+							++k;
+							i=j;
+							}
+					
+						/* reduce size of x et y */
+						if(k != x.length)
+							{
+							x = Arrays.copyOf(x, k);
+							y = Arrays.copyOf(y, k);
+							}
+						
+						
+						final UnivariateInterpolator interpolator = createInterpolator();
+						UnivariateFunction  spline = null;
+						try {
+							spline = interpolator.interpolate(x, y);
+							}
+						catch(final org.apache.commons.math3.exception.NumberIsTooSmallException err)
+							{
+							spline=null;
+							LOG.error("Cannot use "+interpolator.getClass().getName()+":"+err.getMessage());
+							}
+						//min depth cal
+						int points_removed=0;
+						i=0;
+						while(i<bam_items.size())
+							{
+							final GCAndDepth r= bam_items.get(i);
+							if(spline==null)
+								{
+								++i;
+								}
+							else if(r.getX()< min_x || r.getX()> max_x)
+								{
+								bam_items.remove(i);
+								++points_removed;
+								}
+							else
+								{
+								final double norm = spline.value(r.getX());
+								if(Double.isNaN(norm) || Double.isInfinite(norm)  )
+									{
+									LOG.info("NAN "+r);
+									bam_items.remove(i);
+									++points_removed;
+									continue;
+									}
+								r.norm_depth = norm;
+								++i;
+								}
+							}
+						LOG.info("removed "+points_removed+". now N="+bam_items.size());
+						if(bam_items.isEmpty()) continue;
+						spline=null;
+						// DO NOT NORMALIZE ON MINIMUM DEPTH, STUPID.
+						
+						
+						//normalize on median
+						y= bam_items.stream().mapToDouble(G->G.getY()).toArray();
+
+						final double median_depth =  this.univariateMid.create().evaluate(y, 0, y.length);
+						LOG.info("median norm depth : " + median_depth);
+
+						for(i=0;median_depth>0 && i< bam_items.size();++i)
+							{
+							final GCAndDepth gc = bam_items.get(i);
+							gc.norm_depth /= median_depth;
+							}
+
+						//restore genomic order
+						Collections.sort(bam_items,locComparator);
+						// smoothing values with neighbours
+						y= bam_items.stream().mapToDouble(V->V.getY()).toArray();
+
+						for(i=0;i< bam_items.size();++i)
+							{
+							final GCAndDepth gc = bam_items.get(i);
+							int left=i;
+							for(int j=Math.max(0,i-this.smooth_window);j<=i;++j) {
+								final GCAndDepth gc2 = bam_items.get(j);
+								if(!gc2.contigsMatch(gc)) continue;
+								left=j;
+								break;
+								}
+							int right=i;
+							for(int j=i;j<=i+this.smooth_window && j< bam_items.size();++j) {
+								final GCAndDepth gc2 = bam_items.get(j);
+								if(!gc2.contigsMatch(gc)) break;
+								right=j;
+								// no break;
+								}
+							gc.norm_depth = this.univariateSmooth.create().evaluate(y, left,(right-left)+1);
+							}
+
+						/* print data */
+						for(final GCAndDepth r:bam_items)
+							{
+							pw.print(r.getContig());
+							pw.print('\t');
+							pw.print( r.getStart() - 1);
+							pw.print('\t');
+							pw.print( r.getEnd());
+							pw.print('\t');
+							pw.print( sampleName);
+							pw.print('\t');
+							pw.print(getGenomicIndex(dict,r.getContig(),r.getStart()) -1);
+							pw.print('\t');
+							pw.printf("%.3f",r.gc);
+							pw.print('\t');
+							pw.printf("%.3f",r.raw_depth);
+							pw.print('\t');
+							pw.printf("%.3f",r.norm_depth);
+							pw.println();
+							}
+						pw.flush();
+						
 						
 						}// samReader
 					}//end loop bamPath
