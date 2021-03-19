@@ -159,6 +159,8 @@ public class CopyNumber01 extends Launcher
 	private int windowSize=1_000;
 	@Parameter(names={"-s","--win-shift"},description="window shift. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int windowShift=500;
+	@Parameter(names={"--win-min"},description="Discard window where length on reference is lower than 'x'. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int windowMin=100;
 	
 	@Parameter(names={"--univariateDepth"},description="How to calculate depth in a BAM interval.")
 	private UnivariateStatistic univariateDepth = UnivariateStatistic.mean;
@@ -329,13 +331,11 @@ public class CopyNumber01 extends Launcher
 					{
 					final int pos_end = Math.min(pos + this.windowSize,loc.getEnd());
 					
-					if( (pos_end - pos) < this.windowSize* Double.parseDouble(this.dynaParams.getOrDefault("min.win.fract","0.8"))) {
+					final GCAndDepth dataRow = new GCAndDepth(loc.getContig(),pos,pos_end);
+					if(dataRow.getLengthOnReference() < this.windowMin) {
 						break;
 						}
-					
-					final GCAndDepth dataRow = new GCAndDepth(loc.getContig(),pos,pos_end);
 					user_items.add(dataRow);
-					
 					pos += this.windowShift;
 					}
 				}
@@ -356,9 +356,9 @@ public class CopyNumber01 extends Launcher
 					}
 				}
 			//remove strange gc
-			LOG.info("remove high/low gc%");
 			user_items.removeIf(B->B.gc < this.minGC);
 			user_items.removeIf(B->B.gc > this.maxGC);
+			LOG.info("remove high/low gc% N="+ user_items.size());
 			
 			
 			if(user_items.stream().allMatch(P->isSex(P.getContig()))) {

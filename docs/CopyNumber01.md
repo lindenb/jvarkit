@@ -74,6 +74,11 @@ Usage: copynumber01 [options] Files
       Possible Values: [mean, median]
     --version
       print version and exit
+    --win-min
+      Discard window where length on reference is lower than 'x'. A distance 
+      specified as a positive integer.Commas are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 100
     -s, --win-shift
       window shift. A distance specified as a positive integer.Commas are 
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
