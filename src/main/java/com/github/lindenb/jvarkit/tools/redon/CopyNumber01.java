@@ -52,6 +52,7 @@ import org.apache.commons.math3.exception.MathIllegalArgumentException;
 import org.apache.commons.math3.stat.descriptive.AbstractUnivariateStatistic;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
+import org.apache.commons.math3.util.Precision;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
@@ -218,9 +219,29 @@ public class CopyNumber01 extends Launcher
 		{
 		loess,neville,difference,linear,spline,identity
 		}
+	private static interface XY {
+		public double getX();
+		public double getY();
+	}
+	
+	private static class XYImpl implements XY {
+		private final double x;
+		private final double y;
+		XYImpl(double x,double y) {
+			this.x=x;this.y=y;
+			}
+		@Override public double getX() 	{ return x; }
+		@Override public double getY() { return y; }
+		@Override
+		public String toString()
+			{
+			return "("+x+","+y+")";
+			}
+		}
+	
 	
 	/* fact: Y=depth X=GC% */
-	private static class GCAndDepth extends SimpleInterval
+	private static class GCAndDepth extends SimpleInterval implements XY 
 		{
 		GCAndDepth(final String ctg,int start,int end) {
 			super(ctg,start,end);
@@ -231,9 +252,9 @@ public class CopyNumber01 extends Launcher
 		double gc= -1;
 		
 		/** GC % */
-		double getX() 	{ return gc; }
+		@Override public double getX() 	{ return gc; }
 		/** DEPTH */
-		double getY() { return norm_depth; }
+		@Override public double getY() { return norm_depth; }
 		
 		@Override
 		public String toString() {
@@ -257,7 +278,7 @@ public class CopyNumber01 extends Launcher
 			case identity : return new UnivariateInterpolator()
 					{
 					@Override
-					public UnivariateFunction interpolate(double[] arg0, double[] arg1)
+					public UnivariateFunction interpolate(double[] x, double[] arg1)
 							throws MathIllegalArgumentException, DimensionMismatchException {
 						return new Identity();
 						}
@@ -453,7 +474,7 @@ public class CopyNumber01 extends Launcher
 						while(i  < x.length)
 							{
 							int j = i+1;
-							while(j< x.length && Double.compare(x[i],x[j])==0)
+							while(j< x.length && Precision.equals(x[i],x[j]))
 								{
 								++j;
 								}
@@ -462,14 +483,22 @@ public class CopyNumber01 extends Launcher
 							++k;
 							i=j;
 							}
-					
+						LOG.info("merged n="+(x.length-k)+" items.");
 						/* reduce size of x et y */
-						if(k != x.length)
-							{
-							x = Arrays.copyOf(x, k);
-							y = Arrays.copyOf(y, k);
+						final List<XY> xyL = new ArrayList<>(k);
+						for(int t=0; t<k; ++t) {
+							xyL.add(new XYImpl(x[t], y[t]));
 							}
-						
+						/* sort on Y */
+						Collections.sort(xyL,(a,b)->{
+							final int d = Double.compare(a.getX(), b.getX());
+							if(d!=0) return d;
+							return Double.compare(a.getY(), b.getY());
+							});
+
+						x  = xyL.stream().mapToDouble(R->R.getX()).toArray();
+						y  = xyL.stream().mapToDouble(R->R.getY()).toArray();
+
 						
 						final UnivariateInterpolator interpolator = createInterpolator();
 						UnivariateFunction  spline = null;
@@ -498,7 +527,15 @@ public class CopyNumber01 extends Launcher
 								}
 							else
 								{
-								final double norm = spline.value(r.getY());
+								final double norm;
+								if(this.gcDepthInterpolation.equals(UnivariateInerpolation.identity)) {
+									norm = r.getY();
+									}
+								else
+									{
+									norm = spline.value(r.getX());
+									}
+								
 								if(Double.isNaN(norm) || Double.isInfinite(norm)  )
 									{
 									LOG.info("NAN "+r);
