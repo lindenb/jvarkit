@@ -11,21 +11,25 @@ Soft clip bam files based on PCR target regions
 Usage: pcrclipreads [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
-  * -B, --bed
-      Bed file containing non-overlapping PCR fragments
     -flag, --flag
-      Only run on reads having sam flag (flag). -1 = all reads. (as 
+      Only run on reads having sam flag 'x' (flag). -1 = all reads. (as 
       https://github.com/lindenb/jvarkit/issues/43) 
       Default: -1
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+  * -B, --bed, --region, --interval
+      Regions containing non-overlapping PCR fragments. A source of intervals. 
+      The following suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, 
+      gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
+      or a list of plain interval separated by '[ \t\n;,]'
+      Default: (unspecified)
     -largest, --largest
-      see if a read overlaps two bed intervals use the bed region sharing the 
-      longest sequence with a read. see 
+      check if a read overlaps two bed intervals use the bed region sharing 
+      the longest sequence with a read. see 
       https://github.com/lindenb/jvarkit/issues/44 
       Default: false
     -o, --output
@@ -33,6 +37,9 @@ Usage: pcrclipreads [options] Files
     -pr, --programId
       add a program group PG to the clipped SAM records
       Default: false
+    -R, --reference
+      For CRAM. Indexed fasta Reference file. This file must be indexed with 
+      samtools faidx and with picard CreateSequenceDictionary
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -56,6 +63,7 @@ Usage: pcrclipreads [options] Files
 
  * [https://www.biostars.org/p/147136](https://www.biostars.org/p/147136)
  * [https://www.biostars.org/p/178308](https://www.biostars.org/p/178308)
+ * [https://www.biostars.org/p/498088](https://www.biostars.org/p/498088)
 
 
 ## Compilation

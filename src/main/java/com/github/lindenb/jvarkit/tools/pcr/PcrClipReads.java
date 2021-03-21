@@ -148,10 +148,11 @@ END_DOC
 
 @Program(name="pcrclipreads",
 	description="Soft clip bam files based on PCR target regions",
-	biostars={147136,178308},
+	biostars={147136,178308,498088},
 	keywords={"sam","bam","pcr","bed"},
-	modificationDate="20191007"
-	)
+	modificationDate="20191007",
+	creationDate="20150618"
+        )
 public class PcrClipReads extends Launcher
 	{
 	private static final Logger LOG = Logger.build(PcrClipReads.class).make();

@@ -360,7 +360,7 @@ public class CopyNumber01 extends Launcher
 			user_items.removeIf(B->B.gc > this.maxGC);
 			LOG.info("remove high/low gc% N="+ user_items.size());
 			
-			
+						
 			if(user_items.stream().allMatch(P->isSex(P.getContig()))) {
 				LOG.error("All chromosomes are defined as sexual. Cannot normalize");
 				return -1;
@@ -426,22 +426,27 @@ public class CopyNumber01 extends Launcher
 							if(ctgitems.isEmpty()) continue;
 							bam_items.addAll(ctgitems);
 							}
-							
+						
+						double y[] = bam_items.stream().filter(R->!isSex(R.getContig())).mapToDouble(R->R.raw_depth).toArray(); 
+						LOG.info("median raw depth "+ new Median().evaluate(y,0,y.length));
+						
+
 						Collections.sort(bam_items,(a,b)->{
 							final int i = Double.compare(a.getX(), b.getX());
 							if(i!=0) return i;
 							return Double.compare(a.getY(), b.getY());
 							});
 					
+						
 					
-						double x[]= bam_items.stream().filter(R->!isSex(R.getContig())).mapToDouble(R->R.getX()).toArray();
-						double y[]= bam_items.stream().filter(R->!isSex(R.getContig())).mapToDouble(R->R.getY()).toArray();
+						double x[] = bam_items.stream().filter(R->!isSex(R.getContig())).mapToDouble(R->R.getX()).toArray();
+						       y   = bam_items.stream().filter(R->!isSex(R.getContig())).mapToDouble(R->R.getY()).toArray();
 						
 						// get min GC
 						final double min_x=x[0];
 						// get max GC
 						final double max_x=x[x.length-1];
-						
+						LOG.info("min/max gc "+ min_x+" "+ max_x);
 						/* merge adjacent x (GC%) having same values */
 						int i=0;
 						int k=0;
@@ -493,7 +498,7 @@ public class CopyNumber01 extends Launcher
 								}
 							else
 								{
-								final double norm = spline.value(r.getX());
+								final double norm = spline.value(r.getY());
 								if(Double.isNaN(norm) || Double.isInfinite(norm)  )
 									{
 									LOG.info("NAN "+r);
