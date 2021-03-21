@@ -166,7 +166,8 @@ END_DOC
 description="Print Sashimi plots from Bam",
 keywords={"bam","visualization","svg","rna","exon","rnaseq"},
 modificationDate="20191104",
-creationDate="20191117"
+creationDate="20191117",
+biostars=497894
 )
 public class PlotSashimi extends Launcher {
 private static final Logger LOG = Logger.build(PlotSashimi.class).make();
