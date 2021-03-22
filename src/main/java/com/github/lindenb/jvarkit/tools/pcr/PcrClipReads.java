@@ -28,42 +28,25 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.pcr;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 
 /**
@@ -150,19 +133,14 @@ END_DOC
 	description="Soft clip bam files based on PCR target regions",
 	biostars={147136,178308,498088},
 	keywords={"sam","bam","pcr","bed"},
-	modificationDate="20191007",
+	modificationDate="20210322",
 	creationDate="20150618"
-        )
-public class PcrClipReads extends Launcher
-	{
+    )
+public class PcrClipReads extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(PcrClipReads.class).make();
 
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-
-
-	@Parameter(names={"-B","--bed","--region","--interval"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
+	@Parameter(names={"-B","--bed","--pcr"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 
 	@Parameter(names={"-flag","--flag"},description="Only run on reads having sam flag 'x' (flag). -1 = all reads. (as https://github.com/lindenb/jvarkit/issues/43)")
@@ -173,23 +151,23 @@ public class PcrClipReads extends Launcher
 
 	@Parameter(names={"-pr","--programId"},description="add a program group PG to the clipped SAM records")
 	private boolean programId = false;
-
-	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private Path faidx = null;
-	
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
 	private final IntervalTreeMap<Interval> bedIntervals=new IntervalTreeMap<Interval>();
+	private SAMProgramRecord samProgramRecord=null;
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
 	
 	private Interval findInterval(final SAMRecord rec)
 		{
 		if(rec.getReadUnmappedFlag()) return null;
-		return findInterval(rec.getContig(), rec.getAlignmentStart(), rec.getAlignmentEnd());
+		return findInterval(new Interval(rec));
 		}
-	private Interval findInterval(final String chrom,final int start,final int end)
+	private Interval findInterval(final Interval i)
 		{
-		final Interval i= new Interval(chrom,start,end);
 		final List<Interval> L= new ArrayList<>(this.bedIntervals.getOverlapping(i));
 		if(L.isEmpty()) return null;
 		if(L.size()==1) return L.get(0);
@@ -214,142 +192,89 @@ public class PcrClipReads extends Launcher
 			}
 		}
 	
-	
-	private int run(final SamReader reader)
-		{
-		final SAMFileHeader header1= reader.getFileHeader();
-		final SAMFileHeader header2 = header1.clone();
-		Optional<SAMProgramRecord> samProgramRecord = Optional.empty();
-		if(this.programId) {
-			final SAMProgramRecord spr = header2.createProgramRecord();
-			samProgramRecord = Optional.of(spr);
-			spr.setProgramName(PcrClipReads.class.getSimpleName());
-			spr.setProgramVersion(this.getGitHash());
-			spr.setCommandLine(getProgramCommandLine().replace('\t', ' '));
-			}
-		JVarkitVersion.getInstance().addMetaData(this, header2);
-		header2.setSortOrder(SortOrder.unsorted);
-		SAMFileWriter sw=null;
-		SAMRecordIterator iter = null;
-		try
-			{
-			sw = this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(this.outputFile,header2, false);
-			
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(header1).logger(LOG).build();
-			iter =  reader.iterator();
-			while(iter.hasNext())
-				{
-				SAMRecord rec= progress.apply(iter.next());
-				
-				if(this.onlyFlag!=-1 &&  (rec.getFlags() & this.onlyFlag) != 0) {
-					sw.addAlignment(rec);
-					continue;
-				}
-				
-				if(rec.getReadUnmappedFlag())
-					{
-					sw.addAlignment(rec);
-					continue;
-					}
-				final Interval fragment = findInterval(rec);
-				if(fragment==null)
-					{
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				// strand is '-' and overap in 5' of PCR fragment
-				if( rec.getReadNegativeStrandFlag() &&
-					fragment.getStart()< rec.getAlignmentStart() &&
-					rec.getAlignmentStart()< fragment.getEnd())
-					{
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				// strand is '+' and overap in 3' of PCR fragment
-				//    REC     >>>>>>>
-				//    FRAG       xxxxxxxxx
-				if( !rec.getReadNegativeStrandFlag() &&
-					fragment.getStart()< rec.getAlignmentEnd() &&
-					rec.getAlignmentEnd()< fragment.getEnd())
-					{
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				
-				// contained int PCR fragment
-				if(rec.getAlignmentStart()>= fragment.getStart() && rec.getAlignmentEnd()<=fragment.getEnd())
-					{
-					sw.addAlignment(rec);
-					continue;
-					}
-				final ReadClipper readClipper = new ReadClipper();
-				if(samProgramRecord.isPresent()) {
-					readClipper.setProgramGroup(samProgramRecord.get().getId());
-				}
-				rec = readClipper.clip(rec, fragment);
-				sw.addAlignment(rec);
-				}
-			progress.close();
-			return 0;
-			}
-		catch(final Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(iter);
-			CloserUtil.close(sw);
-			}
-		}
 	@Override
-	public int doWork(final List<String> args) {
-		
-		BufferedReader r=null;
-		SamReader samReader=null;
-		try {
-			final SamReaderFactory srf = super.createSamReaderFactory();
-			if(this.faidx!=null) srf.referenceSequence(this.faidx);
-			
-			final String inputName = oneFileOrNull(args);
-			if(inputName==null) {
-				samReader = srf.open(SamInputResource.of(stdin()));
-				}
-			else
-				{
-				samReader = srf.open(SamInputResource.of(inputName));
-				}
-			
-			final SAMFileHeader header = samReader.getFileHeader();
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-			
-			this.intervalListProvider.
-				dictionary(dict).
-				stream().
-				map(R->new Interval(R)).
-				forEach(R->
-				{
-				this.bedIntervals.put(R,R);
-				});
-			
-			return run(samReader);
-			}
-		catch (final Throwable err) {
-			LOG.error(err);
-			return -1;
-			}
-		finally
+	protected SAMFileHeader createOutputHeader(SAMFileHeader headerIn) {
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(headerIn);
+		this.intervalListProvider.
+			dictionary(dict).
+			stream().
+			map(R->new Interval(R)).
+			forEach(R->
 			{
-			CloserUtil.close(r);
-			CloserUtil.close(samReader);
-			this.bedIntervals.clear();;
-			}
-		}
+			this.bedIntervals.put(R,R);
+			});
+		
+		final SAMFileHeader header2 = super.createOutputHeader(headerIn);
+	
 
+		if(this.programId) {
+			this.samProgramRecord = super.createProgramRecord(header2);
+			}
+		header2.setSortOrder(SortOrder.unsorted);
+		return header2;
+		}
+	
+	@Override
+	protected void scanIterator(final SAMFileHeader headerIn, CloseableIterator<SAMRecord> iter, SAMFileWriter sw) {
+		while(iter.hasNext())
+			{
+			SAMRecord rec= iter.next();
+			
+			if(this.onlyFlag!=-1 &&  (rec.getFlags() & this.onlyFlag) != 0) {
+				sw.addAlignment(rec);
+				continue;
+				}
+			
+			if(rec.getReadUnmappedFlag())
+				{
+				sw.addAlignment(rec);
+				continue;
+				}
+			final Interval fragment = this.findInterval(rec);
+			if(fragment==null)
+				{
+				rec.setMappingQuality(0);
+				sw.addAlignment(rec);
+				continue;
+				}
+			// strand is '-' and overap in 5' of PCR fragment
+			if( rec.getReadNegativeStrandFlag() &&
+				fragment.getStart()< rec.getAlignmentStart() &&
+				rec.getAlignmentStart()< fragment.getEnd())
+				{
+				rec.setMappingQuality(0);
+				sw.addAlignment(rec);
+				continue;
+				}
+			// strand is '+' and overap in 3' of PCR fragment
+			//    REC     >>>>>>>
+			//    FRAG       xxxxxxxxx
+			if( !rec.getReadNegativeStrandFlag() &&
+				fragment.getStart()< rec.getAlignmentEnd() &&
+				rec.getAlignmentEnd()< fragment.getEnd())
+				{
+				rec.setMappingQuality(0);
+				sw.addAlignment(rec);
+				continue;
+				}
+			
+			// contained int PCR fragment
+			if(rec.getAlignmentStart()>= fragment.getStart() && rec.getAlignmentEnd()<=fragment.getEnd())
+				{
+				sw.addAlignment(rec);
+				continue;
+				}
+			final ReadClipper readClipper = new ReadClipper();
+			if(this.samProgramRecord!=null) {
+				readClipper.setProgramGroup(this.samProgramRecord.getId());
+				}
+			rec = readClipper.clip(rec, fragment);
+			sw.addAlignment(rec);
+			}// end while
+		}	
+		
+	
+	
 	
 	public static void main(final String[] args) {
 		new PcrClipReads().instanceMainWithExit(args);

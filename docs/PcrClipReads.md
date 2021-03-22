@@ -13,6 +13,12 @@ Usage: pcrclipreads [options] Files
     --bamcompression
       Compression Level. 0: no compression. 9: max compression;
       Default: 5
+  * -B, --bed, --pcr
+      Regions containing non-overlapping PCR fragments. A source of intervals. 
+      The following suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, 
+      gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
+      or a list of plain interval separated by '[ \t\n;,]'
+      Default: (unspecified)
     -flag, --flag
       Only run on reads having sam flag 'x' (flag). -1 = all reads. (as 
       https://github.com/lindenb/jvarkit/issues/43) 
@@ -21,29 +27,32 @@ Usage: pcrclipreads [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-  * -B, --bed, --region, --interval
-      Regions containing non-overlapping PCR fragments. A source of intervals. 
-      The following suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, 
-      gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
-      or a list of plain interval separated by '[ \t\n;,]'
-      Default: (unspecified)
     -largest, --largest
       check if a read overlaps two bed intervals use the bed region sharing 
       the longest sequence with a read. see 
       https://github.com/lindenb/jvarkit/issues/44 
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -pr, --programId
       add a program group PG to the clipped SAM records
       Default: false
     -R, --reference
-      For CRAM. Indexed fasta Reference file. This file must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -82,6 +91,11 @@ $ ./gradlew pcrclipreads
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20150618
 
 ## Source code 
 

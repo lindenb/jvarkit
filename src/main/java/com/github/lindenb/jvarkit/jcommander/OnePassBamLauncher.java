@@ -39,6 +39,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.util.AbstractProgressLogger;
 import htsjdk.samtools.util.CloseableIterator;
@@ -84,6 +85,8 @@ protected int validateInputsPath(final List<String> inputs) {
 	return 0;
 	}
 
+
+
 /** create SAM output header */
 protected SAMFileHeader createOutputHeader(final SAMFileHeader headerIn) {
 	final SAMFileHeader headerOut = headerIn.clone();
@@ -107,6 +110,15 @@ protected SAMFileWriter openSamFileWriter(final SAMFileHeader headerIn) {
 protected Function<SAMRecord,List<SAMRecord>> createSAMRecordFunction() {
 	return R->Collections.singletonList(R);
 }
+
+/** create a new program SAM record in the header */
+protected SAMProgramRecord createProgramRecord(final SAMFileHeader header2) {
+	final SAMProgramRecord samProgramRecord = header2.createProgramRecord();
+	samProgramRecord.setProgramName(this.getProgramName());
+	samProgramRecord.setProgramVersion(this.getGitHash());
+	samProgramRecord.setCommandLine(getProgramCommandLine().replace('\t', ' '));
+	return samProgramRecord;
+	}
 
 
 /** create a progress logger for the BAM writer. Result may be null */

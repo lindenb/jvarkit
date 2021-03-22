@@ -25,13 +25,20 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.pcr;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -43,25 +50,10 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMProgramRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordFactory;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
-import com.github.lindenb.jvarkit.stream.HtsCollectors;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 
 /**
@@ -136,26 +128,20 @@ END_DOC
 @Program(name="bamslicebed",
 	description="For @wouter_decoster : slice (long reads) overlapping the records of a BED file",
 	keywords={"sam","bam","bed"},
-	modificationDate="20191030"
+	creationDate="20191030",
+	modificationDate="20210322"
 	)
-public class BamSliceBed extends Launcher
-	{
+public class BamSliceBed extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(BamSliceBed.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-	@Parameter(names={"-B","--bed","--region","--interval"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
+	@Parameter(names={"-B","--bed","--pcr"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
-	@Parameter(names={"-R","--reference"},description="For Reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private Path faidx = null;
-	@Parameter(names={"--bai"},description="Use bam index to only scan the regions overlaping the user's intervals.")
-	private boolean use_bai = false;
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
 	private static final byte NO_BASE = '\0';
 	private static final char NO_QUAL = '\0';
-	
+	private SAMProgramRecord spr = null;
+	private final IntervalTreeMap<Interval> bedIntervals = new IntervalTreeMap<>();
+
 	private static class Base
 		{
 		byte readbase=NO_BASE;
@@ -165,77 +151,37 @@ public class BamSliceBed extends Launcher
 		CigarOperator cigaroperator = null;
 		}
 
-	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}	
 	
 	@Override
-	public int doWork(final List<String> args) {
+	protected SAMFileHeader createOutputHeader(SAMFileHeader headerIn) {
+		SAMFileHeader header2 =  super.createOutputHeader(headerIn);
 		
-		SamReader samReader=null;
-		SAMFileWriter sw=null;
-		SAMRecordIterator iter = null;
-		try {
-			final SamReaderFactory srf = super.createSamReaderFactory();
-			if(this.faidx!=null) srf.referenceSequence(this.faidx);
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(headerIn);
+		
 
-			final String inputName = oneFileOrNull(args);
-			if(inputName==null) {
-				samReader = srf.open(SamInputResource.of(stdin()));
-				}
-			else
-				{
-				samReader = srf.open(SamInputResource.of(inputName));
-				}
-			final SAMFileHeader header = samReader.getFileHeader();
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+		this.intervalListProvider.
+			dictionary(dict).
+			skipUnknownContigs().
+			stream().
+			map(R->new Interval(R)).
+			forEach(R->bedIntervals.put(R,R));
 			
-			final IntervalTreeMap<Interval> bedIntervals = new IntervalTreeMap<>();
-
-			this.intervalListProvider.
-				dictionary(dict).
-				skipUnknownContigs().
-				stream().
-				map(R->new Interval(R)).
-				forEach(R->bedIntervals.put(R,R));
-				
-			
-			
-			final SAMFileHeader header2 = header.clone();
-			
-			header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
-			header2.setSortOrder(SortOrder.unsorted);
-			
-			final SAMProgramRecord spr = header2.createProgramRecord();
-			spr.setProgramName(BamSliceBed.class.getSimpleName());
-			spr.setProgramVersion(this.getGitHash());
-			spr.setCommandLine(getProgramCommandLine().replace('\t', ' '));
-			
-			
-			sw = this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(outputFile,header2, false);
+		header2.setSortOrder(SortOrder.unsorted);
+		
+		this.spr = super.createProgramRecord(header2);
+		return header2;
+		}
+	
+	@Override
+	protected void scanIterator(final SAMFileHeader headerIn,final CloseableIterator<SAMRecord> iter,final SAMFileWriter sfw) {
 			final SAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
-							newInstance().
-							dictionary(dict).
-							logger(LOG).
-							build();
-			
-			if(this.use_bai && inputName!=null && samReader.hasIndex()) {
-				iter = samReader.queryOverlapping(
-					bedIntervals.
-						values().
-						stream().
-						map(R->SequenceDictionaryUtils.toQueryInterval(dict, R).get()).
-						collect(HtsCollectors.optimizedQueryIntervals())
-					);
-				}
-			else
-				{
-				iter =  samReader.iterator();
-				}
-			
-			
 			while(iter.hasNext())
 				{
-				final SAMRecord rec= progress.apply(iter.next());
+				final SAMRecord rec=  iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				final Cigar cigar = rec.getCigar();
 				if(cigar==null || cigar.isEmpty()) continue;
@@ -338,8 +284,6 @@ public class BamSliceBed extends Launcher
 						default: throw new IllegalStateException();
 						}
 					}
-			
-
 				
 				
 				for(final Interval bed: beds) {
@@ -367,7 +311,7 @@ public class BamSliceBed extends Launcher
 					if(copy.stream().noneMatch(P->P.cigaroperator.isAlignment())) continue;
 					if(copy.isEmpty()) continue;
 					int nrefpos = copy.stream().filter(B->B.refpos!=-1).mapToInt(B->B.refpos).findFirst().orElse(-1);
-					final SAMRecord newrec = samRecordFactory.createSAMRecord(header2);
+					final SAMRecord newrec = samRecordFactory.createSAMRecord(sfw.getFileHeader());
 					newrec.setReadName(rec.getReadName()+"#"+bed.getContig()+":"+bed.getStart()+":"+bed.getEnd());
 					newrec.setMappingQuality(SAMRecord.UNKNOWN_MAPPING_QUALITY);
 					newrec.setAlignmentStart(nrefpos);
@@ -397,30 +341,12 @@ public class BamSliceBed extends Launcher
 						newrec.setAttribute("RG", rec.getAttribute("RG"));
 					}
 					
-					newrec.setAttribute("PG",spr.getId());
+					newrec.setAttribute("PG",this.spr.getId());
 					
-					sw.addAlignment(newrec);
-					}
-				
-			
-				}
-			sw.close();
-			sw=null;
-			samReader.close();
-			samReader=null;
-			progress.close();
-			return 0;
+					sfw.addAlignment(newrec);
+					} //end for interval
+				}//end while
 			}
-		catch (final Exception err) {
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(samReader);
-			}
-		}
-
 	
 	public static void main(final String[] args) {
 		new BamSliceBed().instanceMainWithExit(args);

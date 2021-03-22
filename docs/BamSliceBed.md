@@ -10,31 +10,37 @@ For @wouter_decoster : slice (long reads) overlapping the records of a BED file
 ```
 Usage: bamslicebed [options] Files
   Options:
-    --bai
-      Use bam index to only scan the regions overlaping the user's intervals.
-      Default: false
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
-    -h, --help
-      print help and exit
-    --helpFormat
-      What kind of help. One of [usage,markdown,xml].
-  * -B, --bed, --region, --interval
+  * -B, --bed, --pcr
       Regions containing non-overlapping PCR fragments. A source of intervals. 
       The following suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, 
       gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
       or a list of plain interval separated by '[ \t\n;,]'
       Default: (unspecified)
-    -o, --output
+    -h, --help
+      print help and exit
+    --helpFormat
+      What kind of help. One of [usage,markdown,xml].
+    -o, --out
       Output file. Optional . Default: stdout
     -R, --reference
-      For Reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -64,6 +70,11 @@ $ ./gradlew bamslicebed
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20191030
 
 ## Source code 
 
