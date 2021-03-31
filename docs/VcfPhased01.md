@@ -48,6 +48,12 @@ Usage: vcfphased01 [options] Files
  * svg
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9462569](https://www.biostars.org/p/9462569)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

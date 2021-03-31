@@ -106,7 +106,8 @@ END_DOC
 description="X10 Phased SVG to Scalar Vector Graphics (SVG)",
 keywords={"x10","phased","genotypes","svg"},
 creationDate="20190710",
-modificationDate="20190711"
+modificationDate="20190711",
+biostars=9462569
 )
 public class VcfPhased01 extends Launcher {
 	private static final Logger LOG=Logger.build(VcfPhased01.class).make();
