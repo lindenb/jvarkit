@@ -229,6 +229,11 @@ public class WritingBamArgs
 		return sfw;
 		}
 	
+	public WritingBamArgs setSamOutputFormat(WritingSamReaderType samoutputformat) {
+		this.samoutputformat = samoutputformat;
+		return this;
+		}
+	
 	@Deprecated
 	public WritingBamArgs setReferenceFile(final File referenceFile) {
 		this.referenceFile = (referenceFile==null?null:referenceFile.toPath());
@@ -258,6 +263,15 @@ public class WritingBamArgs
 		return this.referenceFile;
 		}
 	
+	/** get File extension for creating output file , including the dot */
+	public String getFileExtension() {
+			if(this.samoutputformat==null) return ".sam";
+			switch(this.samoutputformat) {
+				case BAM: return ".bam";
+				case CRAM: return ".cram";
+				default: return ".sam";
+			}
+		}
 	
 	public SAMFileWriter openSamWriter(final Path outputFileOrNull,SAMFileHeader header,boolean presorted) {
 		final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
