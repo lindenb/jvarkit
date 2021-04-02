@@ -11,14 +11,22 @@ Split Bam By tile
 Usage: splitbytile [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
+    --force
+      overwrite existing files
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -M, --manifest
+      Manifest file describing the generated files. Optional
   * -o, --output
-      Output file. Must contain __TILE__
+      (prefix) output directory
+    --prefix
+      Output file prefix
+      Default: split
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
@@ -29,7 +37,7 @@ Usage: splitbytile [options] Files
       plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
-      Default: SAM
+      Default: BAM
       Possible Values: [BAM, SAM, CRAM]
     --validation-stringency
       SAM Reader Validation Stringency

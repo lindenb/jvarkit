@@ -11,30 +11,58 @@ Split a BAM by chromosome group
 Usage: splitbam3 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
+    --force
+      overwrite existing files
+      Default: false
     -g, --groupfile
       Chromosome group file. Interval are 1 based
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -m, --mock
-      add mock record if no samRecord saved in bam
+    -M, --manifest
+      Manifest file describing the generated files. Optional
+    --others
+      save reads that don't belong to a group into an extra group
       Default: false
-    -o, --output
-      Output file. Optional . Default: stdout
+  * -o, --output
+      (prefix) output directory
+    --prefix
+      Output file prefix
+      Default: split
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
-      Default: SAM
+      Default: BAM
       Possible Values: [BAM, SAM, CRAM]
-    -u, --unmapped
-      unmapped chromosome name
-      Default: Unmapped
+    --unmapped
+      save unmapped reads into an extra group
+      Default: false
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+ * split
+
 
 ## Compilation
 
@@ -52,6 +80,11 @@ $ ./gradlew splitbam3
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20150317
 
 ## Source code 
 
@@ -82,9 +115,6 @@ The current reference is:
 
 Split a BAM by chromosome group. Create EMPTY bams if no reads was found for a given group.
 ![img](https://chart.googleapis.com/chart?chl=+digraph+G+%7B%0D%0ABWA+-%3E+SPLITBAM%5Blabel%3D%22stdout%22%5D%3B%0D%0A+++SPLITBAM-%3ECHR1_bam%3B%0D%0A+++SPLITBAM-%3ECHR2_bam%3B%0D%0A+++SPLITBAM-%3ECHR3_bam%3B+%0D%0A+++CHR1_bam+-%3E+CHR1_vcf%3B%0D%0A+++CHR2_bam+-%3E+CHR2_vcf%3B%0D%0A+++CHR3_bam+-%3E+CHR3_vcf%3B%0D%0A+++CHR1_vcf+-%3E+merged_vcf%3B%0D%0A+++CHR2_vcf+-%3E+merged_vcf%3B%0D%0A+++CHR3_vcf+-%3E+merged_vcf%3B%0D%0A+%7D%0D%0A++++++++&cht=gv)
-
-file output MUST contain the word '__GROUPID__'
-
 
 
 ### Example

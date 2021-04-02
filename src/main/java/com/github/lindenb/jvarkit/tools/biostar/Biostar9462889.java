@@ -28,29 +28,18 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.PrintWriter;
-import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Collections;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.jcommander.AbstractBamSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.IOUtil;
 
 
 /**
@@ -103,24 +92,16 @@ END_DOC
 	modificationDate="20210402",
 	biostars=9462889
 	)
-public class Biostar9462889 extends MultiBamLauncher
+public class Biostar9462889 extends AbstractBamSplitter<Biostar9462889.Tokens>
 	{
 	private static final Logger LOG = Logger.build(Biostar9462889.class).make();
 
-	@Parameter(names= {"-o","--output"},description="(prefix) output directory",required=true)
-	private Path outputDir=null;
-	@Parameter(names= {"-M","--manifest"},description="Manifest file. Optional")
-	private Path manifestFile=null;
 	@Parameter(names= {"--regex","-regex"},description="Regular expression that can be used to parse read names in the incoming SAM file. Regex groups are used to classify the reads.",required=true)
 	private String regexStr="";
-	@Parameter(names= {"--prefix"},description="Output file prefix")
-	private String prefix="split";
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs=new WritingBamArgs().setSamOutputFormat(WritingSamReaderType.BAM);
 	
 	private Pattern compiledRegex = null;
 	
-	private static class Tokens {
+	static class Tokens {
 		final String[] tokens;
 		Tokens(final Matcher matcher) {
 			this.tokens = new String[matcher.groupCount()];
@@ -149,68 +130,24 @@ public class Biostar9462889 extends MultiBamLauncher
 	
 	@Override
 	protected int beforeSam() {
-		IOUtil.assertDirectoryIsWritable(this.outputDir);
 		try {
 			this.compiledRegex = Pattern.compile(this.regexStr);
-			}
-		catch(final Throwable err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		return super.beforeSam();
-		}
-	@Override
-	protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter) {
-		this.writingBamArgs.setReferencePath(super.faidxPath);
-		final Map<Tokens,SAMFileWriter> tag2sw = new HashMap<>();
-		try(PrintWriter mOut = this.manifestFile==null?new PrintWriter(new NullOuputStream()):IOUtils.openPathForPrintWriter(this.manifestFile))
-			{
-			long n_lost=0L;
-			while(iter.hasNext()) {
-				final SAMRecord rec = iter.next();
-				final String rn = rec.getReadName();
-				final Matcher matcher = this.compiledRegex.matcher(rn);
-				if(!matcher.find()) {
-					n_lost++;
-					continue;
-					}
-				
-				if(matcher.groupCount()==0) {
-					n_lost++;
-					continue;
-					}
-				
-				
-				final Tokens id = new Tokens(matcher);
-				SAMFileWriter sfw = tag2sw.get(id);
-				if(sfw==null) {
-					LOG.info("Creating output for \""+id+"\" N="+(tag2sw.size()+1));
-					final Path path = this.outputDir.resolve(this.prefix+String.format(".%06d",(tag2sw.size()+1))+this.writingBamArgs.getFileExtension());
-					final SAMFileHeader h2 = header.clone();
-					h2.addComment(getProgramName()+" : " + id.toString());
-					JVarkitVersion.getInstance().addMetaData(this, h2);
-					sfw = this.writingBamArgs.openSamWriter(path, h2, true);
-					mOut.println(id.toString()+"\t"+path);
-					tag2sw.put(id, sfw);
-					}
-				sfw.addAlignment(rec);
-				}
-			LOG.warn(StringUtils.niceInt(n_lost)+" read(s) where lost because the regex '"+ this.compiledRegex.pattern()+"' failed.");
-			mOut.flush();
-			return 0;
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
-		finally {
-			for(SAMFileWriter sw:tag2sw.values()) {
-				sw.close();
-				}
-			}
+		return super.beforeSam();
 		}
-
+	
+	@Override
+	protected Set<Tokens> createKeys(final SAMRecord rec) {
+		final String rn = rec.getReadName();
+		final Matcher matcher = this.compiledRegex.matcher(rn);
+		if(!matcher.find() || matcher.groupCount()==0) return Collections.emptySet();
+		return Collections.singleton(new Tokens(matcher));
+		}
+	
 	public static void main(final String[] args) {
 		new Biostar9462889().instanceMainWithExit(args);
 	}
