@@ -128,6 +128,13 @@ The current reference is:
 
 
 
+## See also
+
+* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+
+
+## Motivation
+
 
  Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/
 

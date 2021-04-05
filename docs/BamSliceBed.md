@@ -106,6 +106,12 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+
+## See also
+
+* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+
+
 ## Input/Output
 
 input is a bam

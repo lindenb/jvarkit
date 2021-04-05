@@ -11,7 +11,7 @@ Mark PCR reads to their PCR amplicon
 Usage: pcrslicereads [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -B, --bed
       bed file containing non-overlapping PCR fragments. Column name is 
@@ -24,7 +24,7 @@ Usage: pcrslicereads [options] Files
       Output file. Optional . Default: stdout
     --random
        random seed
-      Default: java.util.Random@759ebb3d
+      Default: java.util.Random@1764bce
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -99,6 +99,10 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## See also
+
+* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
 
 ## Motivation
 

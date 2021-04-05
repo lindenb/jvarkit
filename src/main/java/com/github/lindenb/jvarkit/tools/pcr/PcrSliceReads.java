@@ -59,6 +59,10 @@ import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 /**
 BEGIN_DOC
 
+## See also
+
+* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+
 ## Motivation
 
 Mark PCR reads to their PCR amplicon https://www.biostars.org/p/149687/

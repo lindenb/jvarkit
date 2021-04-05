@@ -21,10 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.pcr;
 
@@ -53,6 +49,13 @@ import htsjdk.samtools.util.IntervalTreeMap;
 
 BEGIN_DOC
 
+
+## See also
+
+* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+
+
+## Motivation
 
 
  Soft clip BAM files based on PCR target regions https://www.biostars.org/p/147136/
