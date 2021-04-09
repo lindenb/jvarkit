@@ -11,7 +11,7 @@ Filters a BAM using a java expression compiled in memory.
 Usage: samjdk [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     --body
       user's code is the whole body of the filter class, not just the 'apply' 
@@ -99,6 +99,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/427976](https://www.biostars.org/p/427976)
  * [https://www.biostars.org/p/424431](https://www.biostars.org/p/424431)
  * [https://www.biostars.org/p/450160](https://www.biostars.org/p/450160)
+ * [https://www.biostars.org/p/9464312](https://www.biostars.org/p/9464312)
 
 
 ## Compilation
