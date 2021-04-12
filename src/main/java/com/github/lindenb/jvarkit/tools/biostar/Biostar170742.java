@@ -25,23 +25,21 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamReader;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 
 /**
@@ -78,47 +76,38 @@ END_DOC
 @Program(name="biostar170742",
 description="convert sam format to axt Format",
 biostars=170742,
-modificationDate="20190926",
+modificationDate="20210412",
+creationDate="20151228",
 keywords={"sam","axt"})
-public class Biostar170742 extends Launcher
-	{
+public class Biostar170742 extends MultiBamLauncher {
 
 	private static final Logger LOG = Logger.build(Biostar170742.class).make();
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private Path faidx = null;
 
-	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
 	@Override
-	public int doWork(final List<String> args) {
-		if(this.faidx==null)
-			{
-			LOG.error("Reference sequence was not defined");
-			return -1;
-			}
+	protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter) {
 		PrintStream out=null;
-		SamReader sfr=null;
-		SAMRecordIterator iter=null;
 		GenomicSequence genomicSequence = null;
 		ReferenceSequenceFile indexedFastaSequenceFile= null;
 		try
 			{
-			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
+			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(getRequiredReferencePath());
 			long align_id=0;
-			sfr = openSamReader(oneFileOrNull(args));
-			out =  super.openPathOrStdoutAsPrintStream(this.outputFile);
 			final StringBuilder refseq = new StringBuilder();
 			final StringBuilder readseq = new StringBuilder();
+			out =  super.openPathOrStdoutAsPrintStream(this.outputFile);
 			
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(sfr.getFileHeader());
-			iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				final SAMRecord rec= progress.watch(iter.next());
+				final SAMRecord rec= iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				final Cigar cigar = rec.getCigar();
 				if(cigar==null) continue;
@@ -208,21 +197,17 @@ public class Biostar170742 extends Launcher
 				
 				++align_id;
 				}
-			progress.finish();
-			iter.close();
 			out.flush();
 			return 0;
 			}
 		catch(final Throwable err)
 			{
-			LOG.error(err);
+			getLogger().error(err);
 			return -1;
 			}
 		finally
 			{
 			CloserUtil.close(out);
-			CloserUtil.close(iter);
-			CloserUtil.close(sfr);
 			CloserUtil.close(indexedFastaSequenceFile);
 			}
 		}

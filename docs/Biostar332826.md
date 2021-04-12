@@ -35,7 +35,7 @@ Usage: biostar332826 [options] Files
     --inverse
       Inverse: don't print the variants containing the IDS.
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     --version
       print version and exit
@@ -50,6 +50,7 @@ Usage: biostar332826 [options] Files
 
  * vcf
  * rs
+ * id
 
 
 

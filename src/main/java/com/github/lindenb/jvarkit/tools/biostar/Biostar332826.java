@@ -28,18 +28,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -65,33 +62,31 @@ import htsjdk.variant.vcf.VCFIterator;
  */
 @Program(name="biostar332826",
 description="Fast Extraction of Variants from a list of IDs",
-keywords= {"vcf","rs"},
-modificationDate="20200417",
+keywords= {"vcf","rs","id"},
+modificationDate="20210412",
 creationDate="20180817",
 biostars={332826,433062}
 )
-public class Biostar332826 extends Launcher {
-private static final Logger LOG = Logger.build(Biostar332826.class).make();
-
-@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-private Path outputFile = null;
-@Parameter(names={"-r","-i","--ids"},description="A list of identifiers, one per line")
-private Path rsFile = null;
-@Parameter(names={"-R","-I"},description="A semicolon/comma/space separated list of identifiers")
-private String rsStr = "";
-@Parameter(names={"-d","--delete"},description="When found , remove the ID from the list of identifiers unless it's a '.'. Should be faster but don't use it if two variants have the same ID.")
-private boolean removeIfFound=false;
-@Parameter(names={"--inverse"},description="Inverse: don't print the variants containing the IDS.")
-private boolean filterOutVariantsInSet =false;
-@Parameter(names={"-f","--filter"},description="if not blank soft filter the variants that are NOT in the list. "
-		+ "If '--inverse' is specified then soft-filter the variants IN the list.")
-private String filterName = null;
+public class Biostar332826 extends OnePassVcfLauncher {
+	private static final Logger LOG = Logger.build(Biostar332826.class).make();
+	
+	@Parameter(names={"-r","-i","--ids"},description="A list of identifiers, one per line")
+	private Path rsFile = null;
+	@Parameter(names={"-R","-I"},description="A semicolon/comma/space separated list of identifiers")
+	private String rsStr = "";
+	@Parameter(names={"-d","--delete"},description="When found , remove the ID from the list of identifiers unless it's a '.'. Should be faster but don't use it if two variants have the same ID.")
+	private boolean removeIfFound=false;
+	@Parameter(names={"--inverse"},description="Inverse: don't print the variants containing the IDS.")
+	private boolean filterOutVariantsInSet =false;
+	@Parameter(names={"-f","--filter"},description="if not blank soft filter the variants that are NOT in the list. "
+			+ "If '--inverse' is specified then soft-filter the variants IN the list.")
+	private String filterName = null;
 
 
-
-@ParametersDelegate
-private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
-
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+	}
 	
 
 	@Override
@@ -114,7 +109,7 @@ private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDel
 			rsSet.add(str);
 			}
 		rsSet.remove("");
-		if(rsSet.isEmpty()) LOG.warn("NO IDENTIFIER WAS SPECIFIED");
+		if(rsSet.isEmpty()) getLogger().warn("NO IDENTIFIER WAS SPECIFIED");
 		
 		final Predicate<VariantContext> findID = (CTX)->{
 			final String id = (!CTX.hasID()?VCFConstants.EMPTY_ID_FIELD:CTX.getID());
@@ -178,11 +173,6 @@ private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDel
 		return 0;
 		}
 
-
-@Override
-public int doWork(final List<String> args) {
-	return super.doVcfToVcfPath(args, this.writingVariantsDelegate,this.outputFile);
-	}	
 public static void main(final String[] args) throws IOException
 	{
 	new Biostar332826().instanceMainWithExit(args);

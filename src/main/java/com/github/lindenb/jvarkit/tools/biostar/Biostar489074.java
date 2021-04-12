@@ -40,13 +40,13 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
+import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
@@ -59,9 +59,6 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -104,15 +101,13 @@ keywords={"sam","bam","vcf","call"},
 description="call variants for every paired overlaping read",
 biostars= {489074},
 creationDate="20200205",
-modificationDate="20200220",
+modificationDate="20210412",
 generate_doc=true
 )
-public class Biostar489074 extends Launcher {			
+public class Biostar489074 extends MultiBamLauncher {			
 private static final Logger LOG = Logger.build(Biostar489074.class).make();
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private Path outputFile = null;
-@Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-private Path faidx;
 @Parameter(names={"--groupby","--partition"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 @Parameter(names= {"--ploidy"},description="default ploidy")
@@ -211,26 +206,19 @@ private static class CallCodec extends AbstractDataCodec<Call> {
 	}
 
 @Override
-public int doWork(final List<String> args) {
-	SamReader in=null;
+protected Logger getLogger() {
+	return LOG;
+	}
+
+@Override
+protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter0) {
 	VariantContextWriter out=null;
 	GenomicSequence genome = null;
 	SortingCollection<Call> sorting  = null;
 	try {
-		this.indexedFastaRef = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
-		final SamReaderFactory srf = super.createSamReaderFactory();
-		srf.referenceSequence(this.faidx);
-		final String input = oneFileOrNull(args);
-		if(input==null) {
-			in = srf.open(SamInputResource.of(stdin()));
-			}
-		else
-			{
-			in = srf.open(SamInputResource.of(input));
-			}
-		final SAMFileHeader header = in.getFileHeader();
+		this.indexedFastaRef = ReferenceSequenceFileFactory.getReferenceSequenceFile(getRequiredReferencePath());
 		if(!(header.getSortOrder().equals(SAMFileHeader.SortOrder.unsorted) || header.getSortOrder().equals(SAMFileHeader.SortOrder.queryname))) {
-			LOG.error("input should be sorted with 'samtools sort -n' or 'samtools collate' but got " + header.getSortOrder());
+			getLogger().error("input should be sorted with 'samtools sort -n' or 'samtools collate' but got " + header.getSortOrder());
 			return -1;
 			}
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
@@ -263,7 +251,7 @@ public int doWork(final List<String> args) {
 
 			
 		try(CloseableIterator<List<SAMRecord>> iter = new EqualIterator<>(
-				in.iterator(),
+				iter0,
 				(A,B)->A.getReadName().compareTo(B.getReadName()))
 					) {
 			while(iter.hasNext()) {
@@ -408,17 +396,14 @@ public int doWork(final List<String> args) {
 		sorting.cleanup();
 		out.close();
 		out=null;
-		in.close();
-		in=null;
 		out=null;
 		this.indexedFastaRef.close();
 		this.indexedFastaRef = null;
 		return 0;
 	} catch(final Throwable err) {
-		LOG.error(err);
+		getLogger().error(err);
 		return -1;
 	} finally {
-		CloserUtil.close(in);
 		CloserUtil.close(out);
 		CloserUtil.close(this.indexedFastaRef);;
 	}
