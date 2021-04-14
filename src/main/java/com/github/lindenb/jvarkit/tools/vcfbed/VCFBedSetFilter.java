@@ -87,8 +87,9 @@ END_DOC
 @Program(name="vcfbedsetfilter",
 	description="Set FILTER for VCF if intersects with BED.",
 	keywords={"vcf","bed","filter"},
-	modificationDate="20200623",
-	creationDate="20150415"
+	modificationDate="20210417",
+	creationDate="20150415",
+	biostars={9465226}
 	)
 public class VCFBedSetFilter extends OnePassVcfLauncher
 	{
@@ -167,7 +168,6 @@ public class VCFBedSetFilter extends OnePassVcfLauncher
 						map(line->bedCodec.decode(line)).
 						filter(B->B!=null).
 						map(B->B.toInterval()).
-						filter(L->L.getStart()<L.getEnd()).
 						forEach(L->intervalTreeMap.put(L,L));
 					}
 				}

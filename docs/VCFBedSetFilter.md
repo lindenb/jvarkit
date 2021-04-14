@@ -68,6 +68,12 @@ Usage: vcfbedsetfilter [options] Files
  * filter
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9465226](https://www.biostars.org/p/9465226)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
