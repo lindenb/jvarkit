@@ -128,7 +128,9 @@ END_DOC
 	name="bamrenamechr",
 	description="Convert the names of the chromosomes in a BAM file",
 	keywords={"sam","bam","chromosome","contig"},
-	modificationDate="20191210"
+	modificationDate="20191210",
+	creationDate="20131217",
+	biostars={13462}
 	)
 public class ConvertBamChromosomes
 	extends Launcher
