@@ -25,15 +25,21 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
+import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.LinearGradientPaint;
+import java.awt.Paint;
 import java.awt.Panel;
 import java.awt.RenderingHints;
+import java.awt.Shape;
+import java.awt.Stroke;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
@@ -52,8 +58,11 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.Vector;
+import java.util.function.IntToDoubleFunction;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
@@ -85,6 +94,7 @@ import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -96,9 +106,17 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.TabixIteratorLineReader;
+import htsjdk.tribble.readers.TabixReader;
+import htsjdk.tribble.gff.Gff3Codec;
+import htsjdk.tribble.gff.Gff3Feature;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.LineIteratorImpl;
 /**
 BEGIN_DOC
 
@@ -124,6 +142,8 @@ public class SwingBamCov extends Launcher
 	private String defaultRegion="";
 	@Parameter(names={"-q","--mapq"},description="min mapq")
 	private int minmapq=1;
+	@Parameter(names={"--gtf","--gff"},description="GFF3 file indexed with tabix to plot the genes.")
+	private String gffPath = null;
 	
 	private static class BamInfo {
 		final Path bamPath;
@@ -149,7 +169,7 @@ public class SwingBamCov extends Launcher
 		Thread drawingThread = null;
 		BufferedImage offScreenImage = null;
 		JProgressBar progressBar = null;
-		
+		final String gffPath;
 		
 		
 		private abstract class ChangeViewAction extends AbstractAction {
@@ -314,11 +334,14 @@ public class SwingBamCov extends Launcher
 		private void paintBam(final Graphics2D g,
 				final SamReaderFactory srf,
 				final BamInfo bam,
-				final Locatable loc
-				,final Rectangle2D rect) {
+				final Locatable loc,
+				final Rectangle2D rect
+				) {
+			final Shape oldClip = g.getClip();
+			g.setClip(rect);
 			try {
 				try(SamReader sr=this.srf.open(bam.bamPath)) {
-					if(!sr.hasIndex()) return;					
+					if(!sr.hasIndex()) return;			
 					final CoverageFactory covFactory = new CoverageFactory().
 							setMappingQuality(XFrame.this.minMapq);
 					final CoverageFactory.SimpleCoverage cov = covFactory.getSimpleCoverage(sr, loc, bam.sample);
@@ -344,7 +367,12 @@ public class SwingBamCov extends Launcher
 					gp.lineTo(rect.getMaxX(),rect.getMaxY());
 					gp.closePath();
 					g.setColor(Color.LIGHT_GRAY);
+					Color colors[]=new Color[]{Color.LIGHT_GRAY,Color.GRAY};
+					final Paint oldPaint = g.getPaint();
+					g.setPaint(new LinearGradientPaint(0,(float)rect.getY(),0,(float)rect.getMaxY(),new float[]{0.0f,1.0f},colors));
 					g.fill(gp);
+					g.setPaint(oldPaint);
+					
 					
 					OptionalDouble mean = cov.getMedian();
 					if(mean.isPresent()) {
@@ -360,10 +388,19 @@ public class SwingBamCov extends Launcher
 						if(y>=rect.getY()) g.draw(new Line2D.Double(rect.getX(), y, rect.getMaxX(), y));
 						}
 					
+					writeGenes(g,loc,rect);
+					
 					g.setColor(Color.BLUE);
-					int fontSize=12;
+					final int fontSize=Math.min(12,(int)(rect.getHeight()/10.0));
 					g.setFont(new Font("Courier",Font.PLAIN,fontSize));
-					g.drawString(bam.sample+" (max DP: " + (int)maxDepth0+")",(int)rect.getX()+5,(int)rect.getMaxY()-5);
+					g.drawString(bam.sample+" (max DP: " + (int)maxDepth0+") "+ getGenes(loc).
+							filter(G->G.getType().equals("gene")).
+							map(G->G.getName()).
+							filter(S->!StringUtils.isBlank(S)).
+							collect(Collectors.toSet()).
+							stream().
+							collect(Collectors.joining(",")),
+							(int)rect.getX()+5,(int)rect.getMaxY()-1);
 					//frame
 					g.setColor(Color.DARK_GRAY);
 					g.draw(rect);
@@ -373,14 +410,91 @@ public class SwingBamCov extends Launcher
 			catch(final Throwable err) {
 				LOG.error(err);
 				}
+			finally {
+				g.setClip(oldClip);
+				}
+			}
+		
+		
+		private Stream<Gff3Feature> getGenes(final Locatable region) {
+			if(XFrame.this.gffPath==null) return Stream.empty();
+			TabixReader tbr = null;//DO NOT USE AUTOCLOSE RESOURCE
+			try {
+				tbr = new TabixReader(XFrame.this.gffPath);
+				final TabixReader tbfinal = tbr;
+				final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+				final String ctg = cvt.apply(region.getContig());
+				if(StringUtils.isBlank(ctg)) {
+					return Stream.empty();
+					}
+				
+				final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW);
+				final TabixReader.Iterator iter0=tbr.query(ctg,region.getStart(),region.getEnd());
+				final LineIterator lr = new LineIteratorImpl( new TabixIteratorLineReader(iter0));
+				final AbstractIterator<Gff3Feature> iter2= new AbstractIterator<Gff3Feature>() {
+					@Override
+					protected Gff3Feature advance() {
+						try {
+							while(!codec.isDone(lr)) {
+								final Gff3Feature gffline = codec.decode(lr);
+								if(gffline==null) continue;
+								return gffline;
+								}
+							return null;
+							} catch (final IOException e) {
+							LOG.error(e);
+							return null;
+							}
+						}
+					};
+				return StreamSupport.stream(new IterableAdapter<Gff3Feature>(iter2).spliterator(),false).
+						onClose(()->{ tbfinal.close(); });
+				}
+			catch(Throwable err) {
+				return Stream.empty();
+				}
+			}
+
+		
+		private void writeGenes(final Graphics2D g,final Locatable region,final Rectangle2D rect) {
+			if(XFrame.this.gffPath==null) return;
+			final IntToDoubleFunction position2pixel = X->rect.getX() + ((X-region.getStart())/(double)region.getLengthOnReference())*rect.getWidth();
+			final Composite oldComposite = g.getComposite();
+			final Stroke oldStroke = g.getStroke();
+			g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.4f));
+			g.setColor(Color.ORANGE);
+			final double y= rect.getMaxY()-4.0;
+			try {
+				getGenes(region).
+					filter(G->G.getType().equals("exon") || G.getType().equals("transcript")).
+					forEach(feature->{
+						final double x1 = Math.max(rect.getX(),position2pixel.applyAsDouble(feature.getStart()));
+						final double x2 = Math.min(rect.getMaxX(),position2pixel.applyAsDouble(feature.getEnd()));
+						if(feature.getType().equals("exon") ) {
+							g.draw(new Rectangle2D.Double(x1, y-1, (x2-x1), 3));
+							}
+						else if(feature.getType().equals("transcript") ) {
+							g.draw(new Line2D.Double(x1, y, x2, y));
+							}
+						});
+
+				}
+			catch(final Throwable err) {
+				
+				}
+			finally {
+				g.setComposite(oldComposite);
+				g.setStroke(oldStroke);
+				}
 			}
 		}
 		
 		
-		XFrame(final Path referenceFile,final List<Path> bamPaths,String defaultLoc,int minMapq) {
+		XFrame(final Path referenceFile,final List<Path> bamPaths,String defaultLoc,int minMapq,final String gffPath) {
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			setTitle(SwingBamCov.class.getSimpleName());
 			this.referenceFile = referenceFile;
+			this.gffPath = gffPath;
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					referenceSequence(this.referenceFile).
 					validationStringency(ValidationStringency.LENIENT);
@@ -626,7 +740,7 @@ public class SwingBamCov extends Launcher
 				return -1;
 				}
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(this.referenceFile,paths,defaultRegion,this.minmapq);
+			final XFrame frame = new XFrame(this.referenceFile,paths,defaultRegion,this.minmapq,this.gffPath);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 

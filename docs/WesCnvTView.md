@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-SVG visualization of bam DEPTH for multiple regions in a terminal
+Text visualization of bam DEPTH for multiple regions in a terminal
 
 
 ## Usage
@@ -10,27 +10,21 @@ SVG visualization of bam DEPTH for multiple regions in a terminal
 ```
 Usage: wescnvtview [options] Files
   Options:
-    -l, -B, --bams
-      The Bam file(s) to be displayed. If there is only one file which ends 
-      with '.list' it is interpreted as a file containing a list of paths
-      Default: []
     -cap, --cap
       Cap coverage to this value. Negative=don't set any limit
       Default: -1
     -x, --extend
-      Extend intervals by factor 'x'
-      Default: 1.0
-    --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
-      FailsVendorQuality() || NotPrimaryAlignment() || 
-      SupplementaryAlignment()' 
-      Default: mapqlt(1) || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
-    -F, --format
-      input format. INTERVALS is a string 'contig:start-end'.
-      Default: INTERVALS
-      Possible Values: [VCF, BED, INTERVALS]
+      Extending interval. The following syntaxes are supported: 1000; 1kb; 
+      1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 1.5 (extend)
+      Default: com.github.lindenb.jvarkit.samtools.util.IntervalExtender$ExtendByFraction fraction : 1.5
+    --flush
+      do not wait for all bam to be scanned, do not normalize on the depth of 
+      all bams, print the figure as soon as possible.
+      Default: false
+    --format
+      output format
+      Default: plain
+      Possible Values: [plain, ansi]
     -G, --genes
       A BED file containing some regions of interest that will be displayed
     -H, --height, --rows
@@ -45,14 +39,26 @@ Usage: wescnvtview [options] Files
       collection will be displayed on the 'top' to have an quick insight about 
       the propositus.
       Default: []
+  * -r, --regions, --interval
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
+      Default: (empty)
+    --mapq
+      Min mapping quality
+      Default: 1
     -o, --output
       Output file. Optional . Default: stdout
     -p, -percentile, --percentile
       How to compute the percentil of a region
       Default: MEDIAN
-      Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
-    -P, --plain
-      Plain output (not color)
+      Possible Values: [AVERAGE, MEDIAN]
+  * -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --stddev
+      Sort output on standard deviation
       Default: false
     --version
       print version and exit
@@ -70,8 +76,9 @@ Usage: wescnvtview [options] Files
  * alignment
  * graphics
  * visualization
- * svg
  * cnv
+ * ascii
+ * text
 
 
 ## Compilation
@@ -90,6 +97,11 @@ $ ./gradlew wescnvtview
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20181018
 
 ## Source code 
 
@@ -123,20 +135,14 @@ The current reference is:
 
 ## Input
 
-Input is a set of regions to observe. It can be a 
-
-   * BED file
-   * VCF File with SV
-   * Some intervals 'contig:start-end'
-
-Input can be read from stdin
+Input is a set of indexed cram/bam files or a file with the '.list' suffix containing the path to the bams
 
 ## Example
 
 ```
 find src/test/resources/ -type f -name "S*.bam" > bam.list
 
-$  java -jar dist/wescnvtview.jar -l bam.list  -P "RF01:100-200" 
+$  java -jar dist/wescnvtview.jar  -r "RF01:100-200" bam.list 
 
 >>> RF01:100-200	 Length:101	(1)
 > S1 ===========================================================================
@@ -228,7 +234,7 @@ java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
 ## Note to self: view in less/more
 
 ```
-java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   | less -r
+java -jar dist/wescnvtview.jar bam.list -r jeter.txt   | less -r
 ```
 
 ## Screenshot

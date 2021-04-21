@@ -124,7 +124,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-2017-07-12
+20170712
 
 ## Source code 
 
@@ -392,6 +392,11 @@ The user's code will be inserted as:
     25  }
 ```
 
+
+### GFF
+
+experimental.
+script will contains some instances of **Gff3Feature** : https://github.com/samtools/htsjdk/blob/master/src/main/java/htsjdk/tribble/gff/Gff3Feature.java
 
 ## Examples
 

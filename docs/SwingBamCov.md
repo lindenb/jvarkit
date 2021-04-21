@@ -10,6 +10,8 @@ Bam coverage viewer using Java Swing UI
 ```
 Usage: swingbamcov [options] Files
   Options:
+    --gtf, --gff
+      GFF3 file indexed with tabix to plot the genes.
     -h, --help
       print help and exit
     --helpFormat

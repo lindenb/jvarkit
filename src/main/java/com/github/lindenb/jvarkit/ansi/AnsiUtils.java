@@ -57,7 +57,7 @@ public class AnsiUtils {
 		public String end() {
 			return ANSI_RESET;
 			}
-		public String colorize(String str) {
+		public String colorize(final String str) {
 			if(StringUtils.isBlank(str)) return str;
 			return begin() + str + end();
 			}

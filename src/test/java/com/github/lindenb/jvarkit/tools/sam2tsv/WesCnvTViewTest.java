@@ -21,19 +21,19 @@ public class WesCnvTViewTest {
 	public void test01() throws IOException {
 		try {
 		final  Path bamList = support.createTmpPath(".list");
-		final PrintWriter pw = new PrintWriter(Files.newBufferedWriter(bamList));
-		for(int i=1;i<=5;i++)
-			{
-			pw.println(support.resource("S"+i+".bam"));
+		try(PrintWriter pw = new PrintWriter(Files.newBufferedWriter(bamList))) {
+			for(int i=1;i<=5;i++)
+				{
+				pw.println(support.resource("S"+i+".bam"));
+				}
+			pw.flush();
 			}
-		pw.flush();
-		pw.close();
 		final Path out = support.createTmpPath(".txt");
 		Assert.assertEquals(new WesCnvTView().instanceMain(new String[] {
-				"-l",bamList.toString(),
 				"-o",out.toString(),
-				"RF01:200-1000",
-				"RF02:300-500"
+				"-R " ,support.resource("rotavirus_rf.fa"),
+				"-r " ,"RF01:200-1000",
+				bamList.toString()
 				}),0);
 		support.assertIsNotEmpty(out);
 		}

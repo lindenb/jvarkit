@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
@@ -78,6 +79,9 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Iso8601Date;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.FeatureCodecHeader;
+import htsjdk.tribble.gff.Gff3Codec;
+import htsjdk.tribble.gff.Gff3Feature;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -324,6 +328,11 @@ The user's code will be inserted as:
     25  }
 ```
 
+
+### GFF
+
+experimental.
+script will contains some instances of **Gff3Feature** : https://github.com/samtools/htsjdk/blob/master/src/main/java/htsjdk/tribble/gff/Gff3Feature.java
 
 ## Examples
 
@@ -719,8 +728,8 @@ END_DOC
 			298361,324900,326294,326765,329423,330752,334253,335056,335692,336206,
 			338031,356474,394289,395454,397168,400463,409177,410405,428861,9463181},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
-	modificationDate="2020-01-23",
-	creationDate="2017-07-12"
+	modificationDate="20210412",
+	creationDate="20170712"
 	)
 public class BioAlcidaeJdk
 	extends Launcher
@@ -1256,6 +1265,53 @@ public class BioAlcidaeJdk
 		
 		}
     
+
+    public static abstract class Gff3Handler extends AbstractHandler
+		{
+    	public FeatureCodecHeader header= null;
+		protected List<Gff3Feature> records=new ArrayList<>();
+		public Stream<Gff3Feature> stream()
+			{
+			return this.records.stream();
+			}
+		}
+    
+    public static class Gff3HandlerFactory extends AbstractHandlerFactory<Gff3Handler>
+		{
+    	
+    	@Override
+    	protected Class<Gff3Handler> getHandlerClass() {
+    		return Gff3Handler.class;
+    		}
+    	@Override
+    	public int execute(final String inputFile, final PrintStream out) throws Exception {
+    		final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.DEEP);
+    		Gff3Handler handler = null;
+    		try {
+    			handler = this.getConstructor().newInstance();
+    			htsjdk.tribble.readers.LineIterator lr=inputFile==null?
+    					IOUtils.openStreamForLineIterator(System.in):
+    					IOUtils.openURIForLineIterator(inputFile);
+    			handler.header = codec.readHeader(lr);
+    			while(!codec.isDone(lr)) {
+    				final Gff3Feature feat=codec.decode(lr);
+    				if(feat!=null) handler.records.add(feat);
+    				}
+    			
+    			handler.initialize();
+    			handler.execute();
+				return 0;
+				}
+			catch (final Throwable err) {
+				LOG.error(err);
+				return -1;
+				}
+			finally {
+				}
+			}
+		
+		}
+    
     
 	private enum FORMAT {
 		VCF{
@@ -1299,6 +1355,12 @@ public class BioAlcidaeJdk
 			@Override
 			boolean canAs(final String src) {
 				return src!=null && GtfReader.SUFFIXES.stream().anyMatch(S->src.endsWith(S));
+			}},
+		GFF {
+			@Override
+			boolean canAs(final String src) {
+				return src!=null && FileExtensions.GFF3.stream().anyMatch(S->src.endsWith(S));
+
 			}}
 			;
 
@@ -1358,6 +1420,7 @@ public class BioAlcidaeJdk
 				case FASTA: abstractFactory = new FastaHandlerFactory(); break;
 				case TEXT: abstractFactory = new SimpleLineHandlerHandlerFactory();break;
 				case GTF: abstractFactory = new GtfHandlerFactory();break;
+				case GFF: abstractFactory = new Gff3HandlerFactory();break;
 				default: throw new IllegalStateException("Not implemented: "+this.format);
 				}
 			abstractFactory.faidxPath = this.faidxPath;

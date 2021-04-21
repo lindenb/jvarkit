@@ -63,6 +63,7 @@ import htsjdk.samtools.util.Locatable;
  */
 public class CoverageFactory
 	{
+	public enum ScaleType {AVERAGE,MEDIAN};
 	private int mappingQuality = 1;
 	private Predicate<SAMRecord> samRecordFilter = R->SAMRecordDefaultFilter.accept(R);
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
@@ -118,6 +119,13 @@ public class CoverageFactory
 		public OptionalDouble getMedian();
 		public OptionalDouble getAverage();
 		public OptionalInt getMax();
+		public default double[] scale(final ScaleType scaleType,int length) {
+			switch(scaleType) {
+				case MEDIAN: return scaleMedian(length);
+				case AVERAGE: return scaleAverage(length);
+				default: throw new IllegalArgumentException();
+				}
+			}
 		public double[] scaleMedian(int length);
 		public double[] scaleAverage(int length);
 		}

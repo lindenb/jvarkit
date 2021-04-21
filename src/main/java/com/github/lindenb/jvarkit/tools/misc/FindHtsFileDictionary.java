@@ -57,7 +57,6 @@ BEGIN_DOC
 ## Example
 
 
-
 ```
 $ cat references.txt
 

@@ -126,6 +126,11 @@ static abstract class AbstractExtender implements IntervalExtender {
 			beg = Math.min(ssr.getSequenceLength(), Math.max(1, beg));
 			end = Math.min(ssr.getSequenceLength(), Math.max(1, end));
 			}
+		else
+			{
+			beg = Math.max(1,beg);
+			end = Math.max(end,beg);
+			}
 		return new SimpleInterval(contig, beg, end);
 		}
 	}
