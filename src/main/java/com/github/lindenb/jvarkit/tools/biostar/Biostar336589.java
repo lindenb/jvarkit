@@ -67,10 +67,8 @@ import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 /**
 BEGIN_DOC
 
@@ -144,7 +142,9 @@ END_DOC
 @Program(name="biostar336589",
 description="displays circular map as SVG from BED and REF file",
 keywords= {"genome","browser","circular","bed","svg"},
-biostars= {336589,367522}
+biostars= {336589,367522},
+modificationDate="20210422",
+creationDate="20180907"
 )
 
 public class Biostar336589 extends Launcher{
@@ -361,8 +361,7 @@ public class Biostar336589 extends Launcher{
 			}
 		
 		int maxScore=0;
-		BufferedReader br = null;
-		PrintWriter out = null;
+		
 		try
 			{
 			this.dict = SequenceDictionaryUtils.extractRequired(this.faidx);
@@ -399,181 +398,183 @@ public class Biostar336589 extends Launcher{
 				if(!StringUtil.isBlank(filename)) currentTrack.name =  filename;
 				tracks.add(currentTrack);
 				
-				br = super.openBufferedReader(filename);
-				String line;
-				while((line=br.readLine())!=null)
-					{
-					if(StringUtil.isBlank(line) || BedLine.isBedHeader(line)) continue;
-					final BedLine bedLine = codec.decode(line);
-					final String newCtg = converter.apply(bedLine.getContig());
-					if(StringUtil.isBlank(newCtg)) {
-						if(skipped_contigs.add(bedLine.getContig())) {
-							LOG.warn("unknown contig "+bedLine.getContig()+". Skipping.");
-							}
-						continue;
-						}
-					final SAMSequenceRecord ssr = this.dict.getSequence(newCtg);
-					if(ssr==null) continue;
-					if(bedLine.getStart() > ssr.getSequenceLength()) continue;
-					if(bedLine.getEnd() < 1) continue;
-					final Arc arc;
-					
-					if(!this.input_is_bedpe) {
-						arc = new Arc();
-						arc.tid = ssr.getSequenceIndex();
-						arc.start = Math.max(bedLine.getStart(),0);
-						arc.end = Math.min(bedLine.getEnd(),ssr.getSequenceLength());
-						arc.strand = toStrand(bedLine.getOrDefault(5,"."));
-						}
-					else
+					try(BufferedReader br = super.openBufferedReader(filename)) {
+					String line;
+					while((line=br.readLine())!=null)
 						{
-						final ArcInterval arci = new ArcInterval();
-						arc = arci;
-						for(int side=0;side<2;++side) {
-							final int shift = (side==0?8:13);
-							final String ctg2 = bedLine.getOrDefault(shift+0, null);
-							if(StringUtil.isBlank(ctg2)) {
-								if(skipped_contigs.add(ctg2)) {
-									LOG.warn("unknown contig "+(side+1)+"/2 "+bedLine+". Skipping.");
+						if(StringUtil.isBlank(line) || BedLine.isBedHeader(line)) continue;
+						final BedLine bedLine = codec.decode(line);
+						final String newCtg = converter.apply(bedLine.getContig());
+						if(StringUtil.isBlank(newCtg)) {
+							if(skipped_contigs.add(bedLine.getContig())) {
+								LOG.warn("unknown contig "+bedLine.getContig()+". Skipping.");
+								}
+							continue;
+							}
+						final SAMSequenceRecord ssr = this.dict.getSequence(newCtg);
+						if(ssr==null) continue;
+						if(bedLine.getStart() > ssr.getSequenceLength()) continue;
+						if(bedLine.getEnd() < 1) continue;
+						final Arc arc;
+						
+						if(!this.input_is_bedpe) {
+							arc = new Arc();
+							arc.tid = ssr.getSequenceIndex();
+							arc.start = Math.max(bedLine.getStart(),0);
+							arc.end = Math.min(bedLine.getEnd(),ssr.getSequenceLength());
+							arc.strand = toStrand(bedLine.getOrDefault(5,"."));
+							}
+						else
+							{
+							final ArcInterval arci = new ArcInterval();
+							arc = arci;
+							for(int side=0;side<2;++side) {
+								final int shift = (side==0?8:13);
+								final String ctg2 = bedLine.getOrDefault(shift+0, null);
+								if(StringUtil.isBlank(ctg2)) {
+									if(skipped_contigs.add(ctg2)) {
+										LOG.warn("unknown contig "+(side+1)+"/2 "+bedLine+". Skipping.");
+										}
+									continue;
 									}
+								final SAMSequenceRecord ssr2 = this.dict.getSequence(ctg2);
+								if(ssr2==null) continue;
+								int tid2 = ssr2.getSequenceIndex();
+								int start2 = -1;
+								int end2 = -1;
+								byte strand2 = -1;
+								try
+									{
+									start2 =Math.max(0, Integer.parseInt(bedLine.getOrDefault(shift+1, "")));
+									end2 =Math.min(ssr2.getSequenceLength(), Integer.parseInt(bedLine.getOrDefault(shift+2, "")));
+									strand2 = toStrand(bedLine.getOrDefault(shift+4, "."));
+									}
+								catch(final NumberFormatException err2)
+									{
+									tid2=-1;
+									start2=-1;
+									end2=-1;
+									}
+								if(side==0)
+									{
+									arci.tid = tid2;
+									arci.start = start2;
+									arci.end = end2;
+									arci.strand = strand2;
+									}
+								else
+									{
+									arci.targetTid = tid2;
+									arci.targetStart = start2;
+									arci.targetEnd = end2;
+									arci.targetStrand = strand2;
+									}
+								}
+							if(	arci.tid<0 ||
+								arci.targetTid<0 || 
+								arci.end < arci.start ||
+								arci.targetEnd< arci.targetStart
+								) {
+								LOG.warn("bad interval bed record  "+bedLine+". Skipping.");
 								continue;
 								}
-							final SAMSequenceRecord ssr2 = this.dict.getSequence(ctg2);
-							if(ssr2==null) continue;
-							int tid2 = ssr2.getSequenceIndex();
-							int start2 = -1;
-							int end2 = -1;
-							byte strand2 = -1;
-							try
-								{
-								start2 =Math.max(0, Integer.parseInt(bedLine.getOrDefault(shift+1, "")));
-								end2 =Math.min(ssr2.getSequenceLength(), Integer.parseInt(bedLine.getOrDefault(shift+2, "")));
-								strand2 = toStrand(bedLine.getOrDefault(shift+4, "."));
-								}
-							catch(final NumberFormatException err2)
-								{
-								tid2=-1;
-								start2=-1;
-								end2=-1;
-								}
-							if(side==0)
-								{
-								arci.tid = tid2;
-								arci.start = start2;
-								arci.end = end2;
-								arci.strand = strand2;
-								}
-							else
-								{
-								arci.targetTid = tid2;
-								arci.targetStart = start2;
-								arci.targetEnd = end2;
-								arci.targetStrand = strand2;
-								}
 							}
-						if(	arci.tid<0 ||
-							arci.targetTid<0 || 
-							arci.end < arci.start ||
-							arci.targetEnd< arci.targetStart
-							) {
-							LOG.warn("bad interval bed record  "+bedLine+". Skipping.");
-							continue;
-							}
-						}
-					
-					
-					arc.name = bedLine.getOrDefault(3,"");
-					
-					final String scoreStr = bedLine.getOrDefault(4,"0");
-					if(StringUtil.isBlank(scoreStr)|| scoreStr.equals("."))
-						{
-						if(!this.input_is_bedpe && this.histogram_mode )
+						
+						
+						arc.name = bedLine.getOrDefault(3,"");
+						
+						final String scoreStr = bedLine.getOrDefault(4,"0");
+						if(StringUtil.isBlank(scoreStr)|| scoreStr.equals("."))
 							{
-							LOG.warn("no score defined for "+line+" in histogram mode. skipping.");
-							continue;
-							}
-						}
-					else
-						{
-						try {
-							arc.score= Math.min(1000,Math.max(0,Integer.parseInt(scoreStr)));
-							maxScore = Math.max(maxScore, arc.score);
-							}
-						catch(final NumberFormatException err)
-							{
-							LOG.warn("bad score for "+line);
-							if(this.histogram_mode )
+							if(!this.input_is_bedpe && this.histogram_mode )
 								{
-								LOG.warn("skipping.");
+								LOG.warn("no score defined for "+line+" in histogram mode. skipping.");
 								continue;
 								}
-							arc.score=0;
 							}
-						}
-					
-					//color
-					arc.cssStyle = toCss(bedLine.getOrDefault(this.input_is_bedpe?7:8,""));
-					
-					
-					final TrackContig currTrackContig = currentTrack.get(arc.tid);
-					if(this.histogram_mode) // only one row for histograms
-						{
-						if(currTrackContig.rows.isEmpty())
+						else
 							{
-							currTrackContig.rows.add(new LinkedList<>());
-							}
-						currTrackContig.rows.get(0).add(arc);
-						}
-					else
-						{
-						int y=0;
-						for(y=0;y< currTrackContig.rows.size();++y)
-							{
-							final List<Arc> row = currTrackContig.rows.get(y);
-							if(row.stream().noneMatch(A->A.withinDistanceOf(arc,
-									this.histogram_mode?0:this.min_distance_bp
-									)))
-								{
-								row.add(0,arc);//add in front, should be faster if data are sorted
-								break;
+							try {
+								arc.score= Math.min(1000,Math.max(0,Integer.parseInt(scoreStr)));
+								maxScore = Math.max(maxScore, arc.score);
 								}
-							
+							catch(final NumberFormatException err)
+								{
+								LOG.warn("bad score for "+line);
+								if(this.histogram_mode )
+									{
+									LOG.warn("skipping.");
+									continue;
+									}
+								arc.score=0;
+								}
 							}
-						if(y==currTrackContig.rows.size())
+						
+						//color
+						arc.cssStyle = toCss(bedLine.getOrDefault(this.input_is_bedpe?7:8,""));
+						
+						
+						final TrackContig currTrackContig = currentTrack.get(arc.tid);
+						if(this.histogram_mode) // only one row for histograms
 							{
-							final List<Arc> row = new LinkedList<>();
-							currTrackContig.rows.add(row);
-							row.add(arc);	
+							if(currTrackContig.rows.isEmpty())
+								{
+								currTrackContig.rows.add(new LinkedList<>());
+								}
+							currTrackContig.rows.get(0).add(arc);
+							}
+						else
+							{
+							int y=0;
+							for(y=0;y< currTrackContig.rows.size();++y)
+								{
+								final List<Arc> row = currTrackContig.rows.get(y);
+								if(row.stream().noneMatch(A->A.withinDistanceOf(arc,
+										this.histogram_mode?0:this.min_distance_bp
+										)))
+									{
+									row.add(0,arc);//add in front, should be faster if data are sorted
+									break;
+									}
+								
+								}
+							if(y==currTrackContig.rows.size())
+								{
+								final List<Arc> row = new LinkedList<>();
+								currTrackContig.rows.add(row);
+								row.add(arc);	
+								}
 							}
 						}
+					
 					}
-				
-				br.close();
 				}
 			LOG.info("number of arcs : "+ tracks.stream().mapToInt(T->T.maxRows()).sum());
 			
 
 			
-			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			final XMLOutputFactory xof = XMLOutputFactory.newInstance();
-			final XMLStreamWriter w = xof.createXMLStreamWriter(out);
-			w.writeStartDocument("UTF-8", "1.0");
-			w.writeStartElement("svg");
-			if(this.linear_width<=0)
-				{
-				writeCircular(w,tracks,maxScore);
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				final XMLOutputFactory xof = XMLOutputFactory.newInstance();
+				final XMLStreamWriter w = xof.createXMLStreamWriter(out);
+				w.writeStartDocument("UTF-8", "1.0");
+				w.writeStartElement("svg");
+				if(this.linear_width<=0)
+					{
+					writeCircular(w,tracks,maxScore);
+					}
+				else
+					{
+					writeLinear(w,tracks,maxScore);
+					}
+				w.writeEndElement();//svg
+				w.writeEndDocument();
+				
+				
+				w.flush();
+				w.close();
+				out.flush();
+				CloserUtil.close(w);
 				}
-			else
-				{
-				writeLinear(w,tracks,maxScore);
-				}
-			w.writeEndElement();//svg
-			w.writeEndDocument();
-			
-			
-			w.flush();
-			w.close();
-			CloserUtil.close(w);
 			return 0;
 			}
 		catch(final Exception err)
@@ -583,7 +584,6 @@ public class Biostar336589 extends Launcher{
 			}
 		finally
 			{
-			CloserUtil.close(br);
 			}
 		}
 	
