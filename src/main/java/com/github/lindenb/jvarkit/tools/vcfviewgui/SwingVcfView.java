@@ -36,9 +36,12 @@ import java.awt.event.WindowEvent;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -51,6 +54,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
@@ -96,13 +100,15 @@ description="VCFviewer using Java Swing UI",
 keywords={"vcf","visualization","swing"},
 creationDate="20210503",
 modificationDate="20210503",
-generate_doc=false
+generate_doc=true
 )
 public class SwingVcfView extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SwingVcfView.class).make();
 	@Parameter(names={"-r","--regions","--interval"},description="default interval region on opening")
 	private String defaultRegion="";
+	@Parameter(names={"--limit"},description="Limit number of variants. Ignore if < 0")
+	private int limit_number_variant = -1;
 
 	
 	@SuppressWarnings("serial")
@@ -111,11 +117,12 @@ public class SwingVcfView extends Launcher
 		final VCFReader vcfReader;
 		final JTextField jtextFieldLocation;
 		final SwingVariantsTableModel swingVariantsTableModel;
+		final int limit_number_variant;
 		
-		
-		XFrame(final Path vcfPath,String defaultLoc) {
+		XFrame(final Path vcfPath,String defaultLoc,final int limit_number_variant) {
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			setTitle(SwingVcfView.class.getSimpleName());
+			this.limit_number_variant = limit_number_variant;
 			final VCFReaderFactory vcfReaderFactory = VCFReaderFactory.makeDefault();
 			vcfReader = vcfReaderFactory.open(vcfPath, true);
 			final VCFHeader header = vcfReader.getHeader();
@@ -149,8 +156,6 @@ public class SwingVcfView extends Launcher
 			JButton button = new JButton(actionGo);
 			topPane.add(button);
 			topPane.add(new JSeparator());
-			label = new JLabel("Cap:", JLabel.RIGHT);
-			topPane.add(label);
 			
 
 			final Panel botPane = new Panel(new FlowLayout(FlowLayout.TRAILING));
@@ -163,22 +168,44 @@ public class SwingVcfView extends Launcher
 			final JPanel pane2 = new JPanel(new BorderLayout(5,5));
 			this.swingVariantsTableModel = new SwingVariantsTableModel();
 			final JTable variantTable =  new JTable(this.swingVariantsTableModel);
-			pane2.add(new JScrollPane(variantTable),BorderLayout.WEST);
 			final SwingVCFGenotypesTableModel swingVCFGenotypesTableModel = new SwingVCFGenotypesTableModel();
 			final JTable genotypeTable =  new JTable(swingVCFGenotypesTableModel);
-			pane2.add(new JScrollPane(genotypeTable),BorderLayout.CENTER);
+			
+			final JSplitPane split1 = new JSplitPane(
+					JSplitPane.HORIZONTAL_SPLIT,
+					new JScrollPane(variantTable),
+					new JScrollPane(genotypeTable)
+					);
+			
+			
 			final SwingVCFInfoTableModel swingInfoTableModel = new SwingVCFInfoTableModel();
 			final JTable infoTable =  new JTable(swingInfoTableModel);
-			pane2.add(new JScrollPane(infoTable),BorderLayout.SOUTH);
 			
+			
+			
+			final JTabbedPane tabbed2 = new JTabbedPane();
+			tabbed2.addTab("INFO",new JScrollPane(infoTable));
+			
+			final JSplitPane split2 = new JSplitPane(
+					JSplitPane.VERTICAL_SPLIT,
+					split1,
+					tabbed2
+					);
+			pane2.add(split2,BorderLayout.CENTER);
 			
 			variantTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {				
 				@Override
 				public void valueChanged(ListSelectionEvent e) {
-					int i = variantTable.getSelectedRow();
-					VariantContext ctx =  i>=0? swingVariantsTableModel.getElementAt(i):null;
+					final int i = variantTable.getSelectedRow();
+					final VariantContext ctx =  i>=0? swingVariantsTableModel.getElementAt(i):null;
 					swingVCFGenotypesTableModel.setVariant(ctx);
-					swingInfoTableModel.setVariant(ctx);
+					final Map<String,Object> hash = ctx==null?
+							new HashMap<>():
+							new HashMap<>(ctx.getAttributes())
+							;
+					
+					swingInfoTableModel.setAttributes(hash);
+					
 				}
 			});
 			
@@ -242,7 +269,11 @@ public class SwingVcfView extends Launcher
 			else
 			{
 			try(CloseableIterator<VariantContext> r=this.vcfReader.query(location.get())) {
-				L = r.stream().collect(Collectors.toList());	
+				Stream<VariantContext> st = r.stream();
+				if(this.limit_number_variant>=0) {
+					st = st.limit(this.limit_number_variant);
+					}
+				L = st.collect(Collectors.toList());	
 				}
 			}
 			this.swingVariantsTableModel.setRows(L);
@@ -258,7 +289,7 @@ public class SwingVcfView extends Launcher
 			IOUtil.assertFileIsReadable(vcfPath);
 			
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(vcfPath,defaultRegion);
+			final XFrame frame = new XFrame(vcfPath,defaultRegion,this.limit_number_variant);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 

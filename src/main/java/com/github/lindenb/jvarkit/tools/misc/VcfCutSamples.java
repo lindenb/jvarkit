@@ -22,40 +22,32 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -76,11 +68,6 @@ chr1	145273345	.	T	C	289.85	.	AC=3;AF=0.38;AN=8;BaseQRankSum=1.062;CSQ=missense_
 chr1	156011444	.	T	C	2523.46	.	AC=4;AF=0.50;AN=8;BaseQRankSum=-0.490;CSQ=missense_variant|atA/atG|I/M|ENSG00000160803|UBQLN4|ENST00000368309|10/11|benign(0.012)|tolerated(0.3),downstream_gene_variant|||ENSG00000160803|UBQLN4|ENST00000459954|||,missense_variant|Atc/Gtc|I/V|ENSG00000160803|UBQLN4|ENST00000368307|6/7|unknown(0)|tolerated(0.88);DP=204;Dels=0.00;EFF=DOWNSTREAM(MODIFIER|||||UBQLN4|processed_transcript|CODING|ENST00000459954|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|Atc/Gtc|I148V|226|UBQLN4|protein_coding|CODING|ENST00000368307|),NON_SYNONYMOUS_CODING(MODERATE|MISSENSE|atA/atG|I495M|601|UBQLN4|protein_coding|CODING|ENST00000368309|);FS=4.328;HRun=0;HaplotypeScore=4.3777;MQ=35.24;MQ0=0;MQRankSum=-0.101;QD=14.93;ReadPosRankSum=1.575	GT:AD:DP:GQ:PL	0/0:34,1:35:69:0,69,717	0/1:24,15:40:99:214,0,443
 ```
 
-##See also
-
-* [[AlleleFrequencyCalculator]]
-* http://vcftools.sourceforge.net/htslib.html#subset
-
 END_DOC
  *
  */
@@ -89,20 +76,15 @@ END_DOC
 		keywords={"vcf","sample"},
 		deprecatedMsg="use bcftools or gatk SelectVariants"
 		)
-public class VcfCutSamples
-	extends Launcher
-	{
+public class VcfCutSamples extends OnePassVcfLauncher {
 	private static final Logger LOG=Logger.build(VcfCutSamples.class).make();
 	
-	/** output file */
-	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
 	/** selected sample */
 	@Parameter(names={"-S","--samples"},description="Sample name")
 	private Set<String> user_samples=new HashSet<String>();
 
 	@Parameter(names={"-f","--samplefile"},description="read file containing sample names")
-	private File sampleFile=null;
+	private Path sampleFile=null;
 	
 	@Parameter(names="--invert",description=" invert selection")
 	private boolean invert=false;
@@ -114,8 +96,6 @@ public class VcfCutSamples
 	private boolean missing_sample_is_error=true;
 	
 	@ParametersDelegate
-	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
-	@ParametersDelegate
 	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 
 	
@@ -124,30 +104,39 @@ public class VcfCutSamples
 		}
 	
 	@Override
-	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),this.outputFile);
-		}
-
-	
-	public Set<String> getUserSamples() {
-		return user_samples;
-		}
-	
-	public void setInvert(boolean invert)
+	protected Logger getLogger()
 		{
-		this.invert = invert;
+		return LOG;
+		}
+
+	@Override
+	protected int beforeVcf()
+		{
+		if( this.sampleFile!=null)
+			{
+			try(BufferedReader r=IOUtils.openPathForBufferedReading(this.sampleFile)) {
+				String line;
+				while((line=r.readLine())!=null)
+					{
+					if(line.startsWith("#") || StringUtils.isBlank(line)) continue;
+					this.user_samples.add(line);
+					}
+				}
+			catch(Exception err)
+				{
+				LOG.error(err);
+				return -1;
+				}
+			}
+		return super.beforeVcf();
 		}
 	
-	public void setMissingSampleIsError(boolean missing_sample_is_error) {
-		this.missing_sample_is_error = missing_sample_is_error;
-	}
-
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator in,VariantContextWriter out) {
 		VCFHeader header=in.getHeader();
 		final Set<String> samples1=new HashSet<String>(header.getSampleNamesInOrder());
 		
-		for(String my:this.getUserSamples())
+		for(String my:this.user_samples)
 			{
 			if(!samples1.contains(my))
 				{
@@ -167,7 +156,7 @@ public class VcfCutSamples
 
 		for(final String sample: header.getSampleNamesInOrder())
 			{
-			if(this.getUserSamples().contains(sample))
+			if(this.user_samples.contains(sample))
 				{
 				if(!invert)
 					{
@@ -188,15 +177,12 @@ public class VcfCutSamples
 				header.getMetaDataInInputOrder(),
 				samples2
 				);
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-		header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 		JVarkitVersion.getInstance().addMetaData(getClass().getSimpleName(), header2);
 		this.recalculator.setHeader(header2);
 		out.writeHeader(header2);
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header);
 		while(in.hasNext())
 			{	
-			final VariantContext ctx=progress.watch(in.next());
+			final VariantContext ctx= in.next();
 			
 			final VariantContextBuilder vb=new VariantContextBuilder(ctx);
 			final List<Genotype> genotypes=new ArrayList<Genotype>();
@@ -218,40 +204,9 @@ public class VcfCutSamples
 			vb.genotypes(genotypes);
 			out.add(this.recalculator.apply(vb.make()));
 			}
-		progress.finish();
 		return 0;
 		}
 	
-	@Override
-	public int doWork(List<String> args) {
-		if( this.sampleFile!=null)
-			{
-			BufferedReader r=null;
-			try
-				{
-				r=IOUtils.openFileForBufferedReading(this.sampleFile);
-				String line;
-				while((line=r.readLine())!=null)
-					{
-					if(line.startsWith("#") || StringUtils.isBlank(line)) continue;
-					this.user_samples.add(line);
-					}
-				}
-			catch(Exception err)
-				{
-				LOG.error(err);
-				return -1;
-				}
-			finally
-				{
-				CloserUtil.close(r);
-				}
-			}
-		return this.doVcfToVcf(args,outputFile);
-		}
-
-
-
 	
 	public static void main(String[] args)
 		{
