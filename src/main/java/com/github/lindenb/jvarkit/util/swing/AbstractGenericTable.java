@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.util.swing;
 
 import java.util.List;
 import java.util.Vector;
+
 import javax.swing.table.AbstractTableModel;
 
 
@@ -9,15 +10,14 @@ import javax.swing.table.AbstractTableModel;
 public abstract class AbstractGenericTable<T>
 	extends AbstractTableModel
 	{
-	protected List<T> rows=null;
-	
+	protected final List<T> rows;
 	
 	public AbstractGenericTable()
 		{
 		this.rows=new Vector<T>();
 		}
 	
-	public AbstractGenericTable(List<T> rows)
+	public AbstractGenericTable(final List<T> rows)
 		{
 		this.rows=new Vector<T>(rows);
 		}
@@ -33,9 +33,10 @@ public abstract class AbstractGenericTable<T>
 		fireTableDataChanged();
 		}
 	
-	public synchronized void setRows(List<T> L)
+	public synchronized void setRows(final List<T> L)
 		{
-		this.rows=new Vector<T>(L);
+		this.rows.clear();
+		this.rows.addAll(L);
 		fireTableDataChanged();
 		}
 	

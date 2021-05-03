@@ -2556,6 +2556,10 @@ all2.add(task("swingbamcov", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamCov"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("swingvcfview", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfView"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
