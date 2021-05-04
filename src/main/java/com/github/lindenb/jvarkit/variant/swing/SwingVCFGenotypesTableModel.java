@@ -99,9 +99,18 @@ synchronized public void  setRows(final List<Genotype> genotypes) {
 	    	ci = new ColumnInfo();
 	        ci.clazz = String.class;
 	        ci.name= VCFConstants.GENOTYPE_KEY;
-	        ci.extractor = GT->GT.getGenotypeString();
+	        ci.extractor = GT->GT.getAlleles().stream().
+	        		map(A->A.getDisplayString()).
+	        		collect(Collectors.joining(GT.isPhased()?Genotype.PHASED_ALLELE_SEPARATOR:Genotype.UNPHASED_ALLELE_SEPARATOR));
 	        columns.add(ci);
 	    }
+	    
+	    ci = new ColumnInfo();
+        ci.clazz = String.class;
+        ci.name= "Type";
+        ci.extractor = GT->GT.getType().name();
+        columns.add(ci);
+	    
 	    if(genotypes.stream().anyMatch(G->G.hasDP())) {
 	    	ci = new ColumnInfo();
 	        ci.clazz = String.class;

@@ -85,6 +85,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
+import com.github.lindenb.jvarkit.variant.swing.SwingAllelesTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingAnnPredictionTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingBcsqPredictionTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingPedigreeTableModel;
@@ -153,6 +154,7 @@ public class SwingVcfView extends Launcher
 		final SwingAnnPredictionTableModel swingAnnPredictionTableModel;
 		final SwingVepPredictionTableModel swingVepPredictionTableModel;
 		final SwingBcsqPredictionTableModel swingBcsqPredictionTableModel;
+		final SwingAllelesTableModel swingAllelesTableModel;
 		final SwingTrioTableModel swingTrioTableModel;
 		final GenotypeTypeTableModel genotypeTypeTableModel;
 		final Map<VariantContext.Type, JCheckBox> variantType2cbox = new HashMap<>();
@@ -273,11 +275,13 @@ public class SwingVcfView extends Launcher
 			this.swingVepPredictionTableModel = new SwingVepPredictionTableModel(header);
 			this.swingBcsqPredictionTableModel = new SwingBcsqPredictionTableModel(header);
 			this.genotypeTypeTableModel = new GenotypeTypeTableModel();
+			this.swingAllelesTableModel = new SwingAllelesTableModel();
 			
 			
 			final JTabbedPane tabbed2 = new JTabbedPane();
 			tabbed2.addTab("INFO",wrapTable("INFO",new JTable(this.swingInfoTableModel)));
 			tabbed2.addTab("Types",wrapTable("Types",new JTable(this.genotypeTypeTableModel)));
+			tabbed2.addTab("Alleles",wrapTable("Alleles",new JTable(this.swingAllelesTableModel)));
 			final JTable snpEffTable  = new JTable(this.swingAnnPredictionTableModel);
 			snpEffTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 			tabbed2.addTab("SnpEff:ANN",wrapTable("ANN",snpEffTable));
@@ -408,6 +412,7 @@ public class SwingVcfView extends Launcher
 		this.swingAnnPredictionTableModel.setVariant(ctx);
 		this.swingVepPredictionTableModel.setVariant(ctx);
 		this.swingBcsqPredictionTableModel.setVariant(ctx);
+		this.swingAllelesTableModel.setVariant(ctx);
 		this.genotypeTypeTableModel.setVariant(ctx);
 		if(this.swingTrioTableModel!=null) {
 			this.swingTrioTableModel.setVariant(ctx);
