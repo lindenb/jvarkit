@@ -7,6 +7,9 @@ import java.util.Vector;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.pedigree.Pedigree;
+import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.pedigree.Status;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 
 import htsjdk.variant.variantcontext.Genotype;
@@ -16,25 +19,35 @@ import htsjdk.variant.vcf.VCFConstants;
 @SuppressWarnings("serial")
 public class SwingVCFGenotypesTableModel extends AbstractGenericTable<Genotype>{
 private final Vector<ColumnInfo> columns = new Vector<>();
+private final Pedigree pedigree;
 private class ColumnInfo {
 	String name;
 	Class<?> clazz;
 	Function<Genotype, Object> extractor;
 	}
 
-public SwingVCFGenotypesTableModel() {
+public SwingVCFGenotypesTableModel(final Pedigree pedigree) {
 	super();
+	this.pedigree=pedigree;
 	}
 
 public void setVariant(final VariantContext ctx) {
-	final List<Genotype> genotypes;
-    this.columns.clear();
+final List<Genotype> genotypes;
+if(ctx==null || !ctx.hasGenotypes()) {
+	genotypes = Collections.emptyList();
+	}
+else {
+	genotypes = ctx.getGenotypes();
+	}
+setRows(genotypes);
+}
 
-	if(ctx==null || !ctx.hasGenotypes()) {
-		genotypes = Collections.emptyList();
+@Override
+synchronized public void  setRows(final List<Genotype> genotypes) {
+	if(genotypes==null) {
+	setRows(Collections.emptyList());
 		}
-	else {
-		genotypes = ctx.getGenotypes();
+    this.columns.clear();
 	    
 	    final Vector<ColumnInfo> columns = new Vector<>();
 	    ColumnInfo ci = new ColumnInfo();
@@ -42,6 +55,21 @@ public void setVariant(final VariantContext ctx) {
 	    ci.name= "Sample";
 	    ci.extractor = GT->GT.getSampleName();
 	    columns.add(ci);
+	    if(this.pedigree!=null) {
+		    ci = new ColumnInfo();
+	        ci.clazz = String.class;
+	        ci.name= "Status";
+	        ci.extractor = GT->{
+	        		final Sample sn= this.pedigree.getSampleById(GT.getSampleName());
+	        		if( sn==null || !sn.isStatusSet()) return null;
+	        		if(sn.getStatus().equals(Status.affected)) return "[*]";
+	        		if(sn.getStatus().equals(Status.unaffected)) return "[ ]";
+	        		return null;
+	        	};
+	        columns.add(ci);
+	    	}
+	    
+	    
 	    if(genotypes.stream().anyMatch(G->G.isAvailable())) {
 	    	ci = new ColumnInfo();
 	        ci.clazz = String.class;
@@ -87,9 +115,10 @@ public void setVariant(final VariantContext ctx) {
 	        columns.add(ci);
 	    	}
 	    this.columns.addAll(columns);
-		}
+		
     
-    super.setRows(genotypes);
+    super.rows.clear();
+    super.rows.addAll(genotypes);
 	fireTableStructureChanged();
 	}
 

@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.pedigree.Trio;
+
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -64,6 +66,16 @@ public void setFixingPloidy(boolean fixPloidy) {
 	}
 public boolean isFixingPloidy() {
 	return fixPloidy;
+	}
+
+public DeNovoMutation test(
+		final VariantContext vc,
+		final Trio trio
+		) {
+	final Genotype gf = trio.hasFather()?vc.getGenotype(trio.getFather().getId()):null; 
+	final Genotype gm = trio.hasMother()?vc.getGenotype(trio.getMother().getId()):null; 
+	final Genotype gc = vc.getGenotype(trio.getChild().getId()); 
+	return test(vc,gf,gm,gc);
 	}
 
 public DeNovoMutation test(

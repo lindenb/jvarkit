@@ -20,6 +20,10 @@ Usage: swingvcfview [options] Files
     --limit
       Limit number of variants. Ignore if < 0
       Default: -1
+    --pedigree
+      A pedigree file. tab delimited. Columns: family,id,father,mother, 
+      sex:(0:unknown;1:male;2:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --version
       print version and exit
 

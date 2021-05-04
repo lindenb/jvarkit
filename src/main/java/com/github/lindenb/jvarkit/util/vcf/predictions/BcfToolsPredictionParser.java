@@ -183,7 +183,7 @@ public class BcfToolsPredictionParser implements PredictionParser
 			this.ctx = ctx;
 			}
 		/** get column by name, may return null. Returns null if column is empty */
-		private String getByCol(final String col)
+		public String getByCol(final String col)
 			{
 			final Integer idx=col2colidx.get(col);
 			if(idx==null || idx>=this.tokens.length || tokens[idx].isEmpty()) return null;
