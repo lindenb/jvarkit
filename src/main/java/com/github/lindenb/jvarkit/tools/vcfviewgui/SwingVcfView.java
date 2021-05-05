@@ -85,6 +85,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser.Prediction;
 import com.github.lindenb.jvarkit.variant.swing.SwingAllelesTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingAnnPredictionTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingBcsqPredictionTableModel;
@@ -154,10 +156,13 @@ public class SwingVcfView extends Launcher
 		final SwingAnnPredictionTableModel swingAnnPredictionTableModel;
 		final SwingVepPredictionTableModel swingVepPredictionTableModel;
 		final SwingBcsqPredictionTableModel swingBcsqPredictionTableModel;
+		final SnpEffNmdLOfTableModel lofSnpEffTableModel;
+		final SnpEffNmdLOfTableModel nmdSnpEffTableModel;
 		final SwingAllelesTableModel swingAllelesTableModel;
 		final SwingTrioTableModel swingTrioTableModel;
 		final GenotypeTypeTableModel genotypeTypeTableModel;
 		final Map<VariantContext.Type, JCheckBox> variantType2cbox = new HashMap<>();
+		final JCheckBox filteredCtxcbox;
 		final Map<GenotypeType, JCheckBox> genotypeType2cbox = new HashMap<>();
 		
 		XFrame(final Path vcfPath,String defaultLoc,
@@ -211,6 +216,12 @@ public class SwingVcfView extends Launcher
 				cb.addActionListener(AE->refreshInterval());
 				this.variantType2cbox.put(vtype, cb);
 				}
+			this.filteredCtxcbox = new JCheckBox("FILTER",true);
+			this.filteredCtxcbox.setToolTipText("FILTER-ed Variants");
+			topPane.add(this.filteredCtxcbox);
+			this.filteredCtxcbox.addActionListener(AE->refreshInterval());
+
+			
 			topPane.add(new JSeparator());
 			label= new JLabel("JEXL:");
 			this.jtextFieldGEXL = new JTextField(10);
@@ -287,6 +298,9 @@ public class SwingVcfView extends Launcher
 			tabbed2.addTab("SnpEff:ANN",wrapTable("ANN",snpEffTable));
 			final JTable vepTable = new JTable(this.swingVepPredictionTableModel);
 			vepTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			
+			tabbed2.addTab("SnpEff:LOF",wrapTable("LOF",new JTable(this.lofSnpEffTableModel=new SnpEffNmdLOfTableModel(SnpEffLofNmdParser.LOF_TAG, header))));
+			tabbed2.addTab("SnpEff:NMD",wrapTable("NMD",new JTable(this.nmdSnpEffTableModel=new SnpEffNmdLOfTableModel(SnpEffLofNmdParser.NMD_TAG, header))));
 			tabbed2.addTab("VEP",wrapTable("VEP",vepTable));
 			final JTable bcfTable  = new JTable(this.swingBcsqPredictionTableModel);
 			bcfTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
@@ -378,6 +392,7 @@ public class SwingVcfView extends Launcher
 					st=st.filter(V->{
 						final VariantContext.Type vtype = V.getType();
 						if(!this.variantType2cbox.get(vtype).isSelected()) return false;
+						if(V.isFiltered() && !this.filteredCtxcbox.isSelected()) return false;
 						return true;
 						});
 					if(!StringUtils.isBlank(jexlExpr)) {
@@ -414,6 +429,8 @@ public class SwingVcfView extends Launcher
 		this.swingBcsqPredictionTableModel.setVariant(ctx);
 		this.swingAllelesTableModel.setVariant(ctx);
 		this.genotypeTypeTableModel.setVariant(ctx);
+		this.lofSnpEffTableModel.setVariant(ctx);
+		this.nmdSnpEffTableModel.setVariant(ctx);
 		if(this.swingTrioTableModel!=null) {
 			this.swingTrioTableModel.setVariant(ctx);
 		}
@@ -507,6 +524,51 @@ public class SwingVcfView extends Launcher
 			}
 		}
 	}
+	
+	@SuppressWarnings("serial")
+	private static class SnpEffNmdLOfTableModel extends AbstractGenericTable<SnpEffLofNmdParser.Prediction> {
+		final SnpEffLofNmdParser parser;
+		SnpEffNmdLOfTableModel(final String tag,VCFHeader header) {
+			this.parser = new SnpEffLofNmdParser(tag,header);
+ 			}
+		
+		public void setVariant(final VariantContext ctx) {
+			this.setRows(this.parser.parse(ctx));
+		}
+		
+		@Override
+		public int getColumnCount() { return 4;}
+		@Override
+		public String getColumnName(int column) {
+			switch(column) {
+				case 0: return "GeneName";
+				case 1: return "GeneID";
+				case 2: return "Number of Transcripts";
+				case 3: return "% Transcripts Affected";
+				default: throw new IllegalArgumentException();
+				}
+			}
+		@Override
+		public Class<?> getColumnClass(int columnIndex) {
+			switch(columnIndex) {
+				case 0: return String.class;
+				case 1: return String.class;
+				case 2: return Integer.class;
+				case 3: return Float.class;
+				default: throw new IllegalArgumentException();
+				}
+			}
+		@Override
+		public Object getValueOf(Prediction o, int columnIndex) {
+			switch(columnIndex) {
+				case 0: return o.getGeneName();
+				case 1: return o.getGeneId();
+				case 2: return o.getNumberOfTranscripts();
+				case 3: return o.getPercentOfTranscriptsAffected();
+				default: throw new IllegalArgumentException();
+				}
+			}
+		}
 	
 	private static class GenotypeCount {
 		GenotypeType gt;

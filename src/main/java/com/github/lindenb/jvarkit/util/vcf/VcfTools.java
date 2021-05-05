@@ -37,6 +37,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -59,6 +60,8 @@ private SnpEffPredictionParser snpEffPredictionParser=null;
 private VepPredictionParser vepPredictionParser=null;
 private AnnPredictionParser annPredictionParser=null;
 private BcfToolsPredictionParser bcftoolsCsqPredictionParser=null;
+private SnpEffLofNmdParser lofSnpeffParser=null;
+private SnpEffLofNmdParser nmdSnpeffParser=null;
 private final DeNovoDetector deNovoDetector = new DeNovoDetector();
 public VcfTools() {
 	init(null);
@@ -77,6 +80,15 @@ public void init(final VCFHeader header) {
 	this.vepPredictionParser=new VepPredictionParserFactory().header(header).get();
 	this.annPredictionParser=new AnnPredictionParserFactory(header).get();	
 	this.bcftoolsCsqPredictionParser = new BcfToolsPredictionParserFactory(header).get();
+	this.lofSnpeffParser = SnpEffLofNmdParser.createLofParser(header);
+	this.nmdSnpeffParser = SnpEffLofNmdParser.createNmdParser(header);
+	}
+
+public SnpEffLofNmdParser getLofSnpeffParser() {
+	return lofSnpeffParser;
+	}
+public SnpEffLofNmdParser getNmdSnpeffParser() {
+	return nmdSnpeffParser;
 	}
 
 public VepPredictionParser getVepPredictionParser() {

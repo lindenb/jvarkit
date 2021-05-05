@@ -68,6 +68,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -266,7 +267,7 @@ END_DOC
 		references="Vcf2table : a VCF prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853801](https://doi.org/10.6084/m9.figshare.5853801)",
 		biostars=293855,
 		creationDate="20170511",
-		modificationDate="20200720"
+		modificationDate="20210505"
 		)
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
@@ -1237,6 +1238,8 @@ public class VcfToTable extends Launcher {
 					if(key.equals(this.vcfTools.getVepPredictionParser().getTag()) && this.vcfTools.getVepPredictionParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getAnnPredictionParser().getTag()) && this.vcfTools.getAnnPredictionParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getBcftoolsPredictionParser().getTag()) && this.vcfTools.getBcftoolsPredictionParser().isValid()) continue;
+					if(key.equals(this.vcfTools.getNmdSnpeffParser().getTag()) && this.vcfTools.getNmdSnpeffParser().isValid()) continue;
+					if(key.equals(this.vcfTools.getLofSnpeffParser().getTag()) && this.vcfTools.getLofSnpeffParser().isValid()) continue;
 					Object v= atts.get(key);
 					final List<?> L;
 					if(v instanceof List)
@@ -1359,7 +1362,25 @@ public class VcfToTable extends Launcher {
 					t.removeEmptyColumns();
 					this.writeTable(margin, t);
 					}
-				
+				/** NMD or LOF */
+				for(int side=0;side<2 && !getOwner().hidePredictions ;side++) {
+					final SnpEffLofNmdParser parser = (side==0?this.vcfTools.getLofSnpeffParser():this.vcfTools.getNmdSnpeffParser());
+					if(!parser.isValid()) continue;
+					
+					final Table t = new Table("Gene Name","Gene Id","Number of Transcripts","% of Transcripts Affected").setCaption(parser.getTag());
+					for(final SnpEffLofNmdParser.Prediction p: parser.parse(vc)) {
+						final List<Object> r=new ArrayList<>();
+						String identifier = p.getGeneName();
+						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
+						identifier = p.getGeneId();
+						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
+						r.add(p.getNumberOfTranscripts());
+						r.add(p.getPercentOfTranscriptsAffected());
+						t.addList(r);
+						}
+					t.removeEmptyColumns();
+					this.writeTable(margin, t);
+					}
 				
 				printGenotypesTypes(margin,vc);
 				printCharts(margin,vc);
