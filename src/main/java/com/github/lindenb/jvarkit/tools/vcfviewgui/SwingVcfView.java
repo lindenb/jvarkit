@@ -50,11 +50,13 @@ import java.util.stream.Stream;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
+import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
@@ -164,6 +166,8 @@ public class SwingVcfView extends Launcher
 		final Map<VariantContext.Type, JCheckBox> variantType2cbox = new HashMap<>();
 		final JCheckBox filteredCtxcbox;
 		final Map<GenotypeType, JCheckBox> genotypeType2cbox = new HashMap<>();
+		final DefaultListModel<String> filterListModel;
+		
 		
 		XFrame(final Path vcfPath,String defaultLoc,
 				final int limit_number_variant,
@@ -291,6 +295,7 @@ public class SwingVcfView extends Launcher
 			
 			final JTabbedPane tabbed2 = new JTabbedPane();
 			tabbed2.addTab("INFO",wrapTable("INFO",new JTable(this.swingInfoTableModel)));
+			tabbed2.addTab("FILTER",new JScrollPane(new JList<>(this.filterListModel = new DefaultListModel<>())));
 			tabbed2.addTab("Types",wrapTable("Types",new JTable(this.genotypeTypeTableModel)));
 			tabbed2.addTab("Alleles",wrapTable("Alleles",new JTable(this.swingAllelesTableModel)));
 			final JTable snpEffTable  = new JTable(this.swingAnnPredictionTableModel);
@@ -383,7 +388,7 @@ public class SwingVcfView extends Launcher
 			final Optional<SimpleInterval> location = getUserInterval();
 			if(!location.isPresent()) {
 				L = Collections.emptyList();
-			}
+				}
 			else
 				{
 				final String jexlExpr = this.jtextFieldGEXL.getText();
@@ -424,6 +429,8 @@ public class SwingVcfView extends Launcher
 		final int i = variantTable.getSelectedRow();
 		final VariantContext ctx =  i>=0? swingVariantsTableModel.getElementAt(i):null;
 		
+		this.filterListModel.clear();
+		
 		this.swingAnnPredictionTableModel.setVariant(ctx);
 		this.swingVepPredictionTableModel.setVariant(ctx);
 		this.swingBcsqPredictionTableModel.setVariant(ctx);
@@ -440,6 +447,11 @@ public class SwingVcfView extends Launcher
 			genotypes = Collections.emptyList();
 			}
 		else {
+			
+			for(final String flt: ctx.getFilters()) {
+				this.filterListModel.addElement(flt);
+				}
+			
 			Pattern regexSample = null;
 			if(!StringUtils.isBlank(txtFieldSample.getText())) {
 				try {
