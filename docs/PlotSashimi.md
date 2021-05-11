@@ -46,7 +46,8 @@ Usage: plotsashimi [options] Files
       Min mapping quality
       Default: 0
   * -o, --out
-      An existing directory or a filename ending with the '.zip' suffix.
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
     --partition
       Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
@@ -79,6 +80,12 @@ Usage: plotsashimi [options] Files
  * rna
  * exon
  * rnaseq
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/497894](https://www.biostars.org/p/497894)
 
 
 ## Compilation

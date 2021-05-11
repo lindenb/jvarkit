@@ -61,6 +61,10 @@ import htsjdk.samtools.util.SequenceUtil;
 /**
 BEGIN_DOC
 
+## Input
+
+input is a set of indexed BAM/CRAM files or a file with the '.list' suffix containing the paths to the BAM/CRAM paths.
+
 ## Example
 
 ```
@@ -116,21 +120,23 @@ generate_doc=true
 public class BamXtremDepth extends Launcher {
 	private static final Logger LOG = Logger.build(BamXtremDepth.class).make();
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	protected Path faidxPath =null;
+	private Path faidxPath =null;
 	@Parameter(names={"--validation-stringency"},description="SAM Reader Validation Stringency")
-	protected ValidationStringency validationStringency = ValidationStringency.LENIENT;
+	private ValidationStringency validationStringency = ValidationStringency.LENIENT;
 	@Parameter(names={"-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	protected Path outputFile =null;
+	private Path outputFile =null;
 	@Parameter(names={"-Q","--mapq"},description="min mapping quality")
-	protected int mapq=1;
+	private int mapq=1;
 	@Parameter(names={"--min-coverage","-m"},description="inclusive min coverage")
-	protected int min_coverage= 0;
+	private int min_coverage= 0;
 	@Parameter(names={"--max-coverage","-M"},description="inclusive max coverage")
-	protected int max_coverage= 1_000;
+	private int max_coverage= 1_000;
 	@Parameter(names={"--interval_list"},description="force interval list output (default is BED)")
-	protected boolean output_format_interval_list = false;
+	private boolean output_format_interval_list = false;
 	@Parameter(names={"--contig"},description="limit to this chromosome.")
-	protected Set<String> limit_to_chromosomes = new HashSet<>();
+	private Set<String> limit_to_chromosomes = new HashSet<>();
+	@Parameter(names={"-A"},description="alternative algorithm. Scan the whole chromosome instead of scanning the previously found interval. Could be faster if there are too many intervals.")
+	private boolean alternative_algorithm = false; 	
 
 	/**
 	 * @param srcLoc the previous intervals
@@ -150,7 +156,7 @@ public class BamXtremDepth extends Launcher {
 		}
 	
 	
-	private void recursive(int bam_idx,
+	private void runLoop(
 			final List<Path> bamPaths,
 			final SamReaderFactory srf,
 			final SAMSequenceRecord ssr,
@@ -158,31 +164,36 @@ public class BamXtremDepth extends Launcher {
 			BitSet lowList,
 			BitSet  highList
 			) throws IOException{
-		if(bam_idx==bamPaths.size()) return;
-		
-		final List<Locatable> regions = bitSetToLocatables(ssr, lowList);
-		regions.addAll(bitSetToLocatables(ssr,highList));
-		if(regions.isEmpty()) return;
-		
-		final Path bamPath = bamPaths.get(bam_idx);
-		LOG.info(ssr.getContig()+" "+bamPath);
-		try(SamReader samReader =srf.open(bamPath)) {
-			// check indexed
-			if(!samReader.hasIndex()) {
-				throw new JvarkitException.BamHasIndex(bamPath.toString());
+		final CoverageFactory coverageFactory = new CoverageFactory().setMappingQuality(mapq);
+		for(final Path bamPath: bamPaths) {		
+			try(SamReader samReader =srf.open(bamPath)) {
+				// check indexed
+				if(!samReader.hasIndex()) {
+					throw new JvarkitException.BamHasIndex(bamPath.toString());
+					}
+				final SAMFileHeader header = samReader.getFileHeader();
+				// check dictionary
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+				SequenceUtil.assertSequenceDictionariesEqual(dict, refDict);
+				// get the coverage in the low and high region.
+				final CoverageFactory.SimpleCoverage coverage;
+				if (this.alternative_algorithm) {
+					LOG.info(ssr.getContig()+" "+bamPath);
+					coverage = coverageFactory.getSimpleCoverage(samReader, ssr, null);
+					}
+				else	{
+					final List<Locatable> regions = bitSetToLocatables(ssr, lowList);
+                        		regions.addAll(bitSetToLocatables(ssr,highList));
+                        		if(regions.isEmpty()) break;
+					LOG.info(ssr.getContig()+" "+bamPath+ " n-intervals:"+regions.size() + " size:"+regions.stream().mapToInt(R->R.getLengthOnReference()).sum());
+				 	coverage = coverageFactory.getSimpleCoverage(samReader, regions, null);
+					}
+				// compute the new low and hight coverage
+				reduce(lowList, coverage, I->I<=this.min_coverage);
+				reduce(highList, coverage, I->I>=this.max_coverage);
 				}
-			final SAMFileHeader header = samReader.getFileHeader();
-			// check dictionary
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-			SequenceUtil.assertSequenceDictionariesEqual(dict, refDict);
-			// get the coverage in the low and high region.
-			final CoverageFactory coverageFactory = new CoverageFactory().setMappingQuality(mapq);
-			final CoverageFactory.SimpleCoverage coverage = coverageFactory.getSimpleCoverage(samReader, regions, null);
-			// compute the new low and hight coverage
-			reduce(lowList, coverage, I->I<=this.min_coverage);
-			reduce(highList, coverage, I->I>=this.max_coverage);
+			System.gc();
 			}
-		recursive(bam_idx+1,bamPaths,srf,ssr,refDict,lowList,highList);
 		}
 	
 	private List<Locatable> bitSetToLocatables(
@@ -218,6 +229,10 @@ public class BamXtremDepth extends Launcher {
 				referenceSequence(this.faidxPath);
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(faidxPath);
 			final List<Path> bamPaths = IOUtils.unrollPaths(args);
+			if(bamPaths.isEmpty()) {
+				LOG.error("No bam was defined");
+				return -1;
+				}
 			try (PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 				final boolean out_is_intervallist = (
 						this.output_format_interval_list || 
@@ -238,11 +253,11 @@ public class BamXtremDepth extends Launcher {
 					final BitSet lowList = new BitSet(ssr.getLengthOnReference());
 					lowList.set(0, ssr.getSequenceLength());
 					
-					recursive(0, bamPaths, srf, ssr, dict, lowList, highList);
+					runLoop(bamPaths, srf, ssr, dict, lowList, highList);
 					
 					final List<Interval> rgn = new ArrayList<>(highList.size()+lowList.size());
-					bitSetToLocatables(ssr,lowList).stream().map(R->new Interval(R.getContig(),R.getStart(),R.getEnd(),false,"DP<="+this.min_coverage)).forEach(R->rgn.add(R));
-					bitSetToLocatables(ssr,highList).stream().map(R->new Interval(R.getContig(),R.getStart(),R.getEnd(),false,"DP>="+this.max_coverage)).forEach(R->rgn.add(R));
+					bitSetToLocatables(ssr,lowList).stream().map(R->new Interval(R.getContig(),R.getStart(),R.getEnd(),false,"LE."+this.min_coverage)).forEach(R->rgn.add(R));
+					bitSetToLocatables(ssr,highList).stream().map(R->new Interval(R.getContig(),R.getStart(),R.getEnd(),false,"GE."+this.max_coverage)).forEach(R->rgn.add(R));
 					rgn.sort(new ContigDictComparator(dict).createLocatableComparator());
 					for(final Interval R: rgn) {
 						out.print(R.getContig());

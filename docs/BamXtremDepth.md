@@ -38,6 +38,11 @@ Usage: bamxtremdepth [options] Files
       Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
+    -A
+      alternative algorithm. Scan the whole chromosome instead of scanning the 
+      previously found interval. Could be faster if there are too many 
+      intervals. 
+      Default: false
     -o
       Output file. Optional . Default: stdout
 
@@ -98,6 +103,10 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Input
+
+input is a set of indexed BAM/CRAM files or a file with the '.list' suffix containing the paths to the BAM/CRAM paths.
 
 ## Example
 
