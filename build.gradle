@@ -2561,6 +2561,11 @@ all2.add(task("swingvcfview", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
+all2.add(task("bamxtremdepth", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.bamxdepth.BamXtremDepth"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
         jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient","gson")
