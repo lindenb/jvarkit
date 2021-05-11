@@ -17,7 +17,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "2.23.0"
+	htsjdkVersion = "2.24.1"
 	jettyVersion = "9.4.26.v20200117"
 	}
 
@@ -176,6 +176,7 @@ libraries.put("htsjdk",new Library().
 	add("org.apache.commons:commons-jexl:jar:2.1.1").
 	add("org.apache.commons:commons-compress:jar:1.19").
 	add("org.tukaani:xz:jar:1.8").
+	add("org.sharegov:mjson:jar:1.4.1").
 	add("org.xerial.snappy:snappy-java:jar:1.1.7.3")
 	);
 libraries.put("jcommander",new Library().
