@@ -68,6 +68,7 @@ import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SmooveGenesParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 
@@ -1376,6 +1377,21 @@ public class VcfToTable extends Launcher {
 						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
 						r.add(p.getNumberOfTranscripts());
 						r.add(p.getPercentOfTranscriptsAffected());
+						t.addList(r);
+						}
+					t.removeEmptyColumns();
+					this.writeTable(margin, t);
+					}
+				/** smoove_gene */
+				if(this.vcfTools.getSmooveGenesParser().isValid()) {
+					final Table t = new Table("Gene","Feature","Features Count","Bases Count").setCaption("Smoove Genes");
+					for(final SmooveGenesParser.Prediction p: this.vcfTools.getSmooveGenesParser().parse(vc)) {
+						final List<Object> r=new ArrayList<>();
+						String identifier = p.getGeneName();
+						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
+						r.add(p.getFeature());
+						r.add(p.getFeaturesCount());
+						r.add(p.getBasesCount());
 						t.addList(r);
 						}
 					t.removeEmptyColumns();

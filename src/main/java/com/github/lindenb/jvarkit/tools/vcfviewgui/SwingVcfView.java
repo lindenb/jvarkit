@@ -87,6 +87,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SmooveGenesParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser.Prediction;
 import com.github.lindenb.jvarkit.variant.swing.SwingAllelesTableModel;
@@ -120,7 +121,13 @@ BEGIN_DOC
 
 ## Example
 
+```
+java -jar dist/swingvcfview.jar input.vcf.gz
+```
 
+## Screenshot
+
+ * https://twitter.com/yokofakun/status/1392173413079322625
 
 END_DOC
  */
@@ -160,6 +167,7 @@ public class SwingVcfView extends Launcher
 		final SwingBcsqPredictionTableModel swingBcsqPredictionTableModel;
 		final SnpEffNmdLOfTableModel lofSnpEffTableModel;
 		final SnpEffNmdLOfTableModel nmdSnpEffTableModel;
+		final SmooveGeneTableModel smooveGeneTableModel;
 		final SwingAllelesTableModel swingAllelesTableModel;
 		final SwingTrioTableModel swingTrioTableModel;
 		final GenotypeTypeTableModel genotypeTypeTableModel;
@@ -307,6 +315,9 @@ public class SwingVcfView extends Launcher
 			tabbed2.addTab("SnpEff:LOF",wrapTable("LOF",new JTable(this.lofSnpEffTableModel=new SnpEffNmdLOfTableModel(SnpEffLofNmdParser.LOF_TAG, header))));
 			tabbed2.addTab("SnpEff:NMD",wrapTable("NMD",new JTable(this.nmdSnpEffTableModel=new SnpEffNmdLOfTableModel(SnpEffLofNmdParser.NMD_TAG, header))));
 			tabbed2.addTab("VEP",wrapTable("VEP",vepTable));
+			tabbed2.addTab("Smoove",wrapTable("Smoove",new JTable(this.smooveGeneTableModel=new SmooveGeneTableModel(header))));
+			
+			
 			final JTable bcfTable  = new JTable(this.swingBcsqPredictionTableModel);
 			bcfTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 			tabbed2.addTab("bcftools:BCSQ",wrapTable("BCSQ", bcfTable));
@@ -438,6 +449,7 @@ public class SwingVcfView extends Launcher
 		this.genotypeTypeTableModel.setVariant(ctx);
 		this.lofSnpEffTableModel.setVariant(ctx);
 		this.nmdSnpEffTableModel.setVariant(ctx);
+		this.smooveGeneTableModel.setVariant(ctx);
 		if(this.swingTrioTableModel!=null) {
 			this.swingTrioTableModel.setVariant(ctx);
 		}
@@ -642,6 +654,52 @@ public class SwingVcfView extends Launcher
 			}
 		}
 	
+	
+	@SuppressWarnings("serial")
+	private static class SmooveGeneTableModel extends AbstractGenericTable<SmooveGenesParser.Prediction> {
+		final SmooveGenesParser parser;
+		SmooveGeneTableModel(final VCFHeader header) {
+			this.parser = new SmooveGenesParser(header);
+ 			}
+		
+		public void setVariant(final VariantContext ctx) {
+			this.setRows(this.parser.parse(ctx));
+		}
+		
+		@Override
+		public int getColumnCount() { return 4;}
+		@Override
+		public String getColumnName(int column) {
+			switch(column) {
+				case 0: return "GeneName";
+				case 1: return "Feature";
+				case 2: return "Features Count";
+				case 3: return "Bases Count";
+				default: throw new IllegalArgumentException();
+				}
+			}
+		@Override
+		public Class<?> getColumnClass(int columnIndex) {
+			switch(columnIndex) {
+				case 0: return String.class;
+				case 1: return String.class;
+				case 2: return Integer.class;
+				case 3: return Integer.class;
+				default: throw new IllegalArgumentException();
+				}
+			}
+		@Override
+		public Object getValueOf(SmooveGenesParser.Prediction o, int columnIndex) {
+			switch(columnIndex) {
+				case 0: return o.getGeneName();
+				case 1: return o.getFeature();
+				case 2: return o.getFeaturesCount();
+				case 3: return o.getBasesCount();
+				default: throw new IllegalArgumentException();
+				}
+			}
+		}
+
 	
 	@Override
 	public int doWork(final List<String> args)

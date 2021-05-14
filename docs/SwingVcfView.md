@@ -87,5 +87,11 @@ The current reference is:
 
 ## Example
 
+```
+java -jar dist/swingvcfview.jar input.vcf.gz
+```
 
+## Screenshot
+
+ * https://twitter.com/yokofakun/status/1392173413079322625
 

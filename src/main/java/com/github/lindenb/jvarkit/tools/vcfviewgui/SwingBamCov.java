@@ -122,7 +122,13 @@ BEGIN_DOC
 
 ## Example
 
+```
+java -jar dist/swingbamcov.jar -R ref.fa *.bam
+```
 
+## Screenshot
+
+ * https://twitter.com/yokofakun/status/1392173415684100105
 
 END_DOC
  */
