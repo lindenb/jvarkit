@@ -2001,8 +2001,8 @@ all.add( task("sam2tsv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("wescnvtview", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.sam2tsv.WesCnvTView"
+all.add( task("cnvtview", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.sam2tsv.CnvTView"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
 	});
 all.add( task("prettysam", type: CompileJVarkit) {

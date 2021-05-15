@@ -85,7 +85,7 @@ Input is a set of indexed cram/bam files or a file with the '.list' suffix conta
 ```
 find src/test/resources/ -type f -name "S*.bam" > bam.list
 
-$  java -jar dist/wescnvtview.jar  -r "RF01:100-200" bam.list 
+$  java -jar dist/cnvtview.jar  -r "RF01:100-200" bam.list 
 
 >>> RF01:100-200	 Length:101	(1)
 > S1 ===========================================================================
@@ -160,7 +160,7 @@ $  java -jar dist/wescnvtview.jar  -r "RF01:100-200" bam.list
 ## Note to self: Splitting the output:
 
 ```
-java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
+java -jar dist/cnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
 	csplit -b  '%05d.txt' -f cnv. -n 5 -s -z - '/^>>>/' '{*}' 
 ```
 
@@ -177,7 +177,7 @@ java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
 ## Note to self: view in less/more
 
 ```
-java -jar dist/wescnvtview.jar bam.list -r jeter.txt   | less -r
+java -jar dist/cnvtview.jar bam.list -r jeter.txt   | less -r
 ```
 
 ## Screenshot
@@ -196,14 +196,14 @@ https://twitter.com/yokofakun/status/1057627022665502721
 
 END_DOC
  */
-@Program(name="wescnvtview",
+@Program(name="cnvtview",
 description="Text visualization of bam DEPTH for multiple regions in a terminal",
 keywords={"bam","alignment","graphics","visualization","cnv","ascii","text"},
 modificationDate="20210412",
 creationDate="20181018"
 )
-public class WesCnvTView  extends Launcher {
-	private static final Logger LOG = Logger.build(WesCnvTView.class).make();
+public class CnvTView  extends Launcher {
+	private static final Logger LOG = Logger.build(CnvTView.class).make();
 	private enum Format {plain,ansi};
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -356,8 +356,8 @@ public class WesCnvTView  extends Launcher {
 					flatMapToDouble(SI->Arrays.stream(SI.pixel_coverage)).
 					max().orElse(0.0);
 			
-			if(WesCnvTView.this.capMaxDepth>0 && maxDepth>WesCnvTView.this.capMaxDepth) {
-				maxDepth =  WesCnvTView.this.capMaxDepth;
+			if(CnvTView.this.capMaxDepth>0 && maxDepth > CnvTView.this.capMaxDepth) {
+				maxDepth =  CnvTView.this.capMaxDepth;
 				}
 			if(maxDepth<=0.0) maxDepth=1.0;
 			int idx=0;
@@ -368,7 +368,7 @@ public class WesCnvTView  extends Launcher {
 					if(topA) return -1;
 					if(topB) return 1;
 					}
-				if(WesCnvTView.this.sort_on_stdev) {
+				if (CnvTView.this.sort_on_stdev) {
 					final double std1 = A.getStdDev();
 					final double std2 = B.getStdDev();
 					int i = Double.compare(std2, std1);//inverse sort
@@ -437,8 +437,8 @@ public class WesCnvTView  extends Launcher {
 			
 			//end print ruler
 			
-			final double depthPerPixel = (1.0/ WesCnvTView.this.sampleHeight)*maxDepth;
-			for(int pixy=0;pixy< WesCnvTView.this.sampleHeight;++pixy)
+			final double depthPerPixel = (1.0/ CnvTView.this.sampleHeight)*maxDepth;
+			for(int pixy=0;pixy< CnvTView.this.sampleHeight;++pixy)
 				{
 				final double dpy = maxDepth - pixy * depthPerPixel;
 				s= String.format("%.2f",dpy);
@@ -565,8 +565,8 @@ public class WesCnvTView  extends Launcher {
 					if(this.flushNow) {
 						if(idx>0) w.pw.println();
 						double maxDepth = Arrays.stream(si.pixel_coverage).max().orElse(0.0);
-						if(WesCnvTView.this.capMaxDepth>0 && maxDepth>WesCnvTView.this.capMaxDepth) {
-							maxDepth =  WesCnvTView.this.capMaxDepth;
+						if(CnvTView.this.capMaxDepth>0 && maxDepth > CnvTView.this.capMaxDepth) {
+							maxDepth =  CnvTView.this.capMaxDepth;
 							}
 						if(maxDepth<=0.0) maxDepth=1.0;
 						w.dump(si,maxDepth,interval);
@@ -737,6 +737,6 @@ public class WesCnvTView  extends Launcher {
 	
 public static void main(final String[] args)
 	{
-	new WesCnvTView().instanceMainWithExit(args);
+	new CnvTView().instanceMainWithExit(args);
 	}
 }

@@ -13,7 +13,7 @@ import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 @AlsoTest(LauncherTest.class)
-public class WesCnvTViewTest {
+public class CnvTViewTest {
 	private final TestSupport support = new TestSupport();
 
 	
@@ -29,7 +29,7 @@ public class WesCnvTViewTest {
 			pw.flush();
 			}
 		final Path out = support.createTmpPath(".txt");
-		Assert.assertEquals(new WesCnvTView().instanceMain(new String[] {
+		Assert.assertEquals(new CnvTView().instanceMain(new String[] {
 				"-o",out.toString(),
 				"-R " ,support.resource("rotavirus_rf.fa"),
 				"-r " ,"RF01:200-1000",

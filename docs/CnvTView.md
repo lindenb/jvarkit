@@ -1,4 +1,4 @@
-# WesCnvTView
+# CnvTView
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
@@ -8,7 +8,7 @@ Text visualization of bam DEPTH for multiple regions in a terminal
 ## Usage
 
 ```
-Usage: wescnvtview [options] Files
+Usage: cnvtview [options] Files
   Options:
     -cap, --cap
       Cap coverage to this value. Negative=don't set any limit
@@ -18,8 +18,8 @@ Usage: wescnvtview [options] Files
       1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 1.5 (extend)
       Default: com.github.lindenb.jvarkit.samtools.util.IntervalExtender$ExtendByFraction fraction : 1.5
     --flush
-      do not wait for all bam to be scanned, do not normalize on the depth of 
-      all bams, print the figure as soon as possible.
+      do not wait for all bam to be scanned, do not sort, do not normalize on 
+      the depth of all bams, print the figure as soon as possible.
       Default: false
     --format
       output format
@@ -93,7 +93,7 @@ Usage: wescnvtview [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ ./gradlew wescnvtview
+$ ./gradlew cnvtview
 ```
 
 The java jar file will be installed in the `dist` directory.
@@ -105,11 +105,11 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTView.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTView.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/CnvTView.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/sam2tsv/CnvTView.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTViewTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/WesCnvTViewTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/CnvTViewTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/sam2tsv/CnvTViewTest.java)
 
 
 ## Contribute
@@ -123,7 +123,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **wescnvtview** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **cnvtview** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -142,7 +142,7 @@ Input is a set of indexed cram/bam files or a file with the '.list' suffix conta
 ```
 find src/test/resources/ -type f -name "S*.bam" > bam.list
 
-$  java -jar dist/wescnvtview.jar  -r "RF01:100-200" bam.list 
+$  java -jar dist/cnvtview.jar  -r "RF01:100-200" bam.list 
 
 >>> RF01:100-200	 Length:101	(1)
 > S1 ===========================================================================
@@ -217,7 +217,7 @@ $  java -jar dist/wescnvtview.jar  -r "RF01:100-200" bam.list
 ## Note to self: Splitting the output:
 
 ```
-java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
+java -jar dist/cnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
 	csplit -b  '%05d.txt' -f cnv. -n 5 -s -z - '/^>>>/' '{*}' 
 ```
 
@@ -234,7 +234,7 @@ java -jar dist/wescnvtview.jar --bams bam.list -P -F BED jeter.txt   |\
 ## Note to self: view in less/more
 
 ```
-java -jar dist/wescnvtview.jar bam.list -r jeter.txt   | less -r
+java -jar dist/cnvtview.jar bam.list -r jeter.txt   | less -r
 ```
 
 ## Screenshot
