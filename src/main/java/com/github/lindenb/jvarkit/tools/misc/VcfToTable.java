@@ -1241,6 +1241,7 @@ public class VcfToTable extends Launcher {
 					if(key.equals(this.vcfTools.getBcftoolsPredictionParser().getTag()) && this.vcfTools.getBcftoolsPredictionParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getNmdSnpeffParser().getTag()) && this.vcfTools.getNmdSnpeffParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getLofSnpeffParser().getTag()) && this.vcfTools.getLofSnpeffParser().isValid()) continue;
+					if(key.equals(this.vcfTools.getSmooveGenesParser().getTag()) && this.vcfTools.getSmooveGenesParser().isValid()) continue;
 					Object v= atts.get(key);
 					final List<?> L;
 					if(v instanceof List)
