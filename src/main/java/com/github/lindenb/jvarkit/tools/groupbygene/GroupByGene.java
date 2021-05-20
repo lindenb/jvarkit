@@ -111,7 +111,7 @@ END_DOC
 		keywords={"vcf","gene"},
 		biostars={342790},
 		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff",
-		modificationDate="20200928",
+		modificationDate="20210520",
 		creationDate="20131209"
 		)
 public class GroupByGene
@@ -137,7 +137,7 @@ public class GroupByGene
 	@Parameter(names={"-l","--list"},description= "[20190626]list all available gene extractors", help=true)
 	private boolean list_extractors = false;
 	@Parameter(names={"-e","-E","--extractors"},description="[20190626]"+GeneExtractorFactory.OPT_DESC)
-	private String extractorsNames="ANN/GeneId VEP/GeneId BCSQ/gene";
+	private String extractorsNames="ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE";
 
 	
 	/** the SAMSequenceDictionary used to sort reference */

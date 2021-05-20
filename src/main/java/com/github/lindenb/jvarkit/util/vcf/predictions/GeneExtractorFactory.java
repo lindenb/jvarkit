@@ -277,6 +277,36 @@ private class SnpEffGeneExtractor   extends AbstractGeneExtractorImpl {
 		}
 	}
 
+private class SmooveExtractor extends AbstractGeneExtractorImpl {
+	private final SmooveGenesParser parser;
+	SmooveExtractor(final String name,final SmooveGenesParser smooveGenesParser)
+		{
+		super(name);
+		this.parser = smooveGenesParser;
+		}
+	@Override
+	public Map<KeyAndGene, Set<String>> apply(final VariantContext vc) {
+		final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
+		for(final SmooveGenesParser.Prediction pred:this.parser.parse(vc)){
+			//if(pred.isIntergenicRegion()) continue;
+			final String geneName= pred.getGeneName();
+			if(StringUtils.isBlank(geneName)) continue;
+			final KeyAndGene keyAndGene = new KeyAndGeneImpl(geneName, geneName,this.getName());
+			Set<String> values = gene2values.get(keyAndGene);
+			if(values==null)  {
+				values = new LinkedHashSet<>();
+				gene2values.put(keyAndGene,values);
+				}
+			values.add(pred.getOriginalAttributeAsString());
+			}
+		return gene2values;
+		}
+	@Override
+	public String getInfoTag()
+		{
+		return this.parser.getTag();
+		}
+	}
 
 private final List<GeneExtractor> extractors =  new ArrayList<>();
 /* WARNING keep that order: see constuctor */
@@ -284,7 +314,8 @@ private static List<String> AVAILABLE_EXTRACTORS_NAMES = Collections.unmodifiabl
 		"ANN/GeneId","ANN/FeatureId","ANN/GeneName",// 0 & 1 & 2
 		"VEP/GeneId","VEP/Ensp","VEP/Feature",// 3 & 4 & 5
 		"EFF/Gene","EFF/Transcript",// 6 & 7
-		"BCSQ/gene","BCSQ/transcript"//8 & 9
+		"BCSQ/gene","BCSQ/transcript",//8 & 9
+		"SMOOVE" //10
 		))
 		;
 
@@ -315,6 +346,9 @@ public GeneExtractorFactory(final VCFHeader header) {
 	extractors.add( new BcftoolsCsqExtractor(csqParser,AVAILABLE_EXTRACTORS_NAMES.get(8), P->P.getGeneName()));
 	extractors.add( new BcftoolsCsqExtractor(csqParser,AVAILABLE_EXTRACTORS_NAMES.get(9), P->P.getTranscript()));
 
+	
+	final SmooveGenesParser smooveGenesParser = new SmooveGenesParser(header);
+	extractors.add( new SmooveExtractor(AVAILABLE_EXTRACTORS_NAMES.get(10), smooveGenesParser));
 	}
 
 /** return a list of all the available extractors' names */

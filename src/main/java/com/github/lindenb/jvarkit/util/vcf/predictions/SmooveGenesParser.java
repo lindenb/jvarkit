@@ -48,6 +48,7 @@ public class SmooveGenesParser {
 		public String getFeature();
 		public int getFeaturesCount();
 		public int getBasesCount();
+		public String getOriginalAttributeAsString();
 		}
 
 	private class PredictionImpl implements Prediction {
@@ -90,10 +91,13 @@ public class SmooveGenesParser {
 					this.basesCount == o.basesCount
 					;
 			}
-
+		@Override
+		public String getOriginalAttributeAsString() {
+			return this.geneName+"|"+this.feature+":"+featuresCount+":"+this.basesCount;
+			}
 		@Override
 		public String toString() {
-			return this.geneName+"|"+this.feature+":"+featuresCount+":"+this.basesCount;
+			return getOriginalAttributeAsString();
 			}
 		}
 
