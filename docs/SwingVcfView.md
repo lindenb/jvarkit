@@ -10,8 +10,8 @@ VCFviewer using Java Swing UI
 ```
 Usage: swingvcfview [options] Files
   Options:
-    --gtf
-      GTF Path used to find intervals by gene name
+    --gff, --gff3
+      GFF3 file Path used to find intervals by gene name
     -h, --help
       print help and exit
     --helpFormat
