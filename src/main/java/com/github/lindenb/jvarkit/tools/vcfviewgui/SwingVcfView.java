@@ -33,11 +33,12 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -71,6 +72,7 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileFilter;
 import javax.swing.table.TableModel;
 
 import com.beust.jcommander.Parameter;
@@ -82,6 +84,9 @@ import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTabl
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -107,8 +112,11 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.Tribble;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -147,6 +155,8 @@ public class SwingVcfView extends Launcher
 	private int limit_number_variant = -1;
 	@Parameter(names={"--pedigree"},description=PedigreeParser.OPT_DESC)
 	private Path pedigreePath;
+	@Parameter(names={"--gtf"},description="GTF Path used to find intervals by gene name")
+	private Path gtfPath;
 
 	
 	@SuppressWarnings("serial")
@@ -175,15 +185,18 @@ public class SwingVcfView extends Launcher
 		final JCheckBox filteredCtxcbox;
 		final Map<GenotypeType, JCheckBox> genotypeType2cbox = new HashMap<>();
 		final DefaultListModel<String> filterListModel;
-		
+		final GtfTableModel gtfTableModel;
+		final Path gtfPath;
 		
 		XFrame(final Path vcfPath,String defaultLoc,
 				final int limit_number_variant,
-				final Pedigree pedigree) {
+				final Pedigree pedigree,
+				final Path gtfPath) {
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-			setTitle(SwingVcfView.class.getSimpleName());
+			setTitle(SwingVcfView.class.getSimpleName()+": "+ vcfPath.getFileName().toString());
 			this.limit_number_variant = limit_number_variant;
 			this.pedigree = pedigree;
+			this.gtfPath = gtfPath;
 			final VCFReaderFactory vcfReaderFactory = VCFReaderFactory.makeDefault();
 			vcfReader = vcfReaderFactory.open(vcfPath, true);
 			final VCFHeader header = vcfReader.getHeader();
@@ -300,7 +313,6 @@ public class SwingVcfView extends Launcher
 			this.genotypeTypeTableModel = new GenotypeTypeTableModel();
 			this.swingAllelesTableModel = new SwingAllelesTableModel();
 			
-			
 			final JTabbedPane tabbed2 = new JTabbedPane();
 			tabbed2.addTab("INFO",wrapTable("INFO",new JTable(this.swingInfoTableModel)));
 			tabbed2.addTab("FILTER",new JScrollPane(new JList<>(this.filterListModel = new DefaultListModel<>())));
@@ -316,7 +328,12 @@ public class SwingVcfView extends Launcher
 			tabbed2.addTab("SnpEff:NMD",wrapTable("NMD",new JTable(this.nmdSnpEffTableModel=new SnpEffNmdLOfTableModel(SnpEffLofNmdParser.NMD_TAG, header))));
 			tabbed2.addTab("VEP",wrapTable("VEP",vepTable));
 			tabbed2.addTab("Smoove",wrapTable("Smoove",new JTable(this.smooveGeneTableModel=new SmooveGeneTableModel(header))));
-			
+			if(this.gtfPath==null) {
+				this.gtfTableModel = null;
+				}	
+			else {
+				tabbed2.addTab("GTF",wrapTable("GTF",new JTable(this.gtfTableModel=new GtfTableModel(this.gtfPath))));
+			}
 			
 			final JTable bcfTable  = new JTable(this.swingBcsqPredictionTableModel);
 			bcfTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
@@ -385,13 +402,56 @@ public class SwingVcfView extends Launcher
 				}));
 			}
 		
+		/** get interval using GTF file */
+		final Optional<SimpleInterval> getGtfInterval(final String s) {
+			if(StringUtil.isBlank(s)) return Optional.empty();
+			if(this.gtfPath==null) return Optional.empty();
+			
+			try(BufferedReader br=IOUtils.openPathForBufferedReading(this.gtfPath)) {
+				final GTFCodec codec = new GTFCodec();
+				return br.lines().
+						map(L->codec.decode(L)).
+						filter(G->G!=null).
+						filter(G->{
+							if(G.getType().equals("gene")) {
+								if(s.equals(G.getAttribute("gene_name"))) return true;
+								if(s.equals(G.getAttribute("gene_id"))) return true;
+								if(s.equals(G.getAttribute("ID"))) return true;
+								}
+							if(G.getType().equals("transcript")) {
+								if(s.equals(G.getAttribute("transcript_name"))) return true;
+								if(s.equals(G.getAttribute("transcript_id"))) return true;
+								}
+							return false;
+							}).
+						map(G->new SimpleInterval(G)).
+						findFirst();
+				}
+			catch(final Throwable err) {
+				return Optional.empty();
+				}
+			}
+		
 		final Optional<SimpleInterval> getUserInterval() {
 			final String s = this.jtextFieldLocation.getText(); 
 			if(StringUtil.isBlank(s)) return Optional.empty();
-			return IntervalParserFactory.newInstance().
+			Optional<SimpleInterval> ret;
+
+			try {
+				ret = IntervalParserFactory.newInstance().
 					dictionary(this.dict).
 					make().
 					apply(s);
+				}
+			catch(Throwable err) {
+				return Optional.empty();
+				}
+			if(ret.isPresent()) return ret;
+			ret  = getGtfInterval(s);
+			if(ret.isPresent()) {
+				this.jtextFieldLocation.setText(ret.get().toString());
+				}
+			return ret;
 			}
 				
 		private void refreshInterval() {
@@ -450,9 +510,13 @@ public class SwingVcfView extends Launcher
 		this.lofSnpEffTableModel.setVariant(ctx);
 		this.nmdSnpEffTableModel.setVariant(ctx);
 		this.smooveGeneTableModel.setVariant(ctx);
+		if(this.gtfTableModel!=null) {
+			this.gtfTableModel.setVariant(ctx);
+		}
 		if(this.swingTrioTableModel!=null) {
 			this.swingTrioTableModel.setVariant(ctx);
 		}
+		
 		
 		final List<Genotype> genotypes;
 		if(ctx==null) {
@@ -700,15 +764,120 @@ public class SwingVcfView extends Launcher
 			}
 		}
 
+	@SuppressWarnings("serial")
+	private static class GtfTableModel extends AbstractGenericTable<GTFLine> {
+		final Path gtfFile;
+		GtfTableModel(final Path gtfFile) {
+			this.gtfFile = gtfFile;
+ 			}
+		
+		public void setVariant(final VariantContext ctx) {
+			if(ctx==null || this.gtfFile==null) {
+				setRows(Collections.emptyList());
+				return;
+				}
+			final List<GTFLine> lines= new ArrayList<>();
+			try(TabixReader tbr = new TabixReader(this.gtfFile.toString())) {
+				final GTFCodec codec = new GTFCodec();
+				final ContigNameConverter ctgConverter = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+				final String ctg = ctgConverter.apply(ctx.getContig());
+				if(!StringUtils.isBlank(ctg)) {
+				final TabixReader.Iterator iter= tbr.query(ctg, ctx.getStart(), ctx.getEnd());
+					for(;;) {
+						final String line = iter.next();
+						if(line==null) break;
+						final GTFLine gtf = codec.decode(line);
+						if(gtf==null) continue;
+						lines.add(gtf);
+						}
+					}
+				}
+			catch(final Throwable err) {
+				lines.clear();
+				}
+			setRows(lines);
+			}
+		
+		@Override
+		public int getColumnCount() { return 5;}
+		@Override
+		public String getColumnName(int column) {
+			switch(column) {
+				case 0: return "Chrom";
+				case 1: return "Start";
+				case 2: return "End";
+				case 3: return "Type";
+				case 4: return "Attributes";
+				default: throw new IllegalArgumentException();
+				}
+			}
+		@Override
+		public Class<?> getColumnClass(int columnIndex) {
+			switch(columnIndex) {
+				case 0: return String.class;
+				case 1: return Integer.class;
+				case 2: return Integer.class;
+				case 3: return String.class;
+				case 4: return String.class;
+				default: throw new IllegalArgumentException();
+				}
+			}
+		@Override
+		public Object getValueOf(GTFLine o, int columnIndex) {
+			switch(columnIndex) {
+				case 0: return o.getContig();
+				case 1: return o.getStart();
+				case 2: return o.getEnd();
+				case 3: return o.getType();
+				case 4: return o.getAttributes().entrySet().stream().map(KV->KV.getKey()+" = " + KV.getValue()).collect(Collectors.joining(" ; "));
+				default: throw new IllegalArgumentException();
+				}
+			}
+		}
+	
 	
 	@Override
 	public int doWork(final List<String> args)
 		{
 		try {
-			final String input = this.oneAndOnlyOneFile(args);
-			final Path vcfPath = Paths.get(input);
-			IOUtil.assertFileIsReadable(vcfPath);
+			final List<Path> all_vcf_paths = new ArrayList<>(IOUtils.unrollPaths(args));
+			if(all_vcf_paths.isEmpty()) {
+				final JFileChooser jfc = new JFileChooser();
+				jfc.setMultiSelectionEnabled(true);
+				jfc.setFileFilter(new FileFilter()
+					{
+					@Override
+					public String getDescription()
+						{
+						return "Indexed Variant File";
+						}
+						
+					@Override
+					public boolean accept(final File f)
+						{
+						if(f.isDirectory()) return true;
+						if(!f.canRead()) return false;
+						if(FileExtensions.VCF_LIST.stream().noneMatch(X->f.getName().endsWith(X))) return false;
+						File idx =  Tribble.tabixIndexFile(f);
+						if( idx.exists()) return true;
+						idx = Tribble.indexFile(f);
+						if( idx.exists()) return true;
+						idx = new File(f.getParentFile(),f.getName()+ FileExtensions.CSI);
+						if( idx.exists()) return true;
+						return false;
+						}
+					});
+				if(jfc.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION) return -1;
+				final File[] sel = jfc.getSelectedFiles();
+				if(sel==null || sel.length==0) return -1;
+				Arrays.asList(sel).stream().map(F->F.toPath()).forEach(P->all_vcf_paths.add(P));
+				}
 			
+			
+			for(final Path path: all_vcf_paths) {
+				IOUtil.assertFileIsReadable(path);
+				}
+					
 			final Pedigree ped;
 			if(this.pedigreePath!=null) {
 				ped = new PedigreeParser().parse(this.pedigreePath);
@@ -719,13 +888,17 @@ public class SwingVcfView extends Launcher
 				}
 			
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(vcfPath,defaultRegion,this.limit_number_variant,ped);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 
 			
 			SwingUtilities.invokeAndWait(()->{
-				frame.setVisible(true);
+				int dx = 0;
+				for(final Path vcfPath: all_vcf_paths) {
+					final XFrame frame = new XFrame(vcfPath,defaultRegion,this.limit_number_variant,ped,this.gtfPath);
+					frame.setBounds(50 + dx , 50 + dx, screen.width-100, screen.height-100);
+					frame.setVisible(true);
+					dx += 2;
+					}
 				});
 			return 0;
 			}

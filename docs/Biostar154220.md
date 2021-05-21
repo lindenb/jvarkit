@@ -71,6 +71,7 @@ Usage: biostar154220 [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/154220](https://www.biostars.org/p/154220)
+ * [https://www.biostars.org/p/9471266](https://www.biostars.org/p/9471266)
 
 
 ## Compilation
