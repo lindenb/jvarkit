@@ -71,6 +71,11 @@ $ ./gradlew vcfcomparegt
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20131105
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfcmp/VCFCompareGT.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfcmp/VCFCompareGT.java)
@@ -137,4 +142,8 @@ X	1948846	rs6	T	TG	.	.	GDF=Sample	GT:DP:GCH:GNW:GQ	1/1:239:0:1:99	./.
 X	1955199	.	C	T	.	.	GDF=Sample	GT:DP:GCH:GNW:GQ	./.	1/1:1:0:1:4
 (...)
 ```
+
+## Cited In:
+
+ +  Lado, S. & al. Innate and Adaptive Immune Genes Associated with MERS-CoV Infection in Dromedaries. Cells 2021, 10, 1291. https://doi.org/10.3390/cells10061291 
 

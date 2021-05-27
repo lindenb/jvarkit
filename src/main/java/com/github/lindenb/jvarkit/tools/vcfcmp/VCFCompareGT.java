@@ -112,15 +112,19 @@ X	1955199	.	C	T	.	.	GDF=Sample	GT:DP:GCH:GNW:GQ	./.	1/1:1:0:1:4
 (...)
 ```
 
+## Cited In:
+
+ +  Lado, S. & al. Innate and Adaptive Immune Genes Associated with MERS-CoV Infection in Dromedaries. Cells 2021, 10, 1291. https://doi.org/10.3390/cells10061291 
+
 END_DOC
  */
 @Program(
 	name="vcfcomparegt",
 	description=" compare two or more genotype-callers for the same individuals. Produce a VCF with FORMAT fields indicating if a genotype is new or modified.",
-	keywords={"vcf","compare"}
+	keywords={"vcf","compare"},
+	creationDate="20131105"
 	)
-public class VCFCompareGT extends Launcher
-	{
+public class VCFCompareGT extends Launcher {
 	private static final Logger LOG = Logger.build(VCFCompareGT.class).make();
 	@Parameter(names="-m",description="only print modified samples")
 	private boolean only_print_modified=false;
@@ -523,5 +527,4 @@ public class VCFCompareGT extends Launcher
 		{
 		new VCFCompareGT().instanceMainWithExit(args);
 		}
-
-}
+	}
