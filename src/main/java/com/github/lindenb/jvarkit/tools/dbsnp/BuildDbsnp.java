@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.MergingIterator;
 import htsjdk.variant.variantcontext.Allele;
@@ -98,7 +99,7 @@ END_DOC
 	description="Build a DBSNP file from different sources for GATK",
 	keywords={"vcf","dbsnp"},
 	creationDate="20200904",
-	modificationDate="20200904",
+	modificationDate="20210527",
 	generate_doc=false
 	)
 public class BuildDbsnp extends Launcher {
@@ -123,9 +124,24 @@ public class BuildDbsnp extends Launcher {
 		public int compareTo(final Variant o) {
 			int i = Integer.compare(this.pos, o.pos);
 			if(i!=0) return i;
-			i = alleles.get(0).compareTo(o.alleles.get(0));
+			i = this.alleles.get(0).compareTo(o.alleles.get(0));
 			return i;
 			}
+		@Override
+		public boolean equals(Object o) {
+			if(o==this) return true;
+			if(o==null || !(o instanceof Variant)) return false;
+			return this.compareTo(Variant.class.cast(o))==0;
+			}
+		@Override
+		public int hashCode() {
+			return Integer.hashCode(pos);
+			}
+
+		@Override
+		public String toString() {
+			return String.valueOf(pos)+":"+id+":"+this.alleles.get(0);
+		}
 	}
 	
 	private static class VCFSource extends AbstractCloseableIterator<Variant> {
@@ -133,7 +149,7 @@ public class BuildDbsnp extends Launcher {
 		Path filePath;
 		VCFReader reader;
 		String currentContig;
-		CloseableIterator<VariantContext> iter;
+		PeekableIterator<VariantContext> iter;
 		final List<Variant> stack  = new ArrayList<>();
 		VCFSource(final String name,final Path path) {
 			this.name = name;
@@ -149,11 +165,11 @@ public class BuildDbsnp extends Launcher {
 			if(dict!=null) {
 				final String vcfCtg = ContigNameConverter.fromOneDictionary(dict).apply(ssr.getContig());
 				if(StringUtils.isBlank(vcfCtg)) {
-					iter = this.reader.query(ssr.getContig()/* returns an empty iterator*/,ssr.getStart(),ssr.getEnd());
+					iter = new PeekableIterator<>(this.reader.query(ssr.getContig()/* returns an empty iterator*/,ssr.getStart(),ssr.getEnd()));
 					}
 				else
 					{
-					iter = this.reader.query(vcfCtg,ssr.getStart(),ssr.getEnd());
+					iter = new PeekableIterator<>(this.reader.query(vcfCtg,ssr.getStart(),ssr.getEnd()));
 					}
 				}
 			else
@@ -176,29 +192,36 @@ public class BuildDbsnp extends Launcher {
 					contigs.add("M");
 					}
 				for(final String contig : contigs) {
-					iter = this.reader.query(contig,ssr.getStart(),ssr.getEnd());
+					iter = new PeekableIterator<>(this.reader.query(contig,ssr.getStart(),ssr.getEnd()));
 					if(iter.hasNext()) break;
 					iter.close();
 					}
 				}
 			}
 		
+		private Variant convert(final VariantContext ctx) {
+	 		final Variant variant = new Variant();
+                        variant.id = ctx.hasID()?ctx.getID():this.name+"_"+this.currentContig+"_"+ctx.getStart();
+                        variant.alleles = ctx.getAlleles();
+                        variant.pos = ctx.getStart();
+			return variant;
+			}
+
 		@Override
 		protected Variant advance() {
 			if(!stack.isEmpty()) {
 				return stack.remove(0);
 				}
-			while(iter.hasNext()) {
+			if(iter.hasNext()) {
 				final VariantContext ctx = iter.next();
-				final Variant variant = new Variant();
-				variant.id = ctx.hasID()?ctx.getID():this.name+"_"+this.currentContig+"_"+ctx.getStart();
-				variant.alleles = ctx.getAlleles();
-				variant.pos = ctx.getStart();
+				final Variant variant = convert(ctx);
 				stack.add(variant);
-				if(stack.size()>1) {
-					final Variant first = stack.get(0);
-					if(first.pos!=variant.pos) break;
+				while(iter.hasNext()) {
+					final VariantContext v2 = iter.next();
+					if(v2.getStart()!=variant.pos) break;
+					stack.add(convert(iter.next()));//consumme
 					}
+					
 				}
 			if(!stack.isEmpty()) {
 				if(stack.size()>1) Collections.sort(this.stack);
@@ -252,6 +275,7 @@ public class BuildDbsnp extends Launcher {
 				w.writeHeader(header);
 				for(final SAMSequenceRecord ssr:dict.getSequences()) {
 					if(!StringUtils.isBlank(this.limitChrom) && !ssr.getContig().equals(this.limitChrom)) continue;
+					LOG.info(ssr.getContig());
 					sources.stream().forEach(SRC->SRC.reset(ssr));
 					final List<CloseableIterator<Variant>> iterators  = sources.stream().map(SRC->SRC).collect(Collectors.toList());
 					final MergingIterator<Variant> merger = new MergingIterator<>((A, B)->A.compareTo(B),iterators);
