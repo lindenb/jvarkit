@@ -13,7 +13,8 @@ Usage: vcfgroupbypop [options] Files
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 
-      version is: 2.1 (last checked 2019-11-15)
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
       Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
@@ -22,12 +23,24 @@ Usage: vcfgroupbypop [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+  * -p, --mapping
+      mapping file: each line is (SAMPLE)\t(POP)\n
+    -M, --max-fisher
+      max inclusive value of fisher test. A decimal number between 0.0 and 
+      1.0. If the value ends with '%' it is interpretted as a percentage eg. 
+      '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => 
+      '0.01'. 
+      Default: 1.0
+    -m, --min-fisher
+      min inclusive value of fisher test. A decimal number between 0.0 and 
+      1.0. If the value ends with '%' it is interpretted as a percentage eg. 
+      '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' => 
+      '0.01'. 
+      Default: 0.0
+    -o, --out
       Output file. Optional . Default: stdout
     --version
       print version and exit
-  * -p
-      mapping file: each line is (SAMPLE)\t(POP)\n
 
 ```
 
