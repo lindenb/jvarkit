@@ -26,12 +26,15 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Panel;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
@@ -56,6 +59,7 @@ import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -65,6 +69,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
@@ -277,6 +282,21 @@ public class SwingVcfView extends Launcher
 			final JPanel pane2 = new JPanel(new BorderLayout(5,5));
 			this.swingVariantsTableModel = new SwingVariantsTableModel();
 			this.variantTable =  new JTable(this.swingVariantsTableModel);
+			this.variantTable.addMouseListener(new MouseAdapter() {
+				@Override
+				public void mousePressed(java.awt.event.MouseEvent e) {
+					if(!e.isPopupTrigger()) return;
+			        int rowindex = variantTable.getSelectedRow();
+			        if(rowindex<0) return;
+			        rowindex = variantTable.convertRowIndexToModel(rowindex);
+			        if(rowindex<0 || rowindex>= swingVariantsTableModel.getRowCount()) return;
+			        final VariantContext vc  = swingVariantsTableModel.getElementAt(rowindex);
+					final JPopupMenu pop=new JPopupMenu();
+					fillMenuForVariant(pop,vc);
+					pop.show(e.getComponent(), e.getX(), e.getY());
+					}
+				});
+			
 			this.swingVCFGenotypesTableModel = new SwingVCFGenotypesTableModel(this.pedigree);
 			final JTable genotypeTable =  new JTable(this.swingVCFGenotypesTableModel);
 			genotypeTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
@@ -322,21 +342,73 @@ public class SwingVcfView extends Launcher
 			this.genotypeTypeTableModel = new GenotypeTypeTableModel();
 			this.swingAllelesTableModel = new SwingAllelesTableModel();
 			
+			final MouseAdapter showBrowser = new MouseAdapter() {
+				@Override
+				public void mousePressed(final MouseEvent e) {
+					if(!e.isPopupTrigger()) return;
+					if(!Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) return;
+					final Component component = e.getComponent();
+					if(!(component instanceof JTable)) return;
+					final JTable table = JTable.class.cast(component);
+					final TableModel m = table.getModel();
+			        int rowindex = table.getSelectedRow();
+			        if(rowindex<0) return;
+			        rowindex = table.convertRowIndexToModel(rowindex);
+			        if(rowindex<0 || rowindex>= table.getRowCount()) return;
+			        int colindex = table.getSelectedColumn();
+			        colindex = table.convertColumnIndexToModel(colindex);
+			        if(colindex<0 || colindex>= table.getColumnCount()) return;
+	
+			        Object o = m.getValueAt(rowindex, colindex);
+			        if(o==null || !(o instanceof String)) return;
+			        final String s= (String)o;
+			        if(StringUtils.isBlank(s)) return;
+					final JPopupMenu pop=new JPopupMenu();
+					final UrlSupplier urlSupplier = new UrlSupplier(XFrame.this.dict);
+					urlSupplier.of(s).stream().forEach(U->{
+						final AbstractAction action = new AbstractAction(U.getLabel())
+							{
+							@Override
+							public void actionPerformed(final ActionEvent e)
+								{
+								try {
+									Desktop.getDesktop().browse(new URI(U.getUrl()));
+									}
+								catch(final Throwable err) {
+									ThrowablePane.show(table, err);
+									}
+								}
+							};
+						action.putValue(AbstractAction.LONG_DESCRIPTION, U.getLabel());
+						action.putValue(AbstractAction.SHORT_DESCRIPTION, U.getLabel());
+						action.putValue(AbstractAction.NAME, U.getLabel());
+						final JMenuItem mi = new JMenuItem(action);
+						pop.add(mi);
+						});
+	
+					pop.show(e.getComponent(), e.getX(), e.getY());
+					}
+				};
+			
 			final JTabbedPane tabbed2 = new JTabbedPane();
-			tabbed2.addTab("INFO",wrapTable("INFO",new JTable(this.swingInfoTableModel)));
-			tabbed2.addTab("FILTER",new JScrollPane(new JList<>(this.filterListModel = new DefaultListModel<>())));
-			tabbed2.addTab("Types",wrapTable("Types",new JTable(this.genotypeTypeTableModel)));
+			tabbed2.addTab("INFO", wrapTable("INFO",new JTable(this.swingInfoTableModel)));
+			tabbed2.addTab("FILTER", new JScrollPane(new JList<>(this.filterListModel = new DefaultListModel<>())));
+			tabbed2.addTab("Types", wrapTable("Types",new JTable(this.genotypeTypeTableModel)));
 			tabbed2.addTab("Alleles",wrapTable("Alleles",new JTable(this.swingAllelesTableModel)));
 			final JTable snpEffTable  = new JTable(this.swingAnnPredictionTableModel);
 			snpEffTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			snpEffTable.addMouseListener(showBrowser);
 			tabbed2.addTab("SnpEff:ANN",wrapTable("ANN",snpEffTable));
 			final JTable vepTable = new JTable(this.swingVepPredictionTableModel);
 			vepTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			vepTable.addMouseListener(showBrowser);
 			
 			tabbed2.addTab("SnpEff:LOF",wrapTable("LOF",new JTable(this.lofSnpEffTableModel=new SnpEffNmdLOfTableModel(SnpEffLofNmdParser.LOF_TAG, header))));
 			tabbed2.addTab("SnpEff:NMD",wrapTable("NMD",new JTable(this.nmdSnpEffTableModel=new SnpEffNmdLOfTableModel(SnpEffLofNmdParser.NMD_TAG, header))));
 			tabbed2.addTab("VEP",wrapTable("VEP",vepTable));
-			tabbed2.addTab("Smoove",wrapTable("Smoove",new JTable(this.smooveGeneTableModel=new SmooveGeneTableModel(header))));
+			final JTable smooveTable = new JTable(this.smooveGeneTableModel=new SmooveGeneTableModel(header));
+			vepTable.addMouseListener(showBrowser);
+			tabbed2.addTab("Smoove",wrapTable("Smoove",smooveTable));
 			if(this.gffPath==null) {
 				this.gffTableModel = null;
 				}	
@@ -412,16 +484,18 @@ public class SwingVcfView extends Launcher
 			this.menuOpenBrowser = new JMenu("Browse");
 			menuBar.add(this.menuOpenBrowser);
 			}
-		private final void updateMenuBrowser(final VariantContext ctx) {
-			this.menuOpenBrowser.removeAll();
+		
+		
+		
+		private void fillMenuForVariant(final JComponent menu,final VariantContext ctx) {
 			if(ctx==null) return;
 			if(!Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) return;
 			final UrlSupplier urlSupplier = new UrlSupplier(this.dict);
 			urlSupplier.of(ctx).stream().forEach(U->{
-				final JMenuItem mi = new JMenuItem(new AbstractAction(U.getLabel())
+				final AbstractAction action = new AbstractAction(U.getLabel())
 					{
 					@Override
-					public void actionPerformed(ActionEvent e)
+					public void actionPerformed(final ActionEvent e)
 						{
 						try {
 							Desktop.getDesktop().browse(new URI(U.getUrl()));
@@ -430,8 +504,12 @@ public class SwingVcfView extends Launcher
 							ThrowablePane.show(menuOpenBrowser, err);
 							}
 						}
-					});
-				this.menuOpenBrowser.add(mi);
+					};
+				action.putValue(AbstractAction.LONG_DESCRIPTION, U.getLabel());
+				action.putValue(AbstractAction.SHORT_DESCRIPTION, U.getLabel());
+				action.putValue(AbstractAction.NAME, U.getLabel());
+				final JMenuItem mi = new JMenuItem(action);
+				menu.add(mi);
 				});
 			}
 		
@@ -536,7 +614,8 @@ public class SwingVcfView extends Launcher
 		final int i = variantTable.getSelectedRow();
 		final VariantContext ctx =  i>=0? swingVariantsTableModel.getElementAt(i):null;
 		
-		this.updateMenuBrowser(ctx);
+		this.menuOpenBrowser.removeAll();
+		fillMenuForVariant(this.menuOpenBrowser,ctx);
 		this.filterListModel.clear();
 		this.swingAnnPredictionTableModel.setVariant(ctx);
 		this.swingVepPredictionTableModel.setVariant(ctx);
@@ -647,8 +726,8 @@ public class SwingVcfView extends Launcher
 			ThrowablePane.show(jtable, err);
 			}
 		}
-	}
 	
+
 	@SuppressWarnings("serial")
 	private static class SnpEffNmdLOfTableModel extends AbstractGenericTable<SnpEffLofNmdParser.Prediction> {
 		final SnpEffLofNmdParser parser;
@@ -834,7 +913,7 @@ public class SwingVcfView extends Launcher
 			setRows(lines);
 			}
 		}
-	
+	}
 	
 	@Override
 	public int doWork(final List<String> args)

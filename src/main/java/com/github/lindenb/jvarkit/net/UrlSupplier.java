@@ -125,13 +125,37 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		_string(ctx.getID(),urls);
 		}
 	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
-	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
+	if(isGrch37() && !StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
+			//gnomad
 			urls.add(new LabelledUrlImpl("Variant Gnomad 2.1 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
 				StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r2_1"
 				));
+			
+			
+			// Bibliome
+			urls.add(new LabelledUrlImpl("Bibliome " + alt.getDisplayString(),"https://bibliome.ai/variant/"+
+				ensemblCtg +
+				"-"+ctx.getStart()+
+				"-"+
+				ctx.getReference().getDisplayString()+
+				"-"+
+				alt.getDisplayString()
+				));
+			// marvel https://twitter.com/julawang/status/1094666160711323649
+			urls.add(new LabelledUrlImpl("Marrvel "+ alt.getDisplayString(),"http://marrvel.org/search/variant/"+
+				ensemblCtg +
+				"-"+ctx.getStart()+
+				StringUtils.escapeHttp("+")+
+				ctx.getReference().getDisplayString()+
+				StringUtils.escapeHttp(">")+
+				alt.getDisplayString()
+				));
 			}
+		
+		
+		
 		}
 	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
@@ -141,12 +165,45 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 				));
 			}
 		}
+	
+	
+	//beacon , //varsome
+	for(int side=0;side<2 && !StringUtils.isBlank(ensemblCtg);++side)
+		{
+		if(side==0 && !isGrch37()) continue;
+		if(side==1 && !isGrch38()) continue;
+		for(final Allele alt: ctx.getAlternateAlleles())
+			{
+			if(ctx.getReference().isSymbolic() || alt.isSymbolic()) continue;
+			//https://beacon-network.org/#/search?pos=114267128&chrom=4&allele=A&ref=G&rs=GRCh37
+			urls.add(new LabelledUrlImpl("Beacon " + alt.getDisplayString(),
+					"https://beacon-network.org/#/search?chrom="+
+					StringUtils.escapeHttp(ensemblCtg) +
+					"&pos="+ctx.getStart()+
+					"&ref="+ ctx.getReference().getDisplayString()+
+					"&allele="+ alt.getDisplayString()+
+					"&rs="+ (side==0?"GRCh37":"GRCh38")
+					));
+			urls.add(new LabelledUrlImpl("Varsome " + alt.getDisplayString(),
+					"https://varsome.com/variant/"+
+					(side==0?"hg19/":"hg38/")+
+					StringUtils.escapeHttp(ensemblCtg) + "-"+
+					ctx.getStart()+ "-"+
+					ctx.getReference().getDisplayString()+"-"+
+					alt.getDisplayString()
+					));
+
+			}
+		}
+		
 	_locatable(ctx, urls);
 	}
 
 private void _sam(final SAMRecord rec,final Set<LabelledUrl> urls) {
 	if(rec==null) return;
-	_locatable(rec, urls);
+	if(!rec.getReadUnmappedFlag()) {
+		_locatable(rec, urls);
+		}
 	}
 
 private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
@@ -163,7 +220,12 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		urls.add(new LabelledUrlImpl("Region Gnomad 2.1","https://gnomad.broadinstitute.org/region/"+
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_r2_1"
 			));
-		}
+		
+		urls.add(new LabelledUrlImpl("clinvar 37","https://www.ncbi.nlm.nih.gov/clinvar/?term="+
+				ensemblCtg +
+				"%5Bchr%5D+AND+"+ loc.getStart()+"%3A"+ loc.getEnd()+"%5Bchrpos37%5D"
+				));
+			}
 	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg)) {
 		urls.add(new LabelledUrlImpl("Region Gnomad 3","https://gnomad.broadinstitute.org/region/"+
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_3"
@@ -172,16 +234,44 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	final String ucscCtg =  toUcsc.apply(loc.getContig());
 	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {
-	urls.add(new LabelledUrlImpl("UCSC hg19","http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position="+
-			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1
+		urls.add(new LabelledUrlImpl("UCSC hg19","http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position="+
+			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1 + "&highlight="+
+			StringUtils.escapeHttp(ucscCtg) + "%3A" + loc.getStart() +"-"+ loc.getEnd()
 			));
+		
+		if(loc.getLengthOnReference()>1) {
+			
+			urls.add(new LabelledUrlImpl("dgv","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
+					StringUtils.escapeHttp(ucscCtg) + 
+					"%3A"+loc.getStart()+"-"+loc.getEnd() + ";search=Search"
+					));
+			}
+		
 		}
 	if(isGrch38() && ! StringUtils.isBlank(ucscCtg)) {
 		urls.add(new LabelledUrlImpl("UCSC hg38","http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg38&position="+
-			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1
+			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1 + "&highlight="+
+					StringUtils.escapeHttp(ucscCtg) + "%3A" + loc.getStart() +"-"+ loc.getEnd()
 			));
+		if(loc.getLengthOnReference()>1) {
+			urls.add(new LabelledUrlImpl("decipher","https://decipher.sanger.ac.uk/search?q="+
+			StringUtils.escapeHttp(ucscCtg) + 
+			"%3A"+loc.getStart()+"-"+loc.getEnd()));
+			}
+		}
+	
+	if(loc.getLengthOnReference()>1) {
+		for(int i=0;i< 2;++i) {
+			if(i==0 && !isGrch37()) continue;
+			if(i==1 && !isGrch38()) continue;
+			urls.add(new LabelledUrlImpl("Hi-C","http://promoter.bx.psu.edu/hi-c/view.php?method=Hi-C&species=human&assembly="+(i==0?"hg19":"hg38")+
+					"&source=inside&tissue=GM12878&type=Lieberman-raw&resolution=25&c_url=&transfer=&gene=&chr="+
+					StringUtils.escapeHttp(loc.getContig())+"&start="+loc.getStart()+"&end="+loc.getEnd()+"&sessionID=&browser=none"
+					));		
+			}
 		}
 	}
+	
 
 
 private void _locatable(final Locatable loc,final Set<LabelledUrl> urls) {

@@ -26,9 +26,12 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -135,19 +138,22 @@ END_DOC
 	description="For @wouter_decoster : slice (long reads) overlapping the records of a BED file",
 	keywords={"sam","bam","bed"},
 	creationDate="20191030",
-	modificationDate="20210322"
+	modificationDate="20210601"
 	)
 public class BamSliceBed extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(BamSliceBed.class).make();
 
 	@Parameter(names={"-B","--bed","--pcr"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
-	
+	@Parameter(names={"--attributes"},description="Leep the following attributes (separated by spaces/comma/semicolon)")
+	private String keepAttributesStr = "";
+
 	private static final byte NO_BASE = '\0';
 	private static final char NO_QUAL = '\0';
 	private SAMProgramRecord spr = null;
 	private final IntervalTreeMap<Interval> bedIntervals = new IntervalTreeMap<>();
-
+	private final Set<String> keepAttributes = new HashSet<>();
+	
 	private static class Base
 		{
 		byte readbase=NO_BASE;
@@ -161,6 +167,25 @@ public class BamSliceBed extends OnePassBamLauncher {
 	protected Logger getLogger() {
 		return LOG;
 		}	
+	
+	@Override
+	protected int beforeSam()
+		{
+		this.keepAttributes.addAll(
+				Arrays.stream(this.keepAttributesStr.split("[,; \t]")).
+				filter(S->!StringUtils.isBlank(S)).
+				filter(S->!S.equals("RG")).//always done
+				collect(Collectors.toSet()));
+		
+		for(final String att: this.keepAttributes) {
+			if(att.length()!=2) {
+				LOG.error("attribute "+att+" doesn't have length=2");
+				return -1;
+			}
+		}
+		
+		return super.beforeSam();
+		}
 	
 	@Override
 	protected SAMFileHeader createOutputHeader(SAMFileHeader headerIn) {
@@ -346,8 +371,15 @@ public class BamSliceBed extends OnePassBamLauncher {
 					if(rec.hasAttribute("RG")) {
 						newrec.setAttribute("RG", rec.getAttribute("RG"));
 					}
+					for(final String att:this.keepAttributes) {
+						if(rec.hasAttribute(att)) {
+							newrec.setAttribute(att, rec.getAttribute(att));
+							}
+						}
 					
 					newrec.setAttribute("PG",this.spr.getId());
+					
+					
 					
 					sfw.addAlignment(newrec);
 					} //end for interval
