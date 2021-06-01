@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.BorderLayout;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Panel;
@@ -36,6 +37,7 @@ import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -79,6 +81,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
@@ -192,6 +195,7 @@ public class SwingVcfView extends Launcher
 		final DefaultListModel<String> filterListModel;
 		final GffTableModel gffTableModel;
 		final Path gffPath;
+		final JMenu menuOpenBrowser;
 		
 		XFrame(final Path vcfPath,String defaultLoc,
 				final int limit_number_variant,
@@ -405,7 +409,32 @@ public class SwingVcfView extends Launcher
 					XFrame.this.dispose();
 					}
 				}));
+			this.menuOpenBrowser = new JMenu("Browse");
+			menuBar.add(this.menuOpenBrowser);
 			}
+		private final void updateMenuBrowser(final VariantContext ctx) {
+			this.menuOpenBrowser.removeAll();
+			if(ctx==null) return;
+			if(!Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) return;
+			final UrlSupplier urlSupplier = new UrlSupplier(this.dict);
+			urlSupplier.of(ctx).stream().forEach(U->{
+				final JMenuItem mi = new JMenuItem(new AbstractAction(U.getLabel())
+					{
+					@Override
+					public void actionPerformed(ActionEvent e)
+						{
+						try {
+							Desktop.getDesktop().browse(new URI(U.getUrl()));
+							}
+						catch(final Throwable err) {
+							ThrowablePane.show(menuOpenBrowser, err);
+							}
+						}
+					});
+				this.menuOpenBrowser.add(mi);
+				});
+			}
+		
 		
 		/** get interval using GTF file */
 		final Optional<SimpleInterval> getGtfInterval(final String s) {
@@ -440,7 +469,7 @@ public class SwingVcfView extends Launcher
 			}
 		
 		final Optional<SimpleInterval> getUserInterval() {
-			final String s = this.jtextFieldLocation.getText(); 
+			final String s = this.jtextFieldLocation.getText();
 			if(StringUtil.isBlank(s)) return Optional.empty();
 			Optional<SimpleInterval> ret;
 
@@ -507,8 +536,8 @@ public class SwingVcfView extends Launcher
 		final int i = variantTable.getSelectedRow();
 		final VariantContext ctx =  i>=0? swingVariantsTableModel.getElementAt(i):null;
 		
+		this.updateMenuBrowser(ctx);
 		this.filterListModel.clear();
-		
 		this.swingAnnPredictionTableModel.setVariant(ctx);
 		this.swingVepPredictionTableModel.setVariant(ctx);
 		this.swingBcsqPredictionTableModel.setVariant(ctx);

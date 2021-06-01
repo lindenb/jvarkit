@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.igv.IgvConstants;
@@ -39,6 +40,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
 /**
@@ -71,6 +73,14 @@ public UrlSupplier() {
 private boolean hasDict() {
 	return this.dict!=null && !this.dict.isEmpty();
 }
+
+private boolean isGrch37() {
+	return hasDict() && SequenceDictionaryUtils.isGRCh37(this.dict);
+	}
+private boolean isGrch38() {
+return hasDict() && SequenceDictionaryUtils.isGRCh38(this.dict);
+}
+
 
 public Set<LabelledUrl> of(final String id) {
 	if(StringUtils.isBlank(id)) return Collections.emptySet();
@@ -114,6 +124,23 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 	if(ctx.hasID()) {
 		_string(ctx.getID(),urls);
 		}
+	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
+	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
+		for(final Allele alt: ctx.getAlternateAlleles()) {
+			if(!AcidNucleics.isATGC(alt)) continue;
+			urls.add(new LabelledUrlImpl("Variant Gnomad 2.1 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
+				StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r2_1"
+				));
+			}
+		}
+	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
+		for(final Allele alt: ctx.getAlternateAlleles()) {
+			if(!AcidNucleics.isATGC(alt)) continue;
+			urls.add(new LabelledUrlImpl("Variant Gnomad 3 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
+				StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r3"
+				));
+			}
+		}
 	_locatable(ctx, urls);
 	}
 
@@ -124,9 +151,36 @@ private void _sam(final SAMRecord rec,final Set<LabelledUrl> urls) {
 
 private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	if(loc==null) return;
+	int extend = 100;
+	final int xstart1 = Math.max(loc.getStart()-extend,1);
+	final int xend1 = loc.getEnd()+1;
 	urls.add(new LabelledUrlImpl("IGV","https://"+ IgvConstants.DEFAULT_HOST +":"+IgvConstants.DEFAULT_PORT + "/goto?locus="+
-			StringUtils.escapeHttp(loc.getContig()) + "%3A" + loc.getStart() +"-"+loc.getEnd()
+			StringUtils.escapeHttp(loc.getContig()) + "%3A" +xstart1 +"-"+loc.getEnd()
 			));
+	
+	final String ensemblCtg = toEnsembl.apply(loc.getContig());
+	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg)) {
+		urls.add(new LabelledUrlImpl("Region Gnomad 2.1","https://gnomad.broadinstitute.org/region/"+
+			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_r2_1"
+			));
+		}
+	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg)) {
+		urls.add(new LabelledUrlImpl("Region Gnomad 3","https://gnomad.broadinstitute.org/region/"+
+			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_3"
+			));
+		}
+	
+	final String ucscCtg =  toUcsc.apply(loc.getContig());
+	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {
+	urls.add(new LabelledUrlImpl("UCSC hg19","http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position="+
+			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1
+			));
+		}
+	if(isGrch38() && ! StringUtils.isBlank(ucscCtg)) {
+		urls.add(new LabelledUrlImpl("UCSC hg38","http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg38&position="+
+			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1
+			));
+		}
 	}
 
 
