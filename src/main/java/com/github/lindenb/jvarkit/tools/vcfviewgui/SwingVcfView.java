@@ -354,18 +354,24 @@ public class SwingVcfView extends Launcher
 			        int rowindex = table.getSelectedRow();
 			        if(rowindex<0) return;
 			        rowindex = table.convertRowIndexToModel(rowindex);
-			        if(rowindex<0 || rowindex>= table.getRowCount()) return;
+			        if(rowindex<0 || rowindex>= m.getRowCount()) return;
 			        int colindex = table.getSelectedColumn();
 			        colindex = table.convertColumnIndexToModel(colindex);
-			        if(colindex<0 || colindex>= table.getColumnCount()) return;
+			        if(colindex<0 || colindex>= m.getColumnCount()) return;
 	
 			        Object o = m.getValueAt(rowindex, colindex);
 			        if(o==null || !(o instanceof String)) return;
 			        final String s= (String)o;
+			        final String colName = m.getColumnName(colindex);
 			        if(StringUtils.isBlank(s)) return;
 					final JPopupMenu pop=new JPopupMenu();
 					final UrlSupplier urlSupplier = new UrlSupplier(XFrame.this.dict);
-					urlSupplier.of(s).stream().forEach(U->{
+					Stream.concat(
+						urlSupplier.of(s).stream(),
+						urlSupplier.of(colName,s).stream()).
+						collect(Collectors.toSet()).
+						stream().
+						forEach(U->{
 						final AbstractAction action = new AbstractAction(U.getLabel())
 							{
 							@Override
