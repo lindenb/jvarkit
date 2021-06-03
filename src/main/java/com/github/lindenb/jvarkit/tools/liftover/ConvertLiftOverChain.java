@@ -41,7 +41,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.util.CloserUtil;
 /** 
  
 ## Example
@@ -89,8 +88,6 @@ public class ConvertLiftOverChain extends Launcher {
 	
 	@Override
 	public int doWork(final List<String> args) {
-		PrintWriter out = null;
-		BufferedReader in = null;
 		final Pattern splitter = Pattern.compile("\\s");
 		try {			
 			final ContigNameConverter convert1 = this.refFile1==null ? ContigNameConverter.getIdentity() : ContigNameConverter.fromPathOrOneDictionary(this.refFile1);
@@ -98,55 +95,51 @@ public class ConvertLiftOverChain extends Launcher {
 			
 			final Set<String> notFound1 = new TreeSet<>();
 			final Set<String> notFound2 = new TreeSet<>();
-			
-			in=super.openBufferedReader(oneFileOrNull(args));
-			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			int num_ignored=0;
-			boolean valid=false;
-			String line;
-			while((line=in.readLine())!=null)
-				{
-				if(line.startsWith("chain")) {
-					valid = false;
-					final String chainFields[]=splitter.split(line);
-					 if (chainFields.length != 13) {
-						 out.close();out=null;
-						 in.close();in=null;
-						 throw new JvarkitException.TokenErrors(13, chainFields);
-					 	}
-					 final String fromSequenceName = chainFields[2];
-					 String ctg = convert1.apply(fromSequenceName);
-					 if(StringUtils.isBlank(ctg)) {
-						 notFound1.add(fromSequenceName);
-						 ++num_ignored;
-						 continue;
-					 	}
-					 chainFields[2] = ctg;
-					 final String toSequenceName = chainFields[7];
-					 ctg = convert2.apply(toSequenceName);
-					 if(StringUtils.isBlank(ctg)) {
-						 notFound2.add(toSequenceName);
-						 ++num_ignored;
-						 continue;
-					 	}
-					 chainFields[7] = ctg;
-					valid=true;
-					out.println(String.join(" ", chainFields));
-					}
-				else if(valid)
-					{
-					out.println(line);
-					}
-				else
-					{
-					++num_ignored;
+
+			try(BufferedReader in=super.openBufferedReader(oneFileOrNull(args))) {
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					boolean valid=false;
+					String line;
+					while((line=in.readLine())!=null)
+							{
+							if(line.startsWith("chain")) {
+								valid = false;
+								final String chainFields[]=splitter.split(line);
+								 if (chainFields.length != 13) {
+									 throw new JvarkitException.TokenErrors(13, chainFields);
+								 	}
+								 final String fromSequenceName = chainFields[2];
+								 String ctg = convert1.apply(fromSequenceName);
+								 if(StringUtils.isBlank(ctg)) {
+									 notFound1.add(fromSequenceName);
+									 ++num_ignored;
+									 continue;
+								 	}
+								 chainFields[2] = ctg;
+								 final String toSequenceName = chainFields[7];
+								 ctg = convert2.apply(toSequenceName);
+								 if(StringUtils.isBlank(ctg)) {
+									 notFound2.add(toSequenceName);
+									 ++num_ignored;
+									 continue;
+								 	}
+								 chainFields[7] = ctg;
+								valid=true;
+								out.println(String.join(" ", chainFields));
+								}
+							else if(valid)
+								{
+								out.println(line);
+								}
+							else
+								{
+								++num_ignored;
+								}
+							}
+					out.flush();
 					}
 				}
-			out.flush();
-			out.close();
-			out= null;
-			in.close();
-			in = null;
 			LOG.info("number of lines skipped "+num_ignored);
 			LOG.info("unmatched source contigs "+notFound1.stream().collect(Collectors.joining("; ")));
 			LOG.info("unmatched dest contigs "+notFound2.stream().collect(Collectors.joining("; ")));
@@ -158,8 +151,6 @@ public class ConvertLiftOverChain extends Launcher {
 			}
 		finally
 			{
-			CloserUtil.close(out);
-			CloserUtil.close(in);
 			}
 		}
 	
