@@ -59,14 +59,11 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -127,21 +124,16 @@ END_DOC
 		name="vcfliftover",
 		description="Lift-over a VCF file",
 		keywords={"vcf","liftover"},
-		modificationDate="20200610",
+		modificationDate="20210603",
+		creationDate="20131228",
 		deprecatedMsg="Use picard LiftOverVcf"
 		)
-public class VcfLiftOver extends Launcher
-	{
-
+public class VcfLiftOver extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfLiftOver.class).make();
-
-
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
 	private File liftOverFile = null;
 	@Parameter(names={"-x","--failed"},description="(file.vcf) write variants failing the liftOver here. Optional.")
-	private File failedFile = null;
+	private Path failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
 	@Parameter(names={"--adaptivematch"},description="Use adapative liftover minmatch using the ratio between the min allele size and the longest allele size")
@@ -160,9 +152,6 @@ public class VcfLiftOver extends Launcher
 	private boolean ignoreIndels=false;
 	@Parameter(names={"--info"},description="remove attribute from INFO on the fly")
 	private Set<String> removeInfo=new HashSet<>();
-	@ParametersDelegate
-	protected WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
-
 	
 	private LiftOver liftOver=null;
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
@@ -190,7 +179,9 @@ public class VcfLiftOver extends Launcher
 				header2.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
 				header2.addMetaDataLine(new VCFInfoHeaderLine(this.failedinfoTag,1,VCFHeaderLineType.String,"Why the liftOver failed."));
 
-				failed= super.openVariantContextWriter(failedFile);
+				failed= super.writingVariantsDelegate.
+						dictionary(header2).
+						open(failedFile);
 				failed.writeHeader(header2);
 				}
 			
@@ -200,10 +191,9 @@ public class VcfLiftOver extends Launcher
 			header3.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY, true));
 			header3.addMetaDataLine(new VCFInfoHeaderLine(this.infoTag,1,VCFHeaderLineType.String,"Chromosome|Position before liftOver."));
 			out.writeHeader(header3);
-			final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 			while(in.hasNext())
 				{
-				VariantContext ctx=progress.apply(in.next());
+				VariantContext ctx= in.next();
 				if(!this.removeInfo.isEmpty())
 					{
 					VariantContextBuilder vcb= new VariantContextBuilder(ctx);
@@ -331,14 +321,13 @@ public class VcfLiftOver extends Launcher
 				    out.add(vcb.make());
 					}
 				}
-			progress.close();
 			if(failed!=null)
 				{
 				failed.close();
 				failed=null;
 				}
-			return RETURN_OK;
-		}catch(final Exception err)
+			return 0;
+		}catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -350,7 +339,12 @@ public class VcfLiftOver extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {		
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int beforeVcf() {
 		if(this.liftOverFile==null)
 			{
 			LOG.error("LiftOver file is undefined.");
@@ -370,17 +364,18 @@ public class VcfLiftOver extends Launcher
 			if(!this.ignoreLiftOverValidation) {
 				this.liftOver.validateToSequences(this.indexedFastaSequenceFile.getSequenceDictionary());
 				}
-			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			}
-		
+		return super.beforeVcf();
+		}
+	
+	@Override
+	protected void afterVcf() {
+		CloserUtil.close(this.indexedFastaSequenceFile);
+		super.afterVcf();
 		}
 
 	public static void main(String[] args)

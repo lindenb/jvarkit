@@ -30,23 +30,27 @@ package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.liftover.LiftOver;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -57,6 +61,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 /**
 
 ```bash
@@ -68,17 +73,13 @@ END_DOC
 		name="vcffilterbyliftover",
 		description="Add FILTER(s) to a variant when it is known to map elsewhere after liftover.",
 		keywords={"vcf","liftover"},
-		modificationDate="20200610",
-		generate_doc=false
+		modificationDate="20210603",
+		creationDate="20190418"
 		)
-public class VcfFilterByLiftOver extends Launcher
-	{
-
+public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfFilterByLiftOver.class).make();
 
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
 	private File liftOverFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
@@ -90,8 +91,15 @@ public class VcfFilterByLiftOver extends Launcher
 	private int max_distance = 1_500;
 	@Parameter(names={"--no-validation"},description="Disable dictionary validation")
 	private boolean disableValidation = false;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
+	
+	@Parameter(names={"--lifted-filtered-vcf"},
+		description="Another VCF in the destination reference. "
+				+ "Input VCF will be filtered if this vcf is FILTERed at the same lifted position."
+		)
+	private Path anotherVcfFiltered = null;
+
+
+	private VCFReader anotherVcfReader = null;
 	
 	
 	private int distance(final Locatable L1,final Locatable L2) {
@@ -107,6 +115,22 @@ public class VcfFilterByLiftOver extends Launcher
 	@Override
 	protected int doVcfToVcf(final String inputName,final  VCFIterator in, final  VariantContextWriter out) {
 
+		final ContigNameConverter anotherVcfCtgConverter;
+		if(this.anotherVcfReader!=null) {
+			final SAMSequenceDictionary dict =this.anotherVcfReader.getHeader().getSequenceDictionary();
+			if(dict!=null) {
+				anotherVcfCtgConverter = ContigNameConverter.fromOneDictionary(dict);
+				}
+			else
+				{
+				anotherVcfCtgConverter = ContigNameConverter.getIdentity();
+				}
+			}
+		else
+			{
+			anotherVcfCtgConverter = ContigNameConverter.getIdentity();
+			}
+		
 		final  LiftOver liftOver=new LiftOver(this.liftOverFile);
 		liftOver.setLiftOverMinMatch(this.userMinMatch);
 
@@ -114,11 +138,9 @@ public class VcfFilterByLiftOver extends Launcher
 		final VCFHeader header = in.getHeader();
 		final SAMSequenceDictionary dict = header.getSequenceDictionary();
 		
-		if(!this.disableValidation) liftOver.validateToSequences(dict);
-		
-		if(dict!=null && !dict.isEmpty())  {
+		if(!this.disableValidation && dict!=null && !dict.isEmpty())  {
 			liftOver.validateToSequences(dict);
-			}
+		}
 		
 		final VCFHeader header2 = new VCFHeader(header);
 		
@@ -144,9 +166,17 @@ public class VcfFilterByLiftOver extends Launcher
 				"LIFTOVER_DISTANT", "After liftover the distance (< "+min_distance+") with the previous variant is unusual( > "+max_distance+") after liftover with "+this.liftOverFile);
 		header2.addMetaDataLine(filterDistantFromPrev);
 		
+		/* transfert filters to new header */
+		if(this.anotherVcfReader!=null)  {
+			this.anotherVcfReader.
+				getHeader().
+				getFilterLines().
+				forEach(F->header2.addMetaDataLine(F));
+			}
+		
+		
 		JVarkitVersion.getInstance().addMetaData(this, header2);
 		out.writeHeader(header2);
-		final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		
 		Locatable prevCtx=null;
 		Locatable prevLifted=null;
@@ -156,7 +186,7 @@ public class VcfFilterByLiftOver extends Launcher
 		
 		while(in.hasNext())
 			{
-			final VariantContext ctx=progress.apply(in.next());
+			final VariantContext ctx= in.next();
 			
 			if(prevCtx!=null && !prevCtx.getContig().equals(ctx.getContig())) {
 				prevCtx = null;
@@ -198,6 +228,32 @@ public class VcfFilterByLiftOver extends Launcher
 				vcb.attribute(infoLiftOverPos.getID(),interval2str.apply(lifted));
 				out.add(vcb.make());
 				}
+			//filtered in anotherVcf
+			else if(this.anotherVcfReader!=null) {
+				final Set<String> found_filtered = new HashSet<>();
+				final String ctg2 = anotherVcfCtgConverter.apply(lifted.getContig());
+				if(!StringUtils.isBlank(ctg2)) {
+					try(CloseableIterator<VariantContext> iter2= this.anotherVcfReader.query(ctg2, lifted.getStart(),lifted.getEnd())) {
+						while(iter2.hasNext()) {
+							final VariantContext ctx2 = iter2.next();
+							if(!ctx2.isFiltered() || ctx2.getLengthOnReference()!=ctx.getLengthOnReference()) continue;
+							found_filtered.addAll(ctx2.getFilters());
+							break;
+							}
+						}
+					}
+				if(found_filtered.isEmpty()) {
+					out.add(ctx);
+					}
+				else
+					{
+					//add previous
+					found_filtered.addAll(ctx.getFilters());
+					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+					vcb.filters(found_filtered);
+					out.add(vcb.make());
+					}
+				}
 			else
 				{
 				out.add(ctx);
@@ -205,23 +261,36 @@ public class VcfFilterByLiftOver extends Launcher
 			prevCtx = ctx;
 			prevLifted = lifted;
 			}
-		progress.close();
-		return RETURN_OK;
+		return 0;
 		}
 
 	@Override
-	public int doWork(final List<String> args) {		
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int beforeVcf() {
 		if(this.liftOverFile==null)
 			{
 			LOG.error("LiftOver file is undefined.");
 			return -1;
 			}
-		return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
+		IOUtil.assertFileIsReadable(this.liftOverFile);
+		if(this.anotherVcfFiltered!=null) {
+			this.anotherVcfReader = VCFReaderFactory.
+					makeDefault().
+					open(this.anotherVcfFiltered,true);
+			}
+		return super.beforeVcf();
+		}
+	@Override
+	protected void afterVcf() {
+		CloserUtil.close(this.anotherVcfReader);
+		super.afterVcf();
 		}
 
-	public static void main(final String[] args)
-		{
+	public static void main(final String[] args) {
 		new VcfFilterByLiftOver().instanceMainWithExit(args);
 		}
-
 	}
