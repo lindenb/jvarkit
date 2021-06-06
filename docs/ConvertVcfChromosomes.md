@@ -7,27 +7,29 @@ Convert the names of the chromosomes in a VCF file
 
 ## DEPRECATED
 
-use `bcftools annotate` with `--rename-chrs file`
+use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ?)
 
 ## Usage
 
 ```
 Usage: vcfrenamechr [options] Files
   Options:
+    --fatal
+      exit with failure if a conversion fails. Default: skip the variant
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
   * -f, --mapping, -m
-      load a custom name mapping. Format (chrom-source\tchrom-dest\n)+
+      Chromosome mapping file. If the file looks like a NGS file (fasta, vcf, 
+      bam...) the mapping is extracted from a dictionary; Otherwise, it is 
+      interpreted as a mapping file ( See 
+      https://github.com/dpryan79/ChromosomeMappings )
     -o, --out
       Output file. Optional . Default: stdout
     --version
       print version and exit
-    -c, -convert
-      What should I do when  a converstion is not found
-      Default: RAISE_EXCEPTION
-      Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
 
 ```
 

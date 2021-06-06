@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.TreeSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -220,8 +221,11 @@ public class BuildDbsnp extends Launcher {
 				stack.add(variant);
 				while(iter.hasNext()) {
 					final VariantContext v2 = iter.next();
-					if(v2.getStart()!=variant.pos) break;
-					stack.add(convert(iter.next()));//consumme
+					if(v2.getStart()!=variant.pos) {
+						break;
+						}
+					final Variant variant2 = convert(iter.next());//consumme
+					stack.add(variant2);
 					}
 					
 				}
@@ -238,8 +242,8 @@ public class BuildDbsnp extends Launcher {
 			try { this.reader.close();} catch(Throwable err) {} 
 			}
 	}
-	
-	
+
+
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -280,17 +284,23 @@ public class BuildDbsnp extends Launcher {
 					LOG.info(ssr.getContig());
 					sources.stream().forEach(SRC->SRC.reset(ssr));
 					final List<CloseableIterator<Variant>> iterators  = sources.stream().map(SRC->SRC).collect(Collectors.toList());
-					final MergingIterator<Variant> merger = new MergingIterator<>((A, B)->A.compareTo(B),iterators);
-					final EqualRangeIterator<Variant> equal_range = new EqualRangeIterator<>(merger, (A, B)->A.compareTo(B));
+					final MergingIterator<Variant> merger = new MergingIterator<>((A, B)->Integer.compare(A.pos,B.pos),iterators);
+					final EqualRangeIterator<Variant> equal_range = new EqualRangeIterator<>(merger, (A, B)->Integer.compare(A.pos,B.pos));
 					
 					while(equal_range.hasNext()) {
-						final List<Variant> variants = equal_range.next();
+						final List<Variant> variants0 = equal_range.next();
+						//all references in this set of variant
+						final Set<Allele> all_refs = variants0.stream().map(V->V.alleles.get(0)).collect(Collectors.toCollection(TreeSet::new));
+						// loop over each ref
+						for(final Allele ref_allele : all_refs) {
+						// all variants with this ref allele
+						final List<Variant> variants = variants0.stream().filter(V->V.alleles.get(0).equals(ref_allele)).collect(Collectors.toList());
 						final Variant variant = variants.get(0);
 						final Set<Allele> altSet = new HashSet<>();
 						variants.stream().forEach(V->altSet.addAll(V.alleles.subList(1, V.alleles.size())));
 						altSet.remove(Allele.SPAN_DEL);
 						final List<Allele> alleles = new ArrayList<>(1+altSet.size());
-						alleles.add(variant.alleles.get(0));
+						alleles.add(ref_allele);
 						alleles.addAll(altSet);
 						
 						
@@ -305,6 +315,7 @@ public class BuildDbsnp extends Launcher {
 						if(StringUtils.isBlank(id)) id = variants.stream().map(F->F.id).findFirst().orElse(null);
 						vcb.id(variant.id);
 						w.add(vcb.make());
+						}
 						}
 				
 					equal_range.close();
