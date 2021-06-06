@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.dbsnp;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -293,7 +295,13 @@ public class BuildDbsnp extends Launcher {
 						
 						
 						final  VariantContextBuilder vcb = new VariantContextBuilder(null, ssr.getContig(), variant.pos,variant.pos+variant.alleles.get(0).length()-1, alleles);
-						String id = variants.stream().filter(F->rsIdPattern.matcher(F.id).matches()).map(F->F.id).findFirst().orElse(null);
+						String id = variants.
+								stream().
+								filter(F->Arrays.stream(CharSplitter.SEMICOLON.split(F.id)).// vcf spec:  Semicolon-separated list of unique identifiers where available
+										anyMatch(S->rsIdPattern.matcher(S).matches())).
+								map(F->F.id).
+								findFirst().
+								orElse(null);
 						if(StringUtils.isBlank(id)) id = variants.stream().map(F->F.id).findFirst().orElse(null);
 						vcb.id(variant.id);
 						w.add(vcb.make());
