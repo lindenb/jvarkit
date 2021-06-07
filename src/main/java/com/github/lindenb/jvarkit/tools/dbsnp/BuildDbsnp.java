@@ -220,7 +220,7 @@ public class BuildDbsnp extends Launcher {
 				final Variant variant = convert(ctx);
 				stack.add(variant);
 				while(iter.hasNext()) {
-					final VariantContext v2 = iter.next();
+					final VariantContext v2 = iter.peek();
 					if(v2.getStart()!=variant.pos) {
 						break;
 						}
