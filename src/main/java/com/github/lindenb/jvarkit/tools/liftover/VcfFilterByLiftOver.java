@@ -110,6 +110,18 @@ public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 				L2.getStart()-L1.getEnd() : 
 				L1.getStart()-L2.getEnd()
 				;
+		}
+	
+	private static String normalizeContig(final Locatable loc) {
+		String str = loc.getContig().trim().toLowerCase();
+		if(str.startsWith("chr")) str=str.substring(3);
+		while(str.startsWith("0")) str=str.substring(1);
+		if(str.equals("mt"))  str="m";
+		return str;
+		}
+	
+	private boolean sameContig(final Locatable a,final Locatable b) {
+		return normalizeContig(a).equals(normalizeContig(b));
 	}
 	
 	@Override
@@ -205,7 +217,7 @@ public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 				out.add(vcb.make());
 				}
 			// another contig
-			else if(lifted!=null && !lifted.getContig().equals(ctx.getContig()))
+			else if(lifted!=null && !sameContig(lifted,ctx))
 				{
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
@@ -218,7 +230,7 @@ public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 			// strange distance
 			else if(prevCtx!=null && lifted!=null && prevLifted!=null &&
 					prevCtx.getContig().equals(ctx.getContig()) &&
-					prevLifted.getContig().equals(lifted.getContig()) &&
+					sameContig(prevLifted,lifted) &&
 					distance(prevCtx, ctx) < this.min_distance &&
 					distance(prevLifted, lifted) > this.max_distance
 					)
