@@ -102,8 +102,7 @@ END_DOC
 	description="Build a DBSNP file from different sources for GATK",
 	keywords={"vcf","dbsnp"},
 	creationDate="20200904",
-	modificationDate="20210527",
-	generate_doc=false
+	modificationDate="20210607"
 	)
 public class BuildDbsnp extends Launcher {
 	private static Logger LOG=Logger.build(BuildDbsnp.class).make();
@@ -293,29 +292,29 @@ public class BuildDbsnp extends Launcher {
 						final Set<Allele> all_refs = variants0.stream().map(V->V.alleles.get(0)).collect(Collectors.toCollection(TreeSet::new));
 						// loop over each ref
 						for(final Allele ref_allele : all_refs) {
-						// all variants with this ref allele
-						final List<Variant> variants = variants0.stream().filter(V->V.alleles.get(0).equals(ref_allele)).collect(Collectors.toList());
-						final Variant variant = variants.get(0);
-						final Set<Allele> altSet = new HashSet<>();
-						variants.stream().forEach(V->altSet.addAll(V.alleles.subList(1, V.alleles.size())));
-						altSet.remove(Allele.SPAN_DEL);
-						final List<Allele> alleles = new ArrayList<>(1+altSet.size());
-						alleles.add(ref_allele);
-						alleles.addAll(altSet);
-						
-						
-						final  VariantContextBuilder vcb = new VariantContextBuilder(null, ssr.getContig(), variant.pos,variant.pos+variant.alleles.get(0).length()-1, alleles);
-						String id = variants.
-								stream().
-								filter(F->Arrays.stream(CharSplitter.SEMICOLON.split(F.id)).// vcf spec:  Semicolon-separated list of unique identifiers where available
-										anyMatch(S->rsIdPattern.matcher(S).matches())).
-								map(F->F.id).
-								findFirst().
-								orElse(null);
-						if(StringUtils.isBlank(id)) id = variants.stream().map(F->F.id).findFirst().orElse(null);
-						vcb.id(variant.id);
-						w.add(vcb.make());
-						}
+							// all variants with this ref allele
+							final List<Variant> variants = variants0.stream().filter(V->V.alleles.get(0).equals(ref_allele)).collect(Collectors.toList());
+							final Variant variant = variants.get(0);
+							final Set<Allele> altSet = new HashSet<>();
+							variants.stream().forEach(V->altSet.addAll(V.alleles.subList(1, V.alleles.size())));
+							altSet.remove(Allele.SPAN_DEL);
+							final List<Allele> alleles = new ArrayList<>(1+altSet.size());
+							alleles.add(ref_allele);
+							alleles.addAll(altSet);
+							
+							
+							final  VariantContextBuilder vcb = new VariantContextBuilder(null, ssr.getContig(), variant.pos,variant.pos+variant.alleles.get(0).length()-1, alleles);
+							String id = variants.
+									stream().
+									filter(F->Arrays.stream(CharSplitter.SEMICOLON.split(F.id)).// vcf spec:  Semicolon-separated list of unique identifiers where available
+											anyMatch(S->rsIdPattern.matcher(S).matches())).
+									map(F->F.id).
+									findFirst().
+									orElse(null);
+							if(StringUtils.isBlank(id)) id = variants.stream().map(F->F.id).findFirst().orElse(null);
+							vcb.id(variant.id);
+							w.add(vcb.make());
+							}
 						}
 				
 					equal_range.close();

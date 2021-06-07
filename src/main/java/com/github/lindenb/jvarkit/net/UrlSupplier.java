@@ -30,6 +30,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -89,12 +90,38 @@ public Set<LabelledUrl> of(final String id) {
 	return L;
 	}
 
+public Set<LabelledUrl> of(final String columnName,final String id) {
+	if(StringUtils.isBlank(columnName) || StringUtils.isBlank(id)) return Collections.emptySet();
+	final Set<LabelledUrl> urls = new LinkedHashSet<>();
+	if( columnName.equalsIgnoreCase("genename") ||
+		columnName.equalsIgnoreCase("symbol")) {
+		urls.add(new LabelledUrlImpl("NCBI gene","https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
+		}
+	else if(columnName.equalsIgnoreCase("Consequence") ||
+			columnName.equalsIgnoreCase("so")) {
+		for(final String ac:CharSplitter.of('&').split(id)) {
+			if(StringUtils.isBlank(ac)) continue;
+			if(ac.startsWith("SO:")) {
+				urls.add(new LabelledUrlImpl("SO "+ac,"http://www.sequenceontology.org/browser/current_release/term/"+StringUtils.escapeHttp(ac)));
+				} 
+			else
+				{
+				urls.add(new LabelledUrlImpl("SO "+ac,"http://www.sequenceontology.org/browser/obob.cgi?rm=term_list&obo_query="+StringUtils.escapeHttp(ac)+"&release=current_svn"));
+				}
+			}
+		}
+	return urls;
+	}
+
+
 private void _string(final String str,final Set<LabelledUrl> urls) {
 	if(StringUtils.isBlank(str)) return;
 	if(this.rsIdPattern.matcher(str).matches())
 		{
 		urls.add(new LabelledUrlImpl("dbsnp","https://www.ncbi.nlm.nih.gov/snp/"+str.substring(2)));
 		urls.add(new LabelledUrlImpl("opensnp","https://opensnp.org/snps/"+str.toLowerCase()));
+		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh37","https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r2_1"));
+		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh38","https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r3"));
 		if(hasDict() && SequenceDictionaryUtils.isHuman(this.dict)) {
 			urls.add(new LabelledUrlImpl("clinvar","https://www.ncbi.nlm.nih.gov/clinvar?term="+str.toLowerCase()+"%5BVariant%20ID%5D"));
 			}
