@@ -138,7 +138,7 @@ END_DOC
 	description="For @wouter_decoster : slice (long reads) overlapping the records of a BED file",
 	keywords={"sam","bam","bed"},
 	creationDate="20191030",
-	modificationDate="20210601"
+	modificationDate="20210615"
 	)
 public class BamSliceBed extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(BamSliceBed.class).make();
@@ -147,7 +147,11 @@ public class BamSliceBed extends OnePassBamLauncher {
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 	@Parameter(names={"--attributes"},description="Leep the following attributes (separated by spaces/comma/semicolon)")
 	private String keepAttributesStr = "";
+	@Parameter(names={"--clip"},description="Use clipped bases.")
+	private boolean use_clip = false;
 
+	
+	
 	private static final byte NO_BASE = '\0';
 	private static final char NO_QUAL = '\0';
 	private SAMProgramRecord spr = null;
@@ -256,20 +260,6 @@ public class BamSliceBed extends OnePassBamLauncher {
 								}
 							break;
 							}
-						case S:
-							{
-							for(int i=0;i< ce.getLength();++i)
-								{
-								final Base b=new Base();
-								b.refpos=refpos;
-								b.readpos= readpos;
-								b.cigaroperator = op;
-								align.add(b);
-								refpos++;
-								readpos++;
-								}
-							break;
-							}
 						case H:
 							{
 							for(int i=0;i< ce.getLength();++i)
@@ -282,7 +272,7 @@ public class BamSliceBed extends OnePassBamLauncher {
 								}
 							break;
 							}
-						case X:case EQ:case M:
+						case S:case X:case EQ:case M:
 							{
 							for(int i=0;i< ce.getLength();++i)
 								{
@@ -324,6 +314,10 @@ public class BamSliceBed extends OnePassBamLauncher {
 						if(B.readpos==-1) return true;
 						if(B.refpos< bed.getStart()) return true;
 						if(B.refpos> bed.getEnd()) return true;
+						if(use_clip && B.cigaroperator.equals(CigarOperator.SOFT_CLIP))
+							{
+							return false;
+							}
 						if(!B.cigaroperator.isAlignment())return true;
 						return false;
 						};
@@ -341,7 +335,12 @@ public class BamSliceBed extends OnePassBamLauncher {
 						}
 					if(copy.stream().noneMatch(P->P.cigaroperator.isAlignment())) continue;
 					if(copy.isEmpty()) continue;
-					int nrefpos = copy.stream().filter(B->B.refpos!=-1).mapToInt(B->B.refpos).findFirst().orElse(-1);
+					int nrefpos = copy.stream().
+							filter(B->B.refpos!=-1).
+							filter(B->!B.cigaroperator.equals(CigarOperator.SOFT_CLIP)).
+							mapToInt(B->B.refpos).
+							findFirst().
+							orElse(-1);
 					final SAMRecord newrec = samRecordFactory.createSAMRecord(sfw.getFileHeader());
 					newrec.setReadName(rec.getReadName()+"#"+bed.getContig()+":"+bed.getStart()+":"+bed.getEnd());
 					newrec.setMappingQuality(SAMRecord.UNKNOWN_MAPPING_QUALITY);
