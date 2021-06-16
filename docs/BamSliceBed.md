@@ -23,7 +23,7 @@ Usage: bamslicebed [options] Files
       or a list of plain interval separated by '[ \t\n;,]'
       Default: (unspecified)
     --clip
-      Use clipped bases.
+      Do not remove the bases but soft clip them.
       Default: false
     -h, --help
       print help and exit

@@ -29,10 +29,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -147,7 +145,7 @@ public class BamSliceBed extends OnePassBamLauncher {
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 	@Parameter(names={"--attributes"},description="Leep the following attributes (separated by spaces/comma/semicolon)")
 	private String keepAttributesStr = "";
-	@Parameter(names={"--clip"},description="Use clipped bases.")
+	@Parameter(names={"--clip"},description="Do not remove the bases but soft clip them.")
 	private boolean use_clip = false;
 
 	
@@ -223,7 +221,7 @@ public class BamSliceBed extends OnePassBamLauncher {
 				final Collection<Interval> beds = bedIntervals.getOverlapping(rec);
 				if(beds.isEmpty()) continue;
 				
-				final List<Base> align = new ArrayList<>();
+				final List<Base> align = new ArrayList<>(rec.getLengthOnReference());
 				int refpos=rec.getUnclippedStart();
 				int readpos=0;
 				final byte bases[] = rec.getReadBases();
@@ -260,16 +258,9 @@ public class BamSliceBed extends OnePassBamLauncher {
 								}
 							break;
 							}
-						case H:
+						case H:/* ignore hard clip */
 							{
-							for(int i=0;i< ce.getLength();++i)
-								{
-								final Base b=new Base();
-								b.refpos=refpos;
-								b.cigaroperator = op;
-								align.add(b);
-								refpos++;
-								}
+							refpos+=ce.getLength();
 							break;
 							}
 						case S:case X:case EQ:case M:
@@ -308,36 +299,62 @@ public class BamSliceBed extends OnePassBamLauncher {
 				
 				
 				for(final Interval bed: beds) {
-					final LinkedList<Base> copy = new LinkedList<>(align);
-					final Predicate<Base> canRemoveBase = B->{
-						if(B.refpos==-1) return true;
-						if(B.readpos==-1) return true;
-						if(use_clip && B.cigaroperator.equals(CigarOperator.SOFT_CLIP))
-							{
-							return false;
+					final List<Base> copy = new ArrayList<>(align);
+					
+					/* trim 5 prime */
+					int trim=-1;
+					for(int x=0;x< copy.size();x++) {
+						final Base b = copy.get(x);
+						if(b.cigaroperator.isAlignment() && b.refpos>= bed.getStart()) {
+							trim=x;
+							break;
 							}
-						if(B.refpos< bed.getStart()) return true;
-						if(B.refpos> bed.getEnd()) return true;
-						if(!B.cigaroperator.isAlignment())return true;
-						return false;
-						};
-					while(!copy.isEmpty())
-						{
-						final Base first = copy.getFirst();
-						if(!canRemoveBase.test(first)) break;
-						copy.removeFirst();
 						}
-					while(!copy.isEmpty())
-						{
-						final Base last = copy.getLast();
-						if(!canRemoveBase.test(last)) break;
-						copy.removeLast();
+					if(trim>0) {
+						final List<Base> subList = copy.subList(0, trim);
+						if(use_clip){
+							for(Base b: subList) {
+								if(b.readpos!=-1) {
+									b.cigaroperator= CigarOperator.SOFT_CLIP;
+									}
+								}
+							subList.removeIf(B->B.readpos==-1);// N D
+							}
+						else
+							{
+							subList.clear();
+							}
 						}
+					
+					/* trim 3 prime */
+					trim=-1;
+					for(int x=copy.size()-1;x>=0;x--) {
+						final Base b = copy.get(x);
+						if(b.cigaroperator.isAlignment() && b.refpos<= bed.getEnd()) {
+							trim=x;
+							break;
+							}
+						}
+					if(trim!=-1) {
+						final List<Base> subList = copy.subList(trim+1,copy.size());
+						if(use_clip) {
+							for(Base b: subList) {
+							if(b.readpos!=-1) {
+								b.cigaroperator= CigarOperator.SOFT_CLIP;
+								}
+							}
+							subList.removeIf(B->B.readpos==-1);// N D
+							}
+						else {
+							subList.clear();
+							}
+						}
+					
 					if(copy.stream().noneMatch(P->P.cigaroperator.isAlignment())) continue;
 					if(copy.isEmpty()) continue;
 					int nrefpos = copy.stream().
 							filter(B->B.refpos!=-1).
-							filter(B->!B.cigaroperator.equals(CigarOperator.SOFT_CLIP)).
+							filter(B->!B.cigaroperator.isClipping()).
 							mapToInt(B->B.refpos).
 							findFirst().
 							orElse(-1);
