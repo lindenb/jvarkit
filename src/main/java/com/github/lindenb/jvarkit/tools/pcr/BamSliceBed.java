@@ -312,12 +312,12 @@ public class BamSliceBed extends OnePassBamLauncher {
 					final Predicate<Base> canRemoveBase = B->{
 						if(B.refpos==-1) return true;
 						if(B.readpos==-1) return true;
-						if(B.refpos< bed.getStart()) return true;
-						if(B.refpos> bed.getEnd()) return true;
 						if(use_clip && B.cigaroperator.equals(CigarOperator.SOFT_CLIP))
 							{
 							return false;
 							}
+						if(B.refpos< bed.getStart()) return true;
+						if(B.refpos> bed.getEnd()) return true;
 						if(!B.cigaroperator.isAlignment())return true;
 						return false;
 						};
