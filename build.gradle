@@ -1893,8 +1893,7 @@ all.add( task("batchigvpictures", type: CompileJVarkit) {
 	});
 all.add( task("gb2gff", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.genbank.GenbankToGff3"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["gb"]
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("kg2gff", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gtf.KgToGff"

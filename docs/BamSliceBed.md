@@ -10,6 +10,9 @@ For @wouter_decoster : slice (long reads) overlapping the records of a BED file
 ```
 Usage: bamslicebed [options] Files
   Options:
+    --attributes
+      Leep the following attributes (separated by spaces/comma/semicolon)
+      Default: <empty string>
     --bamcompression
       Compression Level. 0: no compression. 9: max compression;
       Default: 5
@@ -19,6 +22,9 @@ Usage: bamslicebed [options] Files
       gff, gff.gz, gtf.gz.Otherwise it could be an empty string (no interval) 
       or a list of plain interval separated by '[ \t\n;,]'
       Default: (unspecified)
+    --clip
+      Do not remove the bases but soft clip them.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
