@@ -44,7 +44,8 @@ Usage: mkminibam [options] Files
       [20191129]Allow no sample/ no read group : use fileame
       Default: false
   * -o, --output
-      An existing directory or a filename ending with the '.zip' suffix.
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
     --prefix
       File prefix in the archive. Special value 'now' or empty string will be 
       replaced by the current date
