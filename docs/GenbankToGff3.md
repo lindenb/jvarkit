@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Experimental genbank to GFF
+Experimental Genbank XML to GFF
 
 
 ## Usage
@@ -48,6 +48,11 @@ $ ./gradlew gb2gff
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20180215
 
 ## Source code 
 
