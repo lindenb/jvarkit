@@ -2579,6 +2579,11 @@ all2.add(task("plotmosdepth", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
+all2.add(task("plotbcftoolsstats", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"
         jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient","gson")

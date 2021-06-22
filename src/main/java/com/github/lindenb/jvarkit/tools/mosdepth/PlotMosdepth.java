@@ -50,10 +50,23 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.RuntimeIOException;
 
+/**
+BEGIN_DOC
+
+## Example
+```
+$ find . -type f > jeter.list
+$ java -jar ~/src/jvarkit-git/dist/plotmosdepth.jar --max-coverage 100 --prefix 20210622.mosdepth. --format png jeter.list | R --vanilla > /dev/null
+```
+
+END_DOC
+ */
+
+
 @Program(name="plotmosdepth",
 description="Plot Mosdepth output",
 creationDate="20210621",
-modificationDate="20210621",
+modificationDate="20210622",
 keywords={"mosdepth"},
 generate_doc=false
 )
@@ -70,16 +83,23 @@ private Path outputFile = null;
 private String prefix="";
 @Parameter(names={"--format"},description="output format.")
 private Format outputFormat = Format.PDF;
+@Parameter(names={"--max-coverage"},description="Max coverage fwhen plotting (percent of bases / coverage). Ignore if lower or equal to 0 ")
+private int coverage_treshold = -1;
+@Parameter(names={"--run-median"},description="runmed(coverage,'x') value for manhattan plot. Ignore if lower or equal to 0")
+private int run_median_parameter = 5;
+@Parameter(names={"--legend"},description="print legend")
+private boolean print_legend=false;
+
 
 
 private enum Where {GLOBAL,REGION};
 private enum Format {PDF,PNG,SVG};
 
 private static class RegionBed {
-String chrom;
-long pos;
-float cov;
-}
+	String chrom;
+	long pos;
+	float cov;
+	}
 
 private static class RegionDist {
 	String sample;
@@ -172,7 +192,9 @@ private void plotRegionsBed(final PrintWriter w,final Path path) {
 				w.print("Y<-c(");
 				w.print(points.stream().filter(P->P.chrom.equals(chrom)).map(T->String.valueOf(T.cov)).collect(Collectors.joining(",")));
 				w.println(")");
-				w.println("Y<-runmed(Y,5)");
+				if(this.run_median_parameter>0) {
+					w.println("Y<-runmed(Y," + this.run_median_parameter + ")");
+					}
 				w.println("T2<-as.matrix(data.frame(X,Y))");
 				w.println("head(T2)");
 
@@ -322,7 +344,7 @@ private void plotRegionDist(PrintWriter w,Where where ,final Path f) {
 			collect(Collectors.toCollection(LinkedHashSet::new)).
 			stream().
 			collect(Collectors.toList());
-	w.println("max_cov_dist <- "+Math.min(100,max_cov));
+	w.println("max_cov_dist <- " + (this.coverage_treshold>0?Math.min(100,max_cov):max_cov));
 	w.println("colors <- rainbow("+chromosomes.size()+")");
 	for(int i=0;i< chromosomes.size();i++) {
 		final String chrom=chromosomes.get(i);
@@ -353,11 +375,11 @@ private void plotRegionDist(PrintWriter w,Where where ,final Path f) {
                     	w.println(",pch=16)");
 			}
 		}
-	/*
-	w.println("legend(\"topright\",legend=c("+
-		chromosomes.stream().map(S->quote(S)).collect(Collectors.joining(","))+
-		"),title=\"chromosomes\",pch=16,col=colors)");
-		*/
+	if(print_legend) {
+		w.println("legend(\"topright\",legend=c("+
+			chromosomes.stream().map(S->quote(S)).collect(Collectors.joining(","))+
+			"),title=\"chromosomes\",pch=16,col=colors)");
+		}
 	w.println("dev.off()");
 	}
 
@@ -390,6 +412,10 @@ private void plotTotalRegionDists(PrintWriter w,final List<Path> paths) {
 		w.print("frac<-c(");
 		w.print(points.stream().filter(P->P.sample.equals(sample)).map(T->String.valueOf(T.frac)).collect(Collectors.joining(",")));
 		w.println(")");
+		w.println("max_cov_dist <- " + (this.coverage_treshold>0?Math.min(100,max_cov):max_cov));
+		
+		final String xylim =   "xlim=c(0,max_cov_dist),ylim=c(0,1.0),";
+		
 		w.println("T2<-as.matrix(data.frame(cov,frac))");
 		if(i==0) {
 			w.println(
@@ -398,22 +424,24 @@ private void plotTotalRegionDists(PrintWriter w,final List<Path> paths) {
                 "xlab=\"Coverage\","+
                 "ylab=\"Proportion of genome at coverage\","+
                 "las=2,"+
-                "xlim=c(0,"+max_cov+"),"+
-                "ylim=c(0,1.0),"+
+                xylim +
                 "col= colors[1],"+
                 "pch=16"+
                 ")");
 			}
 		else {
 			w.println("par(new=TRUE)");
-			w.print("plot(T2,type = \"l\",xlim=c(0,"+max_cov+"),ylim=c(0,1.0),axes=FALSE,ann=FALSE,col=");
+			w.print("plot(T2,type = \"l\","+xylim+"axes=FALSE,ann=FALSE,col=");
 			w.print("colors["+(i+1)+"]");
                     	w.println(",pch=16)");
 			}
 		}
-	w.println("legend(\"topright\",legend=c("+
-			samples.stream().map(S->quote(S)).collect(Collectors.joining(","))+
-		"),title=\"Sample\",pch=16,col=colors)");
+	
+	if(print_legend) {
+		w.println("legend(\"topright\",legend=c("+
+				samples.stream().map(S->quote(S)).collect(Collectors.joining(","))+
+			"),title=\"Sample\",pch=16,col=colors)");
+		}
 	w.println("dev.off()");
 	}
 
