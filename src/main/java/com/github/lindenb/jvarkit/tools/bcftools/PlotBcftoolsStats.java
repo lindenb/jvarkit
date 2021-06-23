@@ -5,16 +5,21 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.RangeOfDoubles;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -48,9 +53,12 @@ public class PlotBcftoolsStats extends Launcher {
 	private String prefix="";
 	@Parameter(names={"--format"},description="output format.")
 	private Format outputFormat = Format.PDF;
+	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
+	private Map<String, String> dynaParams = new HashMap<>();
 
 
 	private enum Format {PDF,PNG,SVG};
+	private final Map<String,String> id2file = new HashMap<>();
 
 	private abstract class Section {
 		final String ID;
@@ -81,64 +89,141 @@ public class PlotBcftoolsStats extends Launcher {
 			}
 		abstract void print(PrintWriter w);
 		}
-	
+	/** QUAL *******************************************************************/
 	private class QualSection extends Section {
 		QualSection() {
 			super("QUAL","# QUAL\t[2]id\t[3]Quality\t[4]number of SNPs\t[5]number of transitions (1st ALT)\t[6]number of transversions (1st ALT)\t[7]number of indels");
 			}
 		@Override
-			void print(PrintWriter w) {
-				for(String id : getIds()) {
-					w.println(device(this.ID+"."+id,null));
-					List<List<String>> L = getLinesForId(id);
-					final double median = 1000;
-					/*2.0 * L.stream().
-						mapToDouble(T->Long.parseLong(T.get(3))*Double.parseDouble(T.get(2))).
-						average().
-						orElse(0.5);*/
-					L = L.stream().
-						filter(T->Double.parseDouble(T.get(2))<=median).
-						collect(Collectors.toList());
-
-					final long max_num = L.stream().mapToLong(T->Long.parseLong(T.get(3))).max().orElse(1L);
-					final String xylim= "xlim=c("+
-						L.stream().mapToDouble(T->Double.parseDouble(T.get(2))).min().orElse(0.0)+","+
-						L.stream().mapToDouble(T->Double.parseDouble(T.get(2))).max().orElse(0.0)+
-						"),ylim=c(0,"+max_num+")";
-						;
-					w.println("x_data<-c("+L.stream().map(T->T.get(2)).collect(Collectors.joining(","))+")");
-					w.println("colors <- rainbow(4)");
-					for(int i=0;i< 4;++i) {
-							final int final_i = i;
-							w.println("y_data<-c("+L.stream().map(T->T.get(3+final_i)).collect(Collectors.joining(","))+")");
-							w.println("T2<-as.matrix(data.frame(x_data,y_data))");
-
-							if(i==0) {
-							w.println(
-								"plot(T2,type = \"p\","
-								+ "main=\"Stats by quality\","+
-				                "xlab=\"Quality\","+
-				                "ylab=\"Count\","+
-				                xylim+","+
-				                "col= colors[1],"+
-				                "pch=3"+
-				                ")");
+		void print(PrintWriter w) {
+			final RangeOfDoubles ranges = RangeOfDoubles.fromTo(0,
+					Double.parseDouble(dynaParams.getOrDefault("qual.max","1000")),
+					Double.parseDouble(dynaParams.getOrDefault("qual.step","100"))
+					); 
+			for(String id : getIds()) {
+				w.println(device(this.ID+"."+id,null));
+				List<List<String>> L = getLinesForId(id);
+				long max_count=1L;
+				List<String> colNames= new ArrayList<>();
+				for(RangeOfDoubles.Range r: ranges.getRanges()) {
+					final String colName = "count" + colNames.size();
+					boolean first= true;
+					w.print(colName+"<-c(");
+					for(int i=0;i< 4;i++) {
+						long n = 0L;
+						for(final List<String> line:L) {
+							final double qual = Double.parseDouble(line.get(2));
+							if(!r.contains(qual)) continue;
+							n += Long.parseLong(line.get(3+i));
 							}
-						else {
-							w.println("par(new=TRUE)");
-							w.println("plot(T2,type = \"p\",axes=FALSE,ann=FALSE," +
-								"col= colors["+(i+1)+"],"+ xylim+",pch=3)");
-							}
+						if(!first) w.print(",");
+						first=false;
+						w.print(n);
+						max_count = Math.max(n,max_count);
 						}
-					w.println("legend(\"topright\",legend=c("+
-							Arrays.stream(CharSplitter.TAB.split(this.header)).skip(3).map(S->quote(removeColumn(S))).collect(Collectors.joining(","))+
-							"),pch=16,col=colors)");
-
-					w.println("dev.off()");
+					w.println(")");
+					colNames.add(colName);
 					}
+				w.println("T2 <- as.matrix(data.frame("+String.join(",", colNames) +"))");
+				
+				device(this.ID+"."+id,null);
+				w.println(
+					"barplot(T2,main=\"Stats by quality\","+
+					"sub="+quote(id2file.getOrDefault(id,""))+","+
+	                "xlab=\"Quality\","+
+	                "ylab=\"Count Variants\","+
+	                "ylim=c(0,"+max_count+"),"+
+	                "names=c("+ranges.stream().map(S->quote(S.toString())).collect(Collectors.joining(","))+"),"+
+	                "legend=c("+Arrays.stream(CharSplitter.TAB.split(this.header)).skip(3).map(S->quote(removeColumn(S))).collect(Collectors.joining(","))+
+					"),col= rainbow(4),beside=TRUE,las=2)");
+					}
+
+				w.println("dev.off()");
 				}
-		}
+			}
+	/** SN *******************************************************************/
+	private class SNSection extends Section {
+		SNSection() {
+			super("SN","# SN\t[2]id\t[3]key\t[4]value");
+			}
+		@Override
+		void print(PrintWriter w) {
+			for(String id : getIds()) {
+				w.println(device(this.ID+"."+id,null));
+				final List<List<String>> L = getLinesForId(id).stream().
+						filter(S->!S.get(2).contains("number of samples")).
+						collect(Collectors.toList());
+	
+				
+				device(this.ID+"."+id,null);
+				w.println(
+					"barplot(c("+L.stream().map(T->String.valueOf(T.get(3))).collect(Collectors.joining(","))+")," +
+					"main=\"Summary Numbers\","+
+					"sub="+quote(id2file.getOrDefault(id,""))+","+
+	                "ylab=\"Count Variants\","+
+	                "names=c("+L.stream().map(T->quote(removeColumn(T.get(2)))).collect(Collectors.joining(","))+"),"+
+					"las=2,cex.names=0.5)");
+					}
+
+				w.println("dev.off()");
+				}
+			}
+	/** PSC *******************************************************************/
+	private class PSCSection extends Section {
+		private class Column {
+			final String label;
+			final ToDoubleFunction<List<String>>  fun;
+			Column(final String label,ToDoubleFunction<List<String>>  fun) {
+				this.label= label;
+				this.fun = fun;
+				}
+			}
 		
+		PSCSection() {
+			super("PSC","# PSC\t[2]id\t[3]sample\t[4]nRefHom\t[5]nNonRefHom\t[6]nHets\t[7]nTransitions\t[8]nTransversions\t[9]nIndels\t[10]average depth\t[11]nSingletons\t[12]nHapRef\t[13]nHapAlt\t[14]nMissing");
+			}
+		private void print(PrintWriter w,String id,String title,String extra,List<Column> columns) {
+			w.println(device(this.ID+"."+id+"."+title.toLowerCase().replace(' ', '_'),null));
+			final List<List<String>> L = getLinesForId(id).stream().
+					collect(Collectors.toList());
+			final List<String> colNames = new ArrayList<String>(columns.size());
+			for(int i=0;i< columns.size();i++) {
+				final ToDoubleFunction<List<String>> fun = columns.get(i).fun;
+				final String colName = "c"+colNames.size();
+				w.print(colName+"<-c(");
+				w.print(L.stream().map(T->String.valueOf(fun.applyAsDouble(T))).collect(Collectors.joining(",")));
+				w.println(")");
+				colNames.add(colName);
+				}	
+			w.println("T2 <- as.matrix(data.frame("+String.join(",", colNames) +"))");
+
+			w.println(
+					"barplot(T2,main="+quote(title)+","+
+					"sub="+quote(id2file.getOrDefault(id,""))+","+
+	                "xlab=\"Sample\","+
+	                "ylab=\"Count Variants\","+
+	                "names=c("+L.stream().map(S->quote(S.get(2))).collect(Collectors.joining(","))+"),"+
+	                "legend=c("+columns.stream().map(S->quote(S.label)).collect(Collectors.joining(","))+
+					"),las=2"+extra+")");
+					
+			w.println("dev.off()");
+			}
+		@Override
+		void print(PrintWriter w) {
+			for(String id : getIds()) {
+				print(w,id,"Average Depth","",Arrays.asList(new Column("Depth",L->Double.parseDouble(L.get(9)))));
+				print(w,id,"Missing","",Arrays.asList(new Column("Missing",L->Double.parseDouble(L.get(13)))));
+				print(w,id,"Genotypes","",
+						Arrays.asList(
+								new Column("HOM_REF",L->Double.parseDouble(L.get(3))),
+								new Column("HET",L->Double.parseDouble(L.get(5))),
+								new Column("HOM_VAR",L->Double.parseDouble(L.get(4))),
+								new Column("NO_CALL",L->Double.parseDouble(L.get(13)))
+								));
+				}
+			}
+		}
+	
 	private String quote(final String s) {
 		return "\""+StringUtils.escapeC(s)+"\"";
 		}
@@ -171,7 +256,9 @@ public class PlotBcftoolsStats extends Launcher {
 	public int doWork(final List<String> args) {
 		try {
 			final List<Section> sections = Arrays.asList(
-				new QualSection()
+				new QualSection(),
+				new SNSection(),
+				new PSCSection()
 				);
 			final Set<String> undefined_sections = new HashSet<>();
 			try(BufferedReader br= super.openBufferedReader(oneFileOrNull(args))) {
@@ -184,6 +271,10 @@ public class PlotBcftoolsStats extends Launcher {
 						continue;
 						}
 					final String tokens[]=CharSplitter.TAB.split(line);
+					if(tokens[0].equals("ID")) {
+						id2file.put(tokens[1], tokens[2]);
+						continue;
+						}
 					if(section==null || !section.ID.equals(tokens[0])) {
 						section	= sections.stream().filter(S->S.ID.equals(tokens[0])).findFirst().orElse(null);
 						if(section==null) {

@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class RangeOfDoubles {
 	public static final String OPT_DESC="A 'range of double' is a list of floating number in ascending order separated with semicolons. ";
@@ -48,6 +49,14 @@ public static interface Range
 	{
 	public Double getMinInclusive();
 	public Double getMaxExclusive();
+	/** return true if getMinInclusive()!=null */
+	public default boolean isMinDefined() {
+		return getMinInclusive()!=null;
+		}
+	/** return true if getMaxInclusive()!=null */
+	public default boolean isMaxDefined() {
+		return getMaxExclusive()!=null;
+		}
 	public boolean contains(double value);
 	}
 
@@ -130,11 +139,35 @@ public List<Range> getRanges() {
 	return this.ranges;
 	}
 
-public Range getRange(double value) {
+/** alias of getRanges().stream() */
+public Stream<Range> stream() {
+	return getRanges().stream();
+	}
+
+
+public Range getRange(final double value) {
 	for(final Range r:getRanges())
 		{
 		if(r.contains(value)) return r;
 		}
 	throw new IllegalStateException("cannot get range ??" +value);
+	}
+
+/**
+ * generate a new RangeOfDoubles from a sequence of numbers
+ * @param begin start value inclusive
+ * @param end end value inclusive
+ * @param step shift value
+ * @return new RangeOfDouble
+ */
+public static RangeOfDoubles fromTo(double begin,double end,double step) {
+	if(begin>end) throw new IllegalArgumentException(""+begin+">"+end);
+	if(step<=0) throw new IllegalArgumentException(""+step+"<=0");
+	final List<Double> L = new ArrayList<>();
+	while(begin<=end) {
+		L.add(begin);
+		begin+=step;
+		}
+	return new RangeOfDoubles(L.stream().mapToDouble(D->D.doubleValue()).toArray());
 	}
 }
