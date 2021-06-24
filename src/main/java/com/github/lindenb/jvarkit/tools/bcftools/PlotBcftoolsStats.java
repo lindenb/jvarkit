@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -186,16 +187,21 @@ public class PlotBcftoolsStats extends Launcher {
 			w.println(device(this.ID+"."+id+"."+title.toLowerCase().replace(' ', '_'),null));
 			final List<List<String>> L = getLinesForId(id).stream().
 					collect(Collectors.toList());
-			final List<String> colNames = new ArrayList<String>(columns.size());
-			for(int i=0;i< columns.size();i++) {
-				final ToDoubleFunction<List<String>> fun = columns.get(i).fun;
+			final List<String> colNames = new ArrayList<>();
+			
+			//loop over samples
+			for(int i=0;i< L.size();i++) {
+				final List<String> row= L.get(i);
 				final String colName = "c"+colNames.size();
+				w.println("# sample "+row.get(2));
 				w.print(colName+"<-c(");
-				w.print(L.stream().map(T->String.valueOf(fun.applyAsDouble(T))).collect(Collectors.joining(",")));
+				w.print(columns.stream().map(C->String.valueOf(C.fun.applyAsDouble(row))).collect(Collectors.joining(",")));
 				w.println(")");
 				colNames.add(colName);
-				}	
+				}
+			
 			w.println("T2 <- as.matrix(data.frame("+String.join(",", colNames) +"))");
+				
 
 			w.println(
 					"barplot(T2,main="+quote(title)+","+
@@ -204,7 +210,7 @@ public class PlotBcftoolsStats extends Launcher {
 	                "ylab=\"Count Variants\","+
 	                "names=c("+L.stream().map(S->quote(S.get(2))).collect(Collectors.joining(","))+"),"+
 	                "legend=c("+columns.stream().map(S->quote(S.label)).collect(Collectors.joining(","))+
-					"),las=2"+extra+")");
+					"),las=2"+extra+",col=rainbow("+ columns.size() +"))");
 					
 			w.println("dev.off()");
 			}
@@ -298,7 +304,10 @@ public class PlotBcftoolsStats extends Launcher {
 				pw.println("# output to be piped in R");
 				for(Section sec: sections) {
 					if(sec.lines.isEmpty()) continue;
+					LOG.info("#invoking "+sec.ID);
+					pw.println("# BEGIN "+sec.ID);
 					sec.print(pw);
+					pw.println("# END "+sec.ID);
 					}
 				pw.flush();
 				}
