@@ -2127,7 +2127,7 @@ all.add( task("vcfpredictions", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
-all.add( task("vcfbiomart", type: CompileJVarkit) {
+all2.add( task("vcfbiomart", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ensembl.VcfBiomart"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient")
 	});
@@ -2573,6 +2573,21 @@ all2.add(task("bamxtremdepth", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.bamxdepth.BamXtremDepth"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+
+all2.add(task("plotmosdepth", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.mosdepth.PlotMosdepth"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
+all2.add(task("plotbcftoolsstats", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+all2.add( task("iranomescrapper", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.iranome.IranomeScrapper"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient","gson")
+	});
+
 
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.labguru.Jeter"

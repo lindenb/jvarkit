@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.genbank;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,38 +32,32 @@ import java.io.PrintWriter;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 
-
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import gov.nih.nlm.ncbi.gb.GBFeature;
-import gov.nih.nlm.ncbi.gb.GBFeatureQuals;
-import gov.nih.nlm.ncbi.gb.GBQualifier;
-import gov.nih.nlm.ncbi.gb.GBSet;
-import gov.nih.nlm.ncbi.gb.ObjectFactory;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.StringUtil;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.annotation.Strand;
+import htsjdk.tribble.gff.Gff3BaseData;
+import htsjdk.tribble.gff.Gff3Constants;
 /**
 BEGIN_DOC
 
@@ -103,7 +96,8 @@ END_DOC
 description="Experimental Genbank XML to GFF",
 keywords={"xml","ncbi","genbank","convert","gff","gb"},
 modificationDate="20210429",
-creationDate="20180215"
+creationDate="20180215",
+generate_doc = false
 )
 public class GenbankToGff3 extends Launcher {
 	private static final Logger LOG = Logger.build(GenbankToGff3.class).make();
@@ -111,279 +105,261 @@ public class GenbankToGff3 extends Launcher {
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@SuppressWarnings("unused")
-	private static final ObjectFactory _fool_javac = null;
-	private final Set<String> headers = new HashSet<>();
-	private PrintWriter tmpWriter = null;
-	private final Unmarshaller unmarshaller;
-	private long ID_GENERATOR = 0L;
-	private final List<MyFeature> buffer= new ArrayList<>();
+	private static long ID_GENERATOR = 0L;
+	private final static double NO_SCORE=-1;
+	private final static int NO_PHASE=-1;
+	private final static String DUMMY_CTG="chr_";
+
 	
-	/** wrapper around GBFeature */
-	private class MyFeature
+	private static class GBFeature implements Locatable {
+		String key;
+		final List<Interval> gbIntervals = new ArrayList<>();
+		final Map<String,String> qualifiers= new HashMap<>();
+		public boolean isGene() {
+			return key.equals("gene");
+			}
+		public boolean isTranscriptOf(final String g)  {
+				return isTranscript() && qualifiers.getOrDefault("gene","").equals(g);
+				}
+		public boolean isTranscript() { 
+			return key.equals("misc_RNA") || key.equals("mRNA")|| key.equals("ncRNA");
+		}
+		public boolean isExon()  { return key.equals("exon");}
+		public boolean isCDS()  { return key.equals("CDS");}
+
+		
+		public String getGeneId() {
+			if(qualifiers.containsKey("gene")) {
+				return qualifiers.get("gene");
+				}
+			if(qualifiers.containsKey("locus_tag")) {
+				return qualifiers.get("locus_tag");
+				}
+			return null;
+			}
+		@Override
+		public String getContig() {
+			return DUMMY_CTG;
+			}
+		@Override
+		public int getStart() {
+			return gbIntervals.stream().mapToInt(R->R.getStart()).min().getAsInt();
+			}
+		@Override
+		public int getEnd() {
+			return gbIntervals.stream().mapToInt(R->R.getEnd()).max().getAsInt();
+			}
+		public Strand getStrand() {
+			return gbIntervals.stream().anyMatch(R->R.isNegativeStrand())?Strand.NEGATIVE:Strand.FORWARD;
+			}
+		}
+	
+	
+	private class Entry {
+		String name = "undefined";
+		int length=-1;
+		final List<GBFeature> features = new ArrayList<>();
+		}
+	
+
+	
+	
+	private String escape(final String s)
 		{
-		private final long id;
-		private final GBFeature feat;
-		MyFeature(final GBFeature feat)
+		if(s.contains(" ") || s.contains("=") || s.contains("\\")|| s.contains(";") || s.contains("\""))
 			{
-			this.feat = feat;
-			this.id = (++ID_GENERATOR);
-			//prevent NPE
-			if(this.feat.getGBFeatureQuals()==null)
-				{	
-				this.feat.setGBFeatureQuals(new GBFeatureQuals());
-				}
-			
-			this.feat.getGBFeatureQuals().
-				getGBQualifier().
-				removeIf(Q->(Q.getGBQualifierName().equals("translation") || 
-						     Q.getGBQualifierName().equals("transcription") ));
-		
-			}
-		public String getType() 
-			{
-			return this.feat.getGBFeatureKey().
-					replace("5'", "five_prime_").
-					replace("3'", "three_prime_")
-					;
-			}
-		public Map<String,String> getQualMap() {
-			
-			final Map<String,String> hash = new HashMap<String,String>();
-			// do not use java stream because there are some dups'
-			for(final GBQualifier G:feat. getGBFeatureQuals().getGBQualifier())
+			final StringBuilder sb=new StringBuilder("\"");
+			for(int i=0;i< s.length();++i)
 				{
-				hash.put(G.getGBQualifierName(),G.getGBQualifierValue());
+				switch(s.charAt(i))
+					{
+					case '\\': sb.append("\\\\"); break;
+					case '\'': sb.append("\\\'"); break;
+					case '\"': sb.append("\\\""); break;
+					default: sb.append(s.charAt(i));break;
+					}
 				}
-			return hash;
+			sb.append("\"");
+			return sb.toString();
 			}
-		
-		private String findQualifier(final String key)
-			{
-			return this.feat.getGBFeatureQuals().getGBQualifier().stream().
-					filter(G->G.getGBQualifierName().equals(key)).
-					map(G->G.getGBQualifierValue()).
-					findFirst().
-					orElse(null);
-			}
-		
-		public void print() {
-			final Map<String,String> qualifiers= getQualMap();
-			
-			if(getType().equals("source")) {
-				final String taxon = findQualifier("db_xref");
-				if(taxon!=null && taxon.startsWith("taxon:"))
-					{
-					GenbankToGff3.this.headers.add("species https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id="+taxon.substring(6).trim());
-					}
-				getIntervals().stream().forEach(I-> {
-					GenbankToGff3.this.headers.add("sequence-region "+I.getContig()+" "+I.getStart()+" "+I.getEnd());	
-					
-					});
-				}
-			
-				getIntervals().stream().
-					forEach(I->print(I,qualifiers));
-				}
-			
-			public String getId() {
-				return getType()+this.id;
-				}
-		
-			private String escape(final String s)
-				{
-				if(s.contains(" ") || s.contains("=") || s.contains("\\")|| s.contains(";") || s.contains("\""))
-					{
-					final StringBuilder sb=new StringBuilder("\"");
-					for(int i=0;i< s.length();++i)
-						{
-						switch(s.charAt(i))
-							{
-							case '\\': sb.append("\\\\"); break;
-							case '\'': sb.append("\\\'"); break;
-							case '\"': sb.append("\\\""); break;
-							default: sb.append(s.charAt(i));break;
-							}
-						}
-					sb.append("\"");
-					return sb.toString();
-					}
-				return s;
-				}
-
-			
-			void print(
-					final Interval interval,
-					Map<String,String> quals
-					)
-				{
-				//reset ID and parentID
-				quals.remove("ID");
-				quals.remove("ParentID");
-				
-				Integer phase = null;
-				if( getType().equals("CDS")) {
-					final String q= this.findQualifier("codon_start");
-					if(q!=null && q.matches("[0-9]+"))
-						{
-						phase= Integer.parseInt(q);
-						phase=phase-1;
-						}
-					}
-				final String locus_tag = this.findQualifier("locus_tag");
-				if(!StringUtil.isBlank(locus_tag))
-					{
-					quals.put("ID", this.getId());
-					
-					if(!getType().equals("gene")) {
-						final String parentId=GenbankToGff3.this.buffer.
-							stream().
-							filter(G->G.getType().equals("gene") && locus_tag.equals(G.findQualifier("locus_tag"))).
-							map(G->G.getId()).
-							findFirst().
-							orElse(null);
-						if(!StringUtil.isBlank(parentId))
-							{
-							quals.put("ParentID",parentId);
-							}
-						}
-					}
-				
-				final PrintWriter w  = GenbankToGff3.this.tmpWriter;
-				w.print(interval.getContig());
-				w.print('\t');
-				w.print("genbank");//source
-				w.print('\t');
-				w.print(getType());
-				w.print('\t');
-				w.print(interval.getStart());
-				w.print('\t');
-				w.print(interval.getEnd());
-				w.print('\t');
-				w.print('.');//score
-				w.print('\t');
-				w.print(interval.isNegativeStrand()?'-':'+');
-				w.print('\t');
-				w.print(phase==null?".":String.valueOf(phase));
-				w.print('\t');
-				final String qualifiers = quals.keySet().stream().
-						map(K->K+"="+escape(quals.get(K))).
-						collect(Collectors.joining(";"))
-						;
-				
-				
-				if(StringUtil.isBlank(qualifiers))
-					{
-					w.print('.');
-					}
-				else
-					{
-					w.print(qualifiers);
-					}
-				
-				w.println();
-				}
-		
-		public List<Interval> getIntervals()
-			{
-			final List<Interval> intervals = new ArrayList<>();
-			this.feat.getGBFeatureIntervals().getGBInterval().forEach(T->
-				{
-				final String acn = T.getGBIntervalAccession();
-				if(StringUtil.isBlank(acn))
-					{
-					LOG.warn("interval acn missing");
-					return;
-					}
-				
-				final int intervalFrom ;
-				final int intervalTo ;
-				
-				if(!StringUtil.isBlank(T.getGBIntervalPoint()))
-					{
-					intervalFrom = Integer.parseInt(T.getGBIntervalPoint());
-					intervalTo=intervalFrom;
-					}
-					
-				else
-					{
-					intervalFrom = Integer.parseInt(T.getGBIntervalFrom());
-					intervalTo = Integer.parseInt(T.getGBIntervalTo());
-					}
-				final Interval interval =  new Interval(
-						acn,
-						Math.min(intervalFrom,intervalTo),
-						Math.max(intervalFrom,intervalTo),
-						intervalFrom>intervalTo,
-						"gbfeature"
-						);
-				intervals.add(interval);
-				});
-			
-			return intervals;
-			}
+		return s;
 		}
-	
-	public GenbankToGff3() {
-		
-		
-		JAXBContext jc;
-		try {
-			jc = JAXBContext.newInstance(GBSet.class.getPackage().getName());
-			this.unmarshaller = jc.createUnmarshaller();
-		} catch (final JAXBException e) {
-			LOG.error(e);
-			throw new RuntimeException(e);
-			}
-		}
-	
 	
 	
 	
 
 	
-	private void dump() {
-		this.buffer.forEach(B->B.print());
-		this.buffer.clear();
-		}
-	
-	
-	
-	private void parseGenBank(final XMLEventReader r) throws JAXBException,XMLStreamException,IOException{
+	private Interval parseGBInterval(final XMLEventReader r) throws XMLStreamException,IOException{
+		int start=-1;
+		int end=1;
+		String accession="";
 		while(r.hasNext())
 			{
-			final XMLEvent evt= r.peek();
-			if(evt.isStartElement())
-				{
+			final XMLEvent evt= r.nextEvent();
+			if(evt.isStartElement()) {
 				final String name = evt.asStartElement().getName().getLocalPart();
-				 if(name.equals("GBFeature"))
-					{
-					final GBFeature feature = this.unmarshaller.unmarshal(r, GBFeature.class).getValue(); 
-					final MyFeature my = new MyFeature(feature);
-					if(!my.getIntervals().isEmpty()) {
-						// we can print things like SNP right now...
-						if(StringUtil.isBlank( my.findQualifier("locus_tag")))
-							{
-							my.print();
-							}
-						else
-							{
-							this.buffer.add(my);			
-							}
-						}
-					continue;
+				if(name.equals("GBInterval_from")) {
+					start = Integer.parseInt(r.getElementText());
 					}
-				 else if(name.equals("GBSeq"))
-					{
-					r.nextEvent();
-					dump();
-					continue;
+				else if(name.equals("GBInterval_to")) {
+					end = Integer.parseInt(r.getElementText());
+					}
+				else if(name.equals("GBInterval_point")) {
+					start = Integer.parseInt(r.getElementText());
+					end = start;
+					}
+				else if(name.equals("GBInterval_accession")) {
+					accession = r.getElementText();
 					}
 				}
-			//consumme event
-			r.nextEvent();
+			else if(evt.isEndElement()) {
+				final String name = evt.asEndElement().getName().getLocalPart();
+				if(name.equals("GBInterval")) break;
+				}
 			}
-		dump();
+		
+		return new Interval(DUMMY_CTG,Math.min(start, end),Math.max(start, end),start>end,accession);
+		}
+	private Map.Entry<String, String> parseGBQualifier(final XMLEventReader r) throws XMLStreamException,IOException{
+		String key="";
+		String value="true";
+		while(r.hasNext())
+			{
+			final XMLEvent evt= r.nextEvent();
+			if(evt.isStartElement()) {
+				final String name = evt.asStartElement().getName().getLocalPart();
+				if(name.equals("GBQualifier_name")) {
+					key = r.getElementText();
+					}
+				else if(name.equals("GBQualifier_value")) {
+					value = r.getElementText();
+					}
+				}
+			else if(evt.isEndElement()) {
+				final String name = evt.asEndElement().getName().getLocalPart();
+				if(name.equals("GBQualifier")) break;
+				}
+			}
+		return new AbstractMap.SimpleEntry<>(key,value);
+		}
+
+	
+	private GBFeature parseFeature(final XMLEventReader r) throws XMLStreamException,IOException{
+		final GBFeature feature = new GBFeature();
+		while(r.hasNext())
+			{
+			final XMLEvent evt= r.nextEvent();
+			if(evt.isStartElement()) {
+				final String name = evt.asStartElement().getName().getLocalPart();
+				if(name.equals("GBFeature_key")) {
+					feature.key = r.getElementText().
+							replace("5'", "five_prime_").
+							replace("3'", "three_prime_");
+					}
+				else if(name.equals("GBInterval")) {
+					feature.gbIntervals.add(parseGBInterval(r));
+					}
+				else if(name.equals("GBQualifier")) {
+					final Map.Entry<String, String> kv = parseGBQualifier(r);
+					if(!(kv.getKey().equals("transcription") || kv.getKey().equals("translation") || kv.getKey().equals("note") || kv.getKey().equals("peptide"))) {
+						feature.qualifiers.put(kv.getKey(),kv.getValue());
+						}
+					}
+				}
+			else if(evt.isEndElement()) {
+				final String name = evt.asEndElement().getName().getLocalPart();
+				if(name.equals("GBFeature")) {
+					break;
+					}
+				}
+			}
+		
+		return feature;
+		}
+	
+	private List<GBFeature> parseFeatureTable(final XMLEventReader r) throws XMLStreamException,IOException {
+		final List<GBFeature> L = new ArrayList<>();
+		while(r.hasNext())
+			{
+			final XMLEvent evt= r.nextEvent();
+			if(evt.isStartElement()) {
+				final String name = evt.asStartElement().getName().getLocalPart();
+				if(name.equals("GBFeature")) {
+					final GBFeature feature =  parseFeature(r);
+					L.add(feature);
+					}
+				}
+			else if(evt.isEndElement()) {
+				final String name = evt.asEndElement().getName().getLocalPart();
+				if(name.equals("GBSeq_feature-table")) break;
+				}
+			}
+		Collections.sort(L,(A,B)->Integer.compare(A.getStart(), B.getStart()));
+		return L;
+		}
+
+	
+	private Entry parseGBSeq(final XMLEventReader r) throws XMLStreamException,IOException{
+		final Entry entry = new Entry();
+		while(r.hasNext())
+			{
+			final XMLEvent evt= r.nextEvent();
+			if(evt.isStartElement()) {
+				final String name = evt.asStartElement().getName().getLocalPart();
+				if(name.equals("GBSeq_locus")) {
+					entry.name  = r.getElementText();
+					}
+				else if(name.equals("GBSeq_length")) {
+					entry.length  = Integer.parseInt(r.getElementText());
+					}
+				else if(name.equals("GBSeq_feature-table")) {
+					entry.features.addAll(parseFeatureTable(r));
+					}
+				
+			}
+			else if(evt.isEndElement()) {
+				final String name = evt.asEndElement().getName().getLocalPart();
+				if(name.equals("GBFeature")) break;
+				}
+			}
+		return entry;
+		}
+	
+	private final List<Entry> parseGenBank(final XMLEventReader r) throws XMLStreamException,IOException{
+		final List<Entry> L = new ArrayList<>();
+		while(r.hasNext())
+			{
+			final XMLEvent evt= r.nextEvent();
+			if(evt.isStartElement()) {
+				final String name = evt.asStartElement().getName().getLocalPart();
+				if(name.equals("GBSeq")) {
+					L.add(this.parseGBSeq(r));
+					}
+				}
+			}
+		return L;
+		}
+	private void print(PrintWriter pw,final Gff3BaseData record) {
+		pw.print(record.getContig());
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(record.getSource());
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(record.getType());
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(record.getStart());
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(record.getEnd());
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(Gff3Constants.UNDEFINED_FIELD_VALUE);//score
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(record.getStrand().encodeAsChar());
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(record.getPhase()==NO_PHASE?Gff3Constants.UNDEFINED_FIELD_VALUE:String.valueOf(record.getPhase()));
+		pw.print(Gff3Constants.FIELD_DELIMITER);
+		pw.print(
+				record.getAttributes().entrySet().stream().
+				map(KV->KV.getKey()+Gff3Constants.KEY_VALUE_SEPARATOR+escape(KV.getValue().get(0))).collect(Collectors.joining(""+Gff3Constants.ATTRIBUTE_DELIMITER)));
+		pw.println();
 		}
 	
 	@Override
@@ -392,20 +368,16 @@ public class GenbankToGff3 extends Launcher {
 				args.stream().map(S->new File(S)).collect(Collectors.toSet()),
 				".xml",".gb",".genbank"
 				).stream().map(F->F.toPath()).collect(Collectors.toList());
-		Path tmpPathBody= null;
-		BufferedWriter bw = null;
-		PrintWriter w=null;
+		
 		final XMLInputFactory xif = XMLInputFactory.newInstance();
 		try {
 			
-			tmpPathBody = Files.createTempFile("tmp.", ".gff3");
-			this.tmpWriter = new PrintWriter( Files.newBufferedWriter(tmpPathBody));
-			
+			final List<Entry> L = new ArrayList<>();
 			if(inputs.isEmpty()) {
 				LOG.info("reading stdin");
 				try(final Reader r = new InputStreamReader(stdin())) {
 					final XMLEventReader xr = xif.createXMLEventReader(r);
-					parseGenBank(xr);
+					L.addAll(parseGenBank(xr));
 					xr.close();
 					}
 				} 
@@ -414,37 +386,100 @@ public class GenbankToGff3 extends Launcher {
 				LOG.info("reading "+path);
 				try(final Reader r = Files.newBufferedReader(path)) {
 					final XMLEventReader xr = xif.createXMLEventReader(r);
-					parseGenBank(xr);
+					L.addAll(parseGenBank(xr));
 					xr.close();
 					}
 				}
 			
-			this.tmpWriter.flush();
-			this.tmpWriter.close();
-			this.tmpWriter=null;
 			
-			w = super.openFileOrStdoutAsPrintWriter(outputFile);
-			for(final String h:headers) w.println("##"+h);
-			
-			IOUtils.copyTo(tmpPathBody, w);
-			w.flush();
-			w.close();
-			w=null;
+
+			try(PrintWriter w = super.openFileOrStdoutAsPrintWriter(outputFile)) {
+				
+				w.println("##gff-version 3");
+				w.println("##format: gff3");
+				for(Entry entry: L) {
+					w.println("##sequence-region "+entry.name+" "+entry.length);
+					}
+				for(Entry entry: L) {
+					Map<String,List<String>> attCtg = Collections.singletonMap("ID", Collections.singletonList(entry.name));
+					Gff3BaseData gffCtg = new Gff3BaseData(
+							entry.name,
+							"GB",
+							"chromosome",
+							1,
+							entry.length,
+							NO_SCORE,
+							Strand.NONE,
+							NO_PHASE,
+							attCtg
+							);
+					print(w,gffCtg);
+										
+							
+					for(GBFeature gene: entry.features.stream().filter(G->G.isGene()).collect(Collectors.toList())) {
+						final Map<String,List<String>> gattributes = new HashMap<>();
+						String gene_id = "G"+(++ID_GENERATOR);
+						final String geneName = gene.qualifiers.getOrDefault("gene", "");
+						if(StringUtils.isBlank(geneName)) {
+							LOG.warn("no gene name for "+gene);
+							continue;
+							}
+						gene.qualifiers.entrySet().forEach(KV->gattributes.put(KV.getKey(),Collections.singletonList(KV.getValue())));
+						
+						gattributes.put("Parent",Collections.singletonList(entry.name));
+						gattributes.put("ID",Collections.singletonList(gene_id));
+						gattributes.put("Name",Collections.singletonList(geneName));
+						
+						
+						final Gff3BaseData gffGene = new Gff3BaseData(
+								entry.name,
+								"GB",
+								gene.key,
+								gene.getStart(),
+								gene.getEnd(),
+								NO_SCORE,
+								gene.getStrand(),
+								NO_PHASE,
+								gattributes
+								);
+						print(w,gffGene);
+						
+						for(GBFeature transcript: entry.features.stream().filter(G->G.isTranscriptOf(geneName)).collect(Collectors.toList())) {
+							final Map<String,List<String>> tattributes = new HashMap<>();
+							String transcript_id = "T"+(++ID_GENERATOR);
+							transcript.qualifiers.entrySet().forEach(KV->tattributes.put(KV.getKey(),Collections.singletonList(KV.getValue())));
+							
+							tattributes.put("Parent",Collections.singletonList(gene_id));
+							tattributes.put("ID",Collections.singletonList(transcript_id));
+							//tattributes.put("Name",Collections.singletonList(geneName));
+							
+							
+							final Gff3BaseData gffRNA = new Gff3BaseData(
+									entry.name,
+									"GB",
+									transcript.key,
+									transcript.getStart(),
+									transcript.getEnd(),
+									NO_SCORE,
+									transcript.getStrand(),
+									NO_PHASE,
+									tattributes
+									);
+							print(w,gffRNA);
+							}
+						
+						}
+					}
+				w.flush();
+				}
 			return 0;
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(w);
-			CloserUtil.close(bw);
-			CloserUtil.close(this.tmpWriter);
-			
-			if(tmpPathBody!=null) try { Files.deleteIfExists(tmpPathBody);}
-				catch(Exception err) {}
-			headers.clear();
 			}
 		}
 	
