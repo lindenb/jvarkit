@@ -25,6 +25,11 @@ Usage: swingbamcov [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --small
+      Display the reads when the region is small than 'x' bp. A distance 
+      specified as a positive integer.Commas are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb
+      Default: 200
     --version
       print version and exit
 

@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Composite;
@@ -51,6 +52,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -58,6 +60,7 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.Vector;
+import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
@@ -93,20 +96,31 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.reference.ReferenceSequence;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -150,6 +164,8 @@ public class SwingBamCov extends Launcher
 	private int minmapq=1;
 	@Parameter(names={"--gtf","--gff"},description="GFF3 file indexed with tabix to plot the genes.")
 	private String gffPath = null;
+	@Parameter(names={"--small"},description="Display the reads when the region is small than 'x' bp. " + DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
+	private int smallRegionLength = 200;
 	
 	private static class BamInfo {
 		final Path bamPath;
@@ -164,6 +180,7 @@ public class SwingBamCov extends Launcher
 	
 	@SuppressWarnings("serial")
 	private static class XFrame extends JFrame {
+		final int smallRegionLength;
 		final Path referenceFile;
 		final SAMSequenceDictionary dict;
 		final List<BamInfo> bamPaths;
@@ -343,6 +360,209 @@ public class SwingBamCov extends Launcher
 				final Locatable loc,
 				final Rectangle2D rect
 				) {
+			if(loc.getLengthOnReference()<= XFrame.this.smallRegionLength ) {
+				paintShortBamSection(g,srf,bam,loc,rect);
+				}
+			else
+				{
+				paintLargeBamSection(g,srf,bam,loc,rect);
+				}
+			}
+		
+		private boolean acceptRead(final SAMRecord rec) {
+			 if(
+				rec.getReadUnmappedFlag() ||
+				rec.getDuplicateReadFlag() ||
+		 		rec.getReadFailsVendorQualityCheckFlag() ||
+		 		rec.isSecondaryOrSupplementary() ||
+		 		rec.getMappingQuality()< XFrame.this.minMapq) return false;
+			 return true;
+			}
+		
+		/** print BAM for small interval, displaying reads */
+		private void paintShortBamSection(
+				final Graphics2D g,
+				final SamReaderFactory srf,
+				final BamInfo bam,
+				final Locatable region,
+				final Rectangle2D rect
+				){
+			final Shape oldClip = g.getClip();
+			final Stroke oldStroke = g.getStroke();	
+			g.setClip(rect);
+			try {
+				final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect.getWidth() + rect.getX();
+				final Pileup<SAMRecord> pileup = new Pileup<>((L,R)->position2pixel.applyAsDouble(L.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(R.getUnclippedStart()));
+				try(SamReader sr=srf.open(bam.bamPath)) {
+					 try(CloseableIterator<SAMRecord> iter=sr.query(
+							 region.getContig(),
+							 Math.max(0,region.getStart()-XFrame.this.smallRegionLength), //extend to get clipR
+							 region.getEnd()+XFrame.this.smallRegionLength,false)) {
+						 while(iter.hasNext()) {
+							 final SAMRecord rec=iter.next();
+							 if(!acceptRead(rec)) continue;
+							 if(rec.getUnclippedEnd() < region.getStart()) continue;
+							 if(rec.getUnclippedStart() > region.getEnd()) continue;
+							 final Cigar cigar = rec.getCigar();
+							 if(cigar==null || cigar.isEmpty()) continue;
+							 pileup.add(rec);
+						 	 }
+						 }//end iterator
+					}//end samreader
+				ReferenceSequence refInInterval=null;
+				 try (ReferenceSequenceFile refseq=ReferenceSequenceFileFactory.getReferenceSequenceFile(XFrame.this.referenceFile)) {
+					 final SAMSequenceRecord ssr = XFrame.this.dict.getSequence(region.getContig());
+					 if(region.getStart()<=ssr.getSequenceLength()) {
+						 refInInterval = refseq.getSubsequenceAt(
+								 region.getContig(),
+								 region.getStart(),
+								 Math.min(region.getEnd(),ssr.getSequenceLength())
+								 );
+					 	}
+				 	}
+				 /* clear rect */
+				 g.setColor(new Color(240,240,240));
+				 g.fill(rect);
+			     
+			     g.setStroke(new BasicStroke(0.5f));
+			     g.setColor(Color.WHITE);		     
+			     
+			     final int margin_top=12;
+			     
+			     final double featureHeight= Math.min(20,(rect.getHeight()-margin_top)/Math.max(1.0,(double)pileup.getRowCount()));
+			     
+			     double y= rect.getMaxY()-featureHeight;
+			     
+			     for(final List<SAMRecord> row:pileup) {
+			    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
+	
+			    	for(final SAMRecord rec: row) {
+			    		final Cigar cigar=rec.getCigar();
+			    		if(cigar==null || cigar.isEmpty()) continue;
+			    		
+			    		/* draw rec itself */
+			    		final double midy=y+h2/2.0;
+			    		g.setColor(Color.DARK_GRAY);
+			    		g.draw(new Line2D.Double(
+			    				position2pixel.applyAsDouble(rec.getUnclippedStart()),
+			    				midy,
+			    				position2pixel.applyAsDouble(rec.getUnclippedEnd()),
+			    				midy));
+			    		int ref1 = rec.getUnclippedStart();
+			    		final List<Double> insertions = new ArrayList<>();
+			    		for(final CigarElement ce: cigar.getCigarElements()) {
+			    			if(ref1> region.getEnd()) break;
+			    			final CigarOperator op=ce.getOperator();
+			    			Shape shape = null;
+			    			Color fill=null;
+			    			Color stroke=Color.DARK_GRAY;
+			    			switch(op) {
+			    				case P: break;
+			    				case M://through
+			    				case X://through
+			    				case EQ://through
+			    				case S: //through
+			    				case H: 
+			    						final double x1=position2pixel.applyAsDouble(ref1);
+			    						
+			    						shape = new Rectangle2D.Double(
+			    						x1, y,
+			    						position2pixel.applyAsDouble(ref1+ce.getLength())-x1,h2
+			    						);
+			    						
+			    						ref1+=ce.getLength();
+			    						switch(op) {
+			    							case H: case S: fill=Color.YELLOW;break;
+			    							case X: fill=Color.RED;break;
+			    							case EQ: case M: fill=Color.LIGHT_GRAY;break;
+			    							default:break;
+			    							}
+			    						break;
+			    				case N://through
+			    				case D: shape=null;fill=null;stroke=null;ref1+=ce.getLength();break;
+			    				case I: shape=null;fill=null;stroke=null;insertions.add(position2pixel.applyAsDouble(ref1));break;
+			    				default: throw new IllegalStateException(""+op);
+			    				}
+			    			if(ref1 < region.getStart()) continue;
+			    			
+			    			if(shape!=null) {
+			    				if(fill!=null) {g.setColor(fill);g.fill(shape);}
+			    				if(stroke!=null && h2>4)  {g.setColor(stroke);g.draw(shape);}
+			    				}
+			    			} // end loop cigar
+			    		
+			    		
+			    		 /* draw mismatched bases */
+			   	     	if(refInInterval!=null && rec.getReadBases()!=null && rec.getReadBases()!=SAMRecord.NULL_SEQUENCE) {
+			   	     		final byte bases[]=rec.getReadBases();
+			   	     		final IntFunction<Character> baseRead= IDX-> IDX<0 || IDX>=bases.length || bases==SAMRecord.NULL_SEQUENCE?'N':(char)Character.toUpperCase(bases[IDX]);
+			   	     		int read0=0;
+			   	     		ref1 = rec.getAlignmentStart();
+				   	     	for(CigarElement ce: cigar.getCigarElements()) {
+				    			if(ref1> region.getEnd()) break;
+				    			final CigarOperator op=ce.getOperator();
+				    			switch(op) {
+					    			case P:break;
+					    			case H:break;
+					    			case D: case N: ref1+=ce.getLength(); break;
+					    			case S: case I: read0+=ce.getLength(); break;
+					    			case EQ:case M: case X:
+					    				{
+					    				for(int j=0;j< ce.getLength();j++) {
+					    					if(ref1+j< region.getStart()) continue;
+					    					if(ref1+j>=region.getStart()+refInInterval.length()) break;
+					    					final int ref_base_idx = ref1-region.getStart()+j;
+					    					char ctgBase =(char)(ref_base_idx<0 || ref_base_idx>=refInInterval.length()?'N':Character.toUpperCase(refInInterval.getBases()[ref_base_idx]));
+					    					if(ctgBase=='N') continue;
+					    					char readBase = baseRead.apply(read0+j);
+					    					if(readBase=='N') continue;
+					    					if(readBase==ctgBase) continue;
+					    					g.setColor(Color.ORANGE);
+					    					final double x1 = position2pixel.applyAsDouble(ref1+j);
+					    					final double x2 = position2pixel.applyAsDouble(ref1+j+1);
+					    					g.fill( new Rectangle2D.Double( x1, y,x2-x1,h2));
+					    					}
+					    				read0+=ce.getLength();
+					    				ref1+=ce.getLength();
+					    				break;
+					    				}
+					    			default:break;
+				    				}
+				   	     		}
+			   	     		
+			   	     		}
+			    		
+			    		
+			    		for(double px:insertions) {
+			    			g.setColor(Color.RED);
+			    			g.draw(new Line2D.Double(px,y-0.5,px,y+h2+0.5));
+			    			}
+			    		}
+			    	y-=featureHeight;
+			     	}
+			    
+			     
+			     g.setColor(Color.DARK_GRAY);
+			     g.drawString("Sample:"+ bam.sample +" "+new SimpleInterval(region).toNiceString() , (int)rect.getX()+10,(int)rect.getY()+ 10);
+			     g.setColor(Color.LIGHT_GRAY);
+			     g.draw(rect);
+				}
+			catch(final IOException err) {
+			     g.drawString("Sample:"+ bam.sample +" Error "+err.getMessage() , 10, 10);
+				LOG.error(err);
+				}
+			g.setStroke(oldStroke);
+			g.setClip(oldClip);
+			repaintDrawingArea();
+			}
+		
+		private void paintLargeBamSection(final Graphics2D g,
+				final SamReaderFactory srf,
+				final BamInfo bam,
+				final Locatable loc,
+				final Rectangle2D rect
+				) {
+			
 			final Shape oldClip = g.getClip();
 			g.setClip(rect);
 			try {
@@ -496,11 +716,18 @@ public class SwingBamCov extends Launcher
 		}
 		
 		
-		XFrame(final Path referenceFile,final List<Path> bamPaths,String defaultLoc,int minMapq,final String gffPath) {
+		XFrame(final Path referenceFile,
+				final List<Path> bamPaths,
+				String defaultLoc,
+				int minMapq,
+				final String gffPath,
+				final int smallRegionLength
+				) {
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			setTitle(SwingBamCov.class.getSimpleName());
 			this.referenceFile = referenceFile;
 			this.gffPath = gffPath;
+			this.smallRegionLength = smallRegionLength;
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					referenceSequence(this.referenceFile).
 					validationStringency(ValidationStringency.LENIENT);
@@ -746,7 +973,7 @@ public class SwingBamCov extends Launcher
 				return -1;
 				}
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(this.referenceFile,paths,defaultRegion,this.minmapq,this.gffPath);
+			final XFrame frame = new XFrame(this.referenceFile,paths,defaultRegion,this.minmapq,this.gffPath,this.smallRegionLength);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 
