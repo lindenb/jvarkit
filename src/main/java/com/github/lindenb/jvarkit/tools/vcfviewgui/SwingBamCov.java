@@ -99,6 +99,7 @@ import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -379,6 +380,19 @@ public class SwingBamCov extends Launcher
 			 return true;
 			}
 		
+		private Color baseToColor(final char c) {
+			switch(c)
+				{
+				case 'A':case 'a': return Color.BLUE;
+				case 'T': case 't' : return Color.GREEN;
+				case 'C': case 'c': return Color.ORANGE;
+				case 'G': case 'g': return Color.RED;
+				default: break;
+				}
+			return Color.BLACK;
+			}
+		
+		
 		/** print BAM for small interval, displaying reads */
 		private void paintShortBamSection(
 				final Graphics2D g,
@@ -391,6 +405,7 @@ public class SwingBamCov extends Launcher
 			final Stroke oldStroke = g.getStroke();	
 			g.setClip(rect);
 			try {
+				final Hershey hershey = new Hershey();
 				final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect.getWidth() + rect.getX();
 				final Pileup<SAMRecord> pileup = new Pileup<>((L,R)->position2pixel.applyAsDouble(L.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(R.getUnclippedStart()));
 				try(SamReader sr=srf.open(bam.bamPath)) {
@@ -448,7 +463,8 @@ public class SwingBamCov extends Launcher
 			    				midy,
 			    				position2pixel.applyAsDouble(rec.getUnclippedEnd()),
 			    				midy));
-			    		int ref1 = rec.getUnclippedStart();
+			    		final int unclipped_start = rec.getUnclippedStart();
+			    		int ref1 = unclipped_start;
 			    		final List<Double> insertions = new ArrayList<>();
 			    		for(final CigarElement ce: cigar.getCigarElements()) {
 			    			if(ref1> region.getEnd()) break;
@@ -492,6 +508,7 @@ public class SwingBamCov extends Launcher
 			    			} // end loop cigar
 			    		
 			    		
+			    		
 			    		 /* draw mismatched bases */
 			   	     	if(refInInterval!=null && rec.getReadBases()!=null && rec.getReadBases()!=SAMRecord.NULL_SEQUENCE) {
 			   	     		final byte bases[]=rec.getReadBases();
@@ -530,8 +547,37 @@ public class SwingBamCov extends Launcher
 				    				}
 				   	     		}
 			   	     		
+			   	     		/** draw bases */
+				    		ref1 = unclipped_start;
+				    		read0=0;
+					    	for(final CigarElement ce: cigar.getCigarElements()) {
+				    			if(ref1> region.getEnd()) break;
+				    			final CigarOperator op=ce.getOperator();
+				    			switch(op) {
+				    				case P: break;
+				    				case H: ref1+= ce.getLength();break;
+				    				case N:  case D: ref1+= ce.getLength(); break;
+				    				case I: read0+=ce.getLength();break;
+				    				case M: case X: case EQ: case S:
+						    			{
+						    			for(int j=0;j< ce.getLength();j++) {
+						    				final char readBase = baseRead.apply(read0+j);
+						    				double h3 = h2*0.9;
+					    					final double x1 = position2pixel.applyAsDouble(ref1+j);
+					    					final double x2 = position2pixel.applyAsDouble(ref1+j+1);
+					    					g.setColor(baseToColor(readBase));
+					    					hershey.paint(g, String.valueOf(readBase), x1,y+(h2-h3)/2.0,(x2-x1)*0.95,h3);
+							    			}
+					    				read0+=ce.getLength();
+					    				ref1+=ce.getLength();
+						    			break;
+						    			}
+				    				default: throw new IllegalStateException(""+op);
+				    				}
+				    			if(ref1 < region.getStart()) continue;
+				    			
+				    			} // end loop cigar
 			   	     		}
-			    		
 			    		
 			    		for(double px:insertions) {
 			    			g.setColor(Color.RED);
