@@ -2587,6 +2587,10 @@ all2.add( task("iranomescrapper", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.iranome.IranomeScrapper"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient","gson")
 	});
+all2.add( task("ukbiobanksamples", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
