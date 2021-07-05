@@ -86,7 +86,7 @@ rotavirus       267     C       SAMPLE1
 rotavirus       267     G       SAMPLE2
 ```
 
-processing : 
+processing :
 
 ```
 $ java -jar dist/biostar214299.jar -p positions.tsv input.bam
@@ -111,8 +111,8 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
 
 ## Cited In
 
- * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623  
-
+ * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623
+ * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
 
 END_DOC
  */

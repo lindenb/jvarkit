@@ -449,6 +449,7 @@ public class GroupByGene
 				}
 			
 			pw.println();
+		
 				
 			
 			final CloseableIterator<Call> iter=sortingCollection.iterator();

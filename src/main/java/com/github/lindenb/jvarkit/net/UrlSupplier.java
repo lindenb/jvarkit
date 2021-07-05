@@ -129,6 +129,9 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 	else if(this.ensemblPattern.matcher(str).matches())
 		{
 		urls.add(new LabelledUrlImpl("Ensembl","http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q="+str.toUpperCase()+";species=;site=ensembl"));
+		if(str.startsWith("ENSG")) {
+			urls.add(new LabelledUrlImpl("Genbass GRCh38","https://genebass.org/gene/"+str+"?burdenSet=pLoF&phewasOpts=1&resultLayout=full"));
+			}
 		}
 	else if(this.ccdsPattern.matcher(str).matches()) {
 		urls.add(new LabelledUrlImpl("CCDS","https://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&GO=MainBrowse&DATA="+str));
