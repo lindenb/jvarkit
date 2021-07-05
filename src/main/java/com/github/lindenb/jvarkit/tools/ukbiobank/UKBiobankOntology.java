@@ -92,13 +92,13 @@ public class UKBiobankOntology {
 		@Override
 		public Set<Term> getAllChildrenIncludingSelf() {
 			final Set<Term> set = new HashSet<>();
-			scanForChildren(this.node_id,new HashSet<>());
+			scanForChildren(this.node_id,set);
 			return set;
 			}
 		@Override
 		public Set<Term> getAllParentsIncludingSelf() {
 			final Set<Term> set = new HashSet<>();
-			scanForParents(this.node_id,new HashSet<>());
+			scanForParents(this.node_id,set);
 			return set;
 			}
 		@Override
