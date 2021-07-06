@@ -67,8 +67,7 @@ END_DOC
 description="Select samples from ukbiobank",
 keywords={"ukbiobank"},
 creationDate="20210705",
-modificationDate="20210705",
-generate_doc=false
+modificationDate="20210706"
 )
 public class UKBiobankSelectSamples extends Launcher {
 	private static final Logger LOG = Logger.build(UKBiobankSelectSamples.class).make();
@@ -79,13 +78,13 @@ public class UKBiobankSelectSamples extends Launcher {
 	private Path ontologyPath = null;
 	@Parameter(names={"--tab"},description="*.tab file.",required=true)
 	private Path tabFilePath = null;
-	@Parameter(names={"--column"},description="column patter. Look for columns starts with 'x'",required=false)
+	@Parameter(names={"--column"},description="column pattern. Look for columns starts with 'x'",required=false)
 	private String colPattern = "f.41270.";
 	@Parameter(names={"--user-coding","-A"},description="limit to those coding. multiple separated by commas")
 	private List<String> userCoding = new ArrayList<>();
 	@Parameter(names={"--inverse"},description="inverse selection of sample when using option -A. get samples NOT having the phenotypes")
 	private boolean inverse_selection = false;
-	@Parameter(names={"--hide-phenotypes"},description="do not print phenotype")
+	@Parameter(names={"--hide-phenotypes"},description="do not print phenotypes")
 	private boolean hide_phenotypes = false;
 	
 	private String unquote(String s) {

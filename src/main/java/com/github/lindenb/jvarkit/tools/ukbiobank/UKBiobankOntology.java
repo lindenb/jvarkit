@@ -40,13 +40,14 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 public class UKBiobankOntology {
 	private static final Logger LOG = Logger.build(UKBiobankOntology.class).make();
 
+	/** a term in the ontology */
 	public interface Term {
 		public String getCoding();
 		public String getMeaning();
 		public Term getParent();
 		public boolean isSelectable();
 		public Set<Term> getAllChildrenIncludingSelf();
-		public Set<Term> getAllParentsIncludingSelf();
+		//public Set<Term> getAllParentsIncludingSelf();
 		public int getDepth();
 	}
 	
@@ -56,6 +57,7 @@ public class UKBiobankOntology {
 		String node_id="";
 		String parent_id="";
 		boolean selectable=true;
+		private Set<Term> _children_cache = null;
 		
 		@Override
 		public int hashCode() {
@@ -91,16 +93,18 @@ public class UKBiobankOntology {
 			}
 		@Override
 		public Set<Term> getAllChildrenIncludingSelf() {
-			final Set<Term> set = new HashSet<>();
-			scanForChildren(this.node_id,set);
-			return set;
+			if(this._children_cache == null) {
+				this._children_cache = new HashSet<>();
+				scanForChildren(this.node_id,this._children_cache);
+				}
+			return this._children_cache;
 			}
-		@Override
+		/*
 		public Set<Term> getAllParentsIncludingSelf() {
 			final Set<Term> set = new HashSet<>();
 			scanForParents(this.node_id,set);
 			return set;
-			}
+			}*/
 		@Override
 		public int getDepth() {
 			Term parent = getParent();
@@ -133,6 +137,7 @@ public class UKBiobankOntology {
 				}
 			}
 		}
+	/*
 	private void scanForParents(String nodeId,final Set<Term> found) {
 		if(!this.nodeid2term.containsKey(nodeId)) {
 			LOG.warn("cannot find node_id="+nodeId+" in "+ UKBiobankOntology.this.sourcePath);
@@ -145,7 +150,7 @@ public class UKBiobankOntology {
 			if(node==null) break;
 			found.add(node);
 		}
-	}
+	}*/
 
 	public Term findTermByCoding(final String coding) {
 		return this.coding2term.get(coding);
