@@ -2263,6 +2263,12 @@ all.add( task("vcfgnomad", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+
+all2.add( task("vcfgnomadexomevsgenome", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadExomeVsGenome"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 all2.add( task("vcfgnomadsv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadSV"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
