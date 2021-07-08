@@ -130,7 +130,7 @@ END_DOC
 	keywords={"sam","bam","chromosome","contig"},
 	modificationDate="20191210",
 	creationDate="20131217",
-	biostars={13462}
+	biostars={13462,9479387}
 	)
 public class ConvertBamChromosomes
 	extends Launcher
@@ -144,7 +144,7 @@ public class ConvertBamChromosomes
 	private Path mappingFile=null;
 	@Parameter(names={"--dict"},description="Use this new dictionary "+DICTIONARY_SOURCE,required=false)
 	private Path dictSource=null;
-	@Parameter(names={"-R","--reference"},description="For Reading CRAM "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description="For Reading CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output= null;
