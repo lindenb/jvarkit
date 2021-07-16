@@ -2597,6 +2597,10 @@ all2.add( task("ukbiobanksamples", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("ibd2vcf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
