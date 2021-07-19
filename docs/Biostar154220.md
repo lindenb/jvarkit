@@ -159,3 +159,8 @@ $ samtools mpileup output.bam  | cut -f 4 | sort | uniq -c
 
 ```
 
+## Cited in
+
+  * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0
+
+
