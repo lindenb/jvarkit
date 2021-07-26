@@ -10,23 +10,12 @@ SVG visualization of bam DEPTH for multiple regions
 ```
 Usage: wescnvsvg [options] Files
   Options:
-    -cap, --cap
-      Cap coverage to this value. Negative=don't set any limit
-      Default: -1
     -css, --css
       custom svg css stylesheet
     -x, --extend
-      Extend each region by this factor. 100bp + 150% -> 150bp.If the value 
-      ends with '%' it is interpretted as a percentage eg. '1%' => '0.01'. A 
-      slash '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
-      Default: 1.0
-    --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
-      FailsVendorQuality() || NotPrimaryAlignment() || 
-      SupplementaryAlignment()' 
-      Default: Accept All/ Filter out nothing
+      Extending interval. The following syntaxes are supported: 1000; 1kb; 
+      1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 1.5 (extend)
+      Default: 0
     -height, --height
       Sample Track height
       Default: 100
@@ -48,21 +37,26 @@ Usage: wescnvsvg [options] Files
       empty string (no interval) or a list of plain interval separated by '[ 
       \t\n;,]' 
       Default: (unspecified)
+    -Q, --mapq
+      Min mapping quality
+      Default: 1
+    --normalize
+      normalize on median
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -p, -percentile, --percentile
-      How to compute the percentil of a region
-      Default: AVERAGE
-      Possible Values: [MIN, MAX, MEDIAN, AVERAGE, RANDOM, SUM]
   * -R, --ref, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     -smooth, --smooth
-      Smoothing pixel window size. Negative=don't smooth
-      Default: 100
+      how to smooth data
+      Default: AVERAGE
+      Possible Values: [AVERAGE, MEDIAN]
     --title
       document title
       Default: WesCnvSvg
+    --vcf
+      plot VCF data
     --version
       print version and exit
     -w, --width

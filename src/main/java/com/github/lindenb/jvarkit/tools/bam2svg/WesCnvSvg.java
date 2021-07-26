@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -46,13 +45,15 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.jcommander.converter.RatioConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -63,6 +64,7 @@ import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -71,11 +73,15 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFReader;
 
 
 /**
@@ -140,7 +146,7 @@ END_DOC
 @Program(name="wescnvsvg",
 description="SVG visualization of bam DEPTH for multiple regions",
 keywords={"bam","alignment","graphics","visualization","svg","wes","bed","capture","exome"},
-modificationDate="20200622",
+modificationDate="20210726",
 creationDate="20180726"
 )
 public class WesCnvSvg  extends Launcher {
@@ -158,18 +164,20 @@ public class WesCnvSvg  extends Launcher {
 	private int sampleTrackHeight = 100 ;
 	@Parameter(names={"-smooth","--smooth"},description= "how to smooth data")
 	private CoverageFactory.ScaleType scaleType = CoverageFactory.ScaleType.AVERAGE;
-	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
-	private int capMaxDepth = -1 ;
 	@Parameter(names={"--title"},description="document title")
 	private String domSvgTitle=WesCnvSvg.class.getSimpleName();
 	@Parameter(names={"-u","--url","--hyperlink"},description= "creates a hyperlink an area is 'clicked'. " + Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
 	private Hyperlink hyperlinkType = Hyperlink.empty();
 	@Parameter(names={"-css","--css"},description="custom svg css stylesheet")
 	private File cssFile = null;
-	@Parameter(names={"-x","--extend"},description="Extend each region by this factor. 100bp + 150% -> 150bp." + RatioConverter.OPT_DESC,converter=RatioConverter.class,splitter=NoSplitter.class)
-	private double extendFactor= 1.0;
+	@Parameter(names={"-x","--extend"},description= IntervalExtender.OPT_DESC)
+	private String extendWhat= "0";
 	@Parameter(names={"-Q","--mapq"},description="Min mapping quality")
 	private int minMappingQuality = 1;
+	@Parameter(names={"--normalize"},description="normalize on median")
+	private boolean normalize_on_median_flag =false;
+	@Parameter(names={"--vcf"},description="plot VCF data")
+	private Path vcfFile = null;
 
 	
 	private class BamInput
@@ -177,9 +185,6 @@ public class WesCnvSvg  extends Launcher {
 		Path bamPath;
 		String sample;
 		final List<double[]> coverages = new ArrayList<>();
-		@SuppressWarnings("unused")
-		double minDepth=0;
-		double maxDepth=0;
 		double getPixelHeight() {
 			return WesCnvSvg.this.sampleTrackHeight;
 			}
@@ -213,12 +218,10 @@ public class WesCnvSvg  extends Launcher {
 	private final List<BamInput> bamInputs = new ArrayList<>();
 	private ReferenceSequenceFile indexedFastaSequenceFile;
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
-	private double globalMaxDepth = 0.0;
+	//private double globalMaxDepth = 0.0;
 	private int countBasesToBeDisplayed = 0;
 	private final int gc_win=100;
 
-	private final DoubleUnaryOperator capDepthValue = (v)->
-		 this.capMaxDepth<1 ?v:Math.min(this.capMaxDepth, v);
 		 
 	
 	/** convert double to string */
@@ -249,21 +252,26 @@ public class WesCnvSvg  extends Launcher {
 		XMLStreamWriter w = null;
 		BufferedReader r = null;
 		OutputStream fout=null;
-		if(this.extendFactor<1.0) {
-			LOG.error("extend factor <1.0");
-			return -1;
-			}
+		VCFReader vcfReader = null;
 		try
 			{
 			
 			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
+			final IntervalExtender extender = IntervalExtender.of(refDict,this.extendWhat);
+			if(extender.isShriking()) {
+				LOG.error("extend factor <1.0");
+				return -1;
+				}
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(refDict);
 			final ContigDictComparator contigDictCompare = new ContigDictComparator(refDict);
 			
 			final List<CaptureInterval> userIntervals = this.intervalListProvider.
 					stream().
-					map(loc->contigNameConverter.convertToSimpleInterval(loc).orElseThrow(()->new JvarkitException.ContigNotFoundInDictionary(loc.getContig(),refDict))).
+					/* https://stackoverflow.com/questions/25523375 */
+					map(loc->contigNameConverter.convertToSimpleInterval(loc).<RuntimeException>orElseThrow(()->new RuntimeException(new JvarkitException.ContigNotFoundInDictionary(loc.getContig(),refDict)))).
+					map(extender).
+					collect(HtsCollectors.mergeIntervals()).
 					map(L->new CaptureInterval(L)).
 					sorted(contigDictCompare.createLocatableComparator()).
 					collect(Collectors.toCollection(ArrayList::new))
@@ -330,13 +338,6 @@ public class WesCnvSvg  extends Launcher {
 							bi.coverages.add(array);
 							}
 						}
-					bi.minDepth = bi.coverages.stream().flatMapToDouble(A->Arrays.stream(A)).
-							map(capDepthValue).
-							min().orElse(0);
-					bi.maxDepth = bi.coverages.stream().flatMapToDouble(A->Arrays.stream(A)).
-						map(capDepthValue).
-						max().orElse(1);
-					LOG.debug("Sample "+bi.sample+" Max-Depth:"+bi.maxDepth);
 					}
 				this.bamInputs.add(bi);
 				}
@@ -345,11 +346,11 @@ public class WesCnvSvg  extends Launcher {
 				return -1;
 				}
 			
-			this.globalMaxDepth = Math.max(1.0,this.bamInputs.stream().
-					mapToDouble(B->B.maxDepth).
-					map(this.capDepthValue).
-					max().orElse(0));
-			LOG.debug("global max depth "+this.globalMaxDepth);
+			if(this.vcfFile!=null) {
+				vcfReader = VCFReaderFactory.makeDefault().open(this.vcfFile,true);
+				final SAMSequenceDictionary vcfDict = vcfReader.getHeader().getSequenceDictionary();
+				if(vcfDict!=null) SequenceUtil.assertSequenceDictionariesEqual(refDict, vcfDict);
+				}
 			
 			
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
@@ -411,7 +412,10 @@ public class WesCnvSvg  extends Launcher {
 						"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
 						"rect.clickRgn {fill:none;stroke:none;pointer-events:all;}" +
 						"polyline.gc {stroke:lightcoral;stroke-width:0.3px;fill:none;}"+
-						"polyline.clipping {stroke:orange;stroke-width:0.8px;fill:none;}"
+						"polyline.clipping {stroke:orange;stroke-width:0.8px;fill:none;}"+
+						"circle.ar {fill:orange;stroke:none;}"+
+						"circle.aa {fill:red;stroke:none;}"+
+						"circle.rr {fill:green;stroke:none;}"
 						);
 				}
 			w.writeEndElement();//style
@@ -421,6 +425,23 @@ public class WesCnvSvg  extends Launcher {
 			w.writeEndElement();
 
 			w.writeStartElement("defs");
+			// alleles
+			w.writeEmptyElement("circle");
+			w.writeAttribute("r", "1.5");
+			w.writeAttribute("id","rr");
+			w.writeAttribute("class","rr");
+			
+			w.writeEmptyElement("circle");
+			w.writeAttribute("r", "1.5");
+			w.writeAttribute("id","ar");
+			w.writeAttribute("class","ar");
+			
+			w.writeEmptyElement("circle");
+			w.writeAttribute("r", "1.5");
+			w.writeAttribute("id","aa");
+			w.writeAttribute("class","aa");
+			
+			
 			// gc percent
 			for(final CaptureInterval ci: userIntervals)
 				{
@@ -497,6 +518,9 @@ public class WesCnvSvg  extends Launcher {
 					w.writeAttribute("x",String.valueOf(ci.getPixelX1()+ci.getPixelWidth()/2.0));
 					w.writeAttribute("y",String.valueOf(bed_header_height-2));
 					w.writeCharacters(ci.getName());
+					w.writeStartElement("title");
+					w.writeCharacters(ci.toNiceString());
+					w.writeEndElement();//title
 				w.writeEndElement();//text
 
 				
@@ -521,6 +545,17 @@ public class WesCnvSvg  extends Launcher {
 				w.writeStartElement("g");
 				w.writeAttribute("transform","translate(0,"+y+")");
 				
+				if(normalize_on_median_flag) {
+					final double medianDepth = Math.max(1.0,Percentile.median().evaluate(bi.coverages.stream().flatMapToDouble(B->Arrays.stream(B)).toArray()).orElse(1.0));
+					LOG.info("median"+medianDepth);
+					for(final double[] coverage_array: bi.coverages) {
+						for(int px=0;px< coverage_array.length;px++) {
+							coverage_array[px]/=medianDepth;
+							}
+						}
+					}
+				
+				final double maxDepth = bi.coverages.stream().flatMapToDouble(B->Arrays.stream(B)).max().orElse(1.0);
 				
 				for(int ridx=0;ridx<userIntervals.size();ridx++) {
 					final CaptureInterval ci = userIntervals.get(ridx);
@@ -537,10 +572,9 @@ public class WesCnvSvg  extends Launcher {
 					final List<Point2D.Double> points = new ArrayList<>(segment_width);
 					points.add(new Point2D.Double(0,bi.getPixelHeight()));
 
-					for(int px=0;px< coverage_array.length;px++)
-						{
-						final double y_avg_cov= this.capDepthValue.applyAsDouble(coverage_array[px]);
-						final double new_y = bi.getPixelHeight()-(y_avg_cov/this.globalMaxDepth)*bi.getPixelHeight();
+					for(int px=0;px< coverage_array.length;px++) {
+						final double y_avg_cov=  coverage_array[px];
+						final double new_y = bi.getPixelHeight()-(y_avg_cov/maxDepth)*bi.getPixelHeight();
 						points.add(new Point2D.Double(px,new_y));
 						}
 					points.add(new Point2D.Double(ci.getPixelWidth(),bi.getPixelHeight()));
@@ -548,6 +582,7 @@ public class WesCnvSvg  extends Launcher {
 					points.add(new Point2D.Double(leftx,bi.getPixelHeight()));//close
 					w.writeEmptyElement("polygon");
 					w.writeAttribute("class","area");
+					w.writeAttribute("title",ci.toNiceString());
 					//w.writeAttribute("onclick", clickedAttribute);
 					w.writeAttribute("points",points2str.apply(points));
 					}
@@ -558,16 +593,16 @@ public class WesCnvSvg  extends Launcher {
 					
 					int depthshift=1;
 					for(;;) {
-						final int numdiv =(int) (this.globalMaxDepth/depthshift);
+						final int numdiv =(int) (maxDepth/depthshift);
 						if(numdiv<=10) break;
 						depthshift*=10;
 						}
 					
 					
 					int depth=depthshift;
-					while(depth< bi.maxDepth)
+					while(depth<  maxDepth)
 						{
-						double new_y = bi.getPixelHeight()-(depth/this.globalMaxDepth)*bi.getPixelHeight();
+						double new_y = bi.getPixelHeight()-(depth/maxDepth)*bi.getPixelHeight();
 						
 						w.writeStartElement("text");
 							w.writeAttribute("class", "linedp");
@@ -608,6 +643,31 @@ public class WesCnvSvg  extends Launcher {
 					w.writeAttribute("width", String.valueOf(ci.getPixelWidth()));
 					w.writeAttribute("height", String.valueOf(bi.getPixelHeight()));
 					w.writeEndElement();
+					
+					
+					//genotype
+					if(vcfReader!=null) {
+						try(CloseableIterator<VariantContext> iter = vcfReader.query(ci)) {
+							while(iter.hasNext()) {
+								VariantContext ctx = iter.next();
+								Genotype gt = ctx.getGenotype(bi.sample);
+								if(gt==null) break;
+								String allele_id = null;
+								switch(gt.getType()) {
+									case HET: allele_id = "ar"; break;
+									case HOM_REF: allele_id = "rr"; break;
+									case HOM_VAR: allele_id = "aa"; break;
+									default: allele_id=null;break;
+									}
+								if(allele_id!=null) {
+									w.writeEmptyElement("use");
+									w.writeAttribute("xlink",XLINK.NS,"href","#"+allele_id);
+									w.writeAttribute("x",format(((ctx.getStart()-ci.getPixelX1())/(double)ci.getLengthOnReference())*ci.getPixelWidth()));
+									w.writeAttribute("y",format(bi.getPixelHeight()-1.5));
+									}
+								}
+							}
+						}
 					
 					
 					w.writeEndElement();//g
@@ -669,6 +729,7 @@ public class WesCnvSvg  extends Launcher {
 			}
 		finally
 			{
+			CloserUtil.close(vcfReader);
 			CloserUtil.close(w);
 			CloserUtil.close(fout);
 			CloserUtil.close(r);

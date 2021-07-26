@@ -27,9 +27,7 @@ package com.github.lindenb.jvarkit.stream;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
@@ -85,34 +83,40 @@ public static Collector<QueryInterval, ?,QueryInterval[]>   optimizedQueryInterv
 		);
 	}
 
-/*
-public static <T extends Locatable> Collector<T, ?, Map<String,List<SimpleInterval>>>   mergeIntervals() {
-	 return Collectors.collectingAndThen(
-	            Collectors.groupingBy(R->R.getContig()),
-	            mapIn -> {
-	            	final Map<String,List<SimpleInterval>> listout= new HashMap<>(mapIn.size());
-	            	for(final String contig: mapIn.keySet()) {
-	            		final List<SimpleInterval> L = new ArrayList<>();
-	            		for(Locatable item:mapIn.get(contig).stream().sorted(
-			            		(A,B)-> Integer.compare(A.getStart(), B.getStart())
-			            		).collect(Collectors.toList()))
-	            			{
-	            			if(!L.isEmpty() && L.get(L.size()-1).overlaps(item))
-	            				{
-	            				 L.set(L.size()-1,L.get(L.size()-1).merge(item));
-	            				}
-	            			else
-	            				{
-	            				L.add(new SimpleInterval(item));
-	            				}
-	            			}
-	            		listout.put(contig, L);
-	            		}
-	            	return listout;
-	            	}
-	    		);
-			}	
-*/
+/** convert a stream of locatable to a merged list of intervals */
+public static  Collector<? super Locatable, ?,Stream<? extends Locatable>>   mergeIntervals() {
+	return Collectors.collectingAndThen(
+		Collectors.toCollection(ArrayList::new),
+		list->{
+			Collections.sort(list,(A,B)->{
+				int i= A.getContig().compareTo(B.getContig());
+				if(i!=0) return i;
+				i = Integer.compare(A.getStart(), B.getStart());
+				if(i!=0) return i;
+				i = Integer.compare(A.getEnd(), B.getEnd());
+				return i;
+				});
+			int i=0;
+			while(i +1 <list.size()) {
+				final Locatable l1 = list.get(i);
+				final Locatable l2 = list.get(i+1);
+				if(l1.overlaps(l2)) {
+					list.set(i,new SimpleInterval(
+							l1.getContig(),
+							Math.min(l1.getStart(), l2.getStart()),
+							Math.max(l1.getEnd(), l2.getEnd())));
+					list.remove(i+1);
+					}
+				else
+					{
+					i++;
+					}
+				}
+			return list.stream();
+			}
+		);
+	}
+
 
 public static <I extends Locatable> Collector<I,IntervalTreeMap<List<I>>,IntervalTreeMap<List<I>>>  
 	toIntervalTreeMap()

@@ -959,11 +959,13 @@ public class SwingBamCov extends Launcher
 			try {
 				final BufferedImage img = new BufferedImage(drawingArea.getWidth(), drawingArea.getHeight(), BufferedImage.TYPE_INT_RGB);
 				final Graphics2D g = img.createGraphics();
+				g.setColor(Color.WHITE);
+				g.fillRect(0, 0, img.getWidth(), img.getHeight());
 				drawingArea.paintComponents(g);
 				g.dispose();
 				ImageIO.write(img,f.getName().toLowerCase().endsWith(".png")?"PNG":"JPG", f);
 				}
-			catch(Throwable err ) {
+			catch(final Throwable err ) {
 				LOG.error(err);
 				return;
 				}
