@@ -30,19 +30,8 @@ import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import com.github.lindenb.jvarkit.io.IOUtils;
-
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.StringUtil;
 
 /**
 
@@ -94,11 +83,16 @@ END_DOC
 
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.StringUtil;
 
 
 /**
@@ -150,12 +144,12 @@ END_DOC
 
 
 @Program(name="samgrep",description="grep read-names in a bam file",
-		keywords={"sam","bam"})
-public class SamGrep extends Launcher
-	{
+		keywords={"sam","bam"},
+		modificationDate="20210726",
+		creationDate="20130506"
+		)
+public class SamGrep extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(SamGrep.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 	
 	@Parameter(names={"-R","--readname"},description="add the read name")
 	private Set<String> nameStrings = new HashSet<>();
@@ -164,44 +158,34 @@ public class SamGrep extends Launcher
 	@Parameter(names={"-f","--readfile"},description="file containing a list of read names")
 	private Path namefile = null;
 	
-	@Parameter(names={"-x","--tee"},description="if output fileame specified, continue to output original input to stdout.")
-	private boolean divertToStdout = false;
-	
 	@Parameter(names={"-n","--stopafter"},description="when found, remove the read from the list of names when found more that 'n' time (increase speed)")
 	private int n_before_remove = -1 ;
 	
 	@Parameter(names={"-V","--invert"},description="invert")
 	private boolean inverse = false;
-	
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs=new WritingBamArgs();
-	
+		
 
 	private final Map<String,Integer> readNames=new HashMap<String,Integer>(); 
    
     
-    @Override
-    public int doWork(final List<String> args) {
-    	
-    	readNames.clear();
-    	
+	@Override
+	protected Logger getLogger() 	{
+		return LOG;
+		}
+	
+	@Override
+	protected int beforeSam()
+		{
     	if(namefile!=null) {
-	    	BufferedReader in=null;
-			try
-				{
-				in=IOUtils.openPathForBufferedReading(this.namefile);
+			try(BufferedReader in=IOUtils.openPathForBufferedReading(this.namefile)) {
 				in.lines().
 						filter(L->!StringUtil.isBlank(L)).
 						forEach(L->readNames.put(L.trim(),0));
 				}
-			catch(Exception err)
+			catch(Throwable err)
 				{
 				LOG.error(err);
 				return -1;
-				}
-			finally
-				{
-				CloserUtil.close(in);
 				}
 	    	}
     	for(final String line: this.nameStrings) {
@@ -211,39 +195,20 @@ public class SamGrep extends Launcher
 			{
 			LOG.warn("no read found.");
 			}
-    	
-    	
-		SAMFileWriter sfw=null;
-		SAMFileWriter samStdout=null;
-		SamReader sfr=null;
-		try {
-			sfr = super.openSamReader(oneFileOrNull(args));
-			final SAMFileHeader header=sfr.getFileHeader().clone();
-			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
-					newInstance().
-					logger(LOG).
-					dictionary(header).
-					build();
-
-			
-			
-			if(this.outputFile==null)
-				{
-				sfw = this.writingBamArgs.openSAMFileWriter(null, header, true);
-				}
-			else
-				{
-				samStdout= this.writingBamArgs.openSAMFileWriter(null, header, true);
-				
-				sfw= this.writingBamArgs.openSamWriter(this.outputFile, header, true);
-				}
-		
-			SAMRecordIterator iter=sfr.iterator();
+    	return super.beforeSam();
+    	}
+    
+	
+	@Override
+	protected void scanIterator(
+			SAMFileHeader headerIn,
+			CloseableIterator<SAMRecord> iter,
+			SAMFileWriter sfw)
+			{		
 			while(iter.hasNext())
 				{
 				boolean keep=false;
-				final SAMRecord rec=progress.apply(iter.next());
-				if(samStdout!=null) samStdout.addAlignment(rec);
+				final SAMRecord rec= iter.next();
 				Integer count = readNames.get(rec.getReadName());
 				if(count!=null)
 					{
@@ -261,7 +226,6 @@ public class SamGrep extends Launcher
 					if(count>=n_before_remove)
 						{
 						readNames.remove(rec.getReadName());
-						if(samStdout==null && readNames.isEmpty()) break;
 						}
 					else
 						{
@@ -269,17 +233,7 @@ public class SamGrep extends Launcher
 						}
 					}
 				}
-			progress.close();
-			return RETURN_OK;
-		} catch (final Exception err) {
-			LOG.error(err);
-			return -1;
-		} finally {
-			CloserUtil.close(samStdout);
-			CloserUtil.close(sfw);
-			CloserUtil.close(sfr);
 			}
-		}
     
     public static void main(final String[] argv)
 		{

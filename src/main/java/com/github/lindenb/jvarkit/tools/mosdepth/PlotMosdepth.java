@@ -28,6 +28,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -133,6 +134,7 @@ private String device(String fname,Map<String,String> hash) {
 		}
 	}
 
+
 private void plotRegionsBed(final PrintWriter w,final Path path) {
 		final String sample = getSample(path);
 		try(BufferedReader br=IOUtils.openPathForBufferedReading(path)) {
@@ -142,7 +144,7 @@ private void plotRegionsBed(final PrintWriter w,final Path path) {
 					final RegionBed bed = new RegionBed();
 					bed.chrom = T[0];
 					bed.pos  = Integer.parseInt(T[1]);
-					bed.cov = Float.parseFloat(T[3]);
+					bed.cov = Float.parseFloat(T[T.length-1]);
 					return bed;
 					}).
 				collect(Collectors.toList());
@@ -383,6 +385,46 @@ private void plotRegionDist(PrintWriter w,Where where ,final Path f) {
 	w.println("dev.off()");
 	}
 
+/** plot a BOX plot for each sample */
+private void plotRegionsBed(PrintWriter w,final List<Path> paths) {
+	if(paths.isEmpty()) return;
+	final List<Map.Entry<String, double[]>> sample2covs = new ArrayList<>(paths.size());
+	final Map<String,Double> sample2mean = new HashMap<>(paths.size());
+	for(final Path path:paths) {
+		try(BufferedReader br=IOUtils.openPathForBufferedReading(path)) {
+			final double[] covs= br.lines().
+				map(T->CharSplitter.TAB.split(T)).
+				mapToDouble(T->Float.parseFloat(T[T.length-1])).
+				toArray();
+			if(covs.length==0) continue;
+			final String sample = getSample(path);
+			sample2covs.add(new AbstractMap.SimpleEntry<String,double[]>(sample,covs));
+			sample2mean.put(sample, Arrays.stream(covs).average().orElse(0.0));
+			}
+		catch(IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
+	if(sample2covs.isEmpty()) return;
+	Collections.sort(sample2covs,(A,B)->sample2mean.get(A.getKey()).compareTo(sample2mean.get(B.getKey())));
+	
+	w.println(device("boxplot.coverage",new HashMap<>()));
+	w.println("boxplot(cov,");
+	for(int i=0;i< sample2covs.size();i++) {
+		if(i>0) w.print(",");
+		double[] covs = sample2covs.get(i).getValue();
+		w.print("c(");
+		for(int j=0;j< covs.length;++j) {
+			if(j>0) w.print(",");
+			w.print(covs[j]);
+			}
+		w.println(")");
+		}
+	w.println(",main="+quote("Coverage in selected regions")+",ylab="+quote("Coverage"));
+	w.print(",las=2,names=c("+ sample2covs.stream().map(KV->quote(KV.getKey())).collect(Collectors.joining(","))+ ")");
+	w.println("dev.off()");
+	}
+
 private void plotTotalRegionDists(PrintWriter w,final List<Path> paths) {
 	if(paths.isEmpty()) return;
 	final boolean in_regions = paths.stream().anyMatch(F->F.getFileName().toString().endsWith(SUFFIX_REGION_DIST));
@@ -493,6 +535,13 @@ public int doWork(final List<String> args) {
 				filter(F->F.getFileName().toString().endsWith(SUFFIX_REGION_BED_GZ)).
 				forEach(F->plotRegionsBed(pw,F));
 
+			
+			plotRegionsBed(pw,
+					files.stream().
+						filter(F->F.getFileName().toString().endsWith(SUFFIX_GLOBAL_DIST)).
+						collect(Collectors.toList())
+					);
+			
 			pw.flush();
 			}
 		return 0;

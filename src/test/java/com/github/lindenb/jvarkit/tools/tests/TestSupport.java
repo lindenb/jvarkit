@@ -27,7 +27,6 @@ import javax.xml.parsers.SAXParserFactory;
 import org.testng.Assert;
 import org.xml.sax.helpers.DefaultHandler;
 
-import com.github.lindenb.jvarkit.dict.ReferenceRegistry;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -81,30 +80,6 @@ public class TestSupport {
 			}
 		};
 	
-	private ReferenceRegistry refCatalog =new ReferenceRegistry() {
-			@Override
-			public Optional<Path> getReferenceByName(String name) {
-				if(name.equals("rf")) return Optional.of(Paths.get(resource("rotavirus_rf.fa")));
-				if(name.equals("toy")) return Optional.of(Paths.get(resource("toy.fa")));
-				return ReferenceRegistry.getDefault().getReferenceByName(name);
-				}
-			
-			@Override
-			public Optional<Path> getReferenceByDictionary(final SAMSequenceDictionary dict) {
-				if(dict.size()==11 && dict.getSequence(0).getSequenceLength()==3_302 && dict.getSequence(0).getSequenceName().equals("RF01")) return getReferenceByName("rf");
-				if(dict.size()==2 && 
-						dict.getSequence(0).getSequenceLength()==45 &&
-						dict.getSequence(0).getSequenceName().equals("ref") &&
-						dict.getSequence(1).getSequenceLength()==40 &&
-						dict.getSequence(1).getSequenceName().equals("ref2")) 
-					return getReferenceByName("toy");
-				return ReferenceRegistry.getDefault().getReferenceByDictionary(dict);
-			}
-		};
-	
-	public ReferenceRegistry getReferenceRegistry() {
-		return this.refCatalog;
-	}
 		
 	public String resource( String fname) {
 		if(!fname.startsWith(File.separator)) fname=File.separator+fname;

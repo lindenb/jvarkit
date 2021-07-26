@@ -212,6 +212,7 @@ END_DOC
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
 	biostars= {73021,368200},
+	creationDate="20130524",
 	modificationDate="20191014",
 	keywords={"sam","bam","visualization","logo"}
 	)

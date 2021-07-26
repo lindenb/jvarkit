@@ -26,16 +26,17 @@ package com.github.lindenb.jvarkit.util.bio;
 
 import java.math.BigInteger;
 import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.ParameterException;
 
 
-public class DistanceParser implements ToIntFunction<String> {
+public class DistanceParser implements ToIntFunction<String>,ToLongFunction<String> {
 	public static final String OPT_DESCRIPTION =
 			"A distance specified as a positive integer."
 			+ "Commas are removed. "
-			+ "The following suffixes are interpreted : b,bp,k,kb,m,mb";
+			+ "The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb";
 
 	
 	public static class StringConverter
@@ -46,11 +47,25 @@ public class DistanceParser implements ToIntFunction<String> {
 			try {
 				final DistanceParser parser = new DistanceParser();
 			      return parser.applyAsInt(distStr);
-			    } catch(final Exception ex) {
+			    } catch(final Throwable ex) {
 			      throw new ParameterException("Bad distance \""+distStr+"\"",ex);
 			    }
 			}
 		}
+	
+	public static class LongStringConverter
+	implements IStringConverter<Long>
+	{
+	@Override
+	public Long convert(final String distStr) {
+		try {
+			final DistanceParser parser = new DistanceParser();
+		      return parser.applyAsLong(distStr);
+		    } catch(final Throwable ex) {
+		      throw new ParameterException("Bad distance \""+distStr+"\"",ex);
+		    }
+		}
+	}
 	
 	private BigInteger _parseBigInteger( String s)
 		{
@@ -71,19 +86,29 @@ public class DistanceParser implements ToIntFunction<String> {
 			s=s.substring(0, s.length()-2).trim();
 			factor = BigInteger.valueOf(1_000_000L);
 			}
-		else if(s.endsWith("b"))
+		else if(s.toLowerCase().endsWith("gb"))
+			{
+			s=s.substring(0, s.length()-2).trim();
+			factor = BigInteger.valueOf(1_000_000_000L);
+			}
+		else if(s.toLowerCase().endsWith("b"))
 			{
 			s=s.substring(0, s.length()-1).trim();
 			}
-		else if(s.endsWith("k"))
+		else if(s.toLowerCase().endsWith("k"))
 			{
 			s=s.substring(0, s.length()-1).trim();
 			factor = BigInteger.valueOf(1_000L);
 			}
-		else if(s.endsWith("m"))
+		else if(s.toLowerCase().endsWith("m"))
 			{
 			s=s.substring(0, s.length()-1).trim();
 			factor = BigInteger.valueOf(1_000_000L);
+			}
+		else if(s.toLowerCase().endsWith("g"))
+			{
+			s=s.substring(0, s.length()-1).trim();
+			factor = BigInteger.valueOf(1_000_000_000L);
 			}
 		final BigInteger vbi = new BigInteger(String.valueOf(s)).multiply(factor);
 		
@@ -100,6 +125,21 @@ public class DistanceParser implements ToIntFunction<String> {
 			throw new IllegalArgumentException("Cannot parse distance \""+distance+"\"",err);
 			}
 		}
+	
+	@Override
+	public long applyAsLong(final String distance) {
+		final BigInteger bi = _parseBigInteger(distance);
+		if(bi.compareTo(BigInteger.ZERO)<0) {
+			throw new IllegalArgumentException("Cannot parse negative distance \""+distance+"\". It must be greater than zero");
+			}
+		try {
+			return bi.longValueExact();
+			}
+		catch(final ArithmeticException err) {
+			throw new IllegalArgumentException("Cannot parse distance \""+distance+"\"",err);
+			}
+		}
+	
 	@Override
 	public int applyAsInt(final String distance) {
 		final BigInteger bi = _parseBigInteger(distance);

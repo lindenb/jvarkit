@@ -70,6 +70,7 @@ $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta
 		name="addlinearindextobed",
 		description="Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.",
 		keywords={"bed","reference"},
+		creationDate="20140201",
 		modificationDate="20190926"
 		)
 public class AddLinearIndexToBed extends Launcher
@@ -135,7 +136,6 @@ public class AddLinearIndexToBed extends Launcher
 		try {
 			this.dictionary = SequenceDictionaryUtils.extractRequired(this.refFile);
 
-
 			this.tid2offset = new long[this.dictionary.size()];
 			Arrays.fill(this.tid2offset, 0L);
 			for (int i = 1; i < this.dictionary.size(); ++i) {
@@ -154,7 +154,7 @@ public class AddLinearIndexToBed extends Launcher
 			}
 			out.flush();
 
-			return RETURN_OK;
+			return 0;
 		} catch (final Throwable err) {
 			LOG.error(err);
 			return -1;

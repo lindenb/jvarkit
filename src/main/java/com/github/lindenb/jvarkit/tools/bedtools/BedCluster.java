@@ -125,7 +125,7 @@ END_DOC
 		description="Clusters a BED file into a set of BED files.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
-		modificationDate="20200220",
+		modificationDate="20210726",
 		biostars= {424828}
 		)
 public class BedCluster
@@ -137,8 +137,8 @@ public class BedCluster
 	private Path outputFile= null;
 	@Parameter(names={"-J","--jobs"},description="number of clusters. (or specify --size)")
 	private int number_of_jobs=-1;
-	@Parameter(names={"-S","--size"},description="number of bases max per bin. (or specify --jobs). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
-	private int length_per_bin=-1;
+	@Parameter(names={"-S","--size"},description="number of bases max per bin. (or specify --jobs). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
+	private long long_length_per_bin=-1L;
 	@Parameter(names={"-C","--contig","--chromosome"},description="group by chromosome.")
 	private boolean group_by_contig = false;
 	@Parameter(names={"-R","--reference"},description="For Sorting." +DICTIONARY_SOURCE)
@@ -151,7 +151,11 @@ public class BedCluster
 	private boolean do_compress=false;
 	@Parameter(names={"--interval-list"},description="Save as htsjdk interval list (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/util/IntervalList.html) instead of bed.")
 	private boolean save_as_interval_list=false;
+	@Parameter(names={"--consecutive"},description="When using option --size only use consecutive ordered region. Default is to find the best region anywhere.")
+	private boolean consecutive_flags = false;
 
+	
+	
 	private int id_generator =0;
 	
 	private static class Cluster extends AbstractList<SimpleInterval>{
@@ -270,6 +274,18 @@ public class BedCluster
 					}
 				}
 			}
+		else if( this.consecutive_flags) {// group by size using consecutive regions
+			while(!list.isEmpty()) {
+				final Cluster cluster = new Cluster();
+				cluster.add(list.pop());
+				while(!list.isEmpty()) {
+					final SimpleInterval si = list.peek();
+					if(cluster.getSumLength(si) > this.long_length_per_bin) break;
+					cluster.add(list.pop());
+					}
+				clusters.add(cluster);
+				}
+			}
 		else // group by size
 			{
 			while(!list.isEmpty()) {
@@ -277,7 +293,7 @@ public class BedCluster
 				int y=0;
 				while(y<clusters.size()) {
 					final Cluster cluster = clusters.get(y);
-					if(cluster.getSumLength(first)<=this.length_per_bin) {
+					if(cluster.getSumLength(first)<=this.long_length_per_bin) {
 						cluster.add(first);
 						break;
 						}
@@ -381,12 +397,15 @@ public class BedCluster
 			LOG.error("REF must be specified when saving as interval list");
 			return -1;
 			}
-		
-		if(this.number_of_jobs<1 && this.length_per_bin<1) {
+		if(this.number_of_jobs>0 && this.consecutive_flags) {
+			LOG.error("--consecutive cannot be set when --jobs is used.");
+			return -1;
+			}
+		if(this.number_of_jobs<1 && this.long_length_per_bin<1L) {
 			LOG.error("at least --jobs or --size must be specified.");
 			return -1;
 			}
-		if(this.number_of_jobs>0 &&  this.length_per_bin>0) {
+		if(this.number_of_jobs>0 &&  this.long_length_per_bin>0) {
 			LOG.error(" --jobs OR --size must be specified. Not both.");
 			return -1;
 			}

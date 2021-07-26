@@ -102,7 +102,7 @@ END_DOC
 	description="Build a DBSNP file from different sources for GATK",
 	keywords={"vcf","dbsnp"},
 	creationDate="20200904",
-	modificationDate="20210607"
+	modificationDate="2021070726"
 	)
 public class BuildDbsnp extends Launcher {
 	private static Logger LOG=Logger.build(BuildDbsnp.class).make();
@@ -113,7 +113,8 @@ public class BuildDbsnp extends Launcher {
 	private Path outputFile=null;
 	@Parameter(names={"-c","--chromosome"},description="limit to this chromosome")
 	private String limitChrom = null;
-
+	@Parameter(names={"-F","--filter"},description="add '_F' suffix for non-rs FILTERED variant.")
+	private boolean add_filter_suffix = false;
 	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
@@ -122,6 +123,7 @@ public class BuildDbsnp extends Launcher {
 		int pos;
 		List<Allele> alleles;
 		String id;
+		boolean filtered = false;
 		@Override
 		public int compareTo(final Variant o) {
 			int i = Integer.compare(this.pos, o.pos);
@@ -203,9 +205,10 @@ public class BuildDbsnp extends Launcher {
 		
 		private Variant convert(final VariantContext ctx) {
 	 		final Variant variant = new Variant();
-                        variant.id = ctx.hasID()?ctx.getID():this.name+"_"+this.currentContig+"_"+ctx.getStart();
-                        variant.alleles = ctx.getAlleles();
-                        variant.pos = ctx.getStart();
+            variant.id = ctx.hasID()?ctx.getID():this.name+"_"+this.currentContig+"_"+ctx.getStart();
+            variant.alleles = ctx.getAlleles();
+            variant.pos = ctx.getStart();
+            variant.filtered = ctx.isFiltered();
 			return variant;
 			}
 
@@ -226,7 +229,6 @@ public class BuildDbsnp extends Launcher {
 					final Variant variant2 = convert(iter.next());//consumme
 					stack.add(variant2);
 					}
-					
 				}
 			if(!stack.isEmpty()) {
 				if(stack.size()>1) Collections.sort(this.stack);
@@ -311,7 +313,11 @@ public class BuildDbsnp extends Launcher {
 									map(F->F.id).
 									findFirst().
 									orElse(null);
-							if(StringUtils.isBlank(id)) id = variants.stream().map(F->F.id).findFirst().orElse(null);
+							// not an rs ID
+							if(StringUtils.isBlank(id)) id = variants.stream().
+									map(F->F.id+(this.add_filter_suffix && F.filtered?"_F":"")).
+									findFirst().
+									orElse(null);
 							vcb.id(variant.id);
 							w.add(vcb.make());
 							}
