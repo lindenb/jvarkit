@@ -107,6 +107,10 @@ public class CoverageFactory
 	
 	public static interface SimpleCoverage extends BaseCoverage,Locatable {
 		public int[] toIntArray();
+		
+		/** reduce coverage to this loc. Loc **must** be contained in this coverage */
+		public SimpleCoverage getSubCoverage(final Locatable loc);
+		
 		/** I should have called it toIntArray */
 		@Deprecated
 		public default int[] toByteArray() {
@@ -167,6 +171,14 @@ public class CoverageFactory
 			this.start1 = loc.getStart();
 			this.coverage = new int[loc.getLengthOnReference()];
 			Arrays.fill(this.coverage, 0);
+			}
+		
+		public SimpleCoverage getSubCoverage(final Locatable loc) {
+			if(loc==null) throw new IllegalArgumentException();
+			if(!this.contains(loc)) throw new IllegalArgumentException(this.toString()+" doesn't contain "+loc.toString());
+			final SimpleCoverageImpl another= new SimpleCoverageImpl(loc);
+			System.arraycopy(this.coverage, loc.getStart() - this.getStart(), another.coverage,0,another.coverage.length);
+			return another;
 			}
 		@Override
 		public boolean equals(final Object obj) {

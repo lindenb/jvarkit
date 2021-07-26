@@ -28,9 +28,7 @@ package com.github.lindenb.jvarkit.tools.bam2svg;
 import java.awt.Dimension;
 import java.awt.geom.Point2D;
 import java.io.BufferedReader;
-import java.io.Closeable;
 import java.io.File;
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,12 +36,10 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
@@ -53,13 +49,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.converter.RatioConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -69,18 +64,11 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.QueryInterval;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
@@ -168,98 +156,64 @@ public class WesCnvSvg  extends Launcher {
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-height","--height"},description="Sample Track height")
 	private int sampleTrackHeight = 100 ;
-	@Parameter(names={"-smooth","--smooth"},description="Smoothing pixel window size. Negative=don't smooth")
-	private int pixSmoothSize = 100 ;
+	@Parameter(names={"-smooth","--smooth"},description= "how to smooth data")
+	private CoverageFactory.ScaleType scaleType = CoverageFactory.ScaleType.AVERAGE;
 	@Parameter(names={"-cap","--cap"},description="Cap coverage to this value. Negative=don't set any limit")
 	private int capMaxDepth = -1 ;
-	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
-	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
 	@Parameter(names={"--title"},description="document title")
 	private String domSvgTitle=WesCnvSvg.class.getSimpleName();
 	@Parameter(names={"-u","--url","--hyperlink"},description= "creates a hyperlink an area is 'clicked'. " + Hyperlink.OPT_DESC,converter=Hyperlink.StringConverter.class,splitter=NoSplitter.class)
 	private Hyperlink hyperlinkType = Hyperlink.empty();
-	@Parameter(names={"-p","-percentile","--percentile"},description="How to compute the percentil of a region")
-	private Percentile.Type percentile = Percentile.Type.AVERAGE;
 	@Parameter(names={"-css","--css"},description="custom svg css stylesheet")
 	private File cssFile = null;
 	@Parameter(names={"-x","--extend"},description="Extend each region by this factor. 100bp + 150% -> 150bp." + RatioConverter.OPT_DESC,converter=RatioConverter.class,splitter=NoSplitter.class)
 	private double extendFactor= 1.0;
+	@Parameter(names={"-Q","--mapq"},description="Min mapping quality")
+	private int minMappingQuality = 1;
+
 	
-	
-	private class BamInput implements Closeable
+	private class BamInput
 		{
-		int index;
 		Path bamPath;
-		SamReader samReader=null;
 		String sample;
-		ContigNameConverter contigNameConverter;
+		final List<double[]> coverages = new ArrayList<>();
 		@SuppressWarnings("unused")
 		double minDepth=0;
 		double maxDepth=0;
-		@Override
-		public void close() throws IOException {
-			CloserUtil.close(samReader);
-			}
 		double getPixelHeight() {
 			return WesCnvSvg.this.sampleTrackHeight;
-		}
-		}
-	private static class SampleInfo
-		{
-		double pixel_coverage[];
-		double pixel_clipping[];
+			}
 		}
 	
-	private class CaptureInterval
-		implements Locatable
+	
+	private class CaptureInterval extends SimpleInterval
 		{
-		final QueryInterval queryInterval;
-		final List<SampleInfo> sampleInfos = new ArrayList<>(bamInputs.size());
 		double pixelx=0.0;
-		CaptureInterval(final QueryInterval queryInterval)
-			{
-			this.queryInterval = queryInterval;
-			}
-		@Override
-		public int getStart() {
-			return queryInterval.start;
-			}
-		@Override
-		public int getEnd() {
-			return queryInterval.end;
+		CaptureInterval(final Locatable locatable) {
+			super(locatable);
 			}
 		
-		public int getBaseLength() {
-			return 1+(getEnd()-getStart());
-		}
-		
-		@Override
-		public String getContig() {
-			return WesCnvSvg.this.refDict.getSequence(this.queryInterval.referenceIndex).getSequenceName();
-			}
 		public double getPixelX1() {
 			return pixelx;
 			}
 		
 		public double getPixelWidth(){
-			return (this.getBaseLength()/(double)WesCnvSvg.this.countBasesToBeDisplayed)*WesCnvSvg.this.drawinAreaWidth;
+			return (this.getLengthOnReference()/(double)WesCnvSvg.this.countBasesToBeDisplayed)*WesCnvSvg.this.drawinAreaWidth;
 		}
 		
 		String getName() {
 			return this.getContig()+":"+StringUtils.niceInt(this.getStart())+"-"+StringUtils.niceInt(this.getEnd());
 			}
 		String getId() {
-			return String.valueOf(this.queryInterval.referenceIndex)+"_"+this.getStart()+"_"+this.getEnd();
+			return getContig()+"_"+this.getStart()+"_"+this.getEnd();
 			}
 		}
 	
-	private final List<CaptureInterval> intervals = new ArrayList<>();
+	//private final List<CaptureInterval> intervals = new ArrayList<>();
 	private final List<BamInput> bamInputs = new ArrayList<>();
 	private ReferenceSequenceFile indexedFastaSequenceFile;
-	private SAMSequenceDictionary refDict; 
 	private DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private double globalMaxDepth = 0.0;
-	private double globalMaxClip = 0.0;
 	private int countBasesToBeDisplayed = 0;
 	private final int gc_win=100;
 
@@ -303,14 +257,15 @@ public class WesCnvSvg  extends Launcher {
 			{
 			
 			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
-			this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
+			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);			
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(refDict);
-
+			final ContigDictComparator contigDictCompare = new ContigDictComparator(refDict);
 			
-			final List<SimpleInterval> userIntervals = this.intervalListProvider.
+			final List<CaptureInterval> userIntervals = this.intervalListProvider.
 					stream().
 					map(loc->contigNameConverter.convertToSimpleInterval(loc).orElseThrow(()->new JvarkitException.ContigNotFoundInDictionary(loc.getContig(),refDict))).
-					sorted(new ContigDictComparator(this.refDict).createLocatableComparator()).
+					map(L->new CaptureInterval(L)).
+					sorted(contigDictCompare.createLocatableComparator()).
 					collect(Collectors.toCollection(ArrayList::new))
 					;
 		
@@ -320,64 +275,8 @@ public class WesCnvSvg  extends Launcher {
 				return -1;
 				}
 			
-			
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().
-					validationStringency(ValidationStringency.LENIENT).
-					referenceSequence(this.faidx);
-			for(final Path bamFile:IOUtils.unrollPaths(args)) {
-				final BamInput bi = new BamInput();
-				bi.index = this.bamInputs.size();
-				bi.bamPath = bamFile;
-				bi.samReader = srf.open(bamFile);
-				final SAMSequenceDictionary samDict = bi.samReader.getFileHeader().getSequenceDictionary();
-				bi.contigNameConverter = samDict==null?ContigNameConverter.getIdentity():ContigNameConverter.fromOneDictionary(samDict);
-				
-				JvarkitException.BamHasIndex.verify(bi.samReader);
-				final SAMSequenceDictionary dict2= SequenceDictionaryUtils.extractRequired(bi.samReader.getFileHeader());
-				if(!SequenceUtil.areSequenceDictionariesEqual(this.refDict, dict2))
-					{
-					LOG.warn("Not the same dictionaries ! REF/BAM "+ JvarkitException.DictionariesAreNotTheSame.getMessage(this.refDict, dict2));
-					}
-				
-				bi.sample = bi.samReader.getFileHeader().getReadGroups().stream().
-					map(V->V.getSample()).
-					filter(S->!StringUtil.isBlank(S)).
-					findFirst().
-					orElse(bamFile.getFileName().toString());
-				this.bamInputs.add(bi);
-				}
-			if(this.bamInputs.isEmpty()) {
-				LOG.error("no bam input");
-				return -1;
-			}
-			
-			
-			final List<QueryInterval> listQueryIntervals = new ArrayList<>(userIntervals.size());
-			for(SimpleInterval interval: userIntervals)
-				{
-				final int tid = this.refDict.getSequenceIndex(interval.getContig());
-				if(tid==-1) throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(), refDict);
-				
-				//user asked to extend the regions
-				if(this.extendFactor>1.0)
-					{
-					final SAMSequenceRecord ssr = Objects.requireNonNull(this.refDict.getSequence(tid),"??");
-					final int mid = interval.getStart()+interval.getLengthOnReference()/2;
-					final int len2= (int)(interval.getLengthOnReference()*this.extendFactor);
-					final int start2= Math.max(1,mid-len2/2);
-					final int end2 = Math.min(ssr.getSequenceLength(),mid+len2/2);
-
-					interval = new SimpleInterval(interval.getContig(),start2,end2);
-					}
-				
-				final QueryInterval qInterval = new QueryInterval(tid, interval.getStart(), interval.getEnd());
-				listQueryIntervals.add(qInterval);
-				}
-			this.intervals.addAll( Arrays.stream(QueryInterval.optimizeIntervals(listQueryIntervals.toArray(new QueryInterval[listQueryIntervals.size()]))).
-					map(Q->new CaptureInterval(Q)).
-					collect(Collectors.toList()));
-			this.countBasesToBeDisplayed = intervals.stream().
-					mapToInt(R->1+(R.getEnd()-R.getStart())).
+			this.countBasesToBeDisplayed = userIntervals.stream().
+					mapToInt(R->R.getLengthOnReference()).
 					sum();
 			if(this.countBasesToBeDisplayed<1) {
 				LOG.error("Nothing to display. BED count==0");
@@ -386,135 +285,64 @@ public class WesCnvSvg  extends Launcher {
 			else
 				{
 				double x1=0;
-				for(int i=0;i< this.intervals.size();++i) {
-					final CaptureInterval ci = this.intervals.get(i);
+				for(int i=0;i< userIntervals.size();++i) {
+					final CaptureInterval ci = userIntervals.get(i);
 					ci.pixelx = x1;
 					x1+=ci.getPixelWidth();
 					}
 				}
-			final Percentile thePercentile = Percentile.of(this.percentile);
 			
-			for(final CaptureInterval ci:this.intervals) {
-				for(final BamInput bi:this.bamInputs)
-					{
-					final SampleInfo si = new SampleInfo();
-					si.pixel_coverage = new double[(int)ci.getPixelWidth()];
-					Arrays.fill(si.pixel_coverage, 0.0);
-					si.pixel_clipping = new double[(int)ci.getPixelWidth()];
-					Arrays.fill(si.pixel_clipping, 0.0);
-					LOG.info("get cov "+ci.getName()+" for "+bi.bamPath);
-					ci.sampleInfos.add(si);
-					final int base_coverage[] = new int[ci.getBaseLength()];
-					Arrays.fill(base_coverage, 0);
-					final int clip_coverage[] = new int[ci.getBaseLength()];
-					Arrays.fill(clip_coverage, 0);
-					final String newContig = bi.contigNameConverter.apply(ci.getContig());
-					if(newContig==null) {
-						LOG.error("cannot find contig "+ci.getContig()+" in "+bi.bamPath);
-						return -1;
+			/* distinct ordered contigs */
+			final List<String> distinctContigs = userIntervals.stream().
+					map(R->R.getContig()).
+					collect(Collectors.toSet()).
+					stream().
+					sorted(contigDictCompare).
+					collect(Collectors.toList());
+			
+			final SamReaderFactory srf = SamReaderFactory.makeDefault().
+					validationStringency(ValidationStringency.LENIENT).
+					referenceSequence(this.faidx);
+			for(final Path bamFile:IOUtils.unrollPaths(args)) {
+				final BamInput bi = new BamInput();
+				bi.bamPath = bamFile;
+				try(SamReader samReader = srf.open(bamFile)) {
+					final SAMSequenceDictionary samDict = SequenceDictionaryUtils.extractRequired(samReader.getFileHeader());
+					if(!SequenceUtil.areSequenceDictionariesEqual(refDict, samDict)) {
+						throw new JvarkitException.DictionariesAreNotTheSame(refDict, samDict);
 						}
-					final SAMRecordIterator iter=bi.samReader.queryOverlapping(newContig,ci.getStart(),ci.getEnd());
-					while(iter.hasNext())
-						{
-						final SAMRecord rec = iter.next();
-						if(rec.getReadUnmappedFlag()) continue;
-						if(this.samRecordFilter.filterOut(rec)) continue;
-						final Cigar cigar=rec.getCigar();
-						if(cigar==null || cigar.isEmpty()) continue;
-						int ref1=rec.getUnclippedStart();
+					bi.sample = samReader.getFileHeader().getReadGroups().stream().
+							map(V->V.getSample()).
+							filter(S->!StringUtil.isBlank(S)).
+							findFirst().
+							orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
+					final CoverageFactory covFactory = new CoverageFactory().setMappingQuality(this.minMappingQuality);
+					for(final String contig: distinctContigs) {
+						final List<CaptureInterval> contig_intervals = userIntervals.stream().
+								filter(R->R.getContig().equals(contig)).
+								collect(Collectors.toList());
 						
-						
-						for(final CigarElement ce:cigar) {
-							final CigarOperator op = ce.getOperator();
-							
-							
-							if(op.isClipping())
-								{
-								for(int x=0;x< ce.getLength();++x){
-									final int pos=ref1+x;
-									if(pos< ci.getStart()) continue;
-									if(pos> ci.getEnd()) break;
-									clip_coverage[pos-ci.getStart()]++;
-									}
-								ref1 +=  ce.getLength();
-								continue;
-								}
-							
-							if(op.consumesReferenceBases())
-								{
-								if(op.consumesReadBases()){
-									for(int x=0;x< ce.getLength();++x){
-										final int pos=ref1+x;
-										if(pos< ci.getStart()) continue;
-										if(pos> ci.getEnd()) break;
-										base_coverage[pos-ci.getStart()]++;
-										}
-									}
-								ref1+=ce.getLength();
-								}
+						final CoverageFactory.SimpleCoverage coverage = covFactory.getSimpleCoverage(samReader,
+							contig_intervals,
+							null);
+						for(CaptureInterval rgn:contig_intervals)  {
+							final double[] array = coverage.getSubCoverage(rgn).scale(this.scaleType, (int)rgn.getPixelWidth());
+							bi.coverages.add(array);
 							}
 						}
-					iter.close();
-					
-					
-					for(int x=0;x< si.pixel_coverage.length;x++) {
-						final int pos0 = Math.min(base_coverage.length, (int)(((x+0)/ci.getPixelWidth())*ci.getBaseLength()));
-						final int pos1 = Math.min(base_coverage.length, (int)Math.ceil(((x+1)/ci.getPixelWidth())*ci.getBaseLength()));
-						if(pos0>=pos1) continue;
-						si.pixel_coverage[x] = thePercentile.evaluate(base_coverage,pos0,(pos1-pos0)).getAsDouble();
-						si.pixel_clipping[x] = thePercentile.evaluate(clip_coverage,pos0,(pos1-pos0)).getAsDouble();
+					bi.minDepth = bi.coverages.stream().flatMapToDouble(A->Arrays.stream(A)).
+							map(capDepthValue).
+							min().orElse(0);
+					bi.maxDepth = bi.coverages.stream().flatMapToDouble(A->Arrays.stream(A)).
+						map(capDepthValue).
+						max().orElse(1);
+					LOG.debug("Sample "+bi.sample+" Max-Depth:"+bi.maxDepth);
 					}
-					
-					if(this.pixSmoothSize>0)
-						{
-						final double newcov[]=new double[si.pixel_coverage.length];
-						for(int x=0;x<si.pixel_coverage.length;++x) {
-							double sum=0;
-							int count=0;
-							for(int y=-this.pixSmoothSize;y<=this.pixSmoothSize;++y)
-								{
-								int array_index = x+y;
-								if(array_index<0 || array_index>= si.pixel_coverage.length) continue;
-								sum+=si.pixel_coverage[array_index];
-								count++;
-								}
-							newcov[x]=(sum/count);
-							}
-						System.arraycopy(newcov, 0, si.pixel_coverage, 0, newcov.length);
-						}
-					/* debug
-						{
-						int max_index=-1;
-						for(int z=0;z < si.coverage.length;z++)
-							{
-							if(max_index==-1 || si.coverage[z]>si.coverage[max_index])
-								{
-								max_index=z;
-								}
-							}
-						System.err.println(bi.sample+" "+ci.getName()+" / "+
-								Arrays.stream(si.coverage).max().getAsDouble()+" at"+(
-										ci.getStart()+max_index)+"="+si.coverage[max_index]
-												);
-						}*/
-					}
+				this.bamInputs.add(bi);
 				}
-			
-			
-			// compute min/max depth for each sample
-			for(final BamInput bi:this.bamInputs)
-				{
-				bi.minDepth = this.intervals.stream().flatMapToDouble(CI->
-						DoubleStream.of(CI.sampleInfos.get(bi.index).pixel_coverage)
-						).
-					map(capDepthValue).
-					min().orElse(0);
-				bi.maxDepth = this.intervals.stream().flatMapToDouble(CI->
-					DoubleStream.of(CI.sampleInfos.get(bi.index).pixel_coverage)
-					).
-					map(capDepthValue).
-					max().orElse(1);
-				LOG.debug("Sample "+bi.sample+" Max-Depth:"+bi.maxDepth);
+			if(this.bamInputs.isEmpty()) {
+				LOG.error("no bam input");
+				return -1;
 				}
 			
 			this.globalMaxDepth = Math.max(1.0,this.bamInputs.stream().
@@ -523,12 +351,6 @@ public class WesCnvSvg  extends Launcher {
 					max().orElse(0));
 			LOG.debug("global max depth "+this.globalMaxDepth);
 			
-			this.globalMaxClip = Math.max(1.0,this.intervals.stream().
-					flatMap(R->R.sampleInfos.stream()).
-					flatMapToDouble(R->Arrays.stream(R.pixel_clipping)).
-					map(this.capDepthValue).
-					max().orElse(0));
-			LOG.debug("global max clip "+this.globalMaxDepth);
 			
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			if(this.outputFile==null)
@@ -600,15 +422,15 @@ public class WesCnvSvg  extends Launcher {
 
 			w.writeStartElement("defs");
 			// gc percent
-			for(final CaptureInterval ci:this.intervals)
+			for(final CaptureInterval ci: userIntervals)
 				{
 				final GenomicSequence genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile,ci.getContig());
 				final int gc_percent_width= (int)ci.getPixelWidth();
 				final List<Point2D.Double> points= new ArrayList<>(gc_percent_width);
 				for(int x=0;x< gc_percent_width;++x)
 					{
-					int pos1= ci.getStart()+(int)(((x+0)/ci.getPixelWidth())*ci.getBaseLength());
-					int pos2= ci.getStart()+(int)(((x+1)/ci.getPixelWidth())*ci.getBaseLength());
+					int pos1= ci.getStart()+(int)(((x+0)/ci.getPixelWidth())*ci.getLengthOnReference());
+					int pos2= ci.getStart()+(int)(((x+1)/ci.getPixelWidth())*ci.getLengthOnReference());
 					double gc_percent = getGcPercent(genomicSequence,pos1,pos2);
 					double y = this.sampleTrackHeight - this.sampleTrackHeight*gc_percent;
 					
@@ -666,7 +488,7 @@ public class WesCnvSvg  extends Launcher {
 			int y=0;
 			w.writeStartElement("g");
 			w.writeComment("interval background");
-			for(final CaptureInterval ci:this.intervals)
+			for(final CaptureInterval ci:userIntervals)
 				{
 				w.writeStartElement("text");
 					w.writeAttribute("class", "captureLabel");
@@ -700,13 +522,10 @@ public class WesCnvSvg  extends Launcher {
 				w.writeAttribute("transform","translate(0,"+y+")");
 				
 				
-				
-				
-				
-				for(final CaptureInterval ci:this.intervals)
-					{
+				for(int ridx=0;ridx<userIntervals.size();ridx++) {
+					final CaptureInterval ci = userIntervals.get(ridx);
 					final String clickedAttribute = "clicked(evt,\""+ci.getContig()+"\","+ci.getStart()+","+ci.getEnd()+")";
-					final SampleInfo si = ci.sampleInfos.get(bi.index);
+					final double[] coverage_array = bi.coverages.get(ridx);
 					final double leftx =ci.getPixelX1();
 					w.writeStartElement("g");
 					w.writeAttribute("transform","translate("+leftx+",0)");
@@ -718,9 +537,9 @@ public class WesCnvSvg  extends Launcher {
 					final List<Point2D.Double> points = new ArrayList<>(segment_width);
 					points.add(new Point2D.Double(0,bi.getPixelHeight()));
 
-					for(int px=0;px< si.pixel_coverage.length;px++)
+					for(int px=0;px< coverage_array.length;px++)
 						{
-						final double y_avg_cov= this.capDepthValue.applyAsDouble(si.pixel_coverage[px]);
+						final double y_avg_cov= this.capDepthValue.applyAsDouble(coverage_array[px]);
 						final double new_y = bi.getPixelHeight()-(y_avg_cov/this.globalMaxDepth)*bi.getPixelHeight();
 						points.add(new Point2D.Double(px,new_y));
 						}
@@ -734,27 +553,6 @@ public class WesCnvSvg  extends Launcher {
 					}
 					//w.writeEndElement();//g
 					
-					//clipping
-					if(this.globalMaxClip>0)
-					{
-						final List<Point2D.Double> points = new ArrayList<>(segment_width);
-						points.clear();
-						points.add(new Point2D.Double(0,bi.getPixelHeight()));
-						
-						for(int px=0;px< si.pixel_clipping.length;px++)
-							{
-							final double y_avg_cov= this.capDepthValue.applyAsDouble(si.pixel_clipping[px]);
-							final double new_y = bi.getPixelHeight()-(y_avg_cov/this.globalMaxClip)*bi.getPixelHeight();
-							points.add(new Point2D.Double(px,new_y));
-							}
-						simplifyPoints.accept(points);
-						points.add(new Point2D.Double(ci.getPixelWidth(),bi.getPixelHeight()));
-						
-						w.writeEmptyElement("polyline");
-						w.writeAttribute("class","clipping");
-						//w.writeAttribute("onclick", clickedAttribute);
-						w.writeAttribute("points",points2str.apply(points));
-						}
 					
 					
 					
@@ -842,12 +640,12 @@ public class WesCnvSvg  extends Launcher {
 			
 			w.writeStartElement("g");
 			w.writeComment("interval lines");
-			for(int n=0;n<=this.intervals.size();n++)
+			for(int n=0;n<= userIntervals.size();n++)
 				{
 				w.writeEmptyElement("line");
 				String x1=
-						n<this.intervals.size()?
-						String.valueOf(this.intervals.get(n).getPixelX1()):
+						n< userIntervals.size()?
+						String.valueOf(userIntervals.get(n).getPixelX1()):
 						String.valueOf(dim.width)
 						;
 				w.writeAttribute("x1", x1);
