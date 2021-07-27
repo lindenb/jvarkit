@@ -35,7 +35,9 @@ import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -43,6 +45,7 @@ import java.util.stream.Collectors;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -174,11 +177,13 @@ public class WesCnvSvg  extends Launcher {
 	private String extendWhat= "0";
 	@Parameter(names={"-Q","--mapq"},description="Min mapping quality")
 	private int minMappingQuality = 1;
-	@Parameter(names={"--normalize"},description="normalize on median")
+	@Parameter(names={"--normalize"},description="normalize on median",hidden=true)
 	private boolean normalize_on_median_flag =false;
 	@Parameter(names={"--vcf"},description="plot VCF data")
 	private Path vcfFile = null;
-
+	@DynamicParameter(names = "-D", description = "other parameters. '-Dkey=value'. Undocumented.")
+	private Map<String, String> dynaParams = new HashMap<>();
+	
 	
 	private class BamInput
 		{
@@ -406,7 +411,7 @@ public class WesCnvSvg  extends Launcher {
 						"g.maing {stroke:black;stroke-width:0.5px;fill:whitesmoke;font-size:10pt;}\n"+
 						"text.sampleLabel {stroke:none;stroke-width:0.5px;fill:blue;}" +
 						"text.captureLabel {stroke:none;stroke-width:0.5px;fill:slategrey;text-anchor:middle;}" +
-						"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:lightgray;}" +
+						"polygon.area {stroke:darkgray;stroke-width:0.5px;fill:url('#grad01');}" +
 						"line.linedp {stroke:darkcyan;stroke-width:0.3px;opacity:0.4;}" +
 						"text.linedp {fill-opacity:0.6;font-size:7px;stroke:none;stroke-width:0.5px;fill:darkcyan;}" +
 						"rect.sampleFrame { fill:none;stroke:slategray;stroke-width:0.3px;}" +
@@ -426,21 +431,37 @@ public class WesCnvSvg  extends Launcher {
 
 			w.writeStartElement("defs");
 			// alleles
+			final double genotype_radius = Double.parseDouble(this.dynaParams.getOrDefault("gt.radius", "1.5"));
 			w.writeEmptyElement("circle");
-			w.writeAttribute("r", "1.5");
+			w.writeAttribute("r", format(genotype_radius));
 			w.writeAttribute("id","rr");
 			w.writeAttribute("class","rr");
 			
 			w.writeEmptyElement("circle");
-			w.writeAttribute("r", "1.5");
+			w.writeAttribute("r", format(genotype_radius));
 			w.writeAttribute("id","ar");
 			w.writeAttribute("class","ar");
 			
 			w.writeEmptyElement("circle");
-			w.writeAttribute("r", "1.5");
+			w.writeAttribute("r", format(genotype_radius));
 			w.writeAttribute("id","aa");
 			w.writeAttribute("class","aa");
 			
+			//gradient
+			w.writeStartElement("linearGradient");
+			w.writeAttribute("id","grad01");
+			w.writeAttribute("x1","50%");
+			w.writeAttribute("x2","50%");
+			w.writeAttribute("y1","0%");
+			w.writeAttribute("y2","100%");
+			w.writeEmptyElement("stop");
+				w.writeAttribute("offset","0%");
+				w.writeAttribute("style","stop-color:lightgray;stop-opacity:1;");
+			w.writeEmptyElement("stop");
+				w.writeAttribute("offset","100%");
+				w.writeAttribute("style","stop-color:gray;stop-opacity:1;");
+			w.writeEndElement();
+
 			
 			// gc percent
 			for(final CaptureInterval ci: userIntervals)
@@ -649,8 +670,8 @@ public class WesCnvSvg  extends Launcher {
 					if(vcfReader!=null) {
 						try(CloseableIterator<VariantContext> iter = vcfReader.query(ci)) {
 							while(iter.hasNext()) {
-								VariantContext ctx = iter.next();
-								Genotype gt = ctx.getGenotype(bi.sample);
+								final VariantContext ctx = iter.next();
+								final Genotype gt = ctx.getGenotype(bi.sample);
 								if(gt==null) break;
 								String allele_id = null;
 								switch(gt.getType()) {
@@ -662,8 +683,8 @@ public class WesCnvSvg  extends Launcher {
 								if(allele_id!=null) {
 									w.writeEmptyElement("use");
 									w.writeAttribute("xlink",XLINK.NS,"href","#"+allele_id);
-									w.writeAttribute("x",format(((ctx.getStart()-ci.getPixelX1())/(double)ci.getLengthOnReference())*ci.getPixelWidth()));
-									w.writeAttribute("y",format(bi.getPixelHeight()-1.5));
+									w.writeAttribute("x",format(((ctx.getStart()-ci.getStart())/(double)ci.getLengthOnReference())*ci.getPixelWidth()));
+									w.writeAttribute("y",format(bi.getPixelHeight()-2*genotype_radius));
 									}
 								}
 							}

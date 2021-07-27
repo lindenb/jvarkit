@@ -40,9 +40,6 @@ Usage: wescnvsvg [options] Files
     -Q, --mapq
       Min mapping quality
       Default: 1
-    --normalize
-      normalize on median
-      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --ref, --reference
@@ -62,6 +59,10 @@ Usage: wescnvsvg [options] Files
     -w, --width
       Page width
       Default: 1000
+    -D
+      other parameters. '-Dkey=value'. Undocumented.
+      Syntax: -Dkey=value
+      Default: {}
 
 ```
 
