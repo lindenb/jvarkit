@@ -139,7 +139,7 @@ public class BamToSVG extends Launcher {
 	private String intervalStr = null;
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
-	@Parameter(names={"-c","--showclipping"},description="Show clipping")
+	@Parameter(names={"-c","--showclipping","--clip"},description="Show clipping")
 	private boolean showClipping = false;
 	@Parameter(names={"-S","--vcf"},description="Indexed VCF. the Samples's name must be the same than in the BAM")
 	private Path vcf = null;
@@ -249,6 +249,30 @@ public class BamToSVG extends Launcher {
 			w.writeEndElement();
 			}
 		
+		private String getReadNameForPopup(final SAMRecord rec) {
+			 final StringBuilder sb = new StringBuilder(rec.getReadName());
+			
+			 sb.append(rec.getReadNegativeStrandFlag()?" -":" +"); 
+			
+			if(rec.getReadPairedFlag()) {
+				if(rec.getFirstOfPairFlag()) sb.append(" 1");
+				if(rec.getSecondOfPairFlag()) sb.append(" 2");
+				sb.append("/2");
+				if(rec.getMateUnmappedFlag())  {
+					sb.append(" mate:unmapped");
+					}
+				else
+					{
+					sb.append(" mate:"+rec.getMateReferenceName()+":"+rec.getMateAlignmentStart());
+					}
+				}
+			if(rec.getReadFailsVendorQualityCheckFlag())  sb.append(" fails-quality");
+			if(rec.getDuplicateReadFlag()) sb.append(" duplicate");
+			if(rec.isSecondaryAlignment())  sb.append(" secondary");
+			if(rec.getSupplementaryAlignmentFlag())  sb.append("supplementary");
+			sb.append(" MAPQ:"+rec.getMappingQuality());
+			return sb.toString();
+			}
 		
 		private void printGradientDef(
 				XMLStreamWriter w,
@@ -591,7 +615,7 @@ public class BamToSVG extends Launcher {
 			}
 		
 		private void printSamRecord(
-				XMLStreamWriter w,
+				final XMLStreamWriter w,
 				final Context context,
 				final SAMRecord record,
 				final Map<Integer,Counter<Character>> consensus
@@ -604,20 +628,19 @@ public class BamToSVG extends Launcher {
 			final double y_bot5= y_top5+y_h95;
 			final double arrow_w= context.featureHeight/3.0;
 	
-			w.writeStartElement(SVG.NS,"g");
-			String title=record.getReadName();
-			writeTitle(w,title);
 			
 			/* print that sam record */
 			final int unclipped_start= record.getUnclippedStart();
 			Cigar cigar = record.getCigar();
 			if(cigar==null) return;
 			byte bases[]=record.getReadBases();
-			if(bases==null) return;
+			if(bases==null || bases.equals(SAMRecord.NULL_SEQUENCE)) return;
 			byte qualities[]=record.getBaseQualities();
-			if(qualities==null) return;
+			if(qualities==null||qualities.equals(SAMRecord.NULL_QUALS)) return;
 			
-			
+			w.writeStartElement(SVG.NS,"g");
+			writeTitle(w,getReadNameForPopup(record));
+
 			
 			int readPos=0;
 			Map<Integer,String> pos2insertions=new HashMap<Integer,String>();
@@ -627,8 +650,8 @@ public class BamToSVG extends Launcher {
 			int arrow_cigar_index=-1;
 			for(int cidx=0; cidx< cigarElements.size(); cidx++ )
 				{
-				CigarElement ce = cigarElements.get(cidx);
-				CigarOperator op=ce.getOperator();
+				final CigarElement ce = cigarElements.get(cidx);
+				final CigarOperator op=ce.getOperator();
 				switch(op)
 					{
 					case H:case S: if(!this.showClipping) break;//threw
@@ -650,8 +673,8 @@ public class BamToSVG extends Launcher {
 			/* loop over cigar string */
 			for(int cidx=0; cidx< cigarElements.size(); cidx++ )
 				{
-				CigarElement ce = cigarElements.get(cidx);
-				CigarOperator op=ce.getOperator();
+				final CigarElement ce = cigarElements.get(cidx);
+				final CigarOperator op=ce.getOperator();
 				boolean in_clip=false;
 				switch(ce.getOperator())
 					{
@@ -677,7 +700,7 @@ public class BamToSVG extends Launcher {
 						}
 					case I: 
 						{
-						StringBuilder sb=new StringBuilder();
+						final StringBuilder sb=new StringBuilder();
 						for(int i=0;i< ce.getLength();++i)
 							{
 							sb.append((char)bases[readPos++]);
