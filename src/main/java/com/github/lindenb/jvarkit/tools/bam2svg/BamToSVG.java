@@ -29,51 +29,34 @@ import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.reference.ReferenceSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFReader;
-
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
+//import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
@@ -82,18 +65,45 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFReader;
+
 
 /**
 BEGIN_DOC
 
+## Input
+
+input is a set of indexed BAM/CRAM files or a file with the path to the bam with the '.list' suffix.
+
 ## Example
 
 ```bash
+
+$ find dir dir2 -type f -name "*.bam" > file.list
+
 $ java -jar dist/bam2svg.jar \
     -R human_g1k_v37.fasta \
     -i "19:252-260" \
     -S variants.vcf.gz \
-    file.bam > out.svg
+    -o output.zip
+    file.list
 ```
 
 ## Gallery
@@ -114,18 +124,16 @@ END_DOC
 description="BAM to Scalar Vector Graphics (SVG)",
 keywords={"bam","alignment","graphics","visualization","svg"},
 creationDate="20141013",
-modificationDate="20200217"
+modificationDate="20210728"
 )
-public class BamToSVG extends Launcher
-	{
+public class BamToSVG extends Launcher {
 	private static final int HEIGHT_MAIN_TITLE=100;
 	private static final int HEIGHT_SAMPLE_NAME=50;
 	
 	
 	private static final Logger LOG = Logger.build(BamToSVG.class).make();
 
-
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)
 	private File outputFile = null;
 	@Parameter(names={"-i","--interval","--region"},description=IntervalParserFactory.OPT_DESC,required=true)
 	private String intervalStr = null;
@@ -133,41 +141,59 @@ public class BamToSVG extends Launcher
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-c","--showclipping"},description="Show clipping")
 	private boolean showClipping = false;
-	@Parameter(names={"-S","--vcf"},description="add VCF indexed with tabix. Optional. the Samples's name must be the same than in the BAM")
-	private Set<String> vcfFileSet = new LinkedHashSet<>() ;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-S","--vcf"},description="Indexed VCF. the Samples's name must be the same than in the BAM")
+	private Path vcf = null;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
-	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
-	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
+	//@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
+	//private SamRecordFilter samRecordFilter = SamRecordFilterFactory.getDefault();
+	@Parameter(names={"--mapq"},description="min mapping quality")
+	private int mappingQuality =  1;
+	@Parameter(names={"--prefix"},description="file prefix")
+	private String prefix="";
+	@DynamicParameter(names = "-D", description = "custom parameters. '-Dkey=value'. Undocumented.")
+	private Map<String, String> dynaParams = new HashMap<>();
+
 	
-	
-		private int HEIGHT_RULER=200;
 		private final Hershey hershey=new Hershey();
 		private ReferenceSequenceFile indexedFastaSequenceFile=null;
+		private SAMSequenceDictionary referenceDict=null;
 		private GenomicSequence genomicSequence=null;
 		private SimpleInterval interval=null;
-		private final Map<String, Sample> sampleHash=new HashMap<String, Sample>();
-		private double featureHeight =1;
-		private double featureWidth =1;
+		
 		private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
-		//private DecimalFormat niceIntFormat = new DecimalFormat("###,###");
-		private final List<VariantContext> pos2variant=new ArrayList<VariantContext>();
-		private class Sample
+		
+		private class Context
 			{
-			String name;
-			final List<List<SAMRecord>> lines=new ArrayList<List<SAMRecord>>();
+			String sampleName;
+			List<List<SAMRecord>> lines= null;//filled by pileup
+			final List<VariantContext> pos2variant=new ArrayList<VariantContext>();
+			int HEIGHT_RULER=200;
+			double featureHeight =1;
+			double featureWidth =1;
 			
 			public double getHeight()
 				{
 				double dim_height= HEIGHT_SAMPLE_NAME;
-				dim_height+= BamToSVG.this.featureHeight;//ref seq
-				dim_height+= BamToSVG.this.featureHeight;//consensus
-				if(!pos2variant.isEmpty())dim_height+= BamToSVG.this.featureHeight;//variants
-				dim_height+= this.lines.size()*BamToSVG.this.featureHeight;//consensus
+				dim_height+= this.featureHeight;//ref seq
+				dim_height+= this.featureHeight;//consensus
+				if(!pos2variant.isEmpty())dim_height+=  this.featureHeight;//variants
+				dim_height+= this.lines.size()* this.featureHeight;//consensus
 				return dim_height;
 				}
+			
+			private void readVariantFile(final Path vcf)  throws IOException
+				{
+				try(VCFReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
+					r.query(BamToSVG.this.interval).stream().
+						filter(V->V.getGenotype(this.sampleName)!=null).
+						filter(V->!(V.getGenotype(this.sampleName).isNoCall() || V.getGenotype(this.sampleName).isHomRef())).
+						forEach(ctx->this.pos2variant.add(ctx));
+					}
+				}
+			
 			}
 		
 		
@@ -215,54 +241,14 @@ public class BamToSVG extends Launcher
 			{
 			return  ((pos - this.interval.getStart())/(double)(this.interval.length()))*(this.drawinAreaWidth);
 			}
-		private void readVariantFile(final Path vcf)  throws IOException
-			{
-			try(VCFReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
-				r.query(this.interval).stream().forEach(ctx->this.pos2variant.add(ctx));
-				}
+		
+		private void writeTitle(final XMLStreamWriter w,String title) throws XMLStreamException {
+			if(StringUtils.isBlank(title)) return;
+			w.writeStartElement("title");
+			w.writeCharacters(title);
+			w.writeEndElement();
 			}
 		
-		private void readBamStream(final SAMRecordIterator iter) throws IOException
-			{
-			while(iter.hasNext())
-				{
-				final SAMRecord rec = iter.next();
-				if(rec.getReadUnmappedFlag()) continue;
-				if( this.samRecordFilter.filterOut(rec)) continue;
-				if( !rec.getReferenceName().equals(this.interval.getContig())) continue;
-				if( right(rec)  < this.interval.getStart()) continue;
-				if( left(rec)  > this.interval.getEnd())continue;
-				
-				String sampleName=this.samRecordPartition.getPartion(rec);
-				if(sampleName==null) sampleName = "undefined sample name";
-				
-				Sample sample= this.sampleHash.get(sampleName);
-				if(sample==null)
-					{
-					sample = new Sample();
-					sample.name=sampleName;
-					this.sampleHash.put(sampleName,sample);
-					}
-				
-				int y=0;
-				for(y=0;y< sample.lines.size();++y)
-					{
-					List<SAMRecord> line= sample.lines.get(y);
-					final SAMRecord last = line.get(line.size()-1);
-					if( right(last)+1 < left(rec) )
-						{
-						line.add(rec);
-						break;
-						}
-					}
-				if( y == sample.lines.size())
-					{
-					List<SAMRecord> line= new ArrayList<SAMRecord>();
-					line.add(rec);
-					sample.lines.add(line);
-					}
-				}
-			}
 		
 		private void printGradientDef(
 				XMLStreamWriter w,
@@ -289,20 +275,20 @@ public class BamToSVG extends Launcher
 			w.writeEndElement();
 			}
 		
-		private void printSample(XMLStreamWriter w,double top_y,final Sample sample)
+		private void printSample(XMLStreamWriter w,double top_y,final Context context)
 				throws XMLStreamException
 			{
-			w.writeComment("START SAMPLE: "+sample.name);
+			w.writeComment("START SAMPLE: "+context.sampleName);
 			w.writeStartElement(SVG.NS,"g");
 			w.writeAttribute("transform", "translate(0,"+top_y+")");
 			double y=0;
 			
 			/* write title */
-			w.writeEmptyElement("path");
+			w.writeStartElement("path");
 			w.writeAttribute("class","samplename");
-			w.writeAttribute("title",sample.name);
+			
 			w.writeAttribute("d", this.hershey.svgPath(
-					sample.name,
+					context.sampleName,
 					scaleRect(new Rectangle2D.Double(
 							0,
 							y,
@@ -310,12 +296,14 @@ public class BamToSVG extends Launcher
 							HEIGHT_SAMPLE_NAME
 							)))
 					);
+			writeTitle(w,context.sampleName);
+			w.writeEndElement();//path
 			y+=HEIGHT_SAMPLE_NAME;
 	
 			/* write REFERENCE */
 			w.writeComment("REFERENCE");
 			for(int pos=this.interval.getStart();
-					this.featureWidth>5 && //ignore if too small
+					context.featureWidth>5 && //ignore if too small
 					pos<=this.interval.getEnd();++pos)
 				{
 				char c=(this.genomicSequence==null?'N':this.genomicSequence.charAt(pos-1));
@@ -325,27 +313,26 @@ public class BamToSVG extends Launcher
 				w.writeAttribute("y",format(y));
 				w.writeAttribute("xlink", XLINK.NS, "href", "#b"+c);
 				}
-			y+=featureHeight;
+			y+= context.featureHeight;
 			
 			/* skip line for later consensus */
 			double consensus_y=y;
-			y+=featureHeight;
+			y+=context.featureHeight;
 			final Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
 			
 			/* print variants */
-			if(!pos2variant.isEmpty())
+			if(!context.pos2variant.isEmpty())
 				{
-				for(VariantContext ctx:this.pos2variant)
+				for(VariantContext ctx:context.pos2variant)
 					{
-					Genotype g=ctx.getGenotype(sample.name);
+					Genotype g=ctx.getGenotype(context.sampleName);
 					if(g==null || !g.isCalled() || g.isHomRef()) continue;
 					if(ctx.getEnd()< this.interval.getStart()) continue;
 					if(ctx.getStart()> this.interval.getEnd()) continue;
 					double x0  = baseToPixel(ctx.getStart());
-					w.writeEmptyElement("use");
+					w.writeStartElement("use");
 					w.writeAttribute("x",format(x0));
 					w.writeAttribute("y",format(y));
-					w.writeAttribute("title", ctx.getAltAlleleWithHighestAlleleCount().getDisplayString());
 					
 					if(g.isHomVar())
 						{
@@ -355,21 +342,23 @@ public class BamToSVG extends Launcher
 						{
 						w.writeAttribute("xlink", XLINK.NS, "href", "#het");
 						}
+					writeTitle(w,ctx.getAltAlleleWithHighestAlleleCount().getDisplayString());
+					w.writeEndElement();//use
 					}
-				y+=featureHeight;
+				y+=context.featureHeight;
 				}
 			
 			/* print all lines */
 			w.writeComment("Alignments");
-			for(int nLine=0;nLine< sample.lines.size();++nLine)
+			for(int nLine=0;nLine< context.lines.size();++nLine)
 				{
 				w.writeStartElement("g");
-				w.writeAttribute("transform", "translate(0,"+format(y+nLine*featureHeight)+")");
-				List<SAMRecord> line= sample.lines.get(nLine);
+				w.writeAttribute("transform", "translate(0,"+format(y+nLine*context.featureHeight)+")");
+				List<SAMRecord> line= context.lines.get(nLine);
 				//loop over records on that line
 				for(SAMRecord record: line)
 					{
-					printSamRecord(w, record,pos2consensus);
+					printSamRecord(w, context,record,pos2consensus);
 					}
 				w.writeEndElement();//g
 				}
@@ -377,7 +366,7 @@ public class BamToSVG extends Launcher
 			/* write consensus */
 			w.writeComment("Consensus");
 			for(int pos=this.interval.getStart();
-					this.featureWidth>5 && //ignore if too small
+					context.featureWidth>5 && //ignore if too small
 					pos<=this.interval.getEnd();++pos)
 				{
 				Counter<Character> cons = pos2consensus.get(pos);
@@ -399,14 +388,14 @@ public class BamToSVG extends Launcher
 			w.writeAttribute("x",format(0));
 			w.writeAttribute("y",format(0));
 			w.writeAttribute("width",format(drawinAreaWidth));
-			w.writeAttribute("height",format(sample.getHeight()));
+			w.writeAttribute("height",format(context.getHeight()));
 	
 			w.writeEndElement();//g for sample
-			w.writeComment("END SAMPLE: "+sample.name);
+			w.writeComment("END SAMPLE: "+context.sampleName);
 	
 			}
 		
-		private void printDocument(XMLStreamWriter w,String intervalStr) 
+		private void printDocument(final XMLStreamWriter w,final Context context) 
 			throws XMLStreamException
 			{
 			Insets insets=new Insets(20, 20, 20, 20);
@@ -414,15 +403,9 @@ public class BamToSVG extends Launcher
 					insets.left+insets.right+this.drawinAreaWidth
 					,insets.top+insets.bottom);
 			dim.height+=HEIGHT_MAIN_TITLE;
-			dim.height+=HEIGHT_RULER;
-			
-			//loop over each sample
-			for(Sample sample:this.sampleHash.values())
-				{
-				dim.height+=sample.getHeight();
-				}
-	
-			dim.height+=100;
+			dim.height+=context.HEIGHT_RULER;
+			dim.height+=context.getHeight();
+			//dim.height+=100;
 			
 			w.writeStartElement("svg");
 			w.writeAttribute("width", format(dim.width));
@@ -459,7 +442,7 @@ public class BamToSVG extends Launcher
 					"line.rulerlabel {stroke:gray;stroke-width:2px;}\n"+
 					"path.maintitle {stroke:blue;stroke-width:5px;}\n"+
 					"path.samplename {stroke:black;stroke-width:3px;}\n"+
-					"circle.mutation {stroke:red;fill:none;stroke-width:"+(this.featureWidth<5?0.5:3.0)+"px;}"+
+					"circle.mutation {stroke:red;fill:none;stroke-width:"+(context.featureWidth<5?0.5:3.0)+"px;}"+
 					""
 					);
 			w.writeEndElement();//style
@@ -467,7 +450,7 @@ public class BamToSVG extends Launcher
 			w.writeStartElement(SVG.NS,"defs");
 			
 			//mutations
-			if(!pos2variant.isEmpty())
+			if(!context.pos2variant.isEmpty())
 				{
 				//hom var
 				w.writeEmptyElement("rect");
@@ -475,8 +458,8 @@ public class BamToSVG extends Launcher
 				w.writeAttribute("class","homvar");
 				w.writeAttribute("x", "0");
 				w.writeAttribute("y", "0");
-				w.writeAttribute("width", format(this.featureWidth));
-				w.writeAttribute("height",  format(this.featureHeight));
+				w.writeAttribute("width", format(context.featureWidth));
+				w.writeAttribute("height",  format(context.featureHeight));
 				
 				//het
 				w.writeStartElement("g");
@@ -487,19 +470,19 @@ public class BamToSVG extends Launcher
 					w.writeEmptyElement("rect");
 					w.writeAttribute("x", "0");
 					w.writeAttribute("y", "0");
-					w.writeAttribute("width", format(this.featureWidth/2.0));
-					w.writeAttribute("height",  format(this.featureHeight/2.0));
+					w.writeAttribute("width", format(context.featureWidth/2.0));
+					w.writeAttribute("height",  format(context.featureHeight/2.0));
 					w.writeEmptyElement("rect");
-					w.writeAttribute("x", format(this.featureWidth/2.0));
-					w.writeAttribute("y",  format(this.featureHeight/2.0));
-					w.writeAttribute("width", format(this.featureWidth/2.0));
-					w.writeAttribute("height",  format(this.featureHeight/2.0));
+					w.writeAttribute("x", format(context.featureWidth/2.0));
+					w.writeAttribute("y",  format(context.featureHeight/2.0));
+					w.writeAttribute("width", format(context.featureWidth/2.0));
+					w.writeAttribute("height",  format(context.featureHeight/2.0));
 					w.writeEmptyElement("rect");
 					w.writeAttribute("style", "fill:none;");
 					w.writeAttribute("x", "0");
 					w.writeAttribute("y", "0");
-					w.writeAttribute("width", format(this.featureWidth));
-					w.writeAttribute("height",  format(this.featureHeight));
+					w.writeAttribute("width", format(context.featureWidth));
+					w.writeAttribute("height",  format(context.featureHeight));
 	
 				w.writeEndElement();
 				}
@@ -509,28 +492,30 @@ public class BamToSVG extends Launcher
 			//base
 			for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
 				{
-				w.writeEmptyElement("path");
+				w.writeStartElement("path");
 				w.writeAttribute("id","b"+base);
-				w.writeAttribute("title",base);
+				
 				w.writeAttribute("class","b"+base.toUpperCase());
 				w.writeAttribute("d",this.hershey.svgPath(
 						base,
 						0,
 						0,
-						this.featureWidth*0.95,
-						this.featureHeight*0.95
+						context.featureWidth*0.95,
+						context.featureHeight*0.95
 						));
+				writeTitle(w,base);
+				w.writeEndElement();
 				}
 			//mutation
-			w.writeEmptyElement("circle");
+			w.writeStartElement("circle");
 			w.writeAttribute("id","mut");
 			w.writeAttribute("class","mutation");
-			w.writeAttribute("title","mutation");
-			w.writeAttribute("cx",format(this.featureWidth/2.0));
-			w.writeAttribute("cy",format(this.featureHeight/2.0));
-			w.writeAttribute("r",format(this.featureHeight/2.0));
 			
-			
+			w.writeAttribute("cx",format(context.featureWidth/2.0));
+			w.writeAttribute("cy",format(context.featureHeight/2.0));
+			w.writeAttribute("r",format(context.featureHeight/2.0));
+			writeTitle(w,"mutation");
+			w.writeEndElement();
 			
 			
 			String pastels[]={"fff8dc", "cd5c5c", "708090", "ff4500", "4682b4", "ffa500", "d8bfd8", "fa8072", "00ffff", "3cb371", "000000", "1e90ff", "cd853f", "4169e1", "f0ffff", "5f9ea0", "eeeee0", "a020f0", "bc8f8f", "ff69b4", "00ff7f", "000080", "e9967a", "daa520", "32cd32", "ee82ee", "7b68ee", "ffffe0", "8b8378", "db7093", "a0522d", "ffe4b5", "9370db", "afeeee", "eee5de", "8fbc8f", "8b8682", "8470ff", "8b8b83", "ff1493", "eedfcc", "f0f8ff", "ff6347", "faebd7", "add8e6", "fffafa", "c1cdc1", "cdc0b0", "c71585", "7fffd4", "7fff00", "cdaf95", "e0eee0", "556b2f", "dcdcdc", "ffebcd", "cdc8b1", "fff0f5", "ffe4e1", "9acd32", "ffc0cb", "8b8989", "ffff00", "cdb79e", "f5f5f5", "2f4f4f", "eee9e9", "cdcdc1", "eee8aa", "bebebe", "ffffff", "2e8b57", "fffff0", "b0e0e6", "fff5ee", "778899", "fffacd", "191970", "d2691e", "eecbad", "40e0d0", "ffd700", "eed5b7", "fffaf0", "ffefd5", "98fb98", "b22222", "87ceeb", "483d8b", "adff2f", "b8860b", "66cdaa", "f5fffa", "ff8c00", "00fa9a", "f4a460", "dda0dd", "fafad2", "f5f5dc", "9400d3", "006400", "cdc5bf", "a52a2a", "8b7d6b", "0000ff", "d02090", "ffb6c1", "48d1cc", "e0ffff", "f8f8ff", "d2b48c", "00ced1", "8b8878", "0000cd", "e6e6fa", "f0e68c", "6495ed", "f0fff0", "ffe4c4", "ff7f50", "d3d3d3", "00bfff", "b03060", "6a5acd", "ffa07a", "8b7765", "20b2aa", "ff0000", "f5deb3", "eee8dc", "ba55d3", "faf0e6", "6b8e23", "8a2be2", "7cfc00", "ffdab9", "8b4513", "87cefa", "cdc9c9", "9932cc", "deb887", "eedd82", "228b22", "838b83", "b0c4de", "f08080", "696969", "ffdead", "da70d6", "bdb76b", "fdf5e6"};
@@ -550,9 +535,8 @@ public class BamToSVG extends Launcher
 			
 			int y=insets.top;
 			/* write title */
-			w.writeEmptyElement("path");
+			w.writeStartElement("path");
 			w.writeAttribute("class","maintitle");
-			w.writeAttribute("title",intervalStr);
 			w.writeAttribute("d", this.hershey.svgPath(
 					this.interval.getContig()+":"+StringUtils.niceInt(this.interval.getStart())+"-"+StringUtils.niceInt(this.interval.getEnd()),
 					scaleRect(new Rectangle2D.Double(
@@ -562,63 +546,67 @@ public class BamToSVG extends Launcher
 							HEIGHT_MAIN_TITLE
 							)))
 					);
+			writeTitle(w, this.intervalStr);
+			w.writeEndElement();
 			y+=HEIGHT_MAIN_TITLE;
 			
 			/* write ruler */
 			int prev_ruler_printed=-1;
+			double prev_ruler_printed_x=-1;
 			w.writeStartElement("g");
 			for(int pos=this.interval.getStart(); pos<=this.interval.getEnd();++pos)
 				{
 				double x= this.baseToPixel(pos);
-				w.writeEmptyElement("line");
+				if(prev_ruler_printed_x!=-1 &&  prev_ruler_printed_x+ Math.max(20.0,context.featureHeight) >= x)continue;
+				prev_ruler_printed_x = x;
+				
+				w.writeStartElement("line");
 				w.writeAttribute("class","rulerline");
-				w.writeAttribute("title",StringUtils.niceInt(pos));
+				
 				w.writeAttribute("x1",format(x));
 				w.writeAttribute("x2",format(x));
-				w.writeAttribute("y1",format(y+HEIGHT_RULER-5));
+				w.writeAttribute("y1",format(y+context.HEIGHT_RULER-5));
 				w.writeAttribute("y2",format(dim.height));
-				if(prev_ruler_printed==-1 ||  this.baseToPixel(prev_ruler_printed)+featureHeight < x )
+				if(prev_ruler_printed==-1 ||  this.baseToPixel(prev_ruler_printed)+context.featureHeight < x)
 					{
 					x= (this.baseToPixel(pos)+this.baseToPixel(pos+1))/2.0;
-					w.writeEmptyElement("path");
+					w.writeStartElement("path");
 					w.writeAttribute("class","rulerlabel");
-					w.writeAttribute("title",StringUtils.niceInt(pos));
-					w.writeAttribute("d",this.hershey.svgPath(StringUtils.niceInt(pos),0,0,Math.min(StringUtils.niceInt(pos).length()*this.featureHeight,HEIGHT_RULER)-20,featureHeight));
-					w.writeAttribute("transform","translate("+(x-featureHeight/2.0)+","+ (y+(HEIGHT_RULER-10)) +") rotate(-90) ");
+					w.writeAttribute("d",this.hershey.svgPath(StringUtils.niceInt(pos),0,0,Math.min(StringUtils.niceInt(pos).length()*context.featureHeight,context.HEIGHT_RULER)-20,context.featureHeight));
+					w.writeAttribute("transform","translate("+(x-context.featureHeight/2.0)+","+ (y+(context.HEIGHT_RULER-10)) +") rotate(-90) ");
+					writeTitle(w,StringUtils.niceInt(pos));
+					w.writeEndElement();
 					prev_ruler_printed=pos;
-					}	
+					}
+				writeTitle(w,StringUtils.niceInt(pos));
+				w.writeEndElement();//line
 				}
 			w.writeEndElement();//g for ruler
-			y+=HEIGHT_RULER;
+			y+=context.HEIGHT_RULER;
 			
-			//loop over each sample
-			for(Sample sample:this.sampleHash.values())
-				{
-				printSample(w,y,sample);
-				y+=sample.getHeight();
-				}
-			
+			printSample(w,y,context);
+			y+=context.getHeight();			
 			w.writeEndElement();//g
-			
 			w.writeEndElement();//svg
 			}
 		
 		private void printSamRecord(
 				XMLStreamWriter w,
+				final Context context,
 				final SAMRecord record,
 				final Map<Integer,Counter<Character>> consensus
 				)
 			throws XMLStreamException
 			{
-			double mid_y= this.featureHeight/2.0;
-			final double y_h95= this.featureHeight*0.90;
-			final double y_top5=(this.featureHeight-y_h95)/2.0;
+			double mid_y= context.featureHeight/2.0;
+			final double y_h95= context.featureHeight*0.90;
+			final double y_top5=(context.featureHeight-y_h95)/2.0;
 			final double y_bot5= y_top5+y_h95;
-			final double arrow_w= this.featureHeight/3.0;
+			final double arrow_w= context.featureHeight/3.0;
 	
 			w.writeStartElement(SVG.NS,"g");
 			String title=record.getReadName();
-			w.writeAttribute("title",title);
+			writeTitle(w,title);
 			
 			/* print that sam record */
 			final int unclipped_start= record.getUnclippedStart();
@@ -667,20 +655,21 @@ public class BamToSVG extends Launcher
 				boolean in_clip=false;
 				switch(ce.getOperator())
 					{
-					case D:
+					case D://cont
 					case N:
 						{
 						int c_start = trim(refPos);
 						int c_end   = trim(refPos + ce.getLength());
 						if(c_start<c_end)
 							{
-							w.writeEmptyElement("line");
+							w.writeStartElement("line");
 							w.writeAttribute("class","indel");
-							w.writeAttribute("title", op.name()+ce.getLength());
 							w.writeAttribute("x1", format(baseToPixel(c_start)));
 							w.writeAttribute("x2", format(baseToPixel(c_end)));
 							w.writeAttribute("y1", format(mid_y));
 							w.writeAttribute("y2", format(mid_y));
+							writeTitle(w,op.name()+ce.getLength());
+							w.writeEndElement();
 							}
 						
 						refPos += ce.getLength();
@@ -791,7 +780,7 @@ public class BamToSVG extends Launcher
 									cb=Character.toUpperCase(genomicSequence.charAt(refPos+i-1));
 									}
 								
-								if(cb!='N' && ca!='N' && cb!=ca && !in_clip)
+								if(cb!='N' && ca!='N' && cb!=ca && !in_clip && this.interval.contains(refPos+i))
 									{
 									w.writeEmptyElement("use");
 									w.writeAttribute("x",format( baseToPixel(refPos+i)));
@@ -800,7 +789,7 @@ public class BamToSVG extends Launcher
 									}
 								
 								if(this.interval.contains(refPos+i) && 
-									this.featureWidth >  5)
+									context.featureWidth >  5)
 									{
 									//int qual = qualities[readPos];
 									w.writeEmptyElement("use");
@@ -829,18 +818,91 @@ public class BamToSVG extends Launcher
 				if(pos < this.interval.getStart())  continue;
 				if(pos > this.interval.getEnd())  continue;
 				final String insertion=pos2insertions.get(pos);
-				w.writeEmptyElement("line");
+				w.writeStartElement("line");
 				final double x= baseToPixel(pos);
-				w.writeAttribute("title","Insertion "+insertion);
+				
 				w.writeAttribute("class","insert");
 				w.writeAttribute("x1",format(x));
 				w.writeAttribute("x2",format(x));
 				w.writeAttribute("y1",format(y_top5));
 				w.writeAttribute("y2",format(y_bot5));
+				writeTitle(w,"Insertion "+insertion);
+				w.writeEndElement();
 				}
 			w.writeEndElement();//g
 			
-		}
+			}
+		
+		private void plotSVG(final ArchiveFactory archive,final Path path) throws IOException,XMLStreamException {
+			XMLStreamWriter w=null;
+			
+			final SamReaderFactory sfrf= SamReaderFactory.makeDefault().
+					validationStringency(ValidationStringency.LENIENT).
+					referenceSequence(this.referenceFile);
+
+			final Context context = new Context();
+			
+			try(SamReader samReader = sfrf.open(path)) {
+				final SAMFileHeader header= samReader.getFileHeader();
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+				SequenceUtil.assertSequenceDictionariesEqual(dict, this.referenceDict);
+				context.sampleName = header.getReadGroups().stream().
+						map(RG->RG.getSample()).
+						filter(S->!StringUtils.isBlank(S)).
+						findFirst().
+						orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
+				
+				final int extend_for_clip = 100;//get a chance to get clipping close to bounds
+				// read SamRecord
+				try(CloseableIterator<SAMRecord> iter= samReader.query(this.interval.getContig(),
+						Math.max(1, this.interval.getStart() - extend_for_clip),this.interval.getEnd() + extend_for_clip,false)) {
+					final Pileup<SAMRecord> pileup = new Pileup<>((A,B)->!CoordMath.overlaps(left(A)-1,right(A)+1,left(B),right(B)));
+					while(iter.hasNext())
+						{
+						final SAMRecord rec = iter.next();
+						if(rec.getReadUnmappedFlag()) continue;
+						
+						//if( this.samRecordFilter.filterOut(rec)) continue;
+						if(!SAMRecordDefaultFilter.accept(rec, this.mappingQuality)) continue;
+						if( !rec.getReferenceName().equals(this.interval.getContig())) continue;
+						if( right(rec)  < this.interval.getStart()) continue;
+						if( left(rec)  > this.interval.getEnd())continue;
+						pileup.add(rec);
+						}
+					context.lines = pileup.getRows();
+					}
+				
+				
+				if(this.vcf!=null)
+					{
+					context.readVariantFile(vcf);
+					}
+				
+				
+				
+				context.featureWidth=  this.drawinAreaWidth/(double)((this.interval.getEnd() - this.interval.getStart())+1); 
+				context.featureHeight= Math.min(Math.max(5.0,context.featureWidth),30); 
+				context.HEIGHT_RULER=(int)(StringUtils.niceInt(this.interval.getEnd()).length()*context.featureHeight+5);
+				LOG.info("Feature height:"+context.featureHeight);
+				
+				final String buildName= SequenceDictionaryUtils.getBuildName(this.referenceDict).orElse("");
+				final String filename= this.prefix+buildName+(buildName.isEmpty()?"":".")+this.interval.getContig()+"_"+this.interval.getStart()+"_"+this.interval.getEnd()+"."+context.sampleName+".svg";
+				
+
+				LOG.info("writing "+ filename);
+				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				try(OutputStream fout= archive.openOuputStream(filename)) {
+					w=xof.createXMLStreamWriter(fout, "UTF-8");
+					w.writeStartDocument("UTF-8", "1.0");
+					printDocument(w,context);
+					w.writeEndDocument();
+					w.flush();
+					w.close();
+					fout.flush();
+					}
+				}
+			}
+		
 		
 		@Override
 		public int doWork(final List<String> args) {
@@ -852,112 +914,47 @@ public class BamToSVG extends Launcher
 				}
 			
 			
-			SamReader in=null;
-			SAMRecordIterator iter=null;
-			SamReaderFactory sfrf= SamReaderFactory.makeDefault();
-			sfrf.validationStringency( ValidationStringency.SILENT);
-			XMLStreamWriter w=null;
-			FileOutputStream fout=null;
+			
 			try
 				{
-				/* get genomic sequence */
-				if(this.referenceFile!=null)
-					{
-					this.indexedFastaSequenceFile =  Objects.requireNonNull(ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile));
-					this.interval  =  IntervalParserFactory.
-						newInstance(SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile)).
-						make().
-						apply(this.intervalStr).
-						orElseThrow(IntervalParserFactory.exception(this.intervalStr))
-						;
-					
-					this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getContig());
-					sfrf.referenceSequence(this.referenceFile);
-					}
-				else
-					{
-					this.interval  = IntervalParserFactory.
-							newInstance().
-							make().
-							apply(this.intervalStr).
-							orElseThrow(IntervalParserFactory.exception(this.intervalStr))
-							;					
-					}
-					
+				this.indexedFastaSequenceFile =  Objects.requireNonNull(ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile));
+				this.referenceDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
+				this.interval  =  IntervalParserFactory.
+					newInstance(referenceDict).
+					make().
+					apply(this.intervalStr).
+					orElseThrow(IntervalParserFactory.exception(this.intervalStr))
+					;
 				
-						
-					
+				this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getContig());
 				this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
 				
 				
-				for(final String vcf:this.vcfFileSet)
-					{
-					readVariantFile(Paths.get(vcf));
-					}
+				
 				final List<Path> inputFiles = IOUtils.unrollPaths(args);
 				/* read SAM data */
 				if(inputFiles.isEmpty())
 					{
-					LOG.info("Reading from stdin");
-					in = sfrf.open(SamInputResource.of(stdin()));
-					iter=in.iterator();
-					readBamStream(iter);
-					iter.close();
-					in.close();
+					LOG.error("No BAM");
+					return -1;
 					}
-				else
-					{
+				
+				try(ArchiveFactory archive = ArchiveFactory.open(this.outputFile)) {
 					for(final Path filename: inputFiles)
 						{
 						LOG.info("Reading from "+filename);
-						in=sfrf.open(SamInputResource.of(filename));
-						if(in.hasIndex())
-							{
-							iter=in.query(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd(), false);
-							}
-						else
-							{
-							LOG.info("Bam file not indexed !! "+filename);
-							iter=in.iterator();
-							}
-						readBamStream(iter);
-						iter.close();
-						in.close();
+						plotSVG(archive,filename);
 						}
-					}
-				
-				this.featureWidth=  this.drawinAreaWidth/(double)((this.interval.getEnd() - this.interval.getStart())+1); 
-				this.featureHeight= Math.min(Math.max(5.0,this.featureWidth),30); 
-				this.HEIGHT_RULER=(int)(StringUtils.niceInt(this.interval.getEnd()).length()*this.featureHeight+5);
-				LOG.info("Feature height:"+this.featureHeight);
-				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
-				if(this.outputFile==null)
-					{
-					w=xof.createXMLStreamWriter(stdout(), "UTF-8");
-					}
-				else
-					{
-					fout = new FileOutputStream(this.outputFile);
-					w=xof.createXMLStreamWriter(fout, "UTF-8");
-					}
-				w.writeStartDocument("UTF-8", "1.0");
-				printDocument(w,intervalStr);
-				w.writeEndDocument();
-				w.flush();
-				w.close();
-				
-				return RETURN_OK;
+					}				
+				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
 				}
 			finally
 				{
-				CloserUtil.close(iter);
-				CloserUtil.close(fout);
-				CloserUtil.close(in);
 				CloserUtil.close(this.indexedFastaSequenceFile);
 				this.indexedFastaSequenceFile=null;
 				this.interval=null;

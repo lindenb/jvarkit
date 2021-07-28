@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.MergingSamRecordIterator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
@@ -116,7 +117,8 @@ protected CloseableIterator<SAMRecord> openSamIterator(final SamReader sr) {
 			}
 		else
 			{
-			return sr.query(this.regionFiles.optimizedQueryIntervals(), false);
+			final QueryInterval[] optimized = this.regionFiles.optimizedQueryIntervals();
+			return sr.query(optimized, false);
 			}
 		}
 	return sr.iterator();

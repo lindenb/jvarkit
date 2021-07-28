@@ -17,7 +17,7 @@ public class BamToSVGTest{
 @Test
 public void test01() throws IOException{
 	try {
-		final Path svg = support.createTmpPath(".svg");
+		final Path zip = support.createTmpPath(".zip");
 		
 		final List<String> args= new ArrayList<>();
 		args.add("-R");
@@ -25,12 +25,12 @@ public void test01() throws IOException{
 		args.add("--region");
 		args.add("RF01:100-200");
 		args.add("-o");
-		args.add(svg.toString());
+		args.add(zip.toString());
 		for(int i=1;i<=5;i++) args.add(support.resource("S"+i+".bam"));
 		
 		Assert.assertEquals(new BamToSVG().instanceMain(
 				args.toArray(new String[args.size()])),0);
-		support.assertIsXml(svg);
+		support.assertZip(zip);
 		}
 	finally
 		{

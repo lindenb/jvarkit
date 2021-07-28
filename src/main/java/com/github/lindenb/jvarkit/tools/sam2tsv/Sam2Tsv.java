@@ -255,7 +255,6 @@ public class Sam2Tsv
 
 		int readIndex = 0;
 		int refIndex = rec.getUnclippedStart();
-		 				 
 		 for (final CigarElement e : cigar.getCigarElements())
 			 {
 			 this.op = e.getOperator();

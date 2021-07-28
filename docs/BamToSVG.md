@@ -10,13 +10,6 @@ BAM to Scalar Vector Graphics (SVG)
 ```
 Usage: bam2svg [options] Files
   Options:
-    --filter
-      A filter expression. Reads matching the expression will be filtered-out. 
-      Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
-      FailsVendorQuality() || NotPrimaryAlignment() || 
-      SupplementaryAlignment()' 
-      Default: Accept All/ Filter out nothing
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
@@ -32,23 +25,32 @@ Usage: bam2svg [options] Files
       "chrom:middle+extend"  or "chrom:start-end+extend" or 
       "chrom:start-end+extend-percent%".A program might use a Reference 
       sequence to fix the chromosome name (e.g: 1->chr1)
-    -o, --output
-      Output file. Optional . Default: stdout
-    -R, --reference
+    --mapq
+      min mapping quality
+      Default: 1
+  * -o, --output
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
+    --prefix
+      file prefix
+      Default: <empty string>
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
     -c, --showclipping
       Show clipping
       Default: false
     -S, --vcf
-      add VCF indexed with tabix. Optional. the Samples's name must be the 
-      same than in the BAM
-      Default: []
+      Indexed VCF. the Samples's name must be the same than in the BAM
     --version
       print version and exit
     -w, --width
       Page width
       Default: 1000
+    -D
+      custom parameters. '-Dkey=value'. Undocumented.
+      Syntax: -Dkey=value
+      Default: {}
 
 ```
 
@@ -114,14 +116,22 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Input
+
+input is a set of indexed BAM/CRAM files or a file with the path to the bam with the '.list' suffix.
+
 ## Example
 
 ```bash
+
+$ find dir dir2 -type f -name "*.bam" > file.list
+
 $ java -jar dist/bam2svg.jar \
     -R human_g1k_v37.fasta \
     -i "19:252-260" \
     -S variants.vcf.gz \
-    file.bam > out.svg
+    -o output.zip
+    file.list
 ```
 
 ## Gallery
