@@ -128,12 +128,7 @@ public class GFF3Reader extends AbstractGxxReader {
 			}
 		return;
 		}
-	
-	private boolean isTranscript(final String type) {
-		if(type.equals("transcript")) return true;
-		return false;
-	}
-	
+
 	private Gene parseGene(Gff3Feature feat) {
 		final GeneImpl gene = new GeneImpl();
 		gene.gene_id = getRequiredAttribute(feat,"gene_id");
@@ -146,21 +141,27 @@ public class GFF3Reader extends AbstractGxxReader {
 		gene.end = feat.getEnd();
 		gene.strand = feat.getStrand().encodeAsChar();
 		for(final Gff3Feature c:feat.getChildren()) {
-			if(c.getType().equals("transcript")) {
-				TranscriptImpl tr = parseTranscript(gene,c);
-				if(tr!=null) {
-					gene.transcripts.add(tr);
-					}
+			final TranscriptImpl tr = parseTranscript(gene,c);
+			if(tr!=null) {
+				gene.transcripts.add(tr);
 				}
 			else
 				{
-				LOG.debug(c.getType());
+				LOG.warn("Cannot parse "+c+" of gene "+ gene.gene_id);
 				}
 			}
 		return gene;
 		}
-	
+
 	private TranscriptImpl parseTranscript(final GeneImpl gene,Gff3Feature feat) {
+		
+		if(feat!=null && feat.getAttributes()!=null && 
+				feat.getAttributes().entrySet().stream().filter(KV->KV.getValue()!=null).flatMap(KV->KV.getValue().stream()).anyMatch(S->S!=null && S.equals("ENSG00000235954"))) {
+				LOG.info("OFUND "+feat.getType()+" "+feat.getStart()+"-"+feat.getEnd()+" "+feat.getAttributes());
+				}
+
+		
+		
 		final TranscriptImpl transcript = new TranscriptImpl();
 		for(final String k:feat.getAttributes().keySet()) {
 			List<String> values = feat.getAttribute(k);
@@ -238,7 +239,6 @@ public class GFF3Reader extends AbstractGxxReader {
 		}
 	
 	
-	
 	private List<Gene> load() throws IOException {
 		final List<Gene> genes = new ArrayList<>();
 		final Gff3Codec codec = new Gff3Codec(DecodeDepth.DEEP);
@@ -248,6 +248,7 @@ public class GFF3Reader extends AbstractGxxReader {
 			
 			while(!codec.isDone(lr)) {
 				final Gff3Feature feat = codec.decode(lr);
+				
 				parseFeat(feat,genes);
 				}
 			

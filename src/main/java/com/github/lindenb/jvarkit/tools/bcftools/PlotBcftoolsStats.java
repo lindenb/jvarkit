@@ -7,20 +7,23 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.RangeOfDoubles;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -54,12 +57,18 @@ public class PlotBcftoolsStats extends Launcher {
 	private String prefix="";
 	@Parameter(names={"--format"},description="output format.")
 	private Format outputFormat = Format.PDF;
+	@Parameter(names={"--categories","--phenotypes"},description="A tab delimited file (sample)<tab>(category)")
+	private Path sample2catPath = null;
+
 	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
 	private Map<String, String> dynaParams = new HashMap<>();
 
 
 	private enum Format {PDF,PNG,SVG};
-	private final Map<String,String> id2file = new HashMap<>();
+	private final Map<String,String> id2vcfs = new TreeMap<>();
+	private final Map<String, List<String>> phenotype2samples = new TreeMap<>();
+	private final Map<String,String> sample2phenotype = new TreeMap<>();
+	private int depth_bin_size = -1;
 
 	private abstract class Section {
 		final String ID;
@@ -90,6 +99,102 @@ public class PlotBcftoolsStats extends Launcher {
 			}
 		abstract void print(PrintWriter w);
 		}
+	/** Depth distribution *******************************************************************/
+	private class DPSection extends Section {
+		DPSection() {
+			super("DP","# DP\t[2]id\t[3]bin\t[4]number of genotypes\t[5]fraction of genotypes (%)\t[6]number of sites\t[7]fraction of sites (%)");
+			}
+		@Override
+		void print(PrintWriter w) {
+			if(depth_bin_size<1) {
+				LOG.warn("I was not able to find the --depth bin-size");
+				return;
+				}
+			print(w,"Number of Genotypes",L->Double.parseDouble(L.get(3)));
+			print(w,"Fraction of Genotypes",L->Double.parseDouble(L.get(4)));
+			print(w,"Number of Sites",L->Double.parseDouble(L.get(5)));
+			print(w,"Fraction of Sites",L->Double.parseDouble(L.get(6)));
+			}
+		
+		private String binToLabel(String s) {
+			if(s.startsWith(">")) return quote(s);
+			int n = Integer.parseInt(s);
+			return quote("["+(n*depth_bin_size)+"-"+((n+1)*depth_bin_size)+"[");
+		}
+		
+		private void  print(PrintWriter w,String title,ToDoubleFunction<List<String>> extractor) {
+			final String fname= title.replaceAll(" of ", "").replaceAll("\\s+","");
+			for(String id : getIds()) {
+				final List<List<String>> lines =getLinesForId(id);
+				w.println(device(this.ID+"."+fname +"."+id,null));
+				w.println(
+						"barplot(c("+
+						lines.stream().map(L->String.valueOf(extractor.applyAsDouble(L))).collect(Collectors.joining(",")) +
+						"),main="+quote("DEPTH: "+ title)+","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+		                "xlab=\"Depth\","+
+		                "ylab="+quote(title)+","+
+		                "ylim=c(0,"+lines.stream().mapToDouble(extractor).max().orElse(1.0)+"),"+
+		                "names=c("+lines.stream().map(L->binToLabel(L.get(2))).collect(Collectors.joining(","))+"),"+
+						"las=2)");
+						
+				w.println("dev.off()");
+				}
+			}
+		}
+	/** ST (Substitution types) *******************************************************************/
+	private class STSection extends Section {
+		STSection() {
+			super("ST","# ST\t[2]id\t[3]type\t[4]count");
+			}
+		
+		private String substitutionToColor(final String s) {
+			if(s.length()!=3) throw new IllegalArgumentException("not [ATGC]>[ATGC]");
+			String color ="red";
+			char b1 = s.charAt(0);
+			char b2 = s.charAt(2);
+			if(AcidNucleics.isPuryn(b1) && AcidNucleics.isPuryn(b2)) {
+				color = "blue";
+			} else if(AcidNucleics.isPyrimidic(b1) && AcidNucleics.isPyrimidic(b2)) {
+				color = "green";
+			} 
+			
+			return quote(color);
+		}
+		
+		@Override
+		void print(PrintWriter w) {
+			for(String id : getIds()) {
+				w.println(device(this.ID+"."+id,null));
+				final Counter<String> counter = new Counter<String>();
+				for(final List<String> line:getLinesForId(id)) {
+					if(line.get(3).equals("0")) continue;
+					counter.incr(line.get(2),Long.parseLong(line.get(3)));
+					}
+				if(counter.isEmpty()) continue;
+
+				w.println(
+						"barplot(c("+
+						counter.keySetDecreasing().stream().map(K->String.valueOf(counter.count(K))).collect(Collectors.joining(",")) +
+						"),main=\"Substitution types\","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+		                "xlab=\"Subsitution\","+
+		                "ylab=\"Count Variants\","+
+		                "ylim=c(0,"+counter.getMaxCount().orElse(1L)+"),"+
+		                "names=c("+counter.keySetDecreasing().stream().map(S->quote(S)).collect(Collectors.joining(","))+"),"+
+						"col= c(" + 
+						counter.keySetDecreasing().stream().map(K->substitutionToColor(K)).collect(Collectors.joining(",")) +
+						"),las=2)");
+						}
+			w.println("legend(\"topright\","+ 
+				       "legend = c(\"purin-purin\",\"pyr-pyr\",\"other\"),"+ 
+				       "fill = c("+substitutionToColor("A>G")+","+substitutionToColor("T>C")+","+substitutionToColor("A>C")+"))");
+				
+			w.println("dev.off()");
+			}
+		}
+	
+	
 	/** QUAL *******************************************************************/
 	private class QualSection extends Section {
 		QualSection() {
@@ -130,7 +235,7 @@ public class PlotBcftoolsStats extends Launcher {
 				device(this.ID+"."+id,null);
 				w.println(
 					"barplot(T2,main=\"Stats by quality\","+
-					"sub="+quote(id2file.getOrDefault(id,""))+","+
+					"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
 	                "xlab=\"Quality\","+
 	                "ylab=\"Count Variants\","+
 	                "ylim=c(0,"+max_count+"),"+
@@ -160,7 +265,7 @@ public class PlotBcftoolsStats extends Launcher {
 				w.println(
 					"barplot(c("+L.stream().map(T->String.valueOf(T.get(3))).collect(Collectors.joining(","))+")," +
 					"main=\"Summary Numbers\","+
-					"sub="+quote(id2file.getOrDefault(id,""))+","+
+					"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
 	                "ylab=\"Count Variants\","+
 	                "names=c("+L.stream().map(T->quote(removeColumn(T.get(2)))).collect(Collectors.joining(","))+"),"+
 					"las=2,cex.names=0.5)");
@@ -169,7 +274,7 @@ public class PlotBcftoolsStats extends Launcher {
 				w.println("dev.off()");
 				}
 			}
-	/** PSC *******************************************************************/
+	/** PSC per sample count *******************************************************************/
 	private class PSCSection extends Section {
 		private class Column {
 			final String label;
@@ -205,7 +310,7 @@ public class PlotBcftoolsStats extends Launcher {
 
 			w.println(
 					"barplot(T2,main="+quote(title)+","+
-					"sub="+quote(id2file.getOrDefault(id,""))+","+
+					"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
 	                "xlab=\"Sample\","+
 	                "ylab=\"Count Variants\","+
 	                "names=c("+L.stream().map(S->quote(S.get(2))).collect(Collectors.joining(","))+"),"+
@@ -229,6 +334,24 @@ public class PlotBcftoolsStats extends Launcher {
 				}
 			}
 		}
+	/* https://stackoverflow.com/a/52498075 */
+	private String getColorsForSamples(final List<String> samples) {
+		if(this.phenotype2samples.size()<2) return "";
+		final String hue = samples.stream().
+			map(S->this.sample2phenotype.get(S)).
+			map(P->{
+				double n= this.phenotype2samples.size();
+				int i=0;
+				for(String k:this.phenotype2samples.keySet()) {
+					if(k.equals(P)) break;
+					i++;
+					}
+				return String.valueOf(i/n);
+				}
+			).collect(Collectors.joining(","));
+		return "hsv(h=c("+hue+"))";
+		}
+
 	
 	private String quote(final String s) {
 		return "\""+StringUtils.escapeC(s)+"\"";
@@ -262,23 +385,67 @@ public class PlotBcftoolsStats extends Launcher {
 	public int doWork(final List<String> args) {
 		try {
 			final List<Section> sections = Arrays.asList(
+				new DPSection(),
+				new STSection(),
 				new QualSection(),
 				new SNSection(),
-				new PSCSection()
+				new PSCSection(),
+				new DPSection()
 				);
+			
+			if(sample2catPath!=null) {
+				try(BufferedReader br= IOUtils.openPathForBufferedReading(sample2catPath)) {
+					String line;
+					while((line=br.readLine())!=null) {
+						
+						if(line.startsWith("#") || StringUtils.isBlank(line)) {
+							continue;
+							}
+						final String[] tokens = CharSplitter.TAB.split(line);
+						if(tokens.length!=2) throw new JvarkitException.TokenErrors(2, tokens);
+						if(sample2phenotype.containsKey(tokens[0])) {
+							LOG.error("multiple phenotypes for "+tokens[0]+" in "+sample2catPath);
+							return -1;
+							}
+						sample2phenotype.put(tokens[0], tokens[1]);
+						List<String> samples = phenotype2samples.get(tokens[1]);
+						if(samples==null) {
+							samples = new ArrayList<>();
+							phenotype2samples.put(tokens[1],samples);
+							}
+						samples.add(tokens[0]);
+					}
+				}
+			}
+			
 			final Set<String> undefined_sections = new HashSet<>();
 			try(BufferedReader br= super.openBufferedReader(oneFileOrNull(args))) {
 				String prevComment = null;
 				String line;
 				Section section = null;
 				while((line=br.readLine())!=null) {
+					
+					if (line.startsWith("# The command line was:")) {
+						String[] tokens = line.split("\\s+");
+						for(int i=0;i+1< tokens.length;i++) {
+							if(tokens[i].equals("--depth") || tokens[i].equals("-d")) {
+								tokens = CharSplitter.COMMA.split(tokens[i+1]);
+								if(tokens.length==3) {
+									this.depth_bin_size = Integer.parseInt(tokens[2]);
+									LOG.info("depth-bin-size : "+this.depth_bin_size);
+									}
+								break;
+								}
+							}
+						}
+					
 					if(line.startsWith("#")) {
 						prevComment=line;
 						continue;
 						}
 					final String tokens[]=CharSplitter.TAB.split(line);
 					if(tokens[0].equals("ID")) {
-						id2file.put(tokens[1], tokens[2]);
+						this.id2vcfs.put(tokens[1], String.join(",",Arrays.asList(tokens).subList(2, tokens.length)));
 						continue;
 						}
 					if(section==null || !section.ID.equals(tokens[0])) {

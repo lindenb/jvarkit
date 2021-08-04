@@ -58,6 +58,28 @@ public static boolean isATGC(byte c) {
 	return isATGC((char)c);
 	}
 
+/** returns true of base in AGR */
+public static boolean isPuryn(char iupac) {
+	switch(iupac) {
+	case 'A': case 'a' :
+	case 'G': case 'g':
+	case 'R': case 'r':
+		return true;
+	default: return false;
+	}
+}
+
+/** returns true of base in TUCY */
+public static boolean isPyrimidic(char iupac) {
+	switch(iupac) {
+	case 'T': case 't' :
+	case 'U': case 'u':
+	case 'C': case 'c':
+	case 'Y': case 'y':
+		return true;
+	default: return false;
+	}
+}
 
 /** return true if s is not null, not empty and all bases match 'isATGCN */
 public static boolean isATGCN(final CharSequence c) {
