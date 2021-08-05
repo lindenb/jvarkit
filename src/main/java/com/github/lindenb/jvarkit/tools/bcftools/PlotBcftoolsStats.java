@@ -12,8 +12,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
+import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
@@ -98,6 +101,218 @@ public class PlotBcftoolsStats extends Launcher {
 			lines.add(Arrays.asList(tokens));
 			}
 		abstract void print(PrintWriter w);
+		}
+	
+	/** SiS, Singleton stats *******************************************************************/
+	private class SiSSection extends Section {
+		SiSSection() {
+			super("SiS","# SiS\t[2]id\t[3]allele count\t[4]number of SNPs\t[5]number of transitions\t[6]number of transversions\t[7]number of indels\t[8]repeat-consistent\t[9]repeat-inconsistent\t[10]not applicable");
+			}
+		@Override
+		void print(PrintWriter w) {
+		}
+		}
+	
+	/** TSTV transitions/transversions *******************************************************************/
+	private class TSTVSection extends Section {
+		TSTVSection() {
+			super("TSTV","# TSTV\t[2]id\t[3]ts\t[4]tv\t[5]ts/tv\t[6]ts (1st ALT)\t[7]tv (1st ALT)\t[8]ts/tv (1st ALT)");
+			}
+		@Override
+		void print(PrintWriter w) {
+			for(String id : getIds()) {
+				final List<List<String>> lines =getLinesForId(id);
+				w.println(device(this.ID+"."+id,null));
+				final double ts = Double.parseDouble(lines.get(0).get(2));
+				final double tv = Double.parseDouble(lines.get(0).get(3));
+				final double ts1 = Double.parseDouble(lines.get(0).get(5));
+				final double tv1 = Double.parseDouble(lines.get(0).get(6));
+
+				w.println(
+						"barplot(c("+ts+","+tv+","+ts1+","+tv1+")," +
+						"main="+quote("TS/TV")+","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+		                "ylab=\"Count\","+
+		                "xlab=\"\","+
+		                "ylim=c(0,"+Math.max(ts,tv)+"),"+
+		                "names=c("+quote("TS")+","+quote("TV")+","+quote("TS (1st ALT)")+","+quote("TV (1st ALT)")+"),"+
+		                "col=c("+quote("green")+","+quote("blue")+","+quote("green")+","+quote("blue")+"),"+
+						"las=0)");
+				
+				w.println("dev.off()");
+				}
+			
+			}
+		}
+	/** ICS Indel context summary *******************************************************************/
+	private class ICSSection extends Section {
+		ICSSection() {
+			super("ICS","# ICS\t[2]id\t[3]repeat-consistent\t[4]repeat-inconsistent\t[5]not applicable\t[6]c/(c+i) ratio");
+			}
+		@Override
+		void print(PrintWriter w) {
+			for(String id : getIds()) {
+				final List<List<String>> lines =getLinesForId(id);
+				w.println(device(this.ID+"."+id,null));
+				final long repeat_consistent = Long.parseLong(lines.get(0).get(2));
+				final long repeat_inconsistent = Long.parseLong(lines.get(0).get(3));
+				final long no_applicable = Long.parseLong(lines.get(0).get(4));
+
+				w.println(
+						"barplot(c("+repeat_consistent+","+repeat_inconsistent+","+no_applicable+")," +
+						"main="+quote("Indel context summary")+","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+		                "ylab=\"Count\","+
+		                "xlab=\"\","+
+		                "ylim=c(0,"+Math.max(no_applicable,Math.max(repeat_consistent,repeat_inconsistent))+"),"+
+		                "names=c("+quote("Consistent")+","+quote("Inconsistent")+","+quote("Not Applicable")+"),"+
+						"las=0)");
+				
+				w.println("dev.off()");
+				}
+			
+			}
+		}
+
+	
+	/** ICL  Indel context by length *******************************************************************/
+	private class ICLSection extends Section {
+		ICLSection() {
+			super("ICL","# ICL\t[2]id\t[3]length of repeat element\t[4]repeat-consistent deletions)\t[5]repeat-inconsistent deletions\t[6]consistent insertions\t[7]inconsistent insertions\t[8]c/(c+i) ratio");
+			}
+		@Override
+		void print(PrintWriter w) {
+			for(String id : getIds()) {
+				final List<List<String>> lines =getLinesForId(id);
+				w.println(device(this.ID+"."+id,null));
+				for(int i=0;i< lines.size();i++) {
+					w.println("r"+i+" <- c("+ lines.get(i).subList(3, 8).stream().collect(Collectors.joining(",")) +")");
+					}
+				
+				w.println("T2 <- as.matrix(data.frame("+ IntStream.range(0, lines.size()).mapToObj(i->"r"+i).collect(Collectors.joining(",")) +"))");
+				w.println(
+						"barplot(T2," +
+						"main="+quote("Indel context summary")+","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+		                "ylab=\"Count\","+
+		                "xlab=\"length of repeat element\","+
+		                "names=c("+lines.stream().map(L->quote(L.get(2))).collect(Collectors.joining(","))+"),"+
+		                "legend=c("+String.join(",", quote("repeat-consistent deletions"),quote("repeat-inconsistent deletions"),quote("repeat-consistent insertions"),quote("repeat-inconsistent insertions"))+"),"+
+		                "beside=TRUE,"+
+		                "col=rainbow(4),"+
+						"las=0)");
+				
+				w.println("dev.off()");
+				}
+			}
+		}
+	
+	/** IDD InDel distribution *******************************************************************/
+	private class IDDSection extends Section {
+		IDDSection() {
+			super("IDD","# IDD\t[2]id\t[3]length (deletions negative)\t[4]number of sites\t[5]number of genotypes\t[6]mean VAF");
+			}
+		@Override
+		void print(PrintWriter w) {
+			print(w,"Number of Sites",L->Long.parseLong(L.get(3)));
+			print(w,"Number of Genotypes",L->Long.parseLong(L.get(4)));
+			print(w,"Mean VAF",L->Double.parseDouble(L.get(5)));
+			}
+		
+		
+		private void  print(PrintWriter w,String title,Function<List<String>,Number> extractor) {
+			final String fname= title.replaceAll(" of ", "").replaceAll("\\s+","");
+			for(String id : getIds()) {
+				final List<List<String>> lines =getLinesForId(id);
+				w.println(device(this.ID+"."+fname +"."+id,null));
+				w.println(
+						"plot("+
+						"x=c("+ lines.stream().map(L->L.get(2)).collect(Collectors.joining(","))+"),"+
+						"y=c("+ lines.stream().map(L->String.valueOf(extractor.apply(L))).collect(Collectors.joining(","))+")," +
+						"main="+quote("InDel distribution: "+ title)+","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+						"type=\"l\","+
+		                "xlab=\"length\","+
+		                "ylab="+quote("Count "+title)+
+		                ")"
+						);
+						
+				w.println("dev.off()");
+				}
+			}
+		}
+
+	
+	/** AF Stats by non-reference allele frequency *******************************************************************/
+	private class AFSection extends Section {
+		AFSection() {
+			super("AF","# AF\t[2]id\t[3]allele frequency\t[4]number of SNPs\t[5]number of transitions\t[6]number of transversions\t[7]number of indels\t[8]repeat-consistent\t[9]repeat-inconsistent\t[10]not applicable");
+			}
+		@Override
+		void print(PrintWriter w) {
+			print(w,"Number of SNPs",L->Long.parseLong(L.get(3)));
+			print(w,"Number of Transitions",L->Long.parseLong(L.get(4)));
+			print(w,"Number of Transversions",L->Long.parseLong(L.get(5)));
+			print(w,"Number of Indels",L->Long.parseLong(L.get(6)));
+			print(w,"Repeat Consistent",L->Long.parseLong(L.get(7)));
+			print(w,"Repeat Inconsistent",L->Long.parseLong(L.get(8)));
+			print(w,"Not applicable",L->Long.parseLong(L.get(8)));
+			}
+		
+		
+		private void  print(PrintWriter w,String title,ToLongFunction<List<String>> extractor) {
+			final String fname= title.replaceAll(" of ", "").replaceAll("\\s+","");
+			for(String id : getIds()) {
+				final List<List<String>> lines =getLinesForId(id);
+				w.println(device(this.ID+"."+fname +"."+id,null));
+				w.println(
+						"barplot(c("+
+						lines.stream().map(L->String.valueOf(extractor.applyAsLong(L))).collect(Collectors.joining(",")) +
+						"),main="+quote("Stats by non-reference allele frequency: "+ title)+","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+		                "xlab=\"AF\","+
+		                "ylab="+quote("Count "+title)+","+
+		                "ylim=c(0,"+lines.stream().mapToLong(extractor).max().orElse(1L)+"),"+
+		                "names=c("+lines.stream().map(L->L.get(2)).collect(Collectors.joining(","))+"),"+
+						"las=2)");
+						
+				w.println("dev.off()");
+				}
+			}
+		}
+	/** HWE Section *******************************************************************/
+	private class HWESection extends Section {
+		HWESection() {
+			super("HWE","# HWE\t[2]id\t[3]1st ALT allele frequency\t[4]Number of observations\t[5]25th percentile\t[6]median\t[7]75th percentile");
+			}
+		@Override
+		void print(PrintWriter w) {
+			print(w,"Number of observations",L->Long.parseLong(L.get(3)));
+			print(w,"25th Percentile",L->Double.parseDouble(L.get(4)));
+			print(w,"Median",L->Double.parseDouble(L.get(5)));
+			print(w,"75th Percentile",L->Double.parseDouble(L.get(6)));
+			}
+		
+		
+		private void  print(PrintWriter w,String title,Function<List<String>,Number> extractor) {
+			final String fname= title.replaceAll(" of ", "").replaceAll("\\s+","");
+			for(String id : getIds()) {
+				final List<List<String>> lines =getLinesForId(id);
+				w.println(device(this.ID+"."+fname +"."+id,null));
+				w.println(
+						"barplot(c("+
+						lines.stream().map(L->String.valueOf(extractor.apply(L))).collect(Collectors.joining(",")) +
+						"),main="+quote("HWE: "+ title)+","+
+						"sub="+quote(id2vcfs.getOrDefault(id,""))+","+
+		                "xlab=\"AF\","+
+		                "ylab="+quote(title)+","+
+		                "ylim=c(0,"+lines.stream().map(extractor).mapToDouble(X->X.doubleValue()).max().orElse(1L)+"),"+
+		                "names=c("+lines.stream().map(L->L.get(2)).collect(Collectors.joining(","))+"),"+
+						"las=2)");
+						
+				w.println("dev.off()");
+				}
+			}
 		}
 	/** Depth distribution *******************************************************************/
 	private class DPSection extends Section {
@@ -274,9 +489,9 @@ public class PlotBcftoolsStats extends Launcher {
 				w.println("dev.off()");
 				}
 			}
-	/** PSC per sample count *******************************************************************/
-	private class PSCSection extends Section {
-		private class Column {
+	
+	private abstract class PerSampleSection extends Section {
+		protected class Column {
 			final String label;
 			final ToDoubleFunction<List<String>>  fun;
 			Column(final String label,ToDoubleFunction<List<String>>  fun) {
@@ -284,16 +499,20 @@ public class PlotBcftoolsStats extends Launcher {
 				this.fun = fun;
 				}
 			}
-		
-		PSCSection() {
-			super("PSC","# PSC\t[2]id\t[3]sample\t[4]nRefHom\t[5]nNonRefHom\t[6]nHets\t[7]nTransitions\t[8]nTransversions\t[9]nIndels\t[10]average depth\t[11]nSingletons\t[12]nHapRef\t[13]nHapAlt\t[14]nMissing");
+		PerSampleSection(String id,String header) {
+			super(id,header);
 			}
-		private void print(PrintWriter w,String id,String title,String extra,List<Column> columns) {
-			w.println(device(this.ID+"."+id+"."+title.toLowerCase().replace(' ', '_'),null));
+		protected void print(PrintWriter w,String id,String title,String extra,List<Column> columns) {
+			
+			
+			
 			final List<List<String>> L = getLinesForId(id).stream().
 					collect(Collectors.toList());
-			final List<String> colNames = new ArrayList<>();
 			
+			if(columns.stream().flatMapToDouble(C->L.stream().mapToDouble(C.fun)).allMatch(D->D==0)) return;
+			
+			final List<String> colNames = new ArrayList<>();
+			w.println(device(this.ID+"."+id+"."+title.toLowerCase().replace(' ', '_'),null));
 			//loop over samples
 			for(int i=0;i< L.size();i++) {
 				final List<String> row= L.get(i);
@@ -319,6 +538,14 @@ public class PlotBcftoolsStats extends Launcher {
 					
 			w.println("dev.off()");
 			}
+
+	}
+	
+	/** PSC per sample count *******************************************************************/
+	private class PSCSection extends PerSampleSection {
+		PSCSection() {
+			super("PSC","# PSC\t[2]id\t[3]sample\t[4]nRefHom\t[5]nNonRefHom\t[6]nHets\t[7]nTransitions\t[8]nTransversions\t[9]nIndels\t[10]average depth\t[11]nSingletons\t[12]nHapRef\t[13]nHapAlt\t[14]nMissing");
+			}
 		@Override
 		void print(PrintWriter w) {
 			for(String id : getIds()) {
@@ -334,6 +561,29 @@ public class PlotBcftoolsStats extends Launcher {
 				}
 			}
 		}
+	
+	/** PSC per sample Indels *******************************************************************/
+	private class PSISection extends PerSampleSection {		
+		
+		PSISection() {
+			super("PSI","# PSI\t[2]id\t[3]sample\t[4]in-frame\t[5]out-frame\t[6]not applicable\t[7]out/(in+out) ratio\t[8]nInsHets\t[9]nDelHets\t[10]nInsAltHoms\t[11]nDelAltHoms");
+			}
+		@Override
+		void print(PrintWriter w) {
+			for(String id : getIds()) {
+				print(w,id,"In Frame","",Arrays.asList(new Column("In Frame",L->Double.parseDouble(L.get(3)))));
+				print(w,id,"Out Frame","",Arrays.asList(new Column("Out Frame",L->Double.parseDouble(L.get(4)))));
+				print(w,id,"Not applicable","",Arrays.asList(new Column("Not applicable",L->Double.parseDouble(L.get(5)))));
+				print(w,id,"Out Fraction","",Arrays.asList(new Column("Out Fraction",L->Double.parseDouble(L.get(6)))));
+				print(w,id,"nInsHets","",Arrays.asList(new Column("nInsHets",L->Double.parseDouble(L.get(7)))));
+				print(w,id,"nDelsHets","",Arrays.asList(new Column("nDelsHets",L->Double.parseDouble(L.get(8)))));
+				print(w,id,"nInsAltHoms","",Arrays.asList(new Column("nInsAltHoms",L->Double.parseDouble(L.get(9)))));
+				print(w,id,"nDelAltHoms","",Arrays.asList(new Column("nDelAltHoms",L->Double.parseDouble(L.get(10)))));
+				}
+			}
+		}
+
+	
 	/* https://stackoverflow.com/a/52498075 */
 	private String getColorsForSamples(final List<String> samples) {
 		if(this.phenotype2samples.size()<2) return "";
@@ -385,12 +635,19 @@ public class PlotBcftoolsStats extends Launcher {
 	public int doWork(final List<String> args) {
 		try {
 			final List<Section> sections = Arrays.asList(
+				new AFSection(),
 				new DPSection(),
+				new HWESection(),
+				new ICSSection(),
+				new ICLSection(),
+				new IDDSection(),
 				new STSection(),
 				new QualSection(),
 				new SNSection(),
 				new PSCSection(),
-				new DPSection()
+				new PSISection(),
+				new TSTVSection(),
+				new SiSSection()
 				);
 			
 			if(sample2catPath!=null) {
