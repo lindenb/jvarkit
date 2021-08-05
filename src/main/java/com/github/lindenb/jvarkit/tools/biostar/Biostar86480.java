@@ -28,12 +28,11 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.io.Reader;
-import java.util.ArrayList;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -80,19 +79,26 @@ END_DOC
  */
 @Program(name="biostar86480",description="Genomic restriction finder",
 	biostars=86480,
-		keywords={"rebase","genome","enzyme","restricion","genome"}
-		)
+	keywords={"rebase","genome","enzyme","restricion","genome"},
+	creationDate="20131114",
+	modificationDate="20210805"
+	)
 public class Biostar86480 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar86480.class).make();
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-E","--enzyme"},description="restrict to that enzyme.")
+	private Path outputFile = null;
+	@Parameter(names={"-E","--enzyme"},description="restrict to that enzyme name.")
 	private Set<String> onlyEnz = new HashSet<>();
+	@Parameter(names={"--min-size","--min-weight"},description="restrict to that enzyme 'size/weight'. ignore if 'x' <=0")
+	private float min_size= 0;
+	@Parameter(names={"-l"},description="list available enzymes",help=true)
+	private boolean dump_enzymes = false;
 
-	private Rebase rebase=Rebase.createDefaultRebase();
+
+	private final Rebase rebase=Rebase.createDefaultRebase();
 	
 	public Biostar86480()
 		{
@@ -102,14 +108,14 @@ public class Biostar86480 extends Launcher
 	
 	private void digest(
 			final String seqName,
-			int position0,
-			final List<Character> sequence,
-			final PrintStream out
+			final int position0,
+			final CharSequence sequence,
+			final PrintWriter out
 			)
 		{
 		for(final Rebase.Enzyme enzyme:this.rebase)
 			{
-			if(enzyme.size()>sequence.size()) continue;
+			if(enzyme.size()>sequence.length()) continue;
 			for(int strand=0;strand<2;++strand)
 				{
 				int x=0;
@@ -119,7 +125,7 @@ public class Biostar86480 extends Launcher
 							enzyme.at(x):
 							AcidNucleics.complement(enzyme.at((enzyme.size()-1)-x))
 							);
-					if(!Rebase.compatible(sequence.get(x),c)) break;
+					if(!Rebase.compatible(sequence.charAt(x),c)) break;
 					}
 				if(x==enzyme.size())
 					{
@@ -131,7 +137,7 @@ public class Biostar86480 extends Launcher
 					out.print('\t');
 					for(int y=0;y< enzyme.size();++y)
 						{
-						out.print(sequence.get(y));
+						out.print(sequence.charAt(y));
 						}
 					out.print('\t');
 					out.print(1000);
@@ -149,29 +155,26 @@ public class Biostar86480 extends Launcher
 			}
 		}
 	
-	private void run(Reader in,PrintStream out) throws IOException
+	private void run(final Reader in,final PrintWriter out) throws IOException
 		{
-		int longest=0;
-		for(Rebase.Enzyme E:this.rebase)
-			{
-			longest=Math.max(E.size(), longest);
-			}
+		final int longest= this.rebase.stream().mapToInt(E->E.size()).max().orElse(0);
+		
 		String seqName="";
 		int position0=0;
-		ArrayList<Character> sequences=new ArrayList<Character>(longest);
+		final StringBuilder sequences=new StringBuilder(longest);
 		for(;;)
 			{
 			int c=in.read();
 			if(c==-1 || c=='>')
 				{
-				while(!sequences.isEmpty())
+				while(sequences.length()>0)
 					{
 					digest(seqName,position0,sequences,out);
 					++position0;
-					sequences.remove(0);
+					sequences.delete(0, 1);
 					}
 				if(c==-1) break;
-				StringBuilder b=new StringBuilder();
+				final StringBuilder b=new StringBuilder();
 				while((c=in.read())!=-1 && c!='\n')
 					{
 					b.append((char)c);
@@ -181,16 +184,12 @@ public class Biostar86480 extends Launcher
 				}
 			else if(!Character.isWhitespace(c))
 				{
-				sequences.add((char)Character.toUpperCase(c));
-				if(sequences.size()==longest)
+				sequences.append((char)Character.toUpperCase(c));
+				if(sequences.length()==longest)
 					{
 					digest(seqName,position0,sequences,out);
 					++position0;
-					sequences.remove(0);
-					if(position0%1000000==0)
-						{
-						LOG.info(seqName+" "+position0);
-						}
+					sequences.delete(0, 1);
 					}
 				}
 			}
@@ -199,12 +198,12 @@ public class Biostar86480 extends Launcher
 	@Override
 	public int doWork(final List<String> args) {
 		
+		
 		if(!onlyEnz.isEmpty())
 			{
-			Rebase rebase2=new Rebase();
-			for(String e:onlyEnz)
+			for(String e:this.onlyEnz)
 				{
-				Rebase.Enzyme enz=this.rebase.getEnzymeByName(e);
+				final Rebase.Enzyme enz=this.rebase.getEnzymeByName(e);
 				if(enz==null)
 					{
 					LOG.error("Cannot find enzyme "+e +" in RE list.");
@@ -215,32 +214,55 @@ public class Biostar86480 extends Launcher
 						}
 					return -1;
 					}
-				rebase2.getEnzymes().add(enz);
 				}
-			this.rebase=rebase2;
+			this.rebase.removeIf(ENZ->onlyEnz.contains(ENZ.getName()));
 			}
-		PrintStream out;
+		
+		if(this.min_size>0f) {
+			this.rebase.removeIf(ENZ->ENZ.getWeight()< this.min_size);
+			}
+		
+		if(dump_enzymes) {
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				out.println("#NAME,SITE,SIZE,WEIGHT");
+				for(final Rebase.Enzyme enz:this.rebase) {
+					out.println(enz.getName()+","+enz.getDecl()+","+enz.size()+","+enz.getWeight());
+				}
+				out.flush();
+				return 0;
+			}
+			catch(IOException err) {
+				LOG.error(err);
+				return -1;
+			}
+		}
+
+		
+		if(this.rebase.isEmpty()) {
+			LOG.error("No enzyme in database");
+			return -1;
+			}
 		try
 			{
-			out = super.openFileOrStdoutAsPrintStream(this.outputFile);
-			if(args.isEmpty())
-				{
-				LOG.info("Reading from stdin");
-				run(new InputStreamReader(stdin()),out);
-				}
-			else
-				{
-				for(final String arg:args)
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				if(args.isEmpty())
 					{
-					LOG.info("Opening "+arg);
-					final Reader in=IOUtils.openURIForBufferedReading(arg);
-					run(in,out);
-					in.close();
+					try(Reader in=new InputStreamReader(stdin())) {
+						run(in,out);
+						}
 					}
-					
+				else
+					{
+					for(final String arg:args)
+						{
+						try(Reader in=IOUtils.openURIForBufferedReading(arg)) {
+							run(in,out);
+							}
+						}
+						
+					}
+				out.flush();
 				}
-			out.flush();
-			out.close();
 			return 0;
 			}
 		catch(final Throwable err)

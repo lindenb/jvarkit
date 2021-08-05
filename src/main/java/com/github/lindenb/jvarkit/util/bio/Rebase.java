@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Restriction Enzyme Database
@@ -61,6 +62,12 @@ public class Rebase
 		return this.stream().
 			filter(F->F.getName().equals(name)).
 			findFirst().orElse(null);
+		}
+	
+	/** remove enzyme using filter */
+	@Override
+	public boolean removeIf(Predicate<? super Enzyme> filter) {
+		return enzymes.removeIf(filter);
 		}
 	
 	@Override 

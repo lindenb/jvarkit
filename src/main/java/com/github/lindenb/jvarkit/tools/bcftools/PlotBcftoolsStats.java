@@ -12,9 +12,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 import java.util.function.ToLongFunction;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -502,17 +504,78 @@ public class PlotBcftoolsStats extends Launcher {
 		PerSampleSection(String id,String header) {
 			super(id,header);
 			}
-		protected void print(PrintWriter w,String id,String title,String extra,List<Column> columns) {
+		
+		protected void groupByPhenotype(PrintWriter w,String id,String title,Function<List<String>, Number> fun) {
+			if(sample2phenotype.isEmpty()) return;
+			final List<List<String>> L = getLinesForId(id);
+
+			final Set<String> samples = L.stream().map(S->S.get(2)).collect(Collectors.toCollection(HashSet::new));
+			samples.retainAll(sample2phenotype.keySet());
 			
+			final List<String> phenotypes = new ArrayList<>(samples.stream().map(S->sample2phenotype.get(S)).
+					collect(Collectors.toCollection(TreeSet::new)));
+			if(phenotypes.isEmpty()) {
+				LOG.info("no phenotype for "+samples);
+				return;
+			}
 			
+			w.println(device(this.ID+"."+id+".boxplot."+title.toLowerCase().replace(' ', '_'),null));
+			for(int i=0;i< phenotypes.size();i++) {
+				final String phenotype = phenotypes.get(i);
+				w.println("p"+i+" <- c("+
+					L.stream().
+						filter(X->phenotype.equals(sample2phenotype.get(X.get(2)))).
+						map(X->String.valueOf(fun.apply(X))).
+						collect(Collectors.joining(",")) +
+					")");
+				}
+			w.println("boxplot("+
+				IntStream.range(0, phenotypes.size()).mapToObj(X->"p"+X).collect(Collectors.joining(","))+","+
+				"main="+quote(title)+",ylab="+quote(title)+","+
+				"las=2,"+
+				"names=c("+ phenotypes.stream().map(S->quote(S)).collect(Collectors.joining(","))+")"+
+				")");
+			w.println("dev.off()");
+			}
+		
+		protected void print(PrintWriter w,String id,String title,String extra,final List<Column> columns) {
+			final boolean has_phenotype = columns.size()==1 && !sample2phenotype.isEmpty();
+
+			final List<List<String>> L;
 			
-			final List<List<String>> L = getLinesForId(id).stream().
-					collect(Collectors.toList());
+			if(columns.size()==1) {
+				L = getLinesForId(id).stream().sorted((A,B)->Double.compare(columns.get(0).fun.applyAsDouble(B), columns.get(0).fun.applyAsDouble(A))).collect(Collectors.toList());
+				}
+			else
+				{
+				L = getLinesForId(id);
+				}
 			
 			if(columns.stream().flatMapToDouble(C->L.stream().mapToDouble(C.fun)).allMatch(D->D==0)) return;
 			
+			if(has_phenotype) {
+				w.println("pc <- rainbow("+phenotype2samples.size()+")");
+				}
+			
+			final UnaryOperator<String> pheno2color= PH ->{
+				if(!StringUtils.isBlank(PH)) {
+					int i=0;
+					for(String sp:phenotype2samples.keySet()) {
+						if(sp.equals(PH)) break;
+						i++;
+						}
+					if(i==phenotype2samples.size()) throw new IllegalArgumentException("Cannot find "+PH+" in "+phenotype2samples.keySet());
+					return "pc["+(i+1)+"]";
+					}
+				return  "\"gray\"";
+				};
+			
+			final UnaryOperator<String> sample2color= S -> pheno2color.apply(sample2phenotype.get(S));
+			
 			final List<String> colNames = new ArrayList<>();
-			w.println(device(this.ID+"."+id+"."+title.toLowerCase().replace(' ', '_'),null));
+			final HashMap<String, String> hash = new HashMap<>();
+			hash.put("width", String.valueOf((int)Math.max(7.0,L.size()*7/40.0)));
+			w.println(device(this.ID+"."+id+"."+title.toLowerCase().replace(' ', '_'),hash));
 			//loop over samples
 			for(int i=0;i< L.size();i++) {
 				final List<String> row= L.get(i);
@@ -524,8 +587,12 @@ public class PlotBcftoolsStats extends Launcher {
 				colNames.add(colName);
 				}
 			
-			w.println("T2 <- as.matrix(data.frame("+String.join(",", colNames) +"))");
-				
+			if(has_phenotype) {
+				w.println("T2 <- c("+String.join(",", colNames) +")");
+				}
+			else {
+				w.println("T2 <- as.matrix(data.frame("+String.join(",", colNames) +"))");
+				}
 
 			w.println(
 					"barplot(T2,main="+quote(title)+","+
@@ -533,9 +600,17 @@ public class PlotBcftoolsStats extends Launcher {
 	                "xlab=\"Sample\","+
 	                "ylab=\"Count Variants\","+
 	                "names=c("+L.stream().map(S->quote(S.get(2))).collect(Collectors.joining(","))+"),"+
-	                "legend=c("+columns.stream().map(S->quote(S.label)).collect(Collectors.joining(","))+
-					"),las=2"+extra+",col=rainbow("+ columns.size() +"))");
-					
+	                (has_phenotype?"":"legend=c("+columns.stream().map(S->quote(S.label)).collect(Collectors.joining(","))+"),")+
+	                "col="+(has_phenotype?"c("+ L.stream().map(S->sample2color.apply(S.get(2))).collect(Collectors.joining(",")) +")":"rainbow("+ columns.size() +")")+","+
+					"las=2"+extra+")");
+			
+			if(has_phenotype) {
+				w.println("legend(\"topright\","+ 
+					"legend =c("+ phenotype2samples.keySet().stream().map(S->quote(S)).collect(Collectors.joining(","))+"),"+ 
+					"fill = c("+phenotype2samples.keySet().stream().map(S->pheno2color.apply(S)).collect(Collectors.joining(","))+")"+
+					")");
+				}
+			
 			w.println("dev.off()");
 			}
 
@@ -558,6 +633,12 @@ public class PlotBcftoolsStats extends Launcher {
 								new Column("HOM_VAR",L->Double.parseDouble(L.get(4))),
 								new Column("NO_CALL",L->Double.parseDouble(L.get(13)))
 								));
+				
+				
+				groupByPhenotype(w,id,"Average Depth",L->Double.parseDouble(L.get(9)));
+				groupByPhenotype(w,id,"Missing",L->Double.parseDouble(L.get(13)));
+				groupByPhenotype(w,id,"Het",L->Double.parseDouble(L.get(5)));
+				groupByPhenotype(w,id,"HOM_VAR",L->Double.parseDouble(L.get(4)));
 				}
 			}
 		}
@@ -579,29 +660,14 @@ public class PlotBcftoolsStats extends Launcher {
 				print(w,id,"nDelsHets","",Arrays.asList(new Column("nDelsHets",L->Double.parseDouble(L.get(8)))));
 				print(w,id,"nInsAltHoms","",Arrays.asList(new Column("nInsAltHoms",L->Double.parseDouble(L.get(9)))));
 				print(w,id,"nDelAltHoms","",Arrays.asList(new Column("nDelAltHoms",L->Double.parseDouble(L.get(10)))));
+				
+				groupByPhenotype(w,id,"nInsHets",L->Double.parseDouble(L.get(7)));
+				groupByPhenotype(w,id,"nDelsHets",L->Double.parseDouble(L.get(8)));
+				groupByPhenotype(w,id,"nInsAltHoms",L->Double.parseDouble(L.get(9)));
+				groupByPhenotype(w,id,"nDelAltHoms",L->Double.parseDouble(L.get(10)));
 				}
 			}
 		}
-
-	
-	/* https://stackoverflow.com/a/52498075 */
-	private String getColorsForSamples(final List<String> samples) {
-		if(this.phenotype2samples.size()<2) return "";
-		final String hue = samples.stream().
-			map(S->this.sample2phenotype.get(S)).
-			map(P->{
-				double n= this.phenotype2samples.size();
-				int i=0;
-				for(String k:this.phenotype2samples.keySet()) {
-					if(k.equals(P)) break;
-					i++;
-					}
-				return String.valueOf(i/n);
-				}
-			).collect(Collectors.joining(","));
-		return "hsv(h=c("+hue+"))";
-		}
-
 	
 	private String quote(final String s) {
 		return "\""+StringUtils.escapeC(s)+"\"";

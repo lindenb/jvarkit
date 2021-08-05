@@ -11,16 +11,21 @@ Genomic restriction finder
 Usage: biostar86480 [options] Files
   Options:
     -E, --enzyme
-      restrict to that enzyme.
+      restrict to that enzyme name.
       Default: []
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --min-size, --min-weight
+      restrict to that enzyme 'size/weight'. ignore if 'x' <=0
+      Default: 0.0
     -o, --output
       Output file. Optional . Default: stdout
     --version
       print version and exit
+    -l
+      list available enzymes
 
 ```
 
@@ -56,6 +61,11 @@ $ ./gradlew biostar86480
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20131114
 
 ## Source code 
 
