@@ -222,7 +222,7 @@ public class FindGVCFsBlocks extends Launcher {
 			tmpBedFile0 = Files.createTempFile(this.tmpDir, "tmp.", ".bed");
 			tmpBedFile1 = Files.createTempFile(this.tmpDir, "tmp.", ".bed");
 			SAMSequenceDictionary dict = null;
-			
+			final long initMilliSec = System.currentTimeMillis();
 			for(int i=0;i< inputs.size();i++) {
 				final long startMilliSec = System.currentTimeMillis();
 				LOG.info(inputs.get(i)+" "+(i+1)+"/"+inputs.size());
@@ -288,7 +288,9 @@ public class FindGVCFsBlocks extends Launcher {
 								}
 							}
 						pw.flush();
-						LOG.info("N="+count_variants+". That took: "+StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec));
+						final long millisecPerVcf  = (System.currentTimeMillis() - initMilliSec)/(i+1L);
+												
+						LOG.info("N="+count_variants+". That took: "+StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec)+" Remains: "+ StringUtils.niceDuration((inputs.size()-(i+1))*millisecPerVcf));
 						}//end writer
 					Files.deleteIfExists(tmpBedFile1);
 					Files.move(tmpBedFile0,tmpBedFile1);

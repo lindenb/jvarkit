@@ -28,7 +28,7 @@ Usage: swingbamcov [options] Files
     --small
       Display the reads when the region is small than 'x' bp. A distance 
       specified as a positive integer.Commas are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 200
     --version
       print version and exit

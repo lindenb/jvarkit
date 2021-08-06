@@ -37,7 +37,7 @@ Usage: bam2svg [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
-    -c, --showclipping
+    -c, --showclipping, --clip
       Show clipping
       Default: false
     -S, --vcf
