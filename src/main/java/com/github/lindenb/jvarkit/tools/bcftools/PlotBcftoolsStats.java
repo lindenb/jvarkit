@@ -64,6 +64,8 @@ public class PlotBcftoolsStats extends Launcher {
 	private Format outputFormat = Format.PDF;
 	@Parameter(names={"--categories","--phenotypes"},description="A tab delimited file (sample)<tab>(category)")
 	private Path sample2catPath = null;
+	@Parameter(names={"--sections"},description="Limit to those sections. eg. 'QUAL,PSC,PSI'. Comma-separated values. Ignore if empty. Inverse the selection if it starts with '^'.")
+	private String sectionsSelectStr = "";
 
 	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
 	private Map<String, String> dynaParams = new HashMap<>();
@@ -79,6 +81,7 @@ public class PlotBcftoolsStats extends Launcher {
 		final String ID;
 		final String header;
 		final int expectNCols;
+		boolean enabled =  true;
 		protected Section(String ID,String header) {
 			this.ID = ID;
 			this.header = header;
@@ -716,6 +719,23 @@ public class PlotBcftoolsStats extends Launcher {
 				new SiSSection()
 				);
 			
+			if(!StringUtils.isBlank(this.sectionsSelectStr)) {
+				final boolean inverse = this.sectionsSelectStr.startsWith("^");
+				final Set<String> ids = Arrays.stream(CharSplitter.COMMA.split(inverse?this.sectionsSelectStr.substring(1):this.sectionsSelectStr)).
+					map(S->S.trim()).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toSet());
+				for(Section sec: sections) {
+					if(inverse) {
+						sec.enabled = !ids.contains(sec.ID);
+						}
+					else
+						{
+						sec.enabled = ids.contains(sec.ID);
+						}
+					}
+				}
+			
 			if(sample2catPath!=null) {
 				try(BufferedReader br= IOUtils.openPathForBufferedReading(sample2catPath)) {
 					String line;
@@ -773,10 +793,14 @@ public class PlotBcftoolsStats extends Launcher {
 						}
 					if(section==null || !section.ID.equals(tokens[0])) {
 						section	= sections.stream().filter(S->S.ID.equals(tokens[0])).findFirst().orElse(null);
+						
 						if(section==null) {
 							if(undefined_sections.add(tokens[0])) {
 								LOG.warn("no handler defined for "+tokens[0]);
 								}
+							continue;
+							}
+						if(!section.enabled) {
 							continue;
 							}
 						if(prevComment==null || !section.header.equals(prevComment)) {
@@ -793,6 +817,7 @@ public class PlotBcftoolsStats extends Launcher {
 			try(PrintWriter pw = new PrintWriter(System.out)) {
 				pw.println("# output to be piped in R");
 				for(Section sec: sections) {
+					if(!sec.enabled) continue;
 					if(sec.lines.isEmpty()) continue;
 					LOG.info("#invoking "+sec.ID);
 					pw.println("# BEGIN "+sec.ID);
