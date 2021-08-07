@@ -91,28 +91,38 @@ find regions for running GATK CombineGVCFs in parallel.
 
 ## Input
 
-input is a set of path to the indexed g.vcf files
-or it's a file with the '.list' suffix containing the path to the g.vcf files
+input is a set of path to the indexed g.vcf files or a picard-style interval file generated with a previous invocation of findgvcfsblocks.jar with one sample.
+or it's a file with the '.list' suffix containing the path to the g.vcf files/interval files
 
 g.vcf files must be indexed if option `-c` is used.
 
 ## Output
 
-output is a BED file containing the calleable GVCFs blocks.
+output is a picard-style **Interval** file containing the calleable GVCFs blocks.
 
 ## Example
 
 ```
-$ java -jar dist/findgvcfsblocks.jar --chrom RF11 S1.g.vcf.gz S2.g.vcf.gz S3.g.vcf.gz 
-RF11	0	5
-RF11	5	12
-RF11	12	15
-RF11	15	18
-RF11	18	20
-RF11	20	21
-RF11	21	27
-RF11	27	28
-RF11	28	30
-RF11	30	46
+$ java -jar dist/findgvcfsblocks.jar --min-size 100 --chrom RF11 S1.g.vcf.gz S2.g.vcf.gz S3.g.vcf.gz 
+@HD	VN:1.6
+@SQ	SN:RF01	LN:3302
+@SQ	SN:RF02	LN:2687
+@SQ	SN:RF03	LN:2592
+@SQ	SN:RF04	LN:2362
+@SQ	SN:RF05	LN:1579
+@SQ	SN:RF06	LN:1356
+@SQ	SN:RF07	LN:1074
+@SQ	SN:RF08	LN:1059
+@SQ	SN:RF09	LN:1062
+@SQ	SN:RF10	LN:751
+@SQ	SN:RF11	LN:666
+@CO	findgvcfsblocks. compilation:20210807160340 githash:b442941 htsjdk:2.24.1 date:20210807160354. cmd:--min-size 100 --chrom RF11 S1.g.vcf.gz S2.g.vcf.gz S3.g.vcf.gz
+RF11	1	95	+	.
+RF11	96	182	+	.
+RF11	183	237	+	.
+RF11	238	428	+	.
+RF11	429	528	+	.
+RF11	529	628	+	.
+RF11	629	666	+	.
 (...)
 ```

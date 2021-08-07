@@ -22,11 +22,13 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.gvcf;
 
-import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.Closeable;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Iterator;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -35,24 +37,27 @@ import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.PeekableIterator;
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -70,29 +75,39 @@ find regions for running GATK CombineGVCFs in parallel.
 
 ## Input
 
-input is a set of path to the indexed g.vcf files
-or it's a file with the '.list' suffix containing the path to the g.vcf files
+input is a set of path to the indexed g.vcf files or a picard-style interval file generated with a previous invocation of findgvcfsblocks.jar with one sample.
+or it's a file with the '.list' suffix containing the path to the g.vcf files/interval files
 
 g.vcf files must be indexed if option `-c` is used.
 
 ## Output
 
-output is a BED file containing the calleable GVCFs blocks.
+output is a picard-style **Interval** file containing the calleable GVCFs blocks.
 
 ## Example
 
 ```
-$ java -jar dist/findgvcfsblocks.jar --chrom RF11 S1.g.vcf.gz S2.g.vcf.gz S3.g.vcf.gz 
-RF11	0	5
-RF11	5	12
-RF11	12	15
-RF11	15	18
-RF11	18	20
-RF11	20	21
-RF11	21	27
-RF11	27	28
-RF11	28	30
-RF11	30	46
+$ java -jar dist/findgvcfsblocks.jar --min-size 100 --chrom RF11 S1.g.vcf.gz S2.g.vcf.gz S3.g.vcf.gz 
+@HD	VN:1.6
+@SQ	SN:RF01	LN:3302
+@SQ	SN:RF02	LN:2687
+@SQ	SN:RF03	LN:2592
+@SQ	SN:RF04	LN:2362
+@SQ	SN:RF05	LN:1579
+@SQ	SN:RF06	LN:1356
+@SQ	SN:RF07	LN:1074
+@SQ	SN:RF08	LN:1059
+@SQ	SN:RF09	LN:1062
+@SQ	SN:RF10	LN:751
+@SQ	SN:RF11	LN:666
+@CO	findgvcfsblocks. compilation:20210807160340 githash:b442941 htsjdk:2.24.1 date:20210807160354. cmd:--min-size 100 --chrom RF11 S1.g.vcf.gz S2.g.vcf.gz S3.g.vcf.gz
+RF11	1	95	+	.
+RF11	96	182	+	.
+RF11	183	237	+	.
+RF11	238	428	+	.
+RF11	429	528	+	.
+RF11	529	628	+	.
+RF11	629	666	+	.
 (...)
 ```
 END_DOC
@@ -101,7 +116,7 @@ END_DOC
 	description="Find common blocks of calleable regions from a set of gvcfs",
 	keywords={"gvcf","gatk","vcf"},
 	creationDate="20210806",
-	modificationDate="20210806"
+	modificationDate="20210807"
 	)
 public class FindGVCFsBlocks extends Launcher {
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -117,36 +132,66 @@ public class FindGVCFsBlocks extends Launcher {
 	private static final Logger LOG = Logger.build(FindGVCFsBlocks.class).make();
 	private static final Allele NON_REF = Allele.create("<NON_REF>",false);
 	
-	/** closeable iterator over a BED file */
-	private class Bedterator extends AbstractCloseableIterator<Locatable> {
-		private final BufferedReader br;
-		private final BedLineCodec codec = new BedLineCodec();
-		Bedterator(final Path bedFile) throws IOException {
-			this.br = IOUtils.openPathForBufferedReading(bedFile);
+	private class IntervalListWriter implements Closeable {
+		private final BufferedWriter w;
+		IntervalListWriter(final Path p,final SAMSequenceDictionary dict) throws IOException {
+			w = p==null?
+				new BufferedWriter(new OutputStreamWriter(System.out, "UTF-8")):
+				IOUtil.openFileForBufferedUtf8Writing(p)
+				;
+			final SAMFileHeader header = new SAMFileHeader(dict);
+			JVarkitVersion.getInstance().addMetaData(FindGVCFsBlocks.this, header);
+			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
+	        codec.encode(w, header);
+			}
+		public void add(final Locatable loc) throws IOException{
+			w.write(loc.getContig()+"\t"+loc.getStart()+"\t"+loc.getEnd()+"\t+\t.");//yes, not bed, interval list so no -1
+			w.newLine();
+			}
+		@Override
+		public void close() throws IOException {
+			w.flush();
+			w.close();
+			}
+		
+		}
+	
+	
+	private abstract class GVCFOrIntervalIterator extends AbstractCloseableIterator<Locatable>	{
+		public abstract SAMSequenceDictionary getSAMSequenceDictionary();
+		}
+	
+	/** closeable iterator over a VCF file, returns start-end of blocks */
+	private class IntervalListIterator extends GVCFOrIntervalIterator	{
+		private final IntervalList intervalList;
+		private SAMSequenceDictionary dict;
+		private final Iterator<Interval> delegate;
+		IntervalListIterator(final Path intervalFile) {
+			this.intervalList = IntervalList.fromPath(intervalFile);
+			this.dict = SequenceDictionaryUtils.extractRequired(this.intervalList.getHeader());
+			this.delegate = this.intervalList.iterator();
 			}
 		@Override
 		protected Locatable advance()
 			{
-			try {
-				String line;
-				while((line= br.readLine())!=null) {
-					final BedLine bed = codec.decode(line);
-					if(bed==null) continue;
-					return bed;
-					}
-				return null;
-			} catch(IOException err) {
-				throw new RuntimeIOException(err);
+			while(this.delegate.hasNext()) {
+				final Locatable loc = this.delegate.next();
+				if(!StringUtils.isBlank(the_contig) && !loc.getContig().equals(the_contig)) continue;
+				return loc;
 				}
+			return null;
 			}
-		
+		@Override
+		public SAMSequenceDictionary getSAMSequenceDictionary() {
+			return this.dict;
+			}
 		@Override
 		public void close() {
-			try {this.br.close();} catch(Throwable err) {}
 			}
 		}
+	
 	/** closeable iterator over a VCF file, returns start-end of blocks */
-	private class GVCFVariantIterator extends AbstractCloseableIterator<Locatable>	{
+	private class GVCFVariantIterator extends GVCFOrIntervalIterator	{
 		private final VCFReader vcfFileReader;
 		private final VCFHeader header;
 		private SAMSequenceDictionary dict;
@@ -168,6 +213,11 @@ public class FindGVCFsBlocks extends Launcher {
 				this.iter = this.vcfFileReader.query(ssr);
 				}
 			this.comparator = this.header.getVCFRecordComparator();
+			}
+		@Override
+		public SAMSequenceDictionary getSAMSequenceDictionary()
+			{
+			return this.dict;
 			}
 		@Override
 		protected Locatable advance()
@@ -199,7 +249,20 @@ public class FindGVCFsBlocks extends Launcher {
 			try {this.vcfFileReader.close();} catch(Throwable err) {}
 			}
 		}
-		
+	
+	private GVCFOrIntervalIterator openInput(final Path path) throws IOException {
+		final String fname = path.getFileName().toString();
+		if(FileExtensions.VCF_LIST.stream().anyMatch(S->fname.endsWith(S))) {
+			return new GVCFVariantIterator(path);
+			}
+		else if(fname.endsWith(FileExtensions.INTERVAL_LIST) || fname.endsWith(FileExtensions.COMPRESSED_INTERVAL_LIST)) {
+			return new IntervalListIterator(path);
+			}
+		else
+			{
+			throw new IOException("unknown file extension : "+path+" not "+FileExtensions.INTERVAL_LIST+"/"+FileExtensions.COMPRESSED_INTERVAL_LIST+"/"+String.join("/", FileExtensions.VCF_LIST));
+			}
+		}
 	
 	@SuppressWarnings("resource")
 	@Override
@@ -214,6 +277,14 @@ public class FindGVCFsBlocks extends Launcher {
 				LOG.error("input missing");
 				return -1;
 				}
+			if(this.outputFile!=null) {
+				final String fname = this.outputFile.getFileName().toString();
+				if(!fname.endsWith(FileExtensions.INTERVAL_LIST) && !fname.endsWith(FileExtensions.COMPRESSED_INTERVAL_LIST)) {
+					LOG.error("Output should end with "+ FileExtensions.INTERVAL_LIST+" or "+FileExtensions.COMPRESSED_INTERVAL_LIST);
+					return -1;
+					}
+				}
+			
 			if(this.tmpDir==null) {
 				this.tmpDir = (this.outputFile==null?IOUtils.getDefaultTempDir():this.outputFile.getParent());				
 				}
@@ -226,21 +297,21 @@ public class FindGVCFsBlocks extends Launcher {
 			for(int i=0;i< inputs.size();i++) {
 				final long startMilliSec = System.currentTimeMillis();
 				LOG.info(inputs.get(i)+" "+(i+1)+"/"+inputs.size());
-				try(GVCFVariantIterator r0 = new GVCFVariantIterator(inputs.get(i))) {
+				try(GVCFOrIntervalIterator r0 = openInput(inputs.get(i))) {
 					if(dict!=null) {
-						SequenceUtil.assertSequenceDictionariesEqual(dict, r0.dict);
+						SequenceUtil.assertSequenceDictionariesEqual(dict, r0.getSAMSequenceDictionary());
 						}
 					else
 						{
-						dict = r0.dict;
+						dict = r0.getSAMSequenceDictionary();
 						}
 					long count_variants = 0L;
-					try(PrintWriter pw= IOUtils.openPathForPrintWriter(tmpBedFile0)) {
+					try(IntervalListWriter pw= new IntervalListWriter(tmpBedFile0,dict)) {
 						/* first VCF , just convert to bed */
 						if(i==0) {
 							while(r0.hasNext()) {
 								final Locatable loc = r0.next();
-								pw.println(loc.getContig()+"\t"+(loc.getStart()-1)+"\t"+loc.getEnd());
+								pw.add(loc);
 								count_variants++;
 								}
 							}
@@ -249,7 +320,7 @@ public class FindGVCFsBlocks extends Launcher {
 							{
 							Locatable start0 = null;
 							Locatable start1 = null;
-							try(Bedterator r1 = new Bedterator(tmpBedFile1)) {
+							try(IntervalListIterator r1 = new IntervalListIterator(tmpBedFile1)) {
 								PeekableIterator<Locatable> peek0 = new PeekableIterator<>(r0);
 								PeekableIterator<Locatable> peek1 = new PeekableIterator<>(r1);
 								while(peek0.hasNext() && peek1.hasNext()) {
@@ -273,7 +344,7 @@ public class FindGVCFsBlocks extends Launcher {
 										continue;
 										}
 									else { /* end0==end1 */
-										pw.println(loc0.getContig()+"\t"+(Math.min(start0.getStart(),start1.getStart())-1)+"\t"+loc0.getEnd());
+										pw.add(new SimpleInterval(loc0.getContig(),(Math.min(start0.getStart(),start1.getStart())),loc0.getEnd()));
 										count_variants++;
 										peek0.next();//consumme
 										peek1.next();//consumme
@@ -287,7 +358,6 @@ public class FindGVCFsBlocks extends Launcher {
 								peek1.close();
 								}
 							}
-						pw.flush();
 						final long millisecPerVcf  = (System.currentTimeMillis() - initMilliSec)/(i+1L);
 												
 						LOG.info("N="+count_variants+". That took: "+StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec)+" Remains: "+ StringUtils.niceDuration((inputs.size()-(i+1))*millisecPerVcf));
@@ -297,8 +367,8 @@ public class FindGVCFsBlocks extends Launcher {
 					}
 			
 				}
-			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-				try(Bedterator r1 = new Bedterator(tmpBedFile1)) {
+			try(IntervalListWriter w = new IntervalListWriter(this.outputFile,dict)) {
+				try(IntervalListIterator r1 = new IntervalListIterator(tmpBedFile1)) {
 					final PeekableIterator<Locatable> peek1 = new PeekableIterator<>(r1);
 					while(peek1.hasNext()) {
 						Locatable loc = peek1.next();
@@ -310,11 +380,10 @@ public class FindGVCFsBlocks extends Launcher {
 							//consumme loc2
 							peek1.next();
 							}
-						pw.println(loc.getContig()+"\t"+(loc.getStart()-1)+"\t"+loc.getEnd());
+						w.add(loc);
 						}
 					peek1.close();
 					}
-				pw.flush();
 				Files.deleteIfExists(tmpBedFile1);
 				}
 			return 0;
