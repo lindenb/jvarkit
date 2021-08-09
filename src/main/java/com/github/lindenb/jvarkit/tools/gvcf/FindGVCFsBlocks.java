@@ -110,13 +110,123 @@ RF11	529	628	+	.
 RF11	629	666	+	.
 (...)
 ```
+
+## Nextflow
+
+```
+
+Channel.fromPath(params.reference+".fai").
+	splitCsv(header: false,sep:'\t',strip:true).
+	filter{T->T[0].matches("(chr)?[0-9XY]+")}.
+	map{T->[T[0]]}.
+	set{each_contig}
+
+
+process gvcflists {
+executor "local"
+output:
+	path("gvcfs.list") into (gvcfs_list1,gvcfs_list2)
+script:
+"""
+test -s "${params.gvcfs}"
+
+SQRT=`awk 'END{z=sqrt(NR); print (z==int(z)?z:int(z)+1);}' "${params.gvcfs}"`
+
+split -a 9 --additional-suffix=.list --lines=\${SQRT} "${params.gvcfs}" chunck.
+
+find \${PWD} -type f -name "chunck.*.list"  > gvcfs.list
+
+"""
+}
+
+
+gvcfs_list2.splitCsv(header: false,sep:'\t',strip:true).
+	map{T->T[0]}.
+	set{one_gvcf_list}
+
+
+process findBlocks {
+tag "${file(vcfs).name} ${contig}"
+memory "5g"
+input:
+	tuple vcfs,contig from one_gvcf_list.combine(each_contig)
+output:
+	tuple contig,path("block.interval_list.gz") into blocks_interval
+script:
+"""
+module load jvarkit/0.0.0
+
+java -Xmx${task.memory.giga}g -Djava.io.tmpdir=. -jar \${JVARKIT_DIST}/findgvcfsblocks.jar \
+	--contig "${contig}" \
+	-T . \
+	-o "block.interval_list.gz" \
+	"${vcfs}"
+
+test -s block.interval_list.gz
+"""
+}
+
+
+process findCommonBlocks {
+tag "${contig} N=${L.size()}"
+memory "10g"
+input:
+	tuple contig,L from blocks_interval.groupTuple()
+output:
+	path("block.interval_list") into blocks_common
+script:
+"""
+module load jvarkit/0.0.0
+
+cat << EOF > jeter.list
+${L.join("\n")}
+EOF
+
+java -Xmx${task.memory.giga}g -Djava.io.tmpdir=. -jar \${JVARKIT_DIST}/findgvcfsblocks.jar \
+	--contig "${contig}" \
+	-T . \
+	--block-size "${params.blocksize}" \
+	-o "block.interval_list" \
+	jeter.list
+
+rm jeter.list
+
+test -s block.interval_list
+"""
+}
+
+
+blocks_common.splitCsv(header: false,sep:'\t',strip:true).
+	filter{T->!T[0].startsWith("@")}.
+	map{T->T[0]+":"+T[1]+"-"+T[2]}.
+	set{intervals}
+
+process genotypeRegion {
+tag "${region}"
+cache "lenient"
+errorStrategy "finish"
+afterScript "rm -rf TMP"
+memory "15g"
+input:
+	val region from intervals
+	path gvcfs from gvcfs_list1
+output:
+	path("genotyped.vcf.gz")  into genotyped
+	path("genotyped.vcf.gz.tbi")
+script:
+(...)
+
+```
+
+
+
 END_DOC
 */
 @Program(name="findgvcfsblocks",
 	description="Find common blocks of calleable regions from a set of gvcfs",
 	keywords={"gvcf","gatk","vcf"},
 	creationDate="20210806",
-	modificationDate="20210807"
+	modificationDate="20210809"
 	)
 public class FindGVCFsBlocks extends Launcher {
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -285,10 +395,13 @@ public class FindGVCFsBlocks extends Launcher {
 					}
 				}
 			
-			if(this.tmpDir==null) {
-				this.tmpDir = (this.outputFile==null?IOUtils.getDefaultTempDir():this.outputFile.getParent());				
+			if(this.tmpDir==null && this.outputFile!=null) {
+				this.tmpDir = this.outputFile.getParent();				
 				}
 			
+			if(this.tmpDir==null) {
+				this.tmpDir = IOUtils.getDefaultTempDir();
+				}
 			IOUtil.assertDirectoryIsWritable(this.tmpDir);
 			tmpBedFile0 = Files.createTempFile(this.tmpDir, "tmp.", ".bed");
 			tmpBedFile1 = Files.createTempFile(this.tmpDir, "tmp.", ".bed");
