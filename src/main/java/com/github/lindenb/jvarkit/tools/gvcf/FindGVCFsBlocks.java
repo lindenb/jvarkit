@@ -115,13 +115,12 @@ RF11	629	666	+	.
 ## Nextflow
 
 ```
-
+(...)
 Channel.fromPath(params.reference+".fai").
 	splitCsv(header: false,sep:'\t',strip:true).
 	filter{T->T[0].matches("(chr)?[0-9XY]+")}.
 	map{T->[T[0]]}.
 	set{each_contig}
-
 
 process gvcflists {
 executor "local"
@@ -251,6 +250,7 @@ public class FindGVCFsBlocks extends Launcher {
 				IOUtil.openFileForBufferedUtf8Writing(p)
 				;
 			final SAMFileHeader header = new SAMFileHeader(dict);
+			header.setSortOrder(SAMFileHeader.SortOrder.coordinate);
 			JVarkitVersion.getInstance().addMetaData(FindGVCFsBlocks.this, header);
 			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
 	        codec.encode(w, header);
