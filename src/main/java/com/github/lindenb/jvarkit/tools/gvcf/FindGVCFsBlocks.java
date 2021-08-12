@@ -22,13 +22,13 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.gvcf;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
@@ -50,15 +50,16 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
+import htsjdk.samtools.util.BufferedLineReader;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.PeekableIterator;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.tribble.IntervalList.IntervalListCodec;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextComparator;
@@ -114,13 +115,12 @@ RF11	629	666	+	.
 ## Nextflow
 
 ```
-
+(...)
 Channel.fromPath(params.reference+".fai").
 	splitCsv(header: false,sep:'\t',strip:true).
 	filter{T->T[0].matches("(chr)?[0-9XY]+")}.
 	map{T->[T[0]]}.
 	set{each_contig}
-
 
 process gvcflists {
 executor "local"
@@ -250,6 +250,7 @@ public class FindGVCFsBlocks extends Launcher {
 				IOUtil.openFileForBufferedUtf8Writing(p)
 				;
 			final SAMFileHeader header = new SAMFileHeader(dict);
+			header.setSortOrder(SAMFileHeader.SortOrder.coordinate);
 			JVarkitVersion.getInstance().addMetaData(FindGVCFsBlocks.this, header);
 			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
 	        codec.encode(w, header);
@@ -273,21 +274,49 @@ public class FindGVCFsBlocks extends Launcher {
 	
 	/** closeable iterator over a VCF file, returns start-end of blocks */
 	private class IntervalListIterator extends GVCFOrIntervalIterator	{
-		private final IntervalList intervalList;
-		private SAMSequenceDictionary dict;
-		private final Iterator<Interval> delegate;
-		IntervalListIterator(final Path intervalFile) {
-			this.intervalList = IntervalList.fromPath(intervalFile);
-			this.dict = SequenceDictionaryUtils.extractRequired(this.intervalList.getHeader());
-			this.delegate = this.intervalList.iterator();
+		private BufferedReader br;
+		private final SAMSequenceDictionary dict;
+		private String line;
+	 final IntervalListCodec intervalListCodec;
+		IntervalListIterator(final Path intervalFile) throws IOException {
+			this.br =  IOUtil.openFileForBufferedReading(intervalFile);
+			final StringBuilder builder = new StringBuilder();
+			try {
+				 while ((this.line = br.readLine()) != null) {
+		             if (this.line.startsWith("@")) {
+		                 builder.append(this.line).append('\n');
+		             	} else {
+		                 break;
+		             	}
+					 	}
+					}
+			catch(final Throwable err) {
+					throw new IOException(err);
+					}
+			if (builder.length() == 0) {
+				throw new IllegalStateException("Interval list file must contain header. ");
+				}
+
+			final BufferedLineReader headerReader = BufferedLineReader.fromString(builder.toString());
+			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
+			final SAMFileHeader samfileHeader = codec.decode(headerReader,intervalFile.toString());
+			this.dict = SequenceDictionaryUtils.extractRequired(samfileHeader);
+			this.intervalListCodec = new IntervalListCodec(this.dict);
 			}
 		@Override
 		protected Locatable advance()
 			{
-			while(this.delegate.hasNext()) {
-				final Locatable loc = this.delegate.next();
-				if(!StringUtils.isBlank(the_contig) && !loc.getContig().equals(the_contig)) continue;
-				return loc;
+			try {
+				/* first line was read in the header */
+				while(this.line!=null) {
+					final Locatable loc = this.intervalListCodec.decode(this.line);
+					// now prepare line for next iteration
+					this.line = this.br.readLine();
+					if(loc==null || (!StringUtils.isBlank(the_contig) && !loc.getContig().equals(the_contig))) continue;
+					return loc;
+					} 
+				} catch(final IOException err) {
+					throw new RuntimeIOException(err);
 				}
 			return null;
 			}
@@ -297,6 +326,8 @@ public class FindGVCFsBlocks extends Launcher {
 			}
 		@Override
 		public void close() {
+			this.line = null;
+			try{if(this.br!=null) br.close();} catch(IOException err){}
 			}
 		}
 	

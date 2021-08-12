@@ -130,13 +130,12 @@ RF11	629	666	+	.
 ## Nextflow
 
 ```
-
+(...)
 Channel.fromPath(params.reference+".fai").
 	splitCsv(header: false,sep:'\t',strip:true).
 	filter{T->T[0].matches("(chr)?[0-9XY]+")}.
 	map{T->[T[0]]}.
 	set{each_contig}
-
 
 process gvcflists {
 executor "local"
