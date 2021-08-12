@@ -83,6 +83,12 @@ Usage: vcffilterso [options] Files
  * so
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9474428](https://www.biostars.org/p/9474428)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

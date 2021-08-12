@@ -37,7 +37,7 @@ Usage: wgscoverageplotter [options] Files
     --min-contig-length
       Skip chromosome with length < 'x'. A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 0
     -o, --output
       Output file. Optional . Default: stdout

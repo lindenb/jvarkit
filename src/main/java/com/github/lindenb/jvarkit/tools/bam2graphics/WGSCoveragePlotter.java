@@ -108,7 +108,7 @@ END_DOC
 	description="Whole genome coverage plotter",
 	keywords={"svg","bam","depth","coverage"},
 	creationDate="20201125",
-	modificationDate="20201126",
+	modificationDate="20210812",
 	biostars={104063,475162}
 	)
 public class WGSCoveragePlotter extends Launcher {
@@ -157,7 +157,7 @@ private class ChromInfo {
 	final SAMSequenceRecord ssr;
 	int idx = 0;
 	double x = 0;
-	double width=0;
+	double width = 0;
 	ChromInfo(final SAMSequenceRecord ssr) {
 		this.ssr=ssr;
 		}
@@ -316,7 +316,14 @@ public int doWork(final List<String> args) {
 		mainG.appendChild(g_chroms);
 		
 		final long genomeLength = chromInfos.stream().mapToLong(CI->CI.ssr.getSequenceLength()).sum();
+		if(genomeLength<=0L) {
+			throw new IllegalStateException("genome-length<=0 :"+genomeLength);
+			}
+		
 		final double pixelsPerBase = (drawingWidth - (pixelsBetweenChromosomes*(chromInfos.size()-1)))/(double)genomeLength;
+		if ( pixelsPerBase <=0) {
+			throw new IllegalStateException("pixel per base <=0 with drawing-width:"+drawingWidth+" distance-between-contigs:"+pixelsBetweenChromosomes+" n-chromosomes:"+chromInfos.size()+" genome-length:"+genomeLength);
+			}
 		double x = marginRight;
 		for(int i=0;i< chromInfos.size();i++) {
 			final ChromInfo ci = chromInfos.get(i);
