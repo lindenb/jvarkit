@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -38,17 +37,16 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -155,7 +153,6 @@ public class FaidxSplitter  extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		PrintWriter pw=null;
 		try {
 			if(this.faidx==null) {
 				LOG.error("reference undefined");
@@ -168,7 +165,6 @@ public class FaidxSplitter  extends Launcher
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidx);
 			
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-			final BedLineCodec codec = new BedLineCodec();
 			final Pattern excludePat = Pattern.compile(this.excludeChromStr);
 			final IntervalTreeMap<Interval> intervals1 = new IntervalTreeMap<>();
 			dict.getSequences().
@@ -192,38 +188,34 @@ public class FaidxSplitter  extends Launcher
 				};
 			if(this.geneSource!=null) {
 				LOG.info("loading genes "+this.geneSource);
-				String line;
 				final Set<String> notFound = new HashSet<>();
-				final BufferedReader br=IOUtils.openURIForBufferedReading(this.geneSource);
-				while((line=br.readLine())!=null)
-					{
-					final BedLine gene = codec.decode(line);
-					if(gene==null) continue;
-					final String contig2 = contigNameConverter.apply(gene.getContig());
-					if(StringUtil.isBlank(contig2)) {
-						if(notFound.add(gene.getContig())) LOG.warn("gene contig not found :"+gene.getContig());
-						continue;
+				try(final BedLineReader br=new BedLineReader(IOUtils.openURIForBufferedReading(this.geneSource),this.geneSource)) {
+					while(br.hasNext()) {
+						final BedLine gene = br.next();
+						if(gene==null) continue;
+						final String contig2 = contigNameConverter.apply(gene.getContig());
+						if(StringUtil.isBlank(contig2)) {
+							if(notFound.add(gene.getContig())) LOG.warn("gene contig not found :"+gene.getContig());
+							continue;
+							}
+						if(excludePat.matcher(contig2).matches()) continue;
+						
+						final Interval g = new Interval(contig2, gene.getStart(), gene.getEnd());
+						
+						if(geneMap.getOverlapping(g).stream().anyMatch(X->X.contains(g))) continue;
+						
+						geneMap.put(g, g);
+						}
 					}
-					if(excludePat.matcher(contig2).matches()) continue;
-					
-					final Interval g = new Interval(contig2, gene.getStart(), gene.getEnd());
-					
-					if(geneMap.getOverlapping(g).stream().anyMatch(X->X.contains(g))) continue;
-					
-					geneMap.put(g, g);
-					}
-				br.close();
 				}
 			
 			if(this.gapSource!=null) {
 				LOG.info("loading gaps "+this.gapSource);
 				final Set<String> notFound = new HashSet<>();
-				String line;
-				final BufferedReader br=IOUtils.openURIForBufferedReading(this.gapSource);
-				while((line=br.readLine())!=null)
+				try(final BedLineReader br=new BedLineReader(IOUtils.openURIForBufferedReading(this.gapSource),this.gapSource)) {
+				while(br.hasNext())
 					{
-					final BedLine gap0 = codec.decode(line);
-					if(gap0==null) continue;
+					final BedLine gap0 = br.next();
 					final String contig2 = contigNameConverter.apply(gap0.getContig());
 					if(StringUtil.isBlank(contig2)) {
 						if(notFound.add(gap0.getContig())) LOG.warn("gap contig not found :"+gap0.getContig());
@@ -251,7 +243,7 @@ public class FaidxSplitter  extends Launcher
 						}
 						
 					}
-				br.close();
+				}
 			}
 			
 			final Comparator<String> contigCmp = new ContigDictComparator(dict);
@@ -262,54 +254,53 @@ public class FaidxSplitter  extends Launcher
 				return A.getStart()-B.getStart();
 				});
 			/* start writing output */
-			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			for(final Interval interval : intervalsList) {
-				if(interval.length()<= this.window_size)
-					{
-					echo(pw,interval);
-					continue;
-					}
-				int start =interval.getStart();
-				while(start < interval.getEnd())
-					{
-					int chromEnd  = Math.min(interval.getEnd(),start+this.window_size);
-					
-					// extend interval while there is a gene that shouldn't be broken */
-					for(;;)
+				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				for(final Interval interval : intervalsList) {
+					if(interval.length()<= this.window_size)
 						{
-						final Interval record = new Interval(
-								interval.getContig(),
-								start,
-								chromEnd
-								);
-
-
-						final Interval gene = findGene.apply(record);
-						// no gene 
-						if( gene==null ||record.contains(gene) ) break;
-						
-						if(gene.getStart() < record.getStart()) throw new IllegalStateException(
-								"gene start "+gene.getStart()+" < "+start+" "+
-								"\ngene:\t" +gene+"\ninterval\t"+interval+"\nrecord\t"+record
-								);
-						
-						chromEnd = Math.min(interval.getEnd(),gene.getEnd() /* not here, already added above  + this.overlap_size */);
-						if(chromEnd>=interval.getEnd()) break;
+						echo(pw,interval);
+						continue;
 						}
-					
-					if(interval.getEnd() - chromEnd<= this.small_size)
+					int start =interval.getStart();
+					while(start < interval.getEnd())
 						{
-						chromEnd = interval.getEnd();
+						int chromEnd  = Math.min(interval.getEnd(),start+this.window_size);
+						
+						// extend interval while there is a gene that shouldn't be broken */
+						for(;;)
+							{
+							final Interval record = new Interval(
+									interval.getContig(),
+									start,
+									chromEnd
+									);
+	
+	
+							final Interval gene = findGene.apply(record);
+							// no gene 
+							if( gene==null ||record.contains(gene) ) break;
+							
+							if(gene.getStart() < record.getStart()) throw new IllegalStateException(
+									"gene start "+gene.getStart()+" < "+start+" "+
+									"\ngene:\t" +gene+"\ninterval\t"+interval+"\nrecord\t"+record
+									);
+							
+							chromEnd = Math.min(interval.getEnd(),gene.getEnd() /* not here, already added above  + this.overlap_size */);
+							if(chromEnd>=interval.getEnd()) break;
+							}
+						
+						if(interval.getEnd() - chromEnd<= this.small_size)
+							{
+							chromEnd = interval.getEnd();
+							}
+						
+						echo(pw,new Interval( interval.getContig(), start, chromEnd ));
+						if(chromEnd >=interval.getEnd()) break;
+						start = chromEnd - this.overlap_size +1;
 						}
-					
-					echo(pw,new Interval( interval.getContig(), start, chromEnd ));
-					if(chromEnd >=interval.getEnd()) break;
-					start = chromEnd - this.overlap_size +1;
 					}
+				pw.flush();
 				}
-			pw.flush();
-			pw.close();
-			pw = null;
 			LOG.info("Done N="+this.count_echoed);
 			return 0;
 			}
@@ -319,7 +310,6 @@ public class FaidxSplitter  extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(pw);
 			}
 		}
 	

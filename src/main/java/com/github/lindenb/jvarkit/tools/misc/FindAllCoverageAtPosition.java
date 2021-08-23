@@ -58,13 +58,13 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -114,7 +114,7 @@ END_DOC
 	keywords={"bam","coverage","search","depth"},
 	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
 	biostars= {259223,250099,409942},
-	modificationDate="20200303",
+	modificationDate="20210818",
 	creationDate="20141128"
 	)
 public class FindAllCoverageAtPosition extends Launcher
@@ -405,7 +405,6 @@ public class FindAllCoverageAtPosition extends Launcher
     		return -1;
     	}
 		
-		BufferedReader r = null;
 		try
 			{
 			this.samReaderFactory=  SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT);
@@ -426,32 +425,29 @@ public class FindAllCoverageAtPosition extends Launcher
 			
 			
 			if(this.positionFile!=null) {
-				r= IOUtils.openPathForBufferedReading(this.positionFile);
 				if(	this.positionFile.toString().endsWith(".bed") || 
 					this.positionFile.toString().endsWith(".bed.gz")) {
-					final BedLineCodec codec = new BedLineCodec();
-					r.lines().
-						filter(L->!StringUtils.isBlank(L)).
-						map(L->codec.decode(L)).
+					try(BedLineReader br=new BedLineReader(this.positionFile)) {
+						br.stream().
 						filter(B->B!=null).
 						forEach(bedLine->{
 							for(int x=bedLine.getStart();x<=bedLine.getEnd();++x)
 								{
 								mutations.add(new SimplePosition(bedLine.getContig(),x));
 								}
-						});
-						
+							});
+						}
 					}
 				else
 					{
-					r.lines().
-						filter(L->!StringUtils.isBlank(L)).
-						filter(L->!L.startsWith("#")).
-						forEach(L->mutations.add(new SimplePosition(L)));
+					try(BufferedReader r2= IOUtils.openPathForBufferedReading(this.positionFile)) {
+						r2.lines().
+							filter(L->!StringUtils.isBlank(L)).
+							filter(L->!L.startsWith("#")).
+							forEach(L->mutations.add(new SimplePosition(L)));
+						}
 					}
 				
-				r.close();
-				r=null;
 			}
 		
 		
@@ -499,20 +495,18 @@ public class FindAllCoverageAtPosition extends Launcher
 			if(args.isEmpty())
 				{
 				LOG.info("Reading from stdin");
-				r = new BufferedReader(new InputStreamReader(stdin()));
-				scan(r,mutations);
-				r.close();
-				r=null;
+				try(BufferedReader r = new BufferedReader(new InputStreamReader(stdin()))) {
+					scan(r,mutations);
+					}
 				}
 			else
 				{				
 				for(final String filename: args)
 					{
 					LOG.info("Reading from "+filename);
-					r=IOUtils.openURIForBufferedReading(filename);
-					scan(r,mutations);
-					r.close();
-					r=null;
+					try(BufferedReader r=IOUtils.openURIForBufferedReading(filename)) {
+						scan(r,mutations);
+						}
 					}
 				}
 			this.out.flush();
@@ -527,7 +521,6 @@ public class FindAllCoverageAtPosition extends Launcher
 			{
 			CloserUtil.close(this.indexedFastaSequenceFile);
 			CloserUtil.close(this.out);
-			CloserUtil.close(r);
 			}
 		}
 	

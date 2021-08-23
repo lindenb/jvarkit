@@ -25,8 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -47,14 +45,16 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 /**
 
 ## Example
@@ -79,7 +79,9 @@ grep -v "##" | cut -f 1-5
  */
 @Program(name="referencetovcf",
 	description="Creates a VCF containing all the possible substitutions from a Reference Genome.",
-	keywords={"vcf","reference","fasta"}
+	keywords={"vcf","reference","fasta"},
+	modificationDate="20210818",
+	creationDate="20140910"
 	)
 public class ReferenceToVCF extends Launcher
 	{
@@ -87,7 +89,7 @@ public class ReferenceToVCF extends Launcher
 	
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-L","--bed"},description="limit to this BED")
 	private Path  bedFile = null;
 	@Parameter(names={"-i","--insertions"},description="generate insertions")
@@ -96,7 +98,9 @@ public class ReferenceToVCF extends Launcher
 	private int  deletion_size = 0;
 	@Parameter(names={"-A","--disjoint"},description="disjoint ALT")
 	private boolean  disjoint_alts=false;
-
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
+	
 	private IntervalTreeMap<Boolean> limitBed=null;
 	
 	
@@ -108,16 +112,13 @@ public class ReferenceToVCF extends Launcher
 			if(limitBed==null) limitBed=new IntervalTreeMap<Boolean>();
 			try
 				{
-				final BedLineCodec codec = new BedLineCodec();
-				BufferedReader r=IOUtils.openPathForBufferedReading(this.bedFile);
-				String line;
-				while((line=r.readLine())!=null)
-					{
-					if(BedLine.isBedHeader(line)) continue;
-					final BedLine record = codec.decode(line);
-					limitBed.put(record.toInterval(), true);
+				try(final BedLineReader r = new BedLineReader(this.bedFile)) {
+					while(r.hasNext())
+						{
+						final BedLine record = r.next();
+						limitBed.put(record.toInterval(), true);
+						}
 					}
-				CloserUtil.close(r);
 				}
 			catch(final Exception err)
 				{
@@ -131,10 +132,11 @@ public class ReferenceToVCF extends Launcher
 			{
 			final ReferenceSequenceFile fasta= ReferenceSequenceFileFactory.getReferenceSequenceFile(Paths.get(oneAndOnlyOneFile(args)));
 			SAMSequenceDictionary dict=fasta.getSequenceDictionary();
-			out= super.openVariantContextWriter(this.outputFile);
+			out= this.writingVariants.dictionary(dict).open(this.outputFile);
 			
 			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 			VCFHeader header=new VCFHeader();
+			JVarkitVersion.getInstance().addMetaData(this, header);
 			header.setSequenceDictionary(dict);
 			out.writeHeader(header);
 			

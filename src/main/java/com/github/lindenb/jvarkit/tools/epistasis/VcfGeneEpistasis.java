@@ -27,7 +27,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.epistasis;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.AbstractList;
@@ -43,7 +42,6 @@ import java.util.stream.Collectors;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -54,11 +52,11 @@ import htsjdk.variant.vcf.VCFReader;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.tools.skat.SkatFactory;
 import com.github.lindenb.jvarkit.tools.skat.SkatFactory.SkatExecutor;
 import com.github.lindenb.jvarkit.tools.skat.SkatFactory.SkatResult;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -252,14 +250,12 @@ public class VcfGeneEpistasis
 				}
 			else
 				{
-				BedLineCodec codec= new BedLineCodec();
-				BufferedReader r= IOUtil.openFileForBufferedReading(geneBed);
-				geneList = r.lines().
-						map(L->codec.decode(L)).
+				try(BedLineReader r= new BedLineReader(geneBed)) {
+					geneList = r.stream().
 						filter(B->B!=null).
 						map(B-> new Interval(B.getContig(),B.getStart(),B.getEnd(),true,B.get(3))).
 						collect(Collectors.toList());
-				r.close();
+					}
 				}
 			if(geneList.isEmpty())
 				{

@@ -34,9 +34,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.List;
@@ -47,10 +46,9 @@ import java.util.stream.Collectors;
 import javax.imageio.ImageIO;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.util.BufferedList;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -87,7 +85,6 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
@@ -132,7 +129,7 @@ public class BamCmpCoverage extends Launcher
 	@Parameter(names={"-r","--region"},description="restrict to region")
 	private String regionStr = null;
 	@Parameter(names={"-b","--bed"},description="restrict to region")
-	private File bedFile = null;
+	private Path bedFile = null;
 	@Parameter(names={"--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter samRecordFilter = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
@@ -305,30 +302,19 @@ public class BamCmpCoverage extends Launcher
 		}
 	
 	
-	private void readBedFile(final File bedFile)
+	private void readBedFile(final Path bedFile)
 		{
 		if(this.intervals==null)
 			{
 			intervals=new IntervalTreeMap<Boolean>();
 			}
-		try
-			{
-			LOG.info("Reading "+bedFile);
-			final BedLineCodec bedLineCodec = new BedLineCodec();
-			BufferedReader r=IOUtils.openFileForBufferedReading(bedFile);
-			String line;
-			while((line=r.readLine())!=null)
+		try(BedLineReader r=new BedLineReader(bedFile)) {
+			while(r.hasNext())
 				{
-				final BedLine bedLine = bedLineCodec.decode(line);
+				final BedLine bedLine = r.next();
 				if(bedLine==null) continue;
 				this.intervals.put(bedLine.toInterval(),true);
 				}
-			CloserUtil.close(r);
-			}
-		catch(final IOException err)
-			{
-			LOG.error(err);
-			throw new RuntimeException(err);	
 			}
 		}
 	

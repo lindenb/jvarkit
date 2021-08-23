@@ -1,24 +1,21 @@
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
-
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+
+import htsjdk.samtools.util.Interval;
 
 /**
 BEGIN_DOC
@@ -126,7 +123,7 @@ public class Biostar77828 extends Launcher
     	
     
     	
-    	public void print(PrintStream out)
+    	public void print(final PrintWriter out)
     		{
     		String header="##mean:"+mean()+"\n##stdev:"+stddev()+" \n##cores:"+this.cores.size()+"\n##generation:"+this.generation;
     		out.println(header);
@@ -239,59 +236,55 @@ public class Biostar77828 extends Launcher
     	}
     @Override
     public int doWork(final List<String> args) {
-		PrintStream pw =null;
     	try
 	    	{
     		
-	    	LOG.info("load BED");
-	    	BufferedReader in=super.openBufferedReader(oneFileOrNull(args));
-	    
-	    	final BedLineCodec codec = new BedLineCodec();
-	    	String line;
-	    	while((line=in.readLine())!=null)
-				{		
-	    		if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
-	    		final BedLine bedLine = codec.decode(line);
-	    		if(bedLine==null) continue;
-    			if(bedLine.getColumnCount()<3) throw new IOException("bad BED input "+bedLine);
-    			final Interval seg=new Interval(
-    					bedLine.getContig(),
-    					bedLine.getStart(),
-    					bedLine.getEnd()
-    					)
-    					;
-    			if(seg.length()==0) continue;
-    			this.effective_genome_size+=seg.length();
-    			this.all_segments.add(seg);
-				}
-	    	
-	    	pw = super.openPathOrStdoutAsPrintStream(this.outputFile);
-	    	
-	    	Solution best=null;
-	    	for(long generation=0;generation< this.N_ITERATIONS;++generation)
-	    		{
-	    		if(generation%100000==0) LOG.info("generation:"+generation+"/"+this.N_ITERATIONS+" "+
-	    				(int)((generation/(double)this.N_ITERATIONS)*100.0)+"% "+String.valueOf(best));
-	    		Solution sol=createSolution();
-	    		sol.generation=generation;
-	    		if(best==null || sol.compareTo(best)<0)
-	    			{
-	    			best=sol;
-	    			/*
-	    			if(LOG.isDebugEnabled())
-	    				{
-	    				LOG.info("%%generation:"+generation);
-	    				best.print(stderr());
-	    				}*/
-	    			}
-	    		}
-	    	if(best!=null)
-	    		{
-	    		best.print(pw);
-	    		}
-	    	pw.flush();
-	    	pw.close();
-	    	return RETURN_OK;
+	    	String input = oneFileOrNull(args);
+		    try(BedLineReader in= new BedLineReader(openBufferedReader(input), input)) {
+		    	while(in.hasNext())
+					{		
+		    		final BedLine bedLine = in.next();
+		    		if(bedLine==null) continue;
+	    			if(bedLine.getColumnCount()<3) throw new IOException("bad BED input "+bedLine);
+	    			final Interval seg=new Interval(
+	    					bedLine.getContig(),
+	    					bedLine.getStart(),
+	    					bedLine.getEnd()
+	    					)
+	    					;
+	    			if(seg.length()==0) continue;
+	    			this.effective_genome_size+=seg.length();
+	    			this.all_segments.add(seg);
+					}
+		    	
+		    	try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+		    	
+		    	Solution best=null;
+		    	for(long generation=0;generation< this.N_ITERATIONS;++generation)
+		    		{
+		    		if(generation%100000==0) LOG.info("generation:"+generation+"/"+this.N_ITERATIONS+" "+
+		    				(int)((generation/(double)this.N_ITERATIONS)*100.0)+"% "+String.valueOf(best));
+		    		Solution sol=createSolution();
+		    		sol.generation=generation;
+		    		if(best==null || sol.compareTo(best)<0)
+		    			{
+		    			best=sol;
+		    			/*
+		    			if(LOG.isDebugEnabled())
+		    				{
+		    				LOG.info("%%generation:"+generation);
+		    				best.print(stderr());
+		    				}*/
+		    			}
+		    		}
+		    	if(best!=null)
+		    		{
+		    		best.print(pw);
+		    		}
+		    	pw.flush();
+		    	}
+		    	}
+	    	return 0;
 	    	}
     	catch(final Throwable err)
     		{
@@ -299,7 +292,6 @@ public class Biostar77828 extends Launcher
     		return -1;
     		}
     	finally {
-    		CloserUtil.close(pw);
     	}
     }
 

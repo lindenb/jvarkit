@@ -33,25 +33,24 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.tribble.readers.LineIterator;
 
 
 /**
@@ -71,7 +70,9 @@ END_DOC
 @Program(name="biostar178713",
 	description="split bed file into several bed files where each region is separated of any other by N bases",
 	biostars=178713,
-	keywords="bed"
+	keywords="bed",
+	creationDate="20160226",
+	modificationDate="20200818"
 	)
 public class Biostar178713 extends Launcher
 	{
@@ -85,18 +86,6 @@ public class Biostar178713 extends Launcher
 	private int distancebed = 100 ;
 
 	
-	
-	private final void readBed( Collection<BedLine> bed,final LineIterator in) {
-		final BedLineCodec codec = new BedLineCodec();
-		codec.readActualHeader(in);
-		while(in.hasNext()){
-		final BedLine line = codec.decode(in);	
-		if(line==null) continue;
-		bed.add(line);
-		}
-		CloserUtil.close(in);
-		}
-	
 	@Override
 	public int doWork(final List<String> args) {
 		if(this.outputFile==null || !outputFile.getFileName().toString().endsWith(".zip")) {
@@ -105,24 +94,22 @@ public class Biostar178713 extends Launcher
 		}
 		
 		final Set<String> inputs = IOUtils.unrollFiles(args);
-		List<BedLine> bedLines=new ArrayList<>();
+		final List<BedLine> bedLines=new ArrayList<>();
 		OutputStream fos = null;
 		ZipOutputStream zout=null;
 
 		try {
 			if(inputs.isEmpty()) 
 				{
-				LOG.info("reading bed from stdin");
-				LineIterator r = IOUtils.openStreamForLineIterator(stdin());
-				this.readBed(bedLines, r);
-				CloserUtil.close(r);
+				try(BedLineReader r = new BedLineReader(stdin(),"stdin")) {
+					bedLines.addAll(r.stream().collect(Collectors.toList()));
+					}
 				}
 			else for(final String input:inputs)
 				{
-				LOG.info("reading bed from "+input);
-				LineIterator r = IOUtils.openURIForLineIterator(input);
-				this.readBed(bedLines, r);
-				CloserUtil.close(r);
+				try(BedLineReader r = new BedLineReader(IOUtils.openURIForBufferedReading(input),input)) {
+					bedLines.addAll(r.stream().collect(Collectors.toList()));
+					}
 				}
 			LOG.info("sorting "+bedLines.size());
 			Collections.sort(bedLines,new Comparator<BedLine>() {
@@ -183,8 +170,8 @@ public class Biostar178713 extends Launcher
 			
 			zout.finish();
 			zout.close();
-			return RETURN_OK;
-		} catch (Exception e) {
+			return 0;
+		} catch (Throwable e) {
 			LOG.error(e);
 			return -1;
 		} finally {

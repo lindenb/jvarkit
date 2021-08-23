@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -63,10 +62,9 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -91,7 +89,9 @@ END_DOC
  */
 @Program(name="gcpercentanddepth",
 description="Extracts GC% and depth for multiple bam using a sliding window",
-keywords={"gc%","depth","coverage"})
+keywords={"gc%","depth","coverage"},
+modificationDate="20210818"
+)
 public class GcPercentAndDepth extends Launcher
 	{
 	private static Logger LOG=Logger.build(GcPercentAndDepth.class).make();
@@ -385,30 +385,25 @@ public class GcPercentAndDepth extends Launcher
 			if(bedFile!=null)
 				{
 				LOG.info("Reading BED:" +bedFile);
-				final BedLineCodec bedLineCodec =new BedLineCodec();
-				
-				BufferedReader r=IOUtils.openFileForBufferedReading(bedFile);
-				r.lines().
-					filter(L->!L.startsWith("#")).
-					filter(L->!StringUtil.isBlank(L)).
-					map(L->bedLineCodec.decode(L)).
-					filter(B->B!=null).
-					forEach(B->{
-						final SAMSequenceRecord ssr= this.samSequenceDictionary.getSequence(B.getContig());
-						if(ssr==null)
-							{
-							LOG.warning("Cannot resolve "+B.getContig());
-							return;
-							}
-							
-						final RegionCaptured roi=new RegionCaptured(
-								ssr,
-								B.getStart()-1,
-								B.getEnd()
-								);
-						regionsCaptured.add(roi);
-						});
-				CloserUtil.close(r);
+				try(BedLineReader r=new BedLineReader(bedFile)) {
+					r.stream().
+						filter(B->B!=null).
+						forEach(B->{
+							final SAMSequenceRecord ssr= this.samSequenceDictionary.getSequence(B.getContig());
+							if(ssr==null)
+								{
+								LOG.warning("Cannot resolve "+B.getContig());
+								return;
+								}
+								
+							final RegionCaptured roi=new RegionCaptured(
+									ssr,
+									B.getStart()-1,
+									B.getEnd()
+									);
+							regionsCaptured.add(roi);
+							});
+					}
 				LOG.info("end Reading BED:" +bedFile);
 				Collections.sort(regionsCaptured);
 				}

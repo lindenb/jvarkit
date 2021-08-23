@@ -25,10 +25,9 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import htsjdk.samtools.util.CloserUtil;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.broad.igv.bbfile.BBFileReader;
@@ -36,9 +35,9 @@ import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -63,15 +62,16 @@ END_DOC
 @Program(name="biostar105754",
 	description="bigwig : peak distance from specific genomic region",
 	biostars=105754,
-	keywords={"wig","bigwig"}
+	keywords={"wig","bigwig"},
+	modificationDate="20210818",
+	creationDate="20140708"
 	)
-public class Biostar105754 extends Launcher
-	{
+public class Biostar105754 extends Launcher {
 
 	private static final Logger LOG = Logger.build(Biostar105754.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	
 	@Parameter(names={"-B","--bigwig"},description="Big Wig file",required=true)
 	private String bigWigFile = null;
@@ -95,22 +95,18 @@ public class Biostar105754 extends Launcher
 		}
 	
 	
-		private PrintWriter out=null;
 		private org.broad.igv.bbfile.BBFileReader bbFileReader=null;
 		private final long EXTEND_SHIFT=1000000;//
 		private final long MAX_CHROM_END=Integer.MAX_VALUE-EXTEND_SHIFT;
 	
 		
-		private void run(final BufferedReader r)
+		private void run(final BedLineReader r,final PrintWriter out)
 			throws IOException
 			{
-			final BedLineCodec codec = new BedLineCodec();
-			String line;
-			while((line=r.readLine())!=null && !this.out.checkError())
+			while(r.hasNext() && !out.checkError())
 				{
-				final BedLine bedLine =codec.decode(line);
-				if(bedLine==null)
-					{
+				final BedLine bedLine = r.next();
+				if(bedLine==null) {
 					continue;
 					}
 				final String chrom = bedLine.getContig() ;
@@ -118,7 +114,7 @@ public class Biostar105754 extends Launcher
 				final int chromEnd0 = bedLine.getEnd();
 				if(chrom.isEmpty() || chromStart0<0L || chromEnd0<chromStart0)
 					{
-					LOG.warn("Bad BED line: "+line);
+					LOG.warn("Bad BED line: "+bedLine.join());
 					continue;
 					}
 				
@@ -150,16 +146,16 @@ public class Biostar105754 extends Launcher
 							}
 						if(best!=null)
 							{
-							this.out.print(best.getChromosome());
-							this.out.print("\t");
-							this.out.print(best.getStartBase());
-							this.out.print("\t");
-							this.out.print(best.getEndBase());
-							this.out.print("\t");
-							this.out.print(best.getWigValue());
-							this.out.print("\t");
-							this.out.print(line);
-							this.out.println();
+							out.print(best.getChromosome());
+							out.print("\t");
+							out.print(best.getStartBase());
+							out.print("\t");
+							out.print(best.getEndBase());
+							out.print("\t");
+							out.print(best.getWigValue());
+							out.print("\t");
+							out.print(bedLine.join("\t"));
+							out.println();
 							break;
 							}
 						}
@@ -171,7 +167,7 @@ public class Biostar105754 extends Launcher
 					//too wide, break loop
 					if(start2==0 && end2==MAX_CHROM_END)
 						{
-						LOG.warn("no data found for\t"+line);
+						LOG.warn("no data found for\t"+ bedLine);
 						break;
 						}
 					chromStart=(int)start2;
@@ -197,25 +193,25 @@ public class Biostar105754 extends Launcher
 					LOG.error("File "+this.bigWigFile+" is not a bigwig file");
 					return -1;
 					}
-				this.out = super.openFileOrStdoutAsPrintWriter(outputFile);
-				if(args.isEmpty())
-					{
-					final BufferedReader r= IOUtils.openStdinForBufferedReader();
-					run(r);
-					CloserUtil.close(r);
-					}
-				else
-					{
-					for(final String filename : args)
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(outputFile)) {
+					if(args.isEmpty())
 						{
-						final BufferedReader r= IOUtils.openURIForBufferedReading(filename);
-						run(r);
-						CloserUtil.close(r);
+						try(BedLineReader r= new BedLineReader(IOUtils.openStdinForBufferedReader(),"stdin")) {
+							run(r,out);
+							}
 						}
+					else
+						{
+						for(final String filename : args)
+							{
+							try(BedLineReader r= new BedLineReader(IOUtils.openURIForBufferedReading(filename),filename)) {
+								run(r,out);
+								}
+							}
+						}
+					out.flush();
 					}
-				this.out.flush();
-				this.out.close();
-				return RETURN_OK;
+				return 0;
 				}
 			catch(final Exception err)
 				{
@@ -225,9 +221,7 @@ public class Biostar105754 extends Launcher
 			finally
 				{
 				CloserUtil.close(bbFileReader);
-				CloserUtil.close(this.out);
 				bbFileReader=null;
-				this.out=null;
 				}
 			}
 			

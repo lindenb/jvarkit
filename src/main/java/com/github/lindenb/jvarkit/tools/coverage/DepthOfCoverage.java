@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.coverage;
 
-import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -40,6 +39,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
@@ -50,7 +50,6 @@ import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -223,12 +222,9 @@ public class DepthOfCoverage extends Launcher
 							}
 						final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
 						final List<QueryInterval> L = new ArrayList<>();
-						final BedLineCodec codec= new BedLineCodec();
-						try(BufferedReader br=IOUtils.openPathForBufferedReading(this.includeBed)) {
-							String line;
-							while((line=br.readLine())!=null) {
-								final BedLine bed = codec.decode(line);
-								if(bed==null) continue;
+						try(BedLineReader br= new BedLineReader(this.includeBed)) {
+							while(br.hasNext()) {
+								final BedLine bed = br.next();
 								final String ctg = contigNameConverter.apply(bed.getContig());
 								if(StringUtils.isBlank(ctg)) continue;
 								final int tid  = dict.getSequenceIndex(ctg);
@@ -391,11 +387,9 @@ public class DepthOfCoverage extends Launcher
 								/* read mask */
 								if(this.maskBed!=null ) {
 									final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-									final BedLineCodec codec= new BedLineCodec();
-									try(BufferedReader br=IOUtils.openPathForBufferedReading(this.maskBed)) {
-										String line;
-										while((line=br.readLine())!=null) {
-											final BedLine bed = codec.decode(line);
+									try(BedLineReader br= new BedLineReader(this.maskBed)) {
+										while(br.hasNext()) {
+											final BedLine bed = br.next();
 											if(bed==null) continue;
 											String ctg = contigNameConverter.apply(bed.getContig());
 											if(StringUtils.isBlank(ctg)) continue;
@@ -409,13 +403,11 @@ public class DepthOfCoverage extends Launcher
 								else if(this.includeBed!=null) {
 									final List<Locatable> list = new ArrayList<>();
 									final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(dict);
-									final BedLineCodec codec= new BedLineCodec();
-									try(BufferedReader br=IOUtils.openPathForBufferedReading(this.includeBed)) {
-										String line;
-										while((line=br.readLine())!=null) {
-											final BedLine bed = codec.decode(line);
+									try(BedLineReader br= new BedLineReader(this.includeBed)) {
+										while(br.hasNext()) {
+											final BedLine bed = br.next();
 											if(bed==null) continue;
-											String ctg = contigNameConverter.apply(bed.getContig());
+											final String ctg = contigNameConverter.apply(bed.getContig());
 											if(StringUtils.isBlank(ctg)) continue;
 											if(!rec.getContig().equals(ctg)) continue;
 											list.add(new SimpleInterval(ctg,bed.getStart(),bed.getEnd()));

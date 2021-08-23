@@ -27,10 +27,10 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.awt.Color;
 import java.awt.geom.Point2D;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,13 +48,13 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -143,7 +143,7 @@ END_DOC
 description="displays circular map as SVG from BED and REF file",
 keywords= {"genome","browser","circular","bed","svg"},
 biostars= {336589,367522},
-modificationDate="20210422",
+modificationDate="20210818",
 creationDate="20180907"
 )
 
@@ -391,19 +391,16 @@ public class Biostar336589 extends Launcher{
 			final List<Track> tracks = new ArrayList<>(1+args.size());
 			final Set<String> skipped_contigs = new HashSet<>();
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
-			final BedLineCodec codec = new BedLineCodec();
 			for(final String filename:args.isEmpty()?Collections.singletonList((String)null):args)
 				{
 				final Track currentTrack = new Track(tracks.size());
 				if(!StringUtil.isBlank(filename)) currentTrack.name =  filename;
 				tracks.add(currentTrack);
 				
-					try(BufferedReader br = super.openBufferedReader(filename)) {
-					String line;
-					while((line=br.readLine())!=null)
+				try(BedLineReader br = new BedLineReader(Paths.get(filename))) {
+					while(br.hasNext())
 						{
-						if(StringUtil.isBlank(line) || BedLine.isBedHeader(line)) continue;
-						final BedLine bedLine = codec.decode(line);
+						final BedLine bedLine = br.next();
 						final String newCtg = converter.apply(bedLine.getContig());
 						if(StringUtil.isBlank(newCtg)) {
 							if(skipped_contigs.add(bedLine.getContig())) {
@@ -488,7 +485,7 @@ public class Biostar336589 extends Launcher{
 							{
 							if(!this.input_is_bedpe && this.histogram_mode )
 								{
-								LOG.warn("no score defined for "+line+" in histogram mode. skipping.");
+								LOG.warn("no score defined for "+bedLine.join()+" in histogram mode. skipping.");
 								continue;
 								}
 							}
@@ -500,7 +497,7 @@ public class Biostar336589 extends Launcher{
 								}
 							catch(final NumberFormatException err)
 								{
-								LOG.warn("bad score for "+line);
+								LOG.warn("bad score for "+bedLine.join());
 								if(this.histogram_mode )
 									{
 									LOG.warn("skipping.");

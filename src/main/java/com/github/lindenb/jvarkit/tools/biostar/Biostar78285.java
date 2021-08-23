@@ -39,12 +39,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.iterator.FilterIterator;
 import com.github.lindenb.jvarkit.util.iterator.MergingIterator;
@@ -78,7 +77,6 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -242,15 +240,14 @@ public class Biostar78285 extends Launcher
 				LOG.info("Opening "+this.captureBed);
 				ContigNameConverter.setDefaultAliases(dict);
 				final List<QueryInterval> L = new ArrayList<>();
-				final BedLineCodec codec= new BedLineCodec();
-				final LineIterator li = IOUtils.openPathForLineIterator(this.captureBed);
-				while(li.hasNext()) {
-					final BedLine bed = codec.decode(li.next());
-					if(bed==null) continue;
-					final QueryInterval q= bed.toQueryInterval(dict);
-					L.add(q);
+				try(BedLineReader li = new BedLineReader(this.captureBed)) {
+					while(li.hasNext()) {
+						final BedLine bed = li.next();
+						if(bed==null) continue;
+						final QueryInterval q= bed.toQueryInterval(dict);
+						L.add(q);
+						}
 					}
-				CloserUtil.close(li);
 				intervals = QueryInterval.optimizeIntervals(L.toArray(new QueryInterval[L.size()]));
 				}
 			else

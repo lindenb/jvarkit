@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.redon;
 
-import java.io.BufferedReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -56,6 +55,7 @@ import org.apache.commons.math3.util.Precision;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
@@ -63,7 +63,6 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -323,11 +322,8 @@ public class CopyNumber01 extends Launcher
 			else
 				{
 				final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
-				final BedLineCodec codec = new BedLineCodec();
-				try(BufferedReader br =  IOUtils.openPathForBufferedReading(this.bedFile)) {
-					br.lines().
-						filter(L->!StringUtil.isBlank(L) || L.startsWith("#")).
-						map(L->codec.decode(L)).
+				try(BedLineReader br =  new BedLineReader(this.bedFile)) {
+					br.stream().
 						filter(L->!StringUtil.isBlank(converter.apply(L.getContig()))).
 						forEach(B->{
 							final String ctg = converter.apply(B.getContig());

@@ -39,12 +39,12 @@ import java.util.List;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.index.Index;
 import htsjdk.tribble.index.tabix.TabixFormat;
 import htsjdk.tribble.index.tabix.TabixIndexCreator;
 import htsjdk.tribble.readers.LineIterator;
-import htsjdk.tribble.util.TabixUtils;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -127,7 +127,7 @@ public class BedIndexTabix
 		{
 		int bedLineCount=0;
 		
-		File tbi = new File(outputFile.getPath()+TabixUtils.STANDARD_INDEX_EXTENSION);
+		File tbi = new File(outputFile.getPath()+FileExtensions.TABIX_INDEX);
 		BlockCompressedOutputStream writer=null;
 		SortingCollection<String> sorter=null;
 		final Comparator<String> comparator=new Comparator<String>	()
