@@ -74,7 +74,7 @@ END_DOC
 	biostars=145820,
 	keywords= {"sam","bam","shuffle"},
 	modificationDate="20190615",
-	references={"MED25 connects enhancer–promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616–625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 "}
+	references={"MED25 connects enhancer-promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616-625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 "}
 	)
 public class Biostar145820 extends Launcher
 	{
