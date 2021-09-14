@@ -87,7 +87,8 @@ END_DOC
 @Program(name="findnewsplicesites",
 	description="use the 'N' operator in the cigar string to find unknown splice sites",
 	keywords={"bam","sam","rnaseq","splice","gtf"},
-	modificationDate="20191216"
+	creationDate="20140402",
+	modificationDate="20210913"
 	)
 public class FindNewSpliceSites extends Launcher
 	{

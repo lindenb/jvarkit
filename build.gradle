@@ -1224,6 +1224,10 @@ all2.add( task("findnewsplicesites", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.rnaseq.FindNewSpliceSites"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("rnaseqpolya", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.rnaseqpolya.RNASeqPolyA"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("fixvarscanmissingheader", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.FixVarScanMissingVCFHeader"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
