@@ -164,7 +164,7 @@ public abstract class OpenJdkCompiler {
 			}
 		private static final long WAIT_SECONDS=600L;// 10 minutes
 		private void exec(final String definition,final List<String> cmd) {
-			ProcessBuilder pb=new ProcessBuilder(cmd);
+			final ProcessBuilder pb=new ProcessBuilder(cmd);
 			try {
 				final Process proc = pb.
 					redirectError(ProcessBuilder.Redirect.INHERIT).
@@ -172,8 +172,9 @@ public abstract class OpenJdkCompiler {
 				proc.waitFor(WAIT_SECONDS, TimeUnit.SECONDS);
 				final int ret = proc.exitValue();
 				if(ret==0) return;
+				//LOG.error(definition + " " + String.join(" ",cmd) + " : exit-status="+ret);
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				}
