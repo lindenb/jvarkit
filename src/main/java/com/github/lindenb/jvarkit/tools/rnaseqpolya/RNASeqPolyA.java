@@ -46,6 +46,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -65,6 +66,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
@@ -90,6 +92,7 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -147,7 +150,14 @@ public class RNASeqPolyA extends Launcher {
 	private boolean disable_bam_index = false;
 	@DynamicParameter(names = "-D", description = "extra parameters. Undocumented.",hidden=true)
 	private Map<String, String> dynaParams = new HashMap<>();
+	@Parameter(names= {"--filter-reads"},description="remove duplicate, supplementary, malformed reads")
+	private boolean default_read_filter = false;
+	@Parameter(names= {"-d","--duplicate-ends"},description="keep only one transcript if transcripts share the same 3' coordinate")
+	private boolean remove_duplicate_transcripts = false;
+	@Parameter(names= {"-C","--contig"},description="limit to this contig/chromosome")
+	private String limit_contig=null;
 
+	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
@@ -156,6 +166,7 @@ public class RNASeqPolyA extends Launcher {
 		int n_tested_reads = 0;
 		int n_tested_reads_with_A = 0;
 		int max_length_polyA=0;
+		long sum_polyA=0L;
 	}
 	
 	private static class GeneInfo {
@@ -176,6 +187,7 @@ public class RNASeqPolyA extends Launcher {
 		int end;
 		Strand strand = Strand.NONE;
 		String transcriptId;
+		Set<String> otherIds = null;
 		final Map<String,ExonCount> sample2count = new HashMap<>();
 		
 		boolean isPlusStrand() { return strand.equals(Strand.POSITIVE);}
@@ -232,6 +244,7 @@ public class RNASeqPolyA extends Launcher {
 			
 		final String chrom = converter.apply(geneFeat.getContig());
 		if(StringUtils.isBlank(chrom)) return;
+		if(!StringUtils.isBlank(this.limit_contig) && !chrom.equals(this.limit_contig)) return;
 		
 		final String geneID = geneFeat.getID();
 		if(StringUtils.isBlank(geneID)) {
@@ -247,8 +260,7 @@ public class RNASeqPolyA extends Launcher {
 		gene.biotype = getKey.apply(geneFeat, "biotype");
 		
 		
-		for(Gff3Feature trFeat:geneFeat.getChildren())
-			{
+		for(Gff3Feature trFeat:geneFeat.getChildren()) {
 			/* ignore this , there is plenty of type under gene 
 			if(!(trFeat.getType().equals("transcript") || trFeat.getType().equals("mRNA"))) {
 				continue;
@@ -270,7 +282,7 @@ public class RNASeqPolyA extends Launcher {
 				{
 				if(!exFeat.getType().equals("exon")) {
 					continue;
-				}
+					}
 				
 				LastExon lastExon  = gene.transcripts.get(transcriptId);
 				if(lastExon==null) {
@@ -292,11 +304,27 @@ public class RNASeqPolyA extends Launcher {
 					lastExon.end = exFeat.getEnd();
 					}
 				}
+			
+			if(this.remove_duplicate_transcripts) {
+				final List<String> ids = new ArrayList<>(gene.transcripts.keySet());
+				final Set<String> toRemove = new HashSet<>();
+				for(int i=0; i+1 < ids.size();i++) {
+					final LastExon exi = gene.transcripts.get(ids.get(i));
+					if(toRemove.contains(exi.transcriptId)) continue;
+					for(int j=i+1; j< ids.size();j++) {
+						final LastExon exj = gene.transcripts.get(ids.get(j));
+						if( (exi.isPlusStrand() && exj.isPlusStrand() && exi.getEnd()==exj.getEnd()) ||
+							(exi.isMinusStrand() && exj.isMinusStrand() && exi.getStart()==exj.getStart())) {
+							if(exi.otherIds==null) exi.otherIds=new HashSet<>();
+							exi.otherIds.add(exj.transcriptId);
+							toRemove.add(exj.transcriptId);
+							}
+						}
+					}
+				for(String id: toRemove) gene.transcripts.remove(id);
+				}
 			}
-		
-			
-			
-	}
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -306,6 +334,11 @@ public class RNASeqPolyA extends Launcher {
 			final String debugTranscript  = dynaParams.getOrDefault("debug.transcript","");
 
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidx);
+			if(!StringUtils.isBlank(this.limit_contig) && dict.getSequence(this.limit_contig)==null) {
+				throw new JvarkitException.ContigNotFoundInDictionary(this.limit_contig, dict);
+			}
+			
+			
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
 			
 			final Gff3Codec gff3 = new Gff3Codec(Gff3Codec.DecodeDepth.DEEP);
@@ -337,7 +370,10 @@ public class RNASeqPolyA extends Launcher {
 				return ssr.getSequenceIndex();
 			};
 			
-			final QueryInterval[] intervals = this.disable_bam_index?
+			final List<Path> inputs = IOUtils.unrollPaths(args);
+
+			
+			final QueryInterval[] intervals = this.disable_bam_index || inputs.isEmpty()?
 					null:
 					QueryInterval.optimizeIntervals(
 					exonMap.keySet().
@@ -358,23 +394,31 @@ public class RNASeqPolyA extends Launcher {
 			}
 			
 			
-			final List<Path> inputs = IOUtils.unrollPaths(args);
+			
 			final Set<String> samples = new HashSet<>();
-			for(final Path bamPath: inputs) {
-				try(SamReader sr = srf.open(bamPath)) {
+			int bam_index=0;
+			// loop over the bams
+			for(;;) {
+				final Path bamFilename = inputs.isEmpty()?null:inputs.get(bam_index);
+				try(SamReader sr = inputs.isEmpty()?srf.open(SamInputResource.of(stdin())):srf.open(bamFilename)) {
 					final SAMFileHeader header0 =  sr.getFileHeader();
 					SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(header0));
-					final String sample =header0.getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamPath));
+					final String sample =header0.getReadGroups().stream().map(RG->RG.getSample()).
+							filter(S->!StringUtils.isBlank(S)).findFirst().
+							orElse(bamFilename==null?"STDIN":IOUtils.getFilenameWithoutCommonSuffixes(bamFilename));
 					if(samples.contains(sample)) {
 						LOG.error("duplicate sample "+sample);
 						return -1;
 						}
 					samples.add(sample);
 					final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(dict).build();
-					try(CloseableIterator<SAMRecord> iter= (intervals==null?sr.iterator():sr.query(intervals, false))) {
+					try(CloseableIterator<SAMRecord> iter= (intervals==null || inputs.isEmpty()/*stdin*/?sr.iterator():sr.query(intervals, false))) {
 						while(iter.hasNext()) {
 							final SAMRecord rec = progress.apply(iter.next());
-							//if(!SAMRecordDefaultFilter.accept(rec)) continue;
+							if(rec.getReadUnmappedFlag()) continue;
+							if(!StringUtils.isBlank(this.limit_contig) && !rec.getContig().equals(this.limit_contig)) continue;
+							if(this.default_read_filter && !SAMRecordDefaultFilter.accept(rec)) continue;
+
 							final Collection<LastExon> lastExons = exonMap.getOverlapping(rec);
 							if(lastExons.isEmpty()) continue;
 							final Cigar cigar = rec.getCigar();
@@ -391,7 +435,7 @@ public class RNASeqPolyA extends Launcher {
 									exon.sample2count.put(sample,count);
 									}
 								
-								StringBuilder sb = new StringBuilder() ;
+								final StringBuilder sb = new StringBuilder() ;
 								boolean indel_flag = false;
 								boolean last_exon_in_intron_flag = false;
 								int ref1 = rec.getUnclippedStart();
@@ -440,7 +484,7 @@ public class RNASeqPolyA extends Launcher {
 											break;
 										default:throw new IllegalStateException(op.name());
 										}
-									}
+									} //end loop cigar
 								// premature end or start
 								if((exon.isPlusStrand() && ref1 < exon.end) ||
 								   (exon.isMinusStrand() && ref1 < exon.start) ||
@@ -471,19 +515,20 @@ public class RNASeqPolyA extends Launcher {
 									if(polyA.charAt(i)!='A') break;
 									count_polyA++;
 									}
-								if(count_polyA>0) count.n_tested_reads_with_A++;
+								if(count_polyA>0) {
+									count.n_tested_reads_with_A++;
+									count.sum_polyA += count_polyA;
+									}
 								if(count_polyA>count.max_length_polyA) {
-									
-									if(count_polyA>10 && !StringUtils.isBlank(debugTranscript)) {
-										LOG.debug(exon.transcriptId+" "+rec.getReadName()+" "+rec.getReadString()+" "+rec.getCigarString()+" "+rec.getAlignmentStart()+":"+rec.getAlignmentEnd()+" "+polyA+" "+count_polyA);
-										}
 									count.max_length_polyA = count_polyA;
 									}
-								}
+								}//end of loop last exon
 							}
 						progress.close();
 						}
 					}
+				++bam_index;
+				if(inputs.isEmpty() || bam_index>=inputs.size()) break;
 				}
 				
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
@@ -507,11 +552,18 @@ public class RNASeqPolyA extends Launcher {
 			final int n_after_exon_bases = Math.max(0, Integer.parseInt(dynaParams.getOrDefault("after.n.exons","10")));
 			final VCFInfoHeaderLine infoAfterExonBases = new VCFInfoHeaderLine("AFTER_BASES",1,VCFHeaderLineType.String,"Bases after exon N="+ n_after_exon_bases+". Reverse-complemented for negative strand.");
 			metaData.add(infoAfterExonBases);
+			final VCFInfoHeaderLine infoOtherIdss = new VCFInfoHeaderLine("OTHER_IDS",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Other transcripts ending at the same coordinate.");
+			metaData.add(infoOtherIdss);
+			
 
 			final VCFFormatHeaderLine fmtMaxPolyA = new VCFFormatHeaderLine("MAX",1,VCFHeaderLineType.Integer,"Max poly A");
 			metaData.add(fmtMaxPolyA);
 			final VCFFormatHeaderLine fmtReadPolyA = new VCFFormatHeaderLine("DPA",1,VCFHeaderLineType.Integer,"Read with at least one A");
 			metaData.add(fmtReadPolyA);
+			final VCFFormatHeaderLine fmtAveragePolyA = new VCFFormatHeaderLine("AVG",1,VCFHeaderLineType.Float,"average length of poly-A for reads carrying at least one A.");
+			metaData.add(fmtAveragePolyA);
+
+			
 
 			
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.DEPTH_KEY,VCFConstants.END_KEY);
@@ -522,8 +574,9 @@ public class RNASeqPolyA extends Launcher {
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			
 			final UnaryOperator<String> afterColon= S->{
+				if(!(S.startsWith("gene:") || S.startsWith("transcript:"))) return S;
 				int colon = S.indexOf(":");
-				return colon==-1?S:S.substring(colon+1);
+				return S.substring(colon+1);
 			};
 			
 			final List<Allele> ALLELES = Collections.singletonList(Allele.create("N",true));
@@ -561,6 +614,9 @@ public class RNASeqPolyA extends Launcher {
 					vcb.attribute(infoGeneId.getID(), afterColon.apply(T.gene.geneId));
 					vcb.attribute(infoTranscriptId.getID(),  afterColon.apply(T.transcriptId));
 					vcb.attribute(infoStrand.getID(), T.strand.name());
+					if(T.otherIds!=null && !T.otherIds.isEmpty()) {
+						vcb.attribute(infoOtherIdss.getID(), T.otherIds.stream().map(afterColon).collect(Collectors.toList()));
+						}
 					
 					if(!StringUtils.isBlank(lastBases)) {
 						vcb.attribute(infoLastExonBases.getID(), lastBases);
@@ -581,6 +637,7 @@ public class RNASeqPolyA extends Launcher {
 						final GenotypeBuilder gb =new GenotypeBuilder(sn);
 						gb.attribute(fmtMaxPolyA.getID(),count==null?0:count.max_length_polyA);
 						gb.attribute(fmtReadPolyA.getID(),count==null?0:count.n_tested_reads_with_A);
+						gb.attribute(fmtAveragePolyA.getID(), count==null || count.n_tested_reads_with_A==0?0f:count.sum_polyA/(float)count.n_tested_reads_with_A);
 						gb.DP(count==null?0:count.n_tested_reads);
 						genotypes.add(gb.make());
 						}

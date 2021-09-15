@@ -16,8 +16,16 @@ Usage: rnaseqpolya [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    -C, --contig
+      limit to this contig/chromosome
     --disable-index
       Disable use of BAM index
+      Default: false
+    -d, --duplicate-ends
+      keep only one transcript if transcripts share the same 3' coordinate
+      Default: false
+    --filter-reads
+      remove duplicate, supplementary, malformed reads
       Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
@@ -121,4 +129,10 @@ ouput is a VCF file. Each variant is a transcript.
 $ find dir1 -type f -name "*.bam" > in.list
 $ java -jar rnaseqpolya.jar -p 5 --reference ref.fa --gff3 in.gff  --out out.vcf.gz  in.list 
 ```
+
+## See also
+
+https://twitter.com/yokofakun/status/1438137720484900869
+
+![twitter](https://pbs.twimg.com/media/E_VKkVJWEAMA6xy?format=png&name=900x900 "Screenshot")
 
