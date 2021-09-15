@@ -212,6 +212,11 @@ public class RNASeqPolyA extends Launcher {
 		public int getMaxPolyA() {
 			return this.sample2count.values().stream().mapToInt(C->C.max_length_polyA).max().orElse(0);
 			}
+		/* get last position of exon */
+		public int getPosition() {
+			return isPlusStrand()?getEnd():getStart();
+			}
+		
 		boolean isAfterExon(int ref1) {
 			return (
 					(this.isPlusStrand() && ref1> getEnd()) ||
@@ -376,9 +381,9 @@ public class RNASeqPolyA extends Launcher {
 			final QueryInterval[] intervals = this.disable_bam_index || inputs.isEmpty()?
 					null:
 					QueryInterval.optimizeIntervals(
-					exonMap.keySet().
+					exonMap.values().
 						stream().
-						map(R->new QueryInterval(toTid.applyAsInt(R.getContig()), R.getStart(), R.getEnd())).
+						map(R->new QueryInterval(toTid.applyAsInt(R.getContig()), R.getPosition(), R.getPosition())).
 						toArray(N->new QueryInterval[N])
 					);
 			
@@ -438,6 +443,7 @@ public class RNASeqPolyA extends Launcher {
 								final StringBuilder sb = new StringBuilder() ;
 								boolean indel_flag = false;
 								boolean last_exon_in_intron_flag = false;
+								boolean match_last_base = false;
 								int ref1 = rec.getUnclippedStart();
 								int read0 = 0;
 								for(CigarElement ce:cigar) {
@@ -470,6 +476,7 @@ public class RNASeqPolyA extends Launcher {
 												if(exon.isAfterExon(ref1)) {
 													sb.append('N');
 													}
+												if(ref1==exon.getPosition()) match_last_base = true;
 												ref1++;
 												}
 											break;
@@ -478,6 +485,7 @@ public class RNASeqPolyA extends Launcher {
 												if(exon.isAfterExon(ref1)) {
 													sb.append((char)Character.toUpperCase(bases[read0]));
 													}
+												if(ref1==exon.getPosition()) match_last_base = true;
 												read0++;
 												ref1++;
 												}
@@ -486,8 +494,9 @@ public class RNASeqPolyA extends Launcher {
 										}
 									} //end loop cigar
 								// premature end or start
-								if((exon.isPlusStrand() && ref1 < exon.end) ||
-								   (exon.isMinusStrand() && ref1 < exon.start) ||
+								if(!match_last_base ||
+								   (exon.isPlusStrand() && ref1 < exon.getEnd()) ||
+								   (exon.isMinusStrand() && ref1 < exon.getStart()) ||
 								   (this.ignore_with_indels && indel_flag) || 
 								   last_exon_in_intron_flag) {
 									continue;
@@ -542,11 +551,13 @@ public class RNASeqPolyA extends Launcher {
 			metaData.add(infoTranscriptMaxPolyA);
 			final VCFInfoHeaderLine infoGeneMaxPolyA = new VCFInfoHeaderLine("GENE_MAX",1,VCFHeaderLineType.Integer,"Max poly A in Gene");
 			metaData.add(infoGeneMaxPolyA);
+			final VCFInfoHeaderLine infoEndPos = new VCFInfoHeaderLine("POS3",1,VCFHeaderLineType.Integer,"End 3 prime position");
+			metaData.add(infoEndPos);
 			final VCFInfoHeaderLine infoGeneName = new VCFInfoHeaderLine("GENE_NAME",1,VCFHeaderLineType.String,"Gene Name");
 			metaData.add(infoGeneName);
 			final VCFInfoHeaderLine infoBiotype = new VCFInfoHeaderLine("GENE_BIOTYPE",1,VCFHeaderLineType.String,"Gene Biotype");
 			metaData.add(infoBiotype);
-			final int n_last_exon_bases = Math.max(0, Integer.parseInt(dynaParams.getOrDefault("last.n.exons","1")));
+			final int n_last_exon_bases = Math.max(0, Integer.parseInt(dynaParams.getOrDefault("last.n.exons","10")));
 			final VCFInfoHeaderLine infoLastExonBases = new VCFInfoHeaderLine("LAST_BASES",1,VCFHeaderLineType.String,"Last exon bases N="+ n_last_exon_bases+". Reverse-complemented for negative strand.");
 			metaData.add(infoLastExonBases);
 			final int n_after_exon_bases = Math.max(0, Integer.parseInt(dynaParams.getOrDefault("after.n.exons","10")));
@@ -614,6 +625,7 @@ public class RNASeqPolyA extends Launcher {
 					vcb.attribute(infoGeneId.getID(), afterColon.apply(T.gene.geneId));
 					vcb.attribute(infoTranscriptId.getID(),  afterColon.apply(T.transcriptId));
 					vcb.attribute(infoStrand.getID(), T.strand.name());
+					vcb.attribute(infoEndPos.getID(), T.getPosition());
 					if(T.otherIds!=null && !T.otherIds.isEmpty()) {
 						vcb.attribute(infoOtherIdss.getID(), T.otherIds.stream().map(afterColon).collect(Collectors.toList()));
 						}
