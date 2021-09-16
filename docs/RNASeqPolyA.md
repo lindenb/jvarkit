@@ -41,6 +41,10 @@ Usage: rnaseqpolya [options] Files
       Default: false
     -o, -out, --out
       Output file. Optional . Default: stdout
+    -x, --overlapping-exon
+      Ignore exon if an exon from another transcript overlaps the end of the 
+      last exon.
+      Default: false
     -p, --primer
       Search for poly-A 'A{x}' dandling part of the read. -1 : ignore and 
       search for poly-A just after the exon boundary . If it's found, we count 

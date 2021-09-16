@@ -154,6 +154,8 @@ public class RNASeqPolyA extends Launcher {
 	private boolean default_read_filter = false;
 	@Parameter(names= {"-d","--duplicate-ends"},description="keep only one transcript if transcripts share the same 3' coordinate")
 	private boolean remove_duplicate_transcripts = false;
+	@Parameter(names= {"-x","--overlapping-exon"},description="Ignore exon if an exon from another transcript overlaps the end of the last exon.")
+	private boolean remove_if_overlapping_exon = false;
 	@Parameter(names= {"-C","--contig"},description="limit to this contig/chromosome")
 	private String limit_contig=null;
 
@@ -262,8 +264,11 @@ public class RNASeqPolyA extends Launcher {
 		gene.geneId = geneID;
 		gene.contig = chrom;
 		gene.geneName = getKey.apply(geneFeat, "Name");
+		if(StringUtils.isBlank(gene.geneName)) gene.geneName = getKey.apply(geneFeat, "gene_name");
 		gene.biotype = getKey.apply(geneFeat, "biotype");
-		
+		if(StringUtils.isBlank(gene.biotype)) gene.biotype = getKey.apply(geneFeat, "gene_type");
+
+		final List<Interval> all_exons = new ArrayList<>();
 		
 		for(Gff3Feature trFeat:geneFeat.getChildren()) {
 			/* ignore this , there is plenty of type under gene 
@@ -289,6 +294,8 @@ public class RNASeqPolyA extends Launcher {
 					continue;
 					}
 				
+				all_exons.add(new Interval(chrom,exFeat.getStart(),exFeat.getEnd()));
+				
 				LastExon lastExon  = gene.transcripts.get(transcriptId);
 				if(lastExon==null) {
 					lastExon = new LastExon();
@@ -309,26 +316,38 @@ public class RNASeqPolyA extends Launcher {
 					lastExon.end = exFeat.getEnd();
 					}
 				}
-			
-			if(this.remove_duplicate_transcripts) {
-				final List<String> ids = new ArrayList<>(gene.transcripts.keySet());
-				final Set<String> toRemove = new HashSet<>();
-				for(int i=0; i+1 < ids.size();i++) {
-					final LastExon exi = gene.transcripts.get(ids.get(i));
-					if(toRemove.contains(exi.transcriptId)) continue;
-					for(int j=i+1; j< ids.size();j++) {
-						final LastExon exj = gene.transcripts.get(ids.get(j));
-						if( (exi.isPlusStrand() && exj.isPlusStrand() && exi.getEnd()==exj.getEnd()) ||
-							(exi.isMinusStrand() && exj.isMinusStrand() && exi.getStart()==exj.getStart())) {
-							if(exi.otherIds==null) exi.otherIds=new HashSet<>();
-							exi.otherIds.add(exj.transcriptId);
-							toRemove.add(exj.transcriptId);
-							}
+			}
+		
+		if(this.remove_if_overlapping_exon) {
+			final Set<String> toRemove = new HashSet<>();
+			for(String id:gene.transcripts.keySet()) {
+				final LastExon exi = gene.transcripts.get(id);
+				if(all_exons.stream().anyMatch(EX->EX.getStart() < exi.getPosition() && EX.getEnd()>exi.getPosition())) {
+					toRemove.add(exi.transcriptId);
+					}
+				}
+			for(String id: toRemove) gene.transcripts.remove(id);
+			}
+		
+		if(this.remove_duplicate_transcripts) {
+			final List<String> ids = new ArrayList<>(gene.transcripts.keySet());
+			final Set<String> toRemove = new HashSet<>();
+			for(int i=0; i+1 < ids.size();i++) {
+				final LastExon exi = gene.transcripts.get(ids.get(i));
+				if(toRemove.contains(exi.transcriptId)) continue;
+				for(int j=i+1; j< ids.size();j++) {
+					final LastExon exj = gene.transcripts.get(ids.get(j));
+					if( (exi.isPlusStrand() && exj.isPlusStrand() && exi.getEnd()==exj.getEnd()) ||
+						(exi.isMinusStrand() && exj.isMinusStrand() && exi.getStart()==exj.getStart())) {
+						if(exi.otherIds==null) exi.otherIds=new HashSet<>();
+						exi.otherIds.add(exj.transcriptId);
+						toRemove.add(exj.transcriptId);
 						}
 					}
-				for(String id: toRemove) gene.transcripts.remove(id);
 				}
+			for(String id: toRemove) gene.transcripts.remove(id);
 			}
+
 		}
 	
 	@Override
