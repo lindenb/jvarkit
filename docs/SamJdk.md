@@ -100,6 +100,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/424431](https://www.biostars.org/p/424431)
  * [https://www.biostars.org/p/450160](https://www.biostars.org/p/450160)
  * [https://www.biostars.org/p/9464312](https://www.biostars.org/p/9464312)
+ * [https://www.biostars.org/p/9489815](https://www.biostars.org/p/9489815)
 
 
 ## Compilation
