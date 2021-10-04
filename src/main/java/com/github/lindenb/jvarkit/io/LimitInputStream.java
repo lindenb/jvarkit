@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * limit input stream for security, used in BamRecordGuesser in conjonction with pushbackinputstream
+ * limit input stream for security, used in VCFRecordGuesser in conjonction with pushbackinputstream
  * @author lindenb
  *
  */

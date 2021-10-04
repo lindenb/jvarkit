@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/** InputStream; Everything read from 'in' is written in 'out' */
 public class TeeInputStream extends InputStream
 		{
 		private final InputStream in;
@@ -57,6 +58,7 @@ public class TeeInputStream extends InputStream
 	        	}
 	    	}
 
+	    @Override
 	    public int read() throws IOException
 	    	{
 	        final int ch = this.in.read();
@@ -81,4 +83,8 @@ public class TeeInputStream extends InputStream
 	        return read(bts,0,bts.length);
 	    	}
 
+	    @Override
+	    public String toString() {
+	    	return "TeeInputStream";
+	    	}
 		}
