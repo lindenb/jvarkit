@@ -35,7 +35,10 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMRecordQueryNameComparator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.CloseableIterator;
@@ -73,7 +76,8 @@ END_DOC
 	description="subsample/shuffle BAM to fixed number of alignments.",
 	biostars=145820,
 	keywords= {"sam","bam","shuffle"},
-	modificationDate="20190615",
+	creationDate="20150615",
+	modificationDate="20211005",
 	references={"MED25 connects enhancer-promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616-625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 "}
 	)
 public class Biostar145820 extends Launcher
@@ -85,9 +89,12 @@ public class Biostar145820 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-
 	@Parameter(names={"-n"},description=" number of reads. negative: all reads, shuffle output.")
 	private long count=-1L;
+	@Parameter(names={"--reference","-R"},description=CRAM_INDEXED_REFENCE)
+	private Path refPath = null;
+	@Parameter(names={"--seed"},description="Random seed. -1 == current time")
+	private long seed = -1L;
 
 	
 	@ParametersDelegate
@@ -98,7 +105,7 @@ public class Biostar145820 extends Launcher
 	
 	private static class RandSamRecord
 		{
-		int rand_index;
+		long l_rand_index;
 		SAMRecord samRecord;
 		}
 	private static class RandSamRecordComparator
@@ -108,8 +115,8 @@ public class Biostar145820 extends Launcher
 		@Override
 		public int compare(final RandSamRecord o1,final RandSamRecord o2)
 			{
-			int i = Long.compare(o1.rand_index , o2.rand_index);
-			if(i!=0L) return i;
+			final int i = Long.compare(o1.l_rand_index , o2.l_rand_index);
+			if(i!=0) return i;
 			return secondCompare.compare(o1.samRecord, o2.samRecord);
 			}
 		}
@@ -129,22 +136,22 @@ public class Biostar145820 extends Launcher
 		@Override
 		public RandSamRecord decode()
 			{
-			int r;
+			long r;
 			  try {
-		          r = this.binaryCodec.readInt();
+		          r = this.binaryCodec.readLong();
 		        }
 		     catch (final Exception e) {
 		            return null;
 		        }
 			  final RandSamRecord o =new RandSamRecord();
-			  o.rand_index=r;
+			  o.l_rand_index=r;
 			  o.samRecord = this.bamRecordCodec.decode();
 			  return o;
 			}
 		
 		@Override
 		public void encode(RandSamRecord val) {
-			this.binaryCodec.writeInt(val.rand_index);
+			this.binaryCodec.writeLong(val.l_rand_index);
 			this.bamRecordCodec.encode(val.samRecord);
 			}
 		@Override
@@ -169,12 +176,14 @@ public class Biostar145820 extends Launcher
 		SamReader samReader=null;
 		SAMRecordIterator iter=null;
 		SAMFileWriter samWriter=null;
-		Random random=new Random();
+		final Random random=new Random(this.seed==-1L?System.currentTimeMillis():this.seed);
 		CloseableIterator<RandSamRecord> iter2=null;
 		try
 			{
 			final String input = oneFileOrNull(args);
-			samReader = super.openSamReader(input);
+			final SamReaderFactory srf = super.createSamReaderFactory().validationStringency(ValidationStringency.LENIENT);
+			if(this.refPath!=null) srf.referenceSequence(this.refPath);
+			samReader = srf.open(input==null?SamInputResource.of(stdin()):SamInputResource.of(input));
 			
 			final SAMFileHeader header=samReader.getFileHeader().clone();
 						
@@ -201,7 +210,7 @@ public class Biostar145820 extends Launcher
 					continue;
 				}
 				final RandSamRecord r=new RandSamRecord();
-				r.rand_index  = random.nextInt();
+				r.l_rand_index  = random.nextLong();
 				r.samRecord =  rec;
 
 				sorter.add(r);
@@ -223,7 +232,7 @@ public class Biostar145820 extends Launcher
 			sorter.cleanup();
 			progress.close();
 			}
-		catch(final Exception e)
+		catch(final Throwable e)
 			{
 			LOG.error(e);
 			return -1;

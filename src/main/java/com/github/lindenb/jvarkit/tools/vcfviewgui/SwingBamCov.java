@@ -144,6 +144,8 @@ java -jar dist/swingbamcov.jar -R ref.fa *.bam
 ## Screenshot
 
  * https://twitter.com/yokofakun/status/1392173415684100105
+ * https://twitter.com/yokofakun/status/1443187891480502279
+ * https://twitter.com/yokofakun/status/1443208754229563392
 
 END_DOC
  */
@@ -945,7 +947,7 @@ public class SwingBamCov extends Launcher
 			return IntervalParserFactory.newInstance().
 					dictionary(this.dict).
 					make().
-					apply(s);
+					apply(s.trim());
 			}
 		
 		private void doMenuSaveAs() {
