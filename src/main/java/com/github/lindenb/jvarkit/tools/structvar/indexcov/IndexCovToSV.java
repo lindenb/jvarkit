@@ -117,7 +117,11 @@ public class IndexCovToSV extends Launcher {
 	private Path refFile = null;
 	@Parameter(names={"-d","--distance"},description="Merge segment if they are within that distance. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int merge_distance=0;
+	@Parameter(names={"-norm","--norm"},description="normalize: only one ALT allele per variant")
+	private boolean normalize_one_allele = false;
 
+	
+	
 	@ParametersDelegate
 	private WritingSortingCollection sortingDelegate = new WritingSortingCollection();
 	@ParametersDelegate
@@ -148,7 +152,7 @@ public class IndexCovToSV extends Launcher {
 		int end;
 		int sample_id;
 		double score;
-		int compare1(final Cell o) {
+		int sortSamplePosition(final Cell o) {
 			int i = Integer.compare(this.sample_id,o.sample_id);
 			if(i!=0) return i;
 			i = Integer.compare(this.tid,o.tid);
@@ -157,7 +161,7 @@ public class IndexCovToSV extends Launcher {
 			if(i!=0) return i;
 			return Integer.compare(this.end,o.end);
 			}
-		int compare2(final Cell o) {
+		int sortPositionSample(final Cell o) {
 			int i = Integer.compare(this.tid,o.tid);
 			if(i!=0) return i;
 			i = Integer.compare(this.start,o.start);
@@ -207,95 +211,96 @@ public class IndexCovToSV extends Launcher {
 	public int doWork(final List<String> args) {
 		final IndexCovUtils indexCovUtils  = new IndexCovUtils(this.treshold);
 		final CharSplitter tab = CharSplitter.TAB;
-		BufferedReader r = null;
-		VariantContextWriter vcw  = null;
+		
+		
 		try {
 			
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refFile);
 			
-			r = super.openBufferedReader(oneFileOrNull(args));
-			String line = r.readLine();
-			if(line==null) {		
-				LOG.error( "Cannot read first line of input");
-				return -1;
-				}
-			String tokens[] = tab.split(line);
-			if(tokens.length<4 ||
-				!tokens[0].equals("#chrom") ||
-				!tokens[1].equals("start") ||
-				!tokens[2].equals("end")) {
-				LOG.error( "bad first line "+line );
-				return -1;
-				}
-			final List<String> samples = Arrays.asList(tokens). subList(3,tokens.length);			
-
-				
+			final List<String> samples;
 			SortingCollection<Cell> sorter1 = SortingCollection.newInstance(
 					Cell.class,
 					new CellCodec(),
-					(A, B)->A.compare1(B),
+					(A, B)->A.sortSamplePosition(B),
 					this.sortingDelegate.getMaxRecordsInRam(),
 					this.sortingDelegate.getTmpPaths()
 					);
 			sorter1.setDestructiveIteration(true);
-				
-			while((line=r.readLine())!=null) {
-				if(StringUtil.isBlank(line)) continue;
-				tokens =  tab.split(line);
-				if(tokens.length!=3+samples.size()) {
-					r.close();
-					throw new JvarkitException.TokenErrors(samples.size()+3, tokens);
-					}
-				final SAMSequenceRecord ssr = dict.getSequence(tokens[0]);
-				if(ssr==null) {
-					LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(tokens[0],dict));
+
+			
+			try(BufferedReader r =  super.openBufferedReader(oneFileOrNull(args))) {
+				String line = r.readLine();
+				if(line==null) {		
+					LOG.error( "Cannot read first line of input");
 					return -1;
 					}
-				for(int i=3;i< tokens.length;i++) {
-					final double score = Double.parseDouble(tokens[i]);
-					if(indexCovUtils.getType(score).isAmbigous()) continue;
-					final Cell cell = new Cell();
-					cell.tid = ssr.getSequenceIndex();
-					cell.start = Integer.parseInt(tokens[1]);
-					cell.end = Integer.parseInt(tokens[2]);
-					cell.sample_id = i-3;
-					cell.score = score;
-					sorter1.add(cell);
+				String tokens[] = tab.split(line);
+				if(tokens.length<4 ||
+					!tokens[0].equals("#chrom") ||
+					!tokens[1].equals("start") ||
+					!tokens[2].equals("end")) {
+					LOG.error( "bad first line "+line );
+					return -1;
 					}
-				}// while readline
-				r.close();
-				r=null;
-				sorter1.doneAdding();
-				
+				samples = Arrays.asList(tokens). subList(3,tokens.length);			
+					
+					
+				while((line=r.readLine())!=null) {
+					if(StringUtil.isBlank(line)) continue;
+					tokens =  tab.split(line);
+					if(tokens.length!=3+samples.size()) {
+						r.close();
+						throw new JvarkitException.TokenErrors(samples.size()+3, tokens);
+						}
+					final SAMSequenceRecord ssr = dict.getSequence(tokens[0]);
+					if(ssr==null) {
+						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(tokens[0],dict));
+						return -1;
+						}
+					for(int i=3;i< tokens.length;i++) {
+						final double score = Double.parseDouble(tokens[i]);
+						if(indexCovUtils.getType(score).isAmbigous()) continue;
+						final Cell cell = new Cell();
+						cell.tid = ssr.getSequenceIndex();
+						cell.start = Integer.parseInt(tokens[1]);
+						cell.end = Integer.parseInt(tokens[2]);
+						cell.sample_id = i-3;
+						cell.score = score;
+						sorter1.add(cell);
+						}
+					}// while readline
+					
+					sorter1.doneAdding();
+				}
 				/* merge adjacent blocks */
 				
 				SortingCollection<Cell> sorter2 = SortingCollection.newInstance(
 						Cell.class,
 						new CellCodec(),
-						(A, B)->A.compare2(B),
+						(A, B)->A.sortPositionSample(B),
 						this.sortingDelegate.getMaxRecordsInRam(),
 						this.sortingDelegate.getTmpPaths()
 						);
 				sorter2.setDestructiveIteration(true);
 				
 				
-				CloseableIterator<Cell> iter1 = sorter1.iterator();
-				PeekableIterator<Cell> peeker1 = new PeekableIterator<>(iter1);
-				while(peeker1.hasNext()) {
-					final Cell first = peeker1.next();
-					while(peeker1.hasNext()) {
-						final Cell second = peeker1.peek();
-						if(first.sample_id!=second.sample_id) break;
-						if(first.tid!=second.tid) break;
-						if(first.end+(this.merge_distance+1)<second.start) break;
-						if(!indexCovUtils.getType(first.score).equals(indexCovUtils.getType(second.score))) break;
-						first.end = second.end; // extend first with end of second
-						peeker1.next();//consumme
+				try(CloseableIterator<Cell> iter1 = sorter1.iterator()) {
+					try(PeekableIterator<Cell> peeker1 = new PeekableIterator<>(iter1)) {
+						while(peeker1.hasNext()) {
+							final Cell first = peeker1.next();
+							while(peeker1.hasNext()) {
+								final Cell second = peeker1.peek();
+								if(first.sample_id!=second.sample_id) break;
+								if(first.tid!=second.tid) break;
+								if(first.end+(this.merge_distance+1)<second.start) break;
+								if(!indexCovUtils.getType(first.score).equals(indexCovUtils.getType(second.score))) break;
+								first.end = second.end; // extend first with end of second
+								peeker1.next();//consumme
+								}
+							sorter2.add(first);
+							}// while peeker1
 						}
-					sorter2.add(first);
-					}// while peeker1
-				peeker1.close();peeker1=null;
-				iter1.close();iter1=null;
+					}
 				sorter1.cleanup();sorter1=null;
 				sorter2.doneAdding();
 				
@@ -331,106 +336,105 @@ public class IndexCovToSV extends Launcher {
 				final VCFHeader vcfHeader = new VCFHeader(metaData, samples);
 		  		JVarkitVersion.getInstance().addMetaData(this, vcfHeader);
 				vcfHeader.setSequenceDictionary(dict);
-				vcw = this.writingDelegate.dictionary(dict).open(outputFile);
-				vcw.writeHeader(vcfHeader);
-
-				final Allele REF_ALLELE =Allele.create("N",true);
-				int an=0;
-				int ac=0;
-				
-				CloseableIterator<Cell> iter2 = sorter2.iterator();
-				PeekableIterator<Cell> peeker2 = new PeekableIterator<>(iter2);
-				while(peeker2.hasNext()) {
-					final List<Cell> array = new ArrayList<>(samples.size());
-					final Cell first = peeker2.next();
-					array.add(first);
-					while(peeker2.hasNext()) {
-						final Cell second = peeker2.peek();
-						if(second.tid!=first.tid) break;
-						if(first.start!=second.start) break;
-						array.add(peeker2.next());//consumme
+				try(VariantContextWriter vcw = this.writingDelegate.dictionary(dict).open(outputFile)) {
+					vcw.writeHeader(vcfHeader);
+	
+					final Allele REF_ALLELE =Allele.create("N",true);
+					int an=0;
+					int ac=0;
+					
+					try(CloseableIterator<Cell> iter2 = sorter2.iterator()) {
+						try(PeekableIterator<Cell> peeker2 = new PeekableIterator<>(iter2)) {
+						while(peeker2.hasNext()) {
+							final List<Cell> array = new ArrayList<>(samples.size());
+							final Cell first = peeker2.next();
+							array.add(first);
+							while(peeker2.hasNext()) {
+								final Cell second = peeker2.peek();
+								if(second.tid!=first.tid) break;
+								if(first.start!=second.start) break;
+								array.add(peeker2.next());//consumme
+								}
+							if(array.stream().map(C->indexCovUtils.getType(C.score)).noneMatch(C->C.isVariant())) continue;
+							
+							final List<Genotype> genotypes = new ArrayList<>(array.size());
+							final VariantContextBuilder vcb = new VariantContextBuilder();
+							vcb.chr(dict.getSequence(first.tid).getSequenceName());
+							vcb.start(first.start);
+							final int chromEnd = array.stream().mapToInt(C->C.end).max().orElse(first.end);
+							vcb.stop(chromEnd);
+							vcb.attribute(VCFConstants.END_KEY, chromEnd);
+		
+							final Map<AltAllele, Allele> alt2allele = new HashMap<>();
+							
+							for(int i=0;i< array.size();i++) {
+								final Cell cell = array.get(i);
+								final String sampleName = samples.get(cell.sample_id);
+								an+=2;
+								final GenotypeBuilder gb;
+								final IndexCovUtils.SvType type = indexCovUtils.getType(cell.score);
+								final AltAllele altAllele = new AltAllele(type, cell.end);
+								Allele allele = alt2allele.get(altAllele);
+								if(allele==null && type.isVariant()) {
+									allele = Allele.create("<" + (type.isDeletion()?"DEL":"DUP")+"."+alt2allele.size()+ ">",false);
+									alt2allele.put(altAllele,allele);
+									}
+								
+								switch(type) {			
+									case REF :
+										gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
+										break;
+									case HET_DEL:
+										gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));						
+										ac++;
+										break;
+									case HOM_DEL:
+										gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));						
+										vcb.filter(filterHomDel.getID());
+										ac+=2;
+										break;
+									case HET_DUP:
+										gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));
+										ac++;
+										break;
+									case HOM_DUP:
+										gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));
+										vcb.filter(filterHomDup.getID());
+										ac+=2;
+										break;
+									default:
+										gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+										break;
+									}
+								
+									gb.attribute(foldHeader.getID(),cell.score);
+								
+								if(!type.isAmbigous()) {
+									gb.GQ(type.getGenotypeQuality(cell.score));
+									}
+													
+								genotypes.add(gb.make());	
+								}//end loop over genotypes
+							
+							final List<AltAllele> sorted = new ArrayList<>(alt2allele.keySet());
+							final List<Allele> alleles = new ArrayList<>(sorted.stream().map(A->alt2allele.get(A)).collect(Collectors.toList()));
+							vcb.attribute(infoSvLens.getID(),sorted.stream().mapToInt(A->(1+(A.end-first.start))*(A.type.isDeletion()?-1:1)).toArray());
+							vcb.attribute(infoSvEnds.getID(),sorted.stream().mapToInt(A->A.end).toArray());
+							
+							alleles.add(0,REF_ALLELE);
+							vcb.alleles(alleles);
+							vcb.genotypes(genotypes);
+							vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,ac);
+							vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an);
+							vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,ac/(double)an);
+							
+							vcw.add(vcb.make());
+							} //end loop while iter
 						}
-					if(array.stream().map(C->indexCovUtils.getType(C.score)).noneMatch(C->C.isVariant())) continue;
-					
-					final List<Genotype> genotypes = new ArrayList<>(array.size());
-					final VariantContextBuilder vcb = new VariantContextBuilder();
-					vcb.chr(dict.getSequence(first.tid).getSequenceName());
-					vcb.start(first.tid);
-					final int chromEnd = array.stream().mapToInt(C->C.end).max().orElse(first.end);
-					vcb.stop(chromEnd);
-					vcb.attribute(VCFConstants.END_KEY, chromEnd);
-
-					final Map<AltAllele, Allele> alt2allele = new HashMap<>();
-					
-					for(int i=0;i< array.size();i++) {
-						final Cell cell = array.get(i);
-						final String sampleName = samples.get(cell.sample_id);
-						an+=2;
-						final GenotypeBuilder gb;
-						final IndexCovUtils.SvType type = indexCovUtils.getType(cell.score);
-						final AltAllele altAllele = new AltAllele(type, cell.end);
-						Allele allele = alt2allele.get(altAllele);
-						if(allele==null && type.isVariant()) {
-							allele = Allele.create("<" + (type.isDeletion()?"DEL":"DUP")+"."+alt2allele.size()+ ">",false);
-							alt2allele.put(altAllele,allele);
-							}
-						
-						switch(type) {			
-							case REF :
-								gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
-								break;
-							case HET_DEL:
-								gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));						
-								ac++;
-								break;
-							case HOM_DEL:
-								gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));						
-								vcb.filter(filterHomDel.getID());
-								ac+=2;
-								break;
-							case HET_DUP:
-								gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));
-								ac++;
-								break;
-							case HOM_DUP:
-								gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));
-								vcb.filter(filterHomDup.getID());
-								ac+=2;
-								break;
-							default:
-								gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
-								break;
-							}
-						
-							gb.attribute(foldHeader.getID(),cell.score);
-						
-						if(!type.isAmbigous()) {
-							gb.GQ(type.getGenotypeQuality(cell.score));
-							}
-											
-						genotypes.add(gb.make());	
-						}//end loop over genotypes
-					
-					final List<AltAllele> sorted = new ArrayList<>(alt2allele.keySet());
-					final List<Allele> alleles = new ArrayList<>(sorted.stream().map(A->alt2allele.get(A)).collect(Collectors.toList()));
-					vcb.attribute(infoSvLens.getID(),sorted.stream().mapToInt(A->(1+(A.end-first.start))*(A.type.isDeletion()?-1:1)).toArray());
-					vcb.attribute(infoSvEnds.getID(),sorted.stream().mapToInt(A->A.end).toArray());
-					
-					alleles.add(0,REF_ALLELE);
-					vcb.alleles(alleles);
-					vcb.genotypes(genotypes);
-					vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,ac);
-					vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an);
-					vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,ac/(double)an);
-					
-					vcw.add(vcb.make());
-					} //end loop while iter
-			peeker2.close();peeker2=null;
-			iter2.close();iter2=null;
-			sorter2.cleanup();
-			sorter2=null;
-			vcw.close();
-			vcw=null;
+					}
+				sorter2.cleanup();
+				sorter2=null;
+				}
 			
 			return 0;
 		} catch(final Throwable err) {
@@ -439,8 +443,6 @@ public class IndexCovToSV extends Launcher {
 			}
 		finally
 			{
-			CloserUtil.close(r);
-			CloserUtil.close(vcw);
 			}
 		}
 
