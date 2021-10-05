@@ -55,6 +55,11 @@ $ ./gradlew biostar59647
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20131112
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar59647.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar59647.java)
@@ -89,7 +94,7 @@ The current reference is:
 
 ```bash
 $ java -jar dist/biostar59647.jar -r samtools-0.1.18/examples/toy.fa  samtools-0.1.18/examples/toy.bam |\
-xmllint --format - 
+xmllint --format -
 ```
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -162,5 +167,5 @@ e">0</flags>
 
   * http://biorxiv.org/content/early/2014/01/21/001834 "Illumina TruSeq synthetic long-reads empower de novo assembly and resolve complex, highly repetitive transposable elements"
   * "Bacterial production and direct functional screening of expanded molecular libraries for discovering inhibitors of protein aggregation" Science Advances  16 Oct 2019: Vol. 5, no. 10, eaax5108 DOI: 10.1126/sciadv.aax5108 
-
+  * Delivoria D.C., Skretas G. (2022) The Discovery of Peptide Macrocycle Rescuers of Pathogenic Protein Misfolding and Aggregation by Integrating SICLOPPS Technology and Ultrahigh-Throughput Screening in Bacteria. In: Coppock M.B., Winton A.J. (eds) Peptide Macrocycles. Methods in Molecular Biology, vol 2371. Humana, New York, NY. https://doi.org/10.1007/978-1-0716-1689-5_12
 
