@@ -31,11 +31,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -46,6 +46,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -56,7 +57,6 @@ import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsD
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StringUtil;
@@ -105,7 +105,7 @@ END_DOC
 		description="same as indexcov2vcf but merge segments",
 		keywords={"cnv","duplication","deletion","sv","indexcov"},
 		creationDate="20200228",
-		modificationDate="20200228"
+		modificationDate="20211007"
 		)
 public class IndexCovToSV extends Launcher {
 	private static final Logger LOG = Logger.build(IndexCovToSV.class).make();
@@ -127,23 +127,18 @@ public class IndexCovToSV extends Launcher {
 	@ParametersDelegate
 	private WritingVariantsDelegate writingDelegate = new WritingVariantsDelegate();
 
+	
 	private static class AltAllele {
 		final IndexCovUtils.SvType type;
 		final int end;
-		AltAllele(IndexCovUtils.SvType type,int end) {
+		final Allele allele;
+		int ac = 0;
+		AltAllele(IndexCovUtils.SvType type,int end,final Allele allele) {
 			this.type = type;
 			this.end= end;
+			this.allele = allele;
 			}
-		@Override
-		public boolean equals(final Object obj) {
-			if(this==obj) return true;
-			final AltAllele other = AltAllele.class.cast(obj);
-			return this.end==other.end && this.type.equals(other.type);
-			}
-		@Override
-		public int hashCode() {
-			return type.hashCode()*31+Integer.hashCode(end);
-			}
+		
 		}
 	
 	private static class Cell {
@@ -152,23 +147,25 @@ public class IndexCovToSV extends Launcher {
 		int end;
 		int sample_id;
 		double score;
-		int sortSamplePosition(final Cell o) {
-			int i = Integer.compare(this.sample_id,o.sample_id);
-			if(i!=0) return i;
-			i = Integer.compare(this.tid,o.tid);
-			if(i!=0) return i;
-			i = Integer.compare(this.start,o.start);
-			if(i!=0) return i;
-			return Integer.compare(this.end,o.end);
-			}
-		int sortPositionSample(final Cell o) {
+		
+		int sortChromStart(final Cell o) {
 			int i = Integer.compare(this.tid,o.tid);
 			if(i!=0) return i;
 			i = Integer.compare(this.start,o.start);
-			if(i!=0) return i;			
+			return i;
+			}
+		
+		int sortSamplePosition(final Cell o) {
+			final int i = Integer.compare(this.sample_id,o.sample_id);
+			if(i!=0) return i;
+			return sortChromStart(o);
+			}
+		
+		int sortPositionSample(final Cell o) {
+			final int i = sortChromStart(o);
+			if(i!=0) return i;
 			return Integer.compare(this.sample_id,o.sample_id);
 			}
-
 		}
 	
 	private static class CellCodec extends AbstractDataCodec<Cell> {
@@ -249,7 +246,6 @@ public class IndexCovToSV extends Launcher {
 					if(StringUtil.isBlank(line)) continue;
 					tokens =  tab.split(line);
 					if(tokens.length!=3+samples.size()) {
-						r.close();
 						throw new JvarkitException.TokenErrors(samples.size()+3, tokens);
 						}
 					final SAMSequenceRecord ssr = dict.getSequence(tokens[0]);
@@ -305,17 +301,16 @@ public class IndexCovToSV extends Launcher {
 				sorter2.doneAdding();
 				
 				final Set<VCFHeaderLine> metaData = new HashSet<>();
-				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, "GT","GQ");
+				VCFStandardHeaderLines.addStandardFormatLines(metaData, true,
+						VCFConstants.GENOTYPE_KEY,
+						VCFConstants.GENOTYPE_QUALITY_KEY
+						);
 				VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY,
 						VCFConstants.ALLELE_FREQUENCY_KEY,
 						VCFConstants.ALLELE_COUNT_KEY,
 						VCFConstants.ALLELE_NUMBER_KEY
 						);
 				
-				final VCFFilterHeaderLine filterAllDel = new VCFFilterHeaderLine("ALL_DEL", "number of samples greater than 1 and all are deletions");
-				metaData.add(filterAllDel);
-				final VCFFilterHeaderLine filterAllDup = new VCFFilterHeaderLine("ALL_DUP", "number of samples  greater than  1 and all are duplication");
-				metaData.add(filterAllDup);
 				final VCFFilterHeaderLine filterHomDel = new VCFFilterHeaderLine("HOM_DEL", "There is one Homozygous deletion.");
 				metaData.add(filterHomDel);
 				final VCFFilterHeaderLine filterHomDup = new VCFFilterHeaderLine("HOM_DUP", "There is one Homozygous duplication.");
@@ -324,12 +319,18 @@ public class IndexCovToSV extends Launcher {
 				/** raw value in indexcov */
 				final VCFFormatHeaderLine foldHeader = new VCFFormatHeaderLine("F", 1, VCFHeaderLineType.Float,"Relative number of copy: 0.5 deletion 1 normal 2.0 duplication");
 				metaData.add(foldHeader);
+				final VCFInfoHeaderLine infoSvType = new VCFInfoHeaderLine(VCFConstants.SVTYPE, 1, VCFHeaderLineType.String,"SV type");
+				metaData.add(infoSvType);
 
+				final VCFInfoHeaderLine infoSvLen = new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"ABS(SV length)");
+				metaData.add(infoSvLen);
+
+				/*
 				final VCFInfoHeaderLine infoSvLens = new VCFInfoHeaderLine("SVLENS", 1, VCFHeaderLineType.Integer,"Allele length");
 				metaData.add(infoSvLens);
 				final VCFInfoHeaderLine infoSvEnds = new VCFInfoHeaderLine("SVENDS", 1, VCFHeaderLineType.Integer,"Allele ends");
 				metaData.add(infoSvEnds);
-
+				 */
 
 				
 				
@@ -340,95 +341,146 @@ public class IndexCovToSV extends Launcher {
 					vcw.writeHeader(vcfHeader);
 	
 					final Allele REF_ALLELE =Allele.create("N",true);
-					int an=0;
-					int ac=0;
 					
 					try(CloseableIterator<Cell> iter2 = sorter2.iterator()) {
-						try(PeekableIterator<Cell> peeker2 = new PeekableIterator<>(iter2)) {
+						try(EqualRangeIterator<Cell> peeker2 = new EqualRangeIterator<>(iter2,(A,B)->A.sortChromStart(B))) {
 						while(peeker2.hasNext()) {
-							final List<Cell> array = new ArrayList<>(samples.size());
-							final Cell first = peeker2.next();
-							array.add(first);
-							while(peeker2.hasNext()) {
-								final Cell second = peeker2.peek();
-								if(second.tid!=first.tid) break;
-								if(first.start!=second.start) break;
-								array.add(peeker2.next());//consumme
+							final List<Cell> array0 = peeker2.next();
+							final Set<Integer> distinct_ends = array0.stream().map(C->C.end).collect(Collectors.toCollection(TreeSet::new));
+							final List<List<Cell>> array_of_array;
+							if(this.normalize_one_allele && distinct_ends.size()>1) {
+								array_of_array = new ArrayList<>(distinct_ends.size());
+								for(final int end_variant: distinct_ends) {
+									array_of_array.add(array0.stream().filter(C->C.end==end_variant).collect(Collectors.toList()));
+									}
 								}
-							if(array.stream().map(C->indexCovUtils.getType(C.score)).noneMatch(C->C.isVariant())) continue;
+							else
+								{
+								array_of_array = Collections.singletonList(array0);
+								}
 							
-							final List<Genotype> genotypes = new ArrayList<>(array.size());
-							final VariantContextBuilder vcb = new VariantContextBuilder();
-							vcb.chr(dict.getSequence(first.tid).getSequenceName());
-							vcb.start(first.start);
-							final int chromEnd = array.stream().mapToInt(C->C.end).max().orElse(first.end);
-							vcb.stop(chromEnd);
-							vcb.attribute(VCFConstants.END_KEY, chromEnd);
-		
-							final Map<AltAllele, Allele> alt2allele = new HashMap<>();
-							
-							for(int i=0;i< array.size();i++) {
-								final Cell cell = array.get(i);
-								final String sampleName = samples.get(cell.sample_id);
-								an+=2;
-								final GenotypeBuilder gb;
-								final IndexCovUtils.SvType type = indexCovUtils.getType(cell.score);
-								final AltAllele altAllele = new AltAllele(type, cell.end);
-								Allele allele = alt2allele.get(altAllele);
-								if(allele==null && type.isVariant()) {
-									allele = Allele.create("<" + (type.isDeletion()?"DEL":"DUP")+"."+alt2allele.size()+ ">",false);
-									alt2allele.put(altAllele,allele);
-									}
+							for(final List<Cell> array: array_of_array) {
+								int an=0;
+								if(array.stream().
+										map(C->indexCovUtils.getType(C.score)).
+										noneMatch(C->C.isVariant())
+										) continue;
 								
-								switch(type) {			
-									case REF :
-										gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));						
-										break;
-									case HET_DEL:
-										gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));						
-										ac++;
-										break;
-									case HOM_DEL:
-										gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));						
-										vcb.filter(filterHomDel.getID());
-										ac+=2;
-										break;
-									case HET_DUP:
-										gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));
-										ac++;
-										break;
-									case HOM_DUP:
-										gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));
-										vcb.filter(filterHomDup.getID());
-										ac+=2;
-										break;
-									default:
-										gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
-										break;
-									}
+								final Cell first = array.get(0);
+								final int max_end = array.stream().mapToInt(C->C.end).max().getAsInt();
+								final List<Genotype> genotypes = new ArrayList<>(array.size());
+								final VariantContextBuilder vcb = new VariantContextBuilder();
+								vcb.chr(dict.getSequence(first.tid).getSequenceName());
+								vcb.start(first.start);
+								vcb.stop(max_end);
+								vcb.attribute(VCFConstants.END_KEY, max_end);
+			
+								final List<AltAllele> altAlleles = new ArrayList<>();
+								boolean has_hom_del = false;
+								boolean has_hom_dup = false;
+
 								
+								for(int i=0;i< array.size();i++) {
+									final Cell cell = array.get(i);
+									final String sampleName = samples.get(cell.sample_id);
+									an+=2;
+									final GenotypeBuilder gb;
+									final IndexCovUtils.SvType type = indexCovUtils.getType(cell.score);
+									final Allele allele;
+									AltAllele altAllele;
+									if(type.isDeletion() || type.isDuplication()) {
+										altAllele = altAlleles.stream().filter(C->C.end==cell.end && C.type.equals(type)).findFirst().orElse(null);
+										if(altAllele==null) {
+											allele = Allele.create("<"+(type.isDeletion()?"DEL":"DUP")+"."+(1+altAlleles.size())+">", false);
+											altAllele = new AltAllele(type,cell.end,allele);
+											altAlleles.add(altAllele);
+											}
+										else
+											{
+											allele = altAllele.allele;
+											}
+										}
+									else
+										{
+										altAllele = null;
+										allele = null;
+										}
+									
+									
+									
+									switch(type) {			
+										case REF :
+											gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));
+											break;
+										case HET_DEL:
+											gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));
+											altAllele.ac++;
+											break;
+										case HOM_DEL:
+											gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));						
+											vcb.filter(filterHomDel.getID());
+											altAllele.ac+=2;
+											has_hom_del = true;
+											break;
+										case HET_DUP:
+											gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,allele));
+											altAllele.ac++;
+											break;
+										case HOM_DUP:
+											gb = new GenotypeBuilder(sampleName,Arrays.asList(allele,allele));
+											vcb.filter(filterHomDup.getID());
+											altAllele.ac+=2;
+											has_hom_dup = true;
+											break;
+										default:
+											gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+											break;
+										}
+									
 									gb.attribute(foldHeader.getID(),cell.score);
+									
+									if(!type.isAmbigous()) {
+										gb.GQ(type.getGenotypeQuality(cell.score));
+										}
+														
+									genotypes.add(gb.make());	
+									}//end loop over genotypes
 								
-								if(!type.isAmbigous()) {
-									gb.GQ(type.getGenotypeQuality(cell.score));
+								
+								
+								final List<Allele> alleles = altAlleles.stream().map(A->A.allele).collect(Collectors.toCollection(ArrayList::new));
+								if(has_hom_del) {
+									vcb.filter(filterHomDel.getID());
+								} else if(has_hom_dup) {
+									vcb.filter(filterHomDup.getID());
+								} else
+								{
+									vcb.passFilters();
+								}
+								
+								alleles.add(0,REF_ALLELE);
+								vcb.alleles(alleles);
+								vcb.genotypes(genotypes);
+								if(altAlleles.stream().allMatch(C->C.type.isDeletion())) {
+									vcb.attribute(VCFConstants.SVTYPE,"DEL");
+								} else if(altAlleles.stream().allMatch(C->C.type.isDuplication())) {
+									vcb.attribute(VCFConstants.SVTYPE,"DUP");
+								} else  {
+									vcb.attribute(VCFConstants.SVTYPE,"MIXED");
+								} 
+								
+								vcb.attribute(infoSvLen.getID(), altAlleles.stream().mapToInt(C->1+C.end-first.start).max().orElse(0));
+								vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,altAlleles.stream().map(A->A.ac).collect(Collectors.toList()));
+								vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an);
+								if(an>0) {
+									final int final_an= an;
+									vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,
+											altAlleles.stream().map(A->A.ac/(double)final_an).collect(Collectors.toList())
+											);
 									}
-													
-								genotypes.add(gb.make());	
-								}//end loop over genotypes
-							
-							final List<AltAllele> sorted = new ArrayList<>(alt2allele.keySet());
-							final List<Allele> alleles = new ArrayList<>(sorted.stream().map(A->alt2allele.get(A)).collect(Collectors.toList()));
-							vcb.attribute(infoSvLens.getID(),sorted.stream().mapToInt(A->(1+(A.end-first.start))*(A.type.isDeletion()?-1:1)).toArray());
-							vcb.attribute(infoSvEnds.getID(),sorted.stream().mapToInt(A->A.end).toArray());
-							
-							alleles.add(0,REF_ALLELE);
-							vcb.alleles(alleles);
-							vcb.genotypes(genotypes);
-							vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,ac);
-							vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an);
-							vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,ac/(double)an);
-							
-							vcw.add(vcb.make());
+								
+								vcw.add(vcb.make());
+								}
 							} //end loop while iter
 						}
 					}

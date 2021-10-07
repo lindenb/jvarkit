@@ -19,7 +19,7 @@ Usage: indexcov2sv [options] Files
     -d, --distance
       Merge segment if they are within that distance. A distance specified as 
       a positive integer.Commas are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb
+      interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 0
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
@@ -34,6 +34,9 @@ Usage: indexcov2sv [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
+    -norm, --norm
+      normalize: only one ALT allele per variant
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
@@ -88,10 +91,6 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/indexcov/IndexCovToSV.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/indexcov/IndexCovToSV.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/indexcov/IndexCovToSVTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/structvar/indexcov/IndexCovToSVTest.java)
 
 
 ## Contribute
