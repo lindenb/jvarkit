@@ -23,6 +23,12 @@ Usage: sv2svg [options] Files
   * -r, -i, --interval, --region
       interval CHROM:START-END
       Default: []
+    --mapq, --Q
+      min mapping quality
+      Default: 1
+    --mismatch
+      do not display bases mismatches between read and REF.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
@@ -74,6 +80,11 @@ $ ./gradlew sv2svg
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20181115
 
 ## Source code 
 

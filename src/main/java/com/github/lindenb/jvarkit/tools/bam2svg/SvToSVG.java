@@ -57,6 +57,8 @@ import org.w3c.dom.Text;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -143,6 +145,8 @@ END_DOC
 @Program(name="sv2svg",
 description="BAM to SVG. Used to display the structural variations.",
 keywords={"bam","alignment","graphics","visualization","svg"},
+modificationDate="20211011",
+creationDate="20181115",
 biostars=405059
 )
 public class SvToSVG extends Launcher
@@ -166,6 +170,10 @@ public class SvToSVG extends Launcher
 	private Path vcfFile=null;
 	@Parameter(names= {"--coverage","--depth"},description="Coverage height. Don't print if cov '<=0'.")
 	private int coverageHeight=70;
+	@Parameter(names= {"--mapq","--Q"},description="min mapping quality")
+	private int min_mapq = 1;
+	@Parameter(names= {"--mismatch"},description="do not display bases mismatches between read and REF.")
+	private boolean hideMismatch = false;
 
 	
 	private final List<Sample> sampleList =new ArrayList<>();
@@ -179,100 +187,130 @@ public class SvToSVG extends Launcher
 	
 	private final String DEBUG_READ="___";
 	
-	private class Sample
-		{
+	private class Sample {
 		final String sampleName;
 		final List<Region> regions = new ArrayList<>();
 		
-		private class Region
+		
+		/** abstract base class for a short read, wrap a SAMRecord and a SVG element */
+		private abstract class ShortRead
+			implements Locatable
 			{
-			private abstract class ShortRead
-				implements Locatable
-				{
-				Element element;
-				double y;
-				abstract SAMRecord getRecord();
-				@Override
-				public String getContig() {
-					return getRecord().getContig();
-					}
-				@Override
-				public int getStart() {
-					return getRecord().getUnclippedStart();
-					}
-				@Override
-				public int getEnd() {
-					return getRecord().getUnclippedEnd();
-					}
-				String getSampleName() {
-					final SAMReadGroupRecord rg = getRecord().getReadGroup();
-					if(rg==null) return null;
-					final String sn = rg.getSample();
-					return sn;
-					}
-				boolean isNegativeStrand() {
-					return getRecord().getReadNegativeStrandFlag();
-					}
-				
-				public double getPixelStart() {
-					return getRegion().baseToPixel(this.getStart());
-				}
-				
-				public double getPixelEnd() {
-					return getRegion().baseToPixel(this.getEnd());
-				}
-				
-				abstract boolean isDefaultShortRead();
-				abstract boolean isSplitRead();
-				Region getRegion() {
-					return Region.this;
-				}
+			Element element;
+			double y;
+			final Region region;
+			
+			protected ShortRead(final Region region) {
+				this.region = region;
 				}
 			
-			private class DefaultShortRead
-				extends ShortRead
-				{
-				final SAMRecord record;
-				
-				DefaultShortRead(final SAMRecord record) {
-					this.record = record;
-					}
-				
-				@Override
-				SAMRecord getRecord() {
-					return this.record;
-					}
-				
-				@Override boolean isDefaultShortRead() {
-					return true;
-					}
-				@Override boolean isSplitRead() {
-					return false;
-					}
+			abstract SAMRecord getRecord();
+			@Override
+			public final String getContig() {
+				return getRecord().getContig();
+				}
+			@Override
+			public final int getStart() {
+				return getRecord().getUnclippedStart();
+				}
+			@Override
+			public final int getEnd() {
+				return getRecord().getUnclippedEnd();
+				}
+			String getSampleName() {
+				final SAMReadGroupRecord rg = getRecord().getReadGroup();
+				if(rg==null) return null;
+				final String sn = rg.getSample();
+				return sn;
+				}
+			final  boolean isNegativeStrand() {
+				return getRecord().getReadNegativeStrandFlag();
 				}
 			
-			private class SplitRead extends ShortRead
-				{
-				final SAMRecord record;
-				final DefaultShortRead source;
-				SplitRead(final SAMRecord record,final DefaultShortRead source) {
-					this.record = record;
-					this.source = source;
-					}
-				
-				@Override
-				SAMRecord getRecord() {
-					return this.record;
-					}
-				
-				@Override boolean isDefaultShortRead() {
-					return false;
-					}
-				@Override boolean isSplitRead() {
-					return true;
-					}
-				
+			public final double getCenterX() {
+				return (getPixelStart()+getPixelEnd())/2.0;
+			}
+			public final double getCenterY() {
+				return y + featureHeight/2.0;
+			}
+
+			
+			public final double getPixelStart() {
+				return getRegion().baseToPixel(this.getStart());
+			}
+			
+			public final double getPixelEnd() {
+				return getRegion().baseToPixel(this.getEnd());
+			}
+			
+			abstract boolean isDefaultShortRead();
+			abstract boolean isSplitRead();
+			/* get owner */
+			final Region getRegion() {
+				return this.region;
+			}
+			@Override
+			public String toString() {
+				return getRecord().getReadName()+"["+getContig()+":"+getStart()+"-"+getEnd()+"] in-region:"+getRegion()+" split:"+isSplitRead()+ " y:"+y;
 				}
+			}
+		
+		/* default implementation of ShortRead */
+		private class DefaultShortRead
+			extends ShortRead
+			{
+			final SAMRecord record;
+			
+			DefaultShortRead(final Region region,final SAMRecord record) {
+				super(region);
+				this.record = record;
+				}
+
+
+			@Override
+			SAMRecord getRecord() {
+				return this.record;
+				}
+			
+			@Override boolean isDefaultShortRead() {
+				return true;
+				}
+			@Override boolean isSplitRead() {
+				return false;
+				}
+			}
+		
+		/* implementation of SplitRead , wraps supplementary and it's source */
+		private class SplitRead extends ShortRead
+			{
+			final SAMRecord record;
+			final DefaultShortRead source;
+			SplitRead(final Region region,final SAMRecord record,final DefaultShortRead source) {
+				super(region);
+				this.record = record;
+				this.source = source;
+				}
+			
+			@Override
+			SAMRecord getRecord() {
+				return this.record;
+				}
+			
+			@Override boolean isDefaultShortRead() {
+				return false;
+				}
+			@Override boolean isSplitRead() {
+				return true;
+				}
+			@Override
+			public String toString() {
+				return super.toString()+ (this.source.getRegion()==this.getRegion()?" => ":" -> ")+this.source.toString();
+				}
+			}
+
+		
+		/** a region */
+		private class Region {
 			
 			final SimpleInterval interval;
 			final List<ShortRead> beforePileup=new ArrayList<>();
@@ -290,21 +328,20 @@ public class SvToSVG extends Launcher
 					for(final SAMRecord rec:others) {
 						final Cigar cigar = rec.getCigar();
 						if(cigar==null || cigar.isEmpty()) continue;
-						
+						/* loop over all regions for this samples */
 						for(final Region otherRgn : Sample.this.regions) {
+							/* check supplementary reads belong to that region */
 							if(!rec.getContig().equals(otherRgn.interval.getContig())) continue;
-							
+							/* check supplementary reads belong to that interval */
 							if(!CoordMath.overlaps(
 									rec.getUnclippedStart(), rec.getUnclippedEnd(),
 									otherRgn.interval.getStart(), otherRgn.interval.getEnd())) continue;
-							final SplitRead splitRead = new SplitRead(rec,(DefaultShortRead)shortRead);
-							if(otherRgn==this)
-								{
+							if(otherRgn==this) {
 								//cannot add to self for now because we're looping
-								addToSelf.add(splitRead);
+								addToSelf.add(new SplitRead(this,rec,(DefaultShortRead)shortRead));
 								}
-							else
-								{
+							else {
+								final SplitRead splitRead = new SplitRead(otherRgn,rec,(DefaultShortRead)shortRead);
 								otherRgn.beforePileup.add(splitRead);
 								}
 							}
@@ -313,6 +350,7 @@ public class SvToSVG extends Launcher
 				this.beforePileup.addAll(addToSelf);
 				}
 			
+			/* pileup reads in that region */
 			void pileup() {
 				 this.beforePileup.sort((A,B)->Integer.compare(A.getStart(), B.getStart()));
 				
@@ -332,45 +370,52 @@ public class SvToSVG extends Launcher
 					
 					if( y == this.lines.size())
 						{
-						final List<Sample.Region.ShortRead> line= new ArrayList<>();
+						final List<Sample.ShortRead> line= new ArrayList<>();
 						line.add(shortRead);
 						this.lines.add(line);
 						}
 					}
+				// not needed anymore
 				this.beforePileup.clear();
 				}
 			
-			double baseToPixel(int pos)
+			double baseToPixel(final int pos)
 				{
-				return  ((pos - this.interval.getStart())/(double)(1+this.interval.getEnd()-this.interval.getStart()))*(SvToSVG.this.drawinAreaWidth);
+				return  ((pos - this.interval.getStart())/(double)(this.interval.getLengthOnReference()))*(SvToSVG.this.drawinAreaWidth);
 				}
 			Stream<ShortRead> shortReadStream() {
 				return this.lines.stream().flatMap(L->L.stream());
 				}
-			}
+			
+			@Override
+			public String toString() {
+				return this.interval.toString();
+				}
+			} /* end region */
 		
 		Sample(final String sampleName) {
 			this.sampleName = sampleName;
 			}
 		
-		Stream<Region.ShortRead> shortReadStream() {
+		Stream<ShortRead> shortReadStream() {
 			return this.regions.stream().flatMap(R->R.shortReadStream());
 			}
 		
-		private List<Sample.Region.ShortRead> getReadsByName(final String readName) {
+		private List<Sample.ShortRead> getReadsByName(final String readName) {
 			return this.shortReadStream().
 					filter(S->S.getRecord().getReadName().equals(readName)).
 					collect(Collectors.toList());
 			}
-		}
+		}/* end sample */
 	
 	
 	/** convert double to string */
-	private String format(double v)
+	private String format(final double v)
 		{
 		return this.decimalFormater.format(v);
 		}
-
+	
+	
 	private Element buildSample(
 			final Sample sample,
 			final DocumentFragment animationLayer,
@@ -412,7 +457,7 @@ public class SvToSVG extends Launcher
 			sampleRoot.appendChild(regionRoot);
 			
 			final Element rgnLabel= element("text",
-					region.interval.getContig()+":"+ this.niceIntFormat.format(region.interval.getStart())+"-"+ this.niceIntFormat.format(region.interval.getEnd())+" Length:"+this.niceIntFormat.format((region.interval.getLengthOnReference())));
+					region.interval.getContig()+":"+ StringUtils.niceInt(region.interval.getStart())+"-"+ StringUtils.niceInt(region.interval.getEnd())+" Length:"+this.niceIntFormat.format((region.interval.getLengthOnReference())));
 			rgnLabel.setAttribute("x", "5");
 			rgnLabel.setAttribute("y", format(y+12));
 			rgnLabel.setAttribute("class", "samplename");
@@ -464,9 +509,9 @@ public class SvToSVG extends Launcher
 			/* print all lines */
 			for(int nLine=0;nLine< region.lines.size();++nLine)
 				{
-				final List<Sample.Region.ShortRead> line= region.lines.get(nLine);
+				final List<Sample.ShortRead> line= region.lines.get(nLine);
 				//loop over records on that line
-				for(final Sample.Region.ShortRead shortRead: line)
+				for(final Sample.ShortRead shortRead: line)
 					{
 					boolean trace = shortRead.getRecord().getReadName().equals(DEBUG_READ);
 					
@@ -477,6 +522,8 @@ public class SvToSVG extends Launcher
 					final double maxy = this.featureHeight;
 
 					final Element readElement = element("g");
+					// https://developer.mozilla.org/en-US/docs/Web/CSS/transform-origin
+					readElement.setAttribute("transform-origin", "center");
 					if(shortRead.isSplitRead()) { //always in front
 						animationLayer.appendChild(readElement);
 						}
@@ -497,8 +544,7 @@ public class SvToSVG extends Launcher
 						return readC!=refC;
 						};
 					
-					readElement.setAttribute("transform",
-							"translate("+leftX+","+format(y)+")");
+					readElement.setAttribute("transform", "translate("+leftX+","+format(y)+")");
 					shortRead.element = readElement;
 					shortRead.y  = y;
 					int readpos=0;
@@ -520,30 +566,31 @@ public class SvToSVG extends Launcher
 							case I: 
 								{
 								next_read += ce.getLength();
-								final double ce_length = region.baseToPixel(region.interval.getStart()+ce.getLength());
-								final Element rectInsert = element("rect");
-								rectInsert.setAttribute("class", "insert");
-								rectInsert.setAttribute("x", format(region.baseToPixel(ref)-leftX));
-								rectInsert.setAttribute("y", format(0));
-								rectInsert.setAttribute("width", format(this.svgDuration>0  && ce_length >1 ?ce_length:1));
-								rectInsert.setAttribute("height", format(this.featureHeight));
-								rectInsert.appendChild(element("title", this.niceIntFormat.format(ce.getLength())));
-								if(this.svgDuration>0 && ce_length >1)
-									{
-									final Element anim = element("animate");
-									rectInsert.appendChild(anim);
-									anim.setAttribute("attributeType","XML");
-									anim.setAttribute("attributeName","width");
-									anim.setAttribute("begin","0s");
-									anim.setAttribute("from",format(ce_length));
-									anim.setAttribute("to","1");
-									anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
-									anim.setAttribute("repeatCount",this.svgRepeatCount);
-									anim.setAttribute("fill","freeze");
+								if(!(ref+ce.getLength() < region.interval.getStart() || ref> region.interval.getEnd())) {
+									final double ce_length = region.baseToPixel(region.interval.getStart()+ce.getLength());
+									final Element rectInsert = element("rect");
+									rectInsert.setAttribute("class", "insert");
+									rectInsert.setAttribute("x", format(region.baseToPixel(ref)-leftX));
+									rectInsert.setAttribute("y", format(0));
+									rectInsert.setAttribute("width", format(this.svgDuration>0  && ce_length >1 ?ce_length:1));
+									rectInsert.setAttribute("height", format(this.featureHeight));
+									rectInsert.appendChild(element("title", this.niceIntFormat.format(ce.getLength())));
+									if(this.svgDuration>0 && ce_length >1)
+										{
+										final Element anim = element("animate");
+										rectInsert.appendChild(anim);
+										anim.setAttribute("attributeType","XML");
+										anim.setAttribute("attributeName","width");
+										anim.setAttribute("begin","0s");
+										anim.setAttribute("from",format(ce_length));
+										anim.setAttribute("to","1");
+										anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
+										anim.setAttribute("repeatCount",this.svgRepeatCount);
+										anim.setAttribute("fill","freeze");
+										}
+									
+									insertionsFragment.appendChild(rectInsert);
 									}
-								
-								insertionsFragment.appendChild(rectInsert);
-								
 								break;
 								}
 							case P: continue;
@@ -555,70 +602,72 @@ public class SvToSVG extends Launcher
 								if(!op.equals(CigarOperator.H)) {
 									next_read+= ce.getLength();
 									}
-								final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref);
-								
-								
-								
-								final StringBuilder sb=new StringBuilder();
-								
-								final Element path = element("path");
-								path.setAttribute("class", "op"+op.name()+(shortRead.isDefaultShortRead()?"":"x"));
-								if(trace) path.setAttribute("style", "fill:blue;");
-								if(!op.isClipping() && shortRead.isDefaultShortRead() && shortRead.getRecord().getReadPairedFlag() &&  !shortRead.getRecord().getProperPairFlag())
-									{
-									if(!shortRead.getContig().equals(shortRead.getRecord().getMateReferenceName()))
+								if(!(next_ref < region.interval.getStart() || ref> region.interval.getEnd())) {
+									final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref);
+									
+									
+									
+									final StringBuilder sb=new StringBuilder();
+									
+									final Element path = element("path");
+									path.setAttribute("class", "op"+op.name()+(shortRead.isDefaultShortRead()?"":"x"));
+									if(trace) path.setAttribute("style", "fill:blue;");
+									if(!op.isClipping() && shortRead.isDefaultShortRead() && shortRead.getRecord().getReadPairedFlag() &&  !shortRead.getRecord().getProperPairFlag())
 										{
-										path.setAttribute("style", "fill:orchid;");
+										if(!shortRead.getContig().equals(shortRead.getRecord().getMateReferenceName()))
+											{
+											path.setAttribute("style", "fill:orchid;");
+											}
+										else
+											{
+											path.setAttribute("style", "fill:lightblue;");
+											}
+										}
+									
+									// arrow <--
+									if(cigarIdx==0 && shortRead.isNegativeStrand()) {
+										sb.append( "M ").append(format(region.baseToPixel(ref)-leftX)).append(',').append(0);
+										sb.append(" h ").append(format(distance_pix));
+										sb.append(" v ").append(format(maxy));
+										sb.append(" h ").append(format(-(distance_pix)));
+										sb.append(" l ").append(format(-arrow_w)).append(',').append(-featureHeight/2.0);
+										sb.append(" Z");
+										}
+									// arrow -->
+									else if(cigarIdx+1==cigar.numCigarElements() && !shortRead.isNegativeStrand()) {
+										sb.append( "M ").append(format(region.baseToPixel(ref)-leftX+distance_pix)).append(',').append(0);
+										sb.append(" h ").append(format(-(distance_pix)));
+										sb.append(" v ").append(format(maxy));
+										sb.append(" h ").append(format(distance_pix));
+										sb.append(" l ").append(format(arrow_w)).append(',').append(-featureHeight/2.0);
+										sb.append(" Z");
+										
 										}
 									else
 										{
-										path.setAttribute("style", "fill:lightblue;");
+										sb.append( "M ").append(format(region.baseToPixel(ref)-leftX)).append(',').append(0);
+										sb.append(" h ").append(format(distance_pix));
+										sb.append(" v ").append(format(maxy));
+										sb.append(" h ").append(format(-(distance_pix)));
+										sb.append(" Z");
 										}
-									}
-								
-								// arrow <--
-								if(cigarIdx==0 && shortRead.isNegativeStrand()) {
-									sb.append( "M ").append(format(region.baseToPixel(ref)-leftX)).append(',').append(0);
-									sb.append(" h ").append(format(distance_pix));
-									sb.append(" v ").append(format(maxy));
-									sb.append(" h ").append(format(-(distance_pix)));
-									sb.append(" l ").append(format(-arrow_w)).append(',').append(-featureHeight/2.0);
-									sb.append(" Z");
-									}
-								// arrow -->
-								else if(cigarIdx+1==cigar.numCigarElements() && !shortRead.isNegativeStrand()) {
-									sb.append( "M ").append(format(region.baseToPixel(ref)-leftX+distance_pix)).append(',').append(0);
-									sb.append(" h ").append(format(-(distance_pix)));
-									sb.append(" v ").append(format(maxy));
-									sb.append(" h ").append(format(distance_pix));
-									sb.append(" l ").append(format(arrow_w)).append(',').append(-featureHeight/2.0);
-									sb.append(" Z");
+									path.setAttribute("d", sb.toString());
+									readElement.appendChild(path);
 									
-									}
-								else
-									{
-									sb.append( "M ").append(format(region.baseToPixel(ref)-leftX)).append(',').append(0);
-									sb.append(" h ").append(format(distance_pix));
-									sb.append(" v ").append(format(maxy));
-									sb.append(" h ").append(format(-(distance_pix)));
-									sb.append(" Z");
-									}
-								path.setAttribute("d", sb.toString());
-								readElement.appendChild(path);
-								
-								if(op.isAlignment() && genomicSequence!=null)
-									{
-									for(int x=0;x< ce.getLength();++x)
+									if(op.isAlignment() && genomicSequence!=null && !hideMismatch)
 										{
-										if(!isMismatch.test(readpos+x, ref+x)) continue;
-										
-										final Element rectMismatch = element("rect");
-										rectMismatch.setAttribute("class", "mismatch");
-										rectMismatch.setAttribute("x", format(region.baseToPixel(ref+x)-leftX));
-										rectMismatch.setAttribute("y", format(0));
-										rectMismatch.setAttribute("width", format((region.baseToPixel(ref+x+1)-region.baseToPixel(ref+x))));
-										rectMismatch.setAttribute("height", format(this.featureHeight));
-										readElement.appendChild(rectMismatch);
+										for(int x=0;x< ce.getLength();++x)
+											{
+											if(!isMismatch.test(readpos+x, ref+x)) continue;
+											
+											final Element rectMismatch = element("rect");
+											rectMismatch.setAttribute("class", "mismatch");
+											rectMismatch.setAttribute("x", format(region.baseToPixel(ref+x)-leftX));
+											rectMismatch.setAttribute("y", format(0));
+											rectMismatch.setAttribute("width", format((region.baseToPixel(ref+x+1)-region.baseToPixel(ref+x))));
+											rectMismatch.setAttribute("height", format(this.featureHeight));
+											readElement.appendChild(rectMismatch);
+											}
 										}
 									}
 								break;
@@ -626,14 +675,16 @@ public class SvToSVG extends Launcher
 							case D: case N:
 								{
 								next_ref+= ce.getLength();
-								final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref);
-								final Element lineE = element("line");
-								lineE.setAttribute("class", "opD");
-								lineE.setAttribute("x1", format(region.baseToPixel(ref)-leftX));
-								lineE.setAttribute("y1", format(midy));
-								lineE.setAttribute("x2", format(region.baseToPixel(ref)-leftX+distance_pix));
-								lineE.setAttribute("y2", format(midy));
-								readElement.insertBefore(lineE, readElement.getFirstChild());
+								if(!(next_ref < region.interval.getStart() || ref> region.interval.getEnd())) {
+									final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref);
+									final Element lineE = element("line");
+									lineE.setAttribute("class", "opD");
+									lineE.setAttribute("x1", format(region.baseToPixel(ref)-leftX));
+									lineE.setAttribute("y1", format(midy));
+									lineE.setAttribute("x2", format(region.baseToPixel(ref)-leftX+distance_pix));
+									lineE.setAttribute("y2", format(midy));
+									readElement.insertBefore(lineE, readElement.getFirstChild());
+									}
 								break;
 								}
 							default: throw new IllegalStateException(op.name());
@@ -736,10 +787,12 @@ public class SvToSVG extends Launcher
 		frame.setAttribute("height",format(y));
 		sampleRoot.appendChild(frame);
 		
+		// attribute 'y' will be removed below
 		sampleRoot.setAttribute("y",format(y));
 		return sampleRoot;
 		}
-				
+		
+	
 		private Element element(final String tag) {
 			return this.document.createElementNS(SVG.NS, tag);
 			}
@@ -818,7 +871,7 @@ public class SvToSVG extends Launcher
 				mainG.appendChild(div);
 				}
 			
-			//loop over discordant reads
+			//loop over discordant reads and print arrows
 			for(final Sample sample:this.sampleList)
 				{
 				sample.shortReadStream().
@@ -830,15 +883,15 @@ public class SvToSVG extends Launcher
 					map(SR->SR.getRecord().getReadName()).
 					collect(Collectors.toSet()).
 					forEach(READNAME->{
-					final List<Sample.Region.ShortRead> sr = sample.getReadsByName(READNAME);
+					final List<Sample.ShortRead> sr = sample.getReadsByName(READNAME);
 					for(int x=0;x+1 < sr.size();++x)
 						{
-						final Sample.Region.ShortRead srx = sr.get(x);
+						final Sample.ShortRead srx = sr.get(x);
 						if(!srx.isDefaultShortRead()) continue;
 						if(!srx.getRecord().getFirstOfPairFlag()) continue;
 						for(int y=x+1;y  < sr.size();++y)
 							{
-							final  Sample.Region.ShortRead sry = sr.get(y);
+							final  Sample.ShortRead sry = sr.get(y);
 							if(!sry.isDefaultShortRead()) continue;
 							if(!sry.getRecord().getSecondOfPairFlag()) continue;
 							//if(srx.getContig().equals(sry.getContig())) continue;
@@ -865,10 +918,11 @@ public class SvToSVG extends Launcher
 			this.sampleList.stream().
 				flatMap(SN->SN.shortReadStream()).
 				filter(R->R.isSplitRead()).
-				map(R->(Sample.Region.SplitRead)R).
+				map(R->(Sample.SplitRead)R).
 				forEach(SR->{
 					if(this.svgDuration<=0) return;
-					final Element anim = element("animateTransform");
+					
+					Element anim = element("animateTransform");
 					SR.element.appendChild(anim);
 					anim.setAttribute("attributeType","XML");
 					anim.setAttribute("attributeName","transform");
@@ -879,6 +933,26 @@ public class SvToSVG extends Launcher
 					anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
 					anim.setAttribute("repeatCount",this.svgRepeatCount);
 					anim.setAttribute("fill","freeze");
+					
+					
+					/* if !=strand rotate around center.x,center.y 
+					if(SR.getContig().equals(SR.source.getContig()) && SR.isNegativeStrand()!=SR.source.isNegativeStrand())
+						{
+						anim = element("animateTransform");
+						SR.element.appendChild(anim);
+						
+						anim.setAttribute("attributeType","XML");
+						anim.setAttribute("attributeName","transform");
+						anim.setAttribute("type","rotate");
+						anim.setAttribute("begin","0s");
+						anim.setAttribute("from","0");
+						anim.setAttribute("to","180");
+						anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
+						anim.setAttribute("repeatCount",this.svgRepeatCount);
+						anim.setAttribute("fill","freeze");
+						}*/
+
+					
 				});
 			
 			mainG.appendChild(animationLayer);
@@ -925,75 +999,70 @@ public class SvToSVG extends Launcher
 				this.document=db.newDocument();
 
 				
-				final List<File> bamFiles = IOUtils.unrollFiles2018(args);
+				final List<Path> bamFiles = IOUtils.unrollPaths(args);
 				if(bamFiles.isEmpty()) {
 					LOG.error("bam(s) undefined");
 					return -1;
 					}
 				
-				final SamReaderFactory srf = super.createSamReaderFactory();
+				final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.fastaFile);
 				
 				/* loop over each bam file */
-				for(final File bamFile : bamFiles) {
-					final SamReader sr = srf.open(bamFile);
-					final SAMFileHeader header = sr.getFileHeader();
-					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-					final Function<String,Optional<SimpleInterval>> parser=IntervalParserFactory.newInstance().dictionary(dict).make();
-					final Set<String> samples = header.getReadGroups().stream().
-							map(G->G.getSample()).
-							filter(S->!StringUtil.isBlank(S)).
-							collect(Collectors.toSet());
-					
-					if(samples.size()!=1) {
-						LOG.error("expected on sample in "+bamFile+" but got "+samples.size()+" "+samples);
-						return -1;
-						}
-					final Sample sample = new Sample(samples.iterator().next());
-					this.sampleList.add(sample);
-					/* loop over each region for that sample */
-					for(final String intervalStr:this.intervalStrList) {
-						LOG.info("scanning "+intervalStr+" for "+bamFile);
-						final SimpleInterval interval = parser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
-						if(interval==null) {
-							LOG.error("Cannot parse "+intervalStr+" for "+bamFile);
-							return  -1;
+				for(final Path bamFile : bamFiles) {
+					try(final SamReader sr = srf.open(bamFile)) {
+						final SAMFileHeader header = sr.getFileHeader();
+						final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+						final Function<String,Optional<SimpleInterval>> parser=IntervalParserFactory.newInstance().dictionary(dict).make();
+						final Set<String> samples = header.getReadGroups().stream().
+								map(G->G.getSample()).
+								filter(S->!StringUtil.isBlank(S)).
+								collect(Collectors.toSet());
+						
+						if(samples.size()!=1) {
+							LOG.error("expected on sample in "+bamFile+" but got "+samples.size()+" "+samples);
+							return -1;
 							}
-						/* create new region */
-						final Sample.Region region = sample.new Region(interval);
-						sample.regions.add(region);
-						CloseableIterator<SAMRecord> iter = sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false);
-						while(iter.hasNext())
-							{
-							final SAMRecord record = iter.next();
-							boolean trace = record.getReadName().equals(DEBUG_READ);
-							
-							
-							if(record.getReadUnmappedFlag()) continue;
-							if(record.getReadFailsVendorQualityCheckFlag()) continue;
-							if(record.isSecondaryOrSupplementary()) continue;
-							if(record.getDuplicateReadFlag()) continue;
-							if(trace) LOG.debug("got1");
-							final Cigar cigar = record.getCigar();
-							if(cigar==null || cigar.isEmpty()) continue;
-							if(trace) LOG.debug("got2");
-							
-							if( !record.getContig().equals(interval.getContig())) continue;
-							if(trace) LOG.debug("got3");
-							final Sample.Region.ShortRead shortRead = region.new  DefaultShortRead(record);
-							
-							if( shortRead.getEnd()  < interval.getStart()) continue;
-							if( shortRead.getStart()  > interval.getEnd())continue;
-							if(trace) LOG.debug("got4" +record.getSAMString());
-							if(!sample.sampleName.equals(shortRead.getSampleName())) continue;
-							region.beforePileup.add(shortRead);
-							}
-						iter.close();
-						}
-					sr.close();
+						final Sample sample = new Sample(samples.iterator().next());
+						this.sampleList.add(sample);
+						/* loop over each region for that sample */
+						for(final String intervalStr:this.intervalStrList) {
+							LOG.info("scanning "+intervalStr+" for "+bamFile);
+							final SimpleInterval interval = parser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
+							if(interval==null) {
+								LOG.error("Cannot parse "+intervalStr+" for "+bamFile);
+								return  -1;
+								}
+							/* create new region */
+							final Sample.Region region = sample.new Region(interval);
+							sample.regions.add(region);
+							try(CloseableIterator<SAMRecord> iter = sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false) ) {
+								while(iter.hasNext())
+									{
+									final SAMRecord record = iter.next();
+									boolean trace = record.getReadName().equals(DEBUG_READ);
+									
+									if(!SAMRecordDefaultFilter.accept(record, this.min_mapq)) continue;
+									
+									if(trace) LOG.debug("got1");
+									final Cigar cigar = record.getCigar();
+									if(cigar==null || cigar.isEmpty()) continue;
+									if(trace) LOG.debug("got2");
+									
+									if( !record.getContig().equals(interval.getContig())) continue;
+									if(trace) LOG.debug("got3");
+									final Sample.ShortRead shortRead = sample.new  DefaultShortRead(region,record);
+									
+									if( shortRead.getEnd()  < interval.getStart()) continue;
+									if( shortRead.getStart()  > interval.getEnd())continue;
+									if(trace) LOG.debug("got4" +record.getSAMString());
+									if(!sample.sampleName.equals(shortRead.getSampleName())) continue;
+									region.beforePileup.add(shortRead);
+									}
+								}/* en iterator */
+							} /* end loop interval */
+						}/* end open SAM */
 					}
 				this.sampleList.forEach(S->S.regions.forEach(R->R.addSplitReads()));
-				
-				
 				this.sampleList.forEach(S->S.regions.forEach(R->R.pileup()));
 				
 				
@@ -1027,9 +1096,9 @@ public class SvToSVG extends Launcher
 					}
 				tr.transform(new DOMSource(this.document),result);
 				
-				return RETURN_OK;
+				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
