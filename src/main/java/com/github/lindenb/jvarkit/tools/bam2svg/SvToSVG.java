@@ -523,7 +523,7 @@ public class SvToSVG extends Launcher
 
 					final Element readElement = element("g");
 					// https://developer.mozilla.org/en-US/docs/Web/CSS/transform-origin
-					readElement.setAttribute("transform-origin", "center");
+					readElement.setAttribute("style","transform-origin:center");
 					if(shortRead.isSplitRead()) { //always in front
 						animationLayer.appendChild(readElement);
 						}
@@ -922,6 +922,8 @@ public class SvToSVG extends Launcher
 				forEach(SR->{
 					if(this.svgDuration<=0) return;
 					
+					final boolean rotate = SR.getContig().equals(SR.source.getContig()) && SR.isNegativeStrand()!=SR.source.isNegativeStrand();
+					
 					Element anim = element("animateTransform");
 					SR.element.appendChild(anim);
 					anim.setAttribute("attributeType","XML");
@@ -935,9 +937,10 @@ public class SvToSVG extends Launcher
 					anim.setAttribute("fill","freeze");
 					
 					
-					/* if !=strand rotate around center.x,center.y 
-					if(SR.getContig().equals(SR.source.getContig()) && SR.isNegativeStrand()!=SR.source.isNegativeStrand())
+					if(rotate) // doesn't work
 						{
+						/*
+						
 						anim = element("animateTransform");
 						SR.element.appendChild(anim);
 						
@@ -945,12 +948,13 @@ public class SvToSVG extends Launcher
 						anim.setAttribute("attributeName","transform");
 						anim.setAttribute("type","rotate");
 						anim.setAttribute("begin","0s");
-						anim.setAttribute("from","0");
-						anim.setAttribute("to","180");
+						anim.setAttribute("from","0 "+(format(-1*SR.getPixelStart()))+" "+format(-1*SR.y));
+						anim.setAttribute("to","180 "+(format(-1*SR.source.getPixelStart()))+" "+format(-1*SR.source.y));
 						anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
 						anim.setAttribute("repeatCount",this.svgRepeatCount);
 						anim.setAttribute("fill","freeze");
-						}*/
+						*/
+						}
 
 					
 				});
