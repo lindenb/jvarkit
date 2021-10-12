@@ -26,6 +26,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -132,7 +133,8 @@ END_DOC
 	description="Construct a combination set of fasta sequences from a vcf",
 	biostars=175929,
 	keywords={"fasta","vcf"},
-	modificationDate="20190926"
+	creationDate="20160208",
+	modificationDate="20211012"
 	)
 public class Biostar175929 extends Launcher
 	{
@@ -150,11 +152,14 @@ public class Biostar175929 extends Launcher
 	
 	@Parameter(names={"-R","--reference"},description="indexed Fasta reference",required=true)
 	private Path faidx = null;
+	
+	@Parameter(names={"--no-recursion"},description="Disable recursion. Print only one sequence")
+	private boolean disable_recursion = false;
 
 	
-	private PrintWriter pw;
 	
 	private void recursive(
+			final PrintWriter pw,
 			final GenomicSequence chromosome,
 			final List<VariantContext> variants,
 			int index,
@@ -183,9 +188,9 @@ public class Biostar175929 extends Launcher
 		if(index==0)
 			{
 			int firstPos0= (variants.get(0).getStart()-1);
-			int chromStart=Math.max(0, firstPos0-extendBases);
+			int chromStart=Math.max(0, firstPos0-this.extendBases);
 			title.append(variants.get(0).getContig()+":"+chromStart);
-			for(int i=Math.max(0, firstPos0-extendBases);i< firstPos0 ;++i)
+			for(int i=Math.max(0, firstPos0-this.extendBases);i< firstPos0 ;++i)
 				{
 				sequence.append(Character.toLowerCase(chromosome.charAt(i)));
 				}
@@ -203,19 +208,31 @@ public class Biostar175929 extends Launcher
 		final int  title_length= title.length();
 		final int  sequence_length= sequence.length();
 		final VariantContext ctx = variants.get(index);
-		for(final Allele allele: ctx.getAlleles())
-			{
-			if(allele.isNoCall()) continue;
-			if(allele.isSymbolic())  continue;
-			title.setLength(title_length);
-			sequence.setLength(sequence_length);
-			title.append("|"+ctx.getContig()+":"+ctx.getStart()+"-"+ctx.getEnd()+"("+allele.getBaseString()+")");
-			if(this.bracket) sequence.append("[");
-			sequence.append(allele.getBaseString().toUpperCase());
-			if(this.bracket) sequence.append("]");
-			recursive(chromosome, variants, index+1, title, sequence);
-			}
 		
+		if(disable_recursion) {
+			title.append("|"+ctx.getContig()+":"+ctx.getStart()+"-"+ctx.getEnd());
+			sequence.append("[");
+			sequence.append(ctx.getAlleles().stream().
+					filter(A->!A.isNoCall()).
+					map(A->A.getBaseString()).
+					collect(Collectors.joining("/")));
+			sequence.append("]");
+			recursive(pw,chromosome, variants, index+1, title, sequence);
+			}
+		else {
+			for(final Allele allele: ctx.getAlleles())
+				{
+				if(allele.isNoCall()) continue;
+				if(allele.isSymbolic())  continue;
+				title.setLength(title_length);
+				sequence.setLength(sequence_length);
+				title.append("|"+ctx.getContig()+":"+ctx.getStart()+"-"+ctx.getEnd()+"("+allele.getBaseString()+")");
+				if(this.bracket) sequence.append("[");
+				sequence.append(allele.getBaseString().toUpperCase());
+				if(this.bracket) sequence.append("]");
+				recursive(pw,chromosome, variants, index+1, title, sequence);
+				}
+			}
 		
 		}
 	
@@ -227,46 +244,42 @@ public class Biostar175929 extends Launcher
 			LOG.error("fasta reference was not defined.");
 			return -1;
 			}
-		ReferenceSequenceFile reference = null;
-		VCFIterator iter=null;
 		try {
-			reference = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
-			iter = super.openVCFIterator(oneFileOrNull(args));
-			this.pw = openPathOrStdoutAsPrintWriter(this.outputFile);
-			final List<VariantContext> variants = new ArrayList<>();
-			for(;;)
-				{
-				VariantContext ctx = null;
-				if(iter.hasNext()) {
-					ctx = iter.next();
-				}
-				
-				if( ctx == null || (!variants.isEmpty() && !ctx.getContig().equals(variants.get(0).getContig()))) {
-					if(!variants.isEmpty()) 
+				try( ReferenceSequenceFile reference = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
+				try(VCFIterator iter = super.openVCFIterator(oneFileOrNull(args))) {
+					try(PrintWriter pw=openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					final List<VariantContext> variants = new ArrayList<>();
+					for(;;)
 						{
-						LOG.info("chrom:" +variants.get(0).getContig()+ " N="+variants.size());
-						final GenomicSequence genomic = new GenomicSequence(reference,variants.get(0).getContig());
-						final StringBuilder title= new StringBuilder();
-						final StringBuilder sequence= new StringBuilder();
-						recursive(genomic,variants,0,title,sequence);
-						variants.clear();
+						VariantContext ctx = null;
+						if(iter.hasNext()) {
+							ctx = iter.next();
+							}
+						
+						if( ctx == null || (!variants.isEmpty() && !ctx.contigsMatch(variants.get(0)))) {
+							if(!variants.isEmpty()) 
+								{
+								LOG.info("chrom:" +variants.get(0).getContig()+ " N="+variants.size());
+								final GenomicSequence genomic = new GenomicSequence(reference,variants.get(0).getContig());
+								final StringBuilder title= new StringBuilder();
+								final StringBuilder sequence= new StringBuilder();
+								recursive(pw,genomic,variants,0,title,sequence);
+								variants.clear();
+								}
+							if( ctx == null) break;
+							}
+						variants.add(ctx);
 						}
-					if( ctx == null) break;
+						pw.flush();
+						}
 					}
-				variants.add(ctx);
 				}
-			iter.close();iter=null;
-			this.pw.flush();
-			this.pw.close();
-			return RETURN_OK;
-		} catch (Exception e) {
+			return 0;
+		} catch (Throwable e) {
 			LOG.error(e);
 			return -1;
 		}
 			finally {
-				CloserUtil.close(reference);
-				CloserUtil.close(iter);
-				CloserUtil.close(pw);
 			}
 		}
 	

@@ -20,6 +20,9 @@ Usage: biostar175929 [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --no-recursion
+      Disable recursion. Print only one sequence
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
@@ -58,6 +61,11 @@ $ ./gradlew biostar175929
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20160208
 
 ## Source code 
 
