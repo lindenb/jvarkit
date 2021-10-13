@@ -11,7 +11,7 @@ subsample/shuffle BAM to fixed number of alignments.
 Usage: biostar145820 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -f, --filter, --jexl
       A JEXL Expression that will be used to filter out some sam-records (see 
@@ -32,10 +32,17 @@ Usage: biostar145820 [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    --reference, -R
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --seed
+      Random seed. -1 == current time
+      Default: -1
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -78,6 +85,11 @@ $ ./gradlew biostar145820
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20150615
+
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar145820.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/biostar/Biostar145820.java)
@@ -102,7 +114,7 @@ Should you cite **biostar145820** ? [https://github.com/mr-c/shouldacite/blob/ma
 
 The current reference is:
 
- * MED25 connects enhancer–promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616–625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 
+ * MED25 connects enhancer-promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616-625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 
 
 
 ## Example

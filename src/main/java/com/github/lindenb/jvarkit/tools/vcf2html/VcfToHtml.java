@@ -30,6 +30,7 @@ import java.io.StringWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -84,6 +85,7 @@ public class VcfToHtml extends Launcher {
 			try(VCFReader reader  = VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)),true)) {
 				final VCFHeader header= reader.getHeader();
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+				final Optional<String> buildName = SequenceDictionaryUtils.getBuildName(dict);
 				try( ReferenceSequenceFile reference = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
 					SequenceUtil.assertSequenceDictionariesEqual(SequenceDictionaryUtils.extractRequired(reference),dict);
 					final List<Locatable> locs = IntervalListProvider.from(this.regionsStr).dictionary(dict).stream().
@@ -118,7 +120,7 @@ public class VcfToHtml extends Launcher {
 							jsw.name("contig").value(loc.getContig());
 							jsw.name("start").value(loc.getStart());
 							jsw.name("end").value(loc.getEnd());
-							jsw.name("len").value(loc.getLengthOnReference());
+							jsw.name("length").value(loc.getLengthOnReference());
 							jsw.name("sequence").value(reference.getSubsequenceAt(loc.getContig(), loc.getStart(), loc.getEnd()).getBaseString());
 							jsw.name("variants");
 							jsw.beginArray();
@@ -127,6 +129,7 @@ public class VcfToHtml extends Launcher {
 								jsw.name("start").value(ctx.getStart());
 								jsw.name("end").value(ctx.getEnd());
 								jsw.name("id").value(ctx.hasID()?ctx.getID():"");
+								jsw.name("type").value(ctx.getType().name());
 								jsw.name("ref").value(ctx.getReference().getDisplayString());
 								jsw.name("alts");
 								jsw.beginArray();
@@ -148,7 +151,7 @@ public class VcfToHtml extends Launcher {
 							
 							final String filename = loc.getContig()+"_"+loc.getStart()+"_"+loc.getEnd()+".html";
 
-							final String title= new SimpleInterval(loc).toNiceString();
+							final String title= (buildName.isPresent()?buildName.get()+" ":"")+new SimpleInterval(loc).toNiceString();
 							OutputStream os = archive.openOuputStream(filename);
 							XMLStreamWriter out = xof.createXMLStreamWriter(os, "UTF-8");
 							out.writeStartDocument("UTF-8", "1.0");
@@ -163,6 +166,9 @@ public class VcfToHtml extends Launcher {
 									"function repaint() {}"
 								);
 							
+							out.writeEndElement();//script
+							out.writeStartElement("script");
+							out.writeAttribute("src", "script.js");
 							out.writeEndElement();//script
 							out.writeStartElement("title");
 							out.writeCharacters(title+" N="+StringUtils.niceInt(variants.size()));
