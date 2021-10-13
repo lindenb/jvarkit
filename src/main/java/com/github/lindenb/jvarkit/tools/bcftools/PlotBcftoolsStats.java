@@ -629,6 +629,7 @@ public class PlotBcftoolsStats extends Launcher {
 			for(String id : getIds()) {
 				print(w,id,"Average Depth","",Arrays.asList(new Column("Depth",L->Double.parseDouble(L.get(9)))));
 				print(w,id,"Missing","",Arrays.asList(new Column("Missing",L->Double.parseDouble(L.get(13)))));
+				print(w,id,"Singletons","",Arrays.asList(new Column("Singletons",L->Double.parseDouble(L.get(10)))));
 				print(w,id,"Genotypes","",
 						Arrays.asList(
 								new Column("HOM_REF",L->Double.parseDouble(L.get(3))),
@@ -642,6 +643,7 @@ public class PlotBcftoolsStats extends Launcher {
 				groupByPhenotype(w,id,"Missing",L->Double.parseDouble(L.get(13)));
 				groupByPhenotype(w,id,"Het",L->Double.parseDouble(L.get(5)));
 				groupByPhenotype(w,id,"HOM_VAR",L->Double.parseDouble(L.get(4)));
+				groupByPhenotype(w,id,"Singletons",L->Double.parseDouble(L.get(10)));
 				}
 			}
 		}
