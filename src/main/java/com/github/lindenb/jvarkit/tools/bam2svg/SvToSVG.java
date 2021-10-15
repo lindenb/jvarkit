@@ -139,11 +139,17 @@ $ java -jar dist/sv2svg.jar -r "9:137229907-137231907" -r "14:79838174-79840174"
 [https://twitter.com/yokofakun/status/1064503996285681666](https://twitter.com/yokofakun/status/1064503996285681666)
 
 ![https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg](https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg)
+
+
+[https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09](https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09)
+
+![https://twitter.com/yokofakun/status/1448993550746759169](https://pbs.twimg.com/media/FBva8sTWUAMNApn?format=jpg&name=large)
+
 END_DOC
  */
 @Program(name="sv2svg",
-description="BAM to SVG. Used to display the structural variations.",
-keywords={"bam","alignment","graphics","visualization","svg"},
+description="BAM to SVG. Used to display structural variations.",
+keywords={"bam","alignment","graphics","visualization","svg","structural","variant"},
 modificationDate="20211015",
 creationDate="20181115",
 biostars=405059

@@ -2563,6 +2563,10 @@ all2.add(task("bamphased01", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.phased.BamPhased01"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("bam2haplotypes", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.phased.BamToHaplotypes"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 all2.add(task("vcfstrech2svg", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg"
