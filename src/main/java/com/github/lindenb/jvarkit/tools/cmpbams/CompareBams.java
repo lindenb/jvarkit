@@ -275,7 +275,8 @@ END_DOC
 	description="Compare two or more BAM files",
 	keywords={"sam","bam","compare"},
 	creationDate="20130506",
-	modificationDate="20200221"
+	modificationDate="20200221",
+	biostars=9493549
 	)
 public class CompareBams  extends Launcher
 	{

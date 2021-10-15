@@ -63,6 +63,12 @@ Usage: cmpbams [options] Files
  * compare
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9493549](https://www.biostars.org/p/9493549)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
