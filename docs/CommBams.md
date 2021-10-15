@@ -54,6 +54,12 @@ Usage: commbams [options] Files
  * compare
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9493549](https://www.biostars.org/p/9493549)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -70,6 +76,11 @@ $ ./gradlew commbams
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20170420
 
 ## Source code 
 
@@ -100,13 +111,13 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- 
+
 ## Example
 
-### Example 1 
+### Example 1
 
-``` 
- $ java -jar dist/commbams.jar --samtools \
+```
+ $ java -jar dist/commbams.jar  \
  	 -f but_metadata -delim '\n' \
  	B00GWFP_std.hg19.qname.bam B00GWFP_S1.hg19.qname.bam
 PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1	83	chr5	21564864	40	151M	=	21564540	-475	CTCCCAGAGAGAAGCATCAACAGCTTAGGGTGTAGTCTAAACAGAAATCTTGCACTCCTCCTGCAGTAGCGTCTCTATTTTTTATGCTGAACATTATTTGCTAATTCCAACTGGCTCTAAGCTAATGTGTTTCCCAGGTTTTCTCAATGAN	AFAA<,,,<,,,,,,,,7,,,,7,,,,A7KKF<,F,,7,7,A,A7F7,K<A,,,,7,,,7KKKFAFA,7,A7F7,7,,,KFF,,AKKFFFF<<K<<KAFAKA,A,,A7,AAAFKFA,A,FKKAA,AKKKKFFFKF<KKKKKKKFFAAAA<#
@@ -115,7 +126,7 @@ PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	163	chr5	21564540	60	8S106M37S	=	215648
 PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAAAACAAAATCTGATTAGACAAACACTTTGATTGTTATTATTCGCGTATATCATCTACCAGAAGCAAATAGACATCTACTACATCTTTCAAGAAAGTTTACCTATCAATATTACTCAACTGGACCCAATAA	!<A,<,,A,,K<7FKFF,7,,AF,,7,7AAF,,7<<,,7,AF,,7,7A<,7FA,,7,,7F,,A7FKK7,7,,,,,7,,,,,<,<,,,,7,<,,,,,,7FF7AF<7,,<,,,,7,7,,,,,,,<,,,,,,,,,,,,,,,,,,<,,,,,,,,
 ```
 
-### Example 2 
+### Example 2
 
 ```
  $ java -jar dist/commbams.jar --samtools \

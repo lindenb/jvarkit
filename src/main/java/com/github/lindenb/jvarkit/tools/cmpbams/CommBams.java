@@ -20,13 +20,13 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.PeekableIterator;
 /**
  BEGIN_DOC
- 
+
 ## Example
 
-### Example 1 
+### Example 1
 
-``` 
- $ java -jar dist/commbams.jar --samtools \
+```
+ $ java -jar dist/commbams.jar  \
  	 -f but_metadata -delim '\n' \
  	B00GWFP_std.hg19.qname.bam B00GWFP_S1.hg19.qname.bam
 PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1	83	chr5	21564864	40	151M	=	21564540	-475	CTCCCAGAGAGAAGCATCAACAGCTTAGGGTGTAGTCTAAACAGAAATCTTGCACTCCTCCTGCAGTAGCGTCTCTATTTTTTATGCTGAACATTATTTGCTAATTCCAACTGGCTCTAAGCTAATGTGTTTCCCAGGTTTTCTCAATGAN	AFAA<,,,<,,,,,,,,7,,,,7,,,,A7KKF<,F,,7,7,A,A7F7,K<A,,,,7,,,7KKKFAFA,7,A7F7,7,,,KFF,,AKKFFFF<<K<<KAFAKA,A,,A7,AAAFKFA,A,FKKAA,AKKKKFFFKF<KKKKKKKFFAAAA<#
@@ -35,7 +35,7 @@ PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	163	chr5	21564540	60	8S106M37S	=	215648
 PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAAAACAAAATCTGATTAGACAAACACTTTGATTGTTATTATTCGCGTATATCATCTACCAGAAGCAAATAGACATCTACTACATCTTTCAAGAAAGTTTACCTATCAATATTACTCAACTGGACCCAATAA	!<A,<,,A,,K<7FKFF,7,,AF,,7,7AAF,,7<<,,7,AF,,7,7A<,7FA,,7,,7F,,A7FKK7,7,,,,,7,,,,,<,<,,,,7,<,,,,,,7FF7AF<7,,<,,,,7,7,,,,,,,<,,,,,,,,,,,,,,,,,,<,,,,,,,,
 ```
 
-### Example 2 
+### Example 2
 
 ```
  $ java -jar dist/commbams.jar --samtools \
@@ -58,7 +58,9 @@ PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAA
  */
 @Program(name="commbams",
 	description="Equivalent of unix 'comm' for bams sorted on queryname",
-	keywords={"sam","bam","comm","compare"}
+	keywords={"sam","bam","comm","compare"},
+	creationDate="20170420",
+	biostars=9493549
 	)
 public class CommBams extends Launcher {
 	
