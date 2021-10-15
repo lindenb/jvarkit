@@ -144,7 +144,7 @@ END_DOC
 @Program(name="sv2svg",
 description="BAM to SVG. Used to display the structural variations.",
 keywords={"bam","alignment","graphics","visualization","svg"},
-modificationDate="20211011",
+modificationDate="20211015",
 creationDate="20181115",
 biostars=405059
 )
@@ -173,6 +173,8 @@ public class SvToSVG extends Launcher
 	private int min_mapq = 1;
 	@Parameter(names= {"--mismatch"},description="do not display bases mismatches between read and REF.")
 	private boolean hideMismatch = false;
+	@Parameter(names= {"--strange"},description="Keep only non-properly-paired , soft clipped and SA:X:* reads.")
+	private boolean remove_simple_reads = false;
 
 	
 	private final List<Sample> sampleList =new ArrayList<>();
@@ -243,12 +245,14 @@ public class SvToSVG extends Launcher
 			final  boolean isNegativeStrand() {
 				return getRecord().getReadNegativeStrandFlag();
 				}
-			
+			public final double getWidth() {
+				return getPixelEnd()-getPixelStart();
+				}
 			public final double getCenterX() {
 				return (getPixelStart()+getPixelEnd())/2.0;
 			}
 			public final double getCenterY() {
-				return y + featureHeight/2.0;
+				return y + getHeight()/2.0;
 			}
 
 			
@@ -305,6 +309,7 @@ public class SvToSVG extends Launcher
 		/* implementation of SplitRead , wraps supplementary and it's source */
 		private class SplitRead extends ShortRead
 			{
+			/* bad name for those 'g' element, in fact g_translate2 contains the rotate animation */
 			Element g_rotate = null;
 			Element g_translate2 = null;
 
@@ -586,21 +591,23 @@ public class SvToSVG extends Launcher
 					final Element g3;
 					if(shortRead.isSplitRead()) {
 							final Sample.SplitRead splitRead =  Sample.SplitRead.class.cast(shortRead);
-							final double dx = -0.5*shortRead.getPixelLength();
-							final double dy = -0.5*shortRead.getHeight();
-							g1.setAttribute("transform","translate("+format(-dx)+","+format(-dy)+")");
+							//final double dx = -0.5*shortRead.getPixelLength();
+							//final double dy = -0.5*shortRead.getHeight();
+							
 							splitRead.g_rotate = element("g");
 							splitRead.g_rotate.setAttribute("transform","rotate(0)");
 							g1.appendChild(splitRead.g_rotate);
 							g3 = element("g");
-							g3.setAttribute("transform","translate("+format(dx+leftX)+","+format(dy+ curr_y)+")");
+							g3.setAttribute("transform","translate(0,0)");
 							splitRead.g_rotate.appendChild(g3);
 							splitRead.g_translate2 = g3;
 					} else {
 						g3 = g1;
-						g1.setAttribute("transform","translate("+format(leftX)+","+format(curr_y)+")");
 						}
-					
+					g1.setAttribute("transform","translate(" +
+						format(shortRead.getPixelStart()) + "," +
+						format(shortRead.getY()) +
+						")");
 					
 					// https://developer.mozilla.org/en-US/docs/Web/CSS/transform-origin
 					//readElement.setAttribute("style","transform-origin:center");
@@ -973,69 +980,44 @@ public class SvToSVG extends Launcher
 			this.sampleList.stream().
 				flatMap(SN->SN.shortReadStream()).
 				filter(R->R.isSplitRead()).
-				map(R->(Sample.SplitRead)R).
+				map(R->Sample.SplitRead.class.cast(R)).
 				forEach(SR->{
 					if(this.svgDuration<=0) return;
 					
-					final boolean rotate = SR.getContig().equals(SR.source.getContig()) && SR.isNegativeStrand()!=SR.source.isNegativeStrand();
-					Element g2 = null;
-					for(Node n1=SR.g_translate1.getFirstChild();
-							n1!=null;
-							n1 = n1.getNextSibling())
-						{
-						if(n1.getNodeType()!=Node.ELEMENT_NODE) continue;
-						if(Element.class.cast(n1).getLocalName().equals("g"))
-							{
-							g2 = Element.class.cast(n1);
-							break;
-							}
-						}
-					if(g2==null) return;
-					
-					Element g3 = null;
-					for(Node n1=g2.getFirstChild();
-							n1!=null;
-							n1 = n1.getNextSibling())
-						{
-						if(n1.getNodeType()!=Node.ELEMENT_NODE) continue;
-						if(Element.class.cast(n1).getLocalName().equals("g"))
-							{
-							g3 = Element.class.cast(n1);
-							break;
-							}
-						}
-					if(g3==null) return;
+					boolean rotate = SR.getContig().equals(SR.source.getContig()) && SR.isNegativeStrand()!=SR.source.isNegativeStrand();
+					//add a few 0.01 seconds to avoir same shape when rotation
+					final String beginSec = format(Math.random()/2.0)+"s";
 					
 					Element anim = element("animateTransform");
-					g3.appendChild(anim);
+					SR.g_rotate.appendChild(anim);
 					anim.setAttribute("attributeType","XML");
 					anim.setAttribute("attributeName","transform");
 					anim.setAttribute("type","translate");
-					anim.setAttribute("begin","0s");
-					anim.setAttribute("from",format(SR.getPixelStart())+" "+format(SR.y));
-					anim.setAttribute("to",format(SR.source.getPixelStart())+" "+format(SR.source.y));
+					anim.setAttribute("begin",beginSec);
+					anim.setAttribute("from","0,0");
+					anim.setAttribute("to",
+							format(SR.source.getPixelStart() - SR.getPixelStart())+" "+
+							format(SR.source.getY() - SR.getY())
+							);
 					anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
 					anim.setAttribute("repeatCount",this.svgRepeatCount);
 					anim.setAttribute("fill","freeze");
 					
-					
-					if(rotate) // doesn't work
+					if(rotate)
 						{
-						/*
 						
 						anim = element("animateTransform");
-						SR.element.appendChild(anim);
+						SR.g_translate2.appendChild(anim);
 						
 						anim.setAttribute("attributeType","XML");
 						anim.setAttribute("attributeName","transform");
 						anim.setAttribute("type","rotate");
-						anim.setAttribute("begin","0s");
-						anim.setAttribute("from","0 "+(format(-1*SR.getPixelStart()))+" "+format(-1*SR.y));
-						anim.setAttribute("to","180 "+(format(-1*SR.source.getPixelStart()))+" "+format(-1*SR.source.y));
+						anim.setAttribute("begin",beginSec);
+						anim.setAttribute("from","0 "+format(SR.getWidth()/2.0)+" "+format(SR.getHeight()/2.0));
+						anim.setAttribute("to",(Math.random()<0.5?"-":"")+"180 "+format(SR.getWidth()/2.0)+" "+format(SR.getHeight()/2.0));
 						anim.setAttribute("dur",String.valueOf(this.svgDuration)+"s");
 						anim.setAttribute("repeatCount",this.svgRepeatCount);
 						anim.setAttribute("fill","freeze");
-						*/
 						}
 
 					
@@ -1130,6 +1112,7 @@ public class SvToSVG extends Launcher
 								while(iter.hasNext())
 									{
 									final SAMRecord record = iter.next();
+									
 									boolean trace = record.getReadName().equals(DEBUG_READ);
 									
 									if(!SAMRecordDefaultFilter.accept(record, this.min_mapq)) continue;
@@ -1138,6 +1121,14 @@ public class SvToSVG extends Launcher
 									final Cigar cigar = record.getCigar();
 									if(cigar==null || cigar.isEmpty()) continue;
 									if(trace) LOG.debug("got2");
+									
+									if(remove_simple_reads) {
+										if((!cigar.isClipped() &&
+											SAMUtils.getOtherCanonicalAlignments(record).isEmpty() &&
+											(record.getReadPairedFlag() && record.getProperPairFlag())
+											)) continue;
+										}
+
 									
 									if( !record.getContig().equals(interval.getContig())) continue;
 									if(trace) LOG.debug("got3");

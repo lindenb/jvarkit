@@ -14,7 +14,7 @@ Usage: sv2svg [options] Files
       Coverage height. Don't print if cov '<=0'.
       Default: 70
     -d, --duration
-      Animation duration, in secs
+      Animation duration, in secs. <=0 disable animation.
       Default: 10
     -h, --help
       print help and exit
@@ -38,6 +38,9 @@ Usage: sv2svg [options] Files
     --repeat-count
       SVG animation repeat count
       Default: indefinite
+    --strange
+      Keep only non-properly-paired , soft clipped and SA:X:* reads.
+      Default: false
     --variant, -V
       optional indexed VCF file.
     --version
