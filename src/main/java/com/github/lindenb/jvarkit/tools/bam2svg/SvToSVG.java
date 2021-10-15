@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.bam2svg;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -48,16 +47,16 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 import org.w3c.dom.Text;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
-import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.lang.StaticCodeExtractor;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -162,7 +161,7 @@ public class SvToSVG extends Launcher
 	private int drawinAreaWidth = 1000 ;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+". Optional: if defined will be used to display the mismatches.")
 	private Path fastaFile = null ;
-	@Parameter(names={"-d","--duration"},description="Animation duration, in secs")
+	@Parameter(names={"-d","--duration"},description="Animation duration, in secs. <=0 disable animation.")
 	private int svgDuration=10;
 	@Parameter(names= {"--repeat-count"},description="SVG animation repeat count")
 	private String svgRepeatCount="indefinite";
@@ -187,16 +186,23 @@ public class SvToSVG extends Launcher
 	
 	private final String DEBUG_READ="___";
 	
-	private class Sample {
+	private abstract class YHeight {
+		public abstract double getY();
+		public abstract double getHeight();
+	}
+	
+	private class Sample extends YHeight {
 		final String sampleName;
 		final List<Region> regions = new ArrayList<>();
-		
+		double y = 0;
+		double height = 0.0;
 		
 		/** abstract base class for a short read, wrap a SAMRecord and a SVG element */
 		private abstract class ShortRead
+			extends YHeight
 			implements Locatable
 			{
-			Element element;
+			Element g_translate1 = null;
 			double y;
 			final Region region;
 			
@@ -205,6 +211,17 @@ public class SvToSVG extends Launcher
 				}
 			
 			abstract SAMRecord getRecord();
+			
+			@Override
+			public double getY() {
+				return this.y;
+				}
+			@Override
+			public double getHeight() {
+				return featureHeight;
+				}
+
+			
 			@Override
 			public final String getContig() {
 				return getRecord().getContig();
@@ -242,6 +259,11 @@ public class SvToSVG extends Launcher
 			public final double getPixelEnd() {
 				return getRegion().baseToPixel(this.getEnd());
 			}
+			
+			public final double getPixelLength() {
+				return getPixelEnd() - getPixelStart();
+			}
+			
 			
 			abstract boolean isDefaultShortRead();
 			abstract boolean isSplitRead();
@@ -283,6 +305,9 @@ public class SvToSVG extends Launcher
 		/* implementation of SplitRead , wraps supplementary and it's source */
 		private class SplitRead extends ShortRead
 			{
+			Element g_rotate = null;
+			Element g_translate2 = null;
+
 			final SAMRecord record;
 			final DefaultShortRead source;
 			SplitRead(final Region region,final SAMRecord record,final DefaultShortRead source) {
@@ -310,15 +335,40 @@ public class SvToSVG extends Launcher
 
 		
 		/** a region */
-		private class Region {
-			
-			final SimpleInterval interval;
+		private class Region extends YHeight implements Locatable {
+			double y;
+			double height;
+			final SimpleInterval _interval;
 			final List<ShortRead> beforePileup=new ArrayList<>();
 			final List<List<ShortRead>> lines=new ArrayList<>();			
 			
 			Region(final SimpleInterval interval) {
-				this.interval = interval;
+				this._interval = interval;
 				}
+			
+			@Override
+			public double getY() {
+				return y;
+				}
+			
+			@Override
+			public double getHeight() {
+				return height;
+				}
+			
+			@Override
+			public String getContig() {
+				return _interval.getContig();
+				}
+			@Override
+			public int getStart() {
+				return _interval.getStart();
+				}
+			@Override
+			public int getEnd() {
+				return _interval.getEnd();
+				}
+			
 			
 			void addSplitReads() {
 				final List<SplitRead> addToSelf = new ArrayList<>();
@@ -331,11 +381,11 @@ public class SvToSVG extends Launcher
 						/* loop over all regions for this samples */
 						for(final Region otherRgn : Sample.this.regions) {
 							/* check supplementary reads belong to that region */
-							if(!rec.getContig().equals(otherRgn.interval.getContig())) continue;
+							if(!rec.getContig().equals(otherRgn.getContig())) continue;
 							/* check supplementary reads belong to that interval */
 							if(!CoordMath.overlaps(
 									rec.getUnclippedStart(), rec.getUnclippedEnd(),
-									otherRgn.interval.getStart(), otherRgn.interval.getEnd())) continue;
+									otherRgn.getStart(), otherRgn.getEnd())) continue;
 							if(otherRgn==this) {
 								//cannot add to self for now because we're looping
 								addToSelf.add(new SplitRead(this,rec,(DefaultShortRead)shortRead));
@@ -381,7 +431,7 @@ public class SvToSVG extends Launcher
 			
 			double baseToPixel(final int pos)
 				{
-				return  ((pos - this.interval.getStart())/(double)(this.interval.getLengthOnReference()))*(SvToSVG.this.drawinAreaWidth);
+				return  ((pos - this.getStart())/(double)(this.getLengthOnReference()))*(SvToSVG.this.drawinAreaWidth);
 				}
 			Stream<ShortRead> shortReadStream() {
 				return this.lines.stream().flatMap(L->L.stream());
@@ -389,7 +439,7 @@ public class SvToSVG extends Launcher
 			
 			@Override
 			public String toString() {
-				return this.interval.toString();
+				return this._interval.toString();
 				}
 			} /* end region */
 		
@@ -399,6 +449,16 @@ public class SvToSVG extends Launcher
 		
 		Stream<ShortRead> shortReadStream() {
 			return this.regions.stream().flatMap(R->R.shortReadStream());
+			}
+		
+		
+		@Override
+		public double getY() {
+			return this.y;
+			}
+		@Override
+		public double getHeight() {
+			return this.height;
 			}
 		
 		private List<Sample.ShortRead> getReadsByName(final String readName) {
@@ -418,28 +478,28 @@ public class SvToSVG extends Launcher
 	
 	private Element buildSample(
 			final Sample sample,
-			final DocumentFragment animationLayer,
-			double y
+			final DocumentFragment animationLayer
 			)
 		{
 		final Element sampleRoot = element("g");
-		
+		double curr_y = sample.getY();
 		final Element sampleLabel= element("text",sample.sampleName);
 		sampleLabel.setAttribute("x", "5");
-		sampleLabel.setAttribute("y", format(y+14));
+		sampleLabel.setAttribute("y", format(curr_y +14));
 		sampleLabel.setAttribute("class", "samplename");
 		sampleRoot.appendChild(sampleLabel);
-		y+= 20;
+		curr_y += 20;
 		
 	
 		
 		// loop over regions 
 		for(final Sample.Region region : sample.regions) {
+			region.y = curr_y;
 			// genomic sequence will be used to test if there is a mismatch. No garantee it exists.
 			final GenomicSequence genomicSequence;
 			if(this.indexedFastaSequenceFile !=null) {
 				final ContigNameConverter ctgConver = ContigNameConverter.fromOneDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
-				final String sname = ctgConver.apply(region.interval.getContig());
+				final String sname = ctgConver.apply(region.getContig());
 				if(StringUtil.isBlank(sname)) {
 					genomicSequence = null;
 				} else
@@ -457,14 +517,14 @@ public class SvToSVG extends Launcher
 			sampleRoot.appendChild(regionRoot);
 			
 			final Element rgnLabel= element("text",
-					region.interval.getContig()+":"+ StringUtils.niceInt(region.interval.getStart())+"-"+ StringUtils.niceInt(region.interval.getEnd())+" Length:"+this.niceIntFormat.format((region.interval.getLengthOnReference())));
+					new SimpleInterval(region).toNiceString()+" Length:"+this.niceIntFormat.format((region.getLengthOnReference())));
 			rgnLabel.setAttribute("x", "5");
-			rgnLabel.setAttribute("y", format(y+12));
+			rgnLabel.setAttribute("y", format(curr_y+12));
 			rgnLabel.setAttribute("class", "samplename");
 			regionRoot.appendChild(rgnLabel);
-			y+= 20;
+			curr_y += 20;
 			
-			final double y_top_region = y;
+			final double y_top_region = curr_y;
 			
 			if(this.coverageHeight>0)
 				{
@@ -473,8 +533,8 @@ public class SvToSVG extends Launcher
 					shortReadStream().
 					filter(R->R.isDefaultShortRead()).
 					flatMapToInt(R->R.getRecord().getAlignmentBlocks().stream().flatMapToInt(RB->java.util.stream.IntStream.rangeClosed(RB.getReferenceStart(),RB.getReferenceStart()+RB.getLength()))).
-					filter(P->P>=region.interval.getStart()).
-					filter(P->P<=region.interval.getEnd()).
+					filter(P->P>=region.getStart()).
+					filter(P->P<=region.getEnd()).
 					mapToObj(P->P).
 					collect(Collectors.groupingBy( Function.identity(),()->new TreeMap<>(), Collectors.counting()));
 					;
@@ -483,25 +543,25 @@ public class SvToSVG extends Launcher
 				covPath.setAttribute("class", "coverage");
 				regionRoot.appendChild(covPath);
 				final StringBuilder sb = new StringBuilder();
-				sb.append( "M 0 "+format(y+this.coverageHeight));
+				sb.append( "M 0 "+format(curr_y+this.coverageHeight));
 				for(int k=0;k< this.drawinAreaWidth;k++)
 					{
-					final int pos1 = region.interval.getStart()+ (int)(((k+0)/(double)this.drawinAreaWidth)*(double)region.interval.getLengthOnReference());
-					final int pos2 = region.interval.getStart()+ (int)(((k+1)/(double)this.drawinAreaWidth)*(double)region.interval.getLengthOnReference());
+					final int pos1 = region.getStart()+ (int)(((k+0)/(double)this.drawinAreaWidth)*(double)region.getLengthOnReference());
+					final int pos2 = region.getStart()+ (int)(((k+1)/(double)this.drawinAreaWidth)*(double)region.getLengthOnReference());
 					final double dp = IntStream.range(pos1, pos2).
 						filter(P->pos2cov.containsKey(P)).
 						mapToLong(P->pos2cov.get(P)).
 						max().
 						orElseGet(()->0L);
-					final double dpy= y + this.coverageHeight - (dp/(double)max_cov)*(double)this.coverageHeight;
+					final double dpy= curr_y + this.coverageHeight - (dp/(double)max_cov)*(double)this.coverageHeight;
 					sb.append(" L "+format(k)+" "+format(dpy));
 					}
-				sb.append(" L "+format(this.drawinAreaWidth)+" "+format(y+this.coverageHeight));
+				sb.append(" L "+format(this.drawinAreaWidth)+" "+format(curr_y+this.coverageHeight));
 				sb.append(" Z");
 				covPath.setAttribute("d", sb.toString());
 				covPath.appendChild(element("title","Coverage. Max:"+niceIntFormat.format(max_cov)));
-				y+=this.coverageHeight;
-				y+=2;
+				curr_y += this.coverageHeight;
+				curr_y += 2;
 				}
 				
 			
@@ -514,22 +574,42 @@ public class SvToSVG extends Launcher
 				for(final Sample.ShortRead shortRead: line)
 					{
 					boolean trace = shortRead.getRecord().getReadName().equals(DEBUG_READ);
+					shortRead.y  = curr_y;
+
 					
-					
-					int ref= shortRead.getStart();
+					int ref1= shortRead.getStart();
 					final double leftX = shortRead.getPixelStart();
 					final double midy =  this.featureHeight/2.0;
 					final double maxy = this.featureHeight;
 
-					final Element readElement = element("g");
+					final Element g1 = element("g");
+					final Element g3;
+					if(shortRead.isSplitRead()) {
+							final Sample.SplitRead splitRead =  Sample.SplitRead.class.cast(shortRead);
+							final double dx = -0.5*shortRead.getPixelLength();
+							final double dy = -0.5*shortRead.getHeight();
+							g1.setAttribute("transform","translate("+format(-dx)+","+format(-dy)+")");
+							splitRead.g_rotate = element("g");
+							splitRead.g_rotate.setAttribute("transform","rotate(0)");
+							g1.appendChild(splitRead.g_rotate);
+							g3 = element("g");
+							g3.setAttribute("transform","translate("+format(dx+leftX)+","+format(dy+ curr_y)+")");
+							splitRead.g_rotate.appendChild(g3);
+							splitRead.g_translate2 = g3;
+					} else {
+						g3 = g1;
+						g1.setAttribute("transform","translate("+format(leftX)+","+format(curr_y)+")");
+						}
+					
+					
 					// https://developer.mozilla.org/en-US/docs/Web/CSS/transform-origin
-					readElement.setAttribute("style","transform-origin:center");
+					//readElement.setAttribute("style","transform-origin:center");
 					if(shortRead.isSplitRead()) { //always in front
-						animationLayer.appendChild(readElement);
+						animationLayer.appendChild(g1);
 						}
 					else
 						{
-						regionRoot.insertBefore(readElement, regionRoot.getFirstChild());
+						regionRoot.insertBefore(g1, regionRoot.getFirstChild());
 						}
 					
 					final BiPredicate<Integer, Integer> isMismatch = (readpos0,refpos1)-> {
@@ -538,20 +618,23 @@ public class SvToSVG extends Launcher
 						char refC = Character.toUpperCase(genomicSequence.charAt(refpos1-1));
 						if(refC=='N') return false;
 						final byte bases[] = shortRead.getRecord().getReadBases();
-						if(bases==null || bases==SAMRecord.NULL_SEQUENCE || readpos0<0 || readpos0>=bases.length) return false;
+						if(bases==null || bases==SAMRecord.NULL_SEQUENCE ) return false;
+						if(readpos0<0 || readpos0>=bases.length) {
+							LOG.warn("P="+readpos0+" 0<x<"+bases.length);
+							return false;
+						}
 						char readC = (char)Character.toUpperCase(bases[readpos0]);
 						if(readC=='N') return false;
 						return readC!=refC;
 						};
 					
-					readElement.setAttribute("transform", "translate("+leftX+","+format(y)+")");
-					shortRead.element = readElement;
-					shortRead.y  = y;
-					int readpos=0;
+					shortRead.g_translate1 = g1;
+					int readpos0=0;
+					int readpos0_clipped=0;
 					
 					
 					final Element title = element("title",shortRead.getRecord().getPairedReadName()+" "+shortRead.getRecord().getCigarString()+" "+(shortRead.getRecord().getReadNegativeStrandFlag()?"-":"+"));
-					readElement.appendChild(title);
+					g3.appendChild(title);
 					
 					final DocumentFragment insertionsFragment = this.document.createDocumentFragment();
 					
@@ -559,18 +642,19 @@ public class SvToSVG extends Launcher
 					for(int cigarIdx=0;cigarIdx< cigar.numCigarElements();cigarIdx++) {
 						final CigarElement ce = cigar.getCigarElement(cigarIdx);
 						final CigarOperator op = ce.getOperator();
-						int next_ref = ref;
-						int next_read = readpos;
+						int next_ref = ref1;
+						int next_read = readpos0;
 						switch(op)
 							{
 							case I: 
 								{
 								next_read += ce.getLength();
-								if(!(ref+ce.getLength() < region.interval.getStart() || ref> region.interval.getEnd())) {
-									final double ce_length = region.baseToPixel(region.interval.getStart()+ce.getLength());
+								readpos0_clipped+= ce.getLength();
+								if(!(ref1+ce.getLength() < region.getStart() || ref1> region.getEnd())) {
+									final double ce_length = region.baseToPixel(region.getStart()+ce.getLength());
 									final Element rectInsert = element("rect");
 									rectInsert.setAttribute("class", "insert");
-									rectInsert.setAttribute("x", format(region.baseToPixel(ref)-leftX));
+									rectInsert.setAttribute("x", format(region.baseToPixel(ref1)-leftX));
 									rectInsert.setAttribute("y", format(0));
 									rectInsert.setAttribute("width", format(this.svgDuration>0  && ce_length >1 ?ce_length:1));
 									rectInsert.setAttribute("height", format(this.featureHeight));
@@ -602,8 +686,8 @@ public class SvToSVG extends Launcher
 								if(!op.equals(CigarOperator.H)) {
 									next_read+= ce.getLength();
 									}
-								if(!(next_ref < region.interval.getStart() || ref> region.interval.getEnd())) {
-									final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref);
+								if(!(next_ref < region.getStart() || ref1> region.getEnd())) {
+									final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref1);
 									
 									
 									
@@ -626,7 +710,7 @@ public class SvToSVG extends Launcher
 									
 									// arrow <--
 									if(cigarIdx==0 && shortRead.isNegativeStrand()) {
-										sb.append( "M ").append(format(region.baseToPixel(ref)-leftX)).append(',').append(0);
+										sb.append( "M ").append(format(region.baseToPixel(ref1)-leftX)).append(',').append(0);
 										sb.append(" h ").append(format(distance_pix));
 										sb.append(" v ").append(format(maxy));
 										sb.append(" h ").append(format(-(distance_pix)));
@@ -635,7 +719,7 @@ public class SvToSVG extends Launcher
 										}
 									// arrow -->
 									else if(cigarIdx+1==cigar.numCigarElements() && !shortRead.isNegativeStrand()) {
-										sb.append( "M ").append(format(region.baseToPixel(ref)-leftX+distance_pix)).append(',').append(0);
+										sb.append( "M ").append(format(region.baseToPixel(ref1)-leftX+distance_pix)).append(',').append(0);
 										sb.append(" h ").append(format(-(distance_pix)));
 										sb.append(" v ").append(format(maxy));
 										sb.append(" h ").append(format(distance_pix));
@@ -645,57 +729,61 @@ public class SvToSVG extends Launcher
 										}
 									else
 										{
-										sb.append( "M ").append(format(region.baseToPixel(ref)-leftX)).append(',').append(0);
+										sb.append( "M ").append(format(region.baseToPixel(ref1)-leftX)).append(',').append(0);
 										sb.append(" h ").append(format(distance_pix));
 										sb.append(" v ").append(format(maxy));
 										sb.append(" h ").append(format(-(distance_pix)));
 										sb.append(" Z");
 										}
 									path.setAttribute("d", sb.toString());
-									readElement.appendChild(path);
+									g3.appendChild(path);
 									
 									if(op.isAlignment() && genomicSequence!=null && !hideMismatch)
 										{
 										for(int x=0;x< ce.getLength();++x)
 											{
-											if(!isMismatch.test(readpos+x, ref+x)) continue;
-											
+											if(!isMismatch.test(readpos0_clipped+x, ref1+x)) continue;
+											if(ref1+x < region.getStart()) continue;
+											if(ref1+x > region.getEnd()) continue;
 											final Element rectMismatch = element("rect");
 											rectMismatch.setAttribute("class", "mismatch");
-											rectMismatch.setAttribute("x", format(region.baseToPixel(ref+x)-leftX));
+											rectMismatch.setAttribute("x", format(region.baseToPixel(ref1+x)-leftX));
 											rectMismatch.setAttribute("y", format(0));
-											rectMismatch.setAttribute("width", format((region.baseToPixel(ref+x+1)-region.baseToPixel(ref+x))));
+											rectMismatch.setAttribute("width", format((region.baseToPixel(ref1+x+1)-region.baseToPixel(ref1+x))));
 											rectMismatch.setAttribute("height", format(this.featureHeight));
-											readElement.appendChild(rectMismatch);
+											g3.appendChild(rectMismatch);
 											}
 										}
+									}
+								if(!op.isClipping()) {
+									readpos0_clipped+=ce.getLength();
 									}
 								break;
 								}
 							case D: case N:
 								{
 								next_ref+= ce.getLength();
-								if(!(next_ref < region.interval.getStart() || ref> region.interval.getEnd())) {
-									final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref);
+								if(!(next_ref < region.getStart() || ref1> region.getEnd())) {
+									final double distance_pix = region.baseToPixel(next_ref)-region.baseToPixel(ref1);
 									final Element lineE = element("line");
 									lineE.setAttribute("class", "opD");
-									lineE.setAttribute("x1", format(region.baseToPixel(ref)-leftX));
+									lineE.setAttribute("x1", format(region.baseToPixel(ref1)-leftX));
 									lineE.setAttribute("y1", format(midy));
-									lineE.setAttribute("x2", format(region.baseToPixel(ref)-leftX+distance_pix));
+									lineE.setAttribute("x2", format(region.baseToPixel(ref1)-leftX+distance_pix));
 									lineE.setAttribute("y2", format(midy));
-									readElement.insertBefore(lineE, readElement.getFirstChild());
+									g3.insertBefore(lineE, g3.getFirstChild());
 									}
 								break;
 								}
 							default: throw new IllegalStateException(op.name());
 							}
-						ref = next_ref;
-						readpos = next_read; 
+						ref1 = next_ref;
+						readpos0 = next_read; 
 						}
-					readElement.appendChild(insertionsFragment);
+					g3.appendChild(insertionsFragment);
 					}
 				
-				y+= (this.featureHeight+3);
+				curr_y += (this.featureHeight+3);
 				}
 			
 			//add non-properly paired reads
@@ -734,8 +822,8 @@ public class SvToSVG extends Launcher
 					line.setAttribute("x1", format(xx));
 					line.setAttribute("y1", format(y_top_region));
 					line.setAttribute("x2", format(xx));
-					line.setAttribute("y2", format(y));
-					line.appendChild(element("title",niceIntFormat.format(region.interval.getStart()+(int)(region.interval.getLengthOnReference()/10.0)*x)));
+					line.setAttribute("y2", format(curr_y));
+					line.appendChild(element("title",niceIntFormat.format(region.getStart()+(int)(region.getLengthOnReference()/10.0)*x)));
 					regionRoot.insertBefore(line, regionRoot.getFirstChild());
 					}
 				
@@ -745,10 +833,10 @@ public class SvToSVG extends Launcher
 					final VCFHeader header = this.vcfFileReader.getHeader();
 					final SAMSequenceDictionary vcfdict = header.getSequenceDictionary();
 					final ContigNameConverter ctgConver = (vcfdict==null?null:ContigNameConverter.fromOneDictionary(vcfdict));
-					final String sname = ctgConver==null?null:ctgConver.apply(region.interval.getContig());
+					final String sname = ctgConver==null?null:ctgConver.apply(region.getContig());
 					if(!StringUtil.isBlank(sname))
 						{
-						final CloseableIterator<VariantContext> iter = this.vcfFileReader.query(region.interval.getContig(), region.interval.getStart(), region.interval.getEnd());
+						final CloseableIterator<VariantContext> iter = this.vcfFileReader.query(region.getContig(), region.getStart(), region.getEnd());
 						while(iter.hasNext())
 							{
 							final VariantContext ctx = iter.next();
@@ -762,7 +850,7 @@ public class SvToSVG extends Launcher
 							rect.setAttribute("x", format(x1));
 							rect.setAttribute("y", format(y_top_region));
 							rect.setAttribute("width", format(x2-x1));
-							rect.setAttribute("height", format(y-y_top_region));
+							rect.setAttribute("height", format(curr_y-y_top_region));
 							rect.appendChild(element("title",
 									niceIntFormat.format(ctx.getStart())+"-"+
 											niceIntFormat.format(ctx.getEnd())
@@ -773,22 +861,21 @@ public class SvToSVG extends Launcher
 						iter.close();
 						}
 					}
-				
+				region.height =  curr_y - region.y;
 				}
 		
 		
-		
+		sample.height = curr_y - sample.y;
+
 		
 		final Element frame= element("rect");
 		frame.setAttribute("class","frame");
 		frame.setAttribute("x",format(0));
-		frame.setAttribute("y",format(0));
+		frame.setAttribute("y",format(sample.getY()));
 		frame.setAttribute("width",format(drawinAreaWidth));
-		frame.setAttribute("height",format(y));
+		frame.setAttribute("height",format(sample.getHeight()));
 		sampleRoot.appendChild(frame);
 		
-		// attribute 'y' will be removed below
-		sampleRoot.setAttribute("y",format(y));
 		return sampleRoot;
 		}
 		
@@ -822,38 +909,8 @@ public class SvToSVG extends Launcher
 			
 			final Element style = element("style");
 			svgRoot.appendChild(style);
-			style.appendChild(text(
-					"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
-					".maintitle {stroke:blue;fill:none;}\n"+
-					"rect.frame {stroke:darkgray;fill:none;}\n" + 
-					"path.opEQ {stroke:black;fill:gainsboro;}\n" + 
-					"path.opX {stroke:black;fill:tomato;}\n" +
-					"path.opM {stroke:black;fill:gainsboro;}\n" +
-					"path.opS {stroke:black;fill:yellow;}\n" + 
-					"path.opH {stroke:black;fill:yellow;}\n" + 
-					"line.opN {stroke:black;}\n"+
-					"line.opD {stroke:black;}\n"+
-					"path.opEQx {stroke:yellow;fill:salmon;opacity:0.8;}\n" + 
-					"path.opXx {stroke:yellow;fill:tomato;opacity:0.8;}\n" +
-					"path.opMx {stroke:yellow;fill:salmon;opacity:0.8;}\n" +
-					"path.opSx {stroke:yellow;fill:yellow;opacity:0.8;}\n" + 
-					"path.opHx {stroke:yellow;fill:yellow;opacity:0.8;}\n" + 
-					"line.opNx {stroke:yellow;opacity:0.8;}\n"+
-					"line.opDx {stroke:yellow;opacity:0.8;}\n"+
-					"rect.mismatch {fill:red;opacity:0.7;}\n"+
-					"rect.insert {fill:none;stroke:red;stroke-width:1.5px}\n"+
-					"text.samplename {stroke:none;fill:black;stroke-width:1px;}\n"+
-					".discordant {stroke:darkred; fill:none;stroke-dasharray:2;}\n" +
-					"line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}\n"+
-					"rect.variant  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}\n"+
-					"rect.variantHOM_REF  {stroke:none;fill:green;stroke-width:1px;opacity:0.8;}\n"+
-					"rect.variantHOM_VAR  {stroke:none;fill:red;stroke-width:1px;opacity:0.8;}\n"+
-					"rect.variantHET  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}\n"+
-					"rect.variantNO_CALL  {stroke:none;fill:blue;stroke-width:1px;opacity:0.8;}\n"+
-					"path.coverage {stroke:darkslateblue;fill:darkseaGreen}\n"+
-					""
-					));
-
+			style.appendChild(text(StaticCodeExtractor.forClass(SvToSVG.class).extract("CSS").get()));
+			
 			final Element mainG = element("g");
 			mainG.setAttribute("class","maing");
 			svgRoot.appendChild(mainG);
@@ -863,11 +920,9 @@ public class SvToSVG extends Launcher
 			//loop over each sample
 			for(final Sample sample:this.sampleList)
 				{
-				final Element div = buildSample(sample,animationLayer,doc_height);
-				final Attr att = div.getAttributeNode("y");
-				div.removeAttributeNode(att);
-				doc_height = (int)Double.parseDouble(att.getValue());
-				
+				sample.y = doc_height;
+				final Element div = buildSample(sample,animationLayer);
+				doc_height += sample.getHeight();
 				mainG.appendChild(div);
 				}
 			
@@ -899,9 +954,9 @@ public class SvToSVG extends Launcher
 							final double x1 = srx.isNegativeStrand()?srx.getPixelStart()-arrow_w:srx.getPixelEnd()+arrow_w;
 							final double x2 = sry.isNegativeStrand()?sry.getPixelStart()-arrow_w:sry.getPixelEnd()+arrow_w;
 							
-							Element path = element("path");
+							final Element path = element("path");
 							path.setAttribute("class", "discordant");
-							StringBuilder sb = new StringBuilder();
+							final StringBuilder sb = new StringBuilder();
 							sb.append( "M ").append(format(x1)).append(" ").append(format(srx.y+featureHeight/2.0));
 							sb.append( "Q ").
 								append(format((x1+x2)/2.0)).append(" ").append(format((srx.y+sry.y)/2.0)).
@@ -923,9 +978,36 @@ public class SvToSVG extends Launcher
 					if(this.svgDuration<=0) return;
 					
 					final boolean rotate = SR.getContig().equals(SR.source.getContig()) && SR.isNegativeStrand()!=SR.source.isNegativeStrand();
+					Element g2 = null;
+					for(Node n1=SR.g_translate1.getFirstChild();
+							n1!=null;
+							n1 = n1.getNextSibling())
+						{
+						if(n1.getNodeType()!=Node.ELEMENT_NODE) continue;
+						if(Element.class.cast(n1).getLocalName().equals("g"))
+							{
+							g2 = Element.class.cast(n1);
+							break;
+							}
+						}
+					if(g2==null) return;
+					
+					Element g3 = null;
+					for(Node n1=g2.getFirstChild();
+							n1!=null;
+							n1 = n1.getNextSibling())
+						{
+						if(n1.getNodeType()!=Node.ELEMENT_NODE) continue;
+						if(Element.class.cast(n1).getLocalName().equals("g"))
+							{
+							g3 = Element.class.cast(n1);
+							break;
+							}
+						}
+					if(g3==null) return;
 					
 					Element anim = element("animateTransform");
-					SR.element.appendChild(anim);
+					g3.appendChild(anim);
 					anim.setAttribute("attributeType","XML");
 					anim.setAttribute("attributeName","transform");
 					anim.setAttribute("type","translate");
@@ -983,9 +1065,9 @@ public class SvToSVG extends Launcher
 				{
 				LOG.error("interval(s) undefined");
 				return -1;
-				}	
+				}
+			
 			this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
-			FileOutputStream fout=null;
 			try
 				{
 				if(this.fastaFile!=null) {
@@ -1038,7 +1120,12 @@ public class SvToSVG extends Launcher
 								}
 							/* create new region */
 							final Sample.Region region = sample.new Region(interval);
+							if(!sample.regions.isEmpty() && region.getLengthOnReference()!=sample.regions.get(0).getLengthOnReference()) {
+								LOG.warning("intervals should all have the same length");
+								}
+							
 							sample.regions.add(region);
+							
 							try(CloseableIterator<SAMRecord> iter = sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false) ) {
 								while(iter.hasNext())
 									{
@@ -1075,14 +1162,10 @@ public class SvToSVG extends Launcher
 				/* sort per region */
 				this.sampleList.stream().forEach(SL->SL.regions.sort((A,B)->{
 					final SmartComparator sc = new SmartComparator();
-					int i = sc.compare(A.interval.getContig(), B.interval.getContig());
+					int i = sc.compare(A.getContig(), B.getContig());
 					if(i!=0) return i;
-					return A.interval.getStart() -  B.interval.getStart();
+					return A.getStart() -  B.getStart();
 					}));
-				
-				
-				
-				
 				
 				
 				buildDocument();
@@ -1109,7 +1192,6 @@ public class SvToSVG extends Launcher
 				}
 			finally
 				{
-				CloserUtil.close(fout);
 				CloserUtil.close(this.indexedFastaSequenceFile);
 				CloserUtil.close(this.vcfFileReader);
 				this.document = null;
@@ -1122,3 +1204,39 @@ public class SvToSVG extends Launcher
 		new SvToSVG().instanceMainWithExit(args);
 		}
 	}
+
+/**
+BEGIN_CSS
+
+g.maing {stroke:black;stroke-width:0.5px;fill:none;}
+.maintitle {stroke:blue;fill:none;}
+rect.frame {stroke:darkgray;fill:none;} 
+path.opEQ {stroke:black;fill:gainsboro;} 
+path.opX {stroke:black;fill:tomato;}
+path.opM {stroke:black;fill:gainsboro;}
+path.opS {stroke:black;fill:yellow;} 
+path.opH {stroke:black;fill:yellow;} 
+line.opN {stroke:black;}
+line.opD {stroke:black;}
+path.opEQx {stroke:yellow;fill:salmon;opacity:0.8;} 
+path.opXx {stroke:yellow;fill:tomato;opacity:0.8;}
+path.opMx {stroke:yellow;fill:salmon;opacity:0.8;}
+path.opSx {stroke:yellow;fill:yellow;opacity:0.8;} 
+path.opHx {stroke:yellow;fill:yellow;opacity:0.8;} 
+line.opNx {stroke:yellow;opacity:0.8;}
+line.opDx {stroke:yellow;opacity:0.8;}
+rect.mismatch {fill:red;opacity:0.7;}
+rect.insert {fill:none;stroke:red;stroke-width:1.5px}
+text.samplename {stroke:none;fill:black;stroke-width:1px;}
+.discordant {stroke:darkred; fill:none;stroke-dasharray:2;}
+line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}
+rect.variant  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}
+rect.variantHOM_REF  {stroke:none;fill:green;stroke-width:1px;opacity:0.8;}
+rect.variantHOM_VAR  {stroke:none;fill:red;stroke-width:1px;opacity:0.8;}
+rect.variantHET  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}
+rect.variantNO_CALL  {stroke:none;fill:blue;stroke-width:1px;opacity:0.8;}
+path.coverage {stroke:darkslateblue;fill:darkseaGreen}
+
+
+END_CSS
+*/
