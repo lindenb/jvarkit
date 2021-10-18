@@ -175,11 +175,15 @@ public class BamToHaplotypes extends MultiBamLauncher {
 			i = Integer.compare(n, o.changes.size());
 			if(i!=0) return i;
 			for(int x=0;x<n;x++) {
-				i = Integer.compare(this.changes.get(i).pos1, o.changes.get(i).pos1);
+				i = Integer.compare(this.changes.get(x).pos1, o.changes.get(x).pos1);
 				if(i!=0) return i;
 				}
 			for(int x=0;x<n;x++) {
-				i = Integer.compare(this.changes.get(i).alt, o.changes.get(i).alt);
+				i = Integer.compare(this.changes.get(x).ref, o.changes.get(x).ref);
+				if(i!=0) return i;
+				}
+			for(int x=0;x<n;x++) {
+				i = Integer.compare(this.changes.get(x).alt, o.changes.get(x).alt);
 				if(i!=0) return i;
 				}
 			return 0;
@@ -413,6 +417,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 
 	
 	private byte alleleToChar(final Allele a) {
+		if(a==null || a.isSymbolic() || a.isNoCall() || a.length()!=1) throw new IllegalArgumentException("length!=1 for allele "+a);
 		return a.getBases()[0];
 	}
 	
@@ -430,6 +435,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 					c.pos1  = ctx.getStart();
 					c.ref = alleleToChar(ctx.getReference());
 					c.alt = alleleToChar(ctx.getAlleles().get(1));
+					if(c.ref==c.alt) throw new IllegalArgumentException("REF==ALT in "+ctx);
 					change_to_test.add(c);
 					}
 				}
