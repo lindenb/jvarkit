@@ -10,6 +10,12 @@ Reconstruct SNP haplotypes from reads
 ```
 Usage: bam2haplotypes [options] Files
   Options:
+    --alt
+      How shall we handle ALT allele that are not in the VCF. skip, warn (skip 
+      and warning), error (raise an error), N (replace with 'N')), all: use 
+      all alleles.
+      Default: all
+      Possible Values: [skip, warn, error, N, all]
     --buffer-size
       When we're looking for variant in a lare VCF file, load the variants in 
       an interval of 'N' bases instead of doing a random access for each 

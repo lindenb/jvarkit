@@ -43,7 +43,10 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -54,10 +57,12 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.PeekableIterator;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -123,11 +128,22 @@ description="Reconstruct SNP haplotypes from reads",
 keywords={"vcf","phased","genotypes","bam"},
 biostars=9493599,
 creationDate="20211015",
-modificationDate="20211015"
+modificationDate="20211020"
 )
 public class BamToHaplotypes extends MultiBamLauncher {
 	private static final Logger LOG=Logger.build(BamToHaplotypes.class).make();
 
+	
+	/* what shall we do with ALT that are not in the VCF */
+	private enum AltHandler {
+		skip,
+		warn,
+		error,
+		N,
+		all
+		}
+
+	
 	private static class Change implements Comparable<Change> {
 		int pos1;
 		byte ref;
@@ -155,21 +171,16 @@ public class BamToHaplotypes extends MultiBamLauncher {
 			}
 		}
 
-	private static class Haplotype implements Locatable, Comparable<Haplotype> {
-		final String contig;
+	private static class Haplotype implements Comparable<Haplotype> {
+		final int tid;
 		final List<Change> changes = new ArrayList<>();
-		Haplotype(final String ctg) {
-			this.contig = ctg;
-			}
-		@Override
-		public String getContig()
-			{
-			return contig;
+		Haplotype(final int tid) {
+			this.tid = tid;
 			}
 		@Override
 		public int compareTo(final Haplotype o)
 			{
-			int i= this.getContig().compareTo(o.getContig());
+			int i= Integer.compare(this.tid,o.tid);
 			if(i!=0) return i;
 			final int n= this.changes.size();
 			i = Integer.compare(n, o.changes.size());
@@ -188,24 +199,24 @@ public class BamToHaplotypes extends MultiBamLauncher {
 				}
 			return 0;
 			}
-		@Override
+
 		public int getStart() {
 			return changes.get(0).pos1;
 			}
-		@Override
+
 		public int getEnd() {
 			return changes.get(this.changes.size()-1).pos1;
 			}
-		public boolean equals(Object obj)
+		public boolean equals(final Object obj)
 			{
 			if(obj==this) return true;
 			final Haplotype other= (Haplotype)obj;
-			return this.contigsMatch(other) && this.changes.equals(other.changes);
+			return this.tid==other.tid && this.changes.equals(other.changes);
 			}
 		@Override
 		public int hashCode()
 			{
-			int h = this.contig.hashCode();
+			int h = Integer.hashCode(this.tid);
 			h = h*31 + this.changes.hashCode();
 			return h;
 			}
@@ -216,11 +227,11 @@ public class BamToHaplotypes extends MultiBamLauncher {
 		@Override
 		public Haplotype decode(DataInputStream dis) throws IOException
 			{
-			String ctg;
+			int ctg;
 			try {
-				ctg = dis.readUTF();
+				ctg = dis.readInt();
 				}
-			catch(EOFException err) {
+			catch(final EOFException err) {
 				return null;
 				}
 			final Haplotype h = new Haplotype(ctg);
@@ -238,7 +249,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 		public void encode(DataOutputStream dos, final Haplotype h)
 				throws IOException
 			{
-			dos.writeUTF(h.contig);
+			dos.writeInt(h.tid);
 			dos.writeInt(h.changes.size());
 			for(Change c:h.changes) {
 				dos.writeInt(c.pos1);
@@ -266,6 +277,8 @@ public class BamToHaplotypes extends MultiBamLauncher {
 	private boolean paired_mode = false;
 	@Parameter(names={"--ignore-discordant-rg"},description="In paired mode, ignore discordant read-groups RG-ID.")
 	private boolean ignore_discordant_rg = false;
+	@Parameter(names={"--alt"},description="How shall we handle ALT allele that are not in the VCF. skip, warn (skip and warning), error (raise an error), N (replace with 'N')), all: use all alleles.")
+	private AltHandler altHandler = AltHandler.all;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
@@ -302,11 +315,18 @@ public class BamToHaplotypes extends MultiBamLauncher {
 	
 
 	@Override
-	protected int processInput(SAMFileHeader headerIn,
-			CloseableIterator<SAMRecord> iter0) {
+	protected int processInput(
+			final SAMFileHeader headerIn,
+			final CloseableIterator<SAMRecord> iter0) {
 		SortingCollection<Haplotype> sorting  =null;
 		try {
-			
+		final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(headerIn);
+		final String sample = headerIn.getReadGroups().
+				stream().map(RG->RG.getSample()).
+				filter(R->!StringUtils.isBlank(R)).
+				findFirst().
+				orElse("SAMPLE");
+		
 		sorting = SortingCollection.newInstance(
 				Haplotype.class,
 				new HaplotypeCodec(),
@@ -327,7 +347,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 							continue;
 							}
 						else if(!rec.getReadPairedFlag()) {
-							scanVariants(Collections.singletonList(rec),sorting);
+							scanVariants(dict,Collections.singletonList(rec),sorting);
 							}
 						else if(R1==null && rec.getFirstOfPairFlag()) {
 							R1 = rec;
@@ -342,19 +362,19 @@ public class BamToHaplotypes extends MultiBamLauncher {
 						}
 					if(R1!=null && R2!=null) {
 						if(R1.contigsMatch(R2)) {
-							scanVariants(Arrays.asList(R1,R2),sorting);
+							scanVariants(dict,Arrays.asList(R1,R2),sorting);
 							}
 						else
 							{
-							scanVariants(Collections.singletonList(R1),sorting);
-							scanVariants(Collections.singletonList(R2),sorting);
+							scanVariants(dict,Collections.singletonList(R1),sorting);
+							scanVariants(dict,Collections.singletonList(R2),sorting);
 							}
 						}
 					else if(R1!=null && R2==null) {
-						scanVariants(Collections.singletonList(R1),sorting);
+						scanVariants(dict,Collections.singletonList(R1),sorting);
 						}
 					else if(R2!=null && R1==null) {
-						scanVariants(Collections.singletonList(R2),sorting);
+						scanVariants(dict,Collections.singletonList(R2),sorting);
 						}
 					}
 				}
@@ -366,7 +386,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 				if(rec.getReadUnmappedFlag()){
 					continue;
 					}
-				scanVariants(Collections.singletonList(rec),sorting);
+				scanVariants(dict,Collections.singletonList(rec),sorting);
 				}
 			}
 		sorting.doneAdding();
@@ -374,7 +394,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 		try(CloseableIterator<Haplotype> iter = sorting.iterator()) {
 			PeekableIterator<Haplotype> peek = new PeekableIterator<Haplotype>(iter);
 			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-				out.println("#CHROM\tSTART\tEND\tCOUNT\tN-VARIANTS\t(POS\\tALT)+");
+				out.println("#CHROM\tSTART\tEND\tSAMPLE\tN-HAPLOTYPES\tN-VARIANTS\t(POS\\tALT)+");
 				while(peek.hasNext()) {
 					int n=1;
 					final Haplotype hap = peek.next();
@@ -384,11 +404,13 @@ public class BamToHaplotypes extends MultiBamLauncher {
 						peek.next();//consumme
 						n++;
 						}
-					out.print(hap.getContig());
+					out.print(dict.getSequence(hap.tid).getContig());
 					out.print("\t");
 					out.print(hap.getStart());
 					out.print("\t");
 					out.print(hap.getEnd());
+					out.print("\t");
+					out.print(sample);
 					out.print("\t");
 					out.print(n);
 					out.print("\t");
@@ -398,7 +420,7 @@ public class BamToHaplotypes extends MultiBamLauncher {
 						out.print(c.pos1);
 						out.print("\t");
 						out.print((char)c.alt);
-					}
+						}
 					out.println();
 
 					}
@@ -421,7 +443,11 @@ public class BamToHaplotypes extends MultiBamLauncher {
 		return a.getBases()[0];
 	}
 	
-	private void scanVariants(final List<SAMRecord> buffer,final SortingCollection<Haplotype> sorting) {
+	private void scanVariants(
+			final SAMSequenceDictionary dict,
+			final List<SAMRecord> buffer,
+			final SortingCollection<Haplotype> sorting
+			) {
 			if(buffer.isEmpty()) return;
 			
 			final Set<Change> change_to_test = new HashSet<>();
@@ -442,7 +468,9 @@ public class BamToHaplotypes extends MultiBamLauncher {
 			}
 			if(change_to_test.size()<2) return;
 			
-			final Haplotype hap = new Haplotype(buffer.get(0).getContig());
+			final SAMSequenceRecord ssr = dict.getSequence(buffer.get(0).getContig());
+			if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(buffer.get(0).getContig(), dict);
+			final Haplotype hap = new Haplotype(ssr.getSequenceIndex());
 
 			
 			
@@ -456,20 +484,30 @@ public class BamToHaplotypes extends MultiBamLauncher {
 					final int readPos1 = ab.getReadStart();
 					final int refPos1 = ab.getReferenceStart();
 					for(int x=0;x< ab.getLength();++x) {
-						for(final Change change:change_to_test) {
-							if(change.pos1 != refPos1+x) continue;
-							//paired overlapping discordant reads
-							if(hap.changes.stream().anyMatch(C->C.pos1==change.pos1)) continue;
-							final byte readBase = bases [ (readPos1-1) + x ];
-							if(change.ref==readBase || change.alt==readBase) {
-								final Change c = new Change();
-								c.pos1 = change.pos1;
-								c.ref = change.ref;
-								c.alt = readBase;
-								hap.changes.add(c);
-								break;
+						final int refPos1_x = refPos1+x;
+						final Change change =  change_to_test.stream().filter(C->C.pos1==refPos1_x).findFirst().orElse(null);
+						if(change==null) continue;
+						//paired overlapping discordant reads, already inserted in haplotype
+						if(hap.changes.stream().anyMatch(C->C.pos1==change.pos1)) continue;
+						byte readBase = bases [ (readPos1-1) + x ];
+						final boolean allele_is_known = (change.ref==readBase || change.alt==readBase);
+						if(!allele_is_known) {
+							final String msg = rec.getReadName()+" at "+change.pos1+" is "+(char)readBase+" while vcf is "+(char)change.ref+"/"+(char)change.alt;
+							switch(this.altHandler) {
+								case error: throw new RuntimeIOException(msg);
+								case warn: LOG.warn(msg);continue;
+								case skip: continue;
+								case N:  readBase = (byte)'N'; break;
+								case all: break;
+								default: throw new IllegalStateException();
 								}
 							}
+
+						final Change c = new Change();
+						c.pos1 = change.pos1;
+						c.ref = change.ref;
+						c.alt = readBase;
+						hap.changes.add(c);
 						}
 					}
 				}
