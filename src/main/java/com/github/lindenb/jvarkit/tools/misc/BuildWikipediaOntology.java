@@ -54,6 +54,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.RDF;
+import com.github.lindenb.jvarkit.util.ns.RDFS;
 
 /*
 ## Example
@@ -70,7 +71,6 @@ $  java -jar dist/buildwpontology.jar
 	)
 public class BuildWikipediaOntology extends Launcher
 	{
-	final static String RDFS="http://www.w3.org/2000/01/rdf-schema#";
 	private static final Logger LOG = Logger.build(BuildWikipediaOntology.class).make();
 
 	private static long ID_GENERATOR=0L;
@@ -249,17 +249,17 @@ public class BuildWikipediaOntology extends Launcher
 				{
 				if(root.isMainNode())
 					{
-					w.writeStartElement("rdfs", "Class", RDFS);
+					w.writeStartElement("rdfs", "Class", RDFS.NS);
 					w.writeAttribute("rdf", RDF.NS, "about", getURL(root.catName));
 					int colon=root.catName.indexOf(':');
 					
-					w.writeStartElement("rdfs", "label", RDFS);
+					w.writeStartElement("rdfs", "label", RDFS.NS);
 					w.writeCharacters(colon==-1?root.catName:root.catName.substring(colon+1));
 					w.writeEndElement();
 					
 					for(String parent: getParentTerms(root.catName))
 						{
-						w.writeEmptyElement("rdfs", "subClassOf", RDFS);
+						w.writeEmptyElement("rdfs", "subClassOf", RDFS.NS);
 						w.writeAttribute("rdf", RDF.NS, "resource",
 								getURL(parent)
 								);

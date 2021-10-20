@@ -18,20 +18,22 @@ Usage: goutils [options] Files
       space one can define optional attributes for 
       gexf:`color=<COLOR>;size=<SIZE> 
     -action, --action
-      What shoud I do ? default is dump as table
+      What shoud I do ? default is dump as table. 'goa' only keeps GOA 
+      elements in GOA input in GAF format (e.g 
+      http://geneontology.org/gene-associations/goa_human.gaf.gz). 
       Default: dump_table
-      Possible Values: [dump_table, dump_gexf]
+      Possible Values: [dump_table, dump_gexf, goa]
     -go, --go, --gene-ontology
-      Gene ontology URI. Formatted as RDF+XML. Can be gzipped.
-      Default: http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz
+      Gene ontology URI. Formatted as OWL+XML. Can be gzipped.
+      Default: http://purl.obolibrary.org/obo/go.owl
     -go-divisions, --go-divisions
       limit the gene ontology tree to those divisions. empty: all possible 
       divisions. 
-      Default: [cellular_component, molecular_function, biological_process]
+      Default: [biological_process, cellular_component, molecular_function]
     -go-relations, --go-relations
       limit the gene ontology tree to those relationships. empty: all possible 
       relationships. 
-      Default: [negatively_regulates, is_a, part_of, positively_regulates, regulates]
+      Default: []
     -h, --help
       print help and exit
     --helpFormat
@@ -84,7 +86,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GoUtils.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/GoUtils.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/go/GoUtils.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/go/GoUtils.java)
 
 
 ## Contribute
@@ -177,5 +179,17 @@ GO:0005272	SCNN1A
 (...)
 ```
 
-
+```
+$ wget -q -O - "http://geneontology.org/gene-associations/goa_human.gaf.gz" | gunzip -c | java -jar dist/goutils.jar -go go.rdf.gz --action goa -A 'ion transmembrane transport'  | head
+UniProtKB	A0A1W2PN81	CHRNA7	enables	GO:0022848	GO_REF:0000002	IEA	InterPro:IPR002394	FNeuronal acetylcholine receptor subunit alpha-7	CHRNA7	protein	taxon:9606	20210612	InterPro
+UniProtKB	A0PJK1	SLC5A10	enables	GO:0015370	Reactome:R-HSA-8876283	TAS		F	Sodium/glucose cotransporter 5	SLC5A10|SGLT5	protein	taxon:9606	20200515	Reactome
+UniProtKB	A0PJK1	SLC5A10	involved_in	GO:0035725	GO_REF:0000108	IEA	GO:0015370	P	Sodium/glucose cotransporter 5	SLC5A10|SGLT5	protein	taxon:9606	20210613	GOC
+UniProtKB	A1A4F0	SLC66A1L	involved_in	GO:1903401	GO_REF:0000108	IEA	GO:0015189	PPutative uncharacterized protein SLC66A1L	SLC66A1L|C3orf55|PQLC2L	protein	taxon:9606	20210613	GOC
+UniProtKB	A1A4F0	SLC66A1L	involved_in	GO:1903826	GO_REF:0000108	IEA	GO:0015181	PPutative uncharacterized protein SLC66A1L	SLC66A1L|C3orf55|PQLC2L	protein	taxon:9606	20210613	GOC
+UniProtKB	A1A5B4	ANO9	enables	GO:0005229	PMID:22946059	IMP		F	Anoctamin-9	ANO9|PIG5|TMEM16J|TP53I5	protein	taxon:9606	20140424	UniProt
+UniProtKB	A1A5B4	ANO9	enables	GO:0005229	Reactome:R-HSA-2684901	TAS		F	Anoctamin-9	ANO9|PIG5|TMEM16J|TP53I5	protein	taxon:9606	20200515	Reactome
+UniProtKB	A1A5B4	ANO9	involved_in	GO:0034220	Reactome:R-HSA-983712	TAS		P	Anoctamin-9	ANO9|PIG5|TMEM16J|TP53I5	protein	taxon:9606	20210310	Reactome
+UniProtKB	A5X5Y0	HTR3E	enables	GO:0022850	PMID:17392525	IDA		F	5-hydroxytryptamine receptor 3E	HTR3E	protein	taxon:9606	20130210	CACAO
+UniProtKB	A6NJY1	SLC9B1P1	enables	GO:0015299	GO_REF:0000002	IEA	InterPro:IPR006153	FPutative SLC9B1-like protein SLC9B1P1	SLC9B1P1	protein	taxon:9606	20210612	InterPro
+```
 

@@ -21,7 +21,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-*/package com.github.lindenb.jvarkit.tools.misc;
+*/
+package com.github.lindenb.jvarkit.tools.go;
 
 import java.awt.Color;
 import java.io.BufferedReader;
@@ -34,9 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -47,6 +50,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
+import com.github.lindenb.jvarkit.goa.GOAFileIterator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -123,7 +127,19 @@ GO:0005272	SCNN1A
 (...)
 ```
 
-
+```
+$ wget -q -O - "http://geneontology.org/gene-associations/goa_human.gaf.gz" | gunzip -c | java -jar dist/goutils.jar -go go.rdf.gz --action goa -A 'ion transmembrane transport'  | head
+UniProtKB	A0A1W2PN81	CHRNA7	enables	GO:0022848	GO_REF:0000002	IEA	InterPro:IPR002394	FNeuronal acetylcholine receptor subunit alpha-7	CHRNA7	protein	taxon:9606	20210612	InterPro
+UniProtKB	A0PJK1	SLC5A10	enables	GO:0015370	Reactome:R-HSA-8876283	TAS		F	Sodium/glucose cotransporter 5	SLC5A10|SGLT5	protein	taxon:9606	20200515	Reactome
+UniProtKB	A0PJK1	SLC5A10	involved_in	GO:0035725	GO_REF:0000108	IEA	GO:0015370	P	Sodium/glucose cotransporter 5	SLC5A10|SGLT5	protein	taxon:9606	20210613	GOC
+UniProtKB	A1A4F0	SLC66A1L	involved_in	GO:1903401	GO_REF:0000108	IEA	GO:0015189	PPutative uncharacterized protein SLC66A1L	SLC66A1L|C3orf55|PQLC2L	protein	taxon:9606	20210613	GOC
+UniProtKB	A1A4F0	SLC66A1L	involved_in	GO:1903826	GO_REF:0000108	IEA	GO:0015181	PPutative uncharacterized protein SLC66A1L	SLC66A1L|C3orf55|PQLC2L	protein	taxon:9606	20210613	GOC
+UniProtKB	A1A5B4	ANO9	enables	GO:0005229	PMID:22946059	IMP		F	Anoctamin-9	ANO9|PIG5|TMEM16J|TP53I5	protein	taxon:9606	20140424	UniProt
+UniProtKB	A1A5B4	ANO9	enables	GO:0005229	Reactome:R-HSA-2684901	TAS		F	Anoctamin-9	ANO9|PIG5|TMEM16J|TP53I5	protein	taxon:9606	20200515	Reactome
+UniProtKB	A1A5B4	ANO9	involved_in	GO:0034220	Reactome:R-HSA-983712	TAS		P	Anoctamin-9	ANO9|PIG5|TMEM16J|TP53I5	protein	taxon:9606	20210310	Reactome
+UniProtKB	A5X5Y0	HTR3E	enables	GO:0022850	PMID:17392525	IDA		F	5-hydroxytryptamine receptor 3E	HTR3E	protein	taxon:9606	20130210	CACAO
+UniProtKB	A6NJY1	SLC9B1P1	enables	GO:0015299	GO_REF:0000002	IEA	InterPro:IPR006153	FPutative SLC9B1-like protein SLC9B1P1	SLC9B1P1	protein	taxon:9606	20210612	InterPro
+```
 
 END_DOC
  *
@@ -133,13 +149,14 @@ END_DOC
 		description="Gene Ontology Utils. Retrieves terms from Gene Ontology",
 		keywords={"geneontology","go","gexf"},
 		biostars={488538},
-		creationDate="20180130"
+		creationDate="20180130",
+		modificationDate="20211020"
 		)
 public class GoUtils
 	extends Launcher
 	{
-	private static Logger LOG=Logger.build(GoUtils.class).make(); 
-	private enum Action{dump_table,dump_gexf};
+	private static Logger LOG=Logger.build(GoUtils.class).make();
+	private enum Action{dump_table,dump_gexf,goa};
 	
 	/** wraps a Go:Term */
 	private static class UserTerm
@@ -175,7 +192,7 @@ public class GoUtils
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-action","--action"},description=
-			"What shoud I do ? default is dump as table")
+			"What shoud I do ? default is dump as table. 'goa' only keeps GOA elements in GOA input in GAF format (e.g http://geneontology.org/gene-associations/goa_human.gaf.gz).")
 	private Action action = Action.dump_table;
 	@ParametersDelegate
 	private GoTree.ReadingGo readingGo = new GoTree.ReadingGo();
@@ -188,6 +205,8 @@ public class GoUtils
 	private File accessionFile=null;
 	@Parameter(names= {"-i","--inverse",},description="inverse the result")
 	private boolean inverse=false;
+	@Parameter(names= {"--debug",},description="debug",hidden=true)
+	private boolean do_debug =false;
     
 	private GoTree mainGoTree=null;
 	
@@ -206,12 +225,11 @@ public class GoUtils
 	
 	@Override
 	public int doWork(final List<String> args) {			
-		PrintWriter out=null;
 		try
 			{
 			
 			this.mainGoTree = this.readingGo.createParser().
-					setDebug(false).
+					setDebug(this.do_debug).
 					parse(this.readingGo.goUri);
 			
 			final Map<GoTree.Term,UserTerm> userTerms = new HashMap<>();
@@ -221,64 +239,77 @@ public class GoUtils
 				final GoTree.Term t= this.findTerm(s);
 				if(t==null)
 					{
-					LOG.error("cannot find user term "+s);
+					LOG.error("cannot find user term \""+s+"\"");
 					return -1;
 					}
 				userTerms.put(t,new UserTerm(t));
 				}
+			final Predicate<GoTree.Term> keepTerm = T->{
+				boolean keep=false;
+				if(userTerms.isEmpty())
+					{
+					keep=true;
+					}
+				else if(userTerms.keySet().
+						stream().
+						anyMatch(USERTERM->(T.isDescendantOf(USERTERM)))) {
+					keep=true;
+					}
+				if(this.inverse) keep=!keep;
+				return keep;
+				};
 			
 			if(this.accessionFile!=null)
 				{
 				final ColorUtils colorUtils = new ColorUtils();
-				final BufferedReader r=IOUtils.openFileForBufferedReading(this.accessionFile);
-				String line;
-				while((line=r.readLine())!=null) {
-					if(line.isEmpty() || line.startsWith("#")) continue;
-					int last=0;
-					for(last=0;last< line.length();++last) {
-						if(Character.isWhitespace(line.charAt(last))) break;
-						}
-					final String s= line.substring(0, last);
-					GoTree.Term t=  this.findTerm(s);
-					if(t==null)
-							{
-							r.close();
-							LOG.error("In "+this.accessionFile+" cannot find user term \""+s+"\"");
-							return -1;
+				try(BufferedReader r=IOUtils.openFileForBufferedReading(this.accessionFile)) {
+					String line;
+					while((line=r.readLine())!=null) {
+						if(line.isEmpty() || line.startsWith("#")) continue;
+						int last=0;
+						for(last=0;last< line.length();++last) {
+							if(Character.isWhitespace(line.charAt(last))) break;
 							}
-					final UserTerm ut = new UserTerm(t);
-					userTerms.put(t,ut);
-					switch(this.action)
-						{
-						
-						case dump_gexf:
+						final String s= line.substring(0, last);
+						GoTree.Term t=  this.findTerm(s);
+						if(t==null)
 								{
-								for(final String left: line.substring(last).trim().split("[ \t;]+"))
-									{
-									if(left.isEmpty())
-										{
-										// cont
-										}
-									else if(left.startsWith("color=") && ut.vizColor==null)
-										{
-										ut.vizColor = colorUtils.parse(left.substring(6));
-										}
-									else if(left.startsWith("size=") && ut.vizSize==null)
-										{
-										ut.vizSize = Double.parseDouble(left.substring(5));
-										}
-									else
-										{
-										LOG.warning("Ignoring unknown modifier "+left +" in "+line);
-										}
-									}
-								break;
+								LOG.error("In "+this.accessionFile+" cannot find user term \""+s+"\"");
+								return -1;
 								}
-						default:break;
-						}
+						final UserTerm ut = new UserTerm(t);
+						userTerms.put(t,ut);
+						switch(this.action)
+							{
+						
+							case dump_gexf:
+									{
+									for(final String left: line.substring(last).trim().split("[ \t;]+"))
+										{
+										if(left.isEmpty())
+											{
+											// cont
+											}
+										else if(left.startsWith("color=") && ut.vizColor==null)
+											{
+											ut.vizColor = colorUtils.parse(left.substring(6));
+											}
+										else if(left.startsWith("size=") && ut.vizSize==null)
+											{
+											ut.vizSize = Double.parseDouble(left.substring(5));
+											}
+										else
+											{
+											LOG.warning("Ignoring unknown modifier "+left +" in "+line);
+											}
+										}
+									break;
+									}
+							default:break;
+							}
 					
+						}
 					}
-				r.close();
 				}
 			
 			
@@ -354,7 +385,10 @@ public class GoUtils
 							w.writeAttribute("title", "childOffUserTerm");
 							w.writeAttribute("type", "boolean");
 
-							
+					      w.writeEmptyElement("attribute");
+							w.writeAttribute("id", "5");
+							w.writeAttribute("title", "division");
+							w.writeAttribute("type", "boolean");
 							
 							
 						 w.writeEndElement();//attributes
@@ -394,7 +428,9 @@ public class GoUtils
 								w.writeAttribute("for", "4");//is child of any user term
 								w.writeAttribute("value",String.valueOf(userTerms.keySet().stream().anyMatch(T->term.isDescendantOf(T))));
 
-
+							w.writeEmptyElement("attvalue");
+								w.writeAttribute("for", "5");
+								w.writeAttribute("value",term.getDivision()==null?".":term.getDivision().name());
 							
 							w.writeEndElement();//attvalues
 							
@@ -434,19 +470,11 @@ public class GoUtils
 								w.writeAttribute("type","directed");
 								w.writeAttribute("source",term2str.apply(term));
 								w.writeAttribute("target",term2str.apply(rel.getTo()));
-								w.writeAttribute("label",rel.getType().name());
+								w.writeAttribute("label",rel.getType().getName());
 								w.writeAttribute("weight",String.valueOf(1));
 								
-								final Color vizColor;
-								switch(rel.getType())
-									{
-									case negatively_regulates:vizColor = Color.RED; break;
-									case positively_regulates:vizColor = Color.GREEN; break;
-									case regulates:vizColor = Color.ORANGE; break;
-									case part_of: vizColor = Color.BLUE; break;
-									case is_a://cont
-									default: vizColor = Color.BLACK; break;
-									}
+								final Color vizColor = Color.BLACK;
+								
 								
 								// viz:color
 								w.writeEmptyElement("viz:color");
@@ -476,7 +504,32 @@ public class GoUtils
 							{
 							System.out.flush();
 							}
-					break;	
+					break;
+					}
+				case goa:
+					{
+					final Set<String> acns_set = this.mainGoTree.getTerms().
+						stream().
+						filter(keepTerm).
+						map(T->T.getAcn()).
+						collect(Collectors.toSet());
+						
+					final String input = oneFileOrNull(args);
+					try(BufferedReader br= super.openBufferedReader(input)) {
+						try(GOAFileIterator goain = GOAFileIterator.newInstance(br)) {
+							try(PrintWriter out = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
+								while(goain.hasNext()) {
+									final GOAFileIterator.GafRecord rec = goain.next();
+									if(rec.getQualifiers().contains("NOT")) continue;
+									if(!acns_set.contains(rec.getGoId())) continue;
+									out.println(rec.toString());
+									}
+								out.flush();
+								}
+							}
+						}
+				
+					break;
 					}
 				case dump_table://through
 				default:
@@ -486,59 +539,38 @@ public class GoUtils
 						LOG.error("too many arguments");
 						return -1;
 						}
-					out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-					out.println("#ACN\tNAME\tDEFINITION");
-					for(final GoTree.Term t:this.mainGoTree.getTerms())
-						{
-						boolean keep=false;
-						
-						if(userTerms.isEmpty())
+					try(PrintWriter out = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
+						out.println("#ACN\tNAME\tDEFINITION\tDIVISION");
+						for(final GoTree.Term t:this.mainGoTree.getTerms())
 							{
-							keep=true;
-							}
-						else
-							{
-							for(final GoTree.Term userTerm:userTerms.keySet())
+							if(keepTerm.test(t))
 								{
-								if(t.isDescendantOf(userTerm))
-									{
-									keep=true;
-									break;
-									}
+								out.print(t.getAcn());
+								out.print('\t');
+								out.print(t.getName());
+								out.print('\t');
+								out.print(t.getDefinition());
+								out.print('\t');
+								out.print(t.getDivision()==null?".":t.getDivision().name());
+								out.println();
 								}
 							}
-						
-						if(this.inverse) keep=!keep;
-						if(keep)
-							{
-							out.print(t.getAcn());
-							out.print('\t');
-							out.print(t.getName());
-							out.print('\t');
-							out.print(t.getDefinition());
-							out.println();
-							}
+						out.flush();
 						}
-					
-					out.flush();
-					out.close();
 					break;
 					}
 				}
-				
 				return 0;
 				}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(out);
 			}
 		}
-	
-		
+
 	public static void main(final String[] args)
 		{
 		new GoUtils().instanceMainWithExit(args);

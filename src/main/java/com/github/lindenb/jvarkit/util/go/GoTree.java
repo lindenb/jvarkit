@@ -56,6 +56,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.ns.RDF;
+import com.github.lindenb.jvarkit.util.ns.RDFS;
+import com.github.lindenb.jvarkit.util.ns.OWL;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -69,15 +71,37 @@ public class GoTree implements Iterable<GoTree.Term>
 	{
 	private static Logger LOG=Logger.build(GoTree.class).make(); 
 
+	private static final String OBOOWL = "http://www.geneontology.org/formats/oboInOwl#";
 	private static final String NS="http://www.geneontology.org/dtds/go.dtd#";
-	public static final String GO_RDF_URL="http://archive.geneontology.org/latest-termdb/go_daily-termdb.rdf-xml.gz";
-	public static final String GO_URL_OPT_DESC="Gene ontology URI. Formatted as RDF+XML. Can be gzipped.";
+	public static final String GO_RDF_URL="http://purl.obolibrary.org/obo/go.owl";
+	public static final String GO_URL_OPT_DESC="Gene ontology URI. Formatted as OWL+XML. Can be gzipped.";
 	
-	public static enum RelType
+	public interface RelType
 		{
-		is_a,negatively_regulates,part_of,positively_regulates,regulates
+		public String getName();
+		public String getURI();
 		}
-	private static final Set<RelType> REL_TYPE_SET = Arrays.asList(RelType.values()).stream().collect(Collectors.toSet());
+	
+	private static class RelTypeImpl implements RelType {
+		String uri;
+		String name;
+		@Override public String getName() {
+			return this.name;
+			}
+		@Override public String getURI() {
+			return this.uri;
+			}
+		@Override public int hashCode() {
+			return this.uri.hashCode();
+			}
+		@Override public boolean equals(final Object o) {
+			return this.uri.equals(RelTypeImpl.class.cast(o).uri);
+			}
+		@Override public String toString() {
+			return getName();
+			}
+		}
+	
 
 	public static enum Division
 		{
@@ -96,35 +120,6 @@ public class GoTree implements Iterable<GoTree.Term>
 		public Term getTo();
 		}
 	
-	public static class RelTypeConverter implements IStringConverter<Set<RelType>>
-		{
-		@Override
-		public Set<RelType> convert(final String s) {
-			if(StringUtil.isBlank(s))
-				{
-				return REL_TYPE_SET;
-				}
-			final Set<RelType> rt = new HashSet<>();
-			for(final String token:s.split("[,; |]"))
-				{
-				if(StringUtil.isBlank(token)) continue;
-				final Optional<RelType> f = REL_TYPE_SET.stream().
-						filter(T->T.name().equalsIgnoreCase(token)).
-						findFirst();
-				if(!f.isPresent())
-					{
-					throw new JvarkitException.UserError(
-						"undefined GO:rel "+token+" available are: " +
-						REL_TYPE_SET
-						);
-					}
-				
-				rt.add(f.get());
-				}
-			if(rt.isEmpty()) return REL_TYPE_SET;
-			return rt;
-			}
-		}
 	
 	
 	public static class DivisionConverter implements IStringConverter<Set<Division>>
@@ -162,16 +157,15 @@ public class GoTree implements Iterable<GoTree.Term>
 		{
 		@Parameter(names={"-go","--go","--gene-ontology"},description=GoTree.GO_URL_OPT_DESC)
 		public String goUri = GoTree.GO_RDF_URL;
-		@Parameter(names={"-go-relations","--go-relations"},description="limit the gene ontology tree to those relationships. empty: all possible relationships. ",converter=RelTypeConverter.class)
-		public Set<RelType> relTypes = REL_TYPE_SET;
+		@Parameter(names={"-go-relations","--go-relations"},description="limit the gene ontology tree to those relationships. empty: all possible relationships. ")
+		public Set<String> relTypes = new HashSet<>();
 		@Parameter(names={"-go-divisions","--go-divisions"},description="limit the gene ontology tree to those divisions. empty: all possible divisions. ",converter=DivisionConverter.class)
 		public Set<Division> divisions = DIVISION_SET;
 
 		public Parser createParser()
 			{
 			return new Parser().
-					setDivisions(this.divisions).
-					setRelations(this.relTypes);
+					setDivisions(this.divisions);
 			}
 		}
 	
@@ -215,7 +209,7 @@ public class GoTree implements Iterable<GoTree.Term>
 			if (getClass() != obj.getClass())
 				return false;
 			final RelationImpl other = (RelationImpl) obj;
-			return (reltype == other.reltype &&
+			return (reltype.equals(other.reltype) &&
 					termFrom.equals(other.termFrom) &&
 					termTo.equals(other.termTo)
 					);
@@ -223,7 +217,7 @@ public class GoTree implements Iterable<GoTree.Term>
 		@Override
 		public String toString() {
 			return this.termFrom.getAcn()+"["+this.termFrom.getName()+"] -- "+
-					this.reltype.name()+ " --> "+
+					this.reltype.getName()+ " --> "+
 					this.termTo.getAcn()+"["+this.termTo.getName()
 					;
 			}
@@ -237,6 +231,8 @@ public class GoTree implements Iterable<GoTree.Term>
 		public String getName();
 		/** return true if getRelations() is not empty */
 		public boolean hasRelations();
+		/** return term division */
+		public Division getDivision();
 		
 		public Set<String> getSynonyms();
 		public String getDefinition();
@@ -288,7 +284,7 @@ public class GoTree implements Iterable<GoTree.Term>
 	
 	
 	private final HashMap<String, TermImpl> acn2term=new HashMap<String, TermImpl>();
-	
+
 	private class TermImpl implements Term
 		{
 		String accession;
@@ -296,6 +292,7 @@ public class GoTree implements Iterable<GoTree.Term>
 		String definition = null;
 		Set<String> synonyms = null;
 		List<DbXRef> dbxrefs = null;
+		Division division = null;
 		//final Set<TermImpl> parents=new HashSet<>();
 		//final Set<TermImpl> children=new HashSet<>();
 		final Set<RelationImpl> relations = new HashSet<>();
@@ -319,6 +316,10 @@ public class GoTree implements Iterable<GoTree.Term>
 					Collections.emptySet():
 					Collections.unmodifiableSet(this.synonyms)
 					;
+			}
+		@Override
+		public Division getDivision() {
+			return this.division;
 			}
 		
 		@Override
@@ -355,10 +356,24 @@ public class GoTree implements Iterable<GoTree.Term>
 		@Override
 		public boolean isDescendantOf(final Term parentNode)
 			{
+			//LOG.debug(" start"+this+" "+this.relations);
+			return _isDescendantOf(parentNode,new HashSet<>());
+			}
+		
+		private boolean _isDescendantOf(final Term parentNode,final Set<Term> seen)
+			{
+			//LOG.debug("here ?"+this+" "+this.relations);
 			if(parentNode==this || getAcn().equals(parentNode.getAcn())) return true;
+			seen.add(this);
 			for(final RelationImpl rel:this.relations)
 				{
-				if(rel.getTo().isDescendantOf(parentNode)) return true;
+				final TermImpl nto = (TermImpl)rel.getTo() ;
+				if(seen.contains(nto)) {
+					//LOG.debug("twice ?"+this+" "+rel+" "+seen);
+					//System.exit(-1);
+					continue;
+					}
+				if(nto._isDescendantOf(parentNode,seen)) return true;
 				}
 			return false;
 			}
@@ -446,20 +461,21 @@ public class GoTree implements Iterable<GoTree.Term>
 		private static final QName parseType=new QName(RDF.NS,"parseType",RDF.pfx);
 		
 		private final Map<String,TermImpl> uri2term = new HashMap<>();
+		private final HashMap<String, RelTypeImpl> uri2rel=new HashMap<>();
 		private final List<IsA> isAList=new ArrayList<>();
 		private boolean ignore_synonyms=false;
 		private boolean ignore_definitions=false;
 		private boolean ignore_dbxref=false;
 		private boolean debug=false;
-		private Set<RelType> userRelTypes = GoTree.REL_TYPE_SET;
 		private Set<Division> userDivisions = GoTree.DIVISION_SET;
 		
-		
-		/** set accepted relations */
-		public Parser setRelations(final Set<RelType> userRelTypes) {
-			this.userRelTypes = (userRelTypes==null? GoTree.REL_TYPE_SET:new HashSet<>(userRelTypes));
-			return this;
+		Parser() {
+			final RelTypeImpl rel = new RelTypeImpl();
+			rel.uri = RDFS.NS+"subClassOf";
+			rel.name= "is_a";
+			uri2rel.put(rel.uri,rel);
 			}
+		
 		/** set accepted divisions */
 		public Parser setDivisions(final Set<Division> userRelTypes) {
 			this.userDivisions = (userRelTypes==null? GoTree.DIVISION_SET:new HashSet<>(userRelTypes));
@@ -490,12 +506,12 @@ public class GoTree implements Iterable<GoTree.Term>
 			{
 			final TermImpl term;
 			final String parentUri;
-			final RelType relType;
-			IsA(final TermImpl term,final String parentUri,final RelType relType)
+			final String relURI;
+			IsA(final TermImpl term,final String parentUri,final String relURI)
 				{
 				this.term = term;
 				this.parentUri = parentUri;
-				this.relType=relType;
+				this.relURI=relURI;
 				}
 			}
 		
@@ -549,13 +565,97 @@ public class GoTree implements Iterable<GoTree.Term>
 			}
 		
 		
-		private RelType findRelTypeByName(final String s)
-			{
-			for(RelType rt:this.userRelTypes)
+		private void parseRelType(
+				final TermImpl term,
+				final XMLEventReader r,
+				final StartElement root,
+				final List<IsA> term_isa_list
+				)  throws IOException,XMLStreamException {
+			String rel=null;
+			String target = null;
+			final Attribute att = root.getAttributeByName(rdfRsrc);
+			if(att!=null)
 				{
-				if(s.equals(rt.name())) return rt;
+				rel= RDFS.NS + "subClassOf";
+				target = att.getValue();
 				}
-			return null;
+			else if(!r.peek().isEndElement())	
+				{
+				int depth = 0;
+				while(r.hasNext())
+					{
+					XMLEvent evt=r.nextEvent();
+					if(evt.isStartElement())
+						{
+						
+						final StartElement E= evt.asStartElement();
+						final QName qN = E.getName();
+						
+						if(hasName(qN,OWL.NS,"onProperty")) {
+							final Attribute att2 = E.getAttributeByName(rdfRsrc);
+							if(att2!=null) {
+								rel = att2.getValue();
+								}
+							
+							}
+						else if(hasName(qN,OWL.NS,"someValuesFrom")) {
+							final Attribute att2 = E.getAttributeByName(rdfRsrc);
+							if(att2!=null) {
+								target = att2.getValue();
+								}
+							}
+						depth++;
+						}
+					else if(evt.isEndElement())
+						{
+						depth--;
+						if(depth==0) break;
+						}
+					}
+				}
+			
+			if(rel!=null && target!=null) {
+				if(debug) LOG.debug("adding relation "+target+" "+rel);
+				term_isa_list.add(new IsA(term, target, rel));
+				}
+			}
+		
+		private boolean hasName(final QName qN,final String ns,final String local) {
+			return qN.getLocalPart().equals(local) && qN.getNamespaceURI().equals(ns);
+			}
+		
+		
+		private void parseObjectProperty(
+				final GoTree tree,
+				final StartElement root,
+				final XMLEventReader r
+				)  throws IOException,XMLStreamException {
+			final Attribute aboutAtt=root.getAttributeByName(rdfAbout);
+			if(aboutAtt==null)
+				{
+				throw new XMLStreamException("no rdf:about",root.getLocation());
+				}
+			final RelTypeImpl rel = new RelTypeImpl();
+			rel.uri = aboutAtt.getValue();
+			while(r.hasNext())
+				{
+				XMLEvent evt=r.nextEvent();
+				if(evt.isStartElement())
+					{
+					final StartElement E=evt.asStartElement();
+					final QName qN=E.getName();
+					final String localName = qN.getLocalPart();
+					
+					if(hasName(qN,RDFS.NS,"label")) {
+						rel.name=r.getElementText();
+						}
+					}
+				else if(evt.isEndElement()) {
+					if(hasName(evt.asEndElement().getName(),OWL.NS,"ObjectProperty")) break;
+					}
+				}
+			if(debug) LOG.debug("adding rel "+rel.name+" "+rel.uri);
+			if(rel.name!=null) this.uri2rel.put(rel.uri,rel);
 			}
 		
 		private void parseRDFTerm(
@@ -577,7 +677,7 @@ public class GoTree implements Iterable<GoTree.Term>
 				}
 			boolean obsolete_flag=false;
 			final TermImpl term = tree.new TermImpl(termUri);
-				
+			final List<IsA> term_isa_list = new ArrayList<>();
 			while(r.hasNext())
 				{
 				XMLEvent evt=r.nextEvent();
@@ -585,58 +685,38 @@ public class GoTree implements Iterable<GoTree.Term>
 					{
 					final StartElement E=evt.asStartElement();
 					final QName qN=E.getName();
-					if( NS.equals(qN.getNamespaceURI()))
-						{
-						final String localName = qN.getLocalPart();
-						RelType reltype=null;
-						if(localName.equals("accession"))
-							{
-							term.accession=r.getElementText();
-							}
-						else if(localName.equals("name"))
-							{
-							term.name=r.getElementText();
-							}
-						else if(localName.equals("synonym") && !this.ignore_synonyms)
-							{
-							if(term.synonyms==null) term.synonyms=new HashSet<>();
-							term.synonyms.add(r.getElementText());
-							}
-						else if(localName.equals("definition") && !this.ignore_definitions)
-							{
-							term.definition=r.getElementText();
-							}
-						else if((reltype = findRelTypeByName(localName))!=null)
-							{
-							final Attribute rsrc=E.getAttributeByName(rdfRsrc);
-							if(rsrc==null) throw new XMLStreamException("att missing "+rdfRsrc+" for "+aboutAtt.getValue(),evt.getLocation());
-							final String parentUri=rsrc.getValue();
-							if(parentUri.startsWith("http://www.geneontology.org/go#obsolete")) {
-								obsolete_flag=true;
-								}
-							if(!obsolete_flag)
-								{
-								this.isAList.add(new IsA(term, parentUri,reltype));
-								}
-							}
-						else if(localName.equals("dbxref"))
-							{
-							final DbXRef xref = parseDbXRefRDF(E,r);
-							if(!this.ignore_dbxref && xref!=null && !obsolete_flag)
-								{
-								if(term.dbxrefs==null) term.dbxrefs=new ArrayList<>();
-								term.dbxrefs.add(xref);
-								}
-							}
-						}
+					final String localName = qN.getLocalPart();
 					
+					if(hasName(qN,OBOOWL,"id")) {
+						term.accession=r.getElementText();
+						}
+					else if(hasName(qN,OBOOWL,"deprecated")) {
+						if(r.getElementText().equals("true")) obsolete_flag = true;
+						}
+					else if(hasName(qN,RDFS.NS,"label"))  {
+						term.name=r.getElementText();
+						}
+					else if(hasName(qN,NS,"synonym") && !this.ignore_synonyms) {
+						if(term.synonyms==null) term.synonyms=new HashSet<>();
+						term.synonyms.add(r.getElementText());
+						}
+					else if(hasName(qN,OBOOWL,"annotatedTarget")  && !this.ignore_definitions)
+						{
+						term.definition=r.getElementText();
+						}
+					else if(hasName(qN,OBOOWL,"hasOBONamespace")) {
+						final String relName = r.getElementText();
+						term.division = DIVISION_SET.stream().filter(S->S.name().equals(relName)).findFirst().get();
+						}
+					else if(hasName(qN,RDFS.NS,"subClassOf")) {
+						parseRelType(term,r,E,term_isa_list);
+						
+						}
 					}
 				else if(evt.isEndElement())
 					{
 					final EndElement E=evt.asEndElement();
-					final QName qN=E.getName();
-					if(qN.getLocalPart().equals("term") && 
-					  NS.equals(qN.getNamespaceURI()))
+					if(isTerm(E.getName()))
 						{
 						/* found this, no name, linked nowhere... */
 						if(StringUtil.isBlank(term.name))
@@ -646,6 +726,7 @@ public class GoTree implements Iterable<GoTree.Term>
 						
 						if(!obsolete_flag) 
 							{
+							this.isAList.addAll(term_isa_list);
 							this.uri2term.put(termUri, term);
 							}
 						break;
@@ -655,23 +736,33 @@ public class GoTree implements Iterable<GoTree.Term>
 		
 			}	
 		
+		private boolean isTerm(final QName qN) {
+			if(qN.getLocalPart().equals("term") && 
+						NS.equals(qN.getNamespaceURI())) return true;
+			if(qN.getLocalPart().equals("Class") && 
+						OWL.NS.equals(qN.getNamespaceURI())) return true;
+			return false;
+			}
+		
 		public GoTree parse(final Reader xmlIn) throws IOException,XMLStreamException
 			{
 			final GoTree tree=new GoTree();
-			XMLInputFactory fact=XMLInputFactory.newFactory();
+			final XMLInputFactory fact=XMLInputFactory.newFactory();
 			fact.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.TRUE);
-			XMLEventReader r=fact.createXMLEventReader(xmlIn);
+			final XMLEventReader r=fact.createXMLEventReader(xmlIn);
 			while(r.hasNext())
 				{
 				final XMLEvent evt=r.nextEvent();
 				if(evt.isStartElement())
 					{
 					final StartElement E=evt.asStartElement();
-					final QName qN=E.getName();
-					if(qN.getLocalPart().equals("term") && 
-						NS.equals(qN.getNamespaceURI()))
+					if(isTerm(E.getName()))
 						{
 						this.parseRDFTerm(tree,E,r);
+						}
+					else if(hasName(E.getName(),OWL.NS,"ObjectProperty"))
+						{
+						this.parseObjectProperty(tree,E,r);
 						}
 					}
 				}
@@ -692,8 +783,13 @@ public class GoTree implements Iterable<GoTree.Term>
 					LOG.warning("self/self relation ??"+isa.parentUri);
 					continue;
 					}
+				final RelType rel = this.uri2rel.get(isa.relURI);
+				if(rel==null) {
+					LOG.warning("reltype relation ??"+isa.relURI);
+					continue;
+					}
 				isa.term.relations.add(
-						new RelationImpl(isa.term, isa.relType,parentTerm)
+						new RelationImpl(isa.term, rel,parentTerm)
 						);
 				
 				}

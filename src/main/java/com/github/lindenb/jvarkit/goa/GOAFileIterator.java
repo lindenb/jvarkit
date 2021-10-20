@@ -165,6 +165,9 @@ public class GOAFileIterator extends AbstractCloseableIterator<GOAFileIterator.G
 		}
 	
 	public static GOAFileIterator newInstance(String uri) throws IOException {
-		return new GOAFileIterator(IOUtils.openURIForBufferedReading(uri));
+		return newInstance(IOUtils.openURIForBufferedReading(uri));
+		}
+	public static GOAFileIterator newInstance(final BufferedReader br) throws IOException {
+		return new GOAFileIterator(br);
 		}
 }

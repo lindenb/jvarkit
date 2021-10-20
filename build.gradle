@@ -1257,7 +1257,7 @@ all2.add( task("gexftr", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("goutils", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.GoUtils"
+	mainClass = "com.github.lindenb.jvarkit.tools.go.GoUtils"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("groupbygene", type: CompileJVarkit) {
