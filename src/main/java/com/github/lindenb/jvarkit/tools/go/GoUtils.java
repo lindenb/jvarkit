@@ -210,7 +210,7 @@ public class GoUtils
 			if(feat.getAttribute("Name").stream().anyMatch(S->geneNames.contains(S))) {
 				out.addFeature(feat);
 				for(final Gff3Feature c:feat.getDescendents())  {
-					dumpGff3(out, c, geneNames);
+					out.addFeature(c);
 					}
 				}
 			}
