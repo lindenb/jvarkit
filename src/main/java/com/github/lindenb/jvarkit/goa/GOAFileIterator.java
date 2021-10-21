@@ -41,7 +41,8 @@ import htsjdk.samtools.util.RuntimeIOException;
 
 /** GO Annotation File (GAF) files */
 public class GOAFileIterator extends AbstractCloseableIterator<GOAFileIterator.GafRecord> {
-	public static final String DEFAULT_GOA_URI ="http://cvsweb.geneontology.org/cgi-bin/cvsweb.cgi/go/gene-associations/gene_association.goa_human.gz?rev=HEAD";
+	public static final String DEFAULT_GOA_URI ="http://geneontology.org/gene-associations/goa_human.gaf.gz";
+	public static final String OPT_DESC = "Gene Ontology Annotation GOA input in GAF format (e.g "+DEFAULT_GOA_URI+").";
 	
 	private final BufferedReader br;
 	GOAFileIterator(final BufferedReader br) {
@@ -86,11 +87,17 @@ public class GOAFileIterator extends AbstractCloseableIterator<GOAFileIterator.G
 	private class GafRecordImpl implements GafRecord {
 		final List<String> tokens;
 		
-		GafRecordImpl(List<String> tokens) {
+		GafRecordImpl(final List<String> tokens) {
 			this.tokens=tokens;
 			}
 		
-		private String get(int i) {
+		private String get(final int i) {
+			if(i<0) {
+				throw new IndexOutOfBoundsException("0<"+i+"<="+this.tokens.size()+" "+String.join("<tab>", this.tokens));
+			}
+			if(i>=this.tokens.size()) {
+				return "";
+			}
 			return this.tokens.get(i);
 		}
 		private String getMandatory(int i) {

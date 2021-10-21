@@ -42,12 +42,12 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.go.GOOntology;
+import com.github.lindenb.jvarkit.go.GOParser;
 import com.github.lindenb.jvarkit.goa.GOAFileIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.go.GoTree;
-import com.github.lindenb.jvarkit.util.go.GoTree.Term;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -65,13 +65,13 @@ public class GoGeneReporter extends Launcher{
 	private boolean first_line_is_header= false;
 	@Parameter(names="-C",description="gene column name.")
 	private int geneColumnName1=1;
-	@ParametersDelegate
-	private com.github.lindenb.jvarkit.util.go.GoTree.ReadingGo readingGo = new  com.github.lindenb.jvarkit.util.go.GoTree.ReadingGo();
+	@Parameter(names="-go",description=GOParser.GO_URL_OPT_DESC)
+	private String goURI = GOOntology.GO_OBO_URL;
 
 
 	private abstract class Reporter implements AutoCloseable{
 		abstract void beginDoc();
-		abstract void report(GoTree.Term term,Set<String> genes,List<List<String>> table);
+		abstract void report(GOOntology.Term term,Set<String> genes,List<List<String>> table);
 		abstract void endDoc();
 		}
 	private class TextReporter extends Reporter{
@@ -82,7 +82,7 @@ public class GoGeneReporter extends Launcher{
 		void beginDoc() {
 			
 		}
-		void report(GoTree.Term term,Set<String> genes,List<List<String>> table) {
+		void report(GOOntology.Term term,Set<String> genes,List<List<String>> table) {
 			pw.println(">>> " + term.getAcn()+ " : "+ term.getDefinition());
 			for(int i=0;i< table.size();i++) {
 				if(i==0 && first_line_is_header || genes.contains(table.get(i).get(geneColumnName1-1))) {
@@ -111,7 +111,7 @@ public class GoGeneReporter extends Launcher{
 			
 			}
 		@Override
-		void report(Term term, Set<String> genes,List<List<String>> table) {
+		void report(GOOntology.Term term, Set<String> genes,List<List<String>> table) {
 			// TODO Auto-generated method stub
 			
 		}
@@ -158,20 +158,20 @@ public int doWork(final List<String> args) {
 					skip(first_line_is_header?1L:0L).
 					map(T->T.get(geneColumnName1-1)).
 					collect(Collectors.toSet());
-			final Map<String, Set<GoTree.Term>> gene2go = new HashMap<>(geneNames.size());
+			final Map<String, Set<GOOntology.Term>> gene2go = new HashMap<>(geneNames.size());
 			
-			final GoTree mainGoTree = this.readingGo.createParser().
+			final GOOntology mainGoTree = new GOParser().
 					setDebug(false).
-					parse(this.readingGo.goUri);
+					parseOBO(this.goURI);
 
-			final Set<GoTree.Term> limitToTerms;
+			final Set<GOOntology.Term> limitToTerms;
 			if(StringUtils.isBlank(this.limitTermStr)) {
 				limitToTerms = null;
 				}	
 			else
 				{
 				limitToTerms = Arrays.stream(this.limitTermStr.split("[ ,\t\n]+")).map(S->{
-					GoTree.Term term = mainGoTree.getTermByAccession(S);
+					GOOntology.Term term = mainGoTree.getTermByAccession(S);
 					if(term==null) term = mainGoTree.getTermByName(S);
 					if(term==null) throw new IllegalArgumentException("Cannot find GO term : "+S);
 					return term;
@@ -183,12 +183,12 @@ public int doWork(final List<String> args) {
 					final GOAFileIterator.GafRecord rec = goain.next();
 					if(rec.getQualifiers().contains("NOT")) continue;
 					if(!geneNames.contains(rec.getObjectSymbol())) continue;
-					 final GoTree.Term term =  mainGoTree.getTermByAccession(rec.getGoId());
+					 final GOOntology.Term term =  mainGoTree.getTermByAccession(rec.getGoId());
 					 if(term==null) {
 						LOG.warn("Cannot find GO term "+rec.getGoId());
 						continue;
 					 	}
-					 Set<GoTree.Term> acns = gene2go.get(rec.getObjectSymbol());
+					 Set<GOOntology.Term> acns = gene2go.get(rec.getObjectSymbol());
 					 if(acns==null) {
 						acns = new HashSet<>();
 						gene2go.put(rec.getObjectSymbol(), acns);
@@ -202,7 +202,7 @@ public int doWork(final List<String> args) {
 			Reporter reporter=new TextReporter(super.openPathOrStdoutAsPrintWriter(this.outputFile));
 			reporter.beginDoc();
 			
-			for(final GoTree.Term term: mainGoTree.getTerms()) {
+			for(final GOOntology.Term term: mainGoTree.getTerms()) {
 				Objects.requireNonNull(term);
 				if(limitToTerms!=null && limitToTerms.stream().noneMatch(T->term.isDescendantOf(T))) continue;
 				final Set<String> displayGenes = gene2go.entrySet().

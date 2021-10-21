@@ -55,11 +55,11 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.go.GoTree;
+import com.github.lindenb.jvarkit.go.GOOntology;
+import com.github.lindenb.jvarkit.go.GOParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -116,8 +116,8 @@ public class VcfBurdenGoEnrichment
 	private File pedFile = null;
 	@Parameter(names={"-zero","--zero"},description="in the output show GO terms that were never seen.")
 	private boolean show_never_seeen_term = false;
-	@ParametersDelegate
-	private GoTree.ReadingGo readingGo = new GoTree.ReadingGo();
+	@Parameter(names="-go",description=GOParser.GO_URL_OPT_DESC)
+	private String goURI = GOOntology.GO_OBO_URL;
 	@Parameter(names={"-vf","--variant-filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
 	@Parameter(names={"-gf","--genotype-filter"},description=JexlGenotypePredicate.PARAMETER_DESCRIPTION,converter=JexlGenotypePredicate.Converter.class)
@@ -129,7 +129,7 @@ public class VcfBurdenGoEnrichment
 	private class Node
 		{
 		/** go term */
-		final GoTree.Term goTerm;
+		final GOOntology.Term goTerm;
 		/** number of genes directly linked to this term */
 		int numGenes = 0;
 		/** flag for node visitor */
@@ -145,7 +145,7 @@ public class VcfBurdenGoEnrichment
 		final Set<Node> parents = new HashSet<>();
 		final int _hash;
 		
-		Node(final GoTree.Term goTerm)
+		Node(final GOOntology.Term goTerm)
 			{
 			this.goTerm = goTerm;
 			this._hash = goTerm.hashCode();
@@ -216,7 +216,7 @@ public class VcfBurdenGoEnrichment
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(StringUtil.isBlank(this.readingGo.goUri)) {
+		if(StringUtil.isBlank(this.goURI)) {
 			LOG.error("Undefined GOs uri.");
 			return -1;
 			}
@@ -227,21 +227,20 @@ public class VcfBurdenGoEnrichment
 			}
 		
 		try {
-			final GoTree gotree = 
-				this.readingGo.createParser().
-				setIgnoreDbXRef(true).
+			final GOOntology gotree = 
+				new GOParser().
 				//setIgnoreSynonyms(true). WE need synonyms with GOA.
-				parse(this.readingGo.goUri);
+				parseOBO(this.goURI);
 			
-			List<GoTree.Term> terms = new ArrayList<>(gotree.getTerms());
-			final Map<GoTree.Term,Node> term2node = new HashMap<>();
+			List<GOOntology.Term> terms = new ArrayList<>(gotree.getTerms());
+			final Map<GOOntology.Term,Node> term2node = new HashMap<>();
 			// build the node TREE
 			while(!terms.isEmpty())
 				{
 				int i=0;
 				while(i<terms.size())
 					{
-					final GoTree.Term t= terms.get(i);
+					final GOOntology.Term t= terms.get(i);
 					
 					if(!t.hasRelations())
 						{
@@ -291,7 +290,7 @@ public class VcfBurdenGoEnrichment
 				final String termAcn = line.substring(t+1).trim();
 				if(unknownAcn.contains(termAcn)) continue;
 				
-				final GoTree.Term term= gotree.getTermByName(termAcn);
+				final GOOntology.Term term= gotree.getTermByName(termAcn);
 				if(term==null && !unknownAcn.contains(termAcn))
 					{
 					unknownAcn.add(termAcn);
