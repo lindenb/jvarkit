@@ -1530,7 +1530,7 @@ all.add( task("variantsinwindow", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcf2bam", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToBam"
+	mainClass = "com.github.lindenb.jvarkit.tools.vcf2bam.VcfToBam"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("ref2html", type: CompileJVarkit) {

@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcf2bam;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarOperator;
@@ -112,7 +112,7 @@ END_DOC
 	description="vcf to bam",
 	keywords={"ref","vcf","bam"},
 	creationDate="20150612",
-	modificationDate="20210111",
+	modificationDate="20211022",
 	biostars= {420363,458494}
 	)
 public class VcfToBam extends Launcher
