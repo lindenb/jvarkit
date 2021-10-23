@@ -226,7 +226,7 @@ END_DOC
 	description="Find common blocks of calleable regions from a set of gvcfs",
 	keywords={"gvcf","gatk","vcf"},
 	creationDate="20210806",
-	modificationDate="20210809"
+	modificationDate="20211024"
 	)
 public class FindGVCFsBlocks extends Launcher {
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -237,6 +237,8 @@ public class FindGVCFsBlocks extends Launcher {
 	private Path tmpDir = null;
 	@Parameter(names={"--min-size","--block-size"},description="min block size. "+DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_block_size=0;
+	@Parameter(names={"--lenient"},description="allow strange GVCF blocks that don't end at the same chromosome end.")
+	private boolean lenient_discordant_end = false;
 
 
 	private static final Logger LOG = Logger.build(FindGVCFsBlocks.class).make();
@@ -496,8 +498,20 @@ public class FindGVCFsBlocks extends Launcher {
 										start1=null;
 										}
 									}
-								if(peek0.hasNext()) throw new IllegalStateException("peek0 has Next ?");
-								if(peek1.hasNext()) throw new IllegalStateException("peek1 has Next ?");
+								if(lenient_discordant_end) {
+									while(peek0.hasNext()) {
+										final Locatable loc = peek0.peek();
+										pw.add(new SimpleInterval(loc.getContig(),loc.getStart(),loc.getEnd()));
+									}
+									while(peek1.hasNext()) {
+										final Locatable loc = peek1.peek();
+										pw.add(new SimpleInterval(loc.getContig(),loc.getStart(),loc.getEnd()));
+									}
+
+								} else {
+									if(peek0.hasNext()) throw new IllegalStateException("peek0 has Next ? " + peek0.next()+" use --lenient ?");
+									if(peek1.hasNext()) throw new IllegalStateException("peek1 has Next ? " + peek1.next()+" use --lenient ?");
+								}
 								peek0.close();
 								peek1.close();
 								}
