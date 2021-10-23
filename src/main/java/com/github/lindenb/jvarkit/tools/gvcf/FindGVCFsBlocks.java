@@ -501,11 +501,11 @@ public class FindGVCFsBlocks extends Launcher {
 								if(lenient_discordant_end) {
 									while(peek0.hasNext()) {
 										final Locatable loc = peek0.next();
-										pw.add(new SimpleInterval(loc.getContig(),loc.getStart(),loc.getEnd()));
+										LOG.warn("extra interval 0 : "+ loc);
 									}
 									while(peek1.hasNext()) {
 										final Locatable loc = peek1.next();
-										pw.add(new SimpleInterval(loc.getContig(),loc.getStart(),loc.getEnd()));
+										LOG.warn("extra interval 1 : "+ loc);
 									}
 
 								} else {
@@ -549,7 +549,7 @@ public class FindGVCFsBlocks extends Launcher {
 		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-			}	
+			}
 		finally {
 			if(tmpBedFile0!=null) try { Files.deleteIfExists(tmpBedFile0);} catch(Throwable err) {}
 			if(tmpBedFile1!=null) try { Files.deleteIfExists(tmpBedFile1);} catch(Throwable err) {}
