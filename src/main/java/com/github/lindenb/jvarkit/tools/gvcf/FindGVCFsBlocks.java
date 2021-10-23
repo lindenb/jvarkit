@@ -500,11 +500,11 @@ public class FindGVCFsBlocks extends Launcher {
 									}
 								if(lenient_discordant_end) {
 									while(peek0.hasNext()) {
-										final Locatable loc = peek0.peek();
+										final Locatable loc = peek0.next();
 										pw.add(new SimpleInterval(loc.getContig(),loc.getStart(),loc.getEnd()));
 									}
 									while(peek1.hasNext()) {
-										final Locatable loc = peek1.peek();
+										final Locatable loc = peek1.next();
 										pw.add(new SimpleInterval(loc.getContig(),loc.getStart(),loc.getEnd()));
 									}
 
