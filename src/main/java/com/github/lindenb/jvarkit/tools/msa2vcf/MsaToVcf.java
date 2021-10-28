@@ -602,7 +602,7 @@ public class MsaToVcf extends Launcher
 						{
 						final GenotypeBuilder gb=new GenotypeBuilder(sample);
 						final List<Allele> sampleAlleles=new ArrayList<Allele>(2);
-						sampleAlleles.add(al);kk
+						sampleAlleles.add(al);
 						if(!haploid) sampleAlleles.add(al);
 						gb.alleles(sampleAlleles);
 						gb.DP(1);
