@@ -187,11 +187,15 @@ public class MsaToVcf extends Launcher
 	@Parameter(names={"-a","--allsites"},description="print all sites")
 	private boolean printAllSites = false;
 
+	@Parameter(names={"-N","--ignore-n-bases"}, description="ignore, to the extent possible N-bases in the reads.")
+	private boolean ignoreNBases = false;
+
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate=new WritingVariantsDelegate();
-	
-	
+
+
 	private static final char CLIPPING=' ';
+	private static final char N='N';
 	private static final char DELETION='-';
 	private static final char MATCH='*';
 	private int align_length=0;
@@ -244,7 +248,7 @@ public class MsaToVcf extends Launcher
 		char at(int index)
 			{
 			final Counter<Character> count=new Counter<Character>();
-			for(final AlignSequence a:sample2sequence.values()) count.incr(a.at(index));
+			for(final AlignSequence a:sample2sequence.values()) if(!ignoreNBases || a.at(index)!='N') count.incr(a.at(index));
 			if(count.getCountCategories()<=1) return MATCH;
 			return ' ';
 			}
@@ -510,7 +514,7 @@ public class MsaToVcf extends Launcher
 				
 				String namedConsensusRefAllele="N";
 				
-				/* loop over the sequences of each seample */
+				/* loop over the sequences of each sample */
 				for(String sample:samples)
 					{
 					Sequence seq=this.sample2sequence.get(sample);
@@ -518,6 +522,7 @@ public class MsaToVcf extends Launcher
 					if(is_subsitution)
 						{
 						if(seq.at(pos1)==CLIPPING) continue;
+						if(ignoreNBases && seq.at(pos1)=='N') continue;
 						al=String.valueOf(seq.at(pos1));
 						}
 					else
@@ -529,6 +534,7 @@ public class MsaToVcf extends Launcher
 							{
 							if(seq.at(i)==CLIPPING) continue;
 							if(seq.at(i)==DELETION) continue;
+							if(ignoreNBases && seq.at(i)==N) continue;
 							sb.append(seq.at(i));
 							}
 						if(sb.length()==0) continue;
@@ -596,7 +602,7 @@ public class MsaToVcf extends Launcher
 						{
 						final GenotypeBuilder gb=new GenotypeBuilder(sample);
 						final List<Allele> sampleAlleles=new ArrayList<Allele>(2);
-						sampleAlleles.add(al);
+						sampleAlleles.add(al);kk
 						if(!haploid) sampleAlleles.add(al);
 						gb.alleles(sampleAlleles);
 						gb.DP(1);

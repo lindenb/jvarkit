@@ -27,7 +27,7 @@ Usage: msa2vcf [options] Files
       checked 2019-11-15)
       Default: false
     -c, --consensus
-      ruse this sequence as CONSENSUS
+      use this sequence as CONSENSUS
     -f, --fasta
       save computed fasta sequence in this file.
     --generate-vcf-md5
