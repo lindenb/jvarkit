@@ -152,7 +152,7 @@ description="BAM to SVG. Used to display structural variations.",
 keywords={"bam","alignment","graphics","visualization","svg","structural","variant"},
 modificationDate="20211015",
 creationDate="20181115",
-biostars=405059
+biostars={405059,9495994}
 )
 public class SvToSVG extends Launcher
 	{

@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-BAM to SVG. Used to display the structural variations.
+BAM to SVG. Used to display structural variations.
 
 
 ## Usage
@@ -59,12 +59,15 @@ Usage: sv2svg [options] Files
  * graphics
  * visualization
  * svg
+ * structural
+ * variant
 
 
 
 ## See also in Biostars
 
  * [https://www.biostars.org/p/405059](https://www.biostars.org/p/405059)
+ * [https://www.biostars.org/p/9495994](https://www.biostars.org/p/9495994)
 
 
 ## Compilation
@@ -163,3 +166,9 @@ $ java -jar dist/sv2svg.jar -r "9:137229907-137231907" -r "14:79838174-79840174"
 [https://twitter.com/yokofakun/status/1064503996285681666](https://twitter.com/yokofakun/status/1064503996285681666)
 
 ![https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg](https://pbs.twimg.com/media/DsXgnKrWwAAYiBS.jpg)
+
+
+[https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09](https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09)
+
+![https://twitter.com/yokofakun/status/1448993550746759169](https://pbs.twimg.com/media/FBva8sTWUAMNApn?format=jpg&name=large)
+
