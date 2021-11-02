@@ -22,14 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcfpolyx;
 
 import java.nio.file.Path;
 
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -69,6 +68,7 @@ $ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
 ## Cited in:
 
   * "Multiscale heterogeneity in gastric adenocarcinomaevolution is an obstacle to precision medicine" https://assets.researchsquare.com/files/rs-62554/v1/7883b5d6-a5e6-4d39-8554-e9fef719ac42.pdf
+  * Maitena Tellaetxe-Abete, Borja Calvo, Charles Lawrie, Ideafix: a decision tree-based method for the refinement of variants in FFPE DNA sequencing data, NAR Genomics and Bioinformatics, Volume 3, Issue 4, December 2021, lqab092, https://doi.org/10.1093/nargab/lqab092
 
 END_DOC
 */
@@ -76,7 +76,7 @@ END_DOC
 	description="Number of repeated REF bases around POS.",
 	keywords={"vcf","repeat"},
 	creationDate="20200930",
-	modificationDate="20201112"
+	modificationDate="20211102"
 	)
 public class VCFPolyX extends OnePassVcfLauncher
 	{
@@ -103,7 +103,6 @@ public class VCFPolyX extends OnePassVcfLauncher
 			final VariantContextWriter w
 			) 
 		{
-		ReferenceSequenceFile referenceSequenceFile = null;
 		
 		if(StringUtil.isBlank(this.polyXtag)) {
 			LOG.error("Empty tag");
@@ -112,108 +111,112 @@ public class VCFPolyX extends OnePassVcfLauncher
 		
 		try
 			{
-			referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faixPath);
-			
-			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(referenceSequenceFile));
-
-			
-			final VCFHeader h2 = new VCFHeader(r.getHeader());
+			try(ReferenceSequenceFile  referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faixPath)) {
+				
+				final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(referenceSequenceFile));
 	
-			final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
-					this.polyXtag.trim(),
-					1,
-					VCFHeaderLineType.Integer,
-					"Number of repeated bases around REF")
-					;
-			h2.addMetaDataLine(infoHeaderLine);
-
-			final VCFFilterHeaderLine filterHeaderLine = new VCFFilterHeaderLine(
-					infoHeaderLine.getID()+"_ge_"+this.filterTrehsold,
-					"Number of repeated bases around REF is greater or equal to " + this.filterTrehsold
-					);
-			
-			if( this.filterTrehsold>-1) {
-				h2.addMetaDataLine(filterHeaderLine);
-				}
-			ChromosomeSequence genomicContig=null;
-			JVarkitVersion.getInstance().addMetaData(this, h2);
-			w.writeHeader(h2);
-			while(r.hasNext())
-				{
-				final VariantContext ctx = r.next();
-				if(this.skip_filtered && ctx.isFiltered())
+				
+				final VCFHeader h2 = new VCFHeader(r.getHeader());
+		
+				final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
+						this.polyXtag.trim(),
+						1,
+						VCFHeaderLineType.Integer,
+						"Number of repeated bases around REF")
+						;
+				h2.addMetaDataLine(infoHeaderLine);
+	
+				final VCFFilterHeaderLine filterHeaderLine = new VCFFilterHeaderLine(
+						infoHeaderLine.getID()+"_ge_"+this.filterTrehsold,
+						"Number of repeated bases around REF is greater or equal to " + this.filterTrehsold
+						);
+				
+				if( this.filterTrehsold>-1) {
+					h2.addMetaDataLine(filterHeaderLine);
+					}
+				ChromosomeSequence genomicContig=null;
+				JVarkitVersion.getInstance().addMetaData(this, h2);
+				w.writeHeader(h2);
+				while(r.hasNext())
 					{
-					w.add(ctx);
-					continue;
-					}
-				
-				final String normalizedContig = contigNameConverter.apply(ctx.getContig());
-				if(StringUtils.isBlank(normalizedContig)) {
-					w.add(ctx);
-					continue;
-					}
-				
-				if(genomicContig==null || !genomicContig.hasName(normalizedContig))
-					{
-					genomicContig= new GenomicSequence(referenceSequenceFile, normalizedContig);
-					}
-				
-				final VariantContextBuilder b = new VariantContextBuilder(ctx);
-
-				// https://github.com/lindenb/jvarkit/issues/165
-				final boolean indel_flag = ctx.isIndel();
-				
-				int count=1;
-				int pos0 = ctx.getStart()-1;
-				// https://github.com/lindenb/jvarkit/issues/165
-				if(indel_flag) {
-					pos0++;
-					}
-				char c0 = Character.toUpperCase(genomicContig.charAt(pos0));
-				//go left
-				pos0--;
-				while(pos0>=0 && c0==Character.toUpperCase(genomicContig.charAt(pos0)))
-					{
-					++count;
+					final VariantContext ctx = r.next();
+					if(this.skip_filtered && ctx.isFiltered())
+						{
+						w.add(ctx);
+						continue;
+						}
+					
+					final String normalizedContig = contigNameConverter.apply(ctx.getContig());
+					if(StringUtils.isBlank(normalizedContig)) {
+						w.add(ctx);
+						continue;
+						}
+					
+					if(genomicContig==null || !genomicContig.hasName(normalizedContig))
+						{
+						genomicContig= new GenomicSequence(referenceSequenceFile, normalizedContig);
+						}
+					
+					final VariantContextBuilder b = new VariantContextBuilder(ctx);
+	
+					// https://github.com/lindenb/jvarkit/issues/165
+					final boolean indel_flag = ctx.isIndel();
+					
+					int count=1;
+					int pos0 = ctx.getStart()-1;
+					// https://github.com/lindenb/jvarkit/issues/165
+					if(indel_flag) {
+						pos0++;
+						}
+					char c0 = Character.toUpperCase(genomicContig.charAt(pos0));
+					//go left
 					pos0--;
-					}
-				//go right
-				pos0 = ctx.getEnd()-1;
-				// https://github.com/lindenb/jvarkit/issues/165
-				if(indel_flag) {
+					while(pos0>=0 && c0==Character.toUpperCase(genomicContig.charAt(pos0)))
+						{
+						++count;
+						pos0--;
+						}
+					//go right
+					pos0 = ctx.getEnd()-1;
+					// https://github.com/lindenb/jvarkit/issues/165
+					if(indel_flag) {
+						pos0++;
+						}
+					
+					c0 = Character.toUpperCase(genomicContig.charAt(pos0));
 					pos0++;
-					}
-				
-				c0 = Character.toUpperCase(genomicContig.charAt(pos0));
-				pos0++;
-				while(pos0< genomicContig.length()
-					&& c0==Character.toUpperCase(genomicContig.charAt(pos0)))
-					{
-					++count;
-					++pos0;
-					}
-				b.attribute(infoHeaderLine.getID(),count);
-				
-				/* filter */
-				if(this.filterTrehsold>-1 )
-					{
-					if(count>=this.filterTrehsold) {
-						b.filter(filterHeaderLine.getID());
+					while(pos0< genomicContig.length()
+						&& c0==Character.toUpperCase(genomicContig.charAt(pos0)))
+						{
+						++count;
+						++pos0;
 						}
-					else if(!ctx.isFiltered()) {
-						b.passFilters();
+					b.attribute(infoHeaderLine.getID(),count);
+					
+					/* filter */
+					if(this.filterTrehsold>-1 )
+						{
+						if(count>=this.filterTrehsold) {
+							b.filter(filterHeaderLine.getID());
+							}
+						else if(!ctx.isFiltered()) {
+							b.passFilters();
+							}
 						}
+					
+					w.add(b.make());			
 					}
-				
-				w.add(b.make());			
+				w.close();
 				}
-			w.close();
+			return 0;
+			}
+		catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(referenceSequenceFile);
 			}
-		return 0;
 		}
 
 	public static void main(final String[] args)

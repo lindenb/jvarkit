@@ -2151,7 +2151,7 @@ all.add( task("vcffilterjs", type: CompileJVarkit) {
 	});
 
 all.add( task("vcfpolyx", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.VCFPolyX"
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfpolyx.VCFPolyX"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfrebase", type: CompileJVarkit) {
