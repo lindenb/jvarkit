@@ -45,6 +45,7 @@ import htsjdk.samtools.util.StringUtil;
  * @author lindenb
  */
 public class BedLineReader extends AbstractCloseableIterator<BedLine>  {
+public static final String OPT_DESC="A Bed file.";
 private static final Logger LOG = Logger.build(BedLineReader.class).make();
 private final BedLineCodec codec = new BedLineCodec();
 private final BufferedReader br;
