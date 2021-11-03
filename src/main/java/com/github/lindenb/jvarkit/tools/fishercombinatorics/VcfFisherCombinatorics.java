@@ -49,16 +49,16 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
-import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFReader;
+import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
 
@@ -82,7 +82,7 @@ public class VcfFisherCombinatorics extends Launcher
 	private Path pedigreeFile = null;
 	@Parameter(names={"-bed","--bed"},description=BedLineReader.OPT_DESC+". 4th column contains the name of the interval.",required=true)
 	private Path bedPath = null;
-	@Parameter(names={"--max-af"},description="minimal allele frequency." + FractionConverter.OPT_DESC,converter=FractionConverter.class,hidden=true )
+	@Parameter(names={"--max-af"},description="minimal allele frequency." + FractionConverter.OPT_DESC,converter=FractionConverter.class,hidden=false )
 	private double max_af=1.0;
 	@Parameter(names={"--max-genes"},description="Maximum number of gene in each solution")
 	private int max_num_genes=100;
@@ -248,12 +248,12 @@ public class VcfFisherCombinatorics extends Launcher
 		try {
 			
 			final Pedigree pedigree = new PedigreeParser().parse(this.pedigreeFile);
-			
+			final IntervalTreeMap<List<GeneInfo>> geneInfoMap = new IntervalTreeMap<>();
 			final Predicate<Genotype> isGtCnv = G->G.isHet() || G.isHomVar();
 
 			
-			try(VCFReader vcfIn = VCFReaderFactory.makeDefault().open(oneAndOnlyOneFile(args),true)) {
-				final VCFHeader header = vcfIn.getHeader();
+			try(VCFIterator vcfIter = super.openVCFIterator(super.oneFileOrNull(args))) {
+				final VCFHeader header = vcfIter.getHeader();
 				final ContigNameConverter ctgConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(header));
 				if(!header.hasGenotypingData()) {
 					LOG.error("No Genotype data in "+header);
@@ -267,16 +267,19 @@ public class VcfFisherCombinatorics extends Launcher
 						map(S->sample2index.get(S)).
 						sorted().
 						collect(Collectors.toList());
+				LOG.info("cases N="+casesIdx.size());
 				if(casesIdx.isEmpty()) {
 					LOG.error("No affected/cases sample in the input VCF");
 					return -1;
 					}
+
 				final List<Integer> controlsIdx = pedigree.getSamplesInVcfHeader(header).
 					filter(S->S.isUnaffected()).
 					map(S->S.getId()).
 					map(S->sample2index.get(S)).
 					sorted().
 					collect(Collectors.toList());
+				LOG.info("controls N="+controlsIdx.size());
 				if(controlsIdx.isEmpty()) {
 					LOG.error("No unaffected/controls sample in the input VCF");
 					return -1;
@@ -307,8 +310,6 @@ public class VcfFisherCombinatorics extends Launcher
 				};
 
 				
-				/* load bed file */
-				final List<GeneInfo> geneList = new ArrayList<>();
 				
 				try(BedLineReader br = new BedLineReader(this.bedPath)) {
 					
@@ -317,60 +318,67 @@ public class VcfFisherCombinatorics extends Launcher
 						final String ctg = ctgConverter.apply(bed.getContig());
 						if(StringUtil.isBlank(ctg)) continue;
 						final GeneInfo geneInfo = new GeneInfo();
+						geneInfo.casesflags = new BitSet(casesIdx.size());
+						geneInfo.controlsflags = new BitSet(controlsIdx.size());
 						geneInfo.contig = ctg;
 						geneInfo.name = bed.getOrDefault(3, "undefined");
 						geneInfo.parts.add(new SimpleInterval(bed).renameContig(ctg));
-						geneList.add(geneInfo);
+						
+						final Interval key = new Interval(geneInfo);
+						List<GeneInfo> L = geneInfoMap.get(key);
+						if (L==null) {
+							L = new ArrayList<>();
+							geneInfoMap.put(key,L);
+							}
+						L.add(geneInfo);
 						}
 					}
-				
-				if(geneList.isEmpty()) {
+
+				if(geneInfoMap.isEmpty()) {
 					LOG.error("no gene found in "+this.bedPath);
 					return -1;
 					}
-				
-				/* remove Genes without variant , count sample per gene*/
-				int idx = 0;
-				while(idx < geneList.size() ) {
-					final GeneInfo gi = geneList.get(idx);
-					gi.casesflags = new BitSet(casesIdx.size());
-					gi.controlsflags = new BitSet(controlsIdx.size());
-					boolean found = false;
-					for(Locatable loc:gi.parts) {
-						try(CloseableIterator<VariantContext> iter = vcfIn.query(loc)) {
-							while(iter.hasNext())  {
-								final VariantContext ctx = iter.next();
-								if(!acceptCtx.test(ctx)) continue;
-								for(int y=0;y<casesIdx.size();++y) {
-									final Genotype gt = ctx.getGenotype(casesIdx.get(y));
-									if(!isGtCnv.test(gt)) continue;
-									gi.casesflags.set(y);
-									found = true;
-									}
-								for(int y=0;y<controlsIdx.size();++y) {
-									final Genotype gt = ctx.getGenotype(controlsIdx.get(y));
-									if(!isGtCnv.test(gt)) continue;
-									gi.controlsflags.set(y);
-									found = true;
-									}
+				LOG.info("reading variants...");
+				while(vcfIter.hasNext()) {
+					final VariantContext ctx = vcfIter.next();
+					if(!acceptCtx.test(ctx)) continue;
+					for(List<GeneInfo> gil: geneInfoMap.getOverlapping(ctx)) {
+						for(GeneInfo gi:gil) {
+							for(int y=0;y<casesIdx.size();++y) {
+								final Genotype gt = ctx.getGenotype(casesIdx.get(y));
+								if(!isGtCnv.test(gt)) continue;
+								gi.casesflags.set(y);
+								}
+							for(int y=0;y<controlsIdx.size();++y) {
+								final Genotype gt = ctx.getGenotype(controlsIdx.get(y));
+								if(!isGtCnv.test(gt)) continue;
+								gi.controlsflags.set(y);
 								}
 							}
 						}
-					if(!found) {
-						geneList.remove(idx);
-					} else {
-						idx++;
-					}
-				} // end loop over gene
+					} // end loop over variants
+				
+				/* remove Genes without variant , count sample per gene*/
+				for(List<GeneInfo> gil: geneInfoMap.values()) {
+					gil.removeIf(GI-> GI.casesflags.nextSetBit(0)==-1 && GI.controlsflags.nextSetBit(0)==-1);
+				} // end remove
 			
+				/* load bed file */
+				final List<GeneInfo> geneList = geneInfoMap.values().stream().
+					filter(L->!L.isEmpty()).
+					flatMap(L->L.stream()).
+					sorted().
+					collect(Collectors.toList());
+
 				if(geneList.isEmpty()) {
 					LOG.error("no gene found in "+this.bedPath);
 					return -1;
 					}
-
+				LOG.info("N Genes="+geneList.size());
 				
 				Solution best=null;
 				for(int i=2;i< Math.min(this.max_num_genes,geneList.size());i++) {
+					LOG.info("sarting loop from "+i);
 					best = recursion(geneList, casesIdx, controlsIdx, new ArrayList<>(), i, best);
 					}
 				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
