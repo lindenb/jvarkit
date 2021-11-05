@@ -55,7 +55,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;

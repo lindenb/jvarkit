@@ -53,7 +53,7 @@ import java.util.stream.StreamSupport;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;

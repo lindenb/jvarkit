@@ -23,7 +23,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcf2table;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,11 +56,11 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -782,6 +783,7 @@ public class VcfToTable extends Launcher {
 			private VCFEncoder vcfEncoder=null;
 			private Pedigree pedigree = null;
 			private VcfTools vcfTools = null;
+			private UrlSupplier urlSupplier = null;
 
 			VcfToTableViewer getOwner() {
 				return VcfToTableViewer.this;
@@ -810,7 +812,8 @@ public class VcfToTable extends Launcher {
 				this.header = header;
 				this.vcfEncoder = new VCFEncoder(header, true, true);
 				this.vcfTools = new VcfTools(header);
-				
+				final SAMSequenceDictionary dict = header.getSequenceDictionary();
+				this.urlSupplier = dict==null ? new UrlSupplier():new UrlSupplier(dict);
 				
 				if(getOwner().pedigreeFile!=null) {
 					try {
@@ -890,7 +893,6 @@ public class VcfToTable extends Launcher {
 						
 					/** DICT */
 						{
-						final SAMSequenceDictionary dict = header.getSequenceDictionary();
 						if (dict != null) {
 							final List<String> h = new ArrayList<>();
 							h.add("Name");
@@ -1091,143 +1093,7 @@ public class VcfToTable extends Launcher {
 				 this.writeTable(margin, t);
 				}
 			
-			if(!getOwner().hideHyperlinks)
-				{
-				final Function<VariantContext, String> ucscContig = V->V.getContig().startsWith("chr")?V.getContig():"chr"+V.getContig();
-				final Function<VariantContext, String> ensemblContig = V->
-						V.getContig().startsWith("chr")?
-						V.getContig().substring(3):
-						V.getContig()
-						;
-				
-				
-				final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
-				if(vc.hasID() && vc.getID().matches("rs[0-9]+"))
-					{
-					t.addRow("dbSNP",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/snp/"+vc.getID()));
-					t.addRow("OpenSNP",new HyperlinkDecorator("https://opensnp.org/snps/"+vc.getID()));
-					if(SequenceDictionaryUtils.isHuman(header)) {
-						t.addRow("clinvar",
-								new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar?term="+vc.getID()+"%5BVariant%20ID%5D"));
-						}
-					}
-				t.addRow("IGV",new HyperlinkDecorator("https://"+ IgvConstants.DEFAULT_HOST +":"+IgvConstants.DEFAULT_PORT+"/goto?locus="+
-						vc.getContig()+"%3A"+vc.getStart() +"-"+vc.getEnd()
-						));
-			
-				
-				for(final String build: new String[] {"hg19","hg38","mm10","canFam3","canFam4"}) {
-					if(build.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(header)) continue;
-					if(build.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(header)) continue;
-					if(build.equals("mm10") && !SequenceDictionaryUtils.isGRCm38(header)) continue;
-					if(build.equals("canFam3") && !SequenceDictionaryUtils.isCanFam3(header)) continue;
-					if(build.equals("canFam4") && !SequenceDictionaryUtils.isCanFam4(header)) continue;
-					
-					t.addRow("UCSC "+build,new HyperlinkDecorator("http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
-						ucscContig.apply(vc) +
-						"%3A"+vc.getStart() +"-"+vc.getEnd() + "&position=" +
-						ucscContig.apply(vc) +
-						"%3A"+ Math.max(1,vc.getStart()-50) +"-"+(vc.getEnd()+50)
-						));
-					}
-				
-				//beacon , //varsome
-				for(int side=0;side<2;++side)
-					{
-					if(side==0 && !SequenceDictionaryUtils.isGRCh37(header)) continue;
-					if(side==1 && !SequenceDictionaryUtils.isGRCh38(header)) continue;
-					for(final Allele alt: vc.getAlternateAlleles())
-						{
-						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
-						//https://beacon-network.org/#/search?pos=114267128&chrom=4&allele=A&ref=G&rs=GRCh37
-						t.addRow("Beacon",new HyperlinkDecorator("https://beacon-network.org/#/search?chrom="+
-								ensemblContig.apply(vc) +
-								"&pos="+vc.getStart()+
-								"&ref="+ vc.getReference().getDisplayString()+
-								"&allele="+ alt.getDisplayString()+
-								"&rs="+ (side==0?"GRCh37":"GRCh38")
-								));
-						t.addRow("Varsome",new HyperlinkDecorator("https://varsome.com/variant/"+
-								(side==0?"hg19/":"hg38/")+
-								ensemblContig.apply(vc) + "-"+
-								vc.getStart()+ "-"+
-								vc.getReference().getDisplayString()+"-"+
-								alt.getDisplayString()
-								));
-						}
-					}
-				
-								
-				if(SequenceDictionaryUtils.isGRCh37(header)) {
-					/* BDV https://www.biorxiv.org/content/10.1101/2020.07.16.207688v1 */
-					for(final Allele alt: vc.getAlternateAlleles())
-						{
-						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
-						// marvel https://twitter.com/julawang/status/1094666160711323649
-						t.addRow("bvdv",new HyperlinkDecorator("https://bibliome.ai/variant/"+
-							ensemblContig.apply(vc) +
-							"-"+vc.getStart()+
-							"-"+
-							vc.getReference().getDisplayString()+
-							"-"+
-							alt.getDisplayString()
-							));
-						}
-					
-					for(final Allele alt: vc.getAlternateAlleles())
-						{
-						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
-						// marvel https://twitter.com/julawang/status/1094666160711323649
-						t.addRow("Marrvel",new HyperlinkDecorator("http://marrvel.org/search/variant/"+
-							ensemblContig.apply(vc) +
-							"-"+vc.getStart()+
-							"+"+
-							vc.getReference().getDisplayString()+
-							">"+
-							alt.getDisplayString()
-							));
-						}
-					for(final Allele alt: vc.getAlternateAlleles())
-						{
-						if(vc.getReference().isSymbolic() || alt.isSymbolic()) continue;
-						//gnomad
-						t.addRow("Gnomad",new HyperlinkDecorator("http://gnomad.broadinstitute.org/variant/"+
-							ensemblContig.apply(vc) +
-							"-"+vc.getStart()+
-							"-"+
-							vc.getReference().getDisplayString()+
-							"-"+
-							alt.getDisplayString()
-							));
-						}
-					
-					t.addRow("clinvar 37",new HyperlinkDecorator("https://www.ncbi.nlm.nih.gov/clinvar/?term="+
-							ensemblContig.apply(vc) +
-							"%5Bchr%5D+AND+"+ vc.getStart()+"%3A"+vc.getEnd()+"%5Bchrpos37%5D"
-							));
-					if(vc.getStart()!=vc.getEnd()) {
-						t.addRow("decipher",new HyperlinkDecorator("https://decipher.sanger.ac.uk/search?q="+
-								vc.getContig() + 
-								"%3A"+vc.getStart()+"-"+vc.getEnd()));
-						
-						t.addRow("dgv",new HyperlinkDecorator("http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
-								ucscContig.apply(vc) + 
-								"%3A"+vc.getStart()+"-"+vc.getEnd() + ";search=Search"
-								)
-								);
-
-						
-						String build="";
-						if(SequenceDictionaryUtils.isGRCh37(header)) build="hg19";
-						if(SequenceDictionaryUtils.isGRCh38(header)) build="hg38";
-						if(!StringUtil.isBlank(build)) {
-							t.addRow("Hi-C",new HyperlinkDecorator("http://promoter.bx.psu.edu/hi-c/view.php?method=Hi-C&species=human&assembly="+build+
-									"&source=inside&tissue=GM12878&type=Lieberman-raw&resolution=25&c_url=&transfer=&gene=&chr="+vc.getContig()+"&start="+vc.getStart()+"&end="+vc.getEnd()+"&sessionID=&browser=none"));	
-							}
-						}
-					}
-				this.writeTable(margin, t);
-				}
+			final Set<String> all_geneNames = new HashSet<>();
 			
 			if(!getOwner().hideInfo)
 				{		
@@ -1291,6 +1157,10 @@ public class VcfToTable extends Launcher {
 							else if(cat.equals("SYMBOL")) {
 								o = new GenelinkDecorator(valuestr);
 								}
+							else if(cat.equals("Gene")) {
+								o = valuestr;
+								if(!StringUtils.isBlank(valuestr)) all_geneNames.add(valuestr);
+								}
 							else if(cat.equals("HGNC_ID")) {
 								o = new HgncDecorator(valuestr);
 								}
@@ -1324,6 +1194,7 @@ public class VcfToTable extends Launcher {
 									);
 						r.add(new GenelinkDecorator(P.getGeneName()));
 						r.add(new GenelinkDecorator(P.getGeneId()));
+						if(!StringUtils.isBlank(P.getGeneId())) all_geneNames.add(P.getGeneId());
 						r.add(P.getFeatureType());
 						r.add(new GenelinkDecorator(P.getFeatureId()));
 						r.add(P.getTranscriptBioType());
@@ -1354,6 +1225,7 @@ public class VcfToTable extends Launcher {
 						String identifier = P.getGeneName();
 						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
 						identifier = P.getTranscript();
+						if(!StringUtils.isBlank(identifier)) all_geneNames.add(identifier);
 						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
 						r.add(P.getTranscriptBioType());
 						r.add(P.getStrand());
@@ -1375,6 +1247,7 @@ public class VcfToTable extends Launcher {
 						String identifier = p.getGeneName();
 						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
 						identifier = p.getGeneId();
+						if(!StringUtils.isBlank(identifier)) all_geneNames.add(identifier);
 						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
 						r.add(p.getNumberOfTranscripts());
 						r.add(p.getPercentOfTranscriptsAffected());
@@ -1388,7 +1261,8 @@ public class VcfToTable extends Launcher {
 					final Table t = new Table("Gene","Feature","Features Count","Bases Count").setCaption("Smoove Genes");
 					for(final SmooveGenesParser.Prediction p: this.vcfTools.getSmooveGenesParser().parse(vc)) {
 						final List<Object> r=new ArrayList<>();
-						String identifier = p.getGeneName();
+						final String identifier = p.getGeneName();
+						if(!StringUtils.isBlank(identifier)) all_geneNames.add(identifier);
 						r.add(StringUtils.isBlank(identifier)?null:new GenelinkDecorator(identifier));
 						r.add(p.getFeature());
 						r.add(p.getFeaturesCount());
@@ -1398,6 +1272,22 @@ public class VcfToTable extends Launcher {
 					t.removeEmptyColumns();
 					this.writeTable(margin, t);
 					}
+				
+				/** hyperlinks */
+				if(!getOwner().hideHyperlinks) {
+					final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
+					System.err.println(all_geneNames);
+					for(UrlSupplier.LabelledUrl  url : this.urlSupplier.of(vc) ) {
+						t.addRow(url.getLabel(),new HyperlinkDecorator(url.getUrl()));
+						}
+					for(UrlSupplier.LabelledUrl  url : all_geneNames.stream().flatMap(S->this.urlSupplier.of(S).stream()).collect(Collectors.toSet())) {
+						t.addRow(url.getLabel(),new HyperlinkDecorator(url.getUrl()));
+						}
+					
+					
+					this.writeTable(margin, t);
+					}
+
 				
 				printGenotypesTypes(margin,vc);
 				printCharts(margin,vc);

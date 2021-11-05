@@ -92,7 +92,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfNoCallToHomRef;
 import com.github.lindenb.jvarkit.tools.misc.VcfRemoveUnusedAlt;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfToSvg;
-import com.github.lindenb.jvarkit.tools.misc.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;

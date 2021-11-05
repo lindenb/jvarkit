@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcf2table;
 
 import java.io.IOException;
 import java.nio.file.Path;

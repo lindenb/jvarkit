@@ -263,12 +263,9 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		}
 	
 	final String ucscCtg =  toUcsc.apply(loc.getContig());
-	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {
-		urls.add(new LabelledUrlImpl("UCSC hg19","http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position="+
-			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1 + "&highlight="+
-			StringUtils.escapeHttp(ucscCtg) + "%3A" + loc.getStart() +"-"+ loc.getEnd()
-			));
-		
+	
+	
+	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {		
 		if(loc.getLengthOnReference()>1) {
 			
 			urls.add(new LabelledUrlImpl("dgv","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
@@ -276,19 +273,43 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 					"%3A"+loc.getStart()+"-"+loc.getEnd() + ";search=Search"
 					));
 			}
-		
 		}
-	if(isGrch38() && ! StringUtils.isBlank(ucscCtg)) {
-		urls.add(new LabelledUrlImpl("UCSC hg38","http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg38&position="+
-			StringUtils.escapeHttp(ucscCtg) + "%3A" + xstart1 +"-"+ xend1 + "&highlight="+
-					StringUtils.escapeHttp(ucscCtg) + "%3A" + loc.getStart() +"-"+ loc.getEnd()
-			));
+	
+	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg)) {
 		if(loc.getLengthOnReference()>1) {
-			urls.add(new LabelledUrlImpl("decipher","https://decipher.sanger.ac.uk/search?q="+
-			StringUtils.escapeHttp(ucscCtg) + 
-			"%3A"+loc.getStart()+"-"+loc.getEnd()));
+			urls.add(new LabelledUrlImpl("decipher","https://www.deciphergenomics.org/browser#q/grch37:"+
+			ensemblCtg + ":" +loc.getStart()+"-"+loc.getEnd()));
 			}
 		}
+
+	
+	
+	for(final String build: new String[] {"hg19","hg38","mm10","canFam3","canFam4"}) {
+		if(StringUtils.isBlank(ucscCtg)) break;
+		if(build.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(this.dict)) continue;
+		if(build.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(this.dict)) continue;
+		if(build.equals("mm10") && !SequenceDictionaryUtils.isGRCm38(this.dict)) continue;
+		if(build.equals("canFam3") && !SequenceDictionaryUtils.isCanFam3(this.dict)) continue;
+		if(build.equals("canFam4") && !SequenceDictionaryUtils.isCanFam4(this.dict)) continue;
+		
+		urls.add(new LabelledUrlImpl("UCSC "+build,
+			"http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
+					ucscCtg +
+			"%3A"+loc.getStart() +"-"+loc.getEnd() + "&position=" +
+			ucscCtg +
+			"%3A"+ Math.max(1,loc.getStart()-50) +"-"+(loc.getEnd()+50)
+			));
+		}
+
+	
+	
+	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg)) {
+		if(loc.getLengthOnReference()>1) {
+			urls.add(new LabelledUrlImpl("decipher","https://www.deciphergenomics.org/browser#q/"+
+			ensemblCtg + ":" +loc.getStart()+"-"+loc.getEnd()));
+			}
+		}
+
 	
 	if(loc.getLengthOnReference()>1) {
 		for(int i=0;i< 2;++i) {
