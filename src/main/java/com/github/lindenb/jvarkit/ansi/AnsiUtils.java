@@ -52,7 +52,7 @@ public class AnsiUtils {
 		final int opcode;
 		
 		public String begin() {
-			return ANSI_ESCAPE+this.opcode+"m";
+			return ANSI_ESCAPE+getPen()+"m";
 			}
 		public String end() {
 			return ANSI_RESET;
@@ -61,6 +61,10 @@ public class AnsiUtils {
 			if(StringUtils.isBlank(str)) return str;
 			return begin() + str + end();
 			}
+		
+    	public int getPen() { return (opcode);}
+    	public int getPaper() { return (opcode+10);}
+		public String getRGB() { return this.name().toLowerCase();}
 		}
 	
 	

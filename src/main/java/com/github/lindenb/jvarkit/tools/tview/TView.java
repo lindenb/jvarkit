@@ -45,6 +45,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.ansi.AnsiUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.AminoAcids;
@@ -88,8 +89,6 @@ public class TView implements Closeable
 	private static final Logger LOG = Logger.build(TView.class).make();
 	private enum LayoutReads {pileup,name};
 	public enum Formatout {tty,plain,html};
-	public static final String ANSI_ESCAPE = "\u001B[";
-	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
 	
 	@Parameter(names={"--clip"},description="Show clip")
 	private boolean showClip=false;
@@ -128,42 +127,19 @@ public class TView implements Closeable
 	private String knownGeneUri = null;
 
 	
-	
-	private enum AnsiColor {
-    	BLACK (30),
-    	RED (31),
-    	GREEN (32),
-    	YELLOW (33),
-    	BLUE (34),
-    	MAGENTA (35),
-    	CYAN (36),
-    	WHITE (37)
-		;
-    	
-    	AnsiColor(final int opcode) {
-    		this.opcode=opcode;
-    		}
-    	final int opcode;
-    	int pen() { return (opcode);}
-    	int paper() { return (opcode+10);}
-    	String rgb() {
-    		return this.name().toLowerCase();
-    		}
-    	}
-	
 
 	private class Colorizer
 		{
-		protected AnsiColor _pen = null;
-		protected AnsiColor _paper = null;
+		protected AnsiUtils.AnsiColor _pen = null;
+		protected AnsiUtils.AnsiColor _paper = null;
 		protected PrintStream out;
 		
 		Colorizer(final PrintStream out) {this.out=out;}
-		public Colorizer pen(AnsiColor c) {
+		public Colorizer pen(AnsiUtils.AnsiColor c) {
 			this._pen = c;
 			return this;
 		}
-		public Colorizer paper(AnsiColor c) {
+		public Colorizer paper(AnsiUtils.AnsiColor c) {
 			this._paper= c;
 			return this;
 		}
@@ -193,11 +169,11 @@ public class TView implements Closeable
 		@Override
 		public Colorizer print(Object o) {
 			final Set<Integer> opcodes = new HashSet<>();
-			if(this._paper!=null) opcodes.add(this._paper.paper());
-			if(this._pen!=null) opcodes.add(this._pen.pen());
+			if(this._paper!=null) opcodes.add(this._paper.getPaper());
+			if(this._pen!=null) opcodes.add(this._pen.getPen());
 			if(!opcodes.isEmpty())
 				{
-				final StringBuilder sb=new StringBuilder(ANSI_ESCAPE);
+				final StringBuilder sb=new StringBuilder(AnsiUtils.ANSI_ESCAPE);
 				sb.append(opcodes.stream().map(I->String.valueOf(I)).collect(Collectors.joining(";")));
 				sb.append("m");
 				out.print(sb.toString());
@@ -205,7 +181,7 @@ public class TView implements Closeable
 			
 			out.print(o);
 			if(!opcodes.isEmpty()) {
-				out.print(ANSI_RESET);
+				out.print(AnsiUtils.ANSI_RESET);
 				}
 			clear();
 			return this;
@@ -231,10 +207,10 @@ public class TView implements Closeable
 					wout.writeStartElement("span");
 					final StringBuilder sb=new StringBuilder();
 					if(_pen!=null) {
-						sb.append("color:").append(_pen.rgb()).append(";");
+						sb.append("color:").append(_pen.getRGB()).append(";");
 						}
 					if(_paper!=null) {
-						sb.append("background-color:").append(_paper.rgb()).append(";");
+						sb.append("background-color:").append(_paper.getRGB()).append(";");
 						}
 					wout.writeAttribute("style", sb.toString());
 					}
@@ -586,13 +562,13 @@ public class TView implements Closeable
 			return false;
 			};
 
-		final Function<Character,AnsiColor> base2ansiColor = BASE->{
+		final Function<Character,AnsiUtils.AnsiColor> base2ansiColor = BASE->{
 			switch(Character.toUpperCase(BASE))
 				{
-				case 'A': return AnsiColor.BLUE;
-				case 'T': return AnsiColor.GREEN;
-				case 'G': return AnsiColor.CYAN;
-				case 'C': return AnsiColor.YELLOW;
+				case 'A': return AnsiUtils.AnsiColor.BLUE;
+				case 'T': return AnsiUtils.AnsiColor.GREEN;
+				case 'G': return AnsiUtils.AnsiColor.CYAN;
+				case 'C': return AnsiUtils.AnsiColor.YELLOW;
 				default: return null;
 				}
 			};
@@ -606,7 +582,7 @@ public class TView implements Closeable
 			{
 			if(insertIsPresentAtX.test(x))
 				{
-				colorizer.pen(AnsiColor.RED).print("^");
+				colorizer.pen(AnsiUtils.AnsiColor.RED).print("^");
 				++x;
 				}
 			else if((ref-this.interval.getStart())%10==0)
@@ -614,7 +590,7 @@ public class TView implements Closeable
 				final String f=String.format("%d", ref);
 				for(int i=0;i< f.length() && x < pixelWidth;++i)
 					{
-					colorizer.pen(AnsiColor.GREEN).print(f.charAt(i));
+					colorizer.pen(AnsiUtils.AnsiColor.GREEN).print(f.charAt(i));
 					if(!insertIsPresentAtX.test(x)) ++ref;
 					++x;
 					}
@@ -637,7 +613,7 @@ public class TView implements Closeable
 			{
 			if(insertIsPresentAtX.test(x))
 				{
-				colorizer.paper(AnsiColor.YELLOW).print("*");
+				colorizer.paper(AnsiUtils.AnsiColor.YELLOW).print("*");
 				++x;
 				}
 			else
@@ -779,7 +755,7 @@ public class TView implements Closeable
 								{
 								if(testInInterval.test(readRef)) {
 									final char readbase = baseAt.apply(readpos);
-									if(print_this_line) colorizer.paper(AnsiColor.RED).print(readbase);
+									if(print_this_line) colorizer.paper(AnsiUtils.AnsiColor.RED).print(readbase);
 									consensus.add(readbase);
 									++x;
 									}
@@ -803,7 +779,7 @@ public class TView implements Closeable
 									)
 								{
 								++x;
-								if(print_this_line) colorizer.paper(AnsiColor.YELLOW).print("*");
+								if(print_this_line) colorizer.paper(AnsiUtils.AnsiColor.YELLOW).print("*");
 								consensus.add(' ');
 								continue;
 								}
@@ -824,7 +800,7 @@ public class TView implements Closeable
 									if(showClip)
 										{
 										if(testInInterval.test(readRef)) {
-											if(print_this_line) colorizer.paper(AnsiColor.YELLOW).print('N');
+											if(print_this_line) colorizer.paper(AnsiUtils.AnsiColor.YELLOW).print('N');
 											consensus.add(' ');//CLIPPED base not part of consensus 
 											++x;
 											}
@@ -838,7 +814,7 @@ public class TView implements Closeable
 										{
 										if(testInInterval.test(readRef)) {
 											final char readBase = baseAt.apply(readpos);
-											if(print_this_line) colorizer.paper(AnsiColor.YELLOW).print(readBase);
+											if(print_this_line) colorizer.paper(AnsiUtils.AnsiColor.YELLOW).print(readBase);
 											consensus.add(' ');//CLIPPED base not part of consensus
 											++x;
 											}
@@ -854,7 +830,7 @@ public class TView implements Closeable
 								case D: case N:
 									{
 									if(testInInterval.test(readRef)) {
-										if(print_this_line) colorizer.paper(AnsiColor.RED).print('-');
+										if(print_this_line) colorizer.paper(AnsiUtils.AnsiColor.RED).print('-');
 										consensus.add(' ');//deletion not not part of consensus
 										++x;
 										}
@@ -872,7 +848,7 @@ public class TView implements Closeable
 										
 										if(op.equals(CigarOperator.X) || (refBase!='N' &&  readBase!='N'  && readBase!=refBase))
 											{
-											colorizer.pen(AnsiColor.RED);
+											colorizer.pen(AnsiUtils.AnsiColor.RED);
 											}
 										else if(hideBases)
 											{
@@ -945,7 +921,7 @@ public class TView implements Closeable
 						}
 					else if( refBase!='N' &&  consensusBase!=refBase)
 						{
-						colorizer.pen(AnsiColor.RED);
+						colorizer.pen(AnsiUtils.AnsiColor.RED);
 						}
 					else
 						{
