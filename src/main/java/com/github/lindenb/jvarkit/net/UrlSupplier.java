@@ -96,6 +96,10 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	if( columnName.equalsIgnoreCase("genename") ||
 		columnName.equalsIgnoreCase("symbol")) {
 		urls.add(new LabelledUrlImpl("NCBI gene","https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/search?search="+StringUtils.escapeHttp(id)));
+		}
+	else if( columnName.equalsIgnoreCase("omim")) {
+		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/entry/"+id));
 		}
 	else if(columnName.equalsIgnoreCase("Consequence") ||
 			columnName.equalsIgnoreCase("so")) {
@@ -152,7 +156,9 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 	if(ctx==null) return;
 	if(ctx.hasID()) {
-		_string(ctx.getID(),urls);
+		for(final String id: CharSplitter.COMMA.split(ctx.getID())) {
+			_string(id,urls);
+			}
 		}
 	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
 	if(isGrch37() && !StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
@@ -197,7 +203,7 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		}
 	
 	
-	//beacon , //varsome
+	//beacon , varsome
 	for(int side=0;side<2 && !StringUtils.isBlank(ensemblCtg);++side)
 		{
 		if(side==0 && !isGrch37()) continue;

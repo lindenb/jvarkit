@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -249,7 +248,7 @@ description="Pretty SAM alignments",
 references="PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853798.v1](https://doi.org/10.6084/m9.figshare.5853798.v1)",
 keywords={"sam","bam"},
 creationDate="20171215",
-modificationDate="20210304"
+modificationDate="20211105"
 )
 public class PrettySam extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();
@@ -284,47 +283,10 @@ public class PrettySam extends OnePassBamLauncher {
 	private boolean show_untranslated_region=false;
 	@Parameter(names={"-V","--variant","--vcf"},description="[20171220]Show VCF data. VCf must be indexed. if VCF has no genotype, the variant positions are shown, otherwise, the genotypes associated to the read will be show.")
 	private Path vcfFile=null;
-
-
-	private enum AnsiColor {
-    	BLACK (30),
-    	RED (31),
-    	GREEN (32),
-    	YELLOW (33),
-    	BLUE (34),
-    	MAGENTA (35),
-    	CYAN (36),
-    	WHITE (37)
-		;
-    	
-    	AnsiColor(final int opcode) {
-    		this.opcode=opcode;
-    		}
-    	final int opcode;
-    	static String base(char c) {
-    		final AnsiColor a;
-    		switch(Character.toUpperCase(c)) {
-				case 'N': a = WHITE; break;
-				case 'A': a = RED;break;
-				case 'T': a = GREEN;break;
-				case 'G': a = YELLOW;break;
-				case 'C': a = BLUE;break;
-				default: a  = MAGENTA;break;
-    			}
-    		return ANSI_ESCAPE+a.opcode+"m" + c + ANSI_RESET;
-    		}
-    	}
-
 	
-	public static final String ANSI_ESCAPE = AnsiUtils.ANSI_ESCAPE;
-	public static final String ANSI_RESET = AnsiUtils.ANSI_RESET;
-	private static String HISTOGRAM_CHARS[] = new String[]{
-			"\u2581", "\u2582", "\u2583", "\u2584", "\u2585", 
-			"\u2586", "\u2587", "\u2588"
-			};
 	
-    private static final Pattern SEMICOLON_PAT = Pattern.compile("[;]");
-    private static final Pattern COMMA_PAT = Pattern.compile("[,]");
+    private static final CharSplitter SEMICOLON_PAT = CharSplitter.SEMICOLON;
+    private static final CharSplitter COMMA_PAT = CharSplitter.COMMA;
 	private ReferenceSequenceFile referenceSequenceFile = null;
 	
 	
@@ -374,7 +336,18 @@ public class PrettySam extends OnePassBamLauncher {
 	
 	private String baseToString(final char C) {
 		if(!this.with_colors) return String.valueOf(C);
-		return AnsiColor.base(C);
+		
+		final AnsiUtils.AnsiColor a;
+		
+		switch(Character.toUpperCase(C)) {
+			case 'N': a = AnsiUtils.AnsiColor.WHITE; break;
+			case 'A': a = AnsiUtils.AnsiColor.RED;break;
+			case 'T': a = AnsiUtils.AnsiColor.GREEN;break;
+			case 'G': a = AnsiUtils.AnsiColor.YELLOW;break;
+			case 'C': a = AnsiUtils.AnsiColor.BLUE;break;
+			default: a  = AnsiUtils.AnsiColor.MAGENTA;break;
+			}
+		return a.colorize(String.valueOf(C));
 		};
 
 	
@@ -1020,7 +993,7 @@ public class PrettySam extends OnePassBamLauncher {
 										final double GOOD_QUAL=80.0;//should be (255-33) but let's say this is already very good
 										double q= (((int)base.readqual-33.00)/GOOD_QUAL);
 										q=Math.max(0.0,Math.min(q,1.0));
-										c=HISTOGRAM_CHARS[(int)(q*HISTOGRAM_CHARS.length)];
+										c=String.valueOf(AnsiUtils.HISTOGRAM_CHARS[(int)(q*AnsiUtils.HISTOGRAM_CHARS.length)]);
 										}
 									break;
 									}

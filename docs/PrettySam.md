@@ -11,7 +11,7 @@ Pretty SAM alignments
 Usage: prettysam [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -cN, --collapse-N
       collapse cigar operator 'N'
