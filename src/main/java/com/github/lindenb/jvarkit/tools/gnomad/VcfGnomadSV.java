@@ -25,20 +25,21 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.gnomad;
 
-import java.io.File;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
+import com.github.lindenb.jvarkit.jcommander.converter.RatioConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
@@ -50,12 +51,12 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 
 /**
 BEGIN_DOC
@@ -74,14 +75,12 @@ END_DOC
 	description="Peek annotations from gnomad structural variants",
 	keywords={"vcf","annotation","gnomad","sv"},
 	creationDate="20190814",
-	modificationDate="20191002"
+	modificationDate="20211109"
 )
-public class VcfGnomadSV extends Launcher{
+public class VcfGnomadSV extends OnePassVcfLauncher {
 	
 	private static final Logger LOG = Logger.build(VcfGnomadSV.class).make();
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
 	@Parameter(names={"-g","--gnomad"},description="Gnomad-SV VCF file. see https://gnomad.broadinstitute.org/downloads#structural-variants",required=true)
 	private Path gnomadVcfSvPath = null;
 	@Parameter(names={"-p","--prefix"},description="INFO field prefix")
@@ -93,9 +92,29 @@ public class VcfGnomadSV extends Launcher{
 	@Parameter(names={"--any-overlap-filter"},description="If not empty, set this FILTER if any variant in gnomad is found overlaping the variant BUT we didn't find a correct match")
 	private String any_overlap_filter = "";
 
+	@Parameter(names={"--min-af"},description="min allele frequency in watched population. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double min_allele_frequency = 0.0;
+	@Parameter(names={"--max-af"},description="max allele frequency in watched population. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
+	private double max_allele_frequency = 1.0;
+	@Parameter(names={"--population"},description="Watch gnomad population for AF")
+	private String population = "POPMAX_AF";
+	@Parameter(names={"--filter"},description="set this FILTER is the allele frequency found in the population is not min-af<=x<=max-af. Discard variant if it is blank.")
+	private String filterAFStr = "BAD_AF";
+
+	
 	@ParametersDelegate
 	private StructuralVariantComparator svComparator = new StructuralVariantComparator();
 
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	public VcfGnomadSV() {
+	}
+	
+	
+	
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
@@ -103,136 +122,152 @@ public class VcfGnomadSV extends Launcher{
 			final VariantContextWriter out
 			)
 		{
-		final VCFReader gnomadVcfReader = VCFReaderFactory.makeDefault().open(this.gnomadVcfSvPath,true);
-		final VCFHeader gnomadHeader = gnomadVcfReader.getHeader();
-		final SAMSequenceDictionary gnomadDict= SequenceDictionaryUtils.extractRequired(gnomadHeader);
-		final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(gnomadDict);
-		this.svComparator.setContigComparator((A,B)->{
-			final String c1 = contigNameConverter.apply(A);
-			if(StringUtils.isBlank(c1)) return false;
-			final String c2 = contigNameConverter.apply(A);
-			return c1.equals(c2);
-		});
-		
-		final VCFHeader h0 = iter.getHeader();
-		final SAMSequenceDictionary dict= h0.getSequenceDictionary();
-		
-		if(!SequenceDictionaryUtils.isGRCh37(dict)) {
-			LOG.warn("Input is NOT GRCh37 ?");
-			// can be lift over
+		try(VCFReader gnomadVcfReader = VCFReaderFactory.makeDefault().open(this.gnomadVcfSvPath,true)) {
+			final VCFHeader gnomadHeader = gnomadVcfReader.getHeader();
+			final SAMSequenceDictionary gnomadDict= SequenceDictionaryUtils.extractRequired(gnomadHeader);
+			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(gnomadDict);
+			this.svComparator.setContigComparator((A,B)->{
+				final String c1 = contigNameConverter.apply(A);
+				if(StringUtils.isBlank(c1)) return false;
+				final String c2 = contigNameConverter.apply(A);
+				return c1.equals(c2);
+			});
+			
+			final VCFHeader h0 = iter.getHeader();
+			final SAMSequenceDictionary dict= h0.getSequenceDictionary();
+			
+			if(!SequenceDictionaryUtils.isGRCh37(dict)) {
+				LOG.warn("Input is NOT GRCh37 ?");
+				// can be lift over
+				}
+			
+			
+	
+			final VCFHeader h2 = new VCFHeader(h0);
+			
+			if(!StringUtils.isBlank(this.filterAFStr)) {
+				h2.addMetaDataLine(new VCFFilterHeaderLine(this.filterAFStr, "Allele frequency in "+this.population+" is not("+this.min_allele_frequency+"<=AF<="+this.max_allele_frequency+")"));
+				}
+			
+			if(!StringUtils.isBlank(this.in_gnomad_filter)) {
+				h2.addMetaDataLine(new VCFFilterHeaderLine(this.in_gnomad_filter, "Variant is found in GNOMADSV"));
 			}
-		
-		
-
-		final VCFHeader h2 = new VCFHeader(h0);
-		if(!StringUtils.isBlank(this.in_gnomad_filter)) {
-			h2.addMetaDataLine(new VCFFilterHeaderLine(this.in_gnomad_filter, "Variant is found in GNOMADSV"));
-		}
-		if(!StringUtils.isBlank(this.discordant_svtype_filter)) {
-			h2.addMetaDataLine(new VCFFilterHeaderLine(this.discordant_svtype_filter, "SVTYPE are discordants."));
-		}
-		if(!StringUtils.isBlank(this.any_overlap_filter)) {
-			h2.addMetaDataLine(new VCFFilterHeaderLine(this.any_overlap_filter, "A variant in gnomad is found overlaping the variant"));
-		}
-
-		for(final VCFInfoHeaderLine h: gnomadHeader.getInfoHeaderLines()) {
-			final VCFInfoHeaderLine hd2 = VCFUtils.renameVCFInfoHeaderLine(h, this.prefix + h.getID());
-			h2.addMetaDataLine(hd2);
-		}
-		for(final VCFFilterHeaderLine h: gnomadHeader.getFilterLines()) {
-			final VCFFilterHeaderLine hd2 = new VCFFilterHeaderLine(this.prefix + h.getID(),h.getDescription());
-			h2.addMetaDataLine(hd2);
-		}
-		
-		final VCFInfoHeaderLine ghomadIdInfo = new VCFInfoHeaderLine(this.prefix + "ID",1,VCFHeaderLineType.String,"Original ID column in gnomad");
-		h2.addMetaDataLine(ghomadIdInfo);
-		
-		JVarkitVersion.getInstance().addMetaData(this, h2);
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
-		
-		out.writeHeader(h2);
-		while(iter.hasNext()) {
-			final VariantContext ctx = progress.apply(iter.next());
+			if(!StringUtils.isBlank(this.discordant_svtype_filter)) {
+				h2.addMetaDataLine(new VCFFilterHeaderLine(this.discordant_svtype_filter, "SVTYPE are discordants."));
+			}
+			if(!StringUtils.isBlank(this.any_overlap_filter)) {
+				h2.addMetaDataLine(new VCFFilterHeaderLine(this.any_overlap_filter, "A variant in gnomad is found overlaping the variant"));
+			}
+	
+			for(final VCFInfoHeaderLine h: gnomadHeader.getInfoHeaderLines()) {
+				final VCFInfoHeaderLine hd2 = VCFUtils.renameVCFInfoHeaderLine(h, this.prefix + h.getID());
+				h2.addMetaDataLine(hd2);
+			}
+			for(final VCFFilterHeaderLine h: gnomadHeader.getFilterLines()) {
+				final VCFFilterHeaderLine hd2 = new VCFFilterHeaderLine(this.prefix + h.getID(),h.getDescription());
+				h2.addMetaDataLine(hd2);
+			}
 			
-			final String ctg= contigNameConverter.apply(ctx.getContig());
-			if(StringUtil.isBlank(ctg)) {
-				out.add(ctx);
-				continue;
-				}
+			final VCFInfoHeaderLine ghomadIdInfo = new VCFInfoHeaderLine(this.prefix + "ID",1,VCFHeaderLineType.String,"Original ID column in gnomad");
+			h2.addMetaDataLine(ghomadIdInfo);
 			
+			JVarkitVersion.getInstance().addMetaData(this, h2);
 			
-			VariantContext cgtx=null;
-			final CloseableIterator<VariantContext> iter2 = gnomadVcfReader.query(
-					ctg,
-					Math.max(1,ctx.getStart()-this.svComparator.getBndDistance()),
-					ctx.getEnd()+this.svComparator.getBndDistance()
-					);
-			boolean found_any_overlap = false;
-			
-			while(iter2.hasNext()) {
-				final VariantContext ctx2 = iter2.next();
+			out.writeHeader(h2);
+			while(iter.hasNext()) {
+				final VariantContext ctx = iter.next();
 				
-				if(this.svComparator.testSimpleOverlap(ctx, ctx2)) {
-					found_any_overlap = true;
-					}
-				
-				if(this.svComparator.test(ctx, ctx2)) {
-					cgtx=ctx2;
-					break;
-					}
-				}
-			iter2.close();
-			
-			final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-
-			
-			if(cgtx==null) {
-				if(found_any_overlap && !StringUtil.isBlank(this.any_overlap_filter)) {
-					vcb.filter(this.any_overlap_filter);
-					out.add(vcb.make());
+				final String ctg= contigNameConverter.apply(ctx.getContig());
+				if(StringUtil.isBlank(ctg)) {
+					out.add(ctx);
 					continue;
 					}
 				
-				out.add(ctx);
-				continue;
-				}
-			for(final String key: cgtx.getAttributes().keySet()) {
-				vcb.attribute(this.prefix+key,cgtx.getAttribute(key));
-				}
-			for(final String f: cgtx.getFilters()) {
-				vcb.filter(this.prefix+f);
-				}
-			
-			if(cgtx.hasID()) {
-				if(!ctx.hasID())
-					{
-					vcb.id(cgtx.getID());
+				
+				VariantContext cgtx=null;
+				boolean found_any_overlap = false;
+				try(CloseableIterator<VariantContext> iter2 = gnomadVcfReader.query(
+						ctg,
+						Math.max(1,ctx.getStart()-this.svComparator.getBndDistance()),
+						ctx.getEnd()+this.svComparator.getBndDistance()
+						)) {
+				
+					while(iter2.hasNext()) {
+						final VariantContext ctx2 = iter2.next();
+						
+						if(this.svComparator.testSimpleOverlap(ctx, ctx2)) {
+							found_any_overlap = true;
+							}
+						
+						if(this.svComparator.test(ctx, ctx2)) {
+							cgtx=ctx2;
+							break;
+							}
+						}
 					}
-				vcb.attribute(ghomadIdInfo.getID(),cgtx.getID());
+				double found_af=0;
+				if(cgtx!=null && cgtx.hasAttribute(this.population)) {
+					for(final double v:cgtx.getAttributeAsDoubleList(this.population, 0.0)) {
+						found_af = Math.min(v, found_af);
+						}
+					}
+				
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				if(!(this.min_allele_frequency<= found_af && found_af <=this.max_allele_frequency)) {
+					if(StringUtils.isBlank(this.filterAFStr)) {
+						continue;
+						} 
+					else
+						{
+						vcb.filter(this.filterAFStr);
+						}
+					}
+				
+				
+				if(cgtx==null) {
+					if(found_any_overlap && !StringUtil.isBlank(this.any_overlap_filter)) {
+						vcb.filter(this.any_overlap_filter);
+						out.add(vcb.make());
+						continue;
+						}
+					out.add(ctx);
+					continue;
+					}
+				for(final String key: cgtx.getAttributes().keySet()) {
+					vcb.attribute(this.prefix+key,cgtx.getAttribute(key));
+					}
+				for(final String f: cgtx.getFilters()) {
+					vcb.filter(this.prefix+f);
+					}
+				
+				if(cgtx.hasID()) {
+					if(!ctx.hasID())
+						{
+						vcb.id(cgtx.getID());
+						}
+					vcb.attribute(ghomadIdInfo.getID(),cgtx.getID());
+					}
+				
+				if(!StringUtil.isBlank(this.in_gnomad_filter)) {
+					vcb.filter(this.in_gnomad_filter);
+					}
+				if(!StringUtil.isBlank(this.discordant_svtype_filter) && 
+					!ctx.getAttributeAsString(VCFConstants.SVTYPE,".").equals(cgtx.getAttributeAsString(VCFConstants.SVTYPE, "."))) {
+					vcb.filter(this.discordant_svtype_filter);
+					}
+				out.add(vcb.make());
 				}
-			
-			if(!StringUtil.isBlank(this.in_gnomad_filter)) {
-				vcb.filter(this.in_gnomad_filter);
-				}
-			if(!StringUtil.isBlank(this.discordant_svtype_filter) && 
-				!ctx.getAttributeAsString(VCFConstants.SVTYPE,".").equals(cgtx.getAttributeAsString(VCFConstants.SVTYPE, "."))) {
-				vcb.filter(this.discordant_svtype_filter);
-				}
-			out.add(vcb.make());
+			out.close();
+			return 0;
 			}
-		out.close();
-		progress.close();
-		gnomadVcfReader.close();
-		return 0;
+		catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
+		}
+		
 		}
 
-	public VcfGnomadSV() {
-		}
-	
-	@Override
-	public int doWork(final List<String> args) {
-		return doVcfToVcf(args,this.outputFile);
-		}
+
 
 public static void main(final String[] args) {
 	new VcfGnomadSV().instanceMainWithExit(args);

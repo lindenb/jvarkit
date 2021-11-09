@@ -14,10 +14,16 @@ Usage: vcfgnomadsv [options] Files
       If not empty, set this FILTER if any variant in gnomad is found 
       overlaping the variant BUT we didn't find a correct match
       Default: <empty string>
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --bnd-distance
       Two BND variants are the same if their bounds are distant by less than 
       xxx bases. A distance specified as a positive integer.Commas are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 100
     --check-bnd-mate
       When comparing two BND, check that their mate (using the ALT allele) are 
@@ -26,9 +32,16 @@ Usage: vcfgnomadsv [options] Files
     --discordant_svtype
       If not empty, set this FILTER if SVTYPE are discordants
       Default: <empty string>
+    --filter
+      set this FILTER is the allele frequency found in the population is not 
+      min-af<=x<=max-af. Discard variant if it is blank.
+      Default: BAD_AF
     --force-svtype
       When comparing two SV variants, their INFO/SVTYPE should be the same. 
       Default is to just use coordinates to compare non-BND variants.
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
       Default: false
   * -g, --gnomad
       Gnomad-SV VCF file. see 
@@ -40,8 +53,23 @@ Usage: vcfgnomadsv [options] Files
     --in-gnomad-filter
       If not empty, set this FILTER is variant was found in gnomad
       Default: <empty string>
-    -o, --output
+    --max-af
+      max allele frequency in watched population. A decimal number between 0.0 
+      and 1.0. If the value ends with '%' it is interpretted as a percentage 
+      eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' 
+      => '0.01'.
+      Default: 1.0
+    --min-af
+      min allele frequency in watched population. A decimal number between 0.0 
+      and 1.0. If the value ends with '%' it is interpretted as a percentage 
+      eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' 
+      => '0.01'.
+      Default: 0.0
+    -o, --out
       Output file. Optional . Default: stdout
+    --population
+      Watch gnomad population for AF
+      Default: POPMAX_AF
     -p, --prefix
       INFO field prefix
       Default: GNOMAD_
@@ -59,7 +87,7 @@ Usage: vcfgnomadsv [options] Files
     --sv-small-overlap
       Two non-BND variants are the same if they overlap and both have a 
       length<= 'x'. A distance specified as a positive integer.Commas are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10
     --version
       print version and exit
