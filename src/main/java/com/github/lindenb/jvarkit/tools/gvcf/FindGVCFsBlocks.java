@@ -32,6 +32,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -40,6 +41,7 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -55,6 +57,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -226,7 +229,7 @@ END_DOC
 	description="Find common blocks of calleable regions from a set of gvcfs",
 	keywords={"gvcf","gatk","vcf"},
 	creationDate="20210806",
-	modificationDate="20211024"
+	modificationDate="20211110"
 	)
 public class FindGVCFsBlocks extends Launcher {
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -239,6 +242,8 @@ public class FindGVCFsBlocks extends Launcher {
 	private int min_block_size=0;
 	@Parameter(names={"--lenient"},description="allow strange GVCF blocks that don't end at the same chromosome end.")
 	private boolean lenient_discordant_end = false;
+	@Parameter(names={"--bed"},description="Restrict output blocks to those overlapping this bed")
+	private Path bedPath=null;
 
 
 	private static final Logger LOG = Logger.build(FindGVCFsBlocks.class).make();
@@ -413,7 +418,11 @@ public class FindGVCFsBlocks extends Launcher {
 		Path tmpBedFile0 = null;
 		Path tmpBedFile1 = null;
 		try {
-			
+			if (this.bedPath!=null) {
+				IOUtil.assertFileIsReadable(this.bedPath);
+			}
+		
+		
 			final List<Path> inputs = IOUtils.unrollPaths(args);
 			if(inputs.isEmpty())
 				{
@@ -523,13 +532,29 @@ public class FindGVCFsBlocks extends Launcher {
 					Files.deleteIfExists(tmpBedFile1);
 					Files.move(tmpBedFile0,tmpBedFile1);
 					}
-			
 				}
+			
+			final IntervalTreeMap<Boolean> intervalTreeMap;
+			if (this.bedPath!=null) {
+				try(BedLineReader blr = new BedLineReader(this.bedPath)) {
+					intervalTreeMap = blr.toIntervalTreeMap(BED->Boolean.TRUE);
+					}
+			} else {
+				intervalTreeMap = null;
+			}
+			
+			
+			
 			try(IntervalListWriter w = new IntervalListWriter(this.outputFile,dict)) {
 				try(IntervalListIterator r1 = new IntervalListIterator(tmpBedFile1)) {
 					final PeekableIterator<Locatable> peek1 = new PeekableIterator<>(r1);
 					while(peek1.hasNext()) {
 						Locatable loc = peek1.next();
+						
+						if (intervalTreeMap!=null && !intervalTreeMap.containsOverlapping(loc)) {
+							continue;
+						}
+						
 						while(this.min_block_size>0 && peek1.hasNext()) {
 							final Locatable loc2 = peek1.peek();
 							if(!loc2.contigsMatch(loc)) break;

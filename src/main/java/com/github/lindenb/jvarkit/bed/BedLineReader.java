@@ -30,6 +30,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -37,6 +42,8 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 
@@ -45,7 +52,7 @@ import htsjdk.samtools.util.StringUtil;
  * @author lindenb
  */
 public class BedLineReader extends AbstractCloseableIterator<BedLine>  {
-public static final String OPT_DESC="A Bed file.";
+public static final String OPT_DESC="A Bed file: (CHROM)<tab>(START 0-based)<tab>(END)[<tab>otherfields...].";
 private static final Logger LOG = Logger.build(BedLineReader.class).make();
 private final BedLineCodec codec = new BedLineCodec();
 private final BufferedReader br;
@@ -90,6 +97,68 @@ protected BedLine advance() {
 public void close() {
 	try{if(br!=null) br.close();} catch(final IOException err) {}
 	}
+
+/** convert all items to an IntervalTreeMap<X> . Each Bedline is converted to X using transform.
+ * Items are ignored if 'transform' returns null
+ * @param transform convert BedLine to X. if x==null, item is ignored.
+ * @return
+ */
+public <X> IntervalTreeMap<X> toIntervalTreeMap(final Function<BedLine,X> transform) {
+	final IntervalTreeMap<X> map = new IntervalTreeMap<>();
+	while(this.hasNext()) {
+		final BedLine bl = this.next();
+		final X x  = transform.apply(bl);
+		if(x==null) continue;
+		final Interval r = new Interval(bl);
+		map.put(r, x);
+		}
+	return map;
+	}
+
+/** convert all items to an IntervalTreeMapBedLine>
+ */
+public IntervalTreeMap<BedLine> toIntervalTreeMap() {
+return toIntervalTreeMap(X->X);
+}
+
+
+/** convert all items to an IntervalTreeMap<List<X>> . Each Bedline is converted to X using transform.
+ * Items are ignored if 'transform' returns null
+ * @param transform convert BedLine to X. if x==null, item is ignored.
+ * @return
+ */
+public <X> IntervalTreeMap<List<X>> toIntervalListTreeMap(final Function<BedLine,X> transform) {
+	return toIntervalCollectionTreeMap(transform,()->new ArrayList<X>());
+	}
+
+/** convert all items to an IntervalTreeMap<List<X>> . Each Bedline is converted to X using transform.
+ * Items are ignored if 'transform' returns null
+ * @param transform convert BedLine to X. if x==null, item is ignored.
+ * @return
+ */
+public <X,C extends Collection<X>> IntervalTreeMap<C> toIntervalCollectionTreeMap(final Function<BedLine,X> transform,final Supplier<C> collectionSupplier) {
+	final IntervalTreeMap<C> map = new IntervalTreeMap<>();
+	while(this.hasNext()) {
+		final BedLine bl = this.next();
+		final X x  = transform.apply(bl);
+		if(x==null) continue;
+		final Interval r = new Interval(bl);
+		C col = map.get(r);
+		if(col==null) {
+			col = collectionSupplier.get();
+			map.put(r, col);
+			}
+		col.add(x);
+		}
+	return map;
+	}
+
+
+/** convert all items to an IntervalTreeMapBedLine>
+ */
+public IntervalTreeMap<List<BedLine>> toIntervalListTreeMap() {
+return toIntervalListTreeMap(X->X);
+}
 
 @Override
 public String toString() {
