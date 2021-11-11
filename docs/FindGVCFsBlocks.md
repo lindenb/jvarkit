@@ -10,6 +10,8 @@ Find common blocks of calleable regions from a set of gvcfs
 ```
 Usage: findgvcfsblocks [options] Files
   Options:
+    --bed
+      Restrict output blocks to those overlapping this bed
     --min-size, --block-size
       min block size. A distance specified as a positive integer.Commas are 
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
@@ -20,6 +22,9 @@ Usage: findgvcfsblocks [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --lenient
+      allow strange GVCF blocks that don't end at the same chromosome end.
+      Default: false
     -o, --out
       Output file. Optional . Default: stdout
     --version
