@@ -1533,6 +1533,10 @@ all.add( task("vcf2bam", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcf2bam.VcfToBam"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all.add( task("vcf2intervals", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervals"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("ref2html", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ref2html.ReferenceToHtml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
