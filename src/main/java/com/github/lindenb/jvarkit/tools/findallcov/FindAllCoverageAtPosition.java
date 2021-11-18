@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.findallcov;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -494,7 +494,6 @@ public class FindAllCoverageAtPosition extends Launcher
 			
 			if(args.isEmpty())
 				{
-				LOG.info("Reading from stdin");
 				try(BufferedReader r = new BufferedReader(new InputStreamReader(stdin()))) {
 					scan(r,mutations);
 					}
@@ -503,7 +502,6 @@ public class FindAllCoverageAtPosition extends Launcher
 				{				
 				for(final String filename: args)
 					{
-					LOG.info("Reading from "+filename);
 					try(BufferedReader r=IOUtils.openURIForBufferedReading(filename)) {
 						scan(r,mutations);
 						}

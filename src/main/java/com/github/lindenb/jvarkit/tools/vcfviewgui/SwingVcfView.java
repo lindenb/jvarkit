@@ -553,7 +553,7 @@ public class SwingVcfView extends Launcher
 			}
 		
 		final Optional<SimpleInterval> getUserInterval() {
-			final String s = this.jtextFieldLocation.getText();
+			final String s = this.jtextFieldLocation.getText().trim();
 			if(StringUtil.isBlank(s)) return Optional.empty();
 			Optional<SimpleInterval> ret;
 

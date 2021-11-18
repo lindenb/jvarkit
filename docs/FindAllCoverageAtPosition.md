@@ -16,7 +16,7 @@ Usage: findallcoverageatposition [options] Files
     -x, --extend
       [20190218]extend by 'x' base to try to catch close with clipped reads. A 
       distance specified as a positive integer.Commas are removed. The 
-      following suffixes are interpreted : b,bp,k,kb,m,mb
+      following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 500
     -filter, --filter
       [20171201](moved to jexl). A JEXL Expression that will be used to filter 
@@ -97,7 +97,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindAllCoverageAtPosition.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindAllCoverageAtPosition.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/findallcov/FindAllCoverageAtPosition.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/findallcov/FindAllCoverageAtPosition.java)
 
 
 ## Contribute

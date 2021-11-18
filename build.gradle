@@ -1205,7 +1205,7 @@ all2.add( task("fastqsplit", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("findallcoverageatposition", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.FindAllCoverageAtPosition"
+	mainClass = "com.github.lindenb.jvarkit.tools.findallcov.FindAllCoverageAtPosition"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("findavariation", type: CompileJVarkit) {
