@@ -171,7 +171,7 @@ samtools view -h input.bam | java -jar dist/sam2tsv.jar
 ### Citations
 
 
-Sam2tsv was cited in : 
+Sam2tsv was cited in :
 
   * "Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements" . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
   * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).
@@ -187,4 +187,5 @@ Sam2tsv was cited in :
   * FUJIKURA, K. et al. Multiregion whole-exome sequencing of intraductal papillary mucinous neoplasms reveals frequent somatic KLF4 mutations predominantly in low-grade regions. Gut, [s. l.], 2020. DOI 10.1136/gutjnl-2020-321217
   * Gao, Y., Liu, X., Wu, B. et al. Quantitative profiling of N6-methyladenosine at single-base resolution in stem-differentiating xylem of Populus trichocarpa using Nanopore direct RNA sequencing. Genome Biol 22, 22 (2021). https://doi.org/10.1186/s13059-020-02241-7
   * Liu H., Begik O., Novoa E.M. (2021) EpiNano: Detection of m6A RNA Modifications Using Oxford Nanopore Direct RNA Sequencing. In: McMahon M. (eds) RNA Modifications. Methods in Molecular Biology, vol 2298. Humana, New York, NY. https://doi.org/10.1007/978-1-0716-1374-0_3
+  * Yang & al. "Sequencing 5-Formyluracil in Genomic DNA at Single-Base Resolution"  (2021) Analytical Chemistry doi: 10.1021/acs.analchem.1c03339
 
