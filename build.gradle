@@ -2621,6 +2621,10 @@ all2.add( task("findgvcfsblocks", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("vcfroh", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.roh.VcfROH"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
