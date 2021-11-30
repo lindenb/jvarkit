@@ -33,6 +33,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -100,7 +101,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 	@Parameter(names={"--spaceyfeature"},description="number of pixels between features")
 	protected int spaceYbetweenFeatures=4;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	protected File referenceFile = null;
+	protected Path referenceFile = null;
 	@Parameter(names={"--highlight"},description="hightligth those positions.",converter=com.beust.jcommander.converters.IntegerConverter.class)
 	protected Set<Integer> highlightPositions = new HashSet<>() ;
 	@Parameter(names={"-V","--variants","--vcf"},description="VCF files used to fill the position to hightlight with POS")

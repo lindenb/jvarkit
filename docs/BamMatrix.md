@@ -53,6 +53,9 @@ Usage: bammatrix [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    --pixel
+      pixel size. Each dot at intersection will have the following size
+      Default: 1
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary

@@ -63,6 +63,10 @@ Usage: lowresbam2raster [options] Files
     -printNames, --printNames
       Print Read Names (for debugging)
       Default: false
+    -proper, --proper
+      Hide read if in a paired-end pair, both reads are mapped but not in 
+      proper pair.
+      Default: false
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary

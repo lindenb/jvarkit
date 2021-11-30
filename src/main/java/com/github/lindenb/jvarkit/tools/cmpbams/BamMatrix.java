@@ -91,6 +91,7 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
@@ -119,10 +120,11 @@ https://twitter.com/yokofakun/status/1038060108373286912
 END_DOC
 */
 
-@Program(name="bammatrix",description="Bam matrix, inspired from 10x/loupe ",
+@Program(name="bammatrix",
+description="Bam matrix, inspired from 10x/loupe ",
 keywords={"sam","bam","compare","matrix"},
 creationDate="20190620",
-modificationDate="20190622"
+modificationDate="20211126"
 )
 public class BamMatrix  extends Launcher
 	{
@@ -159,6 +161,8 @@ public class BamMatrix  extends Launcher
 	private int min_common_names = 0;
 	@Parameter(names={"--no-coverage"},description="Don't print coverage")
 	private boolean hide_coverage = false;
+	@Parameter(names={"--pixel"},description="pixel size. Each dot at intersection will have the following size")
+	private int pixel_size = 1;
 
 	
 	
@@ -194,16 +198,16 @@ public class BamMatrix  extends Launcher
 	}
 	
 	
+	/**  get the reads names in a given interval */
 	private abstract class ReadCounter
 		{
 		protected ReadCounter() throws IOException {}
-		
-		
 		/** return the names of the Read names in the interval */
-		protected abstract Set<String> getNamesMatching(final Interval r) throws IOException;
+		protected abstract Set<String> getNamesMatching(final Locatable r) throws IOException;
 		void dispose() throws IOException {}
 		}
 	
+	/** in memory implementation of ReadCounter: the fastest */
 	private class MemoryReadCounter extends ReadCounter
 		{
 		private final IntervalTreeMap<List<Interval>> treeMap  = new IntervalTreeMap<>();
@@ -217,7 +221,6 @@ public class BamMatrix  extends Launcher
 				{
 				while(iter.hasNext()) {
 					final SAMRecord rec = iter.next();
-					
 					for(final Interval r: BamMatrix.this.samRecordToIntervals(rec)) {
 						List<Interval> list = this.treeMap.get(r);
 						if(list==null) {
@@ -228,11 +231,10 @@ public class BamMatrix  extends Launcher
 						}	
 					}
 				}
-			LOG.debug("treeMap.size="+treeMap.size());
 			}
 
 		@Override
-		protected Set<String> getNamesMatching(final Interval r) throws IOException
+		protected Set<String> getNamesMatching(final Locatable r) throws IOException
 			{
 			return this.treeMap.getOverlapping(r).
 					stream().
@@ -243,11 +245,12 @@ public class BamMatrix  extends Launcher
 
 		}
 	
+	/** Disk implementation of ReadCounter. very slow */
 	private class DiskBackedReadCounter extends ReadCounter {
 		DiskBackedReadCounter() throws IOException {
 			}
 		@Override
-		protected HashSet<String> getNamesMatching(Interval r) throws IOException {
+		protected HashSet<String> getNamesMatching(final Locatable r) throws IOException {
 			final HashSet<String> set = new HashSet<>(10_000);
 			
 			try(final SAMRecordIterator iter=samReader.query(r.getContig(),r.getStart(),r.getEnd(),false))
@@ -264,6 +267,7 @@ public class BamMatrix  extends Launcher
 			}
 		}
 	
+	/** StoredCounter implementation of ReadCounter. very slow too */
 	private class StoredCounter extends ReadCounter {
 	private class Stored {
 		File file;
@@ -313,7 +317,7 @@ public class BamMatrix  extends Launcher
 		}
 	
 	@Override
-	protected Set<String> getNamesMatching(final Interval r) throws IOException
+	protected Set<String> getNamesMatching(final Locatable r) throws IOException
 		{
 		if(!this.hash.containsKey(r)) throw new IOException("no interval "+r);
 		final Stored stored = this.hash.get(r);
@@ -337,7 +341,7 @@ public class BamMatrix  extends Launcher
 			if(st.file!=null) st.file.delete();
 			}
 		}
-	}
+	} // end of ReadCounter
 	
 	
 	
@@ -399,6 +403,10 @@ public class BamMatrix  extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
+		if(pixel_size<1) {
+			LOG.error("pixel size is too small ("+this.pixel_size+")");
+			return -1;
+			}
 		if(StringUtils.isBlank(region2Str)) {
 			this.region2Str = region1Str;
 		}
@@ -408,9 +416,7 @@ public class BamMatrix  extends Launcher
 					validationStringency(ValidationStringency.LENIENT)
 					;
 			if(this.faidx!=null) srf.referenceSequence(this.faidx);
-			
-			
-			
+						
 			final String input = oneAndOnlyOneFile(args);
 			this.samReader = srf.open(SamInputResource.of(input));
 			if(!this.samReader.hasIndex()) {
@@ -463,7 +469,7 @@ public class BamMatrix  extends Launcher
 					);
 			final double pixel2base = distance/(double)matrix_size;
 			short max_count=1;
-			short counts[]=new short[this.matrix_size*this.matrix_size];
+			final short counts[]=new short[this.matrix_size*this.matrix_size];
 
 			
 			final ReadCounter counter ;
@@ -474,14 +480,12 @@ public class BamMatrix  extends Launcher
 				default: throw new IllegalStateException(""+this.counterType);
 				}
 			
-			final ProgressFactory.Watcher<Interval> progress  = ProgressFactory.newInstance().logger(LOG).dictionary(this.userIntervalY).build();
 			/* loop over each pixel 1st axis */
 			for(int pixY=0;pixY< this.matrix_size;pixY++)
 				{				
 				final int start1 = (int)(this.userIntervalY.getStart() + pixY * pixel2base);
 				final int end1 = start1 + (int)pixel2base;
 				final Interval qy = new Interval(this.userIntervalY.getContig(), start1, end1);
-				progress.apply(qy);
 				if(!qy.overlaps(this.userIntervalY)) continue;
 				final Set<String> set1 = counter.getNamesMatching(qy);
 				if(set1.isEmpty()) continue;
@@ -506,12 +510,11 @@ public class BamMatrix  extends Launcher
 						common.retainAll(counter.getNamesMatching(qx));
 						count_common = common.size();
 						}
-					short count =  count_common>Short.MAX_VALUE?Short.MAX_VALUE:(short)count_common;
+					final short count =  count_common>Short.MAX_VALUE?Short.MAX_VALUE:(short)count_common;
 					max_count = (short)Math.max(count, max_count);
 					counts[pixY*this.matrix_size+pixX] = count;
 					}
 				}
-			progress.close();
 			counter.dispose();
 			final int font_size=10;
 			final int cov_height = (this.hide_coverage?0:50);
@@ -586,7 +589,7 @@ public class BamMatrix  extends Launcher
 				{
 				for(int pix2=0;pix2< this.matrix_size;pix2++)
 					{
-					short count = counts[pix1*this.matrix_size+pix2];
+					final short count = counts[pix1*this.matrix_size+pix2];
 					if(count==0 || count < this.min_common_names) continue;
 					final int gray;
 					switch(color_scale) {
@@ -599,7 +602,12 @@ public class BamMatrix  extends Launcher
 						default: throw new IllegalStateException(color_scale.name());
 						}
 					g.setColor(new Color(gray,0,0));
-					g.fillRect(pix1, pix2, 1, 1);
+					g.fill(new Rectangle2D.Double(
+						pix1 - pixel_size/2.0,
+						pix2 - pixel_size/2.0,
+						pixel_size,
+						pixel_size
+						));
 					}
 				}
 			// draw frame
@@ -656,7 +664,7 @@ public class BamMatrix  extends Launcher
 					
 					final IntervalList intervalList = new IntervalList(this.dict);
 					intervalList.add(new Interval(r));
-					final SamLocusIterator sli = new SamLocusIterator(this.samReader,intervalList,true);
+					try(final SamLocusIterator sli = new SamLocusIterator(this.samReader,intervalList,true)) {
 					while(sli.hasNext()) {
 						final LocusInfo locusInfo = sli.next();
 						final int pos = locusInfo.getPosition();
@@ -668,7 +676,7 @@ public class BamMatrix  extends Launcher
 						coverage[array_index] += depth;
 						count[array_index]++;
 						}
-					sli.close();
+					}
 					
 					
 					for(int i=0;i< coverage.length;++i) {

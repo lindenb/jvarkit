@@ -116,7 +116,7 @@ END_DOC
 		keywords={"bam","alignment","graphics","visualization","png","gtf"},
 		biostars= 293741,
 		creationDate="20170523",
-		modificationDate="20200622"
+		modificationDate="20211126"
 		)
 public class LowResBam2Raster extends AbstractBam2Raster {
 	private static final Logger LOG = Logger.build(LowResBam2Raster.class).make();
@@ -128,11 +128,15 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	@Parameter(names={"-gcwin","--gcWindowSize"},description="GC% Window size")
 	private int gcWinSize=10;
 	@Parameter(names={"-noSuppl","--noSuppl"},description="Hide arcs of Supplementary alignments.")
-	private boolean hideArchOfSupplAlign =false;
+	private boolean hideArcOfSupplAlign =false;
 	@Parameter(names={"-printNames","--printNames"},description="Print Read Names (for debugging)")
 	private boolean printReadNames=false;
 	@Parameter(names={"-hideInsert","--hideInsertions"},description="Hide insertions")
 	private boolean hideInsertions=false;
+	@Parameter(names={"-proper","--proper"},description="Hide read if in a paired-end pair, both reads are mapped but not in proper pair.")
+	private boolean hideNotProperPair=false;
+
+	
 	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
 	private Map<String, String> dynaParams = new HashMap<>();
 
@@ -732,7 +736,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							final SAMRecord rec = (R==0?rp.R1:rp.R2);
 							if(rec==null) continue;
 							
-							if(!hideArchOfSupplAlign)
+							if(!hideArcOfSupplAlign)
 								{
 								final String c1 = contigNameConverter.apply(rec.getContig());
 
@@ -769,6 +773,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 										}
 									}
 								}
+							
 							double x0 = left2pixel.apply(rec);
 							double x1 = right2pixel.apply(rec);
 							final Shape shapeRec;
@@ -810,7 +815,10 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 								int ref=rec.getUnclippedStart();
 								for(final CigarElement ce:cigar.getCigarElements()) {
 									final CigarOperator op = ce.getOperator();
-									if(op.isClipping() || op.equals(CigarOperator.X)) {
+									if(op.isClipping() && !showClip) {
+										//nothing
+										}
+									else if(op.isClipping() || op.equals(CigarOperator.X)) {
 										final Rectangle2D clipRect= new Rectangle2D.Double(
 												pos2pixel.apply(ref),
 												y0,
@@ -820,7 +828,8 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 										g.setColor(op.equals(CigarOperator.X)?Color.MAGENTA:Color.YELLOW);
 										g.fill(clipRect);
 										}
-									else if(op.equals(CigarOperator.D) || op.equals(CigarOperator.N))
+									else if(op.equals(CigarOperator.D) || 
+											op.equals(CigarOperator.N))
 										{
 										final Rectangle2D clipRect= new Rectangle2D.Double(
 												pos2pixel.apply(ref),
@@ -862,7 +871,6 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 									Math.PI/2.0);
 							g.setColor(Color.RED); 
 							g.fill(triange);
-							
 							}
 						
 						// debug : print position
@@ -984,7 +992,12 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					{
 					final SAMRecord rec=iter.next();
 					if(rec.getReadUnmappedFlag()) continue;
-
+					if(this.hideNotProperPair && 
+						rec.getReadPairedFlag() &&
+						!rec.getMateUnmappedFlag() && 
+						!rec.getProperPairFlag()) {
+						continue;
+						}
 					if(this.samRecordFilter.filterOut(rec)) 
 					{
 						//don't discard now, we need to build pairs of reads
