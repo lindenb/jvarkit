@@ -74,7 +74,6 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
@@ -135,6 +134,8 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 	private boolean hideInsertions=false;
 	@Parameter(names={"-proper","--proper"},description="Hide read if in a paired-end pair, both reads are mapped but not in proper pair.")
 	private boolean hideNotProperPair=false;
+	@Parameter(names={"--single"},description="Convert paired reads to single-end reads.")
+	private boolean convert_paired_to_single=false;
 
 	
 	@DynamicParameter(names = "-D", description = "set some css style elements. '-Dkey=value'. Undocumented.")
@@ -152,7 +153,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 		if(!this.dynaParams.containsKey(key)) {
 			return defColor;
 			}
-		Color c = colorUtils.parse(this.dynaParams.get(key));
+		final Color c = colorUtils.parse(this.dynaParams.get(key));
 		return c==null?defColor:c;
 		}
 	
@@ -375,7 +376,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					}
 				}
 			void make() {
-				
+				final Color clipColor = getColor("clip",Color.YELLOW);
 				final List<List<SamRecordPair>> rows = new ArrayList<>();
 				for(final SamRecordPair rp : this.readName2pairs.values().
 							stream().
@@ -819,13 +820,15 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 										//nothing
 										}
 									else if(op.isClipping() || op.equals(CigarOperator.X)) {
+										// small hack to better see the clipping.
+										final double extend = dynaParams.containsKey("xclip")?Double.parseDouble(dynaParams.get("xclip")):0;
 										final Rectangle2D clipRect= new Rectangle2D.Double(
-												pos2pixel.apply(ref),
+												pos2pixel.apply(ref) - extend,
 												y0,
-												pos2pixel.apply(ref+ce.getLength())-pos2pixel.apply(ref),
+												pos2pixel.apply(ref+ce.getLength())-pos2pixel.apply(ref) +( 2*extend),
 												featureHeight
 												);
-										g.setColor(op.equals(CigarOperator.X)?Color.MAGENTA:Color.YELLOW);
+										g.setColor(op.equals(CigarOperator.X)?Color.MAGENTA:clipColor);
 										g.fill(clipRect);
 										}
 									else if(op.equals(CigarOperator.D) || 
@@ -899,7 +902,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					
 					final Composite oldComposite = g.getComposite();
 					g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,.3f));
-					GeneralPath gp=new GeneralPath();
+					final GeneralPath gp=new GeneralPath();
 					
 					if(arc.arcStart.getContig().equals(arc.arcEnd.getContig()))
 						{
@@ -992,6 +995,19 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					{
 					final SAMRecord rec=iter.next();
 					if(rec.getReadUnmappedFlag()) continue;
+					
+					/** convert paired to single end if needed */
+					if(this.convert_paired_to_single && rec.getReadPairedFlag()) {
+						rec.setProperPairFlag(false);
+						rec.setReadName(rec.getReadName()+(rec.getFirstOfPairFlag()?"/1":"")+(rec.getSecondOfPairFlag()?"/2":""));
+						rec.setMateUnmappedFlag(true);
+						rec.setReadPairedFlag(false);
+						rec.setMateReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX);
+						rec.setMateAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
+						rec.setInferredInsertSize(0);
+					}
+					
+					
 					if(this.hideNotProperPair && 
 						rec.getReadPairedFlag() &&
 						!rec.getMateUnmappedFlag() && 
@@ -1058,12 +1074,11 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 			    	this.gcWinSize=5;
 					}
 			    
-				SamReader samFileReader=null;
 				try
 					{
 				    if(this.referenceFile==null)
 						{
-				    	LOG.info("error. Since 2018-11-17. Reference is Required");
+				    	LOG.error("error. Since 2018-11-17. Reference is Required");
 				    	return -1;
 						}
 				    else
@@ -1101,22 +1116,21 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 
 					for(final Path bamFile: IOUtils.unrollPaths(args))
 						{
-						samFileReader = srf.open(SamInputResource.of(bamFile));
-						final SAMFileHeader header=samFileReader.getFileHeader();
-						final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(header);
-						SequenceUtil.assertSequenceDictionariesEqual(dict, this.refDict);
-						final ContigNameConverter conv = ContigNameConverter.fromOneDictionary(dict);
-						final String normalizedContig = conv.apply(this.interval.getContig());
-						
-						if(StringUtil.isBlank(normalizedContig) || dict.getSequence(normalizedContig)==null){
-							LOG.error("no such chromosome in "+bamFile+" "+this.interval+". "+
-								" "+JvarkitException.ContigNotFoundInDictionary.getMessage(
-										this.interval.getContig(), dict));
-							return -1;
+						try(SamReader samFileReader = srf.open(SamInputResource.of(bamFile))) {
+							final SAMFileHeader header=samFileReader.getFileHeader();
+							final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(header);
+							SequenceUtil.assertSequenceDictionariesEqual(dict, this.refDict);
+							final ContigNameConverter conv = ContigNameConverter.fromOneDictionary(dict);
+							final String normalizedContig = conv.apply(this.interval.getContig());
+							
+							if(StringUtil.isBlank(normalizedContig) || dict.getSequence(normalizedContig)==null){
+								LOG.error("no such chromosome in "+bamFile+" "+this.interval+". "+
+									" "+JvarkitException.ContigNotFoundInDictionary.getMessage(
+											this.interval.getContig(), dict));
+								return -1;
+								}
+							scan(samFileReader,normalizedContig);
 							}
-						scan(samFileReader,normalizedContig);
-						samFileReader.close();
-						samFileReader=null;
 						}
 					
 					if(this.key2partition.isEmpty())
@@ -1132,7 +1146,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 							stream().
 							collect(Collectors.toMap(K->K, K->this.key2partition.get(K).image))
 							);					
-					return RETURN_OK;
+					return 0;
 					}
 				catch(final Throwable err)
 					{
@@ -1141,7 +1155,6 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					}
 				finally
 					{
-					CloserUtil.close(samFileReader);
 					}
 		
 				}

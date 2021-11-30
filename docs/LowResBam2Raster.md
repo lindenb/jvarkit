@@ -82,6 +82,9 @@ Usage: lowresbam2raster [options] Files
       FailsVendorQuality() || NotPrimaryAlignment() || 
       SupplementaryAlignment()' 
       Default: mapqlt(1) || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+    --single
+      Convert paired reads to single-end reads.
+      Default: false
     --spaceyfeature
       number of pixels between features
       Default: 1
