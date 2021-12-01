@@ -51,6 +51,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,6 +90,8 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.AbstractTableModel;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -153,7 +156,7 @@ END_DOC
 description="Bam coverage viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate="20210420",
-modificationDate="20210420",
+modificationDate="20211201",
 generate_doc=true
 )
 public class SwingBamCov extends Launcher
@@ -928,6 +931,14 @@ public class SwingBamCov extends Launcher
 					doMenuSaveAs();
 					}
 				}));
+			menu.add(new JMenuItem(new AbstractAction("Save IGV Session...")
+				{
+				@Override
+				public void actionPerformed(ActionEvent e)
+					{
+					doMenuSaveIgvSession();
+					}
+				}));
 			menu.add(actionGo);
 			menu.add(new JSeparator());
 			menu.add(new JMenuItem(new AbstractAction("Quit")
@@ -950,6 +961,49 @@ public class SwingBamCov extends Launcher
 					apply(s.trim());
 			}
 		
+		private void doMenuSaveIgvSession() {
+			final Optional<SimpleInterval> optinterval = getUserInterval();
+			if(!optinterval.isPresent()) return;
+			final SimpleInterval interval = optinterval.get();
+			final JFileChooser chooser= new JFileChooser();
+			chooser.setSelectedFile(new File(interval.getContig()+"_"+interval.getStart()+"_"+interval.getEnd()+".igv_session.xml"));
+			if(chooser.showSaveDialog(drawingArea)!=JFileChooser.APPROVE_OPTION) return;
+			final File f = chooser.getSelectedFile();
+			if(f.exists() && JOptionPane.showConfirmDialog(this, "File "+f.getName()+" exists. Overwite ?", "Overwite ?", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null)!=JOptionPane.OK_OPTION)
+				{
+				return;
+				}
+			try {
+				
+				final XMLOutputFactory xof = XMLOutputFactory.newFactory();
+				try(final PrintWriter pw = new PrintWriter(f,"UTF-8")) {
+					final XMLStreamWriter w=xof.createXMLStreamWriter(pw);
+					w.writeStartDocument("UTF-8","1.0");
+					w.writeStartElement("Session");
+					w.writeAttribute("genome", this.referenceFile.toAbsolutePath().toString());
+					w.writeAttribute("hasSequenceTrack","true");
+					w.writeAttribute("hasGeneTrack","false");
+					w.writeAttribute("version","8");
+					w.writeAttribute("locus",interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd());
+					w.writeStartElement("Resources");
+					for(final BamInfo bamInfo : this.bamPaths) {
+						w.writeEmptyElement("Resource");
+						w.writeAttribute("name",bamInfo.sample);
+						w.writeAttribute("path",bamInfo.bamPath.toAbsolutePath().toString());
+						}
+					w.writeEndElement();//Resources
+					w.writeEndElement();//Session
+					w.writeEndDocument();
+					w.flush();
+					w.close();
+					pw.flush();
+					}
+				}
+			catch(final Throwable err) {
+				LOG.error(err);
+				return;
+				}
+			}
 		private void doMenuSaveAs() {
 			JFileChooser chooser= new JFileChooser();
 			if(chooser.showSaveDialog(drawingArea)!=JFileChooser.APPROVE_OPTION) return;

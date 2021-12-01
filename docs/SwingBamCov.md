@@ -102,4 +102,6 @@ java -jar dist/swingbamcov.jar -R ref.fa *.bam
 ## Screenshot
 
  * https://twitter.com/yokofakun/status/1392173415684100105
+ * https://twitter.com/yokofakun/status/1443187891480502279
+ * https://twitter.com/yokofakun/status/1443208754229563392
 
