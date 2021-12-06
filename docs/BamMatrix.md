@@ -14,13 +14,6 @@ Usage: bammatrix [options] Files
       Color scale
       Default: LOG
       Possible Values: [LINEAR, LOG]
-    --counter-type
-      How to count reads. In memory, use disk random access for each point 
-      instead of storing data in memory, on disk+sort each row/column on disk. 
-      disk: do random access for each point (worst choice). Other than in 
-      memory: makes all things slowwwwww.
-      Default: memory
-      Possible Values: [memory, disk, stored]
     -d, --distance
       Don't evaluate a point if the distance between the regions is lower than 
       'd'. Negative: don't consider distance.

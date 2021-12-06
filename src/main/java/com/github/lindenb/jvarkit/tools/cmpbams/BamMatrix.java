@@ -36,22 +36,15 @@ import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -74,7 +67,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.QueryInterval;
@@ -95,6 +87,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
+import htsjdk.samtools.util.SequenceUtil;
 
 /**
 BEGIN_DOC
@@ -106,6 +99,11 @@ java -jar dist/bammatrix.jar -o out.png \
 	--kg "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" \
 	-r "chr1:2345-6789" -B cnv.bed --name BX \
 	NOVASEQ/Sample/outs/phased_possorted_bam.bam
+```
+
+input with two bam files (for comparing mappers)
+```
+java  -jar dist/bammatrix.jar -r "chr1:234-567" -o out.png sample.markdup.01.bam sample.markdup.02.bam
 ```
 
 https://twitter.com/yokofakun/status/1142088565326843904
@@ -124,7 +122,7 @@ END_DOC
 description="Bam matrix, inspired from 10x/loupe ",
 keywords={"sam","bam","compare","matrix"},
 creationDate="20190620",
-modificationDate="20211126"
+modificationDate="20211206"
 )
 public class BamMatrix  extends Launcher
 	{
@@ -153,8 +151,6 @@ public class BamMatrix  extends Launcher
 	private Path gtfPath = null;
 	@Parameter(names={"--higligth","-B"},description="Optional Bed file to hightlight regions of interest")
 	private String highlightPath = null;
-	@Parameter(names={"--counter-type"},description="How to count reads. In memory, use disk random access for each point instead of storing data in memory, on disk+sort each row/column on disk. disk: do random access for each point (worst choice). Other than in memory: makes all things slowwwwww.")
-	private CounterType counterType = CounterType.memory;
 	@Parameter(names={"-d","--distance"},description="Don't evaluate a point if the distance between the regions is lower than 'd'. Negative: don't consider distance.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_distance = -1;
 	@Parameter(names={"-C","--min-common"},description="Don't print a point if there are less than 'c' common names at the intersection")
@@ -167,20 +163,15 @@ public class BamMatrix  extends Launcher
 	
 	
 	/* actual SamReader */
-	private SamReader samReader = null;
+	private SamReader samReaderX = null;
+	private SamReader samReaderY = null;
 	/* actual sam dict */
 	private SAMSequenceDictionary dict;
 	/* user interval X axis */
 	private SimpleInterval userIntervalX = null;
 	/* user interval Y axis */
 	private SimpleInterval userIntervalY = null;
-	
-	private enum CounterType {
-		memory,
-		disk,
-		stored
-	}
-	
+		
 	private enum NameExtractor {
 		READ_NAME,BX,MI;
 		String getName(final SAMRecord rec) {
@@ -203,40 +194,63 @@ public class BamMatrix  extends Launcher
 		{
 		protected ReadCounter() throws IOException {}
 		/** return the names of the Read names in the interval */
-		protected abstract Set<String> getNamesMatching(final Locatable r) throws IOException;
+		protected abstract Set<String> getNamesMatching(int side,final Locatable r) throws IOException;
 		void dispose() throws IOException {}
 		}
 	
 	/** in memory implementation of ReadCounter: the fastest */
 	private class MemoryReadCounter extends ReadCounter
 		{
-		private final IntervalTreeMap<List<Interval>> treeMap  = new IntervalTreeMap<>();
+		private final IntervalTreeMap<List<Interval>> treeMapX  = new IntervalTreeMap<>();
+		private final IntervalTreeMap<List<Interval>> treeMapY;
 		MemoryReadCounter()  throws IOException{
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samReader.getFileHeader());
-			final QueryInterval qIntervalX = new QueryInterval(dict.getSequenceIndex(userIntervalX.getContig()), userIntervalX.getStart(), userIntervalX.getEnd());
-			final QueryInterval qIntervalY = new QueryInterval(dict.getSequenceIndex(userIntervalY.getContig()), userIntervalY.getStart(), userIntervalY.getEnd());
-			
-			final QueryInterval[] qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalX,qIntervalY});
-			try(final SAMRecordIterator iter= BamMatrix.this.samReader.query(qArray, false))
-				{
-				while(iter.hasNext()) {
-					final SAMRecord rec = iter.next();
-					for(final Interval r: BamMatrix.this.samRecordToIntervals(rec)) {
-						List<Interval> list = this.treeMap.get(r);
-						if(list==null) {
-							list=new ArrayList<>();
-							this.treeMap.put(r,list);
-							}
-						list.add(r);
-						}	
+			this.treeMapY = (samReaderY==samReaderX?treeMapX:new IntervalTreeMap<>());
+			for(int side=0;side<2;++side) {
+				@SuppressWarnings("resource")
+				final SamReader sr  =(side==0?samReaderX:samReaderY);
+				final IntervalTreeMap<List<Interval>> treeMap  =(side==0?treeMapX:treeMapY);
+				final QueryInterval[] qArray;
+				
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(sr.getFileHeader());
+				if(samReaderY==samReaderX && side==0) {
+					final QueryInterval qIntervalX = new QueryInterval(dict.getSequenceIndex(userIntervalX.getContig()), userIntervalX.getStart(), userIntervalX.getEnd());
+					final QueryInterval qIntervalY = new QueryInterval(dict.getSequenceIndex(userIntervalY.getContig()), userIntervalY.getStart(), userIntervalY.getEnd());
+					qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalX,qIntervalY});
+					}
+				else if(side==0) {
+					final QueryInterval qIntervalX = new QueryInterval(dict.getSequenceIndex(userIntervalX.getContig()), userIntervalX.getStart(), userIntervalX.getEnd());
+					qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalX});
+					}
+				else if(side==1) {
+					final QueryInterval qIntervalY = new QueryInterval(dict.getSequenceIndex(userIntervalY.getContig()), userIntervalY.getStart(), userIntervalY.getEnd());
+					qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalY});
+					}
+				else{
+					break;
+					}
+				try(final SAMRecordIterator iter= sr.query(qArray, false))
+					{
+					while(iter.hasNext()) {
+						final SAMRecord rec = iter.next();
+						for(final Interval r: BamMatrix.this.samRecordToIntervals(rec)) {
+							List<Interval> list = treeMap.get(r);
+							if(list==null) {
+								list=new ArrayList<>();
+								treeMap.put(r,list);
+								}
+							list.add(r);
+							}	
+						}
 					}
 				}
 			}
 
 		@Override
-		protected Set<String> getNamesMatching(final Locatable r) throws IOException
+		protected Set<String> getNamesMatching(final int side,final Locatable r) throws IOException
 			{
-			return this.treeMap.getOverlapping(r).
+			if (!(side==0 || side==1)) throw new IllegalArgumentException("not 0/1");
+			final IntervalTreeMap<List<Interval>> treeMap  =(side==0?treeMapX:treeMapY);
+			return treeMap.getOverlapping(r).
 					stream().
 					flatMap(L->L.stream()).
 					map(R->R.getName()).
@@ -244,105 +258,6 @@ public class BamMatrix  extends Launcher
 			}
 
 		}
-	
-	/** Disk implementation of ReadCounter. very slow */
-	private class DiskBackedReadCounter extends ReadCounter {
-		DiskBackedReadCounter() throws IOException {
-			}
-		@Override
-		protected HashSet<String> getNamesMatching(final Locatable r) throws IOException {
-			final HashSet<String> set = new HashSet<>(10_000);
-			
-			try(final SAMRecordIterator iter=samReader.query(r.getContig(),r.getStart(),r.getEnd(),false))
-				{
-				while(iter.hasNext()) {
-					final SAMRecord rec = iter.next();
-					BamMatrix.this.samRecordToIntervals(rec).
-						stream().
-						map(R->R.getName()).
-						forEach(S->set.add(S));
-					}
-				}
-			return set;
-			}
-		}
-	
-	/** StoredCounter implementation of ReadCounter. very slow too */
-	private class StoredCounter extends ReadCounter {
-	private class Stored {
-		File file;
-		int count=0;
-		}
-	private final Map<Interval,Stored> hash = new HashMap<>(matrix_size*2);
-	StoredCounter(final double pixel2base) throws IOException {
-		for(int side=0;side < 2;side++) {
-			final SimpleInterval r=(side==0?userIntervalY:userIntervalX);
-			LOG.info("preparing interval "+r);
-			final ProgressFactory.Watcher<Interval> progress = ProgressFactory.newInstance().logger(LOG).dictionary(r).build();
-			for(int pix=0;pix< matrix_size;pix++)
-				{
-				final int start1 = (int)(r.getStart() + pix * pixel2base);
-				final int end1 = start1 + (int)pixel2base;
-				final Interval q = new Interval(r.getContig(), start1, end1);
-				progress.apply(q);
-				if(this.hash.containsKey(q)) continue;
-				final Stored stored = new Stored();
-				final Set<String> names = new HashSet<>(10_000);
-				try(final SAMRecordIterator iter=samReader.query(q.getContig(),q.getStart(),q.getEnd(),false))
-					{
-					while(iter.hasNext()) {
-						final SAMRecord rec = iter.next();
-						BamMatrix.this.samRecordToIntervals(rec).
-							stream().
-							map(R->R.getName()).
-							forEach(S->names.add(S));
-						}
-					}
-				stored.count = names.size();
-				if(stored.count>0) {
-					stored.file = File.createTempFile("matrix.", ".data"); 
-					stored.file.deleteOnExit();
-
-					try(DataOutputStream daos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(stored.file)))) {
-						for(final String sn:names ) {
-							daos.writeUTF(sn);
-							}
-						daos.flush();
-						}
-					}
-				this.hash.put(q, stored);
-				}
-			progress.close();
-			}
-		}
-	
-	@Override
-	protected Set<String> getNamesMatching(final Locatable r) throws IOException
-		{
-		if(!this.hash.containsKey(r)) throw new IOException("no interval "+r);
-		final Stored stored = this.hash.get(r);
-		if(stored.count==0) return Collections.emptySet();
-		final Set<String> set = new HashSet<>(stored.count);
-
-		final byte content[] = java.nio.file.Files.readAllBytes(stored.file.toPath());
-		
-
-		try(DataInputStream in = new DataInputStream(new BufferedInputStream(new java.io.ByteArrayInputStream(content)))) {
-			for(int i=0;i< stored.count;++i) {
-				set.add(in.readUTF());
-				}
-			}
-		return set;
-		}
-	@Override
-	void dispose() throws IOException
-		{
-		for(final Stored st: this.hash.values()) {
-			if(st.file!=null) st.file.delete();
-			}
-		}
-	} // end of ReadCounter
-	
 	
 	
 	
@@ -417,13 +332,41 @@ public class BamMatrix  extends Launcher
 					;
 			if(this.faidx!=null) srf.referenceSequence(this.faidx);
 						
-			final String input = oneAndOnlyOneFile(args);
-			this.samReader = srf.open(SamInputResource.of(input));
-			if(!this.samReader.hasIndex()) {
-				LOG.error("Input "+input+" is not indexed");
+			final String inputX;
+			final String inputY;
+			if(args.size()==1) {
+				inputX = args.get(0);
+				inputY = null;
+				}
+			else if(args.size()==2) {
+				inputX = args.get(0);
+				inputY = args.get(1);
+				}
+			else {
+				LOG.error("illegal number of arguments.");
 				return -1;
 				}
-			this.dict = SequenceDictionaryUtils.extractRequired(this.samReader.getFileHeader());
+			this.samReaderX = srf.open(SamInputResource.of(inputX));
+			if(!this.samReaderX.hasIndex()) {
+				LOG.error("Input "+inputX+" is not indexed");
+				return -1;
+				}
+			this.dict = SequenceDictionaryUtils.extractRequired(this.samReaderX.getFileHeader());
+			
+			if(inputY==null) {
+				this.samReaderY = srf.open(SamInputResource.of(inputY));
+				if(!this.samReaderY.hasIndex()) {
+					LOG.error("Input "+inputY+" is not indexed");
+					return -1;
+					}
+				SequenceUtil.assertSequenceDictionariesEqual(
+					SequenceDictionaryUtils.extractRequired(this.samReaderY.getFileHeader()),
+					this.dict);
+				}
+			else
+				{
+				this.samReaderY = this.samReaderX;
+				}
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
 			
 			final Function<String,Optional<SimpleInterval>> intervalParser = 
@@ -432,7 +375,6 @@ public class BamMatrix  extends Launcher
 					enableWholeContig().
 					make();
 			this.userIntervalX = intervalParser.apply(this.region1Str).orElseThrow(IntervalParserFactory.exception(this.region1Str));
-			
 			this.userIntervalY = intervalParser.apply(this.region2Str).orElseThrow(IntervalParserFactory.exception(this.region2Str));
 			
 			
@@ -472,13 +414,7 @@ public class BamMatrix  extends Launcher
 			final short counts[]=new short[this.matrix_size*this.matrix_size];
 
 			
-			final ReadCounter counter ;
-			switch(this.counterType) {
-				case memory: counter = new MemoryReadCounter();break;
-				case disk: counter = new DiskBackedReadCounter();break;
-				case stored: counter = new StoredCounter(pixel2base);break;
-				default: throw new IllegalStateException(""+this.counterType);
-				}
+			final ReadCounter counter  = new MemoryReadCounter();
 			
 			/* loop over each pixel 1st axis */
 			for(int pixY=0;pixY< this.matrix_size;pixY++)
@@ -487,7 +423,7 @@ public class BamMatrix  extends Launcher
 				final int end1 = start1 + (int)pixel2base;
 				final Interval qy = new Interval(this.userIntervalY.getContig(), start1, end1);
 				if(!qy.overlaps(this.userIntervalY)) continue;
-				final Set<String> set1 = counter.getNamesMatching(qy);
+				final Set<String> set1 = counter.getNamesMatching(1,qy);
 				if(set1.isEmpty()) continue;
 				
 				/* loop over each pixel 2nd axis */
@@ -507,7 +443,7 @@ public class BamMatrix  extends Launcher
 					else
 						{
 						final HashSet<String> common = new HashSet<>(set1);
-						common.retainAll(counter.getNamesMatching(qx));
+						common.retainAll(counter.getNamesMatching(0,qx));
 						count_common = common.size();
 						}
 					final short count =  count_common>Short.MAX_VALUE?Short.MAX_VALUE:(short)count_common;
@@ -540,7 +476,10 @@ public class BamMatrix  extends Launcher
 			// draw sample
 			final Hershey herschey = new Hershey();
 
-			final String sample = samReader.getFileHeader().getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(input);
+			final String sampleX = samReaderX.getFileHeader().getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(inputX);
+			final String sampleY = (samReaderX==samReaderY?sampleX:samReaderX.getFileHeader().getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(inputY));
+			final String sample = (sampleX.equals(sampleY)?sampleX:String.join(" ", sampleX,sampleY));
+			
 			g.setColor(Color.DARK_GRAY);
 			herschey.paint(g, sample, new Rectangle2D.Double(0,1,margins.left-1,font_size));
 			
@@ -664,7 +603,7 @@ public class BamMatrix  extends Launcher
 					
 					final IntervalList intervalList = new IntervalList(this.dict);
 					intervalList.add(new Interval(r));
-					try(final SamLocusIterator sli = new SamLocusIterator(this.samReader,intervalList,true)) {
+					try(final SamLocusIterator sli = new SamLocusIterator(this.samReaderX,intervalList,true)) {
 					while(sli.hasNext()) {
 						final LocusInfo locusInfo = sli.next();
 						final int pos = locusInfo.getPosition();
@@ -786,7 +725,8 @@ public class BamMatrix  extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(this.samReader);
+			CloserUtil.close(this.samReaderX);
+			CloserUtil.close(this.samReaderY);
 			}
 		}
 	public static void main(final String[] args) {
