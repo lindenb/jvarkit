@@ -2625,6 +2625,11 @@ all2.add( task("vcfroh", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.roh.VcfROH"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("bam2mnv", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.phased.BamToMNV"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
