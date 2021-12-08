@@ -106,6 +106,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/9481318](https://www.biostars.org/p/9481318)
  * [https://www.biostars.org/p/9489144](https://www.biostars.org/p/9489144)
  * [https://www.biostars.org/p/9498113](https://www.biostars.org/p/9498113)
+ * [https://www.biostars.org/p/9500825](https://www.biostars.org/p/9500825)
 
 
 ## Compilation
