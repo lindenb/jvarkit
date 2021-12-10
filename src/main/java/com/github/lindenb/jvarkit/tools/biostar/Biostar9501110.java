@@ -26,12 +26,16 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.FindVariantInSamRecord;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -53,7 +57,7 @@ import htsjdk.variant.vcf.VCFReader;
 
 BEGIN_DOC
 
-##Example
+## Example
 
 ```bash
 java -jar dist/biostar9501110.jar -V src/test/resources/rotavirus_rf.freebayes.vcf.gz src/test/resources/S*.bam
@@ -76,13 +80,20 @@ RF01_329_808_2:0:0_0:0:0_b0	99	RF01	329	60	70M	=	739	480	TGAATGAGTTGGATTATGAAAAA
 RF01_350_917_6:0:0_1:0:0_a9	99	RF01	350	60	70M	=	848	568	AAAACAAGAAAACATGTGAACTTTTCCGAACAGCAGAGGAATATACTGAATCATTTATGGATCCAGCAAT	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S2	NM:i:6	AS:i:43	XS:i:0
 ```
 
+
+## See also
+
+ * BamPhased01
+
+
+
 END_DOC
 
 */
 
 @Program(name="biostar9501110",
 description="Keep reads including/excluding variants from VCF",
-keywords= {"sam","bam","rnaseq","bed"},
+keywords= {"sam","bam","vcf"},
 creationDate="20211210",
 modificationDate="20211210",
 biostars=9501110
@@ -98,6 +109,10 @@ public class Biostar9501110 extends OnePassBamLauncher
 	private int buffSizeInBp = 1_000;
 	@Parameter(names={"--inverse"},description="inverse selection. Keep reads that does NOT contain any variant")
 	private boolean inverse_selection = false;
+	@Parameter(names={"-m","--min-variants"},description="Find a least 'x' variants in each read")
+	private int min_num_variants = 1;
+	@Parameter(names={"--tag"},description="add attribute with this tag containing the informations about the variants. Empty:ignore")
+	private String attribute = "XV";
 
 
 	private	VCFReader vcfReader = null;
@@ -122,6 +137,16 @@ public class Biostar9501110 extends OnePassBamLauncher
 	@Override
 	protected int beforeSam()
 		{
+		if(this.min_num_variants<1) {
+			LOG.error("--min-variants < 1");
+			return -1;
+			}
+		if(!StringUtils.isBlank(this.attribute)) {
+			if(this.attribute.length()!=2 || !this.attribute.startsWith("X")) {
+				LOG.error("attribute should have length==2 and start with X but got "+this.attribute+".");
+				return -1;
+			}
+		}
 		this.vcfReader = VCFReaderFactory.makeDefault().open(this.vcfFile, true);
 		this.bufferedVCFReader = new BufferedVCFReader(this.vcfReader, this.buffSizeInBp);
 		this.bufferedVCFReader.setSimplifier(V->simplify(V));
@@ -141,17 +166,30 @@ public class Biostar9501110 extends OnePassBamLauncher
 				new SimpleInterval(record.getContig(),record.getUnclippedStart(),record.getUnclippedEnd()):
 				record
 				;
-		boolean keep=false;
+		final Set<String> atts = new HashSet<>();
+		int count_variant = 0;
 		try(CloseableIterator<VariantContext> iter = this.bufferedVCFReader.query(recloc)) {
-			while(iter.hasNext()) {
+			while(iter.hasNext() && count_variant<this.min_num_variants) {
 				final VariantContext ctx = iter.next();
 				final FindVariantInSamRecord.Match match  = this.findVariantInSamRecord.apply(record, ctx);
 				if(match.getAllele().isPresent() && !match.getAllele().get().isReference()) {
-					keep = true;
-					break;
+					count_variant++;
+					if(!StringUtils.isBlank(this.attribute)) {
+						char delim = '|';
+						final StringBuilder sb=new StringBuilder();
+						sb.append(ctx.getStart()).append(delim);
+						if(ctx.hasID()) sb.append(ctx.getID()).append(delim);
+						sb.append(ctx.getReference().getDisplayString()).append(delim);
+						sb.append(match.getAllele().get().getDisplayString());
+						atts.add(sb.toString());
+						}
 					}
 				}
 			}
+		if(!atts.isEmpty()) {
+			record.setAttribute(this.attribute, String.join(",", atts));
+			}
+		boolean keep = count_variant>=min_num_variants;
 		if(this.inverse_selection) keep = !keep;
 		return keep;
 		}
@@ -160,8 +198,7 @@ public class Biostar9501110 extends OnePassBamLauncher
 	protected Function<SAMRecord, List<SAMRecord>> createSAMRecordFunction()
 		{
 		return (record)->{
-			boolean keep = findVariants(record);
-			return keep?Collections.singletonList(record):Collections.emptyList();
+			return findVariants(record) ?Collections.singletonList(record):Collections.emptyList();
 			};
 		}
 		
