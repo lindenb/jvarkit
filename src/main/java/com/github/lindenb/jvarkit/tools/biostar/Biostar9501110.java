@@ -1,0 +1,186 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2021 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+package com.github.lindenb.jvarkit.tools.biostar;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Function;
+
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
+import com.github.lindenb.jvarkit.samtools.FindVariantInSamRecord;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.vcf.VCFReader;
+
+/** 
+
+BEGIN_DOC
+
+##Example
+
+```bash
+@HD	VN:1.6	GO:none	SO:coordinate
+@SQ	SN:RF01	LN:3302
+@SQ	SN:RF02	LN:2687
+@SQ	SN:RF03	LN:2592
+@SQ	SN:RF04	LN:2362
+@SQ	SN:RF05	LN:1579
+@SQ	SN:RF06	LN:1356
+@SQ	SN:RF07	LN:1074
+@SQ	SN:RF08	LN:1059
+@SQ	SN:RF09	LN:1062
+@SQ	SN:RF10	LN:751
+@SQ	SN:RF11	LN:666
+@RG	ID:S1	SM:S1	LB:L1	CN:Nantes
+@RG	ID:S2	SM:S2	LB:L2	CN:Nantes
+@RG	ID:S3	SM:S3	LB:L3	CN:Nantes
+@RG	ID:S4	SM:S4	LB:L4	CN:Nantes
+@RG	ID:S5	SM:S5	LB:L5	CN:Versailles
+@RG	ID:S5b	SM:S5	LB:L5b	CN:Nantes
+@CO	biostar9501110. compilation:20211210154516 githash:efc3d5165 htsjdk:2.24.1 date:20211210155226. cmd:-V src/test/resources/rotavirus_rf.freebayes.vcf.gz src/test/resources/S1.bam src/test/resources/S2.bam src/test/resources/S3.bam src/test/resources/S4.bam src/test/resources/S5.bam
+RF01_188_587_2:0:0_2:0:0_af	99	RF01	188	60	70M	=	518	400	AGCTCTTAGTTGAATATAGCGATGTTATGGAGAATGCCACACTGTTGTCAATATTCTCGTACTCTTATGA	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S4	NM:i:2	AS:i:60	XS:i:0
+RF01_198_667_4:0:0_1:0:0_49	99	RF01	198	60	70M	=	598	470	AGAATATAGCGATGTTATGGAGAATGCCACACTGTTGTCAATATTCTCGAACTCTTATGATAAATATAAG	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S2	NM:i:4	AS:i:58	XS:i:0
+RF01_198_667_4:0:0_1:0:0_49	99	RF01	198	60	70M	=	598	470	AGAATATAGCGATGTTATGGAGAATGCCACACTGTTGTCAATATTCTCGAACTCTTATGATAAATATAAG	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S3	NM:i:4	AS:i:58	XS:i:0
+RF01_201_685_1:0:0_0:0:0_a8	99	RF01	201	60	70M	=	616	485	ATATAGCGATGTTATGGAGAATGCCACACTGTTGTCAATATTCTCGTACTCTTATGATAAATATAACGCT	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S4	NM:i:1	AS:i:65	XS:i:0
+RF01_244_811_1:0:0_2:0:0_4c	163	RF01	244	60	70M	=	742	568	TCGTACTCTTATGATAAATATAACGCTGTTGAAAGGCAATTAGTAAAATATGCAAAAGGTAAGCCGCTAG	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S5b	NM:i:1	AS:i:65	XS:i:0
+RF01_257_807_2:0:0_0:0:0_2b	99	RF01	257	60	70M	=	738	551	ATAAATATAACGCTGTTGAAAGGCAATTAGTAAAATATGCAAAAGGTAAGCCGGTAGAAGCAGATTTGAC	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S5	NM:i:2	AS:i:60	XS:i:0
+RF01_314_833_2:0:0_0:0:0_84	99	RF01	314	60	70M	=	764	520	AAGCAGATTTGAGAGTGAATGAGTTGGATTATGAAAATAACAAGATAACATCTGAACATTTCCCAACAGC	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S2	NM:i:2	AS:i:60	XS:i:0
+RF01_314_833_2:0:0_0:0:0_84	99	RF01	314	60	70M	=	764	520	AAGCAGATTTGAGAGTGAATGAGTTGGATTATGAAAATAACAAGATAACATCTGAACATTTCCCAACAGC	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S3	NM:i:2	AS:i:60	XS:i:0
+RF01_329_808_2:0:0_0:0:0_b0	99	RF01	329	60	70M	=	739	480	TGAATGAGTTGGATTATGAAAAAAACAAGATAACATCTGAACTTTTCCCAACAGCAGAGGAATAAACTGA	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S3	NM:i:2	AS:i:60	XS:i:0
+RF01_329_808_2:0:0_0:0:0_b0	99	RF01	329	60	70M	=	739	480	TGAATGAGTTGGATTATGAAAAAAACAAGATAACATCTGAACTTTTCCCAACAGCAGAGGAATAAACTGA	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S2	NM:i:2	AS:i:60	XS:i:0
+RF01_350_917_6:0:0_1:0:0_a9	99	RF01	350	60	70M	=	848	568	AAAACAAGAAAACATGTGAACTTTTCCGAACAGCAGAGGAATATACTGAATCATTTATGGATCCAGCAAT	2222222222222222222222222222222222222222222222222222222222222222222222	RG:Z:S2	NM:i:6	AS:i:43	XS:i:0
+```
+
+END_DOC
+
+*/
+
+@Program(name="biostar9501110",
+description="Keep reads including/excluding variants from VCF",
+keywords= {"sam","bam","rnaseq","bed"},
+creationDate="20211210",
+modificationDate="20211210",
+biostars=9501110
+)
+public class Biostar9501110 extends OnePassBamLauncher
+	{
+	private static final Logger LOG = Logger.build(Biostar9501110.class).make();
+	@Parameter(names={"-clip","--clip"},description="search variant in clipped section of reads")
+	protected boolean use_clip =false;
+	@Parameter(names={"-V","--variants","--vcf"},description="indexed vcf file",required=true)
+	protected Path vcfFile = null;
+	@Parameter(names={"--buffer-size"},description=BufferedVCFReader.OPT_BUFFER_DESC,splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
+	private int buffSizeInBp = 1_000;
+	@Parameter(names={"--inverse"},description="inverse selection. Keep reads that does NOT contain any variant")
+	private boolean inverse_selection = false;
+
+
+	private	VCFReader vcfReader = null;
+	private BufferedVCFReader bufferedVCFReader = null;
+	private final FindVariantInSamRecord findVariantInSamRecord = new FindVariantInSamRecord();
+	
+	private VariantContext simplify(final VariantContext vc) {
+		return new VariantContextBuilder(vc).
+				noID().
+				noGenotypes().
+				passFilters().
+				log10PError(VariantContext.NO_LOG10_PERROR).
+				attributes(Collections.emptyMap()).
+				make();
+		}
+
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int beforeSam()
+		{
+		this.vcfReader = VCFReaderFactory.makeDefault().open(this.vcfFile, true);
+		this.bufferedVCFReader = new BufferedVCFReader(this.vcfReader, this.buffSizeInBp);
+		this.bufferedVCFReader.setSimplifier(V->simplify(V));
+		this.findVariantInSamRecord.setUseClip(this.use_clip);
+		return super.beforeSam();
+		}
+	
+	@Override
+	protected void afterSam() {
+		CloserUtil.close(this.bufferedVCFReader);
+		CloserUtil.close(this.vcfReader);
+		super.afterSam();
+		}
+	
+	private boolean findVariants(final SAMRecord record) {
+		final Locatable recloc = this.use_clip?
+				new SimpleInterval(record.getContig(),record.getUnclippedStart(),record.getUnclippedEnd()):
+				record
+				;
+		boolean keep=false;
+		try(CloseableIterator<VariantContext> iter = this.bufferedVCFReader.query(recloc)) {
+			while(iter.hasNext()) {
+				final VariantContext ctx = iter.next();
+				final FindVariantInSamRecord.Match match  = this.findVariantInSamRecord.apply(record, ctx);
+				if(match.getAllele().isPresent() && !match.getAllele().get().isReference()) {
+					keep = true;
+					break;
+					}
+				}
+			}
+		if(this.inverse_selection) keep = !keep;
+		return keep;
+		}
+	
+	@Override
+	protected Function<SAMRecord, List<SAMRecord>> createSAMRecordFunction()
+		{
+		return (record)->{
+			boolean keep = findVariants(record);
+			return keep?Collections.singletonList(record):Collections.emptyList();
+			};
+		}
+		
+	public static void main(final String[] args) throws IOException
+		{
+		new Biostar9501110().instanceMainWithExit(args);
+		}
+		
+
+	}

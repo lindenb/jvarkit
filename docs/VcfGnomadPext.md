@@ -10,11 +10,17 @@ Peek annotations from gnomadpext
 ```
 Usage: vcfgnomadpext [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --bufferSize
       When we're looking for variant in Gnomad, load the variants for 'N' 
       bases instead of doing a random access for each variant. A distance 
-      specified as a positive integer.Comma are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      specified as a positive integer.Commas are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10000
   * -d, --database, --pext
       Pext file. tab delimited :(chrom\tpos\tref\talt\ttx_annotation). Bgziped 
@@ -22,11 +28,14 @@ Usage: vcfgnomadpext [options] Files
     -filtered, --filtered
       Skip Filtered User Variants
       Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -T, --tissues
       Restrict to those tissues.

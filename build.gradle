@@ -1112,6 +1112,10 @@ all2.add( task("biostar9469733", type: CompileJVarkit) {
 	mainClass = biostar2java(9469733)
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("biostar9501110", type: CompileJVarkit) {
+	mainClass = biostar2java(9501110)
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all2.add( task("buildwpontology", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.BuildWikipediaOntology"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

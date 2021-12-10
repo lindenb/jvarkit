@@ -122,7 +122,8 @@ END_DOC
 @Program(name="pubmedorcidgraph",
 	description="Creates a graph from Pubmed and Authors' Orcid identifiers",
 	keywords={"pubmed","ncbi","orcid"},
-	modificationDate="20190611"
+	creationDate="20160520",
+	modificationDate="20210712"
 	)
 public class PubmedOrcidGraph
 	extends Launcher
@@ -130,7 +131,7 @@ public class PubmedOrcidGraph
 	private static final Logger LOG = Logger.build(PubmedOrcidGraph.class).make();
 	private static final String NAME_NOT_FOUND="<NOT FOUND IN PUBMED>";
 	
-	@Parameter(names={"-o","--output"},description="GexF ouuput." + OPT_OUPUT_FILE_OR_STDOUT)
+	@Parameter(names={"-o","--output"},description="Gexf+xml output." + OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-D","--berkeydb"},description="BerkeleyDB tmpDir",required=true)
 	private File bdbDir = null;

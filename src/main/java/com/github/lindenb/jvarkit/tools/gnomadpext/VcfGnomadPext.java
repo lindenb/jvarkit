@@ -25,39 +25,38 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.gnomadpext;
 
-import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.dict.OrderChecker;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -102,16 +101,12 @@ END_DOC
 	description="Peek annotations from gnomadpext",
 	keywords={"vcf","annotation","gnomad"},
 	creationDate="20190220",
-	modificationDate="20190220"
+	modificationDate="20211207"
 	)
-public class VcfGnomadPext extends Launcher{
+public class VcfGnomadPext extends OnePassVcfLauncher {
 	
 	private static final Logger LOG = Logger.build(VcfGnomadPext.class).make();
 	
-
-	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
 	@Parameter(names={"-d","--database","--pext"},description="Pext file. tab delimited :(chrom\\tpos\\tref\\talt\\ttx_annotation). Bgziped and indexed with tabix.",required=true)
 	private String pextDatabasePath=null;
 	@Parameter(names={"--bufferSize"},description="When we're looking for variant in Gnomad, load the variants for 'N' bases instead of doing a random access for each variant. "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
@@ -123,7 +118,7 @@ public class VcfGnomadPext extends Launcher{
 
 	
 	
-	private class PextEntry
+	private static class PextEntry
 		implements Locatable
 		{
 		final String contig;
@@ -164,7 +159,7 @@ public class VcfGnomadPext extends Launcher{
 	private Interval lastInterval = null;
 	
 	/** find matching variant in tabix file, use a buffer to avoid multiple random accesses */
-	final List<PextEntry> findOverlapping(final TabixFileReader tabix,final VariantContext ctx)
+	final List<PextEntry> findOverlapping(final TabixReader tabix,final VariantContext ctx) throws IOException
 		{
 		
 		final String normContig = this.ensemblCtgConvert.apply(ctx.getContig());
@@ -187,17 +182,18 @@ public class VcfGnomadPext extends Launcher{
 					Math.max(0, ctx.getStart()-10),
 					ctx.getEnd()+ VcfGnomadPext.this.gnomadBufferSize
 				);
-			final Iterator<String> iter= tabix.iterator(
+			final TabixReader.Iterator iter= tabix.query(
 					this.lastInterval.getContig(),
 					this.lastInterval.getStart(),
 					this.lastInterval.getEnd()
 					);
-			while(iter.hasNext())
+			for(;;)
 				{
-				final String tokens[]=tab.split(iter.next());
+				final String line = iter.next();
+				if(line==null) break;
+				final String tokens[]=tab.split(line);
 				this.buffer.add(new PextEntry(tokens));
 				}
-			CloserUtil.close(iter);
 			}
 		
 		return this.buffer.stream().
@@ -223,15 +219,14 @@ public class VcfGnomadPext extends Launcher{
 
 		final String standard_pext_header[]=new String[] {"chrom","pos","ref","alt","tx_annotation"};
 		final VCFHeader h0 = iter.getHeader();
-		if(!SequenceDictionaryUtils.isGRCh37(h0)) {
+		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(h0);
+		if(!SequenceDictionaryUtils.isGRCh37(dict)) {
 			LOG.error("Input is NOT GRCh37 ");
 			return -1;
 			}
-		
-		TabixFileReader gextFileReader = null;
+		final OrderChecker<VariantContext> orderChecked = new OrderChecker<>(dict, false);
 		final CharSplitter tab =  CharSplitter.TAB;
-		try {
-			gextFileReader  = new TabixFileReader(this.pextDatabasePath);
+		try (TabixReader gextFileReader = new TabixReader(this.pextDatabasePath)){
 			final String line1= gextFileReader.readLine();
 			if(StringUtils.isBlank(line1)) {
 				LOG.error("Cannot read first line of "+this.pextDatabasePath);
@@ -245,14 +240,13 @@ public class VcfGnomadPext extends Launcher{
 				return -1;
 				}
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(h0).logger(LOG).build();
 		
 			final VCFHeader h2 = new VCFHeader(h0);
 			final VCFInfoHeaderLine pexInfo = new VCFInfoHeaderLine(
 					"GNOMAD_PEXT",
 					VCFHeaderLineCount.A,
 					VCFHeaderLineType.String,
-					"Gnomad Data from "+this.pextDatabasePath
+					"Gnomad pext Data from "+this.pextDatabasePath
 					);
 			h2.addMetaDataLine(pexInfo);
 			
@@ -260,7 +254,7 @@ public class VcfGnomadPext extends Launcher{
 			out.writeHeader(h2);
 		
 			while(iter.hasNext()) {
-				final VariantContext ctx = progress.apply(iter.next());
+				final VariantContext ctx = orderChecked.apply(iter.next());
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
 				vcb.rmAttribute(pexInfo.getID());
@@ -297,8 +291,10 @@ public class VcfGnomadPext extends Launcher{
 						for(int x=0;x<array.size();++x)
 							{
 							if(x>0) sb.append("&");
+							if(!array.get(x).isJsonObject()) throw new IllegalStateException("not an array: "+entry.jsonStr);
 							final StringBuilder sb2=new StringBuilder();
 							final JsonObject obj = array.get(x).getAsJsonObject();
+
 							for(final Map.Entry<String,JsonElement> kv:obj.entrySet())
 								{
 								String key=kv.getKey();
@@ -331,36 +327,36 @@ public class VcfGnomadPext extends Launcher{
 				//at least none is not '.'
 				if(altInfo.stream().anyMatch(S->!S.equals("."))) {
 					vcb.attribute(pexInfo.getID(), altInfo);
-				}
-			
+					}
 				out.add(vcb.make());
 				}
 			out.close();
-			progress.close();
-			gextFileReader.close();gextFileReader=null;
 			return 0;
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(gextFileReader);
 			}
 		}
 	
-	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf() {
 		if(this.gnomadBufferSize < 10) {
 			LOG.error("buffer size is too small "+this.gnomadBufferSize);
 			return -1;
 			}
-		return doVcfToVcf(args,this.outputFile);
+		return super.beforeVcf();
 		}
-
-public static void main(final String[] args) {
-	new VcfGnomadPext().instanceMainWithExit(args);
+	
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	public static void main(final String[] args) {
+		new VcfGnomadPext().instanceMainWithExit(args);
+		}
 	}
-}
