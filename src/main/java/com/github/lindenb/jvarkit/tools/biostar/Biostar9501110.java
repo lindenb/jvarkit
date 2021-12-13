@@ -162,7 +162,11 @@ public class Biostar9501110 extends OnePassBamLauncher
 		}
 	
 	private boolean findVariants(final SAMRecord record) {
-		if (record.getReadUnmappedFlag()) return false;
+		if (record.getReadUnmappedFlag()) {
+			boolean keep =false;
+			if(this.inverse_selection) keep = !keep;
+			return keep;
+			}
 		final Locatable recloc = this.use_clip?
 				new SimpleInterval(record.getContig(),record.getUnclippedStart(),record.getUnclippedEnd()):
 				record
