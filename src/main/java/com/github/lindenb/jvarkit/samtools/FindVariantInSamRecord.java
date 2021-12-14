@@ -41,7 +41,10 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
-/** utility to find a variant in a sam record */
+/** utility to find a variant in a sam recor
+ * works best for indel if VCF was normalized
+ * 
+ * */
 public class FindVariantInSamRecord implements BiFunction<SAMRecord, VariantContext, FindVariantInSamRecord.Match> {
 	private boolean use_clip =false;
 	
@@ -128,7 +131,7 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 	final List<Allele> dels = alts.stream().
 			filter(A->A.length()< ref_allele_len).
 			collect(Collectors.toList());
-
+	
 	final List<Allele> ins = alts.stream().
 			filter(A->A.length()> ref_allele_len).
 			collect(Collectors.toList());
@@ -148,7 +151,7 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 	int read0= 0 ;
 	int ref1 = record.getUnclippedStart();
 	for(final CigarElement ce:cigar) {
-		if(ref1 > ctx.getStart()) break;
+		if(ref1 > ctx.getEnd()) break;
 		final CigarOperator op = ce.getOperator();
 		final int clen = ce.getLength();
 		
@@ -204,7 +207,7 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 				if(op.equals(CigarOperator.S) && !isUseClip()) {
 					read0 += clen;
 					ref1 += clen;
-					continue;
+					break;
 					}
 				for(int x=0;x + ref_allele_len <= clen;++x) {
 					if(ref1+x!=ctx.getStart()) continue;
