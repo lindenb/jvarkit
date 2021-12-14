@@ -94,6 +94,29 @@ private boolean isValidAllele(final Allele a) {
 	return AcidNucleics.isATGC(a);
 }
 
+private static class NormalizedDelVariant {
+	final Allele alt;
+	int refpos;
+	final int del_size;
+	NormalizedDelVariant(final VariantContext ctx,final Allele alt) {
+		this.alt = alt;
+		this.refpos = ctx.getStart();
+		final StringBuilder sbr = new StringBuilder(ctx.getReference().getDisplayString());
+		final StringBuilder sba = new StringBuilder(alt.getDisplayString());
+		// REF ATTT
+		// ALT AT
+		while(	sba.length()>0 && 
+				sbr.length()> sba.length() && 
+				sbr.charAt(0)==sba.charAt(0)) {
+				this.refpos++;
+				sbr.deleteCharAt(0);
+				sba.deleteCharAt(0);
+			}
+		this.del_size = sbr.length() - sba.length();
+	}
+}
+
+
 public Match find(final SAMRecord record,final VariantContext ctx) {
 	final MatchImpl match = new MatchImpl(record,ctx);
 	
@@ -128,8 +151,9 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 	
 	final int ref_allele_len = ctx.getReference().length();
 	
-	final List<Allele> dels = alts.stream().
+	final List<NormalizedDelVariant> dels = alts.stream().
 			filter(A->A.length()< ref_allele_len).
+			map(A->new NormalizedDelVariant(ctx,A)).
 			collect(Collectors.toList());
 	
 	final List<Allele> ins = alts.stream().
@@ -161,10 +185,9 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 			case D: case N: {
 				// REF AAAAAAAAAAAAAAA
 				// ALT AAAA<-- len -->
-				for(final Allele a: dels) {
-					final int del_length = ref_allele_len - a.length();
-					if(clen==del_length && ctx.getStart()+a.length()==ref1) {
-						match.allele = Optional.of(a);
+				for(final NormalizedDelVariant norm: dels) {
+					if(clen==norm.del_size && norm.refpos==ref1+1 && norm.del_size<0 /* TODO */) {
+						match.allele = Optional.of(norm.alt);
 						match.read_pos = read0 ;
 						return match;
 						}
