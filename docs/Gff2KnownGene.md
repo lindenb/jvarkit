@@ -17,24 +17,8 @@ Usage: gff2kg [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --maxRecordsInRam
-      When writing  files that need to be sorted, this will specify the number 
-      of records stored in RAM before spilling to disk. Increasing this number 
-      reduces the number of file  handles needed to sort a file, and increases 
-      the amount of RAM needed
-      Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
-    --tmpDir
-      tmp working directory. Default: java.io.tmpDir
-      Default: []
-    -trid, --trid
-      Transcript identifiers in the GTF/GFF (column N°3) used to identify a 
-      transcript.Multiple separated by a semicolon
-      Default: transcript;mRNA;snRNA;tRNA;snoRNA
-    -verbose, --verbose
-      Be verbose, log messages
-      Default: false
     --version
       print version and exit
 
@@ -73,13 +57,18 @@ $ ./gradlew gff2kg
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20160404
+
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGene.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGene.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gff2kg/Gff2KnownGene.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gff2kg/Gff2KnownGene.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGeneTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/Gff2KnownGeneTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gff2kg/Gff2KnownGeneTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gff2kg/Gff2KnownGeneTest.java)
 
 
 ## Contribute
