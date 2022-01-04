@@ -304,6 +304,7 @@ public  class CmdUsageBuilder
 			
 			
 			sb.append("\n## Usage\n\n```\n");
+			sb.append("Usage: java -jar dist/"+getProgram().name() +".jar  [options] Files\n");
 			jc.usage(sb);
 			sb.append("\n```\n\n");
 

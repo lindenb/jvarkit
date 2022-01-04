@@ -8,6 +8,7 @@ Whole genome coverage plotter
 ## Usage
 
 ```
+Usage: java -jar dist/wgscoverageplotter.jar ....
 Usage: wgscoverageplotter [options] Files
   Options:
     --clip, --cap
