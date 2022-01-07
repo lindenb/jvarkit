@@ -47,8 +47,7 @@ import htsjdk.variant.variantcontext.VariantContext;
  * */
 public class FindVariantInSamRecord implements BiFunction<SAMRecord, VariantContext, FindVariantInSamRecord.Match> {
 	private boolean use_clip =false;
-	
-	
+
 public static interface Match {
 	public SAMRecord getRecord();
 	public VariantContext getVariant();
@@ -101,25 +100,54 @@ private static class NormalizedDelVariant {
 	NormalizedDelVariant(final VariantContext ctx,final Allele alt) {
 		this.alt = alt;
 		this.refpos = ctx.getStart();
-		final StringBuilder sbr = new StringBuilder(ctx.getReference().getDisplayString());
-		final StringBuilder sba = new StringBuilder(alt.getDisplayString());
+		final byte[] sr = ctx.getReference().getBases();
+		final byte[] sa = alt.getBases();
+		int x = 0;
 		// REF ATTT
-		// ALT AT
-		while(	sba.length()>0 && 
-				sbr.length()> sba.length() && 
-				sbr.charAt(0)==sba.charAt(0)) {
-				this.refpos++;
-				sbr.deleteCharAt(0);
-				sba.deleteCharAt(0);
+		// ALT A
+		while(sr.length > sa.length &&
+			x < sa.length &&
+			sr[x]==sa[x]) {
+			this.refpos++;
+			x++;
 			}
-		this.del_size = sbr.length() - sba.length();
+		this.del_size = sr.length - x;
 	}
 }
 
 
+private static class NormalizedInsVariant {
+	final Allele alt;
+	int refpos;
+	final int dx;
+	final byte[] sa;
+	NormalizedInsVariant(final VariantContext ctx,final Allele alt) {
+		this.alt = alt;
+		this.refpos = ctx.getStart();
+		final byte[] sr = ctx.getReference().getBases();
+		this.sa = alt.getBases();
+		if(this.sa.length <= sr.length) throw new IllegalArgumentException();
+		int x = 0;
+		// REF A
+		// ALT ATTT
+		while(sr.length < this.sa.length &&
+			x < sr.length &&
+			sr[x]==this.sa[x]) {
+			this.refpos++;
+			x++;
+			}
+		this.dx=x;
+	}
+	int size() { return this.sa.length - this.dx;}
+	byte at(int idx) { return this.sa[idx+this.dx];}
+}
+
+
+
+
 public Match find(final SAMRecord record,final VariantContext ctx) {
 	final MatchImpl match = new MatchImpl(record,ctx);
-	
+
 	final Locatable recloc = isUseClip()?
 			new SimpleInterval(record.getContig(),record.getUnclippedStart(),record.getUnclippedEnd()):
 			record
@@ -156,8 +184,9 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 			map(A->new NormalizedDelVariant(ctx,A)).
 			collect(Collectors.toList());
 	
-	final List<Allele> ins = alts.stream().
+	final List<NormalizedInsVariant> ins = alts.stream().
 			filter(A->A.length()> ref_allele_len).
+			map(A->new NormalizedInsVariant(ctx,A)).
 			collect(Collectors.toList());
 
 	
@@ -186,7 +215,9 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 				// REF AAAAAAAAAAAAAAA
 				// ALT AAAA<-- len -->
 				for(final NormalizedDelVariant norm: dels) {
-					if(clen==norm.del_size && norm.refpos==ref1+1 && norm.del_size<0 /* TODO */) {
+					//System.err.println("ref1:"+ref1+"=="+norm.refpos+" ctx.start="+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference()+" norm.pos="+norm.refpos+" norm.size:"+norm.del_size+"=="+clen+" alt:"+norm.alt+" "+record.getStart()+":"+record.getCigarString());
+					if(clen==norm.del_size && norm.refpos==ref1) {
+						//System.err.println("OK");
 						match.allele = Optional.of(norm.alt);
 						match.read_pos = read0 ;
 						return match;
@@ -198,27 +229,23 @@ public Match find(final SAMRecord record,final VariantContext ctx) {
 			case I: {
 				// REF AAAA<-- len -->
 				// ALT AAAAAAAAAAAAAAA
-				for(final Allele a: ins) {
-					final int ins_length = a.length() - ref_allele_len ;
-					if(clen==ins_length && ctx.getStart()+ ref_allele_len==ref1) {
-						final byte[] allele_bases = a.getBases();
+				for(final NormalizedInsVariant norm: ins) {
+					//System.err.println("INS ref1:"+ref1+"=="+norm.refpos+" ctx.start="+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference()+" norm.pos="+norm.refpos+" norm.size:"+norm.size()+"=="+clen+" alt:"+norm.alt+" "+record.getStart()+":"+record.getCigarString());
+					if(clen==norm.size() && norm.refpos==ref1) {
 						int j=0;
-						for(j=0;j< ins_length;++j) {
-							int b1x= read0+ref_allele_len+j;
-							int b2x= ref_allele_len+j;
-							if(b1x>=bases.length) break;
-							if(b2x>=allele_bases.length) break;
+						for(j=0;j< clen;++j) {
+							int b1x= read0 +j;
+							if(b1x>= bases.length) break;
 							// read base
 							final byte b1 = bases[b1x];
 							// allele base
-							final byte b2 = allele_bases[b2x];
+							final byte b2 = norm.at(j);
 							if (b1!=b2) {
 								break;
 								}
 							}
-						if(j==ins_length) {
-							match.allele = Optional.of(a);
-							match.read_pos = read0 ;
+						if(j==clen) {
+							match.allele = Optional.of(norm.alt);
 							return match;
 							}
 						}
