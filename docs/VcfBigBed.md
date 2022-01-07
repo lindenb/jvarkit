@@ -8,6 +8,7 @@ Annotate a VCF with values from a bigbed file
 ## Usage
 
 ```
+Usage: java -jar dist/vcfbigbed.jar  [options] Files
 Usage: vcfbigbed [options] Files
   Options:
     --bcf-output

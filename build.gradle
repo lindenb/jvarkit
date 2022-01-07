@@ -1843,7 +1843,7 @@ all.add( task("vcfbigwig", type: CompileJVarkit) {
 	});
 all2.add( task("vcfbigbed", type: CompileJVarkit) {
 	mainClass =  "com.github.lindenb.jvarkit.tools.vcfbigwig.VcfBigBed"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","httpclient")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
 all2.add( task("vcfensemblreg", type: CompileJVarkit) {

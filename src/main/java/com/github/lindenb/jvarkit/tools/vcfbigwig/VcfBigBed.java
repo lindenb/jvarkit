@@ -39,9 +39,6 @@ import java.util.Set;
 import java.util.function.Function;
 
 import org.apache.commons.jexl2.JexlContext;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BedFeature;
 
@@ -115,7 +112,7 @@ public class VcfBigBed extends OnePassVcfLauncher {
 		private Locatable lastInterval = null;
 		private final List<BigBedFeatureAsList> buffer = new ArrayList<>();
 
-		BigBedResource(final String biwWigFile,final CloseableHttpClient httpClient) throws IOException {
+		BigBedResource(final String biwWigFile) throws IOException {
 			this.biwWigFile = biwWigFile;
 			
 			String tag;
@@ -237,7 +234,6 @@ public class VcfBigBed extends OnePassVcfLauncher {
 
 	private BigBedResource bigBedResource = null;
 	private Function<JexlContext, String> bedJexlToString = null;
-	private CloseableHttpClient httpClient = null;
 	@Override
 	protected Logger getLogger() {
 		return LOG;
@@ -255,13 +251,9 @@ public class VcfBigBed extends OnePassVcfLauncher {
 					LOG.info("Undefined BgBed file ");
 					return -1;
 					}
-				if(IOUtil.isUrl(this.userBigBedFileUri)) {
-					final HttpClientBuilder hb = HttpClients.custom();
-					this.httpClient = hb.build();
-					}
 				try
 					{
-					this.bigBedResource = new BigBedResource(this.userBigBedFileUri,this.httpClient);
+					this.bigBedResource = new BigBedResource(this.userBigBedFileUri);
 					}
 				catch(final IOException err) {
 					LOG.error(err);
@@ -361,7 +353,6 @@ public class VcfBigBed extends OnePassVcfLauncher {
 	@Override
 	protected void afterVcf() {
 		CloserUtil.close(this.bigBedResource);
-		CloserUtil.close(this.httpClient);
 		}
 	
 	public static void main(final String[] args) throws IOException
