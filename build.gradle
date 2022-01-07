@@ -2254,7 +2254,7 @@ all.add( task("vcfburdenexac", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	});
 all.add( task("gff2kg", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.Gff2KnownGene"
+	mainClass = "com.github.lindenb.jvarkit.tools.gff2kg.Gff2KnownGene"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfinjectpedigree", type: CompileJVarkit) {
