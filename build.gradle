@@ -186,10 +186,7 @@ libraries.put("testng",new Library().
 	add(libraries.get("jcommander")).
 	add(new JarFile("org.testng:testng:jar:6.14.3").setTest())
 	);
-libraries.put("bigwig",new Library().
-	add(new JarFile("org.clojars.chapmanb:bigwig:jar:r39").setServer("http://clojars.org/repo")).
-	add("log4j:log4j:jar:1.2.15")
-	);
+
 libraries.put("jaxb",new Library().
 	add("javax.xml.bind:jaxb-api:jar:2.2.11").
 	add("com.sun.xml.bind:jaxb-core:jar:2.2.11").
@@ -849,7 +846,7 @@ all.add( task("vcffilterso", type: CompileJVarkit) {
 		});
 all2.add( task("biostar105754", type: CompileJVarkit) {
 		mainClass = biostar2java(105754)
-		jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
+		jarLibs = combineLibs("htsjdk","testng","jcommander")
 		});
 
 /** simple tasks, just jcommander+htsjdk */
@@ -1839,7 +1836,7 @@ all.add( task("xsltstream", type: CompileJVarkit) {
 /* other */
 all.add( task("vcfbigwig", type: CompileJVarkit) {
 	mainClass =  "com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("vcfbigbed", type: CompileJVarkit) {
 	mainClass =  "com.github.lindenb.jvarkit.tools.vcfbigwig.VcfBigBed"
@@ -1848,7 +1845,7 @@ all2.add( task("vcfbigbed", type: CompileJVarkit) {
 
 all2.add( task("vcfensemblreg", type: CompileJVarkit) {
 	mainClass =  "com.github.lindenb.jvarkit.tools.ensemblreg.VcfEnsemblReg"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg = "Structure of ensembl reg has changed"
 	});
 
@@ -1880,7 +1877,7 @@ all2.add( task("mapuniprot", type: CompileJVarkit) {
 	});
 all.add( task("naivecnvdetector", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.NaiveCnvDetector"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb","math","bigwig")
+	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb","math")
 	});
 all.add( task("vcfucsc", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcsc"
@@ -1888,7 +1885,7 @@ all.add( task("vcfucsc", type: CompileJVarkit) {
 	});
 all2.add( task("vcfucscgdb", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfucsc.VcfUcscGdb"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","bigwig","httpclient")
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("bamstatsjfx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bamstats01.BamStatsJfx"

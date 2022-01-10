@@ -101,7 +101,7 @@ END_DOC
 	description="Annotate a VCF with values from a bigwig file",
 	keywords={"vcf","wig","wiggle","bigwig"},
 	creationDate="20200506",
-	modificationDate="20210201"
+	modificationDate="20220110"
 	)
 public class VCFBigWig extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VCFBigWig.class).make();
@@ -190,10 +190,6 @@ public class VCFBigWig extends OnePassVcfLauncher {
 		public void close() {
 			try
 				{
-				if(this.bbFileReader!=null)
-					{
-					CloserUtil.close(this.bbFileReader.getBBFis());
-					}
 				CloserUtil.close(this.bbFileReader);
 				this.bbFileReader=null;
 				}

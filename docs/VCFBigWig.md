@@ -8,6 +8,7 @@ Annotate a VCF with values from a bigwig file
 ## Usage
 
 ```
+Usage: java -jar dist/vcfbigwig.jar  [options] Files
 Usage: vcfbigwig [options] Files
   Options:
     -a, --aggregate

@@ -26,10 +26,7 @@ package com.github.lindenb.jvarkit.tools.vcfucsc;
 
 import java.io.BufferedReader;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -41,23 +38,12 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-
 import org.apache.commons.jexl2.JexlContext;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpHead;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.HttpClients;
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BedFeature;
 import org.broad.igv.bbfile.BigBedIterator;
 import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
-import org.broad.tribble.util.SeekableStream;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -71,8 +57,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import org.broad.tribble.util.SeekableFileStream;
-
+import htsjdk.samtools.seekablestream.SeekableStream;
+import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
@@ -168,9 +154,6 @@ public class VcfUcscGdb extends Launcher {
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 
-	
-	
-	private final HttpClientBuilder hb = HttpClients.custom();
 	
 	/** List that doesn't throw out of bound exception but return empty string */
 	static class NotIndexOutOfBoundList extends AbstractList<String> {
@@ -428,19 +411,7 @@ public class VcfUcscGdb extends Launcher {
 		
 		void open() throws IOException {
 			if(this.bbr == null) {
-				LOG.info("opening "+this.url);
-				if(IOUtil.isUrl(this.url))
-					{
-					final URL u = new URL(this.url);
-					this.seekableStream = openRemoteSeekableStream(u);
-					}
-				else
-					{
-					final File file = new File(this.url);
-					IOUtil.assertFileIsReadable(file);
-					this.seekableStream = new SeekableFileStream(file);
-					}
-				
+				this.seekableStream = SeekableStreamFactory.getInstance().getStreamFor(this.url);
 				this.bbr = new BBFileReader(url, seekableStream);
 				}
 			}
@@ -454,160 +425,6 @@ public class VcfUcscGdb extends Launcher {
 			}
 		}
 	
-private SeekableStream openRemoteSeekableStream(final URL url) 
-    	throws IOException {
-		
-		final CloseableHttpClient httpClient = hb.build();
-		
-		final HttpHead httpHead = new HttpHead(url.toExternalForm());
-		try
-			{
-			final CloseableHttpResponse response = httpClient.execute(httpHead);
-			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK ) {
-				final String msg = "Unexpected Http status code "
-     		            + response.getStatusLine()+" for "+ url
-     		            ;
-				response.close();
-				httpClient.close();
- 		        throw new IOException(msg);
- 		   		}
-			
-			final Header contentLengthHeader = response.getFirstHeader("Content-Length");
-			if(contentLengthHeader==null)
-				{
-				final String msg = "Cannot get Content-length for "+ url;
-				response.close();
-				httpClient.close();
- 		        throw new IOException(msg);
-				}
-			
-			long contentLength;
-			try {
-				contentLength = Long.parseLong(contentLengthHeader.getValue());
-				if(contentLength<0) throw new NumberFormatException("Negative content length for "+url);
-				}
-			catch(final NumberFormatException err)
-				{
-				final String msg = "bad Content-Length in "+contentLengthHeader+" for "+ url;
-				response.close();
-				httpClient.close();
- 		        throw new IOException(msg,err);
-				}
-			response.close();
-			return new CustomRemoteSeekeableStream(httpClient,url,contentLength);
-			}
-		catch(final IOException err)
-			{
-			CloserUtil.close(httpClient);
-			throw err;
-			}	
-    	}
-
-
-    /** custom SeekableStream reading remote files */    
-	private static class CustomRemoteSeekeableStream extends SeekableStream
-		{
-		private final CloseableHttpClient httpClient;
-	    private long position = 0L;
-	    private final URL url;
-	    private final long contentLength;
-
-	    CustomRemoteSeekeableStream(final CloseableHttpClient httpClient,final URL url,final long contentLength) {
-	    	this.httpClient = httpClient;
-	    	this.url = url;
-	    	this.contentLength = contentLength;
-	    	}
-	    
-		@Override
-		public boolean eof() throws IOException {
-	        return this.contentLength > 0 && this.position >= this.contentLength;
-		}
-
-		@Override
-		public long length() {
-			return contentLength;
-		}
-
-		@Override
-		public long position() throws IOException {
-	        return position;
-		}
-
-		@Override
-		public void seek(long position) throws IOException {
-	        this.position = position;
-		}
-
-		@Override
-		public int read(byte[] buffer, int offset, int len) throws IOException {
-	        if (offset < 0 || len < 0 || (offset + len) > buffer.length) {
-	            throw new IndexOutOfBoundsException("Offset="+offset+",len="+len+",buflen="+buffer.length);
-	        }
-	        if (len == 0 ) {
-	            return 0;
-	        }
-	        if (this.position == this.contentLength) {
-	            return -1;
-	        }
-
-	        CloseableHttpResponse httpResponse = null;
-	        InputStream is = null;
-	        int n = 0;
-	        try {
-	        	final HttpGet httpGet = new HttpGet(this.url.toExternalForm());
-	        	
-	        	
-
-	            long endRange = position + len - 1;
-	            // IF we know the total content length, limit the end range to that.
-	            if (contentLength > 0) {
-	                endRange = Math.min(endRange, contentLength);
-	            }
-	            final String byteRange = "bytes=" + position + "-" + endRange;
-	            
-	            httpGet.addHeader("Range", byteRange);
-	          
-	            httpResponse = this.httpClient.execute(httpGet);
-	            if (httpResponse.getStatusLine().getStatusCode() != HttpStatus.SC_PARTIAL_CONTENT ) {
-					final String msg = "Unexpected Http status code "
-	     		            + httpResponse.getStatusLine()+" for "+ url +" in range "+byteRange;
-					httpResponse.close();
-					httpResponse = null;
-	 		        throw new IOException(msg);
-	 		   		}
-	            final HttpEntity entity = httpResponse.getEntity();
-	            
-	            is = entity.getContent();
-
-	            while (n < len) {
-	                int count = is.read(buffer, offset + n, len - n);
-	                if (count < 0) {
-	                    if (n == 0) {
-	                        return -1;
-	                    } else {
-	                        break;
-	                    }
-	                }
-	                n += count;
-	            	}
-	            this.position += n;
-
-	            return n;
-	        	}
-	        finally {
-	            CloserUtil.close(is);
-	            CloserUtil.close(httpResponse);
-	        }
-	    }
-		
-		@Override
-		public int read() throws IOException {
-			final byte []tmp=new byte[1];
-	    	read(tmp,0,1);
-	    	return (int) tmp[0] & 0xFF; 
-	    	}
-		}
-
 	private List<RemoteBigFile> readRemoteResources(final Path path) throws IOException
 		{
 		final List<RemoteBigFile> remoteBigFiles = new ArrayList<>();

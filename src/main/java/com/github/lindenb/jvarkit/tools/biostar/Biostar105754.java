@@ -63,7 +63,7 @@ END_DOC
 	description="bigwig : peak distance from specific genomic region",
 	biostars=105754,
 	keywords={"wig","bigwig"},
-	modificationDate="20210818",
+	modificationDate="20220110",
 	creationDate="20140708"
 	)
 public class Biostar105754 extends Launcher {
@@ -213,7 +213,7 @@ public class Biostar105754 extends Launcher {
 					}
 				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
@@ -225,7 +225,7 @@ public class Biostar105754 extends Launcher {
 				}
 			}
 			
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new Biostar105754().instanceMainWithExit(args);
 		}
 	}

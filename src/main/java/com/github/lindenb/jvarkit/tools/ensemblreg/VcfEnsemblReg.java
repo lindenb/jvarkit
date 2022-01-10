@@ -43,8 +43,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import htsjdk.samtools.seekablestream.SeekableStream;
-import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BedFeature;
@@ -53,7 +51,6 @@ import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.igv.SeekableStreamAdaptor;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -281,8 +278,7 @@ public class VcfEnsemblReg extends Launcher
 		VCFInfoHeaderLine info=null;
 		
 		
-		SeekableStream sstream=SeekableStreamFactory.getInstance().getStreamFor(track.url);
-		BBFileReader bigFile = new BBFileReader(track.url.toString(), new SeekableStreamAdaptor(sstream));
+		BBFileReader bigFile = new BBFileReader(track.url.toString());
 		
 		VariantContextWriter w1=VCFUtils.createVariantContextWriter(outf);
 		
@@ -392,7 +388,6 @@ public class VcfEnsemblReg extends Launcher
 				}
 			}
 		
-		sstream.close();
 		in.close();
 		w1.close();
 		}

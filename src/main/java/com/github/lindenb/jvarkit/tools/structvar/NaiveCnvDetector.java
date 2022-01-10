@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -703,7 +704,12 @@ public class NaiveCnvDetector extends Launcher
 			this.bbFileReader = new BBFileReader(path);
 			this.sample_index = sample_index;
 			this.dict = dict;
-			this.bwIter = this.bbFileReader.getBigWigIterator();
+			final SAMSequenceRecord ssr0 = dict.getSequence(0);
+			final SAMSequenceRecord ssrN = dict.getSequence(dict.size()-1);
+			this.bwIter = this.bbFileReader.getBigWigIterator(
+					ssr0.getContig(), 1, 
+					ssrN.getContig(), ssrN.getLengthOnReference(),
+					false);
 			}
 		@Override
 		protected OneSampleDepth advance()
@@ -755,7 +761,6 @@ public class NaiveCnvDetector extends Launcher
 			this.current_item=null;
 			this.position_in_current_item=-1;
 			CloserUtil.close(this.bwIter);
-			CloserUtil.close(this.bbFileReader.getBBFis());
 			CloserUtil.close(this.bbFileReader);
 			}
 		}
