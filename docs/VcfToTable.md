@@ -8,6 +8,7 @@ convert a vcf to a table, to ease display in the terminal
 ## Usage
 
 ```
+Usage: java -jar dist/vcf2table.jar  [options] Files
 Usage: vcf2table [options] Files
   Options:
     --chartsize
