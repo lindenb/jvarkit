@@ -1276,7 +1276,6 @@ public class VcfToTable extends Launcher {
 				/** hyperlinks */
 				if(!getOwner().hideHyperlinks) {
 					final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
-					System.err.println(all_geneNames);
 					for(UrlSupplier.LabelledUrl  url : this.urlSupplier.of(vc) ) {
 						t.addRow(url.getLabel(),new HyperlinkDecorator(url.getUrl()));
 						}
