@@ -8,6 +8,7 @@ Sequence logo for different alleles or generated from SAM/BAM
 ## Usage
 
 ```
+Usage: java -jar dist/sam4weblogo.jar  [options] Files
 Usage: sam4weblogo [options] Files
   Options:
     -c, --clipped, --clip
@@ -92,6 +93,11 @@ $ ./gradlew sam4weblogo
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20130524
 
 ## Source code 
 
