@@ -8,6 +8,7 @@ Flag human sexual regions excluding PAR.
 ## Usage
 
 ```
+Usage: java -jar dist/vcfpar.jar  [options] Files
 Usage: vcfpar [options] Files
   Options:
     --autosome

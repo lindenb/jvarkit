@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-
+import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -39,7 +39,7 @@ import htsjdk.samtools.util.Locatable;
 
 /** find human pseudo autosomal regions PAR */
 public interface PseudoAutosomalRegion {
-public enum Label {autosomal,sexual,mixed /* overlap PAR and sex */,mitochondrial,undefined}
+public enum Label {autosomal,pseudoautosomal,sexual,mixed /* overlap PAR and sex */,mitochondrial,undefined}
 public static Optional<PseudoAutosomalRegion> getInstance(final SAMSequenceDictionary dict) {
 	if(dict==null || dict.isEmpty()) return Optional.empty();
 	ParRegionDefition parDefinition = null;
@@ -72,6 +72,8 @@ static class ParRegionDefition implements PseudoAutosomalRegion
 	private final String name;
 	private final int[] Xrgn;
 	private final int[] Yrgn;
+	private final Pattern autosomalMatcher= Pattern.compile("(chr)?[0-9]+",Pattern.CASE_INSENSITIVE);
+	private final Pattern mitochondrialMatcher= Pattern.compile("(chr)?m(t)?+",Pattern.CASE_INSENSITIVE);
 	
 	ParRegionDefition(final String name,int[] Xrgn, int[] Yrgn) {
 		if(Xrgn.length%2!=0 || Xrgn.length != Yrgn.length) throw new IllegalArgumentException();
@@ -80,9 +82,13 @@ static class ParRegionDefition implements PseudoAutosomalRegion
 		this.Yrgn = Yrgn;
 		}
 	
+	@Override
+	public int hashCode() {
+		return name.hashCode();
+		}
 	
 	public Label getLabel(final Locatable src) {
-		if(isMitochondrial(src.getContig())) return Label.mitochondrial;
+		if(src==null) throw new IllegalArgumentException("src is null");
 		final int[] array;
 		if(isX(src.getContig())) {
 			array = this.Xrgn;
@@ -93,6 +99,12 @@ static class ParRegionDefition implements PseudoAutosomalRegion
 		else if(src.getContig().startsWith("chrX_") || src.getContig().startsWith("chrY_")) {
 			return Label.sexual;
 			}
+		else if(mitochondrialMatcher.matcher(src.getContig()).matches()) {
+			return Label.mitochondrial;
+			}
+		else if(!autosomalMatcher.matcher(src.getContig()).matches()) {
+			return Label.undefined;
+			}
 		else
 			{
 			return Label.autosomal;
@@ -102,18 +114,13 @@ static class ParRegionDefition implements PseudoAutosomalRegion
 			final int parEnd  = array[i+1];
 				if(CoordMath.overlaps(parStart, parEnd, src.getStart(), src.getEnd())) {
 					if(CoordMath.encloses(parStart, parEnd, src.getStart(), src.getEnd())) {
-						return Label.autosomal;
+						return Label.pseudoautosomal;
 						}
 					return Label.mixed;
 				}	
 			}
 		return Label.sexual;
 		}
-	private boolean isMitochondrial(final String s) {
-		return s.equals("M") || s.equals("MT") || s.equals("chrM") || s.equals("chrMT");
-		}
-
-	
 	private boolean isX(final String contig) {
 		return contig.equals("chrX") || contig.equals("X");
 		}
@@ -176,7 +183,7 @@ static class ParRegionDefition implements PseudoAutosomalRegion
 		}
 	@Override
 	public String getDescription() {
-		return "Variant is mapped on a sexual chromosome on "+getName()+" excluding PAR region(s) on "+intervals("X",Xrgn)+intervals("Y",Yrgn); 
+		return "Interval is mapped on a sexual chromosome on "+getName()+" excluding PAR region(s) on "+intervals("X",Xrgn)+intervals("Y",Yrgn); 
 		}
 	@Override
 	public String getName() {

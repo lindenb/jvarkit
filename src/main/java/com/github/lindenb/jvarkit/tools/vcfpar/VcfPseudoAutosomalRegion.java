@@ -123,11 +123,13 @@ public class VcfPseudoAutosomalRegion extends OnePassVcfLauncher
 		while(iterin.hasNext()) {
 			final VariantContext ctx = iterin.next();
 			switch(parDefinition.getLabel(ctx)) {
-				case mixed: case sexual: {
+				case mixed:
+				case sexual: {
 					out.add(new VariantContextBuilder(ctx).attribute(info.getID(), Boolean.TRUE).make());
 					break;
 					}
-				case autosomal: {
+				case autosomal:
+				case pseudoautosomal:{
 					if(autosome!=null) 
 						{
 						out.add(new VariantContextBuilder(ctx).attribute(autosome.getID(), Boolean.TRUE).make());

@@ -8,6 +8,7 @@ Clusters a BED file into a set of BED files.
 ## Usage
 
 ```
+Usage: java -jar dist/bedcluster.jar  [options] Files
 Usage: bedcluster [options] Files
   Options:
     -C, --contig, --chromosome
@@ -15,6 +16,10 @@ Usage: bedcluster [options] Files
       Default: false
     --compress
       Compress bed with bgz.
+      Default: false
+    --consecutive
+      When using option --size only use consecutive ordered region. Default is 
+      to find the best region anywhere.
       Default: false
     -h, --help
       print help and exit
@@ -36,13 +41,18 @@ Usage: bedcluster [options] Files
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.
     -R, --reference
-      For Sorting.A SAM Sequence dictionary source: it can be a *.dict file, a 
-      fasta file indexed with 'picard CreateSequenceDictionary', or any hts 
-      file containing a dictionary (VCF, BAM, CRAM, intervals...)
+      For sorting, writing interval_list,A SAM Sequence dictionary source: it 
+      can be a *.dict file, a fasta file indexed with 'picard 
+      CreateSequenceDictionary', or any hts file containing a dictionary (VCF, 
+      BAM, CRAM, intervals...)
+    --sex, --par
+      Detects human dictionary ans splits pseudo-autosomal regions and group 
+      by sex.
+      Default: false
     -S, --size
       number of bases max per bin. (or specify --jobs). A distance specified 
       as a positive integer.Commas are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb
+      interpreted : b,bp,k,kb,m,mb,g,gb
       Default: -1
     --version
       print version and exit
