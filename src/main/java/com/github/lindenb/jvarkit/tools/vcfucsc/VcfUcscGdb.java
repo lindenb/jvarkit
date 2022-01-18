@@ -57,8 +57,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.seekablestream.SeekableStream;
-import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
@@ -312,7 +310,6 @@ public class VcfUcscGdb extends Launcher {
 		double fractionOfFeature = -1.0;
 		
 		private BBFileReader bbr =null;
-		private SeekableStream seekableStream;
 		private Predicate<JexlContext> accept = L->true;
 		private Function<JexlContext,String> converter = L->L.toString();
 		
@@ -411,16 +408,13 @@ public class VcfUcscGdb extends Launcher {
 		
 		void open() throws IOException {
 			if(this.bbr == null) {
-				this.seekableStream = SeekableStreamFactory.getInstance().getStreamFor(this.url);
-				this.bbr = new BBFileReader(url, seekableStream);
+				this.bbr = new BBFileReader(url);
 				}
 			}
 		
 		@Override
 		public void close() throws IOException {
-			CloserUtil.close(this.seekableStream);
 			CloserUtil.close(this.bbr);
-			this.seekableStream=null;
 			this.bbr=null;
 			}
 		}
