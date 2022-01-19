@@ -8,6 +8,7 @@ Bam coverage viewer using Java Swing UI
 ## Usage
 
 ```
+Usage: java -jar dist/swingbamcov.jar  [options] Files
 Usage: swingbamcov [options] Files
   Options:
     --gtf, --gff
