@@ -48,6 +48,9 @@ Usage: vcfcadd [options] Files
       Default: https://krishna.gs.washington.edu/download/CADD/v1.6/GRCh37/whole_genome_SNVs.tsv.gz
     --version
       print version and exit
+    -na
+      value  used for 'allele-not-found'.
+      Default: -999.0
 
 ```
 
@@ -136,5 +139,7 @@ $ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd
 1	905727	rs761609807	G	A	12936.9	PASS	.
 (..)
 ```
+## Note to self
 
+I got problem with the certificate. Fixed with `-Dcom.sun.security.enableAIAcaIssuers=true -Dcom.sun.net.ssl.checkRevocation=false `
 

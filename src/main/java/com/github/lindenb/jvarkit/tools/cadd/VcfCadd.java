@@ -49,6 +49,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -57,6 +58,7 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -133,7 +135,9 @@ public class VcfCadd extends OnePassVcfLauncher
 			"Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz . Multiple separeted by space, semicolon or comma."
 			+ " Warning: This tool currently uses the first CHROM/POS/REF/ALT values it finds while I saw some duplicated fields in 'whole_genome_SNVs_inclAnno.tsv.gz'.")
 	private String otherFieldsStr = "";
-	
+	@Parameter(names={"-na"},description="value  used for 'allele-not-found'.")
+	private float NA_value = -999f;
+
 	
 	private final CharSplitter TAB = CharSplitter.TAB;
 	private ContigNameConverter convertToCaddContigs = null;
@@ -271,16 +275,15 @@ public class VcfCadd extends OnePassVcfLauncher
 			final List<Float> cadd_array_score=new ArrayList<>();
 			final List<Float> cadd_array_phred=new ArrayList<>();
 			boolean got_non_null = false;
-			for(final Allele alt:ctx.getAlternateAlleles())
-				{
+			for(final Allele alt:ctx.getAlternateAlleles()) {
 				final Record rec = cadd_rec_for_ctx.
 						stream().
 						filter(REC->REC.alt.equals(alt)).
 						findAny().
 						orElse(null);
 				if(rec==null) {
-					cadd_array_score.add(null);
-					cadd_array_phred.add(null);
+					cadd_array_score.add(NA_value);
+					cadd_array_phred.add(NA_value);
 					}
 				else {
 					got_non_null = true;
@@ -379,6 +382,11 @@ public class VcfCadd extends OnePassVcfLauncher
 	protected int doVcfToVcf(final String inputName, final VCFIterator in, final VariantContextWriter out) {
 			try {
 			final VCFHeader header=in.getHeader();
+			final OrderChecker<VariantContext> orderChecker = new OrderChecker<>(
+					SequenceDictionaryUtils.extractRequired(header),
+					false);
+			
+			
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			if(header.getInfoHeaderLine(this.CADD_FLAG_PHRED)!=null) {
 				throw new JvarkitException.DuplicateVcfHeaderInfo(header, this.CADD_FLAG_PHRED);
@@ -394,14 +402,16 @@ public class VcfCadd extends OnePassVcfLauncher
 					VCFHeaderLineType.Float,
 					"Score suggests that that variant is likely to be  observed (negative values) vs simulated(positive values)."+
 					"However, raw values do have relative meaning, with higher values indicating that a variant is more likely to be simulated (or -not observed-) and therefore more likely to have deleterious effects." +
-					" URI was " +this.ccaduri
+					" URI was " +this.ccaduri + 
+					". We use "+NA_value+" for unknown value."
 					));
 			header.addMetaDataLine(new VCFInfoHeaderLine(
 					this.CADD_FLAG_PHRED,
 					VCFHeaderLineCount.A,
 					VCFHeaderLineType.Float,
 					"PHRED expressing the rank in order of magnitude terms. For example, reference genome single nucleotide variants at the 10th-% of CADD scores are assigned to CADD-10, top 1% to CADD-20, top 0.1% to CADD-30, etc. " +
-					" URI was " +this.ccaduri
+					" URI was " +this.ccaduri + 
+					". We use "+NA_value+" for unknown value."
 					));
 			for(final String uf: this.userFields) {
 				header.addMetaDataLine(new VCFInfoHeaderLine(
@@ -414,7 +424,7 @@ public class VcfCadd extends OnePassVcfLauncher
 			
 			out.writeHeader(header);
 			while(in.hasNext()) {
-				out.add(runTabix(in.next()));
+				out.add(runTabix(orderChecker.apply(in.next())));
 				}
 			return 0;
 			} 
