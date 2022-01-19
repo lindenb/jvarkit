@@ -23,12 +23,12 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.cadd;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -37,31 +37,32 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
-import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -92,12 +93,9 @@ $ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd
 1	905727	rs761609807	G	A	12936.9	PASS	.
 (..)
 ```
+## Note to self
 
-## History
-
-  * 2018-06-29 : handling user's field for url like "http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz" 
-  * 2018-04-25 : changing INFO -type to 'A', splitting into two CADD_score/phred and adding dict converter
-
+I got problem with the certificate. Fixed with `-Dcom.sun.security.enableAIAcaIssuers=true -Dcom.sun.net.ssl.checkRevocation=false `
 
 END_DOC
 */
@@ -107,10 +105,12 @@ END_DOC
 		"A general framework for estimating the relative pathogenicity of human genetic variants. "+
 		"Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892." +
 		"PubMed PMID: 24487276.",
+	creationDate="20140218",
+	modificationDate="20220119",
 	keywords={"vcf","prediction","cadd","annotation"}
 	)
 
-public class VcfCadd extends Launcher
+public class VcfCadd extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfCadd.class).make();
 
@@ -119,24 +119,20 @@ public class VcfCadd extends Launcher
 	/** global can be used by vcf2r for Matilde */
 	public static final String DEFAULT_CADD_FLAG_PHRED = "CADD_PHRED";
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-	public static final String DEFAULT_URI="http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs.tsv.gz";
+	public static final String DEFAULT_URI="https://krishna.gs.washington.edu/download/CADD/v1.6/GRCh37/whole_genome_SNVs.tsv.gz";
 	private TabixFileReader tabix=null;
-	@Parameter(names={"-u","--uri","--tabix"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
+	@Parameter(names={"-u","--uri","--tabix","--cadd"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ")
 	private String ccaduri=DEFAULT_URI;
 	@Parameter(names={"-S","--score","--score-tag"},description="INFO tag for score")
 	private String CADD_FLAG_SCORE = DEFAULT_CADD_FLAG_SCORE;
 	@Parameter(names={"-P","--phred","--phred-tag"},description="INFO tag for phred")
 	private String CADD_FLAG_PHRED = DEFAULT_CADD_FLAG_PHRED;
-	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size")
-	private int buffer_distance=1000;
+	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size. " + DistanceParser.OPT_DESCRIPTION , converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int buffer_distance= 1_000;
 	@Parameter(names={"-f","--fields"},description=
 			"Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz . Multiple separeted by space, semicolon or comma."
 			+ " Warning: This tool currently uses the first CHROM/POS/REF/ALT values it finds while I saw some duplicated fields in 'whole_genome_SNVs_inclAnno.tsv.gz'.")
 	private String otherFieldsStr = "";
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
 	
 	private final CharSplitter TAB = CharSplitter.TAB;
@@ -165,16 +161,17 @@ public class VcfCadd extends Launcher
 
 	
 	*/
-	private class Record
-		{
+	private class Record implements Locatable {
+		final String contig;
 		final int pos;
 		final Allele ref;
 		final Allele alt;
 		final float score;
 		final float phred;
 		final Map<String,String> otherKeyValues;
-		Record(final List<String> tokens) {
+		Record(final String contig,final List<String> tokens) {
 			if(tokens.size()<6) throw new JvarkitException.TokenErrors("Bad CADD line . Expected at least 6 fields",tokens);
+			this.contig = contig;
 			this.pos= Integer.parseInt(tokens.get(1));
 			this.ref = Allele.create(tokens.get(2),true);
 			this.alt = Allele.create(tokens.get(VcfCadd.this.column_index_for_Alt),false);
@@ -195,81 +192,81 @@ public class VcfCadd extends Launcher
 					}
 				}
 			}
+		@Override
+		public String getContig()
+			{
+			return this.contig;
+			}
+		@Override
+		public int getStart()
+			{
+			return this.pos;
+			}
+		@Override
+		public int getEnd()
+			{
+			return this.pos;
+			}
 		}
 	
 	public VcfCadd()
 		{
 		}
 	
-	private final Set<String> contigsNotFounds = new HashSet<>();
+	@Override
+	protected Logger getLogger() {
+		return LOG;
+		}
 	
-	private void runTabix(final List<VariantContext> buffer)
-			throws IOException
-		{
-		if(buffer.isEmpty()) return;
-		final String contigVcf = buffer.get(0).getContig();
-		final String chromCadd = this.convertToCaddContigs.apply(contigVcf);
-		if(StringUtil.isBlank(chromCadd)) {
-			if(!contigsNotFounds.contains(contigVcf) && this.contigsNotFounds.size()<10000 ) {
-				contigsNotFounds.add(contigVcf);
-				LOG.warning("Cannot find or convert VCF contig "+contigVcf+" to cadd contigs");
-				}
-			return;
-			}
-		
-		
-		int start=Integer.MAX_VALUE;
-		int end=0;
-		for(final VariantContext ctx:buffer)
-			{
-			start= Math.min(start, ctx.getStart());
-			end= Math.max(end, ctx.getEnd());
-			}
-		//LOG.info("Scanning "+contigVcf+":"+start+"-"+end);
-		final Map<ContigPosRef,List<Record>> caddMap = new HashMap<>(buffer.size());
-		
-		
-		Iterator<String> iter = this.tabix.iterator(
-				chromCadd,
-				(int)Math.max(1,start),
-				(int)Math.min(Integer.MAX_VALUE,end)
-				);
-		while(iter.hasNext() )
-			{
-			final String line=iter.next();
-			if(line.startsWith("#") || StringUtil.isBlank(line))continue;
-			final List<String> tokens = TAB.splitAsStringList(line);
+	private Locatable lastInterval = null;
+	private final List<Record> buffer = new ArrayList<>();
+	
+	private List<Record> query(final VariantContext loc) {
+		final String chromCadd = this.convertToCaddContigs.apply(loc.getContig());
+		if(StringUtils.isBlank(chromCadd)) return Collections.emptyList();
+		final Locatable query = new SimpleInterval(chromCadd,loc.getStart(),loc.getEnd());
+		if(this.lastInterval==null || !this.lastInterval.contains(query)) {
+			this.buffer.clear();
+			this.lastInterval = new SimpleInterval(chromCadd, Math.max(0, loc.getStart()-1), Math.max(loc.getEnd(), loc.getStart()+this.buffer_distance));
+			Iterator<String> iter = this.tabix.iterator(
+					this.lastInterval.getContig(),
+					this.lastInterval.getStart(),
+					this.lastInterval.getEnd()
+					);
+			while(iter.hasNext()) {
+				final String line=iter.next();
+				if(line.startsWith("#") || StringUtil.isBlank(line))continue;
+				final List<String> tokens = TAB.splitAsStringList(line);
 			
-			if(!Allele.acceptableAlleleBases(tokens.get(2), true))
-				{
-				LOG.warn("REF allele not suitable in  line "+line+". skipping");
-				continue;
-				}
-			if(!Allele.acceptableAlleleBases(tokens.get(this.column_index_for_Alt), false))
-				{
-				LOG.warn("ALT allele not suitable in  line "+line+". skipping");
-				continue;
-				}
+				if(!AcidNucleics.isATGC(tokens.get(2)))
+					{
+					LOG.warn("REF allele not suitable in  line "+line+". skipping");
+					continue;
+					}
+				if(!AcidNucleics.isATGC(tokens.get(this.column_index_for_Alt)))
+					{
+					LOG.warn("ALT allele not suitable in  line "+line+". skipping");
+					continue;
+					}
 			
-			final Record rec=new Record(tokens);
-			if(!tokens.get(0).equals(chromCadd)) throw new IllegalStateException("Expected CADD contig "+chromCadd+" in "+line);
-			
-			final ContigPosRef cpr = new ContigPosRef(contigVcf,rec.pos,rec.ref);
-			List<Record> L = caddMap.get(cpr);
-			if(L==null) {
-				L = new ArrayList<>();
-				caddMap.put(cpr,L);
-				}		
-			L.add(rec);
+				if(!tokens.get(0).equals(chromCadd)) throw new IllegalStateException("Expected CADD contig "+chromCadd+" in "+line);
+
+				final Record rec=new Record(loc.getContig(),tokens);
+
+				this.buffer.add(rec);
+				}
 			}
-		CloserUtil.close(iter);
-		
-		
-		for(int i=0;i< buffer.size();++i)
-			{
-			final VariantContext ctx=buffer.get(i);
-			final List<Record> cadd_rec_for_ctx = caddMap.get(new ContigPosRef(ctx));
-			if(cadd_rec_for_ctx==null || cadd_rec_for_ctx.isEmpty()) continue;
+		return this.buffer.stream().filter(R->
+				R.getStart() == loc.getStart() &&
+				R.ref.equals(loc.getReference()) &&
+				loc.getAlternateAlleles().contains(R.alt)
+				).collect(Collectors.toList());
+		}
+
+	
+	private VariantContext runTabix(final VariantContext ctx) throws IOException {
+			final List<Record> cadd_rec_for_ctx = query(ctx);
+			if(cadd_rec_for_ctx.isEmpty()) return ctx;
 			
 			final List<Float> cadd_array_score=new ArrayList<>();
 			final List<Float> cadd_array_phred=new ArrayList<>();
@@ -369,9 +366,9 @@ public class VcfCadd extends Launcher
 					vcb.attribute("CADD_"+uf, cadd_other);
 					}
 				
-				buffer.set(i, vcb.make());
+				return vcb.make();
 				}
-			}
+		return ctx;
 		}
 	
 	private VCFHeaderLineCount getFieldHeaderLineCount(final String field) {
@@ -379,13 +376,10 @@ public class VcfCadd extends Launcher
 	}
 	
 	@Override
-	protected int doVcfToVcf(final String inputName, VCFIterator in, VariantContextWriter out) {
-			
+	protected int doVcfToVcf(final String inputName, final VCFIterator in, final VariantContextWriter out) {
 			try {
 			final VCFHeader header=in.getHeader();
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header).logger(LOG);
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			header.addMetaDataLine(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
+			JVarkitVersion.getInstance().addMetaData(this, header);
 			if(header.getInfoHeaderLine(this.CADD_FLAG_PHRED)!=null) {
 				throw new JvarkitException.DuplicateVcfHeaderInfo(header, this.CADD_FLAG_PHRED);
 			}
@@ -419,58 +413,34 @@ public class VcfCadd extends Launcher
 				}
 			
 			out.writeHeader(header);
-			final List<VariantContext> buffer= new ArrayList<>();
-			for(;;)
-				{	
-				VariantContext ctx=null;
-				if(in.hasNext())
-					{
-					ctx=progress.watch(in.next());
-					}
-				if( ctx==null ||
-					(!buffer.isEmpty() &&
-					(buffer.get(0).getContig().equals(ctx.getContig())) && (ctx.getEnd()-buffer.get(0).getStart())>buffer_distance))
-					{
-					if(!buffer.isEmpty())
-						{
-						runTabix(buffer);
-						for(final VariantContext c:buffer)
-							{
-							out.add(c);
-							}
-						}
-					if(ctx==null) break;
-					buffer.clear();
-					}
-				buffer.add(ctx);
+			while(in.hasNext()) {
+				out.add(runTabix(in.next()));
 				}
-			progress.finish();
 			return 0;
 			} 
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
+	protected int beforeVcf()
+		{
 		try
 			{
 			if(this.CADD_FLAG_PHRED.equals(CADD_FLAG_SCORE)) {
 				LOG.error("tag phred same as tag score");
 				return -1;
 				}
-			if(this.ccaduri==null || !this.ccaduri.endsWith(".gz"))
+			if(StringUtils.isBlank(this.ccaduri) || !this.ccaduri.endsWith(".gz"))
 				{
 				LOG.error("CCAD uri should end with gz. got "+this.ccaduri);
 				return -1;
 				}
 			
-			LOG.info("Loading index for "+this.ccaduri+". Please wait...");
 			this.tabix = new TabixFileReader(this.ccaduri);
 			this.convertToCaddContigs = ContigNameConverter.fromContigSet(this.tabix.getChromosomes());
-			LOG.info("End loading index");
 			
 			for(;;)
 				{
@@ -541,18 +511,19 @@ public class VcfCadd extends Launcher
 				this.userFields.add(field);
 				}
 			
-			return doVcfToVcfPath(args,this.writingVariantsDelegate,this.outputFile);
+			return 0;
 			}
 		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(tabix);
-			tabix=null;
-			}
+		}
+	
+	@Override
+	protected void afterVcf() {
+		if(this.tabix!=null) this.tabix.close();
+		super.afterVcf();
 		}
 
 	public static void main(final String[] args)

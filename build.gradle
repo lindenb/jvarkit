@@ -1619,7 +1619,7 @@ all.add( task("vcfburdensplitter2", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfcadd", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfCadd"
+	mainClass = "com.github.lindenb.jvarkit.tools.cadd.VcfCadd"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfcalledwithanothermethod", type: CompileJVarkit) {
