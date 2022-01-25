@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -42,6 +43,7 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
@@ -147,7 +149,8 @@ END_DOC
 	description="split a vcf to interval or bed for parallelization",
 	keywords={"vcf","bed","interval"},
 	creationDate="20211112",
-	modificationDate="20211112"
+	modificationDate="20211112",
+	biostars= {9506628}
 	)
 public class VcfToIntervals extends Launcher
 	{
@@ -155,7 +158,7 @@ public class VcfToIntervals extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
-	@Parameter(names="--bed",description="force BED format as output. (Default is interval_list)")
+	@Parameter(names="--bed",description="force BED format as output. (Default is '"+FileExtensions.INTERVAL_LIST+"')")
 	private boolean force_bed_output = false;
 	@Parameter(names={"-N","--variants","--n-variants"},description="number of variants per interval (or use option -D)")
 	private long n_variants_per_interval = -1L;
@@ -169,11 +172,11 @@ public class VcfToIntervals extends Launcher
 	public int doWork(final List<String> args)
 		{
 		if(n_variants_per_interval>=0 && distance_per_interval>=0) {
-			LOG.info("n-variants per interval and distance both defined");
+			LOG.error("n-variants per interval and distance both defined");
 			return -1;
 			}
 		else if(n_variants_per_interval<0 && distance_per_interval<0) {
-			LOG.info("n-variants per interval or distance must be defined");
+			LOG.error("n-variants per interval or distance must be defined");
 			return -1;
 			}
 		try
@@ -181,7 +184,7 @@ public class VcfToIntervals extends Launcher
 				try(VCFIterator iter  = super.openVCFIterator(oneFileOrNull(args))) {
 					final VCFHeader header =  iter.getHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-					
+					final OrderChecker<VariantContext> orderChecker = new OrderChecker<>(dict, false);
 					try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 					if(!this.force_bed_output) {
 						final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
@@ -198,7 +201,7 @@ public class VcfToIntervals extends Launcher
 					
 					
 					while(iter.hasNext()) {
-						final VariantContext first = iter.next();
+						final VariantContext first = orderChecker.apply(iter.next());
 						VariantContext last = first;
 						long n_variants = 1;
 						if(this.n_variants_per_interval>0L) {
@@ -207,7 +210,7 @@ public class VcfToIntervals extends Launcher
 									break;
 									}
 								// consumme
-								last = iter.next();
+								last = orderChecker.apply(iter.next());
 								n_variants++;
 								}
 							}
@@ -221,7 +224,7 @@ public class VcfToIntervals extends Launcher
 									break;
 									}
 								// consumme
-								last = iter.next();
+								last = orderChecker.apply(iter.next());
 								n_variants++;
 								}
 							}
@@ -230,7 +233,7 @@ public class VcfToIntervals extends Launcher
 							final VariantContext curr = iter.peek();
 							if(!last.withinDistanceOf(curr, this.min_distance)) break;
 							// consumme
-							last = iter.next();
+							last = orderChecker.apply(iter.next());
 							n_variants++;
 							}
 						pw.print(first.getContig());

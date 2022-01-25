@@ -267,7 +267,12 @@ public class VcfCadd extends OnePassVcfLauncher
 				).collect(Collectors.toList());
 		}
 
-	
+	private void  checkRange(float f) {
+		if(f <= this.NA_value || f >= this.NA_value) {
+			throw new IllegalArgumentException("Got score = "+f +" but the value for N/A is "+this.NA_value);
+			}
+		}
+
 	private VariantContext runTabix(final VariantContext ctx) throws IOException {
 			final List<Record> cadd_rec_for_ctx = query(ctx);
 			if(cadd_rec_for_ctx.isEmpty()) return ctx;
@@ -287,6 +292,8 @@ public class VcfCadd extends OnePassVcfLauncher
 					}
 				else {
 					got_non_null = true;
+					checkRange(rec.score);
+					checkRange(rec.phred);
 					cadd_array_score.add(rec.score);
 					cadd_array_phred.add(rec.phred);
 					}

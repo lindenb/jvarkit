@@ -38,6 +38,7 @@ import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
@@ -52,6 +53,8 @@ public class SetFileReaderFactory {
 	private final Comparator<Locatable> comparator ;
 	private boolean skipUnknownChromosome = false;
 	private boolean skipEmptyRecord = false;
+	private boolean mergeOverlappingRecords = false;
+	private boolean allowOverlappingRecords = false;
 	public SetFileReaderFactory() {
 		this(null);
 	}
@@ -72,13 +75,23 @@ public class SetFileReaderFactory {
 			this.comparator= new ContigDictComparator(dict).createLocatableComparator();
 			}
 		}
+	
+	public SetFileReaderFactory setAllowOverlappingRecords(boolean allowOverlappingRecords) {
+		this.allowOverlappingRecords = allowOverlappingRecords;
+		return this;
+		}
+	
+	public SetFileReaderFactory setMergeOverlappingRecords(boolean mergeOverlappingRecords) {
+		this.mergeOverlappingRecords = mergeOverlappingRecords;
+		return this;
+		}
 		
-	public SetFileReaderFactory setSkipEmptyRecord(boolean skipEmptyRecord) {
+	public SetFileReaderFactory setSkipEmptyRecords(boolean skipEmptyRecord) {
 		this.skipEmptyRecord = skipEmptyRecord;
 		return this;
 		}
 	
-	public SetFileReaderFactory setSkipUnknownChromosome(boolean skipUnknownChromosome) {
+	public SetFileReaderFactory setSkipUnknownChromosomes(boolean skipUnknownChromosome) {
 		this.skipUnknownChromosome = skipUnknownChromosome;
 		return this;
 		}
@@ -123,12 +136,12 @@ public class SetFileReaderFactory {
 						}
 						final int  hyphen = s.indexOf(':', colon+1);
 						if(hyphen==-1) {
-							int pos = Integer.parseInt(s.substring(colon+1));
-							L.add(new SimpleInterval(contig, pos, pos));
+							final int pos = Integer.parseInt(s.substring(colon+1));
+							L.add(new SimplePosition(contig, pos));
 							}
 						else {
-							int start = Integer.parseInt(s.substring(colon+1),hyphen);
-							int end = Integer.parseInt(s.substring(hyphen+1));
+							final int start = Integer.parseInt(s.substring(colon+1),hyphen);
+							final int end = Integer.parseInt(s.substring(hyphen+1));
 							if(start>end) throw new IOException("bad start>end for item["+i+"] in line");
 							L.add(new SimpleInterval(contig, start, end));
 							}
@@ -138,6 +151,28 @@ public class SetFileReaderFactory {
 						throw new IOException("all items skipped in line "+line);
 						}
 					Collections.sort(L, comparator);
+					int i=0;
+					while(i+1 < L.size()) {
+						final Locatable xi = L.get(i  );
+						final Locatable xj = L.get(i+1);
+						if(xi.overlaps(xj)) {
+							if(!allowOverlappingRecords) {
+								throw new IOException("two items overlapping "+xi+" and "+ xj+"in line "+line);
+								}
+							if(mergeOverlappingRecords) {
+								L.set(i, new SimpleInterval(
+										xi.getContig(),
+										Math.min(xi.getStart(),xj.getStart()),
+										Math.max(xi.getEnd(),xj.getEnd())
+										));
+								L.remove(i+1);
+								}
+						} else {
+							i++;
+						}
+					}
+					
+					
 					return SetFileRecord.create(name, Collections.unmodifiableList(L));
 					}
 				} 

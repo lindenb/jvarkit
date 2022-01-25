@@ -8,10 +8,11 @@ split a vcf to interval or bed for parallelization
 ## Usage
 
 ```
+Usage: java -jar dist/vcf2intervals.jar  [options] Files
 Usage: vcf2intervals [options] Files
   Options:
     --bed
-      force BED format as output. (Default is interval_list)
+      force BED format as output. (Default is '.interval_list')
       Default: false
     -D, --distance
       min size of an interval (or use option -N). A distance specified as a 
@@ -44,6 +45,12 @@ Usage: vcf2intervals [options] Files
  * vcf
  * bed
  * interval
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9506628](https://www.biostars.org/p/9506628)
 
 
 ## Compilation
