@@ -8,10 +8,19 @@ Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al.
 ## Usage
 
 ```
+Usage: java -jar dist/vcfcadd.jar  [options] Files
 Usage: vcfcadd [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -d, --buffer-size
-      Buffer size / processing window size
+      Buffer size / processing window size. A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 1000
     -f, --fields
       Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz 
@@ -19,11 +28,14 @@ Usage: vcfcadd [options] Files
       currently uses the first CHROM/POS/REF/ALT values it finds while I saw 
       some duplicated fields in 'whole_genome_SNVs_inclAnno.tsv.gz'.
       Default: <empty string>
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -P, --phred, --phred-tag
       INFO tag for phred
@@ -31,11 +43,14 @@ Usage: vcfcadd [options] Files
     -S, --score, --score-tag
       INFO tag for score
       Default: CADD_SCORE
-    -u, --uri, --tabix
+    -u, --uri, --tabix, --cadd
       Combined Annotation Dependent Depletion (CADD) Tabix file URI
-      Default: http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs.tsv.gz
+      Default: https://krishna.gs.washington.edu/download/CADD/v1.6/GRCh37/whole_genome_SNVs.tsv.gz
     --version
       print version and exit
+    -na
+      value  used for 'allele-not-found'.
+      Default: -999.0
 
 ```
 
@@ -65,13 +80,18 @@ $ ./gradlew vcfcadd
 
 The java jar file will be installed in the `dist` directory.
 
+
+## Creation Date
+
+20140218
+
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfCadd.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfCadd.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cadd/VcfCadd.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cadd/VcfCadd.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfCaddTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfCaddTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cadd/VcfCaddTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cadd/VcfCaddTest.java)
 
 
 ## Contribute
@@ -119,10 +139,7 @@ $ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd
 1	905727	rs761609807	G	A	12936.9	PASS	.
 (..)
 ```
+## Note to self
 
-## History
-
-  * 2018-06-29 : handling user's field for url like "http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz" 
-  * 2018-04-25 : changing INFO -type to 'A', splitting into two CADD_score/phred and adding dict converter
-
+I got problem with the certificate. Fixed with `-Dcom.sun.security.enableAIAcaIssuers=true -Dcom.sun.net.ssl.checkRevocation=false `
 

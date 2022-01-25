@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2021 Pierre Lindenbaum
+Copyright (c) 2022 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-
 */
 package com.github.lindenb.jvarkit.tools.bedtools;
 
@@ -32,7 +29,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -41,17 +37,18 @@ import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.par.PseudoAutosomalRegion;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -63,12 +60,13 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
+import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalList;
+import htsjdk.samtools.util.Locatable;
 
 /**
 BEGIN_DOC
@@ -125,7 +123,7 @@ END_DOC
 		description="Clusters a BED file into a set of BED files.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
-		modificationDate="20210726",
+		modificationDate="20220113",
 		biostars= {424828}
 		)
 public class BedCluster
@@ -141,7 +139,7 @@ public class BedCluster
 	private long long_length_per_bin=-1L;
 	@Parameter(names={"-C","--contig","--chromosome"},description="group by chromosome.")
 	private boolean group_by_contig = false;
-	@Parameter(names={"-R","--reference"},description="For Sorting." +DICTIONARY_SOURCE)
+	@Parameter(names={"-R","--reference"},description="For sorting, writing interval_list," +DICTIONARY_SOURCE)
 	private Path refFaidx = null;
 	@Parameter(names={"--merge"},description="Merge overlapping bed records before clustering")
 	private boolean merge_bed_records=false;
@@ -153,6 +151,8 @@ public class BedCluster
 	private boolean save_as_interval_list=false;
 	@Parameter(names={"--consecutive"},description="When using option --size only use consecutive ordered region. Default is to find the best region anywhere.")
 	private boolean consecutive_flags = false;
+	@Parameter(names={"--sex","--par"},description="Detects human dictionary ans splits pseudo-autosomal regions and group by sex.")
+	private boolean group_by_sex = false;
 
 	
 	
@@ -243,7 +243,8 @@ public class BedCluster
 			final ArchiveFactory archiveFactory,
 			final List<SimpleInterval> src,
 			final Comparator<SimpleInterval> sorter,
-			final SAMSequenceDictionary dict)
+			final SAMSequenceDictionary dict,
+			final PseudoAutosomalRegion pseudoAutosomalDetector)
 			throws IOException
 		{
 		final List<Cluster> clusters = new ArrayList<>(Math.max(this.number_of_jobs,100));
@@ -306,13 +307,11 @@ public class BedCluster
 					}
 				}
 			}
-		
-		final Path tmpPath = (this.save_as_interval_list?Files.createTempFile("data.", FileExtensions.INTERVAL_LIST):null);
-		
+				
 		for(final Cluster cluster : clusters) {
 			Collections.sort(cluster.intervals,sorter);
 			final String prefix;
-
+			final String extraColumns;
 			if(this.group_by_contig) {
 				final int chromStart = cluster.stream().mapToInt(R->R.getStart()-1).min().orElse(0);
 				final int chromEnd = cluster.stream().mapToInt(R->R.getEnd()).max().orElse(0);
@@ -322,15 +321,24 @@ public class BedCluster
 				manifest.print("\t");
 				manifest.print(chromEnd);
 				manifest.print("\t");
+				if(pseudoAutosomalDetector!=null) {
+					extraColumns  =  "\t"+ pseudoAutosomalDetector.getLabel(new SimpleInterval(cluster.get(0).getContig(),chromStart+1,chromEnd)).name();
+					}
+				else
+					{
+					extraColumns = "";
+					}
 				prefix= cluster.get(0).getContig()+"_"+(chromStart+1)+"_"+chromEnd;
-			} else
+				}
+			else
 				{
 				prefix="cluster";
+				extraColumns = "";
 				}
 			
 			final String suffix;
 			if(this.save_as_interval_list) {
-				suffix = FileExtensions.INTERVAL_LIST;
+				suffix = FileExtensions.INTERVAL_LIST  +(do_compress?".gz":"");
 			} else
 				{
 				suffix = FileExtensions.BED +(do_compress?".gz":"");
@@ -347,43 +355,51 @@ public class BedCluster
 			manifest.print((int)cluster.getAvgLength(null));
 			manifest.print("\t");
 			manifest.print((int)cluster.getStdDev(null));
-
+			manifest.print(extraColumns);
 			manifest.println();
 			
-			if(this.save_as_interval_list) {
-				final IntervalList iL = new IntervalList(Objects.requireNonNull(dict));
-				iL.addall(cluster.stream().map(R->new Interval(R)).collect(Collectors.toList()));
-				iL.write(tmpPath);
-				archiveFactory.copyTo(tmpPath, filename);
-				Files.deleteIfExists(tmpPath);
-				}
-			else
+			final OutputStream ps = archiveFactory.openOuputStream(filename);
+			final PrintWriter pw;
+			final BlockCompressedOutputStream bcos;
+			if(this.do_compress) {
+				bcos = new BlockCompressedOutputStream(ps, (Path)null);
+				pw=new PrintWriter(bcos);
+			} else
 				{
-				final OutputStream ps = archiveFactory.openOuputStream(filename);
-				final PrintWriter pw;
-				final BlockCompressedOutputStream bcos;
-				if(this.do_compress) {
-					bcos = new BlockCompressedOutputStream(ps, (Path)null);
-					pw=new PrintWriter(bcos);
-				} else
-					{
-					bcos = null;
-					pw=new PrintWriter(ps);
-					}
-				
-				for(final SimpleInterval r: cluster) {
-					pw.print(r.getContig());
-					pw.print("\t");
-					pw.print(r.getStart()-1);
-					pw.print("\t");
-					pw.print(r.getEnd());
-					pw.println();
-					}
-				pw.flush();
-				pw.close();
-				if(bcos!=null) {bcos.flush();bcos.close();}
-				ps.close();
+				bcos = null;
+				pw=new PrintWriter(ps);
 				}
+			
+			if(this.save_as_interval_list) {
+				final SAMFileHeader samHeader = new SAMFileHeader(dict);
+				samHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
+				final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
+				if(pseudoAutosomalDetector!=null) {
+					samHeader.addComment("Pseudo-autosomal detector detected for "+pseudoAutosomalDetector.getDescription());
+				}
+				JVarkitVersion.getInstance().addMetaData(this, samHeader);
+				codec.encode(pw, samHeader);
+				}
+			
+				
+				
+			for(final SimpleInterval r: cluster) {
+				pw.print(r.getContig());
+				pw.print("\t");
+				pw.print(r.getStart()-(this.save_as_interval_list?0:1));//convert to bed if needed
+				pw.print("\t");
+				pw.print(r.getEnd());
+				if(pseudoAutosomalDetector!=null) {
+					pw.print("\t");
+					pw.print(pseudoAutosomalDetector.getLabel(r).name());
+					}
+				pw.println();
+				}
+				
+			pw.flush();
+			pw.close();
+			if(bcos!=null) {bcos.flush();bcos.close();}
+			ps.close();
 			}
 		
 		}
@@ -416,11 +432,13 @@ public class BedCluster
 			final ContigNameConverter converter;
 			final Comparator<String> contigComparator;
 			final Comparator<SimpleInterval> intervalComparator;
+			final PseudoAutosomalRegion pseudoAutosomalDetector;
 			if(this.refFaidx==null) {
 				dict = null;
 				converter = ContigNameConverter.getIdentity();
 				contigComparator = (A,B)->A.compareTo(B);
 				intervalComparator = this.defaultIntervalCmp;
+				pseudoAutosomalDetector = null;
 			} else
 			{
 				dict = SequenceDictionaryUtils.extractRequired(this.refFaidx);
@@ -428,7 +446,19 @@ public class BedCluster
 				final ContigDictComparator cmp2 =  new ContigDictComparator(dict);
 				contigComparator = cmp2;
 				intervalComparator = cmp2.createLocatableComparator();
+				pseudoAutosomalDetector = PseudoAutosomalRegion.getInstance(dict).orElse(null);
 			}
+			
+			if(pseudoAutosomalDetector==null && this.group_by_sex) {
+				LOG.error("cannot group by --sex because I cannot get an instance of autosomal region for this reference.");
+				return -1;
+			}
+			final Function<Locatable,List<Locatable>> sexSplitter = 
+					pseudoAutosomalDetector==null?
+					REG->Collections.singletonList(REG):
+					REG->pseudoAutosomalDetector.split(REG)
+					;
+		
 			
 			archiveFactory = ArchiveFactory.open(this.outputFile);
 			if(!this.save_as_interval_list && this.do_compress && archiveFactory.isTarOrZipArchive()) {
@@ -454,28 +484,50 @@ public class BedCluster
 			manifest.print("avg-length");
 			manifest.print("\t");
 			manifest.print("stddev-size");
+			if(this.group_by_sex) {
+				manifest.print("\t");
+				manifest.print("sex");
+			}
 			manifest.println();
 			
 			try(BufferedReader br = super.openBufferedReader(oneFileOrNull(args))) {
-				final Stream<SimpleInterval> st1 = br.lines().
+				List<List<SimpleInterval>> list_of_intervals = Collections.singletonList(br.lines().
 					filter(L->!BedLine.isBedHeader(L)).
 					map(L->codec.decode(L)).
 					filter(B->B!=null).
 					filter(B->!StringUtils.isBlank(converter.apply(B.getContig()))).
-					map(B->new SimpleInterval(converter.apply(B.getContig()), B.getStart(), B.getEnd()));
-					;
-				
+					flatMap(B->sexSplitter.apply(B).stream()).
+					map(B->new SimpleInterval(converter.apply(B.getContig()), B.getStart(), B.getEnd())).
+					collect(Collectors.toList()));
+					
 				if(this.group_by_contig) {
-					final Map<String,List<SimpleInterval>> contig2lines = new TreeMap<>(contigComparator);
-					contig2lines.putAll(st1.collect(Collectors.groupingBy(B->B.getContig())));
-					for(final String ctg:contig2lines.keySet()) {
-						apply_cluster(manifest,archiveFactory,contig2lines.get(ctg),intervalComparator,dict);
+					final List<List<SimpleInterval>> list2= new ArrayList<>();
+					for(List<SimpleInterval> l1:list_of_intervals) {
+						final Map<String,List<SimpleInterval>> contig2lines = new TreeMap<>(contigComparator);
+						contig2lines.putAll(l1.stream().collect(Collectors.groupingBy(B->B.getContig())));
+						for(final String ctg:contig2lines.keySet()) {
+							list2.add(new ArrayList<>(contig2lines.get(ctg)));
+							}
 						}
+					list_of_intervals = list2;
 					}
-				else
-					{
-					apply_cluster(manifest,archiveFactory,st1.collect(Collectors.toList()),intervalComparator,dict);
+				
+				if(this.group_by_sex && pseudoAutosomalDetector!=null) {
+					final List<List<SimpleInterval>> list2= new ArrayList<>();
+					for(List<SimpleInterval> l1:list_of_intervals) {
+						final Map<PseudoAutosomalRegion.Label,List<SimpleInterval>> label2lines = new TreeMap<>();
+						label2lines.putAll(l1.stream().collect(Collectors.groupingBy(B->pseudoAutosomalDetector.getLabel(B))));
+						for(final PseudoAutosomalRegion.Label ctg:label2lines.keySet()) {
+							list2.add(new ArrayList<>(label2lines.get(ctg)));
+							}
+						}
+					list_of_intervals = list2;
 					}
+				
+				for(final List<SimpleInterval> l1:list_of_intervals) {
+					apply_cluster(manifest,archiveFactory,l1,intervalComparator,dict,pseudoAutosomalDetector);
+					}
+				
 				}
 			manifest.flush();
 			manifest.close();

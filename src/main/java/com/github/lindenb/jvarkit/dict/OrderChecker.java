@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2021 Pierre Lindenbaum
+Copyright (c) 2022 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.variant.variantcontext.VariantContext;
 
 /**
  *
@@ -80,7 +81,8 @@ private int getTid(final String c) {
 	}
 
 private void throwError(final T loc) {
-	String msg = "Illegal Order got " +loc.getContig()+":"+loc.getStart()+" after "+ this.prev_contig+":"+this.prev_start;
+	String msg = "Illegal Order got " +loc.getContig()+":"+loc.getStart()+" after "+ this.prev_contig+":"+this.prev_start+
+			(loc instanceof VariantContext?" input must be sorted using `bcftools sort`":"");
 	if(this.strictDictOrder) {
 		msg += ". Order must conform the sequence dictionary of the reference sequence.";
 		}
@@ -110,7 +112,9 @@ public T apply(final T t) {
 		else {
 			if(this.dict!=null) getTid(contig);
 			if(this.contig_seen.contains(contig)) {
-				throw new IllegalStateException("Bad order. Saw contig "+contig+" twice. Input must be sorted.");
+				throw new IllegalStateException("Bad order. Saw contig "+contig+" twice. Input must be sorted" +
+						(t instanceof VariantContext?" using `bcftools sort`":"") +
+						".");
 				}
 			this.contig_seen.add(contig);
 			}

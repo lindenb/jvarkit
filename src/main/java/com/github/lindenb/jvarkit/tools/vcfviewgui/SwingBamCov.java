@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2021 Pierre Lindenbaum
+Copyright (c) 2022 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -72,6 +72,7 @@ import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -109,6 +110,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -230,6 +232,11 @@ public class SwingBamCov extends Launcher
 				}
 			abstract Locatable change(SAMSequenceRecord ssr,Locatable loc);
 			abstract String getShortDesc();
+			@Override
+			public String toString()
+				{
+				return String.valueOf(getValue(AbstractAction.NAME));
+				}
 			}
 		
 		
@@ -841,10 +848,33 @@ public class SwingBamCov extends Launcher
 
 			
 			topPane.add(new JSeparator());
-			topPane.add(new JButton(new ZoomAction(0.5)));
-			topPane.add(new JButton(new ZoomAction(1.5)));
-			topPane.add(new JButton(new ZoomAction(2.0)));
-			topPane.add(new JButton(new ZoomAction(10)));
+			final JComboBox<ZoomAction> zoomComboBox = new JComboBox<>(
+						new ZoomAction[] {
+						new ZoomAction(0.1),
+						new ZoomAction(0.25),
+						new ZoomAction(0.5),
+						new ZoomAction(0.75),
+						new ZoomAction(2.0),
+						new ZoomAction(3.0),
+						new ZoomAction(5.0),
+						new ZoomAction(10.0)
+						}
+					);
+			zoomComboBox.setEditable(false);
+			topPane.add(zoomComboBox);
+			final JButton zoomButton = new JButton(new AbstractAction("Zoom")
+				{
+				@Override
+				public void actionPerformed(ActionEvent e)
+					{
+					final ZoomAction za = (ZoomAction)zoomComboBox.getSelectedItem();
+					if(za==null) return;
+					za.actionPerformed(e);
+					}
+				});
+			topPane.add(zoomButton);
+			
+	
 			topPane.add(new JSeparator());
 			topPane.add(new JButton(new ShiftAction("<<<",-0.9)));
 			topPane.add(new JButton(new ShiftAction("<<",-0.5)));
@@ -1028,43 +1058,48 @@ public class SwingBamCov extends Launcher
 			}
 		
 		private void paintDrawingArea(final Graphics2D g) {
-			if(offScreenImage==null || offScreenImage.getWidth()!=this.drawingArea.getWidth() ||
-				offScreenImage.getHeight()!=this.drawingArea.getHeight())
-				{
-				final Optional<SimpleInterval> location = getUserInterval();
-				String capStr = this.jtextFieldCap.getText();
-				OptionalInt optCap = OptionalInt.empty();
-				if(StringUtils.isInteger(capStr)) {
-					optCap = OptionalInt.of(Integer.parseInt(capStr));
-					}
-				
-				
-				
-				offScreenImage = new BufferedImage(this.drawingArea.getWidth(), this.drawingArea.getHeight(), BufferedImage.TYPE_INT_RGB);
-				
-				final List<BamInfo> paths;
-				if(this.jtableBams.getSelectedRowCount()==0) {
-					paths = this.bamPaths;
-					} 
-				else {
-					final int[] selidx = this.jtableBams.getSelectedRows();
-					paths = new Vector<>(selidx.length);
-					for(int idx:selidx) {
-						paths.add(bamPaths.get(idx));
+			try {
+				if(offScreenImage==null || offScreenImage.getWidth()!=this.drawingArea.getWidth() ||
+					offScreenImage.getHeight()!=this.drawingArea.getHeight())
+					{
+					final Optional<SimpleInterval> location = getUserInterval();
+					String capStr = this.jtextFieldCap.getText();
+					OptionalInt optCap = OptionalInt.empty();
+					if(StringUtils.isInteger(capStr)) {
+						optCap = OptionalInt.of(Integer.parseInt(capStr));
 						}
+					
+					
+					
+					offScreenImage = new BufferedImage(this.drawingArea.getWidth(), this.drawingArea.getHeight(), BufferedImage.TYPE_INT_RGB);
+					
+					final List<BamInfo> paths;
+					if(this.jtableBams.getSelectedRowCount()==0) {
+						paths = this.bamPaths;
+						} 
+					else {
+						final int[] selidx = this.jtableBams.getSelectedRows();
+						paths = new Vector<>(selidx.length);
+						for(int idx:selidx) {
+							paths.add(bamPaths.get(idx));
+							}
+						}
+					drawingThread = new DrawingThread(this.offScreenImage,
+							location.orElse(null),
+							optCap,
+							paths);
+					this.progressBar.setIndeterminate(true);
+					drawingThread.start();
 					}
-				drawingThread = new DrawingThread(this.offScreenImage,
-						location.orElse(null),
-						optCap,
-						paths);
-				this.progressBar.setIndeterminate(true);
-				drawingThread.start();
+				else
+					{
+					g.drawImage(this.offScreenImage,0,0,null);
+					}
 				}
-			else
-				{
-				g.drawImage(this.offScreenImage,0,0,null);
+			catch(final Throwable err) {
+				ThrowablePane.show(this.drawingArea, err);
 				}
-			}		
+			}
 		}
 	
 	@Override

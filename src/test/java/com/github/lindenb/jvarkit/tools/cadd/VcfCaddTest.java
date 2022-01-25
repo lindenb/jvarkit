@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.cadd;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -7,6 +7,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.tools.cadd.VcfCadd;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 public class VcfCaddTest {

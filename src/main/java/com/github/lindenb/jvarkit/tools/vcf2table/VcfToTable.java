@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2021 Pierre Lindenbaum
+Copyright (c) 2022 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1276,7 +1276,6 @@ public class VcfToTable extends Launcher {
 				/** hyperlinks */
 				if(!getOwner().hideHyperlinks) {
 					final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
-					System.err.println(all_geneNames);
 					for(UrlSupplier.LabelledUrl  url : this.urlSupplier.of(vc) ) {
 						t.addRow(url.getLabel(),new HyperlinkDecorator(url.getUrl()));
 						}

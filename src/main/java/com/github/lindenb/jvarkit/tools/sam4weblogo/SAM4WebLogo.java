@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2021 Pierre Lindenbaum
+Copyright (c) 2022 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -211,7 +211,7 @@ END_DOC
  */
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
-	biostars= {73021,368200},
+	biostars= {73021,368200,9505463},
 	creationDate="20130524",
 	modificationDate="20191014",
 	keywords={"sam","bam","visualization","logo"}
