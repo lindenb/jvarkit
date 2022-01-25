@@ -35,6 +35,11 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
 
+/**
+ *
+ * Check Locatable are following a goog order (chrom/start)
+ * 
+ */
 public class OrderChecker<T extends Locatable> implements UnaryOperator<T>{
 private final Set<String> contig_seen;
 private final SAMSequenceDictionary dict;
@@ -42,14 +47,21 @@ private final boolean strictDictOrder;
 private String prev_contig = null;
 private int prev_start = -1;
 
+/** doesn't care about a dictionay, check items are ordered and chroms don't appear twice */
 public OrderChecker() {
 	this(null,false);
 }
 
+/** check items are sorted and chromosomes appear in the same order than in the dict */
 public OrderChecker(final SAMSequenceDictionary dict) {
 	this(dict,true);
-}
+	}
 
+/**
+ * 
+ * @param dict the sequence dictionary
+ * @param strictDictOrder if true, chromosomes should appear in the very same order than in dict
+ */
 public OrderChecker(final SAMSequenceDictionary dict,boolean strictDictOrder) {
 	this.dict = (dict.isEmpty()?null:dict);
 	this.strictDictOrder = strictDictOrder;
@@ -106,8 +118,8 @@ public T apply(final T t) {
 				}
 			this.contig_seen.add(contig);
 			}
-		this.prev_contig = t.getContig();
-		this.prev_start = t.getStart();		
+		this.prev_contig = contig;
+		this.prev_start = t.getStart();
 		}
 	else if (this.prev_start > t.getStart()) {
 		throwError(t);

@@ -33,6 +33,8 @@ Usage: vcfroh [options] Files
       Default: false
     --output, -o
       Output file. Optional . Default: stdout
+    --regions-file
+      Limit to intervals overlapping that BED file.
     --score
       HOM_REF/HOM_VAR score. HET score will be 'x' - 1.0.
       Default: 0.0025
