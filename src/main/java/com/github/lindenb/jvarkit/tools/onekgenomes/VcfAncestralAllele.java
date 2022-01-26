@@ -126,12 +126,12 @@ $ java -jar dist/vcfancestralalleles.jar \
 (...)
 ```
 
-END_DOC 
+END_DOC
  */
 @Program(name="vcfancestralalleles",
 description="Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README",
 keywords={"vcf","ancestral","1000k","allele"},
-modificationDate="20200717",
+modificationDate="20220126",
 creationDate="20180418"
 )
 public class VcfAncestralAllele
@@ -196,7 +196,7 @@ extends OnePassVcfLauncher
 			CloserUtil.close(r);
 			}
 		}
-	
+
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
@@ -219,10 +219,10 @@ extends OnePassVcfLauncher
 			header2.addMetaDataLine(AAheaderLine);
 			JVarkitVersion.getInstance().addMetaData(this,header2);
 			out.writeHeader(header2);
-			
+
 			String prev_contig = null;
 			Mapping prev_mapping = null;
-	
+
 			while(iterin.hasNext())
 				{
 				final VariantContext ctx = iterin.next();
@@ -270,7 +270,6 @@ extends OnePassVcfLauncher
 				vcb.attribute(AAheaderLine.getID(),ancestral);
 				out.add(vcb.make());
 				}
-			out.close();
 			if(!unmapped_contigs.isEmpty()) {
 				LOG.warn("UNMAPPED CONTIGS :"+unmapped_contigs);
 				}
@@ -284,9 +283,8 @@ extends OnePassVcfLauncher
 			{
 			CloserUtil.close(indexedFastaSequenceFile);
 			}
-		
 		}
-	
+
 	@Override
 	protected int beforeVcf() {
 		try {
@@ -299,12 +297,12 @@ extends OnePassVcfLauncher
 			}
 		return 0;
 		}
-	
+
 	@Override
 	protected Logger getLogger() {
 		return LOG;
 		}
-	
+
 	public static void main(final String[] args) {
 		new VcfAncestralAllele().instanceMainWithExit(args);
 		}

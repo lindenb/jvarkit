@@ -30,8 +30,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -45,10 +47,14 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFReader;
 
 /**
@@ -73,55 +79,99 @@ public class SetFileTools extends Launcher {
 	protected Path outputFile=null;
 	@Parameter(names={"-t","--trim-chr"},description="Remove chr prefix in chromosome names")
 	protected boolean trim_chr_prefix = false;
+	@Parameter(names={"--remov-"},description="Remove ")
+	protected boolean remove_unused_interval = false;
+	@Parameter(names={"--min-variant-per-set-file"},description="Remove ")
+	protected int min_variant_per_setfile = 0;
+
 	
 	protected int n_jobs = -1;
 
-	private abstract class AbstractIntersectIterator extends AbstractCloseableIterator<SetFileRecord> {
+	
+	private class IntersectVcfIterator extends AbstractCloseableIterator<SetFileRecord> {
+		final List<BufferedVCFReader> vcfReaders = new ArrayList<>();
 		final CloseableIterator<SetFileRecord> delegate;
-		AbstractIntersectIterator(final CloseableIterator<SetFileRecord> delegate) {
+		IntersectVcfIterator(final CloseableIterator<SetFileRecord> delegate,final List<Path> paths) {
 			this.delegate = delegate;
+			final VCFReaderFactory vrf = VCFReaderFactory.makeDefault();
+			final UnaryOperator<VariantContext> simplifier = V->new VariantContextBuilder(V).
+					noGenotypes().
+					noID().
+					unfiltered().
+					attributes(Collections.emptyMap()).
+					make();
+			for(final Path path:paths) {
+				this.vcfReaders.add(
+						new BufferedVCFReader(vrf.open(path,true),10_000).setSimplifier(simplifier));
+				}
 			}
-		abstract boolean overlap(Locatable loc);
+		
 		@Override
 		protected final SetFileRecord advance() {
 			while(this.delegate.hasNext()) {
-				SetFileRecord rec = this.delegate.next();
-				boolean foundCtx = false;
-				for(int i=0;!foundCtx && i< rec.size();i++) {
-					if(overlap(rec.get(i))) {
-						foundCtx=true;
-						break;
+				final SetFileRecord rec = this.delegate.next();
+				final List<Locatable> L = new ArrayList<>(rec.size());
+				long n = 0L;
+				for(int i=0;i< rec.size();i++) {
+					final Locatable loc = rec.get(i);
+					long n2 = 0L;
+					for(VCFReader vr: this.vcfReaders) {
+						try(CloseableIterator<VariantContext> iter2 = vr.query(loc)) {
+							n2 += iter2.stream().filter(V->V.overlaps(loc)).count();
+							}
 						}
+					if(n2==0L && remove_unused_interval) {
+						continue;
+						}
+					L.add(loc);
+					n+=n2;
 					}
-				if(!foundCtx) continue;
-				return rec;
+				if(L.isEmpty() || n< min_variant_per_setfile) continue;
+				return SetFileRecord.create(rec.getName(), L);
 				}
 			return null;
 			}
+
+		
 		@Override
 		public void close() {
 			delegate.close();
+			for(BufferedVCFReader b:this.vcfReaders) try {b.close();} catch(IOException err) {}
 			}
 		}
 	
-	private class IntersectVcfIterator extends AbstractIntersectIterator {
-		VCFReader vcfReader;
-		IntersectVcfIterator(final Path vcfPath,final CloseableIterator<SetFileRecord> delegate) {
-			super(delegate);
+	
+	private class IntersectBedIterator extends AbstractCloseableIterator<SetFileRecord> {
+		final IntervalTreeMap<Boolean> intervalTreeMap = new IntervalTreeMap<>();
+		final CloseableIterator<SetFileRecord> delegate;
+		IntersectBedIterator(final CloseableIterator<SetFileRecord> delegate,final Path bedPath) {
+			this.delegate = delegate;
+			
 			}
 		
 		@Override
-		boolean overlap(final Locatable loc) {
-			try(CloseableIterator<VariantContext> iter2 = vcfReader.query(loc)) {
-				if(iter2.hasNext())  return true;
+		protected final SetFileRecord advance() {
+			while(this.delegate.hasNext()) {
+				final SetFileRecord rec = this.delegate.next();
+				final List<Locatable> L = new ArrayList<>(rec.size());
+				for(int i=0;i< rec.size();i++) {
+					final Locatable loc = rec.get(i);
+					boolean keep = this.intervalTreeMap.containsOverlapping(loc);
+					if(!keep && remove_unused_interval) {
+						continue;
+						}
+					L.add(loc);
+					}
+				if(L.isEmpty()) continue;
+				return SetFileRecord.create(rec.getName(), L);
 				}
-			return false;
+			return null;
 			}
+
 		
 		@Override
 		public void close() {
 			delegate.close();
-			super.close();
 			}
 		}
 	

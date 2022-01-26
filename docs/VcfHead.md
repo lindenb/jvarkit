@@ -8,6 +8,7 @@ print the first variants of a vcf
 ## Usage
 
 ```
+Usage: java -jar dist/vcfhead.jar  [options] Files
 Usage: vcfhead [options] Files
   Options:
     -c, --bycontig
