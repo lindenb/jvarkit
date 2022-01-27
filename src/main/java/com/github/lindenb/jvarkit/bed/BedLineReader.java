@@ -35,12 +35,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -53,7 +55,6 @@ import htsjdk.samtools.util.StringUtil;
  */
 public class BedLineReader extends AbstractCloseableIterator<BedLine>  {
 public static final String OPT_DESC="A Bed file: (CHROM)<tab>(START 0-based)<tab>(END)[<tab>otherfields...].";
-private static final Logger LOG = Logger.build(BedLineReader.class).make();
 private final BedLineCodec codec = new BedLineCodec();
 private final BufferedReader br;
 private final String sourceName;
@@ -72,6 +73,16 @@ public BedLineReader(final BufferedReader br,final String sourceName) {
 	this.sourceName = sourceName==null?"undefined":sourceName;
 	}
 
+public BedLineReader setValidationStringency(final ValidationStringency stringency) {
+	this.codec.setValidationStringency(stringency);
+	return this;
+	}
+
+public BedLineReader setContigNameConverter(final UnaryOperator<String> chromosomeConverter) {
+	this.codec.setContigNameConverter(chromosomeConverter);
+	return this;
+	}
+
 @Override
 protected BedLine advance() {
 	try {
@@ -83,7 +94,9 @@ protected BedLine advance() {
 				}
 			final BedLine bed = this.codec.decode(line);
 			if (bed==null) {
-				LOG.warn("Cannot read bed entry \""+line.replace("\t", "\\t")+"\" in "+sourceName);
+				/* no need to display a message because validation stringency set in codec
+				 * LOG.warn("Cannot read bed entry \""+line.replace("\t", "\\t")+"\" in "+sourceName);
+				 */
 				continue;
 				}
 			return bed;

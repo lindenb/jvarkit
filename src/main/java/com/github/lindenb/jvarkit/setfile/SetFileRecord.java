@@ -34,6 +34,7 @@ import htsjdk.samtools.util.Locatable;
 
 /* 'SetFile' for rvtest */
 public interface SetFileRecord extends List<Locatable> {
+	public static final String FILE_EXTENSION=".setfile";
 	public String getName();
 	
 	/** return all chromosomes in this setFileRecord */
@@ -42,15 +43,15 @@ public interface SetFileRecord extends List<Locatable> {
 	}
 	
 	/** return all sum of length on reference */
-	public default int getSumOfLengthOnReference() {
-		return this.stream().mapToInt(R->R.getLengthOnReference()).sum();
+	public default long getLongSumOfLengthOnReference() {
+		return this.stream().mapToLong(R->R.getLengthOnReference()).sum();
 	}
 	/** return true if any item intersect with 'loc' */
 	public default boolean overlaps(final Locatable loc) {
 		return this.stream().anyMatch(R->R.overlaps(loc));
 	}
 	
-	public default void println(PrintWriter pw) {
+	public default void println(final PrintWriter pw) {
 		pw.write(getName());
 		for(int i=0;i< size();i++) {
 			final Locatable rec = get(i);

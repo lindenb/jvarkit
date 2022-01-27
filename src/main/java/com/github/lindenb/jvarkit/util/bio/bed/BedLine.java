@@ -118,6 +118,7 @@ public class BedLine
 		{
 		return tokens.length;
 		}
+	/** @return true if line starts with # or track or browser */
 	public static boolean isBedHeader(final String line)
 		{
 		return line.startsWith("#") || line.startsWith("track") || line.startsWith("browser");
