@@ -94,7 +94,7 @@ public class SetFileTools extends Launcher {
 	protected boolean remove_unused_interval = false;
 	@Parameter(names={"--bed"},description="Restrict input to this bed file.")
 	protected Path intersectBedPath = null;
-	@Parameter(names={"--bed"},description="Restrict input to thoses vcf file(s). A file with the '.list' suffix is interpreted as a list of paths to the vcfs.")
+	@Parameter(names={"--vcf","--vcfs"},description="Restrict input to thoses vcf file(s). A file with the '.list' suffix is interpreted as a list of paths to the vcfs.")
 	protected List<String> intersectVcfPath = new ArrayList<>();
 	@Parameter(names={"--stringency"},description="Validation Stringency")
 	protected ValidationStringency validationStringency = ValidationStringency.LENIENT;
