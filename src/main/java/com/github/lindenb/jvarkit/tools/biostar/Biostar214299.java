@@ -113,6 +113,7 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
 
  * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623
  * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
+ * Fine structure and transcription dynamics of bread wheat ribosomal DNA loci deciphered by a multi-omics approach. Z Tulpova & al.  2022.  The Plante Genome. https://doi.org/10.1002/tpg2.20191
 
 END_DOC
  */
