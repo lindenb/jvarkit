@@ -23,6 +23,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.bed;
 
+import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.readers.LineIterator;
@@ -30,18 +32,35 @@ import htsjdk.tribble.readers.LineIterator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 
+/** codec reading any BED line */
 public class BedLineCodec
 	extends AsciiFeatureCodec<BedLine>
 	{
 	private static final Logger LOG = Logger.build(BedLineCodec.class).make();
-	private final CharSplitter tab= CharSplitter.TAB;
+	private ValidationStringency stringency = ValidationStringency.LENIENT;
+	private UnaryOperator<String> chromosomeConverter = S->S;
 	public BedLineCodec() {
 		super(BedLine.class);
+		}
+	
+	public BedLineCodec setValidationStringency(final ValidationStringency stringency) {
+		this.stringency = stringency;
+		return this;
+	}
+	
+	public ValidationStringency getValidationStringency() {
+		return stringency;
+		}
+	
+	public BedLineCodec setContigNameConverter(UnaryOperator<String> chromosomeConverter) {
+		this.chromosomeConverter = chromosomeConverter;
+		return this;
 		}
 	
 	@Override
@@ -52,18 +71,45 @@ public class BedLineCodec
         	}
 		if(BedLine.isBedHeader(line)) return null;
 		
-        final String[] tokens = this.tab.split(line);
+        final String[] tokens = CharSplitter.TAB.split(line);
         if(tokens.length<2) {
-        	LOG.warn("not enough tokens in BED line "+line+" (\""+line.replaceAll("[\t]", "(tab)")+"\"=. Skipping.");
+        	raiseError("not enough tokens in BED line",line);
         	return null;
         	}
         if(tokens[1].equals(tokens[2])) {
-        	LOG.warn("cannot use empty BED interval "+line+" (\""+line.replaceAll("[\t]", "(tab)")+"\"=. Skipping.");
+        	raiseError("cannot use empty BED interval",line);
         	return null;
         	}
+        
+        if(StringUtil.isBlank(tokens[0])) {
+        	raiseError("empty chromosome",line);
+        	return null;
+        	}
+        
+        if(this.chromosomeConverter!=null) {
+        	final String ctg = this.chromosomeConverter.apply(tokens[0]);
+        	if(StringUtil.isBlank(ctg)) {
+            	raiseError("cannot use/find contig \""+tokens[0]+"\". Check reference dictionary ?",line);
+        		return null;
+        		}
+        	tokens[0] = ctg;
+        	}
+        
         return new BedLine(tokens);
         }
 	
+	private void raiseError(final String msg,final String line) {
+		switch(getValidationStringency()) {
+		case LENIENT: LOG.warn(msg+" "+visibleLineForError(line)+". Skipping.");break;
+		case STRICT: throw new RuntimeIOException(msg+" "+visibleLineForError(line)+".");
+		case SILENT: break;
+		default:throw new IllegalStateException();
+		}
+	}
+	
+	private String visibleLineForError(final String line) {
+		return line+"\t"+line.replaceAll("[\t]", "(tab)");
+	}
 	
 	/** return   a List of Strings containing the line of
 	 * the bed header "browser.."

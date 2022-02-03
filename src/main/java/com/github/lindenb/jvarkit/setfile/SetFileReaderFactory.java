@@ -118,8 +118,8 @@ public class SetFileReaderFactory {
 					if(line==null) return null;
 					if(StringUtils.isBlank(line)) continue;
 					if(line.startsWith("#")) continue;
-					String[] tokens = line.split("[\\w]+", 2);
-					if(StringUtils.isBlank(tokens[0])) throw new IOException("empty name in "+line);
+					String[] tokens = line.split("[\\s]+", 2);
+					if(StringUtils.isBlank(tokens[0])) throw new IOException("empty name ("+tokens[0]+") in "+line);
 					if(tokens.length!=2) throw new IOException("only name in "+line);
 					String name = tokens[0];
 					tokens = CharSplitter.COMMA.split(tokens[1]);
@@ -134,13 +134,13 @@ public class SetFileReaderFactory {
 							if(skipUnknownChromosome) continue;
 							throw new IOException("undefined chromosome for item["+i+"] in line"+line);
 						}
-						final int  hyphen = s.indexOf(':', colon+1);
+						final int  hyphen = s.indexOf('-', colon+1);
 						if(hyphen==-1) {
 							final int pos = Integer.parseInt(s.substring(colon+1));
 							L.add(new SimplePosition(contig, pos));
 							}
 						else {
-							final int start = Integer.parseInt(s.substring(colon+1),hyphen);
+							final int start = Integer.parseInt(s.substring(colon+1,hyphen));
 							final int end = Integer.parseInt(s.substring(hyphen+1));
 							if(start>end) throw new IOException("bad start>end for item["+i+"] in line");
 							L.add(new SimpleInterval(contig, start, end));
