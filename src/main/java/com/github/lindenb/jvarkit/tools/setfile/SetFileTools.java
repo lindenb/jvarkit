@@ -32,8 +32,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -44,6 +46,8 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.setfile.SetFileReaderFactory;
 import com.github.lindenb.jvarkit.setfile.SetFileRecord;
@@ -59,10 +63,12 @@ import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -71,6 +77,17 @@ import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
+action = combine
+```
+$ echo -e "w RF01:150-200\nx RF01:1-100,RF02:1-100\ny RF01:90-200,RF03:1-100\nz RF03:50-150,RF04:100-200" | java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa combine
+w_x	RF01:1-100,RF01:150-200,RF02:1-100
+w_y	RF01:90-200,RF03:1-100
+w_z	RF01:150-200,RF03:50-150,RF04:100-200
+x_y	RF01:1-200,RF02:1-100,RF03:1-100
+x_z	RF01:1-100,RF02:1-100,RF03:50-150,RF04:100-200
+y_z	RF01:90-200,RF03:1-150,RF04:100-200
+```
+
 
 END_DOC
 
@@ -78,10 +95,9 @@ END_DOC
 @Program(name="setfiletools",
 description="Utilities for the setfile format",
 creationDate="20210125",
-modificationDate="20210127",
+modificationDate="20210205",
 keywords={"setfile"}
 )
-
 public class SetFileTools extends Launcher {
 	private static final Logger LOG = Logger.build(SetFileTools.class).make();
 	@Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
@@ -104,6 +120,75 @@ public class SetFileTools extends Launcher {
 	private int number_of_jobs=-1;
 	@Parameter(names={"--min-variants-per-setfile"},description="when using vcf, only keep the setfile is there are at least 'x' overlapping variants.")
 	private int min_variant_per_setfile = 1;
+	@Parameter(names={"--extend"},description="Extends each interval. "+IntervalExtender.OPT_DESC)
+	private String extendStr = null;
+	@Parameter(names={"--disable-uniq"},description="disable unique-name checker.")
+	private boolean disable_uniq = false;
+
+	
+	/** global fai */
+	private SAMSequenceDictionary theDict = null;
+	/** global sorter */
+	private Comparator<Locatable> theSorter;
+
+	
+	/** check uniq names */
+	private class UniqNameIterator extends AbstractCloseableIterator<SetFileRecord> {
+		final CloseableIterator<SetFileRecord> delegate;
+		final Set<String> names = new HashSet<>(10_000);
+		
+		UniqNameIterator(final CloseableIterator<SetFileRecord> delegate) {
+			this.delegate = delegate;
+			}
+		
+		@Override
+		protected final SetFileRecord advance() {
+			if(!this.delegate.hasNext()) return null;
+			final SetFileRecord rec = this.delegate.next();
+			if(!this.names.add(rec.getName())) {
+				throw new RuntimeIOException("setfile contains duplicate name \""+rec.getName()+"\".");
+				}
+			return rec;
+			}
+
+		@Override
+		public void close() {
+			delegate.close();
+			}
+		}
+	
+	/** iterator extending+merging intervals */
+	private class ExtenderIterator extends AbstractCloseableIterator<SetFileRecord> {
+		final IntervalExtender xtender;
+		final CloseableIterator<SetFileRecord> delegate;
+		
+		ExtenderIterator(final CloseableIterator<SetFileRecord> delegate,final IntervalExtender xtender) {
+			this.delegate = delegate;
+			this.xtender = xtender;
+			if(this.xtender.isShriking()) throw new IllegalArgumentException("shrinking is not supported:"+ extendStr);
+			}
+		
+		@Override
+		protected final SetFileRecord advance() {
+			while(this.delegate.hasNext()) {
+				final SetFileRecord rec = this.delegate.next();
+				final List<Locatable> L = new ArrayList<>(rec.size());
+				for(int i=0;i< rec.size();i++) {
+					final Locatable loc0 = rec.get(i);
+					final Locatable loc = this.xtender.apply(loc0);
+					L.add(loc);
+					}
+				return SetFileRecord.create(rec.getName(),sortAndMerge(L));
+				}
+			return null;
+			}
+
+		
+		@Override
+		public void close() {
+			delegate.close();
+			}
+		}
 	
 	/** iterator filtering on VCF */
 	private class IntersectVcfIterator extends AbstractCloseableIterator<SetFileRecord> {
@@ -173,7 +258,7 @@ public class SetFileTools extends Launcher {
 		IntersectBedIterator(final CloseableIterator<SetFileRecord> delegate,final Path bedPath) {
 			this.delegate = delegate;
 			try(BedLineReader br = new BedLineReader(bedPath)) {
-				br.setContigNameConverter(ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(faidxRef)));
+				br.setContigNameConverter(ContigNameConverter.fromOneDictionary(SetFileTools.this.theDict));
 				br.setValidationStringency(validationStringency);
 				this.intervalTreeMap = br.toIntervalTreeMap(X->Boolean.TRUE);
 				}
@@ -222,7 +307,8 @@ public class SetFileTools extends Launcher {
 		tobed,
 		frombed,
 		view,
-		cluster
+		cluster,
+		combine
 		};
 		
 	private String noChr(final String contig) {
@@ -232,25 +318,54 @@ public class SetFileTools extends Launcher {
 		return contig;
 	}
 	
-	private Comparator<Locatable> createSorter() {
-		return new ContigDictComparator(SequenceDictionaryUtils.extractRequired(this.faidxRef)).createLocatableComparator();
-	}
+	private List<Locatable> sortAndMerge(final List<Locatable> L0) {
+			if(L0.size()<2) return L0;
+			final List<Locatable> L = new ArrayList<>(L0);
+			// merge overlapping
+			Collections.sort(L, theSorter);
+			int i=0;
+			while(i+1 < L.size()) {
+				final Locatable xi = L.get(i  );
+				final Locatable xj = L.get(i+1);
+				if(xi.overlaps(xj)) {
+					L.set(i, new SimpleInterval(
+							xi.getContig(),
+							Math.min(xi.getStart(),xj.getStart()),
+							Math.max(xi.getEnd(),xj.getEnd())
+							));
+					L.remove(i+1);
+				} else {
+					i++;
+				}
+			}
+		return L;
+		}
 	
 	private CloseableIterator<SetFileRecord> openSetFileIterator(final List<String> args) throws IOException {
 		CloseableIterator<SetFileRecord> iter  = null;
 		final String input = oneFileOrNull(args);
-		final SetFileReaderFactory srf  = new SetFileReaderFactory(SequenceDictionaryUtils.extractRequired(this.faidxRef));
+		final SetFileReaderFactory srf  = new SetFileReaderFactory(this.theDict);
 		if(input==null) {
 			iter = srf.open(IOUtils.openStdinForBufferedReader());
 		} else {
 			iter  =srf.open(IOUtils.openURIForBufferedReading(input));
 		}
+		if(!StringUtils.isBlank(this.extendStr)) {
+			final IntervalExtender xtExtender =  IntervalExtender.of(this.theDict, this.extendStr);
+			if(xtExtender.isChanging()) {
+				iter  = new ExtenderIterator(iter, xtExtender);
+				}
+		}
+		
 		
 		if(intersectBedPath!=null) {
 			iter  = new IntersectBedIterator(iter, this.intersectBedPath);
 			}
 		if(!intersectVcfPath.isEmpty()) {
 			iter = new IntersectVcfIterator(iter, IOUtils.unrollPaths(this.intersectVcfPath));
+			}
+		if(!disable_uniq) {
+			iter  = new UniqNameIterator(iter);
 			}
 		return iter;
 		}
@@ -328,12 +443,11 @@ public class SetFileTools extends Launcher {
 			}// end open
 		int clusterid = 0;
 		try(final ArchiveFactory archive = ArchiveFactory.open(this.outputFile)) {
-			final Comparator<Locatable> sorter = createSorter();
 			for(final Cluster cluster : clusters) {
 				Collections.sort(cluster.records,(A,B)->{
 					final Locatable s1  = A.get(0);
 					final Locatable s2  = B.get(0);
-					final int i = sorter.compare(s1, s2);
+					final int i = this.theSorter.compare(s1, s2);
 					if(i!=0) return i;
 					return A.getName().compareTo(B.getName());
 					});
@@ -366,6 +480,28 @@ public class SetFileTools extends Launcher {
 		return 0;
 		}
 	
+	private int combine(final List<String> args) throws IOException {
+	try(CloseableIterator<SetFileRecord> iter = openSetFileIterator(args)) {
+		final List<SetFileRecord> L2 = iter.stream().collect(Collectors.toList());
+		try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+			for(int i=0;i+1< L2.size();i++) {
+				final SetFileRecord r1 = L2.get(i);
+				for(int j=i+1;j< L2.size();j++) {
+					final SetFileRecord r2 = L2.get(j);
+					final List<Locatable> L = new ArrayList<>(r1.size()+r2.size());
+					L.addAll(r1);
+					L.addAll(r2);
+					final String name = String.join("_", r1.getName(),r2.getName());
+					print(pw,SetFileRecord.create(name, sortAndMerge(L)));
+					}
+				}
+			pw.flush();
+			}
+		}
+	return 0;
+	}
+	
+	
 	private int toBed(final List<String> args) throws IOException {
 		try(CloseableIterator<SetFileRecord> iter = openSetFileIterator(args)) {
 			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
@@ -397,7 +533,7 @@ public class SetFileTools extends Launcher {
 		try(BufferedReader br = super.openBufferedReader(input)) {
 			try(BedLineReader blr = new BedLineReader(br, input)) {
 				blr.setValidationStringency(validationStringency);
-				blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(faidxRef)));
+				blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(this.theDict));
 
 				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 					final EqualIterator<BedLine> iter = new EqualIterator<BedLine>(blr.stream().iterator(),(A,B)->bed2name.apply(A).compareTo(bed2name.apply(B)));
@@ -430,6 +566,9 @@ public class SetFileTools extends Launcher {
 			return -1;
 			}
 		try {
+			this.theDict= SequenceDictionaryUtils.extractRequired(this.faidxRef);
+			this.theSorter = new ContigDictComparator(this.theDict).createLocatableComparator();
+		
 			final Action action = Action.valueOf(args0.get(0));
 			final List<String> args = args0.subList(1, args0.size());
 			switch(action) {
@@ -437,6 +576,7 @@ public class SetFileTools extends Launcher {
 				case tobed: return toBed(args);
 				case view: return view(args);
 				case cluster: return makeClusters(args);
+				case combine: return combine(args);
 				default: LOG.error("not implemented "+action);return -1;
 				}
 			}

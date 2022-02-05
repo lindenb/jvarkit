@@ -13,6 +13,13 @@ Usage: setfiletools [options] Files
   Options:
     --bed
       Restrict input to this bed file.
+    --disable-uniq
+      disable unique-name checker.
+      Default: false
+    --extend
+      Extends each interval. Extending interval. The following syntaxes are 
+      supported: 1000; 1kb; 1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 
+      1.5 (extend)
     -h, --help
       print help and exit
     --helpFormat
@@ -108,5 +115,16 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+action = combine
+```
+$ echo -e "w RF01:150-200\nx RF01:1-100,RF02:1-100\ny RF01:90-200,RF03:1-100\nz RF03:50-150,RF04:100-200" | java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa combine
+w_x	RF01:1-100,RF01:150-200,RF02:1-100
+w_y	RF01:90-200,RF03:1-100
+w_z	RF01:150-200,RF03:50-150,RF04:100-200
+x_y	RF01:1-200,RF02:1-100,RF03:1-100
+x_z	RF01:1-100,RF02:1-100,RF03:50-150,RF04:100-200
+y_z	RF01:90-200,RF03:1-150,RF04:100-200
+```
 
 
