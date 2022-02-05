@@ -116,6 +116,16 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+action = frombed
+```
+$ echo -e "RF01\t150\t200\tA\nRF01\t190\t300\tA\nRF01\t350\t400\tA\nRF01\t150\t200\tB" |\
+	java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa frombed
+
+A	RF01:151-300,RF01:351-400
+B	RF01:151-200
+
+```
+
 action = combine
 ```
 $ echo -e "w RF01:150-200\nx RF01:1-100,RF02:1-100\ny RF01:90-200,RF03:1-100\nz RF03:50-150,RF04:100-200" | java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa combine

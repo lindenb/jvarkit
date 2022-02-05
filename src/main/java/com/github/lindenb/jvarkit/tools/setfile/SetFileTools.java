@@ -77,6 +77,16 @@ import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
+action = frombed
+```
+$ echo -e "RF01\t150\t200\tA\nRF01\t190\t300\tA\nRF01\t350\t400\tA\nRF01\t150\t200\tB" |\
+	java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa frombed
+
+A	RF01:151-300,RF01:351-400
+B	RF01:151-200
+
+```
+
 action = combine
 ```
 $ echo -e "w RF01:150-200\nx RF01:1-100,RF02:1-100\ny RF01:90-200,RF03:1-100\nz RF03:50-150,RF04:100-200" | java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa combine
@@ -318,8 +328,7 @@ public class SetFileTools extends Launcher {
 		return contig;
 	}
 	
-	private List<Locatable> sortAndMerge(final List<Locatable> L0) {
-			if(L0.size()<2) return L0;
+	private List<Locatable> sortAndMerge(final List<? extends Locatable> L0) {
 			final List<Locatable> L = new ArrayList<>(L0);
 			// merge overlapping
 			Collections.sort(L, theSorter);
@@ -539,13 +548,14 @@ public class SetFileTools extends Launcher {
 					final EqualIterator<BedLine> iter = new EqualIterator<BedLine>(blr.stream().iterator(),(A,B)->bed2name.apply(A).compareTo(bed2name.apply(B)));
 					while(iter.hasNext()) {
 						final List<BedLine> lines = iter.next();
+						final List<Locatable> L = sortAndMerge(lines);
 						pw.print(bed2name.apply(lines.get(0)));
-						for(int i=0;i< lines.size();i++) {
+						for(int i=0;i< L.size();i++) {
 							pw.print(i==0?"\t":",");
-							final BedLine rec = lines.get(i);
+							final Locatable rec = L.get(i);
 							pw.print(noChr(rec.getContig()));
 							pw.print(":");
-							pw.print(rec.getStart()+1);
+							pw.print(rec.getStart());
 							pw.print("-");
 							pw.print(rec.getEnd());
 							}
