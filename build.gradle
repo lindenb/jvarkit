@@ -266,6 +266,14 @@ libraries.put("leveldb",new Library().
 	add("com.google.guava:guava:jar:21.0")
 	);
 
+libraries.put("biojava",new Library().
+	add("org.biojava:biojava-alignment:jar:6.0.5").
+	add("org.biojava:biojava-core:jar:6.0.5").
+	add("org.biojava.thirdparty:forester:jar:1.039").
+	add("org.slf4j:slf4j-api:jar:1.7.30")
+	);
+
+
 // https://stackoverflow.com/questions/28498688
 
 
@@ -2647,8 +2655,7 @@ all2.add(task("jeter", type: CompileJVarkit) {
 
 all2.add(task("jeter2", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.plateoptimizer.PlateOptimizer"
-        with_jni = true
-        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        jarLibs = combineLibs("htsjdk","testng","jcommander","biojava")
         });
 
 

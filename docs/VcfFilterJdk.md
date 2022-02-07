@@ -8,6 +8,7 @@ Filtering VCF with dynamically-compiled java expressions
 ## Usage
 
 ```
+Usage: java -jar dist/vcffilterjdk.jar  [options] Files
 Usage: vcffilterjdk [options] Files
   Options:
     --bcf-output
@@ -45,7 +46,8 @@ Usage: vcffilterjdk [options] Files
       Output file. Optional . Default: stdout
     -p, --pedigree
       Optional pedigree file. A pedigree file. tab delimited. Columns: 
-      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
+      family,id,father,mother, 
+      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -rc, --recalc
       [20180716] recalc attributes like INFO/AF, INFO/AC, INFO/AN... if the 
@@ -107,6 +109,7 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/9489144](https://www.biostars.org/p/9489144)
  * [https://www.biostars.org/p/9498113](https://www.biostars.org/p/9498113)
  * [https://www.biostars.org/p/9500825](https://www.biostars.org/p/9500825)
+ * [https://www.biostars.org/p/9509515](https://www.biostars.org/p/9509515)
 
 
 ## Compilation
