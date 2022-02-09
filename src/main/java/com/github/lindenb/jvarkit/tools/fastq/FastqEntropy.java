@@ -24,25 +24,24 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.fastq;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
-import java.util.List;
+import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPOutputStream;
 
-import htsjdk.samtools.fastq.FastqRecord;
-
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.fastq.FastqRecordPair;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.jcommander.FastqLauncher;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.FastqReader;
-import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
+
+import htsjdk.samtools.fastq.FastqReader;
+import htsjdk.samtools.fastq.FastqRecord;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.RuntimeIOException;
 
 /**
 BEGIN_DOC
@@ -154,16 +153,16 @@ END_DOC
 
 @Program(name="fastqentropy",
 	description="Compute the Entropy of a Fastq file (distribution of the length(gzipped(sequence))",
-	keywords={"fastq"}
+	keywords={"fastq"},
+	modificationDate="20220209"
 	)
-public class FastqEntropy extends Launcher
+public class FastqEntropy extends FastqLauncher
 	{
 	private static final Logger LOG = Logger.build(FastqEntropy.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File fileout = null;
+	private Path fileout = null;
 
-	private PrintStream pw= System.out;
 	private final Counter<Long> length2count=new Counter<Long>();
 	
 	private static class BestCompressionOutputStream extends GZIPOutputStream
@@ -178,46 +177,45 @@ public class FastqEntropy extends Launcher
 			return NullOuputStream.class.cast(super.out).getByteWrittenCount();
 			}
 		}
-	private FastqEntropy()
-		{
+
+	@Override
+	protected Logger getLogger() {
+		return LOG;
 		}
 	
 	
-	
-	private void convert(InputStream in) throws IOException
+	private void convert(FastqRecord rec)
 		{
-		FastqReader r=new FourLinesFastqReader(in);
-		while(r.hasNext())
-			{
-			FastqRecord rec=r.next();
-			BestCompressionOutputStream gzout=new BestCompressionOutputStream();
-			gzout.write(rec.getBaseQualityString().getBytes());
-			gzout.flush();
-			gzout.close();
-			this.length2count.incr(gzout.getByteWrittenCount());
+		try {
+			try(BestCompressionOutputStream gzout=new BestCompressionOutputStream()) {
+				gzout.write(rec.getBaseQualityString().getBytes());
+				gzout.flush();
+				this.length2count.incr(gzout.getByteWrittenCount());
+				}
 			}
-		r.close();
+		catch(IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
+	
+	
+	@Override
+	protected int runPairedEnd(CloseableIterator<FastqRecordPair> iter) throws IOException {
+		while(iter.hasNext()) {
+			iter.next().forEach(REC->convert(REC));
+			}
+		return dump();
 		}
 	@Override
-	public int doWork(List<String> args) {
-		try
-			{
-			this.pw = super.openFileOrStdoutAsPrintStream(this.fileout);
-			if(args.isEmpty())
-				{
-				LOG.info("Reading from stdin");
-				convert(stdin());
-				}
-			else
-				{
-				for(String filename: args)
-					{
-					LOG.info("Reading from "+filename);
-					InputStream in=IOUtils.openURIForReading(filename);
-					convert(in);
-					in.close();
-					}
-				}
+	protected int runSingleEnd(FastqReader iter) throws IOException {
+		while(iter.hasNext()) {
+			convert(iter.next());
+			}
+		return dump();
+		}
+	
+	private int dump() throws IOException {
+		try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.fileout)) {
 			for(Long n:this.length2count.keySetIncreasing())
 				{
 				pw.print(n);
@@ -226,19 +224,8 @@ public class FastqEntropy extends Launcher
 				if(pw.checkError()) break;
 				}
 			pw.flush();
-			pw.close();
-			pw=null;
-			return 0;
 			}
-		catch(Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			
-			}
+		return 0;
 		}
 	/**
 	 * @param args

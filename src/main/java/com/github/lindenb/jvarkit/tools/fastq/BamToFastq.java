@@ -156,7 +156,7 @@ END_DOC
 */
 @Program(name="bam2fastq",
 	description="Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. ",
-	deprecatedMsg="use picard",
+	deprecatedMsg="use picard, use samtools fastq",
 	keywords={"fastq"}
 	)
 public class BamToFastq
