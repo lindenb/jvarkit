@@ -8,6 +8,7 @@ Compare two or more BAM files
 ## Usage
 
 ```
+Usage: java -jar dist/cmpbams.jar  [options] Files
 Usage: cmpbams [options] Files
   Options:
     -c, --cigar
@@ -328,4 +329,5 @@ HWI-1KL149:20:C1CU7ACXX:2:2315:4940:7934/2	EQ|EQ|EQ	K01:2059=163/100M	K01:2059=1
 ## Cited in
 
 * "Blood transcriptome analysis in a buck-ewe hybrid and its parents" Falker-Gieske, C., Knorr, C. & Tetens, J. Blood transcriptome analysis in a buck-ewe hybrid and its parents. Sci Rep 9, 17492 (2019) doi:10.1038/s41598-019-53901-z
+* Alejandra Bodelón, Marie Fablet, Philippe Veber, Cristina Vieira, Maria Pilar García Guerreiro, High stability of the epigenome in Drosophila interspecific hybrids, Genome Biology and Evolution, 2022;, evac024, https://doi.org/10.1093/gbe/evac024
 
