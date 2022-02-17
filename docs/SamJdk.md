@@ -8,6 +8,7 @@ Filters a BAM using a java expression compiled in memory.
 ## Usage
 
 ```
+Usage: java -jar dist/samjdk.jar  [options] Files
 Usage: samjdk [options] Files
   Options:
     --bamcompression
@@ -103,6 +104,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/9489815](https://www.biostars.org/p/9489815)
  * [https://www.biostars.org/p/9493510](https://www.biostars.org/p/9493510)
  * [https://www.biostars.org/p/9498170](https://www.biostars.org/p/9498170)
+ * [https://www.biostars.org/p/9511167](https://www.biostars.org/p/9511167)
 
 
 ## Compilation
