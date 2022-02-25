@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.fastq;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -38,6 +37,7 @@ import htsjdk.samtools.BAMRecordCodec;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StringUtil;
@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.fastq.FastqPairedWriterFactory;
 import com.github.lindenb.jvarkit.fastq.FastqUtils;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -89,8 +90,7 @@ TGGGGAAGTATAATCTAATCTTGTCAGAATATTTATCATTTATATATAACTCACAATCCGCAGTTCAACT
 END_DOC
 */
 @Program(name="bam2fastq",
-	description="Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. ",
-	deprecatedMsg="use picard, use samtools fastq",
+	description="convert paired-end SAM to fastq using a memory buffer.",
 	keywords={"fastq","bam"},
 	modificationDate="20220225",
 	creationDate="20131120"
@@ -108,7 +108,7 @@ public class BamToFastq extends MultiBamLauncher
 	
 	
 
-	@Parameter(names={"-R0","--single"},description="Save single-end to this file.")
+	@Parameter(names={"-R0","--single"},description="Save single-end to this file. If unspecified, single-end reads are ignored.")
 	private File singleFastq = null;
 
 	@Parameter(names={"-R1","--forward"},description="Save fastq_R1 to file (default: stdout)")
@@ -117,7 +117,7 @@ public class BamToFastq extends MultiBamLauncher
 	@Parameter(names={"-R2","--reverse"},description="Save fastq_R2 to file (default: interlaced with forward)")
 	private File reverseFile = null;
 
-	@Parameter(names={"-U","--unpaired"},description="repair: insert missing read")
+	@Parameter(names={"-U","--unpaired"},description="Save unresolved pair to file. If unspecified, unresolved reads are ignored.")
 	private File unpairedFile = null;
 	
 	@ParametersDelegate
@@ -134,12 +134,12 @@ public class BamToFastq extends MultiBamLauncher
 		}
 	
 
+	/** convert SAMRecord to fastq */
 	private FastqRecord toFastq(final SAMRecord rec) {
-		String readString = rec.getReadString();
-		String baseQualities = rec.getBaseQualityString();
-
-		if(readString.equals(SAMRecord.NULL_SEQUENCE_STRING)) readString="";
-		if(baseQualities.equals(SAMRecord.NULL_QUALS_STRING)) baseQualities="";
+		String readString = SAMRecord.NULL_SEQUENCE==rec.getReadBases()?"":rec.getReadString();
+		String baseQualities = SAMRecord.NULL_QUALS==rec.getBaseQualities()?
+				StringUtils.repeat(readString.length(), '#'):
+				rec.getBaseQualityString();
 
 		
 		if(rec.getReadNegativeStrandFlag()) {
@@ -155,17 +155,19 @@ public class BamToFastq extends MultiBamLauncher
 		}
 	
 	@Override
-	protected int processInput(SAMFileHeader header, final CloseableIterator<SAMRecord> iter)
+	protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter0)
 		{
 		final Comparator<SAMRecord> queryNameComparator= (A,B)->A.getReadName().compareTo(B.getReadName());
 		SortingCollection<SAMRecord> sortingSAMRecord=null;
-		final ArrayList<SAMRecord> buffer = new ArrayList<>();
+		final ArrayList<SAMRecord> buffer = new ArrayList<>(50_000);
 		FastqWriter singleEndWriter=null;
 		FastqWriter unpairedWriter=null;
 		FastqPairedWriter R1R2writer=null;
+		final PeekableIterator<SAMRecord> iter = new PeekableIterator<>(iter0);
 		try {
 			if(!SAMFileHeader.SortOrder.coordinate.equals(header.getSortOrder())) {
-				throw new IOException("Input is not sorted on coordinate.");
+				LOG.error("Input is not sorted on coordinate. got : " + header.getSortOrder());
+				return -1;
 				}
 
 			if(singleFastq!=null) FastqUtils.validateFastqFilename(singleFastq);
@@ -205,6 +207,27 @@ public class BamToFastq extends MultiBamLauncher
 					continue;
 					}
 
+				if((rec.getReadUnmappedFlag() || rec.getMateUnmappedFlag()) && iter.hasNext()) {
+					final SAMRecord rec2= iter.peek();
+					if(!rec2.isSecondaryOrSupplementary() &&
+						queryNameComparator.compare(rec, rec2)==0) {
+						 if(rec2.getFirstOfPairFlag() && rec.getSecondOfPairFlag()) {
+						 	//consumme
+						 	iter.next();
+						 	R1R2writer.write(toFastq(rec2), toFastq(rec));
+						 	continue;
+							}
+						else if(rec.getFirstOfPairFlag() && rec2.getSecondOfPairFlag()) {
+							//consumme
+						 	iter.next();
+							R1R2writer.write(toFastq(rec), toFastq(rec2));
+							continue;
+							}
+						}
+					}
+				
+				
+				
 				if(rec.getReadUnmappedFlag() ||
 					rec.getMateUnmappedFlag() ||
 					!rec.getReferenceName().equals(rec.getMateReferenceName()) ||
@@ -288,6 +311,7 @@ public class BamToFastq extends MultiBamLauncher
 						}
 					}
 				}
+			sortingSAMRecord.cleanup();
 			return 0;
 			}
 		catch(final Throwable err ) {
@@ -295,6 +319,7 @@ public class BamToFastq extends MultiBamLauncher
 			return -1;
 			}
 		finally {
+			iter.close();
 			if(R1R2writer!=null) try{R1R2writer.close();} catch(Throwable err) {}
 			if(unpairedWriter!=null) try{unpairedWriter.close();} catch(Throwable err) {}
 			if(singleEndWriter!=null) try{singleEndWriter.close();} catch(Throwable err) {}

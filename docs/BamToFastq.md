@@ -2,12 +2,8 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Same as picard/SamToFastq but allow missing reads + shuffle reads using hash(name) so you can use them with bwa. 
+convert paired-end SAM to fastq using a memory buffer.
 
-
-## DEPRECATED
-
-use picard, use samtools fastq
 
 ## Usage
 
@@ -43,12 +39,14 @@ Usage: bam2fastq [options] Files
     -R2, --reverse
       Save fastq_R2 to file (default: interlaced with forward)
     -R0, --single
-      Save single-end to this file.
+      Save single-end to this file. If unspecified, single-end reads are 
+      ignored. 
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
     -U, --unpaired
-      repair: insert missing read
+      Save unresolved pair to file. If unspecified, unresolved reads are 
+      ignored. 
     --validation-stringency
       SAM Reader Validation Stringency
       Default: LENIENT
