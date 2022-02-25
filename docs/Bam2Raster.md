@@ -8,6 +8,7 @@ BAM to raster graphics
 ## Usage
 
 ```
+Usage: java -jar dist/bam2raster.jar  [options] Files
 Usage: bam2raster [options] Files
   Options:
     -clip, --clip
