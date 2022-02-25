@@ -889,7 +889,6 @@ all.add( task("backlocate", type: CompileJVarkit) {
 all2.add( task("bam2fastq", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.fastq.BamToFastq"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
-	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
 all.add( task("bam2raster", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster"
