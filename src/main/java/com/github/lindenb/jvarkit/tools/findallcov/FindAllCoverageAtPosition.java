@@ -96,16 +96,16 @@ $ find ./testdata/ -type f -name "*.bam" | \
 
 ```
 
+## Cited in
+
+ * Alexandra Bergfort, Tarek Hilal, Benno Kuropka, İbrahim Avşar Ilik, Gert Weber, Tuğçe Aktaş, Christian Freund, Markus C Wahl, The intrinsically disordered TSSC4 protein acts as a helicase inhibitor, placeholder and multi-interaction coordinator during snRNP assembly and recycling, Nucleic Acids Research, 2022;, gkac087, https://doi.org/10.1093/nar/gkac087
+
 ## See also
 
  * [https://twitter.com/pjacock/status/538300664334798848](https://twitter.com/pjacock/status/538300664334798848)
  * [https://twitter.com/yokofakun/status/538300434109456385](https://twitter.com/yokofakun/status/538300434109456385)
  * [https://twitter.com/pjacock/status/538299549455233024](https://twitter.com/pjacock/status/538299549455233024)
  * FindAVariation
-
-## History
-
- + 20210303 : bug fixed in https://github.com/lindenb/jvarkit/issues/180
 
 
 END_DOC

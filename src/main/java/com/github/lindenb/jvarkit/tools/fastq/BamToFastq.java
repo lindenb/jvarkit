@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.UnaryOperator;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqRecord;
@@ -126,6 +127,24 @@ public class BamToFastq extends MultiBamLauncher
 	@Parameter(names={"-d","--distance"},description="put the reads in memory if they're lying within that distance. " + DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int distance = 5_000;
 	
+	private class CountIn<T> implements UnaryOperator<T> {
+		final String prefix;
+		long count = 0L;
+		CountIn(final String prefix) {
+			this.prefix = prefix;
+			}
+		void log() {
+			LOG.info(prefix+" : "+StringUtils.niceInt(count));
+			}
+		@Override
+		public T apply(T t)
+			{
+			++count;
+			if(count % 1_000_000L==0L) log();
+			return t;
+			}
+		}
+	
 	
 	@Override
 	protected Logger getLogger()
@@ -160,7 +179,11 @@ public class BamToFastq extends MultiBamLauncher
 		final Comparator<SAMRecord> queryNameComparator= (A,B)->A.getReadName().compareTo(B.getReadName());
 		SortingCollection<SAMRecord> sortingSAMRecord=null;
 		final ArrayList<SAMRecord> buffer = new ArrayList<>(50_000);
+		final CountIn<FastqRecord> singleCounter = new CountIn<>("single-end");
 		FastqWriter singleEndWriter=null;
+		final CountIn<FastqRecord> unpairedCounter = new CountIn<>("unpaired");
+		final CountIn<FastqRecord> pairedCounter = new CountIn<>("paired");
+		final CountIn<SAMRecord> sortingCounter = new CountIn<>("sorting");
 		FastqWriter unpairedWriter=null;
 		FastqPairedWriter R1R2writer=null;
 		final PeekableIterator<SAMRecord> iter = new PeekableIterator<>(iter0);
@@ -203,7 +226,7 @@ public class BamToFastq extends MultiBamLauncher
 				final SAMRecord rec= iter.next();
 				if(rec.isSecondaryOrSupplementary()) continue;
 				if(!rec.getReadPairedFlag()) {
-					singleEndWriter.write(toFastq(rec));
+					singleEndWriter.write(singleCounter.apply(toFastq(rec)));
 					continue;
 					}
 
@@ -214,13 +237,19 @@ public class BamToFastq extends MultiBamLauncher
 						 if(rec2.getFirstOfPairFlag() && rec.getSecondOfPairFlag()) {
 						 	//consumme
 						 	iter.next();
-						 	R1R2writer.write(toFastq(rec2), toFastq(rec));
+						 	R1R2writer.write(
+						 			pairedCounter.apply(toFastq(rec2)),
+						 			pairedCounter.apply(toFastq(rec))
+						 			);
 						 	continue;
 							}
 						else if(rec.getFirstOfPairFlag() && rec2.getSecondOfPairFlag()) {
 							//consumme
 						 	iter.next();
-							R1R2writer.write(toFastq(rec), toFastq(rec2));
+							R1R2writer.write(
+									pairedCounter.apply(toFastq(rec)),
+									pairedCounter.apply(toFastq(rec2))
+									);
 							continue;
 							}
 						}
@@ -232,16 +261,16 @@ public class BamToFastq extends MultiBamLauncher
 					rec.getMateUnmappedFlag() ||
 					!rec.getReferenceName().equals(rec.getMateReferenceName()) ||
 					Math.abs(rec.getInferredInsertSize()) > this.distance) {
-					sortingSAMRecord.add(rec);
+					sortingSAMRecord.add(sortingCounter.apply(rec));
 					continue;
 					}
 				
 				while(!buffer.isEmpty() && !buffer.get(0).getReferenceName().equals(rec.getReferenceName())) {
-					sortingSAMRecord.add(buffer.remove(0));
+					sortingSAMRecord.add(sortingCounter.apply(buffer.remove(0)));
 					}
 				
 				while(!buffer.isEmpty() && (rec.getAlignmentStart() - buffer.get(0).getAlignmentStart()) > this.distance) {
-					sortingSAMRecord.add(buffer.remove(0));
+					sortingSAMRecord.add(sortingCounter.apply(buffer.remove(0)));
 					}
 
 				
@@ -265,22 +294,28 @@ public class BamToFastq extends MultiBamLauncher
 					++i;
 					}
 				if(mate==null) {
-					unpairedWriter.write(toFastq(rec));
+					unpairedWriter.write(unpairedCounter.apply(toFastq(rec)));
 					}
 				else if(mate.getFirstOfPairFlag() && rec.getSecondOfPairFlag()) {
-					R1R2writer.write(toFastq(mate), toFastq(rec));
+					R1R2writer.write(
+						pairedCounter.apply(toFastq(mate)),
+						pairedCounter.apply(toFastq(rec))
+						);
 					}
 				else if(rec.getFirstOfPairFlag() && mate.getSecondOfPairFlag()) {
-					R1R2writer.write(toFastq(rec), toFastq(mate));
+					R1R2writer.write(
+						pairedCounter.apply(toFastq(rec)),
+						pairedCounter.apply(toFastq(mate))
+						);
 					}
 				else
 					{
-					unpairedWriter.write(toFastq(rec));
-					unpairedWriter.write(toFastq(mate));
+					unpairedWriter.write(unpairedCounter.apply(toFastq(rec)));
+					unpairedWriter.write(unpairedCounter.apply(toFastq(mate)));
 					}
-				}
+				}//end while
 			for(final SAMRecord rec:buffer) {
-				sortingSAMRecord.add(rec);
+				sortingSAMRecord.add(sortingCounter.apply(rec));
 				}
 			buffer.clear();
 
@@ -291,27 +326,36 @@ public class BamToFastq extends MultiBamLauncher
 						final List<SAMRecord> L = eq.next();
 						if(L.size()==2) {
 							if(L.get(0).getFirstOfPairFlag() && L.get(1).getSecondOfPairFlag()) {
-								R1R2writer.write(toFastq(L.get(0)), toFastq(L.get(1)));
+								R1R2writer.write(
+									pairedCounter.apply(toFastq(L.get(0))),
+									pairedCounter.apply(toFastq(L.get(1)))
+									);
 								}
 							else if(L.get(1).getFirstOfPairFlag() && L.get(0).getSecondOfPairFlag()) {
-								R1R2writer.write(toFastq(L.get(1)), toFastq(L.get(0)));
+								R1R2writer.write(
+									pairedCounter.apply(toFastq(L.get(1))),
+									pairedCounter.apply(toFastq(L.get(0)))
+									);
 								}
 							else
 								{
-								unpairedWriter.write(toFastq(L.get(0)));
-								unpairedWriter.write(toFastq(L.get(1)));
+								unpairedWriter.write(unpairedCounter.apply(toFastq(L.get(0))));
+								unpairedWriter.write(unpairedCounter.apply(toFastq(L.get(1))));
 								}
 							}
 						else
 							{
 							for(SAMRecord rec2:L) {
-								unpairedWriter.write(toFastq(rec2));
+								unpairedWriter.write(unpairedCounter.apply(toFastq(rec2)));
 								}
 							}
 						}
 					}
 				}
 			sortingSAMRecord.cleanup();
+			unpairedCounter.log();
+			singleCounter.log();
+			pairedCounter.log();
 			return 0;
 			}
 		catch(final Throwable err ) {
