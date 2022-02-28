@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.fastq;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -118,9 +119,11 @@ public class BamToFastq extends MultiBamLauncher
 	@Parameter(names={"-R2","--reverse"},description="Save fastq_R2 to file (default: interlaced with forward)")
 	private File reverseFile = null;
 
-	@Parameter(names={"-U","--unpaired"},description="Save unresolved pair to file. If unspecified, unresolved reads are ignored.")
-	private File unpairedFile = null;
-	
+	@Parameter(names={"-U1","--unpaired-forward"},description="Save unresolved forward pair to file. If unspecified, unresolved reads are ignored.")
+	private File unpairedFile1 = null;
+	@Parameter(names={"-U2","--unpaired-reverse"},description="Save unresolved forward pair to file. If unspecified, unresolved reads are ignored.")
+	private File unpairedFile2 = null;
+
 	@ParametersDelegate
 	private WritingSortingCollection sortingCollection = new WritingSortingCollection();
 	
@@ -173,6 +176,24 @@ public class BamToFastq extends MultiBamLauncher
 				);
 		}
 	
+	private FastqPairedWriter openFastqPairedWriter() throws IOException {
+		final FastqPairedWriterFactory factory = new FastqPairedWriterFactory();
+		if(this.forwardFile==null && this.reverseFile==null) {
+			return factory.open(stdout());
+			}
+		else if(this.forwardFile!=null &&( this.reverseFile==null || this.forwardFile.equals(this.reverseFile))) {
+			return factory.open(this.forwardFile);
+			}
+		else if(this.forwardFile!=null && this.reverseFile!=null) {
+			return factory.open(this.forwardFile,this.reverseFile);
+			}
+		else {
+			throw new IOException("R1 undefined and R2 is defined");
+			}
+		}
+	
+	
+	
 	@Override
 	protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter0)
 		{
@@ -180,12 +201,9 @@ public class BamToFastq extends MultiBamLauncher
 		SortingCollection<SAMRecord> sortingSAMRecord=null;
 		final ArrayList<SAMRecord> buffer = new ArrayList<>(50_000);
 		final CountIn<FastqRecord> singleCounter = new CountIn<>("single-end");
-		FastqWriter singleEndWriter=null;
 		final CountIn<FastqRecord> unpairedCounter = new CountIn<>("unpaired");
 		final CountIn<FastqRecord> pairedCounter = new CountIn<>("paired");
 		final CountIn<SAMRecord> sortingCounter = new CountIn<>("sorting");
-		FastqWriter unpairedWriter=null;
-		FastqPairedWriter R1R2writer=null;
 		final PeekableIterator<SAMRecord> iter = new PeekableIterator<>(iter0);
 		try {
 			if(!SAMFileHeader.SortOrder.coordinate.equals(header.getSortOrder())) {
@@ -194,159 +212,154 @@ public class BamToFastq extends MultiBamLauncher
 				}
 
 			if(singleFastq!=null) FastqUtils.validateFastqFilename(singleFastq);
-			if(unpairedFile!=null) FastqUtils.validateFastqFilename(unpairedFile);
-			singleEndWriter = this.singleFastq==null?
+			if(unpairedFile1!=null) FastqUtils.validateFastqFilename(unpairedFile1);
+			if(unpairedFile2!=null) FastqUtils.validateFastqFilename(unpairedFile2);
+			try(FastqWriter singleEndWriter = this.singleFastq==null?
 						new NullFastqWriter():
 						new BasicFastqWriter(this.singleFastq);
-			unpairedWriter = this.unpairedFile==null?
+					FastqWriter unpairedWriter1 = this.unpairedFile1==null?
 						new NullFastqWriter():
-						new BasicFastqWriter(this.unpairedFile);
-			if(this.forwardFile==null && this.reverseFile==null) {
-				R1R2writer = new FastqPairedWriterFactory().open(stdout());
-				}
-			else if(this.forwardFile!=null && this.reverseFile==null) {
-				R1R2writer = new FastqPairedWriterFactory().open(this.forwardFile);
-			} else if(this.forwardFile!=null && this.reverseFile!=null) {
-				R1R2writer = new FastqPairedWriterFactory().open(this.forwardFile,this.reverseFile);
-			}
-			else {
-				LOG.error("R1 undefined and R2 is defined");
-				return -1;
-			}
-		
-			sortingSAMRecord = SortingCollection.newInstance(
-					SAMRecord.class,
-					new BAMRecordCodec(header),
-					queryNameComparator,
-					sortingCollection.getMaxRecordsInRam(),
-					sortingCollection.getTmpPaths()
-					);
-			sortingSAMRecord.setDestructiveIteration(true);
-			while(iter.hasNext()) {
-				final SAMRecord rec= iter.next();
-				if(rec.isSecondaryOrSupplementary()) continue;
-				if(!rec.getReadPairedFlag()) {
-					singleEndWriter.write(singleCounter.apply(toFastq(rec)));
-					continue;
-					}
-
-				if((rec.getReadUnmappedFlag() || rec.getMateUnmappedFlag()) && iter.hasNext()) {
-					final SAMRecord rec2= iter.peek();
-					if(!rec2.isSecondaryOrSupplementary() &&
-						queryNameComparator.compare(rec, rec2)==0) {
-						 if(rec2.getFirstOfPairFlag() && rec.getSecondOfPairFlag()) {
-						 	//consumme
-						 	iter.next();
-						 	R1R2writer.write(
-						 			pairedCounter.apply(toFastq(rec2)),
-						 			pairedCounter.apply(toFastq(rec))
-						 			);
-						 	continue;
-							}
-						else if(rec.getFirstOfPairFlag() && rec2.getSecondOfPairFlag()) {
-							//consumme
-						 	iter.next();
-							R1R2writer.write(
-									pairedCounter.apply(toFastq(rec)),
-									pairedCounter.apply(toFastq(rec2))
-									);
-							continue;
-							}
-						}
-					}
+						new BasicFastqWriter(this.unpairedFile1);
+					FastqWriter unpairedWriter2 = this.unpairedFile2==null?
+							new NullFastqWriter():
+							new BasicFastqWriter(this.unpairedFile2);
+					FastqPairedWriter R1R2writer = openFastqPairedWriter()) {
 				
-				
-				
-				if(rec.getReadUnmappedFlag() ||
-					rec.getMateUnmappedFlag() ||
-					!rec.getReferenceName().equals(rec.getMateReferenceName()) ||
-					Math.abs(rec.getInferredInsertSize()) > this.distance) {
-					sortingSAMRecord.add(sortingCounter.apply(rec));
-					continue;
-					}
-				
-				while(!buffer.isEmpty() && !buffer.get(0).getReferenceName().equals(rec.getReferenceName())) {
-					sortingSAMRecord.add(sortingCounter.apply(buffer.remove(0)));
-					}
-				
-				while(!buffer.isEmpty() && (rec.getAlignmentStart() - buffer.get(0).getAlignmentStart()) > this.distance) {
-					sortingSAMRecord.add(sortingCounter.apply(buffer.remove(0)));
-					}
-
-				
-				if(rec.getAlignmentStart() < rec.getMateAlignmentStart()) {
-					buffer.add(rec);
-					continue;
-					}
-
-				SAMRecord mate = null;
-				int i=0;
-				while(i< buffer.size()) {
-					final SAMRecord rec2 = buffer.get(i);
-					if(queryNameComparator.compare(rec2, rec)==0) {
-						mate = rec2;
-						buffer.remove(i);
-						break;
-						}
-					if(rec2.getAlignmentStart() > rec.getMateAlignmentStart()) {
-						break;
-						}
-					++i;
-					}
-				if(mate==null) {
-					unpairedWriter.write(unpairedCounter.apply(toFastq(rec)));
-					}
-				else if(mate.getFirstOfPairFlag() && rec.getSecondOfPairFlag()) {
-					R1R2writer.write(
-						pairedCounter.apply(toFastq(mate)),
-						pairedCounter.apply(toFastq(rec))
+			
+				sortingSAMRecord = SortingCollection.newInstance(
+						SAMRecord.class,
+						new BAMRecordCodec(header),
+						queryNameComparator,
+						sortingCollection.getMaxRecordsInRam(),
+						sortingCollection.getTmpPaths()
 						);
-					}
-				else if(rec.getFirstOfPairFlag() && mate.getSecondOfPairFlag()) {
-					R1R2writer.write(
-						pairedCounter.apply(toFastq(rec)),
-						pairedCounter.apply(toFastq(mate))
-						);
-					}
-				else
-					{
-					unpairedWriter.write(unpairedCounter.apply(toFastq(rec)));
-					unpairedWriter.write(unpairedCounter.apply(toFastq(mate)));
-					}
-				}//end while
-			for(final SAMRecord rec:buffer) {
-				sortingSAMRecord.add(sortingCounter.apply(rec));
-				}
-			buffer.clear();
-
-			sortingSAMRecord.doneAdding();
-			try(CloseableIterator<SAMRecord> iter2=sortingSAMRecord.iterator()) {
-				try(EqualIterator<SAMRecord> eq = new EqualIterator<>(iter2,queryNameComparator)) {
-					while(eq.hasNext()) {
-						final List<SAMRecord> L = eq.next();
-						if(L.size()==2) {
-							if(L.get(0).getFirstOfPairFlag() && L.get(1).getSecondOfPairFlag()) {
-								R1R2writer.write(
-									pairedCounter.apply(toFastq(L.get(0))),
-									pairedCounter.apply(toFastq(L.get(1)))
-									);
+				sortingSAMRecord.setDestructiveIteration(true);
+				while(iter.hasNext()) {
+					final SAMRecord rec= iter.next();
+					if(rec.isSecondaryOrSupplementary()) continue;
+					if(!rec.getReadPairedFlag()) {
+						singleEndWriter.write(singleCounter.apply(toFastq(rec)));
+						continue;
+						}
+	
+					if((rec.getReadUnmappedFlag() || rec.getMateUnmappedFlag()) && iter.hasNext()) {
+						final SAMRecord rec2= iter.peek();
+						if(!rec2.isSecondaryOrSupplementary() &&
+							queryNameComparator.compare(rec, rec2)==0) {
+							 if(rec2.getFirstOfPairFlag() && rec.getSecondOfPairFlag()) {
+							 	//consumme
+							 	iter.next();
+							 	R1R2writer.write(
+							 			pairedCounter.apply(toFastq(rec2)),
+							 			pairedCounter.apply(toFastq(rec))
+							 			);
+							 	continue;
 								}
-							else if(L.get(1).getFirstOfPairFlag() && L.get(0).getSecondOfPairFlag()) {
+							else if(rec.getFirstOfPairFlag() && rec2.getSecondOfPairFlag()) {
+								//consumme
+							 	iter.next();
 								R1R2writer.write(
-									pairedCounter.apply(toFastq(L.get(1))),
-									pairedCounter.apply(toFastq(L.get(0)))
-									);
+										pairedCounter.apply(toFastq(rec)),
+										pairedCounter.apply(toFastq(rec2))
+										);
+								continue;
+								}
+							}
+						}
+					
+					
+					
+					if(rec.getReadUnmappedFlag() ||
+						rec.getMateUnmappedFlag() ||
+						!rec.getReferenceName().equals(rec.getMateReferenceName()) ||
+						Math.abs(rec.getInferredInsertSize()) > this.distance) {
+						sortingSAMRecord.add(sortingCounter.apply(rec));
+						continue;
+						}
+					
+					while(!buffer.isEmpty() && !buffer.get(0).getReferenceName().equals(rec.getReferenceName())) {
+						sortingSAMRecord.add(sortingCounter.apply(buffer.remove(0)));
+						}
+					
+					while(!buffer.isEmpty() && (rec.getAlignmentStart() - buffer.get(0).getAlignmentStart()) > this.distance) {
+						sortingSAMRecord.add(sortingCounter.apply(buffer.remove(0)));
+						}
+	
+					
+					if(rec.getAlignmentStart() < rec.getMateAlignmentStart()) {
+						buffer.add(rec);
+						continue;
+						}
+	
+					SAMRecord mate = null;
+					int i=0;
+					while(i< buffer.size()) {
+						final SAMRecord rec2 = buffer.get(i);
+						if(queryNameComparator.compare(rec2, rec)==0) {
+							mate = rec2;
+							buffer.remove(i);
+							break;
+							}
+						if(rec2.getAlignmentStart() > rec.getMateAlignmentStart()) {
+							break;
+							}
+						++i;
+						}
+					if(mate==null) {
+						(rec.getFirstOfPairFlag()?unpairedWriter1:unpairedWriter2).write(unpairedCounter.apply(toFastq(rec)));
+						}
+					else if(mate.getFirstOfPairFlag() && rec.getSecondOfPairFlag()) {
+						R1R2writer.write(
+							pairedCounter.apply(toFastq(mate)),
+							pairedCounter.apply(toFastq(rec))
+							);
+						}
+					else if(rec.getFirstOfPairFlag() && mate.getSecondOfPairFlag()) {
+						R1R2writer.write(
+							pairedCounter.apply(toFastq(rec)),
+							pairedCounter.apply(toFastq(mate))
+							);
+						}
+					else
+						{
+						(rec.getFirstOfPairFlag()?unpairedWriter1:unpairedWriter2).write(unpairedCounter.apply(toFastq(rec)));
+						(mate.getFirstOfPairFlag()?unpairedWriter1:unpairedWriter2).write(unpairedCounter.apply(toFastq(mate)));
+						}
+					}//end while
+				for(final SAMRecord rec:buffer) {
+					sortingSAMRecord.add(sortingCounter.apply(rec));
+					}
+				buffer.clear();
+	
+				sortingSAMRecord.doneAdding();
+				try(CloseableIterator<SAMRecord> iter2=sortingSAMRecord.iterator()) {
+					try(EqualIterator<SAMRecord> eq = new EqualIterator<>(iter2,queryNameComparator)) {
+						while(eq.hasNext()) {
+							final List<SAMRecord> L = eq.next();
+							if(L.size()==2) {
+								if(L.get(0).getFirstOfPairFlag() && L.get(1).getSecondOfPairFlag()) {
+									R1R2writer.write(
+										pairedCounter.apply(toFastq(L.get(0))),
+										pairedCounter.apply(toFastq(L.get(1)))
+										);
+									}
+								else if(L.get(1).getFirstOfPairFlag() && L.get(0).getSecondOfPairFlag()) {
+									R1R2writer.write(
+										pairedCounter.apply(toFastq(L.get(1))),
+										pairedCounter.apply(toFastq(L.get(0)))
+										);
+									}
+								else
+									{
+									(L.get(0).getFirstOfPairFlag()?unpairedWriter1:unpairedWriter2).write(unpairedCounter.apply(toFastq(L.get(0))));
+									(L.get(1).getFirstOfPairFlag()?unpairedWriter1:unpairedWriter2).write(unpairedCounter.apply(toFastq(L.get(1))));
+									}
 								}
 							else
 								{
-								unpairedWriter.write(unpairedCounter.apply(toFastq(L.get(0))));
-								unpairedWriter.write(unpairedCounter.apply(toFastq(L.get(1))));
-								}
-							}
-						else
-							{
-							for(SAMRecord rec2:L) {
-								unpairedWriter.write(unpairedCounter.apply(toFastq(rec2)));
+								for(SAMRecord rec2:L) {
+									(rec2.getFirstOfPairFlag()?unpairedWriter1:unpairedWriter2).write(unpairedCounter.apply(toFastq(rec2)));
+									}
 								}
 							}
 						}
@@ -364,9 +377,6 @@ public class BamToFastq extends MultiBamLauncher
 			}
 		finally {
 			iter.close();
-			if(R1R2writer!=null) try{R1R2writer.close();} catch(Throwable err) {}
-			if(unpairedWriter!=null) try{unpairedWriter.close();} catch(Throwable err) {}
-			if(singleEndWriter!=null) try{singleEndWriter.close();} catch(Throwable err) {}
 			}
 		}
 	

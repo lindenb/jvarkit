@@ -44,9 +44,12 @@ Usage: bam2fastq [options] Files
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
-    -U, --unpaired
-      Save unresolved pair to file. If unspecified, unresolved reads are 
-      ignored. 
+    -U1, --unpaired-forward
+      Save unresolved forward pair to file. If unspecified, unresolved reads 
+      are ignored.
+    -U2, --unpaired-reverse
+      Save unresolved forward pair to file. If unspecified, unresolved reads 
+      are ignored.
     --validation-stringency
       SAM Reader Validation Stringency
       Default: LENIENT
