@@ -8,6 +8,7 @@ Filters a BAM using a java expression compiled in memory.
 ## Usage
 
 ```
+Usage: java -jar dist/samjdk.jar  [options] Files
 Usage: samjdk [options] Files
   Options:
     --bamcompression
@@ -455,4 +456,8 @@ $ java -jar dist/samjdk.jar --body \
 ```bash
 $ java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.getCigar()==null || record.getCigar().getCigarElements().stream().filter(C->C.getOperator().isClipping()).mapToInt(C->C.getLength()).sum() / (double)record.getCigar().getReadLength() < 0.33;' input.bam
 ```
+
+## Cited In
+
+ +  Distinct genetic determinants and mechanisms of SARS-CoV-2 resistance to remdesivir .Laura J. Stevens, Andrea J. Pruijssers, Hery W. Lee, Calvin J. Gordon, Egor P. Tchesnokov, Jennifer Gribble, Amelia S. George, Tia M. Hughes, Xiaotao Lu, Jiani Li, Jason K. Perry, Danielle P. Porter, Tomas Cihlar, Timothy P. Sheahan, Ralph S. Baric, Matthias Götte, Mark R. Denison bioRxiv 2022.01.25.477724; doi: https://doi.org/10.1101/2022.01.25.477724 
 
