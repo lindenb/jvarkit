@@ -8,6 +8,7 @@ Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ
 ## Usage
 
 ```
+Usage: java -jar dist/samextractclip.jar  [options] Files
 Usage: samextractclip [options] Files
   Options:
     -c, --clipped
@@ -33,6 +34,10 @@ Usage: samextractclip [options] Files
       the read). An empty expression keeps everything. The variable 'record' 
       is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
       Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --version
       print version and exit
 
@@ -69,6 +74,11 @@ $ ./gradlew samextractclip
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20140228
 
 ## Source code 
 
@@ -163,14 +173,9 @@ TGCTTGA
 ```
 
 
-### History
-
-* 20190221 : handle sam records without quality https://github.com/lindenb/jvarkit/issues/121
-* 20180412 : fastq is now reverse complemented if read was on negative strand
-
-
 ### Cited In
 
  * Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
-
+ * Uncovering the biosynthetic potential of rare metagenomic DNA using co-occurrence network analysis of targeted sequences Nature Communicationsvolume 10, Article number: 3848 (2019)  https://doi.org/10.1038/s41467-019-11658-z
+ * High-throughput Detection of T-DNA Insertion Sites for Multiple Transgenes in Complex Genomes. Edwards & al. Research Square. https://doi.org/10.21203/rs.3.rs-1325310/v1
 

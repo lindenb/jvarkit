@@ -96,6 +96,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -848,7 +849,7 @@ public class Bam2Raster extends AbstractBam2Raster
 		    	this.WIDTH=100;
 		    	}
 			
-			SamReader samFileReader=null;
+			
 			try
 				{
 				final SamReaderFactory srf = super.createSamReaderFactory();
@@ -860,15 +861,9 @@ public class Bam2Raster extends AbstractBam2Raster
 					}
 				else
 					{
-					LOG.info("loading reference");
 					this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile);
 					srf.referenceSequence(this.referenceFile);
-					this.refDict = this.indexedFastaSequenceFile.getSequenceDictionary();
-					if(this.refDict==null)
-						{
-						LOG.error(JvarkitException.FastaDictionaryMissing.getMessage(this.referenceFile.getPath()));
-						return -1;
-						}
+					this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 					//this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 					}
 				final Function<String, Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(this.refDict).make();
@@ -887,23 +882,18 @@ public class Bam2Raster extends AbstractBam2Raster
 
 				for(final String bamFile: IOUtils.unrollFiles(args))
 					{
-					samFileReader = srf.open(SamInputResource.of(bamFile));
-					final SAMFileHeader header=samFileReader.getFileHeader();
-					final SAMSequenceDictionary dict=header.getSequenceDictionary();
-					if(dict==null) {
-						LOG.error(JvarkitException.BamDictionaryMissing.getMessage(bamFile));
-						return -1;
+					try(SamReader samFileReader = srf.open(SamInputResource.of(bamFile))) {
+						final SAMFileHeader header=samFileReader.getFileHeader();
+						final SAMSequenceDictionary dict= SequenceDictionaryUtils.extractRequired(header);
+						final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
+						final String newCtg = converter.apply(this.interval.getContig());
+						if(StringUtil.isBlank(newCtg) || dict.getSequence(newCtg)==null){
+							LOG.error("no such chromosome in "+bamFile+" "+this.interval+" "+
+									JvarkitException.ContigNotFoundInDictionary.getMessage(this.interval.getContig(), dict));
+							return -1;
+							}
+						scan(samFileReader,newCtg);
 						}
-					final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
-					final String newCtg = converter.apply(this.interval.getContig());
-					if(StringUtil.isBlank(newCtg) || dict.getSequence(newCtg)==null){
-						LOG.error("no such chromosome in "+bamFile+" "+this.interval+" "+
-								JvarkitException.ContigNotFoundInDictionary.getMessage(this.interval.getContig(), dict));
-						return -1;
-						}
-					scan(samFileReader,newCtg);
-					samFileReader.close();
-					samFileReader=null;
 					}
 				
 				if(this.key2partition.isEmpty())
@@ -920,9 +910,9 @@ public class Bam2Raster extends AbstractBam2Raster
 						collect(Collectors.toMap(K->K, K->this.key2partition.get(K).image))
 						);
 				
-				return RETURN_OK;
+				return 0;
 				}
-			catch(Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
@@ -930,7 +920,6 @@ public class Bam2Raster extends AbstractBam2Raster
 			finally
 				{
 				CloserUtil.close(indexedFastaSequenceFile);
-				CloserUtil.close(samFileReader);
 				indexedFastaSequenceFile=null;			
 				}
 	

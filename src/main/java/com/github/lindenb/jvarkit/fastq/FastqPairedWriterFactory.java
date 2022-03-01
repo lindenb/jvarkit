@@ -92,7 +92,15 @@ public FastqPairedWriter open(final PrintStream w) throws IOException {
 	return new OneWriter(new BasicFastqWriter(w));
 	}
 
-
+/** create a /dev/null writer */
+public static FastqPairedWriter createNullWriter() {
+	return new FastqPairedWriter() {
+	@Override
+	public void write(FastqRecord r1, FastqRecord r2) {}
+	@Override
+	public void close() throws IOException {}
+	};
+}
 
 private static abstract class AbstractPairWriter implements FastqPairedWriter {
 	final protected FastqWriter fq1w;

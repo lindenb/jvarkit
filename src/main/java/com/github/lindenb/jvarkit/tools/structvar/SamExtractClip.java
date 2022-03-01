@@ -26,7 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.structvar;
 
 import java.io.File;
-
+import java.nio.file.Path;
 import java.util.List;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
@@ -37,10 +37,10 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamInputResource;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.filter.SamRecordFilter;
 
 import com.beust.jcommander.Parameter;
@@ -119,17 +119,11 @@ TGCTTGA
 ```
 
 
-### History
-
-* 20190221 : handle sam records without quality https://github.com/lindenb/jvarkit/issues/121
-* 20180412 : fastq is now reverse complemented if read was on negative strand
-
-
 ### Cited In
 
  * Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
  * Uncovering the biosynthetic potential of rare metagenomic DNA using co-occurrence network analysis of targeted sequences Nature Communicationsvolume 10, Article number: 3848 (2019)  https://doi.org/10.1038/s41467-019-11658-z
-
+ * High-throughput Detection of T-DNA Insertion Sites for Multiple Transgenes in Complex Genomes. Edwards & al. Research Square. https://doi.org/10.21203/rs.3.rs-1325310/v1
 
 END_DOC
 */
@@ -137,13 +131,17 @@ END_DOC
 	description="Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ",
 	keywords= {"sam","bam","fastq","clip"},
 	biostars= {125874},
-	modificationDate="20190221"
+	creationDate="20140228",
+	modificationDate="20220215"
 	)
 public class SamExtractClip extends Launcher
 	{
 	private static final Logger LOG = Logger.build(SamExtractClip.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
+
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path faidx = null;
 
 	@Parameter(names={"-m","--minsize"},description="Min size of clipped read")
 	private int min_clip_length = 5 ;
@@ -160,51 +158,37 @@ public class SamExtractClip extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		SamReader r=null;
-		BasicFastqWriter out=null;
 		try
 				{
-				if(this.outputFile!=null)
-					{
-					LOG.info("writing to "+this.outputFile);
-					out=new BasicFastqWriter(this.outputFile);
-					}
-				else
-					{
-					LOG.info("writing to stdout");
-					out=new BasicFastqWriter(stdout());
-					}
-				if(args.isEmpty())
-					{
-					LOG.info("Reading from stdin");
-					r= createSamReaderFactory().open(SamInputResource.of(stdin()));
-					run(r,out);
-					r.close();
-					}
-				else 
-					{
-					for(final String filename:args)
+				try(BasicFastqWriter out= (this.outputFile!=null?new BasicFastqWriter(this.outputFile):new BasicFastqWriter(stdout()))) {				
+					final SamReaderFactory srf = createSamReaderFactory().
+							referenceSequence(this.faidx);
+					
+					if(args.isEmpty())
 						{
-						LOG.info("Reading from "+filename);
-						r= createSamReaderFactory().open(SamInputResource.of(filename));
-						run(r,out);
-						r.close();r=null;
+						try(SamReader r= srf.open(SamInputResource.of(stdin()))) {
+							run(r,out);
+							}
 						}
+					else 
+						{
+						for(final String filename:args)
+							{
+							try(SamReader r= srf.open(SamInputResource.of(filename))) {
+								run(r,out);
+								}
+							}
+						}
+					out.flush();
 					}
-				out.flush();
-				return RETURN_OK;
+				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
 				}
-			finally
-				{
-				CloserUtil.close(r);
-				CloserUtil.close(out);
-				}
-		}
+			}
 		
 	private void run(final SamReader r,final FastqWriter out)
 		{
