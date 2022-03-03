@@ -24,26 +24,18 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.jcommander;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.List;
-import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.fastq.FastqPairedReaderFactory;
-import com.github.lindenb.jvarkit.fastq.FastqPairedWriter;
-import com.github.lindenb.jvarkit.fastq.FastqPairedWriterFactory;
 import com.github.lindenb.jvarkit.fastq.FastqRecordPair;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.fastq.FastqReader;
-import htsjdk.samtools.fastq.FastqRecord;
-import htsjdk.samtools.fastq.FastqWriter;
-import htsjdk.samtools.fastq.FastqWriterFactory;
 import htsjdk.samtools.util.CloseableIterator;
 
 public abstract class FastqLauncher extends Launcher {
@@ -103,7 +95,7 @@ public int doWork(final List<String> args)
 			getLogger().error("This software doesn't support single-end input");
 			return -1;
 			}
-		final String input = oneFileOrNull(null);
+		final String input = oneFileOrNull(args);
 		try(FastqReader fqr= (input==null?
 				new FastqReader(IOUtils.openStdinForBufferedReader()):
 				new FastqReader(new File(input))
@@ -113,12 +105,15 @@ public int doWork(final List<String> args)
 			}
 		return ret;
 		} catch(final Throwable err) {
-		try { afterFastq();} catch(final Throwable err2) {
-			getLogger().warn(err2);
-			}
+		
 		
 		getLogger().error(err);
 		return -1;
+		}
+	finally {
+		try { afterFastq();} catch(final Throwable err2) {
+			getLogger().warn(err2);
+			}
 		}
 	}
 

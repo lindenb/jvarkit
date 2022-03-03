@@ -2645,6 +2645,10 @@ all2.add( task("setfiletools", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.setfile.SetFileTools"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("fastqsw", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.fastqsw.FastqSW"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","biojava")
+	});
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
