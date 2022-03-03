@@ -239,6 +239,10 @@ public class FastqSW extends OnePassFastqLauncher {
 			 if(pairLogicalOp.equals(LogicalOp.OR) && optR1.isPresent()) {
 				optR2 = Optional.empty(); 
 			 	}
+			//no need to align R2 if 'AND' mode and R1 is not aligned
+			 else if(pairLogicalOp.equals(LogicalOp.AND) && !optR1.isPresent()) {
+				return inverse_logic;
+			 	}
 			 else
 			 	{
 				optR2 =  align(RECS.getSecondInPair());

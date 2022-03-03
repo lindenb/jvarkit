@@ -26,11 +26,11 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.List;
 
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -71,7 +71,7 @@ public class FastqToFasta
 	private static final Logger LOG = Logger.build(FastqToFasta.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names="-N",description="fasta line length")
 	private int fastaLineLen=50;
 	@Parameter(names="-b",description="trim fasta header after space")
@@ -80,7 +80,6 @@ public class FastqToFasta
 	private FastqToFasta()
 		{
 		}
-	
 	
 	
 	private void run(FastqReader r,PrintStream out)
@@ -116,42 +115,34 @@ public class FastqToFasta
 			
 			if(out.checkError()) break;
 			}
-		out.flush();
-		LOG.info("Done. N-Reads:"+nRec);
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
-		PrintStream out=null;
 		try
 			{
-			out= super.openFileOrStdoutAsPrintStream(outputFile);
-			
-			if(args.isEmpty())
-				{
-				LOG.info("Reading from stdin");
-				FastqReader fqR=new FourLinesFastqReader(stdin());
-				run(fqR,out);
-				fqR.close();
+			try(PrintStream out= super.openPathOrStdoutAsPrintStream(outputFile)) {
+				
+				if(args.isEmpty())
+					{
+					try(FastqReader fqR=new FourLinesFastqReader(stdin())){
+						run(fqR,out);
+						}
+					}
+				else for(String fname:args)
+					{
+					final File f=new File(fname);
+					try(FastqReader fqR=new FourLinesFastqReader(f)) {
+						run(fqR,out);
+						}
+					}
+				out.flush();
 				}
-			else for(String fname:args)
-				{
-				File f=new File(fname);
-				LOG.info("Reading from "+f);
-				FastqReader fqR=new FourLinesFastqReader(f);
-				run(fqR,out);
-				fqR.close();
-				}
-			out.flush();
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(out);
 			}
 		return 0;
 		}
