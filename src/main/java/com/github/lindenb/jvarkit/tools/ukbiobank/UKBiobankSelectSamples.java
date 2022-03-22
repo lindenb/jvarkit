@@ -30,9 +30,13 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -67,7 +71,7 @@ END_DOC
 description="Select samples from ukbiobank",
 keywords={"ukbiobank"},
 creationDate="20210705",
-modificationDate="20210706"
+modificationDate="20220322"
 )
 public class UKBiobankSelectSamples extends Launcher {
 	private static final Logger LOG = Logger.build(UKBiobankSelectSamples.class).make();
@@ -78,16 +82,19 @@ public class UKBiobankSelectSamples extends Launcher {
 	private Path ontologyPath = null;
 	@Parameter(names={"--tab"},description="*.tab file.",required=true)
 	private Path tabFilePath = null;
-	@Parameter(names={"--column"},description="column pattern. Look for columns starts with 'x'",required=false)
-	private String colPattern = "f.41270.";
+	@Parameter(names={"--column"},description="column pattern. Look for columns matching with 'regex'",required=false)
+	private String colRegex = "^f\\.41270\\.*$";
 	@Parameter(names={"--user-coding","-A"},description="limit to those coding. multiple separated by commas")
 	private List<String> userCoding = new ArrayList<>();
 	@Parameter(names={"--inverse"},description="inverse selection of sample when using option -A. get samples NOT having the phenotypes")
 	private boolean inverse_selection = false;
 	@Parameter(names={"--hide-phenotypes"},description="do not print phenotypes")
 	private boolean hide_phenotypes = false;
+	@Parameter(names={"--phenotypes"},description="print only those phenotypes (default:all). multiple separated by commas")
+	private List<String> userPhenotypesList = new ArrayList<>();
+
 	
-	private String unquote(String s) {
+	private String unquote(final String s) {
 		if(s.length()>1 && s.startsWith("\"") && s.endsWith("\"")) {
 			return s.substring(1,s.length()-1);
 		} else
@@ -97,10 +104,15 @@ public class UKBiobankSelectSamples extends Launcher {
 	}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> _ignore) {
 		try {
+			if(!_ignore.isEmpty()) {
+				LOG.error("illegal number of arguments.");
+				return -1;
+			}
 			final UKBiobankOntology ontology = UKBiobankOntology.load(this.ontologyPath);
 			final Set<UKBiobankOntology.Term> userTermsCoding = new HashSet<>();
+				
 			
 			for(String userCoding : this.userCoding.stream().
 				flatMap(S->Arrays.stream(CharSplitter.COMMA.split(S))).
@@ -116,9 +128,24 @@ public class UKBiobankSelectSamples extends Launcher {
 				userTermsCoding.addAll(t.getAllChildrenIncludingSelf());
 				}
 			
+			final Set<String> userTermsPhenotypes =  this.userPhenotypesList.stream().
+				flatMap(S->Arrays.stream(CharSplitter.COMMA.split(S))).
+				map(S->S.trim()).
+				filter(S->!S.isEmpty()).
+				collect(Collectors.toCollection(TreeSet::new))
+				;
+				
+
+			if(!userTermsPhenotypes.isEmpty() && hide_phenotypes) {
+				LOG.error("hide phenotype set but user's phenotypes is not empty");
+				return -1;
+			}
+			
 			if(!userTermsCoding.isEmpty()) {
 				LOG.info("using "+userTermsCoding.stream().map(S->S.toString()).collect(Collectors.joining(" ")));
 			}
+			
+			final Pattern columnRegex = Pattern.compile(this.colRegex);
 			
 			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.tabFilePath)) {
 				String line = br.readLine();
@@ -126,22 +153,43 @@ public class UKBiobankSelectSamples extends Launcher {
 				String[] tokens = CharSplitter.TAB.split(line);
 				if(!tokens[0].equals("f.eid")) throw new IOException("expected line to start with f.eid but got "+tokens[0]+" in "+this.tabFilePath);
 				final List<Integer> columns_indexes = new ArrayList<>(tokens.length);
+				/* will be used to print the columns assocated to a phenotype */
+				final Map<String,Integer> phenotype2index = new HashMap<>(tokens.length);
 				for(int x=1;x< tokens.length;++x) {
-					String label = tokens[x];
-					if(!label.startsWith(this.colPattern)) continue;
+					final String label = tokens[x];
+					if(userTermsPhenotypes.contains(label)) {
+						phenotype2index.put(label,x);
+						}
+					if(!columnRegex.matcher(label).matches()) continue;
 					columns_indexes.add(x);
 					}
+				
 				if(columns_indexes.isEmpty()) {
-					LOG.error("found no columns starting with "+this.colPattern);
+					LOG.error("no column was found for regex "+columnRegex.pattern());
+					return -1;
+				} else {
+					LOG.info("found "+columns_indexes.size()+" column(s) matching "+columnRegex.pattern());
+				}
+				
+				//check no missing genotype
+				final Set<String> remains =  new HashSet<>(userTermsPhenotypes);
+				remains.removeAll(phenotype2index.keySet());
+				if(!remains.isEmpty()) {
+					LOG.error("Cannot find phenotype(s): "+remains);
 					return -1;
 					}
 				
+				
 				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-
+					if(!hide_phenotypes && !userTermsPhenotypes.isEmpty()) {
+						/* print header if phenotypes specified */
+						pw.println("#SAMPLE\t"+String.join("\t",userTermsPhenotypes)+(this.hide_phenotypes?"":"\t..."));
+					}
 					while((line=br.readLine())!=null) {
 						 tokens = CharSplitter.TAB.split(line);
 						 //System.err.println(tokens[0]); 
-						final Set<UKBiobankOntology.Term> terms = new HashSet<>();
+						 final Set<UKBiobankOntology.Term> terms = new HashSet<>();
+						 
 						 for(Integer colidx: columns_indexes) {
 							if(colidx >= tokens.length ) {
 								throw new JvarkitException.TokenErrors(colidx.intValue()+1, tokens);
@@ -170,9 +218,22 @@ public class UKBiobankSelectSamples extends Launcher {
 							}
 						//System.err.println(accept);
 						if(!accept) continue;
+						
+						
+						
 						pw.print(tokens[0]);
+						//phenotypes
+						for(final String ph:userTermsPhenotypes) {
+							final Integer col = phenotype2index.get(ph);
+							if(col==null || col.intValue()<0 || col.intValue()>tokens.length) {
+								LOG.error("cannot find phenotype "+ph+" in line ???");										}
+							pw.print("\t");
+							pw.print(tokens[col.intValue()]);
+							}
+												
+						
 						if(!hide_phenotypes) {
-							//System.err.println("sort..");
+								//System.err.println("sort..");
 							final List<UKBiobankOntology.Term> sortedterms = terms.stream().sorted((A,B)->Integer.compare(A.getDepth(), B.getDepth())).collect(Collectors.toList());
 							//System.err.println("done sort");
 							for(UKBiobankOntology.Term t:sortedterms) {
@@ -187,9 +248,7 @@ public class UKBiobankSelectSamples extends Launcher {
 						}//end while read
 					pw.flush();
 					}
-				}
-				
-			
+				}			
 			return 0;
 			}
 		catch(final Throwable err) {

@@ -8,11 +8,12 @@ Select samples from ukbiobank
 ## Usage
 
 ```
+Usage: java -jar dist/ukbiobanksamples.jar  [options] Files
 Usage: ukbiobanksamples [options] Files
   Options:
     --column
-      column pattern. Look for columns starts with 'x'
-      Default: f.41270.
+      column pattern. Look for columns matching with 'regex'
+      Default: ^f\.41270\.*$
     -h, --help
       print help and exit
     --helpFormat
@@ -28,6 +29,9 @@ Usage: ukbiobanksamples [options] Files
       coding/ontology file.
     -o, --output
       Output file. Optional . Default: stdout
+    --phenotypes
+      print only those phenotypes (default:all). multiple separated by commas
+      Default: []
   * --tab
       *.tab file.
     --user-coding, -A
