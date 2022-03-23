@@ -717,6 +717,17 @@ public class CompileJVarkit extends DefaultTask {
 				todir:"${this.tmpDir}/META-INF/so"
 				)
 			}
+
+		/** chromosome mapping file */
+		final File chromMappingFile = new File( this.getProject().projectDir.getPath()+"/src/main/resources/chromnames/mapping.tsv");
+		if(chromMappingFile.exists()) {
+			ant.mkdir(dir:"${this.tmpDir}/META-INF/chromnames")
+			ant.copy(
+				file: chromMappingFile ,
+				todir:"${this.tmpDir}/META-INF/chromnames"
+				)
+			}
+
 		if(isFatJar()) {
 			for(final File jf:classpath1) {
 				ant.unzip(src:jf,dest:this.tmpDir,overwrite:true)

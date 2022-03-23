@@ -41,15 +41,18 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 
 BEGIN_DOC
@@ -85,7 +88,7 @@ END_DOC
 		description="Move any FILTER to the INFO column. reset FILTER to PASS",
 		keywords={"vcf","format","info"},
 		creationDate="20161025",
-		modificationDate="20200713"
+		modificationDate="20220323"
 		)
 public class VcfMoveFiltersToInfo
 	extends OnePassVcfLauncher
@@ -99,12 +102,8 @@ public class VcfMoveFiltersToInfo
 	@Parameter(names={"-t","--limitto"},description="If not empty, limit to those FILTERS. Multiple separated by comma/space.")
 	private Set<String> onlyThoseFiltersTagStr = new HashSet<>();
 
-			
-			
-	public VcfMoveFiltersToInfo()
-		{
-		}
-	 
+	@Parameter(names={"-G","--genotype"},description="If not empty, FILTER all **GENOTYPES** with this filter, if any FILTER was found. Could be useful before bcftools merge")
+	private String genotypeFilterStr = null;
 	
 	@Override
 	protected Logger getLogger() {
@@ -118,7 +117,7 @@ public class VcfMoveFiltersToInfo
 		final VariantContextWriter out)
 		{
 		final VCFHeader header = in.getHeader();
-		final VCFHeader header2 = new VCFHeader(header);	
+		final Set<VCFHeaderLine> headerLines = new HashSet<>();
 		
 		final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
 				this.infoName.trim(),
@@ -136,13 +135,18 @@ public class VcfMoveFiltersToInfo
 			{
 			throw new JvarkitException.UserError("INFO["+infoHeaderLine.getID()+"] already exists in input VCF.");
 			}
+				
+		headerLines.add(infoHeaderLine);
 		
+
 		
+		if(!StringUtil.isBlank(this.genotypeFilterStr)) {
+			VCFStandardHeaderLines.addStandardFormatLines(headerLines, true, VCFConstants.GENOTYPE_FILTER_KEY);
+			}
 		
-		header2.addMetaDataLine(infoHeaderLine);
-		
+		final VCFHeader header2 = new VCFHeader(header);
 		JVarkitVersion.getInstance().addMetaData(this, header2);
-		
+		headerLines.stream().forEach(HL->header2.addMetaDataLine(HL));
 		out.writeHeader(header2);
 		while(in.hasNext())
 			{
@@ -180,10 +184,17 @@ public class VcfMoveFiltersToInfo
 					}
 				else
 					{
+					vcb.unfiltered();
 					vcb.filters(FILTERfilters);
 					}
 				if(!INFOfilters.isEmpty()) {
 					vcb.attribute(infoHeaderLine.getID(), new ArrayList<>(INFOfilters));
+					// transfert to genotypes
+					if(!StringUtil.isBlank(this.genotypeFilterStr) && ctx.hasGenotypes()) {
+						vcb.genotypes(ctx.getGenotypes().stream().
+								map(G->new GenotypeBuilder(G).filter(this.genotypeFilterStr).make()).
+								collect(Collectors.toList()));
+						}
 					}
 				out.add(vcb.make());
 				}
@@ -202,9 +213,7 @@ public class VcfMoveFiltersToInfo
 			}
 		return 0;
 		}
-	
 
-	
 	public static void main(final String[] args)
 		{
 		new VcfMoveFiltersToInfo().instanceMainWithExit(args);

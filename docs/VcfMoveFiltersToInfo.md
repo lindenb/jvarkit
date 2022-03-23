@@ -8,6 +8,7 @@ Move any FILTER to the INFO column. reset FILTER to PASS
 ## Usage
 
 ```
+Usage: java -jar dist/vcfmovefilterstoinfo.jar  [options] Files
 Usage: vcfmovefilterstoinfo [options] Files
   Options:
     --bcf-output
@@ -22,6 +23,9 @@ Usage: vcfmovefilterstoinfo [options] Files
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
+    -G, --genotype
+      If not empty, FILTER all **GENOTYPES** with this filter, if any FILTER 
+      was found. Could be useful before bcftools merge
     -h, --help
       print help and exit
     --helpFormat
