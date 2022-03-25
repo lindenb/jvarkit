@@ -184,6 +184,7 @@ public class UKBiobankOntology {
 				if(tokens.length!=expect_cols.length) throw new JvarkitException.TokenErrors(expect_cols.length, tokens);
 				final TermImpl term = ontology.new TermImpl();
 				term.coding = tokens[0];
+				if (term.coding.equals("-1")) continue;
 				term.meaning = tokens[1];
 				term.node_id = tokens[2];
 				term.parent_id = tokens[3];
