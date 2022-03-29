@@ -8,6 +8,7 @@ Fins clipped position in one or more bam.
 ## Usage
 
 ```
+Usage: java -jar dist/samfindclippedregions.jar  [options] Files
 Usage: samfindclippedregions [options] Files
   Options:
     --bcf-output
@@ -35,8 +36,14 @@ Usage: samfindclippedregions [options] Files
     --mapq
       min mapping quality
       Default: 1
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
     --min-clip-depth
-      Ignore if number of clipped bases lower than 'x'
+      Ignore if number of clipped bases overlaping one POS is lower than 'x'
       Default: 10
     --min-depth
       Ignore if Depth lower than 'x'
@@ -46,28 +53,19 @@ Usage: samfindclippedregions [options] Files
       Default: 0.1
     -o, --out
       Output file. Optional . Default: stdout
-    --groupby, --partition
-      Group Reads by. Data partitioning using the SAM Read Group (see 
-      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
-      be any combination of sample, library....
-      Default: sample
-      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
-    -R, --reference
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
-    --regions
-      Limit analysis to this interval. A source of intervals. The following 
-      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
-      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
-      plain interval separated by '[ \t\n;,]'
-    --validation-stringency
-      SAM Reader Validation Stringency
-      Default: LENIENT
-      Possible Values: [STRICT, LENIENT, SILENT]
+    --bed, --regions-file
+      restrict to this bed file. A Bed file: (CHROM)<tab>(START 
+      0-based)<tab>(END)[<tab>otherfields...]. 
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exit
     -c
-      consider only clip having length >= 'x'
+      consider only reads with clip having length >= 'x'
       Default: 1
 
 ```

@@ -24,26 +24,27 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -51,23 +52,30 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -129,23 +137,29 @@ END_DOC
 	description="Fins clipped position in one or more bam. ",
 	keywords= {"sam","bam","clip","vcf"},
 	creationDate="20140228",
-	modificationDate="20210304"
+	modificationDate="20220329"
 	)
-public class SamFindClippedRegions extends MultiBamLauncher
-	{
+public class SamFindClippedRegions extends Launcher {
 	private static final Logger LOG=Logger.build(SamFindClippedRegions.class).make();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names="-c",description="consider only clip having length >= 'x'")
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path referenceFai = null;
+	@Parameter(names={"--bed","--regions-file"},description="restrict to this bed file. "+BedLineReader.OPT_DESC)
+	private Path bedPath = null;
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection =new WritingSortingCollection();
+	
+
+
+	@Parameter(names="-c",description="consider only reads with clip having length >= 'x'")
 	private int min_clip_operator_length = 1;
-	@Parameter(names={"--groupby","--partition"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
-	private SAMRecordPartition partition=SAMRecordPartition.sample;
 	@Parameter(names={"--min-depth"},description="Ignore if Depth lower than 'x'")
 	private int min_depth=10;
-	@Parameter(names={"--min-clip-depth"},description="Ignore if number of clipped bases lower than 'x'")
+	@Parameter(names={"--min-clip-depth"},description="Ignore if number of clipped bases overlaping one POS is lower than 'x'")
 	private int min_clip_depth =10;
-	@Parameter(names={"--min-ratio"},description="Ignore genotypes where count(clip)/(count(clip)+DP) < x")
+	@Parameter(names={"--min-ratio"},description="Ignore genotypes where count(clip)/(count(clip)+DP) < x",splitter=NoSplitter.class,converter=FractionConverter.class)
 	private double fraction = 0.1;
 	@Parameter(names={"--gtf"},description="Optional gtf file. Will be used to set a warning if the junction could be a junction exon-exon of a retrogene. "+GtfReader.OPT_DESC)
 	private Path gtfPath = null;
@@ -159,75 +173,103 @@ public class SamFindClippedRegions extends MultiBamLauncher
 	
 	private final int max_clip_length=1000;
 	
-	private static class Gt
+
+	private static class Base
 		{
+		final int tid;
+		final int pos;
+		final int sample_idx;
+		Base(final int sample_idx,final int tid,final int pos) {
+			this.tid = tid;
+			this.pos = pos;
+			this.sample_idx = sample_idx;
+			}
+		
+		
 		int noClip=0;
 		int leftClip = 0;
 		int rightClip = 0;
 		int del = 0;
 		double noClip_sum_mapq = 0;
+		
 		int clip() { return leftClip+rightClip;}
 		int dp() { return noClip+clip();}
 		double ratio() {return clip()/(double)dp();}
 		int noClipMapq() {
 			return noClip==0 ? 0: (int) (this.noClip_sum_mapq /this.noClip);
 			}
-		}
-
-	private static class Base
-		{
-		final int pos;
-		final Map<String,Gt> sample2gt;
-		Base(final int pos,final Set<String> samples) {
-			this.pos = pos;
-			sample2gt = new HashMap<>(samples.size());
-			for(final String sn:samples) sample2gt.put(sn, new Gt());
+		int compare2(final Base o)  {
+			int i = Integer.compare(this.tid, o.tid);
+			if(i!=0) return i;
+			return Integer.compare(this.pos, o.pos);
 			}
-		Gt getGt(final String sn) {
-			return Objects.requireNonNull(this.sample2gt.get(sn),sn);
+		
+		int compare1(final Base o)  {
+			int i= compare2(o);
+			if(i!=0) return i;
+			return Integer.compare(sample_idx,o.sample_idx);
 			}
-		}
-	
-	
-	@Override
-	protected Logger getLogger() {
-		return LOG;
-		}
-	
-	@Override
-	protected int beforeSam() {
-		if(this.min_clip_depth >this.min_depth) {
-			LOG.error("this.min_clip_depth>this.min_depth");
-			return -1;
-		}
-		if(this.fraction<0 || this.fraction>1.0) {
-			LOG.error("bad ratio: "+fraction);
-			return -1;
-		}
-		return super.beforeSam();
-		}
-	
-	
-	@Override
-	protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter) {
-		final Set<String> samples = header.getReadGroups().
-			stream().
-			map(this.partition).
-			filter(S->!StringUtils.isBlank(S)).
-			collect(Collectors.toCollection(TreeSet::new));
-	
-		if(samples.isEmpty()) {
-			LOG.error("no sample in read group was defined.");
-			return -1;
-		}
 		
-		final SAMSequenceDictionary dict =  SequenceDictionaryUtils.extractRequired(header);
-		
+		}
+	
+	private static class BaseCodec extends AbstractDataCodec<Base> {
+		@Override
+		public AbstractDataCodec<Base> clone() {
+			return new BaseCodec();
+			}
+		@Override
+		public Base decode(DataInputStream dis) throws IOException {
+			int tid;
+			try {
+				tid = dis.readInt();
+				}
+			catch(EOFException err) {
+				return null;
+				}
+			int pos = dis.readInt();
+			int sample_idx = dis.readInt();
+			final Base b= new Base(sample_idx, tid, pos);
+			b.noClip = dis.readInt();
+			b.leftClip = dis.readInt();
+			b.rightClip = dis.readInt();
+			b.del = dis.readInt();
+			b.noClip_sum_mapq = dis.readDouble();
+			return b;
+			}
+		@Override
+		public void encode(DataOutputStream dos, Base o) throws IOException {
+			dos.writeInt(o.tid);
+			dos.writeInt(o.pos);
+			dos.writeInt(o.sample_idx);
+			
+			dos.writeInt(o.noClip);
+			dos.writeInt(o.leftClip);
+			dos.writeInt(o.rightClip);
+			dos.writeInt(o.del);
+			dos.writeDouble(o.noClip_sum_mapq);
+			}
+	}
+	
+	
+	@Override
+	public int doWork(final List<String> args) {
 		final int bad_mapq = 30;
-		
-		//SAMFileWriter w=null;
-		try
-			{			
+		try {
+			if(this.min_clip_depth >this.min_depth) {
+				LOG.error("this.min_clip_depth>this.min_depth");
+				return -1;
+			}
+			if(this.fraction<0 || this.fraction>1.0) {
+				LOG.error("bad ratio: "+fraction);
+				return -1;
+			}
+			
+			final SAMSequenceDictionary dict =  SequenceDictionaryUtils.extractRequired(this.referenceFai);
+			final List<Path> inputs = IOUtils.unrollPaths(args);
+			if(inputs.isEmpty()) {
+				LOG.error("input is missing");
+				return -1;
+			}
 			
 			final IntervalTreeMap<Interval> intronMap = new IntervalTreeMap<>();
 			if(this.gtfPath!=null) {
@@ -243,6 +285,137 @@ public class SamFindClippedRegions extends MultiBamLauncher
 				}
 			}
 			
+			
+			final List<String> sample_list = new ArrayList<>();
+			
+			
+			final QueryInterval[] queryIntervals;
+			if(this.bedPath==null) {
+				queryIntervals = null;
+				} else {
+				try(BedLineReader br = new BedLineReader(this.bedPath).
+						setValidationStringency(ValidationStringency.LENIENT).
+						setContigNameConverter(ContigNameConverter.fromOneDictionary(dict))) {
+					queryIntervals = br.optimizeIntervals(dict);
+					}
+				}
+			
+			SortingCollection<Base> sortingCollection =
+					SortingCollection.newInstance(
+							Base.class,
+							new BaseCodec(),
+							(A,B)->A.compare1(B),
+							writingSortingCollection.getMaxRecordsInRam(),
+							writingSortingCollection.getTmpPath()
+							);
+			sortingCollection.setDestructiveIteration(true);
+			
+			final Predicate<Base> acceptBase = B->{
+				return B.clip()>0;
+				};
+			
+			final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.referenceFai);
+			for(final Path path: inputs) {
+				try(SamReader sr = srf.open(path)) {
+					final SAMFileHeader header = sr.getFileHeader();
+					SequenceUtil.assertSequenceDictionariesEqual(dict, SequenceDictionaryUtils.extractRequired(header));
+
+					final String sample_name = header.getReadGroups().
+						stream().
+						map(RG->RG.getSample()).
+						filter(S->!StringUtils.isBlank(S)).
+						findFirst().
+						orElse(IOUtils.getFilenameWithoutCommonSuffixes(path))
+						;
+					if(sample_list.contains(sample_name)) {
+						LOG.error("duplicate sample "+sample_name+" in "+path);
+						return -1;
+						}
+					final int sample_idx = sample_list.size();
+					sample_list.add(sample_name);
+					
+					int prev_tid = -1;
+					final SortedMap<Integer,Base> pos2base = new TreeMap<>();
+					/* get base in pos2base, create it if needed */
+					final BiFunction<Integer,Integer, Base> baseAt = (TID,POS)->{
+						Base b = pos2base.get(POS);
+						if(b==null) {
+							b = new Base(sample_idx,TID,POS);
+							pos2base.put(POS, b);
+							}
+						return b;
+						};
+					
+					
+					try(CloseableIterator<SAMRecord> iter= queryIntervals==null?sr.iterator():sr.query(queryIntervals, false)) {
+						for(;;) {
+							final SAMRecord rec=(iter.hasNext()?iter.next():null);
+							if(rec!=null && !SAMRecordDefaultFilter.accept(rec,this.min_mapq)) continue;
+							
+							if(rec==null || prev_tid!=rec.getReferenceIndex().intValue())
+								{
+								for(final Integer pos: pos2base.keySet()) {
+									final Base b = pos2base.get(pos);
+									if(acceptBase.test(b)) sortingCollection.add(b);
+									}
+								if(rec==null) break;
+								pos2base.clear();
+								prev_tid = rec.getReferenceIndex().intValue();
+								}
+							/* pop back previous bases */
+							for(Iterator<Integer> rpos = pos2base.keySet().iterator();
+									rpos.hasNext();
+								) {
+						    	final Integer pos = rpos.next();
+						    	if(pos.intValue() + this.max_clip_length >= rec.getUnclippedStart()) break;
+						    	final Base b = pos2base.get(pos);
+						    	if(acceptBase.test(b)) sortingCollection.add(b);
+						    	rpos.remove();
+						    	}
+							
+							final Cigar cigar = rec.getCigar();
+							int refPos= rec.getAlignmentStart();
+							for(final CigarElement ce: cigar.getCigarElements()) {
+								final CigarOperator op = ce.getOperator();
+								if(op.consumesReferenceBases()) {
+									if(op.consumesReadBases()) {
+										for(int x=0;x< ce.getLength();++x) {
+											final Base gt=baseAt.apply(prev_tid,refPos+x);
+											gt.noClip++;
+											gt.noClip_sum_mapq += rec.getMappingQuality();
+											}
+										}
+									else if(op.equals(CigarOperator.D) || op.equals(CigarOperator.N))
+										{
+										baseAt.apply(prev_tid,refPos).del++;
+										baseAt.apply(prev_tid,refPos + ce.getLength() - 1).del++;
+										}
+									refPos += ce.getLength();
+									}
+								}
+							
+							CigarElement ce = cigar.getFirstCigarElement();
+							if(ce!=null && ce.getOperator().isClipping() && ce.getLength()>=this.min_clip_operator_length) {
+								baseAt.apply(prev_tid,rec.getStart()-1).leftClip++;
+								}
+							ce = cigar.getLastCigarElement();
+							if(ce!=null && ce.getOperator().isClipping() && ce.getLength()>=this.min_clip_operator_length) {
+								baseAt.apply(prev_tid,rec.getEnd()+1).rightClip++;
+								}
+							
+							}
+						}
+					/* write last bases */
+					for(final Integer pos: pos2base.keySet()) {
+						final Base b = pos2base.get(pos);
+						if(acceptBase.test(b)) sortingCollection.add(b);
+						}
+					} // end open reader
+				}//end loop sam files
+		
+			sortingCollection.doneAdding();
+			
+
 			/* build VCF header */
 			final Allele reference_allele= Allele.create("N",true);			
 			final Allele alt_allele = Allele.create("<CLIP>",false);			
@@ -286,213 +459,125 @@ public class SamFindClippedRegions extends MultiBamLauncher
 			vcfHeaderLines.add(filterlowMapq);
 
 			
-			final VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,samples);
+			final VCFHeader vcfHeader=new VCFHeader(vcfHeaderLines,sample_list);
 			vcfHeader.setSequenceDictionary(dict);
 			JVarkitVersion.getInstance().addMetaData(this, vcfHeader);
 			
 			this.writingVcfConfig.dictionary(dict);
-				try(VariantContextWriter w = this.writingVcfConfig.open(this.outputFile)) {
-				
-			
+			try(VariantContextWriter w = this.writingVcfConfig.open(this.outputFile)) {
 				w.writeHeader(vcfHeader);
-				
-				@SuppressWarnings("resource")
-				final VariantContextWriter finalVariantContextWriter = w;
-				
-				/** dump a BASe into the VCF */
-				final BiConsumer<String,Base> baseConsumer = (CTG,B)->{
-					if(B.pos<1) return;
-				
-					//no clip
-					if(B.sample2gt.values().stream().mapToInt(G->G.clip()).sum()==0) return;
-					
-					if(B.sample2gt.values().stream().allMatch(G->G.clip() < min_clip_depth)) return;
-					if(B.sample2gt.values().stream().allMatch(G->G.dp() < min_depth)) return;
-					
-					
-					if(B.sample2gt.values().stream().allMatch(G->G.ratio() < fraction)) return;
-					final VariantContextBuilder vcb=new VariantContextBuilder();
-					vcb.chr(CTG);
-					vcb.start(B.pos);
-					vcb.stop(B.pos);
-					vcb.alleles(Arrays.asList(reference_allele,alt_allele));
-					vcb.attribute(VCFConstants.DEPTH_KEY,B.sample2gt.values().stream().mapToInt(G->G.dp()).sum());
-					
-					/* if gtf was specified, find intron which ends are near this pos */
-					if(gtfPath!=null) {
-						final Locatable bounds1 = new SimpleInterval(CTG, Math.max(1, B.pos-max_intron_distance), B.pos+max_intron_distance);
-						intronMap.getOverlapping(bounds1).stream().
-							filter(I->
-									Math.abs(I.getStart()-B.pos)<= this.max_intron_distance ||
-									Math.abs(I.getEnd()-B.pos)<= this.max_intron_distance
-									).
-							map(I->I.getName()).
-							findFirst().
-							ifPresent(transcript_id->{
-								vcb.attribute(infoRetrogene.getID(),transcript_id);
-								vcb.filter(filterRetrogene.getID());
-								});
-								;						
-						}
-					
-					
-					final List<Genotype> genotypes = new ArrayList<>(B.sample2gt.size());
-					int AC=0;
-					int AN=0;
-					int max_clip=1;
-					double sum_mapq=0.0;
-					int count_mapq = 0;
-					
-					for(final String sn:B.sample2gt.keySet()) {
-						final Gt gt = B.sample2gt.get(sn);
-						final GenotypeBuilder gb = new GenotypeBuilder(sn);
-						
-						if(gt.clip()==0 && gt.noClip==0)
-							{
-							gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
-							}
-						else if(gt.noClip==0) {
-							gb.alleles(Arrays.asList(alt_allele,alt_allele));
-							AC+=2;
-							sum_mapq += gt.noClipMapq();
-							count_mapq++;
-							AN+=2;
-							}
-						else if(gt.clip()==0) {
-							gb.alleles(Arrays.asList(reference_allele,reference_allele));
-							AN+=2;
-							}
-						else{
-							gb.alleles(Arrays.asList(reference_allele,alt_allele));
-							AC++;
-							sum_mapq += gt.noClipMapq();
-							count_mapq++;
-							AN+=2;
-							}
-						
-						gb.DP(gt.dp());
-						gb.attribute(leftClip.getID(), gt.leftClip);
-						gb.attribute(rightClip.getID(), gt.rightClip);
-						gb.attribute(totalCip.getID(), gt.clip());
-						gb.attribute(totalDel.getID(), gt.del);
-						gb.attribute(noClipMAPQ.getID(), gt.noClipMapq());
-						gb.AD(new int[] {gt.noClip, gt.clip()});
-						
-						genotypes.add(gb.make());
-						
-						max_clip = Math.max(max_clip, gt.clip());
-						}
-					if(count_mapq>0) {
-						final int avg_mapq = (int)(sum_mapq/count_mapq);
-						vcb.attribute(averageMAPQ.getID(),avg_mapq);
-						if(avg_mapq < bad_mapq ) vcb.filter(filterlowMapq.getID());
-						}
-					vcb.log10PError(max_clip/-10.0);
-					vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, AC);
-					vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, AN);
-					if(AN>0) vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, AC/(float)AN);
-					vcb.genotypes(genotypes);
-					finalVariantContextWriter.add(vcb.make());
-					};
-					
-					
-				final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
-						newInstance().
-						dictionary(dict).
-						logger(LOG).
-						build();
-				
-				String prevContig = null;
-				final SortedMap<Integer,Base> pos2base = new TreeMap<>();
-				
-				/* get base in pos2base, create it if needed */
-				final Function<Integer, Base> baseAt = POS->{
-					Base b = pos2base.get(POS);
-					if(b==null) {
-						b = new Base(POS,samples);
-						pos2base.put(POS, b);
-						}
-					return b;
-					};
-				
-				for(;;) {
-					final SAMRecord rec=(iter.hasNext()?progress.apply(iter.next()):null);
-					if(rec!=null && !SAMRecordDefaultFilter.accept(rec,this.min_mapq)) continue;
-					
-					if(rec==null || !rec.getContig().equals(prevContig))
-						{
-						for(final Integer pos: pos2base.keySet()) {
-							baseConsumer.accept(prevContig,pos2base.get(pos));
-							}
-						if(rec==null) break;
-						pos2base.clear();
-						prevContig = rec.getContig();
-						}
-					
-					for(Iterator<Integer> rpos = pos2base.keySet().iterator();
-							rpos.hasNext();
-						) {
-				    	final Integer pos = rpos.next();
-				    	if(pos.intValue() + this.max_clip_length >= rec.getUnclippedStart()) break;
-				    	baseConsumer.accept(prevContig,pos2base.get(pos));
-				    	rpos.remove();
-				    	}
-	
-					
-					
-					final String rg = this.partition.getPartion(rec);
-					if(StringUtils.isBlank(rg)) continue;
-					
-					for(final AlignmentBlock ab:rec.getAlignmentBlocks()) {
-						for(int n=0;n< ab.getLength();++n) {
+				try(CloseableIterator<Base> r1=sortingCollection.iterator()) {
+					try(EqualRangeIterator<Base> r2=new EqualRangeIterator<>(r1,(A,B)->A.compare2(B))) {
+						while(r2.hasNext()) {
+							final List<Base> array = r2.next();
+							final Base first = array.get(0);
+							if(first.pos<1) continue;
 							
-							}
-						}
-					
-					final Cigar cigar = rec.getCigar();
-					int refPos= rec.getAlignmentStart();
-					for(final CigarElement ce: cigar.getCigarElements()) {
-						final CigarOperator op = ce.getOperator();
-						if(op.consumesReferenceBases()) {
-							if(op.consumesReadBases()) {
-								for(int x=0;x< ce.getLength();++x) {
-									final Gt gt=baseAt.apply(refPos+x).getGt(rg);
-									gt.noClip++;
-									gt.noClip_sum_mapq += rec.getMappingQuality();
+							//no clip
+							if(array.stream().mapToInt(G->G.clip()).sum()==0) continue;
+							
+							if(array.stream().allMatch(G->G.clip() < min_clip_depth)) continue;
+							if(array.stream().allMatch(G->G.dp() < min_depth)) continue;
+							
+							
+							if(array.stream().allMatch(G->G.ratio() < fraction)) continue;
+							final VariantContextBuilder vcb=new VariantContextBuilder();
+							final String chrom = dict.getSequence(first.tid).getSequenceName();
+							vcb.chr(chrom);
+							vcb.start(first.pos);
+							vcb.stop(first.pos);
+							vcb.alleles(Arrays.asList(reference_allele,alt_allele));
+							vcb.attribute(VCFConstants.DEPTH_KEY,array.stream().mapToInt(G->G.dp()).sum());
+							
+							
+
+							
+							final List<Genotype> genotypes = new ArrayList<>(array.size());
+							int AC=0;
+							int AN=0;
+							int max_clip=1;
+							double sum_mapq=0.0;
+							int count_mapq = 0;
+							
+							for(final Base gt : array) {
+								final GenotypeBuilder gb = new GenotypeBuilder(sample_list.get(gt.sample_idx));
+								
+								if(gt.clip()==0 && gt.noClip==0)
+									{
+									gb.alleles(Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
 									}
+								else if(gt.noClip==0) {
+									gb.alleles(Arrays.asList(alt_allele,alt_allele));
+									AC+=2;
+									sum_mapq += gt.noClipMapq();
+									count_mapq++;
+									AN+=2;
+									}
+								else if(gt.clip()==0) {
+									gb.alleles(Arrays.asList(reference_allele,reference_allele));
+									AN+=2;
+									}
+								else{
+									gb.alleles(Arrays.asList(reference_allele,alt_allele));
+									AC++;
+									sum_mapq += gt.noClipMapq();
+									count_mapq++;
+									AN+=2;
+									}
+								
+								gb.DP(gt.dp());
+								gb.attribute(leftClip.getID(), gt.leftClip);
+								gb.attribute(rightClip.getID(), gt.rightClip);
+								gb.attribute(totalCip.getID(), gt.clip());
+								gb.attribute(totalDel.getID(), gt.del);
+								gb.attribute(noClipMAPQ.getID(), gt.noClipMapq());
+								gb.AD(new int[] {gt.noClip, gt.clip()});
+								
+								genotypes.add(gb.make());
+								
+								max_clip = Math.max(max_clip, gt.clip());
 								}
-							else if(op.equals(CigarOperator.D) || op.equals(CigarOperator.N))
-								{
-								baseAt.apply(refPos).getGt(rg).del++;
-								baseAt.apply(refPos + ce.getLength() - 1).getGt(rg).del++;
+							if(count_mapq>0) {
+								final int avg_mapq = (int)(sum_mapq/count_mapq);
+								vcb.attribute(averageMAPQ.getID(),avg_mapq);
+								if(avg_mapq < bad_mapq ) vcb.filter(filterlowMapq.getID());
 								}
-							refPos += ce.getLength();
-							}
-						}
-					
-					CigarElement ce = cigar.getFirstCigarElement();
-					if(ce!=null && ce.getOperator().isClipping() && ce.getLength()>=this.min_clip_operator_length) {
-						baseAt.apply(rec.getStart()-1).getGt(rg).leftClip++;
-						}
-					ce = cigar.getLastCigarElement();
-					if(ce!=null && ce.getOperator().isClipping() && ce.getLength()>=this.min_clip_operator_length) {
-						baseAt.apply(rec.getEnd()+1).getGt(rg).rightClip++;
-						}
-					
-					}
-				
-				}// end of vcf writer
+							
+							if(gtfPath!=null) {
+								final Locatable bounds1 = new SimpleInterval(chrom, Math.max(1, first.pos-max_intron_distance), first.pos+max_intron_distance);
+								intronMap.getOverlapping(bounds1).stream().
+									filter(I->
+											Math.abs(I.getStart()-first.pos)<= this.max_intron_distance ||
+											Math.abs(I.getEnd()-first.pos)<= this.max_intron_distance
+											).
+									map(I->I.getName()).
+									findFirst().
+									ifPresent(transcript_id->{
+										vcb.attribute(infoRetrogene.getID(),transcript_id);
+										vcb.filter(filterRetrogene.getID());
+										});
+										;						
+								}
+							
+							vcb.log10PError(max_clip/-10.0);
+							vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, AC);
+							vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, AN);
+							if(AN>0) vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, AC/(float)AN);
+							vcb.genotypes(genotypes);
+							w.add(vcb.make());
+							}//end while r2
+						}//end r2
+					}//end r1
+				}//end writer
+			sortingCollection.cleanup();
+			
 			return 0;
-			}
-		catch(final Throwable err)
-			{
+		} catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			}
 		}
+	
 	
 	public static void main(final String[] args)
 		{

@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -42,6 +43,8 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.QueryInterval;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -54,6 +57,7 @@ import htsjdk.samtools.util.StringUtil;
  * @author lindenb
  */
 public class BedLineReader extends AbstractCloseableIterator<BedLine>  {
+private static final Logger LOG=Logger.build(BedLineReader.class).make();
 public static final String OPT_DESC="A Bed file: (CHROM)<tab>(START 0-based)<tab>(END)[<tab>otherfields...].";
 private final BedLineCodec codec = new BedLineCodec();
 private final BufferedReader br;
@@ -81,6 +85,29 @@ public BedLineReader setValidationStringency(final ValidationStringency stringen
 public BedLineReader setContigNameConverter(final UnaryOperator<String> chromosomeConverter) {
 	this.codec.setContigNameConverter(chromosomeConverter);
 	return this;
+	}
+
+public  QueryInterval[] optimizeIntervals(final SAMSequenceDictionary dict) {
+	Objects.requireNonNull(dict);
+	return QueryInterval.optimizeIntervals(stream().
+		map(B->{
+			int tid = dict.getSequenceIndex(B.getContig());
+			if(tid<0) {
+				final String msg = "Chromosome is not in dictionary. Skipping : "+B.getContig();
+				switch (this.codec.getValidationStringency()) {
+				case STRICT:
+					throw new IllegalArgumentException(msg);
+				case LENIENT:
+					LOG.warn(msg);
+					return null;
+				default:
+					return null;
+					}
+				}
+			return new QueryInterval(tid, B.getStart(), B.getEnd());
+			}).
+		filter(X->X!=null).
+		toArray(X->new QueryInterval[X]));
 	}
 
 @Override
