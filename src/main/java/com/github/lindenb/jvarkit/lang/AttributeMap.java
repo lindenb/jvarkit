@@ -25,6 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.lang;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
@@ -90,7 +91,9 @@ public default boolean getBooleanAttribute(final String key) {
 	if(!m.containsKey(key)) return false;
 	final String val = m.get(key);
 	if(val.equalsIgnoreCase("false")) return false;
+	if(val.equalsIgnoreCase("no")) return false;
 	if(val.equalsIgnoreCase("true")) return true;
+	if(val.equalsIgnoreCase("yes")) return true;
 	throw new IllegalStateException("not a boolean "+key+":"+val);
 	}
 
@@ -98,5 +101,15 @@ public default boolean getBooleanAttribute(final String key) {
 /** get all pairs(key/value) */
 public default Stream<Map.Entry<String, String>> entries() {
 	return getAttributes().entrySet().stream();
+	}
+
+public static AttributeMap wrap(final Map<String, String> hash) {
+	final Map<String,String> umap = Collections.unmodifiableMap(hash);
+	return new AttributeMap() {
+		@Override
+		public Map<String, String> getAttributes() {
+			return umap;
+			}
+		};
 	}
 }
