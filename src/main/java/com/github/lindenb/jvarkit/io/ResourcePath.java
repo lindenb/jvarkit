@@ -25,34 +25,22 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.io;
 
+import java.io.StreamTokenizer;
+import java.io.StringReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Supplier;
 
+import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
-public interface ResourcePath {
+/** paths associated to attributes */
+public interface ResourcePath extends AttributeMap {
 
-public Map<String,String> getAttributes();
-		
-public default String getAttribute(final String key,String defaultValue) {
-	return getAttribute(key).orElse(defaultValue);
-	}
-
-public default Optional<String> getAttribute(final String key) {
-	final Map<String,String> m = getAttributes();
-	if(!m.containsKey(key)) return Optional.empty();
-	return Optional.of(m.get(key));
-	}
-
-public default boolean hasAttribute(final String key) {
-	return getAttributes().containsKey(key);
-	}
-
-	
+/** implementation of ResourcePath */
 static class ResourcePathImpl implements ResourcePath {
 	String declaration;
 	Path path;
@@ -61,8 +49,12 @@ static class ResourcePathImpl implements ResourcePath {
 	public Map<String, String> getAttributes() {
 		return Collections.unmodifiableMap(properties);
 		}
+	@Override
+	public String toString() {
+		return declaration;
+		}
 	}
-
+	
 /** create ResourcePath from string */
 public static ResourcePath of(String s) {
 	if(StringUtils.isBlank(s)) throw new IllegalArgumentException("empty string");
@@ -72,12 +64,61 @@ public static ResourcePath of(String s) {
 	if(x1==0)  throw new IllegalArgumentException("starts with ';' "+s);
 	rsrc.path = Paths.get(s.substring(0,x1));
 	s=s.substring(x1+1);
-	while(!s.isEmpty()) {
-		int i=0;
-		while(i<s.length() && s.charAt(i)!='=' && s.charAt(i)!=';') {
-			i++;
+	try(StringReader bais = new StringReader(s)) {
+		final StreamTokenizer st = new StreamTokenizer(bais);
+		st.wordChars('_', '_');
+		st.wordChars('-','-');
+		st.wordChars('0', '9');
+		st.slashSlashComments(false);
+		st.slashStarComments(false);
+		final Supplier<String> nextToken= ()-> {
+			for(;;)
+				final int op=st.nextToken();
+				if(op==StreamTokenizer.TT_EOF) return null;
+				return st.sval;
+				}
+			};
+		boolean got_colon = false;
+		String key = null;
+		while((op=st.nextToken())!=StreamTokenizer.TT_EOF) {
+			if( op==StreamTokenizer.TT_WORD ||
+				op==StreamTokenizer.TT_NUMBER || 
+				op == '\'' || op=='\"') {
+				String sval ;
+				sval = st.sval;
+					
+				if(key==null) {
+					key = sval;
+					if(rsrc.properties.containsKey(key)) {
+						throw new IllegalArgumentException("duplicate key "+key+" in "+rsrc.declaration);
+						}
+					got_colon=false;
+					}
+				else if(got_colon)
+					{
+					rsrc.properties.put(key,sval);
+					key=null;
+					got_colon=false;
+					}
+				else
+					{
+					throw new IllegalArgumentException("colon missing");
+					}
+				}
+			else if(op=='=' || op==':') {
+				got_colon = true;
+				}
+			else if(op==';') {
+				got_colon = false;
+				key=null;
+				}
+			else {
+				
+				}
 			}
-		String key = s.substring(0,i).trim();
+		}
+	catch(final Throwable err) {
+		throw new IllegalArgumentException(err);
 		}
 	return rsrc;
 	}
