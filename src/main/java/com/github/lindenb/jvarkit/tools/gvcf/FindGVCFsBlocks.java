@@ -41,7 +41,6 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -241,7 +240,7 @@ public class FindGVCFsBlocks extends Launcher {
 	@Parameter(names={"--min-size","--block-size"},description="min block size. "+DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_block_size=0;
 	@Parameter(names={"--lenient"},description="allow strange GVCF blocks that don't end at the same chromosome end.")
-	private boolean lenient_discordant_end = false;
+	private boolean lenient_processing = false;
 	@Parameter(names={"--bed"},description="Restrict output blocks to those overlapping this bed")
 	private Path bedPath=null;
 
@@ -482,10 +481,27 @@ public class FindGVCFsBlocks extends Launcher {
 									final Locatable loc0 = peek0.peek();
 									final Locatable loc1 = peek1.peek();
 									if(!loc0.contigsMatch(loc1)) {
-										throw new IllegalStateException("unexpected: not the same contigs "+loc0+" "+loc1);
+										if(lenient_processing) {
+											final Locatable loc;
+											LOG.warn("unexpected: not the same contigs "+loc0+" "+loc1);
+											if(dict.getSequenceIndex(loc0.getContig()) < dict.getSequenceIndex(loc1.getContig())) {
+												loc = peek0.next();
+											} else {
+												loc = peek1.next();
+											}
+											if(start0==null || !start0.contigsMatch(loc)) start0 = loc;
+											if(start1==null || !start1.contigsMatch(loc)) start1 = loc;
+											pw.add(new SimpleInterval(loc.getContig(),(Math.min(start0.getStart(),start1.getStart())),loc.getEnd()));
+											count_variants++;
+											start0=null;
+											start1=null;
+											continue;
+										} else {
+											throw new IllegalStateException("unexpected: not the same contigs "+loc0+" "+loc1);
+											}
 										}
-									if(start0==null) start0 = loc0;
-									if(start1==null) start1 = loc1;
+									if(start0==null || !start0.contigsMatch(loc0)) start0 = loc0;
+									if(start1==null || !start0.contigsMatch(loc1)) start1 = loc1;
 									
 									
 									final int end0 =  loc0.getEnd();
@@ -507,16 +523,20 @@ public class FindGVCFsBlocks extends Launcher {
 										start1=null;
 										}
 									}
-								if(lenient_discordant_end) {
-									while(peek0.hasNext()) {
-										final Locatable loc = peek0.next();
-										LOG.warn("extra interval 0 : "+ loc);
-									}
-									while(peek1.hasNext()) {
-										final Locatable loc = peek1.next();
-										LOG.warn("extra interval 1 : "+ loc);
-									}
-
+								if(lenient_processing) {
+									for(int side=0;side<2;++side) {
+										final PeekableIterator<Locatable> peek01 = (side==0?peek0:peek1);
+										if(!peek01.hasNext()) continue;
+										Locatable last = null;
+										while(peek01.hasNext()) {
+											last = peek01.next();
+											}
+										if(start0==null || !start0.contigsMatch(last)) start0 = last;
+										if(start1==null || !start0.contigsMatch(last)) start1 = last;
+										LOG.warn("extra interval "+side+" : "+ last);
+										pw.add(new SimpleInterval(last.getContig(),(Math.min(start0.getStart(),start1.getStart())),last.getEnd()));
+										count_variants++;
+										}
 								} else {
 									if(peek0.hasNext()) throw new IllegalStateException("peek0 has Next ? " + peek0.next()+" use --lenient ?");
 									if(peek1.hasNext()) throw new IllegalStateException("peek1 has Next ? " + peek1.next()+" use --lenient ?");

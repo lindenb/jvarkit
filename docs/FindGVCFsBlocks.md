@@ -8,6 +8,7 @@ Find common blocks of calleable regions from a set of gvcfs
 ## Usage
 
 ```
+Usage: java -jar dist/findgvcfsblocks.jar  [options] Files
 Usage: findgvcfsblocks [options] Files
   Options:
     --bed
