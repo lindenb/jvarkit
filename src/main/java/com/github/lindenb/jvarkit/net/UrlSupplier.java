@@ -135,6 +135,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		{
 		urls.add(new LabelledUrlImpl("Ensembl","http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q="+str.toUpperCase()+";species=;site=ensembl"));
 		if(str.startsWith("ENSG")) {
+			urls.add(new LabelledUrlImpl("OpenTargets","https://genetics.opentargets.org/gene/"+str));
 			urls.add(new LabelledUrlImpl("Genbass GRCh38","https://genebass.org/gene/"+str+"?burdenSet=pLoF&phewasOpts=1&resultLayout=full"));
 			}
 		}
@@ -190,16 +191,16 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 				alt.getDisplayString()
 				));
 			}
-		
-		
-		
 		}
 	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
 			urls.add(new LabelledUrlImpl("Variant Gnomad 3 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
-				StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r3"
-				));
+					StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r3"
+					));
+			urls.add(new LabelledUrlImpl("OpenTargets " + alt.getDisplayString(),"https://genetics.opentargets.org/variant/"+
+					String.join("_",StringUtils.escapeHttp(ensemblCtg) ,""+ctx.getStart(),ctx.getReference().getDisplayString(),alt.getDisplayString())
+					));
 			}
 		}
 	

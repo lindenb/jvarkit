@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2022 Pierre Lindenbaum
+Copyright (c) 2021 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -131,6 +131,36 @@ public class DoubleArray extends BaseArray<Double> {
 		super.mSize++;
 		return value;
 	}
+	
+	/** c++ lower_bound */
+	public int lower_bound(final double key) {
+		int low = 0, high = super.mSize;
+		int mid;
+
+		while (low < high) {
+			mid = low + (high - low) / 2;
+
+			if (key <= this.array[mid]) {
+				high = mid;
+			}
+
+			// If key is greater than array[mid],
+			// then find in right subarray
+			else {
+				low = mid + 1;
+			}
+		}
+
+		// If key is greater than last element which is
+		// array[n-1] then lower bound
+		if (low < super.mSize && this.array[low] < key) {
+			low++;
+			}
+
+		// Returning the lower_bound index
+		return low;
+		}
+	
 	
 	public DoubleArray addAll(final DoubleArray o) {
 		return addAll(o.array,0,o.mSize);
