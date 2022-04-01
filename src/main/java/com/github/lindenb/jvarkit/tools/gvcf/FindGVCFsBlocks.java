@@ -22,19 +22,21 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.gvcf;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -51,17 +53,13 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTextHeaderCodec;
-import htsjdk.samtools.util.BufferedLineReader;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.PeekableIterator;
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.tribble.IntervalList.IntervalListCodec;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextComparator;
@@ -228,25 +226,36 @@ END_DOC
 	description="Find common blocks of calleable regions from a set of gvcfs",
 	keywords={"gvcf","gatk","vcf"},
 	creationDate="20210806",
-	modificationDate="20211110"
+	modificationDate="20220401"
 	)
 public class FindGVCFsBlocks extends Launcher {
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	@Parameter(names={"-c","--chrom","--chromosome","--contig"},description="limit to that contig")
 	private String the_contig = null;
-	@Parameter(names={"-T"},description="temporary directory")
-	private Path tmpDir = null;
+	@Parameter(names={"-T"},description="option was removed",hidden=true)
+	private Path _removed_ignore = null;
 	@Parameter(names={"--min-size","--block-size"},description="min block size. "+DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_block_size=0;
-	@Parameter(names={"--lenient"},description="allow strange GVCF blocks that don't end at the same chromosome end.")
-	private boolean lenient_processing = false;
+	@Parameter(names={"--merge-size","-M"},description="merge adjacent blocks distance. "+DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	private int merge_blocks_distance = 1;
+
+	@Parameter(names={"--lenient"},description="allow strange GVCF blocks that don't end at the same chromosome end.",hidden=true)
+	private boolean _deprecated_lenient_processing = false;
 	@Parameter(names={"--bed"},description="Restrict output blocks to those overlapping this bed")
 	private Path bedPath=null;
 
 
 	private static final Logger LOG = Logger.build(FindGVCFsBlocks.class).make();
 	private static final Allele NON_REF = Allele.create("<NON_REF>",false);
+	
+	
+	private static class ContigBlocks {
+		Integer minPos = null;
+		Integer maxPos = null;
+		final Set<Integer> end_positions = new TreeSet<>();
+		}
+	
 	
 	private class IntervalListWriter implements Closeable {
 		private final BufferedWriter w;
@@ -274,148 +283,48 @@ public class FindGVCFsBlocks extends Launcher {
 		}
 	
 	
-	private abstract class GVCFOrIntervalIterator extends AbstractCloseableIterator<Locatable>	{
-		public abstract SAMSequenceDictionary getSAMSequenceDictionary();
-		}
 	
-	/** closeable iterator over a VCF file, returns start-end of blocks */
-	private class IntervalListIterator extends GVCFOrIntervalIterator	{
-		private BufferedReader br;
-		private final SAMSequenceDictionary dict;
-		private String line;
-	 final IntervalListCodec intervalListCodec;
-		IntervalListIterator(final Path intervalFile) throws IOException {
-			this.br =  IOUtil.openFileForBufferedReading(intervalFile);
-			final StringBuilder builder = new StringBuilder();
-			try {
-				 while ((this.line = br.readLine()) != null) {
-		             if (this.line.startsWith("@")) {
-		                 builder.append(this.line).append('\n');
-		             	} else {
-		                 break;
-		             	}
-					 	}
-					}
-			catch(final Throwable err) {
-					throw new IOException(err);
-					}
-			if (builder.length() == 0) {
-				throw new IllegalStateException("Interval list file must contain header. ");
+	private ContigBlocks scanVcfFile(final ContigBlocks prevBloc ,final SAMSequenceDictionary mainDict,final SAMSequenceRecord ssr, final Path gvcfFile) throws IOException {
+			final ContigBlocks blocks = new ContigBlocks();
+			if(prevBloc!=null) {
+				blocks.minPos = prevBloc.minPos;
+				blocks.maxPos = prevBloc.maxPos;
 				}
-
-			final BufferedLineReader headerReader = BufferedLineReader.fromString(builder.toString());
-			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
-			final SAMFileHeader samfileHeader = codec.decode(headerReader,intervalFile.toString());
-			this.dict = SequenceDictionaryUtils.extractRequired(samfileHeader);
-			this.intervalListCodec = new IntervalListCodec(this.dict);
-			}
-		@Override
-		protected Locatable advance()
-			{
-			try {
-				/* first line was read in the header */
-				while(this.line!=null) {
-					final Locatable loc = this.intervalListCodec.decode(this.line);
-					// now prepare line for next iteration
-					this.line = this.br.readLine();
-					if(loc==null || (!StringUtils.isBlank(the_contig) && !loc.getContig().equals(the_contig))) continue;
-					return loc;
-					} 
-				} catch(final IOException err) {
-					throw new RuntimeIOException(err);
-				}
-			return null;
-			}
-		@Override
-		public SAMSequenceDictionary getSAMSequenceDictionary() {
-			return this.dict;
-			}
-		@Override
-		public void close() {
-			this.line = null;
-			try{if(this.br!=null) br.close();} catch(IOException err){}
-			}
-		}
-	
-	/** closeable iterator over a VCF file, returns start-end of blocks */
-	private class GVCFVariantIterator extends GVCFOrIntervalIterator	{
-		private final VCFReader vcfFileReader;
-		private final VCFHeader header;
-		private SAMSequenceDictionary dict;
-		private final CloseableIterator<VariantContext> iter;
-		private VariantContext first = null;
-		private VariantContext prev = null;
-		private final VariantContextComparator comparator;
-		GVCFVariantIterator(final Path gvcfFile) {
-			this.vcfFileReader = VCFReaderFactory.makeDefault().open(gvcfFile,!StringUtils.isBlank(the_contig));
-			this.header = this.vcfFileReader.getHeader();
-			this.dict = SequenceDictionaryUtils.extractRequired(this.header);
-			if(StringUtils.isBlank(the_contig)) {
-				this.iter = this.vcfFileReader.iterator();
-				}
-			else
-				{
-				final SAMSequenceRecord ssr = this.dict.getSequence(the_contig);
-				if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(the_contig, this.dict);
-				this.iter = this.vcfFileReader.query(ssr);
-				}
-			this.comparator = this.header.getVCFRecordComparator();
-			}
-		@Override
-		public SAMSequenceDictionary getSAMSequenceDictionary()
-			{
-			return this.dict;
-			}
-		@Override
-		protected Locatable advance()
-			{
-			while(this.iter.hasNext()) {
-				final VariantContext ctx = iter.next();
-				if(this.prev!=null) {
-					if(this.comparator.compare(ctx, this.prev) < 0) {
-						throw new RuntimeException("Bad order. Got "+ctx+" after "+this.prev);
+			try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(gvcfFile,true)) {
+				final VCFHeader header = vcfFileReader.getHeader();
+				final VariantContextComparator comparator = header.getVCFRecordComparator();
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+				SequenceUtil.assertSequenceDictionariesEqual(dict, mainDict);
+				try(final CloseableIterator<VariantContext> iter = vcfFileReader.query(ssr)) {
+					VariantContext prev = null;
+					while(iter.hasNext()) {
+						final VariantContext ctx = iter.next();
+						if(blocks.minPos==null || blocks.minPos.intValue()> ctx.getStart()) {
+							blocks.minPos = ctx.getStart();
+							}
+						if(blocks.maxPos==null || blocks.maxPos.intValue() < ctx.getEnd()) {
+							blocks.maxPos = ctx.getEnd();
+							}
+						if(prev!=null && comparator.compare(ctx,prev) < 0) {
+							throw new RuntimeException("Bad order. Got "+ctx+" after "+prev);
+							}
+						prev = ctx;
+						if(ctx.getAlleles().size()!=2) continue;
+						if(!ctx.getAlleles().get(1).equals(NON_REF)) continue;
+						if(!ctx.hasAttribute(VCFConstants.END_KEY)) continue;
+						final int end_pos = ctx.getAttributeAsInt(VCFConstants.END_KEY, -1);
+						if(prevBloc==null || prevBloc.end_positions.contains(end_pos)) {
+							blocks.end_positions.add(end_pos);
+							}
 						}
 					}
-				if(this.first==null || !this.first.contigsMatch(ctx)) {
-					this.first= ctx;
-					}
-				this.prev = ctx;
-				if(ctx.getAlleles().size()!=2) continue;
-				if(!ctx.getAlleles().get(1).equals(NON_REF)) continue;
-				if(!ctx.hasAttribute(VCFConstants.END_KEY)) continue;
-				final SimpleInterval r = new SimpleInterval(ctx.getContig(),this.first.getStart(),ctx.getAttributeAsInt(VCFConstants.END_KEY, -1));
-				this.first=null;
-				return r;
 				}
-			return null;
+			return blocks;
 			}
 		
-		@Override
-		public void close() {
-			try {this.iter.close();} catch(Throwable err) {}
-			try {this.vcfFileReader.close();} catch(Throwable err) {}
-			}
-		}
 	
-	private GVCFOrIntervalIterator openInput(final Path path) throws IOException {
-		final String fname = path.getFileName().toString();
-		if(FileExtensions.VCF_LIST.stream().anyMatch(S->fname.endsWith(S))) {
-			return new GVCFVariantIterator(path);
-			}
-		else if(fname.endsWith(FileExtensions.INTERVAL_LIST) || fname.endsWith(FileExtensions.COMPRESSED_INTERVAL_LIST)) {
-			return new IntervalListIterator(path);
-			}
-		else
-			{
-			throw new IOException("unknown file extension : "+path+" not "+FileExtensions.INTERVAL_LIST+"/"+FileExtensions.COMPRESSED_INTERVAL_LIST+"/"+String.join("/", FileExtensions.VCF_LIST));
-			}
-		}
-	
-	@SuppressWarnings("resource")
 	@Override
 	public int doWork(final List<String> args) {
-		Path tmpBedFile0 = null;
-		Path tmpBedFile1 = null;
 		try {
 			if (this.bedPath!=null) {
 				IOUtil.assertFileIsReadable(this.bedPath);
@@ -428,6 +337,23 @@ public class FindGVCFsBlocks extends Launcher {
 				LOG.error("input missing");
 				return -1;
 				}
+			if(merge_blocks_distance < 1) {
+				LOG.error("bad merge size : "+merge_blocks_distance);
+				return -1;
+				}
+			
+			
+			final Predicate<Locatable> inCapture;
+			if (this.bedPath!=null) {
+				final IntervalTreeMap<Boolean> intervalTreeMap;
+				try(BedLineReader blr = new BedLineReader(this.bedPath)) {
+					intervalTreeMap = blr.toIntervalTreeMap(BED->Boolean.TRUE);
+					}
+				inCapture = (L)->intervalTreeMap.containsOverlapping(L);
+			} else {
+				inCapture = (L)->true;
+			}
+			
 			if(this.outputFile!=null) {
 				final String fname = this.outputFile.getFileName().toString();
 				if(!fname.endsWith(FileExtensions.INTERVAL_LIST) && !fname.endsWith(FileExtensions.COMPRESSED_INTERVAL_LIST)) {
@@ -436,159 +362,76 @@ public class FindGVCFsBlocks extends Launcher {
 					}
 				}
 			
-			if(this.tmpDir==null && this.outputFile!=null) {
-				this.tmpDir = this.outputFile.getParent();				
-				}
-			
-			if(this.tmpDir==null) {
-				this.tmpDir = IOUtils.getDefaultTempDir();
-				}
-			IOUtil.assertDirectoryIsWritable(this.tmpDir);
-			tmpBedFile0 = Files.createTempFile(this.tmpDir, "tmp.", ".bed");
-			tmpBedFile1 = Files.createTempFile(this.tmpDir, "tmp.", ".bed");
-			SAMSequenceDictionary dict = null;
-			final long initMilliSec = System.currentTimeMillis();
-			for(int i=0;i< inputs.size();i++) {
-				final long startMilliSec = System.currentTimeMillis();
-				LOG.info(inputs.get(i)+" "+(i+1)+"/"+inputs.size());
-				try(GVCFOrIntervalIterator r0 = openInput(inputs.get(i))) {
-					if(dict!=null) {
-						SequenceUtil.assertSequenceDictionariesEqual(dict, r0.getSAMSequenceDictionary());
-						}
-					else
-						{
-						dict = r0.getSAMSequenceDictionary();
-						}
-					long count_variants = 0L;
-					try(IntervalListWriter pw= new IntervalListWriter(tmpBedFile0,dict)) {
-						/* first VCF , just convert to bed */
-						if(i==0) {
-							while(r0.hasNext()) {
-								final Locatable loc = r0.next();
-								pw.add(loc);
-								count_variants++;
-								}
-							}
-						/* merge previous bed with current VCF using INFO/END */
-						else
-							{
-							Locatable start0 = null;
-							Locatable start1 = null;
-							try(IntervalListIterator r1 = new IntervalListIterator(tmpBedFile1)) {
-								PeekableIterator<Locatable> peek0 = new PeekableIterator<>(r0);
-								PeekableIterator<Locatable> peek1 = new PeekableIterator<>(r1);
-								while(peek0.hasNext() && peek1.hasNext()) {
-									final Locatable loc0 = peek0.peek();
-									final Locatable loc1 = peek1.peek();
-									if(!loc0.contigsMatch(loc1)) {
-										if(lenient_processing) {
-											final Locatable loc;
-											LOG.warn("unexpected: not the same contigs "+loc0+" "+loc1);
-											if(dict.getSequenceIndex(loc0.getContig()) < dict.getSequenceIndex(loc1.getContig())) {
-												loc = peek0.next();
-											} else {
-												loc = peek1.next();
-											}
-											if(start0==null || !start0.contigsMatch(loc)) start0 = loc;
-											if(start1==null || !start1.contigsMatch(loc)) start1 = loc;
-											pw.add(new SimpleInterval(loc.getContig(),(Math.min(start0.getStart(),start1.getStart())),loc.getEnd()));
-											count_variants++;
-											start0=null;
-											start1=null;
-											continue;
-										} else {
-											throw new IllegalStateException("unexpected: not the same contigs "+loc0+" "+loc1);
-											}
-										}
-									if(start0==null || !start0.contigsMatch(loc0)) start0 = loc0;
-									if(start1==null || !start0.contigsMatch(loc1)) start1 = loc1;
-									
-									
-									final int end0 =  loc0.getEnd();
-									final int end1 =  loc1.getEnd();
-									if(end0 < end1) {
-										peek0.next();
-										continue;
-										}
-									else if(end0 > end1) {
-										peek1.next();
-										continue;
-										}
-									else { /* end0==end1 */
-										pw.add(new SimpleInterval(loc0.getContig(),(Math.min(start0.getStart(),start1.getStart())),loc0.getEnd()));
-										count_variants++;
-										peek0.next();//consumme
-										peek1.next();//consumme
-										start0=null;
-										start1=null;
-										}
-									}
-								if(lenient_processing) {
-									for(int side=0;side<2;++side) {
-										final PeekableIterator<Locatable> peek01 = (side==0?peek0:peek1);
-										if(!peek01.hasNext()) continue;
-										Locatable last = null;
-										while(peek01.hasNext()) {
-											last = peek01.next();
-											}
-										if(start0==null || !start0.contigsMatch(last)) start0 = last;
-										if(start1==null || !start0.contigsMatch(last)) start1 = last;
-										LOG.warn("extra interval "+side+" : "+ last);
-										pw.add(new SimpleInterval(last.getContig(),(Math.min(start0.getStart(),start1.getStart())),last.getEnd()));
-										count_variants++;
-										}
-								} else {
-									if(peek0.hasNext()) throw new IllegalStateException("peek0 has Next ? " + peek0.next()+" use --lenient ?");
-									if(peek1.hasNext()) throw new IllegalStateException("peek1 has Next ? " + peek1.next()+" use --lenient ?");
-								}
-								peek0.close();
-								peek1.close();
-								}
-							}
-						final long millisecPerVcf  = (System.currentTimeMillis() - initMilliSec)/(i+1L);
-												
-						LOG.info("N="+count_variants+". That took: "+StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec)+" Remains: "+ StringUtils.niceDuration((inputs.size()-(i+1))*millisecPerVcf));
-						}//end writer
-					Files.deleteIfExists(tmpBedFile1);
-					Files.move(tmpBedFile0,tmpBedFile1);
-					}
-				}
-			
-			final IntervalTreeMap<Boolean> intervalTreeMap;
-			if (this.bedPath!=null) {
-				try(BedLineReader blr = new BedLineReader(this.bedPath)) {
-					intervalTreeMap = blr.toIntervalTreeMap(BED->Boolean.TRUE);
-					}
-			} else {
-				intervalTreeMap = null;
-			}
-			
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(inputs.get(0));
+			if(!StringUtils.isBlank(the_contig) && dict.getSequence(the_contig)==null) throw new JvarkitException.ContigNotFoundInDictionary(the_contig, dict);
 			
 			
 			try(IntervalListWriter w = new IntervalListWriter(this.outputFile,dict)) {
-				try(IntervalListIterator r1 = new IntervalListIterator(tmpBedFile1)) {
-					final PeekableIterator<Locatable> peek1 = new PeekableIterator<>(r1);
-					while(peek1.hasNext()) {
-						Locatable loc = peek1.next();
-						
-						if (intervalTreeMap!=null && !intervalTreeMap.containsOverlapping(loc)) {
-							continue;
+				/** loop over chromosomes */
+				for(final SAMSequenceRecord ssr :dict.getSequences()){
+					ContigBlocks mainBlock = null;
+					if(!StringUtils.isBlank(the_contig) && !ssr.getContig().equals(the_contig)) continue;
+					final long initMilliSec = System.currentTimeMillis();
+					for(int i=0;i< inputs.size();i++) {
+						final long startMilliSec = System.currentTimeMillis();
+						LOG.info(inputs.get(i)+" "+(i+1)+"/"+inputs.size());
+						mainBlock =  scanVcfFile(mainBlock,dict,ssr, inputs.get(i));
+						final long count_variants = mainBlock.end_positions.size();
+						final long millisecPerVcf  = (System.currentTimeMillis() - initMilliSec)/(i+1L);
+						LOG.info("N="+count_variants+". That took: "+StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec)+" Remains: "+ StringUtils.niceDuration((inputs.size()-(i+1))*millisecPerVcf));
 						}
-						
-						while(this.min_block_size>0 && peek1.hasNext()) {
-							final Locatable loc2 = peek1.peek();
-							if(!loc2.contigsMatch(loc)) break;
+					/* nothing was seen */
+					if(mainBlock.minPos==null) continue;
+					if(mainBlock.end_positions.isEmpty()) {
+						final Locatable loc = new SimpleInterval(ssr.getContig(),mainBlock.minPos,mainBlock.maxPos);
+						if(inCapture.test(loc)) {
+							w.add(loc);
+							}
+						continue;
+						}
+					final List<Locatable> intervals = new ArrayList<>(mainBlock.end_positions.size()+1);
+					
+					final int pos1 = mainBlock.end_positions.stream().mapToInt(P->P.intValue()).min().getAsInt();
+					if(mainBlock.minPos< pos1 ) {
+						final Locatable loc = new SimpleInterval(ssr.getContig(),mainBlock.minPos,pos1-1);
+						if(inCapture.test(loc)) {
+							intervals.add(loc);
+							}
+						}
+					Integer prev=null;
+					for(Integer p: mainBlock.end_positions) {
+						if(prev!=null) {
+							final Locatable loc = new SimpleInterval(ssr.getContig(),prev+1,p);
+							if(inCapture.test(loc)) {
+								intervals.add(loc);
+								}
+							}
+						prev=p;
+						}
+					
+					final int pos2 = mainBlock.end_positions.stream().mapToInt(P->P.intValue()).max().getAsInt();
+					if(mainBlock.maxPos> pos2 ) {
+						final Locatable loc = new SimpleInterval(ssr.getContig(),pos2+1,mainBlock.maxPos);
+						if(inCapture.test(loc)) {
+							intervals.add(loc);
+							}
+						}
+					Collections.sort(intervals,(A,B)->Integer.compare(A.getStart(), B.getStart()));
+					while(!intervals.isEmpty()) {
+						Locatable loc = intervals.remove(0);
+						while(this.min_block_size>0 && !intervals.isEmpty() ) {
+							final Locatable loc2 = intervals.get(0);
+							if(!loc2.withinDistanceOf(loc, merge_blocks_distance)) break;
 							if(CoordMath.getLength(loc.getStart(), loc2.getEnd()) > this.min_block_size) break;
-							loc = new SimpleInterval(loc.getContig(),loc.getStart(),loc2.getEnd());
 							//consumme loc2
-							peek1.next();
+							intervals.remove(0);
+							loc = new SimpleInterval(loc.getContig(),loc.getStart(),loc2.getEnd());
 							}
 						w.add(loc);
 						}
-					peek1.close();
 					}
-				Files.deleteIfExists(tmpBedFile1);
 				}
+				
 			return 0;
 			}
 		catch(final Throwable err) {
@@ -596,13 +439,10 @@ public class FindGVCFsBlocks extends Launcher {
 			return -1;
 			}
 		finally {
-			if(tmpBedFile0!=null) try { Files.deleteIfExists(tmpBedFile0);} catch(Throwable err) {}
-			if(tmpBedFile1!=null) try { Files.deleteIfExists(tmpBedFile1);} catch(Throwable err) {}
 			}
 		}
 	public static void main(final String[] args) {
 		new FindGVCFsBlocks().instanceMainWithExit(args);
-
-	}
+		}
 
 }

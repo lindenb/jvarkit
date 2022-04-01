@@ -23,15 +23,15 @@ Usage: findgvcfsblocks [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --lenient
-      allow strange GVCF blocks that don't end at the same chromosome end.
-      Default: false
+    --merge-size, -M
+      merge adjacent blocks distance. A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
+      Default: 1
     -o, --out
       Output file. Optional . Default: stdout
     --version
       print version and exit
-    -T
-      temporary directory
 
 ```
 
