@@ -1577,7 +1577,7 @@ all.add( task("vcf2sql", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcf2svg", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfToSvg"
+	mainClass = "com.github.lindenb.jvarkit.tools.vcf2svg.VcfToSvg"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcf2table", type: CompileJVarkit) {
