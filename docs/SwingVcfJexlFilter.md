@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Filter VCF using Java Swing UI and JEXL expression
+Filter VCF using Java Swing UI and JEXL/Javascript expression
 
 
 ## Usage
@@ -27,6 +27,7 @@ Usage: swingvcfjexl [options] Files
  * visualization
  * swing
  * jexl
+ * javascript
 
 
 ## Compilation
@@ -83,4 +84,9 @@ The current reference is:
 java -jar dist/swingvcfjexl.jar src/test/resources/rotavirus_rf.vcf.gz
 ```
 
+## Screenshot
+
+https://twitter.com/yokofakun/status/1514287386410336259
+
+![https://twitter.com/yokofakun/status/1514287386410336259](https://pbs.twimg.com/media/FQPUMpbWUAgJbCs?format=png&name=900x900)
 

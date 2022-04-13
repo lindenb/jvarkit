@@ -32,6 +32,7 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,6 +50,7 @@ import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -100,6 +102,7 @@ import htsjdk.tribble.index.tabix.TabixFormat;
 import htsjdk.tribble.index.tabix.TabixIndexCreator;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.filter.JavascriptVariantFilter;
 import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -115,20 +118,25 @@ BEGIN_DOC
 java -jar dist/swingvcfjexl.jar src/test/resources/rotavirus_rf.vcf.gz
 ```
 
+## Screenshot
+
+https://twitter.com/yokofakun/status/1514287386410336259
+
+![https://twitter.com/yokofakun/status/1514287386410336259](https://pbs.twimg.com/media/FQPUMpbWUAgJbCs?format=png&name=900x900)
 
 END_DOC
  */
 @Program(name="swingvcfjexl",
-description="Filter VCF using Java Swing UI and JEXL expression",
-keywords={"vcf","visualization","swing","jexl"},
+description="Filter VCF using Java Swing UI and JEXL/Javascript expression",
+keywords={"vcf","visualization","swing","jexl","javascript"},
 creationDate="20220413",
 modificationDate="20220413",
 generate_doc=true
 )
-public class SwingVcfJexlFilter extends Launcher
-	{
+public class SwingVcfJexlFilter extends Launcher {
 	private static final Logger LOG = Logger.build(SwingVcfJexlFilter.class).make();
 	private enum SavingState {IDLE,SAVING};
+	private static final String[] languages = {"JEXL","JAVASCRIPT"};
 	
 	private static class Saver extends Thread {
 		SAMSequenceDictionary dict;
@@ -258,6 +266,7 @@ public class SwingVcfJexlFilter extends Launcher
 	@SuppressWarnings("serial")
 	private static class XFrame extends JFrame {
 		final SAMSequenceDictionary dict;
+		final VCFHeader vcfHeader;
 		final File inputVcf;
 		final JTextField jtextFieldLocation;
 		final JTextArea jtextAreaJEXL;
@@ -265,6 +274,7 @@ public class SwingVcfJexlFilter extends Launcher
 		final JButton jbuttonRun;
 		final JProgressBar jprogressbar;
 		final JCheckBox jcboxWriteIndex;
+		final JComboBox<String> jcomboxLang;
 		Saver currentThead = null;
 		transient SavingState state = SavingState.IDLE;
 		
@@ -339,11 +349,34 @@ public class SwingVcfJexlFilter extends Launcher
 			pane1.add(new JScrollPane(this.jtextAreaJEXL=new JTextArea()),BorderLayout.CENTER);
 			this.jtextAreaJEXL.setFont(this.jtextAreaJEXL.getFont().deriveFont(36f));
 			tabPane.addTab("JEXL",pane1);
-			JLabel label = new JLabel("JEXL filtering expressions. See https://gatk.broadinstitute.org/hc/en-us/articles/360035891011");
-			label.setToolTipText(label.getText());
-			pane1.add(label,BorderLayout.NORTH);
+			JPanel pane2= new JPanel(new FlowLayout(FlowLayout.LEADING));
+			JLabel label = new JLabel("Language:");
+			pane2.add(label);
+			this.jcomboxLang=new JComboBox<>(SwingVcfJexlFilter.languages);
+			this.jcomboxLang.setSelectedIndex(0);
+			label.setLabelFor(this.jcomboxLang);
+			pane2.add(this.jcomboxLang);
+			final String LABEL_JEXL = "JEXL filtering expressions. See https://gatk.broadinstitute.org/hc/en-us/articles/360035891011";
+			final String LABEL_JS = "Javascript expression https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/filter/JavascriptVariantFilter.html .";
+			final JLabel lblLang = new JLabel(LABEL_JEXL);
+			pane2.add(lblLang);
+			this.jcomboxLang.addActionListener(new ActionListener()
+				{
+				@Override
+				public void actionPerformed(final ActionEvent e)
+					{
+					String msg="";
+					int i = jcomboxLang.getSelectedIndex();
+					if(i==0) {msg = LABEL_JEXL;}
+					else if(i==1) {msg = LABEL_JS;}
+					lblLang.setText(msg);
+					lblLang.setToolTipText(msg);
+					}
+				});
 			
-			final JPanel pane2= new JPanel(new FlowLayout(FlowLayout.TRAILING));
+			pane1.add(pane2,BorderLayout.NORTH);
+			
+			pane2= new JPanel(new FlowLayout(FlowLayout.TRAILING));
 			pane1.add(pane2,BorderLayout.SOUTH);
 			
 			this.jprogressbar=new JProgressBar();
@@ -383,17 +416,17 @@ public class SwingVcfJexlFilter extends Launcher
 			final JMenu menuCode = new JMenu("Code");
 			final VCFReaderFactory vcfReaderFactory = VCFReaderFactory.makeDefault();
 			try (VCFReader vcfReader = vcfReaderFactory.open(inputVcf, false)) {
-				final VCFHeader header = vcfReader.getHeader();
-				this.dict = header.getSequenceDictionary();
+				this.vcfHeader = vcfReader.getHeader();
+				this.dict = this.vcfHeader.getSequenceDictionary();
 				
 
 
-				tabPane.addTab("INFO", wrapTable("INFO", new JTable(new SwingVCFInfoHeaderLineTableModel(header))));
-				tabPane.addTab("FORMAT",wrapTable("FILTER",new JTable(new SwingVCFFormatHeaderLineTableModel(header))));
-				tabPane.addTab("FILTER",wrapTable("FILTER",new JTable(new SwingVCFFilterHeaderLineTableModel(header))));
+				tabPane.addTab("INFO", wrapTable("INFO", new JTable(new SwingVCFInfoHeaderLineTableModel(this.vcfHeader))));
+				tabPane.addTab("FORMAT",wrapTable("FILTER",new JTable(new SwingVCFFormatHeaderLineTableModel(this.vcfHeader))));
+				tabPane.addTab("FILTER",wrapTable("FILTER",new JTable(new SwingVCFFilterHeaderLineTableModel(this.vcfHeader))));
 				
-				if(header.hasGenotypingData()) {
-					jlistSamples =new JList<>(new Vector<String>(header.getSampleNamesInOrder()));
+				if(this.vcfHeader.hasGenotypingData()) {
+					jlistSamples =new JList<>(new Vector<String>(this.vcfHeader.getSampleNamesInOrder()));
 					jlistSamples.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 					tabPane.addTab("Samples",new JScrollPane(jlistSamples));
 					for(int orand=0;orand<2;++orand) {
@@ -473,14 +506,30 @@ public class SwingVcfJexlFilter extends Launcher
 		saver.inputFile = this.inputVcf;
 		saver.write_index = this.jcboxWriteIndex.isSelected();
 		saver.jexlExpr = this.jtextAreaJEXL.getText();
+		boolean jexl_lang = this.jcomboxLang.getSelectedIndex()==0;
 		if(StringUtil.isBlank(saver.jexlExpr)) {
 			saver.selVariant = V->true;
 			saver.jexlExpr = "ALL";
 			}
-		else {
+		else if(jexl_lang){
 			try {
 				saver.selVariant = JexlVariantPredicate.create(saver.jexlExpr);
 				}catch(Throwable err) {
+				ThrowablePane.show(parent, err);
+				return;
+				}
+			}
+		else //javascript
+			{
+			try { 
+				saver.selVariant = new JavascriptVariantFilter(saver.jexlExpr, this.vcfHeader) {
+					@Override
+					public String getRecordKey()
+						{
+						return "vc";
+						}
+					};
+				} catch(Throwable err) {
 				ThrowablePane.show(parent, err);
 				return;
 				}
