@@ -48,6 +48,7 @@ import java.util.stream.Collectors;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -137,6 +138,7 @@ public class SwingVcfJexlFilter extends Launcher
 		String jexlExpr;
 		Predicate<VariantContext> selVariant;
 		Locatable interval;
+		boolean write_index=false;
 		@Override
 		public void run() {
 			final File idx;
@@ -154,7 +156,7 @@ public class SwingVcfJexlFilter extends Launcher
 			final boolean require_tbi_index= this.interval!=null && idx!=null && idx.exists();
 			IndexCreator indexCreator = null;
 			// input is indexed
-			if(idx!=null && idx.exists()) {
+			if(this.write_index) {
 				if(this.outputFile.getName().toLowerCase().endsWith(".gz")){
 					indexCreator = this.dict == null ?
 						new TabixIndexCreator(TabixFormat.VCF):
@@ -262,6 +264,7 @@ public class SwingVcfJexlFilter extends Launcher
 		final JList<String> jlistSamples;
 		final JButton jbuttonRun;
 		final JProgressBar jprogressbar;
+		final JCheckBox jcboxWriteIndex;
 		Saver currentThead = null;
 		transient SavingState state = SavingState.IDLE;
 		
@@ -352,6 +355,10 @@ public class SwingVcfJexlFilter extends Launcher
 			label.setLabelFor(this.jtextFieldLocation);
 			pane2.add(label);
 			pane2.add(this.jtextFieldLocation);
+			pane2.add(new JSeparator(SwingConstants.VERTICAL));
+			this.jcboxWriteIndex=new JCheckBox("Write Index", true);
+			this.jcboxWriteIndex.setToolTipText("save tribble or tabix index");
+			pane2.add(this.jcboxWriteIndex);
 			pane2.add(new JSeparator(SwingConstants.VERTICAL));
 			
 			this.jbuttonRun = new JButton(new AbstractAction("Save...")
@@ -464,6 +471,7 @@ public class SwingVcfJexlFilter extends Launcher
 		saver.dict = dict;
 		saver.owner = this;
 		saver.inputFile = this.inputVcf;
+		saver.write_index = this.jcboxWriteIndex.isSelected();
 		saver.jexlExpr = this.jtextAreaJEXL.getText();
 		if(StringUtil.isBlank(saver.jexlExpr)) {
 			saver.selVariant = V->true;
