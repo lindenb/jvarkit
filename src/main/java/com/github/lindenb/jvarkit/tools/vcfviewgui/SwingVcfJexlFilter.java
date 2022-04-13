@@ -1,0 +1,636 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2022 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
+package com.github.lindenb.jvarkit.tools.vcfviewgui;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.Vector;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
+import javax.swing.filechooser.FileFilter;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
+import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.swing.SwingVCFFilterHeaderLineTableModel;
+import com.github.lindenb.jvarkit.variant.swing.SwingVCFFormatHeaderLineTableModel;
+import com.github.lindenb.jvarkit.variant.swing.SwingVCFInfoHeaderLineTableModel;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.Tribble;
+import htsjdk.tribble.index.DynamicIndexCreator;
+import htsjdk.tribble.index.IndexCreator;
+import htsjdk.tribble.index.IndexFactory;
+import htsjdk.tribble.index.tabix.TabixFormat;
+import htsjdk.tribble.index.tabix.TabixIndexCreator;
+import htsjdk.variant.variantcontext.GenotypeType;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.writer.Options;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFReader;
+/**
+BEGIN_DOC
+
+## Example
+
+```
+java -jar dist/swingvcfjexl.jar src/test/resources/rotavirus_rf.vcf.gz
+```
+
+
+END_DOC
+ */
+@Program(name="swingvcfjexl",
+description="Filter VCF using Java Swing UI and JEXL expression",
+keywords={"vcf","visualization","swing","jexl"},
+creationDate="20220413",
+modificationDate="20220413",
+generate_doc=true
+)
+public class SwingVcfJexlFilter extends Launcher
+	{
+	private static final Logger LOG = Logger.build(SwingVcfJexlFilter.class).make();
+	private enum SavingState {IDLE,SAVING};
+	
+	private static class Saver extends Thread {
+		SAMSequenceDictionary dict;
+		XFrame owner;
+		File inputFile;
+		File outputFile;
+		String jexlExpr;
+		Predicate<VariantContext> selVariant;
+		Locatable interval;
+		@Override
+		public void run() {
+			final File idx;
+			
+			if(this.inputFile.getName().toLowerCase().endsWith(".gz")){
+				idx =  Tribble.tabixIndexFile(this.inputFile);
+				}
+			else if(this.inputFile.getName().toLowerCase().endsWith(".vcf")){
+				idx =  Tribble.indexFile(this.inputFile);
+				}
+			else
+				{
+				idx = null;
+				}
+			final boolean require_tbi_index= this.interval!=null && idx!=null && idx.exists();
+			IndexCreator indexCreator = null;
+			// input is indexed
+			if(idx!=null && idx.exists()) {
+				if(this.outputFile.getName().toLowerCase().endsWith(".gz")){
+					indexCreator = this.dict == null ?
+						new TabixIndexCreator(TabixFormat.VCF):
+						new TabixIndexCreator(this.dict,TabixFormat.VCF);
+					}
+				else if(this.outputFile.getName().toLowerCase().endsWith(".vcf")){
+					indexCreator = new DynamicIndexCreator(
+							this.outputFile,
+							 IndexFactory.IndexBalanceApproach.FOR_SEEK_TIME
+							);
+					}
+				}
+			
+			final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+			vcwb.setCreateMD5(false);
+			vcwb.setReferenceDictionary(this.dict);
+			vcwb.setOutputFile(this.outputFile);
+			if(indexCreator!=null) {
+				vcwb.setIndexCreator(indexCreator);
+				vcwb.setOption(Options.INDEX_ON_THE_FLY);
+				}
+			vcwb.setOutputFileType(outputFile.getName().toLowerCase().endsWith(".gz")?
+					VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF:
+					VariantContextWriterBuilder.OutputType.VCF
+					);
+
+			boolean show_success=true;
+			final VCFReaderFactory vcfReaderFactory = VCFReaderFactory.makeDefault();			
+			try (VCFReader vcfReader = vcfReaderFactory.open(inputFile, require_tbi_index);
+				VariantContextWriter vcw = vcwb.build()) {
+				final VCFHeader header = vcfReader.getHeader();
+				header.addMetaDataLine(new VCFHeaderLine(SwingVcfJexlFilter.class.getSimpleName()+".jexl", StringUtils.normalizeSpaces(this.jexlExpr)));
+				vcw.writeHeader(header);
+				try(CloseableIterator<VariantContext> iter = (require_tbi_index?
+						vcfReader.query(this.interval):
+						vcfReader.iterator()
+						)) {
+					long n_seen_variants = 0L;
+					long n_saved_variants = 0L;
+					long last_millisec = System.currentTimeMillis();
+					while(iter.hasNext()) {
+						final VariantContext ctx = iter.next();
+						++n_seen_variants;
+						if(this.owner.currentThead!=this) {
+							LOG.error("Cancel (!thread)");
+							show_success = false;
+							break;
+							}
+						if(this.owner.state!=SavingState.SAVING) {
+							LOG.error("Cancel (!state)");
+							show_success = false;
+							break;
+							}
+						long now = System.currentTimeMillis();
+						if((now - last_millisec)/1_000 > 10) {
+							final String title = ctx.getContig()+":"+ctx.getStart()+" N="+
+										StringUtils.niceInt(n_saved_variants)+"/"+
+										StringUtils.niceInt(n_seen_variants);
+							SwingUtilities.invokeLater(()->{
+								owner.jprogressbar.setToolTipText(title);
+								});
+							last_millisec = now;
+							}
+						if(this.interval!=null && !this.interval.overlaps(ctx)) {
+							continue;
+							}
+						if(!this.selVariant.test(ctx)) continue;
+						vcw.add(ctx);
+						n_saved_variants++;
+						}
+					if(show_success) {
+						final String title = "Saved "+ this.outputFile.getName() +" "+
+								StringUtils.niceInt(n_saved_variants)+" / "+
+								StringUtils.niceInt(n_seen_variants)+" variants";
+						SwingUtilities.invokeLater(()->{
+							owner.stopSaving();
+							JOptionPane.showMessageDialog(owner,title);
+							});
+						}
+					}
+				}
+			catch(final Throwable err) {
+				SwingUtilities.invokeLater(()->{
+					owner.stopSaving();
+					ThrowablePane.show(owner, err);
+					});
+				}
+			finally {
+				SwingUtilities.invokeLater(()->{
+					owner.stopSaving();
+				});
+				}
+			}
+		}
+	
+	
+	
+	
+	@SuppressWarnings("serial")
+	private static class XFrame extends JFrame {
+		final SAMSequenceDictionary dict;
+		final File inputVcf;
+		final JTextField jtextFieldLocation;
+		final JTextArea jtextAreaJEXL;
+		final JList<String> jlistSamples;
+		final JButton jbuttonRun;
+		final JProgressBar jprogressbar;
+		Saver currentThead = null;
+		transient SavingState state = SavingState.IDLE;
+		
+		
+		private class ActionExample extends AbstractAction {
+			final String code;
+			ActionExample(String title,String code) {
+			super(title);
+			this.code = code;
+			}
+		@Override
+		public void actionPerformed(ActionEvent e)
+				{
+				if(XFrame.this.state!=SavingState.IDLE) return;
+				jtextAreaJEXL.setText(this.code);
+				}
+			}
+		
+		private class SampleCode extends AbstractAction {
+			final Set<GenotypeType> types= new HashSet<>();
+			final boolean andFlag;
+			SampleCode(boolean andFlag,GenotypeType...types) {
+				super((andFlag?"ALL":"Any")+" genotypes must be "+(types.length>1?"one of ":"")+Arrays.stream(types).map(GT->GT.name()).collect(Collectors.joining(" or ")));
+				for(GenotypeType gt:types) this.types.add(gt);
+				this.andFlag=andFlag;
+				}
+			String code(GenotypeType gt) {
+				switch(gt) {
+					case HET: return "isHet";
+					case HOM_REF: return "isHomRef";
+					case HOM_VAR: return "isHomVar";
+					case NO_CALL: return "isNoCall";
+					case MIXED: return "isMixed";
+					case UNAVAILABLE: return "todo";
+					}
+				return "";
+				}
+			String one(final String sn) {
+				String s= types.stream().
+						map(GT-> "vc.getGenotype(\""+sn+"\")."+code(GT)+"()").
+						collect(Collectors.joining(" || "));
+				if(types.size()>1) s="("+s+")";
+				return s;
+				}
+			@Override
+			public void actionPerformed(ActionEvent e)
+				{
+				if(jlistSamples.isSelectionEmpty()) return;
+				String txt = "("+
+						jlistSamples.getSelectedValuesList().
+						stream().
+						map(S->one(S)).
+						collect(Collectors.joining(andFlag?" &&  ":" || ")) +
+						")"
+						;
+				jtextAreaJEXL.insert(txt, jtextAreaJEXL.getCaretPosition());
+				}
+			}
+		
+		
+		XFrame(final File inputVcf) throws IOException {
+			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+			this.inputVcf = inputVcf;
+			setTitle(SwingVcfJexlFilter.class.getSimpleName()+": "+ inputVcf.getName());
+			final JPanel mainPane = new JPanel(new BorderLayout(5, 5));
+			mainPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+			this.setContentPane(mainPane);
+			final JTabbedPane  tabPane = new JTabbedPane();
+			mainPane.add(tabPane,BorderLayout.CENTER);
+
+			final JPanel pane1 = new JPanel(new BorderLayout(5,5));
+			pane1.add(new JScrollPane(this.jtextAreaJEXL=new JTextArea()),BorderLayout.CENTER);
+			this.jtextAreaJEXL.setFont(this.jtextAreaJEXL.getFont().deriveFont(36f));
+			tabPane.addTab("JEXL",pane1);
+			JLabel label = new JLabel("JEXL filtering expressions. See https://gatk.broadinstitute.org/hc/en-us/articles/360035891011");
+			label.setToolTipText(label.getText());
+			pane1.add(label,BorderLayout.NORTH);
+			
+			final JPanel pane2= new JPanel(new FlowLayout(FlowLayout.TRAILING));
+			pane1.add(pane2,BorderLayout.SOUTH);
+			
+			this.jprogressbar=new JProgressBar();
+			this.jprogressbar.setPreferredSize(new Dimension(300, 20));
+			pane2.add(this.jprogressbar);
+			pane2.add(new JSeparator(SwingConstants.VERTICAL));
+			label = new JLabel("Region:",JLabel.TRAILING);
+			this.jtextFieldLocation = new JTextField(15);
+			label.setLabelFor(this.jtextFieldLocation);
+			pane2.add(label);
+			pane2.add(this.jtextFieldLocation);
+			pane2.add(new JSeparator(SwingConstants.VERTICAL));
+			
+			this.jbuttonRun = new JButton(new AbstractAction("Save...")
+				{
+				@Override
+				public void actionPerformed(ActionEvent e)
+					{
+					if(XFrame.this.state==SavingState.IDLE) {
+						startSaving(jbuttonRun);
+						}
+					else
+						{
+						stopSaving();
+						}
+					}
+				});
+			pane2.add(jbuttonRun);
+			this.jbuttonRun.setOpaque(true);
+			this.jbuttonRun.setFont(this.jbuttonRun.getFont().deriveFont(36f));
+			this.jbuttonRun.setBackground(Color.GREEN);
+			this.jbuttonRun.setForeground(Color.WHITE);
+			final JMenu menuCode = new JMenu("Code");
+			final VCFReaderFactory vcfReaderFactory = VCFReaderFactory.makeDefault();
+			try (VCFReader vcfReader = vcfReaderFactory.open(inputVcf, false)) {
+				final VCFHeader header = vcfReader.getHeader();
+				this.dict = header.getSequenceDictionary();
+				
+
+
+				tabPane.addTab("INFO", wrapTable("INFO", new JTable(new SwingVCFInfoHeaderLineTableModel(header))));
+				tabPane.addTab("FORMAT",wrapTable("FILTER",new JTable(new SwingVCFFormatHeaderLineTableModel(header))));
+				tabPane.addTab("FILTER",wrapTable("FILTER",new JTable(new SwingVCFFilterHeaderLineTableModel(header))));
+				
+				if(header.hasGenotypingData()) {
+					jlistSamples =new JList<>(new Vector<String>(header.getSampleNamesInOrder()));
+					jlistSamples.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+					tabPane.addTab("Samples",new JScrollPane(jlistSamples));
+					for(int orand=0;orand<2;++orand) {
+						menuCode.add(new SampleCode(orand==0, GenotypeType.HET));
+						menuCode.add(new SampleCode(orand==0, GenotypeType.HET,GenotypeType.HOM_VAR));
+						menuCode.add(new SampleCode(orand==0, GenotypeType.HOM_REF));
+						menuCode.add(new SampleCode(orand==0, GenotypeType.HOM_REF,GenotypeType.NO_CALL));
+						menuCode.add(new SampleCode(orand==0, GenotypeType.HOM_REF,GenotypeType.NO_CALL,GenotypeType.HET));
+						menuCode.add(new SampleCode(orand==0, GenotypeType.HOM_VAR));
+						menuCode.add(new SampleCode(orand==0, GenotypeType.NO_CALL));
+						}
+					
+					
+					menuCode.add(new JSeparator());
+					}
+				else
+					{
+					jlistSamples = null;
+					}
+				if(this.dict!=null) {
+					tabPane.addTab("REF", new JScrollPane( new JTable(new SwingSequenceDictionaryTableModel(this.dict))));
+					}
+
+				}
+			final JMenuBar menuBar= new JMenuBar();
+			setJMenuBar(menuBar);
+			JMenu menu = new JMenu("File");
+			menuBar.add(menu);
+			menu.add(new AbstractAction("Open...")
+				{
+				@Override
+				public void actionPerformed(ActionEvent e)
+					{
+					doMenuOpen(XFrame.this);
+					}
+				});
+			menu.add(new JSeparator());
+			menu.add(new JMenuItem(new AbstractAction("Quit")
+				{
+				@Override
+				public void actionPerformed(ActionEvent e)
+					{
+					stopSaving();
+					XFrame.this.setVisible(false);
+					XFrame.this.dispose();
+					}
+				}));
+			
+			menuBar.add(menuCode);
+			menuCode.add(new JMenuItem(new ActionExample("Example 1","!vc.isFiltered()")));
+			}
+		
+
+	
+	private synchronized void stopSaving() {
+		this.state = SavingState.IDLE;
+		if(this.currentThead!=null) {
+				try {
+					this.currentThead.join(10_000);
+				} catch(Throwable err) {
+					LOG.error(err);
+				}
+			}
+		this.currentThead=null;
+		this.jbuttonRun.setBackground(Color.GREEN);
+		this.jbuttonRun.setText("Save");
+		this.jprogressbar.setToolTipText("");
+		this.jprogressbar.setIndeterminate(false);
+		}
+	
+	
+	private synchronized void startSaving(Component parent) {
+		stopSaving();
+		final Saver saver = new Saver();
+		saver.dict = dict;
+		saver.owner = this;
+		saver.inputFile = this.inputVcf;
+		saver.jexlExpr = this.jtextAreaJEXL.getText();
+		if(StringUtil.isBlank(saver.jexlExpr)) {
+			saver.selVariant = V->true;
+			saver.jexlExpr = "ALL";
+			}
+		else {
+			try {
+				saver.selVariant = JexlVariantPredicate.create(saver.jexlExpr);
+				}catch(Throwable err) {
+				ThrowablePane.show(parent, err);
+				return;
+				}
+			}
+		
+		final String s = this.jtextFieldLocation.getText().trim();
+		if(StringUtil.isBlank(s)) {
+			saver.interval = null;
+		} else {
+			Optional<SimpleInterval> ret;
+			try {
+				ret = IntervalParserFactory.newInstance().
+					dictionary(this.dict).
+					make().
+					apply(s);
+				}
+			catch(final Throwable err) {
+				ThrowablePane.show(parent, err);
+				return;
+				}
+			saver.interval = ret.get();
+			saver.jexlExpr+= " in interval "+saver.interval;
+			}
+		
+		
+		final JFileChooser fc = new JFileChooser();
+		fc.setSelectedFile(new File("save.vcf.gz"));
+		
+		if(fc.showSaveDialog(parent)!=JFileChooser.APPROVE_OPTION) {
+			return;
+			}
+		saver.outputFile =fc.getSelectedFile();
+		if(saver.outputFile==null) return;
+		if(saver.outputFile.equals(saver.inputFile)) {
+			JOptionPane.showMessageDialog(parent, "input file == output file");
+			return;
+			}
+		if(!(saver.outputFile.getName().toLowerCase().endsWith(".vcf") || saver.outputFile.getName().toLowerCase().endsWith(".vcf.gz"))) {
+			JOptionPane.showMessageDialog(parent, "file suffix should be .vcf or vcf.gz ("+saver.outputFile.getName()+")");
+			return;
+			}
+		
+		if(saver.outputFile.exists() &&
+				JOptionPane.showConfirmDialog(parent, saver.outputFile.toString()+" already exists. Overwrite ?", "Overwrite", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE, null)!=JOptionPane.OK_OPTION
+				)
+			{
+			return;
+			}
+
+		
+		this.state = SavingState.SAVING;
+		this.jbuttonRun.setBackground(Color.RED);
+		this.jbuttonRun.setText("Stop");
+		this.jprogressbar.setToolTipText("");
+		this.jprogressbar.setIndeterminate(true);
+		this.currentThead = saver;
+		saver.start();
+		}
+
+	private JPanel wrapTable(final String title,final JTable t) {
+		final JPanel pane = new JPanel(new BorderLayout(1,1));
+		final JPanel top = new JPanel(new FlowLayout(FlowLayout.TRAILING,1,1));
+		pane.setBorder(BorderFactory.createTitledBorder(title));
+		pane.add(top,BorderLayout.NORTH);
+		pane.add(new JScrollPane(t),BorderLayout.CENTER);
+		return pane;
+		}
+	}	
+		
+	private static List<File> selectVcfFiles(final Component parent) {
+		final JFileChooser jfc = new JFileChooser();
+		jfc.setMultiSelectionEnabled(true);
+		jfc.setFileFilter(new FileFilter()
+			{
+			@Override
+			public String getDescription()
+				{
+				return "Variant File";
+				}
+				
+			@Override
+			public boolean accept(final File f)
+				{
+				if(f.isDirectory()) return true;
+				if(!f.canRead()) return false;
+				if(FileExtensions.VCF_LIST.stream().noneMatch(X->f.getName().endsWith(X))) return false;
+				return true;
+				}
+			});
+		if(jfc.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION) return Collections.emptyList();
+		final File[] sel = jfc.getSelectedFiles();
+		if(sel==null || sel.length==0)  return Collections.emptyList();
+		return Arrays.asList(sel);
+		}
+	
+	private static void createNewFrame(Component parent,final List<File> all_vcf_paths ) {
+		final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+		try {
+			SwingUtilities.invokeAndWait(()->{
+			int dx = 0;
+			for(final File vcfPath: all_vcf_paths) {
+				try {
+					final XFrame frame = new XFrame(vcfPath);
+					frame.setBounds(50 + dx , 50 + dx, screen.width-100, screen.height-100);
+					frame.setVisible(true);
+					dx += 2;
+				} catch(final Throwable err) {
+					ThrowablePane.show(null, err);
+					System.exit(-1);
+					}
+				}
+			});
+		} catch(final Throwable err) {
+			ThrowablePane.show(parent,err);
+			}
+		}
+	
+	private static void doMenuOpen(final Component parent) {
+		final List<File> L = selectVcfFiles(parent);
+		if(L.isEmpty()) return;
+		createNewFrame(parent,L);
+		}
+	
+	
+	@Override
+	public int doWork(final List<String> args)
+		{
+		try {
+			final List<File> all_vcf_paths = 
+					IOUtils.unrollPaths(args).
+					stream().
+					map(P->P.toFile()).
+					collect(Collectors.toCollection(ArrayList::new))
+					;
+			if(all_vcf_paths.isEmpty()) {
+				final List<File> L= selectVcfFiles(null);
+				if(L.isEmpty()) return -1;
+				all_vcf_paths.addAll(L);
+				}
+			
+			
+			for(final File path: all_vcf_paths) {
+				IOUtil.assertFileIsReadable(path);
+				}
+					
+			JFrame.setDefaultLookAndFeelDecorated(true);
+			createNewFrame(null,all_vcf_paths);
+			return 0;
+			}
+		catch(final Throwable err) {
+			LOG.error(err);
+			ThrowablePane.show(null, err);
+			return -1;
+			}
+		}
+	
+	public static void main(final String[] args)
+		{
+		new SwingVcfJexlFilter().instanceMain(args);//no exit
+		}
+	}

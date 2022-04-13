@@ -47,7 +47,7 @@ public class JexlVariantPredicate implements Predicate<VariantContext> {
 			"A Java EXpression Language (JEXL) expressions to filter the variants from a VCF. " +
 			"Empty string will accept all variants. " +
 			"Expression returning a TRUE will accept the variant. "+
-			"See https://gatkforums.broadinstitute.org/gatk/discussion/1255 "
+			"See https://gatk.broadinstitute.org/hc/en-us/articles/360035891011 "
 			;
 	
 	private static final Predicate<VariantContext> ACCEPT_ALL=new Predicate<VariantContext>() {
