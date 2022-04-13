@@ -25,7 +25,7 @@ SOFTWARE.
 History:
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcf2svg;
 
 import java.io.File;
 import java.io.OutputStream;
