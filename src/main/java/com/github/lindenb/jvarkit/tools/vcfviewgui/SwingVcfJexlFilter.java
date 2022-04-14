@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.vcfviewgui;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Toolkit;
@@ -35,6 +36,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -130,13 +132,14 @@ END_DOC
 description="Filter VCF using Java Swing UI and JEXL/Javascript expression",
 keywords={"vcf","visualization","swing","jexl","javascript"},
 creationDate="20220413",
-modificationDate="20220413",
+modificationDate="20220414",
 generate_doc=true
 )
 public class SwingVcfJexlFilter extends Launcher {
 	private static final Logger LOG = Logger.build(SwingVcfJexlFilter.class).make();
 	private enum SavingState {IDLE,SAVING};
 	private static final String[] languages = {"JEXL","JAVASCRIPT"};
+	private static String ABOUT="";
 	
 	private static class Saver extends Thread {
 		SAMSequenceDictionary dict;
@@ -197,6 +200,7 @@ public class SwingVcfJexlFilter extends Launcher {
 				VariantContextWriter vcw = vcwb.build()) {
 				final VCFHeader header = vcfReader.getHeader();
 				header.addMetaDataLine(new VCFHeaderLine(SwingVcfJexlFilter.class.getSimpleName()+".jexl", StringUtils.normalizeSpaces(this.jexlExpr)));
+				header.addMetaDataLine(new VCFHeaderLine(SwingVcfJexlFilter.class.getSimpleName()+".version", SwingVcfJexlFilter.ABOUT));
 				vcw.writeHeader(header);
 				try(CloseableIterator<VariantContext> iter = (require_tbi_index?
 						vcfReader.query(this.interval):
@@ -278,19 +282,40 @@ public class SwingVcfJexlFilter extends Launcher {
 		Saver currentThead = null;
 		transient SavingState state = SavingState.IDLE;
 		
-		
+		/** insert example code in text area */
 		private class ActionExample extends AbstractAction {
 			final String code;
-			ActionExample(String title,String code) {
+			ActionExample(final String title,final String code) {
 			super(title);
 			this.code = code;
 			}
-		@Override
-		public void actionPerformed(ActionEvent e)
-				{
-				if(XFrame.this.state!=SavingState.IDLE) return;
-				jtextAreaJEXL.setText(this.code);
-				}
+			@Override
+			public void actionPerformed(ActionEvent e)
+					{
+					if(XFrame.this.state!=SavingState.IDLE) return;
+					jtextAreaJEXL.setText(this.code);
+					}
+			}
+		
+		/** insert example code in text area */
+		private class OpenWebPageAction extends AbstractAction {
+			final URI url;
+			OpenWebPageAction(final String title,final String url) {
+			super(title);
+			this.url = URI.create(url);
+			}
+			@Override
+			public void actionPerformed(ActionEvent e)
+					{
+					final Desktop desktop = Desktop.isDesktopSupported() ? Desktop.getDesktop() : null;
+				    if (desktop != null && desktop.isSupported(Desktop.Action.BROWSE)) {
+				        try {
+				            desktop.browse(this.url);
+				        } catch (Exception err) {
+				            ThrowablePane.show(XFrame.this, err);
+				        }
+				    }
+					}
 			}
 		
 		private class SampleCode extends AbstractAction {
@@ -322,9 +347,18 @@ public class SwingVcfJexlFilter extends Launcher {
 			@Override
 			public void actionPerformed(ActionEvent e)
 				{
-				if(jlistSamples.isSelectionEmpty()) return;
+				final List<String> samples;
+				if(jlistSamples.isSelectionEmpty()) {
+					samples = XFrame.this.vcfHeader.getSampleNamesInOrder();
+					return;
+					}
+				else
+					{
+					samples = jlistSamples.getSelectedValuesList();
+					}
+				if(samples.isEmpty()) return;
 				String txt = "("+
-						jlistSamples.getSelectedValuesList().
+						samples.
 						stream().
 						map(S->one(S)).
 						collect(Collectors.joining(andFlag?" &&  ":" || ")) +
@@ -386,6 +420,7 @@ public class SwingVcfJexlFilter extends Launcher {
 			label = new JLabel("Region:",JLabel.TRAILING);
 			this.jtextFieldLocation = new JTextField(15);
 			label.setLabelFor(this.jtextFieldLocation);
+			label.setToolTipText("optional. syntax: 'chrom:start-end'");
 			pane2.add(label);
 			pane2.add(this.jtextFieldLocation);
 			pane2.add(new JSeparator(SwingConstants.VERTICAL));
@@ -437,6 +472,7 @@ public class SwingVcfJexlFilter extends Launcher {
 						menuCode.add(new SampleCode(orand==0, GenotypeType.HOM_REF,GenotypeType.NO_CALL,GenotypeType.HET));
 						menuCode.add(new SampleCode(orand==0, GenotypeType.HOM_VAR));
 						menuCode.add(new SampleCode(orand==0, GenotypeType.NO_CALL));
+						if(orand==0) menuCode.add(new JSeparator());
 						}
 					
 					
@@ -464,7 +500,7 @@ public class SwingVcfJexlFilter extends Launcher {
 					}
 				});
 			menu.add(new JSeparator());
-			menu.add(new JMenuItem(new AbstractAction("Quit")
+			menu.add(new JMenuItem(new AbstractAction("Close")
 				{
 				@Override
 				public void actionPerformed(ActionEvent e)
@@ -477,6 +513,23 @@ public class SwingVcfJexlFilter extends Launcher {
 			
 			menuBar.add(menuCode);
 			menuCode.add(new JMenuItem(new ActionExample("Example 1","!vc.isFiltered()")));
+			menu = new JMenu("Documentation");
+			menuBar.add(menu);
+			menu.add(new JMenuItem(new OpenWebPageAction("VariantContext","https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html")));
+			menu.add(new JMenuItem(new OpenWebPageAction("Genotype","https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/Genotype.html")));
+			menu.add(new JMenuItem(new OpenWebPageAction("Allele","https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/Allele.html")));
+			menu.add(new JMenuItem(new OpenWebPageAction("VCFHeader","https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/vcf/VCFHeader.html")));
+			menu.add(new JMenuItem(new OpenWebPageAction("JEXL","https://gatk.broadinstitute.org/hc/en-us/articles/360035891011")));
+			menu.add(new JMenuItem(new OpenWebPageAction("JS","https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/filter/JavascriptVariantFilter.html")));
+			menu.add(new JMenuItem(new OpenWebPageAction("SwingVcfJexlFilter","http://lindenb.github.io/jvarkit/SwingVcfJexlFilter.html")));
+			menu.add(new JSeparator());
+			menu.add(new AbstractAction("About") {
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					JOptionPane.showMessageDialog(XFrame.this,SwingVcfJexlFilter.ABOUT);
+				}
+			});
+
 			}
 		
 
@@ -658,6 +711,12 @@ public class SwingVcfJexlFilter extends Launcher {
 	public int doWork(final List<String> args)
 		{
 		try {
+			SwingVcfJexlFilter.ABOUT =" Author: Pierre Lindenbaum "+
+					" Version:"+getVersion()+
+					" Date:"+getCompileDate()
+					;
+
+			
 			final List<File> all_vcf_paths = 
 					IOUtils.unrollPaths(args).
 					stream().
