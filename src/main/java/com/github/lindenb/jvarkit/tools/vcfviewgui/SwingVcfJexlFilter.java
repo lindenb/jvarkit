@@ -85,6 +85,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.swing.ActionIndexVcf;
 import com.github.lindenb.jvarkit.variant.swing.SwingVCFFilterHeaderLineTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingVCFFormatHeaderLineTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingVCFInfoHeaderLineTableModel;
@@ -149,6 +150,7 @@ public class SwingVcfJexlFilter extends Launcher {
 		String jexlExpr;
 		Predicate<VariantContext> selVariant;
 		Locatable interval;
+		Long limit;
 		boolean write_index=false;
 		@Override
 		public void run() {
@@ -238,6 +240,7 @@ public class SwingVcfJexlFilter extends Launcher {
 						if(!this.selVariant.test(ctx)) continue;
 						vcw.add(ctx);
 						n_saved_variants++;
+						if(this.limit!=null && this.limit.longValue()>=n_saved_variants) break;
 						}
 					if(show_success) {
 						final String title = "Saved "+ this.outputFile.getName() +" "+
@@ -273,6 +276,7 @@ public class SwingVcfJexlFilter extends Launcher {
 		final VCFHeader vcfHeader;
 		final File inputVcf;
 		final JTextField jtextFieldLocation;
+		final JTextField jtextFieldLimit;
 		final JTextArea jtextAreaJEXL;
 		final JList<String> jlistSamples;
 		final JButton jbuttonRun;
@@ -350,7 +354,6 @@ public class SwingVcfJexlFilter extends Launcher {
 				final List<String> samples;
 				if(jlistSamples.isSelectionEmpty()) {
 					samples = XFrame.this.vcfHeader.getSampleNamesInOrder();
-					return;
 					}
 				else
 					{
@@ -417,6 +420,15 @@ public class SwingVcfJexlFilter extends Launcher {
 			this.jprogressbar.setPreferredSize(new Dimension(300, 20));
 			pane2.add(this.jprogressbar);
 			pane2.add(new JSeparator(SwingConstants.VERTICAL));
+			//limit
+			label = new JLabel("Limit:",JLabel.TRAILING);
+			this.jtextFieldLimit = new JTextField(9);
+			label.setLabelFor(this.jtextFieldLimit);
+			label.setToolTipText("optional. limit number of variants.");
+			pane2.add(label);
+			pane2.add(this.jtextFieldLimit);
+			pane2.add(new JSeparator(SwingConstants.VERTICAL));
+			//region
 			label = new JLabel("Region:",JLabel.TRAILING);
 			this.jtextFieldLocation = new JTextField(15);
 			label.setLabelFor(this.jtextFieldLocation);
@@ -499,6 +511,7 @@ public class SwingVcfJexlFilter extends Launcher {
 					doMenuOpen(XFrame.this);
 					}
 				});
+			menu.add(new ActionIndexVcf());
 			menu.add(new JSeparator());
 			menu.add(new JMenuItem(new AbstractAction("Close")
 				{
@@ -607,6 +620,18 @@ public class SwingVcfJexlFilter extends Launcher {
 			saver.jexlExpr+= " in interval "+saver.interval;
 			}
 		
+		final String limitStr = this.jtextFieldLimit.getText().trim();
+		if(StringUtil.isBlank(limitStr)) {
+			saver.limit = null;
+		} else
+		{
+			try {
+				saver.limit = Long.parseLong(limitStr.replace(",", ""));
+			} catch(final Throwable err) {
+				ThrowablePane.show(parent, err);
+				return;
+				}
+		}
 		
 		final JFileChooser fc = new JFileChooser();
 		fc.setSelectedFile(new File("save.vcf.gz"));

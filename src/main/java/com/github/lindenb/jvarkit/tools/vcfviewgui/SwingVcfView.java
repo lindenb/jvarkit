@@ -39,6 +39,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.nio.file.Path;
@@ -102,6 +103,7 @@ import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SmooveGenesParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser.Prediction;
+import com.github.lindenb.jvarkit.variant.swing.ActionIndexVcf;
 import com.github.lindenb.jvarkit.variant.swing.SwingAllelesTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingAnnPredictionTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingBcsqPredictionTableModel;
@@ -122,7 +124,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.tribble.Tribble;
 import htsjdk.tribble.gff.Gff3Codec;
 import htsjdk.tribble.gff.Gff3Feature;
 import htsjdk.tribble.readers.LineIterator;
@@ -478,6 +479,7 @@ public class SwingVcfView extends Launcher
 			menuBar.add(menu);
 			menu.add(actionGo);
 			menu.add(new JSeparator());
+			menu.add(new ActionIndexVcf());
 			menu.add(new JMenuItem(new AbstractAction("Quit")
 				{
 				@Override
@@ -943,13 +945,7 @@ public class SwingVcfView extends Launcher
 						if(f.isDirectory()) return true;
 						if(!f.canRead()) return false;
 						if(FileExtensions.VCF_LIST.stream().noneMatch(X->f.getName().endsWith(X))) return false;
-						File idx =  Tribble.tabixIndexFile(f);
-						if( idx.exists()) return true;
-						idx = Tribble.indexFile(f);
-						if( idx.exists()) return true;
-						idx = new File(f.getParentFile(),f.getName()+ FileExtensions.CSI);
-						if( idx.exists()) return true;
-						return false;
+						return true;
 						}
 					});
 				if(jfc.showOpenDialog(null)!=JFileChooser.APPROVE_OPTION) return -1;
@@ -962,6 +958,17 @@ public class SwingVcfView extends Launcher
 			for(final Path path: all_vcf_paths) {
 				IOUtil.assertFileIsReadable(path);
 				}
+			/** create VCF if needed */
+			for(final Path path:all_vcf_paths) {
+				try {
+					ActionIndexVcf.indexVcf(path, false);
+				} catch(IOException err) {
+					ThrowablePane.show(null, err);
+					return -1;
+				}
+				
+			}
+			
 					
 			final Pedigree ped;
 			if(this.pedigreePath!=null) {
