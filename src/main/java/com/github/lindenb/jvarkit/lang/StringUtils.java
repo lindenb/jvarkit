@@ -275,6 +275,9 @@ public static String unescapeC(final String s)
 
 /** convert duration to a nice string */
 public static String niceDuration(long durationMillisec) {
+	if(durationMillisec<1000L) {
+		return durationMillisec+" millisecs";
+	}
 	long n =durationMillisec/1000;
 	if(n<60)
 		{

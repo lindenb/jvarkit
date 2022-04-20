@@ -37,7 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -55,21 +55,19 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
+import htsjdk.samtools.AlignmentBlock;
+import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalList;
-import htsjdk.samtools.util.SamLocusIterator;
-import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StopWatch;
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -176,7 +174,7 @@ public class BaseCoverage extends Launcher
 			try {
 				b.tid =dis.readInt();
 				}
-			catch(EOFException err) {
+			catch(final EOFException err) {
 				return null;
 				}
 			b.pos = dis.readInt();
@@ -185,7 +183,7 @@ public class BaseCoverage extends Launcher
 			return b;
 			}
 		@Override
-		public void encode(DataOutputStream o, Base b) throws IOException {
+		public void encode(final DataOutputStream o, final Base b) throws IOException {
 			o.writeInt(b.tid);
 			o.writeInt(b.pos);
 			o.writeInt(b.sample_idx);
@@ -196,6 +194,8 @@ public class BaseCoverage extends Launcher
 			return new BaseCodec();
 			}
 		}
+
+	
 	
 	@Override
 	public int doWork(final List<String> args)
@@ -210,20 +210,16 @@ public class BaseCoverage extends Launcher
 				}
 			
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidx);
-			final IntervalList intervalList = new IntervalList(dict);
+			final QueryInterval[] intervalList;
 
 			if(this.bedInput!=null) {
 				try(BedLineReader blr = new BedLineReader(this.bedInput)) {
 					blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-					blr.stream().
-						map(B->B.toInterval()).
-						forEach(B->intervalList.add(B));
+					intervalList = blr.optimizeIntervals(dict);
 				}
 			} else //add whole genome
 			{
-				dict.getSequences().stream().
-					map(SR->new Interval(SR)).
-					forEach(B->intervalList.add(B));
+				intervalList = null;
 			}
 			
 			final SamReaderFactory srf = super.createSamReaderFactory().
@@ -240,10 +236,11 @@ public class BaseCoverage extends Launcher
 					this.writingSortingCollection.getTmpPaths()
 					);
 			sorting.setDestructiveIteration(true);
-			final StopWatch stopWatch = new StopWatch();
 			
+			long millisec_per_samples= 0L;
 			int sam_idx=0;
 			for(final Path bamPath: bamsIn) {
+				final StopWatch stopWatch = new StopWatch();
 				stopWatch.start();
 				IOUtil.assertFileIsReadable(bamPath);
 				LOG.info("scanning "+bamPath+" "+(++sam_idx)+"/" + bamsIn.size());
@@ -262,35 +259,54 @@ public class BaseCoverage extends Launcher
 					sample2idx.put(sn, sample_idx);
 					samples.add(sn);
 					
-		            try(SamLocusIterator samLocusIterator = new SamLocusIterator(sr,intervalList,true)) {
-		            	samLocusIterator.setEmitUncoveredLoci(true);
-		            	samLocusIterator.setMappingQualityScoreCutoff(this.mapping_quality);
-		            	samLocusIterator.setSamFilters(Collections.singletonList(new SamRecordFilter() {	
-							@Override
-							public boolean filterOut(SAMRecord r1, SAMRecord r2) {
-								return filterOut(r1) || filterOut(r2);
-								}
+					int prev_tid = -1;
+					int prev_pos = 0;
+					final TreeMap<Integer, Integer> pos2depth = new TreeMap<>();
+					try(CloseableIterator<SAMRecord> it= intervalList==null?sr.iterator():sr.query(intervalList, false)) {
+						for(;;) {
+							final SAMRecord rec = it.hasNext()?it.next():null;
+							if(rec!=null && !SAMRecordDefaultFilter.accept(rec, this.mapping_quality)) continue;
 							
-							@Override
-							public boolean filterOut(final SAMRecord rec) {
-								return !SAMRecordDefaultFilter.accept(rec, mapping_quality);
+							if(rec==null || prev_tid!=rec.getReferenceIndex()) {
+								for(final Integer pos:pos2depth.keySet()) {
+				            		final Base b = new Base();
+				            		b.sample_idx = sample_idx;
+				            		b.tid = prev_tid;
+				            		b.pos = pos;
+				            		b.depth = pos2depth.get(b.pos);
+				            		sorting.add(b);
+									}
+								if(rec==null) break;
+								pos2depth.clear();
 								}
-						}));
-		            	samLocusIterator.setIncludeIndels(false);
-		                final Iterator<SamLocusIterator.LocusInfo> iter = samLocusIterator.iterator();
-		            	while(iter.hasNext()) {
-		            		final LocusInfo li= iter.next();
-		            		final Base b = new Base();
-		            		b.sample_idx = sample_idx;
-		            		b.tid = li.getSequenceIndex();
-		            		b.pos = li.getPosition();
-		            		b.depth = li.size();
-		            		sorting.add(b);
-		            		}
-		            	}
+							prev_tid = rec.getReferenceIndex();
+							prev_pos = rec.getAlignmentStart();
+							for(Iterator<Integer> rpos = pos2depth.keySet().iterator();rpos.hasNext();) {
+								final int pos = rpos.next();
+								if(pos>=prev_pos) break;
+			            		final Base b = new Base();
+			            		b.sample_idx = sample_idx;
+			            		b.tid = prev_tid;
+			            		b.pos = pos;
+			            		b.depth = pos2depth.get(b.pos);
+			            		sorting.add(b);
+			            		rpos.remove();
+								}
+							for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
+								for(int n=0;n<ab.getLength();n++) {
+									final int ref= ab.getReferenceStart() + n;
+									pos2depth.put(ref, 1 + pos2depth.getOrDefault(ref, 0));
+									}
+								}
+							}
+						}
 					} // end SAMReader
 				stopWatch.stop();
-				LOG.info("That took:"+stopWatch.getElapsedTimeSecs()+" second(s).");
+				millisec_per_samples+= stopWatch.getElapsedTime();
+				LOG.info("That took "+StringUtils.niceDuration(stopWatch.getElapsedTime())+
+						" second(s). Elapsed:"+
+						StringUtils.niceDuration(millisec_per_samples)+" Remains:"+
+						StringUtils.niceDuration((long)((millisec_per_samples/(double)sam_idx))*(bamsIn.size()-sam_idx)));
 				}//end for each bam
 			sorting.doneAdding();
 			
@@ -307,6 +323,16 @@ public class BaseCoverage extends Launcher
 				while(iter1.hasNext()) {
 					final List<Base> array = iter1.next();
 					final Base first = array.get(0);
+					final Map<String, Integer> sample2depth = new HashMap<>(samples.size());
+					array.stream().forEach(B->sample2depth.put(samples.get(B.sample_idx), B.depth));
+					
+					final List<Genotype> genotypes = new ArrayList<>(samples.size());
+					for(final String sn:samples) {
+						final GenotypeBuilder gb=new GenotypeBuilder(sn);
+						gb.DP(sample2depth.getOrDefault(sn, 0));
+						genotypes.add(gb.make());
+					}
+					
 					
 					final VariantContextBuilder vcb = new VariantContextBuilder(
 							null,
@@ -315,11 +341,9 @@ public class BaseCoverage extends Launcher
 							first.pos,
 							Collections.singletonList(Allele.REF_N)
 							);
-					vcb.genotypes(array.stream().
-							map(B->new GenotypeBuilder(samples.get(B.sample_idx)).DP(B.depth).make()).
-							collect(Collectors.toList()));
+					vcb.genotypes(genotypes);
 					
-					vcb.attribute(VCFConstants.DEPTH_KEY, array.stream().mapToInt(B->B.depth).sum());
+					vcb.attribute(VCFConstants.DEPTH_KEY, samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).sum());
 					w.add(vcb.make());
 					}
 				iter1.close();
