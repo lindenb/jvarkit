@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -303,15 +304,16 @@ public class BaseCoverage extends Launcher
 							}
 							
 							int ref = prev_pos;
+							// it's a linkedList , so using sublist will be faster (don't need to scan whole LinkedList 
+							final List<Integer> sub_list = depth_array.subList(ref-depth_array_start, depth_array.size());
 							final Cigar cigar = rec.getCigar();
 							for(CigarElement ce: cigar) {
 								final CigarOperator op = ce.getOperator();
 								if(op.consumesReferenceBases()) {
 									if(op.consumesReadBases()) {
 										for(int n=0;n< ce.getLength();++n) {
-											final int array_idx = ref+n-depth_array_start;
-											final int prev_dp = depth_array.get(array_idx);
-											depth_array.set(array_idx, prev_dp + 1);
+											final int prev_dp = sub_list.get(n);
+											sub_list.set(n, prev_dp + 1);
 											}
 										}
 									ref += ce.getLength();
