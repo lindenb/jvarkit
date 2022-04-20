@@ -33,12 +33,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -56,7 +53,9 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.AlignmentBlock;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
@@ -246,6 +245,9 @@ public class BaseCoverage extends Launcher
 				IOUtil.assertFileIsReadable(bamPath);
 				LOG.info("scanning "+bamPath+" "+(++sam_idx)+"/" + bamsIn.size());
 				try(SamReader sr = srf.open(bamPath)) {
+					if(!sr.hasIndex()) {
+						throw new IllegalArgumentException("bam "+bamPath+" is not indexed");
+						}
 					final SAMFileHeader header = sr.getFileHeader();
 					final String sn = header.getReadGroups().stream().
 							map(S->S.getSample()).
@@ -262,43 +264,60 @@ public class BaseCoverage extends Launcher
 					
 					int prev_tid = -1;
 					int prev_pos = 0;
-					final SortedMap<Integer, Integer> pos2depth = new TreeMap<>();
+					final List<Integer> depth_array = new ArrayList<>();
+					int depth_array_start=-1;
 					try(CloseableIterator<SAMRecord> it= intervalList==null?sr.iterator():sr.query(intervalList, false)) {
 						for(;;) {
 							final SAMRecord rec = it.hasNext()?it.next():null;
 							if(rec!=null && !SAMRecordDefaultFilter.accept(rec, this.mapping_quality)) continue;
 							
 							if(rec==null || prev_tid!=rec.getReferenceIndex()) {
-								for(final Integer pos:pos2depth.keySet()) {
+								while(!depth_array.isEmpty()) {
 				            		final Base b = new Base();
 				            		b.sample_idx = sample_idx;
 				            		b.tid = prev_tid;
-				            		b.pos = pos;
-				            		b.depth = pos2depth.get(b.pos);
+				            		b.pos = depth_array_start;
+				            		b.depth = depth_array.remove(0);
+				            		depth_array_start++;
 				            		sorting.add(b);
 									}
 								if(rec==null) break;
-								pos2depth.clear();
+								depth_array.clear();
+								depth_array_start = rec.getAlignmentStart();
 								}
 							prev_tid = rec.getReferenceIndex();
 							prev_pos = rec.getAlignmentStart();
-							for(Iterator<Integer> rpos = pos2depth.keySet().iterator();rpos.hasNext();) {
-								final int pos = rpos.next();
-								if(pos>=prev_pos) break;
+							while(!depth_array.isEmpty() && depth_array_start < prev_pos) {
 			            		final Base b = new Base();
 			            		b.sample_idx = sample_idx;
 			            		b.tid = prev_tid;
-			            		b.pos = pos;
-			            		b.depth = pos2depth.get(b.pos);
+			            		b.pos = depth_array_start;
+			            		b.depth = depth_array.remove(0);
 			            		sorting.add(b);
-			            		rpos.remove();
+			            		depth_array_start++;
 								}
-							for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
-								for(int n=0;n<ab.getLength();n++) {
-									final int ref= ab.getReferenceStart() + n;
-									pos2depth.put(ref, 1 + pos2depth.getOrDefault(ref, 0));
+							
+							final int end_pos = rec.getAlignmentEnd();
+							while(depth_array_start + depth_array.size() <= end_pos) {
+								depth_array.add(0);
+							}
+							
+							int ref = prev_pos;
+							final Cigar cigar = rec.getCigar();
+							for(CigarElement ce: cigar) {
+								final CigarOperator op = ce.getOperator();
+								if(op.consumesReferenceBases()) {
+									if(op.consumesReadBases()) {
+										for(int n=0;n< ce.getLength();++n) {
+											final int array_idx = ref+n-depth_array_start;
+											final int prev_dp = depth_array.get(array_idx);
+											depth_array.set(array_idx, prev_dp + 1);
+											}
+										}
+									ref += ce.getLength();
 									}
-								}
+								}//end cigar
+							
 							}
 						}
 					} // end SAMReader
