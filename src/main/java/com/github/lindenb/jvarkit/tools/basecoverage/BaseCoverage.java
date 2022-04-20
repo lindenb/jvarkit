@@ -29,11 +29,11 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -147,6 +147,46 @@ public class BaseCoverage extends Launcher
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
+	/** List with random acces O(1) and fast popFront */
+	private static class FastList extends AbstractList<Integer> {
+		private List<Integer> array = new ArrayList<>(10_000);
+		private int count_dead_front=0;
+		@Override
+		public int size() {
+			return array.size() - count_dead_front;
+			}
+		@Override
+		public void clear() {
+			count_dead_front=0;
+			this.array.clear();
+			}
+		@Override
+		public boolean add(Integer v) {
+			array.add(v);
+			return true;
+			}
+		@Override
+		public Integer get(int idx) {
+			return array.get(this.count_dead_front+idx);
+			}
+		@Override
+		public Integer set(int index, Integer element) {
+			final int prev = array.get(this.count_dead_front+index);
+			array.set(this.count_dead_front+index,element);
+			return prev;
+			}
+		@Override
+		public Integer remove(int index) {
+			if(index!=0) throw new IllegalArgumentException("only remove(0) is supported");
+			final int front = array.get(count_dead_front);
+			count_dead_front++;
+			if(count_dead_front > 100_000)  {
+				array.subList(0, count_dead_front).clear();
+				count_dead_front=0;
+			}
+			return front;
+		}
+	}
 	
 	private static class Base {
 		int tid;
@@ -265,7 +305,7 @@ public class BaseCoverage extends Launcher
 					
 					int prev_tid = -1;
 					int prev_pos = 0;
-					final List<Integer> depth_array = new ArrayList<>();
+					final List<Integer> depth_array = new FastList();
 					int depth_array_start=-1;
 					try(CloseableIterator<SAMRecord> it= intervalList==null?sr.iterator():sr.query(intervalList, false)) {
 						for(;;) {
@@ -304,16 +344,15 @@ public class BaseCoverage extends Launcher
 							}
 							
 							int ref = prev_pos;
-							// it's a linkedList , so using sublist will be faster (don't need to scan whole LinkedList 
-							final List<Integer> sub_list = depth_array.subList(ref-depth_array_start, depth_array.size());
 							final Cigar cigar = rec.getCigar();
 							for(CigarElement ce: cigar) {
 								final CigarOperator op = ce.getOperator();
 								if(op.consumesReferenceBases()) {
 									if(op.consumesReadBases()) {
 										for(int n=0;n< ce.getLength();++n) {
-											final int prev_dp = sub_list.get(n);
-											sub_list.set(n, prev_dp + 1);
+											final int idx = ref-depth_array_start + n;
+											final int prev_dp = depth_array.get(idx);
+											depth_array.set(idx, prev_dp + 1);
 											}
 										}
 									ref += ce.getLength();
