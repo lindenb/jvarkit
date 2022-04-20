@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.beust.jcommander.Parameter;
@@ -261,7 +262,7 @@ public class BaseCoverage extends Launcher
 					
 					int prev_tid = -1;
 					int prev_pos = 0;
-					final TreeMap<Integer, Integer> pos2depth = new TreeMap<>();
+					final SortedMap<Integer, Integer> pos2depth = new TreeMap<>();
 					try(CloseableIterator<SAMRecord> it= intervalList==null?sr.iterator():sr.query(intervalList, false)) {
 						for(;;) {
 							final SAMRecord rec = it.hasNext()?it.next():null;
@@ -304,7 +305,7 @@ public class BaseCoverage extends Launcher
 				stopWatch.stop();
 				millisec_per_samples+= stopWatch.getElapsedTime();
 				LOG.info("That took "+StringUtils.niceDuration(stopWatch.getElapsedTime())+
-						" second(s). Elapsed:"+
+						". Elapsed:"+
 						StringUtils.niceDuration(millisec_per_samples)+" Remains:"+
 						StringUtils.niceDuration((long)((millisec_per_samples/(double)sam_idx))*(bamsIn.size()-sam_idx)));
 				}//end for each bam
