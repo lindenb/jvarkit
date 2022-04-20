@@ -180,7 +180,7 @@ public class BaseCoverage extends Launcher
 			if(index!=0) throw new IllegalArgumentException("only remove(0) is supported");
 			final int front = array.get(count_dead_front);
 			count_dead_front++;
-			if(count_dead_front > 100_000)  {
+			if(count_dead_front > 500_000)  {
 				array.subList(0, count_dead_front).clear();
 				count_dead_front=0;
 			}
@@ -314,13 +314,16 @@ public class BaseCoverage extends Launcher
 							
 							if(rec==null || prev_tid!=rec.getReferenceIndex()) {
 								while(!depth_array.isEmpty()) {
-				            		final Base b = new Base();
-				            		b.sample_idx = sample_idx;
-				            		b.tid = prev_tid;
-				            		b.pos = depth_array_start;
-				            		b.depth = depth_array.remove(0);
+									final int dp = depth_array.remove(0);
+									if(dp>0) {
+					            		final Base b = new Base();
+					            		b.sample_idx = sample_idx;
+					            		b.tid = prev_tid;
+					            		b.pos = depth_array_start;
+					            		b.depth = dp;
+					            		sorting.add(b);
+										}
 				            		depth_array_start++;
-				            		sorting.add(b);
 									}
 								if(rec==null) break;
 								depth_array.clear();
@@ -329,12 +332,15 @@ public class BaseCoverage extends Launcher
 							prev_tid = rec.getReferenceIndex();
 							prev_pos = rec.getAlignmentStart();
 							while(!depth_array.isEmpty() && depth_array_start < prev_pos) {
-			            		final Base b = new Base();
-			            		b.sample_idx = sample_idx;
-			            		b.tid = prev_tid;
-			            		b.pos = depth_array_start;
-			            		b.depth = depth_array.remove(0);
-			            		sorting.add(b);
+								final int dp = depth_array.remove(0);
+								if(dp>0) {
+				            		final Base b = new Base();
+				            		b.sample_idx = sample_idx;
+				            		b.tid = prev_tid;
+				            		b.pos = depth_array_start;
+				            		b.depth = dp;
+				            		sorting.add(b);
+									}
 			            		depth_array_start++;
 								}
 							
