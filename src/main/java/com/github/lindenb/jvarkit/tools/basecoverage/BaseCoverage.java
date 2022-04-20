@@ -62,11 +62,13 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
 import htsjdk.samtools.util.SortingCollection;
+import htsjdk.samtools.util.StopWatch;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -238,8 +240,12 @@ public class BaseCoverage extends Launcher
 					this.writingSortingCollection.getTmpPaths()
 					);
 			sorting.setDestructiveIteration(true);
+			final StopWatch stopWatch = new StopWatch();
+			
 			int sam_idx=0;
 			for(final Path bamPath: bamsIn) {
+				stopWatch.start();
+				IOUtil.assertFileIsReadable(bamPath);
 				LOG.info("scanning "+bamPath+" "+(++sam_idx)+"/" + bamsIn.size());
 				try(SamReader sr = srf.open(bamPath)) {
 					final SAMFileHeader header = sr.getFileHeader();
@@ -283,6 +289,8 @@ public class BaseCoverage extends Launcher
 		            		}
 		            	}
 					} // end SAMReader
+				stopWatch.stop();
+				LOG.info("That took:"+stopWatch.getElapsedTimeSecs()+" second(s).");
 				}//end for each bam
 			sorting.doneAdding();
 			
