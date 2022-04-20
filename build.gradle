@@ -2496,6 +2496,10 @@ all2.add( task("depthofcoverage", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.coverage.DepthOfCoverage"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add( task("basecoverage", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 all2.add( task("hmmmergebed", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.hmm.HmmMergeBed"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
