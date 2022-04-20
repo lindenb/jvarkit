@@ -83,6 +83,7 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.variant.swing.ActionIndexVcf;
@@ -678,7 +679,7 @@ public class SwingVcfJexlFilter extends Launcher {
 	}	
 		
 	private static List<File> selectVcfFiles(final Component parent) {
-		final JFileChooser jfc = new JFileChooser();
+		final JFileChooser jfc = new JFileChooser(PreferredDirectory.get(SwingVcfJexlFilter.class));
 		jfc.setMultiSelectionEnabled(true);
 		jfc.setFileFilter(new FileFilter()
 			{
@@ -700,6 +701,7 @@ public class SwingVcfJexlFilter extends Launcher {
 		if(jfc.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION) return Collections.emptyList();
 		final File[] sel = jfc.getSelectedFiles();
 		if(sel==null || sel.length==0)  return Collections.emptyList();
+		PreferredDirectory.update(SwingVcfJexlFilter.class, sel[0]);
 		return Arrays.asList(sel);
 		}
 	

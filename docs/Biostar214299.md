@@ -8,28 +8,37 @@ Extract allele specific reads from bamfiles
 ## Usage
 
 ```
+Usage: java -jar dist/biostar214299.jar  [options] Files
 Usage: biostar214299 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
   * -p, --positions
       Position file. A Tab delimited file containing the following 4 column: 
       (1)chrom (2)position (3) allele A/T/G/C (4) sample name.
     -R, --reference
-      For reading/writing CRAM files. Indexed fasta Reference file. This file 
-      must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary 
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -124,7 +133,7 @@ rotavirus       267     C       SAMPLE1
 rotavirus       267     G       SAMPLE2
 ```
 
-processing : 
+processing :
 
 ```
 $ java -jar dist/biostar214299.jar -p positions.tsv input.bam
@@ -149,6 +158,9 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
 
 ## Cited In
 
- * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623  
+ * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623
+ * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
+ * Fine structure and transcription dynamics of bread wheat ribosomal DNA loci deciphered by a multi-omics approach. Z Tulpova & al.  2022.  The Plante Genome. https://doi.org/10.1002/tpg2.20191
+ * Watson CM, Jackson L, Crinnion LA, et al. Long-read sequencing to resolve the parent of origin of a de novo pathogenic UBE3A variant. Journal of Medical Genetics Published Online First: 12 April 2022. doi: 10.1136/jmedgenet-2021-108314
 
 

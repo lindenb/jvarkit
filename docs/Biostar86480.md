@@ -8,11 +8,16 @@ Genomic restriction finder
 ## Usage
 
 ```
+Usage: java -jar dist/biostar86480.jar  [options] Files
 Usage: biostar86480 [options] Files
   Options:
     -E, --enzyme
       restrict to that enzyme name.
       Default: []
+    --faidx
+      FASTA input is the output of samtools faidx. Parse sequence name and 
+      sequence start from Fasta header.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat

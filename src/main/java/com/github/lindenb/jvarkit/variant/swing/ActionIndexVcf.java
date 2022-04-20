@@ -38,6 +38,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 
 import htsjdk.samtools.SAMException;
@@ -57,7 +58,10 @@ public class ActionIndexVcf extends AbstractAction {
 
 	public ActionIndexVcf() {
 		super("Index VCF...");
-	}
+		this.putValue(AbstractAction.SHORT_DESCRIPTION, "Index VCF files.");
+		this.putValue(AbstractAction.LONG_DESCRIPTION, "Index one or more vcf/vcf.gz file(s)");
+		}
+	
 	
 	public static void indexVcf(final Path vcf,boolean overwrite) throws IOException {
 		final boolean is_vcf_gz = vcf.getFileName().toString().toLowerCase().endsWith(FileExtensions.COMPRESSED_VCF) ;
@@ -93,7 +97,7 @@ public class ActionIndexVcf extends AbstractAction {
 	
 	@Override
 	public void actionPerformed(final ActionEvent e) {
-		final JFileChooser fc = new JFileChooser();
+		final JFileChooser fc = new JFileChooser(PreferredDirectory.get(ActionIndexVcf.class));
 		fc.setMultiSelectionEnabled(true);
 		fc.setFileFilter(new FileFilter() {
 			@Override
@@ -115,6 +119,7 @@ public class ActionIndexVcf extends AbstractAction {
 			}
 		final File[] vcfs = fc.getSelectedFiles();
 		if(vcfs==null || vcfs.length==0) return;
+		PreferredDirectory.update(ActionIndexVcf.class, vcfs[0]);
 		this.setEnabled(false);
 		try {
 			final Thread t = new Thread() {

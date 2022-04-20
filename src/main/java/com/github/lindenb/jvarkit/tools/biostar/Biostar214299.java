@@ -30,37 +30,31 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMReadGroupRecord;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
-
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 /**
 BEGIN_DOC
 
@@ -114,6 +108,8 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
  * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623
  * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
  * Fine structure and transcription dynamics of bread wheat ribosomal DNA loci deciphered by a multi-omics approach. Z Tulpova & al.  2022.  The Plante Genome. https://doi.org/10.1002/tpg2.20191
+ * Watson CM, Jackson L, Crinnion LA, et al. Long-read sequencing to resolve the parent of origin of a de novo pathogenic UBE3A variant. Journal of Medical Genetics Published Online First: 12 April 2022. doi: 10.1136/jmedgenet-2021-108314
+
 
 END_DOC
  */
@@ -122,24 +118,13 @@ END_DOC
 	biostars=214299,
 	keywords={"sam","bam","variant","snp"},
 	creationDate="20160930",
-	modificationDate="20200924"
+	modificationDate="20220420"
 	)
-public class Biostar214299 extends Launcher
-	{
+public class Biostar214299 extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(Biostar214299.class).make();
-
-
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
 
 	@Parameter(names={"-p","--positions"},description="Position file. A Tab delimited file containing the following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample name.",required=true)
 	private Path positionFile = null;
-	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
-	private Path reference = null;
-
-	
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	
 	private static class Position
 		{
@@ -153,22 +138,28 @@ public class Biostar214299 extends Launcher
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
+	protected Logger getLogger() {
+		return LOG;
+		}
+	@Override
+	protected int beforeSam() {
 		if(this.positionFile==null) {
 			LOG.error("position File is not defined.");
 			return -1;
 			}
+		
+		return super.beforeSam();
+		}
+
+	@Override
+	protected int processInput(final SAMFileHeader header, final CloseableIterator<SAMRecord> iter) {
 		final String UNAFFECTED_SAMPLE="UNAFFECTED";
 		final String AMBIGOUS_SAMPLE="AMBIGOUS";
 		final String UNMAPPED="UNMAPPED";
-		SamReader sfr=null;
-		SAMFileWriter sfw=null;
 		final IntervalTreeMap<Position> positionsTreeMap = new IntervalTreeMap<>();
 		final Set<String> samples = new HashSet<>();
 		try
 			{
-			sfr = openSamReader(oneFileOrNull(args));
-			final SAMFileHeader header=sfr.getFileHeader();
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			
 			try ( BufferedReader br = IOUtils.openPathForBufferedReading(this.positionFile)) {
@@ -244,11 +235,11 @@ public class Biostar214299 extends Launcher
 			samples.add(UNMAPPED);
 			
 			
-			
+		
+		
 			final SAMFileHeader newHeader = new SAMFileHeader();
 			newHeader.setSortOrder(header.getSortOrder());
 			newHeader.setSequenceDictionary(dict);
-			newHeader.addComment("generated with "+getProgramName()+" "+getVersion()+" Pierre Lindenbaum : "+getProgramCommandLine());
 			/* create groups */
 			for(final String sample: samples) {
 				final SAMReadGroupRecord rg = new SAMReadGroupRecord(sample);
@@ -258,100 +249,95 @@ public class Biostar214299 extends Launcher
 			}
 			
 			
-			sfw = this.writingBamArgs.setReferencePath(this.reference).openSamWriter(this.outputFile,newHeader, true);
-			final SAMSequenceDictionaryProgress progress= new SAMSequenceDictionaryProgress(header).logger(LOG);
-			final SAMRecordIterator iter = sfr.iterator();
-			while(iter.hasNext())
-				{
-				final SAMRecord rec = progress.watch(iter.next());
-				rec.setAttribute("RG",null);
-				if(rec.getReadUnmappedFlag()) {
-					rec.setAttribute("RG",UNMAPPED);
-					sfw.addAlignment(rec);
-					continue;
-				}
-				
-				final Cigar cigar = rec.getCigar();
-				final Collection<Position> snps =  positionsTreeMap.getContained(new Interval(rec.getContig(),rec.getUnclippedStart(),rec.getUnclippedEnd()));
-				if(snps== null || snps.isEmpty()) {
-					rec.setAttribute("RG",UNAFFECTED_SAMPLE);
-					sfw.addAlignment(rec);
-					continue;
-				}
-				final Map<Integer,Position> index2pos= snps.stream().
-						collect(Collectors.toMap(P->P.refpos,P->P));
-				final Set<String> selectedSamples = new HashSet<>();
-				
-				final byte bases[] =rec.getReadBases();
-				if(bases==null || bases.equals(SAMRecord.NULL_SEQUENCE)) {
-					LOG.error("Bases missing in read "+rec);
-					return -1;
-					}
-				
-				int refPos1=rec.getUnclippedStart();
-				int readPos0=0;
-			
-				for(final CigarElement ce:cigar.getCigarElements())
+			try(SAMFileWriter sfw = super.openSamFileWriter(newHeader)) {
+	
+				while(iter.hasNext())
 					{
-					final CigarOperator op = ce.getOperator();
-					final boolean consummeReadBaseOrSoftClip= 
-							op.consumesReadBases() || 
-							op.equals(CigarOperator.S);
-					if(op.consumesReferenceBases() && consummeReadBaseOrSoftClip) 
+					final SAMRecord rec = iter.next();
+					rec.setAttribute("RG",null);
+					if(rec.getReadUnmappedFlag()) {
+						rec.setAttribute("RG",UNMAPPED);
+						sfw.addAlignment(rec);
+						continue;
+						}
+					
+					final Cigar cigar = rec.getCigar();
+					final Collection<Position> snps =  positionsTreeMap.getContained(new Interval(rec.getContig(),rec.getUnclippedStart(),rec.getUnclippedEnd()));
+					if(snps== null || snps.isEmpty()) {
+						rec.setAttribute("RG",UNAFFECTED_SAMPLE);
+						sfw.addAlignment(rec);
+						continue;
+					}
+					final Map<Integer,Position> index2pos= snps.stream().
+							collect(Collectors.toMap(P->P.refpos,P->P));
+					final Set<String> selectedSamples = new HashSet<>();
+					
+					final byte bases[] =rec.getReadBases();
+					if(bases==null || bases.equals(SAMRecord.NULL_SEQUENCE)) {
+						LOG.error("Bases missing in read "+rec);
+						return -1;
+						}
+					
+					int refPos1=rec.getUnclippedStart();
+					int readPos0=0;
+				
+					for(final CigarElement ce:cigar.getCigarElements())
 						{
-						for(int i=0;i< ce.getLength();++i){
-							final int nowRefPos1 = (refPos1+i);
-							final int nowReadPos0 = (readPos0+i);
-							final Position position = index2pos.get(nowRefPos1);
-							if(position==null) continue;
-							if(nowReadPos0>= bases.length) continue;
-							final char base = (char)Character.toUpperCase(bases[nowReadPos0]);
-							
-							final String sample = position.base2sample.get(base);
-							if(sample==null) continue;
-							selectedSamples.add(sample);
-							
-							index2pos.remove(nowRefPos1);
-							if(index2pos.isEmpty()) break;
+						final CigarOperator op = ce.getOperator();
+						final boolean consummeReadBaseOrSoftClip= 
+								op.consumesReadBases() || 
+								op.equals(CigarOperator.S);
+						if(op.consumesReferenceBases() && consummeReadBaseOrSoftClip) 
+							{
+							for(int i=0;i< ce.getLength();++i){
+								final int nowRefPos1 = (refPos1+i);
+								final int nowReadPos0 = (readPos0+i);
+								final Position position = index2pos.get(nowRefPos1);
+								if(position==null) continue;
+								if(nowReadPos0>= bases.length) continue;
+								final char base = (char)Character.toUpperCase(bases[nowReadPos0]);
+								
+								final String sample = position.base2sample.get(base);
+								if(sample==null) continue;
+								selectedSamples.add(sample);
+								
+								index2pos.remove(nowRefPos1);
+								if(index2pos.isEmpty()) break;
+								}
+							}
+						if(op.consumesReferenceBases() || op.isClipping())
+							{
+							refPos1+=ce.getLength();
+							}
+						if(consummeReadBaseOrSoftClip) {
+							readPos0+=ce.getLength();
 							}
 						}
-					if(op.consumesReferenceBases() || op.isClipping())
-						{
-						refPos1+=ce.getLength();
+					if(selectedSamples.isEmpty())  {
+						rec.setAttribute("RG",UNAFFECTED_SAMPLE);
 						}
-					if(consummeReadBaseOrSoftClip) {
-						readPos0+=ce.getLength();
+					else if(selectedSamples.size()==1) {
+						rec.setAttribute("RG",selectedSamples.iterator().next());
 						}
+					else {
+						rec.setAttribute("RG",AMBIGOUS_SAMPLE);
+						}
+					
+					sfw.addAlignment(rec);
 					}
-				if(selectedSamples.isEmpty())  {
-					rec.setAttribute("RG",UNAFFECTED_SAMPLE);
-				} else if(selectedSamples.size()==1) {
-					rec.setAttribute("RG",selectedSamples.iterator().next());
-				} else
-				{
-					rec.setAttribute("RG",AMBIGOUS_SAMPLE);
 				}
-				
-				sfw.addAlignment(rec);
-				}
-			progress.finish();
 			return 0;
 			}
-		catch(final Throwable err)
-			{
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(sfr);
-			CloserUtil.close(sfw);
+		finally {
 			}
 		}
-	
+
 	public static void main(final String[] args) {
 		new Biostar214299().instanceMainWithExit(args);
-
 	}
 
 }

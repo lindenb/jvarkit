@@ -81,12 +81,10 @@ END_DOC
 	biostars=86480,
 	keywords={"rebase","genome","enzyme","restricion","genome"},
 	creationDate="20131114",
-	modificationDate="20210805"
+	modificationDate="20220420"
 	)
-public class Biostar86480 extends Launcher
-	{
+public class Biostar86480 extends Launcher {
 	private static final Logger LOG = Logger.build(Biostar86480.class).make();
-
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -96,6 +94,8 @@ public class Biostar86480 extends Launcher
 	private float min_size= 0;
 	@Parameter(names={"-l"},description="list available enzymes",help=true)
 	private boolean dump_enzymes = false;
+	@Parameter(names={"--faidx"},description="FASTA input is the output of samtools faidx. Parse sequence name and sequence start from Fasta header.")
+	private boolean input_is_faidx = false;
 
 
 	private final Rebase rebase=Rebase.createDefaultRebase();
@@ -104,8 +104,6 @@ public class Biostar86480 extends Launcher
 		{
 		}
 
-	
-	
 	private void digest(
 			final String seqName,
 			final int position0,
@@ -181,6 +179,15 @@ public class Biostar86480 extends Launcher
 					}
 				seqName=b.toString();
 				position0=0;
+				if(input_is_faidx) {
+					final int colon=seqName.indexOf(":");
+					if(colon==-1) throw new IllegalArgumentException("--faidx input but cannot find ':' in "+seqName);
+					final int hyphen=seqName.indexOf("-",colon+1);
+					if(hyphen==-1) throw new IllegalArgumentException("--faidx input but cannot find '-' in "+seqName);
+					position0 = Integer.parseInt(seqName.substring(colon+1,hyphen)) - 1 ;
+					if(position0<0) throw new IllegalArgumentException("--faidx input start<=0 in "+seqName);
+					seqName = seqName.substring(0,colon);
+					}
 				}
 			else if(!Character.isWhitespace(c))
 				{
