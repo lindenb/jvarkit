@@ -29,14 +29,15 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -54,15 +55,15 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.SortingCollection;
@@ -75,6 +76,8 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
@@ -147,46 +150,6 @@ public class BaseCoverage extends Launcher
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
-	/** List with random acces O(1) and fast popFront */
-	private static class FastList extends AbstractList<Integer> {
-		private List<Integer> array = new ArrayList<>(10_000);
-		private int count_dead_front=0;
-		@Override
-		public int size() {
-			return array.size() - count_dead_front;
-			}
-		@Override
-		public void clear() {
-			count_dead_front=0;
-			this.array.clear();
-			}
-		@Override
-		public boolean add(Integer v) {
-			array.add(v);
-			return true;
-			}
-		@Override
-		public Integer get(int idx) {
-			return array.get(this.count_dead_front+idx);
-			}
-		@Override
-		public Integer set(int index, Integer element) {
-			final int prev = array.get(this.count_dead_front+index);
-			array.set(this.count_dead_front+index,element);
-			return prev;
-			}
-		@Override
-		public Integer remove(int index) {
-			if(index!=0) throw new IllegalArgumentException("only remove(0) is supported");
-			final int front = array.get(count_dead_front);
-			count_dead_front++;
-			if(count_dead_front > 500_000)  {
-				array.subList(0, count_dead_front).clear();
-				count_dead_front=0;
-			}
-			return front;
-		}
-	}
 	
 	private static class Base {
 		int tid;
@@ -305,66 +268,43 @@ public class BaseCoverage extends Launcher
 					
 					int prev_tid = -1;
 					int prev_pos = 0;
-					final List<Integer> depth_array = new FastList();
-					int depth_array_start=-1;
+					final TreeMap<Integer, Integer> pos2depth = new TreeMap<>();
 					try(CloseableIterator<SAMRecord> it= intervalList==null?sr.iterator():sr.query(intervalList, false)) {
 						for(;;) {
 							final SAMRecord rec = it.hasNext()?it.next():null;
 							if(rec!=null && !SAMRecordDefaultFilter.accept(rec, this.mapping_quality)) continue;
 							
 							if(rec==null || prev_tid!=rec.getReferenceIndex()) {
-								while(!depth_array.isEmpty()) {
-									final int dp = depth_array.remove(0);
-									if(dp>0) {
-					            		final Base b = new Base();
-					            		b.sample_idx = sample_idx;
-					            		b.tid = prev_tid;
-					            		b.pos = depth_array_start;
-					            		b.depth = dp;
-					            		sorting.add(b);
-										}
-				            		depth_array_start++;
-									}
-								if(rec==null) break;
-								depth_array.clear();
-								depth_array_start = rec.getAlignmentStart();
-								}
-							prev_tid = rec.getReferenceIndex();
-							prev_pos = rec.getAlignmentStart();
-							while(!depth_array.isEmpty() && depth_array_start < prev_pos) {
-								final int dp = depth_array.remove(0);
-								if(dp>0) {
+								for(final Integer pos:pos2depth.keySet()) {
 				            		final Base b = new Base();
 				            		b.sample_idx = sample_idx;
 				            		b.tid = prev_tid;
-				            		b.pos = depth_array_start;
-				            		b.depth = dp;
+				            		b.pos = pos;
+				            		b.depth = pos2depth.get(b.pos);
 				            		sorting.add(b);
 									}
-			            		depth_array_start++;
+								if(rec==null) break;
+								pos2depth.clear();
 								}
-							
-							final int end_pos = rec.getAlignmentEnd();
-							while(depth_array_start + depth_array.size() <= end_pos) {
-								depth_array.add(0);
-							}
-							
-							int ref = prev_pos;
-							final Cigar cigar = rec.getCigar();
-							for(CigarElement ce: cigar) {
-								final CigarOperator op = ce.getOperator();
-								if(op.consumesReferenceBases()) {
-									if(op.consumesReadBases()) {
-										for(int n=0;n< ce.getLength();++n) {
-											final int idx = ref-depth_array_start + n;
-											final int prev_dp = depth_array.get(idx);
-											depth_array.set(idx, prev_dp + 1);
-											}
-										}
-									ref += ce.getLength();
+							prev_tid = rec.getReferenceIndex();
+							prev_pos = rec.getAlignmentStart();
+							for(Iterator<Integer> rpos = pos2depth.keySet().iterator();rpos.hasNext();) {
+								final int pos = rpos.next();
+								if(pos>=prev_pos) break;
+			            		final Base b = new Base();
+			            		b.sample_idx = sample_idx;
+			            		b.tid = prev_tid;
+			            		b.pos = pos;
+			            		b.depth = pos2depth.get(b.pos);
+			            		sorting.add(b);
+			            		rpos.remove();
+								}
+							for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
+								for(int n=0;n<ab.getLength();n++) {
+									final int ref= ab.getReferenceStart() + n;
+									pos2depth.put(ref, 1 + pos2depth.getOrDefault(ref, 0));
 									}
-								}//end cigar
-							
+								}
 							}
 						}
 					} // end SAMReader
@@ -377,8 +317,15 @@ public class BaseCoverage extends Launcher
 				}//end for each bam
 			sorting.doneAdding();
 			
-			try(VariantContextWriter w = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
+			try(VariantContextWriter w = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
+				ReferenceSequenceFile fasta = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
+			final VCFInfoHeaderLine infoMeanDP = new VCFInfoHeaderLine("AVG_DP",1,VCFHeaderLineType.Float,"average DP");
+			final VCFInfoHeaderLine infoMinDP = new VCFInfoHeaderLine("MIN_DP",1,VCFHeaderLineType.Integer,"min DP");
+			final VCFInfoHeaderLine infoMaxDP = new VCFInfoHeaderLine("MAX_DP",1,VCFHeaderLineType.Integer,"max DP");
+			metaData.add(infoMeanDP);
+			metaData.add(infoMinDP);
+			metaData.add(infoMaxDP);
 			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.DEPTH_KEY);
 			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.DEPTH_KEY);
 			final VCFHeader header = new VCFHeader(metaData,samples);
@@ -399,18 +346,21 @@ public class BaseCoverage extends Launcher
 						gb.DP(sample2depth.getOrDefault(sn, 0));
 						genotypes.add(gb.make());
 					}
-					
-					
+					final String contig = dict.getSequence(first.tid).getContig();
+					final Allele ref_allele = Allele.create(fasta.getSubsequenceAt(contig, first.pos, first.pos).getBases(), true);
 					final VariantContextBuilder vcb = new VariantContextBuilder(
 							null,
-							dict.getSequence(first.tid).getContig(),
+							contig,
 							first.pos,
 							first.pos,
-							Collections.singletonList(Allele.REF_N)
+							Collections.singletonList(ref_allele)
 							);
 					vcb.genotypes(genotypes);
 					
 					vcb.attribute(VCFConstants.DEPTH_KEY, samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).sum());
+					vcb.attribute(infoMeanDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).average().orElse(0.0));
+					vcb.attribute(infoMinDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).min().orElse(0));
+					vcb.attribute(infoMaxDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).max().orElse(0));
 					w.add(vcb.make());
 					}
 				iter1.close();
