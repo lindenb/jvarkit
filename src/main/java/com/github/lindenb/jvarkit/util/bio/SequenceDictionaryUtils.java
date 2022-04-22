@@ -63,6 +63,7 @@ public static Optional<String> getBuildName(final SAMSequenceDictionary dict) {
 	if(dict==null || dict.isEmpty()) return Optional.empty();
 	if(isGRCh37(dict)) return Optional.of("GRCh37");
 	if(isGRCh38(dict)) return Optional.of("GRCh38");
+	if(isCHM13v2(dict)) return Optional.of("CHM13v2");
 	if(isGRCm38(dict)) return Optional.of("GRCm38");
 	if(isGRCm39(dict)) return Optional.of("GRCm39");
 	if(isCanFam3(dict)) return Optional.of("CanFam3");
@@ -87,6 +88,11 @@ public static boolean isGRCh37(final SAMSequenceDictionary dict) {
 /** test if dict looks like GRCh38  */
 public static boolean isGRCh38(final SAMSequenceDictionary dict) {
 	return hasChrom1(dict,248_956_422);
+	}
+
+/** test if dict looks like T2T CHM13 v2  */
+public static boolean isCHM13v2(final SAMSequenceDictionary dict) {
+	return hasChrom1(dict,248_387_328);
 	}
 
 /** test if dict looks like MusMusculus isGRCm38  */
@@ -124,7 +130,7 @@ public static boolean isHuman(final VCFHeader h) {
 
 /** test if dict looks like a human dict  */
 public static boolean isHuman(final SAMSequenceDictionary dict) {
-	return isGRCh37(dict) || isGRCh38(dict);
+	return isGRCh37(dict) || isGRCh38(dict) || isCHM13v2(dict);
 	}
 
 

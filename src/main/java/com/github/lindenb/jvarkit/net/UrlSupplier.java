@@ -292,13 +292,14 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 
 	
 	
-	for(final String build: new String[] {"hg19","hg38","mm10","canFam3","canFam4"}) {
+	for(final String build: new String[] {"hg19","hg38","hub_3267197_GCA_009914755.4","mm10","canFam3","canFam4"}) {
 		if(StringUtils.isBlank(ucscCtg)) break;
 		if(build.equals("hg19") && !SequenceDictionaryUtils.isGRCh37(this.dict)) continue;
 		if(build.equals("hg38") && !SequenceDictionaryUtils.isGRCh38(this.dict)) continue;
 		if(build.equals("mm10") && !SequenceDictionaryUtils.isGRCm38(this.dict)) continue;
 		if(build.equals("canFam3") && !SequenceDictionaryUtils.isCanFam3(this.dict)) continue;
 		if(build.equals("canFam4") && !SequenceDictionaryUtils.isCanFam4(this.dict)) continue;
+		if(build.equals("hub_3267197_GCA_009914755.4") && !SequenceDictionaryUtils.isCHM13v2(this.dict)) continue;
 		
 		urls.add(new LabelledUrlImpl("UCSC "+build,
 			"http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
