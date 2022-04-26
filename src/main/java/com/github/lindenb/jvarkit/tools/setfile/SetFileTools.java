@@ -29,6 +29,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -77,7 +78,7 @@ import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
-action = frombed
+##  action = frombed
 ```
 $ echo -e "RF01\t150\t200\tA\nRF01\t190\t300\tA\nRF01\t350\t400\tA\nRF01\t150\t200\tB" |\
 	java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa frombed
@@ -87,7 +88,7 @@ B	RF01:151-200
 
 ```
 
-action = combine
+## action = combine
 ```
 $ echo -e "w RF01:150-200\nx RF01:1-100,RF02:1-100\ny RF01:90-200,RF03:1-100\nz RF03:50-150,RF04:100-200" | java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa combine
 w_x	RF01:1-100,RF01:150-200,RF02:1-100
@@ -97,6 +98,12 @@ x_y	RF01:1-200,RF02:1-100,RF03:1-100
 x_z	RF01:1-100,RF02:1-100,RF03:50-150,RF04:100-200
 y_z	RF01:90-200,RF03:1-150,RF04:100-200
 ```
+
+## action = bedbed
+
+creates a setfile from two bed files. First bed is "peaks.bed" second bed is "genes.bed".
+The output is a set file . Each record is a gene containing the peaks. 
+
 
 
 END_DOC
@@ -318,7 +325,8 @@ public class SetFileTools extends Launcher {
 		frombed,
 		view,
 		cluster,
-		combine
+		combine,
+		bedbed
 		};
 		
 	private String noChr(final String contig) {
@@ -533,6 +541,63 @@ public class SetFileTools extends Launcher {
 		return 0;
 		}
 	
+	
+	private int doBedBed(final List<String> args) throws IOException {
+		if(args.size()!=2) {
+			LOG.error("expected 2 files but got "+args.size()+" "+args);
+			return -1;
+		}
+		if(args.get(0).equals("-") && args.get(1).equals("-")) {
+			LOG.error("cannot use both files on stdin");
+			return -1;
+		}
+		
+		final IntervalTreeMap<BedLine> peaksTreeMap;
+		try(BedLineReader blr = args.get(0).equals("-")?
+				new BedLineReader(IOUtils.openStreamForBufferedReader(stdin()),"stdin"):
+				new BedLineReader(Paths.get(args.get(0)))) {
+			peaksTreeMap = blr.toIntervalTreeMap();
+			}
+		
+		long id_generator=0L;
+		try(BedLineReader iter = args.get(1).equals("-")?
+				new BedLineReader(IOUtils.openStreamForBufferedReader(stdin()),"stdin"):
+				new BedLineReader(Paths.get(args.get(1)))) {
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+
+				while(iter.hasNext()) {
+					final BedLine rec= iter.next();
+					final List<Locatable> L = peaksTreeMap.
+							getOverlapping(rec).stream().
+							sorted(theSorter).
+							collect(Collectors.toList());
+					if(L.isEmpty()) continue;
+					final String id = String.format("%s_%d_%d_%d",
+						rec.getContig(),
+						rec.getStart(),
+						rec.getEnd(),
+						++id_generator
+						);
+					pw.print(id);
+					for(int i=0;i< L.size();i++) {
+						pw.print(i==0?"\t":",");
+						final Locatable rec2 = L.get(i);
+						pw.print(noChr(rec2.getContig()));
+						pw.print(":");
+						pw.print(rec2.getStart());
+						pw.print("-");
+						pw.print(rec2.getEnd());
+						}
+					pw.println();
+					}
+				pw.flush();
+				}
+			}
+
+		
+		return 0;
+	}
+	
 	private int fromBed(final List<String> args) throws IOException {
 		final String input = oneFileOrNull(args);
 		final Function<BedLine,String> bed2name = bed->{
@@ -587,6 +652,7 @@ public class SetFileTools extends Launcher {
 				case view: return view(args);
 				case cluster: return makeClusters(args);
 				case combine: return combine(args);
+				case bedbed: return doBedBed(args);
 				default: LOG.error("not implemented "+action);return -1;
 				}
 			}
