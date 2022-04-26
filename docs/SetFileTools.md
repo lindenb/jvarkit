@@ -142,5 +142,19 @@ y_z	RF01:90-200,RF03:1-150,RF04:100-200
 
 creates a setfile from two bed files. First bed is "peaks.bed" second bed is "genes.bed".
 The output is a set file . Each record in the output setFile is a 'gene' where all items are the overlapping peaks. 
+```
+gunzip -c in.gtf.gz|\
+awk -F '\t' '($3=="gene") {B=int($4)-1;X=100;printf("%s\t%d\t%s\n",$1,(B<X?0:B-X),int($5)+X);}' |\
+sort -t $'\t' -k1,1 -k2,2n  |\
+java -jar dist/setfiletools.jar -R ref.dict  in.bed.gz -
+```
+
+## action = intersectbed
+
+print  whole setrecords overlapping bed file, there is to trimming
+
+```
+java -jar dist/setfiletools.jar -R ref.dict  in.bed.gz in.setfile
+```
 
 

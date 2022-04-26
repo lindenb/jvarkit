@@ -103,6 +103,20 @@ y_z	RF01:90-200,RF03:1-150,RF04:100-200
 
 creates a setfile from two bed files. First bed is "peaks.bed" second bed is "genes.bed".
 The output is a set file . Each record in the output setFile is a 'gene' where all items are the overlapping peaks. 
+```
+gunzip -c in.gtf.gz|\
+awk -F '\t' '($3=="gene") {B=int($4)-1;X=100;printf("%s\t%d\t%s\n",$1,(B<X?0:B-X),int($5)+X);}' |\
+sort -t $'\t' -k1,1 -k2,2n  |\
+java -jar dist/setfiletools.jar -R ref.dict  in.bed.gz -
+```
+
+## action = intersectbed
+
+print  whole setrecords overlapping bed file, there is to trimming
+
+```
+java -jar dist/setfiletools.jar -R ref.dict  in.bed.gz in.setfile
+```
 
 
 END_DOC
@@ -344,7 +358,8 @@ public class SetFileTools extends Launcher {
 		view,
 		cluster,
 		combine,
-		bedbed
+		bedbed,
+		intersectbed
 		};
 		
 	private String noChr(final String contig) {
@@ -559,6 +574,43 @@ public class SetFileTools extends Launcher {
 		return 0;
 		}
 	
+	/** print  whole setrecords overlapping bed file, there is to trimming */
+	private int doInterBed(final List<String> args) throws IOException {
+		if(this.intersectBedPath!=null) {
+			LOG.info("intersectBedPath shouldn' be specified");
+			return -1;
+		}
+		if(!this.intersectVcfPath.isEmpty()) {
+			LOG.info("intersectVcfPath shouldn't be specified");
+			return -1;
+		}
+		if(args.size()!=2) {
+			LOG.error("expected 2 files but got "+args.size()+" "+args);
+			return -1;
+		}
+		if(args.get(0).equals("-") && args.get(1).equals("-")) {
+			LOG.error("cannot use both files on stdin");
+			return -1;
+		}
+		
+		final IntervalTreeMap<BedLine> peaksTreeMap;
+		try(BedLineReader blr = openBedLineReader(args.get(0).equals("-")?null:Paths.get(args.get(0)))) {
+			peaksTreeMap = blr.toIntervalTreeMap();
+			}
+		
+		try(CloseableIterator<SetFileRecord> iter = openSetFileIterator((args.get(1).equals("-")?Collections.emptyList():args.subList(1,2)))) {
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				while(iter.hasNext()) {
+					final SetFileRecord rec = iter.next();
+					if(rec.stream().noneMatch(B->peaksTreeMap.containsOverlapping(B))) continue;
+					print(pw,rec);
+					}
+				pw.flush();
+				}
+			}
+		return 0;
+		}
+	
 	/** create setfile each line is a BED (file2) containing the components of overlapping from BED (file1) */
 	private int doBedBed(final List<String> args) throws IOException {
 		if(this.intersectBedPath!=null) {
@@ -599,17 +651,7 @@ public class SetFileTools extends Launcher {
 						rec.getEnd(),
 						++id_generator
 						);
-					pw.print(id);
-					for(int i=0;i< L.size();i++) {
-						pw.print(i==0?"\t":",");
-						final Locatable rec2 = L.get(i);
-						pw.print(noChr(rec2.getContig()));
-						pw.print(":");
-						pw.print(rec2.getStart());
-						pw.print("-");
-						pw.print(rec2.getEnd());
-						}
-					pw.println();
+					print(pw,SetFileRecord.create(id, L));
 					}
 				pw.flush();
 				}
@@ -674,6 +716,7 @@ public class SetFileTools extends Launcher {
 				case cluster: return makeClusters(args);
 				case combine: return combine(args);
 				case bedbed: return doBedBed(args);
+				case intersectbed:  return doInterBed(args);
 				default: LOG.error("not implemented "+action);return -1;
 				}
 			}
