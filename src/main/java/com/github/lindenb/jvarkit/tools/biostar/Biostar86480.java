@@ -222,7 +222,7 @@ public class Biostar86480 extends Launcher {
 					return -1;
 					}
 				}
-			this.rebase.removeIf(ENZ->onlyEnz.contains(ENZ.getName()));
+			this.rebase.removeIf(ENZ->!onlyEnz.contains(ENZ.getName()));
 			}
 		
 		if(this.min_size>0f) {

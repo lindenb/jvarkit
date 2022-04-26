@@ -268,15 +268,33 @@ public class SetFileTools extends Launcher {
 			}
 		}
 	
+	/** open path or null(stdin) */
+	private BedLineReader openBedLineReader(final Path pathOrNull) {
+		try
+			{
+			BedLineReader br;
+			if(pathOrNull!=null) {
+				br = new BedLineReader(pathOrNull);
+				}
+			else {
+				br = new BedLineReader(stdin(),"stdin");
+				}
+			br.setContigNameConverter(ContigNameConverter.fromOneDictionary(SetFileTools.this.theDict));
+			br.setValidationStringency(validationStringency);
+			return br;
+			}
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
+	
 	
 	private class IntersectBedIterator extends AbstractCloseableIterator<SetFileRecord> {
 		final IntervalTreeMap<Boolean> intervalTreeMap;
 		final CloseableIterator<SetFileRecord> delegate;
 		IntersectBedIterator(final CloseableIterator<SetFileRecord> delegate,final Path bedPath) {
 			this.delegate = delegate;
-			try(BedLineReader br = new BedLineReader(bedPath)) {
-				br.setContigNameConverter(ContigNameConverter.fromOneDictionary(SetFileTools.this.theDict));
-				br.setValidationStringency(validationStringency);
+			try(BedLineReader br = openBedLineReader(bedPath)) {
 				this.intervalTreeMap = br.toIntervalTreeMap(X->Boolean.TRUE);
 				}
 			}
@@ -543,6 +561,14 @@ public class SetFileTools extends Launcher {
 	
 	/** create setfile each line is a BED (file2) containing the components of overlapping from BED (file1) */
 	private int doBedBed(final List<String> args) throws IOException {
+		if(this.intersectBedPath!=null) {
+			LOG.info("intersectBedPath shouldn' be specified");
+			return -1;
+		}
+		if(this.intersectVcfPath!=null) {
+			LOG.info("intersectVcfPath shouldn't be specified");
+			return -1;
+		}
 		if(args.size()!=2) {
 			LOG.error("expected 2 files but got "+args.size()+" "+args);
 			return -1;
@@ -553,21 +579,12 @@ public class SetFileTools extends Launcher {
 		}
 		
 		final IntervalTreeMap<BedLine> peaksTreeMap;
-		try(BedLineReader blr = args.get(0).equals("-")?
-				new BedLineReader(IOUtils.openStreamForBufferedReader(stdin()),"stdin"):
-				new BedLineReader(Paths.get(args.get(0)))) {
-			blr.setValidationStringency(validationStringency);
-			blr.setContigNameConverter(this.theCtgConverter);
+		try(BedLineReader blr = openBedLineReader(args.get(0).equals("-")?null:Paths.get(args.get(0)))) {
 			peaksTreeMap = blr.toIntervalTreeMap();
 			}
 		
 		long id_generator=0L;
-		try(BedLineReader iter = args.get(1).equals("-")?
-				new BedLineReader(IOUtils.openStreamForBufferedReader(stdin()),"stdin"):
-				new BedLineReader(Paths.get(args.get(1)))) {
-			iter.setValidationStringency(validationStringency);
-			iter.setContigNameConverter(this.theCtgConverter);
-
+		try(BedLineReader iter = openBedLineReader(args.get(1).equals("-")?null:Paths.get(args.get(1)))) {
 			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 				while(iter.hasNext()) {
 					final BedLine rec= iter.next();

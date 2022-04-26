@@ -66,6 +66,7 @@ Usage: setfiletools [options] Files
 ## Keywords
 
  * setfile
+ * bed
 
 
 ## Compilation
@@ -116,7 +117,7 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-action = frombed
+##  action = frombed
 ```
 $ echo -e "RF01\t150\t200\tA\nRF01\t190\t300\tA\nRF01\t350\t400\tA\nRF01\t150\t200\tB" |\
 	java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa frombed
@@ -126,7 +127,7 @@ B	RF01:151-200
 
 ```
 
-action = combine
+## action = combine
 ```
 $ echo -e "w RF01:150-200\nx RF01:1-100,RF02:1-100\ny RF01:90-200,RF03:1-100\nz RF03:50-150,RF04:100-200" | java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa combine
 w_x	RF01:1-100,RF01:150-200,RF02:1-100
@@ -136,5 +137,10 @@ x_y	RF01:1-200,RF02:1-100,RF03:1-100
 x_z	RF01:1-100,RF02:1-100,RF03:50-150,RF04:100-200
 y_z	RF01:90-200,RF03:1-150,RF04:100-200
 ```
+
+## action = bedbed
+
+creates a setfile from two bed files. First bed is "peaks.bed" second bed is "genes.bed".
+The output is a set file . Each record in the output setFile is a 'gene' where all items are the overlapping peaks. 
 
 
