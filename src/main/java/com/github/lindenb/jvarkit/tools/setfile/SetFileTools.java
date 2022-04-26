@@ -102,8 +102,7 @@ y_z	RF01:90-200,RF03:1-150,RF04:100-200
 ## action = bedbed
 
 creates a setfile from two bed files. First bed is "peaks.bed" second bed is "genes.bed".
-The output is a set file . Each record is a gene containing the peaks. 
-
+The output is a set file . Each record in the output setFile is a 'gene' where all items are the overlapping peaks. 
 
 
 END_DOC
@@ -112,8 +111,8 @@ END_DOC
 @Program(name="setfiletools",
 description="Utilities for the setfile format",
 creationDate="20210125",
-modificationDate="20210205",
-keywords={"setfile"}
+modificationDate="20220426",
+keywords={"setfile","bed"}
 )
 public class SetFileTools extends Launcher {
 	private static final Logger LOG = Logger.build(SetFileTools.class).make();
@@ -147,7 +146,8 @@ public class SetFileTools extends Launcher {
 	private SAMSequenceDictionary theDict = null;
 	/** global sorter */
 	private Comparator<Locatable> theSorter;
-
+	/** global dict converter */
+	private UnaryOperator<String> theCtgConverter=null;
 	
 	/** check uniq names */
 	private class UniqNameIterator extends AbstractCloseableIterator<SetFileRecord> {
@@ -541,7 +541,7 @@ public class SetFileTools extends Launcher {
 		return 0;
 		}
 	
-	
+	/** create setfile each line is a BED (file2) containing the components of overlapping from BED (file1) */
 	private int doBedBed(final List<String> args) throws IOException {
 		if(args.size()!=2) {
 			LOG.error("expected 2 files but got "+args.size()+" "+args);
@@ -556,6 +556,8 @@ public class SetFileTools extends Launcher {
 		try(BedLineReader blr = args.get(0).equals("-")?
 				new BedLineReader(IOUtils.openStreamForBufferedReader(stdin()),"stdin"):
 				new BedLineReader(Paths.get(args.get(0)))) {
+			blr.setValidationStringency(validationStringency);
+			blr.setContigNameConverter(this.theCtgConverter);
 			peaksTreeMap = blr.toIntervalTreeMap();
 			}
 		
@@ -563,17 +565,19 @@ public class SetFileTools extends Launcher {
 		try(BedLineReader iter = args.get(1).equals("-")?
 				new BedLineReader(IOUtils.openStreamForBufferedReader(stdin()),"stdin"):
 				new BedLineReader(Paths.get(args.get(1)))) {
-			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+			iter.setValidationStringency(validationStringency);
+			iter.setContigNameConverter(this.theCtgConverter);
 
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 				while(iter.hasNext()) {
 					final BedLine rec= iter.next();
-					final List<Locatable> L = peaksTreeMap.
+					final List<Locatable> L = sortAndMerge(peaksTreeMap.
 							getOverlapping(rec).stream().
 							sorted(theSorter).
-							collect(Collectors.toList());
+							collect(Collectors.toList()));
 					if(L.isEmpty()) continue;
 					final String id = String.format("%s_%d_%d_%d",
-						rec.getContig(),
+						noChr(rec.getContig()),
 						rec.getStart(),
 						rec.getEnd(),
 						++id_generator
@@ -607,7 +611,7 @@ public class SetFileTools extends Launcher {
 		try(BufferedReader br = super.openBufferedReader(input)) {
 			try(BedLineReader blr = new BedLineReader(br, input)) {
 				blr.setValidationStringency(validationStringency);
-				blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(this.theDict));
+				blr.setContigNameConverter(this.theCtgConverter);
 
 				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 					final EqualIterator<BedLine> iter = new EqualIterator<BedLine>(blr.stream().iterator(),(A,B)->bed2name.apply(A).compareTo(bed2name.apply(B)));
@@ -632,8 +636,7 @@ public class SetFileTools extends Launcher {
 				}
 			}
 		return 0;
-		}
-	
+		}	
 	@Override
 	public int doWork(final List<String> args0) {
 		if(args0.isEmpty()) {
@@ -643,7 +646,8 @@ public class SetFileTools extends Launcher {
 		try {
 			this.theDict= SequenceDictionaryUtils.extractRequired(this.faidxRef);
 			this.theSorter = new ContigDictComparator(this.theDict).createLocatableComparator();
-		
+			this.theCtgConverter = ContigNameConverter.fromOneDictionary(this.theDict);
+			
 			final Action action = Action.valueOf(args0.get(0));
 			final List<String> args = args0.subList(1, args0.size());
 			switch(action) {
