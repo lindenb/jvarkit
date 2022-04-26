@@ -78,10 +78,10 @@ chr3	107451	107457	GAATTC	1000	+	EcoRI	G^AATTC
 END_DOC
  */
 @Program(name="biostar86480",description="Genomic restriction finder",
-	biostars=86480,
-	keywords={"rebase","genome","enzyme","restricion","genome"},
+	biostars= {86480,9520528},
+	keywords={"rebase","genome","enzyme","restricion","genome","fasta"},
 	creationDate="20131114",
-	modificationDate="20220420"
+	modificationDate="20220426"
 	)
 public class Biostar86480 extends Launcher {
 	private static final Logger LOG = Logger.build(Biostar86480.class).make();
@@ -282,7 +282,7 @@ public class Biostar86480 extends Launcher {
 	/**
 	 * @param args
 	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new Biostar86480().instanceMainWithExit(args);
 		}

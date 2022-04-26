@@ -42,12 +42,14 @@ Usage: biostar86480 [options] Files
  * enzyme
  * restricion
  * genome
+ * fasta
 
 
 
 ## See also in Biostars
 
  * [https://www.biostars.org/p/86480](https://www.biostars.org/p/86480)
+ * [https://www.biostars.org/p/9520528](https://www.biostars.org/p/9520528)
 
 
 ## Compilation

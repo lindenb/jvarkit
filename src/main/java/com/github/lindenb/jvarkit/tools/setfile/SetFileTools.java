@@ -565,7 +565,7 @@ public class SetFileTools extends Launcher {
 			LOG.info("intersectBedPath shouldn' be specified");
 			return -1;
 		}
-		if(this.intersectVcfPath!=null) {
+		if(!this.intersectVcfPath.isEmpty()) {
 			LOG.info("intersectVcfPath shouldn't be specified");
 			return -1;
 		}
