@@ -48,10 +48,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.setfile.SetFileReaderFactory;
 import com.github.lindenb.jvarkit.setfile.SetFileRecord;
+import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -65,6 +67,7 @@ import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -359,7 +362,8 @@ public class SetFileTools extends Launcher {
 		cluster,
 		combine,
 		bedbed,
-		intersectbed
+		intersectbed,
+		stats
 		};
 		
 	private String noChr(final String contig) {
@@ -611,6 +615,70 @@ public class SetFileTools extends Launcher {
 		return 0;
 		}
 	
+	/** statistics for setFile*/
+	private int doStats(final List<String> args) throws IOException {
+		final Counter<String> chrom2count=new Counter<>();
+		final DiscreteMedian<Integer> d_size = new DiscreteMedian<>();
+		final DiscreteMedian<Integer> d_nitems = new DiscreteMedian<>();
+		final DiscreteMedian<Integer> d_distance = new DiscreteMedian<>();
+		final DiscreteMedian<Integer> d_item_size = new DiscreteMedian<>();
+		for(final SAMSequenceRecord ssr: this.theDict.getSequences()) {
+			chrom2count.initializeIfNotExists(noChr(ssr.getSequenceName()));
+			}
+		chrom2count.initializeIfNotExists("*multiple*");
+		chrom2count.initializeIfNotExists("*empty*");
+
+		try(CloseableIterator<SetFileRecord> iter = openSetFileIterator(args)) {
+			while(iter.hasNext()) {
+				final SetFileRecord rec = iter.next();
+				final Set<String> chroms = rec.getChromosomes();
+				switch(chroms.size()) {
+					case 0: chrom2count.incr("*empty*"); break;
+					case 1: chrom2count.incr(noChr(chroms.iterator().next())); break;
+					default: chrom2count.incr("*multiple*"); break;
+					}
+				int len = rec.stream().mapToInt(B->B.getLengthOnReference()).sum();
+				d_size.add(len);
+				d_nitems.add(rec.size());
+				if(rec.size()>0) {
+					len = len/rec.size();
+					d_item_size.add(len);
+				}
+				
+				if(rec.size()>1 && chroms.size()==1) {
+					int d = 0;
+					final List<Locatable> L = sortAndMerge(rec);
+					for(int i=0;i+1<L.size();i++) {
+						d+= (rec.get(i+1).getStart() - rec.get(i).getEnd());
+						}
+					d=d/(L.size()-1);
+					d_distance.add(d);
+					}
+				}
+			}
+		try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+			for(final String key: chrom2count.keySetDecreasing()) {
+				pw.println("C\trecords-per-chrom\t"+key+"\t"+chrom2count.count(key));
+			}
+			pw.println("AS\taverage-size\t"+(d_size.isEmpty()?".":String.valueOf(d_size.getAverage().orElse(0.0))));
+			pw.println("MS\tmedian-size\t"+(d_size.isEmpty()?".":String.valueOf(d_size.getMedian().orElse(0.0))));
+			
+			pw.println("AIS\taverage-item-size\t"+(d_item_size.isEmpty()?".":String.valueOf(d_item_size.getAverage().orElse(0.0))));
+			pw.println("MIS\tmedian-item-size\t"+(d_item_size.isEmpty()?".":String.valueOf(d_item_size.getMedian().orElse(0.0))));
+
+			
+			pw.println("AN\taverage-nitems\t"+(d_nitems.isEmpty()?".":String.valueOf(d_nitems.getAverage().orElse(0.0))));
+			pw.println("MN\tmedian-nitems\t"+(d_nitems.isEmpty()?".":String.valueOf(d_nitems.getMedian().orElse(0.0))));
+			
+			pw.println("AD\taverage-distance-between-items\t"+(d_distance.isEmpty()?".":String.valueOf(d_distance.getAverage().orElse(0.0))));
+			pw.println("MD\tmedian-distance-between-items\t"+(d_distance.isEmpty()?".":String.valueOf(d_distance.getMedian().orElse(0.0))));
+			
+			pw.flush();	
+			}
+		return 0;
+		}
+
+	
 	/** create setfile each line is a BED (file2) containing the components of overlapping from BED (file1) */
 	private int doBedBed(final List<String> args) throws IOException {
 		if(this.intersectBedPath!=null) {
@@ -717,6 +785,7 @@ public class SetFileTools extends Launcher {
 				case combine: return combine(args);
 				case bedbed: return doBedBed(args);
 				case intersectbed:  return doInterBed(args);
+				case stats:  return doStats(args);
 				default: LOG.error("not implemented "+action);return -1;
 				}
 			}
