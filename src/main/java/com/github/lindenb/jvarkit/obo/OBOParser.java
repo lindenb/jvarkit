@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -63,6 +64,7 @@ public class OBOParser {
 			private class TermImpl implements OBOntology.Term 	{
 				private final String id;
 				private final String label;
+				private String description  = null;
 				private final int _hash;
 				final Set<TermImpl> parents=new HashSet<>();
 				final Set<TermImpl> children=new HashSet<>();
@@ -79,6 +81,10 @@ public class OBOParser {
 				@Override
 				public String getAcn() {
 					return this.id;
+					}
+				@Override
+				public Optional<String> getDescription() {
+					return Optional.ofNullable(this.description);
 					}
 				@Override
 				public int hashCode() {
@@ -361,7 +367,10 @@ public class OBOParser {
 						this.isAList.add(term);
 						this.isAList.add(x);
 						}
-
+					set = hash.get("def");
+					if(set!=null && set.size()>0) {
+						term.description = set.iterator().next();
+						}
 					}
 				
 				br.close();

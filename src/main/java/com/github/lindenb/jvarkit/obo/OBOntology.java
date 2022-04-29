@@ -25,7 +25,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.obo;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** direct graph for Open Biological and Biomedical Ontology  (OBO) */
@@ -36,6 +39,8 @@ public interface OBOntology extends Iterable<OBOntology.Term> {
 		{
 		public String getAcn();
 		public String getLabel();
+		/** get description optionaly read by the OBO parser */
+		public Optional<String> getDescription();
 		/* get direct parents */
 		public Set<Term> getParents();
 		/* get direct children */
@@ -54,6 +59,11 @@ public interface OBOntology extends Iterable<OBOntology.Term> {
 	
 	/** return a stream of the terms of this ontology */
 	public Stream<Term> stream();
+	
+	/** return the stream of Terms as List */
+	public default List<Term> toList() {
+		return stream().collect(Collectors.toList());
+	}
 	
 	@Override
 	public default Iterator<Term> iterator() {
