@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -8,6 +9,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
 import java.awt.event.WindowAdapter;
 import java.io.File;
 import java.io.IOException;
@@ -53,9 +55,11 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
+import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -169,7 +173,7 @@ public class SwingBamView extends Launcher {
 			menu.add(new JMenuItem(new AbstractAction("Open...") {
 				@Override
 				public void actionPerformed(ActionEvent arg0) {
-					doMenuOpen(XFrame.this);
+					doMenuOpen(XFrame.this,XFrame.this.referenceFaidx);
 					}
 				}));
 			menu.add(new JSeparator());
@@ -248,6 +252,12 @@ public class SwingBamView extends Launcher {
 			
 			/** scroll bar for vertical navigation */
 			this.vScrollBar = new JScrollBar(JScrollBar.VERTICAL);
+			this.drawingArea.addComponentListener(new ComponentAdapter() {
+				public void componentResized(java.awt.event.ComponentEvent e) {
+					adjustScrollBar();
+					drawingArea.repaint();
+				};
+			});
 			viewPane.add(bamPanel,BorderLayout.EAST);
 			
 			/** ref tab */
@@ -274,20 +284,36 @@ public class SwingBamView extends Launcher {
 		
 		
 		private void paintDrawingArea(Graphics2D g) {
+			g.setColor(Color.BLACK);
+			g.fillRect(0, 0, drawingArea.getWidth(), drawingArea.getHeight());
+			final double dy = getFeatureHeight();
+			double y=0;
 			
-			
-			for(int y=0;y< this.rows.size();y++) {
-				final List<Read> row = this.rows.get(y);
+			y= dy;
+			for(int rowidx= this.vScrollBar.getValue();rowidx< this.rows.size();rowidx++) {
+				final List<Read> row = this.rows.get(rowidx);
 				for(final Read read:row) {
+					
+					
 					final Cigar cigar =read.rec.getCigar();
 					int refpos = read.rec.getUnclippedStart();
 					int readpos;
-					for(CigarElement ce:cigar) {
-						
+					for(int cx=0;cx<cigar.numCigarElements();++cx) {
+						final CigarElement ce = cigar.getCigarElement(cx);
+						final CigarOperator op = ce.getOperator();
+						final int len = ce.getLength();
+						switch(op) {
+							case P:break;
+							case S: {
+								
+								break;
+								}
+							}
+						}
 					}
+				rowidx++;
 				}
 			}
-		}
 
 		
 		private BamFile getSelectedBamFile() {
@@ -305,7 +331,7 @@ public class SwingBamView extends Launcher {
 		}
 		
 		private void reloadReads() {
-			BamFile f = getSelectedBamFile();
+			final BamFile f = getSelectedBamFile();
 			if(f==null) return;
 			this.rows.clear();
 			final List<Read> buffer= new ArrayList<>(featchReads());
@@ -327,9 +353,33 @@ public class SwingBamView extends Launcher {
 					this.rows.add(row);
 					}
 				}
+			adjustScrollBar();
 			this.drawingArea.repaint();
 			}
 
+		public void adjustScrollBar() {
+			int dy=(int)getFeatureHeight();
+			int  n_rows = 0;
+			n_rows+= 1;//reference
+			n_rows+= this.rows.size();
+			
+			int paperh= this.drawingArea.getHeight();
+			int n_visible = Math.max(1,Math.min(paperh/dy,n_rows));
+			if(paperh<=1) {
+				this.vScrollBar.setValues(0, 0, 0, 0);
+				}
+			else
+				{
+				this.vScrollBar.setValues(
+						0,1, 0, 0
+						);
+				}
+			}
+		
+		final double getFeatureHeight() {
+			return 20;
+		}
+		
 		final double pos2pixel(int coord) {
 			return (coord - this.interval.getStart())/((double)this.interval.getLengthOnReference())*this.drawingArea.getWidth();
 			}
@@ -388,33 +438,42 @@ public class SwingBamView extends Launcher {
 			}
 		}
 	
-	private static void openBamFiles(Path reference,final List<String> args) {
-		final List<Path> paths = IOUtils.unrollPaths(args);
-		final List<BamFile> bamFiles = new ArrayList<>(paths.size());
-		for(final Path p:paths) {
-			final BamFile bf = new BamFile(p);
-			bf.open(reference);
-			bf.sn = bf.header.getReadGroups().
-				stream().
-				map(RG->RG.getSample()).
-				filter(S->!StringUtil.isBlank(S)).
-				findFirst().
-				orElse(IOUtils.getFilenameWithoutCommonSuffixes(p));
-			bf.close();
-			bamFiles.add(bf);
+	private static void openFrameForBamFiles(final Component owner,final Path reference,final List<String> args) {
+		try {
+			final List<Path> paths = IOUtils.unrollPaths(args);
+			if(paths.isEmpty()) {
+				LOG.warn("No File was provided");
+				return;
+				}
+			final List<BamFile> bamFiles = new ArrayList<>(paths.size());
+			for(final Path p:paths) {
+				final BamFile bf = new BamFile(p);
+				bf.open(reference);
+				bf.sn = bf.header.getReadGroups().
+					stream().
+					map(RG->RG.getSample()).
+					filter(S->!StringUtil.isBlank(S)).
+					findFirst().
+					orElse(IOUtils.getFilenameWithoutCommonSuffixes(p));
+				bf.close();
+				bamFiles.add(bf);
+				}
+			
+			final XFrame frame = new XFrame(reference,bamFiles);
+			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+			frame.setBounds(50, 50, screen.width-100, screen.height-100);
+	
+			
+			SwingUtilities.invokeAndWait(()->{
+				frame.setVisible(true);
+				});
 			}
-		
-		final XFrame frame = new XFrame(reference,bamFiles);
-		final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-		frame.setBounds(50, 50, screen.width-100, screen.height-100);
-/*
-		
-		SwingUtilities.invokeAndWait(()->{
-			frame.setVisible(true);
-			});*/
+		catch(final Throwable err) {
+			ThrowablePane.show(owner, err);
+			}
 		}
 	
-	private static void doMenuOpen(Component parent,final Path reference) {
+	private static void doMenuOpen(final Component parent,final Path reference) {
 		final JFileChooser jfc = new JFileChooser(PreferredDirectory.get(SwingBamView.class));
 		jfc.setMultiSelectionEnabled(true);
 		jfc.setFileFilter(new FileFilter() {
@@ -435,9 +494,10 @@ public class SwingBamView extends Launcher {
 			}
 		});
 		if(jfc.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION) return;
-		File[] files= jfc.getSelectedFiles();
+		final File[] files= jfc.getSelectedFiles();
 		if(files==null || files.length==0);
-		openBamFiles(
+		openFrameForBamFiles(
+			parent,
 			reference,
 			Arrays.stream(files).
 			map(P->P.toString()).
@@ -447,34 +507,13 @@ public class SwingBamView extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			final List<Path> paths = IOUtils.unrollPaths(args);
-			if(paths.isEmpty()) {
+			if(IOUtils.unrollPaths(args).isEmpty()) {
 				LOG.error("no BAM/CRAM was provided");
 				return -1;
 				}
-			final List<BamFile> bamFiles = new ArrayList<>(paths.size());
-			for(final Path p:paths) {
-				final BamFile bf = new BamFile(p);
-				bf.open(this.referenceFile);
-				bf.sn = bf.header.getReadGroups().
-					stream().
-					map(RG->RG.getSample()).
-					filter(S->!StringUtil.isBlank(S)).
-					findFirst().
-					orElse(IOUtils.getFilenameWithoutCommonSuffixes(p));
-				bf.close();
-				bamFiles.add(bf);
-				}
 			
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(this.referenceFile,bamFiles);
-			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-			frame.setBounds(50, 50, screen.width-100, screen.height-100);
-
-			
-			SwingUtilities.invokeAndWait(()->{
-				frame.setVisible(true);
-				});
+			openFrameForBamFiles(null,this.referenceFile,args);
 			return 0;
 			}
 		catch(final Throwable err) {
