@@ -376,6 +376,7 @@ $ java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.ge
  + Distinct genetic determinants and mechanisms of SARS-CoV-2 resistance to remdesivir .Laura J. Stevens, Andrea J. Pruijssers, Hery W. Lee, Calvin J. Gordon, Egor P. Tchesnokov, Jennifer Gribble, Amelia S. George, Tia M. Hughes, Xiaotao Lu, Jiani Li, Jason K. Perry, Danielle P. Porter, Tomas Cihlar, Timothy P. Sheahan, Ralph S. Baric, Matthias Götte, Mark R. Denison bioRxiv 2022.01.25.477724; doi: https://doi.org/10.1101/2022.01.25.477724 
  + Detection and identification of authorized and unauthorized GMOs using high-throughput sequencing with the support of a sequence-based GMO database. Food Chemistry: Molecular Sciences Volume 4, 30 July 2022, 100096. https://doi.org/10.1016/j.fochms.2022.100096
  + Borredá, C., Perez-Roman, E., Talon, M. et al. Comparative transcriptomics of wild and commercial Citrus during early ripening reveals how domestication shaped fruit gene expression. BMC Plant Biol 22, 123 (2022). https://doi.org/10.1186/s12870-022-03509-9
+ + L. J. Stevens et al., Sci. Transl. Med. 10.1126/scitranslmed.abo0718 (2022). Mutations in the SARS-CoV-2 RNA dependent RNA polymerase confer resistance to remdesivir by distinct mechanisms
 
 END_DOC
 */

@@ -1,15 +1,19 @@
 package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -22,9 +26,13 @@ import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
@@ -34,6 +42,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
+import javax.swing.filechooser.FileFilter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -43,6 +52,7 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -60,6 +70,7 @@ import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
@@ -69,9 +80,46 @@ public class SwingBamView extends Launcher {
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
 
+
+	private static class BamFile {
+		final Path path;
+		String sn;
+		SAMFileHeader header= null;
+		SamReader sr = null;
+		BamFile(final Path path) {
+			this.path = path;
+			this.sn = IOUtils.getFilenameWithoutCommonSuffixes(path);
+			}
+		
+		String getName() {
+			return this.sn;
+		}
+		
+		void open(final Path referenceFile) {
+			if(sr!=null) return;
+			final SamReaderFactory srf = SamReaderFactory.makeDefault();
+			srf.referenceSequence(referenceFile);
+			sr = srf.open(this.path);
+			header = sr.getFileHeader();
+			}
+		
+		void close() {
+			if(sr!=null) try {
+				sr.close();
+				} catch(IOException er) {
+					er.printStackTrace();
+				}
+			sr=null;
+			header=null;
+			}
+		@Override
+		public String toString() {
+			return getName();
+			}
+		}
+
 	
-	
-	private class XFrame extends JFrame {
+	private static class XFrame extends JFrame {
 		private final Path referenceFaidx;
 		private final SAMSequenceDictionary dict;
 		private List<BamFile> all_bam_files = new Vector<>();
@@ -109,63 +157,29 @@ public class SwingBamView extends Launcher {
 			}
 		
 		
-		private class BamFile {
-			final Path path;
-			final String sn;
-			SAMFileHeader header= null;
-			SamReader sr = null;
-			BamFile(final Path path) {
-				this.path = path;
-				open();
-				this.sn = header.getReadGroups().
-					stream().
-					map(RG->RG.getSample()).
-					filter(S->!StringUtil.isBlank(S)).
-					findFirst().
-					orElse(IOUtils.getFilenameWithoutCommonSuffixes(path));
-				close();
-				}
-			
-			List<Read> query() {
-				if(XFrame.this.interval==null) return Collections.emptyList();
-				open();
-				final SamRecordFilter srf = createSamRecordFilter();
-				try(CloseableIterator<SAMRecord> iter = this.sr.query(
-					XFrame.this.interval.getContig(),
-					XFrame.this.interval.getStart(),
-					XFrame.this.interval.getEnd(),
-					false)) {
-					return iter.stream().
-							filter(R->!srf.filterOut(R)).
-							map(R->new Read(R)).
-							sorted((A,B)->Integer.compare(A.getStart(),B.getStart())).
-							collect(Collectors.toList());
-				}
-			}
-			
-			void open() {
-				if(sr!=null) return;
-				final SamReaderFactory srf = SamReaderFactory.makeDefault();
-				srf.referenceSequence(XFrame.this.referenceFaidx);
-				sr = srf.open(this.path);
-				header = sr.getFileHeader();
-				}
-			
-			void close() {
-				if(sr!=null) try {
-					sr.close();
-					} catch(IOException er) {
-						er.printStackTrace();
-					}
-				sr=null;
-				header=null;
-				}
-			}
-
 		
-		XFrame(final Path referenceFaidx,final List<Path> bamList) {
+		XFrame(final Path referenceFaidx,final List<BamFile> bamFiles) {
+			super(SwingBamView.class.getSimpleName());
+			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			
-			
+			final JMenuBar menuBar = new JMenuBar();
+			setJMenuBar(menuBar);
+			JMenu menu=new JMenu("File");
+			menuBar.add(menu);
+			menu.add(new JMenuItem(new AbstractAction("Open...") {
+				@Override
+				public void actionPerformed(ActionEvent arg0) {
+					doMenuOpen(XFrame.this);
+					}
+				}));
+			menu.add(new JSeparator());
+			menu.add(new JMenuItem(new AbstractAction("Quit") {
+				@Override
+				public void actionPerformed(ActionEvent arg0) {
+					XFrame.this.setVisible(false);
+					XFrame.this.dispose();
+					}
+				}));
 			
 			this.referenceFaidx = referenceFaidx;
 			this.referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFaidx);
@@ -209,9 +223,10 @@ public class SwingBamView extends Launcher {
 			
 			/** list of bam files */
 			final DefaultListModel<BamFile> dm = new DefaultListModel<>();
-			for(final Path p:bamList) {
-				dm.addElement(new BamFile(p));
-				}
+			bamFiles.stream().
+				sorted((A,B)->A.getName().compareTo(B.getName())).
+				forEach(B->dm.addElement(B));
+				
 			this.jlistBamFilesJList = new JList<>(dm);
 			this.jlistBamFilesJList.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			this.jlistBamFilesJList.getSelectionModel().addListSelectionListener(AE->{
@@ -235,11 +250,27 @@ public class SwingBamView extends Launcher {
 			this.vScrollBar = new JScrollBar(JScrollBar.VERTICAL);
 			viewPane.add(bamPanel,BorderLayout.EAST);
 			
-			
+			/** ref tab */
 			jTabbedPane.addTab("REF", new JScrollPane( new JTable(new SwingSequenceDictionaryTableModel(dict))));
+			/* open close operations */
+			this.addWindowListener(new WindowAdapter() {
+				public void windowClosed(java.awt.event.WindowEvent e)
+					{
+					runOnClose();
+					}
+				});
 			}
 		
-		
+		private void runOnClose() {
+			final DefaultListModel<BamFile> dm = (DefaultListModel<BamFile>)this.jlistBamFilesJList.getModel();
+			for(int i=0;i< dm.size();i++) dm.getElementAt(i).close();
+			try {
+				this.referenceSequenceFile.close();
+				}
+			catch(final IOException err) {
+				LOG.error(err);
+				}
+ 			}
 		
 		
 		private void paintDrawingArea(Graphics2D g) {
@@ -277,7 +308,7 @@ public class SwingBamView extends Launcher {
 			BamFile f = getSelectedBamFile();
 			if(f==null) return;
 			this.rows.clear();
-			final List<Read> buffer= f.query();
+			final List<Read> buffer= new ArrayList<>(featchReads());
 			while(!buffer.isEmpty()) {
 				final Read read = buffer.remove(0);
 				int y = 0;
@@ -324,7 +355,25 @@ public class SwingBamView extends Launcher {
 				return ret;
 				}
 	
-			
+		/** fetch Read for current bam, and current interval **/
+		private List<Read> featchReads() {
+			final BamFile bf = getSelectedBamFile();
+			if(this.interval==null || bf==null) return Collections.emptyList();
+			bf.open(this.referenceFaidx);
+			final SamRecordFilter srf = createSamRecordFilter();
+			try(CloseableIterator<SAMRecord> iter = bf.sr.query(
+				XFrame.this.interval.getContig(),
+				XFrame.this.interval.getStart(),
+				XFrame.this.interval.getEnd(),
+				false)) {
+				return iter.stream().
+						filter(R->!srf.filterOut(R)).
+						map(R->new Read(R)).
+						sorted((A,B)->Integer.compare(A.getStart(),B.getStart())).
+						collect(Collectors.toList());
+				}
+			}
+		
 		SamRecordFilter createSamRecordFilter() {
 			final List<SamRecordFilter> filters = new ArrayList<>();
 			filters.add(new AlignedFilter(true));
@@ -339,6 +388,62 @@ public class SwingBamView extends Launcher {
 			}
 		}
 	
+	private static void openBamFiles(Path reference,final List<String> args) {
+		final List<Path> paths = IOUtils.unrollPaths(args);
+		final List<BamFile> bamFiles = new ArrayList<>(paths.size());
+		for(final Path p:paths) {
+			final BamFile bf = new BamFile(p);
+			bf.open(reference);
+			bf.sn = bf.header.getReadGroups().
+				stream().
+				map(RG->RG.getSample()).
+				filter(S->!StringUtil.isBlank(S)).
+				findFirst().
+				orElse(IOUtils.getFilenameWithoutCommonSuffixes(p));
+			bf.close();
+			bamFiles.add(bf);
+			}
+		
+		final XFrame frame = new XFrame(reference,bamFiles);
+		final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+		frame.setBounds(50, 50, screen.width-100, screen.height-100);
+/*
+		
+		SwingUtilities.invokeAndWait(()->{
+			frame.setVisible(true);
+			});*/
+		}
+	
+	private static void doMenuOpen(Component parent,final Path reference) {
+		final JFileChooser jfc = new JFileChooser(PreferredDirectory.get(SwingBamView.class));
+		jfc.setMultiSelectionEnabled(true);
+		jfc.setFileFilter(new FileFilter() {
+			@Override
+			public String getDescription() {
+				return "Bam/Cram";
+				}
+			
+			@Override
+			public boolean accept(final File f) {
+				if(f.isFile() && f.canRead()) {
+					String fname= f.getName();
+					if(fname.endsWith(".list")) return true;
+					if(fname.endsWith(FileExtensions.SAM)) return true;
+					if(fname.endsWith(FileExtensions.CRAM)) return true;
+					}
+				return false;
+			}
+		});
+		if(jfc.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION) return;
+		File[] files= jfc.getSelectedFiles();
+		if(files==null || files.length==0);
+		openBamFiles(
+			reference,
+			Arrays.stream(files).
+			map(P->P.toString()).
+			collect(Collectors.toList()));
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
@@ -347,8 +452,22 @@ public class SwingBamView extends Launcher {
 				LOG.error("no BAM/CRAM was provided");
 				return -1;
 				}
+			final List<BamFile> bamFiles = new ArrayList<>(paths.size());
+			for(final Path p:paths) {
+				final BamFile bf = new BamFile(p);
+				bf.open(this.referenceFile);
+				bf.sn = bf.header.getReadGroups().
+					stream().
+					map(RG->RG.getSample()).
+					filter(S->!StringUtil.isBlank(S)).
+					findFirst().
+					orElse(IOUtils.getFilenameWithoutCommonSuffixes(p));
+				bf.close();
+				bamFiles.add(bf);
+				}
+			
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(this.referenceFile,paths);
+			final XFrame frame = new XFrame(this.referenceFile,bamFiles);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 
