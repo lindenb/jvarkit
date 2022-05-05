@@ -7,17 +7,23 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.WindowAdapter;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Vector;
 import java.util.stream.Collectors;
@@ -52,6 +58,7 @@ import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTabl
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
@@ -282,33 +289,143 @@ public class SwingBamView extends Launcher {
 				}
  			}
 		
+		private Shape createShape(double y,int position,int lengthOnReference,int arrow_type) {
+			if(position>this.interval.getEnd()) return null;
+			if(position+lengthOnReference<this.interval.getStart()) return null;
+			double x0 = pos2pixel(position);
+			double x1 = pos2pixel(position+lengthOnReference);
+			double featH = getFeatureHeight();
+			double y0 = y + featH*0.05;
+			double y1 = y + featH*0.95;
+			double midy= y + featH*0.5;
+			double da = getBasePixel()/2.0;
+			switch(arrow_type) {
+			case -1: {
+				final GeneralPath g = new GeneralPath();
+				g.moveTo(x0, midy);
+				g.lineTo(x0+da, y0);
+				g.lineTo(x1, y0);
+				g.lineTo(x1, y1);
+				g.lineTo(x0+da, y1);
+				g.closePath();
+				return g;
+				}	
+			case 1: {
+				final GeneralPath g = new GeneralPath();
+				g.moveTo(x1, midy);
+				g.lineTo(x1-da, y0);
+				g.lineTo(x0, y0);
+				g.lineTo(x0, y1);
+				g.lineTo(x1-da, y1);
+				g.closePath();
+				return g;
+				}
+			default:
+				return new Rectangle2D.Double(x0, y0, (x1-x0), (y1-y0));
+				}
+			}
 		
-		private void paintDrawingArea(Graphics2D g) {
-			g.setColor(Color.BLACK);
+		private void paintDrawingArea(final Graphics2D g) {
+			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, drawingArea.getWidth(), drawingArea.getHeight());
 			final double dy = getFeatureHeight();
 			double y=0;
-			
+			final Hershey hershey=new Hershey();
 			y= dy;
 			for(int rowidx= this.vScrollBar.getValue();rowidx< this.rows.size();rowidx++) {
 				final List<Read> row = this.rows.get(rowidx);
 				for(final Read read:row) {
-					
-					
+					final Map<Integer,Integer> pos2insert_size = new HashMap<>();
+					final byte[] readBases = read.rec.getReadBases();
 					final Cigar cigar =read.rec.getCigar();
+					// horizontal line for deletions
+					if(cigar.getCigarElements().stream().anyMatch(OP->OP.equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
+						double x0 = pos2pixel(read.rec.getStart());
+						double x1 = pos2pixel(read.rec.getEnd());
+						g.setColor(Color.DARK_GRAY);
+						g.draw(new Line2D.Double(x0, y+dy/2.0, x1, y+dy/2.0));
+						}
+					
+					
 					int refpos = read.rec.getUnclippedStart();
-					int readpos;
+					int readpos=0;
+					int next_refpos=refpos;
+					int next_readpos=readpos;
 					for(int cx=0;cx<cigar.numCigarElements();++cx) {
+						// should we display an arrow at start/end ?
+						int arrow_type=0;
+						if(cx==0 && read.rec.getReadNegativeStrandFlag()) arrow_type=-1;
+						else if(cx+1==cigar.numCigarElements() && !read.rec.getReadNegativeStrandFlag()) arrow_type=1;
+						
 						final CigarElement ce = cigar.getCigarElement(cx);
 						final CigarOperator op = ce.getOperator();
 						final int len = ce.getLength();
+						Shape shape=null;
+						Color paper = Color.WHITE;
+						Color pen = Color.DARK_GRAY;
 						switch(op) {
 							case P:break;
-							case S: {
-								
+							case I: {
+								pos2insert_size.put(refpos, len);
+								next_readpos+=len;
 								break;
 								}
+							case D: case N: {
+								double x0 = pos2pixel(Math.max(interval.getStart(), refpos));								
+								double x1 = pos2pixel(Math.min(interval.getEnd(), refpos+len));
+								String title = String.valueOf(len); 
+								next_refpos+=len;
+								break;
+								}
+							case S: case H:{
+								paper = Color.YELLOW;
+								if(isUsingClip()) {
+									shape = createShape(y,refpos,len,arrow_type);
+									}
+								if(op!=CigarOperator.H) next_readpos+= len;
+								next_refpos+= len;
+								break;
+								}
+							case M:case X: case EQ: {
+								shape = createShape(y,refpos,len,arrow_type);
+								next_readpos+= len;
+								next_refpos+= len;
+								break;
+								}
+							default: throw new IllegalStateException();
 							}
+						if(shape!=null) {
+							if(paper!=null) {
+								g.setColor(paper);
+								g.fill(shape);
+								}
+							if(pen!=null) {
+								g.setColor(pen);
+								g.draw(shape);
+								}
+							if(op.consumesReadBases() && readBases!=SAMRecord.NULL_SEQUENCE) {
+								for(int x=0;x< len;++x) {
+									if(refpos+x < interval.getStart()) continue;
+									if(refpos+x > interval.getEnd()) break;
+									char readBase = (char)readBases[refpos+x];
+									char refBase = referenceSequence.charAt(refpos+x-interval.getStart());
+									hershey.paint(g,String.valueOf(readBase),
+										pos2pixel(refpos+1),
+										y,
+										getBasePixel(),
+										dy
+										);
+									}
+								}
+							}
+						/* plot insertions */
+						for(Integer pos:pos2insert_size.keySet()) {
+							double x0 = pos2pixel(pos);
+							g.setColor(Color.RED);
+							
+							}
+						readpos= next_readpos;
+						refpos= next_refpos;
 						}
 					}
 				rowidx++;
