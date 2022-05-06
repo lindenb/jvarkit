@@ -1312,10 +1312,14 @@ all2.add( task("impactofduplicates", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.impactdup.ImpactOfDuplicates"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("indexcovjfx", type: CompileJVarkit) {
+all2.add( task("indexcovjfx", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovJfx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	requireJfx = true
+	});
+all2.add( task("bam4indexcov", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.BamForIndexCov"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("knowndel", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.KnownDeletion"
