@@ -81,7 +81,7 @@ END_DOC
 		description="prepare BAM/CRAM from indexcov.",
 		keywords={"cnv","duplication","deletion","sv"},
 		creationDate="2020506",
-		modificationDate="2020506"
+		modificationDate="2020507"
 		)
 public class BamForIndexCov extends Launcher {
 	private static final Logger LOG = Logger.build(BamForIndexCov.class).make();
@@ -171,10 +171,7 @@ public class BamForIndexCov extends Launcher {
 		{
 		try {
 			final List<String> bams = IOUtils.unrollStrings2018(args);
-			if(bams.isEmpty()) {
-				LOG.error("input is missing");
-				return -1;
-				}
+			
 			IOUtil.assertFileIsReadable(this.faidx);
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.faidx);
 			final Set<Integer> tid_to_skips =  dict.getSequences().stream().
@@ -191,23 +188,28 @@ public class BamForIndexCov extends Launcher {
 					;
 			
 			try(PrintWriter manifestW = (this.manifest==null?new PrintWriter(new NullOuputStream()):IOUtils.openPathForPrintWriter(this.manifest))) {
-				for(final String bamPathStr:bams) {
+				int bam_idx=0;
+				for(;;) {
+					boolean is_stdin = bams.isEmpty();
+					final String bamFilename = (is_stdin?"<STDIN>":bams.get(bam_idx));
+					bam_idx++;
+				
 					final StopWatch stopWatch = new  StopWatch();
 					stopWatch.start();
-					LOG.error("Processing:" + bamPathStr);
-					try(SamReader sr = srf.open(SamInputResource.of(bamPathStr))) {
+					LOG.info("Processing:" + bamFilename);
+					try(SamReader sr = srf.open(is_stdin?SamInputResource.of(stdin()):SamInputResource.of(bamFilename))) {
 						final SAMFileHeader header = sr.getFileHeader();
 						if(!header.getSortOrder().equals(SAMFileHeader.SortOrder.coordinate)) {
-							LOG.error("Error, file "+bamPathStr+" is not sorted on coordinate.");
+							LOG.error("Error, file "+bamFilename+" is not sorted on coordinate.");
 							return -1;
-							}	
+							}
 						final String sn = header.
 							getReadGroups().
 							stream().
 							map(RG->RG.getSample()).
 							filter(S->!StringUtils.isBlank(S)).
 							findFirst().
-							orElseThrow(()->new SAMException("Cannot find sample name in "+bamPathStr));
+							orElseThrow(()->new SAMException("Cannot find sample name in "+bamFilename));
 						
 						final Path outBamPath = this.outputDir.resolve(this.prefix+sn+FileExtensions.BAM);
 						final Path outBaiPath = this.outputDir.resolve(this.prefix+sn+FileExtensions.BAM+FileExtensions.BAI_INDEX);
@@ -239,11 +241,12 @@ public class BamForIndexCov extends Launcher {
 						manifestW.println(
 							outBamPath.toRealPath().toString() + 
 							"\t" +
-							bamPathStr
+							bamFilename
 							);
 						}
 					stopWatch.stop();
-					LOG.error("That took:" + StringUtils.niceDuration(stopWatch.getElapsedTime()) );
+					LOG.info("That took:" + StringUtils.niceDuration(stopWatch.getElapsedTime()) );
+					if(bam_idx>=bams.size()) break;
 					}
 				}
 			return 0;
