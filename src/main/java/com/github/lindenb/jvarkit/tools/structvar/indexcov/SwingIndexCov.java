@@ -41,6 +41,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -48,10 +49,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Vector;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
 import javax.swing.AbstractAction;
@@ -133,6 +136,153 @@ public class SwingIndexCov extends Launcher {
 		private final ReferenceSequenceFile referenceSequenceFile;
 		private TabixFileReader taxbixFileReader = null;
 		
+		private class Sample {
+			final String name;
+			final int column;
+			Color color;
+			Sample(final String name,int column) {
+				this.name= name;
+				this.column = column;
+				this.color= Color.LIGHT_GRAY;
+			}
+		}
+		
+		private class Plotter implements Runnable {
+			int width;
+			int height;
+			String uri;
+			Locatable interval;
+			List<Sample> samples;
+			SAMSequenceDictionary dict;
+			transient boolean abort_flag=false;
+			final double min_cov = -2;
+			final double max_cov = 3;
+			
+			private BufferedImage createImage() {
+				BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+				return img;
+			}
+			
+			private Locatable parseLoc(final String[] tokens) {
+				return new SimpleInterval(tokens[0], Integer.parseInt(tokens[1]),  Integer.parseInt(tokens[2]));
+				}
+			
+			private float[] parseCov(final String[] tokens) {
+				final float[] values = new float[samples.size()];
+				for(int i=0;i< samples.size();i++) {
+					values[i] = Float.parseFloat(tokens[samples.get(i).column]);
+					}
+				return values;
+				}
+			
+			private void updateDrawingArea(BufferedImage img) {
+				SwingUtilities.invokeLater(()->{
+					drawingArea.repaint();
+				});
+			}
+			
+			private void plotWholeGenome() {
+				final long lengthOnReference = dict.getReferenceLength(); 
+				final Map<String, Long> contig2start = new HashMap<>();
+				long n = 0L;
+				for(SAMSequenceRecord ssr:dict.getSequences()) {
+					contig2start.put(ssr.getSequenceName(), n);
+					n+= ssr.getLengthOnReference();
+					}
+				
+				double prev_x=0;
+				double[] prev_y=null;
+				BufferedImage img = createImage();
+				Graphics2D g = img.createGraphics();
+				long now = System.currentTimeMillis();
+				try(TabixFileReader tfr = new TabixFileReader(this.uri)) {
+					while(!abort_flag) {
+						final String line =tfr.readLine();
+						if(line==null) break;
+						if(line.startsWith("#")) continue;
+						final String[] tokens = CharSplitter.TAB.split(line);
+						float[] values = parseCov(tokens);
+						final Locatable loc = parseLoc(tokens);
+						
+						double x0 = ((contig2start.get(loc.getContig()) + loc.getStart() ) / (double)lengthOnReference) * width;
+						double x1 = ((contig2start.get(loc.getContig()) + loc.getEnd() ) / (double)lengthOnReference) * width;
+						double[] array_y = new double[samples.size()];;
+
+						for(int i=0;i< samples.size();i++) {
+							final double y = ((values[i] - min_cov)/(double)(max_cov-min_cov)) * height;
+							g.setColor(samples.get(i).color);
+							if(prev_y!=null) {
+								g.draw(new Line2D.Double(prev_x, prev_y[i], prev_x, y));
+								}
+							g.draw(new Line2D.Double(x0, y, x1, y));
+							array_y[i] = y;
+							}
+						if(System.currentTimeMillis()-now>1000L) {
+							updateDrawingArea(img);
+							now = System.currentTimeMillis();
+							}
+						prev_x= x1;
+						prev_y = array_y;
+						}
+					}
+				catch(IOException err) {
+					err.printStackTrace();
+					}
+				g.dispose();
+				updateDrawingArea(img);
+				}
+			
+			private void plotSegment() {
+				final long lengthOnReference = interval.getLengthOnReference();
+				double prev_x=0;
+				double[] prev_y=null;
+				BufferedImage img = createImage();
+				Graphics2D g = img.createGraphics();
+				long now = System.currentTimeMillis();
+				try(TabixFileReader tfr = new TabixFileReader(this.uri)) {
+					Iterator<String> iter = tfr.iterator(this.interval.getContig(), this.interval.getStart(), this.interval.getEnd());
+					while(!abort_flag && iter.hasNext()) {
+						final String line = iter.next();
+						if(line==null) break;
+						if(line.startsWith("#")) continue;
+						final String[] tokens = CharSplitter.TAB.split(line);
+						float[] values = parseCov(tokens);
+						final Locatable loc = parseLoc(tokens);
+						
+						double x0 = ((loc.getStart() - this.interval.getStart()) / (double)lengthOnReference) * width;
+						double x1 = ((loc.getEnd() - this.interval.getStart()) / (double)lengthOnReference) * width;
+						double[] array_y = new double[samples.size()];;
+
+						for(int i=0;i< samples.size();i++) {
+							final double y = ((values[i] - min_cov)/(double)(max_cov-min_cov)) * height;
+							g.setColor(samples.get(i).color);
+							if(prev_y!=null) {
+								g.draw(new Line2D.Double(prev_x, prev_y[i], prev_x, y));
+								}
+							g.draw(new Line2D.Double(x0, y, x1, y));
+							array_y[i] = y;
+							}
+						if(System.currentTimeMillis()-now>1000L) {
+							updateDrawingArea(img);
+							now = System.currentTimeMillis();
+							}
+						prev_x= x1;
+						prev_y = array_y;
+						}
+					}
+				catch(IOException err) {
+					err.printStackTrace();
+					}
+				updateDrawingArea(img);
+				g.dispose();
+				}
+			
+			@Override
+			public void run() {
+				
+			}
+		}
+		
 		
 		
 		XFrame(final Path referenceFaidx,final String tabixFileUri) throws IOException {
@@ -213,7 +363,7 @@ public class SwingIndexCov extends Launcher {
 				@Override
 				public void actionPerformed(ActionEvent e)
 					{
-					reloadReads();
+					
 					}
 				};
 			navPane.add(new JButton(actionGo));
@@ -274,41 +424,6 @@ public class SwingIndexCov extends Launcher {
 				}
  			}
 		
-		private Shape createShape(double y,int position,int lengthOnReference,int arrow_type) {
-			if(position>this.interval.getEnd()) return null;
-			if(position+lengthOnReference<this.interval.getStart()) return null;
-			double x0 = pos2pixel(position);
-			double x1 = pos2pixel(position+lengthOnReference);
-			double featH = getFeatureHeight();
-			double y0 = y + featH*0.05;
-			double y1 = y + featH*0.95;
-			double midy= y + featH*0.5;
-			double da = getBasePixel()/2.0;
-			switch(arrow_type) {
-			case -1: {
-				final GeneralPath g = new GeneralPath();
-				g.moveTo(x0, midy);
-				g.lineTo(x0+da, y0);
-				g.lineTo(x1, y0);
-				g.lineTo(x1, y1);
-				g.lineTo(x0+da, y1);
-				g.closePath();
-				return g;
-				}	
-			case 1: {
-				final GeneralPath g = new GeneralPath();
-				g.moveTo(x1, midy);
-				g.lineTo(x1-da, y0);
-				g.lineTo(x0, y0);
-				g.lineTo(x0, y1);
-				g.lineTo(x1-da, y1);
-				g.closePath();
-				return g;
-				}
-			default:
-				return new Rectangle2D.Double(x0, y0, (x1-x0), (y1-y0));
-				}
-			}
 		
 		private void paintDrawingArea(final Graphics2D g) {
 			g.setColor(Color.WHITE);
@@ -317,22 +432,7 @@ public class SwingIndexCov extends Launcher {
 			}
 
 				
-		private void reloadLocation() {
-			final ReferenceSequence refseq = this.referenceSequenceFile.getSubsequenceAt(
-					this.interval.getContig(),
-					this.interval.getStart(),
-					this.interval.getEnd()
-					);
-			
-			}
 		
-		
-		final double pos2pixel(int coord) {
-			return (coord - this.interval.getStart())/((double)this.interval.getLengthOnReference())*this.drawingArea.getWidth();
-			}
-		final double getBasePixel() {
-			return (1.0/this.interval.getLengthOnReference())*this.drawingArea.getWidth();
-			}
 			
 		final Optional<SimpleInterval> getUserInterval() {
 				final String s = this.jtextFieldLocation.getText().trim();
