@@ -51,10 +51,9 @@ public class TabixFileReader implements Closeable
     private final String uri;
     
     /** return true if 'f' is a file, path ends with '.gz' and there is an associated .tbi file */
-    public static final boolean isValidTabixFile(final File f)
-		 	{
-			return VCFUtils.isTabixVcfFile(f);
-			}
+    public static final boolean isValidTabixFile(final File f) {
+	return VCFUtils.isValidTabixFile(f);
+	}
     
     public TabixFileReader(final String uri) throws IOException
     	{

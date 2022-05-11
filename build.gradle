@@ -2618,6 +2618,11 @@ all2.add(task("swingbamcov", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
+all2.add(task("swingindexcov", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
 all2.add(task("swingvcfjexl", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfJexlFilter"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
