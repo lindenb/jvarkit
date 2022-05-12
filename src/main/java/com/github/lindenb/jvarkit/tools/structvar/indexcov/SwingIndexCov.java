@@ -1233,6 +1233,7 @@ public class SwingIndexCov extends Launcher {
 					
 					@Override
 					public boolean accept(final File f) {
+						if(f.isDirectory()) return true;
 						if(f.isFile() && f.canRead()) {
 							final String fname= f.getName();
 							if(!fname.endsWith(".bed.gz")) return false;
