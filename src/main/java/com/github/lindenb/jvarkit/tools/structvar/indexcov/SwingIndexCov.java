@@ -34,29 +34,30 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.LinearGradientPaint;
+import java.awt.Paint;
+import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
-import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.geom.Line2D.Double;
 import java.awt.image.BufferedImage;
-import java.awt.LinearGradientPaint;
-import java.awt.Paint;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.RenderingHints;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -64,11 +65,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Stack;
 import java.util.Vector;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
@@ -98,17 +96,17 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
@@ -116,8 +114,7 @@ import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.AbstractIterator;
-import htsjdk.samtools.util.IterableAdapter;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -127,15 +124,195 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.TabixIteratorLineReader;
 import htsjdk.tribble.readers.TabixReader;
+/**
+BEGIN_DOC
+## Examples:
 
+```
+java -jar dist/swingindexcov.jar indexcov.bed.gz
+```
+or 
+```
+java -jar dist/swingindexcov.jar -R reference.fa indexcov.bed.gz --gff indexed.gff3.gz --helper "/TMP/myhelper.jar MyHelper"
+```
+
+
+### Helper Source code
+
+file `MyHelper.java`
+
+```java
+import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
+import java.util.*;
+import java.awt.Color;
+
+public class MyHelper extends SwingIndexCov.DefaultHelper {
+	private final Set<String> cases = new HashSet<>(Arrays.asList("sample1,sample2,sample3,sample4".split("[,]")));
+	private final Set<Integer> cases_indexes = new HashSet<>();
+	@Override
+	public void initialize(final String[] header) {
+		super.initialize(header);
+		for(int i=3;i< header.length;i++) {
+			if(cases.contains(getNormName(header[i]))) cases_indexes.add(i);
+			}
+		}
+	private String getNormName(String sn) {
+		final String[] tokens = sn.split("[_]");
+		for(int i=0;i< tokens.length;i++) {
+			if(tokens[i].length()==7) {
+				return tokens[i];
+				}
+			}
+		return sn;
+		}
+	@Override
+	public String getDisplayName(final String sn) {
+		String s = getNormName(sn);
+		if(cases.contains(s)) return "*"+s;
+		return s;
+		}
+	@Override
+	public Optional<Color> getColor(int[] indexes,float[] values) {
+		int n_cases = 0;
+		int n_other = 0;
+		float treshold =  0.45f;
+		for(int i=0;i< indexes.length;i++) {
+			final int idx = indexes[i];
+			float v  = values[i];
+			boolean is_cnv = v> (1.0f + treshold) || v< (1.0f - treshold);
+			if(!is_cnv) continue;
+			boolean is_case = cases_indexes.contains(idx);
+			if(is_case) {n_cases++;}
+			else {n_other++;}
+			}
+
+		if(n_cases>0 && n_other==0) return Optional.of(Color.RED);
+		return Optional.empty();
+		}
+	}
+```
+
+### Compiling the helper
+
+```make
+CP=/home/lindenb/src/jvarkit-git/dist/swingindexcov.jar
+
+myhelper.jar: MyHelper.java $(CP)
+	rm -rf tmp
+	mkdir -p tmp
+	javac -d tmp -cp "$(CP):." $<
+	jar cvf $@ -C tmp .
+	rm -rf tmp
+```
+
+END_DOC
+*/
+
+@Program(
+		name="swingindexcov",
+		description="indexcov visualization",
+		keywords={"cnv","duplication","deletion","sv"},
+		creationDate="2020511",
+		modificationDate="2020512"
+		)
 public class SwingIndexCov extends Launcher {
 	private static final Logger LOG = Logger.build(SwingIndexCov.class).make();
 	@Parameter(names={"-R","--reference"},description=DICTIONARY_SOURCE)
 	private Path dictSource = null;
-	@Parameter(names={"-t","--treshold"},description=IndexCovUtils.TRESHOLD_OPT_DESC+". " + FractionConverter.OPT_DESC,converter=FractionConverter.class)
-	private double treshold = IndexCovUtils.DEFAULT_TRESHOLD;
-	@Parameter(names={"--gtf","--gff"},description="GFF3 file indexed with tabix to plot the genes.")
+	@Parameter(names={"--gtf","--gff","--gff3"},description="GFF3 file indexed with tabix to plot the genes.")
 	private String gff3Path = null;
+	@Parameter(names={"--helper"},description="For expert users only. java archive implenting Helper. Syntax \"path/to/helper.jar package.helper.implementation.Name\"")
+	private String helperPath = null;
+
+	
+	public static abstract class Helper {
+		public abstract void initialize(final String[] header);
+		public String getDisplayName(final String sn) {
+			return sn;
+			}
+		public Color getColorForSample(final String srcName) {
+			return Color.BLACK;
+			}
+		public Optional<Color> getColor(int[] indexes,float[] values) {
+			return Optional.empty();
+			}
+		public void dispose() {
+			}
+		}
+	
+	public static class DefaultHelper extends Helper {
+		private final Map<String, Integer> sample2index=new HashMap<>();
+		protected final IndexCovUtils indexCovUtils = new IndexCovUtils(IndexCovUtils.DEFAULT_TRESHOLD);
+		private List<String> samples = Collections.emptyList();
+		@Override
+		public void initialize(final String[] header) {
+			this.samples = Arrays.asList(header);
+			for(int i=3;i<header.length;i++) {
+				this.sample2index.put(header[i], i);
+				}
+			}
+		protected String getSampleByColumn(int index) {
+			if(index<3) throw new IllegalArgumentException();
+			if(index>=samples.size()) throw new IllegalArgumentException();
+			return this.samples.get(index);
+			}
+		
+		protected int getNSamples() {
+			return sample2index.size();
+			}
+		@Override
+		public String getDisplayName(final String sn) {
+			return sn;
+			}
+		@Override
+		public Color getColorForSample(final String srcName) {
+			final Integer  i= sample2index.getOrDefault(srcName,null);
+			if(i==null) throw new IllegalStateException("srcName:"+srcName);
+			if(i<3) throw new IllegalArgumentException();
+			return  Color.getHSBColor((float) (i-3) / (float)getNSamples(), 0.85f, 1.0f);
+			}
+		@Override
+		public Optional<Color> getColor(int[] indexes,float[] values) {
+			if(indexes.length<=1) return Optional.empty();
+			if(indexes.length!=values.length) throw new IllegalArgumentException("indexes.size!=values.size");
+			
+			
+			int nHetDel=0;
+			int nHomDel=0;
+			int nHetDup=0;
+			int nHomDup=0;
+			int nOther=0;
+
+			
+			for(float value: values) {
+				if(indexCovUtils.isHomDel(value)) {
+					nHomDel++;
+					}
+				else if(indexCovUtils.isHetDel(value)) {
+					nHetDel++;
+					}
+				else if(indexCovUtils.isHetDup(value)) {
+					nHetDup++;
+					}
+				else if(indexCovUtils.isHomDup(value)) {
+					nHomDup++;
+					}
+				else {
+					nOther++;
+					}
+				}
+			if(nHetDel==1 && nHomDel==0 && nHetDup==0 && nHomDup==0) {
+				return Optional.of(Color.CYAN);
+				}
+			else if(nHetDel==0 && nHomDel==0 && nHetDup==1 && nHomDup==0) {
+				return Optional.of(Color.ORANGE);
+				}
+			return Optional.empty();
+			}
+		@Override
+		public void dispose() {
+			}
+		}
 	
 	
 	@SuppressWarnings("serial")
@@ -152,65 +329,29 @@ public class SwingIndexCov extends Launcher {
 		private Plotter currentThread = null;
 		private final JTextField jtextFieldLocation;
 		private final JCheckBox jcboxPerSample;
+		private final JCheckBox jcboxShowName;
 		private final JMenu jmenuHyperlinks;
-		private final double treshold;
 		private final String gff3Path;
+		private final Helper helper;
 		
-		
-		public static abstract class Helper {
-			public void initialize(final String[] header) {
-				
-				}
-			public String getDisplayName(final String sn) {
-				return sn;
-				}
-			public Color getColorForSample(final String sn) {
-				return Color.BLACK;
-				}
-			public Optional<Color> getColor(int[] indexes,float[] values) {
-				return Optional.empty();
-				}
-			public void dispose() {
-				}
-			}
-		
-		public static class DefaultHelper extends Helper {
-			private final Map<String, Integer> sample2index=new HashMap<>();
-			public void initialize(final String[] header) {
-				for(int i=3;i<=header.length;i++) {
-					this.sample2index.put(header[i], i);
-					}
-				}
-			protected int getNSamples() {
-				return sample2index.size();
-				}
-			public String getDisplayName(final String sn) {
-				return sn;
-				}
-			public Color getColorForSample(final String sn) {
-				final int  i= sample2index.get(sn);
-				if(i<3) throw new IllegalArgumentException();
-				return  Color.getHSBColor((float) (i-3) / (float)getNSamples(), 0.85f, 1.0f);
-				}
-			public Optional<Color> getColor(int[] indexes,float[] values) {
-				return Optional.empty();
-				}
-			public void dispose() {
-				}
-			}
 		
 		private static class Sample {
-			final String name;
+			final String srcName;
+			final String displayName;
 			final int column;
 			Color color;
-			Sample(final String name,int column) {
-				this.name= name;
+			Sample(final String srcName,final String displayName,int column) {
+				this.srcName= srcName;
+				this.displayName= displayName;
 				this.column = column;
 				this.color= Color.LIGHT_GRAY;
 				}
+			public String getDisplayName() {
+				return this.displayName;
+				}
 			@Override
 			public String toString() {
-				return this.name;
+				return this.getDisplayName();
 				}
 			}
 		
@@ -299,6 +440,13 @@ public class SwingIndexCov extends Launcher {
 				}
 			}
 		
+		private static class BestPoint {
+			Sample sample;
+			double x;
+			double y;
+			float v;
+		}
+		
 		private class Plotter extends Thread {
 			int width;
 			int height;
@@ -310,10 +458,10 @@ public class SwingIndexCov extends Launcher {
 			final double min_cov = 0.0;
 			final double max_cov = 2.5;
 			final int top_margin=30;
-			IndexCovUtils indexCovUtils=null;
 			String gff3Path = null;
 			final Hershey _hershey = new Hershey();
-			
+			Helper helper = null;
+			boolean showNames = false;
 			
 			private void updateDrawingArea(BufferedImage img) {
 				if(this.abort_flag) return;
@@ -375,6 +523,7 @@ public class SwingIndexCov extends Launcher {
 			
 			@Override
 			public void run() {
+				final Map<String,BestPoint> sample2best = new HashMap<>();
 				final BufferedImage img = new BufferedImage(this.width,this.height, BufferedImage.TYPE_INT_RGB);
 				final Graphics2D g = img.createGraphics();
 				g.setColor(Color.WHITE);
@@ -393,7 +542,7 @@ public class SwingIndexCov extends Launcher {
 					updateDrawingArea(img);
 					return;
 					}
-				plotGenes(g,img);
+				
 				final String title = new SimpleInterval(this.interval).toNiceString()+" length: "+ StringUtils.niceInt(this.interval.getLengthOnReference())+" bp";
 				g.setColor(Color.BLACK);
 				drawText(g,0,0, title,14,-1);
@@ -405,9 +554,8 @@ public class SwingIndexCov extends Launcher {
 				if(this.per_sample) {
 					final double fontSize=Math.min(12,sample_height/10.0);
 					for(int i=0;i< this.samples.size() && !abort_flag;i++) {
-						final String sn = samples.get(i).name;
 						g.setColor(samples.get(i).color);
-						drawText(g,1,top_margin + sample_height*i+1.0, sn,fontSize,-1);
+						drawText(g,1,top_margin + sample_height*i+1.0, samples.get(i).getDisplayName(),fontSize,-1);
 						g.setColor(new Color(240,240,240));
 						for(double z=0.0;z<=2.0;z+=0.5) {
 							final double y = top_margin + (sample_height*(i+1)) - ((z-min_cov)/(max_cov-min_cov) * sample_height);
@@ -442,30 +590,17 @@ public class SwingIndexCov extends Launcher {
 
 						//special point ?
 						
-						int nHetDel=0;
-						int nHomDel=0;
-						int nHetDup=0;
-						int nHomDup=0;
-						int nOther=0;
-
+						
+						final float[] all_values = new float[samples.size()];
+						final int[] all_indexes = new int[samples.size()];
+						
 						for(int i=0;i< samples.size() && !abort_flag;i++) {
 							final Sample sn = samples.get(i);
 							final float value = Float.parseFloat(tokens[sn.column]);
-							if(indexCovUtils.isHomDel(value)) {
-								nHomDel++;
-								}
-							else if(indexCovUtils.isHetDel(value)) {
-								nHetDel++;
-								}
-							else if(indexCovUtils.isHetDup(value)) {
-								nHetDup++;
-								}
-							else if(indexCovUtils.isHomDup(value)) {
-								nHomDup++;
-								}
-							else {
-								nOther++;
-								}
+							all_values[i] = value;
+							all_indexes[i] = sn.column;
+							
+							
 							
 							final double frac = (value - min_cov)/(max_cov-min_cov);
 							final double y;
@@ -521,23 +656,31 @@ public class SwingIndexCov extends Launcher {
 									}
 								g.draw(new Line2D.Double(x0, y, x1, y));
 								array_y[i] = y;
+								if(this.showNames && (value < 0.6 || value > 1.4)) {
+									BestPoint best = sample2best.get(sn.srcName);
+									if(best!=null && Math.abs(best.v) >  Math.abs(value)) continue;
+									if(best==null) {
+										best = new BestPoint();
+										best.sample = sn;
+										sample2best.put(sn.srcName,best);
+										}
+									best.x = (x0+x1)/2.0;
+									best.y = y;
+									best.v = value;
+									}
 								}
 							}
-						if(this.samples.size()>1) {
-							Color c=null;
-							if(nHetDel==1 && nHomDel==0 && nHetDup==0 && nHomDup==0) {
-								c=Color.CYAN;
-								}
-							else if(nHetDel==0 && nHomDel==0 && nHetDup==1 && nHomDup==0) {
-								c=Color.ORANGE;
-								}
-							if(c!=null) {
-								final double mid = (x0+x1)/2.0;
-								final double y2 = top_margin/2.0;
-								g.setColor(c);
-								g.fill(new Ellipse2D.Double(mid-2.5,y2-2.5,5,5));
-								}
+						
+						/* interesting points at top */
+						final Optional<Color> interesting = this.helper.getColor(all_indexes, all_values);
+						if(interesting.isPresent()) {
+							final double mid = (x0+x1)/2.0;
+							final double y2 = this.top_margin/2.0;
+							g.setColor(interesting.get());
+							g.fill(new Ellipse2D.Double(mid-2.5,y2-2.5,5,5));
 							}
+						
+						
 						if(System.currentTimeMillis()-now>1000L) {
 							updateDrawingArea(img);
 							now = System.currentTimeMillis();
@@ -545,6 +688,14 @@ public class SwingIndexCov extends Launcher {
 						prev_x= x1;
 						prev_y = array_y;
 						}
+					//plot names
+					for(String sn:sample2best.keySet()) {
+						final BestPoint best = sample2best.get(sn);
+						g.setColor(best.sample.color);
+						drawText(g, best.x, best.y+2, best.sample.getDisplayName(), 13, 0);
+						if(abort_flag) break;
+						}
+					plotGenes(g,img);
 					}
 				catch(final IOException err) {
 					err.printStackTrace();
@@ -555,12 +706,12 @@ public class SwingIndexCov extends Launcher {
 		
 		
 		
-		XFrame(final SAMSequenceDictionary srcDict,final String tabixFileUri,final double treshold,final String gff3path) throws IOException {
+		XFrame(final SAMSequenceDictionary srcDict,final String tabixFileUri,final String gff3path,final Helper helper) throws IOException {
 			super(SwingIndexCov.class.getSimpleName());
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			this.tabixFileUri = tabixFileUri;
-			this.treshold = treshold;
 			this.gff3Path = gff3path;
+			this.helper = helper;
 			final JMenuBar menuBar = new JMenuBar();
 			setJMenuBar(menuBar);
 			JMenu menu=new JMenu("File");
@@ -602,12 +753,13 @@ public class SwingIndexCov extends Launcher {
 					throw new IOException("bad first line "+line );
 					}
 				
+				this.helper.initialize(tokens);
 				
 				final Vector<Sample> vSamples = new Vector<>(tokens.length);
 				for(int i=3;i< tokens.length;i++) {
-					final Sample sn = new Sample(tokens[i], i);
+					final Sample sn = new Sample(tokens[i],helper.getDisplayName(tokens[i]), i);
 					// generate colors : https://stackoverflow.com/questions/223971
-					sn.color = Color.getHSBColor((float) (i-3) / (float)(tokens.length-3), 0.85f, 1.0f);
+					sn.color = helper.getColorForSample(sn.srcName);
 					vSamples.add(sn);
 					}
 				this.jlistSamples = new JList<Sample>(vSamples);
@@ -619,7 +771,7 @@ public class SwingIndexCov extends Launcher {
 						if(value!=null && value instanceof Sample) {
 							final Sample sn =Sample.class.cast(value);
 							if(c instanceof JComponent) {
-								JComponent.class.cast(c).setToolTipText(sn.name);
+								JComponent.class.cast(c).setToolTipText(sn.getDisplayName());
 								}
 							if(!isSelected) {
 								c.setForeground(sn.color);
@@ -690,6 +842,11 @@ public class SwingIndexCov extends Launcher {
 			this.jcboxPerSample = new JCheckBox("Per Sample", false);
 			this.jcboxPerSample.addActionListener((AE)->samplesSelectionchanged());//will call repaint anyway...
 			navPane.add(this.jcboxPerSample);
+			
+			this.jcboxShowName = new JCheckBox("Names", false);
+			this.jcboxShowName.addActionListener((AE)->samplesSelectionchanged());//will call repaint anyway...
+			navPane.add(this.jcboxShowName);
+			
 			navPane.add(new JSeparator());
 			final JComboBox<ZoomAction> zoomComboBox = new JComboBox<>(
 						new ZoomAction[] {
@@ -921,6 +1078,7 @@ public class SwingIndexCov extends Launcher {
 			}
 		
 		private void runOnClose() {
+			this.helper.dispose();
 			stopDrawingThread();
  			}
 		
@@ -945,13 +1103,14 @@ public class SwingIndexCov extends Launcher {
 		private synchronized void startDrawingThread() {
 			stopDrawingThread();
 			final Plotter plotter = new Plotter();
-			plotter.indexCovUtils = new IndexCovUtils(this.treshold);
 			plotter.tabixUri = this.tabixFileUri;
 			plotter.width = this.drawingArea.getWidth();
 			plotter.height = this.drawingArea.getHeight();
 			plotter.per_sample = this.jcboxPerSample.isSelected();
 			plotter.interval = getUserInterval().orElse(null);
 			plotter.gff3Path = this.gff3Path;
+			plotter.helper = this.helper;
+			plotter.showNames = this.jcboxShowName.isSelected();
 			final List<Sample> L2 = jlistSamples.getSelectedValuesList();
 			plotter.samples = new ArrayList<>();
 			if(L2==null || L2.isEmpty()) {
@@ -961,10 +1120,10 @@ public class SwingIndexCov extends Launcher {
 				}
 			else
 				{
-				final Set<String> set = L2.stream().map(S->S.name).collect(Collectors.toSet());
+				final Set<String> set = L2.stream().map(S->S.srcName).collect(Collectors.toSet());
 				for(int i=0;i<jlistSamples.getModel().getSize();i++) {
 					final Sample sn = jlistSamples.getModel().getElementAt(i);
-					if(!set.contains(sn.name)) continue;
+					if(!set.contains(sn.srcName)) continue;
 					plotter.samples.add(sn);
 					}
 				}
@@ -1033,6 +1192,33 @@ public class SwingIndexCov extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		try {
+			final Helper helper;
+			if(StringUtils.isBlank(this.helperPath)) {
+				helper = new DefaultHelper();
+			} else
+				{
+				try {
+					final String[] tokens = this.helperPath.trim().split("\\s+");
+					if(tokens.length<2) {
+						LOG.error("Expected two words (file.jar java.class) in "+this.helperPath+" but got "+tokens.length);
+						return -1;
+						}
+					final Path jarPath = Paths.get(tokens[0]);
+					IOUtil.assertFileIsReadable(jarPath);
+					final URLClassLoader child = new URLClassLoader(
+					        new URL[] {jarPath.toUri().toURL()},
+					        this.getClass().getClassLoader()
+							);
+					LOG.info("loading class \""+tokens[1]+"\" from "+jarPath);
+					final Class<?> classToLoad = Class.forName(tokens[1], true, child);
+					helper = (Helper)classToLoad.newInstance();
+					}
+				catch(final Throwable err) {
+					LOG.error(err);
+					return -1;
+					}
+				}
+			
 			final String input = oneFileOrNull(args);
 			JFrame.setDefaultLookAndFeelDecorated(true);
 			final File inputFile;
@@ -1073,7 +1259,7 @@ public class SwingIndexCov extends Launcher {
 				SequenceDictionaryUtils.extractRequired(this.dictSource)
 				;
 			try {
-				final XFrame frame = new XFrame(dict,input.toString(),this.treshold,this.gff3Path);
+				final XFrame frame = new XFrame(dict,input.toString(),this.gff3Path,helper);
 				SwingUtilities.invokeLater(()->{
 					final Dimension dim= Toolkit.getDefaultToolkit().getScreenSize();
 					frame.setBounds(50, 50, dim.width-100, dim.height-100);
