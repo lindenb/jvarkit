@@ -258,7 +258,9 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		urls.add(new LabelledUrlImpl("Region Gnomad 2.1","https://gnomad.broadinstitute.org/region/"+
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_r2_1"
 			));
-		
+		urls.add(new LabelledUrlImpl("Region Gnomad SV 2.1","https://gnomad.broadinstitute.org/region/"+
+				StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_sv_r2_1"
+				));
 		urls.add(new LabelledUrlImpl("clinvar 37","https://www.ncbi.nlm.nih.gov/clinvar/?term="+
 				ensemblCtg +
 				"%5Bchr%5D+AND+"+ loc.getStart()+"%3A"+ loc.getEnd()+"%5Bchrpos37%5D"

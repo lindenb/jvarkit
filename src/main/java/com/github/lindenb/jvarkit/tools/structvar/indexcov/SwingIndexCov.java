@@ -51,11 +51,13 @@ import java.awt.LinearGradientPaint;
 import java.awt.Paint;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -153,6 +155,50 @@ public class SwingIndexCov extends Launcher {
 		private final JMenu jmenuHyperlinks;
 		private final double treshold;
 		private final String gff3Path;
+		
+		
+		public static abstract class Helper {
+			public void initialize(final String[] header) {
+				
+				}
+			public String getDisplayName(final String sn) {
+				return sn;
+				}
+			public Color getColorForSample(final String sn) {
+				return Color.BLACK;
+				}
+			public Optional<Color> getColor(int[] indexes,float[] values) {
+				return Optional.empty();
+				}
+			public void dispose() {
+				}
+			}
+		
+		public static class DefaultHelper extends Helper {
+			private final Map<String, Integer> sample2index=new HashMap<>();
+			public void initialize(final String[] header) {
+				for(int i=3;i<=header.length;i++) {
+					this.sample2index.put(header[i], i);
+					}
+				}
+			protected int getNSamples() {
+				return sample2index.size();
+				}
+			public String getDisplayName(final String sn) {
+				return sn;
+				}
+			public Color getColorForSample(final String sn) {
+				final int  i= sample2index.get(sn);
+				if(i<3) throw new IllegalArgumentException();
+				return  Color.getHSBColor((float) (i-3) / (float)getNSamples(), 0.85f, 1.0f);
+				}
+			public Optional<Color> getColor(int[] indexes,float[] values) {
+				return Optional.empty();
+				}
+			public void dispose() {
+				}
+			}
+		
 		private static class Sample {
 			final String name;
 			final int column;
@@ -193,7 +239,7 @@ public class SwingIndexCov extends Launcher {
 				jtextFieldLocation.setText(r.getContig()+":"+r.getStart()+"-"+r.getEnd());
 				XFrame.this.offscreen=null;
 				pushHistory();
-				intervalChanged();
+				updateHyperlinks();
 				drawingArea.repaint();
 				}
 			abstract Locatable change(SAMSequenceRecord ssr,Locatable loc);
@@ -262,15 +308,11 @@ public class SwingIndexCov extends Launcher {
 			boolean per_sample=false;
 			transient boolean abort_flag=false;
 			final double min_cov = 0.0;
-			final double max_cov = 3.0;
+			final double max_cov = 2.5;
 			final int top_margin=30;
 			IndexCovUtils indexCovUtils=null;
 			String gff3Path = null;
-			
-			private BufferedImage createImage() {
-				BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-				return img;
-			}
+			final Hershey _hershey = new Hershey();
 			
 			
 			private void updateDrawingArea(BufferedImage img) {
@@ -286,9 +328,8 @@ public class SwingIndexCov extends Launcher {
 				return ((pos-(double)this.interval.getStart())/this.interval.getLengthOnReference())*this.width;
 				}
 			
-			private void plotGenes(Graphics2D g,BufferedImage img) {
-					if(this.gff3Path==null) return;
-					if(this.interval==null || this.interval.getLengthOnReference()> 10_000_000) return;
+			private void plotGenes(final Graphics2D g,final BufferedImage img) {
+					if(this.gff3Path==null || this.interval==null) return;
 					final double midy= 20;
 					long now = System.currentTimeMillis();
 					g.setColor(Color.MAGENTA);
@@ -325,31 +366,37 @@ public class SwingIndexCov extends Launcher {
 						}
 					}
 			
+			private void drawText(Graphics2D g,double x,double y,String title,double fontHeight,int side) {
+				double textWidth = title.length()*fontHeight;
+				double dx =0;
+				if(side==0) dx = -textWidth/2.0;
+				this._hershey.paint(g, title, x +dx ,y,textWidth,fontHeight);
+				}
 			
 			@Override
 			public void run() {
-				final BufferedImage img = createImage();
+				final BufferedImage img = new BufferedImage(this.width,this.height, BufferedImage.TYPE_INT_RGB);
 				final Graphics2D g = img.createGraphics();
 				g.setColor(Color.WHITE);
+				g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g.fillRect(0, 0, this.width, this.height);
 				final double sample_height =
 						this.per_sample?
 						(this.height-top_margin)/(double)samples.size():
 						(this.height-top_margin);
-				final Hershey hershey = new Hershey();
 				if(this.samples.isEmpty() || this.interval==null || this.width<=0 || sample_height<=1) {
 					if(sample_height<=1) {
 						g.setColor(Color.BLACK);
-						final String title="Too many samples N="+this.samples.size()+" height:"+sample_height;
-						hershey.paint(g,title,0,10,title.length()*12,12);
+						drawText(g,0,10,"Too many samples N="+this.samples.size()+" height:"+sample_height,12,-1);
 						}
 					updateDrawingArea(img);
 					return;
 					}
 				plotGenes(g,img);
 				final String title = new SimpleInterval(this.interval).toNiceString()+" length: "+ StringUtils.niceInt(this.interval.getLengthOnReference())+" bp";
-				g.setColor(Color.DARK_GRAY);
-				hershey.paint(g, title, 0,0,title.length()*10,10);
+				g.setColor(Color.BLACK);
+				drawText(g,0,0, title,14,-1);
 				double prev_x=0;
 				double[] prev_y=null;
 				long now = System.currentTimeMillis();
@@ -360,11 +407,11 @@ public class SwingIndexCov extends Launcher {
 					for(int i=0;i< this.samples.size() && !abort_flag;i++) {
 						final String sn = samples.get(i).name;
 						g.setColor(samples.get(i).color);
-						hershey.paint(g,sn,0,top_margin + sample_height*i+1.0, sn.length()*fontSize,fontSize);
-						g.setColor(Color.GRAY);
+						drawText(g,1,top_margin + sample_height*i+1.0, sn,fontSize,-1);
+						g.setColor(new Color(240,240,240));
 						for(double z=0.0;z<=2.0;z+=0.5) {
-							final double y = top_margin + (sample_height*(i+1)) - z * sample_height;
-							
+							final double y = top_margin + (sample_height*(i+1)) - ((z-min_cov)/(max_cov-min_cov) * sample_height);
+							drawText(g,1,y,String.valueOf(z),9,-1);
 							g.draw(new Line2D.Double(0,y,this.width, y));
 							}
 						}
@@ -375,7 +422,7 @@ public class SwingIndexCov extends Launcher {
 					for(double z=0.0;z<=2.0;z+=0.5) {
 						final String sn = String.valueOf(z);
 						final double y = this.height - ((z - min_cov)/(max_cov-min_cov)) * sample_height;
-						hershey.paint(g,sn,0,y, sn.length()*10,10);
+						drawText(g,0,y,sn,10,-1);
 						g.draw(new Line2D.Double(0,y,this.width, y));
 						}
 					}
@@ -420,27 +467,44 @@ public class SwingIndexCov extends Launcher {
 								nOther++;
 								}
 							
-							final double frac = ((Math.min(value,max_cov) - min_cov)/(max_cov-min_cov));
+							final double frac = (value - min_cov)/(max_cov-min_cov);
 							final double y;
 							
 							if(this.per_sample) {
 								final double bottom_y = top_margin + (sample_height*(i+1)); 
-								y= bottom_y - frac*sample_height;
+								final double mid_y = bottom_y - (1.0/(max_cov-min_cov))*sample_height;
 								
-								final Point2D p_start = new Point2D.Double(0, top_margin + (sample_height*(i+1)));
-     								final Point2D p_end = new Point2D.Double(0, top_margin + (sample_height*(i)));
+								y= bottom_y - frac*sample_height;
+								final Rectangle2D rec;
+								final Paint oldPaint = g.getPaint();
+								final LinearGradientPaint grad;
+								if(value>=1.0)
+									{
+									final Color[] p_colors = {Color.LIGHT_GRAY,Color.CYAN,Color.BLUE};
 							     	final float[] p_dist = {
-							     		(float)((0.0-min_cov)/(max_cov-min_cov)),
-							     		(float)((0.5-min_cov)/(max_cov-min_cov)),
-							     		(float)((1.0-min_cov)/(max_cov-min_cov)),
-							     		(float)((1.5-min_cov)/(max_cov-min_cov)),
-							     		(float)((2.0-min_cov)/(max_cov-min_cov))
-							     		};
-							     	final Color[] p_colors = {Color.BLUE, Color.CYAN,Color.LIGHT_GRAY,Color.ORANGE, Color.RED};
-							     	final LinearGradientPaint grad = new LinearGradientPaint(p_start,p_end, p_dist, p_colors);
-							     	final Paint oldPaint = g.getPaint();
+								     		(float)((1.0-1.0)/(max_cov-1.0)),
+								     		(float)((1.5-1.0)/(max_cov-1.0)),
+								     		(float)((2.0-1.0)/(max_cov-1.0))
+								     		};
+									final double top_y = top_margin + (sample_height*(i)); 
+									final Point2D p_start = new Point2D.Double(0,mid_y);
+	 								final Point2D p_end = new Point2D.Double(0,top_y);
+	 								grad = new LinearGradientPaint(p_start,p_end, p_dist, p_colors);
+	 								rec = new Rectangle2D.Double(x0,y,(x1-x0),mid_y-y);
+	 								
+									}
+								else
+									{
+									final Color[] p_colors = {Color.LIGHT_GRAY,Color.ORANGE, Color.RED};
+									final float[] p_dist = { 0.0f,0.5f,1f};
+								    
+									final Point2D p_start = new Point2D.Double(0,mid_y);
+	 								final Point2D p_end = new Point2D.Double(0,bottom_y);
+							     	
+						     		grad = new LinearGradientPaint(p_start,p_end, p_dist, p_colors);
+									rec = new Rectangle2D.Double(x0,mid_y, (x1-x0),y-mid_y);
+									}
 								g.setPaint(grad);
-								final Rectangle2D rec = new Rectangle2D.Double(x0,y, (x1-x0),bottom_y-y);
 								g.fill(rec);
 								g.setPaint(oldPaint);
 								if(x1-x0>3) {
@@ -566,7 +630,8 @@ public class SwingIndexCov extends Launcher {
 				});
 				
 				// get chromosomes in the tabix
-				final Vector<String> vecChroms = new Vector<>( tbr.getChromosomes());
+				final Set<String> setChroms =  tbr.getChromosomes();
+				final Vector<String> vecChroms = new Vector<>(setChroms);
 				//remove if not in dict
 				vecChroms.removeIf(S->this.srcDict.getSequence(S)==null);
 				if(vecChroms.isEmpty()) {
@@ -609,7 +674,7 @@ public class SwingIndexCov extends Launcher {
 				public void actionPerformed(ActionEvent e)
 					{
 					pushHistory();
-					intervalChanged();
+					updateHyperlinks();
 					offscreen=null;
 					drawingArea.repaint();
 					}
@@ -669,7 +734,7 @@ public class SwingIndexCov extends Launcher {
 						index_in_history--;
 						final Locatable loc = history.get(index_in_history);
 						jtextFieldLocation.setText(loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
-						intervalChanged();
+						updateHyperlinks();
 						offscreen=null;
 						drawingArea.repaint();
 						}
@@ -682,7 +747,7 @@ public class SwingIndexCov extends Launcher {
 						index_in_history++;
 						final Locatable loc = history.get(index_in_history);
 						jtextFieldLocation.setText(loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
-						intervalChanged();
+						updateHyperlinks();
 						offscreen=null;
 						drawingArea.repaint();
 						}
@@ -772,7 +837,7 @@ public class SwingIndexCov extends Launcher {
 					if(pos1>=pos2) pos2=pos1+1;
 					jtextFieldLocation.setText(loc.getContig()+":"+pos1+"-"+pos2);
 					pushHistory();
-					intervalChanged();
+					updateHyperlinks();
 					XFrame.this.offscreen=null;
 					mouseStart=null;
 					mousePrev=null;
@@ -807,7 +872,7 @@ public class SwingIndexCov extends Launcher {
 				}
 			}
 		
-		private void intervalChanged() {
+		private void updateHyperlinks() {
 			this.jmenuHyperlinks.removeAll();
 			final Optional<SimpleInterval> optR = getUserInterval();
 			if(optR.isPresent()) {
@@ -851,7 +916,7 @@ public class SwingIndexCov extends Launcher {
 				}
 			this.jtextFieldLocation.setText(loc);
 			pushHistory();
-			intervalChanged();
+			updateHyperlinks();
 			this.drawingArea.repaint();
 			}
 		
