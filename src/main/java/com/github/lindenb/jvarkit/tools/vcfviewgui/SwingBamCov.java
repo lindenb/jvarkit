@@ -30,6 +30,7 @@ import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Composite;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -52,6 +53,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +73,7 @@ import java.util.stream.StreamSupport;
 import javax.imageio.ImageIO;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
@@ -95,8 +98,10 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
@@ -110,6 +115,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 
 import htsjdk.samtools.Cigar;
@@ -158,11 +164,12 @@ END_DOC
 description="Bam coverage viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate="20210420",
-modificationDate="20211201",
-generate_doc=true
+modificationDate="20220513"
 )
 public class SwingBamCov extends Launcher
 	{
+	private static final int MAX_GFF3_ROWS = 10_000;
+
 	private static final Logger LOG = Logger.build(SwingBamCov.class).make();
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
@@ -201,7 +208,9 @@ public class SwingBamCov extends Launcher
 		BufferedImage offScreenImage = null;
 		JProgressBar progressBar = null;
 		final String gffPath;
-		
+		private final JMenu jmenuHyperlinks;
+		private final SwingGff3TableModel gff3TableModel;
+
 		
 		private abstract class ChangeViewAction extends AbstractAction {
 			final double factor;
@@ -228,6 +237,8 @@ public class SwingBamCov extends Launcher
 				jtextFieldLocation.setText(r.getContig()+":"+r.getStart()+"-"+r.getEnd());
 				XFrame.this.offScreenImage=null;
 				XFrame.this.drawingThread=null;
+				updateHyperlinks();
+				updateGff3Table();
 				drawingArea.repaint();
 				}
 			abstract Locatable change(SAMSequenceRecord ssr,Locatable loc);
@@ -832,6 +843,8 @@ public class SwingBamCov extends Launcher
 					{
 					offScreenImage=null;
 					drawingThread=null;
+					updateHyperlinks();
+					updateGff3Table();
 					drawingArea.repaint();
 					}
 				};
@@ -944,6 +957,8 @@ public class SwingBamCov extends Launcher
 					public void windowOpened(final WindowEvent e)
 						{
 						drawingArea.repaint();
+						updateHyperlinks();
+						updateGff3Table();
 						removeWindowListener(this);
 						}
 					});
@@ -980,6 +995,77 @@ public class SwingBamCov extends Launcher
 					XFrame.this.dispose();
 					}
 				}));
+			
+			this.jmenuHyperlinks=new JMenu("Hyperlinks");
+			menuBar.add(this.jmenuHyperlinks);
+			
+			
+			/** gff3 tab */
+			
+			final JTable jtableGff3=  new JTable(this.gff3TableModel=new SwingGff3TableModel());
+			jtableGff3.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			final JPanel jpanelgff3 = new JPanel(new BorderLayout());
+			jpanelgff3.add(new JScrollPane(jtableGff3),BorderLayout.CENTER);
+			jpanelgff3.setBorder(BorderFactory.createTitledBorder("MAX="+StringUtils.niceInt(MAX_GFF3_ROWS)));
+			final String titleTabGff3="GFF";
+			tabPane.addTab(titleTabGff3,jpanelgff3 );
+
+		}/* end constructor */
+		
+		
+		private void updateHyperlinks() {
+			this.jmenuHyperlinks.removeAll();
+			final Optional<SimpleInterval> optR = getUserInterval();
+			if(optR.isPresent()) {
+				if(!Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) return;
+				final UrlSupplier urlSupplier = new UrlSupplier(this.dict);
+				urlSupplier.of(optR.get()).stream().forEach(U->{
+					final AbstractAction action = new AbstractAction(U.getLabel())
+						{
+						@Override
+						public void actionPerformed(final ActionEvent e)
+							{
+							try {
+								Desktop.getDesktop().browse(new URI(U.getUrl()));
+								}
+							catch(final Throwable err) {
+								ThrowablePane.show(XFrame.this, err);
+								}
+							}
+						};
+					action.putValue(AbstractAction.LONG_DESCRIPTION, U.getLabel());
+					action.putValue(AbstractAction.SHORT_DESCRIPTION, U.getLabel());
+					action.putValue(AbstractAction.NAME, U.getLabel());
+					final JMenuItem mi = new JMenuItem(action);
+					this.jmenuHyperlinks.add(mi);
+					});
+				}
+			}
+		
+		
+		private void updateGff3Table()  {
+			final Locatable loc = getUserInterval().orElse(null);
+			if(this.gffPath==null || loc==null) {
+				this.gff3TableModel.setRows(Collections.emptyList());
+				return;
+				}
+			final List<Gff3Feature> lines= new ArrayList<>();
+			try(TabixReader tbr = new TabixReader(this.gffPath.toString())) {
+				final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW);
+				final TabixReader.Iterator iter0 = tbr.query(loc.getContig(), loc.getStart(), loc.getEnd());
+				final TabixIteratorLineReader iter1 = new TabixIteratorLineReader(iter0);
+				final LineIterator iter = new LineIteratorImpl(iter1);
+				while(!codec.isDone(iter) && lines.size()< MAX_GFF3_ROWS) {
+					final Gff3Feature feature = codec.decode(iter);
+					if(feature==null) continue;
+					lines.add(feature);
+					}
+				codec.close(iter);
+				}
+			catch(final Throwable err) {
+				lines.clear();
+				}
+			this.gff3TableModel.setRows(lines);
 			}
 		
 		final Optional<SimpleInterval> getUserInterval() {
@@ -994,15 +1080,18 @@ public class SwingBamCov extends Launcher
 		private void doMenuSaveIgvSession() {
 			final Optional<SimpleInterval> optinterval = getUserInterval();
 			if(!optinterval.isPresent()) return;
+			final File prefDir = PreferredDirectory.get(SwingBamCov.class);
 			final SimpleInterval interval = optinterval.get();
-			final JFileChooser chooser= new JFileChooser();
-			chooser.setSelectedFile(new File(interval.getContig()+"_"+interval.getStart()+"_"+interval.getEnd()+".igv_session.xml"));
+			final JFileChooser chooser= new JFileChooser(prefDir);
+			final String fname = interval.getContig()+"_"+interval.getStart()+"_"+interval.getEnd()+".igv_session.xml";
+			chooser.setSelectedFile(prefDir==null?new File(fname):new File(prefDir,fname));
 			if(chooser.showSaveDialog(drawingArea)!=JFileChooser.APPROVE_OPTION) return;
 			final File f = chooser.getSelectedFile();
 			if(f.exists() && JOptionPane.showConfirmDialog(this, "File "+f.getName()+" exists. Overwite ?", "Overwite ?", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null)!=JOptionPane.OK_OPTION)
 				{
 				return;
 				}
+			PreferredDirectory.update(f);
 			try {
 				
 				final XMLOutputFactory xof = XMLOutputFactory.newFactory();
@@ -1035,13 +1124,21 @@ public class SwingBamCov extends Launcher
 				}
 			}
 		private void doMenuSaveAs() {
-			JFileChooser chooser= new JFileChooser();
+			final File prefDir = PreferredDirectory.get(SwingBamCov.class);
+			final JFileChooser chooser= new JFileChooser(prefDir);
+			final Optional<SimpleInterval> optR = getUserInterval();
+			if(optR.isPresent()) {
+				final Locatable loc = optR.get();
+				final String fname = loc.getContig()+"_"+loc.getStart()+"_"+loc.getEnd()+".png";
+				chooser.setSelectedFile(prefDir==null?new File(fname):new File(prefDir,fname));
+				}
 			if(chooser.showSaveDialog(drawingArea)!=JFileChooser.APPROVE_OPTION) return;
 			final File f = chooser.getSelectedFile();
 			if(f.exists() && JOptionPane.showConfirmDialog(this, "File "+f.getName()+" exists. Overwite ?", "Overwite ?", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null)!=JOptionPane.OK_OPTION)
 				{
 				return;
 				}
+			PreferredDirectory.update(SwingBamCov.class,f);
 			try {
 				final BufferedImage img = new BufferedImage(drawingArea.getWidth(), drawingArea.getHeight(), BufferedImage.TYPE_INT_RGB);
 				final Graphics2D g = img.createGraphics();
@@ -1127,7 +1224,7 @@ public class SwingBamCov extends Launcher
 			return -1;
 			}
 		}
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new SwingBamCov().instanceMain(args);//no exit
 		}
