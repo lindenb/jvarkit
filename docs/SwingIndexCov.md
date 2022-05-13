@@ -85,6 +85,7 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
 ## Examples:
 
 ```
@@ -94,6 +95,16 @@ or
 ```
 java -jar dist/swingindexcov.jar -R reference.fa indexcov.bed.gz --gff indexed.gff3.gz --helper "/TMP/myhelper.jar MyHelper"
 ```
+
+## Screenshots
+
+
+![https://pbs.twimg.com/media/FSkLDJdXwAEmZTO?format=png&name=small](https://pbs.twimg.com/media/FSkLDJdXwAEmZTO?format=png&name=small
+)
+
+![https://pbs.twimg.com/media/FSkLIGtXMAAizeK?format=jpg&name=small](https://pbs.twimg.com/media/FSkLIGtXMAAizeK?format=jpg&name=small)
+
+## Helper
 
 
 ### Helper Source code

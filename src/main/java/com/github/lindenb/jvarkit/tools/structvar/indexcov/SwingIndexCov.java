@@ -96,7 +96,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
+import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
@@ -126,6 +126,7 @@ import htsjdk.tribble.readers.TabixIteratorLineReader;
 import htsjdk.tribble.readers.TabixReader;
 /**
 BEGIN_DOC
+
 ## Examples:
 
 ```
@@ -135,6 +136,16 @@ or
 ```
 java -jar dist/swingindexcov.jar -R reference.fa indexcov.bed.gz --gff indexed.gff3.gz --helper "/TMP/myhelper.jar MyHelper"
 ```
+
+## Screenshots
+
+
+![https://pbs.twimg.com/media/FSkLDJdXwAEmZTO?format=png&name=small](https://pbs.twimg.com/media/FSkLDJdXwAEmZTO?format=png&name=small
+)
+
+![https://pbs.twimg.com/media/FSkLIGtXMAAizeK?format=jpg&name=small](https://pbs.twimg.com/media/FSkLIGtXMAAizeK?format=jpg&name=small)
+
+## Helper
 
 
 ### Helper Source code
@@ -217,6 +228,7 @@ END_DOC
 		)
 public class SwingIndexCov extends Launcher {
 	private static final Logger LOG = Logger.build(SwingIndexCov.class).make();
+	private static final int MAX_GFF3_ROWS = 10_000;
 	@Parameter(names={"-R","--reference"},description=DICTIONARY_SOURCE)
 	private Path dictSource = null;
 	@Parameter(names={"--gtf","--gff","--gff3"},description="GFF3 file indexed with tabix to plot the genes.")
@@ -333,6 +345,7 @@ public class SwingIndexCov extends Launcher {
 		private final JMenu jmenuHyperlinks;
 		private final String gff3Path;
 		private final Helper helper;
+		private final SwingGff3TableModel gff3TableModel;
 		
 		
 		private static class Sample {
@@ -381,6 +394,7 @@ public class SwingIndexCov extends Launcher {
 				XFrame.this.offscreen=null;
 				pushHistory();
 				updateHyperlinks();
+				updateGff3Table();
 				drawingArea.repaint();
 				}
 			abstract Locatable change(SAMSequenceRecord ssr,Locatable loc);
@@ -489,7 +503,9 @@ public class SwingIndexCov extends Launcher {
 								final Gff3Feature gffline = codec.decode(lr);
 								if(gffline==null) continue;
 								final double h;
-								if(gffline.getType().equals("transcript"))
+								if(	gffline.getType().equals("gene") ||
+									gffline.getType().equals("transcript") ||
+									gffline.getType().equals("processed_transcript"))
 									{
 									h=1;
 									}
@@ -716,14 +732,15 @@ public class SwingIndexCov extends Launcher {
 			setJMenuBar(menuBar);
 			JMenu menu=new JMenu("File");
 			menuBar.add(menu);
-			menu.add(new JMenuItem(new AbstractAction("Open...") {
+			menu.add(new JMenuItem(new AbstractAction("About...") {
 				@Override
 				public void actionPerformed(ActionEvent arg0) {
+					JOptionPane.showMessageDialog(XFrame.this, SwingIndexCov.class.getSimpleName()+". Author : Pierre Lindenbaum PhD.");
 					}
 				}));
 			menu.add(new JMenuItem(new AbstractAction("Save As...") {
 				@Override
-				public void actionPerformed(ActionEvent arg0) {
+				public void actionPerformed(final ActionEvent arg0) {
 					doMenuSaveAs();
 					}
 				}));
@@ -827,6 +844,7 @@ public class SwingIndexCov extends Launcher {
 					{
 					pushHistory();
 					updateHyperlinks();
+					updateGff3Table();
 					offscreen=null;
 					drawingArea.repaint();
 					}
@@ -892,6 +910,7 @@ public class SwingIndexCov extends Launcher {
 						final Locatable loc = history.get(index_in_history);
 						jtextFieldLocation.setText(loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
 						updateHyperlinks();
+						updateGff3Table();
 						offscreen=null;
 						drawingArea.repaint();
 						}
@@ -905,6 +924,7 @@ public class SwingIndexCov extends Launcher {
 						final Locatable loc = history.get(index_in_history);
 						jtextFieldLocation.setText(loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
 						updateHyperlinks();
+						updateGff3Table();
 						offscreen=null;
 						drawingArea.repaint();
 						}
@@ -912,7 +932,7 @@ public class SwingIndexCov extends Launcher {
 				}));
 			
 			JPanel pane2 = new JPanel(new BorderLayout(5, 5));
-			pane2.setBorder(BorderFactory.createTitledBorder("Samples"));
+			pane2.setBorder(BorderFactory.createTitledBorder("Samples N="+StringUtils.niceInt(this.jlistSamples.getModel().getSize())));
 			pane2.add(new JScrollPane(this.jlistSamples),BorderLayout.CENTER);
 			pane2.setPreferredSize(new Dimension(200,10));
 			viewPane.add(pane2,BorderLayout.WEST);
@@ -933,7 +953,6 @@ public class SwingIndexCov extends Launcher {
 				};
 			this.drawingArea.setOpaque(true);
 			
-			/** scroll bar for vertical navigation */
 			this.drawingArea.addComponentListener(new ComponentAdapter() {
 				public void componentResized(java.awt.event.ComponentEvent e) {
 					drawingArea.repaint();
@@ -944,6 +963,19 @@ public class SwingIndexCov extends Launcher {
 			
 			/** ref tab */
 			jTabbedPane.addTab("REF", new JScrollPane( new JTable(new SwingSequenceDictionaryTableModel(this.srcDict))));
+			/** gff3 tab */
+			
+			final JTable jtableGff3=  new JTable(this.gff3TableModel=new SwingGff3TableModel());
+			jtableGff3.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			final JPanel jpanelgff3 = new JPanel(new BorderLayout());
+			jpanelgff3.add(new JScrollPane(jtableGff3),BorderLayout.CENTER);
+			jpanelgff3.setBorder(BorderFactory.createTitledBorder("MAX="+StringUtils.niceInt(MAX_GFF3_ROWS)));
+			final String titleTabGff3="GFF";
+			jTabbedPane.addTab(titleTabGff3,jpanelgff3 );
+			
+
+			
+			
 			/* open close operations */
 			this.addWindowListener(new WindowAdapter() {
 				public void windowOpened(java.awt.event.WindowEvent e) {
@@ -954,6 +986,9 @@ public class SwingIndexCov extends Launcher {
 					runOnClose();
 					}
 				});
+			
+			
+			
 			/** mouse listener */
 			final MouseAdapter mouse= new MouseAdapter() {
 				Integer mouseStart = null;
@@ -995,6 +1030,7 @@ public class SwingIndexCov extends Launcher {
 					jtextFieldLocation.setText(loc.getContig()+":"+pos1+"-"+pos2);
 					pushHistory();
 					updateHyperlinks();
+					updateGff3Table();
 					XFrame.this.offscreen=null;
 					mouseStart=null;
 					mousePrev=null;
@@ -1007,7 +1043,15 @@ public class SwingIndexCov extends Launcher {
 			}
 		
 		private void doMenuSaveAs() {
-			final JFileChooser chooser= new JFileChooser(PreferredDirectory.get(SwingIndexCov.class));
+			final File prefDir = PreferredDirectory.get(SwingIndexCov.class);
+			final JFileChooser chooser= new JFileChooser(prefDir);
+			final Optional<SimpleInterval> optR = getUserInterval();
+			if(optR.isPresent()) {
+				final Locatable loc = optR.get();
+				final String fname = loc.getContig()+"_"+loc.getStart()+"_"+loc.getEnd()+".png";
+				chooser.setSelectedFile(prefDir==null?new File(fname):new File(prefDir,fname));
+				}
+			
 			if(chooser.showSaveDialog(drawingArea)!=JFileChooser.APPROVE_OPTION) return;
 			final File f = chooser.getSelectedFile();
 			if(f.exists() && JOptionPane.showConfirmDialog(this, "File "+f.getName()+" exists. Overwite ?", "Overwite ?", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null)!=JOptionPane.OK_OPTION)
@@ -1058,6 +1102,32 @@ public class SwingIndexCov extends Launcher {
 				}
 			}
 		
+		private void updateGff3Table()  {
+			final Locatable loc = getUserInterval().orElse(null);
+
+			if(this.gff3Path==null || loc==null) {
+				this.gff3TableModel.setRows(Collections.emptyList());
+				return;
+				}
+			final List<Gff3Feature> lines= new ArrayList<>();
+			try(TabixReader tbr = new TabixReader(this.gff3Path.toString())) {
+				final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW);
+				final TabixReader.Iterator iter0 = tbr.query(loc.getContig(), loc.getStart(), loc.getEnd());
+				final TabixIteratorLineReader iter1 = new TabixIteratorLineReader(iter0);
+				final LineIterator iter = new LineIteratorImpl(iter1);
+				while(!codec.isDone(iter) && lines.size()< MAX_GFF3_ROWS) {
+					final Gff3Feature feature = codec.decode(iter);
+					if(feature==null) continue;
+					lines.add(feature);
+					}
+				codec.close(iter);
+				}
+			catch(final Throwable err) {
+				lines.clear();
+				}
+			this.gff3TableModel.setRows(lines);
+			}
+		
 		private void samplesSelectionchanged() {
 			this.offscreen=null;
 			this.drawingArea.repaint();
@@ -1074,6 +1144,7 @@ public class SwingIndexCov extends Launcher {
 			this.jtextFieldLocation.setText(loc);
 			pushHistory();
 			updateHyperlinks();
+			updateGff3Table();
 			this.drawingArea.repaint();
 			}
 		
