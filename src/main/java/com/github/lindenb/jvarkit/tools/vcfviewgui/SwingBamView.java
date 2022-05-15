@@ -35,11 +35,15 @@ import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.Line2D.Double;
 import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
+import java.beans.PropertyChangeSupport;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -51,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Vector;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.swing.AbstractAction;
@@ -59,6 +64,7 @@ import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -66,10 +72,12 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
+import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
@@ -79,15 +87,21 @@ import javax.swing.filechooser.FileFilter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.swing.PropertyChangeObserver;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
+import com.github.lindenb.jvarkit.variant.swing.SwingVCFGenotypesTableModel;
+import com.github.lindenb.jvarkit.variant.swing.SwingVCFInfoTableModel;
+import com.github.lindenb.jvarkit.variant.swing.SwingVariantsTableModel;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -101,7 +115,10 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.AggregateFilter;
 import htsjdk.samtools.filter.AlignedFilter;
 import htsjdk.samtools.filter.DuplicateReadFilter;
+import htsjdk.samtools.filter.FailsVendorReadQualityFilter;
+import htsjdk.samtools.filter.MappingQualityFilter;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.filter.SecondaryAlignmentFilter;
 import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
@@ -110,11 +127,16 @@ import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFReader;
 
 public class SwingBamView extends Launcher {
 	private static final Logger LOG = Logger.build(SwingBamView.class).make();
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
+	@Parameter(names={"-V","--variant"},description="Indexed VCF File")
+	private Path variantFile = null;
 
 
 	private static class BamFile {
@@ -155,22 +177,45 @@ public class SwingBamView extends Launcher {
 		}
 
 	
+	@SuppressWarnings("serial")
 	private static class XFrame extends JFrame {
 		private final Path referenceFaidx;
 		private final SAMSequenceDictionary dict;
+		private final Path vcfFile;
+		private List<VariantContext> all_variants_list = new Vector<>();
 		private List<BamFile> all_bam_files = new Vector<>();
 		private final JList<BamFile> jlistBamFilesJList;
 		private final JTextField jtextFieldLocation;
-		private Interval interval =null;
+		private final PropertyChangeObserver<Locatable> interval = new PropertyChangeObserver<>();
+		private final PropertyChangeObserver<Integer> mappingQuality = new PropertyChangeObserver<>(1);
 		private BamFile currenBamFile = null;
 		private boolean use_clip = false;
 		private final JScrollBar vScrollBar;
 		private final JPanel drawingArea;
 		private final ReferenceSequenceFile referenceSequenceFile;
+		private String referenceStr = null;
 		private final List<List<Read>> rows = new Vector<>();
-		private final JCheckBox cboxUseClip;
-		private final JCheckBox cboxShowDup;
-		private CharSequence referenceSequence;
+		private final JCheckBoxMenuItem jmenuShowClip;
+		private final JCheckBoxMenuItem jmenuShowDuplicates;
+		private final JCheckBoxMenuItem jmenuShowFailQuality;
+		private final JCheckBoxMenuItem jmenuShowSecondary;
+		private final JCheckBoxMenuItem jmenuShowSupplementary;
+		private final JCheckBoxMenuItem jmenuShowCoverage;
+		private final JCheckBoxMenuItem jmenuShowIntervalTitle;
+		private final JCheckBoxMenuItem jmenuShowSampleTitle;
+		private final JCheckBoxMenuItem jmenuShowReferenceSequence;
+		private final JCheckBoxMenuItem jmenuShowBases;
+		private final JCheckBoxMenuItem jmenuShowMismatches;
+		private final JCheckBoxMenuItem jmenuShowInsertions;
+		
+		
+		private final SwingVariantsTableModel swingVariantsTableModel;
+		private final SwingVCFInfoTableModel swingVCFInfoTableModel;
+		private final SwingVCFGenotypesTableModel swingVCFGenotypesTableModel;
+
+		
+		private final JMenuItem jmenuMappingQuality;
+		private final JMenu jMenuHyperlinks;
 		
 		private class Read implements Locatable {
 			private final SAMRecord rec;
@@ -184,30 +229,109 @@ public class SwingBamView extends Launcher {
 				}
 			@Override
 			public int getStart() {
-				return isUsingClip()?rec.getUnclippedStart():rec.getStart();
+				return XFrame.this.isUsingClip()?rec.getUnclippedStart():rec.getStart();
 				}
 			@Override
 			public int getEnd() {
-				return isUsingClip()?rec.getUnclippedEnd():rec.getEnd();
+				return XFrame.this.isUsingClip()?rec.getUnclippedEnd():rec.getEnd();
+				}
+			}
+		
+		private abstract class ChangeViewAction extends AbstractAction {
+			final double factor;
+			ChangeViewAction(String title,double factor) {
+				super(title);
+				this.factor=factor;
+				}
+			@Override
+			public Object getValue(String key)
+				{
+				if(key.equals(AbstractAction.SHORT_DESCRIPTION)) return getShortDesc();
+				return super.getValue(key);
+				}
+			@Override
+			public void actionPerformed(final ActionEvent e)
+				{
+				final Optional<SimpleInterval> optR = getUserInterval();
+				if(!optR.isPresent()) return;
+				Locatable r= optR.get();
+				final SAMSequenceRecord ssr=dict.getSequence(r.getContig());
+				if(ssr==null) return;
+				r= change(ssr,r);
+				if(r==null) return;
+				XFrame.this.interval.setValue(r);
+				}
+			abstract Locatable change(SAMSequenceRecord ssr,Locatable loc);
+			abstract String getShortDesc();
+			@Override
+			public String toString()
+				{
+				return String.valueOf(getValue(AbstractAction.NAME));
 				}
 			}
 		
 		
+		private class ZoomAction extends ChangeViewAction {
+			ZoomAction(double factor) {
+				super("x"+factor,factor);
+				}
+			@Override
+			Locatable change(SAMSequenceRecord ssr, Locatable r)
+				{
+				final double L= r.getLengthOnReference()/2.0*factor;
+				final double mid = r.getStart()+r.getLengthOnReference()/2;
+				int x1= (int)Math.max(1,mid-L);
+				int x2= (int)Math.min(mid+L,ssr.getLengthOnReference());
+				return new SimpleInterval(r.getContig(),x1,x2);
+				}
+			@Override
+			String getShortDesc()
+				{
+				return "Scale by "+factor;
+				}
+			}
 		
-		XFrame(final Path referenceFaidx,final List<BamFile> bamFiles) {
+		private class ShiftAction extends ChangeViewAction {
+			ShiftAction(String title,double factor) {
+				super(title,factor);
+				}
+			@Override
+			Locatable change(SAMSequenceRecord ssr, Locatable r)
+				{
+				final double L= r.getLengthOnReference()*Math.abs(factor);
+				int x1,x2;
+				if(factor<0) {
+					x1 = Math.max(1,r.getStart() - (int)L);
+					x2 = Math.min(ssr.getLengthOnReference(),x1 + r.getLengthOnReference());
+					}
+				else
+					{
+					x2 = Math.min(ssr.getLengthOnReference(),r.getEnd() + (int)L);
+					x1 = Math.max(1,x2 -r.getLengthOnReference());
+					}
+				return new SimpleInterval(r.getContig(),x1,x2);
+				}
+			@Override
+			String getShortDesc()
+				{
+				return "Shift by "+factor;
+				}
+			}
+
+		
+		
+		XFrame(final Path referenceFaidx,
+				final List<BamFile> bamFiles,
+				final Path vcfFile
+				)
+			{
 			super(SwingBamView.class.getSimpleName());
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-			
+			this.vcfFile = vcfFile;
 			final JMenuBar menuBar = new JMenuBar();
 			setJMenuBar(menuBar);
 			JMenu menu=new JMenu("File");
 			menuBar.add(menu);
-			menu.add(new JMenuItem(new AbstractAction("Open...") {
-				@Override
-				public void actionPerformed(ActionEvent arg0) {
-					doMenuOpen(XFrame.this,XFrame.this.referenceFaidx);
-					}
-				}));
 			menu.add(new JSeparator());
 			menu.add(new JMenuItem(new AbstractAction("Quit") {
 				@Override
@@ -242,20 +366,44 @@ public class SwingBamView extends Launcher {
 				@Override
 				public void actionPerformed(ActionEvent e)
 					{
-					reloadReads();
+					final String s = jtextFieldLocation.getText().trim();
+					if(StringUtil.isBlank(s)) {
+						XFrame.this.interval.reset();
+						return;
+						}
+					try {
+						XFrame.this.interval.setValue(
+							IntervalParserFactory.newInstance().
+							dictionary(XFrame.this.dict).
+							make().
+							apply(s).
+							orElse(null)
+							);
+						if(!XFrame.this.interval.isPresent()) {
+							JOptionPane.showMessageDialog(XFrame.this, "Cannot parse "+s);
+							}
+						}
+					catch(final Throwable err) {
+						ThrowablePane.show(XFrame.this, err);
+						}
 					}
 				};
+			this.jtextFieldLocation.addActionListener(actionGo);
 			navPane.add(new JButton(actionGo));
 			navPane.add(new JSeparator());
-			navPane.add(this.cboxUseClip=new JCheckBox("clip", false));
-			this.cboxUseClip.setToolTipText("Show/Hide Read Clipping");
-			this.cboxUseClip.addActionListener(AE->reloadReads());
-			navPane.add(this.cboxShowDup=new JCheckBox("dup", false));
-			this.cboxShowDup.setToolTipText("Show/Hide Dup Reads");
-			this.cboxShowDup.addActionListener(AE->reloadReads());
-			
-
-			
+			navPane.add(new JButton(new ZoomAction(0.1)));
+			navPane.add(new JButton(new ZoomAction(0.333)));
+			navPane.add(new JButton(new ZoomAction(0.5)));
+			navPane.add(new JButton(new ZoomAction(1.5)));
+			navPane.add(new JButton(new ZoomAction(3.0)));
+			navPane.add(new JButton(new ZoomAction(10)));
+			navPane.add(new JSeparator());
+			navPane.add(new JButton(new ShiftAction("<<<",-0.9)));
+			navPane.add(new JButton(new ShiftAction("<<",-0.5)));
+			navPane.add(new JButton(new ShiftAction("<",-0.1)));
+			navPane.add(new JButton(new ShiftAction(">",0.1)));
+			navPane.add(new JButton(new ShiftAction(">>",0.5)));
+			navPane.add(new JButton(new ShiftAction(">>>",0.9)));
 			
 			/** list of bam files */
 			final DefaultListModel<BamFile> dm = new DefaultListModel<>();
@@ -264,23 +412,29 @@ public class SwingBamView extends Launcher {
 				forEach(B->dm.addElement(B));
 				
 			this.jlistBamFilesJList = new JList<>(dm);
+			this.jlistBamFilesJList.setPreferredSize(new Dimension(200,200));
 			this.jlistBamFilesJList.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			this.jlistBamFilesJList.setSelectedIndex(0);
 			this.jlistBamFilesJList.getSelectionModel().addListSelectionListener(AE->{
-				
+				reloadReadsAndRef();
 				});
 			final JPanel bamPanel = new JPanel(new BorderLayout());
-			bamPanel.setBorder(BorderFactory.createTitledBorder("BAMS"));
+			
+			bamPanel.setBorder(BorderFactory.createTitledBorder("BAMS N="+StringUtils.niceInt(bamFiles.size())));
 			bamPanel.add(new JScrollPane(this.jlistBamFilesJList),BorderLayout.CENTER);
 			viewPane.add(bamPanel,BorderLayout.WEST);
 			
+			
+			final JPanel drawingPane = new JPanel(new BorderLayout());
 			/** drawing area itself */
-			drawingArea = new JPanel(null, true) {
+			this.drawingArea = new JPanel(null, true) {
 				@Override
-				protected void paintComponent(Graphics g) {
+				protected void paintComponent(final Graphics g) {
 					paintDrawingArea(Graphics2D.class.cast(g));
 					}
 				};
 			this.drawingArea.setOpaque(true);
+			drawingPane.add(this.drawingArea,BorderLayout.CENTER);
 			
 			/** scroll bar for vertical navigation */
 			this.vScrollBar = new JScrollBar(JScrollBar.VERTICAL);
@@ -290,18 +444,109 @@ public class SwingBamView extends Launcher {
 					drawingArea.repaint();
 				};
 			});
-			viewPane.add(bamPanel,BorderLayout.EAST);
+			drawingPane.add(this.vScrollBar,BorderLayout.EAST);
+			viewPane.add(drawingPane,BorderLayout.CENTER);
 			
 			/** ref tab */
 			jTabbedPane.addTab("REF", new JScrollPane( new JTable(new SwingSequenceDictionaryTableModel(dict))));
+			this.interval.addPropertyChangeListener(AE->{
+				final Locatable loc=(Locatable)AE.getNewValue();
+				this.jtextFieldLocation.setText(loc==null?"":loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
+				reloadReadsAndRef();
+				this.drawingArea.repaint();
+				});
+			
+			
+			/** VCF tab */
+			final JPanel vcfPane = new JPanel(new BorderLayout());
+			final JTable variantTable = new JTable(this.swingVariantsTableModel= new SwingVariantsTableModel());
+			JTable vcfInfoTable = new JTable(this.swingVCFInfoTableModel= new SwingVCFInfoTableModel());
+			JTable vcfGenotypeTable = new JTable(this.swingVCFGenotypesTableModel=new SwingVCFGenotypesTableModel());
+			JSplitPane split1 = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,new JScrollPane(variantTable),new JScrollPane(vcfGenotypeTable));
+			JSplitPane split2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT,split1,new JScrollPane(vcfInfoTable));
+			vcfPane.add(split2,BorderLayout.CENTER);
+			jTabbedPane.addTab("Variants", vcfPane);
+			variantTable.getSelectionModel().addListSelectionListener(AE->{
+				VariantContext ctx =null;
+				int i = variantTable.getSelectedRow();
+				if(i>=0) i = variantTable.convertRowIndexToModel(i);
+				if(i>=0) {
+					ctx = this.swingVariantsTableModel.getElementAt(i);
+					}
+				this.swingVCFInfoTableModel.setVariant(ctx);
+				this.swingVCFGenotypesTableModel.setVariant(ctx);
+				});
+			
+			
+			final JMenu optionsMenu = new JMenu("Options");
+			menuBar.add(optionsMenu);
+		
+			final ActionListener repaintAction = AE->reloadReadsAndRef();
+			
+
+			optionsMenu.add(this.jmenuShowBases=new JCheckBoxMenuItem("Show Bases", true));
+			this.jmenuShowBases.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowMismatches=new JCheckBoxMenuItem("Show Mismatches", true));
+			this.jmenuShowMismatches.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowInsertions=new JCheckBoxMenuItem("Show Insertions", true));
+			this.jmenuShowInsertions.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowDuplicates=new JCheckBoxMenuItem("Show Duplicates", false));
+			this.jmenuShowDuplicates.setToolTipText("Show/Hide Dup Reads");
+			this.jmenuShowDuplicates.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowSecondary=new JCheckBoxMenuItem("Show Secondary", false));
+			this.jmenuShowSecondary.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowSupplementary=new JCheckBoxMenuItem("Show Supplementary", false));
+			this.jmenuShowSupplementary.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowFailQuality=new JCheckBoxMenuItem("Show Failing Quality", false));
+			this.jmenuShowFailQuality.addActionListener(repaintAction);
+			optionsMenu.add(new JSeparator());
+			optionsMenu.add(this.jmenuShowClip=new JCheckBoxMenuItem("Show Clipping", false));
+			this.jmenuShowClip.setToolTipText("Show/Hide Read Clipping");
+			this.jmenuShowClip.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowCoverage=new JCheckBoxMenuItem("Show Coverage", true));
+			this.jmenuShowCoverage.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowIntervalTitle=new JCheckBoxMenuItem("Show Interval Title", true));
+			this.jmenuShowIntervalTitle.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowSampleTitle=new JCheckBoxMenuItem("Show Sample Title", true));
+			this.jmenuShowSampleTitle.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuShowReferenceSequence=new JCheckBoxMenuItem("Show Reference Sequence", true));
+			this.jmenuShowReferenceSequence.addActionListener(repaintAction);
+			optionsMenu.add(this.jmenuMappingQuality=new JMenuItem("Mapping Quality ["+this.mappingQuality.orElse(0)+"]"));
+			this.jmenuMappingQuality.addActionListener(AE->{
+				String s= JOptionPane.showInputDialog(XFrame.this, "Mapping quality ?",mappingQuality.orElse(0));
+				if(StringUtils.isBlank(s)) return;
+				if(!StringUtils.isInteger(s)) {
+					JOptionPane.showConfirmDialog(XFrame.this, "Not an integer: "+s);
+					}
+				this.mappingQuality.setValue(Integer.parseInt(s));
+				});
+			this.mappingQuality.addPropertyChangeListener(AE->{
+				this.jmenuMappingQuality.setText("Mapping Quality ["+AE.getNewValue()+"]");
+				reloadReadsAndRef();
+			});
+			
+			
+			
+			
+
+
+			this.jMenuHyperlinks = new JMenu("Hyperlinks");
+			menuBar.add(this.jMenuHyperlinks);
+			
 			/* open close operations */
 			this.addWindowListener(new WindowAdapter() {
+				public void windowOpened(java.awt.event.WindowEvent e) {
+					final SAMSequenceRecord rec = XFrame.this.dict.getSequence(0);
+					interval.setValue(new SimpleInterval(rec.getContig(),1,Math.max(2, rec.getSequenceLength())));
+					}
 				public void windowClosed(java.awt.event.WindowEvent e)
 					{
 					runOnClose();
 					}
 				});
-			}
+			}/* END CONSTRUCTOR ********************************/
+		
+		
 		
 		private void runOnClose() {
 			final DefaultListModel<BamFile> dm = (DefaultListModel<BamFile>)this.jlistBamFilesJList.getModel();
@@ -315,11 +560,13 @@ public class SwingBamView extends Launcher {
  			}
 		
 		private Shape createShape(double y,int position,int lengthOnReference,int arrow_type) {
-			if(position>this.interval.getEnd()) return null;
-			if(position+lengthOnReference<this.interval.getStart()) return null;
-			double x0 = pos2pixel(position);
-			double x1 = pos2pixel(position+lengthOnReference);
-			double featH = getFeatureHeight();
+			final Locatable rgn = this.interval.orElse(null);
+			if(rgn==null) return null;
+			if(position> rgn.getEnd()) return null;
+			if(position+lengthOnReference< rgn.getStart()) return null;
+			double x0 = pos2pixel(rgn,position);
+			double x1 = pos2pixel(rgn,position+lengthOnReference);
+			double featH = getReadRowHeight();
 			double y0 = y + featH*0.05;
 			double y1 = y + featH*0.95;
 			double midy= y + featH*0.5;
@@ -350,25 +597,122 @@ public class SwingBamView extends Launcher {
 				}
 			}
 		
+		private Color base2color(char c) {
+			switch(c) {
+			case 'a': case 'A': return Color.RED;
+			case 't': case 'T': return Color.BLUE;
+			case 'c': case 'C': return Color.GREEN;
+			case 'g': case 'G': return Color.ORANGE;
+			default: return Color.BLACK;
+			}
+		}
+
+		private double getIntervalTitleHeight() { return jmenuShowIntervalTitle.isSelected()?12:0;}
+		private double getSampleTitleHeight() { return jmenuShowSampleTitle.isSelected()?12:0;}
+		private double getReferenceTitleHeight() {
+			if(!jmenuShowReferenceSequence.isSelected()) return 0;
+			final Locatable loc = this.interval.orElse(null);
+			if(loc==null) return 0;
+			final double base2pix = this.getWidth()/(double)loc.getLengthOnReference();
+			if(base2pix< 5.0) return 0;
+			return Math.min(12,base2pix);
+			}
+		private double getCoverageTrackHeight() {
+			if(!jmenuShowCoverage.isSelected()) return 0;
+			return 50;
+			}
+		
 		private void paintDrawingArea(final Graphics2D g) {
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, drawingArea.getWidth(), drawingArea.getHeight());
-			final double dy = getFeatureHeight();
-			double y=0;
+			final Locatable rgn = this.interval.orElse(null);
+			if(rgn==null) return;
 			final Hershey hershey=new Hershey();
-			y= dy;
-			for(int rowidx= this.vScrollBar.getValue();rowidx< this.rows.size();rowidx++) {
+			
+			final BamFile bamFile=getSelectedBamFile();
+			double y=0;
+			
+			
+			double height = getIntervalTitleHeight();
+			if(height>0.0 ) {
+				g.setColor(Color.DARK_GRAY);
+				final String title = new SimpleInterval(rgn).toNiceString()+" length:"+StringUtils.niceInt(rgn.getLengthOnReference())+" bp";
+				hershey.paint(g,title,0,y,Math.min((double)this.drawingArea.getWidth(),title.length()*height),height*0.95);
+				y+=height;
+				}
+			
+			height = getSampleTitleHeight();
+			if(height>0.0) {
+				g.setColor(Color.DARK_GRAY);
+				if(bamFile!=null) {
+					final String title= bamFile.getName();
+					hershey.paint(g,title,0,y,Math.min((double)this.drawingArea.getWidth(),title.length()*height),height*0.95);
+					}
+				y+=height;
+				}
+			
+			final Function<Integer, Character> pos2ref = P->{
+				int idx = P - rgn.getStart();
+				if(idx<0) return 'N';
+				if(idx>=referenceStr.length()) return 'N';
+				return referenceStr.charAt(idx);
+				};
+			
+			height = getReferenceTitleHeight();
+			if(height>0.0) {
+				//paint reference
+				for(int x=rgn.getStart();x<=rgn.getEnd();++x) {
+					final double x0 = pos2pixel(rgn, x);
+					final double x1 = pos2pixel(rgn, x+1)-1.0;
+					g.setColor(base2color(pos2ref.apply(x)));
+					final char c = referenceStr.charAt(x-rgn.getStart());
+					hershey.paint(g,String.valueOf(c),x0,y,(x1-x0),height*.95);
+					}
+				y+=height;
+				}
+
+			/* prepare coverage track */
+			final double coverage_top = y;
+			height= getCoverageTrackHeight();
+			final Map<Character,int[]> base2coverage = new HashMap<>();
+			if(height>1.0) {
+				for(char base : new char[] {'a','c','g','t','n'}) {
+					final int[] cov = new int[rgn.getLengthOnReference()];
+					base2coverage.put(base, cov);
+					}
+				y+= height;
+				}
+			final double coverage_bottom = y;
+
+			for(final VariantContext ctx:this.all_variants_list) {
+				final Genotype gt = ctx.getGenotype(bamFile.sn);
+				if(gt==null) continue;
+				double x0 = pos2pixel(rgn,ctx.getStart());
+				double x1 = pos2pixel(rgn,ctx.getEnd()+1);
+				g.setColor(Color.LIGHT_GRAY);
+				g.fill(new Rectangle2D.Double(x0, y, (x1-x0), this.drawingArea.getHeight()-y));
+
+			}
+			
+			
+			final double readRowHeight = getReadRowHeight();
+			
+			final boolean show_bases = this.jmenuShowBases.isSelected();
+			final boolean show_insertions = this.jmenuShowInsertions.isSelected();
+			final boolean show_mismatches = this.jmenuShowMismatches.isSelected();
+			for(int rowidx= 0;rowidx< this.rows.size();rowidx++) {
+				final boolean row_is_visible=true;
 				final List<Read> row = this.rows.get(rowidx);
 				for(final Read read:row) {
 					final Map<Integer,Integer> pos2insert_size = new HashMap<>();
 					final byte[] readBases = read.rec.getReadBases();
 					final Cigar cigar =read.rec.getCigar();
 					// horizontal line for deletions
-					if(cigar.getCigarElements().stream().anyMatch(OP->OP.equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
-						double x0 = pos2pixel(read.rec.getStart());
-						double x1 = pos2pixel(read.rec.getEnd());
+					if(row_is_visible && cigar.getCigarElements().stream().anyMatch(OP->OP.equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
+						double x0 = pos2pixel(rgn,read.rec.getStart());
+						double x1 = pos2pixel(rgn,read.rec.getEnd());
 						g.setColor(Color.DARK_GRAY);
-						g.draw(new Line2D.Double(x0, y+dy/2.0, x1, y+dy/2.0));
+						g.draw(new Line2D.Double(x0, y+readRowHeight/2.0, x1, y+readRowHeight/2.0));
 						}
 					
 					
@@ -386,25 +730,32 @@ public class SwingBamView extends Launcher {
 						final CigarOperator op = ce.getOperator();
 						final int len = ce.getLength();
 						Shape shape=null;
-						Color paper = Color.WHITE;
+						Color paper = Color.LIGHT_GRAY;
 						Color pen = Color.DARK_GRAY;
 						switch(op) {
 							case P:break;
 							case I: {
-								pos2insert_size.put(refpos, len);
+								if(row_is_visible) {
+									pos2insert_size.put(refpos, len);
+									}
 								next_readpos+=len;
 								break;
 								}
 							case D: case N: {
-								double x0 = pos2pixel(Math.max(interval.getStart(), refpos));								
-								double x1 = pos2pixel(Math.min(interval.getEnd(), refpos+len));
-								String title = String.valueOf(len); 
+								if(row_is_visible) {
+									double x0 = pos2pixel(rgn,Math.max(rgn.getStart(), refpos));								
+									double x1 = pos2pixel(rgn,Math.min(rgn.getEnd(), refpos+len));
+									g.setColor(Color.BLACK);
+									String title = String.valueOf(len);
+									double dx = Math.min(title.length()*readRowHeight,(x1-x0));
+									hershey.paint(g, title, (x1-x0)/2.0-dx/2,y,dx,readRowHeight*0.95);
+									}
 								next_refpos+=len;
 								break;
 								}
 							case S: case H:{
-								paper = Color.YELLOW;
-								if(isUsingClip()) {
+								if(row_is_visible && isUsingClip()) {
+									paper = Color.YELLOW;
 									shape = createShape(y,refpos,len,arrow_type);
 									}
 								if(op!=CigarOperator.H) next_readpos+= len;
@@ -412,49 +763,104 @@ public class SwingBamView extends Launcher {
 								break;
 								}
 							case M:case X: case EQ: {
-								shape = createShape(y,refpos,len,arrow_type);
+								if(row_is_visible) {
+									shape = createShape(y,refpos,len,arrow_type);
+									}
 								next_readpos+= len;
 								next_refpos+= len;
 								break;
 								}
 							default: throw new IllegalStateException();
 							}
-						if(shape!=null) {
-							if(paper!=null) {
-								g.setColor(paper);
-								g.fill(shape);
-								}
-							if(pen!=null) {
-								g.setColor(pen);
-								g.draw(shape);
-								}
-							if(op.consumesReadBases() && readBases!=SAMRecord.NULL_SEQUENCE) {
-								for(int x=0;x< len;++x) {
-									if(refpos+x < interval.getStart()) continue;
-									if(refpos+x > interval.getEnd()) break;
-									char readBase = (char)readBases[refpos+x];
-									char refBase = referenceSequence.charAt(refpos+x-interval.getStart());
-									hershey.paint(g,String.valueOf(readBase),
-										pos2pixel(refpos+1),
-										y,
-										getBasePixel(),
-										dy
-										);
+						
+						if(row_is_visible && shape!=null && paper!=null) {
+							g.setColor(paper);
+							g.fill(shape);
+							}
+						if(row_is_visible && shape!=null && pen!=null) {
+							g.setColor(pen);
+							g.draw(shape);
+							}
+						if(
+							((op.consumesReadBases() && !op.equals(CigarOperator.SOFT_CLIP)) ||
+							 (op.equals(CigarOperator.SOFT_CLIP) && isUsingClip())) &&
+							  readBases!=SAMRecord.NULL_SEQUENCE) {
+							for(int x=0;x< len;++x) {
+								if(refpos+x < rgn.getStart()) continue;
+								if(refpos+x > rgn.getEnd()) break;
+								char readBase = (char)readBases[readpos+x];
+								char refBase = referenceStr.charAt(refpos+x-rgn.getStart());
+								final boolean is_mimatch = Character.toUpperCase(readBase)!=Character.toUpperCase(refBase) && Character.toUpperCase(refBase)!='N';
+								final int[] coverage = base2coverage.get(Character.toLowerCase(readBase));
+								if(coverage!=null && refpos+x >= rgn.getStart() && refpos+x<=rgn.getEnd()) {
+									coverage[refpos+x-rgn.getStart()]++;
+									}
+								if(row_is_visible) {
+									if(is_mimatch && show_mismatches) {
+										g.setColor(Color.YELLOW);
+										double x0 = pos2pixel(rgn,refpos+x);								
+										double x1 = pos2pixel(rgn,refpos+x+1);
+										double y0 = y+ readRowHeight*0.05;
+										double y1 = y+ readRowHeight*0.95;
+										g.fill(new Rectangle2D.Double(x0, y0, (x1-x0), (y1-y0)));
+										}
+									if((is_mimatch && show_mismatches) || show_bases) {
+										g.setColor(base2color(readBase));					
+										hershey.paint(g,String.valueOf(readBase),
+											pos2pixel(rgn,refpos+x),
+											y,
+											getBasePixel(),
+											readRowHeight
+											);
+										}
 									}
 								}
 							}
-						/* plot insertions */
-						for(Integer pos:pos2insert_size.keySet()) {
-							double x0 = pos2pixel(pos);
-							g.setColor(Color.RED);
 							
+						/* plot insertions */
+						if(row_is_visible && show_insertions) {
+							for(Integer pos:pos2insert_size.keySet()) {
+								final double x0 = pos2pixel(rgn,pos);
+								g.setColor(Color.RED);
+								g.fill(new Rectangle2D.Double(x0,y, 1, readRowHeight*0.95));
+								}
 							}
 						readpos= next_readpos;
 						refpos= next_refpos;
 						}
 					}
+				y+= readRowHeight;
 				rowidx++;
 				}
+			if(coverage_top < coverage_bottom) {
+				double max_cov=0;
+				double cov_height = coverage_bottom-coverage_top;
+				for(int i=0;i< rgn.getLengthOnReference();i++) {
+					int sum_cov=0;
+					for(int[] cov:base2coverage.values()) {
+						sum_cov+= cov[i];
+						}
+					max_cov=Math.max(sum_cov,max_cov);
+					}
+				for(int i=0;i< rgn.getLengthOnReference();i++) {
+					double x0 = pos2pixel(rgn, i+rgn.getStart()  );
+					double x1 = pos2pixel(rgn, i+rgn.getStart()+1);
+					double y2= coverage_bottom;
+					for(char base:new char[] {'a','c','g','t','n'}) {
+						double covi = base2coverage.get(base)[i];
+						double covh = covi/(double)max_cov * cov_height;
+						g.setColor(base2color(base));
+						Shape shape = new Rectangle2D.Double(x0,y2-covh,(x1-x0),covh);
+						g.fill(shape);
+						if(x1-x0>3) {
+							g.setColor(Color.DARK_GRAY);
+							g.draw(shape);
+							}
+						y2-=covh;
+						}
+					}
+				}
+			
 			}
 
 		
@@ -462,101 +868,134 @@ public class SwingBamView extends Launcher {
 			return this.jlistBamFilesJList.getSelectedValue();
 		}
 		
-		private void reloadLocation() {
-			final ReferenceSequence refseq = this.referenceSequenceFile.getSubsequenceAt(
-					this.interval.getContig(),
-					this.interval.getStart(),
-					this.interval.getEnd()
-					);
-			this.referenceSequence = refseq.getBaseString();
-			reloadReads();
-		}
 		
-		private void reloadReads() {
-			final BamFile f = getSelectedBamFile();
-			if(f==null) return;
-			this.rows.clear();
-			final List<Read> buffer= new ArrayList<>(featchReads());
-			while(!buffer.isEmpty()) {
-				final Read read = buffer.remove(0);
-				int y = 0;
-				for(y=0;y< this.rows.size();++y) {
-					final List<Read> row = this.rows.get(y);
-					final Read last = row.get(row.size()-1);
-					if(last.getEnd() >= read.getStart()) continue;
-					read.row_index = y;
-					row.add(read);
-					break;
+		
+		private void reloadReadsAndRef() {
+			final Locatable rgn = this.interval.orElse(null);
+			if(rgn!=null) {
+				final ReferenceSequence refseq = this.referenceSequenceFile.getSubsequenceAt(
+					rgn.getContig(),
+					rgn.getStart(),
+					rgn.getEnd()
+					);
+				this.referenceStr = refseq.getBaseString();
+				
+				final BamFile f = getSelectedBamFile();
+				if(f==null) return;
+				this.rows.clear();
+				this.all_variants_list.clear();
+				
+				if(this.vcfFile!=null) {
+					try(VCFReader vcfReader = VCFReaderFactory.makeDefault().open(this.vcfFile, true)) {
+						try(CloseableIterator<VariantContext> iter = vcfReader.query(rgn)) {
+							while(iter.hasNext()) {
+								final VariantContext ctx = iter.next();
+								all_variants_list.add(ctx);
+								}
+							}
+						this.swingVariantsTableModel.setRows(this.all_variants_list);
+						}
+					catch(IOException err) {
+						LOG.error(err);
+						}
 					}
-				if(y==this.rows.size()) {
-					final List<Read> row = new Vector<>();
-					row.add(read);
-					read.row_index = this.rows.size();
-					this.rows.add(row);
+
+				
+				final List<Read> buffer= new ArrayList<>(featchReads());
+				while(!buffer.isEmpty()) {
+					final Read read = buffer.remove(0);
+					int y = 0;
+					for(y=0;y< this.rows.size();++y) {
+						final List<Read> row = this.rows.get(y);
+						final Read last = row.get(row.size()-1);
+						if(last.getEnd() + 1  >= read.getStart()) continue;
+						read.row_index = y;
+						row.add(read);
+						break;
+						}
+					if(y==this.rows.size()) {
+						final List<Read> row = new Vector<>();
+						row.add(read);
+						read.row_index = this.rows.size();
+						this.rows.add(row);
+						}
 					}
+				}
+			else
+				{
+				this.referenceStr = "";
+				this.rows.clear();
 				}
 			adjustScrollBar();
 			this.drawingArea.repaint();
 			}
 
 		public void adjustScrollBar() {
-			int dy=(int)getFeatureHeight();
-			int  n_rows = 0;
-			n_rows+= 1;//reference
-			n_rows+= this.rows.size();
-			
-			int paperh= this.drawingArea.getHeight();
-			int n_visible = Math.max(1,Math.min(paperh/dy,n_rows));
-			if(paperh<=1) {
+						
+			int n_visible = Math.max(1, (int)Math.floor((this.drawingArea.getHeight() - getMarginTop())/getReadRowHeight()));
+			if(n_visible<=rows.size()) {
 				this.vScrollBar.setValues(0, 0, 0, 0);
 				}
 			else
 				{
 				this.vScrollBar.setValues(
-						0,1, 0, 0
+						0,n_visible,1, rows.size()-n_visible
 						);
 				}
 			}
 		
-		final double getFeatureHeight() {
-			return 20;
-		}
+		final double getMarginTop() {
+			return getReferenceTitleHeight() +
+					getSampleTitleHeight() +
+					getIntervalTitleHeight() +
+					getCoverageTrackHeight()
+					;
+			}
 		
-		final double pos2pixel(int coord) {
-			return (coord - this.interval.getStart())/((double)this.interval.getLengthOnReference())*this.drawingArea.getWidth();
+		final double getReadRowHeight() {
+			double remain_height = drawingArea.getHeight() - getMarginTop();
+			double row_height = remain_height/ this.rows.size();
+			return Math.max(30, Math.min(row_height, 10));
+			}
+		
+		final double pos2pixel(final Locatable loc,final int coord) {
+			return (coord - loc.getStart())/((double)loc.getLengthOnReference())*this.drawingArea.getWidth();
 			}
 		final double getBasePixel() {
-			return (1.0/this.interval.getLengthOnReference())*this.drawingArea.getWidth();
+			final Locatable loc = this.interval.orElse(null);
+			return (1.0/loc.getLengthOnReference())*this.drawingArea.getWidth();
 			}
 			
 		final Optional<SimpleInterval> getUserInterval() {
-				final String s = this.jtextFieldLocation.getText().trim();
-				if(StringUtil.isBlank(s)) return Optional.empty();
-				Optional<SimpleInterval> ret;
-	
-				try {
-					ret = IntervalParserFactory.newInstance().
-						dictionary(this.dict).
-						make().
-						apply(s);
-					}
-				catch(Throwable err) {
-					return Optional.empty();
-					}
-			
-				return ret;
+			final String s = this.jtextFieldLocation.getText().trim();
+			if(StringUtil.isBlank(s)) return Optional.empty();
+			Optional<SimpleInterval> ret;
+
+			try {
+				ret = IntervalParserFactory.newInstance().
+					dictionary(this.dict).
+					make().
+					apply(s);
 				}
+			catch(Throwable err) {
+				return Optional.empty();
+				}
+		
+			return ret;
+			}
 	
 		/** fetch Read for current bam, and current interval **/
 		private List<Read> featchReads() {
+			final Locatable loc = this.interval.orElse(null);
+			if(loc==null) return Collections.emptyList();
 			final BamFile bf = getSelectedBamFile();
 			if(this.interval==null || bf==null) return Collections.emptyList();
 			bf.open(this.referenceFaidx);
 			final SamRecordFilter srf = createSamRecordFilter();
 			try(CloseableIterator<SAMRecord> iter = bf.sr.query(
-				XFrame.this.interval.getContig(),
-				XFrame.this.interval.getStart(),
-				XFrame.this.interval.getEnd(),
+				loc.getContig(),
+				loc.getStart(),
+				loc.getEnd(),
 				false)) {
 				return iter.stream().
 						filter(R->!srf.filterOut(R)).
@@ -569,82 +1008,38 @@ public class SwingBamView extends Launcher {
 		SamRecordFilter createSamRecordFilter() {
 			final List<SamRecordFilter> filters = new ArrayList<>();
 			filters.add(new AlignedFilter(true));
-			if(!this.cboxShowDup.isSelected()) {
+			if(!this.jmenuShowDuplicates.isSelected()) {
 				filters.add(new DuplicateReadFilter());
+				}
+			if(!this.jmenuShowFailQuality.isSelected()) {
+				filters.add(new FailsVendorReadQualityFilter());
+				}
+			if(!this.jmenuShowSecondary.isSelected()) {
+				filters.add(new SecondaryAlignmentFilter());
+				}
+			if(!this.jmenuShowSupplementary.isSelected()) {
+				filters.add(new SamRecordFilter() {
+					@Override
+					public boolean filterOut(SAMRecord first, SAMRecord second) {
+						return filterOut(first) || filterOut(second);
+					}@Override
+					public boolean filterOut(SAMRecord record) {
+						return record.getSupplementaryAlignmentFlag();
+					}
+				});
+				}
+			if(this.mappingQuality.isPresent()) {
+				filters.add(new MappingQualityFilter(this.mappingQuality.orElse(0)));
 				}
 			return new AggregateFilter(filters);
 			}
 		
 		private boolean isUsingClip() {
-			return this.cboxUseClip.isSelected();
+			return this.jmenuShowClip.isSelected();
 			}
 		}
 	
-	private static void openFrameForBamFiles(final Component owner,final Path reference,final List<String> args) {
-		try {
-			final List<Path> paths = IOUtils.unrollPaths(args);
-			if(paths.isEmpty()) {
-				LOG.warn("No File was provided");
-				return;
-				}
-			final List<BamFile> bamFiles = new ArrayList<>(paths.size());
-			for(final Path p:paths) {
-				final BamFile bf = new BamFile(p);
-				bf.open(reference);
-				bf.sn = bf.header.getReadGroups().
-					stream().
-					map(RG->RG.getSample()).
-					filter(S->!StringUtil.isBlank(S)).
-					findFirst().
-					orElse(IOUtils.getFilenameWithoutCommonSuffixes(p));
-				bf.close();
-				bamFiles.add(bf);
-				}
-			
-			final XFrame frame = new XFrame(reference,bamFiles);
-			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 	
-			
-			SwingUtilities.invokeAndWait(()->{
-				frame.setVisible(true);
-				});
-			}
-		catch(final Throwable err) {
-			ThrowablePane.show(owner, err);
-			}
-		}
-	
-	private static void doMenuOpen(final Component parent,final Path reference) {
-		final JFileChooser jfc = new JFileChooser(PreferredDirectory.get(SwingBamView.class));
-		jfc.setMultiSelectionEnabled(true);
-		jfc.setFileFilter(new FileFilter() {
-			@Override
-			public String getDescription() {
-				return "Bam/Cram";
-				}
-			
-			@Override
-			public boolean accept(final File f) {
-				if(f.isFile() && f.canRead()) {
-					String fname= f.getName();
-					if(fname.endsWith(".list")) return true;
-					if(fname.endsWith(FileExtensions.SAM)) return true;
-					if(fname.endsWith(FileExtensions.CRAM)) return true;
-					}
-				return false;
-			}
-		});
-		if(jfc.showOpenDialog(parent)!=JFileChooser.APPROVE_OPTION) return;
-		final File[] files= jfc.getSelectedFiles();
-		if(files==null || files.length==0);
-		openFrameForBamFiles(
-			parent,
-			reference,
-			Arrays.stream(files).
-			map(P->P.toString()).
-			collect(Collectors.toList()));
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -655,7 +1050,36 @@ public class SwingBamView extends Launcher {
 				}
 			
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			openFrameForBamFiles(null,this.referenceFile,args);
+		
+			
+			final List<Path> paths = IOUtils.unrollPaths(args);
+			if(paths.isEmpty()) {
+				LOG.warn("No File was provided");
+				return -1 ;
+				}
+			final List<BamFile> bamFiles = new ArrayList<>(paths.size());
+			for(final Path p:paths) {
+				final BamFile bf = new BamFile(p);
+				bf.open(this.referenceFile);
+				bf.sn = bf.header.getReadGroups().
+					stream().
+					map(RG->RG.getSample()).
+					filter(S->!StringUtil.isBlank(S)).
+					findFirst().
+					orElse(IOUtils.getFilenameWithoutCommonSuffixes(p));
+				bf.close();
+				bamFiles.add(bf);
+				}
+			
+			final XFrame frame = new XFrame(this.referenceFile,bamFiles,this.variantFile);
+			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
+			frame.setBounds(50, 50, screen.width-100, screen.height-100);
+	
+			
+			SwingUtilities.invokeAndWait(()->{
+				frame.setVisible(true);
+				});
+			
 			return 0;
 			}
 		catch(final Throwable err) {

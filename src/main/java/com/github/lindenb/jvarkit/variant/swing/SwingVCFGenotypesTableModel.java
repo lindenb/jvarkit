@@ -51,6 +51,11 @@ private class ColumnInfo {
 	Function<Genotype, Object> extractor;
 	}
 
+public SwingVCFGenotypesTableModel() {
+	this(null);
+	}
+
+
 public SwingVCFGenotypesTableModel(final Pedigree pedigree) {
 	super();
 	this.pedigree=pedigree;
@@ -64,7 +69,11 @@ if(ctx==null || !ctx.hasGenotypes()) {
 else {
 	genotypes = ctx.getGenotypes();
 	}
-setRows(genotypes);
+setGenotypes(genotypes);
+}
+
+public void setGenotypes(final List<Genotype> genotypes) {
+	setRows(genotypes==null?Collections.emptyList():genotypes);
 }
 
 @Override

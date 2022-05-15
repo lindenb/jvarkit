@@ -2617,6 +2617,10 @@ all2.add(task("swingbamcov", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamCov"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("swingbamview", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamView"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 all2.add(task("swingindexcov", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov"

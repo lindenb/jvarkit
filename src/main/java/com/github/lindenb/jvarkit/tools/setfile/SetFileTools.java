@@ -357,13 +357,15 @@ public class SetFileTools extends Launcher {
 
 	private enum Action {
 		tobed,
+		tobed12,
 		frombed,
 		view,
 		cluster,
 		combine,
 		bedbed,
 		intersectbed,
-		stats
+		stats,
+		
 		};
 		
 	private String noChr(final String contig) {
@@ -578,6 +580,56 @@ public class SetFileTools extends Launcher {
 		return 0;
 		}
 	
+	private int toBed12(final List<String> args) throws IOException {
+		int skipped=0;
+		try(CloseableIterator<SetFileRecord> iter = openSetFileIterator(args)) {
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				while(iter.hasNext()) {
+					final SetFileRecord rec = iter.next();
+					final Set<String> chroms = rec.getChromosomes();
+					if(chroms.size()!=1) {
+						skipped++;
+						continue;
+						}
+					final List<Locatable> merged = sortAndMerge(rec);
+					final String contig = chroms.iterator().next();
+					final int chromStart;
+					final int chromEnd;
+					pw.print(noChr(contig));
+					pw.print("\t");
+					pw.print(chromStart = merged.stream().mapToInt(X->X.getStart()).min().getAsInt()-1);
+					pw.print("\t");
+					pw.print(chromEnd = merged.stream().mapToInt(X->X.getEnd()).max().getAsInt());
+					pw.print("\t");
+					pw.print(rec.getName());
+					pw.print("\t");
+					pw.print((int)((merged.stream().mapToInt(L->L.getLengthOnReference()).sum()/(double)(chromEnd-chromStart))*1000));
+					pw.print("\t");
+					pw.print(".");//no strand
+					pw.print("\t");
+					pw.print(chromStart);
+					pw.print("\t");
+					pw.print(chromEnd);
+					pw.print("\t");
+					pw.print("0,0,255");
+					pw.print("\t");
+					pw.print(rec.size());
+					pw.print("\t");
+					pw.print(merged.stream().map(T->String.valueOf(T.getLengthOnReference())).collect(Collectors.joining(",")));
+					pw.print("\t");
+					pw.print(merged.stream().map(T->String.valueOf((T.getStart()-1)-chromStart)).collect(Collectors.joining(",")));
+					pw.println();
+					}
+				pw.flush();
+				}
+			}
+		if(skipped>0) {
+			LOG.warn("skipped "+skipped+" records with multiple chromosomes.");
+			}
+		return 0;
+		}
+	
+	
 	/** print  whole setrecords overlapping bed file, there is to trimming */
 	private int doInterBed(final List<String> args) throws IOException {
 		if(this.intersectBedPath!=null) {
@@ -780,6 +832,7 @@ public class SetFileTools extends Launcher {
 			switch(action) {
 				case frombed: return fromBed(args);
 				case tobed: return toBed(args);
+				case tobed12: return toBed12(args);
 				case view: return view(args);
 				case cluster: return makeClusters(args);
 				case combine: return combine(args);

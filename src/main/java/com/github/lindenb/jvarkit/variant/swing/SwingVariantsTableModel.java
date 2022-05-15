@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 
 @SuppressWarnings("serial")
 public class SwingVariantsTableModel extends AbstractGenericTable<VariantContext>{
@@ -57,7 +58,7 @@ public Class<?> getColumnClass(int column) {
 	}
 
 @Override
-public String getColumnName(int column) {
+public String getColumnName(final int column) {
 	switch(column) {
 		case 0: return "CHROM";
 		case 1: return "POS";
@@ -79,7 +80,7 @@ public Object getValueOf(final VariantContext vc, int column) {
 		case 3: return vc.getReference().getDisplayString();
 		case 4: return vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","));
 		case 5: return vc.hasLog10PError()?vc.getPhredScaledQual():null;
-		case 6: return vc.isFiltered()?String.join(";",vc.getFilters()):null;
+		case 6: return vc.isFiltered()?String.join(VCFConstants.FILTER_CODE_SEPARATOR,vc.getFilters()):null;
 		default: throw new IllegalStateException();
 		}
 	}
