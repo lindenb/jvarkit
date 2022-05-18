@@ -23,6 +23,9 @@ Usage: bam4indexcov [options] Files
     -Q, --mapq
       min mapping quality.
       Default: 10
+    --md5
+      generate md5 file
+      Default: false
   * -o, --output
       Output directory
     -p, --prefix
@@ -65,7 +68,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-2020506
+20220506
 
 ## Source code 
 

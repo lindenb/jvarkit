@@ -24,11 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar.indexcov;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -62,6 +65,7 @@ import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Md5CalculatingOutputStream;
 import htsjdk.samtools.util.StopWatch;
 
 
@@ -80,8 +84,8 @@ END_DOC
 		name="bam4indexcov",
 		description="prepare BAM/CRAM from indexcov.",
 		keywords={"cnv","duplication","deletion","sv"},
-		creationDate="2020506",
-		modificationDate="2020507"
+		creationDate="20220506",
+		modificationDate="20202518"
 		)
 public class BamForIndexCov extends Launcher {
 	private static final Logger LOG = Logger.build(BamForIndexCov.class).make();
@@ -97,74 +101,125 @@ public class BamForIndexCov extends Launcher {
 	private String includeRegex ="(chr)?[0-9XY]+";
 	@Parameter(names={"-m","--manifest"},description="manifest file")
 	private Path manifest = null;
+	@Parameter(names={"--md5"},description="generate md5 file")
+	private boolean write_md5sum= false;
+	@Parameter(names={"--force"},description="write BAM for real, for debugging pupose",hidden = true)
+	private boolean write_bam_for_real= false;
 
+	
+	
 	
 	private class BamWriterForIndexCov implements AutoCloseable {
 	    private final BinaryCodec outputBinaryCodec;
 	    private BAMRecordCodec bamRecordCodec = null;
+	    private final OutputStream outputStream;
 	    private final BlockCompressedOutputStream blockCompressedOutputStream;
 	    private BAMIndexer bamIndexer = null;
 	    private final SAMFileHeader header;
 	    private final Path bamPath;
-	    BamWriterForIndexCov(final Path bamPath,final Path baiPath,final SAMFileHeader header) {
+	    BamWriterForIndexCov(final Path bamPath,final Path baiPath,final SAMFileHeader header) throws IOException {
 	        final String bamFilename = bamPath.toString();
 	        this.header = header;
 	        this.bamPath = bamPath;
-	    	blockCompressedOutputStream = new BlockCompressedOutputStream(new NullOuputStream(),bamPath,0);
-	        outputBinaryCodec = new BinaryCodec(blockCompressedOutputStream);
-	        outputBinaryCodec.setOutputFileName(bamFilename);
-	        bamRecordCodec = new BAMRecordCodec(header);
-            bamRecordCodec.setOutputStream(outputBinaryCodec.getOutputStream(),bamFilename);
+	        this.outputStream = openBamOutputStream(bamPath);
+	        
+	        
+	        
+           try 
+	            {
+	            @SuppressWarnings("resource")
+	            final BlockCompressedOutputStream blockCompressedOutputStream2 = new BlockCompressedOutputStream(this.outputStream, (Path)null);
+	            @SuppressWarnings("resource")
+				final BinaryCodec outputBinaryCodec2 = new BinaryCodec(blockCompressedOutputStream2);
+	            outputBinaryCodec2.writeBytes("BAM\1".getBytes());
+	            // calculate and write the length of the SAM file header text and the header text
+	            final Writer stringWriter = new StringWriter();
+	            new SAMTextHeaderCodec().encode(stringWriter, header, true);
+	
+	            outputBinaryCodec2.writeString(stringWriter.toString(), true, false);
+	
+	            // write the sequences binarily.  This is redundant with the text header
+	            outputBinaryCodec2.writeInt(header.getSequenceDictionary().size());
+	            for (final SAMSequenceRecord sequenceRecord: header.getSequenceDictionary().getSequences()) {
+	                outputBinaryCodec2.writeString(sequenceRecord.getSequenceName(), true, true);
+	                outputBinaryCodec2.writeInt(sequenceRecord.getSequenceLength());
+	            	}
+	            blockCompressedOutputStream2.flush();
+	            }
+           catch(IOException err) {
+        	   LOG.error(err);
+        	   throw err;
+           		}
            
-            bamIndexer =  new BAMIndexer(baiPath,header);
+
             
-            //write header
-            outputBinaryCodec.writeBytes("BAI\1".getBytes());
-
-            // calculate and write the length of the SAM file header text and the header text
-            final Writer stringWriter = new StringWriter();
-            new SAMTextHeaderCodec().encode(stringWriter, header, true);
-
-            outputBinaryCodec.writeString(stringWriter.toString(), true, false);
-
-            // write the sequences binarily.  This is redundant with the text header
-            outputBinaryCodec.writeInt(header.getSequenceDictionary().size());
-            for (final SAMSequenceRecord sequenceRecord: header.getSequenceDictionary().getSequences()) {
-                outputBinaryCodec.writeString(sequenceRecord.getSequenceName(), true, true);
-                outputBinaryCodec.writeInt(sequenceRecord.getSequenceLength());
-            	}
-
+	        this.bamIndexer =  new BAMIndexer(baiPath,header);
+	    	this.blockCompressedOutputStream = new BlockCompressedOutputStream(this.outputStream,bamPath,0);
+	        this.outputBinaryCodec = new BinaryCodec(blockCompressedOutputStream);
+	        this.outputBinaryCodec.setOutputFileName(bamFilename);
+	        this.bamRecordCodec = new BAMRecordCodec(header);
+	        this.bamRecordCodec.setOutputStream(outputBinaryCodec.getOutputStream(),bamFilename);
 	    	}
 
 	    
 	    void add(final SAMRecord alignment) {
-            final long startOffset = blockCompressedOutputStream.getFilePointer();
-            bamRecordCodec.encode(alignment);
-            final long stopOffset = blockCompressedOutputStream.getFilePointer();
+            final long startOffset = this.blockCompressedOutputStream.getFilePointer();
+            this.bamRecordCodec.encode(alignment);
+            final long stopOffset = this.blockCompressedOutputStream.getFilePointer();
             // set the alignment's SourceInfo and then prepare its index information
             alignment.setFileSource(new SAMFileSource(null, new BAMFileSpan(new Chunk(startOffset, stopOffset))));
-            bamIndexer.processAlignment(alignment);
+            this.bamIndexer.processAlignment(alignment);
     		}
 
+	    void flush() {
+	    	try {
+	    		this.outputBinaryCodec.getOutputStream().flush();
+	    		}
+	    	catch(IOException err) {
+	    		LOG.error(err);
+	    		}
+	    	}
+	    
 	    @Override
 	    public void close() {
+	    	flush();
 	        this.outputBinaryCodec.close();
-	        
-			final SAMFileWriterFactory sfw = new SAMFileWriterFactory().
-					setCreateIndex(false).
-					setCreateMd5File(false).
-					setCompressionLevel(0);
-			try(SAMFileWriter sw=sfw.makeBAMWriter(this.header,true,this.bamPath)) {
-				//do nothing, just write header
-				sw.getFileHeader();//prevent warning sw is never referenced in body of corresponding try statement
-				}
+	        if(!BamForIndexCov.this.write_bam_for_real) {
+				final SAMFileWriterFactory sfw = new SAMFileWriterFactory().
+						setCreateIndex(false).
+						setCreateMd5File(BamForIndexCov.this.write_md5sum).
+						setCompressionLevel(0);
+				try(SAMFileWriter sw=sfw.makeBAMWriter(this.header,true,this.bamPath)) {
+					//do nothing, just write header
+					sw.getFileHeader();//prevent warning sw is never referenced in body of corresponding try statement
+					}
+		        }
 			this.bamIndexer.finish();
 	    	}
 	    }
 
 
+	private OutputStream wrapMD5OutputSteam(final OutputStream os,final Path bamPath) {
+		if(this.write_md5sum) {
+			final String fname= bamPath.getFileName().toString()+".md5";
+			final Path md5path = bamPath.getParent()!=null?bamPath.getParent().resolve(fname):Paths.get(fname);
+			return new Md5CalculatingOutputStream(os, md5path);
+			}
+		else {
+			return os;
+			}
+		}
 
-	
+	private OutputStream openBamOutputStream(final Path bamPath) throws IOException {
+		final OutputStream os;
+		if(this.write_bam_for_real) {
+			os = Files.newOutputStream(bamPath);
+			}
+		else {
+			os = new NullOuputStream();
+			}
+		return wrapMD5OutputSteam(os,bamPath);
+		}
 	
 	@Override
 	public int doWork(final List<String> args)
