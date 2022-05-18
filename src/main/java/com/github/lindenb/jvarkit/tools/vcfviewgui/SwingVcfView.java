@@ -382,7 +382,7 @@ public class SwingVcfView extends Launcher
 									Desktop.getDesktop().browse(new URI(U.getUrl()));
 									}
 								catch(final Throwable err) {
-									ThrowablePane.show(table, err);
+									JOptionPane.showInputDialog(XFrame.this, U.getUrl());
 									}
 								}
 							};
@@ -736,7 +736,6 @@ public class SwingVcfView extends Launcher
 		}
 	
 
-	@SuppressWarnings("serial")
 	private static class SnpEffNmdLOfTableModel extends AbstractGenericTable<SnpEffLofNmdParser.Prediction> {
 		final SnpEffLofNmdParser parser;
 		SnpEffNmdLOfTableModel(final String tag,VCFHeader header) {
@@ -786,7 +785,7 @@ public class SwingVcfView extends Launcher
 		long count;
 		int fraction;
 		}
-	@SuppressWarnings("serial")
+
 	private static class GenotypeTypeTableModel extends AbstractGenericTable<GenotypeCount> {
 		@Override
 		public int getColumnCount() { return 3;}
@@ -842,7 +841,6 @@ public class SwingVcfView extends Launcher
 		}
 	
 	
-	@SuppressWarnings("serial")
 	private static class SmooveGeneTableModel extends AbstractGenericTable<SmooveGenesParser.Prediction> {
 		final SmooveGenesParser parser;
 		SmooveGeneTableModel(final VCFHeader header) {
@@ -887,7 +885,6 @@ public class SwingVcfView extends Launcher
 			}
 		}
 
-	@SuppressWarnings("serial")
 	private static class GffTableModel extends SwingGff3TableModel {
 		final Path gffFile;
 		GffTableModel(final Path gffFile) {

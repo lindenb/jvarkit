@@ -1029,7 +1029,7 @@ public class SwingBamCov extends Launcher
 								Desktop.getDesktop().browse(new URI(U.getUrl()));
 								}
 							catch(final Throwable err) {
-								ThrowablePane.show(XFrame.this, err);
+								JOptionPane.showInputDialog(XFrame.this,U.getUrl());
 								}
 							}
 						};
