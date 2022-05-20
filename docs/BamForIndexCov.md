@@ -5,6 +5,10 @@
 prepare BAM/CRAM from indexcov.
 
 
+## DEPRECATED
+
+can be replace with samtools view. See doc
+
 ## Usage
 
 ```
@@ -95,6 +99,13 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+# DEPRECATED
+
+can be replaced with
+```
+samtools view -F 3844 -q 30 -O BAM -o "/dev/null##idx##out.bam.bai" --write-index in.bam
+```
 
 ## example
 

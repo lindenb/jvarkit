@@ -60,17 +60,26 @@ import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.util.AbstractProgressLogger;
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Md5CalculatingOutputStream;
+import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.util.StopWatch;
 
 
 /**
 BEGIN_DOC
+
+# DEPRECATED
+
+can be replaced with
+```
+samtools view -F 3844 -q 30 -O BAM -o "/dev/null##idx##out.bam.bai" --write-index in.bam
+```
 
 ## example
 
@@ -85,7 +94,8 @@ END_DOC
 		description="prepare BAM/CRAM from indexcov.",
 		keywords={"cnv","duplication","deletion","sv"},
 		creationDate="20220506",
-		modificationDate="20202518"
+		modificationDate="20202518",
+		deprecatedMsg="can be replace with samtools view. See doc"
 		)
 public class BamForIndexCov extends Launcher {
 	private static final Logger LOG = Logger.build(BamForIndexCov.class).make();
@@ -278,12 +288,18 @@ public class BamForIndexCov extends Launcher {
 							}
 						
 						
-						
+						final ProgressLoggerInterface progress = new AbstractProgressLogger(BamForIndexCov.class.getSimpleName(),"Scan",1_000_000) {
+							@Override
+							protected void log(String... message) {
+								System.err.println(String.join(" ", message));
+								}
+							};
 						try(BamWriterForIndexCov sw= new BamWriterForIndexCov(outBamPath,outBaiPath,header)) {
 							try(CloseableIterator<SAMRecord> iter = sr.iterator()) {
 								while(iter.hasNext()) {
 									final SAMRecord rec = iter.next();
 									if(!SAMRecordDefaultFilter.accept(rec,this.mapq)) continue;
+									progress.record(rec);
 									if(tid_to_skips.contains(rec.getReferenceIndex())) continue;
 									rec.setReadName("X");
 									rec.setReadBases(SAMRecord.NULL_SEQUENCE);
@@ -293,6 +309,7 @@ public class BamForIndexCov extends Launcher {
 									}
 								}
 							}
+						progress.reset();
 						manifestW.println(
 							outBamPath.toRealPath().toString() + 
 							"\t" +
