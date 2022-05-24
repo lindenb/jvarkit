@@ -50,7 +50,7 @@ public SwingGff3TableModel() {
 
 @Override
 synchronized public void  setRows(final List<Gff3Feature> features) {
-	if(features==null || features.isEmpty()) {
+	if(features==null) {
 		setRows(Collections.emptyList());
 		}
     this.columns.clear();
