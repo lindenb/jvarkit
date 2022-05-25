@@ -101,6 +101,10 @@ public class VcfToCircularSvg extends Launcher{
 	private Path outputFile = null;
 	@Parameter(names="--include",description="include chromosomes matching the following expression")
 	private String includeContigsRegex = "(chr)?[0-9XY]+";
+	@Parameter(names="-l",description="List available handlers and exit")
+	private boolean list_handlers = false;
+	@Parameter(names="-n",description="handler name")
+	private String handlerName="default";
 
 	private final ColorUtils colorUtils = new ColorUtils();
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
@@ -179,7 +183,17 @@ public class VcfToCircularSvg extends Launcher{
 		final List<Sample> samples = new ArrayList<>();
 		final Map<String,Sample> name2sample = new HashMap<>();
 		XMLStreamWriter w;
-		Handler(final VCFHeader header) {
+		
+		
+		public String getName() {
+			return getClass().getSimpleName();
+			}
+		public String getDescription() {
+			return getName();
+			}		
+		
+		
+		void init(final VCFHeader header) {
 			final SAMSequenceDictionary dict0  = SequenceDictionaryUtils.extractRequired(header);
 			this.dict = new SAMSequenceDictionary(dict0.getSequences().stream().filter(SR->SR.getSequenceName().
 				matches(VcfToCircularSvg.this.includeContigsRegex)).
@@ -349,9 +363,6 @@ public class VcfToCircularSvg extends Launcher{
 		}
 	
 	private class DellyCNVHandler extends Handler {
-		DellyCNVHandler(final VCFHeader header){
-				super(header);
-				}
 		@Override
 		void visit(final VariantContext ctx) {
 			for(Genotype gt:ctx.getGenotypes()) {
@@ -373,11 +384,29 @@ public class VcfToCircularSvg extends Launcher{
 	@Override
 	public int doWork(final List<String> args) {
 		try{
+			
+			final List<Handler> handlers = Arrays.asList(
+					new DellyCNVHandler()
+					);
+			if(this.list_handlers) {
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					for(Handler h:handlers) {
+						out.print(h.getName());
+						out.print("\t");
+						out.println(h.getDescription());
+						}
+					}
+				return 0;
+				}
+			final Handler handler  = handlers.
+					stream().
+					filter(S->S.getName().equals(this.handlerName)).
+					findFirst().orElseThrow(()->new IllegalArgumentException("cannot find handler for "+this.handlerName));
+			
 			final String input = oneFileOrNull(args);
 			try(VCFIterator iter = super.openVCFIterator(input)) {
 				final VCFHeader header = iter.getHeader();
-				final Handler handler = createHandler(header);
-				
+				handler.init(header);
 				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 					final XMLOutputFactory xof = XMLOutputFactory.newInstance();
 					final XMLStreamWriter w = xof.createXMLStreamWriter(out);
@@ -404,6 +433,7 @@ public class VcfToCircularSvg extends Launcher{
 	
 	
 	public int doWork2(final List<String> args) {
+	
 		if(this.histogram_mode && this.input_is_bedpe) {
 			LOG.error("cannot use both histogram and interact format");
 			return -1;
@@ -706,155 +736,10 @@ public class VcfToCircularSvg extends Launcher{
 		w.writeEndElement();
 		}
 
-	private void writeLinear(
-			final XMLStreamWriter w,
-			final List<Track> tracks,
-			int maxScore
-			)throws XMLStreamException,IOException
-		{
-		
-		final int margin_left= 100;
-		final int longest = this.dict.getSequences().stream().mapToInt(SSR->SSR.getSequenceLength()).max().orElse(0);
-		if(longest<=0) return;
-		
-		final Function<Integer, Double> tid2y = (TID)->this.distance_between_arc+(TID*(this.feature_height+this.distance_between_arc));
-		final Function<Integer, Double> pos2x = (P)-> (P/((double)longest))*this.linear_width;
-		
-		final int img_width = this.linear_width  +  margin_left*2 +1;
-		final int img_height = (int)((this.dict.size()+1)*(this.feature_height+this.distance_between_arc));
-		w.writeAttribute("width", String.valueOf(img_width));
-		w.writeAttribute("height", String.valueOf(img_height));
-		w.writeDefaultNamespace(SVG.NS);
-		w.writeNamespace("xlink", XLINK.NS);
-		writeStyle(w);
-		writeScript(w);
-		writeTitle(w);
-		w.writeStartElement("g");
-		w.writeAttribute("class", "maing");
-		w.writeAttribute("transform", "translate("+margin_left+",0)");
-		
-		w.writeStartElement("g");
-		for(int tid=0;tid< this.dict.size();++tid)
-			{
-			final SAMSequenceRecord ssr=this.dict.getSequence(tid);
-			w.writeStartElement("g");
-			
-			w.writeStartElement("rect");
-			w.writeAttribute("class", "contig"+(tid%2));
-			w.writeAttribute("x","0");
-			w.writeAttribute("y",format(tid2y.apply(tid)));
-			w.writeAttribute("width",format(pos2x.apply(ssr.getSequenceLength())));
-			w.writeAttribute("height",format(this.feature_height));
-			w.writeEndElement();
-			
-			w.writeStartElement("text");
-			w.writeAttribute("class", "contig");
-			w.writeAttribute("style", "text-anchor:end;");
-			w.writeAttribute("x",String.valueOf(0-1));
-			w.writeAttribute("y",format(tid2y.apply(tid)+this.feature_height));
-			w.writeCharacters(ssr.getSequenceName());
-			w.writeEndElement();
-			
-			w.writeEndElement();//g
-			}
-		w.writeEndElement();//end g contigs
-		if(tracks.size()>1) {
-			LOG.warn("in linear mode, all tracks are merged");
-			}
-		for(final Track currentTrack: tracks) {
-			w.writeStartElement("g");
-			w.writeComment("track "+String.valueOf(currentTrack.name));
-			for(final TrackContig trackcontig : currentTrack.contigs)
-				{
-				for(final List<Arc> arcs: trackcontig.rows)
-					{
-					if(arcs.size()>1) {
-						LOG.warn("in linear mode, all tracks are merged");
-						}
-					for(final Arc arc: arcs)
-						{
-						double x1= pos2x.apply(arc.start);
-						double x2= pos2x.apply(arc.end);
-						final double y1 = tid2y.apply(arc.tid);
-						final double y2 = y1 + this.feature_height;
-						final double midy = this.feature_height/2.0 + y1 ;
-						if(x2<=x1) x2+=0.5;
-						if(this.input_is_bedpe)
-							{
-							final ArcInterval arci = ArcInterval.class.cast(arc);
-							
-							double tx1= pos2x.apply(arci.targetStart);
-							double tx2= pos2x.apply(arci.targetEnd);
-							
-							
-							w.writeStartElement("path");
-							final StringBuilder sb =  new StringBuilder();
-							if(arci.tid==arci.targetTid)
-								{
-								//TODO
-								}
-							else
-								{
-								final double ty1 = tid2y.apply(arci.targetTid);
-								final double ty2 = ty1 + this.feature_height;
-								final double tmidy = (ty1+ty2)/2.0 ;
-								
-								sb.append("M ").append(format(x1)).append(" ").append(format(midy));
-								sb.append(" L ").append(format(x2)).append(" ").append(format(midy));
-								sb.append(" L ").append(format(tx2)).append(" ").append(format(tmidy));
-								sb.append(" L ").append(format(tx1)).append(" ").append(format(tmidy));
-								sb.append("Z");
-								}
-							w.writeAttribute("d",sb.toString());
-							}
-						else if(arc.strand==0 || (x2-x1)<this.arrow_size*2)
-							{
-							w.writeStartElement("rect");
-							w.writeAttribute("x",format(x1));
-							w.writeAttribute("y",format(y1));
-							w.writeAttribute("width",format(x2-x1));
-							w.writeAttribute("height",format(this.feature_height));
-							}
-						else if(arc.strand==-1) {
-							w.writeStartElement("path");
-							final StringBuilder sb =  new StringBuilder();
-							sb.append("M ").append(format(x1)).append(" ").append(format(midy));
-							sb.append(" L ").append(format(x1+this.arrow_size)).append(" ").append(format(y1));
-							sb.append(" L ").append(format(x2)).append(" ").append(format(y1));
-							sb.append(" L ").append(format(x2)).append(" ").append(format(y2));
-							sb.append(" L ").append(format(x1+this.arrow_size)).append(" ").append(format(y2));
-							sb.append("Z");
-							w.writeAttribute("d",sb.toString());
-							}
-						else
-							{
-							w.writeStartElement("path");
-							final StringBuilder sb =  new StringBuilder();
-							sb.append("M ").append(format(x1)).append(" ").append(format(y1));
-							sb.append(" L ").append(format(x2-this.arrow_size)).append(" ").append(format(y1));
-							sb.append(" L ").append(format(x2)).append(" ").append(format(midy));
-							sb.append(" L ").append(format(x2-this.arrow_size)).append(" ").append(format(y2));
-							sb.append(" L ").append(format(x1)).append(" ").append(format(y2));
-							sb.append("Z");
-							w.writeAttribute("d",sb.toString());
-							}
-						writeArcFeatures(w,arc,maxScore);
-						
-						w.writeEndElement();
-						}
-					}
-				}
-			w.writeEndElement();//g of track
-			}
-		
-		w.writeEndElement();//g@maing
-		}
-	
 	
 	
 	private void writeCircular(
 			final XMLStreamWriter w,
-			final List<Track> tracks,
 			int maxScore
 			)throws XMLStreamException,IOException
 		{

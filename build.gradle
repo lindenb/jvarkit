@@ -873,11 +873,18 @@ all2.add( task("addlinearindextobed", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+
 all2.add( task("allelefreqcalc", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	deprecatedMsg = "I don't use it anymore use bioalcidaejdk"
 	});
+
+all2.add( task("manhattan", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.manhattan.Manhattan"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+
 
 all2.add( task("bedcluster", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bedtools.BedCluster"
@@ -1265,10 +1272,6 @@ all2.add( task("gcanddepth", type: CompileJVarkit) {
 	});
 all2.add( task("genomicjaspar", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.jaspar.GenomicJaspar"
-	jarLibs = combineLibs("htsjdk","testng","jcommander")
-	});
-all.add( task("genscan", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.genscan.GenScan"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("gexftr", type: CompileJVarkit) {
