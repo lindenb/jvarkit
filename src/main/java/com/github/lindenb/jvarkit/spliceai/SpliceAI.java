@@ -91,7 +91,7 @@ static class SpliceAIImpl implements SpliceAI {
 		this.DP_AG = Integer.parseInt(tokens[6]);
 		this.DP_AL = Integer.parseInt(tokens[7]);
 		this.DP_DG = Integer.parseInt(tokens[8]);
-		this.DP_DL = Integer.parseInt(tokens[0]);
+		this.DP_DL = Integer.parseInt(tokens[9]);
 		}
 	@Override
 	public String getAllele() {
