@@ -696,11 +696,18 @@ private class ViewVcfHandler extends AbstractHandler
 				vcfToTable.setOutputStream(newOut);
 				vcfToTable.setHideHtmlHeader(true);//always
 				vcfToTable.setPrintHeader("true".equals(this.request.getParameter(SHOW_HEADER_PARAM)));
-				vcfToTable.setHideGenotypes("true".equals(this.request.getParameter(HIDE_GENOTYPES_PARAM)));
-				vcfToTable.setHideHomRefGenotypes("true".equals(this.request.getParameter(HIDE_HOMREF_PARAM)));
-				vcfToTable.setHideNoCallGenotypes("true".equals(this.request.getParameter(HIDE_NOCALL_PARAM)));
-				vcfToTable.setUseANSIColors(!text_output);
-				vcfToTable.setUserCustomUrl(VcfServer.this.userCustomUrl);
+				if("true".equals(this.request.getParameter(HIDE_GENOTYPES_PARAM))) {
+					vcfToTable.addHidden("GENOTYPE");
+					}
+				if("true".equals(this.request.getParameter(HIDE_HOMREF_PARAM))) {
+					vcfToTable.addHidden("HR");
+					}
+				if("true".equals(this.request.getParameter(HIDE_NOCALL_PARAM))) {
+					vcfToTable.addHidden("NC");
+					}
+				
+				//TODO vcfToTable.setUseANSIColors(!text_output);
+				//TODO vcfToTable.setUserCustomUrl(VcfServer.this.userCustomUrl);
 				
 				vcfToTable.writeHeader(header);
 				if(VcfServer.this.pedigreeFile!=null)

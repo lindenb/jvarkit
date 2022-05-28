@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.spliceai.SpliceAI;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -257,10 +258,6 @@ $ java -jar dist/vcf2table.jar file.vcf --color --format html > out.html
 
 END_DOC
 
-## History
-
-* 20190416 : colors for AD
-* 20170517 : fixed a bug in removeEmptyColumns
 
  */
 @Program(name="vcf2table",
@@ -269,7 +266,7 @@ END_DOC
 		references="Vcf2table : a VCF prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853801](https://doi.org/10.6084/m9.figshare.5853801)",
 		biostars=293855,
 		creationDate="20170511",
-		modificationDate="20210505"
+		modificationDate="20220507"
 		)
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();
@@ -277,7 +274,9 @@ public class VcfToTable extends Launcher {
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";
 	public static final String DEFAULT_CSS_STYLE="div.variant0 {background-color:#E4FAFF;}\ndiv.variant1 {background-color:#C6DDE2;}\ntable.minimalistBlack { border: 1px solid #1F1F1F; text-align: left; border-collapse: collapse; } table.minimalistBlack td, table.minimalistBlack th { border: 1px solid #1F1F1F; padding: 5px 2px; } table.minimalistBlack tbody td { font-size: 13px; } table.minimalistBlack thead { background: #CFCFCF; background: -moz-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: -webkit-linear-gradient(top, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); background: linear-gradient(to bottom, #dbdbdb 0%, #d3d3d3 66%, #CFCFCF 100%); border-bottom: 2px solid #000000; } table.minimalistBlack thead th { font-size: 15px; font-weight: bold; color: #000000; text-align: left; } table.minimalistBlack tfoot td { font-size: 14px; } ";
-
+	
+	
+	
 	/** public: can be used by tools using vcf2table */
 	public enum OutputFormat {
 		text,html
@@ -736,30 +735,14 @@ public class VcfToTable extends Launcher {
 		private File outputFile = null;
 		@Parameter(names={"-H","--header"},description="Print Header")
 		private boolean printHeader=false;
-		@Parameter(names={"-g","--hideGenotypes"},description="Hide All genotypes")
-		private boolean hideGenotypes=false;
-		@Parameter(names={"-nc","--hideNoCalls"},description="Hide NO_CALL genotypes")
-		private boolean hideNoCallGenotypes=false;
-		@Parameter(names={"-hr","--hideHomRefs"},description="Hide HOM_REF genotypes")
-		private boolean hideHomRefGenotypes=false;
+		@Parameter(names={"-hide","--hide"},description="Comma separated things to hide: FILTER,ALLELE,FILTER,SPLICEAI,INFO,VEP,SNPEFF,BCSQ,SNPEFF,SMOOVE,URL,GENOTYPE,HR,NC,GTYPE,GTYPE . HR: homozygous on ref. NC: no-call.")
+		private String hideStr = "";
 		@Parameter(names={"-p","--ped","--pedigree"},description="Optional Pedigree file:"+PedigreeParser.OPT_DESC+" If undefined, this tool will try to get the pedigree from the header.")
 		private Path pedigreeFile=null;
 		@Parameter(names={"-L","-limit","--limit"},description="Limit the number of output variant. '-1' == ALL/No limit.")
 		private int limitVariants=-1;
 		@Parameter(names={"--color","--colors"},description="[20170808] Print Terminal ANSI colors.")
 		private boolean useANSIColors=false;
-		@Parameter(names={"--hideAlleles"},description="[20170808] hide Alleles table.")
-		private boolean hideAlleles=false;
-		@Parameter(names={"--hideFilters"},description="[20170808] hide Filters table.")
-		private boolean hideFilters=false;
-		@Parameter(names={"--hideInfo"},description="[20170808] hide INFO table.")
-		private boolean hideInfo=false;
-		@Parameter(names={"--hidePredictions"},description="[20170808] hide SNPEFF/VEP table.")
-		private boolean hidePredictions=false;
-		@Parameter(names={"--hideGTypes"},description="[20180221] hide Genotype.Type table")
-		private boolean hideGTypes=false;
-		@Parameter(names={"--hideHyperlinks"},description="[20191102] hide Hyperlinks table.")
-		private boolean hideHyperlinks=false;
 
 		@Parameter(names={"--format"},description="[20171020] output format.")
 		private OutputFormat outputFormat=OutputFormat.text;
@@ -775,6 +758,39 @@ public class VcfToTable extends Launcher {
 		
 		private AbstractViewer delegate=null;
 		private PrintStream outputStream = System.out;
+		private final Set<String> thingsToHideUpper=new HashSet<>();
+		
+		private boolean isShowing(final String s) {
+			return !thingsToHideUpper.contains(s.toUpperCase());
+		}
+		
+		public void addHidden(String s) {
+			s = s.toUpperCase().trim();
+			if(s.isEmpty()) return;
+			if(s.equals("URLS")) s="URL";
+			if(s.equals("ALLELES")) s="ALLELE";
+			if(s.equals("HYPERLINK")) s="URL";
+			if(s.equals("HYPERLINKS")) s="URL";
+			if(s.equals("GENOTYPES")) s="GENOTYPE";
+			if(s.equals("GTYPES")) s="GTYPE";
+			if(s.equals("FILTERS")) s="FILTERS";
+			if(s.equals("INFOS")) s="INFO";
+			if(s.equals("PREDICTIONS")) s="PREDICTION";
+			if(s.equals("CSQ")) s="VEP";
+			if(s.equals("ANN")) s="SNPEFF";
+			if(s.equals("HOM_REF")) s="HR";
+			if(s.equals("0/0")) s="HR";
+			if(s.equals("NO_CALL")) s="NC";
+			if(s.equals("./.")) s="NC";
+			if(s.equals("PREDICTION")) {
+				thingsToHideUpper.add("VEP");
+				thingsToHideUpper.add("SNPEFF");
+				thingsToHideUpper.add("SMOOVE");
+				thingsToHideUpper.add("BCSQ");
+				}
+			
+			this.thingsToHideUpper.add(s);
+			}
 		
 		private abstract class AbstractViewer implements VariantContextWriter
 			{
@@ -973,7 +989,7 @@ public class VcfToTable extends Launcher {
 				t.addRow("REF",vc.getReference().getDisplayString());
 				t.addRow("ALT",vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
 				t.addRow("QUAL",vc.hasLog10PError()?vc.getPhredScaledQual():null);
-				if(hideFilters) /* print filters here if 'hide filters table has been set */ {
+				if(isShowing("FILTER")) /* print filters here if 'hide filters table has been set */ {
 					final String filterStr=vc.isFiltered()?vc.getFilters().stream().collect(Collectors.joining(";")):null;
 					t.addRow("FILTER",filterStr!=null && useANSIColors?new ColoredDecorator(filterStr, AnsiColor.RED):filterStr);
 					}
@@ -983,7 +999,7 @@ public class VcfToTable extends Launcher {
 				this.writeTable(margin, t);
 				}
 			
-			if(!getOwner().hideAlleles)
+			if(isShowing("ALLELE"))
 				{
 				boolean has_affected_cols=false;
 				int AN=-1;
@@ -1082,7 +1098,7 @@ public class VcfToTable extends Launcher {
 				this.writeTable(margin, t);
 				}
 			
-			if(!getOwner().hideFilters)
+			if(isShowing("FILTER"))
 				{
 				/* FILTER */
 				final	Table t=new Table("Filter").setCaption("FILTERS");
@@ -1095,7 +1111,30 @@ public class VcfToTable extends Launcher {
 			
 			final Set<String> all_geneNames = new HashSet<>();
 			
-			if(!getOwner().hideInfo)
+			if(isShowing("SPLICEAI") && vc.hasAttribute(SpliceAI.getTag())) {
+				/* SpliceAI */
+				final Table t=new Table("ALLELE","SYMBOL","DS_AG","DS_AL","DS_DG","DS_DL","DP_AG","DP_AL","DP_DG","DP_DL").setCaption("SpliceAI");
+				for(SpliceAI splice : SpliceAI.parse(vc)) {
+					t.addRow(
+						splice.getAllele(),
+						splice.getGene(),
+						splice.getDeltaScoreAcceptorGain(),
+						splice.getDeltaScoreAcceptorLoss(),
+						splice.getDeltaScoreDonorGain(),
+						splice.getDeltaScoreDonorLoss(),
+						splice.getDeltaPositionAcceptorGain(),
+						splice.getDeltaPositionAcceptorLoss(),
+						splice.getDeltaPositionDonorGain(),
+						splice.getDeltaPositionDonorLoss()
+						);
+					all_geneNames.add(splice.getGene());
+					}
+				
+				this.writeTable(margin, t);
+				}
+			
+			
+			if(isShowing("INFO"))
 				{		
 				/* INFO */
 				final Table t=new Table("key","Index","Value").setCaption("INFO");
@@ -1108,6 +1147,7 @@ public class VcfToTable extends Launcher {
 					if(key.equals(this.vcfTools.getNmdSnpeffParser().getTag()) && this.vcfTools.getNmdSnpeffParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getLofSnpeffParser().getTag()) && this.vcfTools.getLofSnpeffParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getSmooveGenesParser().getTag()) && this.vcfTools.getSmooveGenesParser().isValid()) continue;
+					if(key.equals(SpliceAI.getTag())) continue;
 					Object v= atts.get(key);
 					final List<?> L;
 					if(v instanceof List)
@@ -1132,7 +1172,7 @@ public class VcfToTable extends Launcher {
 				}
 					
 				/** VEP */
-				if(!getOwner().hidePredictions && this.vcfTools.getVepPredictionParser().isValid())
+				if(isShowing("VEP") && this.vcfTools.getVepPredictionParser().isValid())
 					{
 					final List<String> cats = new ArrayList<>(this.vcfTools.getVepPredictionParser().getCategories());
 					final Table t = new Table(cats).setCaption("VEP");
@@ -1178,7 +1218,7 @@ public class VcfToTable extends Launcher {
 
 					
 				/** ANN */
-				if(!getOwner().hidePredictions && this.vcfTools.getAnnPredictionParser().isValid())
+				if(isShowing("SNPEFF") && this.vcfTools.getAnnPredictionParser().isValid())
 					{
 					Table t = new Table("SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",
 							"BioType","HGVsc","HGVsp","Rank","cDNA-pos","CDS-pos","AA-pos","Distance","Msg").setCaption("ANN");
@@ -1213,7 +1253,7 @@ public class VcfToTable extends Launcher {
 					}
 				
 				/** BCSQ */
-				if(!getOwner().hidePredictions && this.vcfTools.getBcftoolsPredictionParser().isValid())
+				if(isShowing("BCSQ") && this.vcfTools.getBcftoolsPredictionParser().isValid())
 					{
 					final Table t = new Table("Consequence","uSTOP","allele","gene","transcript","biotype","strand","amino_acid_change","dna_change").setCaption("BCSQ");
 					
@@ -1237,7 +1277,7 @@ public class VcfToTable extends Launcher {
 					this.writeTable(margin, t);
 					}
 				/** NMD or LOF */
-				for(int side=0;side<2 && !getOwner().hidePredictions ;side++) {
+				for(int side=0;side<2 && isShowing("SNPEFF") ;side++) {
 					final SnpEffLofNmdParser parser = (side==0?this.vcfTools.getLofSnpeffParser():this.vcfTools.getNmdSnpeffParser());
 					if(!parser.isValid()) continue;
 					
@@ -1257,7 +1297,7 @@ public class VcfToTable extends Launcher {
 					this.writeTable(margin, t);
 					}
 				/** smoove_gene */
-				if(this.vcfTools.getSmooveGenesParser().isValid()) {
+				if(isShowing("SMOOVE") && this.vcfTools.getSmooveGenesParser().isValid()) {
 					final Table t = new Table("Gene","Feature","Features Count","Bases Count").setCaption("Smoove Genes");
 					for(final SmooveGenesParser.Prediction p: this.vcfTools.getSmooveGenesParser().parse(vc)) {
 						final List<Object> r=new ArrayList<>();
@@ -1274,7 +1314,7 @@ public class VcfToTable extends Launcher {
 					}
 				
 				/** hyperlinks */
-				if(!getOwner().hideHyperlinks) {
+				if(isShowing("URL")) {
 					final	Table t=new Table("Name","URL").setCaption("Hyperlinks");
 					for(UrlSupplier.LabelledUrl  url : this.urlSupplier.of(vc) ) {
 						t.addRow(url.getLabel(),new HyperlinkDecorator(url.getUrl()));
@@ -1292,7 +1332,7 @@ public class VcfToTable extends Launcher {
 				printCharts(margin,vc);
 				
 				
-				if(!getOwner().hideGenotypes && vc.hasGenotypes())
+				if(isShowing("GENOTYPE") && vc.hasGenotypes())
 					{
 					//margin = margin+ DEFAULT_MARGIN;
 					final CharSplitter tab = CharSplitter.TAB;
@@ -1318,8 +1358,8 @@ public class VcfToTable extends Launcher {
 					for(int i=0;i< vc.getNSamples();i++)
 						{
 						final Genotype g=vc.getGenotype(i);
-						if(getOwner().hideHomRefGenotypes && g.isHomRef()) continue;
-						if(getOwner().hideNoCallGenotypes && !g.isCalled()) continue;
+						if(!isShowing("HR") && g.isHomRef()) continue;
+						if(!isShowing("NC") && !g.isCalled()) continue;
 						
 						final List<String> gstr =Arrays.asList(colon.split(tokens[9+i]));
 						final List<Object> r= new ArrayList<>(hds.size());
@@ -1484,7 +1524,7 @@ public class VcfToTable extends Launcher {
 				}
 			
 			protected void printGenotypesTypes(final String margin,final VariantContext vc) {
-				if(getOwner().hideGTypes) return;
+				if(getOwner().isShowing("GTYPE")) return;
 				if(!vc.hasGenotypes()) return;
 				final Table t=new Table("Type","Count","%").
 						setCaption("Genotype Types");
@@ -1802,7 +1842,7 @@ public class VcfToTable extends Launcher {
 					super.printGenotypesTypes(margin, vc);
 					return;
 					}
-				if(getOwner().hideGTypes) return;
+				if(isShowing("GTYPE")) return;
 				if(!vc.hasGenotypes()) return;
 				//  <div id="piechart" style="width: 900px; height: 500px;"></div>
 				try {
@@ -1965,25 +2005,6 @@ public class VcfToTable extends Launcher {
 			this.pedigreeFile = pedigreeFile;
 			}
 		
-		public void setHideHomRefGenotypes(boolean hideHomRefGenotypes) {
-			this.hideHomRefGenotypes = hideHomRefGenotypes;
-		}
-		
-		public void setHideNoCallGenotypes(boolean hideNoCallGenotypes) {
-			this.hideNoCallGenotypes = hideNoCallGenotypes;
-		}
-		public void setHideGenotypes(boolean hideGenotypes) {
-			this.hideGenotypes = hideGenotypes;
-		}
-		public void setUseANSIColors(boolean useANSIColors) {
-			this.useANSIColors = useANSIColors;
-		}
-		public void setUserCustomUrl(final String userCustomUrl) {
-			this.userCustomUrl = userCustomUrl;
-		}
-		public void setHideGTypes(boolean hideGTypes) {
-			this.hideGTypes = hideGTypes;
-		}
 		
 		@Override
 		public void setHeader(final VCFHeader header) {
@@ -1993,7 +2014,13 @@ public class VcfToTable extends Launcher {
 		
 		@Override
 		public void writeHeader(final VCFHeader header) {
+			
 			if(this.delegate!=null) throw new IllegalStateException(); 
+			
+			for(String s:this.hideStr.split("[ ,;\\|]+")) {
+				addHidden(s);
+				}
+			
 			switch(this.outputFormat)
 				{
 				case html: this.delegate = new HtmlViewer();break;
@@ -2048,13 +2075,11 @@ public class VcfToTable extends Launcher {
 	@ParametersDelegate
 	private VcfToTableViewer  viewer = new VcfToTableViewer();
 
-	
+
 	
 	@Override
 	public int doWork(final List<String> args) {
 		VCFIterator in = null;
-		
-		
 		try {
 			in = super.openVCFIterator(oneFileOrNull(args));
 			viewer.writeHeader(in.getHeader());
@@ -2065,7 +2090,7 @@ public class VcfToTable extends Launcher {
 			viewer.close();viewer=null;
 			in.close();in=null;
 			return 0;
-		} catch (Exception err) {
+		} catch (Throwable err) {
 			LOG.error(err);
 			return -1;
 			}

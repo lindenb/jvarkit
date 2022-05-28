@@ -31,33 +31,10 @@ Usage: vcf2table [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --hideAlleles
-      [20170808] hide Alleles table.
-      Default: false
-    --hideFilters
-      [20170808] hide Filters table.
-      Default: false
-    --hideGTypes
-      [20180221] hide Genotype.Type table
-      Default: false
-    -g, --hideGenotypes
-      Hide All genotypes
-      Default: false
-    -hr, --hideHomRefs
-      Hide HOM_REF genotypes
-      Default: false
-    --hideHyperlinks
-      [20191102] hide Hyperlinks table.
-      Default: false
-    --hideInfo
-      [20170808] hide INFO table.
-      Default: false
-    -nc, --hideNoCalls
-      Hide NO_CALL genotypes
-      Default: false
-    --hidePredictions
-      [20170808] hide SNPEFF/VEP table.
-      Default: false
+    -hide, --hide
+      Comma separated things to hide: FILTER,ALLELE,FILTER,SPLICEAI,INFO,VEP,SNPEFF,BCSQ,SNPEFF,SMOOVE,URL,GENOTYPE,HR,NC,GTYPE,GTYPE 
+      . HR: homozygous on ref. NC: no-call.
+      Default: <empty string>
     -L, -limit, --limit
       Limit the number of output variant. '-1' == ALL/No limit.
       Default: -1
