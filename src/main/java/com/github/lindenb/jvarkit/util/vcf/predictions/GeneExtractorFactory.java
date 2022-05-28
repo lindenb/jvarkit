@@ -40,6 +40,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.spliceai.SpliceAI;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -308,6 +309,37 @@ private class SmooveExtractor extends AbstractGeneExtractorImpl {
 		}
 	}
 
+
+private class SpliceAiGeneExtractor extends AbstractGeneExtractorImpl {
+	SpliceAiGeneExtractor(final String name)
+		{
+		super(name);
+		}
+	@Override
+	public Map<KeyAndGene, Set<String>> apply(final VariantContext vc) {
+		final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
+		for(final SpliceAI pred: SpliceAI.parse(vc)){
+			//if(pred.isIntergenicRegion()) continue;
+			final String geneName= pred.getGene();
+			if(StringUtils.isBlank(geneName)) continue;
+			final KeyAndGene keyAndGene = new KeyAndGeneImpl(geneName, geneName,this.getName());
+			Set<String> values = gene2values.get(keyAndGene);
+			if(values==null)  {
+				values = new LinkedHashSet<>();
+				gene2values.put(keyAndGene,values);
+				}
+			values.add(pred.toString());
+			}
+		return gene2values;
+		}
+	@Override
+	public String getInfoTag()
+		{
+		return SpliceAI.getTag();
+		}
+	}
+
+
 private final List<GeneExtractor> extractors =  new ArrayList<>();
 /* WARNING keep that order: see constuctor */
 private static List<String> AVAILABLE_EXTRACTORS_NAMES = Collections.unmodifiableList(Arrays.asList(
@@ -315,7 +347,8 @@ private static List<String> AVAILABLE_EXTRACTORS_NAMES = Collections.unmodifiabl
 		"VEP/GeneId","VEP/Ensp","VEP/Feature",// 3 & 4 & 5
 		"EFF/Gene","EFF/Transcript",// 6 & 7
 		"BCSQ/gene","BCSQ/transcript",//8 & 9
-		"SMOOVE" //10
+		"SMOOVE", //10
+		"SpliceAI" //11
 		))
 		;
 
@@ -349,6 +382,8 @@ public GeneExtractorFactory(final VCFHeader header) {
 	
 	final SmooveGenesParser smooveGenesParser = new SmooveGenesParser(header);
 	extractors.add( new SmooveExtractor(AVAILABLE_EXTRACTORS_NAMES.get(10), smooveGenesParser));
+	
+	extractors.add( new SpliceAiGeneExtractor(AVAILABLE_EXTRACTORS_NAMES.get(11)));
 	}
 
 /** return a list of all the available extractors' names */
