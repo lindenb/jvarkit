@@ -21,7 +21,7 @@ public class VcfSlidingWindowSplitterTest {
 			final Path tmp = support.createTmpPath(".zip");
 			final Path manifest = support.createTmpPath(".mf");
 			
-			Assert.assertEquals(new VcfGeneSplitter().instanceMain(new String[] {
+			Assert.assertEquals(new VcfSlidingWindowSplitter().instanceMain(new String[] {
 					"-m",manifest.toString(),
 					"-o",tmp.toString(),
 					"-w","1000",

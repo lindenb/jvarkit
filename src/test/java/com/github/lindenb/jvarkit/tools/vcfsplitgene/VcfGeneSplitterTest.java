@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcfsplitgene;
 
 import java.io.File;
 import java.io.IOException;
@@ -9,6 +9,7 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 import htsjdk.samtools.util.IOUtil;

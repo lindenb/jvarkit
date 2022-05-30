@@ -2117,7 +2117,7 @@ all.add( task("vcf2zip", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfgenesplitter", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.VcfGeneSplitter"
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitter"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("vcfgtfsplitter", type: CompileJVarkit) {
