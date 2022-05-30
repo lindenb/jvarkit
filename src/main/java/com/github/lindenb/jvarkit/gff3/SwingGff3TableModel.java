@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.gff3;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.Vector;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -50,7 +51,7 @@ public SwingGff3TableModel() {
 
 @Override
 synchronized public void  setRows(final List<Gff3Feature> features) {
-	if(features==null || features.isEmpty()) {
+	if(features==null) {
 		setRows(Collections.emptyList());
 		}
     this.columns.clear();
@@ -107,7 +108,7 @@ synchronized public void  setRows(final List<Gff3Feature> features) {
     columns.add(ci);
     
     for(final String key:features.stream().
-    	flatMap(F->F.getAttributes().keySet().stream()).collect(Collectors.toSet()))
+    	flatMap(F->F.getAttributes().keySet().stream()).collect(Collectors.toCollection(TreeSet::new)))
     	{
 	    ci = new ColumnInfo();
 	    ci.clazz = String.class;
