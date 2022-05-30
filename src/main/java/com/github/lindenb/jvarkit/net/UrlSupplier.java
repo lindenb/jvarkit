@@ -97,7 +97,9 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		columnName.equalsIgnoreCase("symbol")) {
 		urls.add(new LabelledUrlImpl("NCBI gene","https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/search?search="+StringUtils.escapeHttp(id)));
-		urls.add(new LabelledUrlImpl("hugeamp","hhttps://cvd.hugeamp.org/gene.html?gene="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("hugeamp","https://cvd.hugeamp.org/gene.html?gene="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Archs4","https://maayanlab.cloud/archs4/gene/"+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Enrichr","https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
 		}
 	else if( columnName.equalsIgnoreCase("omim")) {
 		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/entry/"+id));
