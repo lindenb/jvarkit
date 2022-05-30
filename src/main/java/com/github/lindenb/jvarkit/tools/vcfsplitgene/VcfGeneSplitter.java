@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
@@ -145,7 +146,7 @@ public class VcfGeneSplitter
 		public int hashCode() {
 			int h = extractor.hashCode();
 			h= h*31 + key.hashCode();
-			h= h*31 + gene.hashCode();
+			//h= h*31 + gene.hashCode();
 			return h;
 			}
 		@Override
@@ -153,7 +154,7 @@ public class VcfGeneSplitter
 			if(obj==this) return true;
 			if(obj==null || !(obj instanceof KeyGene)) return false;
 			final KeyGene kg = KeyGene.class.cast(obj);
-			return this.extractor.equals(kg.extractor) && this.key.equals(kg.key) && this.gene.equals(kg.gene);
+			return this.extractor.equals(kg.extractor) && this.key.equals(kg.key) /*&& this.gene.equals(kg.gene)*/;
 			}
 	
 		public void write(final VCFHeader header,final VariantContext ctx) throws IOException {
@@ -264,10 +265,20 @@ public class VcfGeneSplitter
 									continue;
 									}
 		
-								final String md5 = StringUtils.md5(prevCtg+":"+kg.gene+":"+kg.key);
-								final String filename =  md5.substring(0,2) + File.separatorChar + md5.substring(2) + File.separator+
+								final String md5 = StringUtils.md5(prevCtg+":"+kg.extractor+":"+kg.key);
+								final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
+								final String filename0 =  
+										parentDir + File.separator+
 										kg.key.replaceAll("[/\\:]", "_") + ".vcf.gz";
 								
+								final String filename;
+								if(archiveFactory.isTarOrZipArchive()) {
+									filename = filename0;
+								} else {
+									Path p = Paths.get(filename0).toAbsolutePath();
+									filename = p.toString();
+									Files.createDirectories(p.getParent());
+								}
 								
 								try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename),(Path)null)) {
 									IOUtils.copyTo(kg.tmpVcfPath, os);
@@ -312,10 +323,11 @@ public class VcfGeneSplitter
 								if(values.isEmpty()) continue;
 		
 								KeyGene keyGene = keyGenes.stream().
-											filter(KG->KG.extractor.equals(ex.getName())&& KG.gene.equals(keyAndGene.getGene()) && KG.key.equals(keyAndGene.getKey())).
+											filter(KG->KG.extractor.equals(keyAndGene.getMethod())&& KG.gene.equals(keyAndGene.getGene()) 
+													/*&& KG.key.equals(keyAndGene.getKey())*/).
 											findFirst().orElse(null);
 								if(keyGene==null) {
-									keyGene = new KeyGene(ex.getName(),keyAndGene.getKey(),keyAndGene.getGene());
+									keyGene = new KeyGene(keyAndGene.getMethod(),keyAndGene.getKey(),keyAndGene.getGene());
 									
 									keyGenes.add(keyGene);
 									}
