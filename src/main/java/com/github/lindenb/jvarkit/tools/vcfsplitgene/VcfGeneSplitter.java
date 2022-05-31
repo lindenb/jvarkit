@@ -71,7 +71,7 @@ BEGIN_DOC
 ```
 java -jar dist/vcfgenesplitter.jar -o jeter.zip src/test/resources/rotavirus_rf.ann.vcf.gz -m jeter.mf
 
-$ unzip -l jeter.zip 
+$ unzip -l jeter.zip
 Archive:  jeter.zip
   Length      Date    Time    Name
 ---------  ---------- -----   ----
@@ -116,7 +116,7 @@ END_DOC
 		name="vcfgenesplitter",
 		description="Split VCF+VEP by gene/transcript.",
 		creationDate = "20160310",
-		modificationDate="202220530",
+		modificationDate="202220531",
 		keywords= {"genes","vcf"}
 		)
 public class VcfGeneSplitter
@@ -127,7 +127,7 @@ public class VcfGeneSplitter
 	private class KeyGene{
 		final String extractor;
 		final String key;
-		final String gene;
+		final String geneName;
 		int count_variants = 0;
 		Path tmpVcfPath = null;
 		PrintWriter pw = null;
@@ -140,7 +140,7 @@ public class VcfGeneSplitter
 		KeyGene(final String extractor,final String key,final String gene)  throws IOException {
 			this.extractor = extractor;
 			this.key = key;
-			this.gene = StringUtils.isBlank(gene)?".":gene;
+			this.geneName = StringUtils.isBlank(gene)?".":gene;
 			}
 		@Override
 		public int hashCode() {
@@ -154,7 +154,7 @@ public class VcfGeneSplitter
 			if(obj==this) return true;
 			if(obj==null || !(obj instanceof KeyGene)) return false;
 			final KeyGene kg = KeyGene.class.cast(obj);
-			return this.extractor.equals(kg.extractor) && this.key.equals(kg.key) /*&& this.gene.equals(kg.gene)*/;
+			return this.extractor.equals(kg.extractor) && this.key.equals(kg.key) ;
 			}
 	
 		public void write(final VCFHeader header,final VariantContext ctx) throws IOException {
@@ -162,12 +162,12 @@ public class VcfGeneSplitter
 				//nothing
 				}
 			else if(this.tmpVcfPath ==null ) {
-				LOG.info("Opening VCF for "+this.extractor+" "+this.key+" "+this.gene);
+				LOG.info("Opening VCF for "+this.extractor+" "+this.key+" "+this.geneName);
 				this.tmpVcfPath =  Files.createTempFile("tmp.", ".vcf");
 				this.pw = new PrintWriter(Files.newBufferedWriter(this.tmpVcfPath, StandardOpenOption.APPEND));
 				final VCFHeader h2 = new VCFHeader(header);
 				h2.addMetaDataLine(new VCFHeaderLine("GtfFileSplitter.Name",String.valueOf(this.key)));
-				h2.addMetaDataLine(new VCFHeaderLine("GtfFileSplitter.Gene",String.valueOf(this.gene)));
+				h2.addMetaDataLine(new VCFHeaderLine("GtfFileSplitter.Gene",String.valueOf(this.geneName)));
 				JVarkitVersion.getInstance().addMetaData(VcfGeneSplitter.this, h2);
 
 				this.vcfEncoder  = new VCFEncoder(h2, false, false);
@@ -189,7 +189,7 @@ public class VcfGeneSplitter
 			}
 		@Override
 		public String toString() {
-			return this.extractor+" "+this.key+" "+this.gene;
+			return this.extractor+" "+this.key+" "+this.geneName;
 			}
 		}
 	
@@ -267,18 +267,11 @@ public class VcfGeneSplitter
 		
 								final String md5 = StringUtils.md5(prevCtg+":"+kg.extractor+":"+kg.key);
 								final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
-								final String filename0 =  
+								final String filename0 =
 										parentDir + File.separator+
 										kg.key.replaceAll("[/\\:]", "_") + ".vcf.gz";
 								
-								final String filename;
-								if(archiveFactory.isTarOrZipArchive()) {
-									filename = filename0;
-								} else {
-									Path p = Paths.get(filename0).toAbsolutePath();
-									filename = p.toString();
-									Files.createDirectories(p.getParent());
-								}
+								final String filename = filename0;
 								
 								try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename),(Path)null)) {
 									IOUtils.copyTo(kg.tmpVcfPath, os);
@@ -293,7 +286,7 @@ public class VcfGeneSplitter
 								manifest.print('\t');
 								manifest.print(kg.extractor);
 								manifest.print('\t');
-								manifest.print(kg.gene);
+								manifest.print(kg.geneName);
 								manifest.print('\t');
 								manifest.print(kg.key);
 								manifest.print('\t');
@@ -323,8 +316,7 @@ public class VcfGeneSplitter
 								if(values.isEmpty()) continue;
 		
 								KeyGene keyGene = keyGenes.stream().
-											filter(KG->KG.extractor.equals(keyAndGene.getMethod())&& KG.gene.equals(keyAndGene.getGene()) 
-													/*&& KG.key.equals(keyAndGene.getKey())*/).
+											filter(KG->KG.extractor.equals(keyAndGene.getMethod())&& KG.key.equals(keyAndGene.getKey())).
 											findFirst().orElse(null);
 								if(keyGene==null) {
 									keyGene = new KeyGene(keyAndGene.getMethod(),keyAndGene.getKey(),keyAndGene.getGene());

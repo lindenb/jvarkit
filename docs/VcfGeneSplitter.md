@@ -105,7 +105,7 @@ The current reference is:
 ```
 java -jar dist/vcfgenesplitter.jar -o jeter.zip src/test/resources/rotavirus_rf.ann.vcf.gz -m jeter.mf
 
-$ unzip -l jeter.zip 
+$ unzip -l jeter.zip
 Archive:  jeter.zip
   Length      Date    Time    Name
 ---------  ---------- -----   ----
