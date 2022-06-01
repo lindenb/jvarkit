@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
@@ -211,8 +210,7 @@ public class VcfGeneSplitter
 	private int min_number_of_ctx = 1;
 	@Parameter(names={"-M","--max-variant"},description="Maximum number of variants required to write a vcf. don't write if num(variant) > 'x' . '<=0' is ignore")
 	private int max_number_of_ctx = -1;
-
-
+	@Parameter(names={"--open-max"},description="Maximum number of opened VCF writers at the same time.")
 	private int max_open_files = 100;
 		
 	public VcfGeneSplitter()
@@ -271,9 +269,8 @@ public class VcfGeneSplitter
 										parentDir + File.separator+
 										kg.key.replaceAll("[/\\:]", "_") + ".vcf.gz";
 								
-								final String filename = filename0;
 								
-								try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename),(Path)null)) {
+								try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename0),(Path)null)) {
 									IOUtils.copyTo(kg.tmpVcfPath, os);
 									os.flush();
 									}
@@ -290,7 +287,11 @@ public class VcfGeneSplitter
 								manifest.print('\t');
 								manifest.print(kg.key);
 								manifest.print('\t');
-								manifest.print((archiveFactory.isTarOrZipArchive()?"":this.outputFile.toString()+File.separator)+filename);
+								manifest.print(
+									archiveFactory.isTarOrZipArchive()?
+									filename0:
+									this.outputFile.resolve(filename0).toAbsolutePath().toString()
+									);
 								manifest.print('\t');
 								manifest.println(kg.count_variants);
 								}
