@@ -56,7 +56,7 @@ private final Pattern ensemblPattern = Pattern.compile("ENS(EST[TGP]|[TPGR])[0-9
 private final Pattern ccdsPattern = Pattern.compile("CCDS[0-9\\.]+");
 private final Pattern ncbiNucPattern = Pattern.compile("[XN][MR]_[0-9\\.]+");
 private final Pattern ncbiProtPattern = Pattern.compile("[NX]P_[0-9\\.]+");
-
+private final Pattern hgncPattern = Pattern.compile("[hH][gG][nN][cC]:[0-9]+");
 
 public static interface LabelledUrl
 	{
@@ -101,6 +101,10 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Archs4","https://maayanlab.cloud/archs4/gene/"+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("Enrichr","https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
 		}
+	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
+		final String hgnc = ((StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
+		urls.add(new LabelledUrlImpl("GenCC","https://search.thegencc.org/genes/"+hgnc));
+		}
 	else if( columnName.equalsIgnoreCase("omim")) {
 		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/entry/"+id));
 		}
@@ -123,6 +127,9 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 
 private void _string(final String str,final Set<LabelledUrl> urls) {
 	if(StringUtils.isBlank(str)) return;
+	else if(this.hgncPattern.matcher(str).matches()) {
+		urls.addAll(of("hgnc",str));
+		}
 	if(this.rsIdPattern.matcher(str).matches())
 		{
 		urls.add(new LabelledUrlImpl("dbsnp","https://www.ncbi.nlm.nih.gov/snp/"+str.substring(2)));
