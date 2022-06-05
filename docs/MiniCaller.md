@@ -11,6 +11,9 @@ Simple and Stupid Variant Caller designed for @AdrienLeger2
 Usage: java -jar dist/minicaller.jar  [options] Files
 Usage: minicaller [options] Files
   Options:
+    --bad-ad-ratio
+      Filter Genotype if x< ALT/(REF+ALT) < (1-x).
+      Default: 0.2
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 

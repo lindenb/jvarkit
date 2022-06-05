@@ -70,6 +70,7 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
@@ -148,6 +149,8 @@ public class MiniCaller extends Launcher   {
 	private int min_genotype_allele_depth = 1;
 	@Parameter(names={"--gt-fraction"},description="ignore genotype ALT/(REF+ALT) < x")
 	private double min_genotype_fraction = 1.0/20.0;
+	@Parameter(names={"--bad-ad-ratio"},description="Filter Genotype if x< ALT/(REF+ALT) < (1-x).")
+	private double bad_ad_ratio = 0.2;
 
 
 	private static final int PLOIDY = 2;
@@ -160,11 +163,15 @@ public class MiniCaller extends Launcher   {
 
     private static class AlleleInfo {
     	final Allele allele;
-    	int count=0;
+    	int count_F=0;
+    	int count_R=0;
     	long mapq_sum = 0;
     	boolean masked = false;
     	AlleleInfo(final Allele allele) {
     		this.allele = allele;
+    		}
+    	int count() {
+    		return count_F+count_R;
     		}
     	}
     
@@ -184,7 +191,13 @@ public class MiniCaller extends Launcher   {
     			ai = new AlleleInfo(alt);
     			allele2info.put(alt, ai);
     			}
-    		ai.count++;
+    		if(c.negativeStrand) {
+    			ai.count_R++;
+    			}
+    		else
+    			{
+    			ai.count_F++;
+    			}
     		ai.mapq_sum  += c.mq;
     		}
     	private Allele createAllele(final String a) {
@@ -202,6 +215,7 @@ public class MiniCaller extends Launcher   {
     	String ref;
     	String alt;
     	short mq;
+    	boolean negativeStrand;
     	public int compare1(final Call o) {
 			int i = Integer.compare(this.position, o.position);
 			if(i!=0) return i;
@@ -226,6 +240,7 @@ public class MiniCaller extends Launcher   {
 			dos.writeUTF(c.ref);
 			dos.writeUTF(c.alt);
 			dos.writeShort(c.mq);
+			dos.writeBoolean(c.negativeStrand);
 			}
 		@Override
 		public Call decode(DataInputStream dis) throws IOException
@@ -241,6 +256,7 @@ public class MiniCaller extends Launcher   {
 			c.ref = dis.readUTF();
 			c.alt = dis.readUTF();
 			c.mq = dis.readShort();
+			c.negativeStrand = dis.readBoolean();
 			return c;
 			}
 		@Override
@@ -359,18 +375,32 @@ public class MiniCaller extends Launcher   {
 			                            		case H: break;
 			                            		case P: break;
 			                            		case D: case N: {
+			                            			if(CoordMath.overlaps(interval.getStart(), interval.getEnd(), refpos1, refpos1)) {
+					                            		final Call call = new Call();
+			                            				call.sample_index = sample_index;
+			                            				call.position = refpos1-1;// one base before
+			                            				final String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
+			                            				call.ref = genomicSequence.subSequence(call.position-1,call.position-1+len).toString().toUpperCase();
+			                            				call.alt = prevBase;
+			                            				call.mq = (short)rec.getMappingQuality();
+			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
+			                            				sorter.add(call);
+				                            			}
 			                            			refpos1 += len;
 			                            			break;
 			                            			}
 			                            		case I: {
-				                            		final Call call = new Call();
-		                            				call.sample_index = sample_index;
-		                            				call.position = refpos1-1;// one base before
-		                            				String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
-		                            				call.ref = prevBase;
-		                            				call.alt = prevBase + new String(bases,readpos0,readpos0+len);
-		                            				call.mq = (short)rec.getMappingQuality();
-		                            				sorter.add(call);
+			                            			if(CoordMath.overlaps(interval.getStart(), interval.getEnd(), refpos1, refpos1+len-1)) {
+					                            		final Call call = new Call();
+			                            				call.sample_index = sample_index;
+			                            				call.position = refpos1-1;// one base before
+			                            				final String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
+			                            				call.ref = prevBase;
+			                            				call.alt = prevBase + new String(bases,readpos0,readpos0+len);
+			                            				call.mq = (short)rec.getMappingQuality();
+			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
+			                            				sorter.add(call);
+				                            			}
 			                            			readpos0+= len;
 			                            			break;
 			                            			}
@@ -390,6 +420,7 @@ public class MiniCaller extends Launcher   {
 			                            				call.ref = String.valueOf(refB);
 			                            				call.alt = String.valueOf((char)readB);
 			                            				call.mq = (short)rec.getMappingQuality();
+			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
 			                            				sorter.add(call);
 			                            				}
 		                            				refpos1 += len;
@@ -436,19 +467,19 @@ public class MiniCaller extends Launcher   {
 		        				for(SampleInfo si: sampleid2info.values()) {
 		        					final List<AlleleInfo> ailist = si.allele2info.values().
 	        						stream().
-		        		    			sorted((A,B)->Integer.compare(B.count, A.count)).
+		        		    			sorted((A,B)->Integer.compare(B.count(), A.count())).
 		        		    			limit(PLOIDY).
 		        		    			sorted((A,B)->A.allele.compareTo(B.allele)).
 		        		    			collect(Collectors.toCollection(ArrayList::new));
 	        		    		
-		        					if(ailist.stream().mapToInt(AI->AI.count).sum() <this.min_genotype_depth) {
+		        					if(ailist.stream().mapToInt(AI->AI.count()).sum() <this.min_genotype_depth) {
 			        					for(AlleleInfo ai: ailist) {
 			        						ai.masked = true;
 			        						}
 			        					si.gtFilter = "LowDepth";
 		        						}
 		        					for(AlleleInfo ai: ailist) {
-		        						if(ai.count < this.min_genotype_allele_depth) {
+		        						if(ai.count() < this.min_genotype_allele_depth) {
 			        						ai.masked = true;
 			        						}
 		        						}
@@ -456,8 +487,8 @@ public class MiniCaller extends Launcher   {
 		        					
 		        		    		if(ailist.size()==2 ) {
 		        		    			if(ailist.get(1).allele.isReference()) throw new IllegalArgumentException();
-		        						double dp = ailist.get(0).count + ailist.get(1).count;
-		        						double fract = ailist.get(1).count/dp;
+		        						double dp = ailist.get(0).count() + ailist.get(1).count();
+		        						double fract = ailist.get(1).count()/dp;
 		        						if(fract< this.min_genotype_fraction) {
 		        							ailist.get(1).masked=true;
 		        							}
@@ -525,6 +556,11 @@ public class MiniCaller extends Launcher   {
 			        		    			{
 			        		    			gt_alleles.add(ailist.get(0).allele);
 			        		    			gt_alleles.add(ailist.get(1).allele);
+			        		    			float dp = ailist.get(0).count()+ailist.get(1).count();
+			        		    			float f = ailist.get(1).count()/dp;
+			        		    			if(f<this.bad_ad_ratio || f>(1.0f-bad_ad_ratio)) {
+			        		    				si.gtFilter="LowQual";
+			        		    				}
 			        		    			}
 			        		    		for(Allele a: gt_alleles) {
 			        		    			if(a.isNoCall()) continue;
@@ -540,9 +576,9 @@ public class MiniCaller extends Launcher   {
 			        		    			final Allele a = all_alleles_list.get(idx);
 			        		    			final AlleleInfo ai = si.allele2info.get(a);
 			        		    			if(ai==null) continue;
-			        		    			ad[idx]=ai.count;
+			        		    			ad[idx] = ai.count();
 			        		    			if(ai.masked) continue;
-			        		    			dp += ai.count;
+			        		    			dp += ai.count();
 			        		    			ctx_dp += dp;
 			        		    			gq += ai.mapq_sum;
 			        		    			}
