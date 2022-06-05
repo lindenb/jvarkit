@@ -24,6 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.calling;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,51 +37,51 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
-import com.github.lindenb.jvarkit.tools.misc.ConcatSam;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
-import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
-import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderVersion;
+import htsjdk.variant.vcf.VCFSampleHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /*
@@ -117,522 +122,486 @@ END_DOC
 @Program(name="minicaller",
 	description="Simple and Stupid Variant Caller designed for @AdrienLeger2",
 	keywords={"bam","sam","calling","vcf"},
-	modificationDate="20200304"
+	modificationDate="20220605",
+	creationDate="201500306"
 	)
-public class MiniCaller extends Launcher
-    {
+public class MiniCaller extends Launcher   {
 	private static final Logger LOG = Logger.build(MiniCaller.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-d","--mindepth"},description="Min depth")
 	private int min_depth = 20 ;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	@Parameter(names={"-R","--reference"},description="Main fasta reference. "+INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxPath = null;
-	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
-	private SAMRecordPartition samRecordPartition = SAMRecordPartition.sample;
-	@Parameter(names={"-f","--filter"},description="[20171130](replaced with jexl expression). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
-	private SamRecordFilter readFilter  = SamRecordJEXLFilter.buildDefault();
-	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
+	@Parameter(names={"--other-reference"},description="Other fasta references if you mix bam mapped on different fasta (will try to convert chromosomes names). " + INDEXED_FASTA_REFERENCE_DESCRIPTION,required=false)
+	private List<String> otherReferences = new ArrayList<>();
+	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC,required=true)
 	private String rgnStr  = null;
+	@Parameter(names={"-mapq","--mapq"},description="min mapping quality")
+	private int mapq  = 1;
+	@Parameter(names={"--min-base-quality"},description="min base quality")
+	private int min_base_quality = 1;
+	@Parameter(names={"--min-gt-depth"},description="min genotype DP")
+	private int min_genotype_depth = 1;
+	@Parameter(names={"--min-gt-allele-depth"},description="min genotype allele DP")
+	private int min_genotype_allele_depth = 1;
+	@Parameter(names={"--gt-fraction"},description="ignore genotype ALT/(REF+ALT) < x")
+	private double min_genotype_fraction = 1.0/20.0;
+
+
+	private static final int PLOIDY = 2;
+	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 
-	
-	private SAMSequenceDictionary dictionary=null;
-    private VariantContextWriter variantContextWriter = null;
-    private ReferenceSequenceFile referenceSequenceFile=null;
-    //private final Map<String,Integer> sample2index=new TreeMap<>();
-  
-    private final List<MyVariantContext> buffer=new ArrayList<>();
-    private double min_fraction_alt=1.0/1000.0;
 
+    private static class AlleleInfo {
+    	final Allele allele;
+    	int count=0;
+    	long mapq_sum = 0;
+    	boolean masked = false;
+    	AlleleInfo(final Allele allele) {
+    		this.allele = allele;
+    		}
+    	}
     
-    private static class AlleleData
+    private static class SampleInfo {
+    	final String sn;
+    	final Allele refAllele;
+    	final Map<Allele,AlleleInfo> allele2info = new TreeMap<>();
+    	String gtFilter = null;
+    	SampleInfo(String sn,final Allele refAllele) {
+    		this.sn = sn;
+    		this.refAllele = refAllele;
+    		}
+    	void visit(final Call c) {
+    		final Allele alt = createAllele(c.alt);
+    		AlleleInfo ai = allele2info.get(alt);
+    		if(ai==null) {
+    			ai = new AlleleInfo(alt);
+    			allele2info.put(alt, ai);
+    			}
+    		ai.count++;
+    		ai.mapq_sum  += c.mq;
+    		}
+    	private Allele createAllele(final String a) {
+    		final Allele alt = Allele.create(a,false);
+    		if(alt.equals(this.refAllele, true)) return this.refAllele;
+    		return alt;
+    		}
+    	
+    	}
+    
+    private static class Call
 	    {
-    	@SuppressWarnings("unused")
-		final Allele alt;
-    	 final int count_strands[]={0,0};
-    	//final byte qual;
-    	AlleleData(final Allele alt) {
-    		this.alt = alt;
+    	int sample_index;
+    	int position;
+    	String ref;
+    	String alt;
+    	short mq;
+    	public int compare1(final Call o) {
+			int i = Integer.compare(this.position, o.position);
+			if(i!=0) return i;
+			i = Integer.compare(this.sample_index, o.sample_index);
+			if(i!=0) return i;
+			i = ref.compareTo(o.ref);
+	    	return i;
     		}
-    	void incr(boolean negativeStrand)
+    	@Override
+    	public String toString()
     		{
-    		this.count_strands[negativeStrand?1:0]++;
-    		}
-    	int count() {
-    		return count_strands[0]+count_strands[1];
+    		return "sample_index:"+sample_index+" position:"+position+" ref:"+ref+" alt:"+alt;
     		}
 	    }
     
-    private class SampleData
-        {
-    	final MyVariantContext owner;
-    	@SuppressWarnings("unused")
-		final String sampleName;
-    	final Map<Allele,AlleleData> alleleMap=new HashMap<>();
-    	SampleData(final MyVariantContext owner,final String sampleName) {
-    		this.owner = owner;
-    		this.sampleName = sampleName;
-    		}
-    	
-    	public AlleleData getAllele(Allele alt)
-    		{
-    		if(owner.ref.equals(alt, true /* ignore state */))
-    			{
-    			alt = owner.ref;
-    			}
-    		AlleleData ad = this.alleleMap.get(alt);
-    		if(ad==null)
-    			{
-    			ad = new AlleleData(alt);
-    			this.alleleMap.put(alt, ad);
-    			}
-    		return ad;
-    		}
-    	
-        }
+    private static class CallCodec extends AbstractDataCodec<Call> {
+		@Override
+		public void encode(DataOutputStream dos, final Call c) throws IOException
+			{
+			dos.writeInt(c.sample_index);
+			dos.writeInt(c.position);
+			dos.writeUTF(c.ref);
+			dos.writeUTF(c.alt);
+			dos.writeShort(c.mq);
+			}
+		@Override
+		public Call decode(DataInputStream dis) throws IOException
+			{
+			final Call c = new Call();
+			try {
+				c.sample_index = dis.readInt();
+				}
+			catch(EOFException err) {
+				return null;
+				}
+			c.position = dis.readInt();
+			c.ref = dis.readUTF();
+			c.alt = dis.readUTF();
+			c.mq = dis.readShort();
+			return c;
+			}
+		@Override
+		public AbstractDataCodec<Call> clone()
+			{
+			return new CallCodec();
+			}
+	    }
+
+
     
-    /** contains available information for everyone at contig=tid,pos0, ref */
-    private class MyVariantContext
-        implements Comparable<MyVariantContext>,
-        Locatable
-        {
-    	/** contig ig */
-        int tid;
-        /** position 0 */
-        int pos0;
-        /** REF allele */
-        Allele ref;
-        /** everybody */
-        final Map<String,SampleData> sampleData = new HashMap<>();
-
-        @Override
-        public String getContig()
-        	{
-        	return dictionary.getSequence(this.tid).getSequenceName();
-        	}
-        @Override
-        public int getStart() {
-        	return pos0+1;
-        	}
-        @Override
-        public int getEnd() {
-        	return pos0 + ref.length();
-        	}
-        
-        @Override
-        public int compareTo(final MyVariantContext o2)
-            {
-            int i = this.tid - o2.tid;
-            if( i !=0) return i;
-            i =this.pos0 - o2.pos0;
-            if( i !=0) return i;
-            i = this.ref.compareTo(o2.ref);
-            return i;
-            }
-        
-        public SampleData getSample(final String sampleName)
-        	{
-        	SampleData sd = this.sampleData.get(sampleName);
-        	if(sd==null) {
-        		sd = new SampleData(this,sampleName);
-        		this.sampleData.put(sampleName,sd);
-        		}
-        	return sd;
-        	}
-        
-        
-        @Override
-        public String toString() {
-        	return getContig()+":"+pos0+" "+this.sampleData.size();
-        	}
-        
-        void print()
-        	{
-        	VariantContext ctx=make();
-        	if(ctx==null) return;
-        	variantContextWriter.add(ctx);
-        	}
-
-        VariantContext make()
-            {
-        	boolean indel=this.ref.getBaseString().length()!=1;
-            VariantContextBuilder vcb=new
-                    VariantContextBuilder();
-            vcb.chr(this.getContig());
-            vcb.start(this.getStart());
-            
-            final List<Genotype> genotypes=new ArrayList<>();
-            final Set<Allele> alleles=new TreeSet<Allele>();
-            int total_depth=0;
-
-            for(final String sampleName : this.sampleData.keySet())
-                {
-            	final SampleData sd = this.sampleData.get(sampleName);
-            	final Counter<Allele> count_alleles = new Counter<Allele>();
-                int dp4[]=new int[]{0,0,0,0};
-            	
-            	for(final Allele allele: sd.alleleMap.keySet())
-            		{
-            		if(allele.isNonReference() && allele.getDisplayString().equals("N")) continue;
-            		alleles.add(allele);
-            		final AlleleData ad = sd.alleleMap.get(allele);
-            		count_alleles.incr(allele,ad.count());
-            		if(allele.isReference())
-            			{
-            			dp4[0] += ad.count_strands[0];
-                    	dp4[1] += ad.count_strands[1];
-            			}
-            		else
-            			{
-            			dp4[2] += ad.count_strands[0];
-                    	dp4[3] += ad.count_strands[1];
-            			}
-            		
-            		}
-            	
-                
-            		
-                
-                total_depth+= count_alleles.getTotal();
-                if(count_alleles.getTotal()> MiniCaller.this.min_depth)
-                    {
-                	final ArrayList<Allele> sample_alleles=new ArrayList<>(count_alleles.getCountCategories());
-                	final ArrayList<Integer> sample_depths=new ArrayList<>(count_alleles.getCountCategories());
-                	for(final Allele a: count_alleles.keySetDecreasing())
-                		{
-                		//skip if fraction of variant too low
-                		if((float)count_alleles.count(a)/(float)count_alleles.getTotal() < MiniCaller.this.min_fraction_alt)
-                			{
-                			continue;
-                			}
-                		if(a.getBaseString().length()!=1) indel=true;
-                		
-                		sample_alleles.add(a);
-                		sample_depths.add((int)count_alleles.count(a));
-                		}
-                	if(!sample_alleles.isEmpty())
-	                	{
-	                	final GenotypeBuilder gb=new GenotypeBuilder(sampleName, sample_alleles);
-	                	gb.DP((int)count_alleles.getTotal());
-	                	gb.attribute("DPG", sample_depths);
-	                	gb.attribute("DP4",Arrays.asList(dp4));
-	                	final Genotype gt = gb.make();
-	                    alleles.addAll(sample_alleles);
-	                    genotypes.add(gt);
-	                	}
-                	}
-               
-                }
-            if(genotypes.isEmpty()) return null;
-            
-            alleles.add(this.ref);
-            if(indel) vcb.attribute("INDEL", Boolean.TRUE);
-            vcb.attribute("DP", total_depth);
-            vcb.genotypes(genotypes);
-            
-            final List<Allele> orderedAlleles = new ArrayList<>(alleles);
-            vcb.alleles(orderedAlleles);
-            final int an = genotypes.stream().mapToInt(G->G.getAlleles().size()).sum();
-            
-            vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, an);
-            List<Integer> ac = new ArrayList<>();
-            for(final Allele alt: orderedAlleles)
-            	{
-            	if(alt.isReference()) continue;
-            	ac.add( (int) genotypes.stream().flatMap(G->G.getAlleles().stream())
-            			.filter(A->A.equals(alt)).
-            			count());
-            	}
-           
-            if(!ac.isEmpty())
-            	{
-            	vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, ac);
-            	vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,
-            			ac.stream().
-            				map(AC->AC/(double)an).
-            				collect(Collectors.toList())
-            				);
-            	}
-            
-            
-            /*int max_length=0;
-            for(Allele a:alleles)
-            	{
-            	max_length=Math.max(a.getBaseString().length(), max_length);
-            	}*/
-            vcb.stop(this.pos0+this.ref.getBaseString().length());
-
-            final VariantContext ctx= vcb.make();
-            if(ctx.getAlternateAlleles().isEmpty()) return null;   
-            return ctx;
-            }
-
-        }
-
-
-
-    public MiniCaller() {
-        }
-
-    private MyVariantContext findContext(final int tid,final int pos0,final Allele ref)
-        {
-        int idx=0;
-        for(idx=0; idx<this.buffer.size(); ++idx)
-            {
-            MyVariantContext ctx = this.buffer.get(idx);
-            if(ctx.tid < tid) continue;
-            if(ctx.tid > tid) break;
-            if(ctx.pos0 < pos0) continue;
-            if(ctx.pos0 > pos0) break;
-            int i = ctx.ref.compareTo(ref);
-            if(i< 0) continue;
-            if(i>0 ) break;
-            //System.err.println("ok got "+ctx);
-            return ctx;
-            }
-        //System.err.println("new at "+tid+":"+pos0+" idx="+idx+" N="+this.buffer);
-        final MyVariantContext ctx=new MyVariantContext();
-        ctx.tid=tid;
-        ctx.pos0=pos0;
-        ctx.ref=ref;
-        this.buffer.add(idx, ctx);
-        return ctx;
-        }
+    private static class SAMSequenceDictionaryPath {
+    	final Path path;
+    	final SAMSequenceDictionary dict;
+    	SAMSequenceDictionaryPath(final Path path,final SAMSequenceDictionary dict) {
+    		this.path = path;
+    		this.dict = dict;
+    		}
+    	}
     
     @Override
     public int doWork(final List<String> args) {
-    	
-    	ConcatSam.ConcatSamIterator iter=null;
-        try {
-            
-            /* load faid */
-           
 
-            this.referenceSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxPath);
-            this.dictionary = SequenceDictionaryUtils.extractRequired(this.referenceSequenceFile);
-            
-            /* create sam record iterator */
-            
-            iter = new  ConcatSam.Factory().
-	            addInterval(this.rgnStr).
-	            setEnableUnrollList(true).
-	            open(args);
-            
-            final SAMFileHeader samFileheader= iter.getFileHeader();
-            final SAMSequenceDictionary dict= samFileheader.getSequenceDictionary();
-            if(dict==null)
-            	{
-            	LOG.error(JvarkitException.BamDictionaryMissing.getMessage(String.join(", ", args)));
-            	return -1;
-            	}
-           
-            
-            if(!SequenceUtil.areSequenceDictionariesEqual(dict,this.dictionary))
-            	{
-            	LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(dict,this.dictionary));
-            	return -1;
-            	}
-            
-            final List<SAMReadGroupRecord> groups = samFileheader.getReadGroups();
-            if(groups==null || groups.isEmpty())
-            	{
-            	LOG.error("No group defined in input");
-            	return -1;
-            	}
-            final Set<String> sampleSet=groups.stream().
-            		map(srgr->this.samRecordPartition.apply(srgr,samRecordPartition.name())).
-            		collect(Collectors.toSet());
-          
-                
+    	try {
+			final List<Path> bamPaths = IOUtils.unrollPaths(args);
+			final List<String> samplesList = new ArrayList<>();
+    		if(bamPaths.isEmpty()) {
+    			LOG.error("Bam path(s) missing");
+    			return -1;
+    			}
+    		
+    		final List<SAMSequenceDictionaryPath> all_dictionaries = new ArrayList<>();
+    		for(Path otherFaidx: IOUtils.unrollPaths(this.otherReferences)) {
+    			all_dictionaries.add(new SAMSequenceDictionaryPath(otherFaidx,SequenceDictionaryUtils.extractRequired(otherFaidx)));
+    			}
+    	    /*  VCF metadata */
+    	    final Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
 
+        	final SAMSequenceDictionary dictionary = SequenceDictionaryUtils.extractRequired(this.faidxPath);
+			all_dictionaries.add(new SAMSequenceDictionaryPath(this.faidxPath,dictionary));
 
-            /* create VCF metadata */
-            final Set<VCFHeaderLine> metaData=new HashSet<VCFHeaderLine>();
-            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY));
-            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY));
-            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));
-            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY));
-            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_NUMBER_KEY));
-            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY));
+			final SimpleInterval interval = IntervalParserFactory.newInstance(dictionary).
+					make().
+					apply(this.rgnStr).
+					orElseThrow(()->new IllegalArgumentException("Cannot parse region "+this.rgnStr));
+    			
+	    		final SortingCollection<Call> sorter = SortingCollection.newInstance(Call.class, new CallCodec(),
+	    				(A,B)->A.compare1(B),
+	    				writingSortingCollection.getMaxRecordsInRam(),
+	    				writingSortingCollection.getTmpPaths()
+	    				);	
+	    		sorter.setDestructiveIteration(true);
+	        	for(final Path bamPath: bamPaths) {
+	        		LOG.info("Scanning "+bamPath);
+	        		final SAMSequenceDictionary bamDict = SequenceDictionaryUtils.extractRequired(bamPath);
+		        	final ContigNameConverter bamCtgConverter = ContigNameConverter.fromOneDictionary(bamDict);
+	
+	        		final Path bamFastaPath = all_dictionaries.stream().
+	        				filter(SDP->SequenceUtil.areSequenceDictionariesEqual(bamDict, SDP.dict)).
+	        				map(SDP->SDP.path).
+	        				findFirst().orElseThrow(()->new FileNotFoundException("Cannot find fasta Reference for "+bamPath));
+	            	try(ReferenceSequenceFile bamReferenceSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(bamFastaPath)) {
+	            		final SamReaderFactory srf=createSamReaderFactory().referenceSequence(bamFastaPath);
+		        		try(SamReader sr = srf.open(bamPath)) {
+		        			final SAMFileHeader header = sr.getFileHeader();
+		        			String sn = header.getReadGroups().stream().
+		        				map(RG->RG.getSample()).
+		        				filter(SN->!StringUtils.isBlank(SN)).
+		        				findFirst().
+		        				orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamPath));
+		        			String sn2 = sn;
+		        			int tmp_sn_index =-1;
+		        			int try_count=1;
+		        			for(;;) {
+		        				tmp_sn_index = samplesList.indexOf(sn2);
+		        				if( tmp_sn_index < 0 ) {
+		        					tmp_sn_index = samplesList.size();
+		        					samplesList.add(sn2);
+		        					break;
+		        					}
+		        				try_count++;
+		        				sn2 = sn+"_"+try_count;
+		        				}
+		        			final int sample_index = tmp_sn_index;
+		        			metaData.add(new VCFSampleHeaderLine("<ID="+sn2+",path="+bamPath+">", VCFHeaderVersion.VCF4_3));
+		        			
+		        			final String bamCtg = bamCtgConverter.apply(interval.getContig());
+		        			if(StringUtils.isBlank(bamCtg)) {
+		        				LOG.warn("Cannot map contig "+interval+" for reference "+bamFastaPath);
+		        				}
+		        			else
+		        				{
+		        				final GenomicSequence genomicSequence = new GenomicSequence(bamReferenceSequenceFile, bamCtg);
+	
+		        				final SimpleInterval bamInterval = interval.renameContig(bamCtg);
+			        			try(CloseableIterator<SAMRecord> iter = sr.query(bamInterval.getContig(),bamInterval.getStart(),bamInterval.getEnd(), false)) {
+			        				while(iter.hasNext()) {
+			        					final SAMRecord rec = iter.next();
+			        					if(!SAMRecordDefaultFilter.accept(rec, this.mapq)) continue;
+			        					
+			                            final Cigar cigar= rec.getCigar();
+			                            if(cigar==null) continue;
+			                            final byte[] bases = rec.getReadBases();
+			                            final byte[] quals = rec.getBaseQualities();
+			                            if(bases ==  SAMRecord.NULL_SEQUENCE) continue;
+			                            if(quals ==  SAMRecord.NULL_QUALS) continue;
+			                            if(bases.length != bases.length) continue;
+			                            int refpos1 = rec.getAlignmentStart();
+			                            int readpos0 = 0;
+			                            for(CigarElement ce : cigar) {
+			                            	final CigarOperator op = ce.getOperator();
+			                            	final int len = ce.getLength();
+			                            	
+			                            	switch(op) {
+			                            		case S: readpos0+=len; break;
+			                            		case H: break;
+			                            		case P: break;
+			                            		case D: case N: {
+			                            			refpos1 += len;
+			                            			break;
+			                            			}
+			                            		case I: {
+				                            		final Call call = new Call();
+		                            				call.sample_index = sample_index;
+		                            				call.position = refpos1-1;// one base before
+		                            				String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
+		                            				call.ref = prevBase;
+		                            				call.alt = prevBase + new String(bases,readpos0,readpos0+len);
+		                            				call.mq = (short)rec.getMappingQuality();
+		                            				sorter.add(call);
+			                            			readpos0+= len;
+			                            			break;
+			                            			}
+			                            		case X: case M: case EQ: {
+			                            			for(int i=0;i<len;i++) {
+			                            				int pos = refpos1 +i;
+			                            				if(pos< interval.getStart()) continue;
+			                            				if(pos> interval.getEnd()) break;
+			                            				if(pos-1 >= genomicSequence.length() ) break;
+			                            				if(quals[readpos0] < this.min_base_quality) continue;
+			                            				char refB = Character.toUpperCase(genomicSequence.charAt(pos-1));
+			                            				byte readB = bases[readpos0+i];
+			                            				
+			                            				final Call call = new Call();
+			                            				call.sample_index = sample_index;
+			                            				call.position = pos;
+			                            				call.ref = String.valueOf(refB);
+			                            				call.alt = String.valueOf((char)readB);
+			                            				call.mq = (short)rec.getMappingQuality();
+			                            				sorter.add(call);
+			                            				}
+		                            				refpos1 += len;
+		                            				readpos0 += len;
+			                            			break;
+			                            			}
+			                            		default:throw new IllegalStateException();
+			                            		}
+			                            	}
+			                            
+			        					}
+			        				}/* end of iterator */
+			        			} // end if contig is not blank
+		        			} /* end of open current SAM */
+		            	}/* end of REF sequence */
+	        		}/* end of loop over BAM */
+	        	
+	        sorter.doneAdding();
+	        try(CloseableIterator<Call> iter = sorter.iterator()) {
+	            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY));
+	            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY));
+	            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY));
+	            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS));
+	            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
+	            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));
+	            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY));
+	            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_NUMBER_KEY));
+	            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY));
 
-            metaData.add(new VCFFormatHeaderLine(
-                    "DPG",
-                    VCFHeaderLineCount.G,//one value of each genotype
-                    VCFHeaderLineType.Integer,
-                    "Depth for each allele"));
-           
-           
-            metaData.add(new VCFFormatHeaderLine(
-                    "DP4",
-                    4,
-                    VCFHeaderLineType.Integer,
-                    "Depth ReforAlt|Strand : RF,RR,AF,AR"));
-            
-           
-            metaData.add(new VCFInfoHeaderLine(
-                    "INDEL",
-                    1,
-                    VCFHeaderLineType.Flag,
-                    "Variant is indel"));
-            
+		        final VCFHeader header =new VCFHeader(
+	                    metaData , samplesList
+	                    );
+		        header.setSequenceDictionary(dictionary);
+	            try(VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(dictionary).open(this.outputFile)) {
+	            	vcw.writeHeader(header);
+		        	int prev_pos = -1;
+		        	String prev_ref = null;
+		        	final Map<Integer,SampleInfo> sampleid2info = new HashMap<>(samplesList.size());
+	        		for(;;) {
+	        			final Call c = iter.hasNext()?iter.next():null;
+	        			
+	        			if(c==null || !(prev_pos==c.position && c.ref.equals(prev_ref))) {
+		        			if(!sampleid2info.isEmpty()) {
+		        				for(SampleInfo si: sampleid2info.values()) {
+		        					final List<AlleleInfo> ailist = si.allele2info.values().
+	        						stream().
+		        		    			sorted((A,B)->Integer.compare(B.count, A.count)).
+		        		    			limit(PLOIDY).
+		        		    			sorted((A,B)->A.allele.compareTo(B.allele)).
+		        		    			collect(Collectors.toCollection(ArrayList::new));
+	        		    		
+		        					if(ailist.stream().mapToInt(AI->AI.count).sum() <this.min_genotype_depth) {
+			        					for(AlleleInfo ai: ailist) {
+			        						ai.masked = true;
+			        						}
+			        					si.gtFilter = "LowDepth";
+		        						}
+		        					for(AlleleInfo ai: ailist) {
+		        						if(ai.count < this.min_genotype_allele_depth) {
+			        						ai.masked = true;
+			        						}
+		        						}
+	        						
+		        					
+		        		    		if(ailist.size()==2 ) {
+		        		    			if(ailist.get(1).allele.isReference()) throw new IllegalArgumentException();
+		        						double dp = ailist.get(0).count + ailist.get(1).count;
+		        						double fract = ailist.get(1).count/dp;
+		        						if(fract< this.min_genotype_fraction) {
+		        							ailist.get(1).masked=true;
+		        							}
+		        						}
+		        		    		si.allele2info.clear();
+		        		    		for(AlleleInfo ai:ailist) {
+		        		    			si.allele2info.put(ai.allele, ai);
+		        		    			}
+		        					}
+		        				
+		        				final Allele refAllele = Allele.create(prev_ref,true);
+	        					final SortedSet<Allele> all_alleles_set = new TreeSet<>();
+	        					all_alleles_set.add(refAllele);
 
-   
-            //addMetaData(metaData);
-            
-            final VCFHeader vcfHeader=new VCFHeader(
-                    metaData , sampleSet
-                    );
-            vcfHeader.setSequenceDictionary(this.dictionary);
-            /* create variant context */
-            this.variantContextWriter = this.writingVariantsDelegate.dictionary(this.dictionary).open(outputFile);
-            this.variantContextWriter.writeHeader(vcfHeader);
+		        				for(SampleInfo si: sampleid2info.values()) {
+		        					for(AlleleInfo ai:si.allele2info.values()) {
+		        						if(ai.masked) continue;
+		        						all_alleles_set.add(ai.allele);
+		        						}
+		        					}
+		        				all_alleles_set.remove(Allele.NO_CALL);
+		        				if(all_alleles_set.size()>1) {
+		        					int an = 0;
+		        					int sum_gq = 0;
+		        					final Counter<Allele> ac_counter = new Counter<>();
+		        					final List<Allele> all_alleles_list = new ArrayList<>(all_alleles_set);
+		        					if(!all_alleles_list.get(0).isReference()) {
+		        						System.err.println(all_alleles_list);
+		        						throw new IllegalStateException();
+		        						}
+		        					int ctx_dp  = 0;
+			        				final VariantContextBuilder vcb = new VariantContextBuilder(null,
+			        						interval.getContig(),
+			        						prev_pos,
+			        						prev_pos + prev_ref.length()-1,
+			        						all_alleles_list
+			        						);
+			        				final List<Genotype> genotypes = new ArrayList<>(sampleid2info.size());
 
-            GenomicSequence genomicSeq=null;
-            SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dictionary);
-            for(;;)
-                {
-                SAMRecord rec=null;
-                
-                
-                if(iter.hasNext())
-                    {
-                    rec=progress.watch(iter.next());
-                    if(rec.getReadUnmappedFlag()) continue;
-                    if(this.readFilter.filterOut(rec)) continue;
-                  
-                    /* flush buffer if needed */
-                    while(!this.buffer.isEmpty() &&
-                    	(this.buffer.get(0).tid < rec.getReferenceIndex() ||
-                    	(this.buffer.get(0).tid == rec.getReferenceIndex() && (this.buffer.get(0).getEnd()) < rec.getAlignmentStart())))
-                    	{
-                    	this.buffer.remove(0).print();
-                    	}
-                    /* get genomic sequence at this position */
-                    if(genomicSeq==null ||  !genomicSeq.getChrom().equals(rec.getContig()))
-                        {
-                        genomicSeq = new GenomicSequence(referenceSequenceFile,rec.getContig());
-                        }
-                    final Cigar cigar= rec.getCigar();
-                    if(cigar==null) continue;
-                    int readPos=0;
-                    int refPos0 = rec.getAlignmentStart() -1;//0 based-reference
-                    final byte bases[]=rec.getReadBases();
-                    final byte quals[]=rec.getBaseQualities();
-                    final String sampleName= this.samRecordPartition.getPartion(rec,samRecordPartition.name());
-                    
-                    for(final CigarElement ce: cigar.getCigarElements())
-                        {
-                        final CigarOperator op =ce.getOperator();
-                        switch(op)
-                            {
-                            case P: break;
-                            case H: break;
-                            case S: readPos+=ce.getLength(); break;
-                            case N://go
-                            case D:
-                                {
-                                if(refPos0>0)// we need base before deletion
-	                                {
-                                	char refBase=genomicSeq.charAt(refPos0-1);/* we use base before deletion */
-                                	final StringBuilder sb=new StringBuilder(ce.getLength());
-	                            	sb.append(refBase);
-	                                for(int i=0;i< ce.getLength();++i)
-	                                	{
-	                                	sb.append(genomicSeq.charAt(refPos0+i));
-	                                	}
-	                                findContext(
-                                            rec.getReferenceIndex(),
-                                            refPos0-1,//we use base *before deletion */
-                                            Allele.create(sb.toString(), true)
-                                            ).
-		                                getSample(sampleName).
-		                                getAllele(Allele.create(String.valueOf(refBase),false)).
-		                                incr( rec.getReadNegativeStrandFlag());
-	                                
-	                                }
-                                refPos0+= ce.getLength();
-                                break;
-                                }
-                            case I:
-                                {
-                                if(refPos0>0)
-	                                {
-                                	//float qual=0;
-                                	char refBase=Character.toUpperCase( genomicSeq.charAt(refPos0-1));
-                                	final StringBuilder sb=new StringBuilder(1+ce.getLength());
-	                                sb.append(refBase);
-	                                for(int i=0;i< ce.getLength();++i)
-	                                	{
-	                                	sb.append((char)bases[readPos+i]);
-	                                	//qual+=(readPos + i < quals.length?quals[ readPos + i]:0);
-	                                	}
-	                                findContext(
-                                            rec.getReferenceIndex(),
-                                            refPos0-1,//we use base *before deletion */
-                                            Allele.create(String.valueOf(refBase), true)
-                                            ).
-	                                		getSample(sampleName).
-	                                		getAllele(Allele.create(sb.toString().toUpperCase(),false)).
-	                                		incr( rec.getReadNegativeStrandFlag())
-	                                		;
-	                                }
-                                readPos+=ce.getLength();
-                                break;
-                                }
-                            case EQ: case M: case X:
-                                {
-                                for(int i=0; i< ce.getLength();++i)
-                                    {
-                                    findContext(
-                                            rec.getReferenceIndex(),
-                                            refPos0 + i,
-                                            Allele.create(String.valueOf(genomicSeq.charAt( refPos0 + i)), true)
-                                    		).
-                                		getSample(sampleName).
-                                		getAllele(Allele.create(String.valueOf((char)bases[ readPos + i ]),false)).
-                                    	incr( rec.getReadNegativeStrandFlag())
-                                    	;
-                                    }
-                                readPos+=ce.getLength();
-                                refPos0+= ce.getLength();
-                                break;
-                                }
+			        				/* create genotypes */
+		        					for(SampleInfo si: sampleid2info.values()) {
+		        						
+		        						final List<AlleleInfo> ailist = si.allele2info.values().stream().
+		        								filter(AI->!AI.masked).
+		        								collect(Collectors.toCollection(ArrayList::new));
+		        						final List<Allele> gt_alleles = new ArrayList<>(PLOIDY);
+		        						
+			        		    		if(ailist.isEmpty()) {
+				        		    		gt_alleles.add(Allele.NO_CALL);
+				        		    		gt_alleles.add(Allele.NO_CALL);
+			        		    			}
+			        		    		else if(ailist.size()==1) {
+			        		    			final Allele alt= ailist.get(0).allele;
+			        		    			if(alt.isReference()) {
+			        		    				gt_alleles.add(refAllele);
+			        		    				gt_alleles.add(refAllele);
+			        		    				}
+			        		    			else
+			        		    				{
+			        		    				gt_alleles.add(alt);
+			        		    				gt_alleles.add(alt);
+			        		    				}
+			        		    			}
+			        		    		else//  if(ailist.size()==2)
+			        		    			{
+			        		    			gt_alleles.add(ailist.get(0).allele);
+			        		    			gt_alleles.add(ailist.get(1).allele);
+			        		    			}
+			        		    		for(Allele a: gt_alleles) {
+			        		    			if(a.isNoCall()) continue;
+			        		    			an++;
+			        		    			ac_counter.incr(a);
+			        		    			}
+		        						final int[] ad  = new int[all_alleles_list.size()];
+		        						int dp = 0;
+		        						double gq = 0;
+		        						Arrays.fill(ad, 0);
 
-                            default : throw new IllegalStateException("Case statement didn't deal with cigar op: "+ op);
-                            }
-                        }
-                    }
-                else
-                    {
-                    break;
-                    }
-                }
-            
-            while(!buffer.isEmpty()) buffer.remove(0).print();
-            progress.finish();
-            iter.close();iter=null;
-            this.variantContextWriter.close();this.variantContextWriter=null;
-            return RETURN_OK;
-            }
-        catch (Exception e)
-            {
-        	LOG.error(e);
-            return -1;
-            }
-        finally
-            {
-        	 CloserUtil.close(iter);
-            CloserUtil.close(this.referenceSequenceFile);
-            CloserUtil.close(this.variantContextWriter);
-            }
-        }
+			        		    		for(int idx=0;idx< all_alleles_list.size();++idx) {
+			        		    			final Allele a = all_alleles_list.get(idx);
+			        		    			final AlleleInfo ai = si.allele2info.get(a);
+			        		    			if(ai==null) continue;
+			        		    			ad[idx]=ai.count;
+			        		    			if(ai.masked) continue;
+			        		    			dp += ai.count;
+			        		    			ctx_dp += dp;
+			        		    			gq += ai.mapq_sum;
+			        		    			}
+			        		    		final GenotypeBuilder gb = new GenotypeBuilder(si.sn, gt_alleles);
+			        		    		if(!StringUtils.isBlank(si.gtFilter)) {
+			        		    			gb.filter(si.gtFilter);
+			        		    			}
+			        					gb.AD(ad);
+			        					gb.DP(dp);
+			        					final int gq2 = (int)(gq/(double)dp);
+			        					sum_gq += gq2;
+			        					gb.GQ(gq2);
+			        		    		genotypes.add(gb.make());
+			        					}
+		        					vcb.attribute(VCFConstants.DEPTH_KEY, ctx_dp);
+		        					vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an);
+		        					int[] ac  = new int[all_alleles_list.size()-1];
+		        					double[] af  = new double[all_alleles_list.size()-1];
+		        					Arrays.fill(ac, 0);
+		        					Arrays.fill(af, 0.0);
+		        					for(int idx=1;idx< all_alleles_list.size();++idx) {
+		        						ac[idx-1] = (int)ac_counter.count(all_alleles_list.get(idx));
+		        						if(an>0) {
+		        							af[idx-1] = ac[idx-1]/(double)an;
+		        							}
+		        						}
+		        					vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,ac);
+		        					if(an>0) {
+		        						vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,af);
+		        						}
+		        					if(sum_gq>0) vcb.log10PError(sum_gq/-10.0);
+		        					vcb.genotypes(genotypes);
+		        					vcw.add(vcb.make());
+			        				}
+	        					}
+	        				if(c==null) break;
+	        				prev_pos = c.position;
+	        				prev_ref = c.ref;
+	        				sampleid2info.clear();
+	        				}
+	        			SampleInfo si = sampleid2info.get(c.sample_index);
+	        			if(si==null) {
+	        				si = new SampleInfo(samplesList.get(c.sample_index),Allele.create(c.ref, true));
+	        				sampleid2info.put(c.sample_index, si);
+	        				}
+	        			si.visit(c);
+	        			}
+		            }//end write vcf
+	        	}
+        	
+        	
+        	
+        	return 0;
+	    	} catch(Throwable err) {
+	    		LOG.error(err);
+	    		return -1;
+	    	}
+	    }
 
-    /**
-    * @param args
-    */
     public static void main(String[] args)
         {
         new MiniCaller().instanceMainWithExit(args);

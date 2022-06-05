@@ -8,6 +8,7 @@ Simple and Stupid Variant Caller designed for @AdrienLeger2
 ## Usage
 
 ```
+Usage: java -jar dist/minicaller.jar  [options] Files
 Usage: minicaller [options] Files
   Options:
     --bcf-output
@@ -16,40 +17,56 @@ Usage: minicaller [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    -f, --filter
-      [20171130](replaced with jexl expression). A JEXL Expression that will 
-      be used to filter out some sam-records (see 
-      https://software.broadinstitute.org/gatk/documentation/article.php?id=1255). 
-      An expression should return a boolean value (true=exclude, false=keep 
-      the read). An empty expression keeps everything. The variable 'record' 
-      is the current observed read, an instance of SAMRecord (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/SAMRecord.html).
-      Default: record.getMappingQuality()<1 || record.getDuplicateReadFlag() || record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryOrSupplementary()
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
-    --groupby
-      Group Reads by. Data partitioning using the SAM Read Group (see 
-      https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
-      be any combination of sample, library....
-      Default: sample
-      Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
+    --gt-fraction
+      ignore genotype ALT/(REF+ALT) < x
+      Default: 0.05
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -mapq, --mapq
+      min mapping quality
+      Default: 1
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
+    --min-base-quality
+      min base quality
+      Default: 1
+    --min-gt-allele-depth
+      min genotype allele DP
+      Default: 1
+    --min-gt-depth
+      min genotype DP
+      Default: 1
     -d, --mindepth
       Min depth
       Default: 20
+    --other-reference
+      Other fasta references if you mix bam mapped on different fasta (will 
+      try to convert chromosomes names). Indexed fasta Reference file. This 
+      file must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
+      Default: []
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
-    -r, --region
+      Main fasta reference. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard CreateSequenceDictionary
+  * -r, --region
       An interval as the following syntax : "chrom:start-end" or 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 
       "chrom:start-end+extend-percent%".A program might use a Reference 
       sequence to fix the chromosome name (e.g: 1->chr1)
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exit
 
@@ -80,6 +97,11 @@ $ ./gradlew minicaller
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+201500306
 
 ## Source code 
 
