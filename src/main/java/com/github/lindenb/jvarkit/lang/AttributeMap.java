@@ -26,11 +26,15 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.lang;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** general interface to implement a Map<String,String> */
@@ -40,12 +44,15 @@ public interface AttributeMap {
 public Map<String,String> getAttributes();
 /** get attribute as string or return default */
 public default String getAttribute(final String key,String defaultValue) {
-	return getAttributes().getOrDefault(key,defaultValue);
+	return getAttribute(key).orElse(defaultValue);
 	}
 /** get Optional attribute */
 public default Optional<String> getAttribute(final String key) {
 	final Map<String,String> m = getAttributes();
-	if(!m.containsKey(key)) return Optional.empty();
+	if(!m.containsKey(key)) {
+		reportMissingKey(key);
+		return Optional.empty();
+		}
 	return Optional.of(m.get(key));
 	}
 /** return true of map has attribute */
@@ -53,10 +60,31 @@ public default boolean hasAttribute(final String key) {
 	return getAttributes().containsKey(key);
 	}
 
+
+/** get Optional attribute of enum item , ignore case */
+public default  <E extends Enum<E>>  Optional<E> getEnumAttribute(final Class<E> theEnum,final String key) {
+	final Map<String,String> m = getAttributes();
+	if(!m.containsKey(key)) {
+		reportMissingKey(key);
+		return Optional.empty();
+		}
+	final String s = m.get(key).trim();
+	for (E c : java.util.EnumSet.allOf(theEnum)) {
+		 if(c.name().equalsIgnoreCase(s)) return Optional.of(c);
+		 }
+	throw new IllegalArgumentException("Cannot convert "+key+"=\""+s+"\" to items: "+ 
+			java.util.EnumSet.allOf(theEnum).stream().
+				map(S->S.name()).
+				collect(Collectors.joining(" | ")));
+	}
+
 /** get Optional int attribute */
 public default OptionalInt getIntAttribute(final String key) {
 	final Map<String,String> m = getAttributes();
-	if(!m.containsKey(key)) return OptionalInt.empty();
+	if(!m.containsKey(key)) {
+		reportMissingKey(key);
+		return OptionalInt.empty();
+		}
 	try {
 		return OptionalInt.of(Integer.parseInt(m.get(key)));
 		} catch(final NumberFormatException err) {
@@ -67,7 +95,10 @@ public default OptionalInt getIntAttribute(final String key) {
 /** get Optional long attribute */
 public default OptionalLong getLongAttribute(final String key) {
 	final Map<String,String> m = getAttributes();
-	if(!m.containsKey(key)) return OptionalLong.empty();
+	if(!m.containsKey(key)) {
+		reportMissingKey(key);
+		return OptionalLong.empty();
+		}
 	try {
 		return OptionalLong.of(Long.parseLong(m.get(key)));
 		} catch(final NumberFormatException err) {
@@ -78,7 +109,10 @@ public default OptionalLong getLongAttribute(final String key) {
 /** get Optional double attribute */
 public default OptionalDouble getDoubleAttribute(final String key) {
 	final Map<String,String> m = getAttributes();
-	if(!m.containsKey(key)) return OptionalDouble.empty();
+	if(!m.containsKey(key)) {
+		reportMissingKey(key);
+		return OptionalDouble.empty();
+		}
 	try {
 		return OptionalDouble.of(Double.parseDouble(m.get(key)));
 		} catch(final NumberFormatException err) {
@@ -88,7 +122,10 @@ public default OptionalDouble getDoubleAttribute(final String key) {
 
 public default boolean getBooleanAttribute(final String key) {
 	final Map<String,String> m = getAttributes();
-	if(!m.containsKey(key)) return false;
+	if(!m.containsKey(key)) {
+		reportMissingKey(key);
+		return false;
+		}
 	final String val = m.get(key);
 	if(val.equalsIgnoreCase("false")) return false;
 	if(val.equalsIgnoreCase("no")) return false;
@@ -103,6 +140,11 @@ public default Stream<Map.Entry<String, String>> entries() {
 	return getAttributes().entrySet().stream();
 	}
 
+/** give a chance to report a missing key */
+public default void reportMissingKey(final String keyName) {
+	}
+
+/** wraps a java.util.map */
 public static AttributeMap wrap(final Map<String, String> hash) {
 	final Map<String,String> umap = Collections.unmodifiableMap(hash);
 	return new AttributeMap() {
@@ -112,4 +154,23 @@ public static AttributeMap wrap(final Map<String, String> hash) {
 			}
 		};
 	}
+
+/** wraps a AttributeMap reporting a missing key */
+public static AttributeMap verbose(final AttributeMap src,final Consumer<String> reportMissingKey) {
+	if(reportMissingKey==null) return src;
+	return new AttributeMap() {
+		final Set<String> seen = new HashSet<>();
+		@Override
+		public Map<String, String> getAttributes() {
+			return src.getAttributes();
+			}
+		@Override
+		public void reportMissingKey(String keyName) {
+			if(seen.add(keyName)) {
+				reportMissingKey.accept(keyName);
+				}
+			}
+		};
+	}
+
 }

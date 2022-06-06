@@ -42,9 +42,11 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
@@ -128,7 +130,7 @@ END_DOC
 	)
 public class MiniCaller extends Launcher   {
 	private static final Logger LOG = Logger.build(MiniCaller.class).make();
-
+	private static final String CLIP_FLAG = "!";
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-d","--mindepth"},description="Min depth")
@@ -151,9 +153,14 @@ public class MiniCaller extends Launcher   {
 	private double min_genotype_fraction = 1.0/20.0;
 	@Parameter(names={"--bad-ad-ratio"},description="Filter Genotype if x< ALT/(REF+ALT) < (1-x).")
 	private double bad_ad_ratio = 0.2;
+	@DynamicParameter(names = "-D", description = "extra parameters. Undocumented.",hidden=true)
+	private Map<String, String> __dynaParams = new HashMap<>();
 
 
 	private static final int PLOIDY = 2;
+	private final AttributeMap attMap = AttributeMap.verbose(AttributeMap.wrap(__dynaParams),(K)->{
+		LOG.info("Using default parameter for '"+K+"'.");
+		});
 	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
@@ -180,11 +187,16 @@ public class MiniCaller extends Launcher   {
     	final Allele refAllele;
     	final Map<Allele,AlleleInfo> allele2info = new TreeMap<>();
     	String gtFilter = null;
+    	int clip_sum = 0;
     	SampleInfo(String sn,final Allele refAllele) {
     		this.sn = sn;
     		this.refAllele = refAllele;
     		}
     	void visit(final Call c) {
+    		if(c.alt.equals(CLIP_FLAG)) {
+    			clip_sum++;
+    			return;
+    			}
     		final Allele alt = createAllele(c.alt);
     		AlleleInfo ai = allele2info.get(alt);
     		if(ai==null) {
@@ -254,7 +266,7 @@ public class MiniCaller extends Launcher   {
 				}
 			c.position = dis.readInt();
 			c.ref = dis.readUTF();
-			c.alt = dis.readUTF();
+			c.alt = dis.readUTF(); if(c.alt.equals(CLIP_FLAG)) c.alt= CLIP_FLAG;
 			c.mq = dis.readShort();
 			c.negativeStrand = dis.readBoolean();
 			return c;
@@ -350,13 +362,13 @@ public class MiniCaller extends Launcher   {
 		        			else
 		        				{
 		        				final GenomicSequence genomicSequence = new GenomicSequence(bamReferenceSequenceFile, bamCtg);
-	
+		        				final int minSeqLength = this.attMap.getIntAttribute("min.read.length").orElse(1);
 		        				final SimpleInterval bamInterval = interval.renameContig(bamCtg);
 			        			try(CloseableIterator<SAMRecord> iter = sr.query(bamInterval.getContig(),bamInterval.getStart(),bamInterval.getEnd(), false)) {
 			        				while(iter.hasNext()) {
 			        					final SAMRecord rec = iter.next();
 			        					if(!SAMRecordDefaultFilter.accept(rec, this.mapq)) continue;
-			        					
+			        					if(rec.getReadLength() < minSeqLength) continue;
 			                            final Cigar cigar= rec.getCigar();
 			                            if(cigar==null) continue;
 			                            final byte[] bases = rec.getReadBases();
@@ -364,15 +376,37 @@ public class MiniCaller extends Launcher   {
 			                            if(bases ==  SAMRecord.NULL_SEQUENCE) continue;
 			                            if(quals ==  SAMRecord.NULL_QUALS) continue;
 			                            if(bases.length != bases.length) continue;
-			                            int refpos1 = rec.getAlignmentStart();
+			                            int refpos1 = rec.getUnclippedStart();
 			                            int readpos0 = 0;
 			                            for(CigarElement ce : cigar) {
 			                            	final CigarOperator op = ce.getOperator();
 			                            	final int len = ce.getLength();
 			                            	
 			                            	switch(op) {
-			                            		case S: readpos0+=len; break;
-			                            		case H: break;
+			                            		case H: case S:
+			                            			{
+			                            			for(int i=0;i<len;i++) {
+			                            				int pos = refpos1 +i;
+			                            				if(pos< interval.getStart()) continue;
+			                            				if(pos> interval.getEnd()) break;
+			                            				if(pos <1) continue;
+			                            				if(pos-1 >= genomicSequence.length() ) break;
+
+			                            				final Call call = new Call();
+			                            				call.sample_index = sample_index;
+			                            				call.position = pos;
+			                            				call.ref = String.valueOf(Character.toUpperCase(genomicSequence.charAt(pos-1)));
+			                            				call.alt = CLIP_FLAG;
+			                            				call.mq = (short)rec.getMappingQuality();
+			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
+			                            				sorter.add(call);
+			                            				}
+			                            			if(op.equals(CigarOperator.S)) {
+			                            				readpos0+=len;
+			                            				}
+			                            			refpos1+=len;
+			                            			break;
+			                            			}
 			                            		case P: break;
 			                            		case D: case N: {
 			                            			if(CoordMath.overlaps(interval.getStart(), interval.getEnd(), refpos1, refpos1)) {
@@ -581,12 +615,16 @@ public class MiniCaller extends Launcher   {
 			        		    			dp += ai.count();
 			        		    			ctx_dp += dp;
 			        		    			gq += ai.mapq_sum;
+			        		    			
 			        		    			}
 			        		    		final GenotypeBuilder gb = new GenotypeBuilder(si.sn, gt_alleles);
 			        		    		if(!StringUtils.isBlank(si.gtFilter)) {
 			        		    			gb.filter(si.gtFilter);
 			        		    			}
-			        					gb.AD(ad);
+			        		    		else if(((double)si.clip_sum/(dp+si.clip_sum)) >= 0.1) {
+			        		    			gb.filter("HighClip");
+			        		    			}
+			        		    		gb.AD(ad);
 			        					gb.DP(dp);
 			        					final int gq2 = (int)(gq/(double)dp);
 			        					sum_gq += gq2;
