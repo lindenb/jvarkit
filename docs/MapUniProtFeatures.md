@@ -8,6 +8,7 @@ map uniprot features on reference genome
 ## Usage
 
 ```
+Usage: java -jar dist/mapuniprot.jar  [options] Files
 Usage: mapuniprot [options] Files
   Options:
     -h, --help

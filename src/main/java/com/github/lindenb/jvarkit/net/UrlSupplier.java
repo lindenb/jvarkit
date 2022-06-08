@@ -102,7 +102,7 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Enrichr","https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
-		final String hgnc = ((StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
+		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
 		urls.add(new LabelledUrlImpl("GenCC","https://search.thegencc.org/genes/"+hgnc));
 		}
 	else if( columnName.equalsIgnoreCase("omim")) {

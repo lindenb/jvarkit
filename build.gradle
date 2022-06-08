@@ -920,6 +920,10 @@ all.add( task("bam2svg", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2svg.BamToSVG"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("uniprot2svg", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 all.add( task("bam2wig", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
