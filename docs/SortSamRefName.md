@@ -8,6 +8,7 @@ Sort a BAM on chromosome/contig and then on read/querty name
 ## Usage
 
 ```
+Usage: java -jar dist/sortsamrefname.jar  [options] Files
 Usage: sortsamrefname [options] Files
   Options:
     --bamcompression

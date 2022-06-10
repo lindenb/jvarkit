@@ -8,6 +8,7 @@ Cap BAM to a given coverage
 ## Usage
 
 ```
+Usage: java -jar dist/biostar154220.jar  [options] Files
 Usage: biostar154220 [options] Files
   Options:
     --bamcompression

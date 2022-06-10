@@ -56,11 +56,12 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.FilteringSamIterator;
-import htsjdk.samtools.filter.IntervalFilter;
+import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.SequenceUtil;
 
 public abstract class MultiBamLauncher extends Launcher {
@@ -113,7 +114,20 @@ protected CloseableIterator<SAMRecord> openSamIterator(final SamReader sr) {
 		if(!sr.hasIndex()) {
 			final List<Interval> L = this.regionFiles.stream().map(x->new Interval(x)).collect(Collectors.toList());
 			final SAMRecordIterator st0 = sr.iterator();
-			return new FilteringSamIterator(st0,new IntervalFilter(L, sr.getFileHeader()));
+			final IntervalTreeMap<Interval> tm= new IntervalTreeMap<>();
+			for(Interval r:L) tm.put(r, r);
+			return new FilteringSamIterator(st0, new SamRecordFilter() {
+				@Override
+				public boolean filterOut(SAMRecord first, SAMRecord second) {
+					return filterOut(first) && filterOut(second);
+				}
+				
+				@Override
+				public boolean filterOut(SAMRecord record) {
+					return !tm.containsOverlapping(record);
+					}
+				});
+			//return new FilteringSamIterator(st0,new IntervalFilter(L, sr.getFileHeader()));
 			}
 		else
 			{

@@ -39,25 +39,32 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.Pair;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFIteratorBuilder;
 /*
 BEGIN_DOC
 
@@ -87,12 +94,15 @@ public class VcfStats extends Launcher {
 	private boolean list_modules = false;	
 	@Parameter(names={"--prefix"},description="file refix")
 	private String prefix = "";
-	@Parameter(names={"--gnomad-sv"},description="path to gnomad SV as BED",hidden = true)
-	private Path gnomadSVPath = null;
+	@DynamicParameter(names={"-D"},description="other parameters.")
+	private Map<String,String> __dynaParams = new HashMap<>();
+
 
 	private final Map<String, List<String>> phenotype2samples = new TreeMap<>();
 	private final Map<String,String> sample2phenotype = new TreeMap<>();
-
+	private final AttributeMap att = AttributeMap.verbose(AttributeMap.wrap(this.__dynaParams), (S)->{
+		LOG.info("undefined parameter \"" + S + "\". Using default.");
+		});
 	
 	private interface Analyzer {
 		void init(VCFHeader h);
@@ -286,12 +296,8 @@ public class VcfStats extends Launcher {
 
 	/***************************************************************************/
 	private class SVTypeContig extends AbstractMultipleBarPlot<String, String> {
-		SAMSequenceDictionary dict;
-		private final Set<String> svTypes = new HashSet<>();
-		private final Counter<Pair<String,String>> counter = new Counter<>();
 		@Override
-		public void init(VCFHeader h) {
-			this.dict = SequenceDictionaryUtils.extractRequired(h);
+		public void init(final VCFHeader h) {
 			this.enabled = h.getInfoHeaderLine(VCFConstants.SVTYPE)!=null;
 			}
 		@Override
@@ -314,10 +320,8 @@ public class VcfStats extends Launcher {
 
 	/***************************************************************************/
 	private class Sample2GTType extends AbstractMultipleBarPlot<String, GenotypeType> {
-		private final Set<String> svTypes = new HashSet<>();
-		private final Counter<Pair<String,String>> counter = new Counter<>();
 		@Override
-		public void init(VCFHeader h) {
+		public void init(final VCFHeader h) {
 			this.enabled = h.hasGenotypingData();
 			}
 		@Override
@@ -330,7 +334,7 @@ public class VcfStats extends Launcher {
 		@Override public String getYLab() {return "Genotype Types";}
 		@Override
 		public String getName() {
-			return "svtype2contig";
+			return "gtPerSample";
 			}
 		@Override
 		public String getDescription() {
@@ -345,7 +349,7 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public String getName() {
-			return "svlen";
+			return "SVLEN";
 			}
 		@Override
 		public void visit(VariantContext ctx) {
@@ -353,7 +357,45 @@ public class VcfStats extends Launcher {
 			if(StringUtils.isBlank(st) || st.equalsIgnoreCase("BND")) return;
 			super.add(st, ctx.getLengthOnReference());
 			}
-		
+		}
+	/*********************************************************************/
+	private class SVOverlap1 extends AbstractMultipleBarPlot<String,Integer> {
+		private final IntervalTreeMap<Locatable> gnomadTreeMap = new IntervalTreeMap<>();
+		private String gnomadSource;
+		@Override
+		public void init(VCFHeader h) {
+			this.gnomadSource = VcfStats.this.att.getAttribute("external.database.vcf").orElse(null);
+			if(StringUtils.isBlank(this.gnomadSource)) {
+				this.enabled = false;
+				return;
+				}
+			final ContigNameConverter convert =ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(h));
+			try(VCFIterator iter = new VCFIteratorBuilder().open(this.gnomadSource)) {
+				while(iter.hasNext()) {
+					final VariantContext vc = iter.next();
+					final String ctg = convert.apply(vc.getContig());
+					if(StringUtils.isBlank(ctg)) continue;
+					final Interval r = new Interval(ctg,vc.getStart(),vc.getEnd());
+					gnomadTreeMap.put(r, r);
+					}
+				}
+			catch(final Throwable err) {
+				LOG.error(err);
+				this.enabled=false;
+				}
+			
+			
+			}
+		@Override
+		public String getName() {
+			return "svoverlap";
+			}
+		@Override
+		public void visit(VariantContext ctx) {
+			final String st = ctx.getAttributeAsString(VCFConstants.SVTYPE, "");
+			if(StringUtils.isBlank(st) || st.equalsIgnoreCase("BND")) return;
+			super.add(st, ctx.getLengthOnReference());
+			}
 		}
 	/*********************************************************************/
 

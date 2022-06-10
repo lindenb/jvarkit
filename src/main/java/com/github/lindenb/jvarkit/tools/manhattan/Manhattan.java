@@ -1,6 +1,7 @@
 package com.github.lindenb.jvarkit.tools.manhattan;
 
 import java.awt.Dimension;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -22,6 +23,7 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -40,6 +42,7 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
@@ -88,6 +91,15 @@ public class Manhattan extends Launcher {
 
 	private AttributeMap dynaParams = AttributeMap.wrap(Collections.emptyMap());
 	
+	private class Item extends SimpleInterval {
+		final double value;
+		final String label;
+		Item(String ctg,int start,int end,double value,final String label) {
+			super(ctg,start,end);
+			this.value = value;
+			this.label = label;
+			}
+		}
 	
 	private abstract class Handler {
 		protected List<Track> tracks = new ArrayList<>();
@@ -455,6 +467,67 @@ public class Manhattan extends Launcher {
 		
 		abstract void visit(final Locatable loc);
 		}
+	
+	
+		private abstract class AbstractTsvHander extends Handler {
+			/* header */
+			protected final List<String> columns = new ArrayList<>();
+			protected final Map<String,Integer> column2index = new HashMap<>();
+		
+			
+			private class TsvIterator extends AbstractCloseableIterator<Item> {
+				final BufferedReader br;
+				TsvIterator(BufferedReader br) {
+					this.br = br;
+					}
+				@Override
+				protected Item advance() {
+					try {
+						for(;;) {
+							String line = br.readLine();
+							if(line==null) return null;
+							if(StringUtils.isBlank(line)) continue;
+							if(handleLine(line)) continue;
+							final Item item = parseItem(line);
+							if(item!=null) return null;
+							}
+						}
+					catch(final IOException err ) {
+						throw new RuntimeIOException(err);
+						}
+					}
+				@Override
+				public void close() {
+					try{br.close();}
+					catch(IOException err) {}
+					}
+				}
+			
+			protected void registerHeader(final List<String> columns) {
+				this.columns.clear();
+				this.column2index.clear();
+				this.columns.addAll(columns);
+				for(int i=0;i< columns.size();i++) this.column2index.put(columns.get(i), i);
+				}
+			
+			protected boolean handleLine(String line) {
+				return false;
+				}
+			
+			protected abstract Item parseItem(final String line);
+			
+			
+			
+			@Override
+			protected CloseableIterator<? extends Locatable> open( final List<String> args) throws IOException {
+				final String input = oneFileOrNull(args);
+				if(!StringUtils.isBlank(input)) {
+					this.filename = input;
+					}
+				return new TsvIterator(openBufferedReader(input));
+				}
+			}
+	
 	
 	
 		private abstract class AbstractVcfHander extends Handler {
