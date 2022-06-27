@@ -716,6 +716,10 @@ stream().
         }).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getStrand()+"\t"+R.getName()));
 ```
 
+## Cited in
+
+ * Hickman, A.R., Selee, B., Pauly, R. et al. Discovery of eQTL Alleles Associated with Autism Spectrum Disorder: A Case–Control Study. J Autism Dev Disord (2022). https://doi.org/10.1007/s10803-022-05631-x
+
 END_DOC
 */
 
