@@ -1945,6 +1945,10 @@ all2.add( task("kg2gff", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.gtf.KgToGff"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
+all2.add( task("gtf2bed", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.gtf.GtfToBed"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
 
 all2.add( task("blastmapannots", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.blastmapannots.BlastMapAnnotations"
