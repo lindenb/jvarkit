@@ -150,7 +150,7 @@ END_DOC
 	keywords={"vcf","bed","interval"},
 	creationDate="20211112",
 	modificationDate="20211112",
-	biostars= {9506628}
+	biostars= {9506628,9529137}
 	)
 public class VcfToIntervals extends Launcher
 	{
