@@ -73,6 +73,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
@@ -125,7 +126,7 @@ END_DOC
 @Program(name="minicaller",
 	description="Simple and Stupid Variant Caller designed for @AdrienLeger2",
 	keywords={"bam","sam","calling","vcf"},
-	modificationDate="20220605",
+	modificationDate="20220705",
 	creationDate="201500306"
 	)
 public class MiniCaller extends Launcher   {
@@ -381,91 +382,98 @@ public class MiniCaller extends Launcher   {
 			                            for(CigarElement ce : cigar) {
 			                            	final CigarOperator op = ce.getOperator();
 			                            	final int len = ce.getLength();
-			                            	
-			                            	switch(op) {
-			                            		case H: case S:
-			                            			{
-			                            			for(int i=0;i<len;i++) {
-			                            				int pos = refpos1 +i;
-			                            				if(pos< interval.getStart()) continue;
-			                            				if(pos> interval.getEnd()) break;
-			                            				if(pos <1) continue;
-			                            				if(pos-1 >= genomicSequence.length() ) break;
 
-			                            				final Call call = new Call();
-			                            				call.sample_index = sample_index;
-			                            				call.position = pos;
-			                            				call.ref = String.valueOf(Character.toUpperCase(genomicSequence.charAt(pos-1)));
-			                            				call.alt = CLIP_FLAG;
-			                            				call.mq = (short)rec.getMappingQuality();
-			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
-			                            				sorter.add(call);
-			                            				}
-			                            			if(op.equals(CigarOperator.S)) {
-			                            				readpos0+=len;
-			                            				}
-			                            			refpos1+=len;
-			                            			break;
-			                            			}
-			                            		case P: break;
-			                            		case D: case N: {
-			                            			if(CoordMath.overlaps(interval.getStart(), interval.getEnd(), refpos1, refpos1)) {
-					                            		final Call call = new Call();
-			                            				call.sample_index = sample_index;
-			                            				call.position = refpos1-1;// one base before
-			                            				final String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
-			                            				call.ref = genomicSequence.subSequence(call.position-1,call.position-1+len).toString().toUpperCase();
-			                            				call.alt = prevBase;
-			                            				call.mq = (short)rec.getMappingQuality();
-			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
-			                            				sorter.add(call);
+			                            	try {
+			                            	
+				                            	switch(op) {
+				                            		case H: case S:
+				                            			{
+				                            			for(int i=0;i<len;i++) {
+				                            				int pos = refpos1 +i;
+				                            				if(pos< interval.getStart()) continue;
+				                            				if(pos> interval.getEnd()) break;
+				                            				if(pos <1) continue;
+				                            				if(pos-1 >= genomicSequence.length() ) break;
+	
+				                            				final Call call = new Call();
+				                            				call.sample_index = sample_index;
+				                            				call.position = pos;
+				                            				call.ref = String.valueOf(Character.toUpperCase(genomicSequence.charAt(pos-1)));
+				                            				call.alt = CLIP_FLAG;
+				                            				call.mq = (short)rec.getMappingQuality();
+				                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
+				                            				sorter.add(call);
+				                            				}
+				                            			if(op.equals(CigarOperator.S)) {
+				                            				readpos0+=len;
+				                            				}
+				                            			refpos1+=len;
+				                            			break;
 				                            			}
-			                            			refpos1 += len;
-			                            			break;
-			                            			}
-			                            		case I: {
-			                            			if(CoordMath.overlaps(interval.getStart(), interval.getEnd(), refpos1, refpos1+len-1)) {
-					                            		final Call call = new Call();
-			                            				call.sample_index = sample_index;
-			                            				call.position = refpos1-1;// one base before
-			                            				final String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
-			                            				call.ref = prevBase;
-			                            				call.alt = prevBase + new String(bases,readpos0,readpos0+len);
-			                            				call.mq = (short)rec.getMappingQuality();
-			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
-			                            				sorter.add(call);
+				                            		case P: break;
+				                            		case D: case N: {
+				                            			if(CoordMath.overlaps(interval.getStart(), interval.getEnd(), refpos1, refpos1)) {
+						                            		final Call call = new Call();
+				                            				call.sample_index = sample_index;
+				                            				call.position = refpos1-1;// one base before
+				                            				final String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
+				                            				call.ref = genomicSequence.subSequence(call.position-1,call.position-1+len).toString().toUpperCase();
+				                            				call.alt = prevBase;
+				                            				call.mq = (short)rec.getMappingQuality();
+				                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
+				                            				sorter.add(call);
+					                            			}
+				                            			refpos1 += len;
+				                            			break;
 				                            			}
-			                            			readpos0+= len;
-			                            			break;
-			                            			}
-			                            		case X: case M: case EQ: {
-			                            			for(int i=0;i<len;i++) {
-			                            				int pos = refpos1 +i;
-			                            				if(pos< interval.getStart()) continue;
-			                            				if(pos> interval.getEnd()) break;
-			                            				if(pos-1 >= genomicSequence.length() ) break;
-			                            				if(quals[readpos0] < this.min_base_quality) continue;
-			                            				char refB = Character.toUpperCase(genomicSequence.charAt(pos-1));
-			                            				byte readB = bases[readpos0+i];
-			                            				
-			                            				final Call call = new Call();
-			                            				call.sample_index = sample_index;
-			                            				call.position = pos;
-			                            				call.ref = String.valueOf(refB);
-			                            				call.alt = String.valueOf((char)readB);
-			                            				call.mq = (short)rec.getMappingQuality();
-			                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
-			                            				sorter.add(call);
-			                            				}
-		                            				refpos1 += len;
-		                            				readpos0 += len;
-			                            			break;
-			                            			}
-			                            		default:throw new IllegalStateException();
+				                            		case I: {
+				                            			if(CoordMath.overlaps(interval.getStart(), interval.getEnd(), refpos1, refpos1+len-1)) {
+						                            		final Call call = new Call();
+				                            				call.sample_index = sample_index;
+				                            				call.position = refpos1-1;// one base before
+				                            				final String prevBase = String.valueOf(genomicSequence.charAt(call.position-1)).toUpperCase();
+				                            				call.ref = prevBase;
+				                            				call.alt = prevBase + new String(bases,readpos0,len);
+				                            				call.mq = (short)rec.getMappingQuality();
+				                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
+				                            				sorter.add(call);
+					                            			}
+				                            			readpos0+= len;
+				                            			break;
+				                            			}
+				                            		case X: case M: case EQ: {
+				                            			for(int i=0;i<len;i++) {
+				                            				int pos = refpos1 +i;
+				                            				if(pos< interval.getStart()) continue;
+				                            				if(pos> interval.getEnd()) break;
+				                            				if(pos-1 >= genomicSequence.length() ) break;
+				                            				if(quals[readpos0] < this.min_base_quality) continue;
+				                            				char refB = Character.toUpperCase(genomicSequence.charAt(pos-1));
+				                            				byte readB = bases[readpos0+i];
+				                            				
+				                            				final Call call = new Call();
+				                            				call.sample_index = sample_index;
+				                            				call.position = pos;
+				                            				call.ref = String.valueOf(refB);
+				                            				call.alt = String.valueOf((char)readB);
+				                            				call.mq = (short)rec.getMappingQuality();
+				                            				call.negativeStrand = rec.getReadNegativeStrandFlag();
+				                            				sorter.add(call);
+				                            				}
+			                            				refpos1 += len;
+			                            				readpos0 += len;
+				                            			break;
+				                            			}
+				                            		default:throw new IllegalStateException();
+				                            		}
+			                            		}
+			                            	catch(final Throwable err) {
+			                            		err.printStackTrace();
+			                            		throw new RuntimeException("Error with "+rec.getSAMString()+ " "+op.name()+len,err);
 			                            		}
 			                            	}
 			                            
-			        					}
+			        					}//end while iter.hasNext
 			        				}/* end of iterator */
 			        			} // end if contig is not blank
 		        			} /* end of open current SAM */
