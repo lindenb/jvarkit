@@ -35,6 +35,7 @@ import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -298,7 +299,7 @@ public class Hershey
 			double width, double height
 			)
 		{
-		StringWriter sw=new StringWriter();
+		final StringWriter sw=new StringWriter();
 		
 		
 		if(s.isEmpty() || width==0 || height==0) return "";
@@ -330,6 +331,81 @@ public class Hershey
 		return sw.toString();
 		}
 	
+	public List<BitSet> asciiArt(
+			final String s,
+			final int width,
+			final int height
+			)
+		{
+		final List<BitSet> rows = new ArrayList<>(height);
+		
+		for(int y=0;y< height;y++) {
+			rows.add(new BitSet(width));
+			}
+		
+		if(height<1 || width<1) return rows;
+		double dx=width/s.length();
+		for(int i=0;i < s.length();++i)
+			{
+			final List<PathOp> array=charToPathOp(s.charAt(i));
+			double prev_x = 0;
+			double prev_y = 0;
+			for(int n=0;n< array.size();++n)
+				{
+				final PathOp p2=transform(array.get(n));
+				double x2=(p2.x/this.scalex)*dx + dx*i +dx/2.0;
+				double y2=(p2.y/this.scaley)*height +height/2.0 ;
+				switch(p2.operator) {
+					case LINETO:
+						bresenham(rows,(int)prev_x,(int)prev_y,(int)x2,(int)y2);
+						break;
+					case MOVETO: break;
+					default: throw new IllegalStateException();
+					}
+				prev_x = x2;
+				prev_y = y2;
+				}
+			}
+			
+		return rows;
+		}
+	
+	
+	private void bresenham(final List<BitSet> matrix, int x0, int y0, int x1, int y1) {
+		//List<T> line = new ArrayList<T>();
+		
+		int dx = Math.abs(x1 - x0);
+		int dy = Math.abs(y1 - y0);
+		
+		int sx = x0 < x1 ? 1 : -1; 
+		int sy = y0 < y1 ? 1 : -1; 
+		
+		int err = dx-dy;
+		int e2;
+		int currentX = x0;
+		int currentY = y0;
+		
+		while(true) {
+			matrix.get(currentY).set(currentX);
+			
+			if(currentX == x1 && currentY == y1) {
+				break;
+			}
+			
+			e2 = 2*err;
+			if(e2 > -1 * dy) {
+				err = err - dy;
+				currentX = currentX + sx;
+			}
+			
+			if(e2 < dx) {
+				err = err + dx;
+				currentY = currentY + sy;
+			}
+		}
+	}
+	
+	
 	public static void main(String[] args)
 		{
 		BufferedImage img=new BufferedImage(300, 100, BufferedImage.TYPE_INT_RGB);
@@ -338,7 +414,6 @@ public class Hershey
 		new Hershey().paint(g,"01234567891",0,0,300,100);
 		g.dispose();
 		JOptionPane.showMessageDialog(null,new JLabel(new ImageIcon(img)));
-		
 		}
 	
 	

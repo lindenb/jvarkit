@@ -416,20 +416,20 @@ public Launcher()
 		/** set locale http://seqanswers.com/forums/showthread.php?p=174020#post174020 */
 		Locale.setDefault(Locale.US);
 		}
-	catch(final java.security.AccessControlException err) {
+	catch(final Throwable /*java.security.AccessControlException deprecated*/ err) {
 		System.err.println("Cannot set Locale to US for security reasons"+err.getMessage());
 		}
 	try {
 		System.setProperty("file.encoding", "UTF-8");
 		}
-	catch(final java.security.AccessControlException err) {
+	catch(final Throwable /*java.security.AccessControlException deprecated*/ err) {
 		System.err.println("Cannot set file.encoding to UTF-8 for security reasons"+err.getMessage());
 		}
 	try {
 	/* https://bugs.openjdk.java.net/browse/JDK-8028111 */
 	System.setProperty("jdk.xml.entityExpansionLimit","0");
 	}
-	catch(final java.security.AccessControlException err) {
+	catch(final Throwable /*java.security.AccessControlException deprecated*/ err) {
 	}
 	
 	@SuppressWarnings({"rawtypes","serial"})
