@@ -59,6 +59,37 @@ import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+/**
+BEGIN_DOC
+
+```
+$ ./gradlew textbam && \
+	java -jar dist/textbam.jar -R src/test/resources/rotavirus_rf.fa -p 'RF01:100' "Hello world" | samtools view -O BAM -o jeter.bam &&  \
+	samtools index jeter.bam && \
+	samtools tview ~/jeter.bam src/test/resources/rotavirus_rf.fa
+
+
+samtools tview ~/jeter.bam src/test/resources/rotavirus_rf.fa -d T -p RF01:100
+ 101       111       121       131       141       151       161                
+TATTCTTCCAATAGTGAATTAGAGAATAGATGTATTGAATTTCATTCTAAATGCTTAGAAAACTCAAAGAATGGACTATC
+................................................................................
+................................................................................
+ ...............................................................................
+  ..............*....*......******......*...........*............*****..........
+   .............*....*......*...........*...........*............*....*.........
+    ............*....*......*...........*...........*...........*.....*.........
+     ...........******......****........*...........*...........*.....*.........
+      ..........*....*......*...........*...........*...........*.....*.........
+       .........*....*......*...........*...........*...........*....*..........
+        ........*....*......*...........*...........*............**..*..........
+         .......*....*......******......******......******.........**...........
+          ......................................................................
+           .....................................................................
+```
+
+END_DOC
+**/
+
 
 @Program(name="texbam",
 description="Write text in a bam. Mostly for fun...",
@@ -81,7 +112,6 @@ public class TextBam extends Launcher {
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 
-	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
@@ -103,7 +133,6 @@ public class TextBam extends Launcher {
 				LOG.info("empty matrix");
 				return -1;
 				}
-			
 			final int matrixWidth = matrix.get(0).size();
 			System.err.println("Matrix width: "+matrixWidth);
 			final Random rnd = new Random();
@@ -115,8 +144,8 @@ public class TextBam extends Launcher {
 					final SimplePosition sp = new SimplePosition(userPos);
 					ssr = dict.getSequence(sp.getContig());
 					if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(sp.getContig(), dict);
-					startpos = sp.getPosition();
-					if(startpos<0 || startpos+matrixWidth>=ssr.getLengthOnReference()) {
+					startpos = sp.getPosition() ;
+					if(startpos-matrix.size() <0 || startpos+matrixWidth>=ssr.getLengthOnReference()) {
 						LOG.error("Cannot use "+sp+" string would be out of bounds");
 						return -1;
 						}
@@ -125,7 +154,7 @@ public class TextBam extends Launcher {
 					{
 					final List<SAMSequenceRecord>ssrList = dict.getSequences().
 							stream().
-							filter(SSR->SSR.getLengthOnReference() > matrixWidth).
+							filter(SSR->SSR.getLengthOnReference() > matrixWidth+matrix.size()).
 							collect(Collectors.toList());
 					if(ssrList.isEmpty()) {
 						LOG.info("no suitable chromosome");
@@ -135,7 +164,7 @@ public class TextBam extends Launcher {
 					startpos = rnd.nextInt(ssr.getLengthOnReference()-matrixWidth);
 					}
 				final SAMRecordFactory srf = new DefaultSAMRecordFactory();
-				GenomicSequence genomic = new GenomicSequence(fasta, ssr.getContig());
+				final GenomicSequence genomic = new GenomicSequence(fasta, ssr.getContig());
 				final SAMFileHeader header = new SAMFileHeader(dict);
 				final SAMReadGroupRecord rg = new SAMReadGroupRecord("S1");
 				rg.setSample("sample1");
@@ -143,27 +172,29 @@ public class TextBam extends Launcher {
 				header.addReadGroup(rg);
 				header.setSortOrder(SAMFileHeader.SortOrder.coordinate);
 				JVarkitVersion.getInstance().addMetaData(this, header);
-				
-				
+
 				try(SAMFileWriter w = this.writingBamArgs.openSamWriter(this.outputFile, header, true)) {
-					for(BitSet row:matrix) {
+					for(int row_index=0;row_index < matrix.size();row_index++) {
+						final BitSet row = matrix.get(row_index);
 						int nm=0;
+						final int read_start = startpos + row_index;
 						final SAMRecord rec = srf.createSAMRecord(header);
-						rec.setReadName("HWI-ST975:118:C12H5ACXX:1:"+rnd.nextInt(1000)+":"+rnd.nextInt(1000)+":"+rnd.nextInt(1000));
+						rec.setReadName("HWI-ST975:118:C12H5ACXX:1:"+String.format("%03d", row_index)+":"+rnd.nextInt(1000)+":"+rnd.nextInt(1000));
 						rec.setReferenceIndex(ssr.getSequenceIndex());
-						rec.setAlignmentStart(startpos);
+						rec.setAlignmentStart(Math.max(1, read_start));
 						
 						final StringBuilder basesBuilder = new StringBuilder(matrixWidth);
 						final StringBuilder qualBuilder = new StringBuilder(matrixWidth);
 						final List<CigarOperator> operators = new ArrayList<>();
-						for(int i=-1;i<matrixWidth+1;i++) {
-							int refpos = i+startpos;
-							boolean in_ref = refpos>=0 && refpos< genomic.length();
+						for(int i=-1 ; i< matrixWidth+1+row.size() ; i++) {
+							final int refpos = i + read_start;
+							final int textpos = refpos - startpos - matrix.size();
+							final boolean in_ref = refpos>=0 && refpos< genomic.length();
 							char c = Character.toUpperCase(in_ref?genomic.charAt(refpos):'N');
 							char qual = (char)('I'+rnd.nextInt(5));
-							final CigarOperator op=in_ref?CigarOperator.M:CigarOperator.S;
+							final CigarOperator op = in_ref?CigarOperator.M:CigarOperator.S;
 							
-							if(i>=0 && i < matrixWidth && row.get(i)) {
+							if(i>=0 && i < matrixWidth && textpos>=0 && textpos<row.size() && row.get(textpos)) {
 								nm++;
 								if(use_snv_instead_of_del && AcidNucleics.isATGC(c)) {
 									char compl;
