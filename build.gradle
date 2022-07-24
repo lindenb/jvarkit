@@ -16,7 +16,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "2.24.1"
+	htsjdkVersion = "3.0.0"
 	jettyVersion = "9.4.26.v20200117"
 	}
 
@@ -176,7 +176,7 @@ libraries.put("htsjdk",new Library().
 	add("org.apache.commons:commons-compress:jar:1.19").
 	add("org.tukaani:xz:jar:1.8").
 	add("org.sharegov:mjson:jar:1.4.1").
-	add("org.xerial.snappy:snappy-java:jar:1.1.7.3")
+	add("org.xerial.snappy:snappy-java:jar:1.1.8.4")
 	);
 libraries.put("jcommander",new Library().
 	add("com.beust:jcommander:jar:1.72")
@@ -2441,6 +2441,10 @@ all2.add( task("vcfscanupstreamorf", type: CompileJVarkit) {
 	});
 all2.add( task("gtfupstreamorf", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.GtfUpstreamOrf"
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add( task("gff3upstreamorf", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.Gff3UpstreamOrf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("vcfgnomadpext", type: CompileJVarkit) {

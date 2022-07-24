@@ -173,6 +173,7 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 			}
 		}
 	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
+	final String ucscCtg = toUcsc.apply(ctx.getContig());
 	if(isGrch37() && !StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
@@ -202,15 +203,24 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 				));
 			}
 		}
-	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
+	if(isGrch38() && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
-			urls.add(new LabelledUrlImpl("Variant Gnomad 3 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
-					StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r3"
-					));
-			urls.add(new LabelledUrlImpl("OpenTargets " + alt.getDisplayString(),"https://genetics.opentargets.org/variant/"+
-					String.join("_",StringUtils.escapeHttp(ensemblCtg) ,""+ctx.getStart(),ctx.getReference().getDisplayString(),alt.getDisplayString())
-					));
+			if(!StringUtils.isBlank(ensemblCtg)) {
+				urls.add(new LabelledUrlImpl("Variant Gnomad 3 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
+						StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r3"
+						));
+				urls.add(new LabelledUrlImpl("OpenTargets " + alt.getDisplayString(),"https://genetics.opentargets.org/variant/"+
+						String.join("_",StringUtils.escapeHttp(ensemblCtg) ,""+ctx.getStart(),ctx.getReference().getDisplayString(),alt.getDisplayString())
+						));
+				}
+			if(!StringUtils.isBlank(ucscCtg)) {
+				urls.add(new LabelledUrlImpl("Decaf Decode",
+						"https://decaf.decode.com/variant/"+
+						StringUtils.escapeHttp(ucscCtg) +":"+ctx.getStart()+":SG"
+						));
+				}
+			
 			}
 		}
 	
@@ -331,6 +341,14 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 			}
 		}
 
+	
+	if(isGrch38() && !StringUtils.isBlank(ucscCtg)) {
+		urls.add(new LabelledUrlImpl("Decaf Decode Region",
+				"https://decaf.decode.com/region/"+
+				StringUtils.escapeHttp(ucscCtg) +":"+loc.getStart()+"-"+loc.getEnd()
+				));
+		}
+	
 	
 	if(loc.getLengthOnReference()>1) {
 		for(int i=0;i< 2;++i) {
