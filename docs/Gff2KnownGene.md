@@ -2,14 +2,18 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Convert GFF3/GTF format to UCSC knownGene format.
+Convert GFF3 format to UCSC knownGene format.
 
 
 ## Usage
 
 ```
+Usage: java -jar dist/gff2kg.jar  [options] Files
 Usage: gff2kg [options] Files
   Options:
+    -bed12, --bed12
+      Ouput bed.
+      Default: false
     -bin, --bin
       Insert  UCSC 'bin' column as the first column.
       Default: false

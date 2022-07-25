@@ -282,7 +282,7 @@ public class Gff3UpstreamOrf extends Launcher
 				
 				final Map<String, List<String>> cds_attributes = new HashMap<>();
 				cds_attributes.put(Gff3Constants.PARENT_ATTRIBUTE_KEY, Collections.singletonList(trFeat.getID()));
-				cds_attributes.put(Gff3Constants.ID_ATTRIBUTE_KEY, Collections.singletonList("cds:"+ transcript.getId()+".cds"+cds_idx));
+				cds_attributes.put(Gff3Constants.ID_ATTRIBUTE_KEY, Collections.singletonList("cds:"+ getId()+".cds"+cds_idx));
 				cds_attributes.put(Gff3Constants.NAME_ATTRIBUTE_KEY, Collections.singletonList(
 					getName()+".cds."+(cds_idx+1))	
 					);

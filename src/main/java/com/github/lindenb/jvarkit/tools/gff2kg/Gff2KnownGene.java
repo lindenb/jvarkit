@@ -85,10 +85,10 @@ $	wget -O -  "ftp://ftp.ensembl.org/pub/grch37/release-84/gtf/homo_sapiens/Homo_
 END_DOC
  */
 @Program(name="gff2kg",
-		description="Convert GFF3/GTF format to UCSC knownGene format.",
+		description="Convert GFF3 format to UCSC knownGene format.",
 		keywords={"gff",",gtf","knownGene","ucsc","convert"},
 		creationDate="20160404",
-		modificationDate="20211231",
+		modificationDate="20220725",
 		biostars=276099
 		)
 public class Gff2KnownGene extends Launcher {
@@ -97,6 +97,8 @@ public class Gff2KnownGene extends Launcher {
 	private Path outputFile = null;
 	@Parameter(names={"-bin","--bin"},description="Insert  UCSC 'bin' column as the first column.")
 	private boolean writeBin = false;
+	@Parameter(names={"-bed12","--bed12"},description="Ouput bed.")
+	private boolean writeBed12 = false;
 	
 	private static final Set<String> gene_keys = new HashSet<>(Arrays.asList(
 		"gene_id","transcript_type","gene_name","gene_status",
@@ -105,10 +107,13 @@ public class Gff2KnownGene extends Launcher {
 	   ));
 	
     private void dump(final Gff3Feature feat,final PrintWriter pw) {
-    	System.err.println(feat.getType());
+    	
     	if(feat.getType().equals("gene")) {
     		for(Gff3Feature transcript :feat.getChildren()) {
-    			String firstTranscriptName= transcript.getAttribute("transcript_id").stream().findFirst().orElse("");
+    			String firstTranscriptName = transcript.getAttribute("transcript_id").stream().findFirst().orElse(transcript.getID());
+    			if(firstTranscriptName.startsWith("transcript:")) {
+    				firstTranscriptName = firstTranscriptName.substring(11);
+    				}
     			final List<Gff3Feature> exons = new ArrayList<>();
     			final List<Gff3Feature> cds = new ArrayList<>();
     			for(Gff3Feature f2 :transcript.getChildren()) {
@@ -122,50 +127,80 @@ public class Gff2KnownGene extends Launcher {
     			if(exons.isEmpty()) continue;
     			exons.sort((o1,o2)->o1.getStart()-o2.getStart());
     			cds.sort((o1,o2)->o1.getStart()-o2.getStart());
-    			
-    			if(this.writeBin) {
-    				pw.print(GenomicIndexUtil.regionToBin(transcript.getStart()-1, transcript.getEnd()));
-    				pw.print("\t");
-    				}
-    			pw.print(firstTranscriptName);
-    			pw.print("\t");
-    			pw.print(transcript.getContig());
-    			pw.print("\t");
-	    			switch(transcript.getStrand()) {
-	    			case NEGATIVE: pw.print("-"); break;
-	    			case POSITIVE: pw.print("+"); break;
-	    			default: throw new IllegalArgumentException(transcript.toString());
-	    			}
-    			pw.print("\t");
-    			pw.print(transcript.getStart()-1);
-    			pw.print("\t");
-    			pw.print(transcript.getEnd());
-    			pw.print("\t");
-    			
-    			pw.print(cds.stream().mapToInt(F->F.getStart()-1).min().orElse(transcript.getStart()-1));
-    			pw.print("\t");
-    			pw.print(cds.stream().mapToInt(F->F.getEnd()).max().orElse(transcript.getStart()-1));
-    			pw.print("\t");
-    			
-    			pw.print(exons.size());
-    			pw.print("\t");
-    			pw.print(exons.stream().map(F->String.valueOf(F.getStart()-1)).collect(Collectors.joining(",")));
-    			pw.print("\t");
-    			pw.print(exons.stream().map(F->String.valueOf(F.getEnd())).collect(Collectors.joining(",")));
-    			pw.print("\t");
-    			
-    			
-    			for(String key : gene_keys)  {
-    				final List<String> values = transcript.getAttribute(key);
-    				if(values==null || values.size()!=1) continue;	
-    				pw.print(values.get(0));
-    				pw.print(";");
-    				}
-    			
-    			pw.print("\t");
-    			pw.print(firstTranscriptName);
-    			pw.println();
-
+    			if(this.writeBed12) {
+    				final int transcript_start0 = transcript.getStart()-1;
+    				pw.print(transcript.getContig());
+					pw.print("\t");
+					pw.print(transcript_start0);
+					pw.print("\t");
+					pw.print(transcript.getEnd());
+					pw.print("\t");
+					pw.print(firstTranscriptName);
+					pw.print("\t");
+					pw.print(1);//score
+					pw.print("\t");
+					switch(transcript.getStrand()) {
+						case NEGATIVE: pw.print("-"); break;
+						case POSITIVE: pw.print("+"); break;
+						default: throw new IllegalArgumentException(transcript.toString());
+						}
+					pw.print("\t");
+					pw.print(cds.stream().mapToInt(F->F.getStart()-1).min().orElse(transcript_start0));//thickStart
+					pw.print("\t");
+					pw.print(cds.stream().mapToInt(F->F.getEnd()).max().orElse(transcript_start0));//thickEnd
+					pw.print("\t");
+					pw.print("0,0,255");
+					pw.print("\t");
+					pw.print(exons.size());
+					pw.print("\t");
+					pw.print(exons.stream().map(E->String.valueOf(E.getLengthOnReference())).collect(Collectors.joining(",")));
+					pw.print("\t");
+					pw.print(exons.stream().map(E->String.valueOf((E.getStart()-1)-transcript_start0)).collect(Collectors.joining(",")));
+					pw.println();
+    			} else {
+					if(this.writeBin) {
+						pw.print(GenomicIndexUtil.regionToBin(transcript.getStart()-1, transcript.getEnd()));
+						pw.print("\t");
+						}
+					pw.print(firstTranscriptName);
+					pw.print("\t");
+					pw.print(transcript.getContig());
+					pw.print("\t");
+					switch(transcript.getStrand()) {
+						case NEGATIVE: pw.print("-"); break;
+						case POSITIVE: pw.print("+"); break;
+						default: throw new IllegalArgumentException(transcript.toString());
+						}
+					pw.print("\t");
+					pw.print(transcript.getStart()-1);
+					pw.print("\t");
+					pw.print(transcript.getEnd());
+					pw.print("\t");
+					
+					pw.print(cds.stream().mapToInt(F->F.getStart()-1).min().orElse(transcript.getStart()-1));
+					pw.print("\t");
+					pw.print(cds.stream().mapToInt(F->F.getEnd()).max().orElse(transcript.getStart()-1));
+					pw.print("\t");
+					
+					pw.print(exons.size());
+					pw.print("\t");
+					pw.print(exons.stream().map(F->String.valueOf(F.getStart()-1)).collect(Collectors.joining(",")));
+					pw.print("\t");
+					pw.print(exons.stream().map(F->String.valueOf(F.getEnd())).collect(Collectors.joining(",")));
+					pw.print("\t");
+					
+					
+					for(String key : gene_keys)  {
+						final List<String> values = transcript.getAttribute(key);
+						if(values==null || values.size()!=1) continue;	
+						pw.print(values.get(0));
+						pw.print(";");
+						}
+					
+					pw.print("\t");
+					pw.print(firstTranscriptName);
+					pw.println();
+					} /* end not bed12 */
     			}
     		}
     	else {
@@ -180,22 +215,21 @@ public class Gff2KnownGene extends Launcher {
 		LineIterator in =null;
 		try {
 			final Gff3Codec gff3codec = new Gff3Codec(DecodeDepth.DEEP);
-			
 			final String input = oneFileOrNull(args);
 			in = (input==null?
 					IOUtils.openStdinForLineIterator():
 					IOUtils.openURIForLineIterator(input)
 					);
 			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-
-				while(in.hasNext()) {
+				gff3codec.readHeader(in);
+				while(!gff3codec.isDone(in)) {
 					final Gff3Feature feat = gff3codec.decode(in);
 					if(feat==null) continue;
 					dump(feat,pw);
+					}
+				pw.flush();
+				gff3codec.close(in);
 				}
-			pw.flush();
-			gff3codec.close(in);
-			}
 			return 0;
 		} catch (final Throwable err) {
 			LOG.error(err);
