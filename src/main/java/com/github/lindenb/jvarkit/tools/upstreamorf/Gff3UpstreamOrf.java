@@ -89,11 +89,10 @@ END_DOC
 
 */
 @Program(name="gff3upstreamorf",
-description="Takes a standard GTF and generate a GTF containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
+description="Takes a standard GFF3, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
 keywords={"gff","gff3","uorf","uorf"},
 creationDate="20220724",
-modificationDate="20220724",
-generate_doc=false
+modificationDate="20220725"
 )
 public class Gff3UpstreamOrf extends Launcher
 	{
