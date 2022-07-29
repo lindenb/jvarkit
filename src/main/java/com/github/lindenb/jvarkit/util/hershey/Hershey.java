@@ -29,6 +29,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
@@ -253,27 +254,8 @@ public class Hershey
 			)
 		{
 		if(s.isEmpty() || width==0 || height==0) return;
-		
-		double dx=width/s.length();
-		for(int i=0;i < s.length();++i)
-			{
-			List<PathOp> array=charToPathOp(s.charAt(i));
-			
-			for(int n=0;n< array.size();++n)
-				{
-				PathOp p2=transform(array.get(n));
-				if(p2.operator==Op.MOVETO) continue;
-				PathOp p1=transform(array.get(n-1));
-				
-				double x1=(p1.x/this.scalex)*dx + x+dx*i +dx/2.0;
-				double y1=(p1.y/this.scaley)*height +y +height/2.0 ;
-				
-				double x2=(p2.x/this.scalex)*dx + x+dx*i +dx/2.0;
-				double y2=(p2.y/this.scaley)*height +y +height/2.0 ;
-				
-				g.draw(new Line2D.Double(x1, y1, x2, y2));
-				}
-			}
+		final Shape shape = toShape(s, x, y, width, height);
+		g.draw(shape);
 		}
 	/** moved to JfxHershey : to allow compilation without java oracle
 	public void paint(
@@ -292,6 +274,32 @@ public class Hershey
 		return svgPath(s,r.getX(),r.getY(),r.getWidth(),r.getHeight());
 		}
 
+	public Shape toShape(String s,
+			double x, double y,
+			double width, double height) {
+		final GeneralPath p=new GeneralPath();
+		if(s.isEmpty() || width==0 || height==0) return p;
+		
+		double dx=width/s.length();
+		for(int i=0;i < s.length();++i)
+			{
+			final List<PathOp> array=charToPathOp(s.charAt(i));
+			
+			for(int n=0;n< array.size();++n)
+				{
+				final PathOp p2=transform(array.get(n));
+				final double x2=(p2.x/this.scalex)*dx + x+dx*i +dx/2.0;
+				final double y2=(p2.y/this.scaley)*height +y +height/2.0 ;
+				switch(p2.operator)
+					{
+					case LINETO: p.lineTo(x2, y2);break;
+					case MOVETO: p.moveTo(x2, y2);break;
+					default: throw new IllegalStateException();
+					}
+				}
+			}
+		return p;
+		}
 	
 	public String svgPath(
 			String s,
