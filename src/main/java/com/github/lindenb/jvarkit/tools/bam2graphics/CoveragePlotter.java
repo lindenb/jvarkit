@@ -32,10 +32,12 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -147,9 +149,11 @@ public class CoveragePlotter extends Launcher {
 	private boolean ignore_cnv_overlapping = false;
 	@Parameter(names= {"--svg-only"},description="Force SVG-only output (default is HTML+SVG).")
 	private boolean force_svg_output = false;
-	
 	@Parameter(names= {"--max-y"},description="Max normalized Y")
 	private double max_normalized_y = 3.0;
+	@Parameter(names= {"--css"},description="Custom CSS file. format <sample> <css>. One per line. eg. \"sample1 {stroke:red;}")
+	private Path customCss = null;
+
 	
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 
@@ -354,12 +358,25 @@ public int doWork(final List<String> args) {
 			System.err.println("max Y should be >= 2.0");
 			return -1;
 			}
+		
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
 		final SamReaderFactory samReaderFactory = SamReaderFactory.
 					makeDefault().
 					referenceSequence(CoveragePlotter.this.refPath).
 					validationStringency(ValidationStringency.LENIENT)
 					;
+		final Map<String,String> sample2css;
+		if(this.customCss!=null) {
+			sample2css  = Files.lines(this.customCss).
+					filter(S->!StringUtils.isBlank(S)).
+					filter(S->S.startsWith("#")).
+					map(S->S.trim().split("\\s+", 2)).
+					collect(Collectors.toMap(T->T[0],T->T[1]));
+			}
+		else
+			{
+			sample2css = Collections.emptyMap();
+			}
 		
 		final List<Path> inputBams =  IOUtils.unrollPaths(args);
 		
@@ -452,6 +469,7 @@ public int doWork(final List<String> args) {
 		w.writeAttribute("height", format(this.dimension.height));
 		w.writeStartElement("style");
 		w.writeCharacters(""
+				+ "svg {stroke-linecap:round;}\n"
 				+ ".geneh {fill:rgb(240,240,240);stroke:none;}\n"
 				+ ".ymedian0 {fill:none;stroke:blue;}\n"
 				+ ".ymedian1 {fill:none;stroke:cyan;}\n"
@@ -461,8 +479,10 @@ public int doWork(final List<String> args) {
 				+ ".title1 {fill:darkgray;stroke:none;}\n"
 				+ ".title2 {fill:darkgray;stroke:none;}\n"
 				+ ".cnv {fill:blue;stroke:orange;opacity:0.5;}\n"
-				+ ".gene {fill:green;stroke:orange;opacity:0.5;}\n"
+				+ ".gene {fill:green;stroke:orange;opacity:0.5;}\n" +
+				sample2css.entrySet().stream().map(KV->"."+KV.getKey()+" "+KV.getValue()+"\n").collect(Collectors.joining("\n"))
 				);
+		
 		w.writeEndElement();
 		
 		w.writeStartElement("g");
@@ -677,13 +697,32 @@ public int doWork(final List<String> args) {
 					}
 				}
 
-			final Color sampleRGB =  Color.getHSBColor((float) (samples.size()) / (float)inputBams.size(), 0.85f, 1.0f);
-			sampleInfo.rgb="rgb("+sampleRGB.getRed()+","+sampleRGB.getGreen()+","+sampleRGB.getBlue()+")";
 			
 			w.writeStartElement("polyline");
 			w.writeAttribute("id", sampleInfo.sample);
-			w.writeAttribute("class", "hist");
-			w.writeAttribute("style", "display:block;stroke:" + sampleInfo.rgb +";");
+			
+			final Color sampleRGB =  Color.getHSBColor((float) (samples.size()) / (float)inputBams.size(), 0.85f, 1.0f);
+			sampleInfo.rgb = "rgb("+sampleRGB.getRed()+","+sampleRGB.getGreen()+","+sampleRGB.getBlue()+")";
+
+			
+			if(sample2css.containsKey(sampleInfo.sample)) {
+				w.writeAttribute("class","."+sampleInfo.sample);
+				w.writeAttribute("style", "display:block;");
+				
+				final String rgb2 = Arrays.stream(sample2css.get(sampleInfo.sample).split("[{;}]")).
+						map(S->S.trim()).
+						filter(S->S.startsWith("stroke:")).
+						map(S->S.substring(7).trim()).
+						findFirst().orElse(null);
+				if(!StringUtil.isBlank(rgb2)) {
+					sampleInfo.rgb = rgb2;
+					}
+				}
+			else
+				{
+				w.writeAttribute("class","hist");
+				w.writeAttribute("style", "display:block;stroke:" + sampleInfo.rgb +";");
+				}
 			w.writeAttribute("points",
 					points.stream().map(P->format(P.getX())+","+format(P.getY())).collect(Collectors.joining(" "))
 					);
