@@ -480,7 +480,7 @@ public int doWork(final List<String> args) {
 				+ ".title2 {fill:darkgray;stroke:none;}\n"
 				+ ".cnv {fill:blue;stroke:orange;opacity:0.5;}\n"
 				+ ".gene {fill:green;stroke:orange;opacity:0.5;}\n" +
-				sample2css.entrySet().stream().map(KV->"."+KV.getKey()+" "+KV.getValue()+"\n").collect(Collectors.joining("\n"))
+				sample2css.entrySet().stream().map(KV->"."+KV.getKey()+" {"+KV.getValue()+"}\n").collect(Collectors.joining("\n"))
 				);
 		
 		w.writeEndElement();
