@@ -31,7 +31,7 @@ package com.github.lindenb.jvarkit.util.vcf;
 import java.io.BufferedReader;
 import java.io.InputStream;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.tribble.readers.LineIterator;
@@ -57,7 +57,7 @@ public class VcfIteratorImpl implements htsjdk.variant.vcf.VCFIterator
 	
 	public VcfIteratorImpl(final BufferedReader vcfStream)
 		{
-		this(IOUtils.toLineIterator(vcfStream));
+		this(LineIterators.of(vcfStream));
 		}
 	
 	public VcfIteratorImpl(final LineIterator r)

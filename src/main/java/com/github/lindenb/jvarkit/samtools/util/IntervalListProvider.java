@@ -33,9 +33,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import com.beust.jcommander.IStringConverter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -45,7 +48,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.iterator.LineIterator;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
 
 import htsjdk.samtools.QueryInterval;
@@ -58,6 +61,7 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.IntervalList.IntervalListCodec;
+import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
 
@@ -354,9 +358,13 @@ public abstract class IntervalListProvider {
 			try {
 				final IntervalListCodec codec=new IntervalListCodec();
 				final BufferedReader r = IOUtils.openURIForBufferedReading(this.getRequiredPath());
-				final LineIterator lr = new LineIterator(r);
+				final LineIterator lr = LineIterators.of(r);
 				codec.readActualHeader(lr);
-				return lr.stream().
+				return StreamSupport.stream(
+			                Spliterators.spliteratorUnknownSize(
+			                        lr,
+			                        Spliterator.ORDERED)
+			                , false).
 						map(L->codec.decode(L)).
 						filter(L->L!=null).
 						onClose(()->CloserUtil.close(r));

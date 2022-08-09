@@ -62,6 +62,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
@@ -463,14 +464,14 @@ public class IOUtils {
     	return new SynchronousLineReader(openFileForReading(file));
 		}
     
-    /** @return a LineIterator that should be closed with CloserUtils */
+    /** @return a LineIterators that should be closed with CloserUtils */
     public static LineIterator openPathForLineIterator(final Path file) throws IOException
   		{
-  		return  new com.github.lindenb.jvarkit.util.iterator.LineIterator(openPathForBufferedReading(file));
+  		return  LineIterators.of(file);
   		}
 
     
-    /** @return a LineIterator that should be closed with CloserUtils */
+    /** @return a LineIterators that should be closed with CloserUtils */
     public static LineIterator openFileForLineIterator(final File file) throws IOException
   		{
   		return openPathForLineIterator(file.toPath());
@@ -491,13 +492,13 @@ public class IOUtils {
 		return  new BufferedReader(new InputStreamReader(in));
 		}
 
-    /** @return a LineIterator that should be closed with CloserUtils */
+    /** @return a LineIterators that should be closed with CloserUtils */
     public static LineIterator openStreamForLineIterator(final InputStream in) throws IOException
   		{
   		return  new LineIteratorImpl(openStreamForLineReader(in));
   		}
     
-    /** @return a LineIterator that should be closed with CloserUtils */
+    /** @return a LineIterators that should be closed with CloserUtils */
     public static LineIterator openStdinForLineIterator() throws IOException
   		{
   		return  openStreamForLineIterator(System.in);
@@ -513,7 +514,7 @@ public class IOUtils {
 		{
 		return  new SynchronousLineReader(openURIForReading(uri));
 		}
-    /** @return a LineIterator that should be closed with CloserUtils */
+    /** @return a LineIterators that should be closed with CloserUtils */
     public static LineIterator openURIForLineIterator(String uri) throws IOException
   		{
   		return  new LineIteratorImpl(openURIForLineReader(uri));
@@ -755,10 +756,11 @@ public class IOUtils {
 	}
 	
 	
-	/** converts a BufferedReader to a line Iterator */
+	/** converts a BufferedReader to a line Iterator. use return LineIterators.of(r);  */
+	@Deprecated
 	public static  LineIterator toLineIterator(final BufferedReader r)
 		{
-		return new com.github.lindenb.jvarkit.util.iterator.LineIterator(r);
+		return LineIterators.of(r);
 		}
 	
 	/** Prevent an output stream to be closed. 

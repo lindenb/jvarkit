@@ -82,6 +82,7 @@ import htsjdk.variant.vcf.VCFIteratorBuilder;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
@@ -543,7 +544,7 @@ public class VCFUtils
 	 * 
 	 */
 	public CloseableIterator<VCFIterator> readConcatenatedVcfFile(final BufferedReader r) throws IOException {
-		return new VcfFileIterator(IOUtils.toLineIterator(r));
+		return new VcfFileIterator(LineIterators.of(r));
 	}
 	
 	/** escape String for a VALUE in the INFO column 

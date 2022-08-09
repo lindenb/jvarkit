@@ -11,6 +11,9 @@ Display an image of depth to display any anomaly an intervals+bams
 Usage: java -jar dist/coverageplotter.jar  [options] Files
 Usage: coverageplotter [options] Files
   Options:
+    --css
+      Custom CSS file. format <sample> <css>. One per line. eg. "sample1 
+      {stroke:red;} 
     --dimension, --dim
       Image Dimension. a dimension can be specified as '[integer]x[integer]' 
       or it can be the path to an existing png,jpg,xcf,svg file.
@@ -19,9 +22,9 @@ Usage: coverageplotter [options] Files
       Extending interval. The following syntaxes are supported: 1000; 1kb; 
       1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 1.5 (extend)
       Default: 3.0
-    --gtf
-      Optional Tabix indexed GTF file. Will be used to retrieve an interval by 
-      gene name, or to display gene names in a region.
+    --gff, --gff3
+      Optional Tabix indexed GFF3 file. Will be used to retrieve an interval 
+      by gene name, or to display gene names in a region.
     -h, --help
       print help and exit
     --helpFormat

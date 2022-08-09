@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.bam2graphics;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,6 +65,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.ArrayResizer;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
@@ -72,8 +75,7 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -98,6 +100,9 @@ import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.gff.Gff3Codec;
+import htsjdk.tribble.gff.Gff3Feature;
+import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFReader;
@@ -137,7 +142,7 @@ public class CoveragePlotter extends Launcher {
 	private Dimension dimension = new Dimension(1000,300);
 	@Parameter(names={"--extend","-x"},description = IntervalExtender.OPT_DESC)
 	private String extendStr="3.0";
-	@Parameter(names= {"--gtf"},description="Optional Tabix indexed GTF file. Will be used to retrieve an interval by gene name, or to display gene names in a region.")
+	@Parameter(names= {"--gff","--gff3"},description="Optional Tabix indexed GFF3 file. Will be used to retrieve an interval by gene name, or to display gene names in a region.")
 	private Path gtfFile = null;
 	@Parameter(names= {"--known"},description="Optional Tabix indexed Bed or VCF file containing known CNV. Both types must be indexed.")
 	private Path knownCnvFile = null;
@@ -248,7 +253,7 @@ public class CoveragePlotter extends Launcher {
 
 	
 
-	private Stream<GTFLine> getGenes(final Locatable region) {
+	private Stream<Gff3Feature> getGenes(final Locatable region) {
 		if(this.gtfFile==null) return Stream.empty();
 		TabixReader tbr = null;
 		try {
@@ -261,12 +266,12 @@ public class CoveragePlotter extends Launcher {
 				return Stream.empty();
 				}
 			
-			final GTFCodec codec = new GTFCodec();
+			final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW);
 			final TabixReader.Iterator iter=tbr.query(ctg,region.getStart(),region.getEnd());
 			final TabixReader tbrfinal = tbr;
-			final AbstractIterator<GTFLine> iter2= new AbstractIterator<GTFLine>() {
+			final AbstractIterator<Gff3Feature> iter2= new AbstractIterator<Gff3Feature>() {
 				@Override
-				protected GTFLine advance() {
+				protected Gff3Feature advance() {
 					try {
 						for(;;) {
 							final String line = iter.next();
@@ -275,9 +280,10 @@ public class CoveragePlotter extends Launcher {
 							final String tokens[]= CharSplitter.TAB.split(line);
 							if(tokens.length<9 ) continue;
 							tokens[0]=region.getContig();
-							final GTFLine gtfline = codec.decode(line);
-							if(gtfline==null) continue;
-							return gtfline;
+							final LineIterator lr = LineIterators.of(new String[] {line});
+							final Gff3Feature gffline = codec.decode(lr);
+							if(gffline==null) continue;
+							return gffline;
 							}
 						} catch (final IOException e) {
 						LOG.error(e);
@@ -285,7 +291,7 @@ public class CoveragePlotter extends Launcher {
 						}
 					}
 				};
-			return StreamSupport.stream(new IterableAdapter<GTFLine>(iter2).spliterator(),false).
+			return StreamSupport.stream(new IterableAdapter<Gff3Feature>(iter2).spliterator(),false).
 					onClose(()->{ tbrfinal.close(); });
 			}
 		catch(Throwable err) {
@@ -309,7 +315,7 @@ public class CoveragePlotter extends Launcher {
 						w.writeAttribute("class","gene");
 						w.writeAttribute("x", format(Math.max(x1,1)));
 						w.writeAttribute("y", format(y-(geneSize+3)));
-						w.writeCharacters(gtfline.getAttribute("gene_name"));
+						w.writeCharacters(gtfline.getAttribute("gene_name").stream().findFirst().orElse(""));
 						}
 					else if(gtfline.getType().equals("exon") ) {
 						w.writeStartElement("rect");
@@ -463,21 +469,26 @@ public int doWork(final List<String> args) {
 		else {
 			w.writeStartDocument("UTF-8","1.0");
 			}
+		
+		final Insets margin = new Insets(100,100, 100, 50);
+		
 		w.writeStartElement("svg");
 		w.writeDefaultNamespace(SVG.NS);
-		w.writeAttribute("width", format(this.dimension.width));
-		w.writeAttribute("height", format(this.dimension.height));
+		w.writeAttribute("width", format(this.dimension.width + margin.left + margin.right));
+		w.writeAttribute("height", format(this.dimension.height + margin.top + margin.bottom));
 		w.writeStartElement("style");
 		w.writeCharacters(""
 				+ "svg {stroke-linecap:round;}\n"
 				+ ".geneh {fill:rgb(240,240,240);stroke:none;}\n"
-				+ ".ymedian0 {fill:none;stroke:blue;}\n"
-				+ ".ymedian1 {fill:none;stroke:cyan;}\n"
+				+ ".ymedian0 {fill:none;stroke:blue;stroke-dasharray:5,5;}\n"
+				+ ".ymedian1 {fill:none;stroke:cyan;stroke-dasharray:5,5;}\n"
+				+ ".vline {fill:none;stroke:gray;stroke-dasharray:5,5;}\n"
 				+ ".frame {fill:none;stroke:darkgray;}\n"
 				+ ".rgnbound {fill:none;stroke:green;}\n"
 				+ ".hist {fill:none;stroke:darkgray;display:block;}\n"
-				+ ".title1 {fill:darkgray;stroke:none;}\n"
+				+ ".title1 {fill:darkgray;stroke:none;dominant-baseline:middle;text-anchor:middle;}\n"
 				+ ".title2 {fill:darkgray;stroke:none;}\n"
+				+ ".labely {fill:darkgray;stroke:none;dominant-baseline:middle;text-anchor:end;}\n"
 				+ ".cnv {fill:blue;stroke:orange;opacity:0.5;}\n"
 				+ ".gene {fill:green;stroke:orange;opacity:0.5;}\n" +
 				sample2css.entrySet().stream().map(KV->"."+KV.getKey()+" {"+KV.getValue()+"}\n").collect(Collectors.joining("\n"))
@@ -486,6 +497,9 @@ public int doWork(final List<String> args) {
 		w.writeEndElement();
 		
 		w.writeStartElement("g");
+		w.writeStartElement("g");
+		w.writeAttribute("transform", "translate("+format(margin.left)+","+format(margin.top)+")");
+
 		//draw exons
 		getGenes(extendedRegion).filter(G->G.getType().equals("exon")).forEach(EX->{
 			try {
@@ -546,6 +560,77 @@ public int doWork(final List<String> args) {
 		w.writeAttribute("height", format(this.dimension.height-1));
 		w.writeEndElement();
 
+		// draw y axis
+		w.writeStartElement("g");
+		for(double v=0; v <= max_normalized_y;v+=0.25) {
+			y= normToPixelY.applyAsDouble(v);
+			w.writeStartElement("g");
+			w.writeStartElement("line");
+			w.writeAttribute("class", "ymedian1");
+			w.writeAttribute("x1", format(-5));
+			w.writeAttribute("x2", format(0));
+			w.writeAttribute("y1", format(y));
+			w.writeAttribute("y2", format(y));
+			title(w,format(v));
+			w.writeEndElement();
+			
+			w.writeStartElement("text");
+			w.writeAttribute("class","labely");
+			w.writeAttribute("x", format(-6));
+			w.writeAttribute("y", format(y));
+			w.writeCharacters(format(v));
+			w.writeEndElement();//end
+			
+			w.writeEndElement();//g
+			}
+		w.writeStartElement("text");
+		w.writeAttribute("style", "text-anchor:middle;");
+		w.writeAttribute("x","0");
+		w.writeAttribute("y","0");
+		w.writeAttribute("transform", "translate("+format(-margin.left/2)+","+format(dimension.height/2.0)+") rotate(90)");
+		w.writeCharacters("Normalized Depth.");
+		w.writeEndElement();//end
+		
+		w.writeEndElement(); //g
+		
+		// draw x axis
+		w.writeStartElement("g");
+		double prev_x=-1;
+		for(int i=extendedRegion.getStart();i<=extendedRegion.getEnd();i++) {
+			double x0 = (i/(double)extendedRegion.getLengthOnReference())*dimension.width;
+			if(i==extendedRegion.getStart() || x0-prev_x > 100) {
+				
+				w.writeStartElement("line");
+				w.writeAttribute("class", "vline");
+				w.writeAttribute("x1", format(x0));
+				w.writeAttribute("x2", format(x0));
+				w.writeAttribute("y1", format(0));
+				w.writeAttribute("y2", format(dimension.height));
+				title(w,StringUtils.niceInt(i));
+				w.writeEndElement();
+				
+				
+				w.writeStartElement("text");
+				w.writeAttribute("x","0");
+				w.writeAttribute("y","0");
+				w.writeAttribute("transform", "translate("+format(x0)+","+format(dimension.height+5)+") rotate(45)");
+				w.writeCharacters(StringUtils.niceInt(i));
+				w.writeEndElement();//end
+
+				
+				prev_x = x0;
+			}
+		}
+		
+		w.writeStartElement("text");
+		w.writeAttribute("style", "text-anchor:middle;");
+		w.writeAttribute("x","0");
+		w.writeAttribute("y","0");
+		w.writeAttribute("transform", "translate("+format(dimension.width/2)+","+format(dimension.height + margin.bottom/2.0)+")");
+		w.writeCharacters("Genomic location");
+		w.writeEndElement();//end
+		w.writeEndElement();//g
+		
 		//draw genes
 		drawGenes(w, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
 		// draw knowns
@@ -553,7 +638,6 @@ public int doWork(final List<String> args) {
 		
 		// draw original region vertical bounds 
 		if(!extendedRegion.equals(rawRegion)) {
-			
 			
 			for(int i=0;i<2;i++) {
 				final int p = (i==0?rawRegion.getStart():rawRegion.getEnd());
@@ -742,21 +826,11 @@ public int doWork(final List<String> args) {
 		final String label_samples = samples.size()>10?"N="+StringUtils.niceInt(samples.size()):samples.stream().map(S->S.sample).collect(Collectors.joining(";"));
 		final Set<String> all_genes = getGenes(extendedRegion).
 				filter(G->G.getType().equals("gene")).
-				map(G->G.getAttribute("gene_name")).
+				flatMap(G->G.getAttribute("gene_name").stream()).
 				filter(F->!StringUtils.isBlank(F)).
 				collect(Collectors.toCollection(TreeSet::new))
 				;
 
-		w.writeStartElement("text");
-		w.writeAttribute("class","title1");
-		w.writeAttribute("x", format(10));
-		w.writeAttribute("y", format(10));
-		w.writeCharacters(
-				extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+
-				" Sample(s):"+label_samples+" "+" Gene(s):"+
-				(all_genes.size()>20?"N="+StringUtils.niceInt(all_genes.size()):String.join(";", all_genes))
-				);
-		w.writeEndElement();//end
 
 		
 		/** draw sample names */
@@ -773,6 +847,22 @@ public int doWork(final List<String> args) {
 			w.writeCharacters(si.sample);
 			w.writeEndElement();//end
 			}
+		
+		
+		
+		
+		w.writeEndElement();//g
+		
+		w.writeStartElement("text");
+		w.writeAttribute("class","title1");
+		w.writeAttribute("x", format(margin.left+dimension.width/2.0));
+		w.writeAttribute("y", format(margin.top/2));
+		w.writeCharacters(
+				extendedRegion.toNiceString()+" Length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+
+				" Sample(s):"+label_samples+" "+" Gene(s):"+
+				(all_genes.size()>20?"N="+StringUtils.niceInt(all_genes.size()):String.join(";", all_genes))
+				);
+		w.writeEndElement();//end
 		
 		
 		w.writeEndElement();//g
@@ -848,8 +938,69 @@ public int doWork(final List<String> args) {
 				}
 			w.writeEndElement();//tbody
 			w.writeEndElement();//table
-
 			w.writeEndElement();//div
+
+			/** URLs **************/
+			final Set<UrlSupplier.LabelledUrl> urls = new HashSet<>();
+			final UrlSupplier urlSupplier = new UrlSupplier(dict);
+			urls.addAll(urlSupplier.of(rawRegion));
+			getGenes(rawRegion).forEach(GFF->urls.addAll(urlSupplier.of(GFF)));
+			
+			if(!urls.isEmpty()) {
+			w.writeStartElement("div");
+			
+			w.writeStartElement("table");
+			
+			w.writeStartElement("caption");
+			w.writeCharacters("Hyperlinks");
+			w.writeEndElement();
+			
+			w.writeStartElement("thead");
+			
+			w.writeStartElement("tr");
+			
+			w.writeStartElement("th");
+			w.writeCharacters("Source");
+			w.writeEndElement();//th
+			
+			w.writeStartElement("th");
+			w.writeCharacters("URL");
+			w.writeEndElement();//th
+
+			
+			w.writeEndElement();//tr
+			w.writeEndElement();//thead
+			
+			w.writeStartElement("tbody");
+			for(UrlSupplier.LabelledUrl url: urls) {
+				w.writeStartElement("tr");
+
+				w.writeStartElement("td");
+				w.writeCharacters(url.getLabel());
+				w.writeEndElement();//th
+
+				
+				w.writeStartElement("td");
+				w.writeStartElement("a");
+				w.writeAttribute("title",url.getUrl());
+				w.writeAttribute("target","_blank");
+				w.writeAttribute("href",url.getUrl());
+				w.writeCharacters(url.getUrl());
+				w.writeEndElement();//a
+				w.writeEndElement();//td
+				
+
+				
+				w.writeEndElement();//tr
+				}
+			w.writeEndElement();//tbody
+			w.writeEndElement();//table
+			w.writeEndElement();//div
+			} // end URLs
+			
+			
+
+			
 			
 			w.writeEmptyElement("hr");
 

@@ -41,6 +41,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.gff.Gff3Feature;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -94,6 +95,7 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	if(StringUtils.isBlank(columnName) || StringUtils.isBlank(id)) return Collections.emptySet();
 	final Set<LabelledUrl> urls = new LinkedHashSet<>();
 	if( columnName.equalsIgnoreCase("genename") ||
+		columnName.equalsIgnoreCase("gene_name") ||
 		columnName.equalsIgnoreCase("symbol")) {
 		urls.add(new LabelledUrlImpl("NCBI gene","https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/search?search="+StringUtils.escapeHttp(id)));
@@ -125,6 +127,14 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	return urls;
 	}
 
+private void _gff3(final Gff3Feature feat,final Set<LabelledUrl> urls) {
+	feat.getAttribute("gene_id").stream().forEach(X->_string(X,urls));;
+	feat.getAttribute("transcript_id").stream().forEach(X->_string(X,urls));;
+	feat.getAttribute("protein_id").stream().forEach(X->_string(X,urls));;
+	feat.getAttribute("gene_name").stream().forEach(X->urls.addAll(of("gene_name",X)));;
+	feat.getAttribute("CCDS").stream().forEach(X->urls.addAll(of("CCDS",X)));;
+	_locatable(feat, urls);
+	}
 
 private void _string(final String str,final Set<LabelledUrl> urls) {
 	if(StringUtils.isBlank(str)) return;
@@ -378,6 +388,9 @@ public Set<LabelledUrl> of(final Locatable loc) {
 		}
 	else if(loc instanceof SAMRecord) {
 		_sam(SAMRecord.class.cast(loc), urls);
+		}
+	else if(loc instanceof Gff3Feature) {
+		_gff3(Gff3Feature.class.cast(loc), urls);
 		}
 	else
 		{
