@@ -588,11 +588,11 @@ public class UniprotToSvg extends Launcher {
 				this.ctrlsSamples.addAll(ped.getUnaffectedSamples().stream().map(S->S.getId()).collect(Collectors.toSet()));
 				}
 			
-			final XPathFactory xpathFactory = XPathFactory.newDefaultInstance();
+			final XPathFactory xpathFactory = XPathFactory.newInstance();
 			this.xpath = xpathFactory.newXPath();
 			this.xpath.setNamespaceContext(new UniprotNsContext());
 
-			final DocumentBuilderFactory dbf = DocumentBuilderFactory.newDefaultInstance();
+			final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 			dbf.setIgnoringComments(true);
 			dbf.setCoalescing(true);
 			dbf.setNamespaceAware(true);
