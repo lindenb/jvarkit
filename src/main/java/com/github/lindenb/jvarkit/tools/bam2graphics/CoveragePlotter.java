@@ -869,6 +869,15 @@ public int doWork(final List<String> args) {
 		w.writeEndElement();//svg
 		if(output_html) {
 			w.writeEndElement();//div
+			
+			w.writeStartElement("div");
+			w.writeAttribute("style","display:none;");
+			w.writeAttribute("id", "__PLACEHOLDER__");
+			w.writeComment("Use this div to insert things later. ");
+			w.writeCharacters("__PLACEHOLDER__");
+			w.writeEndElement();
+			
+			
 			w.writeStartElement("div");
 			
 			w.writeStartElement("table");
@@ -1000,7 +1009,13 @@ public int doWork(final List<String> args) {
 			
 			
 
-			
+			w.writeStartElement("div");
+			w.writeCharacters("User interval:" + rawRegion.toNiceString()+". ");
+			w.writeCharacters("Extended interval: " + extendedRegion.toNiceString()+". ");
+			w.writeCharacters("Mapping quality: " + this.min_mapq +". ");
+			w.writeCharacters("Include original interval for mean/median depth calculation: " + this.include_original_interval_for_median +". ");
+			w.writeEndElement();//div
+
 			
 			w.writeEmptyElement("hr");
 
