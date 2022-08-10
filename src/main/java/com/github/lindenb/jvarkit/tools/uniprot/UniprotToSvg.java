@@ -92,11 +92,16 @@ public class UniprotToSvg extends Launcher {
 	private static final String UNIPROT_NS = "http://uniprot.org/uniprot";
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required = true)
 	private Path outputFile = null;
-	
 	@Parameter(names = "--vcf", description = "annotated VCF")
 	private Path vcfPath  = null;
 	@Parameter(names = "--pedigree", description = PedigreeParser.OPT_DESC)
 	private Path pedigreePath  = null;
+	@Parameter(names = "--exclude-type", description = "Exclude feature/@type matching that regular expression")
+	private String excludeFeatureTye = null;
+	@Parameter(names = "--include-type", description = "Only feature/@type matching that regular expression")
+	private String includeFeatureTye = null;
+	@Parameter(names = "--svg", description = "produce SVG only (default is HTML+SVG)")
+	private boolean svg_only=false;
 
 	
 	@DynamicParameter(names = "-D", description = "extra parameters. Undocumented.",hidden=true)
@@ -125,7 +130,7 @@ public class UniprotToSvg extends Launcher {
 	        return "";
 	    }
 	 
-	    @SuppressWarnings({ "unchecked", "rawtypes" })
+	    @SuppressWarnings({"rawtypes" })
 	    public Iterator getPrefixes(String namespaceURI) {
 	    	 if(UNIPROT_NS.equals(namespaceURI)) return Arrays.asList("u","uniprot").iterator();
 	    	return Collections.emptyIterator();
@@ -136,6 +141,16 @@ public class UniprotToSvg extends Launcher {
 	private Element element(final String localName) {
 		return this.svgDoc.createElementNS(SVG.NS, localName);
 	}
+	private Element html(final String localName) {
+		return this.svgDoc.createElement(localName);
+		}
+	private Element html(final String localName,final String content) {
+		final Element e= html(localName);
+		e.appendChild(text(content));
+		return e;
+		}
+
+	
 	
 	private Element element(final String localName,final String content) {
 		final Element e= element(localName);
@@ -227,17 +242,15 @@ public class UniprotToSvg extends Launcher {
 		}
 	
 	private boolean acceptFeature(final Feature feat) {
-		String regexStr = this.attMap.getAttribute("exclude.regex", "");
-		if(!StringUtils.isBlank(regexStr)) {
-			final Pattern regex = Pattern.compile(regexStr,Pattern.CASE_INSENSITIVE);
+		if(!StringUtils.isBlank(this.excludeFeatureTye)) {
+			final Pattern regex = Pattern.compile(this.excludeFeatureTye,Pattern.CASE_INSENSITIVE);
 			if(regex.matcher(feat.type).find()) {
 				LOG.warn("exclude type "+feat.type+" matching "+regex.pattern());
 				return false;
 				}
 			}
-		regexStr = this.attMap.getAttribute("include.regex", "");
-		if(!StringUtils.isBlank(regexStr)) {
-			final Pattern regex = Pattern.compile(regexStr,Pattern.CASE_INSENSITIVE);
+		if(!StringUtils.isBlank(this.includeFeatureTye)) {
+			final Pattern regex = Pattern.compile(this.includeFeatureTye,Pattern.CASE_INSENSITIVE);
 			if(!regex.matcher(feat.type).find()) {
 				LOG.warn("exclude type "+feat.type+" not matching "+regex.pattern());
 				return false;
@@ -342,10 +355,32 @@ public class UniprotToSvg extends Launcher {
 			final int margin_bottom = this.attMap.getIntAttribute("margin.bottom").orElse(50);
 			final int distanceBetweenFeatures = this.attMap.getIntAttribute("feature.margin").orElse(2);
 
+			
+			
 		
 			final Element svgRoot = element("svg");
 			svgRoot.setAttribute("version", "1.0");
-			this.svgDoc.appendChild(svgRoot);
+			
+			final String suffix;
+
+			if(svg_only) {
+				suffix = ".svg";
+				this.svgDoc.appendChild(svgRoot);
+				}
+			else
+				{
+				suffix = ".html";
+				final Element htmlRoot = html("html");
+				final Element head = html("head");
+				htmlRoot.appendChild(head);
+				final Element body = html("body");
+				htmlRoot.appendChild(body);
+				final Element div1 = html("div");
+				body.appendChild(div1);
+				div1.appendChild(svgRoot);
+				this.svgDoc.appendChild(htmlRoot);
+				}
+
 			
 			svgRoot.appendChild(element("title",entryName));
 	
@@ -567,7 +602,8 @@ public class UniprotToSvg extends Launcher {
 			final TransformerFactory transformerFactory = TransformerFactory.newInstance();
 			final Transformer transformer = transformerFactory.newTransformer();
 			
-			try(Writer w= archive.openWriter(accession+(StringUtils.isBlank(enst)?"":"_"+enst)+".svg")) {
+			
+			try(Writer w= archive.openWriter(accession+(StringUtils.isBlank(enst)?"":"_"+enst) + suffix)) {
 				transformer.transform(new DOMSource(this.svgDoc), new StreamResult(w));
 				w.flush();
 				}
