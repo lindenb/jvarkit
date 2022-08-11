@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeSet;
@@ -230,11 +231,11 @@ public class VcfStrechToSvg extends Launcher
 	/** wrape node into a genomic hyperlink if needed */
 	private Node wrapLoc(final Element node,final Locatable loc) {
 		if(loc==null) return node;
-		final String url = this.hyperlinkType.apply(loc);
-		if(StringUtils.isBlank(url)) return node;
+		final Optional<String> url = this.hyperlinkType.apply(loc);
+		if(!url.isPresent()) return node;
 		final Element a = element("a");
 		a.setAttribute("target","_blank");
-		a.setAttribute("href",url);
+		a.setAttribute("href",url.get());
 		a.appendChild(node);
 		return a;
 		}

@@ -24,20 +24,24 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.net;
 
+import java.util.Optional;
 import java.util.function.Function;
 
 import com.beust.jcommander.IStringConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Locatable;
 
 /** get a genomic URL hyperlink for a given locatable */
-public interface Hyperlink extends Function<Locatable,String>{
+public interface Hyperlink extends Function<Locatable,Optional<String>> {
+	static final String UCSC_PATTERN = "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__";
 	public static final String OPT_DESC="creates a hyperlink when 'click' in an area. "
 			+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. Predefined values are 'hg19','hg38','igv'. "
 			+ "IGV : \"http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__\" , "
-			+ "UCSC: \"http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__\" "
+			+ "UCSC: \""+ UCSC_PATTERN+"\" "
 			;
 
 	public static class StringConverter implements IStringConverter<Hyperlink> {
@@ -47,21 +51,23 @@ public interface Hyperlink extends Function<Locatable,String>{
 			}
 		}
 	
-	static class HyperkinkImpl implements Hyperlink {
-		private final String pattern ;
-		private HyperkinkImpl(final String pattern) {
-			this.pattern = pattern;
-		}
+	
+		static class HyperkinkImpl implements Hyperlink {
+			private final String pattern ;
+			Function<String, String> convertContig = S->S;;
+			private HyperkinkImpl(final String pattern) {
+				this.pattern = pattern;
+			}
 		
 		@Override
-		public String apply(final Locatable loc) {
-			if(loc==null) return null;
-			if(isEmpty()) return null;
-			return 	getPattern().
-					replaceAll("__CHROM__", StringUtils.escapeHttp(loc.getContig())).
+		public Optional<String> apply(final Locatable loc) {
+			if(loc==null) return Optional.empty();
+			if(isEmpty()) return Optional.empty();
+			return 	Optional.of(getPattern().
+					replaceAll("__CHROM__", StringUtils.escapeHttp(convertContig.apply(loc.getContig()))).
 					replaceAll("__START__", String.valueOf(loc.getStart())).
 					replaceAll("__END__", String.valueOf(loc.getEnd()))
-					;
+					);
 			}
 		@Override
 		public int hashCode() {
@@ -105,12 +111,26 @@ public interface Hyperlink extends Function<Locatable,String>{
 	
 	public static Hyperlink compile(String s) {
 		if(StringUtils.isBlank(s))  new HyperkinkImpl(s);
+		Function<String,String> convert = S->S;
 		if(s.equals("hg19") || s.equals("hg38")) {
-			s=  "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db="+s+"&position=__CHROM__%3A__START__-__END__";
+			s=  UCSC_PATTERN;
+			convert = S->(S.startsWith("chr")?S:"chr"+S);
 			}
 		else if(s.equals("igv")) {
 			s="http://"+IgvConstants.DEFAULT_HOST+":"+IgvConstants.DEFAULT_PORT+"/goto?locus=__CHROM__%3A__START__-__END__";
 			}
-		return new HyperkinkImpl(s);
+		HyperkinkImpl h= new HyperkinkImpl(s);
+		h.convertContig = convert;
+		return h;
 		}
+	
+	/** provide a generic hyperlink for the given dictionary */
+	public static Hyperlink compile(final SAMSequenceDictionary dict) {
+		if(dict==null || dict.isEmpty()) return empty();
+		if(SequenceDictionaryUtils.isGRCh37(dict)) return compile("hg19");
+		if(SequenceDictionaryUtils.isGRCh38(dict)) return compile("hg38");
+		return empty();
+		}
+
+	
 }

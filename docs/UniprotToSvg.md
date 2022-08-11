@@ -11,10 +11,14 @@ plot uniprot to SVG
 Usage: java -jar dist/uniprot2svg.jar  [options] Files
 Usage: uniprot2svg [options] Files
   Options:
+    --exclude-type
+      Exclude feature/@type matching that regular expression
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --include-type
+      Only feature/@type matching that regular expression
   * -o, --output
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.
@@ -22,8 +26,12 @@ Usage: uniprot2svg [options] Files
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
       sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
+    --svg
+      produce SVG only (default is HTML+SVG)
+      Default: false
     --vcf
-      annotated VCF
+      annotated VCF. Whole file is loaded in memory, so you'd better use a 
+      small vcf restricted to your proteins.
     --version
       print version and exit
 
