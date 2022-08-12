@@ -101,7 +101,8 @@ END_DOC
 	keywords={"fastq","align","sw"},
 	description="align fasta sequences vs fastq",
 	modificationDate="20220207",
-	creationDate="20220207"
+	creationDate="20220207",
+	biostars=9534472
 	)
 public class FastqSW extends OnePassFastqLauncher {
 	private static final Logger LOG = Logger.build(FastqSW.class).make();
