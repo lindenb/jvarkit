@@ -66,11 +66,15 @@ public class FastqPairedReaderFactory {
 	
 	/** read reads in two files */
 	public CloseableIterator<FastqRecordPair> open(final Path fq1,final Path fq2) throws IOException {
+		if(fq1==null) throw new IllegalArgumentException("R1 file is null");
+		if(fq2==null) throw new IllegalArgumentException("R2 file is null");
 		return open(fq1.toFile(),fq2.toFile());
 	}
 	
 	/** read reads in two files */
 	public CloseableIterator<FastqRecordPair> open(final File fq1,final File fq2) throws IOException {
+		if(fq1==null) throw new IllegalArgumentException("R1 file is null");
+		if(fq2==null) throw new IllegalArgumentException("R2 file is null");
 		if(fq1.equals(fq2)) throw new IllegalArgumentException("same file "+fq1+"=="+fq2);
 		return new InterleavedTwoReader(
 				 new FastqReader(fq1),
