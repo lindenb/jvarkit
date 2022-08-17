@@ -37,7 +37,8 @@ import htsjdk.samtools.util.Locatable;
 
 /** get a genomic URL hyperlink for a given locatable */
 public interface Hyperlink extends Function<Locatable,Optional<String>> {
-	static final String UCSC_PATTERN = "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__";
+	static final String UCSC_PATTERN_HG19 = "http://genome.ucsc.edu/cgi-bin/hgTracks?org=Human&db=hg19&position=__CHROM__%3A__START__-__END__";
+	static final String UCSC_PATTERN = UCSC_PATTERN_HG19;
 	public static final String OPT_DESC="creates a hyperlink when 'click' in an area. "
 			+ "The URL must contains __CHROM__, __START__ and __END__ that will be replaced by their values. Predefined values are 'hg19','hg38','igv'. "
 			+ "IGV : \"http://localhost:60151/goto?locus=__CHROM__%3A__START__-__END__\" , "
@@ -112,8 +113,12 @@ public interface Hyperlink extends Function<Locatable,Optional<String>> {
 	public static Hyperlink compile(String s) {
 		if(StringUtils.isBlank(s))  new HyperkinkImpl(s);
 		Function<String,String> convert = S->S;
-		if(s.equals("hg19") || s.equals("hg38")) {
-			s=  UCSC_PATTERN;
+		if(s.equals("hg19")) {
+			s=  UCSC_PATTERN_HG19;
+			convert = S->(S.startsWith("chr")?S:"chr"+S);
+			}
+		else if(s.equals("hg38")) {
+			s=  UCSC_PATTERN_HG19.replace("hg19", "hg38");;
 			convert = S->(S.startsWith("chr")?S:"chr"+S);
 			}
 		else if(s.equals("igv")) {

@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.samtools.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.BiPredicate;
@@ -48,6 +49,13 @@ import htsjdk.samtools.util.Locatable;
 		this((left,right)->left.getEnd()+1 < right.getStart());
 		}
 	
+	public Pileup<T> addAll(final List<T> collection) {
+		for(T item:collection) {
+			add(item);
+			}
+		return this;
+		}
+	
 	/** add a new item to the pileup , return the item */
 	public T add(final T item) {
 		if(prevContig==null) {
@@ -66,11 +74,16 @@ import htsjdk.samtools.util.Locatable;
 		int y=0;
 		while(y< this.rows.size()) {
 			final List<T> row = this.rows.get(y);
-			final T last = row.get(row.size()-1);
-			if(overlap(last,item)) {
-				y++;
-				continue;
+			boolean found=false;
+			for(int x=row.size()-1;x>=0;x--) {
+				final T last = row.get(x);
+				if(overlap(last,item)) {
+					y++;
+					found=true;
+					break;
+					}
 				}
+			if(found) break;
 			row.add(item);
 			break;
 			}

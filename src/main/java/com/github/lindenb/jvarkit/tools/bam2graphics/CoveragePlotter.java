@@ -65,6 +65,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.ArrayResizer;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
@@ -172,13 +173,12 @@ public class CoveragePlotter extends Launcher {
 		double meanDP=0.0;
 		}
 	
-	private void drawKnownCnv(final XMLStreamWriter w,final Rectangle rectangle,final Locatable region) {
-		if(this.knownCnvFile==null) return;
+	private List<Interval> getKnownCNVs(final Locatable region) {
+		if(this.knownCnvFile==null) return Collections.emptyList();
 		final String fname=this.knownCnvFile.getFileName().toString();
 
-		final Pileup<Interval> pileup = new Pileup<>();
 		final Predicate<Interval> rejectCnv = cnv->(this.ignore_cnv_overlapping && cnv.getStart() < region.getStart() && cnv.getEnd() > region.getEnd());
-
+		final List<Interval> knowns = new ArrayList<>();
 		if(fname.endsWith(".bed.gz")) {
 			try(TabixReader tbr = new TabixReader(this.knownCnvFile.toString())) {
 				final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
@@ -192,8 +192,8 @@ public class CoveragePlotter extends Launcher {
 							final BedLine bed = codec.decode(line);
 							if(bed==null) continue;
 							final Interval rgn = new Interval(region.getContig(),bed.getStart(),bed.getEnd(),false,bed.getOrDefault(3, ""));
-							if(rejectCnv.test(rgn)) return;
-							pileup.add(rgn);
+							if(rejectCnv.test(rgn)) continue;
+							knowns.add(rgn);
 							}
 					}
 				}
@@ -215,7 +215,7 @@ public class CoveragePlotter extends Launcher {
 								if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
 								final Interval rgn= new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));
 								if(rejectCnv.test(rgn)) return;
-								pileup.add(rgn);
+								knowns.add(rgn);
 								});
 					}
 				}
@@ -227,21 +227,32 @@ public class CoveragePlotter extends Launcher {
 			{
 			LOG.warn("not a vcf of bed.gz file "+this.knownCnvFile);
 			}
+		return knowns;
+		}
+	
+	private void drawKnownCnv(final XMLStreamWriter w,final Rectangle rectangle,final Locatable region) {
+		final List<Interval> knows = getKnownCNVs(region);
+
+		final Pileup<Interval> pileup = new Pileup<>();
+		pileup.addAll(knows);
+
 		if(!pileup.isEmpty() ) {
 			final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
-			final double featureHeight = 4.0/pileup.getRowCount();
+			final double featureHeight = 10.0/pileup.getRowCount();
 			for(int row=0;row< pileup.getRowCount();++row) {
 				for(final Interval cnv:pileup.getRow(row)) {
-					final double y= rectangle.getHeight()-8.0 + row*featureHeight;
-					final double x1 = position2pixel.applyAsDouble(cnv.getStart());
-					final double x2 = position2pixel.applyAsDouble(cnv.getEnd());
+					final double y= rectangle.getHeight()-12.0 + row*featureHeight;
+					final double x1 = Math.max(rectangle.getX(),position2pixel.applyAsDouble(cnv.getStart()));
+					final double x2 = Math.min(rectangle.getMaxX(),position2pixel.applyAsDouble(cnv.getEnd()));
 					try {
-						w.writeEmptyElement("rect");
+						w.writeStartElement("rect");
 						w.writeAttribute("class", "cnv");
 						w.writeAttribute("x", format(x1));
 						w.writeAttribute("y", format(y-1));
 						w.writeAttribute("width", format(Math.max(0.5, x2-x1)));
 						w.writeAttribute("height", format(featureHeight*0.9));
+						title(w, "Known: "+new SimpleInterval(cnv).toNiceString()+" "+cnv.getName());
+						w.writeEndElement();
 						}
 					catch(final Throwable err) {
 						LOG.warn(err);
@@ -307,15 +318,16 @@ public class CoveragePlotter extends Launcher {
 			final int geneSize = 10;
 	
 			getGenes(region).forEach(gtfline->{
-					final double x1 = position2pixel.applyAsDouble(gtfline.getStart());
-					final double x2 = position2pixel.applyAsDouble(gtfline.getEnd());
+					final double x1 = Math.max(rect.getX(),position2pixel.applyAsDouble(gtfline.getStart()));
+					final double x2 = Math.min(rect.getMaxX(),position2pixel.applyAsDouble(gtfline.getEnd()));
 					try {
+					final String geneName= gtfline.getAttribute("gene_name").stream().findFirst().orElse("");
 					if(gtfline.getType().equals("gene") ) {
 						w.writeEmptyElement("text");
 						w.writeAttribute("class","gene");
 						w.writeAttribute("x", format(Math.max(x1,1)));
 						w.writeAttribute("y", format(y-(geneSize+3)));
-						w.writeCharacters(gtfline.getAttribute("gene_name").stream().findFirst().orElse(""));
+						w.writeCharacters(geneName);
 						}
 					else if(gtfline.getType().equals("exon") ) {
 						w.writeStartElement("rect");
@@ -324,7 +336,7 @@ public class CoveragePlotter extends Launcher {
 						w.writeAttribute("y", format(y-1));
 						w.writeAttribute("width", format(x2-x1));
 						w.writeAttribute("height", format(3));
-						title(w,"exon");
+						title(w,"exon "+geneName);
 						w.writeEndElement();
 						}
 					else if(gtfline.getType().equals("transcript") ) {
@@ -334,7 +346,7 @@ public class CoveragePlotter extends Launcher {
 						w.writeAttribute("y1", format(y));
 						w.writeAttribute("x2", format(x2));
 						w.writeAttribute("y2", format(y));
-						title(w,"transcript");
+						title(w,"transcript "+geneName);
 						w.writeEndElement();
 						}
 					} catch(final Throwable err) {
@@ -366,6 +378,7 @@ public int doWork(final List<String> args) {
 			}
 		
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
+		final Hyperlink hyperlink = Hyperlink.compile(dict);
 		final SamReaderFactory samReaderFactory = SamReaderFactory.
 					makeDefault().
 					referenceSequence(CoveragePlotter.this.refPath).
@@ -790,7 +803,7 @@ public int doWork(final List<String> args) {
 
 			
 			if(sample2css.containsKey(sampleInfo.sample)) {
-				w.writeAttribute("class","."+sampleInfo.sample);
+				w.writeAttribute("class",sampleInfo.sample);
 				w.writeAttribute("style", "display:block;");
 				
 				final String rgb2 = Arrays.stream(sample2css.get(sampleInfo.sample).split("[{;}]")).
@@ -955,59 +968,152 @@ public int doWork(final List<String> args) {
 			urls.addAll(urlSupplier.of(rawRegion));
 			getGenes(rawRegion).forEach(GFF->urls.addAll(urlSupplier.of(GFF)));
 			
-			if(!urls.isEmpty()) {
-			w.writeStartElement("div");
-			
-			w.writeStartElement("table");
-			
-			w.writeStartElement("caption");
-			w.writeCharacters("Hyperlinks");
-			w.writeEndElement();
-			
-			w.writeStartElement("thead");
-			
-			w.writeStartElement("tr");
-			
-			w.writeStartElement("th");
-			w.writeCharacters("Source");
-			w.writeEndElement();//th
-			
-			w.writeStartElement("th");
-			w.writeCharacters("URL");
-			w.writeEndElement();//th
-
-			
-			w.writeEndElement();//tr
-			w.writeEndElement();//thead
-			
-			w.writeStartElement("tbody");
-			for(UrlSupplier.LabelledUrl url: urls) {
+				if(!urls.isEmpty()) {
+				w.writeStartElement("div");
+				
+				w.writeStartElement("table");
+				
+				w.writeStartElement("caption");
+				w.writeCharacters("Hyperlinks");
+				w.writeEndElement();
+				
+				w.writeStartElement("thead");
+				
 				w.writeStartElement("tr");
+				
+				w.writeStartElement("th");
+				w.writeCharacters("Source");
+				w.writeEndElement();//th
+				
+				w.writeStartElement("th");
+				w.writeCharacters("URL");
+				w.writeEndElement();//th
+	
+				
+				w.writeEndElement();//tr
+				w.writeEndElement();//thead
+				
+				w.writeStartElement("tbody");
+				for(UrlSupplier.LabelledUrl url: urls) {
+					w.writeStartElement("tr");
+	
+					w.writeStartElement("td");
+					w.writeCharacters(url.getLabel());
+					w.writeEndElement();//th
+	
+					
+					w.writeStartElement("td");
+					w.writeStartElement("a");
+					w.writeAttribute("title",url.getUrl());
+					w.writeAttribute("target","_blank");
+					w.writeAttribute("href",url.getUrl());
+					w.writeCharacters(url.getUrl());
+					w.writeEndElement();//a
+					w.writeEndElement();//td
+					
+	
+					
+					w.writeEndElement();//tr
+					}
+				w.writeEndElement();//tbody
+				w.writeEndElement();//table
+				w.writeEndElement();//div
+				} // end URLs
+				
+			/** KNOWN CNV */
+			if(knownCnvFile!=null) {
+				final List<Interval> knows = getKnownCNVs(extendedRegion);
+				if(!knows.isEmpty()) {
 
-				w.writeStartElement("td");
-				w.writeCharacters(url.getLabel());
+				w.writeStartElement("div");
+				
+				w.writeStartElement("table");
+				
+				w.writeStartElement("caption");
+				w.writeCharacters("Known CNV");
+				w.writeEndElement();
+				
+				w.writeStartElement("thead");
+				
+				w.writeStartElement("tr");
+				
+				w.writeStartElement("th");
+				w.writeCharacters("Position");
+				w.writeEndElement();//th
+				
+				w.writeStartElement("th");
+				w.writeCharacters("Length");
 				w.writeEndElement();//th
 
 				
-				w.writeStartElement("td");
-				w.writeStartElement("a");
-				w.writeAttribute("title",url.getUrl());
-				w.writeAttribute("target","_blank");
-				w.writeAttribute("href",url.getUrl());
-				w.writeCharacters(url.getUrl());
-				w.writeEndElement();//a
-				w.writeEndElement();//td
-				
+				w.writeStartElement("th");
+				w.writeCharacters("Name");
+				w.writeEndElement();//th
+	
+				w.writeStartElement("th");
+				w.writeCharacters("Fraction Region");
+				w.writeEndElement();//th
+
+				w.writeStartElement("th");
+				w.writeCharacters("Fraction Known");
+				w.writeEndElement();//th
 
 				
 				w.writeEndElement();//tr
+				w.writeEndElement();//thead
+				
+				w.writeStartElement("tbody");
+				for(Interval k:knows) {
+					w.writeStartElement("tr");
+	
+					w.writeStartElement("td");
+					
+					w.writeStartElement("a");
+					w.writeAttribute("title",new SimpleInterval(k).toNiceString());
+					w.writeAttribute("href",hyperlink.apply(k).orElse(""));
+					w.writeAttribute("target","_blank");
+					w.writeCharacters(new SimpleInterval(k).toNiceString());
+					w.writeEndElement();//a
+					
+					w.writeEndElement();//td
+					
+					int len = k.getLengthOnReference();
+					w.writeStartElement("td");
+					w.writeCharacters(StringUtils.niceInt(len));
+					w.writeEndElement();//td
+					
+					w.writeStartElement("td");
+					w.writeCharacters(k.getName());
+					w.writeEndElement();//td
+					
+					
+					if(k.overlaps(rawRegion)) {
+						final double n2= rawRegion.getIntersectionLength(k);
+						
+						w.writeStartElement("td");
+						w.writeCharacters((int)(100.0*(n2/rawRegion.getLengthOnReference()))+"%");
+						w.writeEndElement();//td
+						
+						w.writeStartElement("td");
+						w.writeCharacters((int)(100.0*(n2/len))+"%");
+						w.writeEndElement();//td
+						}
+					else
+						{
+						w.writeEmptyElement("td");
+						w.writeEmptyElement("td");
+						}
+
+					w.writeEndElement();//tr
+					}
+				w.writeEndElement();//tbody
+				w.writeEndElement();//table
+				w.writeEndElement();//div
+				
 				}
-			w.writeEndElement();//tbody
-			w.writeEndElement();//table
-			w.writeEndElement();//div
-			} // end URLs
-			
-			
+				
+			}
+				
 
 			w.writeStartElement("div");
 			w.writeCharacters("User interval:" + rawRegion.toNiceString()+". ");
