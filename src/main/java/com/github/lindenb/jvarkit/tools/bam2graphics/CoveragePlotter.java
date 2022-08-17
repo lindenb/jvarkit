@@ -156,7 +156,7 @@ public class CoveragePlotter extends Launcher {
 	private boolean force_svg_output = false;
 	@Parameter(names= {"--max-y"},description="Max normalized Y")
 	private double max_normalized_y = 3.0;
-	@Parameter(names= {"--css"},description="Custom CSS file. format <sample> <css>. One per line. eg. \"sample1 {stroke:red;}")
+	@Parameter(names= {"--css"},description="Custom CSS file. format <sample> <css>. One per line. eg. \"sample1 stroke:red;")
 	private Path customCss = null;
 
 	
@@ -375,7 +375,7 @@ public int doWork(final List<String> args) {
 		if(this.customCss!=null) {
 			sample2css  = Files.lines(this.customCss).
 					filter(S->!StringUtils.isBlank(S)).
-					filter(S->S.startsWith("#")).
+					filter(S->!S.startsWith("#")).
 					map(S->S.trim().split("\\s+", 2)).
 					collect(Collectors.toMap(T->T[0],T->T[1]));
 			}
