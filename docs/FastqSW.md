@@ -91,6 +91,12 @@ Usage: fastqsw [options] Files
  * sw
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9534472](https://www.biostars.org/p/9534472)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
