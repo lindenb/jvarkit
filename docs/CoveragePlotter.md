@@ -13,7 +13,7 @@ Usage: coverageplotter [options] Files
   Options:
     --css
       Custom CSS file. format <sample> <css>. One per line. eg. "sample1 
-      {stroke:red;} 
+      stroke:red; 
     --dimension, --dim
       Image Dimension. a dimension can be specified as '[integer]x[integer]' 
       or it can be the path to an existing png,jpg,xcf,svg file.
@@ -56,6 +56,9 @@ Usage: coverageplotter [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
+    --smooth
+      Run median smooth on this number of pixels. (ignore if <=1)
+      Default: 10
     --svg-only
       Force SVG-only output (default is HTML+SVG).
       Default: false
@@ -125,12 +128,22 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+## input
+
 input a set of bam/cram files or one file with the suffix '.list' containing the path to the bams
 
+## output
+
 output is a HTML+SVG file
+
+## example:
 
 ```
 java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" src/test/resources/*.bam 
 ```
+
+## Screenshot
+
+!(https://pbs.twimg.com/media/Fac3XR3aAAEJoXu?format=jpg&name=medium)[https://twitter.com/yokofakun/status/1560276675614887937]
 
 

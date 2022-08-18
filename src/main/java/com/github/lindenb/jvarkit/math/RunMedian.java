@@ -45,6 +45,15 @@ public static int getTurlachSize(final int n) {
 	 return 1 + (int)(2 * Math.min((n-1)% 2, Math.ceil(0.1*n)));
 }
 
+public double[] applyToDoubleArray(final int[] input) {
+	return apply(Arrays.stream(input).mapToDouble(I->(double)I).toArray());
+	}
+
+public int[] applyToIntArray(final int[] input) {
+	return Arrays.stream(applyToDoubleArray(input)).mapToInt(I->(int)I).toArray();
+	}
+
+
 /** supid implementation.. */
 public double[] apply(final double input[]) {
 	final int w = getWindowSize();
@@ -54,7 +63,7 @@ public double[] apply(final double input[]) {
 	else
 		{
 		final int halfw = w/2;
-		final double buffer[]=new double[w];
+		final double[] buffer=new double[w];
 		final double[] dest = new double[input.length];
 		for(int i=0;i< input.length;i++) {
 			final int beg_idx = Math.max(0,i-halfw);

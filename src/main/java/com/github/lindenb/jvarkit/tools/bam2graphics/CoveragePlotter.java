@@ -65,6 +65,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.ArrayResizer;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.math.RunMedian;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
@@ -109,13 +110,23 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
+## input
+
 input a set of bam/cram files or one file with the suffix '.list' containing the path to the bams
 
+## output
+
 output is a HTML+SVG file
+
+## example:
 
 ```
 java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" src/test/resources/*.bam 
 ```
+
+## Screenshot
+
+!(https://pbs.twimg.com/media/Fac3XR3aAAEJoXu?format=jpg&name=medium)[https://twitter.com/yokofakun/status/1560276675614887937]
 
 
 END_DOC 
@@ -125,7 +136,7 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams",
 	keywords={"cnv","bam","depth","coverage","svg"},
 	creationDate="20200605",
-	modificationDate="20220808"
+	modificationDate="20220818"
 	)
 public class CoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( CoveragePlotter.class).make();
@@ -159,6 +170,9 @@ public class CoveragePlotter extends Launcher {
 	private double max_normalized_y = 3.0;
 	@Parameter(names= {"--css"},description="Custom CSS file. format <sample> <css>. One per line. eg. \"sample1 stroke:red;")
 	private Path customCss = null;
+	@Parameter(names= {"--smooth"},description="Run median smooth on this number of pixels. (ignore if <=1)")
+	private int smooth_pixel_size = 10;
+
 
 	
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
@@ -169,8 +183,11 @@ public class CoveragePlotter extends Launcher {
 		long nReads = 0L;
 		Point2D maxPosition=null;
 		String rgb=null;
-		double medianDP=0.0;
 		double meanDP=0.0;
+		
+		double medianAll=0.0;
+		double medianInner=0.0;
+		double medianOuter=0.0;
 		}
 	
 	private List<Interval> getKnownCNVs(final Locatable region) {
@@ -264,7 +281,7 @@ public class CoveragePlotter extends Launcher {
 
 	
 
-	private Stream<Gff3Feature> getGenes(final Locatable region) {
+	private Stream<Gff3Feature> getGenes(final Locatable region,final Predicate<Gff3Feature> filter) {
 		if(this.gtfFile==null) return Stream.empty();
 		TabixReader tbr = null;
 		try {
@@ -294,6 +311,7 @@ public class CoveragePlotter extends Launcher {
 							final LineIterator lr = LineIterators.of(new String[] {line});
 							final Gff3Feature gffline = codec.decode(lr);
 							if(gffline==null) continue;
+							if(filter!=null && !filter.test(gffline)) continue;
 							return gffline;
 							}
 						} catch (final IOException e) {
@@ -317,7 +335,7 @@ public class CoveragePlotter extends Launcher {
 		final double y= rect.getMaxY()-4.0;
 			final int geneSize = 10;
 	
-			getGenes(region).forEach(gtfline->{
+			getGenes(region,G->true).forEach(gtfline->{
 					final double x1 = Math.max(rect.getX(),position2pixel.applyAsDouble(gtfline.getStart()));
 					final double x2 = Math.min(rect.getMaxX(),position2pixel.applyAsDouble(gtfline.getEnd()));
 					try {
@@ -425,7 +443,6 @@ public int doWork(final List<String> args) {
 		final double max_y = this.max_normalized_y;
 		final ToDoubleFunction<Double> normToPixelY = NORM->  this.dimension.getHeight() * (1.0 -  (NORM/max_y));
 		final double y_mid = normToPixelY.applyAsDouble(1.0);
-		final DiscreteMedian<Integer> discreteMedian = new DiscreteMedian<>();
 		
 		final ToDoubleFunction<Integer> pos2pixel = POS-> (POS - extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference() * this.dimension.getWidth();
 		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
@@ -441,7 +458,7 @@ public int doWork(final List<String> args) {
 			output_html = !this.outputFile.getName().toLowerCase().endsWith(".svg");
 			}
 		
-		if(this.force_svg_output) {
+		if(this.force_svg_output || (this.outputFile!=null && this.outputFile.getName().toLowerCase().endsWith(".svg"))) {
 			output_html = false;
 			}
 		
@@ -458,6 +475,7 @@ public int doWork(final List<String> args) {
 
 			
 			w.writeStartElement("title");
+			w.writeCharacters(rawRegion.toNiceString()+" extended to "+extendedRegion.toNiceString());
 			w.writeEndElement();//title
 			w.writeStartElement("style");
 			w.writeCharacters(""
@@ -475,7 +493,7 @@ public int doWork(final List<String> args) {
 			
 			w.writeStartElement("body");
 			w.writeStartElement("h2");
-			w.writeCharacters(extendedRegion.toNiceString());
+			w.writeCharacters(rawRegion.toNiceString()+" extended to "+extendedRegion.toNiceString());
 			w.writeEndElement();//h2
 			w.writeStartElement("div");
 			}
@@ -514,19 +532,21 @@ public int doWork(final List<String> args) {
 		w.writeAttribute("transform", "translate("+format(margin.left)+","+format(margin.top)+")");
 
 		//draw exons
-		getGenes(extendedRegion).filter(G->G.getType().equals("exon")).forEach(EX->{
+		getGenes(extendedRegion,G->G.getType().equals("exon")).forEach(EX->{
 			try {
-				final double x1 = pos2pixel.applyAsDouble(EX.getStart());
-				final double x2 = pos2pixel.applyAsDouble(EX.getEnd());
+				final double x1 = Math.max(0, pos2pixel.applyAsDouble(EX.getStart()));
+				final double x2 = Math.min(this.dimension.getWidth(), pos2pixel.applyAsDouble(EX.getEnd()));
 
-				w.writeEmptyElement("rect");
+				w.writeStartElement("rect");
 				w.writeAttribute("class", "geneh");
 				w.writeAttribute("x", format(x1));
 				w.writeAttribute("y", format(0));
 				w.writeAttribute("width", format(Math.max(0.5, x2-x1)));
 				w.writeAttribute("height", format(this.dimension.height));
+				title(w,EX.getAttribute("gene_name").stream().map(GN->"exon "+GN).findFirst().orElse(""));
+				w.writeEndElement();
 				}
-			catch(Throwable err)  {
+			catch(final Throwable err)  {
 				LOG.warn(err);
 				}
 			});
@@ -727,20 +747,40 @@ public int doWork(final List<String> args) {
 							}// loop cigar
 						} // end samIter
 					}// 
-
+			if(smooth_pixel_size>1) {
+				int smooth_n_bases= (int)((smooth_pixel_size/dimension.getWidth())*extendedRegion.getLengthOnReference());
+				if(smooth_n_bases%2==0) smooth_n_bases++;
+				if(smooth_n_bases>1) {
+					final int[] copy = new RunMedian(smooth_n_bases).applyToIntArray(depth);
+					for(int i=0;i< copy.length;i++) depth[i]=copy[i];
+					}
+			}
 				
-			discreteMedian.clear();
+				
+			final DiscreteMedian<Integer> discreteMedianAll = new DiscreteMedian<>();
+			final DiscreteMedian<Integer> discreteMedianOuter = new DiscreteMedian<>();
+			final DiscreteMedian<Integer> discreteMedianInner = new DiscreteMedian<>();
+
 			double sumDepth=0;
 			int countDepth=0;
 			for(int i=0;i< depth.length;i++) {
 				if(depth[i]>this.max_depth) continue;
-				if(!include_original_interval_for_median) {
-						final int pos = extendedRegion.getStart() + i;
-						if(rawRegion.getStart()<=pos && pos<=rawRegion.getEnd()) continue;
-						}
-				discreteMedian.add(depth[i]);
-				sumDepth+=depth[i];
-				countDepth++;
+				final int dp = depth[i];
+				discreteMedianAll.add(dp);
+				final int pos = extendedRegion.getStart() + i;
+				boolean use_for_dp=true;
+				if(rawRegion.getStart()<=pos && pos<=rawRegion.getEnd()) {
+					discreteMedianInner.add(dp);
+					if(this.include_original_interval_for_median) use_for_dp=true;
+					}
+				else
+					{
+					discreteMedianOuter.add(dp);
+					}
+				if(use_for_dp) {
+					sumDepth+=depth[i];
+					countDepth++;
+					}
 				}
 			if(countDepth<=0) {
 				final String msg = "Skipping "+sampleInfo.sample +" "+extendedRegion+" because I cannot find any depth";
@@ -748,9 +788,13 @@ public int doWork(final List<String> args) {
 				continue;
 				}
 			sampleInfo.meanDP = sumDepth/countDepth;
+			sampleInfo.medianInner = discreteMedianInner.getMedian().orElse(0.0);
+			sampleInfo.medianOuter = discreteMedianOuter.getMedian().orElse(0.0);
+			sampleInfo.medianAll = discreteMedianAll.getMedian().orElse(0.0);
 			
-			sampleInfo.medianDP = discreteMedian.getMedian().orElse(0);
-			if(sampleInfo.medianDP <= 0.0) {
+			
+			final double medianDP = (this.include_original_interval_for_median?sampleInfo.medianAll:sampleInfo.medianOuter);
+			if(medianDP <= 0.0) {
 				final String msg = "Skipping "+sampleInfo.sample +" "+extendedRegion+" because median is 0";
 				LOG.warning(msg);
 				continue;
@@ -760,11 +804,11 @@ public int doWork(final List<String> args) {
 			// normalize on median
 			double[] normArray = new double[depth.length];
 			for(int i=0;i< depth.length;i++) {
-				normArray[i] = depth[i]/sampleInfo.medianDP;
+				normArray[i] = depth[i]/medianDP;
 				}
 			normArray= new ArrayResizer().resizeToDouble(normArray, image.getWidth());
 
-			
+			w.writeCharacters("\n");
 			w.writeComment(sampleInfo.sample);
 			w.writeStartElement("g");
 			
@@ -837,8 +881,7 @@ public int doWork(final List<String> args) {
 				
 		
 		final String label_samples = samples.size()>10?"N="+StringUtils.niceInt(samples.size()):samples.stream().map(S->S.sample).collect(Collectors.joining(";"));
-		final Set<String> all_genes = getGenes(extendedRegion).
-				filter(G->G.getType().equals("gene")).
+		final Set<String> all_genes = getGenes(extendedRegion,G->G.getType().equals("gene")).
 				flatMap(G->G.getAttribute("gene_name").stream()).
 				filter(F->!StringUtils.isBlank(F)).
 				collect(Collectors.toCollection(TreeSet::new))
@@ -912,8 +955,21 @@ public int doWork(final List<String> args) {
 			w.writeEndElement();//th
 
 			w.writeStartElement("th");
-			w.writeCharacters("Median Cov");
+			w.writeCharacters("Median Cov in User Region");
 			w.writeEndElement();//th
+			
+			w.writeStartElement("th");
+			w.writeCharacters("Median Cov in Outer Region");
+			w.writeEndElement();//th
+
+			w.writeStartElement("th");
+			w.writeCharacters("Median Cov in whole Region");
+			w.writeEndElement();//th
+
+			w.writeStartElement("th");
+			w.writeCharacters("Ratio Inner/outer");
+			w.writeEndElement();//th
+
 			
 			w.writeStartElement("th");
 			w.writeCharacters("N. reads");
@@ -945,8 +1001,25 @@ public int doWork(final List<String> args) {
 				w.writeEndElement();//th
 
 				w.writeStartElement("td");
-				w.writeCharacters(format(si.medianDP));
+				w.writeCharacters(format(si.medianInner));
 				w.writeEndElement();//th
+				
+				w.writeStartElement("td");
+				w.writeCharacters(format(si.medianOuter));
+				w.writeEndElement();//th
+
+				w.writeStartElement("td");
+				w.writeCharacters(format(si.medianAll));
+				w.writeEndElement();//th
+
+				
+				w.writeStartElement("td");
+				if(si.medianOuter>0) {
+					w.writeCharacters(String.valueOf((int)(100.0*(si.medianInner/si.medianOuter)))+"%");
+					}
+				
+				w.writeEndElement();//th
+
 				
 				w.writeStartElement("td");
 				w.writeCharacters(format(si.nReads));
@@ -966,8 +1039,7 @@ public int doWork(final List<String> args) {
 			final Set<UrlSupplier.LabelledUrl> urls = new HashSet<>();
 			final UrlSupplier urlSupplier = new UrlSupplier(dict);
 			urls.addAll(urlSupplier.of(rawRegion));
-			getGenes(rawRegion).forEach(GFF->urls.addAll(urlSupplier.of(GFF)));
-			
+			getGenes(rawRegion,G->G.getType().equals("gene")).forEach(GFF->urls.addAll(urlSupplier.of(GFF)));
 				if(!urls.isEmpty()) {
 				w.writeStartElement("div");
 				
@@ -1022,7 +1094,9 @@ public int doWork(final List<String> args) {
 				
 			/** KNOWN CNV */
 			if(knownCnvFile!=null) {
-				final List<Interval> knows = getKnownCNVs(extendedRegion);
+				final List<Interval> knows = getKnownCNVs(extendedRegion).stream().
+						filter(R->R.overlaps(rawRegion)).
+						collect(Collectors.toList());
 				if(!knows.isEmpty()) {
 
 				w.writeStartElement("div");
@@ -1109,15 +1183,14 @@ public int doWork(final List<String> args) {
 				w.writeEndElement();//tbody
 				w.writeEndElement();//table
 				w.writeEndElement();//div
-				
 				}
 				
 			}
 				
 
 			w.writeStartElement("div");
-			w.writeCharacters("User interval:" + rawRegion.toNiceString()+". ");
-			w.writeCharacters("Extended interval: " + extendedRegion.toNiceString()+". ");
+			w.writeCharacters("User interval:" + rawRegion.toNiceString()+" (length:"+StringUtils.niceInt(rawRegion.getLengthOnReference())+"). ");
+			w.writeCharacters("Extended interval: " + extendedRegion.toNiceString()+" (length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+"). ");
 			w.writeCharacters("Mapping quality: " + this.min_mapq +". ");
 			w.writeCharacters("Include original interval for mean/median depth calculation: " + this.include_original_interval_for_median +". ");
 			w.writeEndElement();//div
