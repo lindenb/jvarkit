@@ -30,7 +30,6 @@ import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.geom.Point2D;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -437,9 +436,8 @@ public int doWork(final List<String> args) {
 				LOG.error("extended region "+extendedRegion+" is same as raw region "+ rawRegion +" but median is only using extend regions. See options.");
 			return -1;
 			}
-			
+		
 		final int sampleFontSize=7;
-		final BufferedImage image = new BufferedImage(this.dimension.width,this.dimension.height,BufferedImage.TYPE_INT_ARGB);
 		final double max_y = this.max_normalized_y;
 		final ToDoubleFunction<Double> normToPixelY = NORM->  this.dimension.getHeight() * (1.0 -  (NORM/max_y));
 		final double y_mid = normToPixelY.applyAsDouble(1.0);
@@ -665,9 +663,9 @@ public int doWork(final List<String> args) {
 		w.writeEndElement();//g
 		
 		//draw genes
-		drawGenes(w, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
+		drawGenes(w, new Rectangle(0,0,dimension.width,dimension.height), extendedRegion);
 		// draw knowns
-		drawKnownCnv(w, new Rectangle(0,0,image.getWidth(),image.getHeight()), extendedRegion);
+		drawKnownCnv(w, new Rectangle(0,0,dimension.width,dimension.height), extendedRegion);
 		
 		// draw original region vertical bounds 
 		if(!extendedRegion.equals(rawRegion)) {
@@ -806,7 +804,7 @@ public int doWork(final List<String> args) {
 			for(int i=0;i< depth.length;i++) {
 				normArray[i] = depth[i]/medianDP;
 				}
-			normArray= new ArrayResizer().resizeToDouble(normArray, image.getWidth());
+			normArray= new ArrayResizer().resizeToDouble(normArray, dimension.width);
 
 			w.writeCharacters("\n");
 			w.writeComment(sampleInfo.sample);
