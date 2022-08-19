@@ -62,24 +62,17 @@ public double[] apply(final double input[]) {
 		}
 	else
 		{
+		final Median median = new Median(w+1);
 		final int halfw = w/2;
-		final double[] buffer=new double[w];
 		final double[] dest = new double[input.length];
 		for(int i=0;i< input.length;i++) {
+			median.reset();
 			final int beg_idx = Math.max(0,i-halfw);
 			final int endg_idx = Math.min(i+halfw,input.length);
-			final int len = endg_idx - beg_idx;
-			
-			System.arraycopy(input, beg_idx, buffer, 0, len);
-			Arrays.sort(buffer,0,len);
-			final int mid = len/2;
-			if(len%2==1 || mid==0) {
-				dest[i] = buffer[mid];
+			for(int x=beg_idx;x< endg_idx;x++) {
+				median.accept(input[i]);
 				}
-			else
-				{
-				dest[i]= (buffer[mid-1]+buffer[mid])/2.0;
-				}
+			dest[i] = median.getAsDouble();
 			}
 		
 		return dest;

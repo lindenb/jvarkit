@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,6 +57,9 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.commons.math3.analysis.interpolation.LoessInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
+
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -63,7 +67,8 @@ import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.ArrayResizer;
-import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.math.Average;
+import com.github.lindenb.jvarkit.math.Median;
 import com.github.lindenb.jvarkit.math.RunMedian;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
@@ -93,6 +98,8 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
@@ -135,7 +142,7 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams",
 	keywords={"cnv","bam","depth","coverage","svg"},
 	creationDate="20200605",
-	modificationDate="20220818"
+	modificationDate="20220819"
 	)
 public class CoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( CoveragePlotter.class).make();
@@ -171,6 +178,8 @@ public class CoveragePlotter extends Launcher {
 	private Path customCss = null;
 	@Parameter(names= {"--smooth"},description="Run median smooth on this number of pixels. (ignore if <=1)")
 	private int smooth_pixel_size = 10;
+	@Parameter(names= {"--loess"},description="Run Loess smoothing on GC%. Experimental. For now, I find the smooting is too strong.")
+	private boolean run_loess = false;
 
 
 	
@@ -393,7 +402,9 @@ public int doWork(final List<String> args) {
 			System.err.println("max Y should be >= 2.0");
 			return -1;
 			}
-		
+		if(this.smooth_pixel_size>1 && this.run_loess) {
+			LOG.warn("loess: ignoring smoothing using running median size:"+this.smooth_pixel_size);
+			}
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
 		final Hyperlink hyperlink = Hyperlink.compile(dict);
 		final SamReaderFactory samReaderFactory = SamReaderFactory.
@@ -424,7 +435,6 @@ public int doWork(final List<String> args) {
 		final Locatable the_locatable = IntervalParserFactory.newInstance(dict).make().
 			apply(this.intervalStr).orElseThrow(()->new IllegalArgumentException("Cannot parse interval:\""+this.intervalStr+"\""));
 		
-		
 		final SimpleInterval rawRegion = new SimpleInterval(the_locatable);
 		final SimpleInterval extendedRegion = IntervalExtender.of(dict, this.extendStr).apply(rawRegion);
 		if(!extendedRegion.contains(rawRegion)) {
@@ -435,6 +445,43 @@ public int doWork(final List<String> args) {
 		if(!include_original_interval_for_median && extendedRegion.equals(rawRegion)) {
 				LOG.error("extended region "+extendedRegion+" is same as raw region "+ rawRegion +" but median is only using extend regions. See options.");
 			return -1;
+			}
+		
+		
+		final double[] gc_percent;
+		if(run_loess) {
+			/** extract Fastq sequence, and calculate GC% using sliding window */
+			try {
+				final Average average = new Average();
+				final byte[] atgc;
+				gc_percent = new double[extendedRegion.getLengthOnReference()];
+				try(ReferenceSequenceFile ref = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.refPath)) {
+					atgc = ref.getSubsequenceAt(extendedRegion.getContig(), extendedRegion.getStart(), extendedRegion.getEnd()).getBases();
+					if(atgc.length!=extendedRegion.getLengthOnReference()) {
+						LOG.error("cannot retrieve ATGC sequence for "+extendedRegion);
+						return -1;
+						}
+					}
+				final int window_gc_size = 30;
+				average.reset();
+				for(int i=0;i< atgc.length;i++) {
+					for(int j=Math.max(0, i-window_gc_size);j < Math.min(i+window_gc_size, atgc.length);++j) {
+						switch(atgc[j]) {
+							case 'g':case 'G': case 'c':case 'C': case 's':case 'S': average.accept(1.0); break;
+							default:average.accept(0.0); break;
+							}
+						}
+					gc_percent[i] = average.getAsDouble();
+					}
+				}
+			catch(final IOException err) {
+				LOG.error(err);
+				return -1;
+				}
+			}
+		else
+			{
+			gc_percent = null;
 			}
 		
 		final int sampleFontSize=7;
@@ -684,7 +731,7 @@ public int doWork(final List<String> args) {
 				}
 			}
 		
-		final int depth[]= new int[extendedRegion.getLengthOnReference()];		
+		final double depth[]= new double[extendedRegion.getLengthOnReference()];		
 		for(final Path path: inputBams) {
 			
 			try(SamReader sr = samReaderFactory.open(path)) {
@@ -745,51 +792,81 @@ public int doWork(final List<String> args) {
 							}// loop cigar
 						} // end samIter
 					}// 
-			if(smooth_pixel_size>1) {
+			
+			
+			if(this.run_loess) {
+				final Map<Double, Average> gc2depth = new HashMap<>();
+				for(int x=0;x < gc_percent.length;++x) {
+					Average avg = gc2depth.get(gc_percent[x]);
+					if(avg==null) {
+						avg = new Average();
+						gc2depth.put(gc_percent[x], avg);
+						}
+					avg.accept(depth[x]);
+					}
+				final List<Map.Entry<Double, Double>> L = gc2depth.entrySet().
+						stream().
+						map(KV->new AbstractMap.SimpleEntry<Double,Double>(KV.getKey(), KV.getValue().getAsDouble())).
+						sorted((A,B)->A.getKey().compareTo(B.getKey())).
+						collect(Collectors.toList());
+				final double[] xval = L.stream().mapToDouble(KV->KV.getKey()).toArray();
+				final double[] yval = L.stream().mapToDouble(KV->KV.getValue()).toArray();
+				
+				final LoessInterpolator loessInterpolator = new LoessInterpolator();
+				final PolynomialSplineFunction pf= loessInterpolator.interpolate(xval, yval);
+				for(int i=0;i< depth.length;i++) {
+					final double v= pf.value(gc_percent[i]);
+					if(v==0.0) continue;
+					depth[i] = (depth[i]/v);
+					}
+				}
+			else if(smooth_pixel_size>1) {
 				int smooth_n_bases= (int)((smooth_pixel_size/dimension.getWidth())*extendedRegion.getLengthOnReference());
 				if(smooth_n_bases%2==0) smooth_n_bases++;
 				if(smooth_n_bases>1) {
-					final int[] copy = new RunMedian(smooth_n_bases).applyToIntArray(depth);
+					final double[] copy = new RunMedian(smooth_n_bases).apply(depth);
 					for(int i=0;i< copy.length;i++) depth[i]=copy[i];
 					}
-			}
-				
-				
-			final DiscreteMedian<Integer> discreteMedianAll = new DiscreteMedian<>();
-			final DiscreteMedian<Integer> discreteMedianOuter = new DiscreteMedian<>();
-			final DiscreteMedian<Integer> discreteMedianInner = new DiscreteMedian<>();
-
-			double sumDepth=0;
-			int countDepth=0;
+				}
+			
+		/** get median */
+			{
+			final Median myMedianAll = new Median(extendedRegion.getLengthOnReference());
+			final Median myMedianOuter = new Median(Math.max(100, extendedRegion.getLengthOnReference()-rawRegion.getLengthOnReference()));
+			final Median myMedianInner = new Median(rawRegion.getLengthOnReference());
+			final Average averageDepth = new Average();
+			
 			for(int i=0;i< depth.length;i++) {
 				if(depth[i]>this.max_depth) continue;
-				final int dp = depth[i];
-				discreteMedianAll.add(dp);
+				final double dp = depth[i];
+				myMedianAll.accept(dp);
 				final int pos = extendedRegion.getStart() + i;
-				boolean use_for_dp=true;
+				boolean use_for_dp=false;
 				if(rawRegion.getStart()<=pos && pos<=rawRegion.getEnd()) {
-					discreteMedianInner.add(dp);
+					myMedianInner.accept(dp);
 					if(this.include_original_interval_for_median) use_for_dp=true;
 					}
 				else
 					{
-					discreteMedianOuter.add(dp);
+					myMedianOuter.accept(dp);
+					use_for_dp = true;
 					}
 				if(use_for_dp) {
-					sumDepth+=depth[i];
-					countDepth++;
+					averageDepth.accept(depth[i]);
 					}
 				}
-			if(countDepth<=0) {
+			if(averageDepth.getCount()==0L) {
 				final String msg = "Skipping "+sampleInfo.sample +" "+extendedRegion+" because I cannot find any depth";
 				LOG.warning(msg);
 				continue;
 				}
-			sampleInfo.meanDP = sumDepth/countDepth;
-			sampleInfo.medianInner = discreteMedianInner.getMedian().orElse(0.0);
-			sampleInfo.medianOuter = discreteMedianOuter.getMedian().orElse(0.0);
-			sampleInfo.medianAll = discreteMedianAll.getMedian().orElse(0.0);
-			
+			sampleInfo.meanDP = averageDepth.getAsDouble();
+			sampleInfo.medianInner = myMedianInner.get().orElse(0.0);
+			sampleInfo.medianOuter = myMedianOuter.get().orElse(0.0);
+			sampleInfo.medianAll = myMedianAll.get().orElse(0.0);
+			}
+		/** end median */
+
 			
 			final double medianDP = (this.include_original_interval_for_median?sampleInfo.medianAll:sampleInfo.medianOuter);
 			if(medianDP <= 0.0) {
@@ -1190,7 +1267,9 @@ public int doWork(final List<String> args) {
 			w.writeCharacters("User interval:" + rawRegion.toNiceString()+" (length:"+StringUtils.niceInt(rawRegion.getLengthOnReference())+"). ");
 			w.writeCharacters("Extended interval: " + extendedRegion.toNiceString()+" (length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+"). ");
 			w.writeCharacters("Mapping quality: " + this.min_mapq +". ");
+			w.writeCharacters("Loess: " + this.run_loess +". ");
 			w.writeCharacters("Include original interval for mean/median depth calculation: " + this.include_original_interval_for_median +". ");
+			w.writeCharacters("Date: " + StringUtils.now() +". ");
 			w.writeEndElement();//div
 
 			

@@ -1337,7 +1337,7 @@ all2.add( task("depthanomaly", type: CompileJVarkit) {
 	});
 all2.add( task("coverageplotter", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotter"
-	jarLibs = combineLibs("htsjdk","testng","jcommander")
+	jarLibs = combineLibs("htsjdk","testng","jcommander","math")
 	});
 all2.add( task("wgscoverageplotter", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.bam2graphics.WGSCoveragePlotter"
