@@ -62,9 +62,12 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.LabelledUrlSupplier;
+import com.github.lindenb.jvarkit.util.LabelledUrlSupplier.LabelledUrl;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -79,6 +82,7 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
@@ -180,6 +184,7 @@ public class UniprotToSvg extends Launcher {
 		String ctxContig;
 		int ctxPos;
 		Allele ref;
+		List<Allele> alts=new ArrayList<>();
 		//
 		int pos = -1;
 		String Amino_acids="";
@@ -237,6 +242,7 @@ public class UniprotToSvg extends Launcher {
 				variant.ctxContig = ctx.getContig();
 				variant.ctxPos = ctx.getStart();
 				variant.ref = ctx.getReference();
+				variant.alts.addAll(ctx.getAlternateAlleles());
 				
 				if(vepParser!=null) {
 					for(final VepPredictionParser.VepPrediction pred : vepParser.getPredictions(ctx)) {
@@ -427,7 +433,7 @@ public class UniprotToSvg extends Launcher {
 				Element meta = html("meta");
 				meta.setAttribute("charset", "UTF-8");
 				head.appendChild(meta);
-				head.appendChild(html("title",accession+" "+entryName));
+				head.appendChild(html("title",accession+" "+entryName+" "+enst));
 
 				head.appendChild(html("script",
 					 "function blink1(id) {var E = document.getElementById(id);if(E==null) return; E.style.display=(E.style.display=='none'?'block':'none');}\n"
@@ -453,7 +459,7 @@ public class UniprotToSvg extends Launcher {
 				a.setAttribute("href", "https://www.uniprot.org/uniprotkb/" + accession);
 				a.setAttribute("title", "https://www.uniprot.org/uniprotkb/" + accession);
 				a.setAttribute("target", "_blank");
-				a.appendChild(text(accession+" "+entryName+" ("+StringUtils.niceInt(length)+" aa.)"));
+				a.appendChild(text(accession+" "+entryName+" "+enst+" ("+StringUtils.niceInt(length)+" aa.)"));
 				
 				body.appendChild(htmlDiv1);
 				htmlDiv1.appendChild(svgRoot);
@@ -511,7 +517,7 @@ public class UniprotToSvg extends Launcher {
 			G1.appendChild(g_feats);
 
 			/** main title */
-			final Element E_title = element("text",accession+" "+entryName+" size:"+StringUtils.niceInt(length)+" aa.");
+			final Element E_title = element("text",accession+" "+entryName+" "+enst+" size:"+StringUtils.niceInt(length)+" aa.");
 			E_title.setAttribute("x", "5");
 			E_title.setAttribute("y", "20");
 			E_title.setAttribute("class", "maintitle");
@@ -554,14 +560,24 @@ public class UniprotToSvg extends Launcher {
 			thead.appendChild(tr);
 			tr.appendChild(html("th",buildName + "Variant"));
 			tr.appendChild(html("th","REF"));
+			tr.appendChild(html("th","ALT"));
 			tr.appendChild(html("th","Pos"));
 			tr.appendChild(html("th","AA"));
 			tr.appendChild(html("th","Features"));
 			tr.appendChild(html("th","Cases"));
 			tr.appendChild(html("th","Controls"));
+			tr.appendChild(html("th","Hyperlinks"));
 			final Element tbody=html("tbody");
 			htmlTable.appendChild(tbody);
 
+			final UrlSupplier labelledUrlSupplier;
+			if(optDict.isPresent()) {
+				labelledUrlSupplier = new UrlSupplier(optDict.get());
+				} else {
+				labelledUrlSupplier = null;
+				}
+			
+			
 			
 			for(Variant ctx: variants)
 				{
@@ -588,6 +604,8 @@ public class UniprotToSvg extends Launcher {
 					}
 				//REF
 				tr.appendChild(html("td",ctx.ref.getDisplayString()));
+				//ALT
+				tr.appendChild(html("td",ctx.alts.stream().map(ALT->ALT.getDisplayString()).collect(Collectors.joining(","))));
 
 				//position in protein
 				Element htmlA =html("a");
@@ -614,7 +632,24 @@ public class UniprotToSvg extends Launcher {
 				tr.appendChild(html("td",String.join(" ",ctx.cases)));
 				//controls
 				tr.appendChild(html("td",String.join(" ",ctx.controls)));
-
+				//hyperlinks
+				td=html("td");
+				tr.appendChild(td);
+				if(labelledUrlSupplier!=null) {
+					final List<Allele> alleles = new ArrayList<>();
+					alleles.add(ctx.ref);
+					alleles.addAll(ctx.alts);
+					final VariantContext ctx2= new VariantContextBuilder("vcf", ctx.ctxContig, ctx.ctxPos, ctx.ctxPos+ctx.ref.length()-1, alleles).make();
+					for(UrlSupplier.LabelledUrl url:labelledUrlSupplier.of(ctx2)) {
+						htmlA =html("a");
+						td.appendChild(htmlA);
+						htmlA.appendChild(text(url.getLabel()));
+						htmlA.setAttribute("href", url.getUrl());
+						htmlA.setAttribute("title",url.getUrl());
+						td.appendChild(text(". "));
+						}
+					}
+				
 				
 				// no variant
 				if(ctx.cases.isEmpty() && ctx.controls.isEmpty()) {
@@ -787,7 +822,7 @@ public class UniprotToSvg extends Launcher {
 						}
 					}
 				}
-
+			
 			/** paint ruler **************************************************************************************/
 			if(!this.attMap.getBooleanAttribute("hide.ruler"))
 				{
@@ -834,7 +869,7 @@ public class UniprotToSvg extends Launcher {
 			final Transformer transformer = transformerFactory.newTransformer();
 			
 			
-			try(Writer w= archive.openWriter(accession+(StringUtils.isBlank(enst)?"":"_"+enst) + suffix)) {
+			try(Writer w= archive.openWriter(accession+(StringUtils.isBlank(enst)?"":"_"+enst) + (StringUtils.isBlank(entryName)?"":"_"+entryName) + suffix)) {
 				transformer.transform(new DOMSource(this.svgDoc), new StreamResult(w));
 				w.flush();
 				}
