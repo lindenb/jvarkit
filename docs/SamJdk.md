@@ -106,6 +106,7 @@ Usage: samjdk [options] Files
  * [https://www.biostars.org/p/9498170](https://www.biostars.org/p/9498170)
  * [https://www.biostars.org/p/9511167](https://www.biostars.org/p/9511167)
  * [https://www.biostars.org/p/9524098](https://www.biostars.org/p/9524098)
+ * [https://www.biostars.org/p/9532167](https://www.biostars.org/p/9532167)
 
 
 ## Compilation
@@ -201,8 +202,8 @@ The user code will be inserted in the following java code:
  3  import java.util.function.*;
  4  import htsjdk.samtools.*;
  5  import htsjdk.samtools.util.*;
- 6  import javax.annotation.processing.Generated;
- 7  @Generated(value="SamJdk",date="2017-08-07T14:48:39+0200")
+ 6  
+ 7  
  8  public class SamJdkCustom756098808 extends com.github.lindenb.jvarkit.tools.samjs.SamJdk.AbstractFilter {
  9    public SamJdkCustom756098808(final SAMFileHeader header) {
 10    super(header);

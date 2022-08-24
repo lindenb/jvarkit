@@ -133,8 +133,6 @@ The user code will be inserted in the following java code:
  4  import htsjdk.samtools.util.*;
  5  import htsjdk.variant.variantcontext.*;
  6  import htsjdk.variant.vcf.*;
- 7  import  javax.annotation.processing.Generated;
- 8  @Generated("VcfFilterJdk")
  9  public class VcfFilterJdkCustom123 extends com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk.AbstractFilter {
 10    public VcfFilterJdkCustom123(final VCFHeader header) {
 11    super(header);
@@ -544,7 +542,6 @@ public class VcfFilterJdk
 			final String javaClassName =VcfFilterJdk.class.getSimpleName()+
 					"Custom"+ Math.abs(rand.nextInt());
 			
-			final String generatedClassName= OpenJdkCompiler.getGeneratedAnnotationClassName();
 			final StringWriter codeWriter=new StringWriter();
 			final PrintWriter pw = new PrintWriter(codeWriter);
 			pw.println("import java.util.*;");
@@ -554,9 +551,6 @@ public class VcfFilterJdk
 			pw.println("import htsjdk.variant.variantcontext.*;");
 			pw.println("import htsjdk.variant.vcf.*;");
 	
-			if(!StringUtil.isBlank(generatedClassName)) {
-				pw.println("@"+generatedClassName+"(value=\""+VcfFilterJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
-				}
 			pw.println("public class "+javaClassName+" extends "+AbstractFilter.class.getName().replace('$', '.')+" {");
 			pw.println("  public "+javaClassName+"(final VCFHeader header) {");
 			pw.println("  super(header);");
