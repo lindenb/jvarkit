@@ -25,6 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.net;
 
+import java.net.URL;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -61,8 +62,21 @@ private final Pattern hgncPattern = Pattern.compile("[hH][gG][nN][cC]:[0-9]+");
 
 public static interface LabelledUrl
 	{
+	/** short name for this url */
 	public String getLabel();
+	/** the url itself */
 	public String getUrl();
+	/** return domain of getURL() */
+	public default String getDomain() {
+		final String s= getUrl();
+		try {
+			java.net.URL u = new URL(s);
+			return u.getProtocol()+"://"+u.getHost();
+			}
+		catch(final Throwable err) {
+			return s;
+			}
+		}
 	}
 
 public UrlSupplier(final SAMSequenceDictionary dict) {
@@ -167,6 +181,14 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		}
 	else if(this.ncbiProtPattern.matcher(str).matches()) {
 		urls.add(new LabelledUrlImpl("NCBI","https://www.ncbi.nlm.nih.gov/protein/"+str));
+		}
+	else if(str.matches("nsv[0-9]+")) {
+		if(isGrch37()) {
+			urls.add(new LabelledUrlImpl("DGV","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+str+"&search=Search"));
+			}
+		else if(isGrch38()) {
+			urls.add(new LabelledUrlImpl("DGV","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg38?name="+str+"&search=Search"));
+			}
 		}
 	else if(IOUtil.isUrl(str))
 		{

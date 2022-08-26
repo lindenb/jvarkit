@@ -142,7 +142,8 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams",
 	keywords={"cnv","bam","depth","coverage","svg"},
 	creationDate="20200605",
-	modificationDate="20220819"
+	modificationDate="20220826",
+	biostars = 9536274
 	)
 public class CoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( CoveragePlotter.class).make();
@@ -541,6 +542,10 @@ public int doWork(final List<String> args) {
 			w.writeCharacters(rawRegion.toNiceString()+" extended to "+extendedRegion.toNiceString());
 			w.writeEndElement();//h2
 			w.writeStartElement("div");
+			//placeholder for xslt
+			w.writeStartElement("div");
+			w.writeAttribute("id", "form");
+			w.writeEndElement();
 			}
 		else {
 			w.writeStartDocument("UTF-8","1.0");
@@ -552,6 +557,14 @@ public int doWork(final List<String> args) {
 		w.writeDefaultNamespace(SVG.NS);
 		w.writeAttribute("width", format(this.dimension.width + margin.left + margin.right));
 		w.writeAttribute("height", format(this.dimension.height + margin.top + margin.bottom));
+		
+		/* BEGIN metadata */
+		w.writeStartElement("metadata");
+		w.writeAttribute("id", "metadata");
+
+		w.writeEndElement();//metadata
+		/* EBND metadata */
+		
 		w.writeStartElement("style");
 		w.writeCharacters(""
 				+ "svg {stroke-linecap:round;}\n"
@@ -570,7 +583,7 @@ public int doWork(final List<String> args) {
 				sample2css.entrySet().stream().map(KV->"."+KV.getKey()+" {"+KV.getValue()+"}\n").collect(Collectors.joining("\n"))
 				);
 		
-		w.writeEndElement();
+		w.writeEndElement();//style
 		
 		w.writeStartElement("g");
 		w.writeStartElement("g");
@@ -673,10 +686,10 @@ public int doWork(final List<String> args) {
 		
 		// draw x axis
 		w.writeStartElement("g");
-		double prev_x=-1;
+		double prev_x=0;
 		for(int i=extendedRegion.getStart();i<=extendedRegion.getEnd();i++) {
-			double x0 = (i/(double)extendedRegion.getLengthOnReference())*dimension.width;
-			if(i==extendedRegion.getStart() || x0-prev_x > 100) {
+			final double x0 = ((i-extendedRegion.getStart())/(double)extendedRegion.getLengthOnReference())*dimension.width;
+			if(i>extendedRegion.getStart() && x0-prev_x > 100) {
 				
 				w.writeStartElement("line");
 				w.writeAttribute("class", "vline");
@@ -689,6 +702,7 @@ public int doWork(final List<String> args) {
 				
 				
 				w.writeStartElement("text");
+				w.writeAttribute("class","title2");
 				w.writeAttribute("x","0");
 				w.writeAttribute("y","0");
 				w.writeAttribute("transform", "translate("+format(x0)+","+format(dimension.height+5)+") rotate(45)");
@@ -963,20 +977,21 @@ public int doWork(final List<String> args) {
 				;
 
 
-		
-		/** draw sample names */
-		for(final SampleInfo si:samples) {
-			final Point2D pt = si.maxPosition;
-			if(pt==null) continue;
-			double sny = pt.getY();
-			if(sny>y_mid) sny+=sampleFontSize;
-			
-			w.writeStartElement("text");
-			w.writeAttribute("class","title2");
-			w.writeAttribute("x", format(pt.getX()));
-			w.writeAttribute("y", format(Math.min(this.dimension.height-sampleFontSize,Math.max(sampleFontSize,sny))));
-			w.writeCharacters(si.sample);
-			w.writeEndElement();//end
+		if(Boolean.parseBoolean(this.dynaParams.getOrDefault("min-max-samples", "true"))) {
+			/** draw sample names */
+			for(final SampleInfo si:samples) {
+				final Point2D pt = si.maxPosition;
+				if(pt==null) continue;
+				double sny = pt.getY();
+				if(sny>y_mid) sny+=sampleFontSize;
+				
+				w.writeStartElement("text");
+				w.writeAttribute("class","title2");
+				w.writeAttribute("x", format(pt.getX()));
+				w.writeAttribute("y", format(Math.min(this.dimension.height-sampleFontSize,Math.max(sampleFontSize,sny))));
+				w.writeCharacters(si.sample);
+				w.writeEndElement();//end
+				}
 			}
 		
 		
@@ -1010,6 +1025,8 @@ public int doWork(final List<String> args) {
 			
 			
 			w.writeStartElement("div");
+			w.writeAttribute("id", "samples");
+
 			
 			w.writeStartElement("table");
 			
@@ -1101,7 +1118,11 @@ public int doWork(final List<String> args) {
 				w.writeEndElement();//th
 
 				w.writeStartElement("td");
-				w.writeCharacters(si.path.toString());
+				w.writeStartElement("span");
+				w.writeAttribute("class", "path");
+				w.writeAttribute("title",si.path.toString());
+				w.writeCharacters(si.path.getFileName().toString());
+				w.writeEndElement();//span
 				w.writeEndElement();//th
 				
 				w.writeEndElement();//tr
@@ -1117,6 +1138,7 @@ public int doWork(final List<String> args) {
 			getGenes(rawRegion,G->G.getType().equals("gene")).forEach(GFF->urls.addAll(urlSupplier.of(GFF)));
 				if(!urls.isEmpty()) {
 				w.writeStartElement("div");
+				w.writeAttribute("id", "hyperlinks");
 				
 				w.writeStartElement("table");
 				
@@ -1154,7 +1176,7 @@ public int doWork(final List<String> args) {
 					w.writeAttribute("title",url.getUrl());
 					w.writeAttribute("target","_blank");
 					w.writeAttribute("href",url.getUrl());
-					w.writeCharacters(url.getUrl());
+					w.writeCharacters(url.getDomain());
 					w.writeEndElement();//a
 					w.writeEndElement();//td
 					
@@ -1175,7 +1197,8 @@ public int doWork(final List<String> args) {
 				if(!knows.isEmpty()) {
 
 				w.writeStartElement("div");
-				
+				w.writeAttribute("id", "knowncnvs");
+
 				w.writeStartElement("table");
 				
 				w.writeStartElement("caption");
@@ -1264,6 +1287,8 @@ public int doWork(final List<String> args) {
 				
 
 			w.writeStartElement("div");
+			w.writeAttribute("id", "about");
+
 			w.writeCharacters("User interval:" + rawRegion.toNiceString()+" (length:"+StringUtils.niceInt(rawRegion.getLengthOnReference())+"). ");
 			w.writeCharacters("Extended interval: " + extendedRegion.toNiceString()+" (length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+"). ");
 			w.writeCharacters("Mapping quality: " + this.min_mapq +". ");

@@ -42,6 +42,10 @@ Usage: coverageplotter [options] Files
     --known
       Optional Tabix indexed Bed or VCF file containing known CNV. Both types 
       must be indexed.
+    --loess
+      Run Loess smoothing on GC%. Experimental. For now, I find the smooting 
+      is too strong.
+      Default: false
     --mapq
       min mapping quality
       Default: 1
@@ -75,6 +79,12 @@ Usage: coverageplotter [options] Files
  * depth
  * coverage
  * svg
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9536274](https://www.biostars.org/p/9536274)
 
 
 ## Compilation
