@@ -82,6 +82,7 @@ public class CNVValidatorServer extends Launcher {
 	private static final Logger LOG = Logger.build(CNVValidatorServer.class).make();
 	private static final String U1087="https://umr1087.univ-nantes.fr/";
 	private static final String ACTION_NAVIGATION="navigation";
+	private static final String ACTION_GOTO_PAGE ="goto_page";
 	@Parameter(names="--port",description="server port.")
 	private int serverPort = 8080;
 
@@ -144,7 +145,13 @@ public class CNVValidatorServer extends Launcher {
 			String id = request.getParameter("ID");
 			String go = request.getParameter(ACTION_NAVIGATION);
 			int n;
-			if(!StringUtils.isBlank(id)) {
+			final String gotoPage = request.getParameter(ACTION_GOTO_PAGE);
+			if(!StringUtils.isBlank(gotoPage) && StringUtils.isInteger(gotoPage)) {
+				n = Integer.parseInt(gotoPage)-1;
+				if(n<0) n =0;
+				if(n>= this.htmlFiles.size()) n=this.htmlFiles.size()-1;
+				}
+			else if(!StringUtils.isBlank(id)) {
 				for(n=0;n< this.htmlFiles.size();++n) {
 					final HtmlFile h = this.htmlFiles.get(n);
 					if(h.getId().equals(id)) {
@@ -173,9 +180,9 @@ public class CNVValidatorServer extends Launcher {
 			if(n<0) n=this.htmlFiles.size()-1;
 			if(n>=this.htmlFiles.size()) n=0;
 			
-			LOG.info("path info:"+request.getPathInfo());
-			LOG.info("method:"+request.getMethod());
-			LOG.info("ctx path:"+request.getContextPath());
+			LOG.info("path info:"+request.getPathInfo()+
+					" method:"+request.getMethod() +
+					" ctx path:"+request.getContextPath());
 			showPage(request,response,n);
 			}
 		
@@ -202,7 +209,7 @@ public class CNVValidatorServer extends Launcher {
 				XPath xpath = XPathFactory.newInstance().newXPath();
 				xpath.setNamespaceContext(new SimpleNsContext());
 				Document dom = html.load();
-				Element variant  =getVariantNode(dom);
+				Element variant  = getVariantNode(dom);
 				if(variant!=null) {
 					final String prefix = variant.getPrefix();
 					final String ns = variant.getNamespaceURI();
@@ -266,9 +273,24 @@ public class CNVValidatorServer extends Launcher {
 		
 		private Document convert(HttpServletRequest request,final int page_index) throws XPathExpressionException {
 			final HtmlFile html = this.htmlFiles.get(page_index);
-			XPath xpath = XPathFactory.newInstance().newXPath();
+			final XPath xpath = XPathFactory.newInstance().newXPath();
 			xpath.setNamespaceContext(new SimpleNsContext());
-			Document dom = html.load();
+			final Document dom = html.load();
+			
+			Element root = dom.getDocumentElement();
+			if(root==null) {
+				LOG.error("empty xml in " +html.file );
+				return dom;
+				}
+			// document is a plain svg doc, embed in html
+			if("svg".equals(root.getLocalName())) {
+				final Element h = dom.createElement("html");
+				final Element b = dom.createElement("body");
+				h.appendChild(b);
+				b.appendChild(root);
+				dom.appendChild(h);
+				}
+			
 			Element body=(Element)xpath.evaluate("/html/body", dom, XPathConstants.NODE);
 			Element variant  =getVariantNode(dom);
 			if(body!=null) {
@@ -344,7 +366,9 @@ public class CNVValidatorServer extends Launcher {
 				input = dom.createElement("input");
 				input.setAttribute("id", "form_comment");
 				input.setAttribute("type", "text");
+				input.setAttribute("placeholder", "Any comment about this variant.");
 				input.setAttribute("name", "comment");
+				input.setAttribute("onkeydown","return event.key != 'Enter';");
 				input.setAttribute("value", "");
 				form.appendChild(input);
 
@@ -356,6 +380,22 @@ public class CNVValidatorServer extends Launcher {
 					input.appendChild(dom.createTextNode(" Previous status was: "+prevFilter));
 				}	
 			
+				input.appendChild(dom.createTextNode(" "));
+				input = dom.createElement("label");
+				input.setAttribute("for", "form_goto");
+				input.appendChild(dom.createTextNode("Go To:"));
+				form.appendChild(input);
+
+				
+				input = dom.createElement("input");
+				input.setAttribute("id", "form_goto");
+				input.setAttribute("type", "text");
+				input.setAttribute("placeholder", "[1-"+htmlFiles.size()+"]");
+				input.setAttribute("name", ACTION_GOTO_PAGE);
+				input.setAttribute("size", "6");
+				input.setAttribute("value", "");
+				form.appendChild(input);
+				
 					
 				input.appendChild(dom.createTextNode(" "));
 				input = dom.createElement("button");
