@@ -207,6 +207,14 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		}
 	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
 	final String ucscCtg = toUcsc.apply(ctx.getContig());
+	// popgen
+	if(isGrch37()) {
+		urls.add(new LabelledUrlImpl("popgen.uchicago.edu",
+				"https://popgen.uchicago.edu/ggv/?data=%221000genomes%22&chr="+
+				StringUtils.escapeHttp(ctx.getContig()) + "&pos=" + ctx.getStart()
+				));
+		}
+	
 	if(isGrch37() && !StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
@@ -344,12 +352,15 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {		
 		if(loc.getLengthOnReference()>1) {
-			
 			urls.add(new LabelledUrlImpl("dgv","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
 					StringUtils.escapeHttp(ucscCtg) + 
 					"%3A"+loc.getStart()+"-"+loc.getEnd() + ";search=Search"
 					));
 			}
+		urls.add(new LabelledUrlImpl("pophuman","https://pophuman.uab.cat/?loc="+
+				StringUtils.escapeHttp(ucscCtg) + 
+				"%3A"+loc.getStart()+".."+loc.getEnd()
+				));
 		}
 	
 	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg)) {
