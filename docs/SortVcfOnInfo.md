@@ -8,6 +8,7 @@ Sort a VCF a field in the INFO column
 ## Usage
 
 ```
+Usage: java -jar dist/sortvcfoninfo.jar  [options] Files
 Usage: sortvcfoninfo [options] Files
   Options:
     --bcf-output
@@ -29,8 +30,11 @@ Usage: sortvcfoninfo [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
+    -r, --reverse
+      reverse order
+      Default: false
   * -T, --tag, -t
       INFO tag. Special words are '<ID>' to sort on ID, and <QUAL> to sort on 
       QUAL 
@@ -50,6 +54,12 @@ Usage: sortvcfoninfo [options] Files
  * annotation
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9536939](https://www.biostars.org/p/9536939)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
@@ -66,6 +76,11 @@ $ ./gradlew sortvcfoninfo
 ```
 
 The java jar file will be installed in the `dist` directory.
+
+
+## Creation Date
+
+20140218
 
 ## Source code 
 

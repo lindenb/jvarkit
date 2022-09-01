@@ -76,7 +76,8 @@ END_DOC
 description="Sort a VCF a field in the INFO column",
 keywords={"vcf","sort","annotation"},
 creationDate="20140218",
-modificationDate="20201204"
+modificationDate="20201204",
+biostars = 9536939
 )
 public class SortVcfOnInfo extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(SortVcfOnInfo.class).make();

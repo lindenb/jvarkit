@@ -8,6 +8,7 @@ BAM to SVG. Used to display structural variations.
 ## Usage
 
 ```
+Usage: java -jar dist/sv2svg.jar  [options] Files
 Usage: sv2svg [options] Files
   Options:
     --coverage, --depth
@@ -31,15 +32,17 @@ Usage: sv2svg [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -R, --reference
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary. Optional: if defined 
-      will be used to display the mismatches.
+      faidx and with picard CreateSequenceDictionary
     --repeat-count
       SVG animation repeat count
       Default: indefinite
     --strange
       Keep only non-properly-paired , soft clipped and SA:X:* reads.
+      Default: false
+    --svg
+      Write SVG only document. Default is to write a XHTML+SVG document.
       Default: false
     --variant, -V
       optional indexed VCF file.

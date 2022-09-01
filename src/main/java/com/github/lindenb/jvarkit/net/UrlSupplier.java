@@ -117,6 +117,7 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Archs4","https://maayanlab.cloud/archs4/gene/"+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("Enrichr","https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("Biogps","http://biogps.org/#goto=search=&query="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Gene ResearchAllOfUs","https://databrowser.researchallofus.org/genomic-variants/"+ StringUtils.escapeHttp(id)));
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
@@ -251,10 +252,18 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 						"https://decaf.decode.com/variant/"+
 						StringUtils.escapeHttp(ucscCtg) +":"+ctx.getStart()+":SG"
 						));
+
 				}
-			
+			urls.add(new LabelledUrlImpl("Variant ResearchAllOfUs",
+					"https://databrowser.researchallofus.org/genomic-variants/"+
+					StringUtils.escapeHttp(ctx.getContig()) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
+					));
+
 			}
 		}
+	
+	
+
 	
 	
 	//beacon , varsome
@@ -326,6 +335,12 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	final String ucscCtg =  toUcsc.apply(loc.getContig());
 	
+	if(isGrch38() && ! StringUtils.isBlank(ucscCtg)) {
+		urls.add(new LabelledUrlImpl("Region ResearchAllOfUs","https://databrowser.researchallofus.org/genomic-variants/"+
+			StringUtils.escapeHttp(ucscCtg) + ":" + xstart1 +"-"+ xend1
+			));
+		}
+
 	
 	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {		
 		if(loc.getLengthOnReference()>1) {
