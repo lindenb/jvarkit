@@ -49,10 +49,14 @@ import htsjdk.samtools.util.Locatable;
 		this((left,right)->left.getEnd()+1 < right.getStart());
 		}
 	
-	public Pileup<T> addAll(final List<T> collection) {
-		for(T item:collection) {
-			add(item);
-			}
+	public Pileup<T> addAll(final Collection<T> collection) {
+		collection.stream().sorted((A,B)->{
+			int i= A.getContig().compareTo(B.getContig());
+			if(i!=0) return i;
+			i = Integer.compare(A.getStart(), B.getStart());
+			if(i!=0) return i;
+			return Integer.compare(A.getEnd(), B.getEnd());
+			}).forEach(item->this.add(item));
 		return this;
 		}
 	
@@ -70,20 +74,18 @@ import htsjdk.samtools.util.Locatable;
 				throw new IllegalArgumentException("Cannot pileup with unordered element: "+this.prev_start+" > "+item.getStart());
 				}
 			}
-		
-		int y=0;
-		while(y< this.rows.size()) {
+		int y = 0;
+		for(y=0; y < this.rows.size();++y) {
 			final List<T> row = this.rows.get(y);
 			boolean found=false;
 			for(int x=row.size()-1;x>=0;x--) {
 				final T last = row.get(x);
 				if(overlap(last,item)) {
-					y++;
 					found=true;
 					break;
 					}
 				}
-			if(found) break;
+			if(found) continue;
 			row.add(item);
 			break;
 			}

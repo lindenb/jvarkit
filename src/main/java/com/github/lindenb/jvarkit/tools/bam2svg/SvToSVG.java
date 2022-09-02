@@ -69,6 +69,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -248,12 +249,6 @@ public class SvToSVG extends Launcher
 			public final int getEnd() {
 				return getRecord().getUnclippedEnd();
 				}
-			String getSampleName() {
-				final SAMReadGroupRecord rg = getRecord().getReadGroup();
-				if(rg==null) return null;
-				final String sn = rg.getSample();
-				return sn;
-				}
 			final  boolean isNegativeStrand() {
 				return getRecord().getReadNegativeStrandFlag();
 				}
@@ -418,7 +413,6 @@ public class SvToSVG extends Launcher
 			
 			/* pileup reads in that region */
 			void pileup() {
-				this.beforePileup.sort((A,B)->Integer.compare(A.getStart(), B.getStart()));
 				final Pileup<ShortRead> pileup = new Pileup<>((A,B)->{
 					if(baseToPixel(A.getEnd()) + 2*arrow_w >= baseToPixel(B.getStart())) return false;
 					if(baseToPixel(B.getEnd()) + 2*arrow_w >= baseToPixel(A.getStart())) return false;
@@ -1163,6 +1157,27 @@ public class SvToSVG extends Launcher
 				{
 				this.indexedFastaSequenceFile =ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxFile);
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+				final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
+				final List<SimpleInterval> all_intervals = new ArrayList<>(this.intervalStrList.size());
+				
+				for(final String intervalStr:this.intervalStrList) {
+					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
+					if(interval==null) {
+						LOG.error("Cannot parse interval "+intervalStr);
+						return  -1;
+						}
+					if(!all_intervals.isEmpty() && interval.getLengthOnReference()!= all_intervals.get(0).getLengthOnReference()) {
+						LOG.warning("intervals should all have the same length");
+						}
+					all_intervals.add(interval);
+					}
+				
+				all_intervals.sort(new ContigDictComparator(dict).createLocatableComparator());
+				if(all_intervals.isEmpty()) {
+					LOG.info("no interval was defined");
+					return -1;
+					}
+				
 				
 				if(this.vcfFile!=null)
 					{
@@ -1189,31 +1204,17 @@ public class SvToSVG extends Launcher
 						final SAMFileHeader header = sr.getFileHeader();
 						final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(header);
 						SequenceUtil.assertSequenceDictionariesEqual(dict, dict0);
-						final Function<String,Optional<SimpleInterval>> parser=IntervalParserFactory.newInstance().dictionary(dict0).make();
-						final Set<String> samples = header.getReadGroups().stream().
+						final String sampleName = header.getReadGroups().stream().
 								map(G->G.getSample()).
 								filter(S->!StringUtil.isBlank(S)).
-								collect(Collectors.toSet());
+								findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
 						
-						if(samples.size()!=1) {
-							LOG.error("expected on sample in "+bamFile+" but got "+samples.size()+" "+samples);
-							return -1;
-							}
-						final Sample sample = new Sample(samples.iterator().next());
+						final Sample sample = new Sample(sampleName);
 						this.sampleList.add(sample);
 						/* loop over each region for that sample */
-						for(final String intervalStr:this.intervalStrList) {
-							LOG.info("scanning "+intervalStr+" for "+bamFile);
-							final SimpleInterval interval = parser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
-							if(interval==null) {
-								LOG.error("Cannot parse "+intervalStr+" for "+bamFile);
-								return  -1;
-								}
+						for(final SimpleInterval interval:all_intervals) {
 							/* create new region */
 							final Sample.Region region = sample.new Region(interval);
-							if(!sample.regions.isEmpty() && region.getLengthOnReference()!=sample.regions.get(0).getLengthOnReference()) {
-								LOG.warning("intervals should all have the same length");
-								}
 							
 							sample.regions.add(region);
 							
@@ -1222,7 +1223,7 @@ public class SvToSVG extends Launcher
 									{
 									final SAMRecord record = iter.next();
 									
-									boolean trace = record.getReadName().equals(DEBUG_READ);
+									boolean trace =record.getReadName().equals(DEBUG_READ);
 									
 									if(!SAMRecordDefaultFilter.accept(record, this.min_mapq)) continue;
 									
@@ -1246,7 +1247,6 @@ public class SvToSVG extends Launcher
 									if( shortRead.getEnd()  < interval.getStart()) continue;
 									if( shortRead.getStart()  > interval.getEnd())continue;
 									if(trace) LOG.debug("got4" +record.getSAMString());
-									if(!sample.sampleName.equals(shortRead.getSampleName())) continue;
 									region.beforePileup.add(shortRead);
 									}
 								}/* en iterator */
