@@ -61,23 +61,6 @@ public abstract class OpenJdkCompiler {
 	
 	public abstract Class<?> compileClass(final String className,final String javaCode);
 	
-	/** get full class name for the @Generated annotation. May be null. */
-	public static String getGeneratedAnnotationClassName() {
-		for(final String className: new String[]{
-				"javax.annotation.Generated",
-				"javax.annotation.processing.Generated"
-				}) {
-			try {
-				final Class<?> c = Class.forName(className);
-				if(c==null || !c.isAnnotation()) continue;
-				return className;
-				}
-			catch(final ClassNotFoundException  err) {
-				//ignore
-				}
-			}
-		return null;
-		}
 	
 	/** append line numbers to code */
 	public static String beautifyCode(final String sourceCode)

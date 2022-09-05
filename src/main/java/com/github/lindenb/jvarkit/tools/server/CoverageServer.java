@@ -46,6 +46,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Vector;
 import java.util.function.IntFunction;
@@ -1291,12 +1292,12 @@ public  class CoverageServer extends Launcher {
 			w.writeCharacters(SequenceDictionaryUtils.getBuildName(this.dictionary).orElse("")+" ");
 			
 			
-			final String outlinkurl = hyperlink.apply(interval);
-			if(StringUtils.isBlank(outlinkurl)) {
+			final Optional<String> outlinkurl = hyperlink.apply(interval);
+			if(!outlinkurl.isPresent()) {
 				w.writeCharacters(title);
 			} else {
 				w.writeStartElement("a");
-				w.writeAttribute("href", outlinkurl);
+				w.writeAttribute("href", outlinkurl.get());
 				w.writeAttribute("target", "_blank");
 				w.writeAttribute("title", title);
 				w.writeCharacters(title);

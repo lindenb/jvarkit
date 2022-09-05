@@ -51,7 +51,7 @@ import com.github.lindenb.jvarkit.jexl.JexlPredicate;
 import com.github.lindenb.jvarkit.jexl.JexlToString;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.iterator.LineIterator;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -63,6 +63,7 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -431,7 +432,7 @@ public class VcfUcscGdb extends Launcher {
 				if(StringUtils.isBlank(v)) throw new RuntimeIOException("Key \""+K+"\" is empty");
 				return v;
 				};
-			try( LineIterator iter = new LineIterator(br)) {
+				final LineIterator iter = LineIterators.of(br);
 				for(;;) {
 					final String line = (iter.hasNext()?iter.next():null);
 					
@@ -513,7 +514,7 @@ public class VcfUcscGdb extends Launcher {
 					final String value = line.substring(sep+1).trim();
 					hash.put(key, value);
 					}
-				}
+				
 			}
 		return remoteBigFiles;
 		}

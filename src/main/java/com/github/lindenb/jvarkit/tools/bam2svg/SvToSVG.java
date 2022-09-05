@@ -41,6 +41,7 @@ import java.util.stream.Stream;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Result;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
@@ -56,8 +57,11 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StaticCodeExtractor;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -65,6 +69,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -84,6 +89,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -164,8 +170,8 @@ public class SvToSVG extends Launcher
 	private List<String> intervalStrList = new ArrayList<>();
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION+". Optional: if defined will be used to display the mismatches.")
-	private Path fastaFile = null ;
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
+	private Path faidxFile = null ;
 	@Parameter(names={"-d","--duration"},description="Animation duration, in secs. <=0 disable animation.")
 	private int svgDuration=10;
 	@Parameter(names= {"--repeat-count"},description="SVG animation repeat count")
@@ -180,6 +186,8 @@ public class SvToSVG extends Launcher
 	private boolean hideMismatch = false;
 	@Parameter(names= {"--strange"},description="Keep only non-properly-paired , soft clipped and SA:X:* reads.")
 	private boolean remove_simple_reads = false;
+	@Parameter(names= {"--svg"},description="Write SVG only document. Default is to write a XHTML+SVG document.")
+	private boolean write_svg_only = false;
 
 	
 	private final List<Sample> sampleList =new ArrayList<>();
@@ -241,12 +249,6 @@ public class SvToSVG extends Launcher
 			public final int getEnd() {
 				return getRecord().getUnclippedEnd();
 				}
-			String getSampleName() {
-				final SAMReadGroupRecord rg = getRecord().getReadGroup();
-				if(rg==null) return null;
-				final String sn = rg.getSample();
-				return sn;
-				}
 			final  boolean isNegativeStrand() {
 				return getRecord().getReadNegativeStrandFlag();
 				}
@@ -296,7 +298,6 @@ public class SvToSVG extends Launcher
 				super(region);
 				this.record = record;
 				}
-
 
 			@Override
 			SAMRecord getRecord() {
@@ -412,29 +413,13 @@ public class SvToSVG extends Launcher
 			
 			/* pileup reads in that region */
 			void pileup() {
-				 this.beforePileup.sort((A,B)->Integer.compare(A.getStart(), B.getStart()));
-				
-				for(final ShortRead shortRead : this.beforePileup) {
-					/* pileup */
-					int y=0;
-					for(y=0;y< this.lines.size();++y)
-						{
-						final List<ShortRead> line= this.lines.get(y);
-						final ShortRead last = line.get(line.size()-1);
-						if( baseToPixel(last.getEnd()) + 2*arrow_w < baseToPixel(shortRead.getStart()) )
-							{
-							line.add(shortRead);
-							break;
-							}
-						}
-					
-					if( y == this.lines.size())
-						{
-						final List<Sample.ShortRead> line= new ArrayList<>();
-						line.add(shortRead);
-						this.lines.add(line);
-						}
-					}
+				final Pileup<ShortRead> pileup = new Pileup<>((A,B)->{
+					if(baseToPixel(A.getEnd()) + 2*arrow_w >= baseToPixel(B.getStart())) return false;
+					if(baseToPixel(B.getEnd()) + 2*arrow_w >= baseToPixel(A.getStart())) return false;
+					return true;
+					});
+				pileup.addAll(this.beforePileup);
+				this.lines.addAll(pileup.getRows());
 				// not needed anymore
 				this.beforePileup.clear();
 				}
@@ -891,7 +876,16 @@ public class SvToSVG extends Launcher
 		return sampleRoot;
 		}
 		
-	
+		private Element html(final String tag) {
+			return this.document.createElement(tag);
+			}
+
+		private Element html(final String tag,final String content) {
+			final Element E = html(tag);
+			E.appendChild(text(content));
+			return E;
+			}
+		
 		private Element element(final String tag) {
 			return this.document.createElementNS(SVG.NS, tag);
 			}
@@ -903,10 +897,114 @@ public class SvToSVG extends Launcher
 			E.appendChild(text(content));
 			return E;
 			}
-		private void buildDocument() 
+		private void buildDocument(
+				final SAMSequenceDictionary dict,
+				final List<Locatable> intervals) 
 			{
+			
+			
+			
 			final Element svgRoot = element("svg");
-			this.document.appendChild(svgRoot);
+			final Element metadata = element("metadata");
+			svgRoot.appendChild(metadata);
+			metadata.setAttribute("id", "metadata");
+			
+			if(write_svg_only) {
+				this.document.appendChild(svgRoot);
+				}
+			else
+				{
+				final Element html = html("html");
+				this.document.appendChild(html);
+				final Element head = html("head");
+				html.appendChild(head);
+				final Element title = html("title");
+				title.appendChild(text(String.join(" ",this.intervalStrList)));
+
+				head.appendChild(title);
+
+				Element meta = html("meta");
+				meta.setAttribute("charset", "UTF-8");
+				head.appendChild(meta);
+
+				Element style=html("style");
+				head.appendChild(style);
+				
+				style.appendChild(text(
+						"body { font-family: sans-serif;}\n" 
+						+ "table {  border-collapse: collapse; margin: 25px 0;  font-size: 0.9em; font-family: sans-serif;min-width: 400px;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);}\n"
+						+"thead{ background-color: #009879; color: #ffffff; text-align: left;}\n"
+						+"th,td { padding: 12px 15px}\n"
+						+"tbody tr {border-bottom: 1px solid #dddddd;}\n"
+						+"tbody tr:nth-of-type(even) {background-color: #f3f3f3;}\n"
+						+"tbody tr:last-of-type { border-bottom: 2px solid #009879;}\n"
+						+"tbody tr.active-row { font-weight: bold;color: #009879;}\n"
+						));
+				final Element body = html("body");
+				html.appendChild(body);
+
+				final Element h1 = html("h1");
+				body.appendChild(h1);
+				h1.appendChild(text(String.join(" ",this.intervalStrList)));				
+				Element htmlDiv1 = html("div");
+				body.appendChild(htmlDiv1);
+				
+				htmlDiv1.setAttribute("style","display:none;");
+				htmlDiv1.setAttribute("id","__PLACEHOLDER__");
+				htmlDiv1.appendChild(document.createComment("Use this div to insert things later. "));
+				htmlDiv1.appendChild(text("__PLACEHOLDER__"));
+
+				htmlDiv1 = html("div");
+				body.appendChild(htmlDiv1);
+
+				
+				htmlDiv1.appendChild(svgRoot);
+				
+				htmlDiv1.appendChild(html("hr"));
+				
+				final UrlSupplier labelledUrlSupplier = new UrlSupplier(dict);
+
+				
+				for(Locatable r:intervals) {
+					Element htmlTable = html("table");
+					htmlDiv1.appendChild(htmlTable);
+					final Element thead=html("thead");
+					htmlTable.appendChild(thead);
+					thead.appendChild(html("caption",r.toString()));
+					Element tr=html("tr");
+					thead.appendChild(tr);
+					tr.appendChild(html("th","Database"));
+					tr.appendChild(html("th","URL"));
+					final Element tbody=html("tbody");
+					htmlTable.appendChild(tbody);
+					for(UrlSupplier.LabelledUrl u: labelledUrlSupplier.of(r)) {
+						tr=html("tr");
+						tbody.appendChild(tr);
+						Element td = html("td",u.getLabel());
+						tr.appendChild(td);
+						
+						td = html("td");
+						tr.appendChild(td);
+
+						Element htmlA =html("a",u.getUrl());
+						htmlA.setAttribute("href",u.getUrl());
+						htmlA.setAttribute("title",u.getUrl());
+						htmlA.setAttribute("target", "_blank");
+						td.appendChild(htmlA);
+
+						}
+
+				}
+				
+				
+				htmlDiv1.appendChild(html("hr"));
+				Element p = html("p");
+				htmlDiv1.appendChild(p);
+				p.appendChild(text("Pierre Lindenbaum PhD 2022. Made with "+getProgramName()+" version:"+getVersion()+
+					". Command was: " + getProgramCommandLine()
+					));
+				}
+			
 			svgRoot.setAttribute("width",format(this.drawinAreaWidth+1));
 			
 			int doc_height =0;
@@ -1057,9 +1155,29 @@ public class SvToSVG extends Launcher
 			this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
 			try
 				{
-				if(this.fastaFile!=null) {
-					this.indexedFastaSequenceFile =ReferenceSequenceFileFactory.getReferenceSequenceFile(this.fastaFile);
+				this.indexedFastaSequenceFile =ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxFile);
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+				final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
+				final List<SimpleInterval> all_intervals = new ArrayList<>(this.intervalStrList.size());
+				
+				for(final String intervalStr:this.intervalStrList) {
+					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
+					if(interval==null) {
+						LOG.error("Cannot parse interval "+intervalStr);
+						return  -1;
+						}
+					if(!all_intervals.isEmpty() && interval.getLengthOnReference()!= all_intervals.get(0).getLengthOnReference()) {
+						LOG.warning("intervals should all have the same length");
+						}
+					all_intervals.add(interval);
 					}
+				
+				all_intervals.sort(new ContigDictComparator(dict).createLocatableComparator());
+				if(all_intervals.isEmpty()) {
+					LOG.info("no interval was defined");
+					return -1;
+					}
+				
 				
 				if(this.vcfFile!=null)
 					{
@@ -1078,38 +1196,25 @@ public class SvToSVG extends Launcher
 					return -1;
 					}
 				
-				final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.fastaFile);
+				final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.faidxFile);
 				
 				/* loop over each bam file */
 				for(final Path bamFile : bamFiles) {
 					try(final SamReader sr = srf.open(bamFile)) {
 						final SAMFileHeader header = sr.getFileHeader();
-						final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-						final Function<String,Optional<SimpleInterval>> parser=IntervalParserFactory.newInstance().dictionary(dict).make();
-						final Set<String> samples = header.getReadGroups().stream().
+						final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(header);
+						SequenceUtil.assertSequenceDictionariesEqual(dict, dict0);
+						final String sampleName = header.getReadGroups().stream().
 								map(G->G.getSample()).
 								filter(S->!StringUtil.isBlank(S)).
-								collect(Collectors.toSet());
+								findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
 						
-						if(samples.size()!=1) {
-							LOG.error("expected on sample in "+bamFile+" but got "+samples.size()+" "+samples);
-							return -1;
-							}
-						final Sample sample = new Sample(samples.iterator().next());
+						final Sample sample = new Sample(sampleName);
 						this.sampleList.add(sample);
 						/* loop over each region for that sample */
-						for(final String intervalStr:this.intervalStrList) {
-							LOG.info("scanning "+intervalStr+" for "+bamFile);
-							final SimpleInterval interval = parser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
-							if(interval==null) {
-								LOG.error("Cannot parse "+intervalStr+" for "+bamFile);
-								return  -1;
-								}
+						for(final SimpleInterval interval:all_intervals) {
 							/* create new region */
 							final Sample.Region region = sample.new Region(interval);
-							if(!sample.regions.isEmpty() && region.getLengthOnReference()!=sample.regions.get(0).getLengthOnReference()) {
-								LOG.warning("intervals should all have the same length");
-								}
 							
 							sample.regions.add(region);
 							
@@ -1118,7 +1223,7 @@ public class SvToSVG extends Launcher
 									{
 									final SAMRecord record = iter.next();
 									
-									boolean trace = record.getReadName().equals(DEBUG_READ);
+									boolean trace =record.getReadName().equals(DEBUG_READ);
 									
 									if(!SAMRecordDefaultFilter.accept(record, this.min_mapq)) continue;
 									
@@ -1142,7 +1247,6 @@ public class SvToSVG extends Launcher
 									if( shortRead.getEnd()  < interval.getStart()) continue;
 									if( shortRead.getStart()  > interval.getEnd())continue;
 									if(trace) LOG.debug("got4" +record.getSAMString());
-									if(!sample.sampleName.equals(shortRead.getSampleName())) continue;
 									region.beforePileup.add(shortRead);
 									}
 								}/* en iterator */
@@ -1164,9 +1268,17 @@ public class SvToSVG extends Launcher
 					}));
 				
 				
-				buildDocument();
+				buildDocument(dict,this.sampleList.stream().
+						flatMap(S->S.regions.stream()).
+						map(R->R._interval).
+						collect(Collectors.toSet()).
+						stream().collect(Collectors.toList()));
 				
 				final Transformer tr = TransformerFactory.newInstance().newTransformer();
+				
+				if(!this.write_svg_only) tr.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+				tr.setOutputProperty(OutputKeys.METHOD, "xml");
+
 				final Result result;
 				
 				if(this.outputFile!=null)

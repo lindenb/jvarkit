@@ -8,6 +8,7 @@ java-based version of awk for bioinformatics
 ## Usage
 
 ```
+Usage: java -jar dist/bioalcidaejdk.jar  [options] Files
 Usage: bioalcidaejdk [options] Files
   Options:
     --body
@@ -36,7 +37,8 @@ Usage: bioalcidaejdk [options] Files
       Output file. Optional . Default: stdout
     -p, --pedigree
       Optional pedigree file. A pedigree file. tab delimited. Columns: 
-      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
+      family,id,father,mother, 
+      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -R, --reference
       [20190808]Indexed fasta Reference file. This file must be indexed with 
@@ -263,8 +265,6 @@ when reading a VCF, a new class extending `VcfHandler` will be compiled. The use
      4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
-     7  import javax.annotation.processing.Generated;
-     8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:00:49+0200")
      9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.VcfHandler {
     10    public Custom1694491176() {
     11    }
@@ -289,8 +289,6 @@ when reading a SAM/BAM/CRAM, a new class extending `SAMHandler` will be compiled
      4  import htsjdk.samtools.*;
      5  import htsjdk.variant.variantcontext.*;
      6  import htsjdk.variant.vcf.*;
-     7  import javax.annotation.processing.Generated;
-     8  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:09:20+0200")
      9  public class Custom1694491176 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.SAMHandler {
     10    public Custom1694491176() {
     11    }
@@ -317,8 +315,6 @@ when reading a Fastq, a new class extending `FastqHandler` will be compiled. The
  5  import htsjdk.samtools.util.*;
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
- 8  import javax.annotation.processing.Generated;
- 9  @Generated(value="BioAlcidaeJdk",date="2017-07-12T10:46:47+0200")
 10  public class BioAlcidaeJdkCustom220769712 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastqHandler {
 11    public BioAlcidaeJdkCustom220769712() {
 12    }
@@ -345,8 +341,6 @@ when reading a Fasta, a new class extending `FastaHandler` will be compiled. The
  6  import htsjdk.variant.variantcontext.*;
  7  import htsjdk.variant.vcf.*;
  8  import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
- 9  import javax.annotation.processing.Generated;
-10  @Generated(value="BioAlcidaeJdk",date="2017-07-12T14:26:39+0200")
 11  public class BioAlcidaeJdkCustom298960668 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.FastaHandler {
 12    public BioAlcidaeJdkCustom298960668() {
 13    }
@@ -379,7 +373,6 @@ The user's code will be inserted as:
     10  import com.github.lindenb.jvarkit.math.RangeOfIntegers;
     11  import com.github.lindenb.jvarkit.math.RangeOfDoubles;
     12  import com.github.lindenb.jvarkit.util.Counter;
-    15  @javax.annotation.Generated(value="BioAlcidaeJdk",date="2019-08-08T10:30:18+0200")
     16  public class BioAlcidaeJdkCustom412261069 extends com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk.GtfHandler {
     17    public BioAlcidaeJdkCustom412261069() {
     18    }
@@ -779,4 +772,8 @@ stream().
         return L.stream();
         }).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getStrand()+"\t"+R.getName()));
 ```
+
+## Cited in
+
+ * Hickman, A.R., Selee, B., Pauly, R. et al. Discovery of eQTL Alleles Associated with Autism Spectrum Disorder: A Case–Control Study. J Autism Dev Disord (2022). https://doi.org/10.1007/s10803-022-05631-x
 

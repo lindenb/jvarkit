@@ -215,8 +215,6 @@ The user code will be inserted in the following java code:
  4  import htsjdk.samtools.util.*;
  5  import htsjdk.variant.variantcontext.*;
  6  import htsjdk.variant.vcf.*;
- 7  import  javax.annotation.processing.Generated;
- 8  @Generated("VcfFilterJdk")
  9  public class VcfFilterJdkCustom123 extends com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk.AbstractFilter {
 10    public VcfFilterJdkCustom123(final VCFHeader header) {
 11    super(header);

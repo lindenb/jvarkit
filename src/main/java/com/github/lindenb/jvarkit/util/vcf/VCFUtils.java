@@ -50,7 +50,6 @@ import java.util.TreeSet;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
@@ -80,9 +79,7 @@ import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
@@ -350,12 +347,6 @@ public class VCFUtils
 		vcwb.clearOptions();
 		return new VariantContextWriterDelayedFlush(vcwb.build());
 		}
-
-	/** wrap delegate into a VCF iterator printing progress */
-	public static VCFIterator wrapInProgress(final VCFIterator delegate)
-		{
-		return new VCFIteratorProgress(delegate);
-		}
 	
 	/** checkError but don't flush everything each time */
 	private static class VariantContextWriterDelayedFlush
@@ -539,12 +530,6 @@ public class VCFUtils
 		return null;
 		}
 	
-	/**
-	 * 
-	 */
-	public CloseableIterator<VCFIterator> readConcatenatedVcfFile(final BufferedReader r) throws IOException {
-		return new VcfFileIterator(IOUtils.toLineIterator(r));
-	}
 	
 	/** escape String for a VALUE in the INFO column 
 	 * From the spec : no white-space, semi-colons, or equals-signs permitted; 
@@ -827,43 +812,6 @@ public class VCFUtils
     	}
     
     
-    private static class VcfFileIterator extends AbstractCloseableIterator<VCFIterator> {
-    	private  LineIterator lr;
-    	public VcfFileIterator(final LineIterator lr) {
-		this.lr = lr;
-    	}
-    	
-    	@Override
-    	protected VCFIterator advance() {
-    		if(lr==null) return null;
-    		if(!lr.hasNext()) { CloserUtil.close(lr);lr=null; return null;}
-    		return new MyVCFIterator() ;
-    		}
-    	
-    	@Override
-    	public void close() {
-    		if(lr==null) return;
-    		CloserUtil.close(lr);
-    		lr=null;
-    		}
-    	
-    	private class MyVCFIterator extends VcfIteratorImpl
-    		{
-    		MyVCFIterator() {
-    			super(VcfFileIterator.this.lr);
-    			}
-    		
-    		@Override
-    		public void close() {
-    			if(lr==null) return;
-    			while(lr.hasNext() && !lr.peek().startsWith("#"))
-    				{
-    				lr.next();
-    				}
-    			}
-    		
-    		}
-    }
     
     private static class VCFIteratorLineIterator implements VCFIterator {
     	private final CodecAndHeader cah;
@@ -933,44 +881,6 @@ public class VCFUtils
     	
     	}
     
-	@Deprecated
-    private static class VCFIteratorProgress  implements VCFIterator
-    	{
-    	private final VCFIterator delegate;
-    	private SAMSequenceDictionaryProgress progress;
-    	
-    	VCFIteratorProgress(final VCFIterator delegate) {
-    		this.delegate=delegate;
-    		this.progress = new SAMSequenceDictionaryProgress(delegate.getHeader());
-    	}
-    	
-		@Override
-		public boolean hasNext() {
-			return delegate.hasNext();
-		}
-
-		@Override
-		public VariantContext next() {
-			return this.progress.watch(this.delegate.next());
-		}
-
-		@Override
-		public void close()  {
-			this.delegate.close();
-			this.progress.finish();
-			
-		}
-
-		//@Override public AbstractVCFCodec getCodec() { return this.delegate.getCodec(); }
-
-		@Override public VCFHeader getHeader() { return this.delegate.getHeader(); }
-
-		@Override
-		public VariantContext peek() {
-			return this.delegate.peek();
-		}
-    	
-    	}
     
     public static void copyHeaderAndVariantsTo(final VCFIterator iter,final VariantContextWriter w) {
     	w.writeHeader(iter.getHeader());

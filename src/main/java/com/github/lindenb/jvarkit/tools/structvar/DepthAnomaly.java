@@ -46,7 +46,7 @@ import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.iterator.LineIterator;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -68,6 +68,7 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.LineIterator;
 /**
 BEGIN_DOC
 input is an interval of a file source of interval (bed, vcf, gtf, interval_list , ,etc...)
@@ -163,7 +164,7 @@ public int doWork(final List<String> args) {
 		 final String input = oneFileOrNull(args); 
 		 if(input==null) {
 			 final BedLineCodec codec = new BedLineCodec();
-			 final LineIterator liter = new LineIterator(stdin());
+			 final LineIterator liter = LineIterators.of(stdin());
 			 iter = new AbstractIterator<Locatable>() {
 			 	@Override
 			 	protected Locatable advance() {
@@ -175,7 +176,6 @@ public int doWork(final List<String> args) {
 			 				}
 			 			return bed;
 			 			}
-			 		liter.close();
 			 		return null;
 			 		}
 			 	};

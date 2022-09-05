@@ -25,6 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.net;
 
+import java.net.URL;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -41,6 +42,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.gff.Gff3Feature;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
@@ -60,8 +62,21 @@ private final Pattern hgncPattern = Pattern.compile("[hH][gG][nN][cC]:[0-9]+");
 
 public static interface LabelledUrl
 	{
+	/** short name for this url */
 	public String getLabel();
+	/** the url itself */
 	public String getUrl();
+	/** return domain of getURL() */
+	public default String getDomain() {
+		final String s= getUrl();
+		try {
+			java.net.URL u = new URL(s);
+			return u.getProtocol()+"://"+u.getHost();
+			}
+		catch(final Throwable err) {
+			return s;
+			}
+		}
 	}
 
 public UrlSupplier(final SAMSequenceDictionary dict) {
@@ -94,6 +109,7 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	if(StringUtils.isBlank(columnName) || StringUtils.isBlank(id)) return Collections.emptySet();
 	final Set<LabelledUrl> urls = new LinkedHashSet<>();
 	if( columnName.equalsIgnoreCase("genename") ||
+		columnName.equalsIgnoreCase("gene_name") ||
 		columnName.equalsIgnoreCase("symbol")) {
 		urls.add(new LabelledUrlImpl("NCBI gene","https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/search?search="+StringUtils.escapeHttp(id)));
@@ -101,6 +117,7 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Archs4","https://maayanlab.cloud/archs4/gene/"+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("Enrichr","https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("Biogps","http://biogps.org/#goto=search=&query="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Gene ResearchAllOfUs","https://databrowser.researchallofus.org/genomic-variants/"+ StringUtils.escapeHttp(id)));
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
@@ -125,6 +142,14 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	return urls;
 	}
 
+private void _gff3(final Gff3Feature feat,final Set<LabelledUrl> urls) {
+	feat.getAttribute("gene_id").stream().forEach(X->_string(X,urls));;
+	feat.getAttribute("transcript_id").stream().forEach(X->_string(X,urls));;
+	feat.getAttribute("protein_id").stream().forEach(X->_string(X,urls));;
+	feat.getAttribute("gene_name").stream().forEach(X->urls.addAll(of("gene_name",X)));;
+	feat.getAttribute("CCDS").stream().forEach(X->urls.addAll(of("CCDS",X)));;
+	_locatable(feat, urls);
+	}
 
 private void _string(final String str,final Set<LabelledUrl> urls) {
 	if(StringUtils.isBlank(str)) return;
@@ -158,6 +183,14 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 	else if(this.ncbiProtPattern.matcher(str).matches()) {
 		urls.add(new LabelledUrlImpl("NCBI","https://www.ncbi.nlm.nih.gov/protein/"+str));
 		}
+	else if(str.matches("nsv[0-9]+")) {
+		if(isGrch37()) {
+			urls.add(new LabelledUrlImpl("DGV","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+str+"&search=Search"));
+			}
+		else if(isGrch38()) {
+			urls.add(new LabelledUrlImpl("DGV","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg38?name="+str+"&search=Search"));
+			}
+		}
 	else if(IOUtil.isUrl(str))
 		{
 		urls.add(new LabelledUrlImpl("url",str));
@@ -174,6 +207,14 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		}
 	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
 	final String ucscCtg = toUcsc.apply(ctx.getContig());
+	// popgen
+	if(isGrch37()) {
+		urls.add(new LabelledUrlImpl("popgen.uchicago.edu",
+				"https://popgen.uchicago.edu/ggv/?data=%221000genomes%22&chr="+
+				StringUtils.escapeHttp(ctx.getContig()) + "&pos=" + ctx.getStart()
+				));
+		}
+	
 	if(isGrch37() && !StringUtils.isBlank(ensemblCtg) && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
@@ -219,10 +260,18 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 						"https://decaf.decode.com/variant/"+
 						StringUtils.escapeHttp(ucscCtg) +":"+ctx.getStart()+":SG"
 						));
+
 				}
-			
+			urls.add(new LabelledUrlImpl("Variant ResearchAllOfUs",
+					"https://databrowser.researchallofus.org/genomic-variants/"+
+					StringUtils.escapeHttp(ctx.getContig()) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
+					));
+
 			}
 		}
+	
+	
+
 	
 	
 	//beacon , varsome
@@ -294,15 +343,24 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	final String ucscCtg =  toUcsc.apply(loc.getContig());
 	
+	if(isGrch38() && ! StringUtils.isBlank(ucscCtg)) {
+		urls.add(new LabelledUrlImpl("Region ResearchAllOfUs","https://databrowser.researchallofus.org/genomic-variants/"+
+			StringUtils.escapeHttp(ucscCtg) + ":" + xstart1 +"-"+ xend1
+			));
+		}
+
 	
 	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {		
 		if(loc.getLengthOnReference()>1) {
-			
 			urls.add(new LabelledUrlImpl("dgv","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
 					StringUtils.escapeHttp(ucscCtg) + 
 					"%3A"+loc.getStart()+"-"+loc.getEnd() + ";search=Search"
 					));
 			}
+		urls.add(new LabelledUrlImpl("pophuman","https://pophuman.uab.cat/?loc="+
+				StringUtils.escapeHttp(ucscCtg) + 
+				"%3A"+loc.getStart()+".."+loc.getEnd()
+				));
 		}
 	
 	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg)) {
@@ -378,6 +436,9 @@ public Set<LabelledUrl> of(final Locatable loc) {
 		}
 	else if(loc instanceof SAMRecord) {
 		_sam(SAMRecord.class.cast(loc), urls);
+		}
+	else if(loc instanceof Gff3Feature) {
+		_gff3(Gff3Feature.class.cast(loc), urls);
 		}
 	else
 		{

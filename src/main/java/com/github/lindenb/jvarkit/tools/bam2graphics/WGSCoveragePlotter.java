@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Result;
@@ -66,6 +67,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.util.ns.RDF;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
@@ -109,7 +111,7 @@ END_DOC
 	keywords={"svg","bam","depth","coverage"},
 	creationDate="20201125",
 	modificationDate="20210812",
-	biostars={104063,475162}
+	biostars={104063,475162,9536274}
 	)
 public class WGSCoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( WGSCoveragePlotter.class).make();
@@ -168,6 +170,9 @@ return this.decimalFormater.format(v);
 
 private Element element(final String tag) {
 	return this.document.createElementNS(SVG.NS, tag);
+	}
+private Element rdf(final String tag) {
+	return this.document.createElementNS(RDF.NS, "rdf:"+tag);
 	}
 private Text text(final Object o) {
 	return this.document.createTextNode(o==null?"":String.valueOf(o));
@@ -235,9 +240,20 @@ public int doWork(final List<String> args) {
 		this.document.appendChild(svgRoot);
 		svgRoot.setAttribute("width",format(dimension.width));
 		svgRoot.setAttribute("height",format(dimension.height));
+		svgRoot.setAttributeNS(XMLConstants.XML_NS_URI, XMLConstants.XML_NS_PREFIX + ":base","https://umr1087.univ-nantes.fr/");
 			
 		final Element maintitle = element("title");
 		svgRoot.appendChild(maintitle);
+		
+		final Element metaE = element("metadata");
+		metaE.setAttribute("id", "metadata");
+		svgRoot.appendChild(metaE);
+		final Element rdfRDF = rdf("RDF");
+		metaE.appendChild(rdfRDF);
+		final Element rdfDesc = rdf("Description");
+		rdfDesc.setAttributeNS(RDF.NS, "rdf:ID", "#");
+		rdfRDF.appendChild(rdfDesc);
+		
 		
 		final Element descr = element("desc");
 		svgRoot.appendChild(descr);

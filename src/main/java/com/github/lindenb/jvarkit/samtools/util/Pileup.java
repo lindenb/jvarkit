@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.samtools.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.BiPredicate;
@@ -48,6 +49,17 @@ import htsjdk.samtools.util.Locatable;
 		this((left,right)->left.getEnd()+1 < right.getStart());
 		}
 	
+	public Pileup<T> addAll(final Collection<T> collection) {
+		collection.stream().sorted((A,B)->{
+			int i= A.getContig().compareTo(B.getContig());
+			if(i!=0) return i;
+			i = Integer.compare(A.getStart(), B.getStart());
+			if(i!=0) return i;
+			return Integer.compare(A.getEnd(), B.getEnd());
+			}).forEach(item->this.add(item));
+		return this;
+		}
+	
 	/** add a new item to the pileup , return the item */
 	public T add(final T item) {
 		if(prevContig==null) {
@@ -62,15 +74,18 @@ import htsjdk.samtools.util.Locatable;
 				throw new IllegalArgumentException("Cannot pileup with unordered element: "+this.prev_start+" > "+item.getStart());
 				}
 			}
-		
-		int y=0;
-		while(y< this.rows.size()) {
+		int y = 0;
+		for(y=0; y < this.rows.size();++y) {
 			final List<T> row = this.rows.get(y);
-			final T last = row.get(row.size()-1);
-			if(overlap(last,item)) {
-				y++;
-				continue;
+			boolean found=false;
+			for(int x=row.size()-1;x>=0;x--) {
+				final T last = row.get(x);
+				if(overlap(last,item)) {
+					found=true;
+					break;
+					}
 				}
+			if(found) continue;
 			row.add(item);
 			break;
 			}

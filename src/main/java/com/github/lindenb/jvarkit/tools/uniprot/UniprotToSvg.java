@@ -37,6 +37,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.IntToDoubleFunction;
 import java.util.regex.Pattern;
@@ -59,8 +61,14 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.LabelledUrlSupplier;
+import com.github.lindenb.jvarkit.util.LabelledUrlSupplier.LabelledUrl;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -68,9 +76,13 @@ import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
@@ -92,11 +104,16 @@ public class UniprotToSvg extends Launcher {
 	private static final String UNIPROT_NS = "http://uniprot.org/uniprot";
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required = true)
 	private Path outputFile = null;
-	
-	@Parameter(names = "--vcf", description = "annotated VCF")
+	@Parameter(names = "--vcf", description = "annotated VCF. Whole file is loaded in memory, so you'd better use a small vcf restricted to your proteins.")
 	private Path vcfPath  = null;
 	@Parameter(names = "--pedigree", description = PedigreeParser.OPT_DESC)
 	private Path pedigreePath  = null;
+	@Parameter(names = "--exclude-type", description = "Exclude feature/@type matching that regular expression")
+	private String excludeFeatureTye = null;
+	@Parameter(names = "--include-type", description = "Only feature/@type matching that regular expression")
+	private String includeFeatureTye = null;
+	@Parameter(names = "--svg", description = "produce SVG only (default is HTML+SVG)")
+	private boolean svg_only=false;
 
 	
 	@DynamicParameter(names = "-D", description = "extra parameters. Undocumented.",hidden=true)
@@ -107,7 +124,7 @@ public class UniprotToSvg extends Launcher {
 	private final Set<String> casesSamples = new HashSet<>();
 	private final Set<String> ctrlsSamples = new HashSet<>();
 	private final Set<String> accepted_features = new HashSet<>();
-
+	private Optional<SAMSequenceDictionary> optDict = Optional.empty();
 	
 	private final AttributeMap attMap = AttributeMap.verbose(AttributeMap.wrap(__dynaParams), S->{
 		LOG.info("undefined property "+S+". Using default");
@@ -125,7 +142,7 @@ public class UniprotToSvg extends Launcher {
 	        return "";
 	    }
 	 
-	    @SuppressWarnings({ "unchecked", "rawtypes" })
+	    @SuppressWarnings({"rawtypes" })
 	    public Iterator getPrefixes(String namespaceURI) {
 	    	 if(UNIPROT_NS.equals(namespaceURI)) return Arrays.asList("u","uniprot").iterator();
 	    	return Collections.emptyIterator();
@@ -136,6 +153,16 @@ public class UniprotToSvg extends Launcher {
 	private Element element(final String localName) {
 		return this.svgDoc.createElementNS(SVG.NS, localName);
 	}
+	private Element html(final String localName) {
+		return this.svgDoc.createElement(localName);
+		}
+	private Element html(final String localName,final String content) {
+		final Element e= html(localName);
+		e.appendChild(text(content));
+		return e;
+		}
+
+	
 	
 	private Element element(final String localName,final String content) {
 		final Element e= element(localName);
@@ -152,13 +179,22 @@ public class UniprotToSvg extends Launcher {
 		}
 	
 	private static class Variant {
+		int id;
+		//
+		String ctxContig;
+		int ctxPos;
+		Allele ref;
+		List<Allele> alts=new ArrayList<>();
+		//
 		int pos = -1;
+		String Amino_acids="";
 		String title="";
-		int numCases = 0;
-		int numControls = 0;
+		Set<String> cases = new HashSet<>();
+		Set<String> controls = new HashSet<>();
 		}
 	
 	private static class Feature {
+		int id;
 		String type=null;
 		String description;
 		int start;
@@ -187,7 +223,8 @@ public class UniprotToSvg extends Launcher {
 		}
 	
 	private List<Variant> fetchVariants(final String rawEnsemblId) throws IOException {
-		if(this.vcfPath==null || (this.casesSamples.isEmpty() && this.ctrlsSamples.isEmpty())) return Collections.emptyList();
+		int id_generator = 0;
+		if(this.vcfPath==null || StringUtils.isBlank(rawEnsemblId)) return Collections.emptyList();
 		String annotator = this.attMap.getAttribute("variant.annotator","CSQ").toUpperCase();
 		VepPredictionParser  vepParser = null;
 		final String ensemblId = normalizeENS(rawEnsemblId);
@@ -201,24 +238,36 @@ public class UniprotToSvg extends Launcher {
 			while(iter.hasNext()) {
 				final VariantContext ctx = iter.next();
 				Variant variant = new Variant();
+				variant.id = ++id_generator;
+				variant.ctxContig = ctx.getContig();
+				variant.ctxPos = ctx.getStart();
+				variant.ref = ctx.getReference();
+				variant.alts.addAll(ctx.getAlternateAlleles());
+				
 				if(vepParser!=null) {
 					for(final VepPredictionParser.VepPrediction pred : vepParser.getPredictions(ctx)) {
+						System.err.println(ensemblId+" vs "+pred.getFeature());
 						if(!ensemblId.equals(normalizeENS(pred.getFeature()))) continue;
 						final String protPosition = pred.get("Protein_position");
 						if(StringUtils.isBlank(protPosition) || !StringUtils.isInteger(protPosition)) continue;
 						variant.pos = Integer.parseInt(protPosition);
+						variant.Amino_acids = pred.get("Amino_acids");
+						if(StringUtils.isBlank(variant.Amino_acids)) variant.Amino_acids="";
 						for(final Genotype g:ctx.getGenotypes()) {
 							if(g.getAlleles().stream().noneMatch(A->!(A.isReference() || A.isNoCall()))) continue;
 							if(this.casesSamples.contains(g.getSampleName())) {
-								variant.numCases++;
+								variant.cases.add(g.getSampleName());
 								}
 							if(this.ctrlsSamples.contains(g.getSampleName())) {
-								variant.numControls++;
+								variant.controls.add(g.getSampleName());
 								}
 							}
 						}
 					}
-				if(variant.pos<0) continue;
+				if(variant.pos<=0) {
+					LOG.error("Ignore variant "+ctx.getContig()+":"+ctx.getStart()+" because pos<=0");
+					continue;
+					}
 				variant.title=String.valueOf(variant.pos)+" "+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString();
 				L.add(variant);
 				}
@@ -227,17 +276,15 @@ public class UniprotToSvg extends Launcher {
 		}
 	
 	private boolean acceptFeature(final Feature feat) {
-		String regexStr = this.attMap.getAttribute("exclude.regex", "");
-		if(!StringUtils.isBlank(regexStr)) {
-			final Pattern regex = Pattern.compile(regexStr,Pattern.CASE_INSENSITIVE);
+		if(!StringUtils.isBlank(this.excludeFeatureTye)) {
+			final Pattern regex = Pattern.compile(this.excludeFeatureTye,Pattern.CASE_INSENSITIVE);
 			if(regex.matcher(feat.type).find()) {
 				LOG.warn("exclude type "+feat.type+" matching "+regex.pattern());
 				return false;
 				}
 			}
-		regexStr = this.attMap.getAttribute("include.regex", "");
-		if(!StringUtils.isBlank(regexStr)) {
-			final Pattern regex = Pattern.compile(regexStr,Pattern.CASE_INSENSITIVE);
+		if(!StringUtils.isBlank(this.includeFeatureTye)) {
+			final Pattern regex = Pattern.compile(this.includeFeatureTye,Pattern.CASE_INSENSITIVE);
 			if(!regex.matcher(feat.type).find()) {
 				LOG.warn("exclude type "+feat.type+" not matching "+regex.pattern());
 				return false;
@@ -245,6 +292,14 @@ public class UniprotToSvg extends Launcher {
 			}
 		this.accepted_features.add(feat.type);
 		return true;
+		}
+	
+	private OptionalInt parsePosition(final Element E) {
+		if(E.hasAttribute("status")) {
+			if("unknown".equals( E.getAttribute("status"))) return OptionalInt.empty();
+			}
+		if(!E.hasAttribute("position")) return OptionalInt.empty();
+		return OptionalInt.of(Integer.parseInt(E.getAttribute("position")));
 		}
 	
 	private void toSVG(final ArchiveFactory archive, final Element uEntry) {
@@ -266,13 +321,20 @@ public class UniprotToSvg extends Launcher {
 				final Feature feat = new Feature();
 				final Element positionE = (Element)this.xpath.evaluate("u:position", uLocation, XPathConstants.NODE);
 				if(positionE!=null) {
-					feat.start = Integer.parseInt(positionE.getAttribute("position"));
+					final OptionalInt p = parsePosition(positionE);
+					if(!p.isPresent()) continue;
+					feat.start = p.getAsInt();
 					feat.end = feat.start;
 					}
 				else
 					{
-					feat.start = Integer.parseInt((String)this.xpath.evaluate("u:begin/@position", uLocation, XPathConstants.STRING));
-					feat.end = Integer.parseInt((String)this.xpath.evaluate("u:end/@position", uLocation, XPathConstants.STRING));
+					final OptionalInt p1 = parsePosition((Element)this.xpath.evaluate("u:begin", uLocation, XPathConstants.NODE));
+					if(!p1.isPresent()) continue;
+					final OptionalInt p2 = parsePosition((Element)this.xpath.evaluate("u:end", uLocation, XPathConstants.NODE));
+					if(!p2.isPresent()) continue;
+
+					feat.start = p1.getAsInt();
+					feat.end = p2.getAsInt();
 					}
 				if(feat.start==1 && feat.end==length) continue;//whole protein
 				feat.type = uFeature.getAttribute("type");
@@ -281,6 +343,7 @@ public class UniprotToSvg extends Launcher {
 				if(feat.description==null) feat.description="";
 				
 				if(!acceptFeature(feat)) continue;
+				feat.id= features.size();
 				features.add(feat);
 				}
 			
@@ -342,10 +405,68 @@ public class UniprotToSvg extends Launcher {
 			final int margin_bottom = this.attMap.getIntAttribute("margin.bottom").orElse(50);
 			final int distanceBetweenFeatures = this.attMap.getIntAttribute("feature.margin").orElse(2);
 
+			String buildName="";
+			Hyperlink link = Hyperlink.empty();
+			if(this.optDict.isPresent()) {
+				buildName = SequenceDictionaryUtils.getBuildName(this.optDict.get()).orElse("");
+				if(!StringUtils.isBlank(buildName)) buildName ="("+buildName+")";
+				link = Hyperlink.compile(this.optDict.get());
+				}
+			
 		
 			final Element svgRoot = element("svg");
 			svgRoot.setAttribute("version", "1.0");
-			this.svgDoc.appendChild(svgRoot);
+			final Element htmlDiv1 = html("div");
+			final String suffix;
+
+			if(svg_only) {
+				suffix = ".svg";
+				this.svgDoc.appendChild(svgRoot);
+				}
+			else
+				{
+				suffix = ".html";
+				final Element htmlRoot = html("html");
+				htmlRoot.setAttribute("lang", "en");
+				final Element head = html("head");
+				htmlRoot.appendChild(head);
+				Element meta = html("meta");
+				meta.setAttribute("charset", "UTF-8");
+				head.appendChild(meta);
+				head.appendChild(html("title",accession+" "+entryName+" "+enst));
+
+				head.appendChild(html("script",
+					 "function blink1(id) {var E = document.getElementById(id);if(E==null) return; E.style.display=(E.style.display=='none'?'block':'none');}\n"
+					+ "function blink2(id) {var count = 0;function loop(){count++;if(count>12) return;blink1(id);setTimeout(loop,200);}loop();}\n"
+					+ "function blink3(id) {blink2(id+'.0');blink2(id+'.1');}\n"
+				));
+				head.appendChild(html("style",
+						"body { font-family: sans-serif;}\n" 
+						+ "table {  border-collapse: collapse; margin: 25px 0;  font-size: 0.9em; font-family: sans-serif;min-width: 400px;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);}\n"
+						+"thead{ background-color: #009879; color: #ffffff; text-align: left;}\n"
+						+"th,td { padding: 12px 15px}\n"
+						+"tbody tr {border-bottom: 1px solid #dddddd;}\n"
+						+"tbody tr:nth-of-type(even) {background-color: #f3f3f3;}\n"
+						+"tbody tr:last-of-type { border-bottom: 2px solid #009879;}\n"
+						+"tbody tr.active-row { font-weight: bold;color: #009879;}\n"
+						));
+				final Element body = html("body");
+				htmlRoot.appendChild(body);
+				final Element h1 = html("h1");
+				body.appendChild(h1);
+				final Element a = html("a");
+				h1.appendChild(a);
+				a.setAttribute("href", "https://www.uniprot.org/uniprotkb/" + accession);
+				a.setAttribute("title", "https://www.uniprot.org/uniprotkb/" + accession);
+				a.setAttribute("target", "_blank");
+				a.appendChild(text(accession+" "+entryName+" "+enst+" ("+StringUtils.niceInt(length)+" aa.)"));
+				
+				body.appendChild(htmlDiv1);
+				htmlDiv1.appendChild(svgRoot);
+				htmlDiv1.appendChild(html("hr"));
+				this.svgDoc.appendChild(htmlRoot);
+				}
+
 			
 			svgRoot.appendChild(element("title",entryName));
 	
@@ -381,7 +502,7 @@ public class UniprotToSvg extends Launcher {
 				}
 
 			
-			double y= margin_top + (variants.stream().anyMatch(V->V.numCases>0)?variantsHeight:0);
+			double y= margin_top + (variants.stream().anyMatch(V->V.cases.size()>0)?variantsHeight:0);
 			// main g
 			final Element G0 = element("g");
 			svgRoot.appendChild(G0);
@@ -396,7 +517,7 @@ public class UniprotToSvg extends Launcher {
 			G1.appendChild(g_feats);
 
 			/** main title */
-			final Element E_title = element("text",accession+" "+entryName+" size:"+StringUtils.niceInt(length)+" aa.");
+			final Element E_title = element("text",accession+" "+entryName+" "+enst+" size:"+StringUtils.niceInt(length)+" aa.");
 			E_title.setAttribute("x", "5");
 			E_title.setAttribute("y", "20");
 			E_title.setAttribute("class", "maintitle");
@@ -429,17 +550,146 @@ public class UniprotToSvg extends Launcher {
 			G_var_ctrl.setAttribute("id", "ctrls");
 			G1.appendChild(G_var_ctrl);
 			
+			htmlDiv1.appendChild(svgDoc.createComment("N Variants:"+variants.size()));
+			final Element htmlTable=html("table");
+			if(!variants.isEmpty()) htmlDiv1.appendChild(htmlTable);
+			final Element thead=html("thead");
+			htmlTable.appendChild(thead);
+			thead.appendChild(html("caption","variants (N="+StringUtils.niceInt(variants.size())+")"));
+			Element tr=html("tr");
+			thead.appendChild(tr);
+			tr.appendChild(html("th",buildName + "Variant"));
+			tr.appendChild(html("th","REF"));
+			tr.appendChild(html("th","ALT"));
+			tr.appendChild(html("th","Pos"));
+			tr.appendChild(html("th","AA"));
+			tr.appendChild(html("th","Features"));
+			tr.appendChild(html("th","Cases"));
+			tr.appendChild(html("th","Controls"));
+			tr.appendChild(html("th","Hyperlinks"));
+			final Element tbody=html("tbody");
+			htmlTable.appendChild(tbody);
+
+			final UrlSupplier labelledUrlSupplier;
+			if(optDict.isPresent()) {
+				labelledUrlSupplier = new UrlSupplier(optDict.get());
+				} else {
+				labelledUrlSupplier = null;
+				}
+			
+			
+			
 			for(Variant ctx: variants)
 				{
 				final double x1= pos2pix.applyAsDouble(ctx.pos);
+				
+				tr=html("tr");
+				tbody.appendChild(tr);
+				Element td=html("td");
+				tr.appendChild(td);
+				//position in genome
+				final Optional<String> href= link.apply(new SimpleInterval(ctx.ctxContig,ctx.ctxPos,ctx.ctxPos+ctx.ref.length()-1));
+				
+				if(href.isPresent()) {
+					Element htmlA =html("a");
+					htmlA.appendChild(text(ctx.ctxContig+":"+StringUtils.niceInt(ctx.ctxPos)));
+					htmlA.setAttribute("href", href.get());
+					htmlA.setAttribute("title", href.get());
+					htmlA.setAttribute("target", "_blank");
+					td.appendChild(htmlA);
+					}
+				else
+					{	
+					td.appendChild(text(ctx.ctxContig+":"+StringUtils.niceInt(ctx.ctxPos)));
+					}
+				//REF
+				tr.appendChild(html("td",ctx.ref.getDisplayString()));
+				//ALT
+				tr.appendChild(html("td",ctx.alts.stream().map(ALT->ALT.getDisplayString()).collect(Collectors.joining(","))));
+
+				//position in protein
+				Element htmlA =html("a");
+				htmlA.appendChild(text(StringUtils.niceInt(ctx.pos)));
+				htmlA.setAttribute("href", "javascript:blink3('var."+ctx.id+"');");
+				htmlA.setAttribute("name", "v."+ctx.id);
+				td=html("td");
+				td.appendChild(htmlA);
+				tr.appendChild(td);
+				//AA chane
+				tr.appendChild(html("td",ctx.Amino_acids));
+				//features
+				td=html("td");
+				tr.appendChild(html("td",
+					rows.stream().flatMap(F->F.stream()).
+						filter(P->P.start<= ctx.pos && ctx.pos <= P.end).
+						map(P->P.type).
+						collect(Collectors.toSet()).
+						stream().collect(Collectors.joining(" ; "))
+						));
+
+				
+				//cases
+				tr.appendChild(html("td",String.join(" ",ctx.cases)));
+				//controls
+				tr.appendChild(html("td",String.join(" ",ctx.controls)));
+				//hyperlinks
+				td=html("td");
+				tr.appendChild(td);
+				if(labelledUrlSupplier!=null) {
+					final List<Allele> alleles = new ArrayList<>();
+					alleles.add(ctx.ref);
+					alleles.addAll(ctx.alts);
+					final VariantContext ctx2= new VariantContextBuilder("vcf", ctx.ctxContig, ctx.ctxPos, ctx.ctxPos+ctx.ref.length()-1, alleles).make();
+					for(UrlSupplier.LabelledUrl url:labelledUrlSupplier.of(ctx2)) {
+						htmlA =html("a");
+						td.appendChild(htmlA);
+						htmlA.appendChild(text(url.getLabel()));
+						htmlA.setAttribute("href", url.getUrl());
+						htmlA.setAttribute("title",url.getUrl());
+						td.appendChild(text(". "));
+						}
+					}
+				
+				
+				// no variant
+				if(ctx.cases.isEmpty() && ctx.controls.isEmpty()) {
+					final Element g_var= element("g");
+					g_var.setAttribute("id", "var."+ctx.id+".0");
+					g_var.setAttribute("style", "display:block;");
+
+					final Element line= element("line");
+					line.setAttribute("style","stroke-width:1px;stroke:black;");
+					line.setAttribute("x1",format(x1));
+					line.setAttribute("x2",format(x1+0.5));
+					line.setAttribute("y1",format(mid_y_protein-variantsHeight));
+					line.setAttribute("y2",format(mid_y_protein));
+					line.appendChild(element("title",ctx.title));
+					
+					final Element text= element("text");
+					text.appendChild(text(ctx.title));
+					text.setAttribute("x","0");
+					text.setAttribute("y","0");
+					text.setAttribute("class", "varlabel");
+					text.setAttribute("transform","translate("+format(x1)+","+
+						(mid_y_protein-variantsHeight-5)+") rotate(-45)"
+						);
+					g_var.appendChild(text);
+					
+					g_var.appendChild(line);
+					G1.appendChild(g_var);
+					continue;
+					}
+				
+				
 				for(int side=0;side<2;side++)
 					{
-					final int count=  (side==0?ctx.numCases:ctx.numControls);
+					final int count=  (side==0?ctx.cases.size():ctx.controls.size());
 					if(count==0) continue;
 					
-					final String var_color=(ctx.numCases!=0 && ctx.numControls!=0?"green":(side==0?"red":"blue"));
+					final String var_color=(!ctx.cases.isEmpty() && !ctx.controls.isEmpty()?"green":(side==0?"red":"blue"));
 					final Element g_var= element("g");
-					g_var.setAttribute("style","stroke-width:1px;stroke:"+var_color+";fill:"+var_color);
+					g_var.setAttribute("id", "var."+ctx.id+"."+side);
+					g_var.setAttribute("style","display:block;stroke-width:1px;stroke:"+var_color+";fill:"+var_color);
 					(side==0?G_var_case:G_var_ctrl).appendChild(g_var);
 					
 					final double y2= mid_y_protein + variantsHeight*(side==0?-1:1);
@@ -469,7 +719,7 @@ public class UniprotToSvg extends Launcher {
 					g_var.appendChild(circle);
 					} 
 				}//end loop variants
-			y+= (variants.stream().anyMatch(V->V.numControls>0)?variantsHeight*1.5:0);
+			y+= (variants.stream().anyMatch(V->!V.controls.isEmpty())?variantsHeight*1.5:0);
 			
 			/** paint features **************************************************************************************/
 			g_feats.appendChild(this.svgDoc.createComment("START Features"));
@@ -481,6 +731,7 @@ public class UniprotToSvg extends Launcher {
 					final double x2 = pos2pix.applyAsDouble(feat.end+1);
 					
 					final Element g = element("g");
+					g.setAttribute("id", "f."+feat.id);
 					
 					g_feats.appendChild(g);
 					g.appendChild(this.svgDoc.createComment("type:"+feat.type+" desc:"+feat.description));
@@ -528,7 +779,50 @@ public class UniprotToSvg extends Launcher {
 				y+= featureHeight + distanceBetweenFeatures + (hidelabels?0:fontSize+1);
 				}
 			g_feats.appendChild(this.svgDoc.createComment("END Features"));
-
+			/** features table */
+			if(!rows.isEmpty()) {
+				Element htmlTable2=html("table");
+				htmlDiv1.appendChild(htmlTable2);
+				Element thead2=html("thead");
+				htmlTable2.appendChild(thead2);
+				thead2.appendChild(html("caption","Features"));
+				tr=html("tr");
+				thead2.appendChild(tr);
+				tr.appendChild(html("th","Interval"));
+				tr.appendChild(html("th","Type"));
+				tr.appendChild(html("th","Description"));
+				tr.appendChild(html("th","Variants"));
+				final Element tbody2=html("tbody");
+				htmlTable2.appendChild(tbody2);
+				for(Feature feat : rows.stream().flatMap(L->L.stream()).sorted((A,B)->Integer.compare(A.start, B.start)).collect(Collectors.toList())) {
+					tr=html("tr");
+					tbody2.appendChild(tr);
+					Element htmlA =html("a");
+					htmlA.appendChild(text(StringUtils.niceInt(feat.start)+" - "+StringUtils.niceInt(feat.end)));
+					htmlA.setAttribute("href", "javascript:blink2('f."+feat.id+"');");
+					Element td=html("td");
+					td.appendChild(htmlA);
+					tr.appendChild(td);
+					
+					td = html("td");
+					td.setAttribute("style","background-color:"+type2fill.getOrDefault(feat.type,"lavender"));
+					td.appendChild(text(feat.type));
+					tr.appendChild(td);
+					tr.appendChild(html("td",feat.description));
+					
+					td = html("td");
+					tr.appendChild(td);
+					for(Variant v:variants) {
+						if(v.pos < feat.start) continue;
+						if(v.pos > feat.end) continue;
+						htmlA = html("a",StringUtils.niceInt(v.pos));
+						htmlA.setAttribute("href", "#v."+v.id);
+						td.appendChild(htmlA);
+						td.appendChild(text(" "));
+						}
+					}
+				}
+			
 			/** paint ruler **************************************************************************************/
 			if(!this.attMap.getBooleanAttribute("hide.ruler"))
 				{
@@ -564,10 +858,18 @@ public class UniprotToSvg extends Launcher {
 			svgRoot.setAttribute("width",format(margin_left+margin_right+width+1));
 			svgRoot.setAttribute("height",format(margin_bottom+y));
 			
+			htmlDiv1.appendChild(html("hr"));
+			htmlDiv1.appendChild(html("p","Pierre Lindenbaum PhD 2022. Made with "+getProgramName()+" version:"+getVersion()+
+				". Command was: " + getProgramCommandLine()
+				));
+			
+			
+			
 			final TransformerFactory transformerFactory = TransformerFactory.newInstance();
 			final Transformer transformer = transformerFactory.newTransformer();
 			
-			try(Writer w= archive.openWriter(accession+(StringUtils.isBlank(enst)?"":"_"+enst)+".svg")) {
+			
+			try(Writer w= archive.openWriter(accession+(StringUtils.isBlank(enst)?"":"_"+enst) + (StringUtils.isBlank(entryName)?"":"_"+entryName) + suffix)) {
 				transformer.transform(new DOMSource(this.svgDoc), new StreamResult(w));
 				w.flush();
 				}
@@ -587,12 +889,15 @@ public class UniprotToSvg extends Launcher {
 				this.casesSamples.addAll(ped.getAffectedSamples().stream().map(S->S.getId()).collect(Collectors.toSet()));
 				this.ctrlsSamples.addAll(ped.getUnaffectedSamples().stream().map(S->S.getId()).collect(Collectors.toSet()));
 				}
+			if(this.vcfPath!=null) {
+				this.optDict =  Optional.ofNullable(SAMSequenceDictionaryExtractor.extractDictionary(this.vcfPath));
+				}
 			
-			final XPathFactory xpathFactory = XPathFactory.newDefaultInstance();
+			final XPathFactory xpathFactory = XPathFactory.newInstance();
 			this.xpath = xpathFactory.newXPath();
 			this.xpath.setNamespaceContext(new UniprotNsContext());
 
-			final DocumentBuilderFactory dbf = DocumentBuilderFactory.newDefaultInstance();
+			final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 			dbf.setIgnoringComments(true);
 			dbf.setCoalescing(true);
 			dbf.setNamespaceAware(true);

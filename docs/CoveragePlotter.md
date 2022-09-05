@@ -2,40 +2,29 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Find anomaly of depth in intervals+bams
+Display an image of depth to display any anomaly an intervals+bams
 
 
 ## Usage
 
 ```
+Usage: java -jar dist/coverageplotter.jar  [options] Files
 Usage: coverageplotter [options] Files
   Options:
-    --alpha
-      line opacity. A decimal number between 0.0 and 1.0. If the value ends 
-      with '%' it is interpretted as a percentage eg. '1%' => '0.01'. A slash 
-      '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
-      Default: 1.0
-    --arc-alpha
-      arc opacity. A decimal number between 0.0 and 1.0. If the value ends 
-      with '%' it is interpretted as a percentage eg. '1%' => '0.01'. A slash 
-      '/' is interpretted as a ratio. e.g: '1/100' => '0.01'.
-      Default: 1.0
-  * -B, --bams
-      list of bams. one file with a '.list' suffix is interpretted a a list of 
-      path to the bams
-      Default: []
-    --dimension
+    --css
+      Custom CSS file. format <sample> <css>. One per line. eg. "sample1 
+      stroke:red; 
+    --dimension, --dim
       Image Dimension. a dimension can be specified as '[integer]x[integer]' 
       or it can be the path to an existing png,jpg,xcf,svg file.
       Default: java.awt.Dimension[width=1000,height=300]
-    --black, --exclude
-      Optional. BED Tabix indexed black-listed region
     --extend, -x
-      extend original interval by this fraction
-      Default: 1.0
-    --gtf
-      Optional Tabix indexed GTF file. Will be used to retrieve an interval by 
-      gene name, or to display gene names in a region.
+      Extending interval. The following syntaxes are supported: 1000; 1kb; 
+      1,000; 30%(shrink); 150% (extend); 0.5 (shrink); 1.5 (extend)
+      Default: 3.0
+    --gff, --gff3
+      Optional Tabix indexed GFF3 file. Will be used to retrieve an interval 
+      by gene name, or to display gene names in a region.
     -h, --help
       print help and exit
     --helpFormat
@@ -44,43 +33,39 @@ Usage: coverageplotter [options] Files
       Ignore known CNV containing the whole region (prevent large known CNV to 
       be displayed)
       Default: false
+    --include-center
+      When calculating the median depth, also consider the original user's 
+      region, not only the extended interval.
+      Default: false
+  * --region, --interval
+      Interval region
     --known
       Optional Tabix indexed Bed or VCF file containing known CNV. Both types 
       must be indexed.
-    --manifest
-      Optional. Manifest file
+    --loess
+      Run Loess smoothing on GC%. Experimental. For now, I find the smooting 
+      is too strong.
+      Default: false
     --mapq
       min mapping quality
       Default: 1
-    --max-arc
-      max arc length in bp.
-      Default: 10000000
     --max-depth
       ignore position if depth > 'x'
       Default: 500
-    --min-arc
-      min arc length in bp.
-      Default: 1000
+    --max-y
+      Max normalized Y
+      Default: 3.0
     -o, --output
-      An existing directory or a filename ending with the '.zip' or '.tar' or 
-      '.tar.gz' suffix.
-    --prefix
-      Image File Prefix.
-      Default: <empty string>
+      Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard CreateSequenceDictionary
-    --rrff
-      Only display arcs where the strands the the read and its mate are 
-      Forward-Forward or Reverse-Reverse
-      Default: false
-    --skip-center
-      When calculating the median depth, only consider the extended region, 
-      not the original interval.
-      Default: false
     --smooth
-      sliding window smooth size.
-      Default: 250
+      Run median smooth on this number of pixels. (ignore if <=1)
+      Default: 10
+    --svg-only
+      Force SVG-only output (default is HTML+SVG).
+      Default: false
     --version
       print version and exit
 
@@ -93,6 +78,13 @@ Usage: coverageplotter [options] Files
  * bam
  * depth
  * coverage
+ * svg
+
+
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9536274](https://www.biostars.org/p/9536274)
 
 
 ## Compilation
@@ -146,11 +138,22 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
-input is an interval of a file source of interval (bed, vcf, gtf, interval_list , ,etc...)
+## input
 
+input a set of bam/cram files or one file with the suffix '.list' containing the path to the bams
+
+## output
+
+output is a HTML+SVG file
+
+## example:
 
 ```
-java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa -B src/test/resources/S1.bam -B src/test/resources/S2.bam "RF01:1-4000" -w 50 | less -r
+java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" src/test/resources/*.bam 
 ```
+
+## Screenshot
+
+!(https://pbs.twimg.com/media/Fac3XR3aAAEJoXu?format=jpg&name=medium)[https://twitter.com/yokofakun/status/1560276675614887937]
 
 

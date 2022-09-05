@@ -14,7 +14,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactoryTest;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIteratorTest;
 import com.github.lindenb.jvarkit.util.iterator.FilterIteratorTest;
-import com.github.lindenb.jvarkit.util.iterator.LineIteratorTest;
+import com.github.lindenb.jvarkit.util.iterator.LineIteratorsTest;
 import com.github.lindenb.jvarkit.util.iterator.MergingIteratorTest;
 import com.github.lindenb.jvarkit.util.log.ProgressFactoryTest;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparatorTest;
@@ -24,7 +24,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 	ProgressFactoryTest.class,ContigDictComparatorTest.class,SmartComparatorTest.class,
 	EqualRangeIteratorTest.class,
 	FilterIteratorTest.class,
-	LineIteratorTest.class,
+	LineIteratorsTest.class,
 	MergingIteratorTest.class,
 	SamRecordFilterFactoryTest.class,
 	TwoBitSequenceFileTest.class,

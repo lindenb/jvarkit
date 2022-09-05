@@ -43,7 +43,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.iterator.LineIterator;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -54,6 +54,7 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 
 /**
@@ -220,7 +221,7 @@ public class BedMergeCnv
 		try
 			{
 			if(args.isEmpty()) {
-				parseBed(new LineIterator(new InputStreamReader(stdin())));
+				parseBed(LineIterators.of(stdin()));
 			} else {
 				for(final String fname:args) {
 					final IntervalListProvider ivp = IntervalListProvider.from(fname);

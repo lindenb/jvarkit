@@ -12,7 +12,6 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.IOUtilsTest;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.CharSplitterTest;
@@ -20,6 +19,7 @@ import com.github.lindenb.jvarkit.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.tools.vcftrios.DeNovoDetectorTest;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 
 @AlsoTest({IOUtilsTest.class,CharSplitterTest.class,
 	SequenceDictionaryUtilsTest.class,
@@ -46,7 +46,7 @@ public void test02(String header) throws IOException {
 	}
 @Test(dataProvider="src01")
 public void test03(String header) throws IOException {
-	VCFUtils.parseHeader(IOUtils.toLineIterator(new BufferedReader(new StringReader(header))));
+	VCFUtils.parseHeader(LineIterators.of(new BufferedReader(new StringReader(header))));
 	}
 @Test
 public void testIsAVcf() {

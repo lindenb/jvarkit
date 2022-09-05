@@ -33,7 +33,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,7 +58,6 @@ import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsD
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Iso8601Date;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
@@ -133,8 +131,6 @@ The user code will be inserted in the following java code:
  4  import htsjdk.samtools.util.*;
  5  import htsjdk.variant.variantcontext.*;
  6  import htsjdk.variant.vcf.*;
- 7  import  javax.annotation.processing.Generated;
- 8  @Generated("VcfFilterJdk")
  9  public class VcfFilterJdkCustom123 extends com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk.AbstractFilter {
 10    public VcfFilterJdkCustom123(final VCFHeader header) {
 11    super(header);
@@ -422,11 +418,12 @@ END_DOC
 		biostars={266201,269854,277820,250212,284083,292710,293314,295902,296145,302217,
 				304979,310155,317388,319148,327035,337645,343569,
 				347173,351205,351404,354126,302217,384864,416955,
-				436412,476718,9481318,9489144,9498113,9500825,9509515,9527886
+				436412,476718,9481318,9489144,9498113,9500825,9509515,9527886,9536293,
+				9537149
 				},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 		creationDate="20170705",
-		modificationDate="20200130"
+		modificationDate="20220830"
 		)
 public class VcfFilterJdk
 	extends Launcher
@@ -544,7 +541,6 @@ public class VcfFilterJdk
 			final String javaClassName =VcfFilterJdk.class.getSimpleName()+
 					"Custom"+ Math.abs(rand.nextInt());
 			
-			final String generatedClassName= OpenJdkCompiler.getGeneratedAnnotationClassName();
 			final StringWriter codeWriter=new StringWriter();
 			final PrintWriter pw = new PrintWriter(codeWriter);
 			pw.println("import java.util.*;");
@@ -554,9 +550,6 @@ public class VcfFilterJdk
 			pw.println("import htsjdk.variant.variantcontext.*;");
 			pw.println("import htsjdk.variant.vcf.*;");
 	
-			if(!StringUtil.isBlank(generatedClassName)) {
-				pw.println("@"+generatedClassName+"(value=\""+VcfFilterJdk.class.getSimpleName()+"\",date=\""+ new Iso8601Date(new Date()) +"\")");
-				}
 			pw.println("public class "+javaClassName+" extends "+AbstractFilter.class.getName().replace('$', '.')+" {");
 			pw.println("  public "+javaClassName+"(final VCFHeader header) {");
 			pw.println("  super(header);");

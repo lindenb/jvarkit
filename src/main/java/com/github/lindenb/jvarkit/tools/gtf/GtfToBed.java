@@ -25,18 +25,22 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.gtf;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -48,11 +52,25 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
+
 /**
 
 BEGIN_DOC
 
 ```
+$ java -jar ${JVARKIT_DIST}/gtf2bed.jar --columns gtf.feature,gene_name,gene_biotype,gene_id ~/src/jvarkit/src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | head | column -t
+#chrom  start      end        gtf.feature      gene_name  gene_biotype    gene_id
+1       120454175  120459317  exon             NOTCH2     protein_coding  ENSG00000134250
+1       120454175  120612240  gene             NOTCH2     protein_coding  ENSG00000134250
+1       120454175  120457928  three_prime_utr  NOTCH2     protein_coding  ENSG00000134250
+1       120454175  120612240  transcript       NOTCH2     protein_coding  ENSG00000134250
+1       120457928  120457931  stop_codon       NOTCH2     protein_coding  ENSG00000134250
+1       120457931  120459317  CDS              NOTCH2     protein_coding  ENSG00000134250
+1       120460287  120460385  CDS              NOTCH2     protein_coding  ENSG00000134250
+1       120460287  120460385  exon             NOTCH2     protein_coding  ENSG00000134250
+1       120461028  120461176  CDS              NOTCH2     protein_coding  ENSG00000134250
 ```
 
 END_DOC
@@ -61,7 +79,7 @@ END_DOC
 		name="gtf2bed",
 		description="Convert GTF/GFF3 to BED.",
 		creationDate="20220629",
-		modificationDate="20220629",
+		modificationDate="20220630",
 		keywords= {"gtf","gff","gff3","bed"}
 		)
 public class GtfToBed
@@ -90,11 +108,48 @@ public class GtfToBed
 	@Parameter(names={"-c","--columns"},description= "comma separated columns to be displayed")
 	private String columnStr=ALL_COLS;
 
+	@Parameter(names={"--grep"},description= "Check some identifiers are found in a column. syntax: <COLUMN>:<FILE_CONTAINING_THE_IDENTIFIERS>")
+	private List<String> grepStr = new ArrayList<>();
+
+
+	private static class Grep {
+		final String column;
+		final Path path;
+		final Set<String> all;
+		final Set<String> remains;
+		Grep(final String column,final Path path) {
+			this.column = column;
+			this.path = path;
+			try {
+				this.all= Files.lines(this.path).
+					filter(S->!StringUtils.isBlank(S)).
+					collect(Collectors.toSet());
+				this.remains = new HashSet<>(this.all);
+				}
+			catch(IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		boolean visit(Map<String,String> map) {
+			if(!map.containsKey(this.column)) return false;
+			final String value = map.get(this.column);
+			if(!this.all.contains(value)) return false;
+			this.remains.remove(value);
+			return true;
+			}
+		boolean isSuccess() {
+			if(this.remains.isEmpty()) return true;
+			System.err.print("in file "+path+" for column "+this.column+" the following items where not found:");
+			for(String s:this.remains) System.err.print(" "+s);
+			System.err.println();
+			return false;
+			}
+		}
+
+	
 	private	final Set<String> columns = new LinkedHashSet<>();
 	private enum Type{ undefined,gtf,gff3}
 	private Type gtype = Type.undefined;
-
-	
 
 	private void put(final Map<String,String> map,final String key,final String value) {
 		if(key.isEmpty()) throw new IllegalArgumentException("key is empty ");
@@ -198,6 +253,8 @@ public class GtfToBed
 	@Override
 	public int doWork(final List<String> args)  {
 		try {
+			final List<Grep> greps = new ArrayList<>();
+
 			final String[] fixed_cols_prefixes=new String[]{"gtf.","gff.","gff3."};
 			final ContigNameConverter contigNameConverter =  
 					this.faidx==null?
@@ -208,6 +265,22 @@ public class GtfToBed
 			this.columns.addAll(Arrays.asList(this.columnStr.split("[, \t;\\|]+")));
 			this.columns.remove("");
 
+			for(final String str:this.grepStr) {
+				final int colon = str.indexOf(":");
+				if(colon==-1) {
+					LOG.error("expected ':' in grep expression "+str);
+					return -1;
+					}
+				final String col = str.substring(0,colon);
+				if(!this.columns.contains(col)) {
+					LOG.error("column "+col+" not used by user for grep expression "+str +" ("+String.join(",",columns)+")");
+					return -1;
+					}
+				final Path p = Paths.get(str.substring(colon+1));
+				IOUtil.assertFileIsReadable(p);
+				greps.add(new Grep(col,p));
+				}
+			
 			final String input = oneFileOrNull(args);
 			try(InputStream in1 = input==null?System.in:Files.newInputStream(Paths.get(input))) {
 				final InputStream in = IOUtils.uncompress(in1);
@@ -225,14 +298,7 @@ public class GtfToBed
 						final String ctg = contigNameConverter.apply(tokens[0]);
 						if(StringUtils.isBlank(ctg)) continue;
 						
-						out.print(ctg);
-						out.print('\t');
-						out.print(Integer.parseInt(tokens[3])-1);
-						out.print('\t');
-						out.print(Integer.parseInt(tokens[4]));
-						
 						final Map<String,String> atts = attributes(tokens[8]);
-
 						for(String pfx:fixed_cols_prefixes) {
 							put(atts,pfx+"source",tokens[1]);
 							put(atts,pfx+"feature",tokens[2]);
@@ -240,6 +306,22 @@ public class GtfToBed
 							put(atts,pfx+"strand",tokens[6]);
 							put(atts,pfx+"frame",tokens[7]);
 						}
+						
+						
+						boolean grep_is_ok=true;
+						for(Grep g: greps) {
+							if(!g.visit(atts)) grep_is_ok=false;
+						}
+						if(!grep_is_ok) continue;
+						
+						out.print(ctg);
+						out.print('\t');
+						out.print(Integer.parseInt(tokens[3])-1);
+						out.print('\t');
+						out.print(Integer.parseInt(tokens[4]));
+						
+						
+						
 						
 						for(final String field:this.columns) {
 							out.print('\t');
@@ -251,6 +333,10 @@ public class GtfToBed
 					}
 				br.close();
 				in.close();
+				if(greps.stream().anyMatch(G->!G.isSuccess())) {
+					LOG.error("end with error because one grep failed");
+					return -1;
+					}
 				}
 		
 			return 0;

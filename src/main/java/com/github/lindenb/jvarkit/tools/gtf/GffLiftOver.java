@@ -42,7 +42,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
-import com.github.lindenb.jvarkit.util.iterator.LineIterator;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -56,6 +56,8 @@ import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.gff.Gff3Codec;
 import htsjdk.tribble.gff.Gff3Feature;
 import htsjdk.tribble.gff.Gff3FeatureImpl;
+import htsjdk.tribble.gff.Gff3Writer;
+import htsjdk.tribble.readers.LineIterator;
 
 /**
 
@@ -123,7 +125,7 @@ public class GffLiftOver
 			
 			try(BufferedReader in = openBufferedReader(oneFileOrNull(args))) {
 				final Gff3Codec codec  = new Gff3Codec();
-				final LineIterator liter = new LineIterator(in);
+				final LineIterator liter = LineIterators.of(in);
 				final FeatureCodecHeader header = codec.readHeader(liter);
 				try(Gff3Writer p = new Gff3Writer(super.openPathOrStdoutAsStream(this.outputFile))) {
 					while(!codec.isDone(liter)) {
@@ -155,21 +157,22 @@ public class GffLiftOver
 											);
 									p.addFeature(feat2);
 									}
-								});
 							
+								});
+						
 						
 							});
-						}
+						//end while
+				
 					codec.close(liter);
-					p.flush();
 					}
-				}
+				}//end read
 
 			fail.flush();
 			fail.close();
 			fail = null;
 			
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
@@ -178,7 +181,6 @@ public class GffLiftOver
 		finally
 			{
 			CloserUtil.close(fail);
-			CloserUtil.close(p);
 			}
 		}
 	
