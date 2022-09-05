@@ -2703,7 +2703,7 @@ all2.add( task("textbam", type: CompileJVarkit) {
 	});
 
 
-all2.add(task("jeter", type: CompileJVarkit) {
+all2.add(task("validatorserver", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.validatorserver.CNVValidatorServer"
         jarLibs = combineLibs("htsjdk","testng","jcommander","jetty")
         });
@@ -2711,6 +2711,11 @@ all2.add(task("jeter", type: CompileJVarkit) {
 all2.add(task("jeter2", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.plateoptimizer.PlateOptimizer"
         jarLibs = combineLibs("htsjdk","testng","jcommander","biojava")
+        });
+
+all2.add(task("jeter", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.bam2svg.InversionToSVG"
+        jarLibs = combineLibs("htsjdk","testng","jcommander","jetty")
         });
 
 
