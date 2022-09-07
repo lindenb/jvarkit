@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -52,7 +53,6 @@ import org.w3c.dom.Text;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.StaticCodeExtractor;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
@@ -76,7 +76,6 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 
 
@@ -135,7 +134,7 @@ $ java -jar dist/sv2svg.jar -r "9:137229907-137231907" -r "14:79838174-79840174"
 
 END_DOC
  */
-@Program(name="sv2svg",
+@Program(name="inversion2svg",
 description="BAM to SVG. Used to display inversions.",
 keywords={"bam","inversions","alignment","graphics","visualization","svg","structural","variant"},
 modificationDate="20220905",
@@ -166,7 +165,7 @@ public class InversionToSVG extends Launcher
 	private double featureHeight = 10;
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private Document document = null;
-	private final double arrow_w = 5;
+	private static final double arrow_w = 5;
 	
 	
 	private class ReadName implements Locatable {
@@ -184,23 +183,81 @@ public class InversionToSVG extends Launcher
 		public int getEnd() {
 			return records.stream().mapToInt(R->R.getUnclippedEnd()).max().getAsInt();
 			}
-	}
+		public String getReadName() {
+			return records.get(0).getReadName();
+			}
+		boolean isInversion(final Locatable r) {
+			final Function<SAMRecord, Integer> mateEnd = REC->SAMUtils.getMateCigar(REC)!=null?
+				SAMUtils.getMateAlignmentEnd(REC):
+				REC.getMateAlignmentStart()
+				;
+
+			for(int i=0;i< records.size();i++) {
+				final SAMRecord R1 = records.get(i);
+				for(int side=0;side<2;side++) {
+					int pos1 =side==0?r.getStart():r.getEnd();
+					int pos2=side==0?r.getEnd():r.getStart();
+					if(CoordMath.overlaps(pos1,pos1, R1.getUnclippedStart(), R1.getUnclippedEnd())) {
+						for(SAMRecord RS : SAMUtils.getOtherCanonicalAlignments(R1)) {
+							if(!R1.contigsMatch(RS)) continue;
+							if(R1.getReadNegativeStrandFlag()==RS.getReadNegativeStrandFlag()) continue;
+							if(CoordMath.overlaps(pos2,pos2, RS.getUnclippedStart(), RS.getUnclippedEnd())) {
+								return true;
+								}
+							}
+						}
+					}
+				if(R1.getReadPairedFlag() && 
+					!R1.getMateUnmappedFlag()  &&
+					R1.getReferenceName().equals(R1.getMateReferenceName()) &&
+					R1.getReadNegativeStrandFlag()==R1.getMateNegativeStrandFlag()
+					)
+					{
+					int mpos = R1.getMateAlignmentStart();
+					int mend = mateEnd.apply(R1);
+					//R1 before/after breakpoint, forward and R2
+					if( (R1.getStart()/*oui, pas end */ < r.getStart() || R1.getEnd()/*oui*/ > r.getEnd() ) &&
+						mpos > r.getStart() && mend < r.getEnd()
+						) {
+						return true;
+						}
+					
+					}
+				
+				}
+			return false;
+			}
+		}
 	
 	private class Window implements Locatable {
-		Locatable loc;
-		Element clipRect;
-		Element g;
+		final Locatable loc;
 		final double x;
 		final double width;
+		double y = 0;
 		double height = 0;
 		Window(Locatable loc,double x,double width) {
 			this.loc = loc;
 			this.x = x;
 			this.width = width;
 			}
-		double baseToPixel(double pos) {
-			return ((pos - getStart())/(double)getLengthOnReference())*width;
+		public double getWidth() {
+			return this.width;
 			}
+		public double getMinX() {
+			return this.x;
+			}
+		public double getMaxX() {
+			return getMinX()+ this.getWidth();
+			}
+		
+		double baseToPixel(double pos) {
+			return getMinX() + ((pos - getStart())/(double)getLengthOnReference())*getWidth();
+			}
+		
+		double trim(double x) {
+			return Math.min(Math.max(x, getMinX()),getMaxX());
+			}
+		
 		@Override
 		public String getContig() {
 			return loc.getContig();
@@ -213,9 +270,6 @@ public class InversionToSVG extends Launcher
 		public int getEnd() {
 			return loc.getEnd();
 			}
-		public String getClipId(){
-			return StringUtils.md5(loc.toString());
-		}
 	}
 
 		
@@ -271,336 +325,474 @@ public class InversionToSVG extends Launcher
 				
 				final Map<String,ReadName> readNameMap = new HashMap<>();
 				/* loop over each bam file */
-					try(final SamReader sr = srf.open(bamFile)) {
-						final SAMFileHeader header = sr.getFileHeader();
-						final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-						final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
-						final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
-	
-						final SimpleInterval leftInterval = new SimpleInterval(
-								interval.getContig(),
-								interval.getStart()-extend,
-								interval.getStart()+extend
-								);
-						
-						final SimpleInterval rightInterval = new SimpleInterval(
-								interval.getContig(),
-								interval.getEnd()-extend,
-								interval.getEnd()+extend
-								);
-						final Window[] windows;
-						if(leftInterval.overlaps(rightInterval)) {
-							windows= new Window[]{
-									new Window(new SimpleInterval(leftInterval.getContig(),leftInterval.getStart(),rightInterval.getEnd()),0,0)
-									};
-						} else {
-							double w2 = this.drawinAreaWidth/2.0;
-							windows= new Window[]{
-								new Window(leftInterval,0,w2),
-								new Window(rightInterval,w2,w2)
+				try(final SamReader sr = srf.open(bamFile)) {
+					final SAMFileHeader header = sr.getFileHeader();
+					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+					final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
+					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
+
+					final SimpleInterval leftInterval = new SimpleInterval(
+							interval.getContig(),
+							interval.getStart()-extend,
+							interval.getStart()+extend
+							);
+					
+					final SimpleInterval rightInterval = new SimpleInterval(
+							interval.getContig(),
+							interval.getEnd()-extend,
+							interval.getEnd()+extend
+							);
+					final Window[] windows;
+					if(leftInterval.overlaps(rightInterval)) {
+						windows= new Window[]{
+								new Window(new SimpleInterval(leftInterval.getContig(),leftInterval.getStart(),rightInterval.getEnd()),0,0)
 								};
-						}
-	
-						
-						final String sampleName = header.getReadGroups().stream().
-								map(G->G.getSample()).
-								filter(S->!StringUtil.isBlank(S)).
-								findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
-						try(CloseableIterator<SAMRecord> iter = sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false) ) {
-							while(iter.hasNext()) {
-								final SAMRecord record = iter.next();
-								if(!SAMRecordDefaultFilter.accept(record)) continue;
+					} else {
+						double w2 = this.drawinAreaWidth/2.0;
+						windows= new Window[]{
+							new Window(leftInterval,0,w2),
+							new Window(rightInterval,w2,w2)
+							};
+					}
+
+					
+					final String sampleName = header.getReadGroups().stream().
+							map(G->G.getSample()).
+							filter(S->!StringUtil.isBlank(S)).
+							findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamFile));
+					try(CloseableIterator<SAMRecord> iter = sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false) ) {
+						while(iter.hasNext()) {
+							final SAMRecord record = iter.next();
+							if(!SAMRecordDefaultFilter.accept(record)) continue;
+							if(
+								!CoordMath.overlaps(record.getUnclippedStart(), record.getUnclippedEnd(), leftInterval.getStart(), leftInterval.getEnd()) &&
+								!CoordMath.overlaps(record.getUnclippedStart(), record.getUnclippedEnd(), rightInterval.getStart(), rightInterval.getEnd())
+								)
+								{
+								continue;
+								}
+							final Cigar cigar = record.getCigar();
+							if(cigar==null || cigar.isEmpty()) continue;
+							ReadName rn = readNameMap.get(record.getReadName());
+							if(rn==null) {
+								rn = new ReadName();
+								readNameMap.put(record.getReadName(), rn);
+								}
+							rn.records.add(record);
+							
+							for(SAMRecord rec2 : SAMUtils.getOtherCanonicalAlignments(record)) {
+								if(!rec2.contigsMatch(record)) continue;
 								if(
-									!CoordMath.overlaps(record.getUnclippedStart(), record.getUnclippedEnd(), leftInterval.getStart(), leftInterval.getEnd()) &&
-									!CoordMath.overlaps(record.getUnclippedStart(), record.getUnclippedEnd(), rightInterval.getStart(), rightInterval.getEnd())
+									!CoordMath.overlaps(rec2.getUnclippedStart(), rec2.getUnclippedEnd(), leftInterval.getStart(), leftInterval.getEnd()) &&
+									!CoordMath.overlaps(rec2.getUnclippedStart(), rec2.getUnclippedEnd(), rightInterval.getStart(), rightInterval.getEnd())
 									)
 									{
 									continue;
 									}
-								final Cigar cigar = record.getCigar();
-								if(cigar==null || cigar.isEmpty()) continue;
-								ReadName rn = readNameMap.get(record.getReadName());
-								if(rn==null) {
-									rn = new ReadName();
-									readNameMap.put(record.getReadName(), rn);
-									}
-								rn.records.add(record);
-								
-								for(SAMRecord rec2 : SAMUtils.getOtherCanonicalAlignments(record)) {
-									if(!rec2.contigsMatch(record)) continue;
-									if(
-										!CoordMath.overlaps(rec2.getUnclippedStart(), rec2.getUnclippedEnd(), leftInterval.getStart(), leftInterval.getEnd()) &&
-										!CoordMath.overlaps(rec2.getUnclippedStart(), rec2.getUnclippedEnd(), rightInterval.getStart(), rightInterval.getEnd())
-										)
-										{
-										continue;
-										}
-									rn.records.add(rec2);
-									}
-								
-								}/* end iterator */
-							} /* end loop interval */
-						
-					for(String rn : readNameMap.keySet()) {
-						Collections.sort(readNameMap.get(rn).records,(A,B)->Integer.compare(A.getStart(),B.getStart()));
-						}
-					
-	
-					final Element svgRoot = element("svg");
-					final Element metadata = element("metadata");
-					svgRoot.appendChild(metadata);
-					metadata.setAttribute("id", "metadata");
-					
-					if(write_svg_only) {
-						this.document.appendChild(svgRoot);
-						}
-					else
-						{
-						final Element html = html("html");
-						this.document.appendChild(html);
-						final Element head = html("head");
-						html.appendChild(head);
-						final Element title = html("title");
-						title.appendChild(text(interval.toNiceString()));
-	
-						head.appendChild(title);
-	
-						Element meta = html("meta");
-						meta.setAttribute("charset", "UTF-8");
-						head.appendChild(meta);
-	
-						Element style=html("style");
-						head.appendChild(style);
-						
-						style.appendChild(text(
-								"body { font-family: sans-serif;}\n" 
-								+ "table {  border-collapse: collapse; margin: 25px 0;  font-size: 0.9em; font-family: sans-serif;min-width: 400px;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);}\n"
-								+"thead{ background-color: #009879; color: #ffffff; text-align: left;}\n"
-								+"th,td { padding: 12px 15px}\n"
-								+"tbody tr {border-bottom: 1px solid #dddddd;}\n"
-								+"tbody tr:nth-of-type(even) {background-color: #f3f3f3;}\n"
-								+"tbody tr:last-of-type { border-bottom: 2px solid #009879;}\n"
-								+"tbody tr.active-row { font-weight: bold;color: #009879;}\n"
-								));
-						final Element body = html("body");
-						html.appendChild(body);
-	
-						final Element h1 = html("h1");
-						body.appendChild(h1);
-						h1.appendChild(text(interval.toNiceString()));				
-						Element htmlDiv1 = html("div");
-						body.appendChild(htmlDiv1);
-						
-						htmlDiv1.setAttribute("style","display:none;");
-						htmlDiv1.setAttribute("id","__PLACEHOLDER__");
-						htmlDiv1.appendChild(document.createComment("Use this div to insert things later. "));
-						htmlDiv1.appendChild(text("__PLACEHOLDER__"));
-	
-						htmlDiv1 = html("div");
-						body.appendChild(htmlDiv1);
-	
-						
-						htmlDiv1.appendChild(svgRoot);
-						
-						htmlDiv1.appendChild(html("hr"));
-						Element p = html("p");
-						htmlDiv1.appendChild(p);
-						p.appendChild(text("Pierre Lindenbaum PhD 2022. Made with "+getProgramName()+" version:"+getVersion()+
-							". Command was: " + getProgramCommandLine()
-							));
-						}
-					
-					svgRoot.setAttribute("width",format(this.drawinAreaWidth+1));
-					
-					int doc_height =0;
-					
-					final Element title = element("title");
-					svgRoot.appendChild(title);
-					title.appendChild(text(interval.toString()));
-					
-					final Element defs = element("defs");
-					svgRoot.appendChild(defs);
-	
-					
-					final Element descr = element("desc");
-					svgRoot.appendChild(descr);
-					descr.appendChild(text("Author: Pierre Lindenbaum"));
-					
-					final Element style = element("style");
-					svgRoot.appendChild(style);
-					style.appendChild(text(StaticCodeExtractor.forClass(InversionToSVG.class).extract("CSS").get()));
-					
-					final Element mainG = element("g");
-					mainG.setAttribute("class","maing");
-					svgRoot.appendChild(mainG);
-					
-					
-					for(Window win: windows) {
-						final Element clipPath = element("clipPath");
-						clipPath.setAttribute("id",win.getClipId());
-						defs.appendChild(clipPath);
-						win.clipRect = element("rect");
-						clipPath.appendChild(win.clipRect);
-						win.clipRect.setAttribute("x",format(0));
-						win.clipRect.setAttribute("y",format(0));
-						win.clipRect.setAttribute("width",format(win.width));
-						win.clipRect.setAttribute("height",format(0));
-						
-						win.g = element("g");
-						win.g.setAttribute("transform", "translate("+win.x+",0)");
-						win.g.setAttribute("clip-path","url(#"+win.getClipId()+")");
-						mainG.appendChild(win.g);
-					}
-					
-					//loop over each sample
-					double y1=0;
-					int record_index = 0;
-					for(ReadName readName: readNameMap.values()) {
-						double y_sample = y1;
-						List<Element> backgrounds = new ArrayList<>(readName.records.size());
-						
-						for(SAMRecord rec:readName.records) {
-							double y_rec = y_sample;
-							final String readTitle = rec.getReadName()+" "+(rec.getReadNegativeStrandFlag()?"-":"+")+" "+
-									(rec.getSupplementaryAlignmentFlag()?"supplementary":"");
-							
-							for(Window win: windows) {
-									final Element g = element("g");
-									g.setAttribute("transform", "translate(0,"+y_rec+")");
-									win.g.appendChild(g);
-								
-									final Element background = element("rect");
-									backgrounds.add(background);
-									
-									win.g.appendChild(background);
-									background.setAttribute("x", "0");
-									background.setAttribute("y", "0");
-									background.setAttribute("height", "0");
-									background.setAttribute("width", format(win.width));
-									
-									if(rec.overlaps(win)) {
-									
-									final double midy =  this.featureHeight/2.0;
-									final double maxy = this.featureHeight;
-		
-									
-									
-									Element line = element("line");
-									line.setAttribute("x1",format(win.baseToPixel(rec.getUnclippedStart())));
-									line.setAttribute("x2",format(win.baseToPixel(rec.getUnclippedEnd()+1)));
-									line.setAttribute("y1",format(midy));
-									line.setAttribute("y2",format(midy));
-									line.appendChild(element("title",readTitle));
-									g.appendChild(line);
-									
-									int ref1 = rec.getUnclippedStart();
-									final Cigar cigar = rec.getCigar();
-									final List<Element> rectInserts = new ArrayList<>();
-									for(int cigarIdx=0;cigarIdx<cigar.numCigarElements();++cigarIdx) {
-										final CigarElement ce = cigar.getCigarElement(cigarIdx);
-										final CigarOperator op = ce.getOperator();
-										final double leftX = win.baseToPixel(ref1);
-										int next_ref = ref1;
-										switch(op)
-											{
-											case I: 
-												{
-												if(CoordMath.overlaps(ref1, ref1+ce.getLength(),win.getStart(),win.getEnd())) {
-													final Element rectInsert = element("rect");
-													rectInsert.setAttribute("class", "insert");
-													rectInsert.setAttribute("x", format(leftX));
-													rectInsert.setAttribute("y", format(0));
-													rectInsert.setAttribute("width", format(1));
-													rectInsert.setAttribute("height", format(this.featureHeight));
-													rectInsert.appendChild(element("title",readTitle+" op:"+op.name()+" "+ format(ce.getLength())));
-													rectInserts.add(rectInsert);
-													}
-												break;
-												}
-											case P: continue;
-											case S:case H:
-											case M:case X: case EQ:
-												{
-												next_ref += ce.getLength();
-													
-												if(!(ref1 > win.getEnd() || next_ref < win.getStart())) {
-													final double distance_pix = win.baseToPixel(next_ref+1)-leftX;
-													
-													final StringBuilder sb=new StringBuilder();
-													
-													final Element path = element("path");
-													path.setAttribute("class", "op"+op.name()+(rec.getSupplementaryAlignmentFlag()?"x":""));
-													path.appendChild(element("title",readTitle+" op:"+op.name()));
-													
-													// arrow <--
-													if(cigarIdx==0 && rec.getReadNegativeStrandFlag()) {
-														sb.append( "M ").append(format(leftX)).append(',').append(0);
-														sb.append(" h ").append(format(distance_pix));
-														sb.append(" v ").append(format(maxy));
-														sb.append(" h ").append(format(-(distance_pix)));
-														sb.append(" l ").append(format(-arrow_w)).append(',').append(-featureHeight/2.0);
-														sb.append(" Z");
-														}
-													// arrow -->
-													else if(cigarIdx+1==cigar.numCigarElements() && !rec.getReadNegativeStrandFlag()) {
-														sb.append( "M ").append(format(leftX+distance_pix)).append(',').append(0);
-														sb.append(" h ").append(format(-(distance_pix)));
-														sb.append(" v ").append(format(maxy));
-														sb.append(" h ").append(format(distance_pix));
-														sb.append(" l ").append(format(arrow_w)).append(',').append(-featureHeight/2.0);
-														sb.append(" Z");
-														
-														}
-													else
-														{
-														sb.append( "M ").append(format(leftX)).append(',').append(0);
-														sb.append(" h ").append(format(distance_pix));
-														sb.append(" v ").append(format(maxy));
-														sb.append(" h ").append(format(-(distance_pix)));
-														sb.append(" Z");
-														}
-													path.setAttribute("d", sb.toString());
-													g.appendChild(path);
-													}
-												break;
-												}
-											case D: case N:
-												{
-												next_ref+= ce.getLength();
-												break;
-												}
-											default: throw new IllegalStateException(op.name());
-											}
-										ref1 = next_ref;
-										} // end cigar
-									for(Element insertE:rectInserts) {
-										g.appendChild(insertE);
-										}
-									} //end loop over record
-								y_rec += this.featureHeight;
-								y_rec += 3;
+								rn.records.add(rec2);
 								}
-							y_sample = Math.max(y_rec,y_sample);
+							
+							}/* end iterator */
+						} /* end loop interval */
+					
+				for(String rn : readNameMap.keySet()) {
+					Collections.sort(readNameMap.get(rn).records,(A,B)->Integer.compare(A.getStart(),B.getStart()));
+					}
+				
+
+				final Element svgRoot = element("svg");
+				final Element metadata = element("metadata");
+				svgRoot.appendChild(metadata);
+				metadata.setAttribute("id", "metadata");
+				
+				if(write_svg_only) {
+					this.document.appendChild(svgRoot);
+					}
+				else
+					{
+					final Element html = html("html");
+					this.document.appendChild(html);
+					final Element head = html("head");
+					html.appendChild(head);
+					final Element title = html("title");
+					title.appendChild(text(sampleName +" "+interval.toNiceString()));
+
+					head.appendChild(title);
+
+					Element meta = html("meta");
+					meta.setAttribute("charset", "UTF-8");
+					head.appendChild(meta);
+
+					Element style=html("style");
+					head.appendChild(style);
+					
+					style.appendChild(text(
+							"body { font-family: sans-serif;}\n" 
+							+ "table {  border-collapse: collapse; margin: 25px 0;  font-size: 0.9em; font-family: sans-serif;min-width: 400px;box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);}\n"
+							+"thead{ background-color: #009879; color: #ffffff; text-align: left;}\n"
+							+"th,td { padding: 12px 15px}\n"
+							+"tbody tr {border-bottom: 1px solid #dddddd;}\n"
+							+"tbody tr:nth-of-type(even) {background-color: #f3f3f3;}\n"
+							+"tbody tr:last-of-type { border-bottom: 2px solid #009879;}\n"
+							+"tbody tr.active-row { font-weight: bold;color: #009879;}\n"
+							));
+					final Element body = html("body");
+					html.appendChild(body);
+
+					final Element h1 = html("h1");
+					body.appendChild(h1);
+					h1.appendChild(text(sampleName+" "+interval.toNiceString()));				
+					Element htmlDiv1 = html("div");
+					body.appendChild(htmlDiv1);
+					
+					htmlDiv1.setAttribute("style","display:none;");
+					htmlDiv1.setAttribute("id","__PLACEHOLDER__");
+					htmlDiv1.appendChild(document.createComment("Use this div to insert things later. "));
+					htmlDiv1.appendChild(text("__PLACEHOLDER__"));
+
+					htmlDiv1 = html("div");
+					body.appendChild(htmlDiv1);
+
+					
+					htmlDiv1.appendChild(svgRoot);
+					
+					htmlDiv1.appendChild(html("hr"));
+					Element p = html("p");
+					htmlDiv1.appendChild(p);
+					p.appendChild(text("Pierre Lindenbaum PhD 2022. Made with "+getProgramName()+" version:"+getVersion()+
+						". Command was: " + getProgramCommandLine()
+						));
+					}
+				
+				svgRoot.setAttribute("width",format(this.drawinAreaWidth+1));
+				
+				
+				final Element title = element("title");
+				svgRoot.appendChild(title);
+				title.appendChild(text(interval.toString()));
+				
+				final Element defs = element("defs");
+				svgRoot.appendChild(defs);
+				for(int suppl=0;suppl<2;++suppl) {
+					for(CigarOperator op:CigarOperator.values()) {
+						if(!(op.isAlignment() || op.isClipping())) continue;
+						// pattern
+						for(int side=0;side<2;++side) {
+							final double w = this.featureHeight;
+							final double w2 = (w*2.0)*0.95;
+							final double h2 = w/2.0;
+							final Element patt = element("pattern");
+							defs.appendChild(patt);
+							patt.setAttribute("id",op.name()+(side==0?"F":"R")+(suppl==1?"x":""));
+							patt.setAttribute("x","0");
+							patt.setAttribute("y","0");
+							patt.setAttribute("width",format(w*2));
+							patt.setAttribute("height",format(w));
+							patt.setAttribute("patternUnits","userSpaceOnUse");
+							
+							final Element rect = element("rect");
+							patt.appendChild(rect);
+							rect.setAttribute("x","0");
+							rect.setAttribute("y","0");
+							rect.setAttribute("width",format(w*2));
+							rect.setAttribute("height",format(w));
+							String css= "stroke:none;fill:";
+							switch(op) {
+								case EQ: css+="gainsboro";break;
+								case M: css+="gainsboro";break;
+								case X: css+="tomato";break;
+								case S: css+="yellow";break;
+								case H: css+="yellow";break;
+								default: css+="green";break;
+								}
+							css+=";";
+							rect.setAttribute("style",css);
+							
+							final Element arrow = element("path");
+							arrow.setAttribute("style", "fill:darkgray;stroke:"+(suppl==1?"pink":"blue")+";");
+							patt.appendChild(arrow);
+							final StringBuilder sb = new StringBuilder();
+							if(side==0) {
+								sb.append("M ").append(0).append(",").append(h2);
+								sb.append(" l ").append(w2).append(",0");
+								sb.append(" l ").append(-h2).append(",").append(-h2);
+								sb.append(" l ").append(0).append(",").append(2*h2);
+								sb.append(" l ").append(h2).append(",").append(-h2);
+								}
+							else {
+								sb.append("M ").append(w2).append(",").append(h2);
+								sb.append(" l ").append(-w2).append(",0");
+								sb.append(" l ").append(h2).append(",").append(-h2);
+								sb.append(" l ").append(0).append(",").append(2*h2);
+								sb.append(" l ").append(-h2).append(",").append(-h2);
+								}
+							sb.append(" Z");
+							arrow.setAttribute("d", sb.toString());
 							}
-						y1 = y_sample;
-						}
-					svgRoot.setAttribute("height", format(y1+10));
+						} // end operator
+					} // end suppl
+				
+				
+				final Element descr = element("desc");
+				svgRoot.appendChild(descr);
+				descr.appendChild(text("Author: Pierre Lindenbaum"));
+				
+				final Element style = element("style");
+				svgRoot.appendChild(style);
+				style.appendChild(text(""
+						 + "g.maing {stroke:black;stroke-width:0.5px;fill:none;} "
+						 + ".maintitle {stroke:blue;fill:none;} "
+						 + "rect.frame {stroke:darkgray;fill:none;} "
+						 + "path.opEQ {stroke:black;fill:gainsboro;} "
+						 + "path.opX {stroke:black;fill:tomato;} "
+						 + "path.opM {stroke:black;fill:gainsboro;} "
+						 + "path.opS {stroke:black;fill:yellow;} "
+						 + "path.opH {stroke:black;fill:yellow;} "
+						 + "line.opN {stroke:black;} "
+						 + "line.opD {stroke:black;} "
+						 + "path.opEQx {stroke:yellow;fill:salmon;opacity:0.8;} "
+						 + "path.opXx {stroke:yellow;fill:tomato;opacity:0.8;} "
+						 + "path.opMx {stroke:yellow;fill:salmon;opacity:0.8;} "
+						 + "path.opSx {stroke:yellow;fill:yellow;opacity:0.8;} "
+						 + "path.opHx {stroke:yellow;fill:yellow;opacity:0.8;} "
+						 + "line.opNx {stroke:yellow;opacity:0.8;} "
+						 + "line.opDx {stroke:yellow;opacity:0.8;} "
+						 + "rect.insert {fill:none;stroke:red;stroke-width:1.5px} "
+						 + "text.samplename {stroke:none;fill:black;stroke-width:1px;} "
+						 + "text.intervalLbl {stroke:none;fill:black;stroke-width:1px;} "
+						 + ".discordant {stroke:darkred; fill:none;stroke-dasharray:2;} "
+						 + "line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;} "
+						 + "rect.variant  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;} "
+						 + "rect.variantHOM_REF  {stroke:none;fill:green;stroke-width:1px;opacity:0.8;} "
+						 + "rect.variantHOM_VAR  {stroke:none;fill:red;stroke-width:1px;opacity:0.8;} "
+						 + "rect.variantHET  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;} "
+						 + "rect.variantNO_CALL  {stroke:none;fill:blue;stroke-width:1px;opacity:0.8;} "
+						 + "path.coverage {stroke:darkslateblue;fill:darkseaGreen} "
+						 + "rect.readrect0 {stroke:none;fill:lavender;} "
+						 + "rect.readrect1 {stroke:none;fill:lavenderblush;} "
+						 + "path.rR {fill:url(#rR)} "
+						 + "path.rF {fill:url(#rF)} "
+						 + "line.breakpoint {stroke:black;stroke-dasharray:5;stroke-width:2px;opacity:0.8;} "
+						));
+				
+				final Element mainG = element("g");
+				mainG.setAttribute("class","maing");
+				svgRoot.appendChild(mainG);
+				
+				
+				
+				//loop over each sample
+				double y1=20;
+				
+				for(Window win: windows) {
+					win.y = y1;
+					final Element txt = element("text",win.loc.toString());
+					txt.setAttribute("class", "intervalLbl");
+					txt.setAttribute("x", format(win.getMinX()+3));
+					txt.setAttribute("y", format(y1-3));
+					mainG.appendChild(txt);
+					}
+				
+				int read_index=0;
+				List<ReadName> sortedReadNames = new ArrayList<>(readNameMap.values());
+				// remove non-informative reads.
+				sortedReadNames.removeIf(R->R.records.stream().allMatch(RR->RR.getUnclippedStart() > interval.getStart() && RR.getUnclippedEnd() < interval.getEnd()));
+				
+				
+				final ToIntFunction<SAMRecord> recToScore=A->{
+					int n=0;
+					if(A.getCigar().isClipped()) n+=10;
 					for(Window win:windows) {
-						win.height = y1;
-						// frame
-						final Element frame = element("rect");
-						frame.setAttribute("class", "frame");
-						frame.setAttribute("x", format(win.x));
-						frame.setAttribute("y", "0");
-						frame.setAttribute("width",format(win.width));
-						frame.setAttribute("height",format(win.height));
-						win.g.appendChild(frame);
-						
-						win.clipRect.setAttribute("height", format(win.height));
-						
-						mainG.appendChild(frame);
+						if(win.overlaps(A)) n+=10;
 						}
-					}/* end open SAM */
+					if(A.getReadPairedFlag() && !A.getProperPairFlag()) {
+						n+=10;
+						}
+					return n;
+					};
+				Collections.sort(sortedReadNames,(A,B)->{
+					int scoreA = A.records.stream().mapToInt(recToScore).sum();
+					int scoreB = B.records.stream().mapToInt(recToScore).sum();
+					return Integer.compare(scoreB,scoreA);
+					});
+				for(ReadName readName: sortedReadNames) {
+					read_index++;
+					final Element readG = element("g");
+					readG.setAttribute("transform", "translate(0,"+y1+")");
+					mainG.appendChild(readG);
+					final Element readRect = element("rect");
+					readG.appendChild(readRect);
+					readRect.setAttribute("x", "0");
+					readRect.setAttribute("y", format(0));
+					readRect.setAttribute("width", format(this.drawinAreaWidth));
+					readRect.setAttribute("height", format(0));
+					readRect.setAttribute("class", "readrect"+(read_index%2));
+					readRect.appendChild(element("title", readName.getReadName()));
+					
+					y1+=3;
+					double y_read_name = y1;
+					
+					double y_rec=0;
+					for(SAMRecord rec:readName.records) {
+						final String readTitle = rec.getReadName()+" "+
+								(rec.getReadNegativeStrandFlag()?"-":"+")+" "+
+								(rec.getSupplementaryAlignmentFlag()?"supplementary":"")+
+								(rec.getReadPairedFlag()?(rec.getFirstOfPairFlag()?"R1":"R2"):"");
+						
+						for(Window win: windows) {
+								if(!rec.overlaps(win)) continue;
+
+								final Element g = element("g");
+								g.setAttribute("transform", "translate(0,"+format(y_rec)+")");
+								readG.appendChild(g);
+															
+								
+								final double midy =  this.featureHeight/2.0;
+								final double maxy = this.featureHeight;
+	
+								
+								
+								final Element line = element("line");
+								line.setAttribute("class", "del");
+								line.setAttribute("x1",format(win.trim(win.baseToPixel(rec.getUnclippedStart()))));
+								line.setAttribute("x2",format(win.trim(win.baseToPixel(rec.getUnclippedEnd()+1))));
+								line.setAttribute("y1",format(midy));
+								line.setAttribute("y2",format(midy));
+								line.appendChild(element("title",readTitle));
+								g.appendChild(line);
+								
+								int ref1 = rec.getUnclippedStart();
+								final Cigar cigar = rec.getCigar();
+								final List<Element> rectInserts = new ArrayList<>();
+								for(int cigarIdx=0;cigarIdx<cigar.numCigarElements();++cigarIdx) {
+									final CigarElement ce = cigar.getCigarElement(cigarIdx);
+									final CigarOperator op = ce.getOperator();
+									int next_ref = ref1;
+									switch(op)
+										{
+										case I: 
+											{
+											final double x1 = win.baseToPixel(ref1);
+											final double x2 = win.baseToPixel(ref1+ce.getLength());
+											
+											if(!(x2 < win.getMinX() || x1 > win.getMaxX())) {
+												final Element rectInsert = element("rect");
+												rectInsert.setAttribute("class", "insert");
+												rectInsert.setAttribute("x", format(win.trim(x1)));
+												rectInsert.setAttribute("y", format(0));
+												rectInsert.setAttribute("width", format(win.trim(x2)-win.trim(x1)));
+												rectInsert.setAttribute("height", format(this.featureHeight));
+												rectInsert.appendChild(element("title",readTitle+" op:"+op.name()+" "+ format(ce.getLength())));
+												rectInserts.add(rectInsert);
+												}
+											break;
+											}
+										case P: continue;
+										case S:case H:
+										case M:case X: case EQ:
+											{
+											next_ref += ce.getLength();
+											
+											double x1 = win.baseToPixel(ref1);
+											double x2 = win.baseToPixel(ref1+ce.getLength());
+
+											
+											if(!(x2 < win.getMinX() || x1 > win.getMaxX())) {
+												x1 = win.trim(x1);
+												x2 = win.trim(x2);
+												final double distance_pix = x2-x1;
+												
+												final StringBuilder sb=new StringBuilder();
+												
+												final Element path = element("path");
+												path.setAttribute("style",
+														(readName.isInversion(interval)?"stroke:green;stroke-width:2;":"stroke:gray;")+
+														"fill:url(#"+op.name()+(rec.getReadNegativeStrandFlag()?"R":"F")+(rec.isSecondaryOrSupplementary()?"x":"")+")" );
+												path.appendChild(element("title",readTitle+" op:"+op.name()+" "+StringUtils.niceInt(ref1)+":"+StringUtils.niceInt(ref1+ce.getLength())));
+												
+												// arrow <--
+												if(cigarIdx==0 && rec.getReadNegativeStrandFlag()) {
+													sb.append( "M ").append(format(x1)).append(',').append(0);
+													sb.append(" h ").append(format(distance_pix));
+													sb.append(" v ").append(format(maxy));
+													sb.append(" h ").append(format(-(distance_pix)));
+													sb.append(" l ").append(format(-arrow_w)).append(',').append(-featureHeight/2.0);
+													sb.append(" Z");
+													}
+												// arrow -->
+												else if(cigarIdx+1==cigar.numCigarElements() && !rec.getReadNegativeStrandFlag()) {
+													sb.append( "M ").append(format(x2)).append(',').append(0);
+													sb.append(" h ").append(format(-(distance_pix)));
+													sb.append(" v ").append(format(maxy));
+													sb.append(" h ").append(format(distance_pix));
+													sb.append(" l ").append(format(arrow_w)).append(',').append(-featureHeight/2.0);
+													sb.append(" Z");
+													
+													}
+												else
+													{
+													sb.append( "M ").append(format(x1)).append(',').append(0);
+													sb.append(" h ").append(format(distance_pix));
+													sb.append(" v ").append(format(maxy));
+													sb.append(" h ").append(format(-(distance_pix)));
+													sb.append(" Z");
+													}
+												path.setAttribute("d", sb.toString());
+												g.appendChild(path);
+												}
+											break;
+											}
+										case D: case N:
+											{
+											next_ref+= ce.getLength();
+											break;
+											}
+										default: throw new IllegalStateException(op.name());
+										}
+									ref1 = next_ref;
+									} // end cigar
+								for(Element insertE:rectInserts) {
+									g.appendChild(insertE);
+									}
+								} //end window
+							y_rec += this.featureHeight;
+							y_rec += 1;
+							y_read_name += this.featureHeight;
+							y_read_name += 1;
+
+							}
+					readRect.setAttribute("height", format(y_read_name - y1));
+					y1 = y_read_name;
+					}// end loop over each readName
+					
+					
+				svgRoot.setAttribute("height", format(y1+10));
+				for(Window win:windows) {
+					win.height = y1 - win.y;
+					// frame
+					final Element frame = element("rect");
+					frame.setAttribute("class", "frame");
+					frame.setAttribute("x", format(win.x));
+					frame.setAttribute("y",format(win.y));
+					frame.setAttribute("width",format(win.width));
+					frame.setAttribute("height",format(win.height));
+					mainG.appendChild(frame);
+					
+					for(int side=0;side<2;++side) {
+						int pos = side==0?interval.getStart():interval.getEnd();
+						double x = win.baseToPixel(pos);
+						if(x< win.getMinX() || x> win.getMaxX()) continue;
+						final Element line = element("line");
+						line.setAttribute("class", "breakpoint");
+						line.setAttribute("x1", format(x));
+						line.setAttribute("x2", format(x));
+						line.setAttribute("y1",format(win.y));
+						line.setAttribute("y2",format(win.y+win.height));
+						mainG.appendChild(line);
+						}
+					
+					}
+				} // end samReader
 				
 				final Transformer tr = TransformerFactory.newInstance().newTransformer();
 				
@@ -639,38 +831,3 @@ public class InversionToSVG extends Launcher
 		}
 	}
 
-/**
-BEGIN_CSS
-
-g.maing {stroke:black;stroke-width:0.5px;fill:none;}
-.maintitle {stroke:blue;fill:none;}
-rect.frame {stroke:darkgray;fill:none;} 
-path.opEQ {stroke:black;fill:gainsboro;} 
-path.opX {stroke:black;fill:tomato;}
-path.opM {stroke:black;fill:gainsboro;}
-path.opS {stroke:black;fill:yellow;} 
-path.opH {stroke:black;fill:yellow;} 
-line.opN {stroke:black;}
-line.opD {stroke:black;}
-path.opEQx {stroke:yellow;fill:salmon;opacity:0.8;} 
-path.opXx {stroke:yellow;fill:tomato;opacity:0.8;}
-path.opMx {stroke:yellow;fill:salmon;opacity:0.8;}
-path.opSx {stroke:yellow;fill:yellow;opacity:0.8;} 
-path.opHx {stroke:yellow;fill:yellow;opacity:0.8;} 
-line.opNx {stroke:yellow;opacity:0.8;}
-line.opDx {stroke:yellow;opacity:0.8;}
-rect.mismatch {fill:red;opacity:0.7;}
-rect.insert {fill:none;stroke:red;stroke-width:1.5px}
-text.samplename {stroke:none;fill:black;stroke-width:1px;}
-.discordant {stroke:darkred; fill:none;stroke-dasharray:2;}
-line.ruler {stroke:darkgray;stroke-dasharray:4;fill:none;stroke-width:1;}
-rect.variant  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}
-rect.variantHOM_REF  {stroke:none;fill:green;stroke-width:1px;opacity:0.8;}
-rect.variantHOM_VAR  {stroke:none;fill:red;stroke-width:1px;opacity:0.8;}
-rect.variantHET  {stroke:none;fill:orange;stroke-width:1px;opacity:0.8;}
-rect.variantNO_CALL  {stroke:none;fill:blue;stroke-width:1px;opacity:0.8;}
-path.coverage {stroke:darkslateblue;fill:darkseaGreen}
-
-
-END_CSS
-*/
