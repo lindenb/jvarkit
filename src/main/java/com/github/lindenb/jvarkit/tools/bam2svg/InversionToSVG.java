@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.IntToDoubleFunction;
 import java.util.function.ToIntFunction;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -56,6 +57,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -166,6 +168,46 @@ public class InversionToSVG extends Launcher
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	private Document document = null;
 	private static final double arrow_w = 5;
+	final Function<SAMRecord, Integer> mateEnd = REC->SAMUtils.getMateCigar(REC)!=null?
+			SAMUtils.getMateAlignmentEnd(REC):
+			REC.getMateAlignmentStart()
+			;
+
+	
+	private class Segment implements Locatable {
+		final String readName;
+		final String contig;
+		int startA;
+		int endA;
+		boolean revA;
+		int startB;
+		int endB;
+		boolean revB;
+
+		Segment(SAMRecord rec) {
+			this.readName = rec.getReadName();
+			this.contig = rec.getContig();
+			this.startA = rec.getStart();
+			this.endA = rec.getEnd();
+			this.startB = rec.getMateAlignmentStart();
+			this.endB = mateEnd.apply(rec);
+			}
+		@Override
+		public String getContig()
+			{
+			return contig;
+			}
+		@Override
+		public int getStart()
+			{
+			return Math.min(startA, startB);
+			}
+		@Override
+		public int getEnd()
+			{
+			return Math.max(endA, endB);
+			}
+		}
 	
 	
 	private class ReadName implements Locatable {
@@ -187,10 +229,6 @@ public class InversionToSVG extends Launcher
 			return records.get(0).getReadName();
 			}
 		boolean isInversion(final Locatable r) {
-			final Function<SAMRecord, Integer> mateEnd = REC->SAMUtils.getMateCigar(REC)!=null?
-				SAMUtils.getMateAlignmentEnd(REC):
-				REC.getMateAlignmentStart()
-				;
 
 			for(int i=0;i< records.size();i++) {
 				final SAMRecord R1 = records.get(i);
@@ -354,7 +392,8 @@ public class InversionToSVG extends Launcher
 							new Window(rightInterval,w2,w2)
 							};
 					}
-
+					
+					final List<Segment> segments = new ArrayList<>();
 					
 					final String sampleName = header.getReadGroups().stream().
 							map(G->G.getSample()).
@@ -364,6 +403,17 @@ public class InversionToSVG extends Launcher
 						while(iter.hasNext()) {
 							final SAMRecord record = iter.next();
 							if(!SAMRecordDefaultFilter.accept(record)) continue;
+							
+							if(record.getReadPairedFlag() &&
+								!record.getMateUnmappedFlag() && 
+								record.getReadNegativeStrandFlag()==record.getMateNegativeStrandFlag() &&
+								record.getReferenceName().equals(record.getMateReferenceName())
+								) {
+								if(segments.stream().noneMatch(S->S.readName.equals(record.getReadName()))) {
+									segments.add(new Segment(record));
+									}
+								}
+							
 							if(
 								!CoordMath.overlaps(record.getUnclippedStart(), record.getUnclippedEnd(), leftInterval.getStart(), leftInterval.getEnd()) &&
 								!CoordMath.overlaps(record.getUnclippedStart(), record.getUnclippedEnd(), rightInterval.getStart(), rightInterval.getEnd())
@@ -573,6 +623,7 @@ public class InversionToSVG extends Launcher
 						 + "path.rR {fill:url(#rR)} "
 						 + "path.rF {fill:url(#rF)} "
 						 + "line.breakpoint {stroke:black;stroke-dasharray:5;stroke-width:2px;opacity:0.8;} "
+						 + "rect.frame {stroke:black;fill:none;} "
 						));
 				
 				final Element mainG = element("g");
@@ -766,7 +817,7 @@ public class InversionToSVG extends Launcher
 					}// end loop over each readName
 					
 					
-				svgRoot.setAttribute("height", format(y1+10));
+				
 				for(Window win:windows) {
 					win.height = y1 - win.y;
 					// frame
@@ -791,7 +842,72 @@ public class InversionToSVG extends Launcher
 						mainG.appendChild(line);
 						}
 					
+					} //end window
+				y1+=10;
+				if(!segments.isEmpty()) {
+					final int x0 = segments.stream().mapToInt(R->R.getStart()-10).min().orElse(0);
+					final int x1 = segments.stream().mapToInt(R->R.getEnd()+10).max().orElse(0);
+					final IntToDoubleFunction base2pos = POS-> ((POS-x0)/(double)(x1-x0))*this.drawinAreaWidth;
+					final Pileup<Segment> pileup = new Pileup<>();
+					pileup.addAll(segments);
+					final double y0=y1;
+					final Element g = element("g");
+					mainG.appendChild(g);
+					for(List<Segment> row:pileup.getRows()) {
+						for(Segment seg:row) {
+							final Element g2 = element("g");
+							g.appendChild(g2);
+							final Element path = element("path");
+							path.appendChild(element("title",seg.readName));
+							StringBuilder sb = new StringBuilder();
+							sb.append("M" ).append(base2pos.applyAsDouble(seg.getStart())).append(",").append(y1+this.featureHeight/2.0);
+							sb.append(" L " ).append(base2pos.applyAsDouble(seg.getEnd())).append(",").append(y1+this.featureHeight/2.0);
+							sb.append(" Z ");
+							
+							sb.append(" M" ).append(base2pos.applyAsDouble(seg.startA)).append(",").append(y1);
+							sb.append(" L " ).append(base2pos.applyAsDouble(seg.endA)).append(",").append(y1);
+							sb.append(" L " ).append(base2pos.applyAsDouble(seg.endA)).append(",").append(y1+this.featureHeight);
+							sb.append(" L " ).append(base2pos.applyAsDouble(seg.startA)).append(",").append(y1+this.featureHeight);
+							sb.append(" Z ");
+							
+							sb.append(" M" ).append(base2pos.applyAsDouble(seg.startB)).append(",").append(y1);
+							sb.append(" L " ).append(base2pos.applyAsDouble(seg.endB)).append(",").append(y1);
+							sb.append(" L " ).append(base2pos.applyAsDouble(seg.endB)).append(",").append(y1+this.featureHeight);
+							sb.append(" L " ).append(base2pos.applyAsDouble(seg.startB)).append(",").append(y1+this.featureHeight);
+							sb.append(" Z ");
+
+							
+							path.setAttribute("d", sb.toString());
+							g2.appendChild(path);
+							}
+						y1+= this.featureHeight;
+						}
+					
+					for(int side=0;side<2;++side) {
+						double x= base2pos.applyAsDouble(side==0?interval.getStart():interval.getEnd());
+						Element line=element("line");
+						line.setAttribute("class", "breakpoint");
+						line.setAttribute("x1",format(x));
+						line.setAttribute("x2",format(x));
+						line.setAttribute("y1",format(y0));
+						line.setAttribute("y2",format(y1));
+						g.appendChild(line);
+						}
+					final Element frame = element("rect");
+					frame.setAttribute("class", "frame");
+					frame.setAttribute("x", "0");
+					frame.setAttribute("y0",format(y0));
+					frame.setAttribute("width", format(this.drawinAreaWidth-1));
+					frame.setAttribute("height", format(y1-y0-1));
+					g.appendChild(frame);
+					y1+=10;
 					}
+				
+				
+				svgRoot.setAttribute("height", format(y1+10));
+				
+				
+				
 				} // end samReader
 				
 				final Transformer tr = TransformerFactory.newInstance().newTransformer();
