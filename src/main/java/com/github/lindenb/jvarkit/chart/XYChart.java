@@ -75,7 +75,7 @@ public static class Series<X,Y>
 private Axis<X> xAxis;
 private Axis<Y> yAxis;
 private List<XYChart.Series<X,Y>> data;
-private boolean verticalGridLinesVisible​ = false;
+private boolean verticalGridLinesVisible = false;
 
 protected XYChart(final Axis<X> xAxis,final Axis<Y> yAxis, final List<XYChart.Series<X,Y>> data) {
 	this.xAxis = xAxis;
@@ -117,11 +117,11 @@ public void update() {
 		}
 	}
 
-public void setVerticalGridLinesVisible(boolean verticalGridLinesVisible​) {
-	this.verticalGridLinesVisible​ = verticalGridLinesVisible​;
+public void setVerticalGridLinesVisible(boolean verticalGridLinesVisible) {
+	this.verticalGridLinesVisible = verticalGridLinesVisible;
 }
-public boolean isVerticalGridLinesVisible​() {
-	return verticalGridLinesVisible​;
+public boolean isVerticalGridLinesVisible() {
+	return verticalGridLinesVisible;
 }
 
 @Override
