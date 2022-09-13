@@ -8,6 +8,7 @@ VCF statistics
 ## Usage
 
 ```
+Usage: java -jar dist/vcfstatsjfx.jar  [options] Files
 Usage: vcfstatsjfx [options] Files
   Options:
     --altering, --damaging
