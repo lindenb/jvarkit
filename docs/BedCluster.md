@@ -37,6 +37,9 @@ Usage: bedcluster [options] Files
     --merge
       Merge overlapping bed records before clustering
       Default: false
+    --names
+      Print BED name (4th column of input bed)
+      Default: false
   * -o, --out
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.

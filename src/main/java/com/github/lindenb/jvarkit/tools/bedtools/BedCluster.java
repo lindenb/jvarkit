@@ -66,6 +66,7 @@ import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
 /**
@@ -123,7 +124,7 @@ END_DOC
 		description="Clusters a BED file into a set of BED files.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
-		modificationDate="20220113",
+		modificationDate="20220914",
 		biostars= {424828}
 		)
 public class BedCluster
@@ -153,46 +154,47 @@ public class BedCluster
 	private boolean consecutive_flags = false;
 	@Parameter(names={"--sex","--par"},description="Detects human dictionary ans splits pseudo-autosomal regions and group by sex.")
 	private boolean group_by_sex = false;
+	@Parameter(names={"--names"},description="Print BED name (4th column of input bed)")
+	private boolean with_bed_name = false;
 
 	
 	
 	private int id_generator =0;
 	
-	private static class Cluster extends AbstractList<SimpleInterval>{
+	private static class Cluster extends AbstractList<Interval>{
 		private long sum_length=0L;
-		private final List<SimpleInterval> intervals = new ArrayList<>();
+		private final List<Interval> intervals = new ArrayList<>();
 		
 		@Override
-		public boolean add(final SimpleInterval si) {
+		public boolean add(final Interval si) {
 			this.intervals.add(si);
 			this.sum_length+=si.getLengthOnReference();
 			return true;
 		}
 		
 		/** get sum of lengths */
-		long getSumLength(final SimpleInterval malus) {
+		long getSumLength(final Locatable malus) {
 			return this.sum_length + (malus==null?0:malus.getLengthOnReference());
 		}
 		/** get average length in cluster */
-		double getAvgLength(final SimpleInterval malus) {
-			final int n= this.intervals.size()+(malus==null?0:1);
-			final double total= getSumLength(malus);
+		double getAvgLength() {
+			final int n= this.intervals.size();
+			final double total= getSumLength(null);
 			return total/n;
 		}
 		
 		/** get standard deviation of intervals length if 'malus' is added to the pool */
-		double getStdDev(final SimpleInterval malus) {
-			final double avg = this.getAvgLength(malus);
-			final int n=intervals.size()+(malus==null?0:1);
+		double getStdDev() {
+			final double avg = this.getAvgLength();
+			final int n=intervals.size();
 			
 			return  (
-					(malus==null?0.0:Math.abs(avg-malus.getLengthOnReference())) + 
 					intervals.stream().mapToDouble(L->Math.abs(avg-L.getLengthOnReference())).sum()
 					) / n;
 			}
 		
 		@Override
-		public SimpleInterval get(int index) {
+		public Interval get(int index) {
 			return this.intervals.get(index);
 			}
 		
@@ -209,7 +211,7 @@ public class BedCluster
 	
 	
 	
-	private final Comparator<SimpleInterval> defaultIntervalCmp=(B1,B2)->{
+	private final Comparator<Interval> defaultIntervalCmp=(B1,B2)->{
 			int i = B1.getContig().compareTo(B2.getContig());
 			if(i!=0) return i;
 			i = Integer.compare(B1.getStart(), B2.getStart());
@@ -217,19 +219,32 @@ public class BedCluster
 			i = Integer.compare(B1.getEnd(), B2.getEnd());
 			return i;
 			};
-	
+	/** merge two names */
+	private String mergeNames(final String s1,String s2) {
+		if(!this.with_bed_name) return "";
+		if(StringUtils.isBlank(s1)) return s2;
+		if(StringUtils.isBlank(s2)) return s1;
+		if(s1.equals(s2)) return s1;
+		return s1+","+s2;
+		}
+			
+			
 	/** merge overlapping bed records */
-	private List<SimpleInterval> mergeBedRecords(final List<SimpleInterval> src) {
+	private List<Interval> mergeBedRecords(final List<Interval> src) {
 		if(!this.merge_bed_records) return src;
-		final List<SimpleInterval> list = new ArrayList<>(src);
+		final List<Interval> list = new ArrayList<>(src);
 		Collections.sort(list,defaultIntervalCmp);
 		int i=0;
 		while(i +1< list.size()) {
-			final SimpleInterval r1 = list.get(i);
-			final SimpleInterval r2 = list.get(i+1);
+			final Interval r1 = list.get(i);
+			final Interval r2 = list.get(i+1);
 			if(r1.overlaps(r2)) {
 				list.remove(i+1);
-				list.set(i, r1.merge(r2));
+				
+				final int start = Math.min(r1.getStart(),r2.getStart());
+				final int end = Math.max(r1.getEnd(),r2.getEnd());
+				final Interval r12 = new Interval(r1.getContig(),start,end,false,mergeNames(r1.getName(),r2.getName()));
+				list.set(i, r12 );
 			} else
 			{
 				i++;
@@ -241,20 +256,20 @@ public class BedCluster
 	private void apply_cluster(
 			final PrintWriter manifest,
 			final ArchiveFactory archiveFactory,
-			final List<SimpleInterval> src,
-			final Comparator<SimpleInterval> sorter,
+			final List<Interval> src,
+			final Comparator<Interval> sorter,
 			final SAMSequenceDictionary dict,
 			final PseudoAutosomalRegion pseudoAutosomalDetector)
 			throws IOException
 		{
 		final List<Cluster> clusters = new ArrayList<>(Math.max(this.number_of_jobs,100));
-		final LinkedList<SimpleInterval> list = new LinkedList<>(mergeBedRecords(src));
+		final LinkedList<Interval> list = new LinkedList<>(mergeBedRecords(src));
 		//sort by decreasing size
 		Collections.sort(list,(B1,B2)->Integer.compare(B2.getLengthOnReference(),B1.getLengthOnReference()));
 		
 		if(number_of_jobs>0) {
 			while(!list.isEmpty()) {
-				final SimpleInterval first=list.pop();
+				final Interval first=list.pop();
 				if(clusters.size()<this.number_of_jobs) {
 					final Cluster c = new Cluster();
 					c.add(first);
@@ -280,7 +295,7 @@ public class BedCluster
 				final Cluster cluster = new Cluster();
 				cluster.add(list.pop());
 				while(!list.isEmpty()) {
-					final SimpleInterval si = list.peek();
+					final Interval si = list.peek();
 					if(cluster.getSumLength(si) > this.long_length_per_bin) break;
 					cluster.add(list.pop());
 					}
@@ -290,11 +305,11 @@ public class BedCluster
 		else // group by size
 			{
 			while(!list.isEmpty()) {
-				final SimpleInterval first=list.pop();
+				final Interval first=list.pop();
 				int y=0;
 				while(y<clusters.size()) {
 					final Cluster cluster = clusters.get(y);
-					if(cluster.getSumLength(first)<=this.long_length_per_bin) {
+					if(cluster.getSumLength(first) <= this.long_length_per_bin) {
 						cluster.add(first);
 						break;
 						}
@@ -352,9 +367,9 @@ public class BedCluster
 			manifest.print("\t");
 			manifest.print(cluster.getSumLength(null));
 			manifest.print("\t");
-			manifest.print((int)cluster.getAvgLength(null));
+			manifest.print((int)cluster.getAvgLength());
 			manifest.print("\t");
-			manifest.print((int)cluster.getStdDev(null));
+			manifest.print((int)cluster.getStdDev());
 			manifest.print(extraColumns);
 			manifest.println();
 			
@@ -376,19 +391,23 @@ public class BedCluster
 				final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
 				if(pseudoAutosomalDetector!=null) {
 					samHeader.addComment("Pseudo-autosomal detector detected for "+pseudoAutosomalDetector.getDescription());
-				}
+					}
 				JVarkitVersion.getInstance().addMetaData(this, samHeader);
 				codec.encode(pw, samHeader);
 				}
 			
 				
 				
-			for(final SimpleInterval r: cluster) {
+			for(final Interval r: cluster) {
 				pw.print(r.getContig());
 				pw.print("\t");
 				pw.print(r.getStart()-(this.save_as_interval_list?0:1));//convert to bed if needed
 				pw.print("\t");
 				pw.print(r.getEnd());
+				if(this.with_bed_name) {
+					pw.print("\t");
+					pw.print(r.getName());
+					}
 				if(pseudoAutosomalDetector!=null) {
 					pw.print("\t");
 					pw.print(pseudoAutosomalDetector.getLabel(r).name());
@@ -431,7 +450,7 @@ public class BedCluster
 			final SAMSequenceDictionary dict;
 			final ContigNameConverter converter;
 			final Comparator<String> contigComparator;
-			final Comparator<SimpleInterval> intervalComparator;
+			final Comparator<Interval> intervalComparator;
 			final PseudoAutosomalRegion pseudoAutosomalDetector;
 			if(this.refFaidx==null) {
 				dict = null;
@@ -452,11 +471,17 @@ public class BedCluster
 			if(pseudoAutosomalDetector==null && this.group_by_sex) {
 				LOG.error("cannot group by --sex because I cannot get an instance of autosomal region for this reference.");
 				return -1;
-			}
-			final Function<Locatable,List<Locatable>> sexSplitter = 
+				}
+			
+			final Function<BedLine,String> bedLineToLabel = BED-> BED.getOrDefault(3, BED.getContig()+"_"+BED.getStart()+"_"+BED.getEnd());
+			
+			final Function<BedLine,List<Interval>> sexSplitter = 
 					pseudoAutosomalDetector==null?
-					REG->Collections.singletonList(REG):
-					REG->pseudoAutosomalDetector.split(REG)
+					REG->Collections.singletonList(new Interval(REG.getContig(),REG.getStart(),REG.getEnd(),false,bedLineToLabel.apply(REG))):
+					REG->pseudoAutosomalDetector.split(REG).
+							stream().
+							map(R->new Interval(R.getContig(),R.getStart(),R.getEnd(),false,bedLineToLabel.apply(REG))).
+							collect(Collectors.toList())
 					;
 		
 			
@@ -491,19 +516,18 @@ public class BedCluster
 			manifest.println();
 			
 			try(BufferedReader br = super.openBufferedReader(oneFileOrNull(args))) {
-				List<List<SimpleInterval>> list_of_intervals = Collections.singletonList(br.lines().
+				List<List<Interval>> list_of_intervals = Collections.singletonList(br.lines().
 					filter(L->!BedLine.isBedHeader(L)).
 					map(L->codec.decode(L)).
 					filter(B->B!=null).
 					filter(B->!StringUtils.isBlank(converter.apply(B.getContig()))).
 					flatMap(B->sexSplitter.apply(B).stream()).
-					map(B->new SimpleInterval(converter.apply(B.getContig()), B.getStart(), B.getEnd())).
 					collect(Collectors.toList()));
 					
 				if(this.group_by_contig) {
-					final List<List<SimpleInterval>> list2= new ArrayList<>();
-					for(List<SimpleInterval> l1:list_of_intervals) {
-						final Map<String,List<SimpleInterval>> contig2lines = new TreeMap<>(contigComparator);
+					final List<List<Interval>> list2= new ArrayList<>();
+					for(List<Interval> l1:list_of_intervals) {
+						final Map<String,List<Interval>> contig2lines = new TreeMap<>(contigComparator);
 						contig2lines.putAll(l1.stream().collect(Collectors.groupingBy(B->B.getContig())));
 						for(final String ctg:contig2lines.keySet()) {
 							list2.add(new ArrayList<>(contig2lines.get(ctg)));
@@ -513,9 +537,9 @@ public class BedCluster
 					}
 				
 				if(this.group_by_sex && pseudoAutosomalDetector!=null) {
-					final List<List<SimpleInterval>> list2= new ArrayList<>();
-					for(List<SimpleInterval> l1:list_of_intervals) {
-						final Map<PseudoAutosomalRegion.Label,List<SimpleInterval>> label2lines = new TreeMap<>();
+					final List<List<Interval>> list2= new ArrayList<>();
+					for(List<Interval> l1:list_of_intervals) {
+						final Map<PseudoAutosomalRegion.Label,List<Interval>> label2lines = new TreeMap<>();
 						label2lines.putAll(l1.stream().collect(Collectors.groupingBy(B->pseudoAutosomalDetector.getLabel(B))));
 						for(final PseudoAutosomalRegion.Label ctg:label2lines.keySet()) {
 							list2.add(new ArrayList<>(label2lines.get(ctg)));
@@ -524,7 +548,7 @@ public class BedCluster
 					list_of_intervals = list2;
 					}
 				
-				for(final List<SimpleInterval> l1:list_of_intervals) {
+				for(final List<Interval> l1:list_of_intervals) {
 					apply_cluster(manifest,archiveFactory,l1,intervalComparator,dict,pseudoAutosomalDetector);
 					}
 				
