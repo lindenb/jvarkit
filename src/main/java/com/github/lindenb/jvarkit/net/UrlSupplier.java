@@ -172,6 +172,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		if(str.startsWith("ENSG")) {
 			urls.add(new LabelledUrlImpl("OpenTargets","https://genetics.opentargets.org/gene/"+str));
 			urls.add(new LabelledUrlImpl("Genbass GRCh38","https://genebass.org/gene/"+str+"?burdenSet=pLoF&phewasOpts=1&resultLayout=full"));
+			urls.add(new LabelledUrlImpl("Protein Atlas","https://www.proteinatlas.org/"+str));
 			}
 		}
 	else if(this.ccdsPattern.matcher(str).matches()) {
