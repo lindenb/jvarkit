@@ -71,6 +71,7 @@ Usage: vcf2table [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/293855](https://www.biostars.org/p/293855)
+ * [https://www.biostars.org/p/9538421](https://www.biostars.org/p/9538421)
 
 
 ## Compilation

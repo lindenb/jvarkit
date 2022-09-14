@@ -40,6 +40,12 @@ Usage: swingvcfview [options] Files
  * swing
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9538421](https://www.biostars.org/p/9538421)
+
+
 ## Compilation
 
 ### Requirements / Dependencies
