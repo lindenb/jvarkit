@@ -195,13 +195,13 @@ public class VcfSamplesPRS extends Launcher {
 									sn.score += score.score;
 									break;
 								case HOM_VAR:
-									if(score.REF.equals(score.EFFECT_ALLELE,IGNORE_REF_STATE))
+									if(!score.REF.equals(score.EFFECT_ALLELE,IGNORE_REF_STATE))
 										{
 										sn.score+= 2.0 * score.score; 
 										}
 									break;
 								case HOM_REF:{
-									if(!score.REF.equals(score.EFFECT_ALLELE,IGNORE_REF_STATE)) {
+									if(score.REF.equals(score.EFFECT_ALLELE,IGNORE_REF_STATE)) {
 										sn.score+= 2.0 * score.score; 
 										}
 									break;

@@ -408,7 +408,7 @@ public class BedCluster
 					pw.print("\t");
 					pw.print(r.getName());
 					}
-				if(pseudoAutosomalDetector!=null) {
+				if(group_by_sex && pseudoAutosomalDetector!=null) {
 					pw.print("\t");
 					pw.print(pseudoAutosomalDetector.getLabel(r).name());
 					}
