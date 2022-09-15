@@ -93,7 +93,7 @@ END_DOC
 @Program(name="samviewwithmate",
 	description="Extract reads within given region(s), and their mates",
 	keywords={"sam","bam"},
-	biostars={151403,105714,368754},
+	biostars={151403,105714,368754,9537698},
 	creationDate="2019-02-07",
 	modificationDate="2019-10-04"
 	)

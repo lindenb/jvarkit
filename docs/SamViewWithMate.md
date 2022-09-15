@@ -8,25 +8,24 @@ Extract reads within given region(s), and their mates
 ## Usage
 
 ```
+Usage: java -jar dist/samviewwithmate.jar  [options] Files
 Usage: samviewwithmate [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
-    -b, --bed
-      Bed file containing the region.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
-    -r, --region
-      One or more region.An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or "chrom:start-end+extend" 
-      or "chrom:start-end+extend-percent%".A program might use a Reference 
-      sequence to fix the chromosome name (e.g: 1->chr1)
-      Default: []
+  * -b, --bed, -r, --region
+      A source of intervals. The following suffixes are recognized: vcf, 
+      vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
+      empty string (no interval) or a list of plain interval separated by '[ 
+      \t\n;,]' 
+      Default: (unspecified)
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -58,6 +57,7 @@ Usage: samviewwithmate [options] Files
  * [https://www.biostars.org/p/151403](https://www.biostars.org/p/151403)
  * [https://www.biostars.org/p/105714](https://www.biostars.org/p/105714)
  * [https://www.biostars.org/p/368754](https://www.biostars.org/p/368754)
+ * [https://www.biostars.org/p/9537698](https://www.biostars.org/p/9537698)
 
 
 ## Compilation

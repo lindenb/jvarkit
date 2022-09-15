@@ -8,6 +8,7 @@ Coverage statistics for a BED file, group by gene
 ## Usage
 
 ```
+Usage: java -jar dist/bamstats05.jar  [options] Files
 Usage: bamstats05 [options] Files
   Options:
   * -B, --bed

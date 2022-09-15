@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +45,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
-import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -62,7 +60,6 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Iso8601Date;
 import htsjdk.samtools.util.StringUtil;
 
 
@@ -386,7 +383,8 @@ END_DOC
 	biostars={270879,274183,278902,279535,283969,286284,286585,286851,286819,
 		287057,299673,301080,305526,306034,309143,327317,335998,
                 336965,340479,342675,345679,362298,368754,378205,
-                408279,417123,427976,424431,450160,9464312,9489815,9493510,9498170,9511167,9524098,9532167},
+                408279,417123,427976,424431,450160,9464312,9489815,9493510,9498170,9511167,9524098,9532167,
+                9537698},
 	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 	creationDate="20170807",
 	modificationDate="20191119"

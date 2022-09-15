@@ -145,7 +145,7 @@ public class CoverageFactory
 		public OptionalDouble getMedian() {
 			final DiscreteMedian<Integer> med = new DiscreteMedian<>();
 			for(SimpleCoverage cov: items) {
-				final int[] array = cov.toByteArray();
+				final int[] array = cov.toIntArray();
 				for(int i=0;i< array.length;i++) {
 					med.add(array[i]);
 					}
