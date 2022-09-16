@@ -185,7 +185,7 @@ public class VcfSamplesPRS extends Launcher {
 							LOG.warn("skipping multiple scores "+scores);
 							continue;
 							}
-						
+						LOG.warn("got "+ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString());
 						final Score score = scores.get(0);
 						
 						for(Sample sn:samples) {
