@@ -221,6 +221,7 @@ public class GtfToBed
 						case '\\': value.append("\\");break;
 						case 't': value.append("\t");break;
 						case 'n': value.append("\n");break;
+						case '/': value.append("/");break;// got the string 'kinase\/fructos" in a gtf...
 						default: throw new IllegalArgumentException("unknown escape sequence after "+s.substring(0,i));
 						}
 					}

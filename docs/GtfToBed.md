@@ -14,6 +14,10 @@ Usage: gtf2bed [options] Files
     -c, --columns
       comma separated columns to be displayed
       Default: gtf.source,gtf.feature,gtf.score,gtf.strand,gtf.frame,ccds_id,exon_id,exon_number,exon_version,gene_biotype,gene_id,gene_name,gene_source,gene_version,havana_transcript,havana_transcript_version,protein_id,protein_version,tag,transcript_biotype,transcript_id,transcript_name,transcript_source,transcript_version,Alias,biotype,ccdsid,constitutive,description,ensembl_end_phase,ensembl_phase,exon_id,external_name,gene_id,havana_transcript,havana_version,ID,logic_name,Name,Parent,protein_id,rank,tag,transcript_id,version
+    --grep
+      Check some identifiers are found in a column. syntax: 
+      <COLUMN>:<FILE_CONTAINING_THE_IDENTIFIERS> 
+      Default: []
     -h, --help
       print help and exit
     --helpFormat
@@ -86,5 +90,16 @@ The current reference is:
 
 
 ```
+$ java -jar ${JVARKIT_DIST}/gtf2bed.jar --columns gtf.feature,gene_name,gene_biotype,gene_id ~/src/jvarkit/src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | head | column -t
+#chrom  start      end        gtf.feature      gene_name  gene_biotype    gene_id
+1       120454175  120459317  exon             NOTCH2     protein_coding  ENSG00000134250
+1       120454175  120612240  gene             NOTCH2     protein_coding  ENSG00000134250
+1       120454175  120457928  three_prime_utr  NOTCH2     protein_coding  ENSG00000134250
+1       120454175  120612240  transcript       NOTCH2     protein_coding  ENSG00000134250
+1       120457928  120457931  stop_codon       NOTCH2     protein_coding  ENSG00000134250
+1       120457931  120459317  CDS              NOTCH2     protein_coding  ENSG00000134250
+1       120460287  120460385  CDS              NOTCH2     protein_coding  ENSG00000134250
+1       120460287  120460385  exon             NOTCH2     protein_coding  ENSG00000134250
+1       120461028  120461176  CDS              NOTCH2     protein_coding  ENSG00000134250
 ```
 

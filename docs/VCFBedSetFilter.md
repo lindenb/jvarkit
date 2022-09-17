@@ -8,6 +8,7 @@ Set FILTER for VCF if intersects with BED.
 ## Usage
 
 ```
+Usage: java -jar dist/vcfbedsetfilter.jar  [options] Files
 Usage: vcfbedsetfilter [options] Files
   Options:
     --bcf-output
@@ -22,7 +23,7 @@ Usage: vcfbedsetfilter [options] Files
     -x, --extend
       Extend the variant coordinates per 'x' bases. A distance specified as a 
       positive integer.Commas are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb
+      interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 0
     -f, --filter
       FILTER name. If `--filter` is empty, FILTERED variant will be discarded.
@@ -135,4 +136,8 @@ $java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf
 ## history:
 
 2191104: changed the logic which was wrongly defined in the documentation. :-/
+
+## Cited in
+
+ * Megquier K, Turner-Maier J, Morrill K, Li X, Johnson J, Karlsson EK, et al. (2022) The genomic landscape of canine osteosarcoma cell lines reveals conserved structural complexity and pathway alterations. PLoS ONE 17(9): e0274383. https://doi.org/10.1371/journal.pone.0274383
 
