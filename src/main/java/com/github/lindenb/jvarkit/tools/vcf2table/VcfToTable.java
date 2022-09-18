@@ -1524,7 +1524,7 @@ public class VcfToTable extends Launcher {
 				}
 			
 			protected void printGenotypesTypes(final String margin,final VariantContext vc) {
-				if(getOwner().isShowing("GTYPE")) return;
+				if(!getOwner().isShowing("GTYPE")) return;
 				if(!vc.hasGenotypes()) return;
 				final Table t=new Table("Type","Count","%").
 						setCaption("Genotype Types");
