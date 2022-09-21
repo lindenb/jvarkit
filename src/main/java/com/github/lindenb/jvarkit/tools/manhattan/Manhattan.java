@@ -465,6 +465,7 @@ public class Manhattan extends Launcher {
 
 		protected abstract CloseableIterator<? extends Locatable> open(final List<String> args)  throws IOException;
 		
+		/** find a track for this loc and add the item */
 		abstract void visit(final Locatable loc);
 		}
 	
@@ -473,23 +474,29 @@ public class Manhattan extends Launcher {
 			/* header */
 			protected final List<String> columns = new ArrayList<>();
 			protected final Map<String,Integer> column2index = new HashMap<>();
-		
+			/** how to split lines */
+			protected Pattern splitter= Pattern.compile("[\t]");
 			
+			/** and handler parsing TSV files */
 			private class TsvIterator extends AbstractCloseableIterator<Item> {
 				final BufferedReader br;
-				TsvIterator(BufferedReader br) {
+				TsvIterator(final BufferedReader br) {
 					this.br = br;
 					}
 				@Override
 				protected Item advance() {
 					try {
 						for(;;) {
-							String line = br.readLine();
+							final String line = br.readLine();
 							if(line==null) return null;
 							if(StringUtils.isBlank(line)) continue;
 							if(handleLine(line)) continue;
 							final Item item = parseItem(line);
-							if(item!=null) return null;
+							if(item==null) {
+								LOG.warn("cannot parse "+line+". Skipping. (handler:"+getName()+")");
+								continue;
+								}
+							return item;
 							}
 						}
 					catch(final IOException err ) {
@@ -502,7 +509,7 @@ public class Manhattan extends Launcher {
 					catch(IOException err) {}
 					}
 				}
-			
+			/** register columns names and index if needed */
 			protected void registerHeader(final List<String> columns) {
 				this.columns.clear();
 				this.column2index.clear();
@@ -510,13 +517,17 @@ public class Manhattan extends Launcher {
 				for(int i=0;i< columns.size();i++) this.column2index.put(columns.get(i), i);
 				}
 			
+			/** are we able to handle this line ? */
 			protected boolean handleLine(String line) {
 				return false;
 				}
-			
-			protected abstract Item parseItem(final String line);
-			
-			
+			/** convert line to Item */
+			protected Item parseItem(final String line) {
+				final String[] tokens = this.splitter.split(line);
+				return parseTokens(tokens);
+				}
+			/** convert tokens[] to Item */
+			protected abstract Item parseTokens(final String[] tokens);
 			
 			@Override
 			protected CloseableIterator<? extends Locatable> open( final List<String> args) throws IOException {
@@ -556,6 +567,22 @@ public class Manhattan extends Launcher {
 				registerHeader(iter.getHeader());
 				return iter;
 				}
+			}
+		
+		private class ContigPosValueHandler1 extends AbstractTsvHander{
+			@Override
+			protected Item parseItem(String line) {
+				return null;
+				}
+			@Override
+			void visit(Locatable loc) {
+				
+				}
+			@Override
+			protected Item parseTokens(String[] tokens) {
+				// TODO Auto-generated method stub
+				return null;
+			}
 			}
 		
 		private class DellyCNVHander1 extends AbstractVcfHander {
