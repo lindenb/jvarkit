@@ -233,6 +233,7 @@ public class VcfSamplesPRS extends Launcher {
 			return 0;
 			}
 		catch(Throwable err) {
+			LOG.error(err);
 			return -1;
 			}
 		}
