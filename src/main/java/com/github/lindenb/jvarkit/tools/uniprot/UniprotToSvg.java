@@ -66,13 +66,13 @@ import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.util.LabelledUrlSupplier;
-import com.github.lindenb.jvarkit.util.LabelledUrlSupplier.LabelledUrl;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
@@ -97,7 +97,7 @@ import org.w3c.dom.NodeList;
 description="plot uniprot to SVG",
 keywords={"uniprot","svg"},
 creationDate="20220608",
-modificationDate="20220608"
+modificationDate="20220922"
 )
 public class UniprotToSvg extends Launcher {
 	private static final Logger LOG = Logger.build(UniprotToSvg.class).make();
@@ -225,16 +225,15 @@ public class UniprotToSvg extends Launcher {
 	private List<Variant> fetchVariants(final String rawEnsemblId) throws IOException {
 		int id_generator = 0;
 		if(this.vcfPath==null || StringUtils.isBlank(rawEnsemblId)) return Collections.emptyList();
-		String annotator = this.attMap.getAttribute("variant.annotator","CSQ").toUpperCase();
-		VepPredictionParser  vepParser = null;
 		final String ensemblId = normalizeENS(rawEnsemblId);
 		final List<Variant> L = new ArrayList<>();
 	
 		try(VCFIterator iter = new VCFIteratorBuilder().open(this.vcfPath)) {
-			VCFHeader header = iter.getHeader();
-			if(annotator.equals("CSQ")) {
-				vepParser = new VepPredictionParserFactory().header(header).get();
-				}
+			final VCFHeader header = iter.getHeader();
+			
+			final VepPredictionParser vepParser = new VepPredictionParserFactory().header(header).get();
+			final  AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
+			
 			while(iter.hasNext()) {
 				final VariantContext ctx = iter.next();
 				Variant variant = new Variant();
@@ -244,7 +243,7 @@ public class UniprotToSvg extends Launcher {
 				variant.ref = ctx.getReference();
 				variant.alts.addAll(ctx.getAlternateAlleles());
 				
-				if(vepParser!=null) {
+				if(vepParser.isValid()) {
 					for(final VepPredictionParser.VepPrediction pred : vepParser.getPredictions(ctx)) {
 						System.err.println(ensemblId+" vs "+pred.getFeature());
 						if(!ensemblId.equals(normalizeENS(pred.getFeature()))) continue;
@@ -252,6 +251,30 @@ public class UniprotToSvg extends Launcher {
 						if(StringUtils.isBlank(protPosition) || !StringUtils.isInteger(protPosition)) continue;
 						variant.pos = Integer.parseInt(protPosition);
 						variant.Amino_acids = pred.get("Amino_acids");
+						if(StringUtils.isBlank(variant.Amino_acids)) variant.Amino_acids="";
+						for(final Genotype g:ctx.getGenotypes()) {
+							if(g.getAlleles().stream().noneMatch(A->!(A.isReference() || A.isNoCall()))) continue;
+							if(this.casesSamples.contains(g.getSampleName())) {
+								variant.cases.add(g.getSampleName());
+								}
+							if(this.ctrlsSamples.contains(g.getSampleName())) {
+								variant.controls.add(g.getSampleName());
+								}
+							}
+						}
+					}
+				else if(annParser.isValid()) {
+					for(final AnnPredictionParser.AnnPrediction pred : annParser.getPredictions(ctx)) {
+						System.err.println(ensemblId+" vs "+pred.getFeatureId());
+						if(!ensemblId.equals(normalizeENS(pred.getFeatureId()))) continue;
+						String protPosition = pred.getAAPos();
+						if(StringUtils.isBlank(protPosition)) continue;
+						int slash = protPosition.indexOf("/");
+						if(slash==-1) continue;
+						protPosition = protPosition.substring(0, slash).trim();
+						if(!StringUtils.isInteger(protPosition)) continue;
+						variant.pos = Integer.parseInt(protPosition);
+						variant.Amino_acids = pred.getHGVSp();
 						if(StringUtils.isBlank(variant.Amino_acids)) variant.Amino_acids="";
 						for(final Genotype g:ctx.getGenotypes()) {
 							if(g.getAlleles().stream().noneMatch(A->!(A.isReference() || A.isNoCall()))) continue;

@@ -265,9 +265,14 @@ public class SnpEffPredictionParser implements PredictionParser
 			return getByCol("Gene_Name");
 			}
 		
+		/** return getByCol("Transcript") */
+		public String getTranscript() {
+			return getByCol("Transcript");
+		}
+		
 		public String getEnsemblTranscript()
 			{
-			final String s=getByCol("Transcript");
+			final String s= getTranscript();
 			if(s==null || !s.startsWith("ENST")) return null;
 			return s;
 			}
