@@ -245,7 +245,7 @@ public class UniprotToSvg extends Launcher {
 				
 				if(vepParser.isValid()) {
 					for(final VepPredictionParser.VepPrediction pred : vepParser.getPredictions(ctx)) {
-						System.err.println(ensemblId+" vs "+pred.getFeature());
+						//System.err.println(ensemblId+" vs "+pred.getFeature());
 						if(!ensemblId.equals(normalizeENS(pred.getFeature()))) continue;
 						final String protPosition = pred.get("Protein_position");
 						if(StringUtils.isBlank(protPosition) || !StringUtils.isInteger(protPosition)) continue;
@@ -265,7 +265,7 @@ public class UniprotToSvg extends Launcher {
 					}
 				else if(annParser.isValid()) {
 					for(final AnnPredictionParser.AnnPrediction pred : annParser.getPredictions(ctx)) {
-						System.err.println(ensemblId+" vs "+pred.getFeatureId());
+						//System.err.println(ensemblId+" vs "+pred.getFeatureId());
 						if(!ensemblId.equals(normalizeENS(pred.getFeatureId()))) continue;
 						String protPosition = pred.getAAPos();
 						if(StringUtils.isBlank(protPosition)) continue;
@@ -330,8 +330,13 @@ public class UniprotToSvg extends Launcher {
 			final int length = Integer.parseInt(Objects.requireNonNull((String)this.xpath.evaluate("u:sequence/@length", uEntry, XPathConstants.STRING)));
 			final String accession = (String)this.xpath.evaluate("u:accession[1]/text()", uEntry, XPathConstants.STRING);
 			final String entryName = (String)this.xpath.evaluate("u:name/text()", uEntry, XPathConstants.STRING);
+			final NodeList enstList = (NodeList)this.xpath.evaluate("u:dbReference",uEntry,XPathConstants.NODESET);
+			for(int i=0;i< enstList.getLength();i++) {
+				LOG.info("u:dbReference/@"+ Element.class.cast(enstList.item(i)).getAttribute("type")+"="+enstList.item(i).getTextContent());
+				}
+			
 			final String enst = (String)this.xpath.evaluate("u:dbReference[@type='Ensembl']/@id", uEntry, XPathConstants.STRING);
-			LOG.info("Ensembl:"+enst);
+			LOG.info("Using Ensembl:"+enst);
 			final NodeList uFeatures = (NodeList)this.xpath.evaluate("u:feature", uEntry, XPathConstants.NODESET);
 			final List<Feature>  features = new ArrayList<>();
 			for(int i=0;i< uFeatures.getLength();i++) {

@@ -8,6 +8,7 @@ Transfer information from a BED to a VCF
 ## Usage
 
 ```
+Usage: java -jar dist/vcfbed.jar  [options] Files
 Usage: vcfbed [options] Files
   Options:
     --bcf-output
@@ -69,7 +70,7 @@ Usage: vcfbed [options] Files
     -extend, --extend, --within-distance
       Variant and BED must be within 'x' bp.A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 0
 
 ```
@@ -188,4 +189,8 @@ chr19   58865091    rs893180    A   G   .   .   CAF=[0.1299,0.8701];COMMON=1;G5;
 chr19   58865112    rs188818621 C   T   .   .   CAF=[0.9954,0.004591];COMMON=1;KGPROD;KGPhase1;R5;RS=188818621;RSPOS=58865112;SAO=0;SSR=0;VC=SNV;VCFBED=chr19|58864565|58865165|A1BG&58864865;VP=0x050000020001000014000100;WGT=1;dbSNPBuildID=135
 chr19   58865164    rs80109863  C   T   .   .   CAF=[0.9949,0.005051];COMMON=1;GNO;KGPROD;KGPhase1;OTHERKG;R5;RS=80109863;RSPOS=58865164;SAO=0;SSR=0;VC=SNV;VCFBED=chr19|58864565|58865165|A1BG&58864865;VP=0x050000020001000116000100;WGT=1;dbSNPBuildID=132
 ```
+
+## Cited in
+
+ * Megquier K, Turner-Maier J, Morrill K, Li X, Johnson J, Karlsson EK, et al. (2022) The genomic landscape of canine osteosarcoma cell lines reveals conserved structural complexity and pathway alterations. PLoS ONE 17(9): e0274383. https://doi.org/10.1371/journal.pone.0274383
 

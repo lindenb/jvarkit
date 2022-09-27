@@ -97,11 +97,16 @@ Output is a SVG file
 java -jar dist/wgscoverageplotter.jar --dimension 1500x500 -C -1 --clip -R src/test/resources/rotavirus_rf.fa src/test/resources/S1.bam --include-contig-regex "RF.*" --percentile median  > ~/jeter.svg
 ```
 
+## Cited in
+
+ * Vinicius A.C & al. Comparative analyses of Theobroma cacao and T. grandiflorum mitogenomes reveal conserved gene content embedded within complex and plastic structures". Gene Volume 849 2023 .https://doi.org/10.1016/j.gene.2022.146904.
+
 ## Screenshot
 
 https://twitter.com/yokofakun/status/1331898068002861056
 
 ![twitter](https://pbs.twimg.com/media/EnvaOnNW4AAkGTz?format=jpg&name=medium "Screenshot")
+
 
 END_DOC 
  */
