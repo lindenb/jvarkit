@@ -347,7 +347,7 @@ public class CompileJVarkit extends DefaultTask {
 					arg(value: this.tmpDir)
 					arg(value: "-p")
 					arg(value:"org.uniprot")
-					arg(value:"https://www.uniprot.org/docs/uniprot.xsd")
+					arg(value:"https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot.xsd")
 					}
 				}
 			else if(src.equals("evs"))
