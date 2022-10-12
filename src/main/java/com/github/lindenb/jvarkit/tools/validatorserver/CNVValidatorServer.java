@@ -291,6 +291,8 @@ public class CNVValidatorServer extends Launcher {
 				dom.appendChild(h);
 				}
 			
+
+
 			Element body=(Element)xpath.evaluate("/html/body", dom, XPathConstants.NODE);
 			Element variant  =getVariantNode(dom);
 			if(body!=null) {
@@ -298,6 +300,15 @@ public class CNVValidatorServer extends Launcher {
 				
 				
 				body.insertBefore(div, body.getFirstChild());
+
+				final Element script = dom.createElement("script");
+				div.appendChild(script);
+				script.appendChild(dom.createTextNode(
+					"function keyDownTextField(e) {var k=e.keyCode; var s='xx'; if(k==80 || k==84) {s='bp'} else if(k==65) {s='ba';} else if(k==70) {s='bf';} var E=document.getElementById(s); if(E!=null) E.click();} "+ 
+					"document.addEventListener('keydown', keyDownTextField, false);"
+					));
+
+
 				div.setAttribute("style"," background-color:darkgray;border-style:dotted;");
 				
 				Element form = dom.createElement("form");
@@ -333,6 +344,7 @@ public class CNVValidatorServer extends Launcher {
 				input.setAttribute("style", "font-size:"+(prevFilter.equals("FAIL")?"200%":"100%")+";background-color:red;");
 				input.setAttribute("type", "submit");
 				input.setAttribute("name", "filter");
+				input.setAttribute("id", "bf");
 				input.setAttribute("value", "FAIL");
 				form.appendChild(input);
 
@@ -343,6 +355,7 @@ public class CNVValidatorServer extends Launcher {
 				input.setAttribute("style", "font-size:"+(prevFilter.equals("AMBIGOUS")?"200%":"100%")+";background-color:orange;");
 				input.setAttribute("type", "submit");
 				input.setAttribute("name", "filter");
+				input.setAttribute("id", "ba");
 				input.setAttribute("value", "AMBIGOUS");
 				form.appendChild(input);
 
@@ -353,6 +366,7 @@ public class CNVValidatorServer extends Launcher {
 				input.setAttribute("style", "font-size:"+(prevFilter.equals("PASS")?"200%":"100%")+";background-color:green;");
 				input.setAttribute("type", "submit");
 				input.setAttribute("name", "filter");
+				input.setAttribute("id", "bp");
 				input.setAttribute("value", "PASS");
 				form.appendChild(input);
 				

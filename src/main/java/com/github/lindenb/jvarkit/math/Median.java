@@ -24,15 +24,29 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.math;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+
 import java.util.Arrays;
 import java.util.OptionalDouble;
 import java.util.function.DoubleConsumer;
 import java.util.function.Supplier;
 
+import org.apache.jena.atlas.RuntimeIOException;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
+
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.SortingCollection;
+
 /**
  * Median calculation
  */
 public class Median implements Supplier<OptionalDouble>,DoubleConsumer,Comparable<Median> {
+	private static final int SIZE_SORT_ON_DISK= 2_000_000;
 	private int count = 0;
 	private double[] array;
 	private boolean sorted=true;
@@ -122,7 +136,54 @@ public class Median implements Supplier<OptionalDouble>,DoubleConsumer,Comparabl
 	
 	private void sort() {
 		if(!sorted) {
-			Arrays.sort(this.array,0,this.count);
+			if(this.count < SIZE_SORT_ON_DISK ) {
+				Arrays.sort(this.array,0,this.count);
+				}
+			else
+				{
+				/** SortingLongCollection : cannot use this because the ordering of the double packed as long won't be good */
+				class DoubleCodec extends AbstractDataCodec<Double> {
+					@Override
+					public Double decode(DataInputStream dis) throws IOException {
+						try {
+							return dis.readDouble();
+							}
+						catch(EOFException err) {
+							return null;
+							}
+						catch(Throwable err) {
+							throw new RuntimeIOException(err);
+							}
+						}
+					@Override
+					public void encode(DataOutputStream dos, Double object) throws IOException {
+						dos.writeDouble(object);
+						}
+					@Override
+					public DoubleCodec clone() {
+						return new DoubleCodec();
+						}
+					}
+				final SortingCollection<Double> sorter = SortingCollection.newInstance(
+						Double.class,
+						new DoubleCodec(),
+						(A,B)->Double.compare(A,B),
+						SIZE_SORT_ON_DISK,
+						IOUtils.getDefaultTempDir()
+						);
+				sorter.setDestructiveIteration(true);
+				for(int i=0;i< this.count;i++) {
+					sorter.add(this.array[i]);
+					}
+				sorter.doneAdding();
+				try(CloseableIterator<Double> iter=sorter.iterator()) {
+					int i=0;
+					while(iter.hasNext()) {
+						this.array[i++] =  iter.next();
+						}
+					}
+				sorter.cleanup();
+				}
 			sorted=true;
 		}
 	}

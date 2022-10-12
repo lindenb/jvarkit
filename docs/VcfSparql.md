@@ -8,6 +8,7 @@ Query RDF with Sparql. Very slow. Just a proof of concept
 ## Usage
 
 ```
+Usage: java -jar dist/vcfsparql.jar  [options] Files
 Usage: vcfsparql [options] Files
   Options:
     --code
