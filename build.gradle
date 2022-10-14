@@ -2711,6 +2711,10 @@ all2.add(task("vcfsamplesprs", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.prs.VcfSamplesPRS"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("ibdreformater01", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.ibd.IBDReformater01"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 all2.add(task("jeter2", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.plateoptimizer.PlateOptimizer"
