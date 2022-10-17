@@ -28,14 +28,14 @@ package com.github.lindenb.jvarkit.tools.ibd;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -43,6 +43,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -130,12 +131,12 @@ private static class IBDRecord implements Locatable{
 	public int getEnd() {
 		return end;
 		}
-	public int compareSample(IBDRecord o) {
+	public int compareSample(final IBDRecord o) {
 		int i = sn1.compareTo(o.sn1);
 		if(i!=0) return i;
 		return sn2.compareTo(o.sn2);
 		}
-	public int compareSamplePos(IBDRecord o) {
+	public int compareSamplePos(final IBDRecord o) {
 		int i = compareSample(o);
 		if(i!=0) return i;
 		i = contig.compareTo(o.contig);
@@ -144,28 +145,60 @@ private static class IBDRecord implements Locatable{
 		if(i!=0) return i;
 		return Integer.compare(end, o.end);
 		}
+	int getDigestedHaplo() {
+		if(haplo1==haplo2) return haplo1;
+		return -1;//TODO
+		}
+	@Override
+	public String toString()
+		{
+		return sn1+"\t"+haplo1+"\t"+sn2+"\t"+haplo2+"\t"+contig+":"+start+"-"+end;
+		}
 	}
 
 private static class IBDRecordCodec extends AbstractDataCodec<IBDRecord> {
 	@Override
 	public IBDRecord decode(DataInputStream dis) throws IOException {
-		return null;
+		final IBDRecord rec = new IBDRecord();
+		try {
+			rec.sn1 = dis.readUTF();
+			}
+		catch(final EOFException err) {
+			return null;
+			}
+		rec.haplo1 = dis.readInt();
+		rec.sn2 = dis.readUTF();
+		rec.haplo2 = dis.readInt();
+		rec.contig = dis.readUTF();
+		rec.start = dis.readInt();
+		rec.end = dis.readInt();
+		return rec;
 		}
 	@Override
-	public void encode(DataOutputStream dos, IBDRecord object) throws IOException {
-		
+	public void encode(final DataOutputStream dos, final IBDRecord rec) throws IOException {
+		dos.writeUTF(rec.sn1);
+		dos.writeInt(rec.haplo1);
+		dos.writeUTF(rec.sn2);
+		dos.writeInt(rec.haplo2);
+		dos.writeUTF(rec.contig);
+		dos.writeInt(rec.start);
+		dos.writeInt(rec.end);
 		}
 	@Override
 	public IBDRecordCodec clone() {
 		return new IBDRecordCodec();
 		}
-}
+	}
 
 
 
 @Override
 public int doWork(List<String> args) {
 	try {
+		if(!args.isEmpty()) {
+			LOG.error("illegal numbers of arguments");
+			return -1;
+			}
 		final IntervalTreeMap<BimRecord> bimRecordsIntervalTreeMap = new IntervalTreeMap<>();
 
 		final List<BimRecord> bims = new ArrayList<>(100_000);
@@ -174,6 +207,8 @@ public int doWork(List<String> args) {
 			String line;
 			while((line=br.readLine())!=null) {
 				final String[] tokens = ws.split(line);
+				if(tokens.length<4) throw new JvarkitException.TokenErrors(4, tokens);
+
 				final BimRecord rec = new BimRecord(tokens[0], Integer.parseInt(tokens[3]));
 				bimRecordsIntervalTreeMap.put(new Interval(rec), rec);
 				bims.add(rec);
@@ -195,6 +230,7 @@ public int doWork(List<String> args) {
 			String line;
 			while((line=br.readLine())!=null) {
 				final String[] tokens = ws.split(line);
+				if(tokens.length<7) throw new JvarkitException.TokenErrors(7, tokens);
 				final IBDRecord rec = new IBDRecord();
 				if(tokens[0].compareTo(tokens[2]) <= 0) {
 					rec.sn1 = tokens[0];
@@ -226,6 +262,8 @@ public int doWork(List<String> args) {
 			}
 		sorter.doneAdding();
 		bims.removeIf(B->!B.keep);
+		LOG.error("Removing markers without overlap. Now N="+bims.size());
+		
 		if(bims.isEmpty()) {
 			LOG.error("no overlapping record from BIM was found");
 			return -1;
@@ -245,14 +283,39 @@ public int doWork(List<String> args) {
 					pw.print(first.sn1);
 					pw.print("/");
 					pw.print(first.sn2);
+				
+					final IntervalTreeMap<IBDRecord> treemap = new IntervalTreeMap<>();
+					for(IBDRecord ibd:row) {
+						final Interval r = new Interval(ibd);
+						if(treemap.containsKey(r)) {
+							LOG.error("duplicate range:\n"+ibd+"\nvs\n"+treemap.get(r));
+							iter.close();
+							return -1;
+							}
+						treemap.put(r, ibd);
+						}
+					
 					for(BimRecord rec:bims) {
 						pw.append("\t");
-						final Set<Integer> ibdset = new TreeSet<>();
-						row.stream().
-								filter(R->R.overlaps(rec)).
-								forEach(R->{ibdset.add(R.haplo1);ibdset.add(R.haplo2);});
-						if(ibdset.isEmpty()) ibdset.add(0);
-						pw.append(ibdset.stream().map(I->I.toString()).collect(Collectors.joining(",")));
+						final Collection<Integer> hapset = treemap.
+								getOverlapping(rec).
+								stream().
+								map(T->T.getDigestedHaplo()).
+								collect(Collectors.toSet());
+						if(hapset.isEmpty())
+							{
+							pw.append("0");
+							}
+						else if(hapset.size()==1)
+							{
+							pw.append(String.valueOf(hapset.iterator().next()));
+							}
+						else
+							{
+							iter.close();
+							throw new IllegalStateException("ambigous: "+ rec+" : " + treemap.
+									getOverlapping(rec).stream().map(T->T.toString()).collect(Collectors.joining(" | ")));
+							}
 						}
 					pw.println();
 					}
