@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -44,6 +45,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -73,6 +75,8 @@ public class IBDReformater01 extends Launcher{
 	private Path bimFile =null;
 	@Parameter(names={"--ibd"},description="IBD File",required = true)
 	private Path ibdFile =null;
+	@Parameter(names={"--fam"},description="Pedigree File")
+	private Path famFile =null;
 
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
@@ -107,6 +111,36 @@ public static class BimRecord implements Locatable, Comparable<BimRecord> {
 	@Override
 	public String toString() {
 		return contig+":"+pos;
+		}
+	}
+
+private static class Couple {
+	final String sn1;
+	final String sn2;
+	Couple(final String sn1,final String sn2) {
+		if(sn1.compareTo(sn2)<=0) {
+			this.sn1 = sn1;
+			this.sn2 = sn2;
+		} else
+		{
+			this.sn1 = sn2;
+			this.sn2 = sn1;
+		}
+	}
+	@Override
+	public int hashCode() {
+		return this.sn1.hashCode()*31+this.sn2.hashCode();
+		}
+	@Override
+	public boolean equals(Object obj) {
+		if(obj==this) return true;
+		if(obj==null || !(obj instanceof Couple)) return false;
+		final Couple o = Couple.class.cast(obj);
+		return o.sn1.equals(this.sn1) && o.sn2.equals(this.sn2);
+		}
+	@Override
+	public String toString() {
+		return sn1+"/"+sn2;
 		}
 	}
 
@@ -189,7 +223,7 @@ private static class IBDRecordCodec extends AbstractDataCodec<IBDRecord> {
 
 
 @Override
-public int doWork(List<String> args) {
+public int doWork(final List<String> args) {
 	try {
 		if(!args.isEmpty()) {
 			LOG.error("illegal numbers of arguments");
@@ -199,6 +233,24 @@ public int doWork(List<String> args) {
 
 		final List<BimRecord> bims = new ArrayList<>(100_000);
 		final Pattern ws = Pattern.compile("[\\s]+");
+		
+		final Set<Couple> remain_couples = new HashSet<>();
+		if(this.famFile!=null) {
+			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.famFile)) {
+				final List<String> samples = new ArrayList<>(br.lines().
+						filter(S->!StringUtils.isBlank(S)).
+						map(S->ws.split(S)).
+						map(T->T[1]).
+						collect(Collectors.toSet()));
+				for(int x=0;x+1< samples.size();x++) {
+					for(int y=x+1;y< samples.size();y++) {
+						remain_couples.add(new Couple(samples.get(x),samples.get(y)));
+						}
+					}
+				}
+			LOG.info("number of couples in "+this.famFile+" "+remain_couples.size());
+			}
+
 		try(BufferedReader br = IOUtils.openPathForBufferedReading(this.bimFile)) {
 			String line;
 			while((line=br.readLine())!=null) {
@@ -280,6 +332,10 @@ public int doWork(List<String> args) {
 				while(iter.hasNext()) {
 					final List<IBDRecord> row = iter.next();
 					final IBDRecord first = row.get(0);
+					
+					remain_couples.remove(new Couple(first.sn1,first.sn2));
+
+					
 					pw.print(first.sn1);
 					pw.print("/");
 					pw.print(first.sn2);
@@ -328,6 +384,15 @@ public int doWork(List<String> args) {
 					pw.println();
 					}
 				iter.close();
+				}
+			for(Couple remain: remain_couples) {
+				pw.print(remain.sn1);
+				pw.print("/");
+				pw.print(remain.sn2);
+				for(int i=0;i< bims.size();i++) {
+					pw.append("\t0");
+					}
+				pw.println();
 				}
 			pw.flush();
 			}
