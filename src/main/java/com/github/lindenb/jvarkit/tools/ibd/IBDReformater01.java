@@ -33,9 +33,9 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -145,10 +145,6 @@ private static class IBDRecord implements Locatable{
 		if(i!=0) return i;
 		return Integer.compare(end, o.end);
 		}
-	int getDigestedHaplo() {
-		if(haplo1==haplo2) return haplo1;
-		return -1;//TODO
-		}
 	@Override
 	public String toString()
 		{
@@ -226,6 +222,7 @@ public int doWork(List<String> args) {
 						writingSortingCollection.getTmpPaths()
 						);
 		sorter.setDestructiveIteration(true);
+		long n_added = 0L;
 		try(BufferedReader br = IOUtils.openPathForBufferedReading(this.ibdFile)) {
 			String line;
 			while((line=br.readLine())!=null) {
@@ -255,11 +252,14 @@ public int doWork(List<String> args) {
 					found=true;
 					}
 				if(found) {
+					n_added++;
 					sorter.add(rec);
 					}
 				}
 			
 			}
+		LOG.info("number of records in "+this.ibdFile+" "+n_added);
+
 		sorter.doneAdding();
 		bims.removeIf(B->!B.keep);
 		LOG.error("Removing markers without overlap. Now N="+bims.size());
@@ -284,37 +284,45 @@ public int doWork(List<String> args) {
 					pw.print("/");
 					pw.print(first.sn2);
 				
-					final IntervalTreeMap<IBDRecord> treemap = new IntervalTreeMap<>();
+					final IntervalTreeMap<List<IBDRecord>> treemap = new IntervalTreeMap<>();
 					for(IBDRecord ibd:row) {
 						final Interval r = new Interval(ibd);
-						if(treemap.containsKey(r)) {
-							LOG.error("duplicate range:\n"+ibd+"\nvs\n"+treemap.get(r));
-							iter.close();
-							return -1;
+						List<IBDRecord> L = treemap.get(r);
+						if(L!=null) {
+							LOG.warn("duplicate range:\n"+ibd+"\nvs\n"+treemap.get(r));
+						} else {
+							L = new ArrayList<>();
+							treemap.put(r, L);
 							}
-						treemap.put(r, ibd);
+						L.add(ibd);
 						}
 					
 					for(BimRecord rec:bims) {
 						pw.append("\t");
-						final Collection<Integer> hapset = treemap.
+						final List<IBDRecord> hapset = treemap.
 								getOverlapping(rec).
 								stream().
-								map(T->T.getDigestedHaplo()).
-								collect(Collectors.toSet());
+								flatMap(L->L.stream()).
+								collect(Collectors.toList());
 						if(hapset.isEmpty())
 							{
 							pw.append("0");
 							}
 						else if(hapset.size()==1)
 							{
-							pw.append(String.valueOf(hapset.iterator().next()));
+							pw.append("1");
 							}
 						else
 							{
-							iter.close();
-							throw new IllegalStateException("ambigous: "+ rec+" : " + treemap.
-									getOverlapping(rec).stream().map(T->T.toString()).collect(Collectors.joining(" | ")));
+							final Set<Integer> hap1 = hapset.stream().map(R->R.haplo1).collect(Collectors.toSet());
+							final Set<Integer> hap2 = hapset.stream().map(R->R.haplo2).collect(Collectors.toSet());
+							if(hap1.size()==1 || hap2.size()==1) {
+								pw.append("1");
+								}
+							else
+								{
+								pw.append("2");
+								}
 							}
 						}
 					pw.println();
