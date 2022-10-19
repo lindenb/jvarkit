@@ -28,6 +28,7 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -74,6 +75,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StopWatch;
 
 /**
@@ -124,7 +126,7 @@ No errors detected in compressed data of out.zip.
 		description="Creates an archive of small bams with only a few regions.",
 		keywords={"bam","sam"},
 		creationDate="20190410",
-		modificationDate="20191010"
+		modificationDate="20221019"
 		)
 public class MakeMiniBam extends Launcher {
 	private static final Logger LOG = Logger.build(MakeMiniBam.class).make();
@@ -140,8 +142,8 @@ public class MakeMiniBam extends Launcher {
 	private String filePrefix="miniBam.";
 	@Parameter(names={"-B","--bed","-p","--pos","-V","--variant","--vcf"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class,required=true)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
-	@Parameter(names={"-R","--reference"},description="Optional Reference file for CRAM files. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private Path referencePath = null;
+	@Parameter(names={"-R","--reference"},description="Optional Reference file for CRAM files. Multiple allowed. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private List<Path> referencePathList = new ArrayList<>();
 	@Parameter(names={"--filter"},description=SamRecordFilterFactory.FILTER_DESCRIPTION,converter=SamRecordFilterFactory.class,splitter=NoSplitter.class)
 	private SamRecordFilter samRecordFilter = SamRecordFilterFactory.ACCEPT_ALL;
 	@Parameter(names={"-b","--bounds","--edge"},description="[20190427] If `b` is greater than 0 and the user interval has a length greater than `b` then consider the edges of the object as two positions. the idea is to just save the boundaries of a large deletion. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
@@ -150,9 +152,18 @@ public class MakeMiniBam extends Launcher {
 	private String userComment="";
 	@Parameter(names={"--bnd"},description="[20190427]When reading VCF file, don't get the mate position for the structural BND variants.")
 	private boolean disable_sv_bnd = false;
-	@Parameter(names={"--no-samples"},description="[20191129]Allow no sample/ no read group : use fileame")
+	@Parameter(names={"--no-samples"},description="[20191129]Allow no sample/ no read group : use filename")
 	private boolean allow_no_sample = false;
 
+	private static class RefAndDict {
+		final Path path;
+		final SAMSequenceDictionary dict;
+		RefAndDict(final Path path) {
+			this.path = path;
+			this.dict = SequenceDictionaryUtils.extractRequired(path);
+			}
+		}
+	
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -169,6 +180,11 @@ public class MakeMiniBam extends Launcher {
 			if(!this.filePrefix.endsWith(".")) {
 				this.filePrefix+=".";
 				}
+			
+			final List<RefAndDict> refAndDicts = this.referencePathList.stream().
+					map(T->new RefAndDict(T)).
+					collect(Collectors.toList());
+			
 			
 			IOUtil.assertDirectoryIsWritable(tmpDir);
 			final List<Path> bamFiles = IOUtils.unrollPaths(args);
@@ -193,8 +209,6 @@ public class MakeMiniBam extends Launcher {
 			swf.setCompressionLevel(9);
 			swf.setCreateIndex(true);
 			
-			final SamReaderFactory srf = super.createSamReaderFactory();
-			if(this.referencePath!=null) srf.referenceSequence(this.referencePath);
 			
 			archive = ArchiveFactory.open(this.outputFile);
 			archive.setCompressionLevel(Deflater.NO_COMPRESSION);
@@ -202,6 +216,18 @@ public class MakeMiniBam extends Launcher {
 				LOG.info(bamFile.toString());
 				final StopWatch stopWatch = new StopWatch();
 				stopWatch.start();
+				
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(bamFile);
+				final Path referencePath = refAndDicts.stream().
+						filter(RD->SequenceUtil.areSequenceDictionariesEqual(dict, RD.dict)).
+						map(R->R.path).
+						findFirst().
+						orElse(null);
+				
+				final SamReaderFactory srf = super.createSamReaderFactory();
+				if(referencePath!=null) srf.referenceSequence(referencePath);
+
+				
 				final SamReader sr = srf.open(bamFile);
 				if(!sr.hasIndex()) {
 					sr.close();
@@ -215,7 +241,6 @@ public class MakeMiniBam extends Launcher {
 					return -1;
 					}
 				
-				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 				final Optional<String> dictLabel = SequenceDictionaryUtils.getBuildName(dict);
 				final String labelSuffix = 
 						(dictLabel.isPresent()? "." + dictLabel.get():"") + 

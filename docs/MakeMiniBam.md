@@ -8,6 +8,7 @@ Creates an archive of small bams with only a few regions.
 ## Usage
 
 ```
+Usage: java -jar dist/mkminibam.jar  [options] Files
 Usage: mkminibam [options] Files
   Options:
     --bnd
@@ -19,7 +20,7 @@ Usage: mkminibam [options] Files
       greater than `b` then consider the edges of the object as two positions. 
       the idea is to just save the boundaries of a large deletion. A distance 
       specified as a positive integer.Commas are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: -1
     -C, --comment
       [20190427]Add a file '*.md' with this comment.
@@ -27,7 +28,7 @@ Usage: mkminibam [options] Files
     -x, --extend
       Extend the positions by 'x' bases. A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 5000
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
@@ -41,7 +42,7 @@ Usage: mkminibam [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     --no-samples
-      [20191129]Allow no sample/ no read group : use fileame
+      [20191129]Allow no sample/ no read group : use filename
       Default: false
   * -o, --output
       An existing directory or a filename ending with the '.zip' or '.tar' or 
@@ -51,9 +52,10 @@ Usage: mkminibam [options] Files
       replaced by the current date
       Default: miniBam.
     -R, --reference
-      Optional Reference file for CRAM files. Indexed fasta Reference file. 
-      This file must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary 
+      Optional Reference file for CRAM files. Multiple allowed. Indexed fasta 
+      Reference file. This file must be indexed with samtools faidx and with 
+      picard CreateSequenceDictionary
+      Default: []
     -T, --tmp
       Tmp working directory
       Default: /tmp
