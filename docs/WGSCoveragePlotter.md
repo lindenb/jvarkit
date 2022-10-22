@@ -158,6 +158,7 @@ java -jar dist/wgscoverageplotter.jar --dimension 1500x500 -C -1 --clip -R src/t
 ## Cited in
 
  * Vinicius A.C & al. Comparative analyses of Theobroma cacao and T. grandiflorum mitogenomes reveal conserved gene content embedded within complex and plastic structures". Gene Volume 849 2023 .https://doi.org/10.1016/j.gene.2022.146904.
+ * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Corrêa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114
 
 ## Screenshot
 
