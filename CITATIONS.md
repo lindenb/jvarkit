@@ -1,5 +1,10 @@
 Citations:
 
+## 2022
+
+ * blastn2snp : Guo, Y., Betzen, B., Salcedo, A. et al. Population genomics of Puccinia graminis f.sp. tritici highlights the role of admixture in the origin of virulent wheat rust races. Nat Commun 13, 6287 (2022). https://doi.org/10.1038/s41467-022-34050-w
+
+## TODO
  * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Corrêa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114
  * "Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements" . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
  * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).

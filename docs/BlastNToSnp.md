@@ -8,6 +8,7 @@ print indel/mismatch in a blastn stream
 ## Usage
 
 ```
+Usage: java -jar dist/blastn2snp.jar  [options] Files
 Usage: blastn2snp [options] Files
   Options:
     -n, --gapsize
@@ -121,4 +122,8 @@ No definition line  Homo sapiens chromosome 19, alternate assembly HuRef        
 No definition line  Homo sapiens chromosome 19, alternate assembly HuRef                                             9          16         21         51461318   -       G         A           18                  C              T                .
 
 ```
+
+## Cited in:
+
+  * Guo, Y., Betzen, B., Salcedo, A. et al. Population genomics of Puccinia graminis f.sp. tritici highlights the role of admixture in the origin of virulent wheat rust races. Nat Commun 13, 6287 (2022). https://doi.org/10.1038/s41467-022-34050-w
 

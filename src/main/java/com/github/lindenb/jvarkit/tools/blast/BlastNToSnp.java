@@ -90,6 +90,10 @@ No definition line  Homo sapiens chromosome 19, alternate assembly HuRef        
 
 ```
 
+## Cited in:
+
+  * Guo, Y., Betzen, B., Salcedo, A. et al. Population genomics of Puccinia graminis f.sp. tritici highlights the role of admixture in the origin of virulent wheat rust races. Nat Commun 13, 6287 (2022). https://doi.org/10.1038/s41467-022-34050-w
+
 END_DOC
  */
 @Program(name="blastn2snp",
