@@ -3,6 +3,7 @@ Citations:
 ## 2022
 
  * blastn2snp : Guo, Y., Betzen, B., Salcedo, A. et al. Population genomics of Puccinia graminis f.sp. tritici highlights the role of admixture in the origin of virulent wheat rust races. Nat Commun 13, 6287 (2022). https://doi.org/10.1038/s41467-022-34050-w
+ * Han, W., Liu, L., Wang, J. et al. Ancient homomorphy of molluscan sex chromosomes sustained by reversible sex-biased genes and sex determiner translocation. Nat Ecol Evol (2022). https://doi.org/10.1038/s41559-022-01898-6
 
 ## TODO
  * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Corrêa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114
