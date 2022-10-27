@@ -2722,7 +2722,7 @@ all2.add(task("jeter2", type: CompileJVarkit) {
         });
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.bam2svg.InversionToSVG"
+        mainClass = "com.github.lindenb.jvarkit.tools.burden.OptimizeRVTest"
         jarLibs = combineLibs("htsjdk","testng","jcommander","jetty")
         });
 
