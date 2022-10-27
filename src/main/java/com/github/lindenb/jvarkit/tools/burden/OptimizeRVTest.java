@@ -56,7 +56,10 @@ public class OptimizeRVTest extends Launcher {
 	private int n_samples_per_generation = 5;
 	@Parameter(names={"--tmp-dir","-T"},description="Temporary directory")
 	private Path tmpDirectory = IOUtils.getDefaultTempDir();
-
+	@Parameter(names={"--chiasma"},description="Proba chiasma")
+	private double proba_chiasma  = 0.05;
+	@Parameter(names={"--mutation"},description="Proba mutation")
+	private double proba_mutation  = 0.05;
 
 	/*
 	private static interface OpCompare {
@@ -404,13 +407,36 @@ public class OptimizeRVTest extends Launcher {
 		abstract String getTag();
 		
 		Set<String> makeSetOfSOTerms() {
+			return makeSetOfSOTerms(this.all_acns);
+			}
+		
+		Set<String> makeSetOfSOTerms(Set<String> collection) {
 			final Set<String> set = new HashSet<>();
-			final List<String> remains = new ArrayList<>(this.all_acns);
+			final List<String> remains = new ArrayList<>(collection);
 			do {
 				set.add(remains.get(random.nextInt(remains.size())));
 				} while(!remains.isEmpty() && random.nextDouble() <= 0.1);
 			return set;
 			}
+
+		@Override
+		Trait mute(Trait t) {
+			MyTrait t2 = MyTrait.class.cast(t);
+			double f=random.nextDouble();
+			MyTrait t3= new MyTrait(t2.acns);
+			if(f<0.5) {
+				t3.acns.addAll(makeSetOfSOTerms());
+				}
+			else 
+				{
+				Set<String> set2 = makeSetOfSOTerms(t3.acns);
+				t3.acns.clear();
+				t3.acns.addAll(set2);
+				}
+			return t3;
+			}
+		
+		
 		@Override
 		String asString(Trait t) {
 			return getTag()+" as SO ("+ String.join(",", MyTrait.class.cast(t).acns)+")";
@@ -459,8 +485,6 @@ public class OptimizeRVTest extends Launcher {
 	private final List<TraitFactory> traitFactories = new ArrayList<>();
 	private long n_generations = 0;
 	private Random random = new Random(System.currentTimeMillis());
-	private final double proba_chiasma = 0.05;
-	private final double proba_mutation = 0.01;
 	private final Set<String> cases = new HashSet<>();
 	private final Set<String> controls = new HashSet<>();
 
