@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -19,7 +20,9 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.converter.DurationConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -28,6 +31,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.ProcessExecutor;
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.Options;
@@ -57,9 +61,13 @@ public class OptimizeRVTest extends Launcher {
 	@Parameter(names={"--tmp-dir","-T"},description="Temporary directory")
 	private Path tmpDirectory = IOUtils.getDefaultTempDir();
 	@Parameter(names={"--chiasma"},description="Proba chiasma")
-	private double proba_chiasma  = 0.05;
+	private double proba_chiasma  = 0.01;
 	@Parameter(names={"--mutation"},description="Proba mutation")
-	private double proba_mutation  = 0.05;
+	private double proba_mutation  = 0.01;
+	@Parameter(names={"--duration"},description=DurationConverter.OPT_DESC,converter = DurationConverter.class,splitter = NoSplitter.class)
+	private Duration duration  = Duration.ofHours(23);
+	@Parameter(names={"--disable"},description="disable factory(ies) by name. Comma separated")
+	private String disableFactoriesNames="";
 
 	/*
 	private static interface OpCompare {
@@ -106,6 +114,9 @@ public class OptimizeRVTest extends Launcher {
 		public default boolean isSame(Trait t) {
 			return getFactory() == t.getFactory() && t.getFactory().isSame(this,t);
 			}
+		public default void export(BufferedWriter w) throws IOException {
+			getFactory().export(w,this);
+			}
 		}
 	
 	private abstract class TraitFactory {
@@ -127,6 +138,10 @@ public class OptimizeRVTest extends Launcher {
 		boolean isEnabled() {
 			return enabled;
 			}
+		Trait createFirst() {
+			return create();
+			}
+
 		abstract Trait create();
 		Trait mute(Trait t) {
 			return create();
@@ -152,6 +167,7 @@ public class OptimizeRVTest extends Launcher {
 		abstract String asString(Trait t);
 		abstract boolean test(VariantContext ctx,Trait v);
 		abstract boolean isSame(Trait a,Trait b);
+		abstract void export(BufferedWriter w,Trait v) throws IOException;
 		}
 	
 	
@@ -163,30 +179,69 @@ public class OptimizeRVTest extends Launcher {
 				}
 			}
 		
-		Double minValue=null;
-		Double maxValue=null;
-		protected void initialize(final Double v) {
-			if(v==null) return;
-			if(minValue==null || v.compareTo(minValue)<0) minValue=v;
-			if(maxValue==null || v.compareTo(maxValue)>0) maxValue=v;
+		private double minValue=0;
+		private double maxValue=0;
+		private boolean init_seen=false;
+		protected void initialize(final double v) {
+			if(!init_seen) {
+				minValue=v;	
+				maxValue=v;	
+				init_seen=true;
+				}
+			else
+				{
+				minValue = Math.min(minValue, v);
+				maxValue = Math.max(maxValue, v);
+				}
 			}
 		
+		protected double getMin() { return this.minValue;}
+		protected double getMax() { return this.maxValue;}
+		
 		private double delta() {
-			return maxValue - minValue;
+			return getMax() - getMin();
 			}
 		
 		protected double makeNumber() {
-			return minValue + (random.nextDouble() * delta());
+			return getMin() + (random.nextDouble() * delta());
+			}
+		protected double makeFirstNumber() {
+			return makeNumber();
+			}
+
+		Trait mute(Trait t) {
+			final MyTrait t2 = MyTrait.class.cast(t);
+			double v = t2.v;
+			if(random.nextBoolean()) {
+				v+= (getMax() - v)/100.0;
+				}
+			else
+				{
+				v-= (v-getMin())/100.0;
+				}
+			return new MyTrait(v);
 			}
 		
-		Trait mute(Trait t) {
-			return create();
-			}
 		
 		@Override
 		boolean isEnabled() {
-			return minValue!=null && maxValue!=null && minValue.compareTo(maxValue)<0;
+			return getMin() < getMax();
 			}
+		
+		@Override
+		Trait createFirst() {
+			double v = makeFirstNumber();
+			if(v<getMin()) {
+				throw new IllegalArgumentException("bad init value for "+getName()+" "+v+" < "+getMin());
+				//v=getMin();
+				}
+			if(v>getMax()) {
+				throw new IllegalArgumentException("bad init value for "+getName()+" "+v+">"+getMax());
+				//v=getMax();
+				}
+			return new MyTrait(v);
+			}
+
 		
 		@Override
 		Trait create() {
@@ -200,7 +255,14 @@ public class OptimizeRVTest extends Launcher {
 			final MyTrait tb = MyTrait.class.cast(b);
 			return Double.compare(ta.v,tb.v)==0 ;
 			}
-		
+		@Override
+		void export(BufferedWriter w,Trait t) throws IOException {
+			w.write(getName());
+			w.write("\t");
+			w.write(String.valueOf(MyTrait.class.cast(t).v));
+			w.write("\n");
+			}
+
 		
 		@Override
 		public String toString() {
@@ -212,7 +274,6 @@ public class OptimizeRVTest extends Launcher {
 	
 	
 	private abstract class  SimpleDoubleTagFactory  extends AbstractNumberFactory {
-		
 		
 		@Override
 		void initialize(final VariantContext ctx) {
@@ -238,6 +299,10 @@ public class OptimizeRVTest extends Launcher {
 			return getTag() +" =< " + MyTrait.class.cast(t).v;
 			}
 		@Override
+		protected double makeFirstNumber() {
+			return 10.0;
+			}
+		@Override
 		boolean test(final VariantContext ctx,final Trait t) {
 			if(!ctx.hasAttribute(getTag())) return true;
 			return ctx.getAttributeAsDouble(getTag(), 0.0) <= MyTrait.class.cast(t).v;
@@ -254,6 +319,10 @@ public class OptimizeRVTest extends Launcher {
 			return getTag() +" >= " + MyTrait.class.cast(t).v;
 			}
 		@Override
+		protected double makeFirstNumber() {
+			return 59.0;
+			}
+		@Override
 		boolean test(VariantContext ctx, Trait t) {
 			if(!ctx.hasAttribute(getTag())) return true;
 			return ctx.getAttributeAsDouble(getTag(), 0.0) >= MyTrait.class.cast(t).v;
@@ -268,6 +337,10 @@ public class OptimizeRVTest extends Launcher {
 		String asString(Trait t) {
 			final double x = Math.abs(MyTrait.class.cast(t).v);
 			return ""+(-x)+" <= "+getTag()+" <= "+ x;
+			}
+		@Override
+		protected double makeFirstNumber() {
+			return 3.0;
 			}
 		@Override
 		boolean test(VariantContext ctx, Trait t) {
@@ -293,6 +366,10 @@ public class OptimizeRVTest extends Launcher {
 			return getName() +" <= " + MyTrait.class.cast(t).v;
 			}
 		
+		@Override
+		protected double makeFirstNumber() {
+			return 0.01;
+			}
 		
 		double getMissing(final VariantContext ctx) {
 			double n=0.0;
@@ -325,14 +402,18 @@ public class OptimizeRVTest extends Launcher {
 		void initialize(VariantContext ctx) {
 			initialize(0.1);
 			initialize(0.5);
-			
 			}
+		
 		@Override
 		String asString(final Trait t) {
 			return MyTrait.class.cast(t).v + "<="+ getName() +" <= " + (1.0-MyTrait.class.cast(t).v);
 			}
 		
-	
+		@Override
+		protected double makeFirstNumber() {
+			return 0.3;
+			}
+		
 		@Override
 		boolean test(final VariantContext ctx, final Trait trait) {
 			Genotype singleton = getSingleton(ctx);
@@ -368,11 +449,16 @@ public class OptimizeRVTest extends Launcher {
 			}
 		
 		@Override
+		protected double makeFirstNumber() {
+			return 80.0;
+			}
+		
+		@Override
 		boolean test(final VariantContext ctx, final Trait trait) {
 			final Genotype singleton = getSingleton(ctx);
 			if(singleton==null) return true;
 			if(!singleton.hasGQ()) return true;
-			return MyTrait.class.cast(trait).v >= singleton.getGQ();
+			return singleton.getGQ() >= MyTrait.class.cast(trait).v;
 			}
 		@Override
 		String getName() {
@@ -380,7 +466,38 @@ public class OptimizeRVTest extends Launcher {
 			}
 		}
 	
-	
+	//
+	/** Gnomad AF */
+	private class GnomadAFFactory extends AbstractNumberFactory {
+		final String tag = "gnomad_genome_AF_POPMAX";
+		
+		private double getAF(VariantContext ctx) {
+			return ctx.getAttributeAsDoubleList(tag, 0.0).stream().
+					mapToDouble(V->V.doubleValue()).min().orElse(0.0);
+			}
+		@Override
+		void initialize(VariantContext ctx) {
+			initialize(getAF(ctx));
+			}
+		@Override
+		String asString(final Trait t) {
+			return getName() +" <= " + MyTrait.class.cast(t).v;
+			}
+		@Override
+		protected double makeFirstNumber() {
+			return 0.01;
+			}
+		
+		@Override
+		boolean test(final VariantContext ctx, final Trait trait) {
+			return getAF(ctx) <= MyTrait.class.cast(trait).v ;
+			}
+		@Override
+		String getName() {
+			return this.tag;
+			}
+		}
+
 	
 	private abstract class AbstractPredictionFactory  extends TraitFactory {
 		protected final Set<String> all_acns = new HashSet<>();
@@ -391,6 +508,18 @@ public class OptimizeRVTest extends Launcher {
 				}
 			}
 		
+		@Override
+		Trait createFirst() {
+			final String acn = "missense_variant";
+			if(this.all_acns.contains(acn)) {
+				return new MyTrait( Collections.singleton(acn));
+				}
+			else
+				{
+				LOG.warn(acn +" not present in "+this.all_acns);
+				return create();
+				}
+			}
 		
 		@Override
 		Trait create() {
@@ -436,9 +565,16 @@ public class OptimizeRVTest extends Launcher {
 			return t3;
 			}
 		
+		@Override
+		void export(BufferedWriter w, final Trait t) throws IOException {
+			w.write(getName());
+			w.write("\t");
+			w.write(String.join(",", MyTrait.class.cast(t).acns));
+			w.write("\n");
+			}
 		
 		@Override
-		String asString(Trait t) {
+		String asString(final Trait t) {
 			return getTag()+" as SO ("+ String.join(",", MyTrait.class.cast(t).acns)+")";
 			}
 		@Override
@@ -454,19 +590,19 @@ public class OptimizeRVTest extends Launcher {
 	private class VepPredictionFactory  extends AbstractPredictionFactory {
 		private VepPredictionParser vep;
 		@Override
-		void initialize(VCFHeader header) {
+		void initialize(final VCFHeader header) {
 			super.initialize(header);
 			this.vep = new VepPredictionParserFactory(header).get();
 			}
 		@Override
-		void initialize(VariantContext ctx) {
+		void initialize(final VariantContext ctx) {
 			vep.getPredictions(ctx).stream().
 					flatMap(P->P.getSOTermsStrings().stream()).
 					forEach(S->all_acns.add(S));
 			}
 		
 		@Override
-		boolean test(VariantContext ctx, Trait v) {
+		boolean test(final VariantContext ctx,final Trait v) {
 			final MyTrait mt = MyTrait.class.cast(v);
 			return vep.getPredictions(ctx).stream().
 					flatMap(P->P.getSOTermsStrings().stream()).
@@ -496,9 +632,12 @@ public class OptimizeRVTest extends Launcher {
 		final List<Trait> traits;
 		final List<String> assoc=new ArrayList<>();
 		Solution() {
+			this(false);
+			}
+		Solution(boolean is_first) {
 			this.traits = new ArrayList<>(traitFactories.size());
 			for(TraitFactory t: traitFactories) {
-				traits.add(t.create());
+				traits.add(is_first?t.createFirst():t.create());
 				}
 			}
 		
@@ -553,7 +692,10 @@ public class OptimizeRVTest extends Launcher {
 			final String filename= tmpDirectory.resolve("tmp").toString();
 			this.pvalue=1.0;
 			final List<Interval> intervals = saveVCF(inputVCF,filename);
-			if(intervals.isEmpty()) return;
+			if(intervals.isEmpty()) {
+				LOG.info("No interval for this");
+				return;
+				}
 			
 			try(BufferedWriter w = Files.newBufferedWriter(Paths.get(filename+".setfile"))) {
 				w.write("REGION"+this.id+"\t"+
@@ -607,7 +749,7 @@ public class OptimizeRVTest extends Launcher {
 	
 	private Solution mate(final Solution s1,final Solution s2)  {
 		final Solution c = new Solution();
-		int side= this.random.nextBoolean()?0:1;
+		int side= 0;//always start with same , no when scanning X*Y, we're always starting with the other sample.
 		for(int i=0;i< s1.size();i++) {
 			c.traits.set(i,(side==0?s1:s2).traits.get(i));
 			if(random.nextDouble()< proba_chiasma) {
@@ -619,7 +761,6 @@ public class OptimizeRVTest extends Launcher {
 			Trait t = c.traits.get(n);
 			c.traits.set(n,traitFactories.get(n).mute(t));
 			}
-		LOG.info("mate: "+c.toString());
 		return c;
 		}
 
@@ -651,6 +792,7 @@ public class OptimizeRVTest extends Launcher {
 			this.traitFactories.addAll(
 				Arrays.asList(
 					new VepPredictionFactory(),
+					new GnomadAFFactory(),
 					new FSFactory(),
 					new RMSMappingQualityFactory(),
 					new MQRankSumFactory(),
@@ -658,6 +800,14 @@ public class OptimizeRVTest extends Launcher {
 					new SingletonADFactory(),
 					new SingletonGQFactory()
 					));
+			
+			
+			final Set<String> disable_names = Arrays.stream(disableFactoriesNames.split("[, ;]+")).filter(S->!StringUtil.isBlank(S)).map(S->S.toLowerCase()).collect(Collectors.toSet());
+			LOG.info("the following factories will be disabled: "+this.traitFactories.stream().
+					filter(F->disable_names.contains(F.getName().toLowerCase())).
+					map(F->F.getName()).collect(Collectors.joining(",")));
+			this.traitFactories.removeIf(F->disable_names.contains(F.getName().toLowerCase()));
+			
 			
 			LOG.info("initialize factories");
 			try(VCFIterator iter = new VCFIteratorBuilder().open(vcfPath)) {
@@ -691,8 +841,8 @@ public class OptimizeRVTest extends Launcher {
 
 			LOG.info("cases: "+this.cases.size());
 			LOG.info("controls: "+this.controls.size());
-			final long stop = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(23);
-
+			final long stop = System.currentTimeMillis() + this.duration.toMillis();
+			
 			//write header
 			try(BufferedWriter w = Files.newBufferedWriter(Paths.get("best.tsv"),StandardOpenOption.CREATE)) {
 				w.write("TIME\tID\tGENERATION\tPVALUE");
@@ -703,7 +853,7 @@ public class OptimizeRVTest extends Launcher {
 
 			
 			
-			Solution best = new Solution();
+			Solution best = new Solution(true /* invoke createFirst() */);
 			best.run(vcfPath);
 			best.saveVCF(vcfPath,"best");
 
@@ -714,7 +864,6 @@ public class OptimizeRVTest extends Launcher {
 				c.run(vcfPath);
 				generation.add(c);
 				}
-
 			while(System.currentTimeMillis()< stop) {
 				++n_generations;
 				for(Solution sol:generation) {
@@ -729,6 +878,12 @@ public class OptimizeRVTest extends Launcher {
 								w.write("\t"+ best.traits.get(i));
 								}
 							w.write("\n");
+							w.flush();
+							}
+						try(BufferedWriter w = Files.newBufferedWriter(Paths.get("best.factory.tsv"),StandardOpenOption.CREATE)) {
+							for(int i=0;i< best.traits.size();i++) {
+								best.traits.get(i).export(w);
+								}
 							w.flush();
 							}
 
@@ -758,7 +913,7 @@ public class OptimizeRVTest extends Launcher {
 						}
 					}
 				Collections.sort(generation2,(A,B)->Double.compare(A.pvalue,B.pvalue));
-				generation = generation2.subList(0, this.n_samples_per_generation);
+				generation = generation2.subList(0, Math.min(generation2.size(),this.n_samples_per_generation));
 				while(generation.size()< this.n_samples_per_generation) {
 					final Solution x= mate(best,best);
 					x.run(vcfPath);
@@ -774,7 +929,7 @@ public class OptimizeRVTest extends Launcher {
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new OptimizeRVTest().instanceMainWithExit(args);
 	}
 }
