@@ -111,6 +111,8 @@ Usage: vcffilterjdk [options] Files
  * [https://www.biostars.org/p/9500825](https://www.biostars.org/p/9500825)
  * [https://www.biostars.org/p/9509515](https://www.biostars.org/p/9509515)
  * [https://www.biostars.org/p/9527886](https://www.biostars.org/p/9527886)
+ * [https://www.biostars.org/p/9536293](https://www.biostars.org/p/9536293)
+ * [https://www.biostars.org/p/9537149](https://www.biostars.org/p/9537149)
 
 
 ## Compilation

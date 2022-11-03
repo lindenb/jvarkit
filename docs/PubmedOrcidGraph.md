@@ -8,6 +8,7 @@ Creates a graph from Pubmed and Authors' Orcid identifiers
 ## Usage
 
 ```
+Usage: java -jar dist/pubmedorcidgraph.jar  [options] Files
 Usage: pubmedorcidgraph [options] Files
   Options:
     -links, --alllinks
@@ -38,7 +39,7 @@ Usage: pubmedorcidgraph [options] Files
       Input is a set of orcids identifiers
       Default: false
     -o, --output
-      GexF ouuput.Output file. Optional . Default: stdout
+      Gexf+xml output.Output file. Optional . Default: stdout
     --version
       print version and exit
 

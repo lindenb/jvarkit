@@ -8,6 +8,7 @@ Dump XML results from pubmed/Eutils
 ## Usage
 
 ```
+Usage: java -jar dist/pubmeddump.jar  [options] Files
 Usage: pubmeddump [options] Files
   Options:
     -e, --email

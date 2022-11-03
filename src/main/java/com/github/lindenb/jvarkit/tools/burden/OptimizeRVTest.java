@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.converter.DurationConverter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -498,6 +500,62 @@ public class OptimizeRVTest extends Launcher {
 			}
 		}
 
+	private class CaddPhredFactory extends AbstractNumberFactory {
+		final String tag = "CADD_PHRED";
+		
+		private OptionalDouble getScore(VariantContext ctx) {
+			return ctx.getAttributeAsStringList(tag,"0").
+					stream().
+					filter(S->StringUtils.isDouble(S)).
+					mapToDouble(S->Double.parseDouble(S)).
+					filter(V->V>=0).// unknown value are -999
+					min();
+			}
+		@Override
+		void initialize(VariantContext ctx) {
+			final OptionalDouble opt = getScore(ctx);
+			if(opt.isPresent()) initialize(opt.getAsDouble());
+			}
+		@Override
+		String asString(final Trait t) {
+			return getName() +" >= " + MyTrait.class.cast(t).v;
+			}
+		@Override
+		boolean test(final VariantContext ctx, final Trait trait) {
+			final OptionalDouble opt = getScore(ctx);
+			if(!opt.isPresent()) return true;
+			return opt.getAsDouble() >= MyTrait.class.cast(trait).v ;
+			}
+		@Override
+		String getName() {
+			return this.tag;
+			}
+		}
+	
+	private class PolyXFactory extends AbstractNumberFactory {
+		final String tag = "POLYX";
+		
+		private int getScore(VariantContext ctx) {
+			if(!ctx.hasAttribute(tag)) return 0;
+			return ctx.getAttributeAsInt(tag,0);
+			}
+		@Override
+		void initialize(VariantContext ctx) {
+			initialize(getScore(ctx));
+			}
+		@Override
+		String asString(final Trait t) {
+			return getName() +"<= " + MyTrait.class.cast(t).v;
+			}
+		@Override
+		boolean test(final VariantContext ctx, final Trait trait) {
+			return getScore(ctx) <= MyTrait.class.cast(trait).v ;
+			}
+		@Override
+		String getName() {
+			return this.tag;
+			}
+		}
 	
 	private abstract class AbstractPredictionFactory  extends TraitFactory {
 		protected final Set<String> all_acns = new HashSet<>();
@@ -510,13 +568,19 @@ public class OptimizeRVTest extends Launcher {
 		
 		@Override
 		Trait createFirst() {
-			final String acn = "missense_variant";
-			if(this.all_acns.contains(acn)) {
-				return new MyTrait( Collections.singleton(acn));
+			final String[] acns = new String[]{"missense_variant","stop_gained","stop_lost","start_lost","frameshift_variant"};
+			final Set<String> set = new HashSet<>(acns.length);
+			for(String s: acns) {
+				if(!this.all_acns.contains(s)) {
+					continue;
+					}
+				set.add(s);
+				}
+			if(!set.isEmpty()) {
+				return new MyTrait(set);
 				}
 			else
 				{
-				LOG.warn(acn +" not present in "+this.all_acns);
 				return create();
 				}
 			}
@@ -798,7 +862,9 @@ public class OptimizeRVTest extends Launcher {
 					new MQRankSumFactory(),
 					new MissingFactory(),
 					new SingletonADFactory(),
-					new SingletonGQFactory()
+					new SingletonGQFactory(),
+					new PolyXFactory(),
+					new CaddPhredFactory()
 					));
 			
 			
@@ -845,7 +911,7 @@ public class OptimizeRVTest extends Launcher {
 			
 			//write header
 			try(BufferedWriter w = Files.newBufferedWriter(Paths.get("best.tsv"),StandardOpenOption.CREATE)) {
-				w.write("TIME\tID\tGENERATION\tPVALUE");
+				w.write("TIMESTAMP\tDATE\tID\tGENERATION\tPVALUE");
 				for(TraitFactory tf:this.traitFactories) w.write("\t"+tf.getName());
 				w.write("\n");
 				w.flush();
@@ -859,6 +925,7 @@ public class OptimizeRVTest extends Launcher {
 
 			
 			List<Solution> generation = new ArrayList<>();
+			generation.add(best);
 			while(generation.size()< this.n_samples_per_generation) {
 				final Solution c= new Solution();
 				c.run(vcfPath);
@@ -873,7 +940,7 @@ public class OptimizeRVTest extends Launcher {
 						best.saveVCF(vcfPath,"best");
 
 						try(BufferedWriter w = Files.newBufferedWriter(Paths.get("best.tsv"),StandardOpenOption.APPEND,StandardOpenOption.CREATE)) {
-							w.write(""+System.currentTimeMillis()+"\t"+best.id+"\t"+best.generation+"\t"+best.pvalue);
+							w.write(""+System.currentTimeMillis()+"\t"+StringUtils.now()+"\t"+best.id+"\t"+best.generation+"\t"+best.pvalue);
 							for(int i=0;i< best.traits.size();i++) {
 								w.write("\t"+ best.traits.get(i));
 								}
@@ -909,14 +976,14 @@ public class OptimizeRVTest extends Launcher {
 							{
 							c.run(vcfPath);
 							}
+						if(c.pvalue==1.0) continue;
 						generation2.add(c);
 						}
 					}
 				Collections.sort(generation2,(A,B)->Double.compare(A.pvalue,B.pvalue));
 				generation = generation2.subList(0, Math.min(generation2.size(),this.n_samples_per_generation));
 				while(generation.size()< this.n_samples_per_generation) {
-					final Solution x= mate(best,best);
-					x.run(vcfPath);
+					final Solution x = mate(best, best);
 					generation.add(x);
 					}
 				}
