@@ -4,8 +4,17 @@ Citations:
 
  * blastn2snp : Guo, Y., Betzen, B., Salcedo, A. et al. Population genomics of Puccinia graminis f.sp. tritici highlights the role of admixture in the origin of virulent wheat rust races. Nat Commun 13, 6287 (2022). https://doi.org/10.1038/s41467-022-34050-w
  * Han, W., Liu, L., Wang, J. et al. Ancient homomorphy of molluscan sex chromosomes sustained by reversible sex-biased genes and sex determiner translocation. Nat Ecol Evol (2022). https://doi.org/10.1038/s41559-022-01898-6
+ * A long noncoding RNA promotes parasite differentiation in African trypanosomes. Fabien GueganK & al. Sci. Adv., 8 (24), eabn2706. • DOI: 10.1126/sciadv.abn2706 ( biostar84452 ).
+ * Baaijens, J.A., Zulli, A., Ott, I.M. et al. Lineage abundance estimation for SARS-CoV-2 in wastewater using transcriptome quantification techniques. Genome Biol 23, 236 (2022). https://doi.org/10.1186/s13059-022-02805-9 ( biostar84452 )
+
+## 2017
+
+ * Suppl. material of: "The Mobile Element Locator Tool (MELT): population-scale mobile element discovery and biology". [http://genome.cshlp.org/content/27/11/1916.short](http://genome.cshlp.org/content/27/11/1916.short) Gardner et al. Genome Res. 2017. 27: 1916-1929 
+
 
 ## TODO
+
+ * Molly M McDonough, Lillian D Parker, Nancy Rotzel McInerney, Michael G Campana, Jesus E Maldonado; Performance of commonly requested destructive museum samples for mammalian genomic studies, Journal of Mammalogy, , gyy080, https://doi.org/10.1093/jmammal/gyy080
  * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Corrêa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114
  * "Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements" . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
  * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).
