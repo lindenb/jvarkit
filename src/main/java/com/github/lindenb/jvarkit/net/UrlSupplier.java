@@ -118,6 +118,8 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Enrichr","https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("Biogps","http://biogps.org/#goto=search=&query="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("Gene ResearchAllOfUs","https://databrowser.researchallofus.org/genomic-variants/"+ StringUtils.escapeHttp(id)));
+		// intron retention associated variants
+		urls.add(new LabelledUrlImpl("IRAVs","https://iravdb.io/gene/"+ StringUtils.escapeHttp(id)));
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
