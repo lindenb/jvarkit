@@ -8,6 +8,7 @@ Jetty Based http server serving Bam coverage.
 ## Usage
 
 ```
+Usage: java -jar dist/coverageserver.jar  [options] Files
 Usage: coverageserver [options] Files
   Options:
     --bed, --B
@@ -55,11 +56,11 @@ Usage: coverageserver [options] Files
     --max_-size
       Security for memory. Max interval size. A distance specified as a 
       positive integer.Commas are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb
+      interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10000000
     --pedigree, -p
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
-      sex:(0:unknown;1:male;2:female), phenotype 
+      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --port
       server port.

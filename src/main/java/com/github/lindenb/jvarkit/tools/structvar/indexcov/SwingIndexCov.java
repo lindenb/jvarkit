@@ -1089,7 +1089,7 @@ public class SwingIndexCov extends Launcher {
 								Desktop.getDesktop().browse(new URI(U.getUrl()));
 								}
 							catch(final Throwable err) {
-								JOptionPane.showInputDialog(XFrame.this,U.getUrl());
+								JOptionPane.showInputDialog(XFrame.this,"URL",U.getUrl());
 								}
 							}
 						};

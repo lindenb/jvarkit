@@ -8,6 +8,7 @@ SVG visualization of bam DEPTH for multiple regions
 ## Usage
 
 ```
+Usage: java -jar dist/wescnvsvg.jar  [options] Files
 Usage: wescnvsvg [options] Files
   Options:
     -css, --css

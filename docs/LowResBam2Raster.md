@@ -8,6 +8,7 @@ Low Resolution BAM to raster graphics
 ## Usage
 
 ```
+Usage: java -jar dist/lowresbam2raster.jar  [options] Files
 Usage: lowresbam2raster [options] Files
   Options:
     -clip, --clip

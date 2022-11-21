@@ -34,13 +34,13 @@ import java.util.OptionalDouble;
 import java.util.function.DoubleConsumer;
 import java.util.function.Supplier;
 
-import org.apache.jena.atlas.RuntimeIOException;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
+import htsjdk.samtools.util.RuntimeIOException;
 
 /**
  * Median calculation

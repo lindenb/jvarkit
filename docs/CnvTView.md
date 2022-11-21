@@ -8,6 +8,7 @@ Text visualization of bam DEPTH for multiple regions in a terminal
 ## Usage
 
 ```
+Usage: java -jar dist/cnvtview.jar  [options] Files
 Usage: cnvtview [options] Files
   Options:
     -cap, --cap

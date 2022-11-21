@@ -8,6 +8,7 @@ another VCF to SVG
 ## Usage
 
 ```
+Usage: java -jar dist/vcfstrech2svg.jar  [options] Files
 Usage: vcfstrech2svg [options] Files
   Options:
     --af
@@ -33,7 +34,7 @@ Usage: vcfstrech2svg [options] Files
     --extend
       Extend each area with 'x' bp. A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 1000
     --format
       wich format to use to calculate the allele depth ratio.
@@ -88,7 +89,7 @@ Usage: vcfstrech2svg [options] Files
     --pack-distance
       pack variant in the same area if they're close to 'x' bp. A distance 
       specified as a positive integer.Commas are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10000
     --param
       Other parameters. Undocumented

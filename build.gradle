@@ -1396,7 +1396,7 @@ all.add( task("ncbigenedump", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("ncbitaxonomy2xml", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.NcbiTaxonomyToXml"
+	mainClass = "com.github.lindenb.jvarkit.tools.taxonomy.NcbiTaxonomyToXml"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("ngsfilessummary", type: CompileJVarkit) {
