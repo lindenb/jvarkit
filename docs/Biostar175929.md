@@ -8,6 +8,7 @@ Construct a combination set of fasta sequences from a vcf
 ## Usage
 
 ```
+Usage: java -jar dist/biostar175929.jar  [options] Files
 Usage: biostar175929 [options] Files
   Options:
     -b, --bracket

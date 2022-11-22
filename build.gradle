@@ -2715,6 +2715,10 @@ all2.add(task("ibdreformater01", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.ibd.IBDReformater01"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("vcfsplitnvariants", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariants"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 all2.add(task("jeter2", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.plateoptimizer.PlateOptimizer"
