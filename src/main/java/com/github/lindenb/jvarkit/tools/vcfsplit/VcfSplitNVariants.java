@@ -66,7 +66,7 @@ Split VCF to 'N' VCF files
 # example
 
 ```
-$ java -jar dist/vcfsplitnvariants.jar -N 10 src/test/resources/rotavirus_rf.vcf.gz -o SPLITVCF --manifest jeter.mf --index -R src/test/resources/rotavirus_rf.fa
+$ java -jar dist/vcfsplitnvariants.jar --vcf-count 10 src/test/resources/rotavirus_rf.vcf.gz -o SPLITVCF --manifest jeter.mf --index -R src/test/resources/rotavirus_rf.fa
 [INFO][VcfSplitNVariants]open SPLITVCF.00001.vcf.gz
 [INFO][VcfSplitNVariants]open SPLITVCF.00002.vcf.gz
 [INFO][VcfSplitNVariants]open SPLITVCF.00003.vcf.gz
@@ -114,8 +114,6 @@ private int split_n_files = -1;
 private int split_n_variants = -1;
 @Parameter(names={"--tbi","--index"},description="index on the fly as tbi files")
 private boolean index_on_fly = false;
-@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
-private Path faidx=null;
 @Parameter(names={"-m","--manifest"},description="write optional manifest")
 private Path manifest=null;
 
@@ -125,15 +123,24 @@ private static class OutputVCF {
 	VariantContextWriter w;
 	long n_variants = 0L;
 	final Set<String> contigs = new LinkedHashSet<>();
+	
+	void print(final PrintWriter pw) {
+		pw.print(this.path.toAbsolutePath().toString());
+		pw.print("\t");
+		pw.print(this.n_variants);
+		pw.print("\t");
+		pw.print(String.join(",", x.contigs));
+		pw.println();	
+	}
 }
 
-private OutputVCF newOutputVCF(final VCFHeader srcHeader, SAMSequenceDictionary dict,final int writer_id) {
-	OutputVCF outvcf = new OutputVCF();
+private OutputVCF newOutputVCF(final VCFHeader srcHeader, final SAMSequenceDictionary dict,final int writer_id) {
+	final OutputVCF outvcf = new OutputVCF();
 	final VariantContextWriterBuilder vcb = new VariantContextWriterBuilder();
 	outvcf.path = Paths.get(this.outputFile + "." + String.format("%05d",(writer_id+1)) + ".vcf.gz");
+	LOG.info("open "+outvcf.path);
 	final VCFHeader header2 = new VCFHeader(srcHeader);
 	JVarkitVersion.getInstance().addMetaData(this, header2);
-	
 	if(dict!=null) {
 		vcb.setReferenceDictionary(dict);
 		}
@@ -147,6 +154,7 @@ private OutputVCF newOutputVCF(final VCFHeader srcHeader, SAMSequenceDictionary 
 			setCreateMD5(false).
 			build();
 	outvcf.w.writeHeader(header2);
+	
 	return outvcf;
 	}
 
@@ -161,33 +169,17 @@ public int doWork(final List<String> args) {
 		return -1;
 		}
 	try {
-		Path reference = null;
-		int N_FILES = 10;
-		
-		final SAMSequenceDictionary dict;
-		if(this.index_on_fly) {
-			if(faidx==null) {
-				LOG.error("reference is required if you need indexing.");
-				return -1;
-				}
-			dict = SequenceDictionaryUtils.extractRequired(faidx);
-			if(dict==null) {
-				LOG.error("cannot load dict for " + reference);
-				return -1;
-				}
-			}
-		else
-			{
-			dict = null;
-			}
 		final String input = super.oneFileOrNull(args);
+
+		try(final PrintWriter pw = this.manifest==null?new PrintWriter(new NullOutputStream())?null:IOUtils.openPathForPrintWriter(this.manifest)) {
+		pw.println("vcf\tcount\tcontigs");
 		/* get number of variants */
 		try(VCFIterator iter = (input==null?
 				new VCFIteratorBuilder().open(stdin()):
 				new VCFIteratorBuilder().open(Paths.get(input)))) {
 			final VCFHeader header = iter.getHeader();
-			final List<OutputVCF> writers = new ArrayList<>(N_FILES);
 			
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			final UnaryOperator<VariantContext> checker;
 			if(this.index_on_fly) {
 				checker = new OrderChecker<VariantContext>(dict,false);
@@ -196,57 +188,63 @@ public int doWork(final List<String> args) {
 				{
 				checker = T->T;
 				}
-			long n_variants = 0L;
-			while(iter.hasNext()) {
-				final VariantContext ctx = checker.apply(iter.next());
-				final OutputVCF outvcf;
-				
-				if(this.split_n_files>0) {
+			
+			if(this.split_n_files>0) {
+				final List<OutputVCF> writers = new ArrayList<>(this.split_n_files);
+				long n_variants = 0L;
+				while(iter.hasNext()) {
+					final VariantContext ctx = checker.apply(iter.next());
+					final OutputVCF outvcf;
+					
 					final int writer_id = (int)(n_variants%this.split_n_files);
 					if(writer_id >= writers.size()) {
-						outvcf =newOutputVCF(header,dict,writer_id);
+						outvcf = newOutputVCF(header,dict,writer_id);
 						writers.add(outvcf);
-						LOG.info("open "+outvcf.path);
+
 						}
 					else {
 						outvcf = writers.get(writer_id);	
 						}
+					outvcf.contigs.add(ctx.getContig());
+					outvcf.w.add(ctx);
+					outvcf.n_variants++;
+					n_variants++;
 					}
-				else if(this.split_n_variants>0) {
-					if(writers.isEmpty() || writers.)
-					}
-				else
-					{
-					throw new IllegalStateException();
-					}
-				outvcf.contigs.add(ctx.getContig());
-				outvcf.w.add(ctx);
-				outvcf.n_variants++;
-				n_variants++;
-				if(this.split_n_variants>0) {
-					
+				for(OutputVCF out: writers) {
+					out.print(pw);
+					out.w.close();
 					}
 				}
-				
-
-			for(OutputVCF out: writers) {
-				out.w.close();
-				}
-			if(manifest!=null) {
-				try(final PrintWriter pw = IOUtils.openPathForPrintWriter(this.manifest)) {
-					pw.println("vcf\tcount\tcontigs");
-					for(OutputVCF x:writers) {
-						pw.print(x.path.toAbsolutePath().toString());
-						pw.print("\t");
-						pw.print(x.n_variants);
-						pw.print("\t");
-						pw.print(String.join(",", x.contigs));
-						pw.println();
+			else if(this.split_n_variants>0) {
+				OutputVCF outvcf=null;
+				int writer_id=0;
+				for(;;) {
+					final VariantContext ctx = iter.hasNext()?checker.apply(iter.next()):null;
+					if(ctx==null) {
+						if(outvcf!=null) {
+							out.print(pw);
+							out.w.close();
+							}
+						break;
 						}
-					pw.flush();
+					if(outvcf==null || outvcf.n_variants>=this.split_n_variants) {
+						if(outvcf!=null) {
+							out.print(pw);
+							out.w.close();
+							outvcf=null;
+							}
+						outvcf = newOutputVCF(header,dict,writer_id++);
+						}
+					outvcf.w.add(ctx);
+					outvcf.n_variants++;
 					}
 				}
-			}//end iter
+			else
+				{
+				throw new IllegalStateException();
+				}
+			pw.flush();
+			} /* end write pw */
 		return 0;
 		}
 	catch(final Throwable err) {
