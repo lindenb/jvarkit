@@ -33,6 +33,7 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -60,17 +61,19 @@ private final Pattern ncbiNucPattern = Pattern.compile("[XN][MR]_[0-9\\.]+");
 private final Pattern ncbiProtPattern = Pattern.compile("[NX]P_[0-9\\.]+");
 private final Pattern hgncPattern = Pattern.compile("[hH][gG][nN][cC]:[0-9]+");
 
-public static interface LabelledUrl
+public static interface LabelledUrl extends Comparable<LabelledUrl>
 	{
-	/** short name for this url */
+	/** short name for this url : database... */
 	public String getLabel();
+	/** target for this url: gene Name, gene id, interval... */
+	public String getTarget();
 	/** the url itself */
 	public String getUrl();
 	/** return domain of getURL() */
 	public default String getDomain() {
 		final String s= getUrl();
 		try {
-			java.net.URL u = new URL(s);
+			final java.net.URL u = new URL(s);
 			return u.getProtocol()+"://"+u.getHost();
 			}
 		catch(final Throwable err) {
@@ -111,33 +114,33 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	if( columnName.equalsIgnoreCase("genename") ||
 		columnName.equalsIgnoreCase("gene_name") ||
 		columnName.equalsIgnoreCase("symbol")) {
-		urls.add(new LabelledUrlImpl("NCBI gene","https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
-		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/search?search="+StringUtils.escapeHttp(id)));
-		urls.add(new LabelledUrlImpl("hugeamp","https://cvd.hugeamp.org/gene.html?gene="+StringUtils.escapeHttp(id)));
-		urls.add(new LabelledUrlImpl("Archs4","https://maayanlab.cloud/archs4/gene/"+StringUtils.escapeHttp(id)));
-		urls.add(new LabelledUrlImpl("Enrichr","https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
-		urls.add(new LabelledUrlImpl("Biogps","http://biogps.org/#goto=search=&query="+StringUtils.escapeHttp(id)));
-		urls.add(new LabelledUrlImpl("Gene ResearchAllOfUs","https://databrowser.researchallofus.org/genomic-variants/"+ StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("NCBI gene",id,"https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("OMIM",id,"https://www.omim.org/search?search="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("hugeamp",id,"https://cvd.hugeamp.org/gene.html?gene="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Archs4",id,"https://maayanlab.cloud/archs4/gene/"+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Enrichr",id,"https://maayanlab.cloud/Enrichr/#find!gene="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Biogps",id,"http://biogps.org/#goto=search=&query="+StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("Gene ResearchAllOfUs",id,"https://databrowser.researchallofus.org/genomic-variants/"+ StringUtils.escapeHttp(id)));
 		// intron retention associated variants
-		urls.add(new LabelledUrlImpl("IRAVs","https://iravdb.io/gene/"+ StringUtils.escapeHttp(id)));
+		urls.add(new LabelledUrlImpl("IRAVs",id,"https://iravdb.io/gene/"+ StringUtils.escapeHttp(id)));
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
-		urls.add(new LabelledUrlImpl("GenCC","https://search.thegencc.org/genes/"+hgnc));
+		urls.add(new LabelledUrlImpl("GenCC",id,"https://search.thegencc.org/genes/"+hgnc));
 		}
 	else if( columnName.equalsIgnoreCase("omim")) {
-		urls.add(new LabelledUrlImpl("OMIM","https://www.omim.org/entry/"+id));
+		urls.add(new LabelledUrlImpl("OMIM",id,"https://www.omim.org/entry/"+id));
 		}
 	else if(columnName.equalsIgnoreCase("Consequence") ||
 			columnName.equalsIgnoreCase("so")) {
 		for(final String ac:CharSplitter.of('&').split(id)) {
 			if(StringUtils.isBlank(ac)) continue;
 			if(ac.startsWith("SO:")) {
-				urls.add(new LabelledUrlImpl("SO "+ac,"http://www.sequenceontology.org/browser/current_release/term/"+StringUtils.escapeHttp(ac)));
+				urls.add(new LabelledUrlImpl("SO "+ac,id,"http://www.sequenceontology.org/browser/current_release/term/"+StringUtils.escapeHttp(ac)));
 				} 
 			else
 				{
-				urls.add(new LabelledUrlImpl("SO "+ac,"http://www.sequenceontology.org/browser/obob.cgi?rm=term_list&obo_query="+StringUtils.escapeHttp(ac)+"&release=current_svn"));
+				urls.add(new LabelledUrlImpl("SO "+ac,id,"http://www.sequenceontology.org/browser/obob.cgi?rm=term_list&obo_query="+StringUtils.escapeHttp(ac)+"&release=current_svn"));
 				}
 			}
 		}
@@ -160,43 +163,43 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		}
 	if(this.rsIdPattern.matcher(str).matches())
 		{
-		urls.add(new LabelledUrlImpl("dbsnp","https://www.ncbi.nlm.nih.gov/snp/"+str.substring(2)));
-		urls.add(new LabelledUrlImpl("opensnp","https://opensnp.org/snps/"+str.toLowerCase()));
-		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh37","https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r2_1"));
-		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh38","https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r3"));
+		urls.add(new LabelledUrlImpl("dbsnp",str,"https://www.ncbi.nlm.nih.gov/snp/"+str.substring(2)));
+		urls.add(new LabelledUrlImpl("opensnp",str,"https://opensnp.org/snps/"+str.toLowerCase()));
+		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh37",str,"https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r2_1"));
+		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh38",str,"https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r3"));
 		if(hasDict() && SequenceDictionaryUtils.isHuman(this.dict)) {
-			urls.add(new LabelledUrlImpl("clinvar","https://www.ncbi.nlm.nih.gov/clinvar?term="+str.toLowerCase()+"%5BVariant%20ID%5D"));
+			urls.add(new LabelledUrlImpl("clinvar",str,"https://www.ncbi.nlm.nih.gov/clinvar?term="+str.toLowerCase()+"%5BVariant%20ID%5D"));
 			}
 		}
 	else if(this.ensemblPattern.matcher(str).matches())
 		{
-		urls.add(new LabelledUrlImpl("Ensembl","http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q="+str.toUpperCase()+";species=;site=ensembl"));
+		urls.add(new LabelledUrlImpl("Ensembl",str,"http://www.ensembl.org/Multi/Search/Results?species=all;idx=;q="+str.toUpperCase()+";species=;site=ensembl"));
 		if(str.startsWith("ENSG")) {
-			urls.add(new LabelledUrlImpl("OpenTargets","https://genetics.opentargets.org/gene/"+str));
-			urls.add(new LabelledUrlImpl("Genbass GRCh38","https://genebass.org/gene/"+str+"?burdenSet=pLoF&phewasOpts=1&resultLayout=full"));
-			urls.add(new LabelledUrlImpl("Protein Atlas","https://www.proteinatlas.org/"+str));
+			urls.add(new LabelledUrlImpl("OpenTargets",str,"https://genetics.opentargets.org/gene/"+str));
+			urls.add(new LabelledUrlImpl("Genbass GRCh38",str,"https://genebass.org/gene/"+str+"?burdenSet=pLoF&phewasOpts=1&resultLayout=full"));
+			urls.add(new LabelledUrlImpl("Protein Atlas",str,"https://www.proteinatlas.org/"+str));
 			}
 		}
 	else if(this.ccdsPattern.matcher(str).matches()) {
-		urls.add(new LabelledUrlImpl("CCDS","https://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&GO=MainBrowse&DATA="+str));
+		urls.add(new LabelledUrlImpl("CCDS",str,"https://www.ncbi.nlm.nih.gov/CCDS/CcdsBrowse.cgi?REQUEST=CCDS&GO=MainBrowse&DATA="+str));
 		}
 	else if(this.ncbiNucPattern.matcher(str).matches()) {
-		urls.add(new LabelledUrlImpl("NCBI","https://www.ncbi.nlm.nih.gov/nuccore/"+str));
+		urls.add(new LabelledUrlImpl("NCBI",str,"https://www.ncbi.nlm.nih.gov/nuccore/"+str));
 		}
 	else if(this.ncbiProtPattern.matcher(str).matches()) {
-		urls.add(new LabelledUrlImpl("NCBI","https://www.ncbi.nlm.nih.gov/protein/"+str));
+		urls.add(new LabelledUrlImpl("NCBI",str,"https://www.ncbi.nlm.nih.gov/protein/"+str));
 		}
 	else if(str.matches("nsv[0-9]+")) {
 		if(isGrch37()) {
-			urls.add(new LabelledUrlImpl("DGV","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+str+"&search=Search"));
+			urls.add(new LabelledUrlImpl("DGV",str,"http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+str+"&search=Search"));
 			}
 		else if(isGrch38()) {
-			urls.add(new LabelledUrlImpl("DGV","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg38?name="+str+"&search=Search"));
+			urls.add(new LabelledUrlImpl("DGV",str,"http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg38?name="+str+"&search=Search"));
 			}
 		}
 	else if(IOUtil.isUrl(str))
 		{
-		urls.add(new LabelledUrlImpl("url",str));
+		urls.add(new LabelledUrlImpl("url",str,str));
 		}
 	}
 
@@ -210,9 +213,11 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		}
 	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
 	final String ucscCtg = toUcsc.apply(ctx.getContig());
+	final String variantid = ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString();
 	// popgen
 	if(isGrch37()) {
 		urls.add(new LabelledUrlImpl("popgen.uchicago.edu",
+				variantid,
 				"https://popgen.uchicago.edu/ggv/?data=%221000genomes%22&chr="+
 				StringUtils.escapeHttp(ctx.getContig()) + "&pos=" + ctx.getStart()
 				));
@@ -222,13 +227,15 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
 			//gnomad
-			urls.add(new LabelledUrlImpl("Variant Gnomad 2.1 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
+			urls.add(new LabelledUrlImpl("Variant Gnomad 2.1 " + alt.getDisplayString(),variantid+"/"+alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
 				StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r2_1"
 				));
 			
 			
 			// Bibliome
-			urls.add(new LabelledUrlImpl("Bibliome " + alt.getDisplayString(),"https://bibliome.ai/variant/"+
+			urls.add(new LabelledUrlImpl("Bibliome " + alt.getDisplayString(),
+				variantid+"/"+alt.getDisplayString(),
+				"https://bibliome.ai/variant/"+
 				ensemblCtg +
 				"-"+ctx.getStart()+
 				"-"+
@@ -237,7 +244,9 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 				alt.getDisplayString()
 				));
 			// marvel https://twitter.com/julawang/status/1094666160711323649
-			urls.add(new LabelledUrlImpl("Marrvel "+ alt.getDisplayString(),"http://marrvel.org/search/variant/"+
+			urls.add(new LabelledUrlImpl("Marrvel "+ alt.getDisplayString(),
+				variantid+"/"+alt.getDisplayString(),
+				"http://marrvel.org/search/variant/"+
 				ensemblCtg +
 				"-"+ctx.getStart()+
 				StringUtils.escapeHttp("+")+
@@ -251,21 +260,27 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
 			if(!StringUtils.isBlank(ensemblCtg)) {
-				urls.add(new LabelledUrlImpl("Variant Gnomad 3 " + alt.getDisplayString(),"https://gnomad.broadinstitute.org/variant/"+
+				urls.add(new LabelledUrlImpl("Variant Gnomad 3 " + alt.getDisplayString(),
+						variantid+"/"+alt.getDisplayString(),
+						"https://gnomad.broadinstitute.org/variant/"+
 						StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r3"
 						));
-				urls.add(new LabelledUrlImpl("OpenTargets " + alt.getDisplayString(),"https://genetics.opentargets.org/variant/"+
+				urls.add(new LabelledUrlImpl("OpenTargets " + alt.getDisplayString(),
+						variantid+"/"+alt.getDisplayString(),
+						"https://genetics.opentargets.org/variant/"+
 						String.join("_",StringUtils.escapeHttp(ensemblCtg) ,""+ctx.getStart(),ctx.getReference().getDisplayString(),alt.getDisplayString())
 						));
 				}
 			if(!StringUtils.isBlank(ucscCtg)) {
 				urls.add(new LabelledUrlImpl("Decaf Decode",
+						variantid+"/"+alt.getDisplayString(),
 						"https://decaf.decode.com/variant/"+
 						StringUtils.escapeHttp(ucscCtg) +":"+ctx.getStart()+":SG"
 						));
 
 				}
 			urls.add(new LabelledUrlImpl("Variant ResearchAllOfUs",
+					variantid+"/"+alt.getDisplayString(),
 					"https://databrowser.researchallofus.org/genomic-variants/"+
 					StringUtils.escapeHttp(ctx.getContig()) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
 					));
@@ -287,6 +302,7 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 			if(ctx.getReference().isSymbolic() || alt.isSymbolic()) continue;
 			//https://beacon-network.org/#/search?pos=114267128&chrom=4&allele=A&ref=G&rs=GRCh37
 			urls.add(new LabelledUrlImpl("Beacon " + alt.getDisplayString(),
+					variantid+"/"+alt.getDisplayString(),
 					"https://beacon-network.org/#/search?chrom="+
 					StringUtils.escapeHttp(ensemblCtg) +
 					"&pos="+ctx.getStart()+
@@ -295,6 +311,7 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 					"&rs="+ (side==0?"GRCh37":"GRCh38")
 					));
 			urls.add(new LabelledUrlImpl("Varsome " + alt.getDisplayString(),
+					variantid+"/"+alt.getDisplayString(),
 					"https://varsome.com/variant/"+
 					(side==0?"hg19/":"hg38/")+
 					StringUtils.escapeHttp(ensemblCtg) + "-"+
@@ -321,25 +338,27 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	int extend = 100;
 	final int xstart1 = Math.max(loc.getStart()-extend,1);
 	final int xend1 = loc.getEnd()+1;
-	urls.add(new LabelledUrlImpl("IGV","https://"+ IgvConstants.DEFAULT_HOST +":"+IgvConstants.DEFAULT_PORT + "/goto?locus="+
+	final String locid = new SimpleInterval(loc).toNiceString();
+	
+	urls.add(new LabelledUrlImpl("IGV",locid,"https://"+ IgvConstants.DEFAULT_HOST +":"+IgvConstants.DEFAULT_PORT + "/goto?locus="+
 			StringUtils.escapeHttp(loc.getContig()) + "%3A" +xstart1 +"-"+loc.getEnd()
 			));
 	
 	final String ensemblCtg = toEnsembl.apply(loc.getContig());
 	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg)) {
-		urls.add(new LabelledUrlImpl("Region Gnomad 2.1","https://gnomad.broadinstitute.org/region/"+
+		urls.add(new LabelledUrlImpl("Region Gnomad 2.1",locid,"https://gnomad.broadinstitute.org/region/"+
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_r2_1"
 			));
-		urls.add(new LabelledUrlImpl("Region Gnomad SV 2.1","https://gnomad.broadinstitute.org/region/"+
+		urls.add(new LabelledUrlImpl("Region Gnomad SV 2.1",locid,"https://gnomad.broadinstitute.org/region/"+
 				StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_sv_r2_1"
 				));
-		urls.add(new LabelledUrlImpl("clinvar 37","https://www.ncbi.nlm.nih.gov/clinvar/?term="+
+		urls.add(new LabelledUrlImpl("clinvar 37",locid,"https://www.ncbi.nlm.nih.gov/clinvar/?term="+
 				ensemblCtg +
 				"%5Bchr%5D+AND+"+ loc.getStart()+"%3A"+ loc.getEnd()+"%5Bchrpos37%5D"
 				));
 			}
 	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg)) {
-		urls.add(new LabelledUrlImpl("Region Gnomad 3","https://gnomad.broadinstitute.org/region/"+
+		urls.add(new LabelledUrlImpl("Region Gnomad 3",locid,"https://gnomad.broadinstitute.org/region/"+
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_3"
 			));
 		}
@@ -347,7 +366,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	final String ucscCtg =  toUcsc.apply(loc.getContig());
 	
 	if(isGrch38() && ! StringUtils.isBlank(ucscCtg)) {
-		urls.add(new LabelledUrlImpl("Region ResearchAllOfUs","https://databrowser.researchallofus.org/genomic-variants/"+
+		urls.add(new LabelledUrlImpl("Region ResearchAllOfUs",locid,"https://databrowser.researchallofus.org/genomic-variants/"+
 			StringUtils.escapeHttp(ucscCtg) + ":" + xstart1 +"-"+ xend1
 			));
 		}
@@ -355,12 +374,12 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	if(isGrch37() && ! StringUtils.isBlank(ucscCtg)) {		
 		if(loc.getLengthOnReference()>1) {
-			urls.add(new LabelledUrlImpl("dgv","http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
+			urls.add(new LabelledUrlImpl("dgv",locid,"http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg19?name="+
 					StringUtils.escapeHttp(ucscCtg) + 
 					"%3A"+loc.getStart()+"-"+loc.getEnd() + ";search=Search"
 					));
 			}
-		urls.add(new LabelledUrlImpl("pophuman","https://pophuman.uab.cat/?loc="+
+		urls.add(new LabelledUrlImpl("pophuman",locid,"https://pophuman.uab.cat/?loc="+
 				StringUtils.escapeHttp(ucscCtg) + 
 				"%3A"+loc.getStart()+".."+loc.getEnd()
 				));
@@ -368,7 +387,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	if(isGrch37() && ! StringUtils.isBlank(ensemblCtg)) {
 		if(loc.getLengthOnReference()>1) {
-			urls.add(new LabelledUrlImpl("decipher","https://www.deciphergenomics.org/browser#q/grch37:"+
+			urls.add(new LabelledUrlImpl("decipher",locid,"https://www.deciphergenomics.org/browser#q/grch37:"+
 			ensemblCtg + ":" +loc.getStart()+"-"+loc.getEnd()));
 			}
 		}
@@ -385,6 +404,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		if(build.equals("hub_3267197_GCA_009914755.4") && !SequenceDictionaryUtils.isCHM13v2(this.dict)) continue;
 		
 		urls.add(new LabelledUrlImpl("UCSC "+build,
+			locid,
 			"http://genome.ucsc.edu/cgi-bin/hgTracks?db="+build+"&highlight="+build+"."+
 					ucscCtg +
 			"%3A"+loc.getStart() +"-"+loc.getEnd() + "&position=" +
@@ -397,7 +417,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg)) {
 		if(loc.getLengthOnReference()>1) {
-			urls.add(new LabelledUrlImpl("decipher","https://www.deciphergenomics.org/browser#q/"+
+			urls.add(new LabelledUrlImpl("decipher",locid,"https://www.deciphergenomics.org/browser#q/"+
 			ensemblCtg + ":" +loc.getStart()+"-"+loc.getEnd()));
 			}
 		}
@@ -405,6 +425,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	
 	if(isGrch38() && !StringUtils.isBlank(ucscCtg)) {
 		urls.add(new LabelledUrlImpl("Decaf Decode Region",
+				locid,
 				"https://decaf.decode.com/region/"+
 				StringUtils.escapeHttp(ucscCtg) +":"+loc.getStart()+"-"+loc.getEnd()
 				));
@@ -415,7 +436,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		for(int i=0;i< 2;++i) {
 			if(i==0 && !isGrch37()) continue;
 			if(i==1 && !isGrch38()) continue;
-			urls.add(new LabelledUrlImpl("Hi-C","http://promoter.bx.psu.edu/hi-c/view.php?method=Hi-C&species=human&assembly="+(i==0?"hg19":"hg38")+
+			urls.add(new LabelledUrlImpl("Hi-C",locid,"http://promoter.bx.psu.edu/hi-c/view.php?method=Hi-C&species=human&assembly="+(i==0?"hg19":"hg38")+
 					"&source=inside&tissue=GM12878&type=Lieberman-raw&resolution=25&c_url=&transfer=&gene=&chr="+
 					StringUtils.escapeHttp(loc.getContig())+"&start="+loc.getStart()+"&end="+loc.getEnd()+"&sessionID=&browser=none"
 					));		
@@ -453,12 +474,18 @@ public Set<LabelledUrl> of(final Locatable loc) {
 private static class LabelledUrlImpl implements LabelledUrl
 	{
 	private final String label;
+	private final String target;
 	private final String url;
-	LabelledUrlImpl(final String label,final String url) {
+	LabelledUrlImpl(final String label,final String target,final String url) {
 		this.label = label;
+		this.target = target;
 		this.url = url;
 		}
+	@Override
 	public String getLabel() { return label;}
+	@Override
+	public String getTarget() { return target;}
+	@Override
 	public String getUrl() { return url;}
 	@Override
 	public int hashCode() {
@@ -470,6 +497,17 @@ private static class LabelledUrlImpl implements LabelledUrl
 		if(obj==this) return true;
 		return getUrl().equals(LabelledUrl.class.cast(obj).getUrl());
 		}
+	
+	@Override
+	public int compareTo(final LabelledUrl o) {
+		int i = this.getDomain().compareTo(o.getDomain());
+		if(i!=0) return i;
+		i = this.getTarget().compareTo(o.getTarget());
+		if(i!=0) return i;
+		i = this.getUrl().compareTo(o.getUrl());
+		return i;
+		}
+	
 	@Override
 	public String toString() {
 		return getUrl();

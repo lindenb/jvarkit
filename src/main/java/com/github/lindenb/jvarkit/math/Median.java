@@ -80,7 +80,7 @@ public class Median implements Supplier<OptionalDouble>,DoubleConsumer,Comparabl
 		}
 	
 	@Override
-	public int compareTo(Median o) {
+	public int compareTo(final Median o) {
 		final OptionalDouble a =  get();
 		final OptionalDouble b= o.get();
 		if(a.isPresent() && !b.isPresent()) return -1;
@@ -90,7 +90,7 @@ public class Median implements Supplier<OptionalDouble>,DoubleConsumer,Comparabl
 		}
 	
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if(obj==this) return true;
 		if(obj==null || !(obj instanceof Median)) return false;
 		return this.compareTo(Median.class.cast(obj))==0;
@@ -113,7 +113,7 @@ public class Median implements Supplier<OptionalDouble>,DoubleConsumer,Comparabl
 			this.array = Arrays.copyOf(this.array, new_size2);
 			}
 		}
-	public void accept(double[] values) {
+	public void accept(final double[] values) {
 		accept(values,0,values.length);
 		}
 	public void accept(double[] values,int start,int length) {

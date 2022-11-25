@@ -40,7 +40,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -77,6 +76,7 @@ import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -142,7 +142,7 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams",
 	keywords={"cnv","bam","depth","coverage","svg"},
 	creationDate="20200605",
-	modificationDate="20220826",
+	modificationDate="20221125",
 	biostars = 9536274
 	)
 public class CoveragePlotter extends Launcher {
@@ -181,6 +181,8 @@ public class CoveragePlotter extends Launcher {
 	private int smooth_pixel_size = 10;
 	@Parameter(names= {"--loess"},description="Run Loess smoothing on GC%. Experimental. For now, I find the smooting is too strong.")
 	private boolean run_loess = false;
+	@Parameter(names= {"--use-average"},description="Calculating the median depth can be memory consumming for large regions. If the region is larger than 'x', use 'average' instead of 'median'. "+ DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class,converter = DistanceParser.StringConverter.class )
+	private int use_average_instead_of_median_length_treshold = 2_000_000;
 
 
 	
@@ -539,7 +541,7 @@ public int doWork(final List<String> args) {
 			
 			w.writeStartElement("body");
 			w.writeStartElement("h2");
-			w.writeCharacters(rawRegion.toNiceString()+" extended to "+extendedRegion.toNiceString());
+			w.writeCharacters(SequenceDictionaryUtils.getBuildName(dict).orElse("") + " "+ rawRegion.toNiceString()+" extended to "+extendedRegion.toNiceString());
 			w.writeEndElement();//h2
 			w.writeStartElement("div");
 			//placeholder for xslt
@@ -875,9 +877,19 @@ public int doWork(final List<String> args) {
 				continue;
 				}
 			sampleInfo.meanDP = averageDepth.getAsDouble();
-			sampleInfo.medianInner = myMedianInner.get().orElse(0.0);
-			sampleInfo.medianOuter = myMedianOuter.get().orElse(0.0);
-			sampleInfo.medianAll = myMedianAll.get().orElse(0.0);
+			/** prevent long calculations */
+			if(depth.length < this.use_average_instead_of_median_length_treshold ) {
+				sampleInfo.medianInner = myMedianInner.get().orElse(0.0);
+				sampleInfo.medianOuter = myMedianOuter.get().orElse(0.0);
+				sampleInfo.medianAll = myMedianAll.get().orElse(0.0);
+				}
+			else
+				{
+				LOG.warn("big array ("+depth.length+") using average instead of median.");
+				sampleInfo.medianInner = myMedianInner.getAverage().orElse(0.0);
+				sampleInfo.medianOuter = myMedianOuter.getAverage().orElse(0.0);
+				sampleInfo.medianAll = myMedianAll.getAverage().orElse(0.0);
+				}
 			}
 		/** end median */
 
@@ -1132,7 +1144,7 @@ public int doWork(final List<String> args) {
 			w.writeEndElement();//div
 
 			/** URLs **************/
-			final Set<UrlSupplier.LabelledUrl> urls = new HashSet<>();
+			final Set<UrlSupplier.LabelledUrl> urls = new TreeSet<>();
 			final UrlSupplier urlSupplier = new UrlSupplier(dict);
 			urls.addAll(urlSupplier.of(rawRegion));
 			getGenes(rawRegion,G->G.getType().equals("gene")).forEach(GFF->urls.addAll(urlSupplier.of(GFF)));
@@ -1155,6 +1167,11 @@ public int doWork(final List<String> args) {
 				w.writeEndElement();//th
 				
 				w.writeStartElement("th");
+				w.writeCharacters("Target");
+				w.writeEndElement();//th
+
+				
+				w.writeStartElement("th");
 				w.writeCharacters("URL");
 				w.writeEndElement();//th
 	
@@ -1170,6 +1187,10 @@ public int doWork(final List<String> args) {
 					w.writeCharacters(url.getLabel());
 					w.writeEndElement();//th
 	
+					w.writeStartElement("td");
+					w.writeCharacters(url.getTarget());
+					w.writeEndElement();//th
+
 					
 					w.writeStartElement("td");
 					w.writeStartElement("a");
@@ -1293,6 +1314,7 @@ public int doWork(final List<String> args) {
 			w.writeCharacters("Extended interval: " + extendedRegion.toNiceString()+" (length:"+StringUtils.niceInt(extendedRegion.getLengthOnReference())+"). ");
 			w.writeCharacters("Mapping quality: " + this.min_mapq +". ");
 			w.writeCharacters("Loess: " + this.run_loess +". ");
+			w.writeCharacters("Percentil: " + (depth.length< this.use_average_instead_of_median_length_treshold?"median":"average") +". ");
 			w.writeCharacters("Include original interval for mean/median depth calculation: " + this.include_original_interval_for_median +". ");
 			w.writeCharacters("Date: " + StringUtils.now() +". ");
 			w.writeEndElement();//div

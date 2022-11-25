@@ -66,6 +66,12 @@ Usage: coverageplotter [options] Files
     --svg-only
       Force SVG-only output (default is HTML+SVG).
       Default: false
+    --use-average
+      Calculating the median depth can be memory consumming for large regions. 
+      If the region is larger than 'x', use 'average' instead of 'median'. A 
+      distance specified as a positive integer.Commas are removed. The 
+      following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
+      Default: 2000000
     --version
       print version and exit
 
