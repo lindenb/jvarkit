@@ -29,24 +29,34 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.dict.OrderChecker;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTextHeaderCodec;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.PeekableIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 
 /**
  
@@ -149,7 +159,7 @@ END_DOC
 	description="split a vcf to interval or bed for parallelization",
 	keywords={"vcf","bed","interval"},
 	creationDate="20211112",
-	modificationDate="20211112",
+	modificationDate="20221128",
 	biostars= {9506628,9529137}
 	)
 public class VcfToIntervals extends Launcher
@@ -158,15 +168,88 @@ public class VcfToIntervals extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
-	@Parameter(names="--bed",description="force BED format as output. (Default is '"+FileExtensions.INTERVAL_LIST+"')")
+	@Parameter(names={"--bed","--bed-output"},description="force BED format as output. (Default is '"+FileExtensions.INTERVAL_LIST+"')")
 	private boolean force_bed_output = false;
 	@Parameter(names={"-N","--variants","--n-variants"},description="number of variants per interval (or use option -D)")
 	private long n_variants_per_interval = -1L;
 	@Parameter(names={"-D","--distance"},description="min size of an interval (or use option -N). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int distance_per_interval = -1;
 	@Parameter(names="--min-distance",description="extends the interval if the last variant is withing distance 'x' of the next interval. Ignore if negative."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
-	private int min_distance = 500;
+	private int min_distance = -1;
+	@Parameter(names={"--intervals","--bed-input"},description="Search for intervals for EACH record of the provided bed file. VCF path must be provided and indexed.")
+	private Path bedIn = null;
 
+	
+	private void writeHeader(final PrintWriter pw,final SAMSequenceDictionary dict,final VCFHeader header ) {
+		if(!this.force_bed_output) {
+			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
+			final SAMFileHeader samHeader = new SAMFileHeader(dict);
+			samHeader.setSortOrder(this.bedIn==null?SortOrder.coordinate:SortOrder.unknown);
+			for(final String sn : header.getSampleNamesInOrder()) {
+				final SAMReadGroupRecord rg = new SAMReadGroupRecord(sn);
+				rg.setSample(sn);
+				samHeader.addReadGroup(rg);
+				}
+			JVarkitVersion.getInstance().addMetaData(this, samHeader);
+			codec.encode(pw, samHeader);
+			}
+		}
+	
+	private void apply(
+			final PrintWriter pw,
+			final PeekableIterator<VariantContext> iter,
+			final OrderChecker<VariantContext> orderChecker,
+			final Locatable optional_interval
+			)
+		{
+		while(iter.hasNext()) {
+			final VariantContext first = orderChecker.apply(iter.next());
+			VariantContext last = first;
+			long n_variants = 1;
+			if(this.n_variants_per_interval>0L) {
+				while(iter.hasNext() && n_variants < this.n_variants_per_interval) {
+					if (!first.contigsMatch( iter.peek())) {
+						break;
+						}
+					// consumme
+					last = orderChecker.apply(iter.next());
+					n_variants++;
+					}
+				}
+			else {
+				while(iter.hasNext()) {
+					final VariantContext curr = iter.peek();
+					if (!first.contigsMatch(curr)) {
+						break;
+						}
+					if (CoordMath.getLength(first.getStart(), curr.getEnd()) > this.distance_per_interval) {
+						break;
+						}
+					// consumme
+					last = orderChecker.apply(iter.next());
+					n_variants++;
+					}
+				}
+			// next variant is just too close than the last one
+			while(this.min_distance>=0 && iter.hasNext()) {
+				final VariantContext curr = iter.peek();
+				if(!last.withinDistanceOf(curr, this.min_distance)) break;
+				// consumme
+				last = orderChecker.apply(iter.next());
+				n_variants++;
+				}
+			pw.print(first.getContig());
+			pw.print("\t");
+			pw.print(first.getStart()-(this.force_bed_output?1:0));
+			pw.print("\t");
+			pw.print(last.getEnd());
+			pw.print("\t");
+			pw.print(n_variants);
+			pw.print("\t");
+			pw.print(CoordMath.getLength(first.getStart(),last.getEnd()));
+			pw.println();
+			}// end while iter
+		}
 	
 	@Override
 	public int doWork(final List<String> args)
@@ -181,75 +264,51 @@ public class VcfToIntervals extends Launcher
 			}
 		try
 			{
-				try(VCFIterator iter  = super.openVCFIterator(oneFileOrNull(args))) {
-					final VCFHeader header =  iter.getHeader();
+			final String input = oneFileOrNull(args);
+			if(StringUtils.isBlank(input) && bedIn!=null) {
+				LOG.error("option --intervals doesn't work on stdin");
+				return -1;
+				}
+			
+			if(this.bedIn==null || StringUtils.isBlank(input)) {
+				try(VCFIterator iter0  = super.openVCFIterator(input)) {
+					final VCFHeader header =  iter0.getHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 					final OrderChecker<VariantContext> orderChecker = new OrderChecker<>(dict, false);
+
 					try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-					if(!this.force_bed_output) {
-						final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
-						final SAMFileHeader samHeader = new SAMFileHeader(dict);
-						samHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
-						for(final String sn : header.getSampleNamesInOrder()) {
-							final SAMReadGroupRecord rg = new SAMReadGroupRecord(sn);
-							rg.setSample(sn);
-							samHeader.addReadGroup(rg);
+						writeHeader(pw,dict,header);
+						try(PeekableIterator<VariantContext> iter = new PeekableIterator<>(iter0)) {
+							apply(pw,iter,orderChecker,null);
 							}
-						JVarkitVersion.getInstance().addMetaData(this, samHeader);
-						codec.encode(pw, samHeader);
-						}
-					
-					
-					while(iter.hasNext()) {
-						final VariantContext first = orderChecker.apply(iter.next());
-						VariantContext last = first;
-						long n_variants = 1;
-						if(this.n_variants_per_interval>0L) {
-							while(iter.hasNext() && n_variants < this.n_variants_per_interval) {
-								if (!first.contigsMatch( iter.peek())) {
-									break;
+						pw.flush();
+						}//end writer
+					}//end vcf reader
+				}
+			else
+				{
+				try(VCFReader reader = VCFReaderFactory.makeDefault().open(input,true)) {
+					final VCFHeader header =  reader.getHeader();
+					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+					final OrderChecker<VariantContext> orderChecker = new OrderChecker<>(dict, false);
+					/* loop over each record in the bed */
+					try(BedLineReader blr = new BedLineReader(this.bedIn)) {
+						blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+						try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+							writeHeader(pw,dict,header);
+							while(blr.hasNext()) {
+								final BedLine rec = blr.next();
+								try(CloseableIterator<VariantContext> iter0 = reader.query(rec)) {
+									try(PeekableIterator<VariantContext> iter = new PeekableIterator<>(iter0)) {
+										apply(pw,iter,orderChecker,rec);
+										}
 									}
-								// consumme
-								last = orderChecker.apply(iter.next());
-								n_variants++;
 								}
-							}
-						else {
-							while(iter.hasNext()) {
-								final VariantContext curr = iter.peek();
-								if (!first.contigsMatch(curr)) {
-									break;
-									}
-								if (CoordMath.getLength(first.getStart(), curr.getEnd()) > this.distance_per_interval) {
-									break;
-									}
-								// consumme
-								last = orderChecker.apply(iter.next());
-								n_variants++;
-								}
-							}
-						// next variant is just too close than the last one
-						while(this.min_distance>=0 && iter.hasNext()) {
-							final VariantContext curr = iter.peek();
-							if(!last.withinDistanceOf(curr, this.min_distance)) break;
-							// consumme
-							last = orderChecker.apply(iter.next());
-							n_variants++;
-							}
-						pw.print(first.getContig());
-						pw.print("\t");
-						pw.print(first.getStart()-(this.force_bed_output?1:0));
-						pw.print("\t");
-						pw.print(last.getEnd());
-						pw.print("\t");
-						pw.print(n_variants);
-						pw.print("\t");
-						pw.print(CoordMath.getLength(first.getStart(),last.getEnd()));
-						pw.println();
-						}// end while iter
-					pw.flush();
-					}//end out
-				}//end vcf iterator
+							pw.flush();
+							}//end pw
+						}//end bed reader
+					} // end vcf reader
+				}
 			return 0;
 			}
 		catch(final Throwable err)

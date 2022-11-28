@@ -11,7 +11,7 @@ split a vcf to interval or bed for parallelization
 Usage: java -jar dist/vcf2intervals.jar  [options] Files
 Usage: vcf2intervals [options] Files
   Options:
-    --bed
+    --bed, --bed-output
       force BED format as output. (Default is '.interval_list')
       Default: false
     -D, --distance
@@ -23,12 +23,15 @@ Usage: vcf2intervals [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --intervals, --bed-input
+      Search for intervals for EACH record of the provided bed file. VCF path 
+      must be provided and indexed.
     --min-distance
       extends the interval if the last variant is withing distance 'x' of the 
       next interval. Ignore if negative.A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb,g,gb 
-      Default: 500
+      Default: -1
     -N, --variants, --n-variants
       number of variants per interval (or use option -D)
       Default: -1
@@ -51,6 +54,7 @@ Usage: vcf2intervals [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/9506628](https://www.biostars.org/p/9506628)
+ * [https://www.biostars.org/p/9529137](https://www.biostars.org/p/9529137)
 
 
 ## Compilation
