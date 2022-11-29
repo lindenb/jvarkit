@@ -31,6 +31,7 @@ import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
@@ -59,6 +61,7 @@ import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ns.RDF;
 import com.github.lindenb.jvarkit.util.ns.XLINK;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
@@ -126,9 +129,10 @@ keywords={"bam","alignment","graphics","visualization","svg"},
 creationDate="20141013",
 modificationDate="20210728"
 )
+@SuppressWarnings("fallthrough")
 public class BamToSVG extends Launcher {
-	private static final int HEIGHT_MAIN_TITLE=100;
-	private static final int HEIGHT_SAMPLE_NAME=50;
+	private static final int HEIGHT_MAIN_TITLE=30;
+	private static final int HEIGHT_SAMPLE_NAME=20;
 	
 	
 	private static final Logger LOG = Logger.build(BamToSVG.class).make();
@@ -156,45 +160,46 @@ public class BamToSVG extends Launcher {
 	@DynamicParameter(names = "-D", description = "custom parameters. '-Dkey=value'. Undocumented.")
 	private Map<String, String> dynaParams = new HashMap<>();
 
+
+	private final Hershey hershey=new Hershey();
+	private ReferenceSequenceFile indexedFastaSequenceFile=null;
+	private SAMSequenceDictionary referenceDict=null;
+	private GenomicSequence genomicSequence=null;
+	private SimpleInterval interval=null;
 	
-		private final Hershey hershey=new Hershey();
-		private ReferenceSequenceFile indexedFastaSequenceFile=null;
-		private SAMSequenceDictionary referenceDict=null;
-		private GenomicSequence genomicSequence=null;
-		private SimpleInterval interval=null;
+	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 		
-		private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+	private class Context
+		{
+		String sampleName;
+		Path path;
+		List<List<SAMRecord>> lines= null;//filled by pileup
+		final List<VariantContext> pos2variant=new ArrayList<VariantContext>();
+		int HEIGHT_RULER=200;
+		double featureHeight =1;
+		double featureWidth =1;
 		
-		private class Context
+		public double getHeight()
 			{
-			String sampleName;
-			List<List<SAMRecord>> lines= null;//filled by pileup
-			final List<VariantContext> pos2variant=new ArrayList<VariantContext>();
-			int HEIGHT_RULER=200;
-			double featureHeight =1;
-			double featureWidth =1;
-			
-			public double getHeight()
-				{
-				double dim_height= HEIGHT_SAMPLE_NAME;
-				dim_height+= this.featureHeight;//ref seq
-				dim_height+= this.featureHeight;//consensus
-				if(!pos2variant.isEmpty())dim_height+=  this.featureHeight;//variants
-				dim_height+= this.lines.size()* this.featureHeight;//consensus
-				return dim_height;
-				}
-			
-			private void readVariantFile(final Path vcf)  throws IOException
-				{
-				try(VCFReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
-					r.query(BamToSVG.this.interval).stream().
-						filter(V->V.getGenotype(this.sampleName)!=null).
-						filter(V->!(V.getGenotype(this.sampleName).isNoCall() || V.getGenotype(this.sampleName).isHomRef())).
-						forEach(ctx->this.pos2variant.add(ctx));
-					}
-				}
-			
+			double dim_height= HEIGHT_SAMPLE_NAME;
+			dim_height+= this.featureHeight;//ref seq
+			dim_height+= this.featureHeight;//consensus
+			if(!pos2variant.isEmpty())dim_height+=  this.featureHeight;//variants
+			dim_height+= this.lines.size()* this.featureHeight;//consensus
+			return dim_height;
 			}
+		
+		private void readVariantFile(final Path vcf)  throws IOException
+			{
+			try(VCFReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
+				r.query(BamToSVG.this.interval).stream().
+					filter(V->V.getGenotype(this.sampleName)!=null).
+					filter(V->!(V.getGenotype(this.sampleName).isNoCall() || V.getGenotype(this.sampleName).isHomRef())).
+					forEach(ctx->this.pos2variant.add(ctx));
+				}
+			}
+		
+		}
 		
 		
 		
@@ -215,18 +220,17 @@ public class BamToSVG extends Launcher {
 	
 		
 		/** convert double to string */
-		private String format(double v)
+		private String format(final double v)
 			{
 			return this.decimalFormater.format(v);
 			}
 		
 	
-		
-		private int trim(int pos0)
+		/** trim position in this.interval */
+		private int trim(final int pos0)
 			{
 			return Math.min(Math.max(pos0, interval.getStart()),interval.getEnd()+1);
 			}
-	
 		
 		private int left(final SAMRecord rec)
 			{
@@ -237,6 +241,7 @@ public class BamToSVG extends Launcher {
 			{
 			return (this.showClipping?rec.getUnclippedEnd():rec.getAlignmentEnd());
 			}
+		
 		private double baseToPixel(int pos)
 			{
 			return  ((pos - this.interval.getStart())/(double)(this.interval.length()))*(this.drawinAreaWidth);
@@ -249,21 +254,23 @@ public class BamToSVG extends Launcher {
 			w.writeEndElement();
 			}
 		
+		/** get read name that is displayed in the popup window */
 		private String getReadNameForPopup(final SAMRecord rec) {
-			 final StringBuilder sb = new StringBuilder(rec.getReadName());
+			final StringBuilder sb = new StringBuilder(rec.getReadName());
 			
-			 sb.append(rec.getReadNegativeStrandFlag()?" -":" +"); 
+			sb.append(rec.getReadNegativeStrandFlag()?" -":" +"); 
 			
 			if(rec.getReadPairedFlag()) {
 				if(rec.getFirstOfPairFlag()) sb.append(" 1");
-				if(rec.getSecondOfPairFlag()) sb.append(" 2");
-				sb.append("/2");
-				if(rec.getMateUnmappedFlag())  {
-					sb.append(" mate:unmapped");
-					}
-				else
-					{
-					sb.append(" mate:"+rec.getMateReferenceName()+":"+rec.getMateAlignmentStart());
+			if(rec.getSecondOfPairFlag()) sb.append(" 2");
+			sb.append("/2");
+			sb.append(" f"+rec.getFlags());
+			if(rec.getMateUnmappedFlag())  {
+				sb.append(" mate:unmapped");
+				}
+			else
+				{
+				sb.append(" mate:"+rec.getMateReferenceName()+":"+rec.getMateAlignmentStart());
 					}
 				}
 			if(rec.getReadFailsVendorQualityCheckFlag())  sb.append(" fails-quality");
@@ -275,10 +282,10 @@ public class BamToSVG extends Launcher {
 			}
 		
 		private void printGradientDef(
-				XMLStreamWriter w,
-				String gradId,
-				String styleTop,//e.g: "stop-color:black;stop-opacity:1;"
-				String styleMid //e.g: "stop-color:white;stop-opacity:1;"
+				final XMLStreamWriter w,
+				final String gradId,
+				final String styleTop,//e.g: "stop-color:black;stop-opacity:1;"
+				final String styleMid //e.g: "stop-color:white;stop-opacity:1;"
 				) throws XMLStreamException
 			{
 			w.writeStartElement("linearGradient");
@@ -299,11 +306,11 @@ public class BamToSVG extends Launcher {
 			w.writeEndElement();
 			}
 		
-		private void printSample(XMLStreamWriter w,double top_y,final Context context)
+		private void printSample(final XMLStreamWriter w,double top_y,final Context context)
 				throws XMLStreamException
 			{
 			w.writeComment("START SAMPLE: "+context.sampleName);
-			w.writeStartElement(SVG.NS,"g");
+			w.writeStartElement("g");
 			w.writeAttribute("transform", "translate(0,"+top_y+")");
 			double y=0;
 			
@@ -419,11 +426,16 @@ public class BamToSVG extends Launcher {
 	
 			}
 		
-		private void printDocument(final XMLStreamWriter w,final Context context) 
+		private void printDocument(
+			final XMLStreamWriter w,
+			final SAMSequenceDictionary dict,	
+			final Context context
+			) 
 			throws XMLStreamException
 			{
-			Insets insets=new Insets(20, 20, 20, 20);
-			Dimension dim=new Dimension(
+			final String IDT_XNS="https://umr1087.univ-nantes.fr/";
+			final Insets insets=new Insets(20, 20, 20, 20);
+			final Dimension dim=new Dimension(
 					insets.left+insets.right+this.drawinAreaWidth
 					,insets.top+insets.bottom);
 			dim.height+=HEIGHT_MAIN_TITLE;
@@ -435,22 +447,38 @@ public class BamToSVG extends Launcher {
 			w.writeAttribute("width", format(dim.width));
 			w.writeAttribute("height", format(dim.height));
 			w.writeDefaultNamespace(SVG.NS);
+			w.writeNamespace("u",IDT_XNS);
+			w.writeNamespace("rdf",RDF.NS);
 			w.writeNamespace("xlink", XLINK.NS);
 			
-	
+			/** write meta data */
+			w.writeStartElement("meta");
+			w.writeStartElement("rdf", "RDF", RDF.NS);
+			w.writeStartElement("rdf", "Description", RDF.NS);
+			w.writeAttribute("rdf", RDF.NS,"ID","#");
+			w.writeStartElement("u", "contig", IDT_XNS);w.writeCharacters(this.interval.getContig());w.writeEndElement();
+			w.writeStartElement("u", "start", IDT_XNS);w.writeCharacters(String.valueOf(this.interval.getStart()));w.writeEndElement();
+			w.writeStartElement("u", "end", IDT_XNS);w.writeCharacters(String.valueOf(this.interval.getEnd()));w.writeEndElement();
+			w.writeStartElement("u", "sample", IDT_XNS);w.writeCharacters(context.sampleName);w.writeEndElement();
+			w.writeStartElement("u", "bam", IDT_XNS);w.writeCharacters(context.path.toString());w.writeEndElement();
+			w.writeStartElement("u", "reference", IDT_XNS);w.writeCharacters(this.referenceFile.toString());w.writeEndElement();
+			w.writeEndElement();//Description
+			w.writeEndElement();//rdf
+			w.writeEndElement();
+
 			
-			w.writeStartElement(SVG.NS,"title");
-			w.writeCharacters(intervalStr);
+			w.writeStartElement("title");
+			w.writeCharacters(context.sampleName+" : "+this.interval.toNiceString());
 			w.writeEndElement();
 			
-			w.writeStartElement(SVG.NS,"description");
+			w.writeStartElement("description");
 			w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
 			w.writeCharacters("Version:"+getVersion()+"\n");
 			w.writeCharacters("Author: Pierre Lindenbaum\n");
 			w.writeEndElement();
 			
 			
-			w.writeStartElement(SVG.NS,"style");
+			w.writeStartElement("style");
 			w.writeCharacters(
 					"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
 					".maintitle {stroke:blue;fill:none;}\n"+
@@ -464,14 +492,14 @@ public class BamToSVG extends Launcher {
 					"line.insert {stroke:red;stroke-width:4px;}\n"+
 					"line.rulerline {stroke:lightgray;stroke-width:0.5px;}\n"+
 					"line.rulerlabel {stroke:gray;stroke-width:2px;}\n"+
-					"path.maintitle {stroke:blue;stroke-width:5px;}\n"+
+					"text.maintitle {fill:darkgray;stroke:black;text-anchor:middle;font-size:30px;}\n"+
 					"path.samplename {stroke:black;stroke-width:3px;}\n"+
 					"circle.mutation {stroke:red;fill:none;stroke-width:"+(context.featureWidth<5?0.5:3.0)+"px;}"+
 					""
 					);
 			w.writeEndElement();//style
 			
-			w.writeStartElement(SVG.NS,"defs");
+			w.writeStartElement("defs");
 			
 			//mutations
 			if(!context.pos2variant.isEmpty())
@@ -540,16 +568,42 @@ public class BamToSVG extends Launcher {
 			w.writeAttribute("r",format(context.featureHeight/2.0));
 			writeTitle(w,"mutation");
 			w.writeEndElement();
+						
+			printGradientDef(w,
+					"fail",//fail qc
+					"stop-color:#DDA0DD;stop-opacity:1;",
+					"stop-color:#DA70D6;stop-opacity:1;"
+					);
+			/* properly paired */
+			printGradientDef(w,
+					"fprop",
+					"stop-color:#90EE90;stop-opacity:1;",
+					"stop-color:#98FB98;stop-opacity:1;"
+					);
+			/* discordant reads */
+			printGradientDef(w,
+					"fdisc",
+					"stop-color:#D8BFD8;stop-opacity:1;",
+					"stop-color:#F5F5DC;stop-opacity:1;"
+					);
+			/* paired mate unmapped */
+			printGradientDef(w,
+					"fum",
+					"stop-color:#add8e6;stop-opacity:1;", /* light blue */
+					"stop-color:#e0ffff;stop-opacity:1;" /* light cyan */
+					);
+			/* MAPQ=0 */
+			printGradientDef(w,
+					"fq0",
+					"stop-color:#ffe4e1;stop-opacity:1;",/* misty rose */
+					"stop-color:#fffff;stop-opacity:1;"
+					);
 			
-			
-			String pastels[]={"fff8dc", "cd5c5c", "708090", "ff4500", "4682b4", "ffa500", "d8bfd8", "fa8072", "00ffff", "3cb371", "000000", "1e90ff", "cd853f", "4169e1", "f0ffff", "5f9ea0", "eeeee0", "a020f0", "bc8f8f", "ff69b4", "00ff7f", "000080", "e9967a", "daa520", "32cd32", "ee82ee", "7b68ee", "ffffe0", "8b8378", "db7093", "a0522d", "ffe4b5", "9370db", "afeeee", "eee5de", "8fbc8f", "8b8682", "8470ff", "8b8b83", "ff1493", "eedfcc", "f0f8ff", "ff6347", "faebd7", "add8e6", "fffafa", "c1cdc1", "cdc0b0", "c71585", "7fffd4", "7fff00", "cdaf95", "e0eee0", "556b2f", "dcdcdc", "ffebcd", "cdc8b1", "fff0f5", "ffe4e1", "9acd32", "ffc0cb", "8b8989", "ffff00", "cdb79e", "f5f5f5", "2f4f4f", "eee9e9", "cdcdc1", "eee8aa", "bebebe", "ffffff", "2e8b57", "fffff0", "b0e0e6", "fff5ee", "778899", "fffacd", "191970", "d2691e", "eecbad", "40e0d0", "ffd700", "eed5b7", "fffaf0", "ffefd5", "98fb98", "b22222", "87ceeb", "483d8b", "adff2f", "b8860b", "66cdaa", "f5fffa", "ff8c00", "00fa9a", "f4a460", "dda0dd", "fafad2", "f5f5dc", "9400d3", "006400", "cdc5bf", "a52a2a", "8b7d6b", "0000ff", "d02090", "ffb6c1", "48d1cc", "e0ffff", "f8f8ff", "d2b48c", "00ced1", "8b8878", "0000cd", "e6e6fa", "f0e68c", "6495ed", "f0fff0", "ffe4c4", "ff7f50", "d3d3d3", "00bfff", "b03060", "6a5acd", "ffa07a", "8b7765", "20b2aa", "ff0000", "f5deb3", "eee8dc", "ba55d3", "faf0e6", "6b8e23", "8a2be2", "7cfc00", "ffdab9", "8b4513", "87cefa", "cdc9c9", "9932cc", "deb887", "eedd82", "228b22", "838b83", "b0c4de", "f08080", "696969", "ffdead", "da70d6", "bdb76b", "fdf5e6"};
-			int flags[]=new int[]{65,73,81,83,97,99,113,121,129,137,145,147,161,163,177,185,321,323,329,337,339,353,355,369,371,377,385,387,393,401,403,417,419,433,435,1089,1097,1105,1107,1121,1123,1137,1145,1153,1161,1169,1171,1185,1187,1201,1209};
-			for(int flag=0;flag< flags.length;++flag)
-				{
-				printGradientDef(w, "f"+flags[flag],
-						"stop-color:#"+pastels[flag%pastels.length]+
-						";stop-opacity:1;", "stop-color:white;stop-opacity:1;");
-				}
+			printGradientDef(w,
+					"f0",
+					"stop-color:#dcdcdc;stop-opacity:1;",/* gainsboro */
+					"stop-color:#f5f5f5;stop-opacity:1;" /* white smoke */
+					);
 			
 			w.writeEndElement();//defs
 			
@@ -559,19 +613,22 @@ public class BamToSVG extends Launcher {
 			
 			int y=insets.top;
 			/* write title */
-			w.writeStartElement("path");
+			
+			final Hyperlink hyperlink = Hyperlink.compile(dict);
+			if(hyperlink.apply(this.interval).isPresent()) {
+				w.writeStartElement("a");
+				w.writeAttribute("href",hyperlink.apply(this.interval).orElse(""));
+				}
+			
+			w.writeStartElement("text");
 			w.writeAttribute("class","maintitle");
-			w.writeAttribute("d", this.hershey.svgPath(
-					this.interval.getContig()+":"+StringUtils.niceInt(this.interval.getStart())+"-"+StringUtils.niceInt(this.interval.getEnd()),
-					scaleRect(new Rectangle2D.Double(
-							0,
-							y,
-							this.drawinAreaWidth,
-							HEIGHT_MAIN_TITLE
-							)))
-					);
-			writeTitle(w, this.intervalStr);
+			w.writeAttribute("x",String.valueOf(this.drawinAreaWidth/2.0));
+			w.writeAttribute("y",String.valueOf(y));
+			w.writeCharacters(this.interval.toNiceString());
 			w.writeEndElement();
+			if(hyperlink.apply(this.interval).isPresent()) {
+				w.writeEndElement();//a
+				}
 			y+=HEIGHT_MAIN_TITLE;
 			
 			/* write ruler */
@@ -638,7 +695,7 @@ public class BamToSVG extends Launcher {
 			byte qualities[]=record.getBaseQualities();
 			if(qualities==null||qualities.equals(SAMRecord.NULL_QUALS)) return;
 			
-			w.writeStartElement(SVG.NS,"g");
+			w.writeStartElement("g");
 			writeTitle(w,getReadNameForPopup(record));
 
 			
@@ -652,6 +709,7 @@ public class BamToSVG extends Launcher {
 				{
 				final CigarElement ce = cigarElements.get(cidx);
 				final CigarOperator op=ce.getOperator();
+				
 				switch(op)
 					{
 					case H:case S: if(!this.showClipping) break;//threw
@@ -779,7 +837,27 @@ public class BamToSVG extends Launcher {
 							}
 						else
 							{
-							w.writeAttribute("style","fill:url(#f"+record.getFlags()+");");
+							final String rec_style;
+							if(record.getReadFailsVendorQualityCheckFlag()) {
+								rec_style = "fill:url(#fail);";
+								}
+							else if(record.getReadPairedFlag() && !record.getMateUnmappedFlag() && !record.getMateReferenceName().equals(this.interval.getContig())) {
+								rec_style = "fill:url(#fdisc);";
+								}
+							else if(record.getReadPairedFlag() && record.getMateUnmappedFlag()) {
+								rec_style = "fill:url(#fum);";
+								}
+							else if(record.getReadPairedFlag() && !record.getProperPairFlag()) {
+								rec_style = "fill:url(#fprop);";
+								}
+							else if(record.getMappingQuality()==0) {
+								rec_style = "fill:url(#fq0);";
+								}
+							else
+								{
+								rec_style = "fill:url(#f0);";
+								}
+							w.writeAttribute("style",rec_style);
 							}
 						
 						if(op.consumesReadBases())
@@ -850,13 +928,16 @@ public class BamToSVG extends Launcher {
 				w.writeAttribute("y1",format(y_top5));
 				w.writeAttribute("y2",format(y_bot5));
 				writeTitle(w,"Insertion "+insertion);
-				w.writeEndElement();
+				w.writeEndElement();//line
 				}
 			w.writeEndElement();//g
-			
 			}
 		
-		private void plotSVG(final ArchiveFactory archive,final Path path) throws IOException,XMLStreamException {
+		private void plotSVG(
+				final ArchiveFactory archive,
+				final PrintWriter manifest,
+				final Path path
+				) throws IOException,XMLStreamException {
 			XMLStreamWriter w=null;
 			
 			final SamReaderFactory sfrf= SamReaderFactory.makeDefault().
@@ -864,6 +945,7 @@ public class BamToSVG extends Launcher {
 					referenceSequence(this.referenceFile);
 
 			final Context context = new Context();
+			context.path = path;
 			
 			try(SamReader samReader = sfrf.open(path)) {
 				final SAMFileHeader header= samReader.getFileHeader();
@@ -913,11 +995,23 @@ public class BamToSVG extends Launcher {
 				
 
 				LOG.info("writing "+ filename);
+				manifest.print(context.sampleName);
+				manifest.print("\t");
+				manifest.print(path);
+				manifest.print("\t");
+				manifest.print(this.interval);
+				manifest.print("\t");
+				manifest.print(this.referenceFile);
+				manifest.print("\t");
+				manifest.print(filename);
+				manifest.println();
+
+				
 				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 				try(OutputStream fout= archive.openOuputStream(filename)) {
 					w=xof.createXMLStreamWriter(fout, "UTF-8");
 					w.writeStartDocument("UTF-8", "1.0");
-					printDocument(w,context);
+					printDocument(w,dict,context);
 					w.writeEndDocument();
 					w.flush();
 					w.close();
@@ -963,10 +1057,24 @@ public class BamToSVG extends Launcher {
 					}
 				
 				try(ArchiveFactory archive = ArchiveFactory.open(this.outputFile)) {
-					for(final Path filename: inputFiles)
-						{
-						LOG.info("Reading from "+filename);
-						plotSVG(archive,filename);
+					try(PrintWriter mf = archive.openWriter(this.prefix+"manifest.tsv")) {
+						mf.print("sample");
+						mf.print("\t");
+						mf.print("bam");
+						mf.print("\t");
+						mf.print("interval");
+						mf.print("\t");
+						mf.print("reference");
+						mf.print("\t");
+						mf.print("svg");
+						mf.println();
+						
+						for(final Path filename: inputFiles)
+							{
+							LOG.info("Reading from "+filename);
+							plotSVG(archive,mf,filename);
+							}
+						mf.flush();
 						}
 					}				
 				return 0;

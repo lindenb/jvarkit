@@ -8,6 +8,7 @@ BAM to Scalar Vector Graphics (SVG)
 ## Usage
 
 ```
+Usage: java -jar dist/bam2svg.jar  [options] Files
 Usage: bam2svg [options] Files
   Options:
     --groupby
