@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.tools.bam2svg;
 
 import java.awt.Dimension;
 import java.awt.Insets;
-import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -35,10 +34,13 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -48,14 +50,20 @@ import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 //import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -73,6 +81,7 @@ import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecord.SAMTagAndValue;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -82,7 +91,9 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFReader;
@@ -157,6 +168,11 @@ public class BamToSVG extends Launcher {
 	private int mappingQuality =  1;
 	@Parameter(names={"--prefix"},description="file prefix")
 	private String prefix="";
+	@Parameter(names={"--bases"},description="print bases in read")
+	private boolean print_bases = false;
+    @Parameter(names= {"--gff","--gff3"},description="Optional Tabix indexed GFF3 file.")
+    private Path gtfFile = null;
+
 	@DynamicParameter(names = "-D", description = "custom parameters. '-Dkey=value'. Undocumented.")
 	private Map<String, String> dynaParams = new HashMap<>();
 
@@ -164,11 +180,11 @@ public class BamToSVG extends Launcher {
 	private final Hershey hershey=new Hershey();
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private SAMSequenceDictionary referenceDict=null;
-	private GenomicSequence genomicSequence=null;
+	private CharSequence genomicSequence=null;
 	private SimpleInterval interval=null;
 	
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
-		
+	
 	private class Context
 		{
 		String sampleName;
@@ -182,10 +198,12 @@ public class BamToSVG extends Launcher {
 		public double getHeight()
 			{
 			double dim_height= HEIGHT_SAMPLE_NAME;
+			dim_height+= HEIGHT_RULER;
 			dim_height+= this.featureHeight;//ref seq
 			dim_height+= this.featureHeight;//consensus
 			if(!pos2variant.isEmpty())dim_height+=  this.featureHeight;//variants
 			dim_height+= this.lines.size()* this.featureHeight;//consensus
+			if(gtfFile!=null) dim_height+=this.featureHeight;
 			return dim_height;
 			}
 		
@@ -201,475 +219,494 @@ public class BamToSVG extends Launcher {
 		
 		}
 		
-		
-		
-		/** scale a rect by ratio */
-		private static Rectangle2D.Double scaleRect(final Rectangle2D.Double r,double ratio)
-			{
-			double w=r.getWidth()*ratio;
-			double h=r.getHeight()*ratio;
-			double x=r.getX()+(r.getWidth()-w)/2.0;
-			double y=r.getY()+(r.getHeight()-h)/2.0;
-			return new Rectangle2D.Double(x,y,w,h);
-			}
-		/** scale a rect by default ratio */
-		private static Rectangle2D.Double scaleRect(final Rectangle2D.Double r)
-			{
-			return scaleRect(r,0.95);
-			}
+	private class SvgOutput {
+		String sampleName;
+		String svgFilename;
+		Dimension dimension;
+		}
 	
-		
-		/** convert double to string */
-		private String format(final double v)
-			{
-			return this.decimalFormater.format(v);
-			}
-		
+	/** convert double to string */
+	private String format(final double v)
+		{
+		return this.decimalFormater.format(v);
+		}
 	
-		/** trim position in this.interval */
-		private int trim(final int pos0)
-			{
-			return Math.min(Math.max(pos0, interval.getStart()),interval.getEnd()+1);
-			}
-		
-		private int left(final SAMRecord rec)
-			{
-			return (this.showClipping?rec.getUnclippedStart():rec.getAlignmentStart());
-			}
-	
-		private int right(final SAMRecord rec)
-			{
-			return (this.showClipping?rec.getUnclippedEnd():rec.getAlignmentEnd());
-			}
-		
-		private double baseToPixel(int pos)
-			{
-			return  ((pos - this.interval.getStart())/(double)(this.interval.length()))*(this.drawinAreaWidth);
-			}
-		
-		private void writeTitle(final XMLStreamWriter w,String title) throws XMLStreamException {
-			if(StringUtils.isBlank(title)) return;
-			w.writeStartElement("title");
-			w.writeCharacters(title);
-			w.writeEndElement();
-			}
-		
-		/** get read name that is displayed in the popup window */
-		private String getReadNameForPopup(final SAMRecord rec) {
-			final StringBuilder sb = new StringBuilder(rec.getReadName());
-			
-			sb.append(rec.getReadNegativeStrandFlag()?" -":" +"); 
-			
-			if(rec.getReadPairedFlag()) {
-				if(rec.getFirstOfPairFlag()) sb.append(" 1");
-			if(rec.getSecondOfPairFlag()) sb.append(" 2");
-			sb.append("/2");
-			sb.append(" f"+rec.getFlags());
-			if(rec.getMateUnmappedFlag())  {
-				sb.append(" mate:unmapped");
-				}
-			else
-				{
-				sb.append(" mate:"+rec.getMateReferenceName()+":"+rec.getMateAlignmentStart());
-					}
-				}
-			if(rec.getReadFailsVendorQualityCheckFlag())  sb.append(" fails-quality");
-			if(rec.getDuplicateReadFlag()) sb.append(" duplicate");
-			if(rec.isSecondaryAlignment())  sb.append(" secondary");
-			if(rec.getSupplementaryAlignmentFlag())  sb.append("supplementary");
-			sb.append(" MAPQ:"+rec.getMappingQuality());
-			return sb.toString();
-			}
-		
-		private void printGradientDef(
-				final XMLStreamWriter w,
-				final String gradId,
-				final String styleTop,//e.g: "stop-color:black;stop-opacity:1;"
-				final String styleMid //e.g: "stop-color:white;stop-opacity:1;"
-				) throws XMLStreamException
-			{
-			w.writeStartElement("linearGradient");
-			w.writeAttribute("id",gradId);
-			w.writeAttribute("x1","50%");
-			w.writeAttribute("x2","50%");
-			w.writeAttribute("y1","0%");
-			w.writeAttribute("y2","100%");
-			w.writeEmptyElement("stop");
-				w.writeAttribute("offset","0%");
-				w.writeAttribute("style",styleTop);
-			w.writeEmptyElement("stop");
-				w.writeAttribute("offset","50%");
-				w.writeAttribute("style",styleMid);
-			w.writeEmptyElement("stop");
-				w.writeAttribute("offset","100%");
-				w.writeAttribute("style",styleTop);
-			w.writeEndElement();
-			}
-		
-		private void printSample(final XMLStreamWriter w,double top_y,final Context context)
-				throws XMLStreamException
-			{
-			w.writeComment("START SAMPLE: "+context.sampleName);
-			w.writeStartElement("g");
-			w.writeAttribute("transform", "translate(0,"+top_y+")");
-			double y=0;
-			
-			/* write title */
-			w.writeStartElement("path");
-			w.writeAttribute("class","samplename");
-			
-			w.writeAttribute("d", this.hershey.svgPath(
-					context.sampleName,
-					scaleRect(new Rectangle2D.Double(
-							0,
-							y,
-							this.drawinAreaWidth,
-							HEIGHT_SAMPLE_NAME
-							)))
-					);
-			writeTitle(w,context.sampleName);
-			w.writeEndElement();//path
-			y+=HEIGHT_SAMPLE_NAME;
-	
-			/* write REFERENCE */
-			w.writeComment("REFERENCE");
-			for(int pos=this.interval.getStart();
-					context.featureWidth>5 && //ignore if too small
-					pos<=this.interval.getEnd();++pos)
-				{
-				char c=(this.genomicSequence==null?'N':this.genomicSequence.charAt(pos-1));
-				double x0  = baseToPixel(pos);
-				w.writeEmptyElement("use");
-				w.writeAttribute("x",format(x0));
-				w.writeAttribute("y",format(y));
-				w.writeAttribute("xlink", XLINK.NS, "href", "#b"+c);
-				}
-			y+= context.featureHeight;
-			
-			/* skip line for later consensus */
-			double consensus_y=y;
-			y+=context.featureHeight;
-			final Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
-			
-			/* print variants */
-			if(!context.pos2variant.isEmpty())
-				{
-				for(VariantContext ctx:context.pos2variant)
-					{
-					Genotype g=ctx.getGenotype(context.sampleName);
-					if(g==null || !g.isCalled() || g.isHomRef()) continue;
-					if(ctx.getEnd()< this.interval.getStart()) continue;
-					if(ctx.getStart()> this.interval.getEnd()) continue;
-					double x0  = baseToPixel(ctx.getStart());
-					w.writeStartElement("use");
-					w.writeAttribute("x",format(x0));
-					w.writeAttribute("y",format(y));
-					
-					if(g.isHomVar())
-						{
-						w.writeAttribute("xlink", XLINK.NS, "href", "#homvar");				
-						}
-					else if (g.isHet())
-						{
-						w.writeAttribute("xlink", XLINK.NS, "href", "#het");
-						}
-					writeTitle(w,ctx.getAltAlleleWithHighestAlleleCount().getDisplayString());
-					w.writeEndElement();//use
-					}
-				y+=context.featureHeight;
-				}
-			
-			/* print all lines */
-			w.writeComment("Alignments");
-			for(int nLine=0;nLine< context.lines.size();++nLine)
-				{
-				w.writeStartElement("g");
-				w.writeAttribute("transform", "translate(0,"+format(y+nLine*context.featureHeight)+")");
-				List<SAMRecord> line= context.lines.get(nLine);
-				//loop over records on that line
-				for(SAMRecord record: line)
-					{
-					printSamRecord(w, context,record,pos2consensus);
-					}
-				w.writeEndElement();//g
-				}
-			
-			/* write consensus */
-			w.writeComment("Consensus");
-			for(int pos=this.interval.getStart();
-					context.featureWidth>5 && //ignore if too small
-					pos<=this.interval.getEnd();++pos)
-				{
-				Counter<Character> cons = pos2consensus.get(pos);
-				if(cons==null) continue;
-				char c=cons.getMostFrequent();
-				
-				double x0  = baseToPixel(pos);
-				w.writeEmptyElement("use");
-				w.writeAttribute("x",format(x0));
-				w.writeAttribute("y",format(consensus_y));
-				w.writeAttribute("xlink", XLINK.NS, "href", "#b"+c);
-					
-				}
-			
-			
-			/* surrounding frame for that sample */
-			w.writeEmptyElement("rect");
-			w.writeAttribute("class","frame");
-			w.writeAttribute("x",format(0));
-			w.writeAttribute("y",format(0));
-			w.writeAttribute("width",format(drawinAreaWidth));
-			w.writeAttribute("height",format(context.getHeight()));
-	
-			w.writeEndElement();//g for sample
-			w.writeComment("END SAMPLE: "+context.sampleName);
-	
-			}
-		
-		private void printDocument(
-			final XMLStreamWriter w,
-			final SAMSequenceDictionary dict,	
-			final Context context
-			) 
-			throws XMLStreamException
-			{
-			final String IDT_XNS="https://umr1087.univ-nantes.fr/";
-			final Insets insets=new Insets(20, 20, 20, 20);
-			final Dimension dim=new Dimension(
-					insets.left+insets.right+this.drawinAreaWidth
-					,insets.top+insets.bottom);
-			dim.height+=HEIGHT_MAIN_TITLE;
-			dim.height+=context.HEIGHT_RULER;
-			dim.height+=context.getHeight();
-			//dim.height+=100;
-			
-			w.writeStartElement("svg");
-			w.writeAttribute("width", format(dim.width));
-			w.writeAttribute("height", format(dim.height));
-			w.writeDefaultNamespace(SVG.NS);
-			w.writeNamespace("u",IDT_XNS);
-			w.writeNamespace("rdf",RDF.NS);
-			w.writeNamespace("xlink", XLINK.NS);
-			
-			/** write meta data */
-			w.writeStartElement("meta");
-			w.writeStartElement("rdf", "RDF", RDF.NS);
-			w.writeStartElement("rdf", "Description", RDF.NS);
-			w.writeAttribute("rdf", RDF.NS,"ID","#");
-			w.writeStartElement("u", "contig", IDT_XNS);w.writeCharacters(this.interval.getContig());w.writeEndElement();
-			w.writeStartElement("u", "start", IDT_XNS);w.writeCharacters(String.valueOf(this.interval.getStart()));w.writeEndElement();
-			w.writeStartElement("u", "end", IDT_XNS);w.writeCharacters(String.valueOf(this.interval.getEnd()));w.writeEndElement();
-			w.writeStartElement("u", "sample", IDT_XNS);w.writeCharacters(context.sampleName);w.writeEndElement();
-			w.writeStartElement("u", "bam", IDT_XNS);w.writeCharacters(context.path.toString());w.writeEndElement();
-			w.writeStartElement("u", "reference", IDT_XNS);w.writeCharacters(this.referenceFile.toString());w.writeEndElement();
-			w.writeEndElement();//Description
-			w.writeEndElement();//rdf
-			w.writeEndElement();
 
+	/** trim position in this.interval */
+	private int trim(final int pos0)
+		{
+		return Math.min(Math.max(pos0, interval.getStart()),interval.getEnd()+1);
+		}
+	
+	private int left(final SAMRecord rec)
+		{
+		return (this.showClipping?rec.getUnclippedStart():rec.getAlignmentStart());
+		}
+
+	private int right(final SAMRecord rec)
+		{
+		return (this.showClipping?rec.getUnclippedEnd():rec.getAlignmentEnd());
+		}
+	
+	private double baseToPixel(int pos)
+		{
+		return  ((pos - this.interval.getStart())/(double)(this.interval.length()))*(this.drawinAreaWidth);
+		}
+	
+	private void writeTitle(final XMLStreamWriter w,String title) throws XMLStreamException {
+		if(StringUtils.isBlank(title)) return;
+		w.writeStartElement("title");
+		w.writeCharacters(title);
+		w.writeEndElement();
+		}
+		
+	/** get read name that is displayed in the popup window */
+	private String getReadNameForPopup(final SAMRecord rec) {
+		final StringBuilder sb = new StringBuilder(rec.getReadName());
+		
+		if(rec.getReadPairedFlag()) {
+			if(rec.getFirstOfPairFlag()) sb.append(" 1");
+		if(rec.getSecondOfPairFlag()) sb.append(" 2");
+		sb.append("/2");
+		sb.append("\n");
+		sb.append("pos: ").append(rec.getContig()+":"+StringUtils.niceInt(rec.getStart())+"-"+StringUtils.niceInt(rec.getEnd())).append("\n");
+		if(rec.getStart()!=rec.getUnclippedStart() || rec.getEnd()!=rec.getUnclippedEnd()) {
+			sb.append("unclipped: ").append(rec.getContig()+":"+StringUtils.niceInt(rec.getUnclippedStart())+"-"+StringUtils.niceInt(rec.getUnclippedEnd())).append("\n");
+		}
+
+		sb.append("strand:").append(rec.getReadNegativeStrandFlag()?" -":" +").append("\n"); 
+		sb.append("flag:").append(rec.getFlags()).append("\n");
+		sb.append("MAPQ:"+rec.getMappingQuality()).append("\n");
+		if(rec.getMateUnmappedFlag())  {
+			sb.append(" mate:unmapped\n");
+			}
+		else
+			{
+			sb.append("mate:"+rec.getMateReferenceName()+":"+rec.getMateAlignmentStart()+" "+(rec.getMateNegativeStrandFlag()?" -":" +")).append("\n");
+			sb.append("tlen:"+StringUtils.niceInt(rec.getInferredInsertSize())).append("\n");
+			}
+		}
+		if(rec.getReadFailsVendorQualityCheckFlag())  sb.append("fails-quality\n");
+		if(rec.getDuplicateReadFlag()) sb.append("duplicate\n");
+		if(rec.isSecondaryAlignment())  sb.append("secondary\n");
+		if(rec.getSupplementaryAlignmentFlag())  sb.append("supplementary\n");
+		for(SAMTagAndValue stav : rec.getAttributes()) {
+			sb.append(stav.tag).append(":").append(stav.value).append("\n");
+			}
+		sb.append("\n");
+		return sb.toString().trim();
+		}
+		
+	
+	private SvgOutput printDocument(
+		final XMLStreamWriter w,
+		final SAMSequenceDictionary dict,	
+		final Context context
+		) 
+		throws XMLStreamException
+		{
+		final UrlSupplier urlSupplier=new UrlSupplier(dict);
+		final String IDT_XNS="https://umr1087.univ-nantes.fr/";
+		final Insets insets=new Insets(20, 20, 20, 20);
+		final Dimension dim=new Dimension(insets.left+insets.right+this.drawinAreaWidth,0);
+		dim.height+=context.getHeight();
+		//dim.height+=100;
+		
+		
+		
+		w.writeStartElement("svg");
+		w.writeAttribute("width", format(dim.width));
+		w.writeAttribute("height", format(dim.height+insets.top+insets.bottom));
+		w.writeDefaultNamespace(SVG.NS);
+		w.writeNamespace("u",IDT_XNS);
+		w.writeNamespace("rdf",RDF.NS);
+		w.writeNamespace("xlink", XLINK.NS);
+		
+		/** write meta data */
+		w.writeStartElement("meta");
+		w.writeStartElement("rdf", "RDF", RDF.NS);
+		w.writeStartElement("rdf", "Description", RDF.NS);
+		w.writeAttribute("rdf", RDF.NS,"ID","#");
+		w.writeStartElement("u", "contig", IDT_XNS);w.writeCharacters(this.interval.getContig());w.writeEndElement();
+		w.writeStartElement("u", "start", IDT_XNS);w.writeCharacters(String.valueOf(this.interval.getStart()));w.writeEndElement();
+		w.writeStartElement("u", "end", IDT_XNS);w.writeCharacters(String.valueOf(this.interval.getEnd()));w.writeEndElement();
+		w.writeStartElement("u", "sample", IDT_XNS);w.writeCharacters(context.sampleName);w.writeEndElement();
+		w.writeStartElement("u", "bam", IDT_XNS);w.writeCharacters(context.path.toString());w.writeEndElement();
+		w.writeStartElement("u", "reference", IDT_XNS);w.writeCharacters(this.referenceFile.toString());w.writeEndElement();
+		w.writeEndElement();//Description
+		w.writeEndElement();//rdf
+		w.writeEndElement();
+
+		
+		w.writeStartElement("title");
+		w.writeCharacters(context.sampleName+" : "+this.interval.toNiceString());
+		w.writeEndElement();
+		
+		w.writeStartElement("description");
+		w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
+		w.writeCharacters("Version:"+getVersion()+"\n");
+		w.writeCharacters("Author: Pierre Lindenbaum\n");
+		w.writeEndElement();
+		
+		
+		w.writeStartElement("style");
+		w.writeCharacters(
+				"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
+				".frame {stroke:darkgray;fill:none;}\n"+
+				".maintitle {stroke:blue;fill:none;}\n"+
+				".homvar {stroke:blue;fill:blue;}\n"+
+				".het {stroke:blue;fill:blue;}\n"+
+				"line.insert {stroke:red;stroke-width:4px;}\n"+
+				".rulerline {stroke:lightgray;stroke-width:1px;}\n"+
+				".rulerlabel {fill:gray;font-size:7px;}\n"+
+				"text.maintitle {fill:darkgray;stroke:black;text-anchor:middle;font-size:25px;}\n"+
+				"path.samplename {stroke:black;stroke-width:3px;}\n"+
+				"circle.mutation {stroke:red;fill:none;stroke-width:"+(context.featureWidth<5?0.5:3.0)+"px;}"+
+				""
+				);
+		for(char base : new char[] {'A','C','G','T','N'}) {
+			w.writeCharacters(".b"+base+" {stroke:"+AcidNucleics.cssColor(base)+";stroke-width:"+(context.featureWidth<5?0.5:1.0)+"px}\n");
+			}
+		w.writeEndElement();//style
+		
+		w.writeStartElement("defs");
+		
+		//mutations
+		if(!context.pos2variant.isEmpty())
+			{
 			
-			w.writeStartElement("title");
-			w.writeCharacters(context.sampleName+" : "+this.interval.toNiceString());
-			w.writeEndElement();
+			//hom var
+			w.writeEmptyElement("rect");
+			w.writeAttribute("id","homvar");
+			w.writeAttribute("class","homvar");
+			w.writeAttribute("x", "0");
+			w.writeAttribute("y", "0");
+			w.writeAttribute("width", format(context.featureWidth));
+			w.writeAttribute("height",  format(context.featureHeight));
 			
-			w.writeStartElement("description");
-			w.writeCharacters("Cmd:"+getProgramCommandLine()+"\n");
-			w.writeCharacters("Version:"+getVersion()+"\n");
-			w.writeCharacters("Author: Pierre Lindenbaum\n");
-			w.writeEndElement();
+			//het
+			w.writeStartElement("g");
+			w.writeAttribute("id","het");
+			w.writeAttribute("class","het");
+				
 			
-			
-			w.writeStartElement("style");
-			w.writeCharacters(
-					"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
-					".maintitle {stroke:blue;fill:none;}\n"+
-					".bA {stroke:green;}\n" + 
-					".bC {stroke:blue;}\n" +
-					".bG {stroke:black;}\n" +
-					".bT {stroke:red;}\n" +
-					".bN {stroke:gray;}\n" +
-					".homvar {stroke:blue;fill:blue;}\n"+
-					".het {stroke:blue;fill:blue;}\n"+
-					"line.insert {stroke:red;stroke-width:4px;}\n"+
-					"line.rulerline {stroke:lightgray;stroke-width:0.5px;}\n"+
-					"line.rulerlabel {stroke:gray;stroke-width:2px;}\n"+
-					"text.maintitle {fill:darkgray;stroke:black;text-anchor:middle;font-size:30px;}\n"+
-					"path.samplename {stroke:black;stroke-width:3px;}\n"+
-					"circle.mutation {stroke:red;fill:none;stroke-width:"+(context.featureWidth<5?0.5:3.0)+"px;}"+
-					""
-					);
-			w.writeEndElement();//style
-			
-			w.writeStartElement("defs");
-			
-			//mutations
-			if(!context.pos2variant.isEmpty())
-				{
-				//hom var
 				w.writeEmptyElement("rect");
-				w.writeAttribute("id","homvar");
-				w.writeAttribute("class","homvar");
+				w.writeAttribute("x", "0");
+				w.writeAttribute("y", "0");
+				w.writeAttribute("width", format(context.featureWidth/2.0));
+				w.writeAttribute("height",  format(context.featureHeight/2.0));
+				w.writeEmptyElement("rect");
+				w.writeAttribute("x", format(context.featureWidth/2.0));
+				w.writeAttribute("y",  format(context.featureHeight/2.0));
+				w.writeAttribute("width", format(context.featureWidth/2.0));
+				w.writeAttribute("height",  format(context.featureHeight/2.0));
+				w.writeEmptyElement("rect");
+				w.writeAttribute("style", "fill:none;");
 				w.writeAttribute("x", "0");
 				w.writeAttribute("y", "0");
 				w.writeAttribute("width", format(context.featureWidth));
 				w.writeAttribute("height",  format(context.featureHeight));
-				
-				//het
-				w.writeStartElement("g");
-				w.writeAttribute("id","het");
-				w.writeAttribute("class","het");
-					
-				
-					w.writeEmptyElement("rect");
-					w.writeAttribute("x", "0");
-					w.writeAttribute("y", "0");
-					w.writeAttribute("width", format(context.featureWidth/2.0));
-					w.writeAttribute("height",  format(context.featureHeight/2.0));
-					w.writeEmptyElement("rect");
-					w.writeAttribute("x", format(context.featureWidth/2.0));
-					w.writeAttribute("y",  format(context.featureHeight/2.0));
-					w.writeAttribute("width", format(context.featureWidth/2.0));
-					w.writeAttribute("height",  format(context.featureHeight/2.0));
-					w.writeEmptyElement("rect");
-					w.writeAttribute("style", "fill:none;");
-					w.writeAttribute("x", "0");
-					w.writeAttribute("y", "0");
-					w.writeAttribute("width", format(context.featureWidth));
-					w.writeAttribute("height",  format(context.featureHeight));
-	
-				w.writeEndElement();
-				}
-			
-			
-	
-			//base
-			for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
-				{
-				w.writeStartElement("path");
-				w.writeAttribute("id","b"+base);
-				
-				w.writeAttribute("class","b"+base.toUpperCase());
-				w.writeAttribute("d",this.hershey.svgPath(
-						base,
-						0,
-						0,
-						context.featureWidth*0.95,
-						context.featureHeight*0.95
-						));
-				writeTitle(w,base);
-				w.writeEndElement();
-				}
-			//mutation
-			w.writeStartElement("circle");
-			w.writeAttribute("id","mut");
-			w.writeAttribute("class","mutation");
-			
-			w.writeAttribute("cx",format(context.featureWidth/2.0));
-			w.writeAttribute("cy",format(context.featureHeight/2.0));
-			w.writeAttribute("r",format(context.featureHeight/2.0));
-			writeTitle(w,"mutation");
+
 			w.writeEndElement();
-						
-			printGradientDef(w,
-					"fail",//fail qc
-					"stop-color:#DDA0DD;stop-opacity:1;",
-					"stop-color:#DA70D6;stop-opacity:1;"
-					);
-			/* properly paired */
-			printGradientDef(w,
-					"fprop",
-					"stop-color:#90EE90;stop-opacity:1;",
-					"stop-color:#98FB98;stop-opacity:1;"
-					);
-			/* discordant reads */
-			printGradientDef(w,
-					"fdisc",
-					"stop-color:#D8BFD8;stop-opacity:1;",
-					"stop-color:#F5F5DC;stop-opacity:1;"
-					);
-			/* paired mate unmapped */
-			printGradientDef(w,
-					"fum",
-					"stop-color:#add8e6;stop-opacity:1;", /* light blue */
-					"stop-color:#e0ffff;stop-opacity:1;" /* light cyan */
-					);
-			/* MAPQ=0 */
-			printGradientDef(w,
-					"fq0",
-					"stop-color:#ffe4e1;stop-opacity:1;",/* misty rose */
-					"stop-color:#fffff;stop-opacity:1;"
-					);
-			
-			printGradientDef(w,
-					"f0",
-					"stop-color:#dcdcdc;stop-opacity:1;",/* gainsboro */
-					"stop-color:#f5f5f5;stop-opacity:1;" /* white smoke */
-					);
-			
-			w.writeEndElement();//defs
-			
-			w.writeStartElement("g");
-			w.writeAttribute("transform", "translate("+insets.left+","+insets.top+")");
-			w.writeAttribute("class","maing");
-			
-			int y=insets.top;
-			/* write title */
-			
-			final Hyperlink hyperlink = Hyperlink.compile(dict);
-			if(hyperlink.apply(this.interval).isPresent()) {
-				w.writeStartElement("a");
-				w.writeAttribute("href",hyperlink.apply(this.interval).orElse(""));
-				}
-			
-			w.writeStartElement("text");
-			w.writeAttribute("class","maintitle");
-			w.writeAttribute("x",String.valueOf(this.drawinAreaWidth/2.0));
-			w.writeAttribute("y",String.valueOf(y));
-			w.writeCharacters(this.interval.toNiceString());
-			w.writeEndElement();
-			if(hyperlink.apply(this.interval).isPresent()) {
-				w.writeEndElement();//a
-				}
-			y+=HEIGHT_MAIN_TITLE;
-			
-			/* write ruler */
-			int prev_ruler_printed=-1;
-			double prev_ruler_printed_x=-1;
-			w.writeStartElement("g");
-			for(int pos=this.interval.getStart(); pos<=this.interval.getEnd();++pos)
-				{
-				double x= this.baseToPixel(pos);
-				if(prev_ruler_printed_x!=-1 &&  prev_ruler_printed_x+ Math.max(20.0,context.featureHeight) >= x)continue;
-				prev_ruler_printed_x = x;
-				
-				w.writeStartElement("line");
-				w.writeAttribute("class","rulerline");
-				
-				w.writeAttribute("x1",format(x));
-				w.writeAttribute("x2",format(x));
-				w.writeAttribute("y1",format(y+context.HEIGHT_RULER-5));
-				w.writeAttribute("y2",format(dim.height));
-				if(prev_ruler_printed==-1 ||  this.baseToPixel(prev_ruler_printed)+context.featureHeight < x)
-					{
-					x= (this.baseToPixel(pos)+this.baseToPixel(pos+1))/2.0;
-					w.writeStartElement("path");
-					w.writeAttribute("class","rulerlabel");
-					w.writeAttribute("d",this.hershey.svgPath(StringUtils.niceInt(pos),0,0,Math.min(StringUtils.niceInt(pos).length()*context.featureHeight,context.HEIGHT_RULER)-20,context.featureHeight));
-					w.writeAttribute("transform","translate("+(x-context.featureHeight/2.0)+","+ (y+(context.HEIGHT_RULER-10)) +") rotate(-90) ");
-					writeTitle(w,StringUtils.niceInt(pos));
-					w.writeEndElement();
-					prev_ruler_printed=pos;
-					}
-				writeTitle(w,StringUtils.niceInt(pos));
-				w.writeEndElement();//line
-				}
-			w.writeEndElement();//g for ruler
-			y+=context.HEIGHT_RULER;
-			
-			printSample(w,y,context);
-			y+=context.getHeight();			
-			w.writeEndElement();//g
-			w.writeEndElement();//svg
 			}
+		
+		
+
+		//base
+		for(String base:new String[]{"a","A","t","T","g","G","c","C","n","N"})
+			{
+			w.writeStartElement("path");
+			w.writeAttribute("id","b"+base);
+			
+			w.writeAttribute("class","b"+base.toUpperCase());
+			w.writeAttribute("d",this.hershey.svgPath(
+					base,
+					0,
+					0,
+					context.featureWidth*0.95,
+					context.featureHeight*0.95
+					));
+			writeTitle(w,base);
+			w.writeEndElement();
+			}
+		//mutation
+		w.writeStartElement("circle");
+		w.writeAttribute("id","mut");
+		w.writeAttribute("class","mutation");
+		
+		w.writeAttribute("cx",format(context.featureWidth/2.0));
+		w.writeAttribute("cy",format(context.featureHeight/2.0));
+		w.writeAttribute("r",format(context.featureHeight/2.0));
+		writeTitle(w,"mutation");
+		w.writeEndElement();
+		
+		w.writeEndElement();//defs
+		
+		w.writeStartElement("g");
+		w.writeAttribute("transform", "translate("+insets.left+","+insets.top+")");
+		w.writeAttribute("class","maing");
+		
+		int y=0;//not insets top because translate above
+		/* write title */
+		
+		final Hyperlink hyperlink = Hyperlink.compile(dict);
+		if(hyperlink.apply(this.interval).isPresent()) {
+			w.writeStartElement("a");
+			w.writeAttribute("href",hyperlink.apply(this.interval).orElse(""));
+			}
+		
+		w.writeStartElement("text");
+		w.writeAttribute("class","maintitle");
+		w.writeAttribute("x",String.valueOf(this.drawinAreaWidth/2.0));
+		w.writeAttribute("y",String.valueOf(y));
+		w.writeCharacters(context.sampleName+" "+ SequenceDictionaryUtils.getBuildName(dict).orElse("") +" "+this.interval.toNiceString());
+		w.writeEndElement();//text
+		if(hyperlink.apply(this.interval).isPresent()) {
+			w.writeEndElement();//a
+			}
+		y+=HEIGHT_MAIN_TITLE;
+		
+		/* write ruler */
+		int prev_ruler_printed=-1;
+		double prev_ruler_printed_x=-1;
+		w.writeStartElement("g");
+		for(int pos=this.interval.getStart(); pos<=this.interval.getEnd();++pos)
+			{
+			double x= this.baseToPixel(pos);
+			if(prev_ruler_printed_x!=-1 &&  prev_ruler_printed_x+ Math.max(20.0,context.featureHeight) >= x)continue;
+			prev_ruler_printed_x = x;
+			
+			w.writeStartElement("rect");
+			w.writeAttribute("class","rulerline");
+			w.writeAttribute("x",format(x));
+			w.writeAttribute("width",format(0.5));
+			w.writeAttribute("y",format(y));
+			w.writeAttribute("height",format(dim.height-y));
+			writeTitle(w,StringUtils.niceInt(pos));
+			w.writeEndElement();//line
+			
+			if(prev_ruler_printed==-1 ||  this.baseToPixel(prev_ruler_printed)+context.featureHeight < x)
+				{
+				x= (this.baseToPixel(pos)+this.baseToPixel(pos+1))/2.0;
+				w.writeStartElement("text");
+				w.writeAttribute("class", "rulerlabel");
+				w.writeAttribute("x","0");
+				w.writeAttribute("y","0");
+				w.writeAttribute("transform", "translate("+format(x)+","+y+") rotate(90) ");
+				w.writeCharacters(StringUtils.niceInt(pos));
+				w.writeEndElement();//text
+				prev_ruler_printed=pos;
+				}
+			
+			}
+		w.writeEndElement();//g for ruler
+		y+=context.HEIGHT_RULER;
+		
+		
+		
+		/* write REFERENCE */
+		w.writeStartElement("g");
+		w.writeComment("REFERENCE");
+		for(int pos=this.interval.getStart();
+				context.featureWidth>5 && //ignore if too small
+				pos<=this.interval.getEnd();++pos)
+			{
+			final char c= this.genomicSequence.charAt(pos-1);
+			w.writeStartElement("use");
+			w.writeAttribute("x",format( baseToPixel(pos)));
+			w.writeAttribute("y",format(y));
+			w.writeAttribute("xlink", XLINK.NS, "href", "#b"+c);
+			writeTitle(w, String.valueOf(c)+" "+StringUtils.niceInt(pos));
+			w.writeEndElement();//use
+			}
+		w.writeEndElement();//g
+		y+= context.featureHeight;
+		
+		/* skip line for later consensus */
+		final double consensus_y=y;
+		y+=context.featureHeight;
+		final Map<Integer,Counter<Character>> pos2consensus=new HashMap<Integer,Counter<Character>>();
+		
+		/* print variants */
+		if(!context.pos2variant.isEmpty())
+			{
+			for(VariantContext ctx:context.pos2variant)
+				{
+				final Genotype g=ctx.getGenotype(context.sampleName);
+				if(g==null || !g.isCalled() || g.isHomRef()) continue;
+				
+				
+				if(ctx.getEnd()< this.interval.getStart()) continue;
+				if(ctx.getStart()> this.interval.getEnd()) continue;
+				
+				String url = null;
+				if(ctx.hasID()) {
+					url = urlSupplier.of(ctx.getID()).stream().map(G->G.getUrl()).findFirst().orElse(null);
+					}
+				if(url==null) {
+					url = hyperlink.apply(ctx).orElse(null);
+					}
+				if(url!=null) {
+					w.writeStartElement("a");
+					w.writeAttribute("href", url);
+				}
+				
+				final double x0  = baseToPixel(ctx.getStart());
+				w.writeStartElement("use");
+				w.writeAttribute("x",format(x0));
+				w.writeAttribute("y",format(y));
+				
+				if(g.isHomVar())
+					{
+					w.writeAttribute("xlink", XLINK.NS, "href", "#homvar");				
+					}
+				else if (g.isHet())
+					{
+					w.writeAttribute("xlink", XLINK.NS, "href", "#het");
+					}
+				final StringBuilder sb = new StringBuilder();
+				sb.append(ctx.getContig()+":"+ctx.getStart()+" ");
+				sb.append(ctx.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/")));
+				sb.append("\n");
+				sb.append(g.getType().name()).append("\n");
+				if(g.isFiltered()) sb.append("FILTERED:"+g.getFilters()+"\n");
+				if(g.hasDP()) sb.append("DP:"+g.getDP()).append("\n");
+				if(g.hasGQ()) sb.append("GQ:"+g.getGQ()).append("\n");
+				if(g.hasAD()) sb.append("AD:"+IntStream.of(g.getAD()).mapToObj(V->String.valueOf(V)).collect(Collectors.joining(","))).append("\n");
+				if(g.hasPL()) sb.append("PL:"+IntStream.of(g.getPL()).mapToObj(V->String.valueOf(V)).collect(Collectors.joining(","))).append("\n");
+				writeTitle(w,sb.toString());
+				w.writeEndElement();//use
+				if(url!=null) {
+					w.writeEndElement();//a
+					}
+				}
+			y+=context.featureHeight;
+			}
+		
+		/* print all lines */
+		w.writeComment("Alignments");
+		for(int nLine=0;nLine< context.lines.size();++nLine)
+			{
+			w.writeStartElement("g");
+			w.writeAttribute("transform", "translate(0,"+format(y)+")");
+			List<SAMRecord> line= context.lines.get(nLine);
+			//loop over records on that line
+			for(SAMRecord record: line)
+				{
+				printSamRecord(w, context,record,pos2consensus);
+				}
+			w.writeEndElement();//g
+			y+=context.featureHeight;
+			}
+		
+		
+		/* write consensus */
+		w.writeComment("Consensus");
+		for(int pos=this.interval.getStart();
+				context.featureWidth>5 && //ignore if too small
+				pos<=this.interval.getEnd();++pos)
+			{
+			final char rc= this.genomicSequence.charAt(pos-1);
+			final Counter<Character> cons = pos2consensus.get(pos);
+			if(cons==null) continue;
+			char ac=cons.getMostFrequent();
+			if(cons.getCountCategories()==1 && ac==rc) continue;
+
+			double x0  = baseToPixel(pos);
+			for(Character a : cons.keySetDecreasing()) {
+				final double aw = (context.featureWidth-1)*((double)cons.count(a)/cons.getTotal());
+				w.writeStartElement("rect");
+				w.writeAttribute("x", format(x0));
+				w.writeAttribute("y", format(consensus_y));
+				w.writeAttribute("width", format(aw));
+				w.writeAttribute("height", format(context.featureHeight-1));
+				w.writeAttribute("style", "stroke:none;fill:"+AcidNucleics.cssColor(a)); 
+				writeTitle(w, ""+a+" "+cons.count(a)+"/"+cons.getTotal()+" "+(int)(100.0*(double)cons.count(a)/cons.getTotal())+"%");
+				w.writeEndElement();
+				x0+=aw;
+				}
+			}
+
+		
+
+		/* draw genes */
+		 if(this.gtfFile!=null) {
+			 w.writeStartElement("g");
+			 try(TabixReader tbr= new TabixReader(this.gtfFile.toString())) {
+				 final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+				 final String ctg = cvt.apply(this.interval.getContig());
+				 if(!StringUtils.isBlank(ctg)) {
+					 final List<GTFLine> genes  = new ArrayList<>();
+					 final List<GTFLine> exons  = new ArrayList<>();
+					 final GTFCodec codec = new GTFCodec();
+					 final TabixReader.Iterator iter=tbr.query(ctg,this.interval.getStart(),this.interval.getEnd());
+					 for(;;) {
+						 final String line = iter.next();
+						 if(line==null) break;
+						 if(StringUtils.isBlank(line) ||  line.startsWith("#")) continue;
+						 final GTFLine gtfline = codec.decode(line);
+						 if(gtfline==null) continue;
+						 if(gtfline.getType().equals("gene")) {
+							 genes.add(gtfline);
+						 }
+						 else if(gtfline.getType().equals("exon")) {
+							 exons.add(gtfline);
+						 }
+					 	}/* end for */
+				 for(GTFLine gtf:genes) {
+					 w.writeStartElement("line");
+	                 w.writeAttribute("class", "gene");
+	                 w.writeAttribute("x1", format(baseToPixel(trim(gtf.getStart()))));
+	                 w.writeAttribute("x2", format(baseToPixel(trim(gtf.getEnd()+1))));
+	                 w.writeAttribute("y1", format(y+context.featureHeight/0.5));
+	                 w.writeAttribute("y2", format(y+context.featureHeight/0.5));
+	                 writeTitle(w,gtf.getAttributes().entrySet().stream().filter(KV->KV.getKey().equals("gene_name")).map(KV->KV.getValue()).findFirst().orElse(null));
+	                 w.writeEndElement();
+				 	 }
+				 for(GTFLine gtf:exons) {
+					 final double x1 = baseToPixel(trim(gtf.getStart()));
+					 final double x2 = baseToPixel(trim(gtf.getEnd()+1));
+					 w.writeStartElement("rect");
+	                 w.writeAttribute("class", "exon");
+	                 w.writeAttribute("x", format(x1));
+	                 w.writeAttribute("width", format(x2-x1));
+	                 w.writeAttribute("y1", format(y));
+	                 w.writeAttribute("y2", format(y+context.featureHeight-1));
+	                 writeTitle(w,gtf.getAttributes().entrySet().stream().filter(KV->KV.getKey().equals("gene_name")).map(KV->KV.getValue()).findFirst().orElse(null));
+	                 w.writeEndElement();
+				 	 }
+				 }/* end if contig!null */
+			 } /* end tabix open */
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		w.writeEndElement();
+		 } /* end gtf */
+		
+		w.writeEndElement();//g for sample
+		w.writeComment("END SAMPLE: "+context.sampleName);
+
+		y+= insets.bottom;
+		/* surrounding frame for that sample */
+		w.writeEmptyElement("rect");
+		w.writeAttribute("class","frame");
+		w.writeAttribute("x",format(0));
+		w.writeAttribute("y",format(0));
+		w.writeAttribute("width",format(drawinAreaWidth-1+insets.left+insets.right));
+		w.writeAttribute("height",format(y-1));
+
+		
+		
+
+		//w.writeEndElement();//g
+		w.writeEndElement();//svg
+		
+		final SvgOutput svgOutput = new SvgOutput();
+		svgOutput.sampleName = context.sampleName;
+		dim.height+=insets.top+insets.bottom;
+		svgOutput.dimension = dim;
+		return svgOutput;
+		}
 		
 		private void printSamRecord(
 				final XMLStreamWriter w,
@@ -691,7 +728,9 @@ public class BamToSVG extends Launcher {
 			Cigar cigar = record.getCigar();
 			if(cigar==null) return;
 			byte bases[]=record.getReadBases();
-			if(bases==null || bases.equals(SAMRecord.NULL_SEQUENCE)) return;
+			if(bases==null || bases.equals(SAMRecord.NULL_SEQUENCE)) {
+				return;
+				}
 			byte qualities[]=record.getBaseQualities();
 			if(qualities==null||qualities.equals(SAMRecord.NULL_QUALS)) return;
 			
@@ -700,8 +739,8 @@ public class BamToSVG extends Launcher {
 
 			
 			int readPos=0;
-			Map<Integer,String> pos2insertions=new HashMap<Integer,String>();
-			List<CigarElement> cigarElements= cigar.getCigarElements();
+			final Map<Integer,String> pos2insertions=new HashMap<Integer,String>();
+			final List<CigarElement> cigarElements= cigar.getCigarElements();
 			
 			/* find position of arrow */
 			int arrow_cigar_index=-1;
@@ -837,27 +876,26 @@ public class BamToSVG extends Launcher {
 							}
 						else
 							{
-							final String rec_style;
+							final int[] rgb = new int[3];
 							if(record.getReadFailsVendorQualityCheckFlag()) {
-								rec_style = "fill:url(#fail);";
+								rgb[0]=255; rgb[1]=102; rgb[2]=255;
 								}
 							else if(record.getReadPairedFlag() && !record.getMateUnmappedFlag() && !record.getMateReferenceName().equals(this.interval.getContig())) {
-								rec_style = "fill:url(#fdisc);";
+								rgb[0]=102; rgb[1]=178; rgb[2]=255;
 								}
 							else if(record.getReadPairedFlag() && record.getMateUnmappedFlag()) {
-								rec_style = "fill:url(#fum);";
+								rgb[0]=51; rgb[1]=255; rgb[2]=51;
 								}
 							else if(record.getReadPairedFlag() && !record.getProperPairFlag()) {
-								rec_style = "fill:url(#fprop);";
-								}
-							else if(record.getMappingQuality()==0) {
-								rec_style = "fill:url(#fq0);";
+								rgb[0]=153; rgb[1]=76; rgb[2]=0;
 								}
 							else
 								{
-								rec_style = "fill:url(#f0);";
+								rgb[0]=192; rgb[1]=192; rgb[2]=192;
 								}
-							w.writeAttribute("style",rec_style);
+							final double f= Math.max(record.getMappingQuality(),60)/60.0;
+							for(int i=0;i< rgb.length;i++) rgb[i] = (int)(rgb[i]*f);
+							w.writeAttribute("style","fill:rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")");
 							}
 						
 						if(op.consumesReadBases())
@@ -875,13 +913,10 @@ public class BamToSVG extends Launcher {
 										}
 									count.incr(ca);
 									}
-								char cb='N';
-								if(genomicSequence!=null)
-									{
-									cb=Character.toUpperCase(genomicSequence.charAt(refPos+i-1));
-									}
+								char cb= genomicSequence.charAt(refPos+i-1);
 								
-								if(cb!='N' && ca!='N' && cb!=ca && !in_clip && this.interval.contains(refPos+i))
+								/* mutation ? */
+								if(this.print_bases && cb!='N' && ca!='N' && cb!=ca && !in_clip && this.interval.contains(refPos+i))
 									{
 									w.writeEmptyElement("use");
 									w.writeAttribute("x",format( baseToPixel(refPos+i)));
@@ -889,8 +924,9 @@ public class BamToSVG extends Launcher {
 									w.writeAttribute("xlink",XLINK.NS,"href", "#mut");
 									}
 								
-								if(this.interval.contains(refPos+i) && 
-									context.featureWidth >  5)
+								if( this.interval.contains(refPos+i) && 
+									((this.print_bases&&context.featureWidth>5) || (cb!=ca ))
+									 )
 									{
 									//int qual = qualities[readPos];
 									w.writeEmptyElement("use");
@@ -930,10 +966,14 @@ public class BamToSVG extends Launcher {
 				writeTitle(w,"Insertion "+insertion);
 				w.writeEndElement();//line
 				}
+			
+			
+
+			
 			w.writeEndElement();//g
 			}
 		
-		private void plotSVG(
+		private SvgOutput plotSVG(
 				final ArchiveFactory archive,
 				final PrintWriter manifest,
 				final Path path
@@ -976,48 +1016,49 @@ public class BamToSVG extends Launcher {
 						}
 					context.lines = pileup.getRows();
 					}
-				
-				
-				if(this.vcf!=null)
-					{
-					context.readVariantFile(vcf);
-					}
-				
-				
-				
-				context.featureWidth=  this.drawinAreaWidth/(double)((this.interval.getEnd() - this.interval.getStart())+1); 
-				context.featureHeight= Math.min(Math.max(5.0,context.featureWidth),30); 
-				context.HEIGHT_RULER=(int)(StringUtils.niceInt(this.interval.getEnd()).length()*context.featureHeight+5);
-				LOG.info("Feature height:"+context.featureHeight);
-				
-				final String buildName= SequenceDictionaryUtils.getBuildName(this.referenceDict).orElse("");
-				final String filename= this.prefix+buildName+(buildName.isEmpty()?"":".")+this.interval.getContig()+"_"+this.interval.getStart()+"_"+this.interval.getEnd()+"."+context.sampleName+".svg";
-				
-
-				LOG.info("writing "+ filename);
-				manifest.print(context.sampleName);
-				manifest.print("\t");
-				manifest.print(path);
-				manifest.print("\t");
-				manifest.print(this.interval);
-				manifest.print("\t");
-				manifest.print(this.referenceFile);
-				manifest.print("\t");
-				manifest.print(filename);
-				manifest.println();
-
-				
-				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
-				try(OutputStream fout= archive.openOuputStream(filename)) {
-					w=xof.createXMLStreamWriter(fout, "UTF-8");
-					w.writeStartDocument("UTF-8", "1.0");
-					printDocument(w,dict,context);
-					w.writeEndDocument();
-					w.flush();
-					w.close();
-					fout.flush();
-					}
 				}
+				
+			if(this.vcf!=null)
+				{
+				context.readVariantFile(vcf);
+				}
+			
+			
+			
+			context.featureWidth=  this.drawinAreaWidth/(double)(this.interval.getLengthOnReference()); 
+			context.featureHeight= Math.min(Math.max(5.0,context.featureWidth),30); 
+			context.HEIGHT_RULER=(int)(StringUtils.niceInt(this.interval.getEnd()).length()*context.featureHeight+5);
+			LOG.info("Feature height:"+context.featureHeight);
+			
+			final String buildName= SequenceDictionaryUtils.getBuildName(this.referenceDict).orElse("");
+			final String filename= this.prefix+buildName+(buildName.isEmpty()?"":".")+this.interval.getContig()+"_"+this.interval.getStart()+"_"+this.interval.getEnd()+"."+context.sampleName+".svg";
+			
+
+			LOG.info("writing "+ filename);
+			manifest.print(context.sampleName);
+			manifest.print("\t");
+			manifest.print(path);
+			manifest.print("\t");
+			manifest.print(this.interval);
+			manifest.print("\t");
+			manifest.print(this.referenceFile);
+			manifest.print("\t");
+			manifest.print(filename);
+			manifest.println();
+
+			final SvgOutput svgOutput;
+			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+			try(OutputStream fout= archive.openOuputStream(filename)) {
+				w=xof.createXMLStreamWriter(fout, "UTF-8");
+				w.writeStartDocument("UTF-8", "1.0");
+				svgOutput = printDocument(w,this.referenceDict,context);
+				w.writeEndDocument();
+				w.flush();
+				w.close();
+				fout.flush();
+				}
+			svgOutput.svgFilename = filename;
+			return svgOutput;
 			}
 		
 		
@@ -1043,7 +1084,14 @@ public class BamToSVG extends Launcher {
 					orElseThrow(IntervalParserFactory.exception(this.intervalStr))
 					;
 				
-				this.genomicSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getContig());
+				final GenomicSequence gSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getContig());
+				this.genomicSequence = new DelegateCharSequence(gSequence) {
+					@Override
+					public char charAt(int index) {
+						if(index<0 || index >= gSequence.length()) return 'N';
+						return Character.toUpperCase(gSequence.charAt(index));
+						}
+					};
 				this.drawinAreaWidth = Math.max(100,this.drawinAreaWidth );
 				
 				
@@ -1068,13 +1116,100 @@ public class BamToSVG extends Launcher {
 						mf.print("\t");
 						mf.print("svg");
 						mf.println();
-						
+						final List<SvgOutput> svgOutputs = new ArrayList<>(inputFiles.size());
 						for(final Path filename: inputFiles)
 							{
 							LOG.info("Reading from "+filename);
-							plotSVG(archive,mf,filename);
+							final SvgOutput svgOutput = plotSVG(archive,mf,filename);
+							svgOutputs.add(svgOutput);
 							}
 						mf.flush();
+						
+						Collections.sort(svgOutputs,(A,B)->A.sampleName.compareToIgnoreCase(B.sampleName));
+						
+						/* write HTML page */
+						final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+						try(OutputStream fout= archive.openOuputStream(this.prefix+"index.html")) {
+							final XMLStreamWriter w =xof.createXMLStreamWriter(fout, "UTF-8");
+							w.writeStartElement("html");
+							w.writeStartElement("head");
+							
+							w.writeEmptyElement("meta");
+								w.writeAttribute("http-equiv", "Content-Type");
+								w.writeAttribute("content", "text/html; charset=utf-8");
+							w.writeEmptyElement("meta");
+								w.writeAttribute("http-equiv", "author");
+								w.writeAttribute("content", "Pierre Lindenbaum Phd");
+	
+							
+							w.writeStartElement("title");
+							w.writeCharacters(this.interval.toNiceString());
+							w.writeEndElement();//title
+							
+							
+							w.writeEndElement();//head
+							
+							w.writeStartElement("body");
+							w.writeStartElement("h2");
+							w.writeCharacters(SequenceDictionaryUtils.getBuildName(this.referenceDict).orElse("") + " "+ this.interval.toNiceString());
+							w.writeEndElement();//h2
+							w.writeEmptyElement("hr");
+							final UrlSupplier urlSupplier = new UrlSupplier(this.referenceDict);
+							w.writeCharacters("Hyperlinks: ");
+							for(UrlSupplier.LabelledUrl url : urlSupplier.of(this.interval)) {
+								w.writeCharacters(" [ ");
+								w.writeStartElement("a");
+								w.writeAttribute("title", url.getUrl());
+								w.writeAttribute("href",  url.getUrl());
+								w.writeCharacters(url.getLabel());
+								w.writeEndElement();
+								w.writeCharacters(" ] ");
+								
+								}
+							
+							w.writeEmptyElement("hr");
+							w.writeCharacters("Samples: ");
+							for(SvgOutput out: svgOutputs) {
+								w.writeCharacters(" [ ");
+								w.writeStartElement("a");
+								w.writeAttribute("title", out.sampleName);
+								w.writeAttribute("href", "#"+out.sampleName);
+								w.writeCharacters(out.sampleName);
+								w.writeEndElement();
+								w.writeCharacters(" ] ");
+								
+								}
+							
+							
+							for(SvgOutput out: svgOutputs) {
+								w.writeEmptyElement("hr");
+								w.writeStartElement("div");
+								w.writeEmptyElement("a");
+								w.writeAttribute("name", out.sampleName);
+								w.writeStartElement("h3");
+								w.writeCharacters(out.sampleName);
+								w.writeEndElement();//h3
+								w.writeStartElement("img");
+								w.writeAttribute("width", String.valueOf(out.dimension.width));
+								w.writeAttribute("height", String.valueOf(out.dimension.height));
+								w.writeAttribute("src", out.svgFilename);
+								w.writeEndElement();//img
+								w.writeEndElement();//div
+								}
+							w.writeEmptyElement("hr");
+
+	                        w.writeStartElement("div");
+	                        w.writeCharacters("Made with "+getClass().getSimpleName()+" version:"+getVersion()+". Pierre Lindenbaum PhD. 2022.");
+	                        w.writeEndElement();//div
+	                        
+	                        
+	                        w.writeEndElement();//body
+	                        w.writeEndElement();//html
+	                        w.flush();
+	                        w.close();
+							fout.flush();
+							}
+
 						}
 					}				
 				return 0;

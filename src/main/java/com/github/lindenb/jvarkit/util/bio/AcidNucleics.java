@@ -42,7 +42,23 @@ public static boolean isATGC(final CharSequence c) {
 	for(int i=0;i< c.length();i++) if(!isATGC(c.charAt(i))) return false;
 	return true;
 	}
-	
+
+private static short[] _cssColor0(final char c) {
+	switch(c) {
+		case 'a': case 'A' : return new short[] {0,128,0};
+		case 't': case 'T' : return new short[] {255,0,0};
+		case 'c': case 'C' : return new short[] {0,0,255};
+		case 'g': case 'G' : return new short[] {0,0,0};
+		default: return new short[] {128,128,128};
+		}
+	}
+/** return color for base in rgb(r,b,c) style */
+public static String cssColor(final char c) {
+	final short[] array = _cssColor0(c);
+	return "rgb("+array[0]+","+array[1]+","+array[2]+")";
+	}
+
+
 /** return true is base is [A,T,G,C] regardless of the case */
 public static boolean isATGC(char c) {
 	switch(c) {

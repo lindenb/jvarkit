@@ -11,6 +11,11 @@ BAM to Scalar Vector Graphics (SVG)
 Usage: java -jar dist/bam2svg.jar  [options] Files
 Usage: bam2svg [options] Files
   Options:
+    --bases
+      print bases in read
+      Default: false
+    --gff, --gff3
+      Optional Tabix indexed GFF3 file.
     --groupby
       Group Reads by. Data partitioning using the SAM Read Group (see 
       https://gatkforums.broadinstitute.org/gatk/discussion/6472/ ) . It can 
