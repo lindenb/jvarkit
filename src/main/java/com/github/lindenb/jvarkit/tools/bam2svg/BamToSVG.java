@@ -1196,6 +1196,7 @@ public class BamToSVG extends Launcher {
 							final Set<UrlSupplier.LabelledUrl> urls = new HashSet<>();
 							urls.addAll( urlSupplier.of(this.interval));
 							svgOutputs.stream().flatMap(SO->SO.rsIds.stream()).forEach(ID->urls.addAll(urlSupplier.of(ID)));
+							svgOutputs.stream().flatMap(SO->SO.geneNames.stream()).forEach(ID->urls.addAll(urlSupplier.of("gene_name",ID)));
 
 							
 							
