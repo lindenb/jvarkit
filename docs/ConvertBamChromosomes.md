@@ -8,6 +8,7 @@ Convert the names of the chromosomes in a BAM file
 ## Usage
 
 ```
+Usage: java -jar dist/bamrenamechr.jar  [options] Files
 Usage: bamrenamechr [options] Files
   Options:
     --bamcompression

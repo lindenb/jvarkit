@@ -36,9 +36,11 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -212,9 +214,9 @@ public class BamToSVG extends Launcher {
 			try(VCFReader r= VCFReaderFactory.makeDefault().open(vcf, true)) {
 				r.query(BamToSVG.this.interval).stream().
 					filter(V->V.getGenotype(this.sampleName)!=null).
-					filter(V->!(V.getGenotype(this.sampleName).isNoCall() || V.getGenotype(this.sampleName).isHomRef())).
 					forEach(ctx->this.pos2variant.add(ctx));
 				}
+			LOG.info("num variants "+this.pos2variant.size());
 			}
 		
 		}
@@ -223,6 +225,8 @@ public class BamToSVG extends Launcher {
 		String sampleName;
 		String svgFilename;
 		Dimension dimension;
+		final Set<String> rsIds = new HashSet<>();
+		final Set<String> geneNames = new HashSet<>();
 		}
 	
 	/** convert double to string */
@@ -354,6 +358,8 @@ public class BamToSVG extends Launcher {
 				"g.maing {stroke:black;stroke-width:0.5px;fill:none;}\n"+
 				".frame {stroke:darkgray;fill:none;}\n"+
 				".maintitle {stroke:blue;fill:none;}\n"+
+				".nocall {stroke:orange;fill:none;stroke-dasharray:2;}\n"+
+				".homref {stroke:blue;fill:none;}\n"+
 				".homvar {stroke:blue;fill:blue;}\n"+
 				".het {stroke:blue;fill:blue;}\n"+
 				"line.insert {stroke:red;stroke-width:4px;}\n"+
@@ -362,6 +368,8 @@ public class BamToSVG extends Launcher {
 				"text.maintitle {fill:darkgray;stroke:black;text-anchor:middle;font-size:25px;}\n"+
 				"path.samplename {stroke:black;stroke-width:3px;}\n"+
 				"circle.mutation {stroke:red;fill:none;stroke-width:"+(context.featureWidth<5?0.5:3.0)+"px;}"+
+				"line.gene {stroke:blue;stroke-width:4px;}"+
+				"rect.exon {stroke:blue;fill:orange;stroke-width:4px;}"+
 				""
 				);
 		for(char base : new char[] {'A','C','G','T','N'}) {
@@ -374,6 +382,26 @@ public class BamToSVG extends Launcher {
 		//mutations
 		if(!context.pos2variant.isEmpty())
 			{
+			
+			//nocall
+			w.writeEmptyElement("rect");
+			w.writeAttribute("id","nocall");
+			w.writeAttribute("class","nocall");
+			w.writeAttribute("x", "0");
+			w.writeAttribute("y", "0");
+			w.writeAttribute("width", format(context.featureWidth));
+			w.writeAttribute("height",  format(context.featureHeight));
+			
+			//hom ref
+			w.writeEmptyElement("rect");
+			w.writeAttribute("id","homref");
+			w.writeAttribute("class","homref");
+			w.writeAttribute("x", "0");
+			w.writeAttribute("y", "0");
+			w.writeAttribute("width", format(context.featureWidth));
+			w.writeAttribute("height",  format(context.featureHeight));
+			
+			
 			
 			//hom var
 			w.writeEmptyElement("rect");
@@ -533,7 +561,7 @@ public class BamToSVG extends Launcher {
 			for(VariantContext ctx:context.pos2variant)
 				{
 				final Genotype g=ctx.getGenotype(context.sampleName);
-				if(g==null || !g.isCalled() || g.isHomRef()) continue;
+				if(g==null) continue;
 				
 				
 				if(ctx.getEnd()< this.interval.getStart()) continue;
@@ -555,15 +583,16 @@ public class BamToSVG extends Launcher {
 				w.writeStartElement("use");
 				w.writeAttribute("x",format(x0));
 				w.writeAttribute("y",format(y));
+				final String svType;
+				switch(g.getType()) {
+					case HET:
+					case HOM_REF:
+					case HOM_VAR:
+					case NO_CALL: svType = g.getType().name().toLowerCase().replace("_", "");break;
+					default: svType="";
+					}
 				
-				if(g.isHomVar())
-					{
-					w.writeAttribute("xlink", XLINK.NS, "href", "#homvar");				
-					}
-				else if (g.isHet())
-					{
-					w.writeAttribute("xlink", XLINK.NS, "href", "#het");
-					}
+				w.writeAttribute("xlink", XLINK.NS, "href", "#"+svType);
 				final StringBuilder sb = new StringBuilder();
 				sb.append(ctx.getContig()+":"+ctx.getStart()+" ");
 				sb.append(ctx.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/")));
@@ -628,7 +657,7 @@ public class BamToSVG extends Launcher {
 			}
 
 		
-
+		final Set<String> gene_names  = new HashSet<>();
 		/* draw genes */
 		 if(this.gtfFile!=null) {
 			 w.writeStartElement("g");
@@ -648,6 +677,11 @@ public class BamToSVG extends Launcher {
 						 if(gtfline==null) continue;
 						 if(gtfline.getType().equals("gene")) {
 							 genes.add(gtfline);
+							 
+							 gtfline.getAttributes().entrySet().stream().
+							 	filter(KV->KV.getKey().equals("gene_name")).
+							 	map(KV->KV.getValue()).
+							 	forEach(G->gene_names.add(G));
 						 }
 						 else if(gtfline.getType().equals("exon")) {
 							 exons.add(gtfline);
@@ -658,8 +692,8 @@ public class BamToSVG extends Launcher {
 	                 w.writeAttribute("class", "gene");
 	                 w.writeAttribute("x1", format(baseToPixel(trim(gtf.getStart()))));
 	                 w.writeAttribute("x2", format(baseToPixel(trim(gtf.getEnd()+1))));
-	                 w.writeAttribute("y1", format(y+context.featureHeight/0.5));
-	                 w.writeAttribute("y2", format(y+context.featureHeight/0.5));
+	                 w.writeAttribute("y1", format(y+context.featureHeight*0.5));
+	                 w.writeAttribute("y2", format(y+context.featureHeight*0.5));
 	                 writeTitle(w,gtf.getAttributes().entrySet().stream().filter(KV->KV.getKey().equals("gene_name")).map(KV->KV.getValue()).findFirst().orElse(null));
 	                 w.writeEndElement();
 				 	 }
@@ -681,6 +715,7 @@ public class BamToSVG extends Launcher {
 			throw new RuntimeIOException(err);
 			}
 		w.writeEndElement();
+		y+=context.featureHeight;
 		 } /* end gtf */
 		
 		w.writeEndElement();//g for sample
@@ -705,6 +740,8 @@ public class BamToSVG extends Launcher {
 		svgOutput.sampleName = context.sampleName;
 		dim.height+=insets.top+insets.bottom;
 		svgOutput.dimension = dim;
+		svgOutput.rsIds.addAll(context.pos2variant.stream().filter(V->V.hasID()).map(V->V.getID()).collect(Collectors.toSet()));
+		svgOutput.geneNames.addAll(gene_names);
 		return svgOutput;
 		}
 		
@@ -1156,7 +1193,13 @@ public class BamToSVG extends Launcher {
 							w.writeEmptyElement("hr");
 							final UrlSupplier urlSupplier = new UrlSupplier(this.referenceDict);
 							w.writeCharacters("Hyperlinks: ");
-							for(UrlSupplier.LabelledUrl url : urlSupplier.of(this.interval)) {
+							final Set<UrlSupplier.LabelledUrl> urls = new HashSet<>();
+							urls.addAll( urlSupplier.of(this.interval));
+							svgOutputs.stream().flatMap(SO->SO.rsIds.stream()).forEach(ID->urls.addAll(urlSupplier.of(ID)));
+
+							
+							
+							for(UrlSupplier.LabelledUrl url : urls) {
 								w.writeCharacters(" [ ");
 								w.writeStartElement("a");
 								w.writeAttribute("title", url.getUrl());
@@ -1164,7 +1207,6 @@ public class BamToSVG extends Launcher {
 								w.writeCharacters(url.getLabel());
 								w.writeEndElement();
 								w.writeCharacters(" ] ");
-								
 								}
 							
 							w.writeEmptyElement("hr");

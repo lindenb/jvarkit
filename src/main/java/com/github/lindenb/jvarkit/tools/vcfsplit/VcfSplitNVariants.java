@@ -24,11 +24,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfsplit;
 
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +38,7 @@ import java.util.function.UnaryOperator;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -44,7 +46,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.Log;
 import htsjdk.tribble.index.tabix.TabixFormat;
 import htsjdk.tribble.index.tabix.TabixIndexCreator;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -52,6 +53,7 @@ import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
 
@@ -100,7 +102,7 @@ END_DOC
 		name="vcfsplitnvariants",
 		description="Split VCF to 'N' VCF files ",
 		creationDate = "202221122",
-		modificationDate="202221122",
+		modificationDate="202221201",
 		keywords= {"vcf"}
 		)
 public class VcfSplitNVariants 	extends Launcher {
@@ -108,14 +110,16 @@ private static final Logger LOG = Logger.build(VcfSplitNVariants.class).make();
 
 @Parameter(names={"-o","--output","--prefix"},description="files prefix",required = true)
 private String outputFile = null;
-@Parameter(names={"--vcf-count"},description="number of vcf files. Or use --variant-count")
+@Parameter(names={"--vcf-count"},description="number of output vcf files. Or use --variant-count")
 private int split_n_files = -1;
-@Parameter(names={"--vcf-variants"},description="number of vcf files. Or use --variant-count")
+@Parameter(names={"--variants-count"},description="number of variants. Or use --vcf-count")
 private int split_n_variants = -1;
 @Parameter(names={"--tbi","--index"},description="index on the fly as tbi files")
 private boolean index_on_fly = false;
-@Parameter(names={"-m","--manifest"},description="write optional manifest")
+@Parameter(names={"-m","--manifest"},description="write optional manifest to that file.")
 private Path manifest=null;
+@Parameter(names={"-f","--force"},description="overwrite existing files")
+private boolean overwrite_existing_files = false;
 
 
 private static class OutputVCF {
@@ -123,23 +127,34 @@ private static class OutputVCF {
 	VariantContextWriter w;
 	long n_variants = 0L;
 	final Set<String> contigs = new LinkedHashSet<>();
+	void add(final VariantContext ctx) {
+		this.n_variants++;
+		this.contigs.add(ctx.getContig());
+		this.w.add(ctx);
+		}
 	
-	void print(final PrintWriter pw) {
+	void close(final PrintWriter pw) {
 		pw.print(this.path.toAbsolutePath().toString());
 		pw.print("\t");
 		pw.print(this.n_variants);
 		pw.print("\t");
-		pw.print(String.join(",", x.contigs));
-		pw.println();	
+		pw.print(String.join(",", this.contigs));
+		pw.println();
+		w.close();
+		w=null;
 	}
 }
 
-private OutputVCF newOutputVCF(final VCFHeader srcHeader, final SAMSequenceDictionary dict,final int writer_id) {
+private OutputVCF newOutputVCF(final VCFHeader srcHeader, final SAMSequenceDictionary dict,final int writer_id) throws IOException {
 	final OutputVCF outvcf = new OutputVCF();
 	final VariantContextWriterBuilder vcb = new VariantContextWriterBuilder();
 	outvcf.path = Paths.get(this.outputFile + "." + String.format("%05d",(writer_id+1)) + ".vcf.gz");
+	if(!overwrite_existing_files && Files.exists(outvcf.path)) {
+		throw new IOException("File already exists "+outvcf.path);
+		}
 	LOG.info("open "+outvcf.path);
 	final VCFHeader header2 = new VCFHeader(srcHeader);
+	header2.addMetaDataLine(new VCFHeaderLine("vcfsplitnvariants.id", String.valueOf(writer_id+1)));
 	JVarkitVersion.getInstance().addMetaData(this, header2);
 	if(dict!=null) {
 		vcb.setReferenceDictionary(dict);
@@ -171,77 +186,68 @@ public int doWork(final List<String> args) {
 	try {
 		final String input = super.oneFileOrNull(args);
 
-		try(final PrintWriter pw = this.manifest==null?new PrintWriter(new NullOutputStream())?null:IOUtils.openPathForPrintWriter(this.manifest)) {
+		try(final PrintWriter pw = this.manifest==null?
+				new PrintWriter(new NullOuputStream()):
+				IOUtils.openPathForPrintWriter(this.manifest)) {
 		pw.println("vcf\tcount\tcontigs");
 		/* get number of variants */
 		try(VCFIterator iter = (input==null?
 				new VCFIteratorBuilder().open(stdin()):
-				new VCFIteratorBuilder().open(Paths.get(input)))) {
-			final VCFHeader header = iter.getHeader();
-			
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-			final UnaryOperator<VariantContext> checker;
-			if(this.index_on_fly) {
-				checker = new OrderChecker<VariantContext>(dict,false);
-				}
-			else
-				{
-				checker = T->T;
-				}
-			
-			if(this.split_n_files>0) {
-				final List<OutputVCF> writers = new ArrayList<>(this.split_n_files);
-				long n_variants = 0L;
-				while(iter.hasNext()) {
-					final VariantContext ctx = checker.apply(iter.next());
-					final OutputVCF outvcf;
-					
-					final int writer_id = (int)(n_variants%this.split_n_files);
-					if(writer_id >= writers.size()) {
-						outvcf = newOutputVCF(header,dict,writer_id);
-						writers.add(outvcf);
-
-						}
-					else {
-						outvcf = writers.get(writer_id);	
-						}
-					outvcf.contigs.add(ctx.getContig());
-					outvcf.w.add(ctx);
-					outvcf.n_variants++;
-					n_variants++;
+					new VCFIteratorBuilder().open(Paths.get(input)))) {
+				final VCFHeader header = iter.getHeader();
+				
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+				final UnaryOperator<VariantContext> checker;
+				if(this.index_on_fly) {
+					checker = new OrderChecker<VariantContext>(dict,false);
 					}
-				for(OutputVCF out: writers) {
-					out.print(pw);
-					out.w.close();
+				else
+					{
+					checker = T->T;
 					}
-				}
-			else if(this.split_n_variants>0) {
-				OutputVCF outvcf=null;
-				int writer_id=0;
-				for(;;) {
-					final VariantContext ctx = iter.hasNext()?checker.apply(iter.next()):null;
-					if(ctx==null) {
-						if(outvcf!=null) {
-							out.print(pw);
-							out.w.close();
+				
+				if(this.split_n_files>0) {
+					final List<OutputVCF> writers = new ArrayList<>(this.split_n_files);
+					long n_variants = 0L;
+					while(iter.hasNext()) {
+						final VariantContext ctx = checker.apply(iter.next());
+						final OutputVCF outvcf;
+						
+						final int writer_id = (int)(n_variants%this.split_n_files);
+						if(writer_id >= writers.size()) {
+							outvcf = newOutputVCF(header,dict,writer_id);
+							writers.add(outvcf);
 							}
-						break;
-						}
-					if(outvcf==null || outvcf.n_variants>=this.split_n_variants) {
-						if(outvcf!=null) {
-							out.print(pw);
-							out.w.close();
-							outvcf=null;
+						else {
+							outvcf = writers.get(writer_id);	
 							}
-						outvcf = newOutputVCF(header,dict,writer_id++);
+						outvcf.add(ctx);
+						n_variants++;
 						}
-					outvcf.w.add(ctx);
-					outvcf.n_variants++;
+					for(OutputVCF out: writers) {
+						out.close(pw);
+						}
 					}
-				}
-			else
-				{
-				throw new IllegalStateException();
+				else if(this.split_n_variants>0) {
+					OutputVCF outvcf=null;
+					int writer_id=0;
+					for(;;) {
+						final VariantContext ctx = iter.hasNext()?checker.apply(iter.next()):null;
+						if(outvcf==null || ctx==null ||  outvcf.n_variants>=this.split_n_variants) {
+							if(outvcf!=null) {
+								outvcf.close(pw);
+								outvcf=null;
+								}
+							if(ctx==null) break;
+							outvcf = newOutputVCF(header,dict,writer_id++);
+							}
+						outvcf.add(ctx);
+						}
+					}
+				else
+					{
+					throw new IllegalStateException();
+					}
 				}
 			pw.flush();
 			} /* end write pw */
