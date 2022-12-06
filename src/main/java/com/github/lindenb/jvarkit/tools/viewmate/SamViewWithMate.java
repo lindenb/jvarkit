@@ -87,6 +87,9 @@ ERR251240.10196873	81	14	79839368	37	100M	9	137230721	0
 ERR251240.11887757	145	14	79839451	37	100M	9	137230795	0
 ```
 
+## Cited in
+
+  * Garsed, D.W., Pandey, A., Fereday, S. et al. The genomic and immune landscape of long-term survivors of high-grade serous ovarian cancer. Nat Genet (2022). https://doi.org/10.1038/s41588-022-01230-9
 
 END_DOC
 */

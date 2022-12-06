@@ -6,10 +6,21 @@ Citations:
  * Han, W., Liu, L., Wang, J. et al. Ancient homomorphy of molluscan sex chromosomes sustained by reversible sex-biased genes and sex determiner translocation. Nat Ecol Evol (2022). https://doi.org/10.1038/s41559-022-01898-6
  * A long noncoding RNA promotes parasite differentiation in African trypanosomes. Fabien GueganK & al. Sci. Adv., 8 (24), eabn2706. • DOI: 10.1126/sciadv.abn2706 ( biostar84452 ).
  * Baaijens, J.A., Zulli, A., Ott, I.M. et al. Lineage abundance estimation for SARS-CoV-2 in wastewater using transcriptome quantification techniques. Genome Biol 23, 236 (2022). https://doi.org/10.1186/s13059-022-02805-9 ( biostar84452 )
+ * Xi, L., Sun, Y., Xu, T., Wang, Z., Chiu, M. Y., Plouviez, S., Jollivet, D., & Qiu, J.-W. (2022). Phylogenetic divergence and population genetics of the hydrothermal vent annelid genus Hesiolyra along the East Pacific Rise: Reappraisal using multi-locus data. Diversity and Distributions, 00, 1–15. https://doi.org/10.1111/ddi.13653 (msa2vcf)
+ * Garsed, D.W., Pandey, A., Fereday, S. et al. The genomic and immune landscape of long-term survivors of high-grade serous ovarian cancer. Nat Genet (2022). https://doi.org/10.1038/s41588-022-01230-9 (samviewwithmate)
+
+## 2021
+
+ * Yang & al. "Sequencing 5-Formyluracil in Genomic DNA at Single-Base Resolution"  (2021) Analytical Chemistry doi: 10.1021/acs.analchem.1c03339" Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892." +
+
+## 2019
+
+ * Robust mapping of polyadenylated and non-polyadenylated RNA 3’-ends at nucleotide resolution by 3́end sequencing 23 May 2019. Roy & al. Methods.  https://doi.org/10.1016/j.ymeth.2019.05.016
 
 ## 2017
 
  * Suppl. material of: "The Mobile Element Locator Tool (MELT): population-scale mobile element discovery and biology". [http://genome.cshlp.org/content/27/11/1916.short](http://genome.cshlp.org/content/27/11/1916.short) Gardner et al. Genome Res. 2017. 27: 1916-1929 
+ * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
 
 
 ## TODO
@@ -19,12 +30,10 @@ Citations:
  * "Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements" . McCoy RC, Taylor RW, Blauwkamp TA, Kelley JL, Kertesz M, et al. (2014) Illumina TruSeq Synthetic Long-Reads Empower De Novo Assembly and Resolve Complex, Highly-Repetitive Transposable Elements. PLoS ONE 9(9): e106689. doi: 10.1371/journal.pone.0106689  http://journals.plos.org/plosone/article?id=10.1371/journal.pone.0106689
  * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).
  * "Accurate detection of m6A RNA modifications in native RNA sequences" Huanle Liu, Oguzhan Begik, Morghan C Lucas, Christopher E Mason, Schraga Schwartz, John S Mattick, Martin A Smith, Eva Maria Novoa bioRxiv 525741; doi: https://doi.org/10.1101/525741 
- * Yang & al. "Sequencing 5-Formyluracil in Genomic DNA at Single-Base Resolution"  (2021) Analytical Chemistry doi: 10.1021/acs.analchem.1c03339" Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892." +
  * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
  * Watson CM, Jackson L, Crinnion LA, et al. Long-read sequencing to resolve the parent of origin of a de novo pathogenic UBE3A variant. Journal of Medical Genetics Published Online First: 12 April 2022. doi: 10.1136/jmedgenet-2021-108314
  * Distinct genetic determinants and mechanisms of SARS-CoV-2 resistance to remdesivir .Laura J. Stevens, Andrea J. Pruijssers, Hery W. Lee, Calvin J. Gordon, Egor P. Tchesnokov, Jennifer Gribble, Amelia S. George, Tia M. Hughes, Xiaotao Lu, Jiani Li, Jason K. Perry, Danielle P. Porter, Tomas Cihlar, Timothy P. Sheahan, Ralph S. Baric, Matthias Götte, Mark R. Denison bioRxiv 2022.01.25.477724; doi: https://doi.org/10.1101/2022.01.25.477724 
  * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978  
- * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
  * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean‐Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
  * "Blood transcriptome analysis in a buck-ewe hybrid and its parents" Falker-Gieske, C., Knorr, C. & Tetens, J. Blood transcriptome analysis in a buck-ewe hybrid and its parents. Sci Rep 9, 17492 (2019) doi:10.1038/s41598-019-53901-z
  * Cappelletti E, Piras FM, Sola L, Santagostino M, Abdelgadir WA, Raimondi E, Lescai F, Nergadze SG, Giulotto E. Robertsonian fusion and centromere repositioning contributed to the formation of satellite-free centromeres during the evolution of zebras. Mol Biol Evol. 2022 Jul 26:msac162. doi: 10.1093/molbev/msac162. Epub ahead of print. PMID: 35881460.
@@ -32,7 +41,6 @@ Citations:
  * "Direct Head-to-Head Evaluation of Recombinant Adeno-associated Viral Vectors Manufactured in Human versus Insect Cells". Kondratov & al. Molecular Therapy. [https://doi.org/10.1016/j.ymthe.2017.08.003](https://doi.org/10.1016/j.ymthe.2017.08.003).
  *  Lado, S. & al. Innate and Adaptive Immune Genes Associated with MERS-CoV Infection in Dromedaries. Cells 2021, 10, 1291. https://doi.org/10.3390/cells10061291 
  * Vinicius A.C & al. Comparative analyses of Theobroma cacao and T. grandiflorum mitogenomes reveal conserved gene content embedded within complex and plastic structures". Gene Volume 849 2023 .https://doi.org/10.1016/j.gene.2022.146904.
- * Robust mapping of polyadenylated and non-polyadenylated RNA 3’-ends at nucleotide resolution by 3́end sequencing 23 May 2019. Roy & al. Methods.  https://doi.org/10.1016/j.ymeth.2019.05.016
  * High-throughput Detection of T-DNA Insertion Sites for Multiple Transgenes in Complex Genomes. Edwards & al. Research Square. https://doi.org/10.21203/rs.3.rs-1325310/v1
  * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0
  * Fine structure and transcription dynamics of bread wheat ribosomal DNA loci deciphered by a multi-omics approach. Z Tulpova & al.  2022.  The Plante Genome. https://doi.org/10.1002/tpg2.20191

@@ -98,6 +98,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -111,6 +112,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -133,6 +135,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -181,7 +184,9 @@ public class SwingBamCov extends Launcher
 	private String gffPath = null;
 	@Parameter(names={"--small"},description="Display the reads when the region is small than 'x' bp. " + DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int smallRegionLength = 200;
-	
+	@Parameter(names={"--bed"},description="Load this bed file and use the intervals as a set of menus to jump to a specific location.")
+	private Path intervalBed = null;
+
 	private static class BamInfo {
 		final Path bamPath;
 		String sample;
@@ -790,7 +795,8 @@ public class SwingBamCov extends Launcher
 				String defaultLoc,
 				int minMapq,
 				final String gffPath,
-				final int smallRegionLength
+				final int smallRegionLength,
+				final Path intervalBed
 				) {
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			setTitle(SwingBamCov.class.getSimpleName());
@@ -820,6 +826,9 @@ public class SwingBamCov extends Launcher
 			Collections.sort(this.bamPaths,(A,B)->A.sample.compareTo(B.sample));
 					
 			this.minMapq=minMapq;
+			
+			
+			
 			
 			final JPanel mainPane = new JPanel(new BorderLayout(5, 5));
 			mainPane.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -998,6 +1007,36 @@ public class SwingBamCov extends Launcher
 			
 			this.jmenuHyperlinks=new JMenu("Hyperlinks");
 			menuBar.add(this.jmenuHyperlinks);
+			
+			
+			if(intervalBed!=null) {
+				JMenu rMenu = null;
+				try(BedLineReader blr = new BedLineReader(intervalBed)) {
+					blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict)).
+						setValidationStringency(ValidationStringency.LENIENT);
+					while(blr.hasNext()) {
+						final BedLine rec=blr.next();
+						final Interval r = new Interval(rec.getContig(),rec.getStart(),rec.getEnd(),false,rec.getOrDefault(3, "."));
+						
+						final JMenuItem rItem = new JMenuItem(new AbstractAction(new SimpleInterval(r).toNiceString()+" ("+ StringUtils.niceInt(r.getLengthOnReference())+" bp.)") {
+								@Override
+								public void actionPerformed(ActionEvent e) {
+									jtextFieldLocation.setText(r.getContig()+":"+r.getStart()+"-"+r.getEnd());
+									XFrame.this.offScreenImage=null;
+									XFrame.this.drawingThread=null;
+									updateHyperlinks();
+									updateGff3Table();
+									drawingArea.repaint();
+								}
+							});
+						if(rMenu==null) {
+							rMenu = new JMenu("Intervals");
+							menuBar.add(rMenu);
+							}
+						rMenu.add(rItem);
+						}
+					}
+				}
 			
 			
 			/** gff3 tab */
@@ -1209,7 +1248,13 @@ public class SwingBamCov extends Launcher
 				return -1;
 				}
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(this.referenceFile,paths,defaultRegion,this.minmapq,this.gffPath,this.smallRegionLength);
+			final XFrame frame = new XFrame(this.referenceFile,paths,
+					this.defaultRegion,
+					this.minmapq,
+					this.gffPath,
+					this.smallRegionLength,
+					this.intervalBed
+					);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 

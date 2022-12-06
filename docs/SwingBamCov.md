@@ -11,6 +11,9 @@ Bam coverage viewer using Java Swing UI
 Usage: java -jar dist/swingbamcov.jar  [options] Files
 Usage: swingbamcov [options] Files
   Options:
+    --bed
+      Load this bed file and use the intervals as a set of menus to jump to a 
+      specific location.
     --gtf, --gff
       GFF3 file indexed with tabix to plot the genes.
     -h, --help
