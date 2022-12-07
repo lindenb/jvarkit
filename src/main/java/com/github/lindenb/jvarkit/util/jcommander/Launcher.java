@@ -69,9 +69,11 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
+import htsjdk.samtools.util.AbstractProgressLogger;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -212,6 +214,7 @@ public static enum WritingSamReaderType
 public class WritingBamArgs
 	{
 	private Path referenceFile = null;
+	private ProgressLoggerInterface progressLogger = null;
 	
 	@Parameter(names={"--bamcompression"},description="Compression Level. 0: no compression. 9: max compression;")
 	public int compressionLevel=5;
@@ -227,6 +230,24 @@ public class WritingBamArgs
 		sfw.setCompressionLevel(n);
 		return sfw;
 		}
+	
+	public WritingBamArgs setProgressLogger(final Logger log) {
+		if(log!=null) {
+			return setProgressLogger(new AbstractProgressLogger(getProgramName(),"Writer",1_000_000)
+				{
+				@Override
+				protected void log(String... message) {
+					log.info(String.join(" ", message));
+					}
+					});
+				}
+		return this;
+		}
+	
+	public WritingBamArgs setProgressLogger(final ProgressLoggerInterface progressLogger) {
+		this.progressLogger = progressLogger;
+		return this;
+	}
 	
 	public WritingBamArgs setSamOutputFormat(WritingSamReaderType samoutputformat) {
 		this.samoutputformat = samoutputformat;
@@ -274,6 +295,7 @@ public class WritingBamArgs
 	
 	public SAMFileWriter openSamWriter(final Path outputFileOrNull,SAMFileHeader header,boolean presorted) {
 		final htsjdk.samtools.SAMFileWriterFactory sfw= this.createSAMFileWriterFactory();
+		
 		final SAMFileWriter w;
 		if(outputFileOrNull==null)
 			{
@@ -300,7 +322,9 @@ public class WritingBamArgs
 			{
 			w =  sfw.makeWriter(header, presorted, outputFileOrNull, getReferencePath());
 			}
-		
+		if(this.progressLogger!=null) {
+			w.setProgressLogger(this.progressLogger);
+			}
 		return w;
 		}
 	

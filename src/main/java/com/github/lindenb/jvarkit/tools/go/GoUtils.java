@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -187,6 +188,8 @@ public class GoUtils
 	
 	@Parameter(names= {"-A","--accession",},description="User Go Terms accession numbers or name.eg GO:0005216 ('ion channel activity') ")
 	private Set<String> userAccStrings = new HashSet<>();
+	@Parameter(names= {"--exclude-accession","--exclude"},description="User Go Terms to be EXCLUDED accession numbers or name.eg")
+	private Set<String> excludeUserAccStrings = new HashSet<>();
 	@Parameter(names= {"-af","--accession-file",},
 			description="File containing accession numbers. One per line. "
 					+ "After the first white space one can define optional attributes for gexf:"
@@ -231,7 +234,8 @@ public class GoUtils
 					parseOBO(this.goURI);
 			
 			final Map<GOOntology.Term,UserTerm> userTerms = new HashMap<>();
-			for(final String s:this.userAccStrings)
+			final Map<GOOntology.Term,UserTerm> excludeUserTerms = new HashMap<>();
+			for(final String s:this.userAccStrings.stream().flatMap(S->Arrays.stream(S.split("[ ,;]"))).collect(Collectors.toSet()))
 				{
 				if(StringUtil.isBlank(s)) continue;
 				final GOOntology.Term t= this.mainGoTree.getTermByAccessionOrName(s);
@@ -242,6 +246,19 @@ public class GoUtils
 					}
 				userTerms.put(t,new UserTerm(t));
 				}
+			for(final String s:this.excludeUserAccStrings.stream().flatMap(S->Arrays.stream(S.split("[ ,;]"))).collect(Collectors.toSet()))
+				{
+				if(StringUtil.isBlank(s)) continue;
+				final GOOntology.Term t= this.mainGoTree.getTermByAccessionOrName(s);
+				if(t==null)
+					{
+					LOG.error("cannot find user excluded term \""+s+"\"");
+					return -1;
+					}
+				excludeUserTerms.put(t,new UserTerm(t));
+				}
+			
+			
 			final Predicate<GOOntology.Term> keepTerm = T->{
 				boolean keep=false;
 				if(userTerms.isEmpty())
@@ -253,6 +270,14 @@ public class GoUtils
 						anyMatch(USERTERM->(T.isDescendantOf(USERTERM)))) {
 					keep=true;
 					}
+				if(keep && !excludeUserTerms.isEmpty()) {
+					 if(excludeUserTerms.keySet().
+								stream().
+								anyMatch(USERTERM->(T.isDescendantOf(USERTERM)))) {
+						keep = false;
+					 	}
+					}
+				
 				if(this.inverse) keep=!keep;
 				return keep;
 				};
@@ -524,7 +549,7 @@ public class GoUtils
 						map(T->T.getAcn()).
 						collect(Collectors.toSet());
 						
-					try(BufferedReader br= IOUtils.openURIForBufferedReading(this.goaURI)) {
+					try(BufferedReader br= IOUtils.openURIForBufferedReading(input)) {
 						try(GOAFileIterator goain = GOAFileIterator.newInstance(br)) {
 							try(PrintWriter out = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
 								while(goain.hasNext()) {

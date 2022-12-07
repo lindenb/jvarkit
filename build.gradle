@@ -2720,10 +2720,17 @@ all2.add(task("vcfsplitnvariants", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
+all2.add(task("samrmdupnames", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.samrmdupnames.SamRemoveDuplicatedNames"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+
+
 all2.add(task("jeter2", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.plateoptimizer.PlateOptimizer"
         jarLibs = combineLibs("htsjdk","testng","jcommander","biojava")
         });
+
 
 all2.add(task("jeter", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.burden.OptimizeRVTest"
