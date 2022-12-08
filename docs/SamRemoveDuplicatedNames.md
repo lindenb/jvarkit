@@ -30,6 +30,10 @@ Usage: samrmdupnames [options] Files
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -135,6 +139,5 @@ r001    163     ref     7       30      8M4I4M1D3M      =       37      39      
 ### Motivation
 
 I got a BAM file with the same read duplicated. They have the same position, the same flags
-
 
 

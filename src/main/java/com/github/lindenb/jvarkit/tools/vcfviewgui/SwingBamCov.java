@@ -1068,7 +1068,11 @@ public class SwingBamCov extends Launcher
 								Desktop.getDesktop().browse(new URI(U.getUrl()));
 								}
 							catch(final Throwable err) {
-								JOptionPane.showInputDialog(XFrame.this,U.getUrl());
+								JOptionPane.showInputDialog(
+										XFrame.this,
+										U.getDomain(),
+										U.getUrl()
+										);
 								}
 							}
 						};

@@ -108,7 +108,6 @@ BEGIN_DOC
 I got a BAM file with the same read duplicated. They have the same position, the same flags
 
 
-
 END_DOC
 */
 
@@ -133,6 +132,20 @@ public class SamRemoveDuplicatedNames extends Launcher {
 	@Parameter(names={"--report"},description="Only report duplicate names in the output bam file")
 	private boolean report_duplicate_names = false;
 	
+	
+	private boolean sameUnmappedRead(final SAMRecord rec1, final SAMRecord rec2) {
+		if(!(rec1.getReadUnmappedFlag() && rec2.getReadUnmappedFlag())) throw new IllegalStateException(rec1.getReadName()+" "+rec2.getReadName());
+		int i =  rec1.getReadName().compareTo(rec2.getReadName());
+		if(i!=0) return false;
+		if(rec1.getReadPairedFlag()!=rec2.getReadPairedFlag())  throw new IllegalStateException(rec1.getReadName());
+		if(rec1.getReadPairedFlag()) {
+			if(rec1.getFirstOfPairFlag() && rec2.getFirstOfPairFlag()) return true;
+			if(rec2.getSecondOfPairFlag() && rec2.getSecondOfPairFlag()) return true;
+			return false;
+			}
+		return true;
+		}
+	
 	private boolean sameRead(final SAMRecord rec1, final SAMRecord rec2) {
 		if(rec1.isSecondaryOrSupplementary() && rec2.isSecondaryOrSupplementary()) return false;
 		int i =  Integer.compare(rec1.getFlags(), rec2.getFlags());
@@ -151,6 +164,57 @@ public class SamRemoveDuplicatedNames extends Launcher {
 		final int p2 = rec2.getAlignmentStart();
 		i = Integer.compare(p1, p2);
 		return i==0;
+		}
+	
+	private long dump(final SAMFileWriter w,final List<SAMRecord> buffer) {
+		long n_removed = 0L;
+		if(report_duplicate_names) {
+			for(int x=0; x+1 < buffer.size();++x) {
+				final SAMRecord rec1 = buffer.get(x);
+				boolean saved1=false;
+				for(int y=x+1; y < buffer.size();++y) {
+					final SAMRecord rec2 = buffer.get(y);
+					if(sameRead(rec1,rec2)) {
+						if(!saved1) {
+							w.addAlignment(rec1);
+							n_removed++;
+							saved1 = true;
+							}
+						w.addAlignment(rec2);
+						n_removed++;
+						}
+					
+					}
+				}
+			}
+			else
+			{
+			int x=0;
+			while(x +1 < buffer.size()) {
+				final SAMRecord rec1 = buffer.get(x);
+				int y = x+1;
+				while(y < buffer.size()) {
+					final SAMRecord rec2 = buffer.get(y);
+					final boolean same_name = sameRead(rec1,rec2);
+					if(same_name) {
+						buffer.remove(y);
+						n_removed++;
+						}
+					else
+						{
+						y++;
+						}
+					}
+				x++;
+				}
+			
+			
+			for(SAMRecord rec2: buffer) {
+				w.addAlignment(rec2);
+				}
+			}
+		buffer.clear();
+		return n_removed;
 		}
 	
 	@Override
@@ -176,65 +240,20 @@ public class SamRemoveDuplicatedNames extends Launcher {
 								openSamWriter(this.outputFile, header, true)) {
 						final List<SAMRecord> buffer = new ArrayList<>();
 						for(;;) {
-							final SAMRecord rec= iter.hasNext()?iter.next():null;
+							SAMRecord rec= iter.hasNext()?iter.next():null;
 							
 							
-							/* both reads unmaped */
+							/* both reads unmaped, we are in the non-mappend section at the end of the SAM file */
 							if(rec!=null && rec.getReadUnmappedFlag() &&
 								(!rec.getReadPairedFlag() || 
 								rec.getMateUnmappedFlag())) {
-								if(report_duplicate_names) continue;
-								w.addAlignment(rec);
-								continue;
-								}
+								n_removed += dump(w,buffer);
+								buffer.add(rec);
+								} /* end of section for unmapped reads */
 							
 							
 							if(rec==null || (!buffer.isEmpty() && !samePos(buffer.get(0),rec))) {
-								
-								if(report_duplicate_names) {
-									for(int x=0; x+1 < buffer.size();++x) {
-										final SAMRecord rec1 = buffer.get(x);
-										boolean saved1=false;
-										for(int y=x+1; y < buffer.size();++y) {
-											final SAMRecord rec2 = buffer.get(y);
-											if(sameRead(rec1,rec2)) {
-												if(!saved1) {
-													w.addAlignment(rec1);
-													saved1 = true;
-													}
-												w.addAlignment(rec2);
-												}
-											
-											}
-										}
-									}
-								else
-									{
-									int x=0;
-									while(x +1 < buffer.size()) {
-										final SAMRecord rec1 = buffer.get(x);
-										int y = x+1;
-										while(y < buffer.size()) {
-											final SAMRecord rec2 = buffer.get(y);
-											final boolean same_name = sameRead(rec1,rec2);
-											if(same_name) {
-												buffer.remove(y);
-												n_removed++;
-												}
-											else
-												{
-												y++;
-												}
-											}
-										x++;
-										}
-									
-									
-									for(SAMRecord rec2: buffer) {
-										w.addAlignment(rec2);
-										}
-									}
-								buffer.clear();
+								n_removed += dump(w,buffer);
 								if(rec==null) break;
 								}
 							
