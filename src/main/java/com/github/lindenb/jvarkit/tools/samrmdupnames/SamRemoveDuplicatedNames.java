@@ -132,7 +132,7 @@ public class SamRemoveDuplicatedNames extends Launcher {
 	@Parameter(names={"--report"},description="Only report duplicate names in the output bam file")
 	private boolean report_duplicate_names = false;
 	
-	
+	/*
 	private boolean sameUnmappedRead(final SAMRecord rec1, final SAMRecord rec2) {
 		if(!(rec1.getReadUnmappedFlag() && rec2.getReadUnmappedFlag())) throw new IllegalStateException(rec1.getReadName()+" "+rec2.getReadName());
 		int i =  rec1.getReadName().compareTo(rec2.getReadName());
@@ -144,7 +144,7 @@ public class SamRemoveDuplicatedNames extends Launcher {
 			return false;
 			}
 		return true;
-		}
+		}*/
 	
 	private boolean sameRead(final SAMRecord rec1, final SAMRecord rec2) {
 		if(rec1.isSecondaryOrSupplementary() && rec2.isSecondaryOrSupplementary()) return false;
@@ -248,7 +248,10 @@ public class SamRemoveDuplicatedNames extends Launcher {
 								(!rec.getReadPairedFlag() || 
 								rec.getMateUnmappedFlag())) {
 								n_removed += dump(w,buffer);
-								buffer.add(rec);
+								if(!this.report_duplicate_names) {
+									w.addAlignment(rec);
+									}
+								continue;
 								} /* end of section for unmapped reads */
 							
 							
