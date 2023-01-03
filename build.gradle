@@ -16,7 +16,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "3.0.0"
+	htsjdkVersion = "3.0.4"
 	jettyVersion = "9.4.26.v20200117"
 	}
 
