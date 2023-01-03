@@ -110,7 +110,7 @@ private static final Logger LOG = Logger.build(VcfSplitNVariants.class).make();
 
 @Parameter(names={"-o","--output","--prefix"},description="files prefix",required = true)
 private String outputFile = null;
-@Parameter(names={"--vcf-count"},description="number of output vcf files. Or use --variant-count")
+@Parameter(names={"--vcf-count"},description="number of output vcf files. Or use --variants-count")
 private int split_n_files = -1;
 @Parameter(names={"--variants-count"},description="number of variants. Or use --vcf-count")
 private int split_n_variants = -1;
