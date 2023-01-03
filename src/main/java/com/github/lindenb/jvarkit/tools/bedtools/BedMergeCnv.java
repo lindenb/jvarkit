@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.bedtools;
 
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -54,7 +53,6 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 
 /**
