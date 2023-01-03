@@ -127,6 +127,7 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
 		urls.add(new LabelledUrlImpl("GenCC",id,"https://search.thegencc.org/genes/"+hgnc));
+		urls.add(new LabelledUrlImpl("Monarch",id,"https://monarchinitiative.org/gene/" + hgnc));
 		}
 	else if( columnName.equalsIgnoreCase("omim")) {
 		urls.add(new LabelledUrlImpl("OMIM",id,"https://www.omim.org/entry/"+id));
