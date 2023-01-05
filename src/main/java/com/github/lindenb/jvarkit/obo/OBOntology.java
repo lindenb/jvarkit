@@ -57,6 +57,18 @@ public interface OBOntology extends Iterable<OBOntology.Term> {
 	/** find a term by Acn or return null */
 	public  Term findTermByAcn(final String id);
 	
+	/** find a term by Acn or name, or return null */
+	public  default Term findTermByAcnOrName(final String id) {
+		final Term t = findTermByAcn(id);
+		if(t!=null) return t;
+		final String s1 = id.replace(' ', '_');
+		final String s2 = id.replace('_', ' ');
+		return stream().
+				filter(T->T.getLabel().equalsIgnoreCase(s1) || T.getLabel().equals(s2)).
+				findAny().orElse(null);
+		}
+
+	
 	/** return a stream of the terms of this ontology */
 	public Stream<Term> stream();
 	

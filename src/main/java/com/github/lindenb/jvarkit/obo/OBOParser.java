@@ -49,6 +49,7 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.AbstractIterator;
@@ -131,22 +132,23 @@ public class OBOParser {
 					return visitChildren(new HashSet<>());
 					}
 				
-				private boolean searchAncestor(final Set<Term> set,final Term node) {
-					if(set.contains(node)) return false;
-					if(node.equals(this)) return true;
-					set.add(this);
-					for(final TermImpl t:this.parents) if(t.searchAncestor(set,node)) return true;
+				
+				@Override
+				public boolean isAncestorOf(final Term childNode) {
+					return childNode.isDescendantOf(this);
+					}
+				
+				private boolean _is_children_of(final Set<Term> visited,final Term parentNode) {
+					if(visited.contains(this)) return false;
+					if(parentNode.equals(this)) return true;
+					for(final TermImpl parent:this.parents) {
+						if(parent._is_children_of(visited,parentNode)) return true;
+						}
 					return false;
 					}
-				
 				@Override
-				public boolean isAncestorOf(final Term node) {
-					return searchAncestor(new HashSet<>(),node);
-					}
-				
-				@Override
-				public final boolean isDescendantOf(final Term node) {
-					return node.isAncestorOf(this);
+				public final boolean isDescendantOf(final Term parentNode) {
+					return _is_children_of(new HashSet<>(),parentNode);
 					}
 				}
 			
@@ -330,6 +332,13 @@ public class OBOParser {
 			}
 		
 		
+		public OBOntology parseObo(final String fileOrUrl) throws IOException,XMLStreamException
+			{
+			try(BufferedReader r=IOUtils.openURIForBufferedReading(fileOrUrl)) {
+				return parseObo(r);
+				}
+			}
+		
 		public OBOntology parseObo(final Path path) throws IOException,XMLStreamException
 			{
 			try(BufferedReader r=IOUtils.openPathForBufferedReading(path)) {
@@ -343,7 +352,7 @@ public class OBOParser {
 			try
 				{
 				final OBOntologyImpl ontology=new OBOntologyImpl();
-				final Iterator<String> iter1 = IOUtils.toLineIterator(br);
+				final Iterator<String> iter1 = LineIterators.of(br);
 				final OBOIterator iter = new OBOIterator(iter1);
 				while(iter.hasNext())
 					{
@@ -361,11 +370,11 @@ public class OBOParser {
 					ontology.acn2term.put(id, term);
 					
 					set = hash.get("is_a");
-					
-					
-					for(final String x:set) {
-						this.isAList.add(term);
-						this.isAList.add(x);
+					if(set!=null) {
+						for(final String x:set) {
+							this.isAList.add(term);
+							this.isAList.add(x);
+							}
 						}
 					set = hash.get("def");
 					if(set!=null && set.size()>0) {
@@ -447,6 +456,8 @@ public class OBOParser {
 						if(idx==-1) continue;
 						String key= StringUtils.substringBefore(line, ":").trim();
 						String value = StringUtils.substringAfter(line, ":").trim();
+						
+						
 						Set<String> set = this.buffer.get(key);
 						if(set==null) {
 							set = new HashSet<>();
@@ -455,6 +466,12 @@ public class OBOParser {
 						if(key.equals("is_a") && value.contains("!"))
 							{
 							value= StringUtils.substringBefore(value,"!").trim();
+							}
+						else if(value.startsWith("\"")) {
+							final int q = value.lastIndexOf('\"');
+							if(q>0) {
+								value  = StringUtils.unescapeC(value.substring(1,q));
+								}
 							}
 						set.add(value);
 						}
