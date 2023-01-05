@@ -1285,8 +1285,8 @@ all.add( task("goutils", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.go.GoUtils"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("hpoutils", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.hpo.HpoUtils"
+all.add( task("oboutils", type: CompileJVarkit) {
+	mainClass = "com.github.lindenb.jvarkit.tools.obo.OboUtils"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("groupbygene", type: CompileJVarkit) {

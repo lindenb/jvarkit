@@ -1,15 +1,15 @@
-# HpoUtils
+# OboUtils
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Human Phenotype Ontology Utils.
+OBO Ontology Utils.
 
 
 ## Usage
 
 ```
-Usage: java -jar dist/hpoutils.jar  [options] Files
-Usage: hpoutils [options] Files
+Usage: java -jar dist/oboutils.jar  [options] Files
+Usage: oboutils [options] Files
   Options:
     -A, --accession
       User Go Terms accession numbers or name.eg HP:0001626 Abnormality of the 
@@ -20,26 +20,20 @@ Usage: hpoutils [options] Files
     -action, --action
       What shoud I do ? default is dump as table.
       Default: dump_table
-      Possible Values: [dump_table, genes, gff3]
+      Possible Values: [dump_table]
     --exclude-accession, --exclude
       User Go Terms to be EXCLUDED accession numbers or name.eg
       Default: []
-    -g2p, --g2p
-      HPO gene to phenotype file. 
-      eg://purl.obolibrary.org/obo/hp/hpoa/genes_to_phenotype.txt ( Format: 
-      entrez-gene-id<tab>entrez-gene-symbol<tab>HPO-Term-ID<tab> )
-    -g, --gff, --gff3
-      GFF3 file for action=genes or action=gff3.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -hpo, --hpo, --obo
-      HPO ontology in OBO format
-      Default: https://raw.githubusercontent.com/obophenotype/human-phenotype-ontology/master/hp.obo
     -i, --inverse
       inverse the result
       Default: false
+    -obo, --obo, --ontology
+      Ontology in OBO format
+      Default: https://raw.githubusercontent.com/obophenotype/human-phenotype-ontology/master/hp.obo
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -50,10 +44,8 @@ Usage: hpoutils [options] Files
 
 ## Keywords
 
- * phenotype
+ * obo
  * ontology
- * hpo
- * hpoa
 
 
 ## Compilation
@@ -68,7 +60,7 @@ Usage: hpoutils [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ ./gradlew hpoutils
+$ ./gradlew oboutils
 ```
 
 The java jar file will be installed in the `dist` directory.
@@ -80,7 +72,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/hpo/HpoUtils.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/hpo/HpoUtils.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/obo/OboUtils.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/obo/OboUtils.java)
 
 
 ## Contribute
@@ -94,7 +86,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **hpoutils** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **oboutils** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -107,7 +99,7 @@ The current reference is:
 ## Example
 
 ```
-$ java -jar dist/hpoutils.jar -A "HP:0001626" | head
+$ java -jar dist/oboutils.jar --obo "https://raw.githubusercontent.com/obophenotype/human-phenotype-ontology/master/hp.obo" -A "HP:0001626" | head
 #ACN	NAME	DEFINITION
 HP:0001195	Single umbilical artery	Single umbilical artery (SUA) is the absence of one of the two umbilical arteries surrounding the fetal bladder and in the fetal umbilical cord.
 HP:0001136	Retinal arteriolar tortuosity	The presence of an increased number of twists and turns of the retinal arterioles.
@@ -119,4 +111,6 @@ HP:0410174	Increased circulating troponin T concentration	An increased concentra
 HP:0410267	Intestinal hemangioma	A hemangioma, a benign tumor of the vascular endothelial cells, located in the intestines, which includes the bowel.
 HP:0410268	Spleen hemangioma	A hemangioma, a benign tumor of the vascular endothelial cells, that is located in the spleen.
 ```
+
+
 
