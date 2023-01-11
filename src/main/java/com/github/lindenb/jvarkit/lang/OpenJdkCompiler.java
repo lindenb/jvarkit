@@ -171,7 +171,7 @@ public abstract class OpenJdkCompiler {
 			File jarFile = null;
 			try {
 				//write source
-				javaSsrcDir = IOUtil.createTempDir("jvarkit", ".tmp");
+				javaSsrcDir = IOUtil.createTempDir("jvarkit.tmp").toFile();
 				IOUtil.assertDirectoryIsWritable(javaSsrcDir);
 				final File javaFile = new File(javaSsrcDir,className+".java");
 				cw = new PrintWriter(javaFile);

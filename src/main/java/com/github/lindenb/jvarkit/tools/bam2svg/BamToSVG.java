@@ -758,7 +758,7 @@ public class BamToSVG extends Launcher {
 		svgOutput.geneNames.addAll(gene_names);
 		return svgOutput;
 		}
-		
+		@SuppressWarnings("fallthrough")
 		private void printSamRecord(
 				final XMLStreamWriter w,
 				final Context context,

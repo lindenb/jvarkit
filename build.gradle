@@ -2727,7 +2727,7 @@ all2.add(task("samrmdupnames", type: CompileJVarkit) {
 
 all2.add(task("jvarkit", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.jvarkit.JvarkitCentral"
-        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        jarLibs = combineLibs("htsjdk","testng","jcommander","math","jetty","httpclient")
         });
 
 
