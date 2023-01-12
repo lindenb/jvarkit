@@ -537,7 +537,7 @@ public class SwingBamView extends Launcher {
 			this.addWindowListener(new WindowAdapter() {
 				public void windowOpened(java.awt.event.WindowEvent e) {
 					final SAMSequenceRecord rec = XFrame.this.dict.getSequence(0);
-					interval.setValue(new SimpleInterval(rec.getContig(),1,Math.max(2, rec.getSequenceLength())));
+					interval.setValue(new SimpleInterval(rec.getContig(),1,Math.min(100, rec.getSequenceLength())));
 					}
 				public void windowClosed(java.awt.event.WindowEvent e)
 					{
