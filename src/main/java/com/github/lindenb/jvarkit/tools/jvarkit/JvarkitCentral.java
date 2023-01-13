@@ -25,6 +25,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.jvarkit;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -40,6 +42,7 @@ import com.github.lindenb.jvarkit.tools.bam2svg.BamToSVG;
 import com.github.lindenb.jvarkit.tools.bam2svg.WesCnvSvg;
 import com.github.lindenb.jvarkit.tools.bam2xml.Bam2Xml;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats05;
+import com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage;
 import com.github.lindenb.jvarkit.tools.bedtools.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
@@ -83,7 +86,9 @@ import com.github.lindenb.jvarkit.tools.biostar.Biostar9469733;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9501110;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
+import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
+import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
 import com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam;
 import com.github.lindenb.jvarkit.tools.misc.ConvertBamChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.ConvertBedChromosomes;
@@ -111,6 +116,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 
 public class JvarkitCentral {
@@ -148,6 +154,20 @@ public class JvarkitCentral {
 			this.hidden = true;
 			return this;
 			}
+		void writeDoc(final File dir) throws IOException {
+			
+			final PrintStream old = System.out;
+			final File filename = new File(dir,this.clazz.getSimpleName()+".md");
+			LOG.info("writing doc for "+getName()+" into "+filename);
+			try (PrintStream out = new PrintStream(filename)) {
+				System.setOut(out);
+				execute(new String[]{"--help","--helpFormat","markdown"});
+				}
+			finally
+				{
+				System.setOut(old);
+				}
+			}
 		}
 	private final Map<String,Command> commands = new TreeMap<>();
 	private Command command(Class<?> clazz) {
@@ -177,6 +197,7 @@ public class JvarkitCentral {
 		out.println();
 		out.println(" + --help show this screen");
 		out.println(" + --version print version");
+		//out.println(" + --generate-doc (directory)");
 		out.println();
 		out.println("## Tools");
 		out.println();
@@ -215,6 +236,7 @@ public class JvarkitCentral {
 		command(Bam2Xml.class);
 		command(Bam2Raster.class);
 		command(BamStats05.class);
+		command(BaseCoverage.class);
 		command(BackLocate.class);
 		command(BedCluster.class);
 		command(BedNonOverlappingSet.class);
@@ -264,7 +286,9 @@ public class JvarkitCentral {
 		command(ConvertVcfChromosomes.class).setHidden();
 
 		command(CoveragePlotter.class);
+		command(FindGVCFsBlocks.class);
 		command(GtfToBed.class);
+		command(GroupByGene.class);
 		command(LowResBam2Raster.class);
 		command(MakeMiniBam.class);
 		command(Pubmed404.class);
@@ -301,6 +325,20 @@ public class JvarkitCentral {
 		}
 		if(args[0].equals("--help") || args[0].equals("-h")) {
 			usage(System.out);
+			return;
+			}
+		
+		if(args.length==2 && args[0].equals("--generate-doc")) {
+			final File dir = new File(args[1]);
+			IOUtil.assertDirectoryIsWritable(dir);
+			for(Command c:this.commands.values()) {
+				try {
+					c.writeDoc(dir);
+					}
+				catch(IOException err) {
+					LOG.warn(err);
+					}
+				}
 			return;
 			}
 		if(args[0].startsWith("-")) {

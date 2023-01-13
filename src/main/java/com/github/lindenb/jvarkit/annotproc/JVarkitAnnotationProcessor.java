@@ -89,15 +89,14 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	
 	private void copySource(final javax.lang.model.element.Element element)
 		{
-		
+		System.err.println("processing1 "+element);
 		if(element==null || element.getKind()!=ElementKind.CLASS) return;
+		System.err.println("processing "+element);
 		final String thisDir = System.getProperty("jvarkit.this.dir");	
 		if(thisDir==null || thisDir.isEmpty()) {
 			System.err.println("jvarkit.this.dir is not defined");
 			return ;
 			}
-		Writer writer = null;
-		Reader reader = null;
 		try 
 			{
 			do
@@ -129,16 +128,17 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 				if( new File(fo.getName()).exists()) break;
 				
 				System.err.println("## Copying "+ javaFile+ " -> "+ fo.getName());
-				reader = new FileReader(javaFile);
-				writer=fo.openWriter();
-				final char  buffer[]=new char[1024];
-				int nRead;
-				while((nRead=reader.read(buffer))!=-1)
-					{
-					writer.write(buffer,0,nRead);
+				try(FileReader reader = new FileReader(javaFile)) {
+					try(Writer writer=fo.openWriter()) {
+						final char  buffer[]=new char[1024];
+						int nRead;
+						while((nRead=reader.read(buffer))!=-1)
+							{
+							writer.write(buffer,0,nRead);
+							}
+						writer.flush();
+						}
 					}
-				writer.close();writer=null;
-				reader.close();reader=null;
 				} while(false);
 			}
 		catch(final Exception err)
@@ -147,8 +147,6 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 			}
 		finally
 			{
-			if(writer!=null) try {writer.close();}catch(Exception err) {}
-			if(reader!=null) try {reader.close();}catch(Exception err) {}
 			}
 		final TypeMirror superclass = ((TypeElement) element).getSuperclass();
 		if(superclass==null || superclass.getKind() == TypeKind.NONE) {
@@ -182,6 +180,7 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 			filter(E->E.getKind()==ElementKind.CLASS).
 			filter(E->{final Program prog=E.getAnnotation(Program.class); return prog!=null && prog.generate_doc();}).
 			forEach(E->{
+				System.err.println("processing1 "+E);
 				copySource(E);
 				final String className=E.toString();
 				if(mainClass==null ) return;
