@@ -284,7 +284,6 @@ public class JvarkitCentral {
 		command(ConvertBamChromosomes.class);
 		command(ConvertBedChromosomes.class);
 		command(ConvertVcfChromosomes.class).setHidden();
-
 		command(CoveragePlotter.class);
 		command(FindGVCFsBlocks.class);
 		command(GtfToBed.class);
