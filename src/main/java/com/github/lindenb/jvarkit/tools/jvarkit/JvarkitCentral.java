@@ -108,6 +108,7 @@ import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcfpolyx.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariants;
+import com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitter;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamCov;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamView;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfJexlFilter;
@@ -310,6 +311,7 @@ public class JvarkitCentral {
 		command(VcfHead.class);
 		command(VcfTail.class);
 		command(VcfTail.class);
+		command(VcfGeneSplitter.class);
 		command(VcfSplitNVariants.class);
 		command(WesCnvSvg.class);
 		command(WGSCoveragePlotter.class);
