@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.tools.vcfviewgui;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
@@ -40,11 +39,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
-import java.awt.geom.Line2D.Double;
 import java.awt.geom.Rectangle2D;
-import java.awt.image.BufferedImage;
-import java.beans.PropertyChangeSupport;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -63,9 +58,7 @@ import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -83,7 +76,6 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
-import javax.swing.filechooser.FileFilter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -95,8 +87,8 @@ import com.github.lindenb.jvarkit.swing.PropertyChangeObserver;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.variant.swing.SwingVCFGenotypesTableModel;
 import com.github.lindenb.jvarkit.variant.swing.SwingVCFInfoTableModel;
@@ -107,6 +99,7 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -123,14 +116,34 @@ import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFReader;
 
+/**
+BEGIN_DOC
+
+## Example:
+
+```
+java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam
+```
+
+```
+find dir -type f -name "*.bam" > out.list
+java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa out.list
+```
+
+END_DOC
+ */
+@Program(name="swingbamview",
+description="Read viewer using Java Swing UI",
+keywords={"bam","alignment","graphics","visualization","swing"},
+creationDate = "20220503",
+modificationDate="20230124"
+)
 public class SwingBamView extends Launcher {
 	private static final Logger LOG = Logger.build(SwingBamView.class).make();
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
@@ -138,7 +151,10 @@ public class SwingBamView extends Launcher {
 	@Parameter(names={"-V","--variant"},description="Indexed VCF File")
 	private Path variantFile = null;
 
-
+		
+	
+	
+	
 	private static class BamFile {
 		final Path path;
 		String sn;
@@ -183,13 +199,10 @@ public class SwingBamView extends Launcher {
 		private final SAMSequenceDictionary dict;
 		private final Path vcfFile;
 		private List<VariantContext> all_variants_list = new Vector<>();
-		private List<BamFile> all_bam_files = new Vector<>();
 		private final JList<BamFile> jlistBamFilesJList;
 		private final JTextField jtextFieldLocation;
 		private final PropertyChangeObserver<Locatable> interval = new PropertyChangeObserver<>();
 		private final PropertyChangeObserver<Integer> mappingQuality = new PropertyChangeObserver<>(1);
-		private BamFile currenBamFile = null;
-		private boolean use_clip = false;
 		private final JScrollBar vScrollBar;
 		private final JPanel drawingArea;
 		private final ReferenceSequenceFile referenceSequenceFile;
@@ -217,9 +230,8 @@ public class SwingBamView extends Launcher {
 		private final JMenuItem jmenuMappingQuality;
 		private final JMenu jMenuHyperlinks;
 		
-		private class Read implements Locatable {
+		private class Read extends Rectangle2D.Float implements Locatable {
 			private final SAMRecord rec;
-			int row_index;
 			Read(final SAMRecord rec) {
 				this.rec =  rec;
 				}
@@ -234,6 +246,41 @@ public class SwingBamView extends Launcher {
 			@Override
 			public int getEnd() {
 				return XFrame.this.isUsingClip()?rec.getUnclippedEnd():rec.getEnd();
+				}
+			
+			public String toHtml() {
+				final StringBuilder sb = new StringBuilder("<HTML><BODY><DL>");
+				sb.append("<DT>Name</DT><DD>"+ rec.getReadName()+ "</DD>");
+				sb.append("<DT>Length</DT><DD>"+ rec.getReadLength()+ "</DD>");
+				sb.append("<DT>Flags</DT><DD>"+ rec.getFlags() + " (" + Arrays.stream(SAMFlag.values()).filter(F->F.isSet(rec.getFlags())).map(F->F.name()).collect(Collectors.joining(",")) + ")</DD>");
+				sb.append("<DT>Mapq</DT><DD>"+ rec.getMappingQuality() + "</DD>");
+				if(!rec.getReadUnmappedFlag()) {
+					sb.append("<DT>Contig</DT><DD>"+ rec.getContig()+ "</DD>");
+					sb.append("<DT>Unclipped Start</DT><DD>"+ rec.getUnclippedStart()+ "</DD>");
+					sb.append("<DT>Start</DT><DD>"+ rec.getUnclippedStart()+ "</DD>");
+					sb.append("<DT>End</DT><DD>"+ rec.getUnclippedEnd()+ "</DD>");
+					sb.append("<DT>Unclipped End</DT><DD>"+ rec.getUnclippedEnd()+ "</DD>");
+					}
+				else
+					{
+					sb.append("<DT>Contig</DT><DD><I>unmapped</I></DD>");
+					}
+				if(rec.getReadPairedFlag()) {
+					if(!rec.getMateUnmappedFlag()) {
+						sb.append("<DT>Mate Contig</DT><DD>"+ rec.getMateReferenceName()+ "</DD>");
+						sb.append("<DT>Mate Start</DT><DD>"+ rec.getMateAlignmentStart()+ "</DD>");
+						}
+					else
+						{
+						sb.append("<DT>Mate Contig</DT><DD><I>unmapped</I></DD>");
+						}
+					}
+				return sb.append("</DL></BODY></HTML>").toString();
+				}
+			
+			@Override
+			public String toString() {
+				return rec.toString()+" ("+getX()+","+getY()+","+getWidth()+","+getHeight()+")";
 				}
 			}
 		
@@ -428,12 +475,20 @@ public class SwingBamView extends Launcher {
 			final JPanel drawingPane = new JPanel(new BorderLayout());
 			/** drawing area itself */
 			this.drawingArea = new JPanel(null, true) {
+				
+				@Override
+				public String getToolTipText(final java.awt.event.MouseEvent event) {
+					final Optional<Read> r = findReadAt(event.getX(),event.getY());
+					if(!r.isPresent()) return null;
+					return r.get().toHtml();
+					};
 				@Override
 				protected void paintComponent(final Graphics g) {
 					paintDrawingArea(Graphics2D.class.cast(g));
 					}
 				};
 			this.drawingArea.setOpaque(true);
+			this.drawingArea.setToolTipText("");
 			drawingPane.add(this.drawingArea,BorderLayout.CENTER);
 			
 			/** scroll bar for vertical navigation */
@@ -546,6 +601,16 @@ public class SwingBamView extends Launcher {
 				});
 			}/* END CONSTRUCTOR ********************************/
 		
+		private Optional<Read> findReadAt(final double x,final double y) {
+			for(List<Read> row: rows) {
+				if(row.isEmpty()) continue;
+				final Read first = row.get(0);
+				if(first.getMinY() > y ) continue;
+				if(first.getMaxY() < y ) continue;
+				return row.stream().filter(R->R.contains(x, y)).findAny();
+				}
+			return Optional.empty();
+			}
 		
 		
 		private void runOnClose() {
@@ -626,7 +691,7 @@ public class SwingBamView extends Launcher {
 			g.setColor(Color.WHITE);
 			g.fillRect(0, 0, drawingArea.getWidth(), drawingArea.getHeight());
 			final Locatable rgn = this.interval.orElse(null);
-			if(rgn==null) return;
+			if(rgn==null) return ;
 			final Hershey hershey=new Hershey();
 			
 			final BamFile bamFile=getSelectedBamFile();
@@ -692,7 +757,7 @@ public class SwingBamView extends Launcher {
 				g.setColor(Color.LIGHT_GRAY);
 				g.fill(new Rectangle2D.Double(x0, y, (x1-x0), this.drawingArea.getHeight()-y));
 
-			}
+				}
 			
 			
 			final double readRowHeight = getReadRowHeight();
@@ -704,9 +769,14 @@ public class SwingBamView extends Launcher {
 				final boolean row_is_visible=true;
 				final List<Read> row = this.rows.get(rowidx);
 				for(final Read read:row) {
+					read.x =  (float)pos2pixel(rgn,read.getStart());
+					read.y = (float)y;
+					read.width = (float)pos2pixel(rgn,read.getEnd()+1) - read.x;
+					read.height = (float)readRowHeight;
+					
 					final Map<Integer,Integer> pos2insert_size = new HashMap<>();
 					final byte[] readBases = read.rec.getReadBases();
-					final Cigar cigar =read.rec.getCigar();
+					final Cigar cigar = read.rec.getCigar();
 					// horizontal line for deletions
 					if(row_is_visible && cigar.getCigarElements().stream().anyMatch(OP->OP.equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
 						double x0 = pos2pixel(rgn,read.rec.getStart());
@@ -843,14 +913,14 @@ public class SwingBamView extends Launcher {
 					max_cov=Math.max(sum_cov,max_cov);
 					}
 				for(int i=0;i< rgn.getLengthOnReference();i++) {
-					double x0 = pos2pixel(rgn, i+rgn.getStart()  );
-					double x1 = pos2pixel(rgn, i+rgn.getStart()+1);
+					final double x0 = pos2pixel(rgn, i+rgn.getStart()  );
+					final double x1 = pos2pixel(rgn, i+rgn.getStart()+1);
 					double y2= coverage_bottom;
 					for(char base:new char[] {'a','c','g','t','n'}) {
-						double covi = base2coverage.get(base)[i];
-						double covh = covi/(double)max_cov * cov_height;
+						final double covi = base2coverage.get(base)[i];
+						final double covh = covi/max_cov * cov_height;
 						g.setColor(base2color(base));
-						Shape shape = new Rectangle2D.Double(x0,y2-covh,(x1-x0),covh);
+						final Shape shape = new Rectangle2D.Double(x0,y2-covh,(x1-x0),covh);
 						g.fill(shape);
 						if(x1-x0>3) {
 							g.setColor(Color.DARK_GRAY);
@@ -860,7 +930,6 @@ public class SwingBamView extends Launcher {
 						}
 					}
 				}
-			
 			}
 
 		
@@ -895,7 +964,7 @@ public class SwingBamView extends Launcher {
 							}
 						this.swingVariantsTableModel.setRows(this.all_variants_list);
 						}
-					catch(IOException err) {
+					catch(final IOException err) {
 						LOG.error(err);
 						}
 					}
@@ -909,14 +978,12 @@ public class SwingBamView extends Launcher {
 						final List<Read> row = this.rows.get(y);
 						final Read last = row.get(row.size()-1);
 						if(last.getEnd() + 1  >= read.getStart()) continue;
-						read.row_index = y;
 						row.add(read);
 						break;
 						}
 					if(y==this.rows.size()) {
 						final List<Read> row = new Vector<>();
 						row.add(read);
-						read.row_index = this.rows.size();
 						this.rows.add(row);
 						}
 					}
