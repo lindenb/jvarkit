@@ -17,6 +17,5 @@ mkdocs:
 
 # Explicitly set the version of Python and its requirements
 python:
-  version: 3.7
   install:
     - requirements: docs/requirements.txt
