@@ -116,7 +116,8 @@ END_DOC
 	description="remove duplicated names in sorted BAM",
 		keywords={"sam","bam"},
 		modificationDate="20221207",
-		creationDate="20221207"
+		creationDate="20221207",
+		jvarkit_amalgamion = true
 		)
 public class SamRemoveDuplicatedNames extends Launcher {
 	private static final Logger LOG = Logger.build(SamRemoveDuplicatedNames.class).make();

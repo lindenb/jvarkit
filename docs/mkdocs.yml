@@ -1,0 +1,14 @@
+site_name: "Jvarkit"
+repo_url: "https://github.com/lindenb/jvarkit"
+repo_name: "GitHub"
+
+theme:
+    name: readthedocs
+    highlightjs: true
+    html_show_sourcelink: false
+    prev_next_buttons_location: both
+
+nav:
+        - "VcfHead": VcfHead.md
+        - "VcfTail": VcfTail.md
+

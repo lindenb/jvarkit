@@ -101,3 +101,4 @@ The current reference is:
 java -jar dist/vcfpar.jar   in.vcf > out.vcf
 ```
 
+

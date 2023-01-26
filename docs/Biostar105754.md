@@ -7,7 +7,13 @@ bigwig : peak distance from specific genomic region
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar105754  [options] Files
+
 Usage: biostar105754 [options] Files
   Options:
   * -B, --bigwig
@@ -36,22 +42,10 @@ Usage: biostar105754 [options] Files
  * [https://www.biostars.org/p/105754](https://www.biostars.org/p/105754)
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar105754
-```
-
-The java jar file will be installed in the `dist` directory.
+20140708
 
 ## Source code 
 
@@ -94,4 +88,5 @@ $  echo -e "1\t1000\t20000\n3\t100\t200\nUn\t10\t11"  |\
 1	1000	1001	0.0	1	1000	20000
 3	100	101	0.0	3	100	200
 ```
+
 

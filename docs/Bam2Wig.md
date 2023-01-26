@@ -7,7 +7,13 @@ Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar String to get
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bam2wig  [options] Files
+
 Usage: bam2wig [options] Files
   Options:
     -bg, --bedgraph
@@ -20,8 +26,10 @@ Usage: bam2wig [options] Files
     --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: Accept All/ Filter out nothing
+      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
+      FailsVendorQuality() || NotPrimaryAlignment() || 
+      SupplementaryAlignment()' 
+      Default: mapqlt(1) || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -f, --format
       `Printf` Format for the values. see 
       https://docs.oracle.com/javase/tutorial/java/data/numberformat.html . 
@@ -83,23 +91,6 @@ Usage: bam2wig [options] Files
  * wiggle
  * bed
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bam2wig
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -188,4 +179,5 @@ fixedStep chrom=ref2 start=1 step=3 span=1
 3
 3
 ```
+
 

@@ -7,8 +7,13 @@ indexcov visualization
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/swingindexcov.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar swingindexcov  [options] Files
+
 Usage: swingindexcov [options] Files
   Options:
     --gtf, --gff, --gff3
@@ -37,23 +42,6 @@ Usage: swingindexcov [options] Files
  * deletion
  * sv
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew swingindexcov
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -174,4 +162,5 @@ myhelper.jar: MyHelper.java $(CP)
 	jar cvf $@ -C tmp .
 	rm -rf tmp
 ```
+
 

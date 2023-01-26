@@ -71,7 +71,8 @@ $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta
 		description="Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.",
 		keywords={"bed","reference"},
 		creationDate="20140201",
-		modificationDate="20190926"
+		modificationDate="20230126",
+		jvarkit_amalgamion = true
 		)
 public class AddLinearIndexToBed extends Launcher
 {
@@ -120,8 +121,6 @@ public class AddLinearIndexToBed extends Launcher
 			out.print('\t');
 			out.print(line);
 			out.println();
-			if (out.checkError())
-				break;
 		}
 		return 0;
 	}
@@ -132,7 +131,6 @@ public class AddLinearIndexToBed extends Launcher
 			LOG.error("Reference file undefined");
 			return -1;
 		}
-		PrintStream out = null;
 		try {
 			this.dictionary = SequenceDictionaryUtils.extractRequired(this.refFile);
 
@@ -141,7 +139,7 @@ public class AddLinearIndexToBed extends Launcher
 			for (int i = 1; i < this.dictionary.size(); ++i) {
 				this.tid2offset[i] = this.tid2offset[i - 1] + this.dictionary.getSequence(i - 1).getSequenceLength();
 			}
-			out = openPathOrStdoutAsPrintStream(this.outputFile);
+			try(PrintStream out = openPathOrStdoutAsPrintStream(this.outputFile)) {
 
 			if (args.isEmpty()) {
 				doWork(stdin(), out);
@@ -153,13 +151,13 @@ public class AddLinearIndexToBed extends Launcher
 				}
 			}
 			out.flush();
+			}
 
 			return 0;
 		} catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
 		} finally {
-			CloserUtil.close(out);
 			dictionary = null;
 			tid2offset = null;
 		}

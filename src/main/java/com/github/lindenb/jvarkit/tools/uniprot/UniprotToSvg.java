@@ -97,7 +97,8 @@ import org.w3c.dom.NodeList;
 description="plot uniprot to SVG",
 keywords={"uniprot","svg"},
 creationDate="20220608",
-modificationDate="20220922"
+modificationDate="20220922",
+jvarkit_amalgamion = true
 )
 public class UniprotToSvg extends Launcher {
 	private static final Logger LOG = Logger.build(UniprotToSvg.class).make();

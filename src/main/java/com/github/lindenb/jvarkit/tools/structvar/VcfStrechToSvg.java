@@ -130,7 +130,8 @@ END_DOC
 description="another VCF to SVG",
 keywords={"vcf","deletion","cnv","svg"},
 creationDate="20210304",
-modificationDate="20210309"
+modificationDate="20210309",
+jvarkit_amalgamion = true
 )
 public class VcfStrechToSvg extends Launcher
 	{

@@ -101,7 +101,8 @@ END_DOC
 	description="Annotate a VCF with values from a bigwig file",
 	keywords={"vcf","wig","wiggle","bigwig"},
 	creationDate="20200506",
-	modificationDate="20220110"
+	modificationDate="20220110",
+	jvarkit_amalgamion = true
 	)
 public class VCFBigWig extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VCFBigWig.class).make();

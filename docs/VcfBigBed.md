@@ -7,8 +7,13 @@ Annotate a VCF with values from a bigbed file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfbigbed.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfbigbed  [options] Files
+
 Usage: vcfbigbed [options] Files
   Options:
     --bcf-output
@@ -70,23 +75,6 @@ Usage: vcfbigbed [options] Files
  * bed
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfbigbed
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -131,5 +119,6 @@ $ java -jar dist/vcfbigbed.jar \
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2
 chr22	41697508	.	A	C	48.67	.	AC=2;AN=10;BQB=0.572843;DP=36;DP4=19,7,3,5;HOB=0.32;ICB=0.425;JASPAR2022_hg19=41697498-41697509:ZBTB12,41697506-41697515:NKX2-8,41697507-41697524:Spi1,41697498-41697509:Stat5a::Stat5b,41697503-41697509:Foxn1,41697507-41697519:ZNF263,41697493-41697509:BCL6,41697503-41697517:TFAP2C,41697502-41697510:NR2C2;MQ=60;MQ0F=0;MQB=1;MQSB=1;RPB=0.658863;SGB=10.3229;VDB=0.693968	GT:PL	0/0:0,9,47	0/0:0,18,73
 ```
+
 
 

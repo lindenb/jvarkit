@@ -8,6 +8,7 @@ Shuffle a VCF
 ## Usage
 
 ```
+Usage: java -jar dist/vcfshuffle.jar  [options] Files
 Usage: vcfshuffle [options] Files
   Options:
     --bcf-output
@@ -117,4 +118,5 @@ bcftools view --no-header in.vcf |\
 	
 cat tmp1.vcf tmp2.vcf > shuffled.vcf
 ```
+
 

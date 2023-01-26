@@ -7,8 +7,13 @@ remove duplicated names in sorted BAM
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/samrmdupnames.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar samrmdupnames  [options] Files
+
 Usage: samrmdupnames [options] Files
   Options:
     --bamcompression
@@ -45,23 +50,6 @@ Usage: samrmdupnames [options] Files
  * sam
  * bam
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew samrmdupnames
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -139,5 +127,6 @@ r001    163     ref     7       30      8M4I4M1D3M      =       37      39      
 ### Motivation
 
 I got a BAM file with the same read duplicated. They have the same position, the same flags
+
 
 

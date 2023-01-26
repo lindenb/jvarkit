@@ -7,8 +7,13 @@ another VCF to SVG
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfstrech2svg.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfstrech2svg  [options] Files
+
 Usage: vcfstrech2svg [options] Files
   Options:
     --af
@@ -121,23 +126,6 @@ Usage: vcfstrech2svg [options] Files
  * svg
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfstrech2svg
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -190,5 +178,6 @@ java -jar dist/vcfstrech2svg.jar --bed intervals.bed  -o TMP indexed.vcf.gz
 ![twitter](https://pbs.twimg.com/media/EvtRyyXWEAEqpz7?format=jpg&name=small "Screenshot")
 
 [https://twitter.com/yokofakun/status/1367778079813341185](https://twitter.com/yokofakun/status/1367778079813341185)
+
 
 

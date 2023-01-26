@@ -146,7 +146,9 @@ END_DOC
 @Program(name="bam2wig",
 description="Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar String to get the depth. Memory intensive: must alloc sizeof(int)*size(chrom)",
 keywords={"bam","wig","wiggle","bed"},
-modificationDate="20200304"
+modificationDate="20200304",
+jvarkit_amalgamion = true,
+jvarkit_hidden = true
 )
 public class Bam2Wig extends Launcher
 	{

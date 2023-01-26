@@ -224,7 +224,8 @@ END_DOC
 		description="indexcov visualization",
 		keywords={"cnv","duplication","deletion","sv"},
 		creationDate="2020511",
-		modificationDate="2020512"
+		modificationDate="2020512",
+		jvarkit_amalgamion = true
 		)
 public class SwingIndexCov extends Launcher {
 	private static final Logger LOG = Logger.build(SwingIndexCov.class).make();
@@ -1282,7 +1283,7 @@ public class SwingIndexCov extends Launcher {
 							);
 					LOG.info("loading class \""+tokens[1]+"\" from "+jarPath);
 					final Class<?> classToLoad = Class.forName(tokens[1], true, child);
-					helper = (Helper)classToLoad.newInstance();
+					helper = (Helper)classToLoad.getConstructor().newInstance();
 					}
 				catch(final Throwable err) {
 					LOG.error(err);

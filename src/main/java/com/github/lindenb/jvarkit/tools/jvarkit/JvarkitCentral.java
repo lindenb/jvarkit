@@ -41,6 +41,7 @@ import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.WGSCoveragePlotter;
 import com.github.lindenb.jvarkit.tools.bam2svg.BamToSVG;
 import com.github.lindenb.jvarkit.tools.bam2svg.WesCnvSvg;
+import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
 import com.github.lindenb.jvarkit.tools.bam2xml.Bam2Xml;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats05;
 import com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage;
@@ -48,6 +49,7 @@ import com.github.lindenb.jvarkit.tools.bedtools.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar103303;
+import com.github.lindenb.jvarkit.tools.biostar.Biostar105754;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar130456;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar139647;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar145820;
@@ -91,9 +93,11 @@ import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
 import com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam;
+import com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed;
 import com.github.lindenb.jvarkit.tools.misc.ConvertBamChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.ConvertBedChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
+import com.github.lindenb.jvarkit.tools.misc.VCFShuffle;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.pubmed.Pubmed404;
@@ -103,9 +107,18 @@ import com.github.lindenb.jvarkit.tools.pubmed.PubmedGraph;
 import com.github.lindenb.jvarkit.tools.sam2tsv.CnvTView;
 import com.github.lindenb.jvarkit.tools.sam2tsv.PrettySam;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
+import com.github.lindenb.jvarkit.tools.samgrep.SamGrep;
+import com.github.lindenb.jvarkit.tools.samrmdupnames.SamRemoveDuplicatedNames;
+import com.github.lindenb.jvarkit.tools.structvar.CoverageMatrix;
+import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
+import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
+import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
+import com.github.lindenb.jvarkit.tools.vcfbigwig.VcfBigBed;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
+import com.github.lindenb.jvarkit.tools.vcfpar.VcfPseudoAutosomalRegion;
 import com.github.lindenb.jvarkit.tools.vcfpolyx.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 import com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariants;
@@ -162,6 +175,11 @@ public class JvarkitCentral {
 			this.hidden = true;
 			return this;
 			}
+		
+		void writeReadTheDoc(final File dir) throws IOException {
+			
+			}
+		
 		void writeDoc(final File dir) throws IOException {
 			final PrintStream old = System.out;
 			final File filename = new File(dir,this.clazz.getSimpleName()+".md");
@@ -189,8 +207,6 @@ public class JvarkitCentral {
 				{
 				System.setOut(old);
 				}
-					
-			
 			}
 		}
 	private final Map<String,Command> commands = new TreeMap<>();
@@ -259,9 +275,11 @@ public class JvarkitCentral {
 	}
 	
 	private void run(String[] args) {
+		command(AddLinearIndexToBed.class);
 		command(BackLocate.class);
 		command(BamToSVG.class);
 		command(Bam2Xml.class);
+		command(Bam2Wig.class);
 		command(Bam2Raster.class);
 		command(BamStats05.class);
 		command(BaseCoverage.class);
@@ -269,6 +287,7 @@ public class JvarkitCentral {
 		command(BedNonOverlappingSet.class);
 		command(BioAlcidaeJdk.class);
 		command(Biostar103303.class);
+		command(Biostar105754.class);
 		command(Biostar154220.class);
 		command(Biostar130456.class);
 		command(Biostar139647.class);
@@ -306,6 +325,7 @@ public class JvarkitCentral {
 		command(Biostar9462889.class);
 		command(Biostar9469733.class);
 		command(Biostar9501110.class);
+		command(CoverageMatrix.class);
 		command(BuildDbsnp.class);
 		command(CnvTView.class);
 		command(ConvertBamChromosomes.class);
@@ -322,22 +342,31 @@ public class JvarkitCentral {
 		command(PubmedGender.class);
 		command(PubmedGraph.class);
 		command(PrettySam.class);
+		command(VCFBigWig.class);
+		command(VcfBigBed.class);
 		command(VCFPolyX.class);
 		command(VcfToTable.class);
 		command(VcfGnomad.class);
 		command(VcfFilterSequenceOntology.class);
 		command(Sam2Tsv.class);
+		command(SamGrep.class);
+		command(SamRemoveDuplicatedNames.class);
 		command(SwingVcfView.class);
 		command(SwingBamCov.class);
 		command(SwingBamView.class);
+		command(SwingIndexCov.class);
+		command(SwingVcfJexlFilter.class);
+		command(UniprotToSvg.class);
 		command(VcfFilterJdk.class);
 		command(VcfAlleleBalance.class);
-		command(SwingVcfJexlFilter.class);
+		command(VcfPseudoAutosomalRegion.class);
 		command(VcfRebase.class);
 		command(VcfHead.class);
 		command(VcfTail.class);
 		command(VcfGeneSplitter.class);
 		command(VcfSplitNVariants.class);
+		command(VcfStrechToSvg.class);
+		command(VCFShuffle.class);
 		command(WesCnvSvg.class);
 		command(WGSCoveragePlotter.class);
 		
@@ -345,19 +374,19 @@ public class JvarkitCentral {
 			usage(System.err,false);
 			return;
 		}
-		if(args[0].equals("--version") || args[0].equals("-v")) {
+		else if(args[0].equals("--version") || args[0].equals("-v")) {
 			System.out.println(JVarkitVersion.getInstance().getGitHash());
 			return;
 		}
-		if(args[0].equals("--help") || args[0].equals("-h")) {
+		else if(args[0].equals("--help") || args[0].equals("-h")) {
 			usage(System.out, false);
 			return;
 			}
-		if(args[0].equals("--help-all")) {
+		else if(args[0].equals("--help-all")) {
 			usage(System.out, true);
 			return;
 			}
-		if(args.length==2 && args[0].equals("--generate-doc")) {
+		else if(args.length==2 && args[0].equals("--generate-doc")) {
 			final File dir = new File(args[1]);
 			IOUtil.assertDirectoryIsWritable(dir);
 			for(Command c:this.commands.values()) {
@@ -370,7 +399,20 @@ public class JvarkitCentral {
 				}
 			return;
 			}
-		if(args[0].startsWith("-")) {
+		else if(args.length==2 && args[0].equals("--readthedocs")) {
+			final File dir = new File(args[1]);
+			IOUtil.assertDirectoryIsWritable(dir);
+			for(Command c:this.commands.values()) {
+				try {
+					c.writeReadTheDoc(dir);
+					}
+				catch(IOException err) {
+					LOG.warn(err);
+					}
+				}
+			return;
+			}
+		else if(args[0].startsWith("-")) {
 			LOG.error("exepected a sub-jvarkit-program. but got "+args[0]+". type java -jar jvarkit.jar --help for more information.");
 			System.exit(-1);
 			}

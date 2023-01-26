@@ -95,7 +95,8 @@ END_DOC
 	description="Annotate a VCF with values from a bigbed file",
 	keywords={"vcf","wig","wiggle","bigbed","bed"},
 	creationDate="20220107",
-	modificationDate="20220107"
+	modificationDate="20220107",
+	jvarkit_amalgamion = true
 	)
 public class VcfBigBed extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfBigBed.class).make();
