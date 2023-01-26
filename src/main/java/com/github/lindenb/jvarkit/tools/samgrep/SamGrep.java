@@ -152,7 +152,7 @@ END_DOC
 public class SamGrep extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(SamGrep.class).make();
 	
-	@Parameter(names={"-R","--readname"},description="add the read name")
+	@Parameter(names={"-name","--readname"},description="add the read name")
 	private Set<String> nameStrings = new HashSet<>();
 	
 	

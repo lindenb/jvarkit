@@ -7,11 +7,17 @@ grep read-names in a bam file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar samgrep  [options] Files
+
 Usage: samgrep [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -20,13 +26,21 @@ Usage: samgrep [options] Files
     -V, --invert
       invert
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -f, --readfile
       file containing a list of read names
-    -R, --readname
+    -name, --readname
       add the read name
       Default: []
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -35,10 +49,10 @@ Usage: samgrep [options] Files
       when found, remove the read from the list of names when found more that 
       'n' time (increase speed)
       Default: -1
-    -x, --tee
-      if output fileame specified, continue to output original input to 
-      stdout. 
-      Default: false
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -51,22 +65,10 @@ Usage: samgrep [options] Files
  * bam
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew samgrep
-```
-
-The java jar file will be installed in the `dist` directory.
+20130506
 
 ## Source code 
 
@@ -172,6 +174,7 @@ java -jar  dist/samgrep.jar -R r001 -- -n 1 samtools-0.1.18/examples/toy.sam
 r001	163	ref	7	30	8M4I4M1D3M	=	37	39	TTAGATAAAGAGGATACTG	*	XX:B:S,12561,2,20,112
 
 ```
+
 
 
 

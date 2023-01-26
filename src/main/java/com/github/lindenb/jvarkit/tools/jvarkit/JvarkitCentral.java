@@ -160,6 +160,16 @@ public class JvarkitCentral {
 			final Program p = program();
 			return p==null?getName():p.description().trim();
 			}
+		
+		public String getCreationDate() {
+			final Program p = program();
+			return p==null?".":p.creationDate();
+			}
+		public String getModificationDate() {
+			final Program p = program();
+			return p==null?".":p.modificationDate();
+			}
+		
 		void execute(final String[] args) {
 			try {
 				final Method mainMethod = this.clazz.getMethod("main",String[].class);
@@ -176,9 +186,7 @@ public class JvarkitCentral {
 			return this;
 			}
 		
-		void writeReadTheDoc(final File dir) throws IOException {
-			
-			}
+		
 		
 		void writeDoc(final File dir) throws IOException {
 			final PrintStream old = System.out;
@@ -219,7 +227,8 @@ public class JvarkitCentral {
 		return c;
 		}
 	
-	private void usage(PrintStream out,boolean showHidden) {
+	
+	private void usageMain(final PrintStream out) {
 		out.println("JVARKIT");
 		out.println("=======");
 		out.println();
@@ -240,8 +249,12 @@ public class JvarkitCentral {
 		out.println(" + --help show this screen");
 		out.println(" + --help-all show all commands, including the private ones.");
 		out.println(" + --version print version");
-		//out.println(" + --generate-doc (directory)");
 		out.println();
+		}
+	
+	private void usage(PrintStream out,boolean showHidden) {
+		usageMain(out);
+		
 		out.println("## Tools");
 		out.println();
 		final int maxlenname = this.commands.values().stream().
@@ -273,6 +286,109 @@ public class JvarkitCentral {
 			}
 		out.println();
 	}
+	
+	private String hyperlink(final String url) {
+	return "["+url+"]("+url+")";
+	}
+	
+	void writeReadTheDoc(final File dir) throws IOException {
+		IOUtil.assertDirectoryIsWritable(dir);
+		final File docs = new File(dir,"docs");
+		IOUtil.assertDirectoryIsWritable(docs);
+		try (PrintStream out = new PrintStream(new File(docs,"index.md"))) {
+			usageMain(out);
+			out.println("## Compilation Installation\n");
+			out.println("Please, read [how to run and install jvarkit](JvarkitCentral.md)\n");
+			out.println("## Tools\n");
+			out.println("| Tool | Description | Creation | Update |");
+			out.println("| ---: | :---------- | :------: | :----: |");
+			for(Command c: this.commands.values()) {
+				if(c.isHidden()) continue;
+				out.print("| ");
+				out.print(c.getName());
+				out.print(" | ");
+				out.print(c.getDescription());
+				out.print(" | ");
+				out.print(c.getCreationDate());
+				out.print(" | ");
+				out.print(c.getModificationDate());
+				out.print(" |");
+				out.println();
+				}
+			out.flush();
+			}
+		try (PrintStream out = new PrintStream(new File(docs,"JvarkitCentral.md"))) {
+			usageMain(out);
+			
+			out.append("## Compilation\n");
+			out.append("\n");
+			out.append("### Requirements / Dependencies\n");
+			out.append("\n");
+			out.append("* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
+			out.append("\n");
+			out.append("\n");
+			out.append("### Download and Compile\n");
+			out.append("\n");
+			out.append("```bash\n");
+			out.append("$ git clone \"https://github.com/lindenb/jvarkit.git\"\n");
+			out.append("$ cd jvarkit\n");
+			out.append("$ ./gradlew jvarkit\n");
+			out.append("```\n");
+			out.append("\n");
+			out.append("The java jar file will be installed in the `dist` directory.\n");
+			out.append("\n");
+			
+			out.append("## Contribute\n");
+			out.append("\n");
+			out.append("- Issue Tracker: "+hyperlink("http://github.com/lindenb/jvarkit/issues")+"\n");
+			out.append("- Source Code: "+hyperlink("http://github.com/lindenb/jvarkit")+"\n");
+			out.append("\n");
+			out.append("## License\n");
+			out.append("\n");
+			out.append("The project is licensed under the MIT license.\n");
+			out.append("\n");
+			out.append("## Citing\n");
+			out.append("\n");
+			out.append("Should you cite **jvarkit** ? "+hyperlink("https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md")+"\n");
+			out.append("\n");
+			out.append("The current reference is:\n");
+			out.append("\n");
+			out.append(hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
+			out.append("\n");
+			out.append("> Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.\n");
+			out.append("> "+hyperlink("http://dx.doi.org/10.6084/m9.figshare.1425030")+"\n");
+			out.append("\n");
+
+			out.flush();
+			}
+		try (PrintStream out = new PrintStream(new File(dir,"mkdocs.yml"))) {
+				out.println("repo_url: \"https://github.com/lindenb/jvarkit\"");
+				out.println("repo_name: \"GitHub\"");
+				out.println("docs_dir: docs");
+				out.println("");
+				out.println("theme:");
+				out.println("    name: readthedocs");
+				out.println("    highlightjs: true");
+				out.println("    html_show_sourcelink: false");
+				out.println("    prev_next_buttons_location: both");
+				out.println("");
+				out.println("nav:");
+				for(Command c:this.commands.values()) {
+					out.println("        - \""+ c.getName() +"\" : "+ c.clazz.getSimpleName() +".md");
+					//out.println("        - "VcfTail": VcfTail.md");
+					}
+				out.println();
+				out.flush();
+			}
+		for(Command c:this.commands.values()) {
+			try {
+				c.writeDoc(docs);
+				}
+			catch(IOException err) {
+				LOG.warn(err);
+				}
+			}
+		}
 	
 	private void run(String[] args) {
 		command(AddLinearIndexToBed.class);
@@ -401,14 +517,12 @@ public class JvarkitCentral {
 			}
 		else if(args.length==2 && args[0].equals("--readthedocs")) {
 			final File dir = new File(args[1]);
-			IOUtil.assertDirectoryIsWritable(dir);
-			for(Command c:this.commands.values()) {
-				try {
-					c.writeReadTheDoc(dir);
-					}
-				catch(IOException err) {
-					LOG.warn(err);
-					}
+			try {
+				writeReadTheDoc(dir);
+				}
+			catch(IOException err) {
+				LOG.error(err);
+				System.exit(-1);
 				}
 			return;
 			}

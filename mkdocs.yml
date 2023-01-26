@@ -1,4 +1,3 @@
-site_name: "Jvarkit"
 repo_url: "https://github.com/lindenb/jvarkit"
 repo_name: "GitHub"
 docs_dir: docs
@@ -10,6 +9,98 @@ theme:
     prev_next_buttons_location: both
 
 nav:
-        - "VcfHead": VcfHead.md
-        - "VcfTail": VcfTail.md
+        - "addlinearindextobed" : AddLinearIndexToBed.md
+        - "backlocate" : BackLocate.md
+        - "bam2raster" : Bam2Raster.md
+        - "bam2svg" : BamToSVG.md
+        - "bam2wig" : Bam2Wig.md
+        - "bam2xml" : Bam2Xml.md
+        - "bamrenamechr" : ConvertBamChromosomes.md
+        - "bamstats05" : BamStats05.md
+        - "basecoverage" : BaseCoverage.md
+        - "bedcluster" : BedCluster.md
+        - "bednonoverlappingset" : BedNonOverlappingSet.md
+        - "bedrenamechr" : ConvertBedChromosomes.md
+        - "bioalcidaejdk" : BioAlcidaeJdk.md
+        - "biostar103303" : Biostar103303.md
+        - "biostar105754" : Biostar105754.md
+        - "biostar130456" : Biostar130456.md
+        - "biostar139647" : Biostar139647.md
+        - "biostar145820" : Biostar145820.md
+        - "biostar154220" : Biostar154220.md
+        - "biostar165777" : Biostar165777.md
+        - "biostar170742" : Biostar170742.md
+        - "biostar172515" : Biostar172515.md
+        - "biostar173114" : Biostar173114.md
+        - "biostar175929" : Biostar175929.md
+        - "biostar178713" : Biostar178713.md
+        - "biostar214299" : Biostar214299.md
+        - "biostar234081" : Biostar234081.md
+        - "biostar234230" : Biostar234230.md
+        - "biostar251649" : Biostar251649.md
+        - "biostar322664" : Biostar322664.md
+        - "biostar332826" : Biostar332826.md
+        - "biostar336589" : Biostar336589.md
+        - "biostar352930" : Biostar352930.md
+        - "biostar398854" : Biostar398854.md
+        - "biostar404363" : Biostar404363.md
+        - "biostar480685" : Biostar480685.md
+        - "biostar489074" : Biostar489074.md
+        - "biostar497922" : Biostar497922.md
+        - "biostar59647" : Biostar59647.md
+        - "biostar76892" : Biostar76892.md
+        - "biostar77288" : Biostar77288.md
+        - "biostar77828" : Biostar77828.md
+        - "biostar78285" : Biostar78285.md
+        - "biostar81455" : Biostar81455.md
+        - "biostar84452" : Biostar84452.md
+        - "biostar84786" : Biostar84786.md
+        - "biostar86363" : Biostar86363.md
+        - "biostar86480" : Biostar86480.md
+        - "biostar90204" : Biostar90204.md
+        - "biostar9462889" : Biostar9462889.md
+        - "biostar9469733" : Biostar9469733.md
+        - "biostar9501110" : Biostar9501110.md
+        - "builddbsnp" : BuildDbsnp.md
+        - "cnvtview" : CnvTView.md
+        - "coveragematrix" : CoverageMatrix.md
+        - "coverageplotter" : CoveragePlotter.md
+        - "findgvcfsblocks" : FindGVCFsBlocks.md
+        - "groupbygene" : GroupByGene.md
+        - "gtf2bed" : GtfToBed.md
+        - "lowresbam2raster" : LowResBam2Raster.md
+        - "mkminibam" : MakeMiniBam.md
+        - "prettysam" : PrettySam.md
+        - "pubmed404" : Pubmed404.md
+        - "pubmedcodinglang" : PubmedCodingLanguages.md
+        - "pubmedgender" : PubmedGender.md
+        - "pubmedgraph" : PubmedGraph.md
+        - "sam2tsv" : Sam2Tsv.md
+        - "samgrep" : SamGrep.md
+        - "samrmdupnames" : SamRemoveDuplicatedNames.md
+        - "swingbamcov" : SwingBamCov.md
+        - "swingbamview" : SwingBamView.md
+        - "swingindexcov" : SwingIndexCov.md
+        - "swingvcfjexl" : SwingVcfJexlFilter.md
+        - "swingvcfview" : SwingVcfView.md
+        - "uniprot2svg" : UniprotToSvg.md
+        - "vcf2table" : VcfToTable.md
+        - "vcfallelebalance" : VcfAlleleBalance.md
+        - "vcfbigbed" : VcfBigBed.md
+        - "vcfbigwig" : VCFBigWig.md
+        - "vcffilterjdk" : VcfFilterJdk.md
+        - "vcffilterso" : VcfFilterSequenceOntology.md
+        - "vcfgenesplitter" : VcfGeneSplitter.md
+        - "vcfgnomad" : VcfGnomad.md
+        - "vcfhead" : VcfHead.md
+        - "vcfpar" : VcfPseudoAutosomalRegion.md
+        - "vcfpolyx" : VCFPolyX.md
+        - "vcfrebase" : VcfRebase.md
+        - "vcfrenamechr" : ConvertVcfChromosomes.md
+        - "vcfshuffle" : VCFShuffle.md
+        - "vcfsplitnvariants" : VcfSplitNVariants.md
+        - "vcfstrech2svg" : VcfStrechToSvg.md
+        - "vcftail" : VcfTail.md
+        - "wescnvsvg" : WesCnvSvg.md
+        - "wgscoverageplotter" : WGSCoveragePlotter.md
 
