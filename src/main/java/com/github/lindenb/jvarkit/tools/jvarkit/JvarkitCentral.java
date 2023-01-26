@@ -362,6 +362,7 @@ public class JvarkitCentral {
 			out.flush();
 			}
 		try (PrintStream out = new PrintStream(new File(dir,"mkdocs.yml"))) {
+				out.println("site_name: \"Jvarkit\"");
 				out.println("repo_url: \"https://github.com/lindenb/jvarkit\"");
 				out.println("repo_name: \"GitHub\"");
 				out.println("docs_dir: docs");
