@@ -8,11 +8,17 @@ Convert alignment in Fasta/Clustal format to SAM/BAM file
 ## Usage
 
 ```
+Usage: java -jar dist/biostar139647.jar  [options] Files
 Usage: biostar139647 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
+    -F, --fullalignment
+      by default heading/traling gaps are ignored ( as in read to reference 
+      alignment). Use this option to treat them as meaningfull indels as in 
+      full genome alignment. Optional
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -20,8 +26,12 @@ Usage: biostar139647 [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -R, --refname
-      reference name. Optional
+      reference name injected in the SAM/BAM IF not present in the alignment. 
+      Note that not defining a reference will produce no Insertion.  Optional
       Default: chrUn
+    -S, --refselection
+      label of the reference, if present in the input alignment. Both 
+      Insertion and Deletions variations can be computed. Optional
     --samoutputformat
       Sam output format.
       Default: SAM

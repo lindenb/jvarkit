@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2023 Pierre Lindenbaum
+Copyright (c) 2023 Pierre Lindenbaum, 2023 Benjamin Linard
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -108,18 +108,24 @@ public class Biostar139647 extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-R","--refname"},description="reference name. Optional")
-	private String REF = "chrUn";
-	
+	@Parameter(names={"-R","--refname"},description="reference name injected in the SAM/BAM IF not present in the alignment. Note that not defining a reference will produce no Insertion.  Optional")
+	private String USER_DEFINED_REF_NAME = "chrUn";
+	@Parameter(names={"-S","--refselection"},description="label of the reference, if present in the input alignment. Both Insertion and Deletions variations can be computed. Optional")
+	private String SELECTED_REF_LABEL = null;
+	@Parameter(names={"-F","--fullalignment"},description="by default heading/traling gaps are ignored ( as in read to reference alignment). Use this option to treat them as meaningfull indels as in full genome alignment. Optional")
+	private boolean FULL_ALIGN = false;
+
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 
 	private static final char CLIPPING=' ';
 	private int align_length=0;
-	private Map<String, AlignSequence> sample2sequence=new HashMap<String, AlignSequence>();
-	//private AbstractSequence consensus=null;
+	private Map<String, AlignSequence> label2entry =new HashMap<String, AlignSequence>();
+
+		//private AbstractSequence consensus=null;
 	private enum Format{None,Clustal,Fasta};
-	
+	private enum Type{Genome,Reads};
+
 	private abstract class AbstractSequence
 		{
 		abstract char at(int index);
@@ -153,7 +159,7 @@ public class Biostar139647 extends Launcher
 		SAMFileWriter w=null;
 		LineIterator r=null;
 		try
-			{
+		{
 			final String filename = super.oneFileOrNull(args);
 			if(filename==null)
 				{
@@ -165,7 +171,6 @@ public class Biostar139647 extends Launcher
 				LOG.info("Reading from "+filename);
 				r=IOUtils.openURIForLineIterator(filename);
 				}
-			
 			Format format=Format.None;
 
 			
@@ -191,6 +196,7 @@ public class Biostar139647 extends Launcher
 					}
 				}
 			LOG.info("format : "+format);
+			boolean ref_label_found = false;
 			if(Format.Fasta.equals(format))
 				{
 				//this.consensus=new FastaConsensus();
@@ -202,12 +208,16 @@ public class Biostar139647 extends Launcher
 						{
 						curr=new AlignSequence();
 						curr.name=line.substring(1).trim();
-						if(sample2sequence.containsKey(curr.name))
+						if (curr.name.equals(SELECTED_REF_LABEL))
+						{
+							ref_label_found = true;
+						}
+						if(label2entry.containsKey(curr.name))
 							{
 							LOG.error("Sequence ID "+curr.name +" defined twice");
 							return -1;
 							}
-						sample2sequence.put(curr.name, curr);
+						label2entry.put(curr.name, curr);
 						}
 					else if(curr!=null)
 						{
@@ -253,12 +263,16 @@ public class Biostar139647 extends Launcher
 								}
 							}
 						String seqname=line.substring(0, columnStart).trim();
-						curr=this.sample2sequence.get(seqname);
+						curr= label2entry.get(seqname);
 						if(curr==null)
 							{
 							curr=new AlignSequence();
 							curr.name=seqname;
-							this.sample2sequence.put(curr.name, curr);
+							if (curr.name.equals(SELECTED_REF_LABEL))
+							{
+								ref_label_found = true;
+							}
+							label2entry.put(curr.name, curr);
 							}
 						curr.seq.append(line.substring(columnStart));
 						this.align_length=Math.max(align_length, curr.seq.length());
@@ -270,9 +284,27 @@ public class Biostar139647 extends Launcher
 				LOG.error("Undefined input format");
 				return -1;
 				}
+
+			if ((SELECTED_REF_LABEL != null) && (!ref_label_found)) {
+				LOG.error("The reference label given via option -S,--refselection cannot be found in the input alignment.");
+				return -1;
+			}
+
 			final SAMFileHeader header=new SAMFileHeader();
 			final SAMSequenceDictionary dict=new SAMSequenceDictionary();
-			dict.addSequence(new SAMSequenceRecord(REF,this.align_length));
+			if (ref_label_found)
+			{
+				dict.addSequence(
+						new SAMSequenceRecord(
+								SELECTED_REF_LABEL,
+								label2entry.get(SELECTED_REF_LABEL).seq.toString().replaceAll("[\\*\\- ]+", "").length()
+						)
+				);
+			}
+			else
+			{
+				dict.addSequence(new SAMSequenceRecord(USER_DEFINED_REF_NAME, this.align_length));
+			}
 			header.setSortOrder(SortOrder.unsorted);
 			header.setSequenceDictionary(dict);
 			final SAMProgramRecord pgr=header.createProgramRecord();
@@ -289,53 +321,83 @@ public class Biostar139647 extends Launcher
 			w = this.writingBamArgs.openSAMFileWriter(this.outputFile, header, false);
 			
 			final DefaultSAMRecordFactory samRecordFactory = new DefaultSAMRecordFactory();
-			for(final  String seqName: this.sample2sequence.keySet())
-				{
-				final  AlignSequence shortRead = this.sample2sequence.get(seqName);
+			for(final  String entryName: label2entry.keySet())
+			{
+				final  AlignSequence entry = label2entry.get(entryName);
 				final  SAMRecord rec = samRecordFactory.createSAMRecord(header);
-				
-				
-				rec.setReadName(seqName);
-				rec.setReadString(shortRead.seq.toString().replaceAll("[\\*\\- ]+", ""));
+
+				rec.setReadName(entryName);
+
 				int start=0;
-				while(start< shortRead.seq.length() && !Character.isLetter(shortRead.at(start)))
+				int end=entry.seq.length()-1;
+
+				if (!FULL_ALIGN)
 					{
-					start++;
+						rec.setReadString(entry.seq.toString().replaceAll("[\\*\\- ]+", ""));
+
+						while (start < entry.seq.length() && !Character.isLetter(entry.at(start)))
+							{
+								start++;
+							}
+						rec.setAlignmentStart(start + 1);
+
+						while (end > 0 && !Character.isLetter(entry.at(end)))
+							{
+								--end;
+							}
+						//rec.setAlignmentEnd(end+1); not supported
 					}
-				rec.setAlignmentStart(start+1);
-				
-				int end=shortRead.seq.length()-1;
-				while(end>0 && !Character.isLetter(shortRead.at(end)))
-					{
-					--end;
-					}
-				//rec.setAlignmentEnd(end+1); not supported
-				
+
+
 				
 				int n=start;
 				StringBuilder dna=new StringBuilder();
 				final List<CigarElement> cigars =new ArrayList<>();
+				AlignSequence referenceEntry = label2entry.get(SELECTED_REF_LABEL);
 				while(n<=end )
+				{
+					if( !Character.isLetter(entry.at(n)))
 					{
-					if( !Character.isLetter(shortRead.at(n)))
+						if (ref_label_found)
 						{
-						cigars.add(new CigarElement(1,CigarOperator.D));
+							if (Character.isLetter(referenceEntry.at(n))) {
+								cigars.add(new CigarElement(1, CigarOperator.D));
+							}
 						}
-					else
+						else
 						{
-						cigars.add(new CigarElement(1,CigarOperator.M));
-						dna.append(shortRead.at(n));
+							cigars.add(new CigarElement(1, CigarOperator.D));
 						}
-					n++;
 					}
+					else
+					{
+						if (ref_label_found)
+						{
+							if (Character.isLetter(referenceEntry.at(n)))
+							{
+								cigars.add(new CigarElement(1, CigarOperator.M));
+							}
+							else
+							{
+								cigars.add(new CigarElement(1, CigarOperator.I));
+							}
+						}
+						else
+						{
+							cigars.add(new CigarElement(1, CigarOperator.M));
+						}
+						dna.append(entry.at(n));
+					}
+					n++;
+				}
 				
 				//simplify cigar string
 				n=0;
 				while(n+1< cigars.size())
-					{
+				{
 					final CigarElement c1= cigars.get(n);
 					final CigarElement c2= cigars.get(n+1);
-					
+
 					if(c1.getOperator().equals(c2.getOperator()))
 						{
 						cigars.set(n, new CigarElement(c1.getLength()+c2.getLength(), c1.getOperator()));
@@ -345,20 +407,27 @@ public class Biostar139647 extends Launcher
 						{
 						++n;
 						}
-					}
+				}
 				
 				rec.setReadPairedFlag(false);
 				rec.setMappingQuality(60);
-				rec.setReferenceName(REF);
+				if (ref_label_found)
+				{
+					rec.setReferenceName(SELECTED_REF_LABEL);
+				}
+				else
+				{
+					rec.setReferenceName(USER_DEFINED_REF_NAME);
+				}
 				rec.setReadString(dna.toString());
 				rec.setCigar(new Cigar(cigars));
 				rec.setAttribute("PG", pgr.getId());
-				
+
 				w.addAlignment(rec);
-				}
+			}
 			
 			return RETURN_OK;
-			}
+		}
 		catch(final Exception err)
 			{
 			LOG.error(err);
