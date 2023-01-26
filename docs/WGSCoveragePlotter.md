@@ -7,8 +7,13 @@ Whole genome coverage plotter
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/wgscoverageplotter.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar wgscoverageplotter  [options] Files
+
 Usage: wgscoverageplotter [options] Files
   Options:
     --clip, --cap
@@ -92,23 +97,6 @@ Usage: wgscoverageplotter [options] Files
  * [https://www.biostars.org/p/9536274](https://www.biostars.org/p/9536274)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew wgscoverageplotter
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -159,11 +147,13 @@ java -jar dist/wgscoverageplotter.jar --dimension 1500x500 -C -1 --clip -R src/t
 
  * Vinicius A.C & al. Comparative analyses of Theobroma cacao and T. grandiflorum mitogenomes reveal conserved gene content embedded within complex and plastic structures". Gene Volume 849 2023 .https://doi.org/10.1016/j.gene.2022.146904.
  * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Corrêa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114
+ * Cho, C.H., Park, S.I., Huang, TY. et al. Genome-wide signatures of adaptation to extreme environments in red algae. Nat Commun 14, 10 (2023). https://doi.org/10.1038/s41467-022-35566-x
 
 ## Screenshot
 
 https://twitter.com/yokofakun/status/1331898068002861056
 
 ![twitter](https://pbs.twimg.com/media/EnvaOnNW4AAkGTz?format=jpg&name=medium "Screenshot")
+
 
 

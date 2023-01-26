@@ -7,8 +7,13 @@ Low Resolution BAM to raster graphics
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/lowresbam2raster.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar lowresbam2raster  [options] Files
+
 Usage: lowresbam2raster [options] Files
   Options:
     -clip, --clip
@@ -121,23 +126,6 @@ Usage: lowresbam2raster [options] Files
  * [https://www.biostars.org/p/293741](https://www.biostars.org/p/293741)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew lowresbam2raster
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -196,4 +184,5 @@ java -jar dist/lowresbam2raster.jar \
 ![https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg](https://pbs.twimg.com/media/DYPC0XFWAAAk5SV.jpg)
 
 ![https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg](https://pbs.twimg.com/media/Dgxp_5OXkAEbAYW.jpg)
+
 

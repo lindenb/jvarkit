@@ -7,7 +7,13 @@ Split a Bed file into non-overlapping data set.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bednonoverlappingset  [options] Files
+
 Usage: bednonoverlappingset [options] Files
   Options:
     --compress
@@ -39,23 +45,6 @@ Usage: bednonoverlappingset [options] Files
 
  * bed
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bednonoverlappingset
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -160,4 +149,5 @@ LC_ALL=C sort -t '	' -k1,1 tmp.tsv >> "SAMPLE.win.cov.tsv"
 
 (...)
 ```
+
 

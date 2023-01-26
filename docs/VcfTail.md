@@ -7,7 +7,13 @@ print the last variants of a vcf
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcftail  [options] Files
+
 Usage: vcftail [options] Files
   Options:
     -c, --bycontig
@@ -41,23 +47,6 @@ Usage: vcftail [options] Files
 
  * vcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcftail
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -105,4 +94,5 @@ grep -v "##"| cut -f 1,2,4,5
 chr1    935492  G   T
 chr1    1334052 CTAGAG  C
 ```
+
 

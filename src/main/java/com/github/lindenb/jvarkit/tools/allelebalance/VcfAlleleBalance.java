@@ -76,7 +76,8 @@ END_DOC
 	description="Insert missing allele balance annotation using FORMAT:AD",
 	keywords= {"vcf","allele-balance","depth"},
 	modificationDate="20200805",
-	creationDate="20180829"
+	creationDate="20180829",
+	jvarkit_amalgamion =  true
 	)
 public class VcfAlleleBalance extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfAlleleBalance.class).make();

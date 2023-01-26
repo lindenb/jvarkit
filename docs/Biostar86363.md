@@ -7,7 +7,13 @@ Set genotype of specific sample/genotype comb to unknown in multisample vcf file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar86363  [options] Files
+
 Usage: biostar86363 [options] Files
   Options:
     --disable-vc-attribute-recalc
@@ -48,23 +54,6 @@ Usage: biostar86363 [options] Files
 
  * [https://www.biostars.org/p/86363](https://www.biostars.org/p/86363)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar86363
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -129,4 +118,5 @@ le. See http://www.biostars.org/p/86363/">
 20	1230237	.	T	.	47	PASS	AA=T;DP=13;NS=3	GT:GQ:DP:HQ	0|0:54:7:56,60	0|0:48:4:51,51	0/0:61:2
 20	1234567	microsat1	GTC	G,GTCT	50	PASS	AA=G;DP=9;NS=3	GT:DP:GQ:GR	0/1:4:35:0	0/2:2:17:0	./.:3:40:1
 ```
+
 

@@ -84,7 +84,8 @@ END_DOC
 	biostars={251649,334253,251649},
 	keywords={"vcf","annotation","sequence","reference"},
 	creationDate="20170508",
-	modificationDate="20200213"
+	modificationDate="20200213",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar251649 extends Launcher
 	{

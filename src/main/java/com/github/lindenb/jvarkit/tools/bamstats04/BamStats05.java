@@ -107,7 +107,8 @@ description="Coverage statistics for a BED file, group by gene",
 keywords={"bam","coverage","statistics","bed"},
 biostars={324639,194393,35083},
 modificationDate="20210317",
-creationDate="20151012"
+creationDate="20151012",
+jvarkit_amalgamion =  true
 )
 public class BamStats05 extends Launcher
 	{

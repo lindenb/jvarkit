@@ -121,7 +121,8 @@ END_DOC
 	keywords={"pubmed","xml","code","programming"},
 	creationDate="20170404",
 	modificationDate="20200223",
-	biostars=251002
+	biostars=251002,
+	jvarkit_amalgamion =  true
 	)
 public class PubmedCodingLanguages
 	extends Launcher

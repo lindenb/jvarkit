@@ -7,12 +7,24 @@ Restriction sites overlaping variations in a vcf
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfrebase  [options] Files
+
 Usage: vcfrebase [options] Files
   Options:
     -A, --attribute
       VCF INFO attribute
       Default: ENZ
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -E, -enzyme, --enzyme
       restrict to that enzyme name. Default: use all enzymes
       Default: []
@@ -44,23 +56,6 @@ Usage: vcfrebase [options] Files
  * restriction
  * enzyme
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfrebase
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -135,3 +130,4 @@ $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resou
 1	1017170	.	C	G	507	PASS	ENZ=AloI|(7/12)GAACNNNNNNTCC(12/7)|GAACAGAGcATCC|1017162|+
 ```
  
+

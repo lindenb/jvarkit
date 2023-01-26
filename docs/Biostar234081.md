@@ -7,11 +7,17 @@ convert extended CIGAR to regular CIGAR ('X','=' -> 'M')
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar234081  [options] Files
+
 Usage: biostar234081 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -19,6 +25,10 @@ Usage: biostar234081 [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -41,23 +51,6 @@ Usage: biostar234081 [options] Files
 
  * [https://www.biostars.org/p/234081](https://www.biostars.org/p/234081)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar234081
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -108,4 +101,5 @@ r001    163 ref 7   30  1M2X5=4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG*XX:B:S,1
 @SQ SN:ref2 LN:40
 r001    163 ref 7   30  8M4I4M1D3M  =   37  39  TTAGATAAAGAGGATACTG*XX:B:S,12561,2,20,112
 ```
+
 

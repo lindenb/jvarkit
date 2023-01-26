@@ -112,7 +112,8 @@ END_DOC
 		biostars={342790},
 		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff",
 		modificationDate="20220529",
-		creationDate="20131209"
+		creationDate="20131209",
+		jvarkit_amalgamion =  true
 		)
 public class GroupByGene
 	extends Launcher

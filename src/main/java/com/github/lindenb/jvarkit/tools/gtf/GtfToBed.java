@@ -80,7 +80,8 @@ END_DOC
 		description="Convert GTF/GFF3 to BED.",
 		creationDate="20220629",
 		modificationDate="20220630",
-		keywords= {"gtf","gff","gff3","bed"}
+		keywords= {"gtf","gff","gff3","bed"},
+		jvarkit_amalgamion =  true
 		)
 public class GtfToBed
 	extends Launcher {

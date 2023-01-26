@@ -7,13 +7,18 @@ Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/groupbygene.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar groupbygene  [options] Files
+
 Usage: groupbygene [options] Files
   Options:
     -e, -E, --extractors
       [20190626]Gene Extractors Name. Space/semicolon/Comma separated
-      Default: ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE
+      Default: ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE SpliceAi
     --filtered
       ignore FILTERED variants
       Default: false
@@ -66,23 +71,6 @@ Usage: groupbygene [options] Files
 
  * [https://www.biostars.org/p/342790](https://www.biostars.org/p/342790)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew groupbygene
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -149,5 +137,6 @@ chr10   135336656  135369532  CYP2E1     snpeff-gene-name  3                 2  
 ## History
 
 * 201707: added pedigree, removed XML output
+
 
 

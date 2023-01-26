@@ -7,7 +7,13 @@ Defining precisely the exonic genomic context based on a position .
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar81455  [options] Files
+
 Usage: biostar81455 [options] Files
   Options:
   * -gtf, --gtf
@@ -41,23 +47,6 @@ Usage: biostar81455 [options] Files
 
  * [https://www.biostars.org/p/81455](https://www.biostars.org/p/81455)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar81455
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -126,4 +115,5 @@ chr22	0	uc002zkt.3	16162065	16172265	POSITIVE	Exon 1	16162065	16162388	16162065
 chr22	0	uc002zku.3	16179617	16181004	NEGATIVE	Exon 1	16179617	16181004	16179617
 chr22	0	uc002zkv.3	16187164	16193004	NEGATIVE	Exon 5	16187164	16187302	16187164	
 ```
+
 

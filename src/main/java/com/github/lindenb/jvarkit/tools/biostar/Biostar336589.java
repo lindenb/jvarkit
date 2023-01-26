@@ -144,7 +144,8 @@ description="displays circular map as SVG from BED and REF file",
 keywords= {"genome","browser","circular","bed","svg"},
 biostars= {336589,367522},
 modificationDate="20210818",
-creationDate="20180907"
+creationDate="20180907",
+jvarkit_amalgamion =  true
 )
 
 public class Biostar336589 extends Launcher{

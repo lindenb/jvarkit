@@ -7,8 +7,13 @@ BAM to Scalar Vector Graphics (SVG)
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/bam2svg.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar bam2svg  [options] Files
+
 Usage: bam2svg [options] Files
   Options:
     --bases
@@ -69,23 +74,6 @@ Usage: bam2svg [options] Files
  * visualization
  * svg
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bam2svg
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -149,6 +137,7 @@ https://twitter.com/yokofakun/status/523031098541232128
 https://twitter.com/yokofakun/status/522415314425090048
 
 ![bam2svg-2](https://pbs.twimg.com/media/Bz_99ayIMAAK57s.jpg)
+
 
 
 

@@ -73,7 +73,8 @@ END_DOC
 	keywords={"sam","bam","cigar"},
 	biostars=234081,
 	creationDate="20170130",
-	modificationDate="20200409"
+	modificationDate="20200409",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar234081 extends Launcher
 	{

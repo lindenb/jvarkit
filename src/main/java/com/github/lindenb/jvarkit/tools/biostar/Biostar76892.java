@@ -91,7 +91,9 @@ END_DOC
 @Program(name="biostar76892",
 description="fix strand of two paired reads close but on the same strand. ",
 biostars=76892,
-keywords={"sam","bam"})
+keywords={"sam","bam"},
+jvarkit_amalgamion =  true
+)
 public class Biostar76892 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar76892.class).make();

@@ -7,8 +7,13 @@ java-based version of awk for bioinformatics
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/bioalcidaejdk.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar bioalcidaejdk  [options] Files
+
 Usage: bioalcidaejdk [options] Files
   Options:
     --body
@@ -105,23 +110,6 @@ Usage: bioalcidaejdk [options] Files
  * [https://www.biostars.org/p/428861](https://www.biostars.org/p/428861)
  * [https://www.biostars.org/p/9463181](https://www.biostars.org/p/9463181)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bioalcidaejdk
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -776,4 +764,5 @@ stream().
 ## Cited in
 
  * Hickman, A.R., Selee, B., Pauly, R. et al. Discovery of eQTL Alleles Associated with Autism Spectrum Disorder: A Case–Control Study. J Autism Dev Disord (2022). https://doi.org/10.1007/s10803-022-05631-x
+
 

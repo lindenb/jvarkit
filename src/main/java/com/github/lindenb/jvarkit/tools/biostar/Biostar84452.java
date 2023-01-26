@@ -89,7 +89,8 @@ END_DOC
 @Program(name="biostar84452",
 	biostars=84452,
 	description="remove clipped bases from a BAM file",
-	keywords={"sam","bam","clip"}
+	keywords={"sam","bam","clip"},
+	jvarkit_amalgamion =  true
 	)
 public class Biostar84452 extends Launcher
 	{

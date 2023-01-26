@@ -142,7 +142,8 @@ END_DOC
 description="Read viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate = "20220503",
-modificationDate="20230124"
+modificationDate="20230124",
+jvarkit_amalgamion =  true
 )
 public class SwingBamView extends Launcher {
 	private static final Logger LOG = Logger.build(SwingBamView.class).make();

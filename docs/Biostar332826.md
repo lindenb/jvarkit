@@ -7,7 +7,13 @@ Fast Extraction of Variants from a list of IDs
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar332826  [options] Files
+
 Usage: biostar332826 [options] Files
   Options:
     --bcf-output
@@ -60,23 +66,6 @@ Usage: biostar332826 [options] Files
  * [https://www.biostars.org/p/433062](https://www.biostars.org/p/433062)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar332826
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -120,3 +109,4 @@ The current reference is:
  	java -jar dist/biostar332826 --ids ids.txt > out.vcf 
  ```
  
+

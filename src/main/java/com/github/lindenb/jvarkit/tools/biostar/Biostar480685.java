@@ -70,7 +70,8 @@ keywords={"sam","bam","clip"},
 description="paired-end bam clip bases outside insert range",
 biostars= {480685},
 creationDate="20201223",
-modificationDate="20200220"
+modificationDate="20200220",
+jvarkit_amalgamion =  true
 )
 public class Biostar480685 extends Launcher {			
 private static final Logger LOG = Logger.build(Biostar480685.class).make();

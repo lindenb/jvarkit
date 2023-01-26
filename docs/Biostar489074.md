@@ -8,6 +8,7 @@ call variants for every paired overlaping read
 ## Usage
 
 ```
+Usage: java -jar dist/biostar489074.jar  [options] Files
 Usage: biostar489074 [options] Files
   Options:
     --bcf-output
@@ -136,4 +137,5 @@ $ samtools view -O BAM --reference "ref.fasta" in.cram "chr22:41201525-41490147"
 	samtools collate -O -u - |\
 	java -jar dist/biostar489074.jar --reference "ref.fasta"
 ```
+
 

@@ -7,23 +7,37 @@ Insert missing allele balance annotation using FORMAT:AD
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfallelebalance  [options] Files
+
 Usage: vcfallelebalance [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -f, --filtered
       ignore FILTER-ed **GENOTYPES**
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
       Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -p, -ped, --pedigree, --ped
-      A pedigree is a text file delimited with tabs. No header. Columns are 
-      (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' 
-      (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 
-      affected,-9 unknown
+      A pedigree file. tab delimited. Columns: family,id,father,mother, 
+      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -s, --snp
       consider only snps
       Default: false
@@ -40,30 +54,18 @@ Usage: vcfallelebalance [options] Files
  * depth
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfallelebalance
-```
-
-The java jar file will be installed in the `dist` directory.
+20180829
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfAlleleBalance.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfAlleleBalance.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/allelebalance/VcfAlleleBalance.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/allelebalance/VcfAlleleBalance.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfAlleleBalanceTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfAlleleBalanceTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/allelebalance/VcfAlleleBalanceTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/allelebalance/VcfAlleleBalanceTest.java)
 
 
 ## Contribute
@@ -99,4 +101,5 @@ part of the code was inspired from GATK public code :  https://github.com/broadg
 $ java -jar dist/vcfallelebalance.jar  src/test/resources/test_vcf01.vcf
 $ java -jar dist/vcfallelebalance.jar -p src/test/resources/test_vcf01.ped src/test/resources/test_vcf01.vcf
 ```
+
 

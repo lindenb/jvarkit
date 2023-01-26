@@ -130,7 +130,8 @@ END_DOC
 	keywords={"sam","bam","chromosome","contig"},
 	modificationDate="20191210",
 	creationDate="20131217",
-	biostars={13462,9479387}
+	biostars={13462,9479387},
+	jvarkit_amalgamion =  true
 	)
 public class ConvertBamChromosomes
 	extends Launcher

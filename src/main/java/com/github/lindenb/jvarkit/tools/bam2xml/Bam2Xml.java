@@ -203,7 +203,8 @@ END_DOC
 	keywords={"sam","bam","xml"},
 	description="converts a BAM to XML",
 	creationDate="20130506",
-	modificationDate="20210315")
+	modificationDate="20210315",
+	jvarkit_amalgamion =  true)
 public class Bam2Xml extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(Bam2Xml.class).make();
 	

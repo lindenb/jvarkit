@@ -68,7 +68,8 @@ END_DOC
 	description="print the last variants of a vcf",
 	keywords={"vcf"},
 	modificationDate="20200518",
-	creationDate="20131210"
+	creationDate="20131210",
+	jvarkit_amalgamion =  true
 	)
 public class VcfTail extends OnePassVcfLauncher
 	{

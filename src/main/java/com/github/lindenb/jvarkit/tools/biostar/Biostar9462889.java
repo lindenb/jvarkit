@@ -90,7 +90,8 @@ END_DOC
 	description="Extracting reads from a regular expression in a bam file",
 	creationDate="20210402",
 	modificationDate="20210402",
-	biostars=9462889
+	biostars=9462889,
+	jvarkit_amalgamion =  true
 	)
 public class Biostar9462889 extends AbstractBamSplitter<Biostar9462889.Tokens>
 	{

@@ -116,7 +116,8 @@ END_DOC
 		description="Split VCF+VEP by gene/transcript.",
 		creationDate = "20160310",
 		modificationDate="202220531",
-		keywords= {"genes","vcf"}
+		keywords= {"genes","vcf"},
+		jvarkit_amalgamion =  true
 		)
 public class VcfGeneSplitter
 	extends Launcher

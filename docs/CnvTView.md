@@ -7,8 +7,13 @@ Text visualization of bam DEPTH for multiple regions in a terminal
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/cnvtview.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar cnvtview  [options] Files
+
 Usage: cnvtview [options] Files
   Options:
     -cap, --cap
@@ -81,23 +86,6 @@ Usage: cnvtview [options] Files
  * ascii
  * text
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew cnvtview
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -251,4 +239,5 @@ https://twitter.com/yokofakun/status/1053204927202369536
 https://twitter.com/yokofakun/status/1057627022665502721
 
 ![https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg](https://pbs.twimg.com/media/Dq1x60NVAAUhGPG.jpg)
+
 

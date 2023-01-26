@@ -130,7 +130,8 @@ END_DOC
 	description="'Depth of Coverage' per base.",
 	keywords={"depth","bam","sam","coverage","vcf"},
 	creationDate="20220420",
-	modificationDate="20220420"
+	modificationDate="20220420",
+	jvarkit_amalgamion =  true
 	)
 public class BaseCoverage extends Launcher
 	{

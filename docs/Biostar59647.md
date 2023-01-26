@@ -7,7 +7,13 @@ SAM/BAM to XML
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar59647  [options] Files
+
 Usage: biostar59647 [options] Files
   Options:
     -h, --help
@@ -37,23 +43,6 @@ Usage: biostar59647 [options] Files
 
  * [https://www.biostars.org/p/59647](https://www.biostars.org/p/59647)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar59647
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -168,4 +157,5 @@ e">0</flags>
   * http://biorxiv.org/content/early/2014/01/21/001834 "Illumina TruSeq synthetic long-reads empower de novo assembly and resolve complex, highly repetitive transposable elements"
   * "Bacterial production and direct functional screening of expanded molecular libraries for discovering inhibitors of protein aggregation" Science Advances  16 Oct 2019: Vol. 5, no. 10, eaax5108 DOI: 10.1126/sciadv.aax5108 
   * Delivoria D.C., Skretas G. (2022) The Discovery of Peptide Macrocycle Rescuers of Pathogenic Protein Misfolding and Aggregation by Integrating SICLOPPS Technology and Ultrahigh-Throughput Screening in Bacteria. In: Coppock M.B., Winton A.J. (eds) Peptide Macrocycles. Methods in Molecular Biology, vol 2371. Humana, New York, NY. https://doi.org/10.1007/978-1-0716-1689-5_12
+
 

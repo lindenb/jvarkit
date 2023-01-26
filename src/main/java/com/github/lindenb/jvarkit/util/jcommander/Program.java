@@ -45,4 +45,8 @@ public @interface Program {
 	public String creationDate() default "";
 	/** modification date , if any */
 	public String modificationDate() default "";
+	/** part of jvarkit amalgamion */
+	public boolean jvarkit_amalgamion() default false;
+	/**hidden from jvarkit amalgamion */
+	public boolean jvarkit_hidden() default false;
 }

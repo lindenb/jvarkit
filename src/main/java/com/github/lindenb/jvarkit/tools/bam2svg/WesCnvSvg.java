@@ -150,7 +150,8 @@ END_DOC
 description="SVG visualization of bam DEPTH for multiple regions",
 keywords={"bam","alignment","graphics","visualization","svg","wes","bed","capture","exome"},
 modificationDate="20210726",
-creationDate="20180726"
+creationDate="20180726",
+jvarkit_amalgamion =  true
 )
 public class WesCnvSvg  extends Launcher {
 	private static final Logger LOG = Logger.build(WesCnvSvg.class).make();

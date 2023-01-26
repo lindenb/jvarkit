@@ -89,7 +89,8 @@ END_DOC
 	keywords={"bed","gene","gtf"},
 	description="Defining precisely the exonic genomic context based on a position .",
 	modificationDate="20200603",
-	creationDate="20130918"
+	creationDate="20130918",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar81455 extends Launcher
 	{

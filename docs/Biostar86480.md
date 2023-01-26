@@ -7,8 +7,13 @@ Genomic restriction finder
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/biostar86480.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar biostar86480  [options] Files
+
 Usage: biostar86480 [options] Files
   Options:
     -E, --enzyme
@@ -51,23 +56,6 @@ Usage: biostar86480 [options] Files
  * [https://www.biostars.org/p/86480](https://www.biostars.org/p/86480)
  * [https://www.biostars.org/p/9520528](https://www.biostars.org/p/9520528)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar86480
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -132,3 +120,4 @@ chr3	105956	105962	GAATTC	1000	+	EcoRI	G^AATTC
 chr3	107451	107457	GAATTC	1000	+	EcoRI	G^AATTC
 (...)
 ```
+

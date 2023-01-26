@@ -118,7 +118,8 @@ END_DOC
 	keywords={"svg","bam","depth","coverage"},
 	creationDate="20201125",
 	modificationDate="20210812",
-	biostars={104063,475162,9536274}
+	biostars={104063,475162,9536274},
+	jvarkit_amalgamion =  true
 	)
 public class WGSCoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( WGSCoveragePlotter.class).make();

@@ -7,7 +7,13 @@ Extract PE Reads (with their mates) supporting variants in vcf file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar322664  [options] Files
+
 Usage: biostar322664 [options] Files
   Options:
     -all, --all
@@ -16,7 +22,7 @@ Usage: biostar322664 [options] Files
       attribute. 
       Default: false
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -63,23 +69,6 @@ Usage: biostar322664 [options] Files
 
  * [https://www.biostars.org/p/322664](https://www.biostars.org/p/322664)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar322664
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -135,5 +124,6 @@ RF02_827_1385_4:1:0_2:0:0_3f    163     RF02    827     60      70M     =       
 RF02_827_1292_4:0:0_1:0:0_50    163     RF02    827     60      70M     =       1223    466     TTCAATTACATTCCTGCAAGGATAAGGAATGCCGTTAACTATATACTTAATAAGGACAGAAATCTGGCAT  2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S1 NM:i:4  AS:i:51XS:i:0
 (...)
 ```
+
 
 

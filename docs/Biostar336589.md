@@ -7,7 +7,13 @@ displays circular map as SVG from BED and REF file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar336589  [options] Files
+
 Usage: biostar336589 [options] Files
   Options:
     -css, --css
@@ -93,23 +99,6 @@ Usage: biostar336589 [options] Files
  * [https://www.biostars.org/p/336589](https://www.biostars.org/p/336589)
  * [https://www.biostars.org/p/367522](https://www.biostars.org/p/367522)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar336589
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -209,5 +198,6 @@ https://twitter.com/yokofakun/status/1038060108373286912
 https://twitter.com/yokofakun/status/1039054467889590272
 
 ![https://pbs.twimg.com/media/Dmt2GyvWsAAHfvY.jpg](https://pbs.twimg.com/media/Dmt2GyvWsAAHfvY.jpg)
+
 
 

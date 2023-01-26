@@ -104,7 +104,9 @@ END_DOC
 @Program(name="biostar86363",
 	biostars=86363,
 	keywords={"sample","genotype","vcf"},
-	description="Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/")
+	description="Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/",
+	jvarkit_amalgamion =  true
+	)
 public class Biostar86363 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar86363.class).make();
@@ -117,9 +119,6 @@ public class Biostar86363 extends Launcher
 	
 	private Map<ContigPosRef,Set<String>> pos2sample=new HashMap<ContigPosRef, Set<String>>();
 
-	private Biostar86363()
-		{
-		}
 
 	@Parameter(names="-G",description="genotypes to reset. Format :CHROM(tab)POS(tab)ref(tab)SAMPLE. REQUIRED.",required=true)
 	private File genotypeFile=null;

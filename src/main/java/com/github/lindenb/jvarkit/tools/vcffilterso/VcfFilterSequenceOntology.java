@@ -155,7 +155,8 @@ END_DOC
 	description="Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used.",
 	creationDate="20170331",
 	modificationDate="20200924",
-	biostars={9474428}
+	biostars={9474428},
+	jvarkit_amalgamion =  true
 	)
 public class VcfFilterSequenceOntology
 	extends OnePassVcfLauncher

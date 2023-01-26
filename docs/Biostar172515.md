@@ -7,7 +7,13 @@ Convert BAI to XML
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar172515  [options] Files
+
 Usage: biostar172515 [options] Files
   Options:
     -h, --help
@@ -34,23 +40,6 @@ Usage: biostar172515 [options] Files
 
  * [https://www.biostars.org/p/172515](https://www.biostars.org/p/172515)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar172515
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -139,4 +128,5 @@ $ find DIR -name "*.bam" | xargs java -jar dist/biostar172515.jar  | xmllint --f
   </bam>
 </bai-list>
 ```
+
 

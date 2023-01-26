@@ -33,7 +33,8 @@ END_DOC
 @Program(name="biostar77828",
 description="Divide the human genome among X cores, taking into account gaps",
 		biostars= {77828,369434},
-		keywords={"workflow","reference","parallel"}
+		keywords={"workflow","reference","parallel"},
+		jvarkit_amalgamion =  true
 		)
 public class Biostar77828 extends Launcher
 	{

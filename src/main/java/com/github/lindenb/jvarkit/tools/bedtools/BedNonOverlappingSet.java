@@ -131,7 +131,8 @@ END_DOC
 		description="Split a Bed file into non-overlapping data set.",
 		keywords={"bed"},
 		creationDate="20180607",
-		modificationDate="20200408"
+		modificationDate="20200408",
+		jvarkit_amalgamion =  true
 		)
 public class BedNonOverlappingSet extends Launcher {
 	private static final Logger LOG = Logger.build(BedNonOverlappingSet.class).make();

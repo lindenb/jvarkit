@@ -7,7 +7,13 @@ Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcffilterso  [options] Files
+
 Usage: vcffilterso [options] Files
   Options:
     -A, --acn, --accession
@@ -88,23 +94,6 @@ Usage: vcffilterso [options] Files
 
  * [https://www.biostars.org/p/9474428](https://www.biostars.org/p/9474428)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcffilterso
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -203,5 +192,6 @@ SO:0001599	3D_polypeptide_structure_variant
  * GroupByGene
  * VCFPredictions
  * http://www.sequenceontology.org/browser/obob.cgi
+
 
 

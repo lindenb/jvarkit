@@ -7,8 +7,13 @@ Coverage statistics for a BED file, group by gene
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/bamstats05.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar bamstats05  [options] Files
+
 Usage: bamstats05 [options] Files
   Options:
   * -B, --bed
@@ -67,23 +72,6 @@ Usage: bamstats05 [options] Files
  * [https://www.biostars.org/p/194393](https://www.biostars.org/p/194393)
  * [https://www.biostars.org/p/35083](https://www.biostars.org/p/35083)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamstats05
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -148,5 +136,6 @@ $ head out.txt
 #chrom	start	end	gene	sample	length	mincov	maxcov	avg	nocoverage.bp	percentcovered
 1	179655424	179656934	ZORG	SAMPLE1	304	27	405	216.80921052631578	0	100
 ```
+
 
 

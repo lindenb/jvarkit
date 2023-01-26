@@ -7,11 +7,17 @@ introduce artificial mutation SNV in bam
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar404363  [options] Files
+
 Usage: biostar404363 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     --disable-nm
       Disable NM change. By default the value of NM is increasing to each 
@@ -56,23 +62,6 @@ Usage: biostar404363 [options] Files
  * [https://www.biostars.org/p/404363](https://www.biostars.org/p/404363)
  * [https://www.biostars.org/p/416897](https://www.biostars.org/p/416897)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar404363
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -163,4 +152,5 @@ CATAGGAAAACTAAAGGCAA
 AATAGGAAAACTAAAGGCAA
            taaaggcaa
 ```
+
 

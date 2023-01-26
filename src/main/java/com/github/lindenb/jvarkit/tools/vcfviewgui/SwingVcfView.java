@@ -158,7 +158,8 @@ description="VCFviewer using Java Swing UI",
 keywords={"vcf","visualization","swing"},
 creationDate="20210503",
 modificationDate="20210503",
-biostars=9538421
+biostars=9538421,
+jvarkit_amalgamion =  true
 )
 public class SwingVcfView extends Launcher
 	{

@@ -7,7 +7,13 @@ Pretty SAM alignments
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar prettysam  [options] Files
+
 Usage: prettysam [options] Files
   Options:
     --bamcompression
@@ -98,23 +104,6 @@ Usage: prettysam [options] Files
  * sam
  * bam
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew prettysam
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -305,5 +294,6 @@ https://twitter.com/yokofakun/status/942688906620887040
 https://twitter.com/yokofakun/status/941775073156968451
 
 ![https://twitter.com/yokofakun/status/941775073156968451](https://pbs.twimg.com/media/DRHbAN9XUAEFqdg.jpg)
+
 
 

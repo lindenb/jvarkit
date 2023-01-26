@@ -129,7 +129,8 @@ backlocate was cited in:
 	keywords={"vcf","annotation","prediction","protein"},
 	biostars={15992,116366,425422},
 	creationDate="20140619",
-	modificationDate="20190820"
+	modificationDate="20190820",
+	jvarkit_amalgamion =  true
 	)
 public class BackLocate
 	extends Launcher
@@ -356,8 +357,6 @@ public class BackLocate
 	
 	@Override
 	public int doWork(final List<String> args) {
-		PrintStream out=null;
-		BufferedReader in=null;
 		try {
 			this.referenceGenome = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 			
@@ -386,67 +385,68 @@ public class BackLocate
 
 			
 			
-			out = this.openPathOrStdoutAsPrintStream(this.outputFile);
-			
-			out.print("#User.Gene");
-        	out.print('\t');
-        	out.print("AA1");
-        	out.print('\t');
-        	out.print("petide.pos.1");
-        	out.print('\t');
-        	out.print("AA2");
-        	out.print('\t');
-        	out.print("transcript.name");
-        	out.print('\t');
-        	out.print("transcript.id");
-        	out.print('\t');
-        	out.print("transcript.strand");
-        	out.print('\t');
-        	out.print("transcript.AA");
-        	out.print('\t');
-        	out.print("index0.in.rna");
-        	out.print('\t');
-        	out.print("wild.codon");
-        	out.print('\t');
-        	out.print("potential.var.codons");
-        	out.print('\t');
-        	out.print("base.in.rna");
-        	out.print('\t');
-        	out.print("chromosome");
-        	out.print('\t');
-        	out.print("index0.in.genomic");
-        	out.print('\t');
-        	out.print("exon");
-        	if(this.printSequences)
-        		{
-        		out.print('\t');
-            	out.print("mRNA");
-            	out.print('\t');
-            	out.print("protein");
-        		}
-        	out.print('\t');
-        	out.print("messages");
-        	out.print('\t');
-        	out.print("extra.user.data");
-        	out.println();
-			if(args.isEmpty())
-				{
-				in=super.openBufferedReader(null);
-				this.run(out,in);
-				CloserUtil.close(in);
-				}
-			else
-				{
-				for(final String filename:args)
+			try(PrintStream out = this.openPathOrStdoutAsPrintStream(this.outputFile)) {	
+				out.print("#User.Gene");
+	        	out.print('\t');
+	        	out.print("AA1");
+	        	out.print('\t');
+	        	out.print("petide.pos.1");
+	        	out.print('\t');
+	        	out.print("AA2");
+	        	out.print('\t');
+	        	out.print("transcript.name");
+	        	out.print('\t');
+	        	out.print("transcript.id");
+	        	out.print('\t');
+	        	out.print("transcript.strand");
+	        	out.print('\t');
+	        	out.print("transcript.AA");
+	        	out.print('\t');
+	        	out.print("index0.in.rna");
+	        	out.print('\t');
+	        	out.print("wild.codon");
+	        	out.print('\t');
+	        	out.print("potential.var.codons");
+	        	out.print('\t');
+	        	out.print("base.in.rna");
+	        	out.print('\t');
+	        	out.print("chromosome");
+	        	out.print('\t');
+	        	out.print("index0.in.genomic");
+	        	out.print('\t');
+	        	out.print("exon");
+	        	if(this.printSequences)
+	        		{
+	        		out.print('\t');
+	            	out.print("mRNA");
+	            	out.print('\t');
+	            	out.print("protein");
+	        		}
+	        	out.print('\t');
+	        	out.print("messages");
+	        	out.print('\t');
+	        	out.print("extra.user.data");
+	        	out.println();
+				if(args.isEmpty())
 					{
-					in=super.openBufferedReader(filename);
-					this.run(out,in);
-					CloserUtil.close(in);
+					try(BufferedReader in=super.openBufferedReader(null)) {
+						this.run(out,in);
+						}
 					}
+				else
+					{
+					for(final String filename:args)
+						{
+						try(BufferedReader in=super.openBufferedReader(filename)) {
+							this.run(out,in);
+							}
+						}
+					}
+				out.flush();
 				}
 			return 0;
 			}
-		catch (final Exception e) {
+		catch (final Throwable e) {
 			LOG.severe(e);
 			return -1;
 			}
@@ -454,8 +454,6 @@ public class BackLocate
 			{
 			CloserUtil.close(this.referenceGenome);
 			this.referenceGenome=null;
-			CloserUtil.close(out);
-			CloserUtil.close(in);
 			}	
 		}
 		

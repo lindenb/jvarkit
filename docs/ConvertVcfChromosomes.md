@@ -11,7 +11,13 @@ use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT allele
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfrenamechr  [options] Files
+
 Usage: vcfrenamechr [options] Files
   Options:
     --fatal
@@ -41,23 +47,6 @@ Usage: vcfrenamechr [options] Files
  * chromosome
  * convert
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfrenamechr
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -208,5 +197,6 @@ X	17819377	.	T	C
 * [[VcfSampleRename]]
 * [[BamRenameChromosomes]]
 * http://plindenbaum.blogspot.fr/2013/07/g1kv37-vs-hg19.html
+
 
 

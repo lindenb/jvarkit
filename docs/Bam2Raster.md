@@ -7,8 +7,13 @@ BAM to raster graphics
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/bam2raster.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar bam2raster  [options] Files
+
 Usage: bam2raster [options] Files
   Options:
     -clip, --clip
@@ -98,23 +103,6 @@ Usage: bam2raster [options] Files
 
  * [https://www.biostars.org/p/252491](https://www.biostars.org/p/252491)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bam2raster
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -227,4 +215,5 @@ all2: ${IMAGES}
 ## History
 
   * 20180917 REF is now required.
+
 

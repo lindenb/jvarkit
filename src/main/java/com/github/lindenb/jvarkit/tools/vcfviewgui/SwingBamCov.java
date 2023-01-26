@@ -167,7 +167,8 @@ END_DOC
 description="Bam coverage viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate="20210420",
-modificationDate="20220513"
+modificationDate="20220513",
+jvarkit_amalgamion =  true
 )
 public class SwingBamCov extends Launcher
 	{

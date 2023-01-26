@@ -7,8 +7,13 @@ Split VCF+VEP by gene/transcript.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfgenesplitter.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfgenesplitter  [options] Files
+
 Usage: vcfgenesplitter [options] Files
   Options:
     -e, -E, --extractors
@@ -50,23 +55,6 @@ Usage: vcfgenesplitter [options] Files
  * genes
  * vcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfgenesplitter
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -146,4 +134,5 @@ RF11	73	79	ANN/GeneId	Gene_78_374	83/bc905cf311428ab80ce59aaf503838/Gene_78_374.
 
 
 ```
+
 

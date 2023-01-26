@@ -7,11 +7,17 @@ Calculate Percent Spliced In (PSI).
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar103303  [options] Files
+
 Usage: biostar103303 [options] Files
   Options:
   * -g, --gtf
-      GTF file
+      GTF file.
     -h, --help
       print help and exit
     --helpFormat
@@ -36,23 +42,6 @@ Usage: biostar103303 [options] Files
 
  * [https://www.biostars.org/p/103303](https://www.biostars.org/p/103303)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar103303
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -86,4 +75,5 @@ The current reference is:
 $   curl -s "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeCshlLongRnaSeq/wgEncodeCshlLongRnaSeqA549CellLongnonpolyaAlnRep1.bam" |\
   java -jar dist/biostar103303.jar -g "http://atgu.mgh.harvard.edu/plinkseq/dist/aux/gencodeBasicV11-hg19.gtf.gz"  > result.tsv
 ```
+
 

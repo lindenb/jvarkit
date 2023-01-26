@@ -7,7 +7,13 @@ Extract BAMs coverage as a VCF file.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar78285  [options] Files
+
 Usage: biostar78285 [options] Files
   Options:
     -B, --bed, --capture
@@ -60,23 +66,6 @@ Usage: biostar78285 [options] Files
 
  * [https://www.biostars.org/p/78285](https://www.biostars.org/p/78285)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar78285
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -148,4 +137,5 @@ rotavirus	13	.	T	.	.	DP_LT_300	AVG_DP=53.50;DP=214;FRACT_DP_LT_300=1.0;GC_PERCEN
 ## History
 
 * 20180227: moved output to VCF, printing everything, adding optional BED
+
 

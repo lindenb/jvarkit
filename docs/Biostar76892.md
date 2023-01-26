@@ -7,11 +7,17 @@ fix strand of two paired reads close but on the same strand.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar76892  [options] Files
+
 Usage: biostar76892 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -19,8 +25,8 @@ Usage: biostar76892 [options] Files
       What kind of help. One of [usage,markdown,xml].
     -d, --maxc
       distance beween two reads.A distance specified as a positive 
-      integer.Comma are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 30
     -osf, --osf
       only save pairs of reads which have been corrected by this program
@@ -48,23 +54,6 @@ Usage: biostar76892 [options] Files
 
  * [https://www.biostars.org/p/76892](https://www.biostars.org/p/76892)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar76892
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -130,4 +119,5 @@ Z:BBAABBBBAAABBBCBAABCBA@BAAAAAAABAAAAACCCBABAAAAAAACBAAAAABABA@AA@AAABBAAAAACB@
 T0G0T0G0C1G0G0T0G1C0A0G0T0T0G0C0A4C1A0T0G0C0G0T0G2G0G1C0G0T0G0A1C0G0T0G1G0C2T2T0C0G0T0G0T0A0T1       RG:Z:idp63088   XG:i:0  BI:Z:BABADDCCBBBCBBCBAABCBA@AABAAA@AAAAA@BBBB
 BAAA@AA@AABA@@A@@A@BA@@A@AA@AAAAAAABB@BAAAAAAAA@CBAAABBBBAAAA       AM:i:37 NM:i:74 SM:i:37 XM:i:0  XO:i:0  MQ:i:37 XT:A:U  rv:i:1
 ```
+
 

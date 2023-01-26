@@ -7,11 +7,17 @@ paired-end bam clip bases outside insert range
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar480685  [options] Files
+
 Usage: biostar480685 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -45,23 +51,6 @@ Usage: biostar480685 [options] Files
 
  * [https://www.biostars.org/p/480685](https://www.biostars.org/p/480685)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar480685
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -103,4 +92,5 @@ input must be sorted on read name using `samtools sort -n` or ` samtools collate
 ```
 samtools collate -O input.bam| java -jar dist/biostar480685.jar
 ```
+
 

@@ -7,8 +7,13 @@ Filter VCF using Java Swing UI and JEXL/Javascript expression
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/swingvcfjexl.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar swingvcfjexl  [options] Files
+
 Usage: swingvcfjexl [options] Files
   Options:
     -h, --help
@@ -29,23 +34,6 @@ Usage: swingvcfjexl [options] Files
  * jexl
  * javascript
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew swingvcfjexl
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -89,4 +77,5 @@ java -jar dist/swingvcfjexl.jar src/test/resources/rotavirus_rf.vcf.gz
 https://twitter.com/yokofakun/status/1514287386410336259
 
 ![https://twitter.com/yokofakun/status/1514287386410336259](https://pbs.twimg.com/media/FQPUMpbWUAgJbCs?format=png&name=900x900)
+
 

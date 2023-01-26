@@ -7,8 +7,13 @@ Extract allele specific reads from bamfiles
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/biostar214299.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar biostar214299  [options] Files
+
 Usage: biostar214299 [options] Files
   Options:
     --bamcompression
@@ -58,23 +63,6 @@ Usage: biostar214299 [options] Files
 
  * [https://www.biostars.org/p/214299](https://www.biostars.org/p/214299)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar214299
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -162,5 +150,6 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
  * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
  * Fine structure and transcription dynamics of bread wheat ribosomal DNA loci deciphered by a multi-omics approach. Z Tulpova & al.  2022.  The Plante Genome. https://doi.org/10.1002/tpg2.20191
  * Watson CM, Jackson L, Crinnion LA, et al. Long-read sequencing to resolve the parent of origin of a de novo pathogenic UBE3A variant. Journal of Medical Genetics Published Online First: 12 April 2022. doi: 10.1136/jmedgenet-2021-108314
+
 
 

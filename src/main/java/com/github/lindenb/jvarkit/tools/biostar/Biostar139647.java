@@ -99,7 +99,8 @@ END_DOC
 @Program(name="biostar139647",
 	description="Convert alignment in Fasta/Clustal format to SAM/BAM file",
 	biostars= 139647,
-	keywords={"msa","sam","bam","clustal"}
+	keywords={"msa","sam","bam","clustal"},
+	jvarkit_amalgamion =  true
 	)
 public class Biostar139647 extends Launcher
 	{

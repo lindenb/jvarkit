@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -114,6 +115,7 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamView;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfJexlFilter;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfView;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -128,17 +130,21 @@ public class JvarkitCentral {
 		Command(final Class<?> claz) {
 			this.clazz = claz;
 			}
-		
+		private Program program() {
+				return this.clazz.getAnnotation(Program.class);
+			}
 		public boolean isHidden() {
+			final Program p = program();
+			if(p!=null && p.jvarkit_hidden()) return true;
 			return hidden;
 			}
 		
 		public String getName() {
-			final Program p = this.clazz.getAnnotation(Program.class);
+			final Program p = program();
 			return p==null?this.clazz.getSimpleName().toLowerCase():p.name();
 			}
 		public String getDescription() {
-			final Program p = this.clazz.getAnnotation(Program.class);
+			final Program p = program();
 			return p==null?getName():p.description().trim();
 			}
 		void execute(final String[] args) {
@@ -151,23 +157,40 @@ public class JvarkitCentral {
 				System.exit(-1);
 				}
 			}
+		@SuppressWarnings("unused")
 		Command setHidden() {
 			this.hidden = true;
 			return this;
 			}
 		void writeDoc(final File dir) throws IOException {
-			
 			final PrintStream old = System.out;
 			final File filename = new File(dir,this.clazz.getSimpleName()+".md");
-			LOG.info("writing doc for "+getName()+" into "+filename);
+			final String[] cmd = new String[]{"--help","--helpFormat","markdown"};
+			LOG.info((filename.exists()?"over":"")+"writing doc for "+getName()+" into "+filename);
 			try (PrintStream out = new PrintStream(filename)) {
 				System.setOut(out);
-				execute(new String[]{"--help","--helpFormat","markdown"});
+				if(Launcher.class.isAssignableFrom(this.clazz)) {
+					Launcher instance= Launcher.class.cast(this.clazz.getConstructor().newInstance());
+					final int  ret= instance.instanceMain(Arrays.asList(cmd));
+					instance = null;
+					if(ret!=0) {
+						LOG.warn("return status!=0");
+						}
+					}
+				else
+					{
+					execute(cmd);
+					}
+				}
+			catch(Throwable err) {
+				LOG.error("Cannot save doc for "+getName(), err);
 				}
 			finally
 				{
 				System.setOut(old);
 				}
+					
+			
 			}
 		}
 	private final Map<String,Command> commands = new TreeMap<>();
@@ -180,7 +203,7 @@ public class JvarkitCentral {
 		return c;
 		}
 	
-	private void usage(PrintStream out) {
+	private void usage(PrintStream out,boolean showHidden) {
 		out.println("JVARKIT");
 		out.println("=======");
 		out.println();
@@ -192,21 +215,24 @@ public class JvarkitCentral {
 		out.println();
 		out.println("## Usage");
 		out.println();
-		out.println(" java -jar jvarkit.jar <command name> (other arguments)");
+		out.println("  java -jar jvarkit.jar [options]");
+		out.println("or");
+		out.println("  java -jar jvarkit.jar <command name> (other arguments)");
 		out.println();
 		out.println("## Options");
 		out.println();
 		out.println(" + --help show this screen");
+		out.println(" + --help-all show all commands, including the private ones.");
 		out.println(" + --version print version");
 		//out.println(" + --generate-doc (directory)");
 		out.println();
 		out.println("## Tools");
 		out.println();
 		final int maxlenname = this.commands.values().stream().
-				filter(P->!P.isHidden()).
+				filter(P->showHidden || !P.isHidden()).
 				mapToInt(S->S.getName().length()).max().orElse(1);
 		final int maxlendesc = this.commands.values().stream().
-				filter(P->!P.isHidden()).
+				filter(P->showHidden || !P.isHidden()).
 				mapToInt(S->S.getDescription().length()).max().orElse(1);
 
 		out.print("| ");
@@ -216,12 +242,12 @@ public class JvarkitCentral {
 		out.println(" |");
 		out.print("|-");
 		out.print(StringUtil.repeatCharNTimes('-', maxlenname));
-		out.print("-|-");
+		out.print("-+-");
 		out.print(StringUtil.repeatCharNTimes('-', maxlendesc));
 		out.print("-|");
 		out.println();
 		for(Command c: this.commands.values()) {
-			if(c.isHidden()) continue;
+			if(!showHidden && c.isHidden()) continue;
 			out.print("| ");
 			out.print(String.format("%"+maxlenname+"s",c.getName()));
 			out.print(" | ");
@@ -233,12 +259,12 @@ public class JvarkitCentral {
 	}
 	
 	private void run(String[] args) {
+		command(BackLocate.class);
 		command(BamToSVG.class);
 		command(Bam2Xml.class);
 		command(Bam2Raster.class);
 		command(BamStats05.class);
 		command(BaseCoverage.class);
-		command(BackLocate.class);
 		command(BedCluster.class);
 		command(BedNonOverlappingSet.class);
 		command(BioAlcidaeJdk.class);
@@ -284,7 +310,7 @@ public class JvarkitCentral {
 		command(CnvTView.class);
 		command(ConvertBamChromosomes.class);
 		command(ConvertBedChromosomes.class);
-		command(ConvertVcfChromosomes.class).setHidden();
+		command(ConvertVcfChromosomes.class);
 		command(CoveragePlotter.class);
 		command(FindGVCFsBlocks.class);
 		command(GtfToBed.class);
@@ -310,14 +336,13 @@ public class JvarkitCentral {
 		command(VcfRebase.class);
 		command(VcfHead.class);
 		command(VcfTail.class);
-		command(VcfTail.class);
 		command(VcfGeneSplitter.class);
 		command(VcfSplitNVariants.class);
 		command(WesCnvSvg.class);
 		command(WGSCoveragePlotter.class);
 		
 		if(args.length==0) {
-			usage(System.err);
+			usage(System.err,false);
 			return;
 		}
 		if(args[0].equals("--version") || args[0].equals("-v")) {
@@ -325,10 +350,13 @@ public class JvarkitCentral {
 			return;
 		}
 		if(args[0].equals("--help") || args[0].equals("-h")) {
-			usage(System.out);
+			usage(System.out, false);
 			return;
 			}
-		
+		if(args[0].equals("--help-all")) {
+			usage(System.out, true);
+			return;
+			}
 		if(args.length==2 && args[0].equals("--generate-doc")) {
 			final File dir = new File(args[1]);
 			IOUtil.assertDirectoryIsWritable(dir);

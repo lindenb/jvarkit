@@ -135,7 +135,8 @@ END_DOC
 	keywords={"sam","bam","table","cram","tsv"},
 	biostars={157232,59647,253828,264875,277493},
 	modificationDate="20210304",
-	creationDate="20170712"
+	creationDate="20170712",
+	jvarkit_amalgamion =  true
 	)
 public class Sam2Tsv
 	extends MultiBamLauncher

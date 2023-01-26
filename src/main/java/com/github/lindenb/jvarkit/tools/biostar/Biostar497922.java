@@ -88,7 +88,8 @@ END_DOC
 		keywords={"vcf"},
 		biostars=497922,
 		modificationDate="20210319",
-		creationDate="20210319"
+		creationDate="20210319",
+		jvarkit_amalgamion =  true
 		)
 public class Biostar497922 extends Launcher
 	{

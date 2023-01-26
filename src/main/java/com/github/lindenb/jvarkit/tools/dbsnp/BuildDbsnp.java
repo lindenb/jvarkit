@@ -102,7 +102,8 @@ END_DOC
 	description="Build a DBSNP file from different sources for GATK",
 	keywords={"vcf","dbsnp"},
 	creationDate="20200904",
-	modificationDate="2021070726"
+	modificationDate="2021070726",
+	jvarkit_amalgamion =  true
 	)
 public class BuildDbsnp extends Launcher {
 	private static Logger LOG=Logger.build(BuildDbsnp.class).make();

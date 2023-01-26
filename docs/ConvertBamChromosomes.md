@@ -7,8 +7,13 @@ Convert the names of the chromosomes in a BAM file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/bamrenamechr.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar bamrenamechr  [options] Files
+
 Usage: bamrenamechr [options] Files
   Options:
     --bamcompression
@@ -57,23 +62,6 @@ Usage: bamrenamechr [options] Files
  * [https://www.biostars.org/p/13462](https://www.biostars.org/p/13462)
  * [https://www.biostars.org/p/9479387](https://www.biostars.org/p/9479387)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamrenamechr
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -164,5 +152,6 @@ x6	0	CHROM2	14	30	23M	*	0	0	TAATTAAGTCTACAGAGCAACTA	???????????????????????
 ## history
 
   * 20180612 : rewrote it, using a output Dict, handle the SA tag
+
 
 

@@ -71,7 +71,8 @@ NG|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;Inb
 		description="print the first variants of a vcf",
 		keywords={"vcf"},
 		modificationDate="20200518",
-		creationDate="20131210"
+		creationDate="20131210",
+		jvarkit_amalgamion = true
 		)
 public class VcfHead extends OnePassVcfLauncher
 	{

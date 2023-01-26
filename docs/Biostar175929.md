@@ -7,8 +7,13 @@ Construct a combination set of fasta sequences from a vcf
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/biostar175929.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar biostar175929  [options] Files
+
 Usage: biostar175929 [options] Files
   Options:
     -b, --bracket
@@ -45,23 +50,6 @@ Usage: biostar175929 [options] Files
 
  * [https://www.biostars.org/p/175929](https://www.biostars.org/p/175929)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar175929
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -171,6 +159,7 @@ aagattatgacagaacattttt[T]atgttaaaaggactgttgaagcaatgcaactatga
 atatgcata[A]tg
 
 ```
+
 
 
 

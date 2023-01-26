@@ -78,7 +78,9 @@ description="convert sam format to axt Format",
 biostars=170742,
 modificationDate="20210412",
 creationDate="20151228",
-keywords={"sam","axt"})
+keywords={"sam","axt"},
+jvarkit_amalgamion =  true
+)
 public class Biostar170742 extends MultiBamLauncher {
 
 	private static final Logger LOG = Logger.build(Biostar170742.class).make();

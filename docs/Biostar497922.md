@@ -7,7 +7,13 @@ Split VCF into separate VCFs by SNP count
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar497922  [options] Files
+
 Usage: biostar497922 [options] Files
   Options:
     --bcf-output
@@ -25,7 +31,7 @@ Usage: biostar497922 [options] Files
     -d, --distance
       max distance beween consecutive variants (ignore if <=0) . A distance 
       specified as a positive integer.Commas are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: -1
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
@@ -40,7 +46,7 @@ Usage: biostar497922 [options] Files
     -D, --length
       max distance beween first and last variant (ignore if <=0) . A distance 
       specified as a positive integer.Commas are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: -1
     -m, --manifest
       output manifest to this file.
@@ -65,23 +71,6 @@ Usage: biostar497922 [options] Files
 
  * [https://www.biostars.org/p/497922](https://www.biostars.org/p/497922)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar497922
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -117,6 +106,23 @@ The current reference is:
 ## Example
 
 ```
+$ java -jar dist/biostar497922.jar -n 10 -o TMP src/test/resources/rotavirus_rf.vcf.gz
+[INFO][Biostar497922]Writing TMP/split.000001.vcf.gz
+[INFO][Biostar497922]Writing TMP/split.000002.vcf.gz
+[INFO][Biostar497922]Writing TMP/split.000003.vcf.gz
+[INFO][Biostar497922]Writing TMP/split.000004.vcf.gz
+[INFO][Biostar497922]Writing TMP/split.000005.vcf.gz
+[INFO][Biostar497922]. Completed. N=45. That took:0 second
+
+
+t$ find TMP/ -type f -name "*.vcf.gz" | sort | while read F; do echo -n "$F " && gunzip -c $F | grep -v "#" | wc -l  ; done
+TMP/split.000001.vcf.gz 10
+TMP/split.000002.vcf.gz 10
+TMP/split.000003.vcf.gz 10
+TMP/split.000004.vcf.gz 10
+TMP/split.000005.vcf.gz 5
+
 ```
+
 
 

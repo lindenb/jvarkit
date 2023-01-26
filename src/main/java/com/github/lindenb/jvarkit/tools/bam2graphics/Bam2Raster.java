@@ -179,7 +179,8 @@ END_DOC
 @Program(name="bam2raster",
 	description="BAM to raster graphics",
 	keywords={"bam","alignment","graphics","visualization","png"},
-	biostars=252491
+	biostars=252491,
+	jvarkit_amalgamion =  true
 	)
 public class Bam2Raster extends AbstractBam2Raster
 	{

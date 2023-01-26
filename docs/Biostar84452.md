@@ -7,8 +7,13 @@ remove clipped bases from a BAM file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/biostar84452.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar biostar84452  [options] Files
+
 Usage: biostar84452 [options] Files
   Options:
     --bamcompression
@@ -44,23 +49,6 @@ Usage: biostar84452 [options] Files
 
  * [https://www.biostars.org/p/84452](https://www.biostars.org/p/84452)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar84452
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -116,4 +104,5 @@ r002	0	ref	9	30	1S2I6M1P1I1P1I4M2I	*	0	0	AAAAGATAAGGGATAAA	*
 ## See also
 
 * https://twitter.com/EugenomeUK/status/938031803612491776
+
 

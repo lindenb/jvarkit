@@ -125,7 +125,8 @@ END_DOC
 @Program(name="biostar172515",
 description="Convert BAI to XML",
 biostars=172515,
-keywords={"bai","bam","xml"}
+keywords={"bai","bam","xml"},
+jvarkit_amalgamion =  true
 )
 public class Biostar172515 extends Launcher
 	{

@@ -100,7 +100,8 @@ END_DOC
 	biostars={154220,9471266},
 	keywords={"bam","sam","coverage","depth"},
 	modificationDate="20210312",
-	creationDate="20150812"
+	creationDate="20150812",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar154220 extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(Biostar154220.class).make();

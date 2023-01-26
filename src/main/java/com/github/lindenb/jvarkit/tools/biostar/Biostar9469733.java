@@ -57,7 +57,8 @@ description="Extract reads mapped within chosen intronic region from BAM file",
 keywords= {"sam","bam","rnaseq","bed"},
 creationDate="20210511",
 modificationDate="20210511",
-biostars=9469733
+biostars=9469733,
+jvarkit_amalgamion =  true
 )
 public class Biostar9469733 extends OnePassBamLauncher
 	{

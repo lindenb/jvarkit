@@ -7,7 +7,13 @@ Low resolution sequence alignment visualization
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar77288  [options] Files
+
 Usage: biostar77288 [options] Files
   Options:
     -h, --help
@@ -22,10 +28,10 @@ Usage: biostar77288 [options] Files
       Input is seqLogo
       Default: false
     -W
-       Alignment width
+      Alignment width
       Default: 1000
     -r
-      Use Rect
+      Use Rectangle.
       Default: false
 
 ```
@@ -45,23 +51,6 @@ Usage: biostar77288 [options] Files
 
  * [https://www.biostars.org/p/77288](https://www.biostars.org/p/77288)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar77288
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -100,5 +89,6 @@ curl -s "http://www.tcoffee.org/Courses/Exercises/saragosa_pb_2010/practicals/pr
 	java -jar dist/biostar77288.jar  > result.svg
 ```
 ![ScreenShot](https://raw.github.com/lindenb/jvarkit/master/doc/biostar77288.png)
+
 
 

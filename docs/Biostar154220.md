@@ -7,8 +7,13 @@ Cap BAM to a given coverage
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/biostar154220.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar biostar154220  [options] Files
+
 Usage: biostar154220 [options] Files
   Options:
     --bamcompression
@@ -74,23 +79,6 @@ Usage: biostar154220 [options] Files
  * [https://www.biostars.org/p/154220](https://www.biostars.org/p/154220)
  * [https://www.biostars.org/p/9471266](https://www.biostars.org/p/9471266)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar154220
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -163,5 +151,6 @@ $ samtools mpileup output.bam  | cut -f 4 | sort | uniq -c
 ## Cited in
 
   * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0
+
 
 

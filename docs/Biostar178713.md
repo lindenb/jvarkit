@@ -7,13 +7,19 @@ split bed file into several bed files where each region is separated of any othe
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar178713  [options] Files
+
 Usage: biostar178713 [options] Files
   Options:
     -d, --distance
       Distance between bed features.A distance specified as a positive 
-      integer.Comma are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 100
     -h, --help
       print help and exit
@@ -38,22 +44,10 @@ Usage: biostar178713 [options] Files
  * [https://www.biostars.org/p/178713](https://www.biostars.org/p/178713)
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar178713
-```
-
-The java jar file will be installed in the `dist` directory.
+20160226
 
 ## Source code 
 
@@ -86,4 +80,5 @@ The current reference is:
 ```
 java -jar dist/biostar178713.jar -d 100000 -o out.zip in1.bed in2.bed 
 ```
+
 

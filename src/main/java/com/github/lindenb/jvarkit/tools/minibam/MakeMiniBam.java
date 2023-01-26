@@ -126,7 +126,8 @@ No errors detected in compressed data of out.zip.
 		description="Creates an archive of small bams with only a few regions.",
 		keywords={"bam","sam"},
 		creationDate="20190410",
-		modificationDate="20221019"
+		modificationDate="20221019",
+		jvarkit_amalgamion =  true
 		)
 public class MakeMiniBam extends Launcher {
 	private static final Logger LOG = Logger.build(MakeMiniBam.class).make();

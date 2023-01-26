@@ -7,7 +7,13 @@ Convert the names of the chromosomes in a Bed file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bedrenamechr  [options] Files
+
 Usage: bedrenamechr [options] Files
   Options:
     -c, --column
@@ -47,23 +53,6 @@ Usage: bedrenamechr [options] Files
  * contig
  * convert
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bedrenamechr
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -113,4 +102,5 @@ uc022cpg.1	Y	+	59354984	59358336	59355427	59358045	7	59354984,59355369,59355682,
 uc011ncc.1	Y	-	59358328	59360854	59358328	59358328	3	59358328,59360006,59360500,	59359508,59360115,59360854,	uc011ncc.1
 
 ```
+
 

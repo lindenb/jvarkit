@@ -143,7 +143,8 @@ END_DOC
 	keywords={"cnv","bam","depth","coverage","svg"},
 	creationDate="20200605",
 	modificationDate="20221125",
-	biostars = 9536274
+	biostars = 9536274,
+	jvarkit_amalgamion =  true
 	)
 public class CoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( CoveragePlotter.class).make();

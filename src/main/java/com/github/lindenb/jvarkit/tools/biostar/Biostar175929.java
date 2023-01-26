@@ -133,7 +133,8 @@ END_DOC
 	biostars=175929,
 	keywords={"fasta","vcf"},
 	creationDate="20160208",
-	modificationDate="20211012"
+	modificationDate="20211012",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar175929 extends Launcher
 	{

@@ -7,7 +7,13 @@ Programming language use distribution from recent programs / articles
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar pubmedcodinglang  [options] Files
+
 Usage: pubmedcodinglang [options] Files
   Options:
     -c, --common
@@ -39,23 +45,6 @@ Usage: pubmedcodinglang [options] Files
 
  * [https://www.biostars.org/p/251002](https://www.biostars.org/p/251002)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew pubmedcodinglang
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -146,4 +135,5 @@ plot 'table.txt' using 2:xtic(1), for [i=3:N] '' using i;
 ## See also
 
 * https://gist.github.com/lindenb/83196adbb034ef5874086d10dd9772ac 
+
 

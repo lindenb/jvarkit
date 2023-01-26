@@ -7,8 +7,13 @@ VCFviewer using Java Swing UI
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/swingvcfview.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar swingvcfview  [options] Files
+
 Usage: swingvcfview [options] Files
   Options:
     --gff, --gff3
@@ -45,23 +50,6 @@ Usage: swingvcfview [options] Files
 
  * [https://www.biostars.org/p/9538421](https://www.biostars.org/p/9538421)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew swingvcfview
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -103,4 +91,5 @@ java -jar dist/swingvcfview.jar input.vcf.gz
 ## Screenshot
 
  * https://twitter.com/yokofakun/status/1392173413079322625
+
 

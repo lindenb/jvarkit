@@ -140,7 +140,8 @@ END_DOC
 	keywords= {"sam","bam","xml"},
 	biostars=59647,
 	creationDate="20131112",
-	modificationDate="20190926"
+	modificationDate="20190926",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar59647 extends Launcher
 	{

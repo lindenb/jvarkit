@@ -7,11 +7,17 @@ Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the sa
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar352930  [options] Files
+
 Usage: biostar352930 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -40,23 +46,6 @@ Usage: biostar352930 [options] Files
 
  * [https://www.biostars.org/p/352930](https://www.biostars.org/p/352930)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar352930
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -133,5 +122,6 @@ A00223:8:H7YG3DMXX:1:1101:15881:12242	272	chr7	6776900	0	151M	*	0	0	TCTAGGACAGAA
 ```
 
 the read `A00223:8:H7YG3DMXX:1:1101:1163:35383` is now fixed.
+
 
 

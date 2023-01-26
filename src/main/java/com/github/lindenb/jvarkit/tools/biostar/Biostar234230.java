@@ -86,7 +86,8 @@ END_DOC
 	description="Sliding Window : discriminate partial and fully contained fragments (from a bam file)",
 	biostars=234230,
 	keywords= {"sam","bam"},
-	modificationDate="20190417"
+	modificationDate="20190417",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar234230 extends Launcher
 	{

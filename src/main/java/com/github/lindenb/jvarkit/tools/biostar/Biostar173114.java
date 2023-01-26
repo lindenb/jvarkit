@@ -86,7 +86,9 @@ END_DOC
 
 @Program(name="biostar173114",
 	description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/",
-	keywords= {"sam","bam"})
+	keywords= {"sam","bam"},
+	jvarkit_amalgamion =  true
+	)
 public class Biostar173114 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar173114.class).make();

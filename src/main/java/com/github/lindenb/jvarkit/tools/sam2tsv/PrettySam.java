@@ -248,7 +248,8 @@ description="Pretty SAM alignments",
 references="PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853798.v1](https://doi.org/10.6084/m9.figshare.5853798.v1)",
 keywords={"sam","bam"},
 creationDate="20171215",
-modificationDate="20211105"
+modificationDate="20211105",
+jvarkit_amalgamion =  true
 )
 public class PrettySam extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();

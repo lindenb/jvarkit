@@ -125,7 +125,8 @@ END_DOC
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
 		modificationDate="20220914",
-		biostars= {424828}
+		biostars= {424828},
+		jvarkit_amalgamion =  true
 		)
 public class BedCluster
 	extends Launcher

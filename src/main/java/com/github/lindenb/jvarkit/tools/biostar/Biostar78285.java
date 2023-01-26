@@ -141,7 +141,9 @@ END_DOC
 @Program(name="biostar78285",
 	biostars=78285,
 	keywords={"sam","bam","depth","coverage"},
-	description="Extract BAMs coverage as a VCF file.")
+	description="Extract BAMs coverage as a VCF file.",
+	jvarkit_amalgamion =  true
+	)
 public class Biostar78285 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar78285.class).make();

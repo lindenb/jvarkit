@@ -7,8 +7,13 @@ Convert GTF/GFF3 to BED.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/gtf2bed.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar gtf2bed  [options] Files
+
 Usage: gtf2bed [options] Files
   Options:
     -c, --columns
@@ -40,23 +45,6 @@ Usage: gtf2bed [options] Files
  * gff3
  * bed
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew gtf2bed
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -102,4 +90,5 @@ $ java -jar ${JVARKIT_DIST}/gtf2bed.jar --columns gtf.feature,gene_name,gene_bio
 1       120460287  120460385  exon             NOTCH2     protein_coding  ENSG00000134250
 1       120461028  120461176  CDS              NOTCH2     protein_coding  ENSG00000134250
 ```
+
 

@@ -7,7 +7,13 @@ Creates a Gephi-gexf graph of references-cites for a given PMID
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar pubmedgraph  [options] Files
+
 Usage: pubmedgraph [options] Files
   Options:
     -b, --backward
@@ -42,23 +48,6 @@ Usage: pubmedgraph [options] Files
  * xml
  * graph
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew pubmedgraph
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -139,4 +128,5 @@ $ java -jar dist/pubmedgraph.jar -d 0 15047801
         <attvalues>
           <attvalue for="0" value="11875511"/>
 ```
+
 

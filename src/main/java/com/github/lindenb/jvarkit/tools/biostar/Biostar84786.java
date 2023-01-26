@@ -60,7 +60,8 @@ END_DOC
 @Program(name="biostar84786",
 	biostars=84786,
 	description="Matrix transposition",
-	keywords={"matrix","util"}
+	keywords={"matrix","util"},
+	jvarkit_amalgamion =  true
 	)
 public class Biostar84786 extends Launcher
 	{
@@ -122,11 +123,6 @@ public class Biostar84786 extends Launcher
 			}
 		}
 
-	private Biostar84786()
-		{
-		
-		}
-	
 	
 	private int doWork(String filename,final String DELIM,PrintWriter pw) {
 		if(DELIM.length()!=1)

@@ -7,7 +7,13 @@ Mapping a mutation on a protein back to the genome.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar backlocate  [options] Files
+
 Usage: backlocate [options] Files
   Options:
   * -g, --gtf
@@ -47,23 +53,6 @@ Usage: backlocate [options] Files
  * [https://www.biostars.org/p/116366](https://www.biostars.org/p/116366)
  * [https://www.biostars.org/p/425422](https://www.biostars.org/p/425422)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew backlocate
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -157,3 +146,4 @@ backlocate was cited in:
  * CRISPR-STOP: gene silencing through base-editing-induced nonsense mutations. 2017 Nat Meth. [http://dx.doi.org/10.1038/nmeth.4327](http://dx.doi.org/10.1038/nmeth.4327).
  * "Differential 3' Processing of Specific Transcripts Expands Regulatory and Protein Diversity Across Neuronal Cell Types" Sasa Jereb, Hun-Way Hwang, Eric Van Otterloo, Eve-Ellen Govek, John J Fak, Yuan Yuan, Mary E Hatten, Robert B Darnell BioRxiv [https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf](https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf)
  
+

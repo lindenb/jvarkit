@@ -82,7 +82,8 @@ END_DOC
 @Program(name="biostar103303",
 description="Calculate Percent Spliced In (PSI).",
 keywords= {"sam","bam","psi"},
-biostars=103303
+biostars=103303,
+jvarkit_amalgamion =  true
 )
 public class Biostar103303 extends Launcher
 	{

@@ -77,7 +77,8 @@ END_DOC
 	description="Number of repeated REF bases around POS.",
 	keywords={"vcf","repeat"},
 	creationDate="20200930",
-	modificationDate="20211102"
+	modificationDate="20211102",
+	jvarkit_amalgamion =  true
 	)
 public class VCFPolyX extends OnePassVcfLauncher
 	{

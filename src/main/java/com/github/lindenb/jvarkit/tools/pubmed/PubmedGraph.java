@@ -120,7 +120,8 @@ END_DOC
 	description="Creates a Gephi-gexf graph of references-cites for a given PMID",
 	keywords={"pubmed","xml","graph"},
 	creationDate="20150605",
-	modificationDate="20200220"
+	modificationDate="20200220",
+	jvarkit_amalgamion =  true
 )
 public class PubmedGraph extends Launcher
 	{

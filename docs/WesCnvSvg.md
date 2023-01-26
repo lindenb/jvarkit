@@ -7,8 +7,13 @@ SVG visualization of bam DEPTH for multiple regions
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/wescnvsvg.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar wescnvsvg  [options] Files
+
 Usage: wescnvsvg [options] Files
   Options:
     -css, --css
@@ -80,23 +85,6 @@ Usage: wescnvsvg [options] Files
  * capture
  * exome
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew wescnvsvg
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -185,5 +173,6 @@ https://twitter.com/yokofakun/status/1057625407913111557
 https://twitter.com/yokofakun/status/1180046139502059521
 
 ![ScreenShot](https://pbs.twimg.com/media/EGBdtO7WoAEHjEE?format=jpg&name=small)
+
 
 

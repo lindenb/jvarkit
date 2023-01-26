@@ -7,7 +7,13 @@ Split individual VCF files from multisamples VCF file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar130456  [options] Files
+
 Usage: biostar130456 [options] Files
   Options:
     --bcf-output
@@ -67,23 +73,6 @@ Usage: biostar130456 [options] Files
  * [https://www.biostars.org/p/130456](https://www.biostars.org/p/130456)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar130456
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -142,4 +131,5 @@ chr2	130	microsat1	GTC	G,GTCT	50	PASS	AA=G;DP=9;NS=3	GT:DP:GQ	1/1:3:40
 ## See also
 
  * GATK SelectVariants with option -sn , or bcftools view --samples-file
+
 

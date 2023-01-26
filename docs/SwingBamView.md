@@ -7,8 +7,13 @@ Read viewer using Java Swing UI
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/swingbamview.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar swingbamview  [options] Files
+
 Usage: swingbamview [options] Files
   Options:
     -h, --help
@@ -34,23 +39,6 @@ Usage: swingbamview [options] Files
  * visualization
  * swing
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew swingbamview
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -93,4 +81,5 @@ java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa src/test/r
 find dir -type f -name "*.bam" > out.list
 java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa out.list
 ```
+
 

@@ -113,7 +113,8 @@ END_DOC
 @Program(name="biostar352930",
 	description="Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the same name carrying this information.",
 	keywords= {"sam","bam"},
-	biostars=352930
+	biostars=352930,
+	jvarkit_amalgamion =  true
 	)
 public class Biostar352930 extends Launcher
 	{

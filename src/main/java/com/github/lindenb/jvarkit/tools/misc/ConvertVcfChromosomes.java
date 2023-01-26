@@ -184,7 +184,8 @@ END_DOC
 	description="Convert the names of the chromosomes in a VCF file",
 	keywords={"vcf","contig","chromosome","convert"},
 	deprecatedMsg="use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ?)",
-	modificationDate="20190411"
+	modificationDate="20190411",
+	jvarkit_amalgamion =  true
 	)
 public class ConvertVcfChromosomes extends Launcher {
 	private static final Logger LOG = Logger.build(ConvertVcfChromosomes.class).make();

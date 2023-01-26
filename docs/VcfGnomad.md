@@ -7,7 +7,13 @@ Peek annotations from gnomad
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfgnomad  [options] Files
+
 Usage: vcfgnomad [options] Files
   Options:
     --bcf-output
@@ -20,7 +26,7 @@ Usage: vcfgnomad [options] Files
       When we're looking for variant in a lare VCF file, load the variants in 
       an interval of 'N' bases instead of doing a random access for each 
       variant. A distance specified as a positive integer.Commas are removed. 
-      The following suffixes are interpreted : b,bp,k,kb,m,mb
+      The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10000
     -F, --fields
       AF fields to peek-up from gnomad. Space/comma/semicolon separated
@@ -60,23 +66,6 @@ Usage: vcfgnomad [options] Files
  * annotation
  * gnomad
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfgnomad
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -120,4 +109,5 @@ The tool was redesigned on July 2nd, 2020.
 ```
 java -jar dist/vcfgnomad.jar -g src/test/resources/gnomad.genomes.r2.0.1.sites.1.vcf.gz src/test/resources/test_vcf01.vcf
 ```
+
 

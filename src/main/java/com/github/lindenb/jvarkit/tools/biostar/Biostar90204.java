@@ -81,7 +81,8 @@ END_DOC
 @Program(name="biostar90204",
 	keywords={"sam","bam","split","util"},
 	description="Bam version of linux split.",
-	biostars=90204
+	biostars=90204,
+	jvarkit_amalgamion =  true
 	)
 public class Biostar90204 extends Launcher
 	{
@@ -101,9 +102,6 @@ public class Biostar90204 extends Launcher
 	
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
-	
-	
-	Biostar90204() { }
 	
 	@Override
 	public int doWork(final List<String> args) {

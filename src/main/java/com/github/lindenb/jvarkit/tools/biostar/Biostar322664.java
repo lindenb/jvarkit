@@ -103,7 +103,8 @@ END_DOC
 @Program(name="biostar322664",
 	description="Extract PE Reads (with their mates) supporting variants in vcf file",
 	keywords= {"sam","bam","vcf"},
-	biostars=322664
+	biostars=322664,
+	jvarkit_amalgamion =  true
 	)
 public class Biostar322664 extends Launcher
 	{

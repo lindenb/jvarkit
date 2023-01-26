@@ -7,8 +7,13 @@ Bam coverage viewer using Java Swing UI
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/swingbamcov.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar swingbamcov  [options] Files
+
 Usage: swingbamcov [options] Files
   Options:
     --bed
@@ -48,23 +53,6 @@ Usage: swingbamcov [options] Files
  * visualization
  * swing
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew swingbamcov
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -108,4 +96,5 @@ java -jar dist/swingbamcov.jar -R ref.fa *.bam
  * https://twitter.com/yokofakun/status/1392173415684100105
  * https://twitter.com/yokofakun/status/1443187891480502279
  * https://twitter.com/yokofakun/status/1443208754229563392
+
 

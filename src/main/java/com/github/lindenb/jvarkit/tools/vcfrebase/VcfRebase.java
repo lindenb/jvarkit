@@ -105,7 +105,8 @@ $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resou
 	description="Restriction sites overlaping variations in a vcf",
 	keywords={"vcf","rebase","restriction","enzyme"},
 	creationDate="20131115",
-	modificationDate="20200624"
+	modificationDate="20200624",
+	jvarkit_amalgamion =  true
 	)
 public class VcfRebase extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfRebase.class).make();

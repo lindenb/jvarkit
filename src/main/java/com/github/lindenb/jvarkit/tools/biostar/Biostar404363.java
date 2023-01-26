@@ -130,7 +130,8 @@ END_DOC
 	description="introduce artificial mutation SNV in bam",
 	biostars= {404363,416897},
 	creationDate="20191023",
-	modificationDate="20191024"
+	modificationDate="20191024",
+	jvarkit_amalgamion =  true
 	)
 public class Biostar404363 extends Launcher {
 	

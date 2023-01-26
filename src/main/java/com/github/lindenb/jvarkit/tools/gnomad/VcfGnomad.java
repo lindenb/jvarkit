@@ -84,7 +84,8 @@ END_DOC
 	description="Peek annotations from gnomad",
 	keywords={"vcf","annotation","gnomad"},
 	modificationDate="20200702",
-	creationDate="20170407"
+	creationDate="20170407",
+	jvarkit_amalgamion =  true
 )
 public class VcfGnomad extends OnePassVcfLauncher {
 	

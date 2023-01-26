@@ -7,7 +7,13 @@ Split a XML file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar165777  [options] Files
+
 Usage: biostar165777 [options] Files
   Options:
     -N, --count
@@ -31,23 +37,6 @@ Usage: biostar165777 [options] Files
 
  * xml
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar165777
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -98,3 +87,4 @@ out004.xml:20
 out005.xml:20
 
 ```
+

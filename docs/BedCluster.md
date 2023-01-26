@@ -7,8 +7,13 @@ Clusters a BED file into a set of BED files.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/bedcluster.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar bedcluster  [options] Files
+
 Usage: bedcluster [options] Files
   Options:
     -C, --contig, --chromosome
@@ -75,23 +80,6 @@ Usage: bedcluster [options] Files
 
  * [https://www.biostars.org/p/424828](https://www.biostars.org/p/424828)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bedcluster
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -170,5 +158,6 @@ Archive:  jeter.zip
 1	37627163	37627235
 1	38021842	38022108
 ```
+
 
 

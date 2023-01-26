@@ -7,14 +7,22 @@ Sliding Window : discriminate partial and fully contained fragments (from a bam 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar234230  [options] Files
+
 Usage: biostar234230 [options] Files
   Options:
     -filter, --filter
       A filter expression. Reads matching the expression will be filtered-out. 
       Empty String means 'filter out nothing/Accept all'. See https://github.com/lindenb/jvarkit/blob/master/src/main/resources/javacc/com/github/lindenb/jvarkit/util/bio/samfilter/SamFilterParser.jj 
-      for a complete syntax.
-      Default: mapqlt(1) || MapQUnavailable() || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
+      for a complete syntax. 'default' is 'mapqlt(1) || Duplicate() || 
+      FailsVendorQuality() || NotPrimaryAlignment() || 
+      SupplementaryAlignment()' 
+      Default: mapqlt(1) || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()
     -h, --help
       print help and exit
     --helpFormat
@@ -24,36 +32,29 @@ Usage: biostar234230 [options] Files
     --version
       print version and exit
     -s, --winshift
-      Shift each window by 's' bases
+      Shift each window by 's' bases.A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 50
     -w, --winsize
-      Window size
+      Window size. A distance specified as a positive integer.Commas are 
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 100
 
 ```
+
+
+## Keywords
+
+ * sam
+ * bam
+
 
 
 ## See also in Biostars
 
  * [https://www.biostars.org/p/234230](https://www.biostars.org/p/234230)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar234230
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -100,6 +101,7 @@ $ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20110915_C
 (...)
 
 ```
+
 
 
 

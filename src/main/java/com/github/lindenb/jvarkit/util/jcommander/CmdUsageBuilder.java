@@ -303,8 +303,17 @@ public  class CmdUsageBuilder
 				
 			
 			
-			sb.append("\n## Usage\n\n```\n");
-			sb.append("Usage: java -jar dist/"+getProgram().name() +".jar  [options] Files\n");
+			sb.append("\n## Usage\n\n");
+			if(getProgram().jvarkit_amalgamion()) {
+				sb.append("\nThis program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.\n\n");
+				sb.append("\n```\n");
+				sb.append("Usage: java -jar dist/jvarkit.jar "+getProgram().name() +"  [options] Files\n");
+				sb.append("\n");
+				}
+			else
+				{
+				sb.append("```\nUsage: java -jar dist/"+getProgram().name() +".jar  [options] Files\n");
+				}
 			jc.usage(sb);
 			sb.append("\n```\n\n");
 
@@ -324,23 +333,26 @@ public  class CmdUsageBuilder
 			
 				{
 				final String progName=(!hasProgram()?"software":getProgram().name());
-				sb.append("## Compilation\n");
-				sb.append("\n");
-				sb.append("### Requirements / Dependencies\n");
-				sb.append("\n");
-				sb.append("* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
-				sb.append("\n");
-				sb.append("\n");
-				sb.append("### Download and Compile\n");
-				sb.append("\n");
-				sb.append("```bash\n");
-				sb.append("$ git clone \"https://github.com/lindenb/jvarkit.git\"\n");
-				sb.append("$ cd jvarkit\n");
-				sb.append("$ ./gradlew "+progName+"\n");
-				sb.append("```\n");
-				sb.append("\n");
-				sb.append("The java jar file will be installed in the `dist` directory.\n");
-				sb.append("\n");
+
+				if(!getProgram().jvarkit_amalgamion()) {
+					sb.append("## Compilation\n");
+					sb.append("\n");
+					sb.append("### Requirements / Dependencies\n");
+					sb.append("\n");
+					sb.append("* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
+					sb.append("\n");
+					sb.append("\n");
+					sb.append("### Download and Compile\n");
+					sb.append("\n");
+					sb.append("```bash\n");
+					sb.append("$ git clone \"https://github.com/lindenb/jvarkit.git\"\n");
+					sb.append("$ cd jvarkit\n");
+					sb.append("$ ./gradlew "+progName+"\n");
+					sb.append("```\n");
+					sb.append("\n");
+					sb.append("The java jar file will be installed in the `dist` directory.\n");
+					sb.append("\n");
+					}
 				
 				if(hasProgram() && !StringUtils.isBlank(getProgram().creationDate()))
 					{

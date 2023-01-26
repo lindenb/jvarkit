@@ -135,7 +135,8 @@ description="Filter VCF using Java Swing UI and JEXL/Javascript expression",
 keywords={"vcf","visualization","swing","jexl","javascript"},
 creationDate="20220413",
 modificationDate="20220414",
-generate_doc=true
+generate_doc=true,
+jvarkit_amalgamion =  true
 )
 public class SwingVcfJexlFilter extends Launcher {
 	private static final Logger LOG = Logger.build(SwingVcfJexlFilter.class).make();

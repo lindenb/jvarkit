@@ -68,7 +68,8 @@ END_DOC
 @Program(name="biostar77288",
 	description="Low resolution sequence alignment visualization",
 	biostars=77288,
-	keywords={"bam","sam","visualization","svg","alignment"}
+	keywords={"bam","sam","visualization","svg","alignment"},
+	jvarkit_amalgamion =  true
 	)
 public class Biostar77288 extends Launcher
     {

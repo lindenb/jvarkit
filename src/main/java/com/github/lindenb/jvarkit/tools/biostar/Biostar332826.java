@@ -65,7 +65,8 @@ description="Fast Extraction of Variants from a list of IDs",
 keywords= {"vcf","rs","id"},
 modificationDate="20210412",
 creationDate="20180817",
-biostars={332826,433062}
+biostars={332826,433062},
+jvarkit_amalgamion =  true
 )
 public class Biostar332826 extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(Biostar332826.class).make();

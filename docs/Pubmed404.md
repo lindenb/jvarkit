@@ -7,7 +7,13 @@ Test if URL in the pubmed abstracts are reacheable.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar pubmed404  [options] Files
+
 Usage: pubmed404 [options] Files
   Options:
     -c, --collapse
@@ -33,23 +39,6 @@ Usage: pubmed404 [options] Files
  * pubmed
  * url
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew pubmed404
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -119,3 +108,4 @@ $ java -jar dist/pubmeddump.jar 'bioinformatics 2001' 2> /dev/null |\
 17221864	HbVar database of human hemoglobin variants and thalassemia mutations: 2007 update.	2007	http://www.goldenhelix.org/xprbase	403
 (...)
 ```
+

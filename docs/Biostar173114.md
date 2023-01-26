@@ -7,11 +7,17 @@ make a bam file smaller by removing unwanted information see also https://www.bi
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar173114  [options] Files
+
 Usage: biostar173114 [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 9
     -h, --help
       print help and exit
@@ -40,6 +46,10 @@ Usage: biostar173114 [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard 
+      CreateSequenceDictionary 
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -55,23 +65,6 @@ Usage: biostar173114 [options] Files
  * sam
  * bam
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar173114
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -134,5 +127,6 @@ R11	0	rotavirus	3	60	70M	*	0	0	CTTTTAAAGCTTTTCAGAGGTTGCTGCTCAAGATGTAGTCTACTCAGGA
 ## See also
 
   * https://bioinformatics.stackexchange.com/a/3866/71
+
 
 

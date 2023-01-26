@@ -7,8 +7,13 @@ Split VCF to 'N' VCF files
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfsplitnvariants.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfsplitnvariants  [options] Files
+
 Usage: vcfsplitnvariants [options] Files
   Options:
     -f, --force
@@ -47,23 +52,6 @@ Usage: vcfsplitnvariants [options] Files
 
  * [https://www.biostars.org/p/9548193](https://www.biostars.org/p/9548193)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfsplitnvariants
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -128,5 +116,6 @@ vcf	count	contigs
 /home/lindenb/src/jvarkit-git/SPLITVCF.00009.vcf.gz	4	RF03,RF04,RF06,RF09
 /home/lindenb/src/jvarkit-git/SPLITVCF.00010.vcf.gz	4	RF03,RF04,RF06,RF09
 ```
+
 
 

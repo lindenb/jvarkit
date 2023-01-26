@@ -7,7 +7,13 @@
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar251649  [options] Files
+
 Usage: biostar251649 [options] Files
   Options:
     --bcf-output
@@ -58,23 +64,6 @@ Usage: biostar251649 [options] Files
  * [https://www.biostars.org/p/334253](https://www.biostars.org/p/334253)
  * [https://www.biostars.org/p/251649](https://www.biostars.org/p/251649)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar251649
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -133,5 +122,6 @@ convert to fasta:
 java -jar dist/biostar251649.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/rotavirus_rf.vcf.gz -n 20 |\
 java -jar dist/bioalcidaejdk.jar -F VCF -e 'stream().forEach(V->println(">"+V.getContig()+":"+V.getStart()+"\n"+V.getAttribute("SEQ5_20")+"["+V.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/"))+"]"+V.getAttribute("SEQ3_20")));'
 ```
+
 
 

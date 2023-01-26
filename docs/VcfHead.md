@@ -7,8 +7,13 @@ print the first variants of a vcf
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfhead.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfhead  [options] Files
+
 Usage: vcfhead [options] Files
   Options:
     -c, --bycontig
@@ -42,23 +47,6 @@ Usage: vcfhead [options] Files
 
  * vcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfhead
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -114,3 +102,4 @@ NG|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;Inb
 1:0,3:3:9.03:106,9,0  1/1:0,6:6:18.05:203,18,0
 ```
  
+

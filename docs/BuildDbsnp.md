@@ -7,7 +7,13 @@ Build a DBSNP file from different sources for GATK
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar builddbsnp  [options] Files
+
 Usage: builddbsnp [options] Files
   Options:
     --bcf-output
@@ -18,6 +24,9 @@ Usage: builddbsnp [options] Files
       Default: false
     -c, --chromosome
       limit to this chromosome
+    -F, --filter
+      add '_F' suffix for non-rs FILTERED variant.
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -41,23 +50,6 @@ Usage: builddbsnp [options] Files
  * vcf
  * dbsnp
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew builddbsnp
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -117,4 +109,5 @@ src/test/resources/S2.bam  S2      RF06    1356    10217   7.534660766961652
 src/test/resources/S2.bam  S2      RF07    1074    8112    7.553072625698324
 
 ```
+
 
