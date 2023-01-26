@@ -12,7 +12,7 @@ build:
     python: "3.9"
 
 mkdocs:
-  configuration: docs/mkdocs.yml
+  configuration: mkdocs.yml
   fail_on_warning: false
 
 # Explicitly set the version of Python and its requirements
