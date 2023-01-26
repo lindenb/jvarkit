@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2022 Pierre Lindenbaum
+Copyright (c) 2023 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -103,6 +103,7 @@ END_DOC
 		description="Split VCF to 'N' VCF files ",
 		creationDate = "202221122",
 		modificationDate="202221201",
+		biostars={9548193},
 		keywords= {"vcf"}
 		)
 public class VcfSplitNVariants 	extends Launcher {

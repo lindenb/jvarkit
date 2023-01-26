@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2022 Pierre Lindenbaum
+Copyright (c) 2023 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,7 @@ END_DOC
 @Program(name="gb2gff",
 description="Experimental Genbank XML to GFF",
 keywords={"xml","ncbi","genbank","convert","gff","gb"},
-modificationDate="20210429",
+modificationDate="20220929",
 creationDate="20180215",
 generate_doc = false
 )
@@ -103,15 +103,59 @@ public class GenbankToGff3 extends Launcher {
 	private static final Logger LOG = Logger.build(GenbankToGff3.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	private static long ID_GENERATOR = 0L;
 	private final static double NO_SCORE=-1;
 	private final static int NO_PHASE=-1;
 	private final static String DUMMY_CTG="chr_";
 
+	private final Map<String,Gene> name2gene = new HashMap<>();
+	
+	private abstract class AbstractGff3Line implements Locatable {
+		final long ID= ++ID_GENERATOR;
+		@Override
+		public String getContig() {
+			return null;
+			}
+		@Override
+		public int getStart() {
+			return 0;
+			}
+		@Override
+		public int getEnd() {
+			return 0;
+			}
+		public String getID() {
+			return getClass().getSimpleName().substring(0, 1)+ID;
+			}
+	}
+	
+	private class Gene extends AbstractGff3Line {
+		final List<Transcript> transcripts = new ArrayList<>();
+	}
+	
+	private class Transcript  extends AbstractGff3Line {
+		final List<Exon> exons = new ArrayList<>();
+		Gene gene = null;
+	}
+	
+	private class Exon  extends AbstractGff3Line {
+		Transcript transcript = null;
+	}
+
+	private class CDS  extends AbstractGff3Line {
+		Exon exon= null;
+	}
+
+	private CDS createCDS(final GBFeature feat) {
+		final CDS entry = new CDS();
+		return entry;
+		}
+
 	
 	private static class GBFeature implements Locatable {
+		Entry owner;
 		String key;
 		final List<Interval> gbIntervals = new ArrayList<>();
 		final Map<String,String> qualifiers= new HashMap<>();
@@ -122,8 +166,14 @@ public class GenbankToGff3 extends Launcher {
 				return isTranscript() && qualifiers.getOrDefault("gene","").equals(g);
 				}
 		public boolean isTranscript() { 
-			return key.equals("misc_RNA") || key.equals("mRNA")|| key.equals("ncRNA");
+			return key.equals("misc_RNA") || key.equals("mRNA")|| key.equals("ncRNA")|| key.equals("tRNA");
 		}
+		
+		
+		public boolean isCDSOf(final String tr) {
+			return isCDS() && qualifiers.equals("TODO");
+			}
+		
 		public boolean isExon()  { return key.equals("exon");}
 		public boolean isCDS()  { return key.equals("CDS");}
 
@@ -277,7 +327,7 @@ public class GenbankToGff3 extends Launcher {
 		return feature;
 		}
 	
-	private List<GBFeature> parseFeatureTable(final XMLEventReader r) throws XMLStreamException,IOException {
+	private List<GBFeature> parseFeatureTable(final Entry owner,final XMLEventReader r) throws XMLStreamException,IOException {
 		final List<GBFeature> L = new ArrayList<>();
 		while(r.hasNext())
 			{
@@ -286,6 +336,7 @@ public class GenbankToGff3 extends Launcher {
 				final String name = evt.asStartElement().getName().getLocalPart();
 				if(name.equals("GBFeature")) {
 					final GBFeature feature =  parseFeature(r);
+					feature.owner = owner;
 					L.add(feature);
 					}
 				}
@@ -313,7 +364,7 @@ public class GenbankToGff3 extends Launcher {
 					entry.length  = Integer.parseInt(r.getElementText());
 					}
 				else if(name.equals("GBSeq_feature-table")) {
-					entry.features.addAll(parseFeatureTable(r));
+					entry.features.addAll(parseFeatureTable(entry,r));
 					}
 				
 			}
@@ -361,7 +412,8 @@ public class GenbankToGff3 extends Launcher {
 				map(KV->KV.getKey()+Gff3Constants.KEY_VALUE_SEPARATOR+escape(KV.getValue().get(0))).collect(Collectors.joining(""+Gff3Constants.ATTRIBUTE_DELIMITER)));
 		pw.println();
 		}
-	
+
+
 	@Override
 	public int doWork(final List<String> args) {
 		final List<Path> inputs = IOUtil.unrollFiles(
@@ -390,17 +442,17 @@ public class GenbankToGff3 extends Launcher {
 					xr.close();
 					}
 				}
-			
-			
 
-			try(PrintWriter w = super.openFileOrStdoutAsPrintWriter(outputFile)) {
-				
+			try(PrintWriter w = super.openPathOrStdoutAsPrintWriter(outputFile)) {
 				w.println("##gff-version 3");
 				w.println("##format: gff3");
 				for(Entry entry: L) {
 					w.println("##sequence-region "+entry.name+" "+entry.length);
 					}
 				for(Entry entry: L) {
+					// reset map2gene
+					this.name2gene.clear();
+					
 					Map<String,List<String>> attCtg = Collections.singletonMap("ID", Collections.singletonList(entry.name));
 					Gff3BaseData gffCtg = new Gff3BaseData(
 							entry.name,
@@ -414,7 +466,24 @@ public class GenbankToGff3 extends Launcher {
 							attCtg
 							);
 					print(w,gffCtg);
-										
+						
+					
+					for(GBFeature cdsFeat : entry.features.stream().filter(G->G.isCDS()).collect(Collectors.toList())) {
+						final Map<String,List<String>> gattributes = new HashMap<>();
+						final CDS cds = createCDS(cdsFeat);
+						final String geneName = gene.qualifiers.getOrDefault("gene", "");
+						if(StringUtils.isBlank(geneName)) {
+							LOG.warn("no gene name for "+gene);
+							continue;
+							}
+						gene.qualifiers.entrySet().forEach(KV->gattributes.put(KV.getKey(),Collections.singletonList(KV.getValue())));
+						
+						gattributes.put("Parent",Collections.singletonList(entry.name));
+						gattributes.put("ID",Collections.singletonList("gene:"+gene_id));
+						gattributes.put("Name",Collections.singletonList(geneName));
+						
+						}
+					
 							
 					for(GBFeature gene: entry.features.stream().filter(G->G.isGene()).collect(Collectors.toList())) {
 						final Map<String,List<String>> gattributes = new HashMap<>();
@@ -427,7 +496,7 @@ public class GenbankToGff3 extends Launcher {
 						gene.qualifiers.entrySet().forEach(KV->gattributes.put(KV.getKey(),Collections.singletonList(KV.getValue())));
 						
 						gattributes.put("Parent",Collections.singletonList(entry.name));
-						gattributes.put("ID",Collections.singletonList(gene_id));
+						gattributes.put("ID",Collections.singletonList("gene:"+gene_id));
 						gattributes.put("Name",Collections.singletonList(geneName));
 						
 						
@@ -444,12 +513,14 @@ public class GenbankToGff3 extends Launcher {
 								);
 						print(w,gffGene);
 						
+						
+						
 						for(GBFeature transcript: entry.features.stream().filter(G->G.isTranscriptOf(geneName)).collect(Collectors.toList())) {
 							final Map<String,List<String>> tattributes = new HashMap<>();
 							String transcript_id = "T"+(++ID_GENERATOR);
 							transcript.qualifiers.entrySet().forEach(KV->tattributes.put(KV.getKey(),Collections.singletonList(KV.getValue())));
 							
-							tattributes.put("Parent",Collections.singletonList(gene_id));
+							tattributes.put("Parent",Collections.singletonList("gene:"+gene_id));
 							tattributes.put("ID",Collections.singletonList(transcript_id));
 							//tattributes.put("Name",Collections.singletonList(geneName));
 							
@@ -465,6 +536,9 @@ public class GenbankToGff3 extends Launcher {
 									NO_PHASE,
 									tattributes
 									);
+							
+							
+							
 							print(w,gffRNA);
 							}
 						
