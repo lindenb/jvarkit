@@ -151,7 +151,9 @@ public class JvarkitCentral {
 			if(p!=null && p.jvarkit_hidden()) return true;
 			return hidden;
 			}
-		
+		public String getMarkdownFile() {
+			return this.clazz.getSimpleName()+".md";
+			}
 		public String getName() {
 			final Program p = program();
 			return p==null?this.clazz.getSimpleName().toLowerCase():p.name();
@@ -190,7 +192,7 @@ public class JvarkitCentral {
 		
 		void writeDoc(final File dir) throws IOException {
 			final PrintStream old = System.out;
-			final File filename = new File(dir,this.clazz.getSimpleName()+".md");
+			final File filename = new File(dir,getMarkdownFile());
 			final String[] cmd = new String[]{"--help","--helpFormat","markdown"};
 			LOG.info((filename.exists()?"over":"")+"writing doc for "+getName()+" into "+filename);
 			try (PrintStream out = new PrintStream(filename)) {
@@ -240,9 +242,9 @@ public class JvarkitCentral {
 		out.println();
 		out.println("## Usage");
 		out.println();
-		out.println("  java -jar jvarkit.jar [options]");
+		out.println("```\n  java -jar jvarkit.jar [options]\n```");
 		out.println("or");
-		out.println("  java -jar jvarkit.jar <command name> (other arguments)");
+		out.println("```\n  java -jar jvarkit.jar <command name> (other arguments)\n```");
 		out.println();
 		out.println("## Options");
 		out.println();
@@ -305,7 +307,7 @@ public class JvarkitCentral {
 			for(Command c: this.commands.values()) {
 				if(c.isHidden()) continue;
 				out.print("| ");
-				out.print(c.getName());
+				out.print("["+c.getName()+"]("+c.getMarkdownFile()+")");
 				out.print(" | ");
 				out.print(c.getDescription());
 				out.print(" | ");
@@ -374,8 +376,9 @@ public class JvarkitCentral {
 				out.println("    prev_next_buttons_location: both");
 				out.println("");
 				out.println("nav:");
+				out.println("        - \"jvarkit\" : JvarkitCentral.md");
 				for(Command c:this.commands.values()) {
-					out.println("        - \""+ c.getName() +"\" : "+ c.clazz.getSimpleName() +".md");
+					out.println("        - \""+ c.getName() +"\" : "+ c.getMarkdownFile());
 					//out.println("        - "VcfTail": VcfTail.md");
 					}
 				out.println();

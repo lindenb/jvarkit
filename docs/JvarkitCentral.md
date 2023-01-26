@@ -2,16 +2,20 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 192fbc43
-Compilation : 20230126211827
+Version     : 9dc88fd2
+Compilation : 20230126213054
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
 ## Usage
 
+```
   java -jar jvarkit.jar [options]
+```
 or
+```
   java -jar jvarkit.jar <command name> (other arguments)
+```
 
 ## Options
 

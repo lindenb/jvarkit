@@ -10,6 +10,7 @@ theme:
     prev_next_buttons_location: both
 
 nav:
+        - "jvarkit" : JvarkitCentral.md
         - "addlinearindextobed" : AddLinearIndexToBed.md
         - "backlocate" : BackLocate.md
         - "bam2raster" : Bam2Raster.md
