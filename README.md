@@ -9,15 +9,12 @@ Java utilities for Bioinformatics
 
 ## Documentation
 
-Documentation is available at: [http://lindenb.github.io/jvarkit/](http://lindenb.github.io/jvarkit/)
+Documentation is available at: [https://jvarkit.readthedocs.io/](https://jvarkit.readthedocs.io/)
 
 ## Compilation
 
-**February 2019**. I'm moving to java **OpenJdk**. See the [[NEWS]] file.
 
-Each tool is compiled independently of each other.
-
-See the documentation for each tool at [http://lindenb.github.io/jvarkit/](http://lindenb.github.io/jvarkit/). All the pages should include a paragraph titled *'Download and Compile'*
+See the documentation for each tool at [https://jvarkit.readthedocs.io/](https://jvarkit.readthedocs.io/).
 
 You shouldn't try to compile all the tools because some of them are not tested, deprecated, or just too specific to my lab.
 
