@@ -163,7 +163,7 @@ public class TelSeq extends Launcher {
 	 * and a constant length c in l = tksc, 
 	 * where l is the length estimate, 
 	 * tk is the abundance of telomeric reads at threshold k 
-	 * and c is a constant for genome length divided by number of telomere ends 46 (23 × 2).
+	 * and c is a constant for genome length divided by number of telomere ends 46 (23 X 2).
 	 * @param results
 	 * @return
 	 */

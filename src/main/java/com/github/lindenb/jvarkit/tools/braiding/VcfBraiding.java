@@ -67,7 +67,7 @@ bcftools view src/test/resources/rotavirus_rf.vcf.gz "RF02" "RF03" |\
 
 
 
-## See also:
+## See also
  
   * https://visdunneright.github.io/sequence_braiding/docs/
 
