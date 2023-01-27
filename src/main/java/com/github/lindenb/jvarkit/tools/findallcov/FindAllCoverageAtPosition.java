@@ -98,7 +98,7 @@ $ find ./testdata/ -type f -name "*.bam" | \
 
 ## Cited in
 
- * Alexandra Bergfort, Tarek Hilal, Benno Kuropka, İbrahim Avşar Ilik, Gert Weber, Tugce Aktaş, Christian Freund, Markus C Wahl, The intrinsically disordered TSSC4 protein acts as a helicase inhibitor, placeholder and multi-interaction coordinator during snRNP assembly and recycling, Nucleic Acids Research, 2022;, gkac087, https://doi.org/10.1093/nar/gkac087
+ * Alexandra Bergfort, Tarek Hilal, Benno Kuropka, Ibrahim Avsar Ilik, Gert Weber, Tugce Aktas, Christian Freund, Markus C Wahl, The intrinsically disordered TSSC4 protein acts as a helicase inhibitor, placeholder and multi-interaction coordinator during snRNP assembly and recycling, Nucleic Acids Research, 2022;, gkac087, https://doi.org/10.1093/nar/gkac087
 
 ## See also
 

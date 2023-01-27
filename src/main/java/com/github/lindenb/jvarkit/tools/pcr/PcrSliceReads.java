@@ -61,7 +61,7 @@ BEGIN_DOC
 
 ## See also
 
-* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+* (2021) `samtools ampliconclip` - clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
 
 ## Motivation
 

@@ -54,10 +54,10 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.IOUtil;
 
-/** 
+/**
 BEGIN_DOC
 
-## Cluster 
+## Cluster
 
 a **Cluster** is a set of nodes that are all connected with some edges.
 
@@ -66,13 +66,13 @@ a **Cluster** is a set of nodes that are all connected with some edges.
 ```
 $ java -jar dist/pubmeddump.jar "NSP1 Rotavirus" | \
   java -jar dist/pubmedauthorgraph.jar -D BDB |\
-  java -jar dist/gexftr.jar | xmllint --format - 
-  
+  java -jar dist/gexftr.jar | xmllint --format -
+
 (...)
       <!--Skip edge  from HOWARD~C_R to pmid:9614866-->
       <!--Skip edge  from BRIDGER~J_C to pmid:9614866-->
-      <!--Skip edge  from LÓPEZ~S to pmid:9645203-->
-      <!--Skip edge  from GONZÁLEZ~R_A to pmid:9645203-->
+      <!--Skip edge  from LOPEZ~S to pmid:9645203-->
+      <!--Skip edge  from GONZALEZ~R_A to pmid:9645203-->
       <!--Skip edge  from ARIAS~C_F to pmid:9645203-->
       <!--Skip edge  from TORRES-VEGA~M_A to pmid:9645203-->
     </edges>

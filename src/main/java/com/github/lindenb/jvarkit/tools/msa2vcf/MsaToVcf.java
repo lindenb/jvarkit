@@ -79,11 +79,11 @@ input is a clustalw file like: https://github.com/biopython/biopython/blob/maste
 
 
   * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
-  * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean‐Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
+  * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean-Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
   * 'Two key events associated with a transposable element burst occurred during rice domestication'  https://doi.org/10.1101/405290
   * 'Tracking the origin of two genetic components associated with transposable element bursts in domesticated rice'. Nature Communicationsvolume 10, Article number: 641 (2019) https://www.nature.com/articles/s41467-019-08451-3
-  * 'Predicting antimicrobial resistance in Pseudomonas aeruginosa with machine learning‐enabled molecular diagnostics'. EMBO Mol Med (2020)e10264https://doi.org/10.15252/emmm.201910264
-  *  Xi, L., Sun, Y., Xu, T., Wang, Z., Chiu, M. Y., Plouviez, S., Jollivet, D., & Qiu, J.-W. (2022). Phylogenetic divergence and population genetics of the hydrothermal vent annelid genus Hesiolyra along the East Pacific Rise: Reappraisal using multi-locus data. Diversity and Distributions, 00, 1–15. https://doi.org/10.1111/ddi.13653
+  * 'Predicting antimicrobial resistance in Pseudomonas aeruginosa with machine learning-enabled molecular diagnostics'. EMBO Mol Med (2020)e10264https://doi.org/10.15252/emmm.201910264
+  *  Xi, L., Sun, Y., Xu, T., Wang, Z., Chiu, M. Y., Plouviez, S., Jollivet, D., & Qiu, J.-W. (2022). Phylogenetic divergence and population genetics of the hydrothermal vent annelid genus Hesiolyra along the East Pacific Rise: Reappraisal using multi-locus data. Diversity and Distributions, 00, 1-15. https://doi.org/10.1111/ddi.13653
 
 ## Example
 
