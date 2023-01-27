@@ -7,8 +7,13 @@ Utilities for the setfile format
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/setfiletools.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar setfiletools  [options] Files
+
 Usage: setfiletools [options] Files
   Options:
     --bed
@@ -68,23 +73,6 @@ Usage: setfiletools [options] Files
  * setfile
  * bed
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew setfiletools
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -156,5 +144,6 @@ print  whole setrecords overlapping bed file, there is to trimming
 ```
 java -jar dist/setfiletools.jar -R ref.dict  in.bed.gz in.setfile
 ```
+
 
 

@@ -102,7 +102,8 @@ END_DOC
 		description="Merge Bed records if they overlap a fraction of their lengths.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200330",
-		modificationDate="20200603"
+		modificationDate="20200603",
+		jvarkit_amalgamion = true
 		)
 public class BedMergeCnv
 	extends Launcher

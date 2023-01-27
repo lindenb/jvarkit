@@ -115,7 +115,8 @@ END_DOC
 	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
 	biostars= {259223,250099,409942},
 	modificationDate="20210818",
-	creationDate="20141128"
+	creationDate="20141128",
+	jvarkit_amalgamion = true
 	)
 public class FindAllCoverageAtPosition extends Launcher
 	{

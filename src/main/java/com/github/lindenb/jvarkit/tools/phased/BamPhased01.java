@@ -152,7 +152,8 @@ END_DOC
 description="Extract Reads from a SAM/BAM file supporting at least two variants in a VCF file.",
 keywords={"vcf","phased","genotypes","bam"},
 creationDate="20210218",
-modificationDate="20210218"
+modificationDate="20210218",
+jvarkit_amalgamion = true
 )
 public class BamPhased01 extends OnePassBamLauncher {
 	private static final Logger LOG=Logger.build(BamPhased01.class).make();

@@ -127,7 +127,8 @@ END_DOC
 	description="Simple and Stupid Variant Caller designed for @AdrienLeger2",
 	keywords={"bam","sam","calling","vcf"},
 	modificationDate="20220705",
-	creationDate="201500306"
+	creationDate="201500306",
+	jvarkit_amalgamion = true
 	)
 public class MiniCaller extends Launcher   {
 	private static final Logger LOG = Logger.build(MiniCaller.class).make();

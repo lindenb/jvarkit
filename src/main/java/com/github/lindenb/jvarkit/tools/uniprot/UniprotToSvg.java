@@ -143,7 +143,7 @@ public class UniprotToSvg extends Launcher {
 	        return "";
 	    }
 	 
-	    @SuppressWarnings({"rawtypes" })
+	    @SuppressWarnings({"rawtypes","unchecked"})
 	    public Iterator getPrefixes(String namespaceURI) {
 	    	 if(UNIPROT_NS.equals(namespaceURI)) return Arrays.asList("u","uniprot").iterator();
 	    	return Collections.emptyIterator();

@@ -90,7 +90,8 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
 	description="Finds a specific mutation in a list of VCF files",
 	keywords={"vcf","variation","search","find","bcf"},
 	creationDate="20140623",
-	modificationDate="20200217"
+	modificationDate="20200217",
+	jvarkit_amalgamion = true
 	)
 public class FindAVariation extends Launcher
 	{

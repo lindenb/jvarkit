@@ -7,8 +7,13 @@ Select samples from ukbiobank
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/ukbiobanksamples.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar ukbiobanksamples  [options] Files
+
 Usage: ukbiobanksamples [options] Files
   Options:
     --column
@@ -47,23 +52,6 @@ Usage: ukbiobanksamples [options] Files
 
  * ukbiobank
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew ukbiobanksamples
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -108,4 +96,5 @@ $ java -jar dist/ukbiobanksamples.jar  --ontology /path/to/coding19.tsv --tab  /
 1003404	R02 [R02 Gangrene, not elsewhere classified ]	E86 [E86 Volume depletion ]	J40 [J40 Bronchitis, not specified as acute or chronic ]	Z602 [Z60.2 Living alone ]I420 [I42.0 Dilated cardiomyopathy ]	I071 [I07.1 Tricuspid insufficiency ]	I340 [I34.0 Mitral (valve) insufficiency ]
 1003703	M545 [M54.5 Low back pain ]	M754 [M75.4 Impingement syndrome of shoulder ]	I340 [I34.0 Mitral (valve) insufficiency ](...)
 ```
+
 

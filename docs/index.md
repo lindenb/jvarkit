@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 9dc88fd2
-Compilation : 20230126213054
+Version     : 2127c1f20
+Compilation : 20230127103757
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -34,12 +34,17 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [addlinearindextobed](AddLinearIndexToBed.md) | Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart. | 20140201 | 20230126 |
 | [backlocate](BackLocate.md) | Mapping a mutation on a protein back to the genome. | 20140619 | 20190820 |
 | [bam2raster](Bam2Raster.md) | BAM to raster graphics |  |  |
+| [bam2sql](BamToSql.md) | Convert a SAM/BAM to sqlite statements |  |  |
 | [bam2svg](BamToSVG.md) | BAM to Scalar Vector Graphics (SVG) | 20141013 | 20210728 |
 | [bam2xml](Bam2Xml.md) | converts a BAM to XML | 20130506 | 20210315 |
+| [bammatrix](BamMatrix.md) | Bam matrix, inspired from 10x/loupe | 20190620 | 20211206 |
+| [bamphased01](BamPhased01.md) | Extract Reads from a SAM/BAM file supporting at least two variants in a VCF file. | 20210218 | 20210218 |
 | [bamrenamechr](ConvertBamChromosomes.md) | Convert the names of the chromosomes in a BAM file | 20131217 | 20191210 |
 | [bamstats05](BamStats05.md) | Coverage statistics for a BED file, group by gene | 20151012 | 20210317 |
+| [bamwithoutbai](BamWithoutBai.md) | Query a Remote BAM without bai | 20191213 | 20191217 |
 | [basecoverage](BaseCoverage.md) | 'Depth of Coverage' per base. | 20220420 | 20220420 |
 | [bedcluster](BedCluster.md) | Clusters a BED file into a set of BED files. | 20200130 | 20220914 |
+| [bedmergecnv](BedMergeCnv.md) | Merge Bed records if they overlap a fraction of their lengths. | 20200330 | 20200603 |
 | [bednonoverlappingset](BedNonOverlappingSet.md) | Split a Bed file into non-overlapping data set. | 20180607 | 20200408 |
 | [bedrenamechr](ConvertBedChromosomes.md) | Convert the names of the chromosomes in a Bed file |  | 20190503 |
 | [bioalcidaejdk](BioAlcidaeJdk.md) | java-based version of awk for bioinformatics | 20170712 | 20210412 |
@@ -84,13 +89,16 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar9501110](Biostar9501110.md) | Keep reads including/excluding variants from VCF | 20211210 | 20211213 |
 | [builddbsnp](BuildDbsnp.md) | Build a DBSNP file from different sources for GATK | 20200904 | 2021070726 |
 | [cnvtview](CnvTView.md) | Text visualization of bam DEPTH for multiple regions in a terminal | 20181018 | 20210412 |
-| [coveragematrix](CoverageMatrix.md) | generate a VCF file from bam coverage | 20200618 | 20200618 |
 | [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20221125 |
+| [findallcoverageatposition](FindAllCoverageAtPosition.md) | Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ? | 20141128 | 20210818 |
+| [findavariation](FindAVariation.md) | Finds a specific mutation in a list of VCF files | 20140623 | 20200217 |
 | [findgvcfsblocks](FindGVCFsBlocks.md) | Find common blocks of calleable regions from a set of gvcfs | 20210806 | 20220401 |
 | [groupbygene](GroupByGene.md) | Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff | 20131209 | 20220529 |
 | [gtf2bed](GtfToBed.md) | Convert GTF/GFF3 to BED. | 20220629 | 20220630 |
 | [lowresbam2raster](LowResBam2Raster.md) | Low Resolution BAM to raster graphics | 20170523 | 20211126 |
+| [minicaller](MiniCaller.md) | Simple and Stupid Variant Caller designed for @AdrienLeger2 | 201500306 | 20220705 |
 | [mkminibam](MakeMiniBam.md) | Creates an archive of small bams with only a few regions. | 20190410 | 20221019 |
+| [plotsashimi](PlotSashimi.md) | Print Sashimi plots from Bam | 20191117 | 20191104 |
 | [prettysam](PrettySam.md) | Pretty SAM alignments | 20171215 | 20211105 |
 | [pubmed404](Pubmed404.md) | Test if URL in the pubmed abstracts are reacheable. | 20181210 | 20200204 |
 | [pubmedcodinglang](PubmedCodingLanguages.md) | Programming language use distribution from recent programs / articles | 20170404 | 20200223 |
@@ -99,11 +107,16 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [sam2tsv](Sam2Tsv.md) | Prints the SAM alignments as a TAB delimited file. | 20170712 | 20210304 |
 | [samgrep](SamGrep.md) | grep read-names in a bam file | 20130506 | 20210726 |
 | [samrmdupnames](SamRemoveDuplicatedNames.md) | remove duplicated names in sorted BAM | 20221207 | 20221207 |
+| [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20191004 |
+| [scanretrocopy](ScanRetroCopy.md) | Scan BAM for retrocopies | 20190125 | 20190709 |
+| [setfiletools](SetFileTools.md) | Utilities for the setfile format | 20210125 | 20220426 |
+| [sortsamrefname](SortSamRefName.md) | Sort a BAM on chromosome/contig and then on read/querty name | 20150812 | 20210312 |
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
 | [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230124 |
 | [swingindexcov](SwingIndexCov.md) | indexcov visualization | 2020511 | 2020512 |
 | [swingvcfjexl](SwingVcfJexlFilter.md) | Filter VCF using Java Swing UI and JEXL/Javascript expression | 20220413 | 20220414 |
 | [swingvcfview](SwingVcfView.md) | VCFviewer using Java Swing UI | 20210503 | 20210503 |
+| [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
 | [uniprot2svg](UniprotToSvg.md) | plot uniprot to SVG | 20220608 | 20220922 |
 | [vcf2table](VcfToTable.md) | convert a vcf to a table, to ease display in the terminal | 20170511 | 20220507 |
 | [vcfallelebalance](VcfAlleleBalance.md) | Insert missing allele balance annotation using FORMAT:AD | 20180829 | 20200805 |
@@ -117,10 +130,10 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfpar](VcfPseudoAutosomalRegion.md) | Flag human sexual regions excluding PAR. | 20200908 | 20200908 |
 | [vcfpolyx](VCFPolyX.md) | Number of repeated REF bases around POS. | 20200930 | 20211102 |
 | [vcfrebase](VcfRebase.md) | Restriction sites overlaping variations in a vcf | 20131115 | 20200624 |
-| [vcfrenamechr](ConvertVcfChromosomes.md) | Convert the names of the chromosomes in a VCF file |  | 20190411 |
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20200818 |
 | [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files | 202221122 | 202221201 |
 | [vcfstrech2svg](VcfStrechToSvg.md) | another VCF to SVG | 20210304 | 20210309 |
 | [vcftail](VcfTail.md) | print the last variants of a vcf | 20131210 | 20200518 |
+| [vcftrio](VCFTrios.md) | Find mendelian incompatibilitie / denovo variants in a VCF | 20130705 | 20200624 |
 | [wescnvsvg](WesCnvSvg.md) | SVG visualization of bam DEPTH for multiple regions | 20180726 | 20210726 |
 | [wgscoverageplotter](WGSCoveragePlotter.md) | Whole genome coverage plotter | 20201125 | 20210812 |

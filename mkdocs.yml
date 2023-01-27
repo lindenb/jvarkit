@@ -12,15 +12,22 @@ theme:
 nav:
         - "jvarkit" : JvarkitCentral.md
         - "addlinearindextobed" : AddLinearIndexToBed.md
+        - "allelefreqcalc" : AlleleFrequencyCalculator.md
         - "backlocate" : BackLocate.md
+        - "bam2mnv" : BamToMNV.md
         - "bam2raster" : Bam2Raster.md
+        - "bam2sql" : BamToSql.md
         - "bam2svg" : BamToSVG.md
         - "bam2wig" : Bam2Wig.md
         - "bam2xml" : Bam2Xml.md
+        - "bammatrix" : BamMatrix.md
+        - "bamphased01" : BamPhased01.md
         - "bamrenamechr" : ConvertBamChromosomes.md
         - "bamstats05" : BamStats05.md
+        - "bamwithoutbai" : BamWithoutBai.md
         - "basecoverage" : BaseCoverage.md
         - "bedcluster" : BedCluster.md
+        - "bedmergecnv" : BedMergeCnv.md
         - "bednonoverlappingset" : BedNonOverlappingSet.md
         - "bedrenamechr" : ConvertBedChromosomes.md
         - "bioalcidaejdk" : BioAlcidaeJdk.md
@@ -67,11 +74,16 @@ nav:
         - "cnvtview" : CnvTView.md
         - "coveragematrix" : CoverageMatrix.md
         - "coverageplotter" : CoveragePlotter.md
+        - "findallcoverageatposition" : FindAllCoverageAtPosition.md
+        - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
         - "groupbygene" : GroupByGene.md
         - "gtf2bed" : GtfToBed.md
+        - "ibd2vcf" : IbdToVcf.md
         - "lowresbam2raster" : LowResBam2Raster.md
+        - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md
+        - "plotsashimi" : PlotSashimi.md
         - "prettysam" : PrettySam.md
         - "pubmed404" : Pubmed404.md
         - "pubmedcodinglang" : PubmedCodingLanguages.md
@@ -80,11 +92,17 @@ nav:
         - "sam2tsv" : Sam2Tsv.md
         - "samgrep" : SamGrep.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
+        - "samviewwithmate" : SamViewWithMate.md
+        - "scanretrocopy" : ScanRetroCopy.md
+        - "setfiletools" : SetFileTools.md
+        - "sortsamrefname" : SortSamRefName.md
+        - "splitvcf" : SplitVcf.md
         - "swingbamcov" : SwingBamCov.md
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
+        - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
         - "vcf2table" : VcfToTable.md
         - "vcfallelebalance" : VcfAlleleBalance.md
@@ -103,6 +121,7 @@ nav:
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfstrech2svg" : VcfStrechToSvg.md
         - "vcftail" : VcfTail.md
+        - "vcftrio" : VCFTrios.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
 

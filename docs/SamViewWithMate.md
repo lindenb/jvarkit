@@ -7,8 +7,13 @@ Extract reads within given region(s), and their mates
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/samviewwithmate.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar samviewwithmate  [options] Files
+
 Usage: samviewwithmate [options] Files
   Options:
     --bamcompression
@@ -60,27 +65,10 @@ Usage: samviewwithmate [options] Files
  * [https://www.biostars.org/p/9537698](https://www.biostars.org/p/9537698)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew samviewwithmate
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
-2019-02-07
+20190207
 
 ## Source code 
 
@@ -135,5 +123,9 @@ ERR251239.34016218	81	14	79839349	37	100M	9	137230679	0
 ERR251240.10196873	81	14	79839368	37	100M	9	137230721	0
 ERR251240.11887757	145	14	79839451	37	100M	9	137230795	0
 ```
+
+## Cited in
+
+  * Garsed, D.W., Pandey, A., Fereday, S. et al. The genomic and immune landscape of long-term survivors of high-grade serous ovarian cancer. Nat Genet (2022). https://doi.org/10.1038/s41588-022-01230-9
 
 

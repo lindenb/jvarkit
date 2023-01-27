@@ -7,7 +7,13 @@ Bam matrix, inspired from 10x/loupe
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bammatrix  [options] Files
+
 Usage: bammatrix [options] Files
   Options:
     --color-scale
@@ -85,23 +91,6 @@ Usage: bammatrix [options] Files
  * matrix
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bammatrix
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -146,6 +135,11 @@ java -jar dist/bammatrix.jar -o out.png \
 	NOVASEQ/Sample/outs/phased_possorted_bam.bam
 ```
 
+input with two bam files (for comparing mappers)
+```
+java  -jar dist/bammatrix.jar -r "chr1:234-567" -o out.png sample.markdup.01.bam sample.markdup.02.bam
+```
+
 https://twitter.com/yokofakun/status/1142088565326843904
 
 ![https://twitter.com/yokofakun/status/1142088565326843904](https://pbs.twimg.com/media/D9mDYo4WsAAOaSK.jpg)
@@ -154,4 +148,5 @@ https://twitter.com/yokofakun/status/1142088565326843904
 https://twitter.com/yokofakun/status/1038060108373286912
 
 ![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
+
 

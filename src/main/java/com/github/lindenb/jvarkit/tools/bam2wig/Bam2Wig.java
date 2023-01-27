@@ -236,7 +236,7 @@ public class Bam2Wig extends Launcher
     			}
 			}
 		}
-	
+	@SuppressWarnings("fallthrough")
 	private static class DeletionAggregator extends Aggregator
 		{
 		@Override
@@ -261,6 +261,7 @@ public class Bam2Wig extends Launcher
 				}
 			}
 		}
+	@SuppressWarnings("fallthrough")
 	private static class InsertionAggregator extends Aggregator
 		{
 		@Override

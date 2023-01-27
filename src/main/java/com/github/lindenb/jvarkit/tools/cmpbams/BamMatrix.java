@@ -122,7 +122,8 @@ END_DOC
 description="Bam matrix, inspired from 10x/loupe ",
 keywords={"sam","bam","compare","matrix"},
 creationDate="20190620",
-modificationDate="20211206"
+modificationDate="20211206",
+jvarkit_amalgamion = true
 )
 public class BamMatrix  extends Launcher
 	{

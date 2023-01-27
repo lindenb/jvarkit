@@ -7,8 +7,13 @@ Find depth at specific position in a list of BAM files. My colleague Estelle ask
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/findallcoverageatposition.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar findallcoverageatposition  [options] Files
+
 Usage: findallcoverageatposition [options] Files
   Options:
     -clip, --clip
@@ -74,23 +79,6 @@ Usage: findallcoverageatposition [options] Files
  * [https://www.biostars.org/p/409942](https://www.biostars.org/p/409942)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew findallcoverageatposition
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -151,5 +139,6 @@ $ find ./testdata/ -type f -name "*.bam" | \
  * [https://twitter.com/yokofakun/status/538300434109456385](https://twitter.com/yokofakun/status/538300434109456385)
  * [https://twitter.com/pjacock/status/538299549455233024](https://twitter.com/pjacock/status/538299549455233024)
  * FindAVariation
+
 
 

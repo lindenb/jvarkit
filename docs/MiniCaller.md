@@ -7,8 +7,13 @@ Simple and Stupid Variant Caller designed for @AdrienLeger2
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/minicaller.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar minicaller  [options] Files
+
 Usage: minicaller [options] Files
   Options:
     --bad-ad-ratio
@@ -84,23 +89,6 @@ Usage: minicaller [options] Files
  * vcf
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew minicaller
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -161,4 +149,5 @@ rotavirus	7	.	T	A	.	.	DP=112	GT:DP:DP4:DPG	0/1:38:36,0,2,0:36,2	0/1:23:21,0,2,0:
 rotavirus	8	.	A	C	.	.	DP=122	GT:DP:DP4:DPG	0/1:41:38,0,3,0:38,3	0/1:26:25,0,1,0:25,1	0/1:40:38,0,2,0:38,2	./.
 rotavirus	9	.	A	C	.	.	DP=139	GT:DP:DP4:DPG	0/1:46:44,0,2,0:44,2	0/1:29:27,0,2,0:27,2	0/1:48:44,0,4,0:44,4	./.
 ```
+
 

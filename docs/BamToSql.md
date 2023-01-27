@@ -8,6 +8,7 @@ Convert a SAM/BAM to sqlite statements
 ## Usage
 
 ```
+Usage: java -jar dist/bam2sql.jar  [options] Files
 Usage: bam2sql [options] Files
   Options:
     -c, --cigar
@@ -293,3 +294,4 @@ S4.bam    S4      163   rotavirus  M         0         T          10         5  
 ```
 
  
+

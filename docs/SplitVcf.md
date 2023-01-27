@@ -5,9 +5,19 @@
 split a vcf using a named list of intervals...
 
 
+## DEPRECATED
+
+use bcftools and a loop
+
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar splitvcf  [options] Files
+
 Usage: splitvcf [options] Files
   Options:
     -g, --groupfile
@@ -36,23 +46,6 @@ Usage: splitvcf [options] Files
 
  * vcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew splitvcf
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -103,5 +96,6 @@ tmpG2.vcf.gz
 tmpG3.vcf.gz
 tmpOTHER.vcf.gz
 ```
+
 
 

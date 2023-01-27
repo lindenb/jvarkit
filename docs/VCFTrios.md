@@ -7,7 +7,13 @@ Find mendelian incompatibilitie / denovo variants in a VCF
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcftrio  [options] Files
+
 Usage: vcftrio [options] Files
   Options:
     -A, --attribute
@@ -16,7 +22,7 @@ Usage: vcftrio [options] Files
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 
-      version is: 2.1 which is not compatible with bcftools/htslib (last 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
     -d, --discard
@@ -40,11 +46,12 @@ Usage: vcftrio [options] Files
       [20180705] treat NO_CALL genotypes as HOM_REF (when individual 
       VCF/Sample have been merged).
       Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
   * -p, --ped, --pedigree
-      Pedigree file. A pedigree file. sex:(0:unknown;1:male;2:female), 
-      phenotype 
+      Pedigree file. A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, 
+      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --version
       print version and exit
@@ -59,23 +66,6 @@ Usage: vcftrio [options] Files
  * pedigree
  * denovo
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcftrio
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -174,3 +164,4 @@ $12	SAMPLE_P	1/1:53:0,0,27,26:81,99,0,.,.,.:81
   * [20180704] changing the arguments that are not really clear.
 
  
+

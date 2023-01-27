@@ -79,7 +79,9 @@ import htsjdk.variant.vcf.VCFIterator;
 	name="allelefreqcalc",
 	description="Allele Frequency Calculator",
 	keywords={"vcf","af"},
-	deprecatedMsg="Use bioalcidae"
+	deprecatedMsg="Use bioalcidae",
+	jvarkit_amalgamion = true,
+	jvarkit_hidden = true
 	)
 public class AlleleFrequencyCalculator extends Launcher
 	{

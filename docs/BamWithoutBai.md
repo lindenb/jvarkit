@@ -7,11 +7,17 @@ Query a Remote BAM without bai
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bamwithoutbai  [options] Files
+
 Usage: bamwithoutbai [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     --debug
       Enable debugging information.
@@ -48,23 +54,6 @@ Usage: bamwithoutbai [options] Files
  * bai
  * remote
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamwithoutbai
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -182,4 +171,5 @@ https://twitter.com/yokofakun/status/1207337424935936001
  * lbergelson on github: https://github.com/samtools/htsjdk/issues/1445#issuecomment-565599459
  * https://twitter.com/yokofakun/status/1202681859051859969
  * https://twitter.com/jomarnz/status/1205532441353560066
+
 

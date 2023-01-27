@@ -205,8 +205,9 @@ END_DOC
 @Program(name="scanretrocopy",
 description="Scan BAM for retrocopies",
 keywords={"sam","bam","cigar","clip","sv","retrocopy"},
-creationDate="2019-01-25",
-modificationDate="2019-07-09"
+creationDate = "20190125",
+modificationDate = "20190709",
+jvarkit_amalgamion = true
 )
 public class ScanRetroCopy extends Launcher
 	{

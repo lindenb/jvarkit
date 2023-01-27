@@ -7,7 +7,13 @@ Finds a specific mutation in a list of VCF files
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar findavariation  [options] Files
+
 Usage: findavariation [options] Files
   Options:
     --bcf
@@ -54,23 +60,6 @@ Usage: findavariation [options] Files
  * find
  * bcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew findavariation
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -126,3 +115,4 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
 
   * 20180914 : replace DP4 with AD
  
+

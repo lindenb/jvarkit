@@ -7,7 +7,13 @@ Print Sashimi plots from Bam
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar plotsashimi  [options] Files
+
 Usage: plotsashimi [options] Files
   Options:
     --css
@@ -87,23 +93,6 @@ Usage: plotsashimi [options] Files
 
  * [https://www.biostars.org/p/497894](https://www.biostars.org/p/497894)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew plotsashimi
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -203,4 +192,5 @@ chr3    38595350  38599500  ENCFF331CGL.rnaseq.bam  SCN5A   .        82/fd0c7ad6
 * https://twitter.com/yokofakun/status/1207337424935936001
 
 ![https://twitter.com/yokofakun/status/1207337424935936001](https://pbs.twimg.com/media/EMFS-xGXsAAVR20?format=jpg&name=small)
+
 

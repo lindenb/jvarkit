@@ -129,7 +129,8 @@ END_DOC
 description="Utilities for the setfile format",
 creationDate="20210125",
 modificationDate="20220426",
-keywords={"setfile","bed"}
+keywords={"setfile","bed"},
+jvarkit_amalgamion = true
 )
 public class SetFileTools extends Launcher {
 	private static final Logger LOG = Logger.build(SetFileTools.class).make();

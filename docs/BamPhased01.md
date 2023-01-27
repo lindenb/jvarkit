@@ -7,7 +7,13 @@ Extract Reads from a SAM/BAM file supporting at least two variants in a VCF file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bamphased01  [options] Files
+
 Usage: bamphased01 [options] Files
   Options:
     --bamcompression
@@ -73,23 +79,6 @@ Usage: bamphased01 [options] Files
  * genotypes
  * bam
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamphased01
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -198,4 +187,5 @@ RF05_916_1354_3:0:0_1:2:0_53	147	RF05	1285	60	70M	=	916	-439	AAGTGAGGGGAAGAGTCAT
 ## See also
 
  * Biostar9501110
+
 

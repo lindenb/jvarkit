@@ -87,7 +87,8 @@ END_DOC
 	keywords={"ibd","vcf"},
 	creationDate="20210701",
 	modificationDate="20210706",
-	generate_doc=false
+	generate_doc=false,
+	jvarkit_amalgamion = true
 	)
 public class IbdToVcf extends Launcher {
 	private static final Logger LOG = Logger.build(IbdToVcf.class).make();

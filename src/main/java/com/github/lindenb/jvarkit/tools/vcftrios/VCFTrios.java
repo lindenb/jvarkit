@@ -133,7 +133,8 @@ END_DOC
 		description="Find mendelian incompatibilitie / denovo variants in a VCF",
 		keywords={"vcf","mendelian","pedigree","denovo"},
 		creationDate="20130705",
-		modificationDate="20200624"
+		modificationDate="20200624",
+		jvarkit_amalgamion = true
 		)
 public class VCFTrios extends OnePassVcfLauncher
 	{

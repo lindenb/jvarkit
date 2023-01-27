@@ -112,7 +112,8 @@ description="MNV haplotypes",
 keywords={"vcf","phased","genotypes","bam"},
 creationDate="20211208",
 modificationDate="20211208",
-generate_doc=false
+generate_doc=false,
+jvarkit_amalgamion = true
 )
 public class BamToMNV extends Launcher {
 	private static final Logger LOG=Logger.build(BamToMNV.class).make();

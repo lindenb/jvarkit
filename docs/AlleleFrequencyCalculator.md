@@ -11,7 +11,13 @@ Use bioalcidae
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar allelefreqcalc  [options] Files
+
 Usage: allelefreqcalc [options] Files
   Options:
     -h, --help
@@ -31,23 +37,6 @@ Usage: allelefreqcalc [options] Files
  * vcf
  * af
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew allelefreqcalc
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -99,6 +88,7 @@ CHR	POS	ID	REF	ALT	TOTAL_CNT	ALT_CNT	FRQ
 22	16051477	rs192339082	C	A	2184	2	9.157509E-4
 
 ```
+
 
 
 

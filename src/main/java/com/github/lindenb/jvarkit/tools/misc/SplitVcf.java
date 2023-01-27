@@ -85,7 +85,11 @@ END_DOC
  */
 @Program(name="splitvcf",
 description="split a vcf using a named list of intervals...",
-keywords={"vcf"})
+keywords={"vcf"},
+deprecatedMsg = "use bcftools and a loop",
+jvarkit_amalgamion = true,
+jvarkit_hidden = true
+)
 public class SplitVcf
 	extends Launcher
 	{

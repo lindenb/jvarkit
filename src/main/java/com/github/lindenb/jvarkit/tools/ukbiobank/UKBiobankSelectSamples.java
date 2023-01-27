@@ -71,7 +71,8 @@ END_DOC
 description="Select samples from ukbiobank",
 keywords={"ukbiobank"},
 creationDate="20210705",
-modificationDate="20220322"
+modificationDate="20220322",
+jvarkit_amalgamion = true
 )
 public class UKBiobankSelectSamples extends Launcher {
 	private static final Logger LOG = Logger.build(UKBiobankSelectSamples.class).make();
