@@ -42,6 +42,12 @@ Usage: vcfsplitnvariants [options] Files
  * vcf
 
 
+
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9548193](https://www.biostars.org/p/9548193)
+
+
 ## Compilation
 
 ### Requirements / Dependencies

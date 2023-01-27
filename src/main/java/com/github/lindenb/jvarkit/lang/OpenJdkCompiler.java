@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2022 Pierre Lindenbaum
+Copyright (c) 2023 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -171,7 +171,7 @@ public abstract class OpenJdkCompiler {
 			File jarFile = null;
 			try {
 				//write source
-				javaSsrcDir = IOUtil.createTempDir("jvarkit", ".tmp");
+				javaSsrcDir = IOUtil.createTempDir("jvarkit.tmp").toFile();
 				IOUtil.assertDirectoryIsWritable(javaSsrcDir);
 				final File javaFile = new File(javaSsrcDir,className+".java");
 				cw = new PrintWriter(javaFile);

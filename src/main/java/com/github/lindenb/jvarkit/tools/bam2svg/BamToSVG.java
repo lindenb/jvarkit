@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2022 Pierre Lindenbaum
+Copyright (c) 2023 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -142,7 +142,6 @@ keywords={"bam","alignment","graphics","visualization","svg"},
 creationDate="20141013",
 modificationDate="20210728"
 )
-@SuppressWarnings("fallthrough")
 public class BamToSVG extends Launcher {
 	private static final int HEIGHT_MAIN_TITLE=30;
 	private static final int HEIGHT_SAMPLE_NAME=20;
@@ -631,28 +630,43 @@ public class BamToSVG extends Launcher {
 		
 		/* write consensus */
 		w.writeComment("Consensus");
+		final int max_depth = (int) pos2consensus.entrySet().stream().mapToLong(KV->KV.getValue().getTotal()).max().orElse(0L);
 		for(int pos=this.interval.getStart();
+				max_depth > 0L &&
 				context.featureWidth>5 && //ignore if too small
 				pos<=this.interval.getEnd();++pos)
 			{
 			final char rc= this.genomicSequence.charAt(pos-1);
 			final Counter<Character> cons = pos2consensus.get(pos);
 			if(cons==null) continue;
-			char ac=cons.getMostFrequent();
-			if(cons.getCountCategories()==1 && ac==rc) continue;
-
-			double x0  = baseToPixel(pos);
-			for(Character a : cons.keySetDecreasing()) {
-				final double aw = (context.featureWidth-1)*((double)cons.count(a)/cons.getTotal());
+			final char ac=cons.getMostFrequent();
+			final double cov_height = (cons.getTotal()/(double)max_depth)*(context.featureHeight-1);
+			if(cons.getCountCategories()==1 && ac==rc) {
+				final double x0  = baseToPixel(pos);
 				w.writeStartElement("rect");
 				w.writeAttribute("x", format(x0));
-				w.writeAttribute("y", format(consensus_y));
-				w.writeAttribute("width", format(aw));
-				w.writeAttribute("height", format(context.featureHeight-1));
-				w.writeAttribute("style", "stroke:none;fill:"+AcidNucleics.cssColor(a)); 
-				writeTitle(w, ""+a+" "+cons.count(a)+"/"+cons.getTotal()+" "+(int)(100.0*(double)cons.count(a)/cons.getTotal())+"%");
+				w.writeAttribute("y", format(consensus_y+context.featureHeight-cov_height));
+				w.writeAttribute("width", format(context.featureWidth-1));
+				w.writeAttribute("height", format(cov_height));
+				w.writeAttribute("style", "stroke:none;fill:gray;"); 
+				writeTitle(w,String.valueOf(ac)+" "+cons.count(ac));
 				w.writeEndElement();
-				x0+=aw;
+				}
+			else
+				{
+				double x0  = baseToPixel(pos);
+				for(Character a : cons.keySetDecreasing()) {
+					final double aw = (context.featureWidth-1)*((double)cons.count(a)/cons.getTotal());
+					w.writeStartElement("rect");
+					w.writeAttribute("x", format(x0));
+					w.writeAttribute("y", format(consensus_y+context.featureHeight-cov_height));
+					w.writeAttribute("width", format(aw));
+					w.writeAttribute("height", format(cov_height));
+					w.writeAttribute("style", "stroke:none;fill:"+AcidNucleics.cssColor(a)); 
+					writeTitle(w, ""+a+" "+cons.count(a)+"/"+cons.getTotal()+" "+(int)(100.0*(double)cons.count(a)/cons.getTotal())+"%");
+					w.writeEndElement();
+					x0+=aw;
+					}
 				}
 			}
 
@@ -744,7 +758,7 @@ public class BamToSVG extends Launcher {
 		svgOutput.geneNames.addAll(gene_names);
 		return svgOutput;
 		}
-		
+		@SuppressWarnings("fallthrough")
 		private void printSamRecord(
 				final XMLStreamWriter w,
 				final Context context,
