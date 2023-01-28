@@ -763,6 +763,6 @@ stream().
 
 ## Cited in
 
- * Hickman, A.R., Selee, B., Pauly, R. et al. Discovery of eQTL Alleles Associated with Autism Spectrum Disorder: A Case–Control Study. J Autism Dev Disord (2022). https://doi.org/10.1007/s10803-022-05631-x
+ * Hickman, A.R., Selee, B., Pauly, R. et al. Discovery of eQTL Alleles Associated with Autism Spectrum Disorder: A Case-Control Study. J Autism Dev Disord (2022). https://doi.org/10.1007/s10803-022-05631-x
 
 

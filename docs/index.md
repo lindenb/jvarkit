@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 14b91ea50
-Compilation : 20230127153447
+Version     : 1d5267b2
+Compilation : 20230128172212
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -112,7 +112,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [setfiletools](SetFileTools.md) | Utilities for the setfile format | 20210125 | 20220426 |
 | [sortsamrefname](SortSamRefName.md) | Sort a BAM on chromosome/contig and then on read/querty name | 20150812 | 20210312 |
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
-| [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230124 |
+| [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230128 |
 | [swingindexcov](SwingIndexCov.md) | indexcov visualization | 2020511 | 2020512 |
 | [swingvcfjexl](SwingVcfJexlFilter.md) | Filter VCF using Java Swing UI and JEXL/Javascript expression | 20220413 | 20220414 |
 | [swingvcfview](SwingVcfView.md) | VCFviewer using Java Swing UI | 20210503 | 20210503 |

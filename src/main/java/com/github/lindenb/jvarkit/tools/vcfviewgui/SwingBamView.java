@@ -36,6 +36,7 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
+import java.awt.event.MouseAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
@@ -59,6 +60,7 @@ import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -81,6 +83,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
+import com.github.lindenb.jvarkit.samtools.swing.SAMRecordPanel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.swing.PropertyChangeObserver;
@@ -142,7 +145,7 @@ END_DOC
 description="Read viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate = "20220503",
-modificationDate="20230124",
+modificationDate="20230128",
 jvarkit_amalgamion =  true
 )
 public class SwingBamView extends Launcher {
@@ -488,6 +491,19 @@ public class SwingBamView extends Launcher {
 					paintDrawingArea(Graphics2D.class.cast(g));
 					}
 				};
+			this.drawingArea.addMouseListener(new MouseAdapter() {
+				public void mouseClicked(java.awt.event.MouseEvent e)
+					{
+					if(e.getClickCount()<2) return;
+					final Optional<Read> r = findReadAt(e.getX(),e.getY());
+					if(!r.isPresent()) return ;
+					final JDialog dlg = new JDialog(XFrame.this);
+					dlg.setTitle(r.get().rec.getReadName());
+					dlg.setContentPane(new SAMRecordPanel(r.get().rec));
+					dlg.pack();
+					dlg.setVisible(true);
+					}
+				});
 			this.drawingArea.setOpaque(true);
 			this.drawingArea.setToolTipText("");
 			drawingPane.add(this.drawingArea,BorderLayout.CENTER);
