@@ -102,7 +102,8 @@ END_DOC
 	keywords={"vcf","wig","wiggle","bigwig"},
 	creationDate="20200506",
 	modificationDate="20220110",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VCFBigWig extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VCFBigWig.class).make();

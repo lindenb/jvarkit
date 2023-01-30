@@ -65,7 +65,8 @@ END_DOC
 	keywords={"wig","bigwig"},
 	modificationDate="20220110",
 	creationDate="20140708",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="Biostars"
 	)
 public class Biostar105754 extends Launcher {
 

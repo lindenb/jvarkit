@@ -78,7 +78,8 @@ END_DOC
 	keywords={"vcf","repeat"},
 	creationDate="20200930",
 	modificationDate="20211102",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class VCFPolyX extends OnePassVcfLauncher
 	{

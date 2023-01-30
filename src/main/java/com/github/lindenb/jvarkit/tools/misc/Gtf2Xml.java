@@ -171,7 +171,9 @@ END_DOC
 	keywords={"xml","gtf","gff","gff3"},
 	creationDate="20150811",
 	modificationDate="20190823",
-	biostars={478242}
+	biostars={478242},
+	jvarkit_amalgamion = true,
+	menu="GTF/GFF Manipulation"
 	)
 public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.build(FixVCF.class).make();

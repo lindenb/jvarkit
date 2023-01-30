@@ -126,7 +126,8 @@ END_DOC
 description="Convert BAI to XML",
 biostars=172515,
 keywords={"bai","bam","xml"},
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Biostars"
 )
 public class Biostar172515 extends Launcher
 	{

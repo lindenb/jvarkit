@@ -132,7 +132,8 @@ END_DOC
 		keywords={"bed"},
 		creationDate="20180607",
 		modificationDate="20200408",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="BED Manipulation"
 		)
 public class BedNonOverlappingSet extends Launcher {
 	private static final Logger LOG = Logger.build(BedNonOverlappingSet.class).make();

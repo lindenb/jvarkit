@@ -96,7 +96,8 @@ keywords= {"sam","bam","vcf"},
 creationDate="20211210",
 modificationDate="20211213",
 biostars=9501110,
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Biostars"
 )
 public class Biostar9501110 extends OnePassBamLauncher
 	{

@@ -58,7 +58,8 @@ keywords= {"sam","bam","rnaseq","bed"},
 creationDate="20210511",
 modificationDate="20210511",
 biostars=9469733,
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Biostars"
 )
 public class Biostar9469733 extends OnePassBamLauncher
 	{

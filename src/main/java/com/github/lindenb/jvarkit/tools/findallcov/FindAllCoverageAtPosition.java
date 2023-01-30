@@ -116,7 +116,8 @@ END_DOC
 	biostars= {259223,250099,409942},
 	modificationDate="20210818",
 	creationDate="20141128",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="BAM Manipulation"
 	)
 public class FindAllCoverageAtPosition extends Launcher
 	{

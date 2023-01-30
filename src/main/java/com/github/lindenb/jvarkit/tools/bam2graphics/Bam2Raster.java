@@ -180,7 +180,8 @@ END_DOC
 	description="BAM to raster graphics",
 	keywords={"bam","alignment","graphics","visualization","png"},
 	biostars=252491,
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="BAM Visualization"
 	)
 public class Bam2Raster extends AbstractBam2Raster
 	{

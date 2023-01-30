@@ -145,7 +145,8 @@ keywords= {"genome","browser","circular","bed","svg"},
 biostars= {336589,367522},
 modificationDate="20210818",
 creationDate="20180907",
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Biostars"
 )
 
 public class Biostar336589 extends Launcher{

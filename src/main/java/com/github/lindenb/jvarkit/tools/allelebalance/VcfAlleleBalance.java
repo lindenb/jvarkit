@@ -77,7 +77,8 @@ END_DOC
 	keywords= {"vcf","allele-balance","depth"},
 	modificationDate="20200805",
 	creationDate="20180829",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class VcfAlleleBalance extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfAlleleBalance.class).make();

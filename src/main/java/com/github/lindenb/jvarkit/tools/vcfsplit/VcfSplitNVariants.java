@@ -105,7 +105,8 @@ END_DOC
 		modificationDate="202221201",
 		biostars={9548193},
 		keywords= {"vcf"},
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="VCF Manipulation"
 		)
 public class VcfSplitNVariants 	extends Launcher {
 private static final Logger LOG = Logger.build(VcfSplitNVariants.class).make();	

@@ -121,8 +121,9 @@ END_DOC
 	keywords={"pubmed","xml","graph"},
 	creationDate="20150605",
 	modificationDate="20200220",
-	jvarkit_amalgamion =  true
-)
+	jvarkit_amalgamion =  true,
+	menu="Pubmed"
+	)
 public class PubmedGraph extends Launcher
 	{
 	private static final Logger LOG = Logger.build(PubmedGraph.class).make();

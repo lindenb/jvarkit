@@ -101,7 +101,8 @@ END_DOC
 	keywords={"bam","sam","coverage","depth"},
 	modificationDate="20210312",
 	creationDate="20150812",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="BAM Manipulation"
 	)
 public class Biostar154220 extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(Biostar154220.class).make();

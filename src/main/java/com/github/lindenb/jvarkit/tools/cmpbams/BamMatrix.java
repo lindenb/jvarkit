@@ -123,7 +123,8 @@ description="Bam matrix, inspired from 10x/loupe ",
 keywords={"sam","bam","compare","matrix"},
 creationDate="20190620",
 modificationDate="20211206",
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="CNV/SV"
 )
 public class BamMatrix  extends Launcher
 	{

@@ -113,7 +113,8 @@ keywords={"vcf","phased","genotypes","bam"},
 creationDate="20211208",
 modificationDate="20211208",
 generate_doc=false,
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="BAM Manipulation"
 )
 public class BamToMNV extends Launcher {
 	private static final Logger LOG=Logger.build(BamToMNV.class).make();

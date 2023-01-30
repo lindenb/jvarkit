@@ -127,7 +127,8 @@ No errors detected in compressed data of out.zip.
 		keywords={"bam","sam"},
 		creationDate="20190410",
 		modificationDate="20221019",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="BAM Visualization"
 		)
 public class MakeMiniBam extends Launcher {
 	private static final Logger LOG = Logger.build(MakeMiniBam.class).make();

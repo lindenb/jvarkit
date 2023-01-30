@@ -249,7 +249,8 @@ references="PrettySam : a SAM/BAM prettifier. Lindenbaum & al. 2018. figshare. [
 keywords={"sam","bam"},
 creationDate="20171215",
 modificationDate="20211105",
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="BAM Visualization"
 )
 public class PrettySam extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(PrettySam.class).make();

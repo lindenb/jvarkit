@@ -121,7 +121,9 @@ END_DOC
 description="Scan retrocopies from the star-aligner/bwa output",
 keywords={"sam","bam","cigar","clip","sv","retrocopy","star"},
 creationDate="20190710",
-modificationDate="20191008"
+modificationDate="20191008",
+jvarkit_amalgamion = true,
+menu="Retrocopy"
 )
 public class StarRetroCopy extends Launcher
 	{

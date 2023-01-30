@@ -116,7 +116,8 @@ END_DOC
 		biostars= 293741,
 		creationDate="20170523",
 		modificationDate="20211126",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="BAM Visualization"
 		)
 public class LowResBam2Raster extends AbstractBam2Raster {
 	private static final Logger LOG = Logger.build(LowResBam2Raster.class).make();

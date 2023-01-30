@@ -11,7 +11,13 @@ use https://github.com/sanger-pathogens/snp_sites
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar msa2vcf  [options] Files
+
 Usage: msa2vcf [options] Files
   Options:
     -R, --REF
@@ -40,6 +46,9 @@ Usage: msa2vcf [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -N, --ignore-n-bases
+      ignore, to the extent possible N-bases in the reads.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -61,23 +70,6 @@ Usage: msa2vcf [options] Files
 
  * [https://www.biostars.org/p/94573](https://www.biostars.org/p/94573)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew msa2vcf
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -125,10 +117,11 @@ input is a clustalw file like: https://github.com/biopython/biopython/blob/maste
 
 
   * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
-  * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean‐Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
-  * 'Two key events associated with a transposable element burst occurred during rice domestication'  https://doi.org/10.1101/405290  
+  * 'Pleiotropic effects of regulatory variation in tan result in correlation of two pigmentation traits in Drosophila melanogaster'. 2018. Molecular Ecology. Lukas Endler, Jean-Michel Gibert, Viola Nolte, Christian Schlotterer. doi: 10.1111/mec.14781
+  * 'Two key events associated with a transposable element burst occurred during rice domestication'  https://doi.org/10.1101/405290
   * 'Tracking the origin of two genetic components associated with transposable element bursts in domesticated rice'. Nature Communicationsvolume 10, Article number: 641 (2019) https://www.nature.com/articles/s41467-019-08451-3
-  * 'Predicting antimicrobial resistance in Pseudomonas aeruginosa with machine learning‐enabled molecular diagnostics'. EMBO Mol Med (2020)e10264https://doi.org/10.15252/emmm.201910264
+  * 'Predicting antimicrobial resistance in Pseudomonas aeruginosa with machine learning-enabled molecular diagnostics'. EMBO Mol Med (2020)e10264https://doi.org/10.15252/emmm.201910264
+  *  Xi, L., Sun, Y., Xu, T., Wang, Z., Chiu, M. Y., Plouviez, S., Jollivet, D., & Qiu, J.-W. (2022). Phylogenetic divergence and population genetics of the hydrothermal vent annelid genus Hesiolyra along the East Pacific Rise: Reappraisal using multi-locus data. Diversity and Distributions, 00, 1-15. https://doi.org/10.1111/ddi.13653
 
 ## Example
 
@@ -197,4 +190,5 @@ chrUn	91	.	T	C	.	.	DP=7	GT:DP	1:1	1:1	0:1	0:1	0:1	0:1	0:1
 chrUn	137	.	T	C	.	.	DP=7	GT:DP	0:1	1:1	0:1	0:1	0:1	0:1	0:1
 chrUn	149	.	G	A	.	.	DP=7	GT:DP	0:1	0:1	0:1	0:1	1:1	0:1	0:1
 ```
+
 

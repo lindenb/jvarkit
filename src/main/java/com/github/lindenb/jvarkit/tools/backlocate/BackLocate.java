@@ -130,7 +130,8 @@ backlocate was cited in:
 	biostars={15992,116366,425422},
 	creationDate="20140619",
 	modificationDate="20190820",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Functional prediction"
 	)
 public class BackLocate
 	extends Launcher

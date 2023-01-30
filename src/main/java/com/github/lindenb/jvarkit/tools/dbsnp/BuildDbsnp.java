@@ -103,7 +103,8 @@ END_DOC
 	keywords={"vcf","dbsnp"},
 	creationDate="20200904",
 	modificationDate="2021070726",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class BuildDbsnp extends Launcher {
 	private static Logger LOG=Logger.build(BuildDbsnp.class).make();

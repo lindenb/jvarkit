@@ -80,7 +80,8 @@ END_DOC
 	description="Shuffle a VCF",
 	keywords={"vcf"},
 	creationDate="20131210",
-	modificationDate="20200818"
+	modificationDate="20200818",
+	menu="VCF Manipulation"
 	)
 public class VCFShuffle extends OnePassVcfLauncher
 	{

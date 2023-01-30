@@ -117,7 +117,8 @@ END_DOC
 		creationDate = "20160310",
 		modificationDate="202220531",
 		keywords= {"genes","vcf"},
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="VCF Manipulation"
 		)
 public class VcfGeneSplitter
 	extends Launcher

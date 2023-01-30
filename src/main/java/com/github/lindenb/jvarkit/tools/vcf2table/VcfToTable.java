@@ -267,7 +267,8 @@ END_DOC
 		biostars={293855,9538421},
 		creationDate="20170511",
 		modificationDate="20220507",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="VCF Manipulation"
 		)
 public class VcfToTable extends Launcher {
 	private static final Logger LOG = Logger.build(VcfToTable.class).make();

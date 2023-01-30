@@ -106,7 +106,8 @@ $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resou
 	keywords={"vcf","rebase","restriction","enzyme"},
 	creationDate="20131115",
 	modificationDate="20200624",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class VcfRebase extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfRebase.class).make();

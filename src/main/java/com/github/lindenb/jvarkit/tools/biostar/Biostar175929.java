@@ -134,7 +134,8 @@ END_DOC
 	keywords={"fasta","vcf"},
 	creationDate="20160208",
 	modificationDate="20211012",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar175929 extends Launcher
 	{

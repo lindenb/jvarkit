@@ -60,7 +60,8 @@ END_DOC
 	description="Flag human sexual regions excluding PAR.",
 	keywords={"vcf","sex","par"},
 	creationDate="20200908",
-	modificationDate="20200908"
+	modificationDate="20200908",
+	menu="VCF Manipulation"
 	)
 public class VcfPseudoAutosomalRegion extends OnePassVcfLauncher
 	{

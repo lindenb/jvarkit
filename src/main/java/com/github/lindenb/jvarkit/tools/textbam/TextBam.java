@@ -95,7 +95,9 @@ END_DOC
 description="Write text in a bam. Mostly for fun...",
 keywords={"fun","bam","sam","txt"},
 creationDate="20220708",
-modificationDate="20220708"
+modificationDate="20220708",
+jvarkit_amalgamion = true,
+menu="BAM Manipulation"
 )
 public class TextBam extends Launcher {
 	private static final Logger LOG = Logger.build( TextBam.class).make();

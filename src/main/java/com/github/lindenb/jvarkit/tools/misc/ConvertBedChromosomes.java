@@ -87,7 +87,8 @@ END_DOC
 		description="Convert the names of the chromosomes in a Bed file",
 		keywords={"bed","chromosome","contig","convert"},
 		modificationDate="20190503",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="BED Manipulation"
 		)
 public class ConvertBedChromosomes
 	extends Launcher

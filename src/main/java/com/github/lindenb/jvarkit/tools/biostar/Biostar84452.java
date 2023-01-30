@@ -90,7 +90,8 @@ END_DOC
 	biostars=84452,
 	description="remove clipped bases from a BAM file",
 	keywords={"sam","bam","clip"},
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar84452 extends Launcher
 	{

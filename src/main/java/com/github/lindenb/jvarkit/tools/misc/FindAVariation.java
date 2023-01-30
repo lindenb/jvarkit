@@ -91,7 +91,8 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
 	keywords={"vcf","variation","search","find","bcf"},
 	creationDate="20140623",
 	modificationDate="20200217",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class FindAVariation extends Launcher
 	{

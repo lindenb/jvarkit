@@ -104,7 +104,8 @@ END_DOC
 	description="Extract PE Reads (with their mates) supporting variants in vcf file",
 	keywords= {"sam","bam","vcf"},
 	biostars=322664,
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar322664 extends Launcher
 	{

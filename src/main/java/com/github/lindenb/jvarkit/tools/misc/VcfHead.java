@@ -72,7 +72,8 @@ NG|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;Inb
 		keywords={"vcf"},
 		modificationDate="20200518",
 		creationDate="20131210",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="VCF Manipulation"
 		)
 public class VcfHead extends OnePassVcfLauncher
 	{

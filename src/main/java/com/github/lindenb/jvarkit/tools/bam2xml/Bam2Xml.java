@@ -204,7 +204,9 @@ END_DOC
 	description="converts a BAM to XML",
 	creationDate="20130506",
 	modificationDate="20210315",
-	jvarkit_amalgamion =  true)
+	jvarkit_amalgamion =  true,
+	menu="Deprecated/barely used"
+	)
 public class Bam2Xml extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(Bam2Xml.class).make();
 	

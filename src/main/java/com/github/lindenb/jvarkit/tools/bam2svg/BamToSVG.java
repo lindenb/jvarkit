@@ -141,7 +141,8 @@ description="BAM to Scalar Vector Graphics (SVG)",
 keywords={"bam","alignment","graphics","visualization","svg"},
 creationDate="20141013",
 modificationDate="20210728",
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="BAM Visualization"
 )
 public class BamToSVG extends Launcher {
 	private static final int HEIGHT_MAIN_TITLE=30;

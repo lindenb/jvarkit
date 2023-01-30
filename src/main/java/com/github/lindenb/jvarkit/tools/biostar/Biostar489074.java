@@ -102,7 +102,8 @@ description="call variants for every paired overlaping read",
 biostars= {489074},
 creationDate="20200205",
 modificationDate="20210412",
-generate_doc=true
+generate_doc=true,
+menu="Biostars"
 )
 public class Biostar489074 extends MultiBamLauncher {			
 private static final Logger LOG = Logger.build(Biostar489074.class).make();

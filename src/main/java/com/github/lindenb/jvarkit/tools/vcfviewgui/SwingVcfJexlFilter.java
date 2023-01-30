@@ -136,7 +136,8 @@ keywords={"vcf","visualization","swing","jexl","javascript"},
 creationDate="20220413",
 modificationDate="20220414",
 generate_doc=true,
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="VCF Manipulation"
 )
 public class SwingVcfJexlFilter extends Launcher {
 	private static final Logger LOG = Logger.build(SwingVcfJexlFilter.class).make();

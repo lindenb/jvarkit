@@ -206,7 +206,8 @@ with tr.xsl:
 @Program(name="pubmedgender",
 	keywords={"pubmed","gender","ncbi","xml"},
 	description="Add gender-related attributes in the Author tag of pubmed xml. ",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Pubmed"
 	)
 public class PubmedGender
 	extends Launcher

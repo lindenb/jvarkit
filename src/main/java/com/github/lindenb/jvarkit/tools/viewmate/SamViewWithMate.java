@@ -99,7 +99,8 @@ END_DOC
 	biostars={151403,105714,368754,9537698},
 	creationDate="20190207",
 	modificationDate="20191004",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="BAM Manipulation"
 	)
 public class SamViewWithMate
 	extends Launcher

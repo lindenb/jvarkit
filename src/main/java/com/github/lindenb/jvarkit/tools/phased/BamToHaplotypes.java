@@ -128,7 +128,8 @@ description="Reconstruct SNP haplotypes from reads",
 keywords={"vcf","phased","genotypes","bam"},
 biostars=9493599,
 creationDate="20211015",
-modificationDate="20211020"
+modificationDate="20211020",
+menu="BAM Manipulation"
 )
 public class BamToHaplotypes extends MultiBamLauncher {
 	private static final Logger LOG=Logger.build(BamToHaplotypes.class).make();

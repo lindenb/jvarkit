@@ -136,7 +136,8 @@ END_DOC
 	biostars={157232,59647,253828,264875,277493},
 	modificationDate="20210304",
 	creationDate="20170712",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="BAM Manipulation"
 	)
 public class Sam2Tsv
 	extends MultiBamLauncher

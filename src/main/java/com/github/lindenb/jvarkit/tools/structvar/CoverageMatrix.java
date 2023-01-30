@@ -110,7 +110,8 @@ END_DOC
 	keywords={"cnv","bam","depth","coverage"},
 	creationDate="20200618",
 	modificationDate="20200618",
-	generate_doc=false
+	generate_doc=false,
+	menu="BAM Visualization"
 	)
 public class CoverageMatrix extends Launcher {
 	private static final Logger LOG = Logger.build( CoverageMatrix.class).make();

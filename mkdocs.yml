@@ -14,6 +14,7 @@ nav:
         - "addlinearindextobed" : AddLinearIndexToBed.md
         - "allelefreqcalc" : AlleleFrequencyCalculator.md
         - "backlocate" : BackLocate.md
+        - "bam2haplotypes" : BamToHaplotypes.md
         - "bam2mnv" : BamToMNV.md
         - "bam2raster" : Bam2Raster.md
         - "bam2sql" : BamToSql.md
@@ -79,14 +80,18 @@ nav:
         - "findgvcfsblocks" : FindGVCFsBlocks.md
         - "groupbygene" : GroupByGene.md
         - "gtf2bed" : GtfToBed.md
+        - "gtf2xml" : Gtf2Xml.md
         - "ibd2vcf" : IbdToVcf.md
         - "lowresbam2raster" : LowResBam2Raster.md
         - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md
+        - "msa2vcf" : MsaToVcf.md
+        - "ncbitaxonomy2xml" : NcbiTaxonomyToXml.md
         - "plotsashimi" : PlotSashimi.md
         - "prettysam" : PrettySam.md
         - "pubmed404" : Pubmed404.md
         - "pubmedcodinglang" : PubmedCodingLanguages.md
+        - "pubmeddump" : PubmedDump.md
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "sam2tsv" : Sam2Tsv.md
@@ -97,26 +102,31 @@ nav:
         - "setfiletools" : SetFileTools.md
         - "sortsamrefname" : SortSamRefName.md
         - "splitvcf" : SplitVcf.md
+        - "starretrocopy" : StarRetroCopy.md
         - "swingbamcov" : SwingBamCov.md
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
+        - "texbam" : TextBam.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
         - "vcf2table" : VcfToTable.md
         - "vcfallelebalance" : VcfAlleleBalance.md
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
+        - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md
         - "vcfgenesplitter" : VcfGeneSplitter.md
         - "vcfgnomad" : VcfGnomad.md
         - "vcfhead" : VcfHead.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md
+        - "vcfphased01" : VcfPhased01.md
         - "vcfpolyx" : VCFPolyX.md
         - "vcfrebase" : VcfRebase.md
         - "vcfrenamechr" : ConvertVcfChromosomes.md
+        - "vcfsetdict" : VcfSetSequenceDictionary.md
         - "vcfshuffle" : VCFShuffle.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfstrech2svg" : VcfStrechToSvg.md

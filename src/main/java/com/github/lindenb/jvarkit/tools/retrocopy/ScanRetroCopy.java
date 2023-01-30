@@ -207,7 +207,8 @@ description="Scan BAM for retrocopies",
 keywords={"sam","bam","cigar","clip","sv","retrocopy"},
 creationDate = "20190125",
 modificationDate = "20190709",
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="Retrocopy"
 )
 public class ScanRetroCopy extends Launcher
 	{

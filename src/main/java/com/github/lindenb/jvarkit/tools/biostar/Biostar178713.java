@@ -73,7 +73,8 @@ END_DOC
 	keywords="bed",
 	creationDate="20160226",
 	modificationDate="20200818",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar178713 extends Launcher
 	{

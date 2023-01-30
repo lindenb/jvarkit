@@ -117,7 +117,8 @@ END_DOC
 		keywords={"sam","bam"},
 		modificationDate="20221207",
 		creationDate="20221207",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="BAM Manipulation"
 		)
 public class SamRemoveDuplicatedNames extends Launcher {
 	private static final Logger LOG = Logger.build(SamRemoveDuplicatedNames.class).make();

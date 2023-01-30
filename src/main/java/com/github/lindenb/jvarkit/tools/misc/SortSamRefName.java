@@ -78,7 +78,8 @@ END_DOC
 		keywords={"sam","sort"},
 		biostars= {154220,483658},
 		creationDate="20150812",
-		modificationDate="20210312"
+		modificationDate="20210312",
+		menu="BAM Manipulation"
 		)
 public class SortSamRefName extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(SortSamRefName.class).make();

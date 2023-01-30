@@ -225,7 +225,8 @@ END_DOC
 		keywords={"cnv","duplication","deletion","sv"},
 		creationDate="2020511",
 		modificationDate="2020512",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="CNV/SV"
 		)
 public class SwingIndexCov extends Launcher {
 	private static final Logger LOG = Logger.build(SwingIndexCov.class).make();

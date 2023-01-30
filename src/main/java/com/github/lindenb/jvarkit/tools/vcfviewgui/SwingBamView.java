@@ -146,7 +146,8 @@ description="Read viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate = "20220503",
 modificationDate="20230128",
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="BAM Manipulation"
 )
 public class SwingBamView extends Launcher {
 	private static final Logger LOG = Logger.build(SwingBamView.class).make();

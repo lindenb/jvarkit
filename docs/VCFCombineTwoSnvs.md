@@ -7,7 +7,13 @@ Detect Mutations than are the consequences of two distinct variants. This kind o
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfcombinetwosnvs  [options] Files
+
 Usage: vcfcombinetwosnvs [options] Files
   Options:
     -B, --bam
@@ -60,23 +66,6 @@ Usage: vcfcombinetwosnvs [options] Files
  * protein
  * mnv
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfcombinetwosnvs
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -174,4 +163,5 @@ N_READS_ONLY_20Number of reads carrying onlt variant 2
 
  * http://bmcresnotes.biomedcentral.com/articles/10.1186/1756-0500-5-615
  * https://www.biorxiv.org/content/10.1101/573378v2
+
 

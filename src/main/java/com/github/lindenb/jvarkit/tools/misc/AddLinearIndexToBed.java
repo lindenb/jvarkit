@@ -34,7 +34,6 @@ import java.util.Arrays;
 import java.util.List;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -72,7 +71,8 @@ $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta
 		keywords={"bed","reference"},
 		creationDate="20140201",
 		modificationDate="20230126",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="Deprecated/barely used"
 		)
 public class AddLinearIndexToBed extends Launcher
 {

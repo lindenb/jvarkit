@@ -82,7 +82,10 @@ END_DOC
 @Program(name="biostar165777",
 	description="Split a XML file",
 	keywords= {"xml"},
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	creationDate = "20151114",
+	modificationDate = "20151114",
+	menu="Biostars"
 	)
 public class Biostar165777 extends Launcher
 	{

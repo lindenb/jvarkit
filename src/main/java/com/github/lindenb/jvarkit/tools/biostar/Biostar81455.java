@@ -90,7 +90,8 @@ END_DOC
 	description="Defining precisely the exonic genomic context based on a position .",
 	modificationDate="20200603",
 	creationDate="20130918",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar81455 extends Launcher
 	{

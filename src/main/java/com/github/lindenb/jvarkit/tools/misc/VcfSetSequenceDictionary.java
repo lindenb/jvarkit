@@ -65,7 +65,9 @@ END_DOC
 	description="Set the `##contig` lines in a VCF header on the fly",
 	keywords={"vcf","dict","fai"},
 	creationDate="20140105",
-	modificationDate="20210201"
+	modificationDate="20210201",
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
 	private static final Logger LOG=Logger.build(VcfSetSequenceDictionary.class).make();

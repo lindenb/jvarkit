@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -185,7 +184,8 @@ END_DOC
 	keywords={"vcf","contig","chromosome","convert"},
 	deprecatedMsg="use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ?)",
 	modificationDate="20190411",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class ConvertVcfChromosomes extends Launcher {
 	private static final Logger LOG = Logger.build(ConvertVcfChromosomes.class).make();

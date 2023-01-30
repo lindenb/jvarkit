@@ -7,7 +7,13 @@ Convert GTF/GFF to XML
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar gtf2xml  [options] Files
+
 Usage: gtf2xml [options] Files
   Options:
     -a, --attributes
@@ -48,22 +54,10 @@ Usage: gtf2xml [options] Files
  * [https://www.biostars.org/p/478242](https://www.biostars.org/p/478242)
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew gtf2xml
-```
-
-The java jar file will be installed in the `dist` directory.
+20150811
 
 ## Source code 
 
@@ -201,4 +195,5 @@ $ java -jar dist/gtf2xml.jar src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | 
         </exon>
         (...)
 ```
+
 

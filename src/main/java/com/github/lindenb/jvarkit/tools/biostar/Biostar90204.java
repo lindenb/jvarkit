@@ -82,7 +82,8 @@ END_DOC
 	keywords={"sam","bam","split","util"},
 	description="Bam version of linux split.",
 	biostars=90204,
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar90204 extends Launcher
 	{

@@ -122,7 +122,8 @@ END_DOC
 	creationDate="20170404",
 	modificationDate="20200223",
 	biostars=251002,
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Pubmed"
 	)
 public class PubmedCodingLanguages
 	extends Launcher

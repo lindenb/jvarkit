@@ -148,7 +148,8 @@ description="Bam to fixedStep Wiggle converter , or BED GRAPH. Parses the cigar 
 keywords={"bam","wig","wiggle","bed"},
 modificationDate="20200304",
 jvarkit_amalgamion = true,
-jvarkit_hidden = true
+jvarkit_hidden = true,
+menu="Deprecated/barely used"
 )
 public class Bam2Wig extends Launcher
 	{

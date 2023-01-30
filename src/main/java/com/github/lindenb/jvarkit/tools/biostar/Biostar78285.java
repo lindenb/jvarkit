@@ -142,7 +142,8 @@ END_DOC
 	biostars=78285,
 	keywords={"sam","bam","depth","coverage"},
 	description="Extract BAMs coverage as a VCF file.",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar78285 extends Launcher
 	{

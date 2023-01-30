@@ -87,7 +87,8 @@ END_DOC
 @Program(name="biostar173114",
 	description="make a bam file smaller by removing unwanted information see also https://www.biostars.org/p/173114/",
 	keywords= {"sam","bam"},
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar173114 extends Launcher
 	{

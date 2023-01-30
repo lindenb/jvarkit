@@ -30,8 +30,11 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.tools.allelebalance.VcfAlleleBalance;
 import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
@@ -105,19 +108,26 @@ import com.github.lindenb.jvarkit.tools.misc.ConvertBamChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.ConvertBedChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
+import com.github.lindenb.jvarkit.tools.misc.Gtf2Xml;
 import com.github.lindenb.jvarkit.tools.misc.SortSamRefName;
 import com.github.lindenb.jvarkit.tools.misc.SplitVcf;
 import com.github.lindenb.jvarkit.tools.misc.VCFShuffle;
 import com.github.lindenb.jvarkit.tools.misc.VcfHead;
+import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
+import com.github.lindenb.jvarkit.tools.msa2vcf.MsaToVcf;
 import com.github.lindenb.jvarkit.tools.nobai.BamWithoutBai;
 import com.github.lindenb.jvarkit.tools.phased.BamPhased01;
+import com.github.lindenb.jvarkit.tools.phased.BamToHaplotypes;
 import com.github.lindenb.jvarkit.tools.phased.BamToMNV;
+import com.github.lindenb.jvarkit.tools.phased.VcfPhased01;
 import com.github.lindenb.jvarkit.tools.pubmed.Pubmed404;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedCodingLanguages;
+import com.github.lindenb.jvarkit.tools.pubmed.PubmedDump;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedGender;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedGraph;
 import com.github.lindenb.jvarkit.tools.retrocopy.ScanRetroCopy;
+import com.github.lindenb.jvarkit.tools.retrocopy.StarRetroCopy;
 import com.github.lindenb.jvarkit.tools.sam2tsv.CnvTView;
 import com.github.lindenb.jvarkit.tools.sam2tsv.PrettySam;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
@@ -128,9 +138,12 @@ import com.github.lindenb.jvarkit.tools.setfile.SetFileTools;
 import com.github.lindenb.jvarkit.tools.structvar.CoverageMatrix;
 import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
+import com.github.lindenb.jvarkit.tools.taxonomy.NcbiTaxonomyToXml;
+import com.github.lindenb.jvarkit.tools.textbam.TextBam;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VcfBigBed;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
@@ -180,6 +193,11 @@ public class JvarkitCentral {
 		public String getDescription() {
 			final Program p = program();
 			return p==null?getName():p.description().trim();
+			}
+		public Set<String> getMenus() {
+			final Program p = program();
+			final String s= p==null?"Unclassified":p.menu();
+			return Arrays.stream(s.split("[,;]")).map(S->S.trim()).filter(S->!S.isEmpty()).collect(Collectors.toSet());
 			}
 		
 		public String getCreationDate() {
@@ -273,6 +291,7 @@ public class JvarkitCentral {
 		out.println();
 		}
 	
+	
 	private void usage(PrintStream out,boolean showHidden) {
 		usageMain(out);
 		
@@ -312,6 +331,33 @@ public class JvarkitCentral {
 	return "["+url+"]("+url+")";
 	}
 	
+	private void menuReadTheDoc(final PrintStream out,final String menu) {
+		final List<Command> L = this.commands.values().stream().
+				filter(C->C.getMenus().stream().anyMatch(X->X.equalsIgnoreCase(menu))).
+				filter(C->!C.isHidden()).
+				collect(Collectors.toList());
+		if(L.isEmpty()) return;
+		out.println("### " +menu+"\n");
+		
+		out.println("| Tool | Description | Creation | Update |");
+		out.println("| ---: | :---------- | :------: | :----: |");
+		for(Command c: L) {
+			out.print("| ");
+			out.print("["+c.getName()+"]("+c.getMarkdownFile()+")");
+			out.print(" | ");
+			out.print(c.getDescription());
+			out.print(" | ");
+			out.print(c.getCreationDate());
+			out.print(" | ");
+			out.print(c.getModificationDate());
+			out.print(" |");
+			out.println();
+			}
+		
+		out.println();
+		}
+
+	
 	void writeReadTheDoc(final File dir) throws IOException {
 		IOUtil.assertDirectoryIsWritable(dir);
 		final File docs = new File(dir,"docs");
@@ -321,22 +367,13 @@ public class JvarkitCentral {
 			out.println("## Compilation Installation\n");
 			out.println("Please, read [how to run and install jvarkit](JvarkitCentral.md)\n");
 			out.println("## Tools\n");
-			out.println("| Tool | Description | Creation | Update |");
-			out.println("| ---: | :---------- | :------: | :----: |");
-			for(Command c: this.commands.values()) {
-				if(c.isHidden()) continue;
-				out.print("| ");
-				out.print("["+c.getName()+"]("+c.getMarkdownFile()+")");
-				out.print(" | ");
-				out.print(c.getDescription());
-				out.print(" | ");
-				out.print(c.getCreationDate());
-				out.print(" | ");
-				out.print(c.getModificationDate());
-				out.print(" |");
-				out.println();
+			
+			for(String menu:  this.commands.values().stream().flatMap(T->T.getMenus().stream()).collect(Collectors.toSet())) {
+				menuReadTheDoc(out,menu);
 				}
+			
 			out.flush();
+			out.println();
 			}
 		try (PrintStream out = new PrintStream(new File(docs,"JvarkitCentral.md"))) {
 			usageMain(out);
@@ -419,6 +456,7 @@ public class JvarkitCentral {
 		command(BedMergeCnv.class);
 		command(BackLocate.class);
 		command(BamToSVG.class);
+		command(BamToHaplotypes.class);
 		command(BamWithoutBai.class);
 		command(BamToSql.class);
 		command(Bam2Xml.class);
@@ -484,10 +522,14 @@ public class JvarkitCentral {
 		command(FindAllCoverageAtPosition.class);
 		command(GtfToBed.class);
 		command(GroupByGene.class);
+		command(Gtf2Xml.class);
 		command(IbdToVcf.class);
 		command(LowResBam2Raster.class);
 		command(MiniCaller.class);
+		command(MsaToVcf.class);
 		command(MakeMiniBam.class);
+		command(NcbiTaxonomyToXml.class);
+		command(PubmedDump.class);
 		command(Pubmed404.class);
 		command(PubmedCodingLanguages.class);
 		command(PubmedGender.class);
@@ -499,12 +541,14 @@ public class JvarkitCentral {
 		command(VCFPolyX.class);
 		command(VcfToTable.class);
 		command(VcfGnomad.class);
+		command(VcfSetSequenceDictionary.class);
 		command(VcfFilterSequenceOntology.class);
 		command(Sam2Tsv.class);
 		command(SamGrep.class);
 		command(SamViewWithMate.class);
 		command(SamRemoveDuplicatedNames.class);
 		command(ScanRetroCopy.class);
+		command(StarRetroCopy.class);
 		command(SetFileTools.class);
 		command(SplitVcf.class);
 		command(SwingVcfView.class);
@@ -512,8 +556,10 @@ public class JvarkitCentral {
 		command(SwingBamView.class);
 		command(SwingIndexCov.class);
 		command(SwingVcfJexlFilter.class);
+		command(TextBam.class);
 		command(UniprotToSvg.class);
 		command(UKBiobankSelectSamples.class);
+		command(VcfPhased01.class);
 		command(VcfFilterJdk.class);
 		command(VcfAlleleBalance.class);
 		command(VcfPseudoAutosomalRegion.class);
@@ -524,6 +570,7 @@ public class JvarkitCentral {
 		command(VcfGeneSplitter.class);
 		command(VcfSplitNVariants.class);
 		command(VcfStrechToSvg.class);
+		command(VCFCombineTwoSnvs.class);
 		command(VCFShuffle.class);
 		command(WesCnvSvg.class);
 		command(WGSCoveragePlotter.class);

@@ -8,6 +8,7 @@ X10 Phased SVG to Scalar Vector Graphics (SVG)
 ## Usage
 
 ```
+Usage: java -jar dist/vcfphased01.jar  [options] Files
 Usage: vcfphased01 [options] Files
   Options:
     -xp, --xpos, --extra-highligth
@@ -124,4 +125,5 @@ java -jar dist/vcfphased01.jar -r "chr1:1000-2000" -xp '1001,1010' in.list
 https://twitter.com/yokofakun/status/1148964221482414080
 
 ![https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg](https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg)
+
 

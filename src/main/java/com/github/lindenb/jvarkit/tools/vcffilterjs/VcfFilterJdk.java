@@ -424,7 +424,8 @@ END_DOC
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 		creationDate="20170705",
 		modificationDate="20220830",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="VCF Manipulation"
 		)
 public class VcfFilterJdk
 	extends Launcher

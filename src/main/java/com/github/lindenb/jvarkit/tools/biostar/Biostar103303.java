@@ -83,7 +83,8 @@ END_DOC
 description="Calculate Percent Spliced In (PSI).",
 keywords= {"sam","bam","psi"},
 biostars=103303,
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Biostars"
 )
 public class Biostar103303 extends Launcher
 	{

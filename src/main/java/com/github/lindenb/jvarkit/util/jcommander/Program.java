@@ -49,4 +49,6 @@ public @interface Program {
 	public boolean jvarkit_amalgamion() default false;
 	/**hidden from jvarkit amalgamion */
 	public boolean jvarkit_hidden() default false;
+	/** menu for jvarkit documentation */
+	public String menu() default "Unclassfied";
 }

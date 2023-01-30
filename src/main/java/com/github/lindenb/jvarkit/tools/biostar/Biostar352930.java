@@ -114,7 +114,8 @@ END_DOC
 	description="Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the same name carrying this information.",
 	keywords= {"sam","bam"},
 	biostars=352930,
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar352930 extends Launcher
 	{

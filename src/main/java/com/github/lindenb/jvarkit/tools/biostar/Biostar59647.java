@@ -141,7 +141,8 @@ END_DOC
 	biostars=59647,
 	creationDate="20131112",
 	modificationDate="20190926",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar59647 extends Launcher
 	{

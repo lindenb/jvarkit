@@ -169,7 +169,8 @@ keywords={"bam","visualization","svg","rna","exon","rnaseq"},
 modificationDate="20191104",
 creationDate="20191117",
 biostars=497894,
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="BAM Visualization"
 )
 public class PlotSashimi extends Launcher {
 private static final Logger LOG = Logger.build(PlotSashimi.class).make();

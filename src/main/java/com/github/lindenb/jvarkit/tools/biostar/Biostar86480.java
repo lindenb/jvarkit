@@ -82,7 +82,8 @@ END_DOC
 	keywords={"rebase","genome","enzyme","restricion","genome","fasta"},
 	creationDate="20131114",
 	modificationDate="20220426",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar86480 extends Launcher {
 	private static final Logger LOG = Logger.build(Biostar86480.class).make();

@@ -96,7 +96,8 @@ END_DOC
 	keywords={"vcf","wig","wiggle","bigbed","bed"},
 	creationDate="20220107",
 	modificationDate="20220107",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VcfBigBed extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfBigBed.class).make();

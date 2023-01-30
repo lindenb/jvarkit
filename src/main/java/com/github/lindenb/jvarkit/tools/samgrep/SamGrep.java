@@ -147,7 +147,8 @@ END_DOC
 		keywords={"sam","bam"},
 		modificationDate="20210726",
 		creationDate="20130506",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="BAM Manipulation"
 		)
 public class SamGrep extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(SamGrep.class).make();

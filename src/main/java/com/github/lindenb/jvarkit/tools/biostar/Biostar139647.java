@@ -100,7 +100,8 @@ END_DOC
 	description="Convert alignment in Fasta/Clustal format to SAM/BAM file",
 	biostars= 139647,
 	keywords={"msa","sam","bam","clustal"},
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="BAM Visualization"
 	)
 public class Biostar139647 extends Launcher
 	{

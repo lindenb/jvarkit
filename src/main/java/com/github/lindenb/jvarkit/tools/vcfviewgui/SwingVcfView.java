@@ -159,7 +159,8 @@ keywords={"vcf","visualization","swing"},
 creationDate="20210503",
 modificationDate="20210503",
 biostars=9538421,
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="VCF Manipulation"
 )
 public class SwingVcfView extends Launcher
 	{

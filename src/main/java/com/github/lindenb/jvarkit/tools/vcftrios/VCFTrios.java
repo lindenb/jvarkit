@@ -134,7 +134,8 @@ END_DOC
 		keywords={"vcf","mendelian","pedigree","denovo"},
 		creationDate="20130705",
 		modificationDate="20200624",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="VCF Manipulation"
 		)
 public class VCFTrios extends OnePassVcfLauncher
 	{

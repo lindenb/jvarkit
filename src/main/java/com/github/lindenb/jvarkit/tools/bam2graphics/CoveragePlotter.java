@@ -144,7 +144,8 @@ END_DOC
 	creationDate="20200605",
 	modificationDate="20221125",
 	biostars = 9536274,
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="CNV/SV"
 	)
 public class CoveragePlotter extends Launcher {
 	private static final Logger LOG = Logger.build( CoveragePlotter.class).make();

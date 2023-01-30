@@ -98,7 +98,8 @@ description="plot uniprot to SVG",
 keywords={"uniprot","svg"},
 creationDate="20220608",
 modificationDate="20220922",
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="Utilities"
 )
 public class UniprotToSvg extends Launcher {
 	private static final Logger LOG = Logger.build(UniprotToSvg.class).make();
@@ -143,8 +144,7 @@ public class UniprotToSvg extends Launcher {
 	        return "";
 	    }
 	 
-	    @SuppressWarnings({"rawtypes","unchecked"})
-	    public Iterator getPrefixes(String namespaceURI) {
+	    public Iterator<String> getPrefixes(String namespaceURI) {
 	    	 if(UNIPROT_NS.equals(namespaceURI)) return Arrays.asList("u","uniprot").iterator();
 	    	return Collections.emptyIterator();
 	    	}

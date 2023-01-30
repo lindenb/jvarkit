@@ -108,7 +108,8 @@ keywords={"bam","coverage","statistics","bed"},
 biostars={324639,194393,35083},
 modificationDate="20210317",
 creationDate="20151012",
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="BAM Manipulation"
 )
 public class BamStats05 extends Launcher
 	{

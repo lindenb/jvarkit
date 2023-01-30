@@ -81,7 +81,8 @@ END_DOC
 		creationDate="20220629",
 		modificationDate="20220630",
 		keywords= {"gtf","gff","gff3","bed"},
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="GTF/GFF Manipulation"
 		)
 public class GtfToBed
 	extends Launcher {

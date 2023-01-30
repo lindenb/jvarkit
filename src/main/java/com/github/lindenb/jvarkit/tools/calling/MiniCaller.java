@@ -73,7 +73,6 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
@@ -128,7 +127,8 @@ END_DOC
 	keywords={"bam","sam","calling","vcf"},
 	modificationDate="20220705",
 	creationDate="201500306",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class MiniCaller extends Launcher   {
 	private static final Logger LOG = Logger.build(MiniCaller.class).make();

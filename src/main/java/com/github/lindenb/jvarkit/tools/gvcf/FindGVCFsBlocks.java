@@ -227,7 +227,8 @@ END_DOC
 	keywords={"gvcf","gatk","vcf"},
 	creationDate="20210806",
 	modificationDate="20220401",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class FindGVCFsBlocks extends Launcher {
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)

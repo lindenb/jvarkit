@@ -8,6 +8,7 @@ Reconstruct SNP haplotypes from reads
 ## Usage
 
 ```
+Usage: java -jar dist/bam2haplotypes.jar  [options] Files
 Usage: bam2haplotypes [options] Files
   Options:
     --alt
@@ -174,4 +175,5 @@ RF09	294	317	6	2	294	T	317	A
 RF10	139	175	1	2	139	T	175	G
 RF10	139	175	3	2	139	T	175	C
 ```
+
 

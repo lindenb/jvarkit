@@ -159,7 +159,8 @@ description="Query a Remote BAM without bai",
 keywords={"bam","sam","bai","remote"},
 creationDate="20191213",
 modificationDate="20191217",
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="BAM Manipulation"
 )
 public class BamWithoutBai extends Launcher{
 	private static final Logger LOG = Logger.build(BamWithoutBai.class).make();

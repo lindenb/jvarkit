@@ -105,7 +105,8 @@ END_DOC
 	biostars=86363,
 	keywords={"sample","genotype","vcf"},
 	description="Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar86363 extends Launcher
 	{

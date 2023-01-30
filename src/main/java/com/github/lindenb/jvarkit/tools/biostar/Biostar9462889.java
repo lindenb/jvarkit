@@ -91,7 +91,8 @@ END_DOC
 	creationDate="20210402",
 	modificationDate="20210402",
 	biostars=9462889,
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar9462889 extends AbstractBamSplitter<Biostar9462889.Tokens>
 	{

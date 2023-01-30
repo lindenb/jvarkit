@@ -201,7 +201,8 @@ description="Text visualization of bam DEPTH for multiple regions in a terminal"
 keywords={"bam","alignment","graphics","visualization","cnv","ascii","text"},
 modificationDate="20210412",
 creationDate="20181018",
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="CNV/SV"
 )
 public class CnvTView  extends Launcher {
 	private static final Logger LOG = Logger.build(CnvTView.class).make();

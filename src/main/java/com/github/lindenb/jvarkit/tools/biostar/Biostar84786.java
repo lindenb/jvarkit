@@ -61,7 +61,8 @@ END_DOC
 	biostars=84786,
 	description="Matrix transposition",
 	keywords={"matrix","util"},
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar84786 extends Launcher
 	{

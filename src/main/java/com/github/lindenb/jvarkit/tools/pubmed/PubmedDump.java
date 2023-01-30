@@ -95,7 +95,9 @@ END_DOC
 	description="Dump XML results from pubmed/Eutils",
 	biostars= {270498,365479},
 	creationDate="20140805",
-	modificationDate="20200204"
+	modificationDate="20200204",
+	jvarkit_amalgamion = true,
+	menu="Pubmed"
 	)
 public class PubmedDump
 	extends Launcher

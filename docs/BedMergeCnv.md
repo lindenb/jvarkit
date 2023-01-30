@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Merge Bed records if they overlap a fraction of their lengths.
+Merge continuous sorted bed records if they overlap a fraction of their lengths.
 
 
 ## Usage

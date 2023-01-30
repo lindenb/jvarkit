@@ -156,7 +156,8 @@ END_DOC
 	creationDate="20170331",
 	modificationDate="20200924",
 	biostars={9474428},
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class VcfFilterSequenceOntology
 	extends OnePassVcfLauncher

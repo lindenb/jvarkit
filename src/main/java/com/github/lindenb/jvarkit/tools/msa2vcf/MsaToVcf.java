@@ -163,7 +163,9 @@ END_DOC
 	biostars=94573,
 	keywords={"vcf","snp","msa","alignment"},
 	creationDate="20151226",
-	modificationDate="20200217"
+	modificationDate="20200217",
+	jvarkit_amalgamion = true,
+	menu="Utilities"
 	)
 public class MsaToVcf extends Launcher
 	{

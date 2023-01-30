@@ -92,7 +92,8 @@ END_DOC
 description="fix strand of two paired reads close but on the same strand. ",
 biostars=76892,
 keywords={"sam","bam"},
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Biostars"
 )
 public class Biostar76892 extends Launcher
 	{

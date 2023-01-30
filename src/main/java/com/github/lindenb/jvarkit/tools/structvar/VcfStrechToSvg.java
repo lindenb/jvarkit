@@ -131,7 +131,8 @@ description="another VCF to SVG",
 keywords={"vcf","deletion","cnv","svg"},
 creationDate="20210304",
 modificationDate="20210309",
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="CNV/SV"
 )
 public class VcfStrechToSvg extends Launcher
 	{

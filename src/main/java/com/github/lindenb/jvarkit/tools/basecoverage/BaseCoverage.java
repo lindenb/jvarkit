@@ -131,7 +131,8 @@ END_DOC
 	keywords={"depth","bam","sam","coverage","vcf"},
 	creationDate="20220420",
 	modificationDate="20220420",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="BAM Manipulation"
 	)
 public class BaseCoverage extends Launcher
 	{

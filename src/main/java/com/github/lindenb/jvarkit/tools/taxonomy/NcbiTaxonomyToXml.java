@@ -127,7 +127,9 @@ END_DOC
 @Program(name="ncbitaxonomy2xml",
 	description="Dump NCBI taxonomy tree as a hierarchical XML document",
 	keywords={"taxonomy","ncbi","xml"},
-	biostars=10327
+	biostars=10327,
+	jvarkit_amalgamion = true,
+	menu="Utilities"
 	)
 public class NcbiTaxonomyToXml extends Launcher
 	{

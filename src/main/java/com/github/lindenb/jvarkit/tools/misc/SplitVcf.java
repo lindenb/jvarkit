@@ -88,7 +88,8 @@ description="split a vcf using a named list of intervals...",
 keywords={"vcf"},
 deprecatedMsg = "use bcftools and a loop",
 jvarkit_amalgamion = true,
-jvarkit_hidden = true
+jvarkit_hidden = true,
+menu="Deprecated/barely used"
 )
 public class SplitVcf
 	extends Launcher

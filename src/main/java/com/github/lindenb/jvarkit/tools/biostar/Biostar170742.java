@@ -79,7 +79,8 @@ biostars=170742,
 modificationDate="20210412",
 creationDate="20151228",
 keywords={"sam","axt"},
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Biostars"
 )
 public class Biostar170742 extends MultiBamLauncher {
 

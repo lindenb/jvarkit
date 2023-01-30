@@ -183,7 +183,9 @@ END_DOC
 	description="Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert",
 	keywords={"vcf","annotation","prediction","protein","mnv"},
 	modificationDate="20200425",
-	creationDate="20160215"
+	creationDate="20160215",
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VCFCombineTwoSnvs extends Launcher
 	{

@@ -126,7 +126,8 @@ END_DOC
 		creationDate="20200130",
 		modificationDate="20220914",
 		biostars= {424828},
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="BED Manipulation"
 		)
 public class BedCluster
 	extends Launcher

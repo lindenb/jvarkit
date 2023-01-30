@@ -113,7 +113,8 @@ END_DOC
 		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff",
 		modificationDate="20220529",
 		creationDate="20131209",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="Functional prediction"
 		)
 public class GroupByGene
 	extends Launcher

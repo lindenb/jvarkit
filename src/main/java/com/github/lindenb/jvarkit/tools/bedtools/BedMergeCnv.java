@@ -99,11 +99,12 @@ END_DOC
  */
 @Program(
 		name="bedmergecnv",
-		description="Merge Bed records if they overlap a fraction of their lengths.",
+		description="Merge continuous sorted bed records if they overlap a fraction of their lengths.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200330",
 		modificationDate="20200603",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="BED Manipulation"
 		)
 public class BedMergeCnv
 	extends Launcher

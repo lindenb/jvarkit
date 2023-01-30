@@ -34,7 +34,8 @@ END_DOC
 description="Divide the human genome among X cores, taking into account gaps",
 		biostars= {77828,369434},
 		keywords={"workflow","reference","parallel"},
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="Biostars"
 		)
 public class Biostar77828 extends Launcher
 	{

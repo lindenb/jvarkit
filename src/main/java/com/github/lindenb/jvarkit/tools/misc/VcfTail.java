@@ -69,7 +69,8 @@ END_DOC
 	keywords={"vcf"},
 	modificationDate="20200518",
 	creationDate="20131210",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 	)
 public class VcfTail extends OnePassVcfLauncher
 	{

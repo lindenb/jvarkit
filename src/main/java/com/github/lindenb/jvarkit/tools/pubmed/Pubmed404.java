@@ -108,7 +108,8 @@ description="Test if URL in the pubmed abstracts are reacheable.",
 keywords={"pubmed","url"},
 creationDate="20181210",
 modificationDate="20200204",
-jvarkit_amalgamion =  true
+jvarkit_amalgamion =  true,
+menu="Pubmed"
 )
 public class Pubmed404  extends Launcher{
 	private static final Logger LOG = Logger.build(Pubmed404.class).make();

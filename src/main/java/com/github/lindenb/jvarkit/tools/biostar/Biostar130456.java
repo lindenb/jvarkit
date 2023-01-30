@@ -96,7 +96,8 @@ END_DOC
 		biostars=130456,
 		modificationDate="20200603",
 		creationDate="20150210",
-		jvarkit_amalgamion =  true
+		jvarkit_amalgamion =  true,
+		menu="VCF Manipulation"
 		)
 public class Biostar130456 extends Launcher
 	{

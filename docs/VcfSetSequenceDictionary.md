@@ -7,7 +7,13 @@ Set the `##contig` lines in a VCF header on the fly
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfsetdict  [options] Files
+
 Usage: vcfsetdict [options] Files
   Options:
     --bcf-output
@@ -46,23 +52,6 @@ Usage: vcfsetdict [options] Files
  * dict
  * fai
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfsetdict
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -110,5 +99,6 @@ java  -jar jvarkit-git/vcfsetdict.jar --onNotFound SKIP -r ref.fasta input.vcf >
 ## History
 
 * [20170906] remove the creation of a dictionary, moved to VcfCreateDictionary
+
 
 

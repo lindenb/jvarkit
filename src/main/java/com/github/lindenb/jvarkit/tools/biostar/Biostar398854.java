@@ -72,7 +72,8 @@ import htsjdk.variant.vcf.VCFReader;
 	biostars=398854,
 	creationDate="20190916",
 	modificationDate="20190916",
-	jvarkit_amalgamion =  true
+	jvarkit_amalgamion =  true,
+	menu="Biostars"
 	)
 public class Biostar398854 extends Launcher {
 	private static final Logger LOG = Logger.build(Biostar398854.class).make();

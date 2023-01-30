@@ -7,8 +7,13 @@ Dump XML results from pubmed/Eutils
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/pubmeddump.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar pubmeddump  [options] Files
+
 Usage: pubmeddump [options] Files
   Options:
     -e, --email
@@ -50,23 +55,6 @@ Usage: pubmeddump [options] Files
  * [https://www.biostars.org/p/270498](https://www.biostars.org/p/270498)
  * [https://www.biostars.org/p/365479](https://www.biostars.org/p/365479)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew pubmeddump
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -130,4 +118,5 @@ $  java -jar dist/pubmeddump.jar "Lindenbaum P" | grep ArticleTitle
 
  * https://gist.github.com/lindenb/6bfb49fd8bc3dd27d99f
  * https://gist.github.com/lindenb/5d7773a93d8c2b0edbd4c01bf8834919
+
 
