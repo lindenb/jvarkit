@@ -135,7 +135,9 @@ END_DOC
 		keywords={"geneontology","go","gexf"},
 		biostars={488538},
 		creationDate="20180130",
-		modificationDate="20211020"
+		modificationDate="20211020",
+		jvarkit_amalgamion = true,
+		menu="Utilities"
 		)
 public class GoUtils
 	extends Launcher

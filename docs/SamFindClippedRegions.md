@@ -7,8 +7,13 @@ Fins clipped position in one or more bam.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/samfindclippedregions.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar samfindclippedregions  [options] Files
+
 Usage: samfindclippedregions [options] Files
   Options:
     --bcf-output
@@ -78,23 +83,6 @@ Usage: samfindclippedregions [options] Files
  * clip
  * vcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew samfindclippedregions
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -168,4 +156,5 @@ RF01	996	.	N	<CLIP>	.	.	AC=1;AF=0.1;AN=10;DP=30	GT:AD:CL:DP:RL:TL	0/0:2,0:0:2:0:
 https://twitter.com/yokofakun/status/1194921855875977216
 
 ![https://twitter.com/yokofakun/status/1194921855875977216](https://pbs.twimg.com/media/EJU3F9hWoAACgsd?format=png&name=large)
+
 

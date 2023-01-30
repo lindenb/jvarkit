@@ -103,13 +103,13 @@ import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.swing.PreferredDirectory;
+import com.github.lindenb.jvarkit.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
-import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
 import htsjdk.samtools.SAMSequenceDictionary;

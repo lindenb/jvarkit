@@ -71,7 +71,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /**
 BEGIN_DOC
-ALLELE_FREQUENCY_KEY
+
 END_DOC
 
  */
@@ -79,7 +79,9 @@ END_DOC
 		description="Peek the AF from another VCF",
 		keywords={"vcf","annotation","af"},
 		creationDate="20200624",
-		modificationDate="20200904"
+		modificationDate="20200904",
+		jvarkit_amalgamion = true,
+		menu="VCF Manipulation"
 		)
 public class VcfPeekAf extends OnePassVcfLauncher
 	{

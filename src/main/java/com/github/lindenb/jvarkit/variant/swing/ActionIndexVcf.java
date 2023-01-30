@@ -37,9 +37,9 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
+import com.github.lindenb.jvarkit.swing.PreferredDirectory;
+import com.github.lindenb.jvarkit.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.swing.PreferredDirectory;
-import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMSequenceDictionary;

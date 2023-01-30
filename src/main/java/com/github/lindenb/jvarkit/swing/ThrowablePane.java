@@ -1,4 +1,29 @@
-package com.github.lindenb.jvarkit.util.swing;
+/*
+The MIT License (MIT)
+
+Copyright (c) 2023 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
+package com.github.lindenb.jvarkit.swing;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
@@ -15,6 +40,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
@@ -27,10 +53,7 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableCellRenderer;
-
-
-
-
+import javax.swing.table.TableModel;
 
 
 /**
@@ -59,47 +82,14 @@ public class ThrowablePane extends JPanel
         	{
         	rows.add(ste);
         	}
-        final AbstractGenericTable<StackTraceElement> tableModel = new AbstractGenericTable<StackTraceElement>(rows)
-            {
-            public int getColumnCount() {
-            	return 4;
-            	}
-            @Override
-            public String getColumnName(int columnIndex) {
-                switch(columnIndex)
-                {
-                case 0: return "Class";
-                case 1: return "Method";
-                case 2: return "File";
-                case 3: return "Line";
-                }
-              return null;
-              }
-            @Override
-            public Class<?> getColumnClass(int columnIndex) {
-            	switch(columnIndex)
-	                {
-	                case 0: return String.class;
-	                case 1: return String.class;
-	                case 2: return  String.class;
-	                case 3: return  Integer.class;
-	                }
-                return null;
-            	}
-            
-			@Override
-            public Object getValueOf(final StackTraceElement e, int columnIndex) {  
-            	if(e==null || columnIndex<0) return null;
-                switch(columnIndex)
-	                {
-	                case 0: return e.getClassName();
-	                case 1: return e.getMethodName();
-	                case 2: return e.getFileName();
-	                case 3: return e.getLineNumber();
-	                }
-                return null;
-	            }
-	         };
+        final TableModel tableModel = new ColumnDefTableModel<StackTraceElement>(
+        		Arrays.asList(
+        		new ColumnDef<StackTraceElement>("Class",String.class,E->E.getClassName()),
+        		new ColumnDef<StackTraceElement>("Method",String.class,E->E.getMethodName()),
+        		new ColumnDef<StackTraceElement>("File",String.class,E->E.getFileName()),
+        		new ColumnDef<StackTraceElement>("Line",Integer.class,E->E.getLineNumber())
+        		),rows);
+        
         JTabbedPane tabbedPane=new JTabbedPane(JTabbedPane.SCROLL_TAB_LAYOUT);
         this.add(tabbedPane,BorderLayout.CENTER);
         JTextField tf= new JTextField(throwable.getClass()+" : "+message);

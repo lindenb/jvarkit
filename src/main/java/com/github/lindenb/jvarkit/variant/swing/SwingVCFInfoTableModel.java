@@ -25,28 +25,31 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.variant.swing;
 
+import java.util.Vector;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
-import java.util.Vector;
-
-import javax.swing.table.AbstractTableModel;
+import com.github.lindenb.jvarkit.swing.ColumnDef;
+import com.github.lindenb.jvarkit.swing.ColumnDefTableModel;
 
 import htsjdk.variant.variantcontext.VariantContext;
 
 @SuppressWarnings("serial")
-public class SwingVCFInfoTableModel extends AbstractTableModel {
-private final Vector<InfoLine> rows = new Vector<>();
-private class InfoLine {
+public class SwingVCFInfoTableModel extends ColumnDefTableModel<SwingVCFInfoTableModel.InfoLine> {
+static class InfoLine {
 	String key;
 	Integer idx;
 	Object value=null;
 	}
 
 public SwingVCFInfoTableModel() {
-	super();
+	super(Arrays.asList(
+			new ColumnDef<InfoLine>("ID",String.class,F->F.key)	,
+			new ColumnDef<InfoLine>("Index",Integer.class,F->F.idx)	,
+			new ColumnDef<InfoLine>("Value",Object.class,F->F.value)	
+		));
 	}
 
 public void setVariant(final VariantContext ctx) {
@@ -54,7 +57,7 @@ public void setVariant(final VariantContext ctx) {
 	}
 
 public void setAttributes(final Map<String,Object> map) {
-	this.rows.clear();
+	final List<InfoLine> newrows = new Vector<>();
 	if(map!=null && !map.isEmpty()) {
 		for(final String key: new TreeSet<>(map.keySet()))
 			{
@@ -79,56 +82,12 @@ public void setAttributes(final Map<String,Object> map) {
 				F.key = key;
 				F.idx = (L.size()==1?null:x+1);
 				F.value = L.get(x);
-				rows.add(F);
+				newrows.add(F);
 				}
 			}
 		}
-	
-	fireTableDataChanged();
+	setRows(newrows);
 	}
 
 
-@Override
-public int getColumnCount() {
-	return 3;
-	}
-
-@Override
-public int getRowCount() {
-		return rows.size();
-	}
-
-@Override
-public Class<?> getColumnClass(int column) {
-	switch(column) {
-		case 0: return String.class;
-		case 1: return Integer.class;
-		case 2: return Object.class;
-		default: throw new IllegalArgumentException();
-		}
-	}
-@Override
-public String getColumnName(int column) {
-	switch(column) {
-	case 0: return "ID";
-	case 1: return "Index";
-	case 2: return "Value";
-	default: throw new IllegalArgumentException();
-	}
-}
-@Override
-	public boolean isCellEditable(int rowIndex, int columnIndex) {
-		return false;
-	}
-
-@Override
-public Object getValueAt(int rowIndex, int column) {
-	final InfoLine L = this.rows.get(rowIndex);
-	switch(column) {
-	case 0: return L.key;
-	case 1: return L.idx;
-	case 2: return L.value;
-	default: throw new IllegalArgumentException();
-	}
-	}
 }

@@ -414,7 +414,9 @@ END_DOC
 	description="XSLT transformation for large XML files. xslt is only applied on a given subset of nodes.",
 	keywords={"xml","xslt","xsl","stylesheet"},
 	biostars= {270498,280581,282545,282602,335867,343432,365479},
-	modificationDate="20190222"
+	modificationDate="20190222",
+	jvarkit_amalgamion = true,
+	menu="Utilities"
 	)
 public class XsltStream extends Launcher {
 	private static final Logger LOG = Logger.build(XsltStream.class).make();

@@ -9,6 +9,8 @@ import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JTextField;
 
+import com.github.lindenb.jvarkit.swing.PreferredDirectory;
+
  @SuppressWarnings("serial")
 public abstract class AbstractOneFileChooser extends AbstractFileChooser
 	{

@@ -133,11 +133,14 @@ https://twitter.com/yokofakun/status/1194921855875977216
 END_DOC
 
  */
-@Program(name="samfindclippedregions",
+@Program(
+	name="samfindclippedregions",
 	description="Fins clipped position in one or more bam. ",
 	keywords= {"sam","bam","clip","vcf"},
 	creationDate="20140228",
-	modificationDate="20220329"
+	modificationDate="20220329",
+	jvarkit_amalgamion = true,
+	menu="CNV/SV"
 	)
 public class SamFindClippedRegions extends Launcher {
 	private static final Logger LOG=Logger.build(SamFindClippedRegions.class).make();
@@ -293,9 +296,9 @@ public class SamFindClippedRegions extends Launcher {
 			if(this.bedPath==null) {
 				queryIntervals = null;
 				} else {
-				try(BedLineReader br = new BedLineReader(this.bedPath).
-						setValidationStringency(ValidationStringency.LENIENT).
-						setContigNameConverter(ContigNameConverter.fromOneDictionary(dict))) {
+				try(BedLineReader br = new BedLineReader(this.bedPath)){
+					br.setValidationStringency(ValidationStringency.LENIENT).
+						setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 					queryIntervals = br.optimizeIntervals(dict);
 					}
 				}

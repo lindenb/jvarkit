@@ -7,8 +7,13 @@ Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfcadd.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfcadd  [options] Files
+
 Usage: vcfcadd [options] Files
   Options:
     --bcf-output
@@ -62,23 +67,6 @@ Usage: vcfcadd [options] Files
  * cadd
  * annotation
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfcadd
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -142,4 +130,5 @@ $ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd
 ## Note to self
 
 I got problem with the certificate. Fixed with `-Dcom.sun.security.enableAIAcaIssuers=true -Dcom.sun.net.ssl.checkRevocation=false `
+
 

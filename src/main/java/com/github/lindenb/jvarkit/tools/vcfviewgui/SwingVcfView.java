@@ -93,13 +93,13 @@ import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
+import com.github.lindenb.jvarkit.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
-import com.github.lindenb.jvarkit.util.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SmooveGenesParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser.Prediction;
@@ -738,7 +738,7 @@ public class SwingVcfView extends Launcher
 		}
 	
 
-	private static class SnpEffNmdLOfTableModel extends AbstractGenericTable<SnpEffLofNmdParser.Prediction> {
+	private static class SnpEffNmdLOfTableModel extends AbstractGenericTableModel<SnpEffLofNmdParser.Prediction> {
 		final SnpEffLofNmdParser parser;
 		SnpEffNmdLOfTableModel(final String tag,VCFHeader header) {
 			this.parser = new SnpEffLofNmdParser(tag,header);
@@ -788,7 +788,7 @@ public class SwingVcfView extends Launcher
 		int fraction;
 		}
 
-	private static class GenotypeTypeTableModel extends AbstractGenericTable<GenotypeCount> {
+	private static class GenotypeTypeTableModel extends AbstractGenericTableModel<GenotypeCount> {
 		@Override
 		public int getColumnCount() { return 3;}
 		
@@ -843,7 +843,7 @@ public class SwingVcfView extends Launcher
 		}
 	
 	
-	private static class SmooveGeneTableModel extends AbstractGenericTable<SmooveGenesParser.Prediction> {
+	private static class SmooveGeneTableModel extends AbstractGenericTableModel<SmooveGenesParser.Prediction> {
 		final SmooveGenesParser parser;
 		SmooveGeneTableModel(final VCFHeader header) {
 			this.parser = new SmooveGenesParser(header);

@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.bam2xml;
 
 import java.io.OutputStream;
+import java.util.List;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -51,6 +52,7 @@ import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMUtils;
 
 
 /**
@@ -409,8 +411,20 @@ public class Bam2Xml extends OnePassBamLauncher {
 					}
 				w.writeEndElement();
 				
+				final List<SAMRecord> L= SAMUtils.getOtherCanonicalAlignments(rec);
+				if(!L.isEmpty()) {
+					w.writeStartElement("supplementary-align");
+					for(final SAMRecord rec2:L) {
+						w.writeStartElement("supplementary");
+						writeText(w,"contig",rec2.getReferenceName());
+						writeText(w,"start",String.valueOf(rec2.getAlignmentStart()));
+						writeText(w,"cigar",rec2.getCigarString());
+						w.writeEndElement();
+						}
+					w.writeEndElement();//sa
+					}
 				w.writeEndElement();
-			} catch (final Exception e) {
+			} catch (final Throwable e) {
 				throw new RuntimeException(e);
 				}
 			}

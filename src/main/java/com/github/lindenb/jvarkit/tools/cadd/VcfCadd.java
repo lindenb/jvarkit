@@ -109,7 +109,9 @@ END_DOC
 		"PubMed PMID: 24487276.",
 	creationDate="20140218",
 	modificationDate="20220119",
-	keywords={"vcf","prediction","cadd","annotation"}
+	keywords={"vcf","prediction","cadd","annotation"},
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 
 public class VcfCadd extends OnePassVcfLauncher

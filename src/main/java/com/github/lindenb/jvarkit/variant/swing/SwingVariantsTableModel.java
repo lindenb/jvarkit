@@ -27,13 +27,13 @@ package com.github.lindenb.jvarkit.variant.swing;
 
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 
 @SuppressWarnings("serial")
-public class SwingVariantsTableModel extends AbstractGenericTable<VariantContext>{
+public class SwingVariantsTableModel extends AbstractGenericTableModel<VariantContext>{
 public SwingVariantsTableModel() {
 	super();
 	}

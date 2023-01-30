@@ -23,47 +23,44 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.variant.swing;
+package com.github.lindenb.jvarkit.swing;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Vector;
 
-import com.github.lindenb.jvarkit.pedigree.Pedigree;
-import com.github.lindenb.jvarkit.pedigree.Sample;
-import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 
-@SuppressWarnings("serial")
-public class SwingPedigreeTableModel extends AbstractGenericTableModel<Sample>
-	{
-	private final List<String> COLS = Arrays.asList("FAM","ID","FATHER","MOTHER","SEX","STATUS");
-
-	public SwingPedigreeTableModel(final Pedigree ped) {
-		super(new ArrayList<>(ped.getSamples()));
-	}
+public class ColumnDefTableModel<DATATYPE> extends AbstractGenericTableModel<DATATYPE> {
+	private static final long serialVersionUID = 1L;
+	private final List<ColumnDef<DATATYPE>> columns = new Vector<>();
 	
+	public ColumnDefTableModel(final List<ColumnDef<DATATYPE>> columns) {
+		this(columns,Collections.emptyList());
+		}
+	public ColumnDefTableModel(final List<ColumnDef<DATATYPE>> columns,final List<DATATYPE> rows) {
+		super(rows);
+		this.columns.addAll(columns);
+		}
+	public void addColumn(final ColumnDef<DATATYPE> def) {
+		this.columns.add(def);
+		fireTableStructureChanged();
+		}	
 	@Override
-	public int getColumnCount() {
-		return COLS.size();
+	public Object getValueOf(DATATYPE o, int columnIndex) {
+		return this.columns.get(columnIndex).getExtractor().apply(o);
+		}
+	
+	public Class<?> getColumnClass(int column) {
+		return this.columns.get(column).getColumnClass();
+		}
+	public String getColumnName(int column) {
+		return this.columns.get(column).getColumnName();
 		}
 	@Override
-	public String getColumnName(int column)
-		{
-		return COLS.get(column);
+	public final int getColumnCount() {
+		return columns.size();
 		}
-	
-		
-	@Override
-	public Object getValueOf(final Sample P, int columnIndex)
-		{
-		switch(columnIndex) {
-			case 0: return P.getFamily();
-			case 1: return P.getId();
-			case 2: return P.hasFather()?P.getFather().getId():null;
-			case 3: return P.hasMother()?P.getMother().getId():null;
-			case 4: return P.getSex().name();
-			case 5: return P.isStatusSet()?P.getStatus().name():null;
-			default: throw new IllegalArgumentException();
-			}
+	public boolean isCellEditable(int rowIndex, int columnIndex) {
+		return false;
 		}
 	}

@@ -7,7 +7,13 @@ Peek the AF from another VCF
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfpeekaf  [options] Files
+
 Usage: vcfpeekaf [options] Files
   Options:
     --bcf-output
@@ -20,7 +26,7 @@ Usage: vcfpeekaf [options] Files
       When we're looking for variant in a lare VCF file, load the variants in 
       an interval of 'N' bases instead of doing a random access for each 
       variant. A distance specified as a positive integer.Commas are removed. 
-      The following suffixes are interpreted : b,bp,k,kb,m,mb
+      The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10000
   * -F, --database, --tabix, --resource
       An indexed VCF file. Source of the annotations
@@ -72,23 +78,6 @@ Usage: vcfpeekaf [options] Files
  * af
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfpeekaf
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -123,4 +112,5 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
-ALLELE_FREQUENCY_KEY
+
+

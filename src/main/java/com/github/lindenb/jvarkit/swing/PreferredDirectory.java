@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.util.swing;
+package com.github.lindenb.jvarkit.swing;
 
 import java.io.File;
 import java.util.prefs.Preferences;

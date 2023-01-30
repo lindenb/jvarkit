@@ -32,12 +32,12 @@ import java.util.Vector;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 
 import htsjdk.tribble.gff.Gff3Feature;
 
 @SuppressWarnings("serial")
-public class SwingGff3TableModel extends AbstractGenericTable<Gff3Feature>{
+public class SwingGff3TableModel extends AbstractGenericTableModel<Gff3Feature>{
 private final Vector<ColumnInfo> columns = new Vector<>();
 private class ColumnInfo {
 	String name;

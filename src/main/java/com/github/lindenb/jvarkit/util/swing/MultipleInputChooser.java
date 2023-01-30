@@ -24,6 +24,8 @@ import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
+import com.github.lindenb.jvarkit.swing.PreferredDirectory;
+
 
  @SuppressWarnings("serial")
 public class MultipleInputChooser extends AbstractFileChooser

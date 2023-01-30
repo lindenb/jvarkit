@@ -7,8 +7,13 @@ OBO Ontology Utils.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/oboutils.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar oboutils  [options] Files
+
 Usage: oboutils [options] Files
   Options:
     -A, --accession
@@ -47,23 +52,6 @@ Usage: oboutils [options] Files
  * obo
  * ontology
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew oboutils
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -111,6 +99,7 @@ HP:0410174	Increased circulating troponin T concentration	An increased concentra
 HP:0410267	Intestinal hemangioma	A hemangioma, a benign tumor of the vascular endothelial cells, located in the intestines, which includes the bowel.
 HP:0410268	Spleen hemangioma	A hemangioma, a benign tumor of the vascular endothelial cells, that is located in the spleen.
 ```
+
 
 
 

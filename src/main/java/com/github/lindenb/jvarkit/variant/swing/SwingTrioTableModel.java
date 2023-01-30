@@ -32,14 +32,14 @@ import java.util.List;
 
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.Trio;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 import com.github.lindenb.jvarkit.tools.vcftrios.DeNovoDetector;
 import com.github.lindenb.jvarkit.tools.vcftrios.DeNovoDetector.DeNovoMutation;
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 
 import htsjdk.variant.variantcontext.VariantContext;
 
 @SuppressWarnings("serial")
-public class SwingTrioTableModel extends AbstractGenericTable<DeNovoDetector.DeNovoMutation>
+public class SwingTrioTableModel extends AbstractGenericTableModel<DeNovoDetector.DeNovoMutation>
 	{
 	private final List<Trio> trios;
 	private final List<String> COLS = Arrays.asList(

@@ -78,6 +78,7 @@ nav:
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
+        - "goutils" : GoUtils.md
         - "groupbygene" : GroupByGene.md
         - "gtf2bed" : GtfToBed.md
         - "gtf2xml" : Gtf2Xml.md
@@ -87,6 +88,7 @@ nav:
         - "mkminibam" : MakeMiniBam.md
         - "msa2vcf" : MsaToVcf.md
         - "ncbitaxonomy2xml" : NcbiTaxonomyToXml.md
+        - "oboutils" : OboUtils.md
         - "plotsashimi" : PlotSashimi.md
         - "prettysam" : PrettySam.md
         - "pubmed404" : Pubmed404.md
@@ -95,6 +97,7 @@ nav:
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "sam2tsv" : Sam2Tsv.md
+        - "samfindclippedregions" : SamFindClippedRegions.md
         - "samgrep" : SamGrep.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
         - "samviewwithmate" : SamViewWithMate.md
@@ -115,6 +118,7 @@ nav:
         - "vcfallelebalance" : VcfAlleleBalance.md
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
+        - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md
@@ -122,6 +126,7 @@ nav:
         - "vcfgnomad" : VcfGnomad.md
         - "vcfhead" : VcfHead.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md
+        - "vcfpeekaf" : VcfPeekAf.md
         - "vcfphased01" : VcfPhased01.md
         - "vcfpolyx" : VCFPolyX.md
         - "vcfrebase" : VcfRebase.md
@@ -134,4 +139,5 @@ nav:
         - "vcftrio" : VCFTrios.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
+        - "xsltstream" : XsltStream.md
 

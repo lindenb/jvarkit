@@ -28,7 +28,7 @@ package com.github.lindenb.jvarkit.variant.swing;
 import java.util.Collections;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
@@ -37,7 +37,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 @SuppressWarnings("serial")
-public class SwingAnnPredictionTableModel extends AbstractGenericTable<AnnPrediction>
+public class SwingAnnPredictionTableModel extends AbstractGenericTableModel<AnnPrediction>
 	{
 	private final String[] COLS = new String[]{
 			"SO","Allele","Impact","GeneName","GeneId","FeatureType","FeatureId",

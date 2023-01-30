@@ -7,7 +7,13 @@ XSLT transformation for large XML files. xslt is only applied on a given subset 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar xsltstream  [options] Files
+
 Usage: xsltstream [options] Files
   Options:
     -h, --help
@@ -50,23 +56,6 @@ Usage: xsltstream [options] Files
  * [https://www.biostars.org/p/343432](https://www.biostars.org/p/343432)
  * [https://www.biostars.org/p/365479](https://www.biostars.org/p/365479)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew xsltstream
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -436,5 +425,6 @@ https://www.biostars.org/p/365479/ "Bioinformatics word cloud to use in classes 
 
 
 see https://gist.github.com/lindenb/5d7773a93d8c2b0edbd4c01bf8834919
+
 
 

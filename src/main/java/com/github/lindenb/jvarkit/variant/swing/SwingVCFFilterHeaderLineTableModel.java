@@ -28,13 +28,13 @@ package com.github.lindenb.jvarkit.variant.swing;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 @SuppressWarnings("serial")
-public class SwingVCFFilterHeaderLineTableModel extends AbstractGenericTable<VCFFilterHeaderLine>{
+public class SwingVCFFilterHeaderLineTableModel extends AbstractGenericTableModel<VCFFilterHeaderLine>{
 public SwingVCFFilterHeaderLineTableModel(final List<VCFFilterHeaderLine> list) {
 	super(list);
 	}

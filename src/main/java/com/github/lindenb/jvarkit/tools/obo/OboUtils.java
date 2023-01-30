@@ -74,7 +74,9 @@ END_DOC
 		description="OBO Ontology Utils.",
 		keywords={"obo","ontology"},
 		creationDate="20230105",
-		modificationDate="20230105"
+		modificationDate="20230105",
+		jvarkit_amalgamion = true,
+		menu="Utilities"
 		)
 public class OboUtils
 	extends Launcher

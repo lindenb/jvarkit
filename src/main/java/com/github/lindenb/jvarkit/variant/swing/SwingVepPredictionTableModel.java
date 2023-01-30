@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
@@ -38,7 +38,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 @SuppressWarnings("serial")
-public class SwingVepPredictionTableModel extends AbstractGenericTable<VepPrediction>
+public class SwingVepPredictionTableModel extends AbstractGenericTableModel<VepPrediction>
 	{
 	private final List<String> COLS;
 

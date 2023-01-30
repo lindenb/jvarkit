@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser.BcfToolsPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParserFactory;
@@ -38,7 +38,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 @SuppressWarnings("serial")
-public class SwingBcsqPredictionTableModel extends AbstractGenericTable<BcfToolsPrediction>
+public class SwingBcsqPredictionTableModel extends AbstractGenericTableModel<BcfToolsPrediction>
 	{
 	private final List<String> COLS;
 

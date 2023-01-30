@@ -100,11 +100,11 @@ import javax.swing.filechooser.FileFilter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.swing.AbstractGenericTable;
 import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
@@ -1402,7 +1402,7 @@ public class SigFrame
 		 *
 		 */
 		class SigTableModel
-			extends AbstractGenericTable<SigData>
+			extends AbstractGenericTableModel<SigData>
 			{
 			public SigTableModel(Iterator<SigData> iter)
 				{

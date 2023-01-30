@@ -7,7 +7,13 @@ Gene Ontology Utils. Retrieves terms from Gene Ontology
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar goutils  [options] Files
+
 Usage: goutils [options] Files
   Options:
     -A, --accession
@@ -24,6 +30,9 @@ Usage: goutils [options] Files
       http://geneontology.org/gene-associations/goa_human.gaf.gz). 
       Default: dump_table
       Possible Values: [dump_table, dump_gexf, goa, gff3]
+    --exclude-accession, --exclude
+      User Go Terms to be EXCLUDED accession numbers or name.eg
+      Default: []
     -g, --gff, --gff3
       GFF3 file for action=goa or action=gff3.
     -h, --help
@@ -60,23 +69,6 @@ Usage: goutils [options] Files
 
  * [https://www.biostars.org/p/488538](https://www.biostars.org/p/488538)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew goutils
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -163,4 +155,5 @@ WARNING	2021-10-21 16:19:29	AsciiLineReader	Creating an indexable source for an 
 1	ensembl_havana	gene	25071848	25170815	.	+	.ID=gene%3AENSG00000169504;Name=CLIC4;biotype=protein_coding;description=chloride intracellular channel 4 %5BSource%3AHGNC Symbol%3BAcc%3A13518%5D;gene_id=ENSG00000169504;logic_name=ensembl_havana_gene;version=10
 1	ensembl_havana	gene	26517052	26529459	.	+	.ID=gene%3AENSG00000188782;Name=CATSPER4;biotype=protein_coding;description=cation channel%2C sperm associated 4 %5BSource%3AHGNC Symbol%3BAcc%3A23220%5D;gene_id=ENSG00000188782;logic_name=ensembl_havana_gene;version=3
 ```
+
 

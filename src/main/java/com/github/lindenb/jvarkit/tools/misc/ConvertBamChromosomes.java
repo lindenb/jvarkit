@@ -132,7 +132,7 @@ END_DOC
 	creationDate="20131217",
 	biostars={13462,9479387},
 	jvarkit_amalgamion =  true,
-	menu="BAM Visualization"
+	menu="BAM Manipulation"
 	)
 public class ConvertBamChromosomes
 	extends Launcher
