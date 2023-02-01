@@ -130,7 +130,6 @@ doid: 0011712 words
 
 
 ## Samples only:
-
 **family:** a family name for this a `Sample`
 
 **father:** the id of the father 
@@ -138,6 +137,10 @@ doid: 0011712 words
 **sex:** the sex of the sample 'male' or 'female'
 
 **birth:** the  year of birth
+
+## group:
+
+**group: id ** or **extends:id** : the current group extends another group defined by 'id'
 
 
 **pop** or **population** is an identifier in the SNOMED population ontology. https://bioportal.bioontology.org/ontologies/SNOMED-Ethnic-Grou . Value is either the label or the SNOMEDID in the OWL ontology
@@ -272,6 +275,7 @@ public class SamplesRDF extends Launcher {
 	private static final Property OBOINOWBL_id = ResourceFactory.createProperty(OBOINOWL,"id");
 	private static final Property SNOMEDID = ResourceFactory.createProperty(SNOMED_NS,"SNOMEDID");
 	private static final Property PROP_contains_sample = ResourceFactory.createProperty(NS,"contains-sample");
+	private static final Property PROP_group = ResourceFactory.createProperty(NS,"group");
 
 	
 	@Parameter(names={"-hpo","--hpo"},description="OWL-formatted HPO ontology https://github.com/obophenotype/human-phenotype-ontology/blob/master/hp.owl")
@@ -484,10 +488,10 @@ public class SamplesRDF extends Launcher {
 					orElse(getId());
 			}
 		public String getDescription() {
-			return JenaUtils.stream(getModel().listObjectsOfProperty(getResource(),RDFS.comment)).
+			return StringUtils.ifBlank(JenaUtils.stream(getModel().listObjectsOfProperty(getResource(),RDFS.comment)).
 					map(O->O.asLiteral().getString()).
 					map(S->StringUtils.normalizeSpaces(S)).
-					collect(Collectors.joining(". "));
+					collect(Collectors.joining(". ")),".");
 			}
 		}
 
@@ -558,9 +562,26 @@ public class SamplesRDF extends Launcher {
 			super(rsrc);
 			}
 		
-		Set<Sample> getSamples() {
+		private Set<Group> _getParentGroupAndSelf() {
+			return _recursive(this,new HashSet<Group>());
+			}
+		private Set<Group> _recursive(final Group curr,Set<Group> visited) {
+			if(visited.contains(curr)) return visited;
+			visited.add(curr);
+			JenaUtils.stream(getModel().listObjectsOfProperty(curr.getResource(),PROP_group)).
+					map(R->new Group(R.asResource())).
+					forEach(X->_recursive(X,visited));
+			return visited;
+			}
+		
+		private Set<Sample> _getDeclaredSamples() {
 			return JenaUtils.stream(getModel().listObjectsOfProperty(getResource(),PROP_contains_sample)).
 					map(R->new Sample(R.asResource())).
+					collect(Collectors.toSet());
+			}
+		Set<Sample> getSamples() {
+			return _getParentGroupAndSelf().stream().
+					flatMap(G->G._getDeclaredSamples().stream()).
 					collect(Collectors.toSet());
 			}
 		}
@@ -708,6 +729,7 @@ public class SamplesRDF extends Launcher {
 								}
 							if(type.equals(TYPE_GROUP)) {
 								if(key.equals("sample")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_contains_sample,createEntity(KV.getValue(),TYPE_SAMPLE,false));
+								if(key.equals("group") || key.equals("extends")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_group,createEntity(KV.getValue(),TYPE_GROUP,false));
 								}		
 							throw new IllegalArgumentException("Cannot handle "+key+" for type <"+type+">.");
 							}).
@@ -754,6 +776,7 @@ public class SamplesRDF extends Launcher {
 		final Path path = Paths.get(this.outputBase + fileSuffix);
 		LOG.info("Saving "+path+"...");
 		try(PrintWriter pw = IOUtils.openPathForPrintWriter(path)) {
+			pw.println("#uri id label samples".replace(' ', '\t'));
 			for(OWLOntology.Term term: ontology.getClasses()) {
 				final Set<Sample> samples = JenaUtils.stream(this.model.listSubjectsWithProperty(RDF.type,TYPE_SAMPLE)).
 						map(SN->new Sample(SN)).
@@ -820,6 +843,14 @@ public class SamplesRDF extends Launcher {
 					map(O->O.asResource()).
 					forEach(R->snomedEthnic.reportError(pw,R));
 					}
+				
+				
+				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
+					map(R->new Group(R)).forEach(G-> {
+						if(G.getSamples().isEmpty()) {
+							pw.println("group "+G.getId()+" is empty.");
+							}
+						});
 				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_SAMPLE)).
 					map(R->new Sample(R)).
 					forEach(R->{
@@ -866,6 +897,7 @@ public class SamplesRDF extends Launcher {
 			
 			LOG.info("saving groups");
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_groups.txt"))) {
+				pw.println("#id label desc samples.count male.count female.count other.count groups".replace(' ', '\t'));
 				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
 				map(R->new Group(R)).
 				forEach(R->{
@@ -881,6 +913,8 @@ public class SamplesRDF extends Launcher {
 					pw.print("\t");
 					pw.print(R.getSamples().stream().filter(G->G.isFemale()).count());
 					pw.print("\t");
+					pw.print(R.getSamples().stream().filter(G->!(G.isFemale() || G.isMale())).count());
+					pw.print("\t");
 					pw.print(StringUtils.ifBlank(R.getSamples().stream().map(G->G.getId()).sorted().collect(Collectors.joining(";")),"."));
 					pw.println();
 					});
@@ -888,6 +922,7 @@ public class SamplesRDF extends Launcher {
 				}
 			LOG.info("saving samples");
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_samples.txt"))) {
+				pw.println("#id label desc family birthYear father mother sex HPO DOID POP groups".replace(' ', '\t'));
 				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_SAMPLE)).
 					map(R->new Sample(R)).
 					forEach(R->{
@@ -994,8 +1029,9 @@ public class SamplesRDF extends Launcher {
 				pw.flush();
 				}
 			/** save pedigree */
-			LOG.info("saving grouo 2 samples");
+			LOG.info("saving group to samples");
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_group2sample.txt"))) {
+				pw.println("#group sample".replace(' ', '\t'));
 				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
 					map(R->new Group(R)).
 					forEach(G->{

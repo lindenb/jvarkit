@@ -131,7 +131,6 @@ doid: 0011712 words
 
 
 ## Samples only:
-
 **family:** a family name for this a `Sample`
 
 **father:** the id of the father 
@@ -139,6 +138,10 @@ doid: 0011712 words
 **sex:** the sex of the sample 'male' or 'female'
 
 **birth:** the  year of birth
+
+## group:
+
+**group: id ** or **extends:id** : the current group extends another group defined by 'id'
 
 
 **pop** or **population** is an identifier in the SNOMED population ontology. https://bioportal.bioontology.org/ontologies/SNOMED-Ethnic-Grou . Value is either the label or the SNOMEDID in the OWL ontology
