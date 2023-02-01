@@ -139,6 +139,9 @@ doid: 0011712 words
 
 **birth:** the  year of birth
 
+**alias:** another name for this sample
+
+
 ## group:
 
 **group: id ** or **extends:id** : the current group extends another group defined by 'id'

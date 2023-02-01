@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -137,6 +138,9 @@ doid: 0011712 words
 **sex:** the sex of the sample 'male' or 'female'
 
 **birth:** the  year of birth
+
+**alias:** another name for this sample
+
 
 ## group:
 
@@ -267,6 +271,7 @@ public class SamplesRDF extends Launcher {
 	private static final Property PROP_HPO = ResourceFactory.createProperty(NS,"hpo");
 	private static final Property PROP_POPULATION = ResourceFactory.createProperty(NS,"population");
 	private static final Property PROP_DOID = ResourceFactory.createProperty(NS,"doid");
+	private static final Property PROP_alias = ResourceFactory.createProperty(NS,"alias");
 	private static final Property PROP_father = ResourceFactory.createProperty(NS,"father");
 	private static final Property PROP_mother = ResourceFactory.createProperty(NS,"mother");
 	private static final Property PROP_family = ResourceFactory.createProperty(NS,"family");
@@ -500,6 +505,18 @@ public class SamplesRDF extends Launcher {
 		protected Sample(final Resource rsrc) {
 			super(rsrc);
 			}
+		
+		/** get ID and alias */
+		Set<String> getNames() {
+			final Set<String> L = new TreeSet<>();
+			JenaUtils.stream(getModel().listObjectsOfProperty(getResource(),PROP_alias)).
+				filter(O->O.isLiteral()).
+				map(O->O.asLiteral().getString()).
+				forEach(S->L.add(S));
+			L.add(this.getId());
+			return L;
+			}
+		
 		Optional<String> getFamily() {
 			return JenaUtils.stream(getModel().listObjectsOfProperty(getResource(),PROP_family)).
 					map(O->O.asLiteral().getString()).
@@ -709,6 +726,9 @@ public class SamplesRDF extends Launcher {
 								if(key.equals("birth") || key.equals("birthyear")) {
 									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_birthYear,model.createTypedLiteral(Integer.parseInt(KV.getValue())));
 									}
+								if(key.equals("alias")) {
+									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_alias,model.createLiteral(KV.getValue()));
+									}
 								if(key.equals("pop") || key.equals("population")) {
 									final String pop=StringUtils.normalizeSpaces(KV.getValue());
 									if(snomedEthnic!=null) {
@@ -736,31 +756,7 @@ public class SamplesRDF extends Launcher {
 						filter(KV->KV!=null).
 						forEach(KV->model.add(subject,KV.getKey(),KV.getValue()));
 						;
-					if(type.equals(TYPE_GROUP)) {
-						final Set<Resource> samples = lines.stream().
-							map(L->split(L)).
-							filter(KV->KV.getKey().equals("sample")).
-							map(KV->createEntity(KV.getValue(),TYPE_SAMPLE,false)).
-							collect(Collectors.toSet());
-						final Set<Resource> hpos = lines.stream().
-								map(L->split(L)).
-								filter(KV->KV.getKey().equals("hpo") || KV.getKey().equals("hp")).
-								map(KV->createHPO(KV.getValue())).
-								collect(Collectors.toSet());
-						final Set<Resource> doids = lines.stream().
-								map(L->split(L)).
-								filter(KV->KV.getKey().equals("doid")).
-								map(KV->createDOID(KV.getValue())).
-								collect(Collectors.toSet());
-						for(Resource sn:samples) {
-							for(Resource hpo:hpos) {
-								this.model.add(sn,PROP_HPO,hpo);
-								}
-							for(Resource doid:doids) {
-								this.model.add(sn,PROP_DOID,doid);
-								}
-							}
-						}	
+					
 					}
 				if(line==null) break;
 				lines.clear();
@@ -818,6 +814,44 @@ public class SamplesRDF extends Launcher {
 						}
 					}
 				}
+			final List<Group> all_groups = JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
+					map(R->new Group(R)).
+					collect(Collectors.toSet()).
+					stream().
+					sorted((A,B)->A.getId().compareTo(B.getId())).
+					collect(Collectors.toList());
+			
+			final List<Sample> all_samples = JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_SAMPLE)).
+					map(R->new Sample(R)).
+					collect(Collectors.toSet()).
+					stream().
+					sorted((A,B)->A.getId().compareTo(B.getId())).
+					collect(Collectors.toList());
+			
+			//finalize transfer DOID and HPO from group to samples
+			for(Group G:all_groups) {
+				final Set<Resource> hpos = JenaUtils.stream(model.listObjectsOfProperty(G.getResource(),PROP_HPO)).
+						filter(O->O.isResource()).
+						map(O->O.asResource()).
+						collect(Collectors.toSet());
+				final Set<Resource> doids = JenaUtils.stream(model.listObjectsOfProperty(G.getResource(),PROP_DOID)).
+						filter(O->O.isResource()).
+						map(O->O.asResource()).
+						collect(Collectors.toSet());
+				for(Sample sn:G.getSamples()) {
+					for(Resource hpo:hpos) {
+						this.model.add(sn.getResource(),PROP_HPO,hpo);
+						this.model.remove(G.getResource(),PROP_HPO,hpo);
+						}
+					for(Resource doid:doids) {
+						this.model.add(sn.getResource(),PROP_DOID,doid);
+						this.model.remove(G.getResource(),PROP_DOID,doid);
+						}
+					}
+				}
+			
+			
+			
 			/** save errors */
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_errors.txt"))) {
 				//post validate
@@ -843,207 +877,220 @@ public class SamplesRDF extends Launcher {
 					map(O->O.asResource()).
 					forEach(R->snomedEthnic.reportError(pw,R));
 					}
-				
-				
-				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
-					map(R->new Group(R)).forEach(G-> {
-						if(G.getSamples().isEmpty()) {
-							pw.println("group "+G.getId()+" is empty.");
-							}
-						});
-				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_SAMPLE)).
-					map(R->new Sample(R)).
-					forEach(R->{
-						Optional<String> fam = R.getFamily();
-						OptionalInt year = R.getBirthYear();
-						for(int side=0;side<2;side++) {
-							final Sample parent = (side==0?R.getFather():R.getMother()).orElse(null);
-							if(parent!=null) {
-								if(!(side==0?parent.isMale():parent.isFemale())) {
-									pw.println(parent.getId()+" declared as "+(side==0?"father":"mother")+" of "+R.getId()+". But sex is not "+(side==0?"male":"female"));
-									}
-								Optional<String> famp = parent.getFamily();
-								OptionalInt fyear = parent.getBirthYear();
-								if(fam.isPresent() && famp.isPresent() && !fam.get().equals(famp.get())) {
-									pw.println(parent.getId()+" don't have the same family than"+R+" ("+famp+" vs "+ fam+")");
-									}
-								else if(!fam.isPresent() && !famp.isPresent() ) {
-									// nothing
-									}
-								else
-									{
-									pw.println(parent.getId()+" and "+R+" don't have both family specified ("+famp+" vs "+ fam+")");
-									}
-								if(year.isPresent() && fyear.isPresent() && year.getAsInt()>=fyear.getAsInt()) {
-									pw.println(parent.getId()+" is younder than is child "+R+" ("+year+" vs "+ fyear+")");
-									}
-								}
-						
-							}
-					});
+				for(int x=0;x+1 < all_samples.size();x++) {
+					final Set<String> set1 = all_samples.get(x).getNames();
+					for(int y=x+1; y < all_samples.size();y++) {
+						final Set<String> set2 = all_samples.get(y).getNames();
+						set2.retainAll(set1);
+						if(!set2.isEmpty()) {
+							pw.println("ERROR sample "+all_samples.get(x)+" and "+all_samples.get(y)+" share the same name/alias:"+String.join(",",set2));
+						}
 					}
-			
+
+				}
+				
+				for(Group G:all_groups) {
+					if(G.getSamples().isEmpty()) {
+						pw.println("group "+G.getId()+" is empty.");
+						}
+					}
+				for(Sample R:all_samples) {
+					Optional<String> fam = R.getFamily();
+					OptionalInt year = R.getBirthYear();
+					for(int side=0;side<2;side++) {
+						final Sample parent = (side==0?R.getFather():R.getMother()).orElse(null);
+						if(parent!=null) {
+							if(!(side==0?parent.isMale():parent.isFemale())) {
+								pw.println(parent.getId()+" declared as "+(side==0?"father":"mother")+" of "+R.getId()+". But sex is not "+(side==0?"male":"female"));
+								}
+							Optional<String> famp = parent.getFamily();
+							OptionalInt fyear = parent.getBirthYear();
+							if(fam.isPresent() && famp.isPresent() && !fam.get().equals(famp.get())) {
+								pw.println(parent.getId()+" don't have the same family than"+R+" ("+famp+" vs "+ fam+")");
+								}
+							else if(!fam.isPresent() && !famp.isPresent() ) {
+								// nothing
+								}
+							else
+								{
+								pw.println(parent.getId()+" and "+R+" don't have both family specified ("+famp+" vs "+ fam+")");
+								}
+							if(year.isPresent() && fyear.isPresent() && year.getAsInt()>=fyear.getAsInt()) {
+								pw.println(parent.getId()+" is younder than is child "+R+" ("+year+" vs "+ fyear+")");
+								}
+							}
+						}
+					} // samples
+				} //errors
+				
 			/* at this point cleanup the data */
 			this.model.removeAll(null, RDF.type, TYPE_DECLARED);
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_model.rdf"))) {
 				model.write(pw,"RDF/XML");
 				pw.flush();
-			}
+				}
 			
 			/** save DOID/HPO output file */
-			saveOntology(doidOntology, "_doid.txt", PROP_DOID);
-			saveOntology(hpoOntology, "_hpo.txt", PROP_HPO);
-			saveOntology(snomedEthnic, "_populations.txt", PROP_POPULATION);
+			saveOntology(doidOntology, "_doid.tsv", PROP_DOID);
+			saveOntology(hpoOntology, "_hpo.tsv", PROP_HPO);
+			saveOntology(snomedEthnic, "_populations.tsv", PROP_POPULATION);
 			
-			LOG.info("saving groups");
-			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_groups.txt"))) {
-				pw.println("#id label desc samples.count male.count female.count other.count groups".replace(' ', '\t'));
-				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
-				map(R->new Group(R)).
-				forEach(R->{
-					pw.print(R.getId());
-					pw.print("\t");
-					pw.print(R.getLabel());
-					pw.print("\t");
-					pw.print(R.getDescription());
-					pw.print("\t");
-					pw.print(R.getSamples().stream().map(G->G.getId()).count());
-					pw.print("\t");
-					pw.print(R.getSamples().stream().filter(G->G.isMale()).count());
-					pw.print("\t");
-					pw.print(R.getSamples().stream().filter(G->G.isFemale()).count());
-					pw.print("\t");
-					pw.print(R.getSamples().stream().filter(G->!(G.isFemale() || G.isMale())).count());
-					pw.print("\t");
-					pw.print(StringUtils.ifBlank(R.getSamples().stream().map(G->G.getId()).sorted().collect(Collectors.joining(";")),"."));
-					pw.println();
-					});
-				pw.flush();
-				}
-			LOG.info("saving samples");
-			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_samples.txt"))) {
-				pw.println("#id label desc family birthYear father mother sex HPO DOID POP groups".replace(' ', '\t'));
-				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_SAMPLE)).
-					map(R->new Sample(R)).
-					forEach(R->{
+			if(!all_groups.isEmpty()) {
+				LOG.info("saving groups");
+				try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_groups.tsv"))) {
+					pw.println("#id label desc samples.count male.count female.count other.count groups".replace(' ', '\t'));
+					for(Group R: all_groups) {
 						pw.print(R.getId());
 						pw.print("\t");
 						pw.print(R.getLabel());
 						pw.print("\t");
 						pw.print(R.getDescription());
 						pw.print("\t");
-						pw.print(R.getFamily().orElse("."));
+						pw.print(R.getSamples().stream().map(G->G.getId()).count());
 						pw.print("\t");
-						if(R.getBirthYear().isPresent()) {
-							pw.print(R.getBirthYear().getAsInt());
-							}
-						else
-							{
-							pw.print(".");
-							}
+						pw.print(R.getSamples().stream().filter(G->G.isMale()).count());
 						pw.print("\t");
-						Optional<Sample> parent = R.getFather();
-						pw.print(parent.isPresent()?parent.get().getId():".");
+						pw.print(R.getSamples().stream().filter(G->G.isFemale()).count());
 						pw.print("\t");
-						parent = R.getMother();
-						pw.print(parent.isPresent()?parent.get().getId():".");
+						pw.print(R.getSamples().stream().filter(G->!(G.isFemale() || G.isMale())).count());
 						pw.print("\t");
-						if(R.isMale()) {
-							pw.print("male");
-							}
-						else if(R.isFemale()) {
-							pw.print("female");
-							}
-						else
-							{
-							pw.print(".");
-							}
-						pw.print("\t");
-						if(hpoOntology!=null) {
-							pw.print(StringUtils.ifBlank(R.getTermsInOntology(hpoOntology, PROP_HPO).stream().
-								map(T->T.getLabel2()).
-								collect(Collectors.joining("; "))
-								,"."));
-							}
-						else
-							{
-							pw.print(".");
-							}
-						pw.print("\t");
-						if(doidOntology!=null) {
-							pw.print(StringUtils.ifBlank(R.getTermsInOntology(doidOntology, PROP_DOID).stream().
-									map(T->T.getLabel2()).
-									collect(Collectors.joining("; "))
-									,"."));
-							}
-						else
-							{
-							pw.print(".");
-							}
-						pw.print("\t");
-						if(snomedEthnic!=null){
-							pw.print(StringUtils.ifBlank(R.getTermsInOntology(snomedEthnic, PROP_POPULATION).stream().
-									map(T->T.getLabel2()).
-									collect(Collectors.joining("; "))
-									,"."));
-							}
-						else
-							{
-							pw.print(".");
-							}
-						pw.print("\t");
-						pw.print(StringUtils.ifBlank(R.getGroups().stream().map(G->G.getId()).sorted().collect(Collectors.joining(";")),"."));
+						pw.print(StringUtils.ifBlank(R.getSamples().stream().map(G->G.getId()).sorted().collect(Collectors.joining(";")),"."));
 						pw.println();
-					});
-				pw.flush();
-				}
-			/** save pedigree */
-			LOG.info("saving pedigree");
-			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_pedigree.txt"))) {
-				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_SAMPLE)).
-					map(R->new Sample(R)).
-					forEach(R->{
-						final String id = R.getId();
-						pw.print(R.getFamily().orElse(id));
-						pw.print("\t");
-						pw.print(id);
-						pw.print("\t");
-						Optional<Sample> father = R.getFather();
-						pw.print(father.isPresent()?father.get().getId():"0");
-						pw.print("\t");
-						Optional<Sample> mother = R.getMother();
-						pw.print(mother.isPresent()?mother.get().getId():"0");
-						pw.print("\t");
-						if(R.isMale()) {
-							pw.print("1");
-							}
-						else if(R.isFemale()) {
-							pw.print("2");
-							}
-						else
-							{
-							pw.print("0");
-							}	
-						pw.println();
-						});
-				pw.flush();
-				}
-			/** save pedigree */
-			LOG.info("saving group to samples");
-			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_group2sample.txt"))) {
-				pw.println("#group sample".replace(' ', '\t'));
-				JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
-					map(R->new Group(R)).
-					forEach(G->{
-						for(Sample sn:G.getSamples()) {
-							pw.print(G.getId());
+						};
+					pw.flush();
+					}
+				} /* end group */
+			
+			if(!all_samples.isEmpty()) {
+				LOG.info("saving samples");
+				try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_samples.tsv"))) {
+					pw.println("#id label desc family aliases birthYear father mother sex HPO DOID POP groups".replace(' ', '\t'));
+					for(Sample R: all_samples) {
+							pw.print(R.getId());
 							pw.print("\t");
-							pw.print(sn.getId());
+							pw.print(R.getLabel());
+							pw.print("\t");
+							pw.print(R.getDescription());
+							pw.print("\t");
+							pw.print(R.getFamily().orElse("."));
+							pw.print("\t");
+							pw.print(StringUtils.ifBlank(R.getNames().stream().filter(S->!S.equals(R.getId())).sorted().collect(Collectors.joining(",")),"."));
+							pw.print("\t");
+							if(R.getBirthYear().isPresent()) {
+								pw.print(R.getBirthYear().getAsInt());
+								}
+							else
+								{
+								pw.print(".");
+								}
+							pw.print("\t");
+							Optional<Sample> parent = R.getFather();
+							pw.print(parent.isPresent()?parent.get().getId():".");
+							pw.print("\t");
+							parent = R.getMother();
+							pw.print(parent.isPresent()?parent.get().getId():".");
+							pw.print("\t");
+							if(R.isMale()) {
+								pw.print("male");
+								}
+							else if(R.isFemale()) {
+								pw.print("female");
+								}
+							else
+								{
+								pw.print(".");
+								}
+							pw.print("\t");
+							if(hpoOntology!=null) {
+								pw.print(StringUtils.ifBlank(R.getTermsInOntology(hpoOntology, PROP_HPO).stream().
+									map(T->T.getLabel2()).
+									collect(Collectors.joining("; "))
+									,"."));
+								}
+							else
+								{
+								pw.print(".");
+								}
+							pw.print("\t");
+							if(doidOntology!=null) {
+								pw.print(StringUtils.ifBlank(R.getTermsInOntology(doidOntology, PROP_DOID).stream().
+										map(T->T.getLabel2()).
+										collect(Collectors.joining("; "))
+										,"."));
+								}
+							else
+								{
+								pw.print(".");
+								}
+							pw.print("\t");
+							if(snomedEthnic!=null){
+								pw.print(StringUtils.ifBlank(R.getTermsInOntology(snomedEthnic, PROP_POPULATION).stream().
+										map(T->T.getLabel2()).
+										collect(Collectors.joining("; "))
+										,"."));
+								}
+							else
+								{
+								pw.print(".");
+								}
+							pw.print("\t");
+							pw.print(StringUtils.ifBlank(R.getGroups().stream().map(G->G.getId()).sorted().collect(Collectors.joining(";")),"."));
 							pw.println();
-							}
-						});
-				pw.flush();
-				}
+						}
+					pw.flush();
+					}
+				}//end samples
+			
+				if(!all_samples.isEmpty()) {
+				/** save pedigree */
+				LOG.info("saving pedigree");
+					try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_pedigree.txt"))) {
+						for(Sample R: all_samples) {
+							final String id = R.getId();
+							pw.print(R.getFamily().orElse(id));
+							pw.print("\t");
+							pw.print(id);
+							pw.print("\t");
+							Optional<Sample> father = R.getFather();
+							pw.print(father.isPresent()?father.get().getId():"0");
+							pw.print("\t");
+							Optional<Sample> mother = R.getMother();
+							pw.print(mother.isPresent()?mother.get().getId():"0");
+							pw.print("\t");
+							if(R.isMale()) {
+								pw.print("1");
+								}
+							else if(R.isFemale()) {
+								pw.print("2");
+								}
+							else
+								{
+								pw.print("0");
+								}	
+							pw.println();
+								}
+						pw.flush();
+						}
+					} /* save pedigree */
+				
+				if(!all_samples.isEmpty() && !all_groups.isEmpty()) {
+					/** save grop 2 sample */
+					LOG.info("saving group to samples");
+					try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_group2sample.txt"))) {
+						pw.println("#group sample".replace(' ', '\t'));
+						JenaUtils.stream(model.listSubjectsWithProperty(RDF.type,TYPE_GROUP)).
+							map(R->new Group(R)).
+							forEach(G->{
+								for(Sample sn:G.getSamples()) {
+									pw.print(G.getId());
+									pw.print("\t");
+									pw.print(sn.getId());
+									pw.println();
+									}
+								});
+						pw.flush();
+						}
+					}/* end save group/sample */
 			return 0;
 			}
 		catch(Throwable err) {
