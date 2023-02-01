@@ -61,8 +61,8 @@ public class CollectorsUtils {
 		Optional<T> getOptional() {
 			return Optional.ofNullable(this.value);
 			}
-		T getRequired() {
-			if(this.value==null) throw new IllegalArgumentException("expected one  value but got none");
+		T getRequired(final String msg) {
+			if(this.value==null) throw new IllegalArgumentException(msg);
 			return this.value;
 			}
 		@Override
@@ -78,16 +78,23 @@ public class CollectorsUtils {
 		}
 	}
 	
-/** expected one and only one value from this stream. Objects are compared using equals */
-public static <T> Collector<T, ?, T> one() {
+/** expected one and only one value from this stream. Objects are compared using equals
+ @param message the message to be displayed on error
+ */
+public static <T> Collector<T, ?, T> one(final String messageOnError) {
 	return new DefaultCollector<>(
 			()->new MonoSet<T>(),
 			(SET,V)->SET.add(V),
 			(A, B) -> { A.addAll(B); return A; },
-			(SET)->SET.getRequired(),
+			(SET)->SET.getRequired(messageOnError),
 			Collections.emptySet()
 			);
 	}
+
+public static <T> Collector<T, ?, T> one() {
+	return one("expected one value but got none");
+	}
+
 /** expected one or no value from this stream. Objects are compared using equals */
 public static <T> Collector<T, ?, Optional<T>> optional() {
 	return new DefaultCollector<>(
