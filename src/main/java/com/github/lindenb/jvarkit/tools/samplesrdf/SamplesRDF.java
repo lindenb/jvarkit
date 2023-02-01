@@ -259,14 +259,15 @@ public class SamplesRDF extends Launcher {
 	private static final Logger LOG = Logger.build(SamplesRDF.class).make();
 
 	private static final String NS = "https://umr1087.univ-nantes.fr/";
+	private static final String FOAF_NS = "http://xmlns.com/foaf/0.1/";
 	private static final String OBOINOWL = "http://www.geneontology.org/formats/oboInOwl#";
 	private static final String SNOMED_NS="http://purl.bioontology.org/ontology/SNOMED-Ethnic-Group#";
-	private static final Resource TYPE_SAMPLE = ResourceFactory.createResource(NS+"Sample");
-	private static final Resource TYPE_GROUP = ResourceFactory.createResource(NS+"Group");
+	private static final Resource TYPE_SAMPLE = ResourceFactory.createResource(FOAF_NS+"Person");
+	private static final Resource TYPE_GROUP = ResourceFactory.createResource(FOAF_NS+"Group");
 	/* flag the Sample/Group that have been explicity created */
 	private static final Resource TYPE_DECLARED = ResourceFactory.createResource(NS+"_Validated");
-	private static final Resource IS_MALE = ResourceFactory.createResource(NS+"Male");
-	private static final Resource IS_FEMALE = ResourceFactory.createResource(NS+"Female");
+	private static final Resource IS_MALE = ResourceFactory.createResource("http://purl.bioontology.org/ontology/SNOMEDCT/248153007");
+	private static final Resource IS_FEMALE = ResourceFactory.createResource("http://purl.bioontology.org/ontology/SNOMEDCT/248152002");
 	private static final Property PROP_ID = ResourceFactory.createProperty(NS,"id");
 	private static final Property PROP_HPO = ResourceFactory.createProperty(NS,"hpo");
 	private static final Property PROP_POPULATION = ResourceFactory.createProperty(NS,"population");
@@ -279,7 +280,7 @@ public class SamplesRDF extends Launcher {
 	private static final Property PROP_birthYear = ResourceFactory.createProperty(NS,"birthYear");
 	private static final Property OBOINOWBL_id = ResourceFactory.createProperty(OBOINOWL,"id");
 	private static final Property SNOMEDID = ResourceFactory.createProperty(SNOMED_NS,"SNOMEDID");
-	private static final Property PROP_contains_sample = ResourceFactory.createProperty(NS,"contains-sample");
+	private static final Property PROP_contains_sample = ResourceFactory.createProperty(FOAF_NS,"member");
 	private static final Property PROP_group = ResourceFactory.createProperty(NS,"group");
 
 	
@@ -301,6 +302,7 @@ public class SamplesRDF extends Launcher {
 	public SamplesRDF() {
 		this.model = ModelFactory.createDefaultModel();
 		this.model.setNsPrefix("u",NS);
+		this.model.setNsPrefix("foaf",FOAF_NS);
 		}
 	
 	/** reduce the size of the RDF/XML ontology to be loaded */
