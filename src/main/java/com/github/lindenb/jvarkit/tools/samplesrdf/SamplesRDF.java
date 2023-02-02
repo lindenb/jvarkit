@@ -219,6 +219,7 @@ AZD	AZD	X1	0	1
 $ more JETER_errors.txt 
 <https://umr1087.univ-nantes.fr/db/X1> rdf:type <https://umr1087.univ-nantes.fr/Sample> was used but not declared
 X1 declared as father of AZD. But sex is not male
+
 $ more JETER_model.rdf 
 <rdf:RDF
     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -251,7 +252,7 @@ END_DOC
 description="Digests a  database of samples from a set of recfiles",
 keywords={"samples","database","rdf","ontology"},
 creationDate="20230201",
-modificationDate="20230201",
+modificationDate="20230202",
 jvarkit_amalgamion = true,
 menu="Utilities"
 )
@@ -275,8 +276,8 @@ public class SamplesRDF extends Launcher {
 	private static final Property PROP_alias = ResourceFactory.createProperty(NS,"alias");
 	private static final Property PROP_father = ResourceFactory.createProperty(NS,"father");
 	private static final Property PROP_mother = ResourceFactory.createProperty(NS,"mother");
-	private static final Property PROP_family = ResourceFactory.createProperty(NS,"family");
-	private static final Property PROP_sex = ResourceFactory.createProperty(NS,"sex");
+	private static final Property PROP_family = ResourceFactory.createProperty(FOAF_NS,"family_name");
+	private static final Property PROP_sex = ResourceFactory.createProperty(FOAF_NS,"gender");
 	private static final Property PROP_birthYear = ResourceFactory.createProperty(NS,"birthYear");
 	private static final Property OBOINOWBL_id = ResourceFactory.createProperty(OBOINOWL,"id");
 	private static final Property SNOMEDID = ResourceFactory.createProperty(SNOMED_NS,"SNOMEDID");
@@ -307,7 +308,7 @@ public class SamplesRDF extends Launcher {
 	
 	/** reduce the size of the RDF/XML ontology to be loaded */
 	private static class OWLFilter implements EventFilter {
-		int in_reject_depth = 0;
+		private int in_reject_depth = 0;
 		
 		private boolean acceptName(final QName qName) {
 			final String lcl = qName.getLocalPart();
@@ -354,7 +355,7 @@ public class SamplesRDF extends Launcher {
 			}
 		
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if(obj==this) return true;
 			if(obj==null || !obj.getClass().equals(this.getClass())) return false;
 			return this.rsrc.equals(AbstractEntity.class.cast(obj).rsrc);

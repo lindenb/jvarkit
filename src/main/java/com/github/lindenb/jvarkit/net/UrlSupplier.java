@@ -215,6 +215,17 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 	final String ensemblCtg = toEnsembl.apply(ctx.getContig());
 	final String ucscCtg = toUcsc.apply(ctx.getContig());
 	final String variantid = ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString();
+	
+	// FREX
+	if(isGrch37() && ctx.getStart()==ctx.getEnd()) {
+		urls.add(new LabelledUrlImpl("FreX",
+				variantid,
+				"http://lysine.univ-brest.fr/FrExAC/showAnnotations?chr="+
+				StringUtils.escapeHttp(toUcsc.apply(ctx.getContig())) +
+				"&position=" + ctx.getStart()
+				));
+		}
+	
 	// popgen
 	if(isGrch37()) {
 		urls.add(new LabelledUrlImpl("popgen.uchicago.edu",

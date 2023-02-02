@@ -78,7 +78,7 @@ public static <T> Collector<T, ?, T> one(final String messageOnError) {
 			Collections.emptySet()
 			);
 	}
-/**  shortcut to <PRE>one("expected one value but got none")</PRE>
+/**  shortcut to <PRE>one("expected one value but got none")</PRE> */
 public static <T> Collector<T, ?, T> one() {
 	return one("expected one value but got none");
 	}
