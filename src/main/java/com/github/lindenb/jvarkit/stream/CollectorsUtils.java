@@ -26,26 +26,15 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.stream;
 
 import java.util.AbstractSet;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-
-import htsjdk.samtools.QueryInterval;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.Locatable;
 
 public class CollectorsUtils {
 
+	/** set holding one or zero value */
 	private static class MonoSet<T> extends AbstractSet<T> {
 		private T value = null;
 		@Override
@@ -70,7 +59,7 @@ public class CollectorsUtils {
 			return value==null?
 					Collections.emptyIterator():
 					Collections.singleton(value).iterator();
-		}
+			}
 
 		@Override
 		public int size() {
@@ -80,22 +69,17 @@ public class CollectorsUtils {
 	
 /** expected one and only one value from this stream. Objects are compared using equals */
 public static <T> Collector<T, ?, T> one() {
-	return new DefaultCollector<>(
-			()->new MonoSet<T>(),
-			(SET,V)->SET.add(V),
-			(A, B) -> { A.addAll(B); return A; },
-			(SET)->SET.getRequired(),
-			Collections.emptySet()
+	return Collectors.collectingAndThen(
+			Collectors.toCollection(()->new MonoSet<T>()),
+			(SET)->SET.getRequired()
 			);
 	}
+
 /** expected one or no value from this stream. Objects are compared using equals */
 public static <T> Collector<T, ?, Optional<T>> optional() {
-	return new DefaultCollector<>(
-			()->new MonoSet<T>(),
-			(SET,V)->SET.add(V),
-			(A, B) -> { A.addAll(B); return A; },
-			(SET)->SET.getOptional(),
-			Collections.emptySet()
+	return Collectors.collectingAndThen(
+			Collectors.toCollection(()->new MonoSet<T>()),
+			(SET)->SET.getOptional()
 			);
 	}
 }

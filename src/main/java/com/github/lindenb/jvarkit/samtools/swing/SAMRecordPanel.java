@@ -40,29 +40,30 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.swing.PropertyChangeObserver;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMUtils;
 
+/**
+ * 
+ * JPanel wrapping data about one SAMRecord
+ *
+ */
 @SuppressWarnings("serial")
 public class SAMRecordPanel extends JPanel {
-private SAMRecord samRecord = null;
-private final ReadTableModel readTableModel;
-private final CigarTableModel cigarTableModel;
-private final MetadataTableModel metaTableModel;
-private final SAMFlagTableModel flagTableModel;
-private final SeqTableModel seqTableModel;
-private final OtherAlignTableModel otherAlignTableModel;
+private final PropertyChangeObserver<SAMRecord> samRecord = new PropertyChangeObserver<>();
 
 static JPanel wrap(String value,final TableModel tm) {
 	final JTable t = new JTable(tm);
 	t.setAutoResizeMode(JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS);
-	JScrollPane scr = new JScrollPane(t);
-	JPanel jp=new JPanel(new BorderLayout(4, 4));
+	final JScrollPane scr = new JScrollPane(t);
+	final JPanel jp=new JPanel(new BorderLayout(4, 4));
 	jp.setBorder(BorderFactory.createTitledBorder(value));
 	jp.add(scr,BorderLayout.CENTER);
 	return jp;	
@@ -70,12 +71,29 @@ static JPanel wrap(String value,final TableModel tm) {
 
 public SAMRecordPanel() {
 	super(new GridLayout(2,3,5,5));
-	this.add(wrap("Read",this.readTableModel= new ReadTableModel()));
-	this.add(wrap("Cigar",this.cigarTableModel = new CigarTableModel()));
-	this.add(wrap("Meta",this.metaTableModel = new MetadataTableModel()));
-	this.add(wrap("Flags",this.flagTableModel = new SAMFlagTableModel()));
-	this.add(wrap("Seq",this.seqTableModel = new SeqTableModel()));
-	this.add(wrap("SA:Z",this.otherAlignTableModel = new OtherAlignTableModel()));
+	
+	final ReadTableModel readTableModel;
+	final CigarTableModel cigarTableModel;
+	final MetadataTableModel metaTableModel;
+	final SAMFlagTableModel flagTableModel;
+	final SeqTableModel seqTableModel;
+	final OtherAlignTableModel otherAlignTableModel;
+
+	
+	this.add(wrap("Read",readTableModel= new ReadTableModel()));
+	this.add(wrap("Cigar",cigarTableModel = new CigarTableModel()));
+	this.add(wrap("Meta",metaTableModel = new MetadataTableModel()));
+	this.add(wrap("Flags",flagTableModel = new SAMFlagTableModel()));
+	this.add(wrap("Seq",seqTableModel = new SeqTableModel()));
+	this.add(wrap("SA:Z",otherAlignTableModel = new OtherAlignTableModel()));
+	this.samRecord.addPropertyChangeListener((EVT)->{
+		readTableModel.fireTableDataChanged();
+		cigarTableModel.fireTableDataChanged();
+		metaTableModel.fireTableDataChanged();
+		flagTableModel.fireTableDataChanged();
+		seqTableModel.fireTableDataChanged();
+		otherAlignTableModel.fireTableDataChanged();
+		});
 	}
 
 
@@ -85,23 +103,15 @@ public SAMRecordPanel(final SAMRecord rec) {
 	}
 
 public void setSamRecord(final SAMRecord samRecord) {
-	SAMRecord old = this.samRecord;
-	this.samRecord = samRecord;
-	if(old!=this.samRecord) {
-		this.readTableModel.fireTableDataChanged();
-		this.cigarTableModel.fireTableDataChanged();
-		this.metaTableModel.fireTableDataChanged();
-		this.flagTableModel.fireTableDataChanged();
-		this.seqTableModel.fireTableDataChanged();
-		this.otherAlignTableModel.fireTableDataChanged();
-		}
+	this.samRecord.setValue(samRecord);
+	
 	}
 
 public SAMRecord getSamRecord() {
-	return samRecord;
+	return this.samRecord.getValue();
 	}
 
-
+/** Table model listing Read detail */
 private class ReadTableModel  extends AbstractTableModel
 	{
 	@Override
@@ -109,7 +119,7 @@ private class ReadTableModel  extends AbstractTableModel
 		switch(column) {
 			case 0: return "Key";
 			case 1: return "Value";
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	@Override
@@ -124,13 +134,14 @@ private class ReadTableModel  extends AbstractTableModel
 		if(s==null) return "*";
 		if(s.length()>500) return s.substring(0, 500)+"...";
 		return s;
-	}
+		}
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		final SAMRecord rec = getSamRecord();
+		
 		switch(rowIndex) {
 			case 0: return columnIndex==0?"QNAME":(rec==null?null:rec.getReadName());
-			case 1: return columnIndex==0?"FLAG":(rec==null?null:String.valueOf(rec.getFlags())+" "+flags(rec.getFlags()));
+			case 1: return columnIndex==0?"FLAG":(rec==null?null:String.valueOf(rec.getFlags())+" ("+flags(rec.getFlags())+")");
 			case 2: return columnIndex==0?"RNAME":(rec==null?null:rec.getReferenceName());
 			case 3: return columnIndex==0?"UPOS":(rec==null || rec.getReadUnmappedFlag()?null:StringUtils.niceInt(rec.getUnclippedStart()));
 			case 4: return columnIndex==0?"POS":(rec==null || rec.getReadUnmappedFlag()?null:StringUtils.niceInt(rec.getAlignmentStart()));
@@ -142,14 +153,15 @@ private class ReadTableModel  extends AbstractTableModel
 			case 10: return columnIndex==0?"ISIZE":(rec==null || rec.getReadUnmappedFlag()?null:StringUtils.niceInt(rec.getInferredInsertSize()));
 			case 11: return columnIndex==0?"MNAME":(rec==null || !rec.getReadPairedFlag() || !rec.getMateUnmappedFlag()?null:rec.getMateReferenceName());
 			case 12: return columnIndex==0?"MPOS":(rec==null || !rec.getReadPairedFlag() || !rec.getMateUnmappedFlag()?null:StringUtils.niceInt(rec.getMateAlignmentStart()));
-			case 13: return columnIndex==0?"SEQ":(rec==null?null:trim(rec.getReadString()));
-			case 14: return columnIndex==0?"QUAL":(rec==null?null:trim(rec.getBaseQualityString()));
+			case 13: return columnIndex==0?"MEND":(rec==null || !rec.getReadPairedFlag() || !rec.getMateUnmappedFlag() || !rec.hasAttribute(SAMTag.MC)?null:StringUtils.niceInt(SAMUtils.getMateAlignmentEnd(rec)));
+			case 14: return columnIndex==0?"SEQ":(rec==null?null:trim(rec.getReadString()));
+			case 15: return columnIndex==0?"QUAL":(rec==null?null:trim(rec.getBaseQualityString()));
 			default: return null;
 			}
 		}
 	@Override
 	public final int getRowCount() {
-		return 15;
+		return 16;
 		}
 	@Override
 	public final int getColumnCount() {
@@ -158,7 +170,7 @@ private class ReadTableModel  extends AbstractTableModel
 	}
 
 
-
+/** Table model listing cigar operation */
 private class CigarTableModel  extends AbstractTableModel
 	{
 	@Override
@@ -166,7 +178,7 @@ private class CigarTableModel  extends AbstractTableModel
 		switch(column) {
 			case 0: return "Op";
 			case 1: return "Len";
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	@Override
@@ -174,7 +186,7 @@ private class CigarTableModel  extends AbstractTableModel
 			switch(column) {
 			case 0: return String.class;
 			case 1: return Integer.class;
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	
@@ -211,7 +223,7 @@ private class MetadataTableModel  extends AbstractTableModel
 			case 0: return "Name";
 			case 1: return "Type";
 			case 2: return "Value";
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	@Override
@@ -220,7 +232,7 @@ private class MetadataTableModel  extends AbstractTableModel
 			case 0: return String.class;
 			case 1: return String.class;
 			case 2: return Object.class;
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	
@@ -257,14 +269,14 @@ private class SAMFlagTableModel  extends AbstractTableModel
 	public String getColumnName(final int column) {
 		switch(column) {
 			case 0: return "Flags";
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	@Override
 	public Class<?> getColumnClass(int column) {
 			switch(column) {
 			case 0: return String.class;
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	
@@ -304,7 +316,7 @@ private class SeqTableModel  extends AbstractTableModel
 			case 2: return "READ1";
 			case 3: return "BASE";
 			case 4: return "QUAL";
-			default: throw new IndexOutOfBoundsException(column);
+			default: throw new IndexOutOfBoundsException(String.valueOf(column));
 			}
 		}
 	@Override
@@ -415,15 +427,12 @@ public String getColumnName(final int column) {
 		case 0: return "Contig";
 		case 1: return "Pos";
 		case 2: return "Cigar";
-		default: throw new IndexOutOfBoundsException(column);
+		default: throw new IndexOutOfBoundsException(String.valueOf(column));
 		}
 	}
 @Override
 public Class<?> getColumnClass(int column) {
-		switch(column) {
-		case 0: return String.class;
-		default: throw new IndexOutOfBoundsException(column);
-		}
+		return String.class;
 	}
 
 @Override

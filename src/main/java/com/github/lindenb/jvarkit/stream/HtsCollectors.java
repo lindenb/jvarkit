@@ -40,10 +40,11 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 
-public class HtsCollectors {
+public class HtsCollectors extends CollectorsUtils {
 
 /** Filter Java Stream to 1 and only 1 element 
- * https://stackoverflow.com/questions/22694884/ 
+ * https://stackoverflow.com/questions/22694884/
+ * @throws IllegalStateException if there is not one and only one data
  */
 public static <T> Collector<T, ?, T> toSingleton() {
     return Collectors.collectingAndThen(
