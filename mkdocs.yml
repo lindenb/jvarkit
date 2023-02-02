@@ -99,6 +99,7 @@ nav:
         - "sam2tsv" : Sam2Tsv.md
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samgrep" : SamGrep.md
+        - "samplesrdf" : SamplesRDF.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
         - "samviewwithmate" : SamViewWithMate.md
         - "scanretrocopy" : ScanRetroCopy.md

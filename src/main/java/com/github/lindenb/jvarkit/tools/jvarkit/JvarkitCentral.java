@@ -136,6 +136,7 @@ import com.github.lindenb.jvarkit.tools.sam2tsv.CnvTView;
 import com.github.lindenb.jvarkit.tools.sam2tsv.PrettySam;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.samgrep.SamGrep;
+import com.github.lindenb.jvarkit.tools.samplesrdf.SamplesRDF;
 import com.github.lindenb.jvarkit.tools.samrmdupnames.SamRemoveDuplicatedNames;
 import com.github.lindenb.jvarkit.tools.sashimi.PlotSashimi;
 import com.github.lindenb.jvarkit.tools.setfile.SetFileTools;
@@ -551,6 +552,7 @@ public class JvarkitCentral {
 		command(VcfGnomad.class);
 		command(VcfSetSequenceDictionary.class);
 		command(VcfFilterSequenceOntology.class);
+		command(SamplesRDF.class);
 		command(Sam2Tsv.class);
 		command(SamGrep.class);
 		command(SamViewWithMate.class);
