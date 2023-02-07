@@ -219,6 +219,7 @@ AZD	AZD	X1	0	1
 $ more JETER_errors.txt 
 <https://umr1087.univ-nantes.fr/db/X1> rdf:type <https://umr1087.univ-nantes.fr/Sample> was used but not declared
 X1 declared as father of AZD. But sex is not male
+
 $ more JETER_model.rdf 
 <rdf:RDF
     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"

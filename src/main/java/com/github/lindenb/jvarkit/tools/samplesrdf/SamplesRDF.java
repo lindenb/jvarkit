@@ -84,10 +84,14 @@ A tool formatting samples definition.
 Input is a Recfile ( https://en.wikipedia.org/wiki/Recfiles )  in the form:
 
 ```
+%rec: type1
+
 key : value
 key : value
 key : value
 key : value
+
+%rec: type2
 
 key : value
 key : value
@@ -98,12 +102,25 @@ key : value
 (...)
 ```
 
-the key/value delimiter is `:` or `=`.
+the key/value delimiter is `:` 
 multiple records are separated by one or more spaces.
 lines starting with "#" are ignored.
 keys are case insensible.
 
-**type:** : each record requires the key `type`. The type is either Sample or Group. A Sample defines one Sample, A group is a set of samples.
+A rec file must contain a class declaration wich introduce the classes for the following object:
+```
+%rec: Sample
+```
+or
+```
+%rec: Group
+```
+
+The type is either Sample or Group. 
+A Sample defines one Sample.
+A group is a set of samples.
+
+
 
 **id:** : each record requires the key `id`. The type is either Sample or Group. It defines a unique identifier in the database. Id are converted to uppercase
 
@@ -131,6 +148,7 @@ doid: 0011712 words
 
 
 ## Samples only:
+
 **family:** a family name for this a `Sample`
 
 **father:** the id of the father 
@@ -662,9 +680,9 @@ public class SamplesRDF extends Launcher {
 
 	
 	private Map.Entry<String,String> split(final String s) {
-		int i= s.indexOf(":");
-		if(i==-1) i=s.indexOf("=");
-		if(i==-1) throw new IllegalArgumentException("Cannot find key/value delimiter in " + s);
+		final char delim = ':';
+		final int i= s.indexOf(delim);
+		if(i==-1) throw new IllegalArgumentException("Cannot find key/value delimiter '"+delim+"' in " + s);
 		final String key= s.substring(0,i).trim().toLowerCase();
 		if(key.isEmpty()) throw new IllegalArgumentException("Empty key in " + s);
 		final String value = s.substring(i+1).trim();
@@ -674,92 +692,101 @@ public class SamplesRDF extends Launcher {
 	
 	
 	private void scan(BufferedReader br,final OWLOntology snomedEthnic) throws IOException {
+		Resource current_type = null;
 		final List<String> lines = new ArrayList<>();
 		for(;;) {
 			String line = br.readLine();
 			if(StringUtil.isBlank(line)) {
 				if(!lines.isEmpty()) {
-					final Resource type = 
-							lines.stream().
+					if(lines.stream().allMatch(L->L.startsWith("%"))) {
+						current_type = 
+								lines.stream().
+								map(L->split(L)).
+								filter(P->P.getKey().equals("%type") || P.getKey().equals("%rec")).
+								map(KV->{
+									final String v = KV.getValue().toLowerCase();
+									if(v.equals("sample")) return TYPE_SAMPLE;
+									if(v.equals("group")) return TYPE_GROUP;
+									throw new IllegalArgumentException("unsupported type :"+v+" must be sample or group");
+									}).
+								collect(CollectorsUtils.one("expect one and only one 'type' per record."))
+								;
+						}	
+					else
+						{
+						if(current_type==null) {
+							throw new IOException("Expected a recfile type declaration starting with '%rec'.");
+							}
+						
+						
+						final String id = 
+								lines.stream().
+								map(L->split(L)).
+								filter(P->P.getKey().equalsIgnoreCase("id")).
+								map(KV->KV.getValue().toUpperCase()).
+								collect(CollectorsUtils.one("expect one and only one 'id' per record."))
+								;
+						
+						final Resource subject = createEntity(id, current_type, true);
+						final Resource final_type = current_type;
+						lines.stream().
 							map(L->split(L)).
-							filter(P->P.getKey().equals("type")).
 							map(KV->{
-								final String v = KV.getValue().toLowerCase();
-								if(v.equals("sample")) return TYPE_SAMPLE;
-								if(v.equals("group")) return TYPE_GROUP;
-								throw new IllegalArgumentException("unsupported type :"+v+" must be sample or group");
-								}).
-							collect(CollectorsUtils.one("expect one and only one 'type' per record."))
-							;
-					
-					final String id = 
-							lines.stream().
-							map(L->split(L)).
-							filter(P->P.getKey().equalsIgnoreCase("id")).
-							map(KV->KV.getValue().toUpperCase()).
-							collect(CollectorsUtils.one("expect one and only one 'id' per record."))
-							;
-					
-					final Resource subject = createEntity(id, type, true);
-					
-					lines.stream().
-						map(L->split(L)).
-						map(KV->{
-							final String key = KV.getKey();
-							if(key.equals("type")) return null;
-							if(key.equals("id")) return null;
-							if(key.equals("label") || key.equals("name")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(RDFS.label,this.model.createLiteral(KV.getValue()));
-							if(key.equals("comment") || key.equals("description")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(RDFS.comment,this.model.createLiteral(KV.getValue()));
-							if(key.equals("hpo") || key.equals("hp")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_HPO,createHPO(KV.getValue()));
-							if(key.equals("doid")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_DOID,createDOID(KV.getValue()));
-
-							if(type.equals(TYPE_SAMPLE)) {
-								if(key.equals("family")) {
-									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_family,createEntity(KV.getValue(),TYPE_SAMPLE,false));
-									}
-								if(key.equals("father")) {
-									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_father,createEntity(KV.getValue(),TYPE_SAMPLE,false));
-									}
-								if(key.equals("mother")) {
-									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_mother,createEntity(KV.getValue(),TYPE_SAMPLE,false));
-									}
-								if(key.equals("sex")) {
-									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_sex,createSex(KV.getValue()));
-									}
-								if(key.equals("birth") || key.equals("birthyear")) {
-									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_birthYear,model.createTypedLiteral(Integer.parseInt(KV.getValue())));
-									}
-								if(key.equals("alias")) {
-									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_alias,model.createLiteral(KV.getValue()));
-									}
-								if(key.equals("pop") || key.equals("population")) {
-									final String pop=StringUtils.normalizeSpaces(KV.getValue());
-									if(snomedEthnic!=null) {
-										Optional<Resource> optPop = JenaUtils.stream(snomedEthnic.ontModel.listSubjectsWithProperty(RDF.type, OWL.Class)).
-											filter(S->JenaUtils.stream(snomedEthnic.ontModel.listObjectsOfProperty(S,RDFS.label)).anyMatch(L->L.asLiteral().getString().equalsIgnoreCase(pop))).
-											findFirst();
-										
-										if(!optPop.isPresent())  optPop = JenaUtils.stream(snomedEthnic.ontModel.listSubjectsWithProperty(RDF.type, OWL.Class)).
-												filter(S->JenaUtils.stream(snomedEthnic.ontModel.listObjectsOfProperty(S,SNOMEDID)).anyMatch(L->L.asLiteral().getString().equalsIgnoreCase(pop))).
-												findFirst();
-
-										if(optPop.isPresent())  return new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_POPULATION,optPop.get());
-										LOG.warn("Cannot find snomed: \""+pop+"\"");
+								final String key = KV.getKey();
+								if(key.equals("type")) return null;
+								if(key.equals("id")) return null;
+								if(key.equals("label") || key.equals("name")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(RDFS.label,this.model.createLiteral(KV.getValue()));
+								if(key.equals("comment") || key.equals("description")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(RDFS.comment,this.model.createLiteral(KV.getValue()));
+								if(key.equals("hpo") || key.equals("hp")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_HPO,createHPO(KV.getValue()));
+								if(key.equals("doid")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_DOID,createDOID(KV.getValue()));
+	
+								if(final_type.equals(TYPE_SAMPLE)) {
+									if(key.equals("family")) {
+										return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_family,createEntity(KV.getValue(),TYPE_SAMPLE,false));
 										}
-								
-									return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_POPULATION,model.createResource(SNOMED_NS + pop.replaceAll("[ ]+","_")));
+									if(key.equals("father")) {
+										return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_father,createEntity(KV.getValue(),TYPE_SAMPLE,false));
+										}
+									if(key.equals("mother")) {
+										return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_mother,createEntity(KV.getValue(),TYPE_SAMPLE,false));
+										}
+									if(key.equals("sex")) {
+										return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_sex,createSex(KV.getValue()));
+										}
+									if(key.equals("birth") || key.equals("birthyear")) {
+										return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_birthYear,model.createTypedLiteral(Integer.parseInt(KV.getValue())));
+										}
+									if(key.equals("alias")) {
+										return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_alias,model.createLiteral(KV.getValue()));
+										}
+									if(key.equals("pop") || key.equals("population")) {
+										final String pop=StringUtils.normalizeSpaces(KV.getValue());
+										if(snomedEthnic!=null) {
+											Optional<Resource> optPop = JenaUtils.stream(snomedEthnic.ontModel.listSubjectsWithProperty(RDF.type, OWL.Class)).
+												filter(S->JenaUtils.stream(snomedEthnic.ontModel.listObjectsOfProperty(S,RDFS.label)).anyMatch(L->L.asLiteral().getString().equalsIgnoreCase(pop))).
+												findFirst();
+											
+											if(!optPop.isPresent())  optPop = JenaUtils.stream(snomedEthnic.ontModel.listSubjectsWithProperty(RDF.type, OWL.Class)).
+													filter(S->JenaUtils.stream(snomedEthnic.ontModel.listObjectsOfProperty(S,SNOMEDID)).anyMatch(L->L.asLiteral().getString().equalsIgnoreCase(pop))).
+													findFirst();
+	
+											if(optPop.isPresent())  return new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_POPULATION,optPop.get());
+											LOG.warn("Cannot find snomed: \""+pop+"\"");
+											}
+									
+										return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_POPULATION,model.createResource(SNOMED_NS + pop.replaceAll("[ ]+","_")));
+										}
 									}
-								}
-							if(type.equals(TYPE_GROUP)) {
-								if(key.equals("sample")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_contains_sample,createEntity(KV.getValue(),TYPE_SAMPLE,false));
-								if(key.equals("group") || key.equals("extends")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_group,createEntity(KV.getValue(),TYPE_GROUP,false));
-								}		
-							throw new IllegalArgumentException("Cannot handle "+key+" for type <"+type+">.");
-							}).
-						filter(KV->KV!=null).
-						forEach(KV->model.add(subject,KV.getKey(),KV.getValue()));
-						;
-					
+								if(final_type.equals(TYPE_GROUP)) {
+									if(key.equals("sample")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_contains_sample,createEntity(KV.getValue(),TYPE_SAMPLE,false));
+									if(key.equals("group") || key.equals("extends")) return  new AbstractMap.SimpleEntry<Property,RDFNode>(PROP_group,createEntity(KV.getValue(),TYPE_GROUP,false));
+									}		
+								throw new IllegalArgumentException("Cannot handle "+key+" for type <"+final_type+">.");
+								}).
+							filter(KV->KV!=null).
+							forEach(KV->model.add(subject,KV.getKey(),KV.getValue()));
+							;
+						}
 					}
 				if(line==null) break;
 				lines.clear();
@@ -796,7 +823,7 @@ public class SamplesRDF extends Launcher {
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try {
 			final OWLOntology hpoOntology = (this.hpoFilename==null?null:new OWLOntology(this.hpoFilename,OBOINOWBL_id));
 			final OWLOntology doidOntology = (this.doidFilename==null?null:new OWLOntology(this.doidFilename,OBOINOWBL_id));
@@ -898,8 +925,8 @@ public class SamplesRDF extends Launcher {
 						}
 					}
 				for(Sample R:all_samples) {
-					Optional<String> fam = R.getFamily();
-					OptionalInt year = R.getBirthYear();
+					final Optional<String> fam = R.getFamily();
+					final OptionalInt year = R.getBirthYear();
 					for(int side=0;side<2;side++) {
 						final Sample parent = (side==0?R.getFather():R.getMother()).orElse(null);
 						if(parent!=null) {
@@ -928,6 +955,8 @@ public class SamplesRDF extends Launcher {
 				
 			/* at this point cleanup the data */
 			this.model.removeAll(null, RDF.type, TYPE_DECLARED);
+			
+			/** save as RDF */
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(Paths.get(this.outputBase + "_model.rdf"))) {
 				model.write(pw,"RDF/XML");
 				pw.flush();
