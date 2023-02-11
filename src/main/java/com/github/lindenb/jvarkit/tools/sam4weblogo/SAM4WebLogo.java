@@ -204,7 +204,12 @@ tacgaaccagggaggctcgggctgaggaagccgaacttcattcctcccaccgcaagactggcaaataaatcaagtcccaa
 ## See also
 
 * https://www.biostars.org/p/103052/
-* http://www.sciencedirect.com/science/article/pii/S1874778715300210
+
+## Cited in
+
+* Yi-Jyun Luo, Noriyuki Satoh, Kazuyoshi Endo, Mitochondrial gene order variation in the brachiopod Lingula anatina and its implications for mitochondrial evolution in lophotrochozoans, Marine Genomics, Volume 24, Part 1, 2015, Pages 31-40, ISSN 1874-7787, https://doi.org/10.1016/j.margen.2015.08.005
+* Horizontal gene transfer and CRISPR targeting drive phage-bacterial host interactions and co-evolution in pink berry marine microbial aggregates James C. Kosmopoulos, Danielle E. Campbell, Rachel J. Whitaker, Elizabeth G. Wilbanks bioRxiv 2023.02.06.527410; doi: https://doi.org/10.1101/2023.02.06.527410
+
 
 END_DOC
 
@@ -214,6 +219,7 @@ END_DOC
 	biostars= {73021,368200,9505463},
 	creationDate="20130524",
 	modificationDate="20191014",
+	jvarkit_amalgamion = true,
 	keywords={"sam","bam","visualization","logo"}
 	)
 public class SAM4WebLogo extends Launcher

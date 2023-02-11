@@ -5,7 +5,10 @@
  * Vinicius A.C & al. Comparative analyses of Theobroma cacao and T. grandiflorum mitogenomes reveal conserved gene content embedded within complex and plastic structures". Gene Volume 849 2023 .https://doi.org/10.1016/j.gene.2022.146904.
  * Pol32, an accessory subunit of DNA polymerase delta, plays an essential role in genome stability and pathogenesis of Candida albicans. Shraddheya Kumar Patel & al. Gut Microbes. https://doi.org/10.1080/19490976.2022.2163840 2023. **vcfpolyx**
  * Cho, C.H., Park, S.I., Huang, TY. et al. Genome-wide signatures of adaptation to extreme environments in red algae. Nat Commun 14, 10 (2023). https://doi.org/10.1038/s41467-022-35566-x *WGSCoveragePlotter*
- *  Integrative proteogenomics using ProteomeGenerator2 Nathaniel Kwok, Zita Aretz, Sumiko Takao, Zheng Ser, Paolo Cifani, Alex Kentsis bioRxiv 2023.01.04.522774; doi: https://doi.org/10.1101/2023.01.04.522774 
+ * Integrative proteogenomics using ProteomeGenerator2 Nathaniel Kwok, Zita Aretz, Sumiko Takao, Zheng Ser, Paolo Cifani, Alex Kentsis bioRxiv 2023.01.04.522774; doi: https://doi.org/10.1101/2023.01.04.522774 
+ * Sasimol Udomruk, Areerak Phanphaisarn, Thanat Kanthawang, Apiwat Sangphukieo, Songphon Sutthitthasakul, Siripong Tongjai, Pimpisa Teeyakasem, Patcharawadee Thongkumkoon, Santhasiri Orrapin, Sutpirat Moonmuang, Jeerawan Klangjorhor, Arnat Pasena, Pathacha Suksakit, Sivamoke Dissook, Pitithat Puranachot, Jongkolnee Settakorn, Tonapha Pusadee, Dumnoensun Pruksakorn, Parunya Chaiyawat; Characterization of Cell-free DNA Size Distribution in Osteosarcoma Patients. Clin Cancer Res 2023; https://doi.org/10.1158/1078-0432.CCR-22-2912 
+ * Rare coding variants in CTSO, a potential new actor of arterial remodeling, are associated to familial intracranial aneurysm Milène Freneau, Raphaël Blanchet, Sandro Benichi, Mary-Adel Mrad, Surya Prakash Rao Batta, Marc Rio, Stéphanie Bonnaud, Pierre Lindenbaum, Fabien Laporte, Stéphane Cuenot, Jean-François Deleuze, Christian Dina, Stéphanie Chatel, Emmanuelle Bourcereau, Solène Jouan, ICAN Study Group, Hubert Desal, Anne-Clémence Vion, Romain Bourcier, Gervaise Loirand, Richard Redon medRxiv 2023.01.31.23285168; doi: https://doi.org/10.1101/2023.01.31.23285168 
+ * Horizontal gene transfer and CRISPR targeting drive phage-bacterial host interactions and co-evolution in pink berry marine microbial aggregates James C. Kosmopoulos, Danielle E. Campbell, Rachel J. Whitaker, Elizabeth G. Wilbanks bioRxiv 2023.02.06.527410; doi: https://doi.org/10.1101/2023.02.06.527410 
 
 ## 2022
 
@@ -50,6 +53,10 @@
  * 'Differential distribution of Neandertal genomic signatures in human mitochondrial haplogroups'. 2017. Renata C Ferreira, Camila R Rodrigues, James R Broach, View ORCID ProfileMarcelo RS Briones. doi: [https://doi.org/10.1101/190363]([https://doi.org/10.1101/190363)
  * "Direct Head-to-Head Evaluation of Recombinant Adeno-associated Viral Vectors Manufactured in Human versus Insect Cells". Kondratov & al. Molecular Therapy. [https://doi.org/10.1016/j.ymthe.2017.08.003](https://doi.org/10.1016/j.ymthe.2017.08.003).
  * "High-Throughput Identification of Genetic Variation Impact on pre-mRNA Splicing Efficiency". Scott I Adamson, Lijun Zhan, Brenton R Graveley. doi: [https://doi.org/10.1101/191122](https://doi.org/10.1101/191122).
+
+## 2015
+
+ * Yi-Jyun Luo, Noriyuki Satoh, Kazuyoshi Endo, Mitochondrial gene order variation in the brachiopod Lingula anatina and its implications for mitochondrial evolution in lophotrochozoans, Marine Genomics, Volume 24, Part 1, 2015, Pages 31-40, ISSN 1874-7787, https://doi.org/10.1016/j.margen.2015.08.005 (SAM4WebLogo)
 
 ## 2014
 

@@ -84,10 +84,14 @@ A tool formatting samples definition.
 Input is a Recfile ( https://en.wikipedia.org/wiki/Recfiles )  in the form:
 
 ```
+%rec: type1
+
 key : value
 key : value
 key : value
 key : value
+
+%rec: type2
 
 key : value
 key : value
@@ -98,12 +102,25 @@ key : value
 (...)
 ```
 
-the key/value delimiter is `:` or `=`.
+the key/value delimiter is `:` 
 multiple records are separated by one or more spaces.
 lines starting with "#" are ignored.
 keys are case insensible.
 
-**type:** : each record requires the key `type`. The type is either Sample or Group. A Sample defines one Sample, A group is a set of samples.
+A rec file must contain a class declaration wich introduce the classes for the following object:
+```
+%rec: Sample
+```
+or
+```
+%rec: Group
+```
+
+The type is either Sample or Group. 
+A Sample defines one Sample.
+A group is a set of samples.
+
+
 
 **id:** : each record requires the key `id`. The type is either Sample or Group. It defines a unique identifier in the database. Id are converted to uppercase
 
@@ -131,6 +148,7 @@ doid: 0011712 words
 
 
 ## Samples only:
+
 **family:** a family name for this a `Sample`
 
 **father:** the id of the father 

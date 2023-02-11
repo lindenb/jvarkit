@@ -133,7 +133,10 @@ END_DOC
  */
 @Program(name="pubmedmap",
 description="Use Pubmed Author's Affiliation to map the authors in the world.",
-	keywords={"pubmed","xml","gis","map"})
+	keywords={"pubmed","xml","gis","map"},
+	creationDate = "20160426",
+	jvarkit_amalgamion = true
+	)
 public class PubmedMap
 	extends Launcher
 	{

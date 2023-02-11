@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 3de4e82a4
-Compilation : 20230206093823
+Version     : 1e09f06d
+Compilation : 20230211121557
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -54,18 +54,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [swingindexcov](SwingIndexCov.md) | indexcov visualization | 2020511 | 2020512 |
 | [vcfstrech2svg](VcfStrechToSvg.md) | another VCF to SVG | 20210304 | 20210309 |
 | [wescnvsvg](WesCnvSvg.md) | SVG visualization of bam DEPTH for multiple regions | 20180726 | 20210726 |
-
-### Utilities
-
-| Tool | Description | Creation | Update |
-| ---: | :---------- | :------: | :----: |
-| [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20211020 |
-| [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document |  |  |
-| [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
-| [samplesrdf](SamplesRDF.md) | Digests a  database of samples from a set of recfiles | 20230201 | 20230202 |
-| [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
-| [uniprot2svg](UniprotToSvg.md) | plot uniprot to SVG | 20220608 | 20220922 |
-| [xsltstream](XsltStream.md) | XSLT transformation for large XML files. xslt is only applied on a given subset of nodes. |  | 20190222 |
 
 ### Functional prediction
 
@@ -124,6 +112,50 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar9469733](Biostar9469733.md) | Extract reads mapped within chosen intronic region from BAM file | 20210511 | 20210511 |
 | [biostar9501110](Biostar9501110.md) | Keep reads including/excluding variants from VCF | 20211210 | 20211213 |
 
+### Deprecated/barely used
+
+| Tool | Description | Creation | Update |
+| ---: | :---------- | :------: | :----: |
+| [addlinearindextobed](AddLinearIndexToBed.md) | Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart. | 20140201 | 20230126 |
+| [bam2sql](BamToSql.md) | Convert a SAM/BAM to sqlite statements | 20160414 | 20160414 |
+| [bam2xml](Bam2Xml.md) | converts a BAM to XML | 20130506 | 20210315 |
+
+### Pubmed
+
+| Tool | Description | Creation | Update |
+| ---: | :---------- | :------: | :----: |
+| [pubmed404](Pubmed404.md) | Test if URL in the pubmed abstracts are reacheable. | 20181210 | 20200204 |
+| [pubmedcodinglang](PubmedCodingLanguages.md) | Programming language use distribution from recent programs / articles | 20170404 | 20200223 |
+| [pubmeddump](PubmedDump.md) | Dump XML results from pubmed/Eutils | 20140805 | 20200204 |
+| [pubmedgender](PubmedGender.md) | Add gender-related attributes in the Author tag of pubmed xml. |  |  |
+| [pubmedgraph](PubmedGraph.md) | Creates a Gephi-gexf graph of references-cites for a given PMID | 20150605 | 20200220 |
+
+### GTF/GFF Manipulation
+
+| Tool | Description | Creation | Update |
+| ---: | :---------- | :------: | :----: |
+| [gtf2bed](GtfToBed.md) | Convert GTF/GFF3 to BED. | 20220629 | 20220630 |
+| [gtf2xml](Gtf2Xml.md) | Convert GTF/GFF to XML | 20150811 | 20190823 |
+
+### Utilities
+
+| Tool | Description | Creation | Update |
+| ---: | :---------- | :------: | :----: |
+| [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20211020 |
+| [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document |  |  |
+| [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
+| [samplesrdf](SamplesRDF.md) | Digests a  database of samples from a set of recfiles | 20230201 | 20230202 |
+| [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
+| [uniprot2svg](UniprotToSvg.md) | plot uniprot to SVG | 20220608 | 20220922 |
+| [xsltstream](XsltStream.md) | XSLT transformation for large XML files. xslt is only applied on a given subset of nodes. |  | 20190222 |
+
+### Unclassfied
+
+| Tool | Description | Creation | Update |
+| ---: | :---------- | :------: | :----: |
+| [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
+| [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
+
 ### VCF Manipulation
 
 | Tool | Description | Creation | Update |
@@ -165,14 +197,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [scanretrocopy](ScanRetroCopy.md) | Scan BAM for retrocopies | 20190125 | 20190709 |
 | [starretrocopy](StarRetroCopy.md) | Scan retrocopies from the star-aligner/bwa output | 20190710 | 20191008 |
 
-### Deprecated/barely used
-
-| Tool | Description | Creation | Update |
-| ---: | :---------- | :------: | :----: |
-| [addlinearindextobed](AddLinearIndexToBed.md) | Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart. | 20140201 | 20230126 |
-| [bam2sql](BamToSql.md) | Convert a SAM/BAM to sqlite statements | 20160414 | 20160414 |
-| [bam2xml](Bam2Xml.md) | converts a BAM to XML | 20130506 | 20210315 |
-
 ### BAM Manipulation
 
 | Tool | Description | Creation | Update |
@@ -194,22 +218,5 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
 | [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230128 |
 | [texbam](TextBam.md) | Write text in a bam. Mostly for fun... | 20220708 | 20220708 |
-
-### Pubmed
-
-| Tool | Description | Creation | Update |
-| ---: | :---------- | :------: | :----: |
-| [pubmed404](Pubmed404.md) | Test if URL in the pubmed abstracts are reacheable. | 20181210 | 20200204 |
-| [pubmedcodinglang](PubmedCodingLanguages.md) | Programming language use distribution from recent programs / articles | 20170404 | 20200223 |
-| [pubmeddump](PubmedDump.md) | Dump XML results from pubmed/Eutils | 20140805 | 20200204 |
-| [pubmedgender](PubmedGender.md) | Add gender-related attributes in the Author tag of pubmed xml. |  |  |
-| [pubmedgraph](PubmedGraph.md) | Creates a Gephi-gexf graph of references-cites for a given PMID | 20150605 | 20200220 |
-
-### GTF/GFF Manipulation
-
-| Tool | Description | Creation | Update |
-| ---: | :---------- | :------: | :----: |
-| [gtf2bed](GtfToBed.md) | Convert GTF/GFF3 to BED. | 20220629 | 20220630 |
-| [gtf2xml](Gtf2Xml.md) | Convert GTF/GFF to XML | 20150811 | 20190823 |
 
 

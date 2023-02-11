@@ -96,7 +96,9 @@ nav:
         - "pubmeddump" : PubmedDump.md
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
+        - "pubmedmap" : PubmedMap.md
         - "sam2tsv" : Sam2Tsv.md
+        - "sam4weblogo" : SAM4WebLogo.md
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samgrep" : SamGrep.md
         - "samplesrdf" : SamplesRDF.md
