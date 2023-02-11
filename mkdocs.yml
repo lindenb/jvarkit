@@ -101,6 +101,7 @@ nav:
         - "sam4weblogo" : SAM4WebLogo.md
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samgrep" : SamGrep.md
+        - "samjdk" : SamJdk.md
         - "samplesrdf" : SamplesRDF.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
         - "samviewwithmate" : SamViewWithMate.md

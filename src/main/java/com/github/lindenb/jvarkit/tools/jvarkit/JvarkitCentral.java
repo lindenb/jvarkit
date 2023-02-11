@@ -138,6 +138,7 @@ import com.github.lindenb.jvarkit.tools.sam2tsv.PrettySam;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
 import com.github.lindenb.jvarkit.tools.sam4weblogo.SAM4WebLogo;
 import com.github.lindenb.jvarkit.tools.samgrep.SamGrep;
+import com.github.lindenb.jvarkit.tools.samjs.SamJdk;
 import com.github.lindenb.jvarkit.tools.samplesrdf.SamplesRDF;
 import com.github.lindenb.jvarkit.tools.samrmdupnames.SamRemoveDuplicatedNames;
 import com.github.lindenb.jvarkit.tools.sashimi.PlotSashimi;
@@ -559,6 +560,7 @@ public class JvarkitCentral {
 		command(Sam2Tsv.class);
 		command(SamGrep.class);
 		command(SamViewWithMate.class);
+		command(SamJdk.class);
 		command(SamRemoveDuplicatedNames.class);
 		command(ScanRetroCopy.class);
 		command(StarRetroCopy.class);
