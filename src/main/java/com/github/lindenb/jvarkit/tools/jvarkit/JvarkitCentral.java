@@ -148,6 +148,7 @@ import com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions;
 import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
 import com.github.lindenb.jvarkit.tools.taxonomy.NcbiTaxonomyToXml;
+import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
 import com.github.lindenb.jvarkit.tools.textbam.TextBam;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
@@ -587,6 +588,7 @@ public class JvarkitCentral {
 		command(VCFTrios.class);
 		command(VcfPeekAf.class);
 		command(VcfGeneSplitter.class);
+		command(VcfTbiToBed.class);
 		command(VcfSplitNVariants.class);
 		command(VcfStrechToSvg.class);
 		command(VCFCombineTwoSnvs.class);

@@ -140,6 +140,7 @@ nav:
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfstrech2svg" : VcfStrechToSvg.md
         - "vcftail" : VcfTail.md
+        - "vcftbi2bed" : VcfTbiToBed.md
         - "vcftrio" : VCFTrios.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
