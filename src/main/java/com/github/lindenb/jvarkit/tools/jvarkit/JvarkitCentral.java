@@ -99,6 +99,7 @@ import com.github.lindenb.jvarkit.tools.findallcov.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.go.GoUtils;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
+import com.github.lindenb.jvarkit.tools.gtex.GtexRsToQTL;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
 import com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf;
@@ -532,6 +533,7 @@ public class JvarkitCentral {
 		command(FindAVariation.class);
 		command(FindAllCoverageAtPosition.class);
 		command(GtfToBed.class);
+		command(GtexRsToQTL.class);
 		command(GoUtils.class);
 		command(GroupByGene.class);
 		command(Gtf2Xml.class);

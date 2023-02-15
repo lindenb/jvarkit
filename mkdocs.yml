@@ -80,6 +80,7 @@ nav:
         - "findgvcfsblocks" : FindGVCFsBlocks.md
         - "goutils" : GoUtils.md
         - "groupbygene" : GroupByGene.md
+        - "gtexrs2qtl" : GtexRsToQTL.md
         - "gtf2bed" : GtfToBed.md
         - "gtf2xml" : Gtf2Xml.md
         - "ibd2vcf" : IbdToVcf.md
