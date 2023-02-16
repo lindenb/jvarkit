@@ -59,7 +59,7 @@ export gtex eqtl data from a list of RS using the GTEX API
 
 ## Example
 
-$ cat mylist.or.rs.txt | java -jar dist/jvarkit.jar gtexrs2qtl  | head | column -t
+$ cat mylist.of.rs.txt | java -jar dist/jvarkit.jar gtexrs2qtl  | head | column -t
 
 method            chromosome  datasetId  gencodeId           geneSymbol  geneSymbolUpper  nes        pValue       pos       snpId      tissueSiteDetailId                   variantId               phenotypeId
 singleTissueEqtl  chr20       gtex_v8    ENSG00000088298.12  EDEM2       EDEM2            -0.292217  1.86762e-15  35045523  rs6088690  Heart_Left_Ventricle                 chr20_35045523_A_G_b38  .
