@@ -127,6 +127,7 @@ nav:
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md
+        - "vcfflatten" : VCFFlatten.md
         - "vcfgenesplitter" : VcfGeneSplitter.md
         - "vcfgnomad" : VcfGnomad.md
         - "vcfhead" : VcfHead.md
