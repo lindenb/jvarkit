@@ -13,17 +13,17 @@ Documentation is available at: [https://jvarkit.readthedocs.io/](https://jvarkit
 
 ## Download
 
-
 A pre-compiled jar is available at [https://uncloud.univ-nantes.fr/index.php/s/4sL77oWR2BFzSBH](https://uncloud.univ-nantes.fr/index.php/s/4sL77oWR2BFzSBH) . 
 
 ## Compilation
 
-Since 2023, most tools (but not all) are now packaged into one application `jvarkit.jar`.
+Since 2023, most tools (but not all) are now packaged into one application `jvarkit.jar`. Tools that were executed like `java -jar toolname.jar` are now executed as `java -jar jvarkit.jar toolname`. The documentation is not always up to date on this point.
+
 See the documentation at [https://jvarkit.readthedocs.io/](https://jvarkit.readthedocs.io/).
 
 ## Containers
 
-jvarkit is available as a **Docker** at [https://hub.docker.com/r/lindenb/jvarkit](https://hub.docker.com/r/lindenb/jvarkit) . The jar is compiled under `/opt/jvarkit/dist/jvarkit.jar` so a command should be  `docker run java -jar /opt/jvarkit/dist/jvarkit.jar` . Nevertheless GUI/Swing applications don't work. 
+jvarkit is available as a **Docker** container at [https://hub.docker.com/r/lindenb/jvarkit](https://hub.docker.com/r/lindenb/jvarkit) . The jar is compiled under `/opt/jvarkit/dist/jvarkit.jar` so a command should be  `docker run java -jar /opt/jvarkit/dist/jvarkit.jar` . Nevertheless GUI/Swing applications don't work. 
 
 ## Author
 
