@@ -5,7 +5,7 @@ all:
 
 docker: Dockerfile
 	# build
-	docker build -t `grep hard $<  | tr " " "\n" | grep hard -A 1 | tail -1 | awk '{printf("lindenb/jvarkit:%s",$$1);}'` .
+	docker build -t `grep -m1 "JVARKIT_VERSION=" $<  | cut -d '=' -f2 | awk '{printf("lindenb/jvarkit:%s",$$1);}'` .
 	# list images
 	docker images
 
