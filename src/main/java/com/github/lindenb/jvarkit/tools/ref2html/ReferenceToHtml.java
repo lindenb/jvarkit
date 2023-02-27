@@ -67,7 +67,7 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/ref2html.jar -o TMP --regions "RF02:1-500" -R src/test/resources/rotavirus_rf.fa src/test/resources/rotavirus_rf.vcf.gz
+$ java -jar dist/jvarkit.jar ref2html -o TMP --regions "RF02:1-500" -R src/test/resources/rotavirus_rf.fa src/test/resources/rotavirus_rf.vcf.gz
 ```
 
 END_DOC
@@ -78,7 +78,8 @@ description="Produce a html view of eah interval from a VCF file",
 keywords={"vcf","html"},
 creationDate="20211012",
 modificationDate="20211013",
-generate_doc=false
+generate_doc=false,
+jvarkit_amalgamion = true
 )
 public class ReferenceToHtml extends Launcher {
 	private static final Logger LOG = Logger.build(ReferenceToHtml.class).make();

@@ -42,39 +42,43 @@ public class FileHeader extends AbstractList<String> {
 	private final Map<String,Integer> col2idx;
 	
 	/** class used to convert a line in a file as a Map */
-	protected class RowMap extends AbstractMap<String,String> {
+	class RowMap extends AbstractMap<String,String> {
 		private final List<String> tokens;
 		protected RowMap(final List<String> tokens) {
 			this.tokens = Collections.unmodifiableList(tokens);
-			if(tokens.size()> FileHeader.this.size()) throw new IllegalArgumentException("line contains "+tokens.size()+" columns but header contains "+ FileHeader.this.size()+" columns");
+			if(tokens.size()> owner().size()) throw new IllegalArgumentException("line contains "+tokens.size()+" columns but header contains "+ owner().size()+" columns");
 			}
+		FileHeader owner() {return FileHeader.this;}
 		/** return this as a list of tokens in the initial list */
 		public List<String> asList() {
 			return this.tokens;
 			}
 		@Override
 		public boolean containsKey(final Object key) {
-			return FileHeader.this.col2idx.containsKey(key);
+			return owner().col2idx.containsKey(key);
+			}
+		
+		private String at(int i) {
+			return (i<this.tokens.size()?this.tokens.get(i):"");
 			}
 		
 		@Override
 		public String get(final Object key) {
-			final int i= FileHeader.this.indexOf(key);
+			final int i= owner().indexOf(key);
 			if(i<0) return null;
-			if(i>=  this.tokens.size()) return "";
-			return this.tokens.get(i);
+			return at(i);
 			}
 		@Override
 		public Set<String> keySet() {
-			return FileHeader.this.col2idx.keySet();//unmodifiable
+			return owner().col2idx.keySet();//unmodifiable
 			}
 		@Override
 		public int size() {
-			return FileHeader.this.size();
+			return owner().size();
 			}
 		
 		@Override
-		public boolean equals(Object o) {
+		public boolean equals(final Object o) {
 			if(o==this) return true;
 			if(o==null || !(o instanceof RowMap)) return false;
 			final RowMap r = RowMap.class.cast(o);
@@ -87,11 +91,11 @@ public class FileHeader extends AbstractList<String> {
 			}
 		@Override
 		public Set<Entry<String, String>> entrySet() {
-			final Set<Entry<String, String>> set = new HashSet<>(FileHeader.this.size());
-			for(int i=0;i< FileHeader.this.size();i++) {
+			final Set<Entry<String, String>> set = new HashSet<>(owner().size());
+			for(int i=0;i< owner().size();i++) {
 				set.add(new AbstractMap.SimpleEntry<String,String>(
-					FileHeader.this.get(i),
-					(i<this.tokens.size()?this.tokens.get(i):"")
+					owner().get(i),
+					at(i)
 					));
 				}
 			return set;
@@ -99,10 +103,10 @@ public class FileHeader extends AbstractList<String> {
 		@Override
 		public String toString() {
 			StringBuilder sb = new StringBuilder();
-			for(int i=0;i< FileHeader.this.size();i++) {
+			for(int i=0;i< owner().size();i++) {
 				sb.append("$").append(i+1).
-					append(" ").append(FileHeader.this.get(i)).
-					append(" : ").append(this.tokens.get(i)).
+					append(" ").append(owner().get(i)).
+					append(" : ").append(at(i)).
 					append("\n");
 				}
 			return sb.toString();
@@ -152,9 +156,13 @@ public class FileHeader extends AbstractList<String> {
 	public Map<String,String> toMap(final List<String> tokens) {
 		return new RowMap(tokens);
 		}
+	/** convert a line in the file to a Map where keys are the columns of this header  */
+	public Map<String,String> toMap(final String[] tokens) {
+		return toMap(Arrays.asList(tokens));
+		}
 	@Override
 	public String toString() {
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		for(int i=0;i< this.size();i++) {
 			sb.append("$").append(i+1).append(" : ").append(get(i)).append("\n");
 			}

@@ -7,7 +7,13 @@ Create a structured (**JSON** or **XML**) representation of a directory containi
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar illuminadir  [options] Files
+
 Usage: illuminadir [options] Files
   Options:
     -F, --format
@@ -43,22 +49,10 @@ Usage: illuminadir [options] Files
  * [https://www.biostars.org/p/362767](https://www.biostars.org/p/362767)
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew illuminadir
-```
-
-The java jar file will be installed in the `dist` directory.
+20131021
 
 ## Source code 
 
@@ -101,7 +95,7 @@ Currently only tested with HiSeq data.
 
 ```
 $ find dir1 dir2 -type f -name "*.fastq.gz" |\
-   java  -jar dist/illuminadir.jar | \
+   java  -jar dist/jvarkit.jar illuminadir | \
    xsltproc xml2script.xslt > script.bash
 (...)
 ```
@@ -343,5 +337,6 @@ java -jar dist/jsvelocity.jar \
 ```
 
 output: same as above
+
 
 

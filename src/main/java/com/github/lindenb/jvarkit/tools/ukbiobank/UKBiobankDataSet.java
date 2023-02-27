@@ -7,9 +7,11 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -36,6 +38,33 @@ class Coding   {
 		}
 	String getParentCode() {
 		return this.hash.get("parent_code");
+		}
+	@Override
+	public int hashCode() {
+		return getCodingName().hashCode()*31 + getCode().hashCode();
+		}
+	@Override
+	public boolean equals(final Object obj) {
+		if(obj==this) return true;
+		if(obj==null || !(obj instanceof Coding)) return true;
+		final Coding o=Coding.class.cast(obj);
+		return o.getCodingName().equals(this.getCodingName()) &&
+				o.getCode().equals(this.getCode());
+		}
+	public Set<Coding> _getAllDescendants(final Set<Coding> set) {
+		if(set.contains(this)) return set;
+		set.add(this);
+		if(this.getCode().equals(this.getParentCode())) return set;
+		if(this.getParentCode().isEmpty()) return set;
+		for(Coding dd : codings.get(this.getCodingName())) {
+			if(dd.getCode().equals(this.getParentCode())) {
+				dd._getAllDescendants(set);
+				}
+			}
+		return set;
+		}
+	public Set<Coding> getAllDescendants() {
+		return _getAllDescendants(new HashSet<>());
 		}
 	}
 
@@ -122,16 +151,30 @@ class DataDict   {
 	String getColumnName() {
 		return getEntity() + "." + getName();
 		}
+	@Override
+	public int hashCode() {
+		return getColumnName().hashCode();
+		}
+	@Override
+	public boolean equals(Object obj) {
+		if(obj==this) return true;
+		if(obj==null || !(obj instanceof DataDict)) return true;
+		return DataDict.class.cast(obj).getColumnName().equals(this.getColumnName());
+		}
 	}
 
 private UKBiobankDataSet() {
 	}
 
+/** return dataset by column of null if not found */
 public DataDict getDataDictByColumn(final String col) {
 	return this.column2datadict.get(col);
 	}
 
-
+/** return codings or empty list  */
+public List<Coding> findCodingsByName(final String coding_name) {
+	return this.codings.getOrDefault(coding_name, Collections.emptyList());
+	}
 
 public static UKBiobankDataSet load(final String base) throws IOException {
 	final UKBiobankDataSet ds= new UKBiobankDataSet();

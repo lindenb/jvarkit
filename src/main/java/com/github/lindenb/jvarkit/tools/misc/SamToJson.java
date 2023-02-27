@@ -42,7 +42,7 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/sam2json.jar src/test/resources/toy.bam | python -m json.tool
+$ java -jar dist/jvarkit.jar sam2json src/test/resources/toy.bam | python -m json.tool
 [
     {
         "atts": [
@@ -260,7 +260,9 @@ END_DOC
 	keywords={"sam","bam","json"},
 	description="Convert a SAM input to JSON",
 	modificationDate="20210315",
-	creationDate="20210402")
+	creationDate="20210402",
+	jvarkit_amalgamion = true
+	)
 public class SamToJson extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(SamToJson.class).make();
 	

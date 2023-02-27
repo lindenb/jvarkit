@@ -84,6 +84,7 @@ nav:
         - "gtf2bed" : GtfToBed.md
         - "gtf2xml" : Gtf2Xml.md
         - "ibd2vcf" : IbdToVcf.md
+        - "illuminadir" : IlluminaDirectory.md
         - "lowresbam2raster" : LowResBam2Raster.md
         - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md
@@ -98,6 +99,8 @@ nav:
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "pubmedmap" : PubmedMap.md
+        - "ref2html" : ReferenceToHtml.md
+        - "sam2json" : SamToJson.md
         - "sam2tsv" : Sam2Tsv.md
         - "sam4weblogo" : SAM4WebLogo.md
         - "samfindclippedregions" : SamFindClippedRegions.md
@@ -139,6 +142,7 @@ nav:
         - "vcfrenamechr" : ConvertVcfChromosomes.md
         - "vcfsetdict" : VcfSetSequenceDictionary.md
         - "vcfshuffle" : VCFShuffle.md
+        - "vcfspliceai" : VcfSpliceAI.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfstrech2svg" : VcfStrechToSvg.md
         - "vcftail" : VcfTail.md

@@ -5,13 +5,16 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -79,6 +82,34 @@ public class UKBiobankDataSetTool extends Launcher {
 			}
 		}
 	
+	private void dumpChildren(List<String> args) {
+		final Set<UKBiobankDataSet.Coding> set = new HashSet<>();
+		for(final String str: args) {
+			int dot = str.indexOf('.');
+			if(dot==-1) throw new IllegalArgumentException();
+			final String code= str.substring(dot+1).trim();
+			UKBiobankDataSet.Coding root= this.dataset.findCodingsByName(str.substring(0, dot)).
+				stream().
+				filter(C->C.getCode().equals(code)).
+				findFirst().
+				orElse(null);
+			if(root==null) throw new IllegalArgumentException("Cannot find term "+code);
+			set.addAll(root.getAllDescendants());
+ 			}
+		PrintStream out = System.out;
+		for(UKBiobankDataSet.Coding c:set) {
+			out.print(c.getCodingName());
+			out.print("\t");
+			out.print(c.getCode());
+			out.print("\t");
+			out.print(c.getMeaning());
+			out.print("\t");
+			out.print(c.getParentCode());
+			out.println();
+			}
+		out.flush();
+		}
+	
 	private void make(List<String> args) throws IOException {
 		SortingCollection<Triple> sorting = null;
 		try {
@@ -95,7 +126,7 @@ public class UKBiobankDataSetTool extends Launcher {
 				try(BufferedReader br=IOUtils.openPathForBufferedReading(p)) {
 					String line = br.readLine();
 					String[] tokens= tab.split(line);
-					if(tokens[0].equals("participant.eid")) throw new IOException();
+					if(tokens[0].equals("participant.eid")) throw new IOException("first column should be participant.eid not "+tokens[0]);
 					final List<UKBiobankDataSet.DataDict> cols = new ArrayList<>(tokens.length);
 					cols.add(null);
 					for(int i=1;i< tokens.length;i++) {
@@ -111,10 +142,10 @@ public class UKBiobankDataSetTool extends Launcher {
 						String participant = tokens[0];
 						for(int i=1;i< tokens.length;i++) {
 							if(tokens[i].isEmpty()) continue;
-							Triple t = new Triple();
+							final Triple t = new Triple();
 							t.subject  = participant;
 							t.predicate_idx = this.column2index.get(cols.get(i).getColumnName());
-							t.value = tokens[0];
+							t.value = tokens[i];
 							sorting.add(t);
 							}
 						}
@@ -140,12 +171,13 @@ public class UKBiobankDataSetTool extends Launcher {
 						tableW.print(first.subject);
 						for(int x=0;x<this.predicates.size();++x) {
 							final int final_x=x;
-							tableW.print("\t");
-							String value= array.stream().
+							
+							final String value= array.stream().
 									filter(T->T.predicate_idx==final_x).
 									map(T->T.value).
 									findFirst().
 									orElse("");
+							tableW.print("\t");
 							tableW.print(this.predicates.get(x).format1(value));
 							}
 						tableW.println();

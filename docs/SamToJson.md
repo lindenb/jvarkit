@@ -7,7 +7,13 @@ Convert a SAM input to JSON
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar sam2json  [options] Files
+
 Usage: sam2json [options] Files
   Options:
     -atts, --atts
@@ -63,23 +69,6 @@ Usage: sam2json [options] Files
  * json
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew sam2json
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -110,5 +99,220 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Example
+
+```
+$ java -jar dist/jvarkit.jar sam2json src/test/resources/toy.bam | python -m json.tool
+[
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            },
+            {
+                "name": "XX",
+                "value": [
+                    12561,
+                    2,
+                    20,
+                    112
+                ]
+            }
+        ],
+        "cigar": "8M4I4M1D3M",
+        "flag": 163,
+        "len": 39,
+        "mapq": 30,
+        "matepos": 37,
+        "materef": "ref",
+        "name": "r001",
+        "pos": 7,
+        "qualities": "*",
+        "ref": "ref",
+        "sequence": "TTAGATAAAGAGGATACTG"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "1S2I6M1P1I1P1I4M2I",
+        "flag": 0,
+        "mapq": 30,
+        "name": "r002",
+        "pos": 9,
+        "qualities": "*",
+        "ref": "ref",
+        "sequence": "AAAAGATAAGGGATAAA"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "5H6M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "r003",
+        "pos": 9,
+        "qualities": "*",
+        "ref": "ref",
+        "sequence": "AGCTAA"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "6M14N1I5M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "r004",
+        "pos": 16,
+        "qualities": "*",
+        "ref": "ref",
+        "sequence": "ATAGCTCTCAGC"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "6H5M",
+        "flag": 16,
+        "mapq": 30,
+        "name": "r003",
+        "pos": 29,
+        "qualities": "*",
+        "ref": "ref",
+        "sequence": "TAGGC"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "9M",
+        "flag": 83,
+        "len": -39,
+        "mapq": 30,
+        "matepos": 7,
+        "materef": "ref",
+        "name": "r001",
+        "pos": 37,
+        "qualities": "*",
+        "ref": "ref",
+        "sequence": "CAGCGCCAT"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "20M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "x1",
+        "pos": 1,
+        "qualities": "????????????????????",
+        "ref": "ref2",
+        "sequence": "AGGTTTTATAAAACAAATAA"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "21M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "x2",
+        "pos": 2,
+        "qualities": "?????????????????????",
+        "ref": "ref2",
+        "sequence": "GGTTTTATAAAACAAATAATT"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "9M4I13M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "x3",
+        "pos": 6,
+        "qualities": "??????????????????????????",
+        "ref": "ref2",
+        "sequence": "TTATAAAACAAATAATTAAGTCTACA"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "25M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "x4",
+        "pos": 10,
+        "qualities": "?????????????????????????",
+        "ref": "ref2",
+        "sequence": "CAAATAATTAAGTCTACAGAGCAAC"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "24M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "x5",
+        "pos": 12,
+        "qualities": "????????????????????????",
+        "ref": "ref2",
+        "sequence": "AATAATTAAGTCTACAGAGCAACT"
+    },
+    {
+        "atts": [
+            {
+                "name": "RG",
+                "value": "gid1"
+            }
+        ],
+        "cigar": "23M",
+        "flag": 0,
+        "mapq": 30,
+        "name": "x6",
+        "pos": 14,
+        "qualities": "???????????????????????",
+        "ref": "ref2",
+        "sequence": "TAATTAAGTCTACAGAGCAACTA"
+    }
+]
+```
 
 

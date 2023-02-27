@@ -63,7 +63,7 @@ BEGIN_DOC
 # Example
 
 ```
-java -jar dist/vcfspliceai.jar  src/test/resources/test_vcf01.vcf 
+java -jar dist/jvarkit.jar vcfspliceai  src/test/resources/test_vcf01.vcf 
 
 (...)
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
@@ -88,7 +88,8 @@ END_DOC
 description="Annotate VCF with spiceai web service",
 keywords={"vcf","splice","splicing","spliceai"},
 creationDate="20201107",
-modificationDate="20201107"
+modificationDate="20201107",
+jvarkit_amalgamion = true
 )
 public class VcfSpliceAI  extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfSpliceAI.class).make();

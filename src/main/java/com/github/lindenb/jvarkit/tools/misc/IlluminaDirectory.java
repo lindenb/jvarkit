@@ -73,7 +73,7 @@ Currently only tested with HiSeq data.
 
 ```
 $ find dir1 dir2 -type f -name "*.fastq.gz" |\
-   java  -jar dist/illuminadir.jar | \
+   java  -jar dist/jvarkit.jar illuminadir | \
    xsltproc xml2script.xslt > script.bash
 (...)
 ```
@@ -325,7 +325,10 @@ END_DOC
 @Program(name="illuminadir",
 	description="Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs.",
 	keywords={"json","xml","illumina","fastq","workflow"},
-	biostars=362767
+	creationDate = "20131021",
+	modificationDate =  "20180717",
+	biostars=362767,
+	jvarkit_amalgamion = true
 	)
 public class IlluminaDirectory
 	extends Launcher

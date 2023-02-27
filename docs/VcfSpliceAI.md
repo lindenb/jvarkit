@@ -7,7 +7,13 @@ Annotate VCF with spiceai web service
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfspliceai  [options] Files
+
 Usage: vcfspliceai [options] Files
   Options:
     --base
@@ -65,23 +71,6 @@ Usage: vcfspliceai [options] Files
  * spliceai
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfspliceai
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -116,7 +105,7 @@ The current reference is:
 # Example
 
 ```
-java -jar dist/vcfspliceai.jar  src/test/resources/test_vcf01.vcf 
+java -jar dist/jvarkit.jar vcfspliceai  src/test/resources/test_vcf01.vcf 
 
 (...)
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
@@ -134,4 +123,5 @@ java -jar dist/vcfspliceai.jar  src/test/resources/test_vcf01.vcf
 1	914940	.	T	C	488	PASS	AA=C;AC=5;AF=0.625;AN=8;SPLICEAI=PERM1|0.00|0.00|0.00|0.00|28|-30|-39|3
 (...)
 ```
+
 
