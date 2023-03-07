@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 0f51971fd
-Compilation : 20230224091859
+Version     : 391b3e3ee
+Compilation : 20230307104759
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -111,6 +111,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar9462889](Biostar9462889.md) | Extracting reads from a regular expression in a bam file | 20210402 | 20210402 |
 | [biostar9469733](Biostar9469733.md) | Extract reads mapped within chosen intronic region from BAM file | 20210511 | 20210511 |
 | [biostar9501110](Biostar9501110.md) | Keep reads including/excluding variants from VCF | 20211210 | 20211213 |
+| [biostar9556602](Biostar9556602.md) | Filtering of tricky overlapping sites in VCF |  |  |
 
 ### Deprecated/barely used
 
