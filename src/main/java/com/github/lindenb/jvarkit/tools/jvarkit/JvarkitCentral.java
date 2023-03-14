@@ -91,6 +91,7 @@ import com.github.lindenb.jvarkit.tools.biostar.Biostar90204;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9462889;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9469733;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9501110;
+import com.github.lindenb.jvarkit.tools.biostar.Biostar9556602;
 import com.github.lindenb.jvarkit.tools.cadd.VcfCadd;
 import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
 import com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix;
@@ -528,6 +529,7 @@ public class JvarkitCentral {
 		command(Biostar9462889.class);
 		command(Biostar9469733.class);
 		command(Biostar9501110.class);
+		command(Biostar9556602.class);
 		command(CoverageMatrix.class);
 		command(BuildDbsnp.class);
 		command(CnvTView.class);
