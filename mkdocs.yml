@@ -75,6 +75,7 @@ nav:
         - "cnvtview" : CnvTView.md
         - "coveragematrix" : CoverageMatrix.md
         - "coverageplotter" : CoveragePlotter.md
+        - "evadumpfiles" : EVADumpFiles.md
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
