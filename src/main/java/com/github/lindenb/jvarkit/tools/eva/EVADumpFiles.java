@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import org.apache.http.HttpException;
+import org.apache.http.HttpStatus;
 import org.apache.http.StatusLine;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -46,6 +47,7 @@ import com.github.lindenb.jvarkit.net.HttpStatusException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -103,7 +105,7 @@ END_DOC
 */
 
 @Program(name="evadumpfiles",
-keywords={"eva","ebi"},
+keywords={"eva","ebi","snp","variant"},
 description="Dump files locations from European Variation Archive",
 modificationDate="20230314",
 creationDate="20230314",
@@ -152,7 +154,7 @@ public class EVADumpFiles extends Launcher {
 		String studyName;
 		}
 	
-	private JsonObject fetchJSON(final String urlstr) throws IOException,HttpStatusException {
+	private JsonObject fetchJSON(final String urlstr) throws IOException,HttpException {
 		HttpGet httpGet = null;
 		try {
 			LOG.info(urlstr);
@@ -161,11 +163,11 @@ public class EVADumpFiles extends Launcher {
 			final StatusLine statusLine = httpResponse.getStatusLine();
 			final int responseCode = statusLine.getStatusCode();
 		  
-			if(responseCode == 204)
+			if(responseCode == HttpStatus.SC_NO_CONTENT || responseCode==HttpStatus.SC_NOT_FOUND /* yeah.. sometimes it happens.. */)
 		 		{
 				throw new HttpStatusException(statusLine);
 		 		}
-			else if(responseCode != 200)
+			else if(responseCode !=  HttpStatus.SC_OK)
 			 	{
 				throw new IOException("Remote error (http status: "+responseCode+") "+urlstr);
 			 	}
@@ -180,6 +182,10 @@ public class EVADumpFiles extends Launcher {
 					return root.getAsJsonObject();
 					}
 				 }
+			}
+		catch(final HttpException err) {
+			LOG.error(err);
+			throw err;
 			}
 		catch(final Throwable err) {
 			throw new IOException(err);
@@ -214,7 +220,7 @@ public class EVADumpFiles extends Launcher {
 		}
 
 	
-	private List<Assembly> fetchAssemblies() throws IOException,HttpStatusException {
+	private List<Assembly> fetchAssemblies() throws IOException,HttpException {
 		final String urlstr = "https://www.ebi.ac.uk/eva/webservices/rest/v1/meta/species/list/";/* WARNING it's v1 not v2 */
 		final List<Assembly> L = new ArrayList<>();
 		for(JsonElement e0 :fetchJSON(urlstr).get("response").getAsJsonArray()) {
@@ -237,7 +243,7 @@ public class EVADumpFiles extends Launcher {
 			}
 		return L;
 		}
-	private List<Study> fetchStudies() throws IOException,HttpStatusException {
+	private List<Study> fetchStudies() throws IOException,HttpException {
 		List<Study> L = new ArrayList<>();
 		for(Assembly as:fetchAssemblies()) {
 			LOG.info("assembly :"+as);
@@ -253,6 +259,7 @@ public class EVADumpFiles extends Launcher {
 					}
 				for(JsonElement e:root.get("_embedded").getAsJsonObject().get("variantStudySummaryList").getAsJsonArray()) {
 					final JsonObject eo = e.getAsJsonObject();
+					if(eo.get("filesCount").getAsInt()==0) continue;
 					Study study = new Study();
 					study.assembly = as;
 					study.studyId = eo.get("studyId").getAsString();
@@ -271,10 +278,21 @@ public class EVADumpFiles extends Launcher {
 		}
 	
 	private void fetchFiles(PrintWriter out) throws IOException,HttpException {
-		for(Study study :fetchStudies()) {
+		final List<Study> studies =fetchStudies();
+		LOG.info("N studies="+studies.size());
+		for(Study study :studies) {
 		final String urlstr="https://www.ebi.ac.uk/eva/webservices/rest/v1/studies/" + study.studyId +
 				"/files?species="+ study.assembly.getTaxonomyAndAssembly();
-		for(JsonElement  e0:  fetchJSON(urlstr).get("response").getAsJsonArray()) {
+		
+		JsonArray array;
+		try {
+			array = fetchJSON(urlstr).get("response").getAsJsonArray();
+			}
+		catch(HttpException err) {
+			LOG.error(err);
+			continue;
+			}
+		for(JsonElement  e0:  array) {
 			for(JsonElement  e1:  e0.getAsJsonObject().get("result").getAsJsonArray()) {
 				final JsonObject eo = e1.getAsJsonObject();
 				final String fileName = eo.get("fileName").getAsString();

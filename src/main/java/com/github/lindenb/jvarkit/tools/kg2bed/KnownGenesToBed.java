@@ -25,7 +25,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.kg2bed;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -59,7 +59,7 @@ BEGIN_DOC
 ```
 $ curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" |\
   gunzip -c |\
-  java -jar dist/kg2bed.jar
+  java -jar dist/jvarkit.jar kg2bed
 chr1	11873	14409	+	uc001aaa.3	TRANSCRIPT	uc001aaa.3
 chr1	11873	12227	+	uc001aaa.3	EXON	Exon 1
 chr1	12227	12612	+	uc001aaa.3	INTRON	Intron 1
@@ -84,8 +84,10 @@ END_DOC
 @Program(name="kg2bed",
 	description="converts UCSC knownGenes file to BED.",
 	keywords={"ucsc","bed","knownGenes"},
-	biostars=151628,
-	modificationDate="20190427"
+	biostars= {151628,9557497},
+	creationDate = "20140311",
+	modificationDate="20190427",
+	jvarkit_amalgamion = true
 	)
 public class KnownGenesToBed extends Launcher
 	{

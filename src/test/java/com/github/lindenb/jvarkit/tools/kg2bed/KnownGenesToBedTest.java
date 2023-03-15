@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.kg2bed;
 
 import java.io.IOException;
 import java.nio.file.Files;

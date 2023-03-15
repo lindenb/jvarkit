@@ -7,7 +7,13 @@ converts UCSC knownGenes file to BED.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar kg2bed  [options] Files
+
 Usage: kg2bed [options] Files
   Options:
     -h, --help
@@ -43,32 +49,21 @@ Usage: kg2bed [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/151628](https://www.biostars.org/p/151628)
+ * [https://www.biostars.org/p/9557497](https://www.biostars.org/p/9557497)
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew kg2bed
-```
-
-The java jar file will be installed in the `dist` directory.
+20140311
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBed.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBed.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/kg2bed/KnownGenesToBed.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/kg2bed/KnownGenesToBed.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBedTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/KnownGenesToBedTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/kg2bed/KnownGenesToBedTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/kg2bed/KnownGenesToBedTest.java)
 
 
 ## Contribute
@@ -97,7 +92,7 @@ The current reference is:
 ```
 $ curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" |\
   gunzip -c |\
-  java -jar dist/kg2bed.jar
+  java -jar dist/jvarkit.jar kg2bed
 chr1	11873	14409	+	uc001aaa.3	TRANSCRIPT	uc001aaa.3
 chr1	11873	12227	+	uc001aaa.3	EXON	Exon 1
 chr1	12227	12612	+	uc001aaa.3	INTRON	Intron 1
@@ -114,4 +109,5 @@ chr1	11873	12227	+	uc010nxr.1	UTR	UTR3
 chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
 chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
 ```
+
 

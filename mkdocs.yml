@@ -87,6 +87,7 @@ nav:
         - "gtf2xml" : Gtf2Xml.md
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md
+        - "kg2bed" : KnownGenesToBed.md
         - "lowresbam2raster" : LowResBam2Raster.md
         - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md

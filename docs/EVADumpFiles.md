@@ -38,6 +38,8 @@ Usage: evadumpfiles [options] Files
 
  * eva
  * ebi
+ * snp
+ * variant
 
 
 
