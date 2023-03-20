@@ -7,7 +7,13 @@ Web Server displaying VCF file. A web interface for vcf2table
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfserver  [options] Files
+
 Usage: vcfserver [options] Files
   Options:
     -h, --help
@@ -19,10 +25,10 @@ Usage: vcfserver [options] Files
       filesystem-safe). 
       Default: false
     -p, --ped, --pedigree
-      Optional Pedigree file:A pedigree is a text file delimited with tabs. No 
-      header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' 
-      (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 
-      0 unaffected, 1 affected,-9 unknown
+      Optional Pedigree file:A pedigree file. tab delimited. Columns: 
+      family,id,father,mother, 
+      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
+      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -P, --port, -port
       Server listening port
       Default: 8080
@@ -49,22 +55,10 @@ Usage: vcfserver [options] Files
  * web
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfserver
-```
-
-The java jar file will be installed in the `dist` directory.
+20171027
 
 ## Source code 
 
@@ -112,7 +106,7 @@ https://twitter.com/yokofakun/status/924307836968079361
 ## Example 
 
 ```
-$ java -jar dist/vcfserver.jar input.vcf.gz
+$ java -jar dist/jvarkit.jar vcfserver input.vcf.gz
 
 2017-10-27 23:53:04.140:INFO::main: Logging initialized @510ms
 [INFO][VcfServer]Starting com.github.lindenb.jvarkit.tools.vcfserver.VcfServer on http://localhost:8080
@@ -121,5 +115,6 @@ $ java -jar dist/vcfserver.jar input.vcf.gz
 2017-10-27 23:53:04.337:INFO:oejs.Server:main: Started @717ms
 
 ```
+
 
 

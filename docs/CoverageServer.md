@@ -115,7 +115,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/server/CoverageServer.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/server/CoverageServer.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/coverageserver/CoverageServer.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/coverageserver/CoverageServer.java)
 
 
 ## Contribute
@@ -146,7 +146,7 @@ input is a set of indexed BAM file or a file with the suffix `.list` containing 
 ## Example
 
 ```
-java -jar dist/coverageserver.jar \
+java -jar dist/jvarkit.jar coverageserver \
 	--pedigree fam.ped \
 	--bed roi.bed \
 	-o comments.bed \
@@ -166,5 +166,6 @@ java -jar dist/coverageserver.jar \
 ![https://twitter.com/yokofakun/status/1229343426036076546](https://pbs.twimg.com/media/EQ-BJSXWkAItBtJ?format=jpg&name=medium)
 
 ![https://twitter.com/yokofakun/status/1238112128646733824](https://pbs.twimg.com/media/ES6oQbmWoAAxAx9?format=png&name=small)
+
 
 

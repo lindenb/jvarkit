@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.server;
+package com.github.lindenb.jvarkit.tools.coverageserver;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -134,7 +134,7 @@ input is a set of indexed BAM file or a file with the suffix `.list` containing 
 ## Example
 
 ```
-java -jar dist/coverageserver.jar \
+java -jar dist/jvarkit.jar coverageserver \
 	--pedigree fam.ped \
 	--bed roi.bed \
 	-o comments.bed \

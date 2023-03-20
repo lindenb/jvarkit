@@ -76,6 +76,7 @@ nav:
         - "cnvtview" : CnvTView.md
         - "coveragematrix" : CoverageMatrix.md
         - "coverageplotter" : CoveragePlotter.md
+        - "coverageserver" : CoverageServer.md
         - "evadumpfiles" : EVADumpFiles.md
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
@@ -143,6 +144,7 @@ nav:
         - "vcfpolyx" : VCFPolyX.md
         - "vcfrebase" : VcfRebase.md
         - "vcfrenamechr" : ConvertVcfChromosomes.md
+        - "vcfserver" : VcfServer.md
         - "vcfsetdict" : VcfSetSequenceDictionary.md
         - "vcfshuffle" : VCFShuffle.md
         - "vcfspliceai" : VcfSpliceAI.md

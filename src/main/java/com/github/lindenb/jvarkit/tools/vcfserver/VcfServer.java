@@ -64,6 +64,7 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContextUtils;
@@ -98,7 +99,7 @@ https://twitter.com/yokofakun/status/924307836968079361
 ## Example 
 
 ```
-$ java -jar dist/vcfserver.jar input.vcf.gz
+$ java -jar dist/jvarkit.jar vcfserver input.vcf.gz
 
 2017-10-27 23:53:04.140:INFO::main: Logging initialized @510ms
 [INFO][VcfServer]Starting com.github.lindenb.jvarkit.tools.vcfserver.VcfServer on http://localhost:8080
@@ -115,7 +116,11 @@ END_DOC
 
 @Program(name="vcfserver",
 description="Web Server displaying VCF file. A web interface for vcf2table",
-keywords={"vcf","table","visualization","server","web"})
+keywords={"vcf","table","visualization","server","web"},
+creationDate = "20171027",
+modificationDate = "20220517",
+jvarkit_amalgamion = true
+)
 public class VcfServer extends Launcher{
 private static final Logger LOG=Logger.build(VcfServer.class).make();
 private static final int DEFAULT_LIMIT=100;
@@ -854,7 +859,7 @@ public int doWork(final List<String> args) {
 		final List<File> vcfFiles = IOUtil.unrollFiles(args.stream().
 			map(S->new File(S)).
 			collect(Collectors.toList()),
-			".vcf",".vcf.gz"
+			FileExtensions.VCF, FileExtensions.COMPRESSED_VCF
 			);
 		if(vcfFiles.isEmpty())
 			{
@@ -872,7 +877,7 @@ public int doWork(final List<String> args) {
 		server.join();
 		return 0;
 		}
-	catch(final Exception err)  {
+	catch(final Throwable err)  {
 		LOG.error(err);
 		return -1;
 		}
