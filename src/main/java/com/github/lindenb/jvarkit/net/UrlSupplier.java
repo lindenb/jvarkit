@@ -297,6 +297,12 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 					StringUtils.escapeHttp(ctx.getContig()) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
 					));
 
+			urls.add(new LabelledUrlImpl("Genebe",
+					variantid+"/"+alt.getDisplayString(),
+					"https://genebe.net/variant/hg38/"+
+					StringUtils.escapeHttp(ctx.getContig()) + ":" +
+					ctx.getStart() +"-"+ctx.getReference().getDisplayString()+">"+alt.getDisplayString()
+					));
 			}
 		}
 	
@@ -332,6 +338,7 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 					alt.getDisplayString()
 					));
 
+			
 			}
 		}
 		
