@@ -118,6 +118,7 @@ END_DOC
 		modificationDate="20221207",
 		creationDate="20221207",
 		jvarkit_amalgamion = true,
+		biostars = {9558284},
 		menu="BAM Manipulation"
 		)
 public class SamRemoveDuplicatedNames extends Launcher {

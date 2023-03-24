@@ -54,6 +54,10 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 BEGIN_DOC
 
+##  See also
+
+**ucsc** tools :  genePredToBed
+
 ### Example
 
 ```
