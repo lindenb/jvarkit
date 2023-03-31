@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +54,7 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -133,7 +135,7 @@ generate the VCF
 
 ```
 $ curl https://raw.github.com/biopython/biopython/master/Tests/Clustalw/opuntia.aln" |\
-  java -jar dist/msa2vcf.jar
+  java -jar dist/jvarkit.jar msa2vcf
 
 ##fileformat=VCFv4.1
 ##Biostar94573CmdLine=
@@ -163,7 +165,7 @@ END_DOC
 	biostars=94573,
 	keywords={"vcf","snp","msa","alignment"},
 	creationDate="20151226",
-	modificationDate="20200217",
+	modificationDate="20230331",
 	jvarkit_amalgamion = true,
 	menu="Utilities"
 	)
@@ -175,8 +177,8 @@ public class MsaToVcf extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
-	@Parameter(names={"-R","--REF"},description="reference name used for the CHROM column. Optional")
-	private String REF = "chrUn";
+	@Parameter(names={"-R","--reference_contig_name"},description="reference name used for the CHROM column. Optional")
+	private String reference_contig_name = "chrUn";
 
 	@Parameter(names={"-c","--consensus"},description="use this sequence as CONSENSUS")
 	private String consensusRefName = null;
@@ -226,7 +228,9 @@ public class MsaToVcf extends Launcher
 		StringBuilder seq=new StringBuilder();
 		@Override char at(int index)
 			{
-			return(index< 0 || index >=seq.length()?CLIPPING:Character.toUpperCase(seq.charAt(index)));
+			return(index< 0 || index >=seq.length()?
+					CLIPPING:
+					Character.toUpperCase(seq.charAt(index)));
 			}
 		}
 	
@@ -342,24 +346,6 @@ public class MsaToVcf extends Launcher
 						this.align_length=Math.max(this.align_length, curr.seq.length());
 						}
 					}
-				/*
-				//remove heading & trailing '-'
-				for(final String sample:this.sample2sequence.keySet())
-					{
-					final AlignSequence seq = this.sample2sequence.get(sample);
-					int i=0;
-					while(i<this.align_length && seq.at(i)==DELETION)
-						{
-						seq.seq.setCharAt(i, CLIPPING);
-						++i;
-						}
-					i= this.align_length-1;
-					while(i>=0 && seq.at(i)==DELETION)
-						{
-						seq.seq.setCharAt(i, CLIPPING);
-						--i;
-						}
-					}*/
 				}
 			/** parse lines as CLUSTAL */
 			else if(Format.Clustal.equals(format))
@@ -433,12 +419,15 @@ public class MsaToVcf extends Launcher
 			CloserUtil.close(r);
 			
 			/* sequence consensus was set*/
-			if( consensusRefName!=null)
-				{	
+			if(!StringUtils.isBlank(consensusRefName))
+				{
 				AlignSequence namedSequence=null;
 				if((namedSequence=sample2sequence.get(consensusRefName))==null)
 					{
-					LOG.error("Cannot find consensus sequence \""+consensusRefName+"\" in list of sequences: "+this.sample2sequence.keySet().toString());
+					LOG.error("Cannot find consensus sequence \""+consensusRefName+
+							"\" in list of sequences: "+
+							String.join(";" ,this.sample2sequence.keySet())
+							);
 					return -1;
 					}
 				this.consensus = new NamedConsensus(namedSequence);
@@ -452,7 +441,7 @@ public class MsaToVcf extends Launcher
 			
 			//super.addMetaData(vcfHeaderLines);
 			final SAMSequenceDictionary dictionary = new SAMSequenceDictionary(
-					Collections.singletonList(new SAMSequenceRecord(this.REF,this.align_length))
+					Collections.singletonList(new SAMSequenceRecord(this.reference_contig_name,this.align_length))
 					);
 			
 			final Set<String> samples=new TreeSet<String>(this.sample2sequence.keySet());
@@ -472,7 +461,7 @@ public class MsaToVcf extends Launcher
 					{
 					if(this.printAllSites)
 						{
-						is_variation=false;
+						is_variation = false;
 						}
 					else
 						{
@@ -505,17 +494,17 @@ public class MsaToVcf extends Launcher
  						}
 					}
 				
-				Set<Allele> alleles=new HashSet<Allele>();
+				final Set<Allele> alleles =new LinkedHashSet<Allele>();
 				
-				VariantContextBuilder vcb=new VariantContextBuilder();
-				List<Genotype> genotypes=new ArrayList<Genotype>(samples.size());
+				final VariantContextBuilder vcb=new VariantContextBuilder();
+				final List<Genotype> genotypes=new ArrayList<Genotype>(samples.size());
 				
 				/* longest variant */
 				String longest=null;
-				Counter<String> countAlleles=new Counter<String>();
-				final Map<String,String> sample2genotype=new HashMap<String,String>(samples.size());
+				Counter<String> countAlleles = new Counter<String>();
+				final Map<String,String> sample2genotype = new HashMap<String,String>(samples.size());
 				
-				String namedConsensusRefAllele="N";
+				String namedConsensusRefAllele = "N";
 				
 				/* loop over the sequences of each sample */
 				for(String sample:samples)
@@ -615,13 +604,11 @@ public class MsaToVcf extends Launcher
 						{
 						genotypes.add(GenotypeBuilder.createMissing(sample, haploid?1:2));
 						}
-					
-					
 					}
 				final int start=pos1+(is_subsitution?1:0);//got to 1-based ref if subst, for indel with use pos(base)-1
 				vcb.start(start);
 				vcb.stop(start+(refAllStr.length()-1));
-				vcb.chr(REF);
+				vcb.chr(reference_contig_name);
 				vcb.attribute(VCFConstants.DEPTH_KEY, genotypes.size());
 				vcb.alleles(alleles);
 				vcb.genotypes(genotypes);

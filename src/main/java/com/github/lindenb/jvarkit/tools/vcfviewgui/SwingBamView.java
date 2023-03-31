@@ -131,12 +131,12 @@ BEGIN_DOC
 ## Example:
 
 ```
-java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam
+java -jar dist/jvarkit.jar swingbamview -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam
 ```
 
 ```
 find dir -type f -name "*.bam" > out.list
-java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa out.list
+java -jar dist/jvarkit.jar swingbamview -R src/test/resources/rotavirus_rf.fa out.list
 ```
 
 END_DOC
@@ -145,7 +145,7 @@ END_DOC
 description="Read viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate = "20220503",
-modificationDate="20230128",
+modificationDate="20230331",
 jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
 )
@@ -712,7 +712,7 @@ public class SwingBamView extends Launcher {
 			if(rgn==null) return ;
 			final Hershey hershey=new Hershey();
 			
-			final BamFile bamFile=getSelectedBamFile();
+			final BamFile bamFile = getSelectedBamFile();
 			double y=0;
 			
 			
@@ -783,6 +783,7 @@ public class SwingBamView extends Launcher {
 			final boolean show_bases = this.jmenuShowBases.isSelected();
 			final boolean show_insertions = this.jmenuShowInsertions.isSelected();
 			final boolean show_mismatches = this.jmenuShowMismatches.isSelected();
+
 			for(int rowidx= 0;rowidx< this.rows.size();rowidx++) {
 				final boolean row_is_visible=true;
 				final List<Read> row = this.rows.get(rowidx);
@@ -790,7 +791,7 @@ public class SwingBamView extends Launcher {
 					read.x =  (float)pos2pixel(rgn,read.getStart());
 					read.y = (float)y;
 					read.width = (float)pos2pixel(rgn,read.getEnd()+1) - read.x;
-					read.height = (float)readRowHeight;
+					read.height = (float)readRowHeight;					
 					
 					final Map<Integer,Integer> pos2insert_size = new HashMap<>();
 					final byte[] readBases = read.rec.getReadBases();
@@ -918,7 +919,6 @@ public class SwingBamView extends Launcher {
 						}
 					}
 				y+= readRowHeight;
-				rowidx++;
 				}
 			if(coverage_top < coverage_bottom) {
 				double max_cov=0;
@@ -988,7 +988,7 @@ public class SwingBamView extends Launcher {
 					}
 
 				
-				final List<Read> buffer= new ArrayList<>(featchReads());
+				final List<Read> buffer= new ArrayList<>(fetchReads());
 				while(!buffer.isEmpty()) {
 					final Read read = buffer.remove(0);
 					int y = 0;
@@ -1070,24 +1070,27 @@ public class SwingBamView extends Launcher {
 			}
 	
 		/** fetch Read for current bam, and current interval **/
-		private List<Read> featchReads() {
+		private List<Read> fetchReads() {
 			final Locatable loc = this.interval.orElse(null);
 			if(loc==null) return Collections.emptyList();
 			final BamFile bf = getSelectedBamFile();
 			if(this.interval==null || bf==null) return Collections.emptyList();
 			bf.open(this.referenceFaidx);
 			final SamRecordFilter srf = createSamRecordFilter();
+			final List<Read> L;
 			try(CloseableIterator<SAMRecord> iter = bf.sr.query(
 				loc.getContig(),
 				loc.getStart(),
 				loc.getEnd(),
 				false)) {
-				return iter.stream().
+				L =  iter.stream().
 						filter(R->!srf.filterOut(R)).
 						map(R->new Read(R)).
 						sorted((A,B)->Integer.compare(A.getStart(),B.getStart())).
 						collect(Collectors.toList());
 				}
+			bf.close();
+			return L;
 			}
 		
 		SamRecordFilter createSamRecordFilter() {

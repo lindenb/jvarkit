@@ -20,9 +20,6 @@ Usage: java -jar dist/jvarkit.jar msa2vcf  [options] Files
 
 Usage: msa2vcf [options] Files
   Options:
-    -R, --REF
-      reference name used for the CHROM column. Optional
-      Default: chrUn
     -a, --allsites
       print all sites
       Default: false
@@ -51,6 +48,9 @@ Usage: msa2vcf [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference_contig_name
+      reference name used for the CHROM column. Optional
+      Default: chrUn
     --version
       print version and exit
 
@@ -171,7 +171,7 @@ generate the VCF
 
 ```
 $ curl https://raw.github.com/biopython/biopython/master/Tests/Clustalw/opuntia.aln" |\
-  java -jar dist/msa2vcf.jar
+  java -jar dist/jvarkit.jar msa2vcf
 
 ##fileformat=VCFv4.1
 ##Biostar94573CmdLine=

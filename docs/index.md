@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : ff1864e17
-Compilation : 20230324171028
+Version     : 8e5f425de
+Compilation : 20230331121218
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -228,7 +228,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20191004 |
 | [sortsamrefname](SortSamRefName.md) | Sort a BAM on chromosome/contig and then on read/querty name | 20150812 | 20210312 |
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
-| [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230128 |
+| [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230331 |
 | [texbam](TextBam.md) | Write text in a bam. Mostly for fun... | 20220708 | 20220708 |
 
 

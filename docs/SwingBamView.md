@@ -74,12 +74,12 @@ The current reference is:
 ## Example:
 
 ```
-java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam
+java -jar dist/jvarkit.jar swingbamview -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam
 ```
 
 ```
 find dir -type f -name "*.bam" > out.list
-java -jar dist/swingbamview.jar -R src/test/resources/rotavirus_rf.fa out.list
+java -jar dist/jvarkit.jar swingbamview -R src/test/resources/rotavirus_rf.fa out.list
 ```
 
 
