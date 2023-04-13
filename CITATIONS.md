@@ -2,6 +2,7 @@
 
 ## 2023
 
+ * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Corrêa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114  **wgscoverageplotter**
  * Vinicius A.C & al. Comparative analyses of Theobroma cacao and T. grandiflorum mitogenomes reveal conserved gene content embedded within complex and plastic structures". Gene Volume 849 2023 .https://doi.org/10.1016/j.gene.2022.146904.
  * Pol32, an accessory subunit of DNA polymerase delta, plays an essential role in genome stability and pathogenesis of Candida albicans. Shraddheya Kumar Patel & al. Gut Microbes. https://doi.org/10.1080/19490976.2022.2163840 2023. **vcfpolyx**
  * Cho, C.H., Park, S.I., Huang, TY. et al. Genome-wide signatures of adaptation to extreme environments in red algae. Nat Commun 14, 10 (2023). https://doi.org/10.1038/s41467-022-35566-x *WGSCoveragePlotter*

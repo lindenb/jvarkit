@@ -118,6 +118,7 @@ nav:
         - "sortsamrefname" : SortSamRefName.md
         - "splitvcf" : SplitVcf.md
         - "starretrocopy" : StarRetroCopy.md
+        - "sv2fasta" : StructuralVariantToFasta.md
         - "swingbamcov" : SwingBamCov.md
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md
