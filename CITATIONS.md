@@ -11,7 +11,7 @@
  * Rare coding variants in CTSO, a potential new actor of arterial remodeling, are associated to familial intracranial aneurysm Milène Freneau, Raphaël Blanchet, Sandro Benichi, Mary-Adel Mrad, Surya Prakash Rao Batta, Marc Rio, Stéphanie Bonnaud, Pierre Lindenbaum, Fabien Laporte, Stéphane Cuenot, Jean-François Deleuze, Christian Dina, Stéphanie Chatel, Emmanuelle Bourcereau, Solène Jouan, ICAN Study Group, Hubert Desal, Anne-Clémence Vion, Romain Bourcier, Gervaise Loirand, Richard Redon medRxiv 2023.01.31.23285168; doi: https://doi.org/10.1101/2023.01.31.23285168 
  * Horizontal gene transfer and CRISPR targeting drive phage-bacterial host interactions and co-evolution in pink berry marine microbial aggregates James C. Kosmopoulos, Danielle E. Campbell, Rachel J. Whitaker, Elizabeth G. Wilbanks bioRxiv 2023.02.06.527410; doi: https://doi.org/10.1101/2023.02.06.527410 
  * Rhys T. White, Martina Jelocnik, Natalie Klukowski, Md. Hakimul Haque, Subir Sarker. The first genomic insight into Chlamydia psittaci sequence type (ST)24 from a healthy captive psittacine host in Australia demonstrates evolutionary proximity with strains from psittacine, human, and equine hosts. Veterinary Microbiology, Volume 280, 2023, 109704, ISSN 0378-1135. https://doi.org/10.1016/j.vetmic.2023.109704.
-
+ * Benjamin McClinton, Christopher M. Watson, Laura A. Crinnion, Martin McKibbin, Manir Ali, Chris F. Inglehearn, Carmel Toomes, Haplotyping Using Long-Range PCR and Nanopore Sequencing of Phase Variants; Lessons Learned From the ABCA4 Locus, Laboratory Investigation, 2023, 100160, ISSN 0023-6837 (**biostar214299**)
 
 ## 2022
 
