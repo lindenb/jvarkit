@@ -169,6 +169,7 @@ import com.github.lindenb.jvarkit.tools.vcfbigwig.VcfBigBed;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcfflatten.VCFFlatten;
+import com.github.lindenb.jvarkit.tools.vcfgatkeval.VcfGatkEval;
 import com.github.lindenb.jvarkit.tools.vcfpar.VcfPseudoAutosomalRegion;
 import com.github.lindenb.jvarkit.tools.vcfpolyx.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
@@ -606,6 +607,7 @@ public class JvarkitCentral {
 		command(VCFFlatten.class);
 		command(VcfPseudoAutosomalRegion.class);
 		command(VcfRebase.class);
+		command(VcfGatkEval.class);
 		command(VcfHead.class);
 		command(VcfTail.class);
 		command(VcfServer.class);

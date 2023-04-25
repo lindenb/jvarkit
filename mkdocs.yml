@@ -136,6 +136,7 @@ nav:
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md
         - "vcfflatten" : VCFFlatten.md
+        - "vcfgatkeval" : VcfGatkEval.md
         - "vcfgenesplitter" : VcfGeneSplitter.md
         - "vcfgnomad" : VcfGnomad.md
         - "vcfhead" : VcfHead.md
