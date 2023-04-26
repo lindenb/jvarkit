@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 6499422ad
-Compilation : 20230425111424
+Version     : 261437c0
+Compilation : 20230426145254
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -193,6 +193,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgenesplitter](VcfGeneSplitter.md) | Split VCF+VEP by gene/transcript. | 20160310 | 202220531 |
 | [vcfgnomad](VcfGnomad.md) | Peek annotations from gnomad | 20170407 | 20200702 |
 | [vcfhead](VcfHead.md) | print the first variants of a vcf | 20131210 | 20200518 |
+| [vcfmulti2oneinfo](VcfMultiToOneInfo.md) | 'one variant with INFO with N values' to 'N variants with one INFO' | 20260106 | 20230426 |
 | [vcfpar](VcfPseudoAutosomalRegion.md) | Flag human sexual regions excluding PAR. | 20200908 | 20200908 |
 | [vcfpeekaf](VcfPeekAf.md) | Peek the AF from another VCF | 20200624 | 20200904 |
 | [vcfphased01](VcfPhased01.md) | X10 Phased SVG to Scalar Vector Graphics (SVG) | 20190710 | 20190711 |
@@ -218,6 +219,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bam2haplotypes](BamToHaplotypes.md) | Reconstruct SNP haplotypes from reads | 20211015 | 20211020 |
 | [bamphased01](BamPhased01.md) | Extract Reads from a SAM/BAM file supporting at least two variants in a VCF file. | 20210218 | 20210218 |
 | [bamrenamechr](ConvertBamChromosomes.md) | Convert the names of the chromosomes in a BAM file | 20131217 | 20191210 |
+| [bamstats04](BamStats04.md) | Coverage statistics for a BED file. | 20130513 | 20191003 |
 | [bamstats05](BamStats05.md) | Coverage statistics for a BED file, group by gene | 20151012 | 20210317 |
 | [bamwithoutbai](BamWithoutBai.md) | Query a Remote BAM without bai | 20191213 | 20191217 |
 | [basecoverage](BaseCoverage.md) | 'Depth of Coverage' per base. | 20220420 | 20220420 |

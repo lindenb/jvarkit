@@ -232,7 +232,7 @@ public class BamStats05 extends Launcher
 			
 			for(final String partition : groupNames)
 				{
-				if(StringUtils.isBlank(partition)) throw new IOException("Empty read group: "+groupBy.name()+" for "+filename);
+				if(StringUtils.isBlank(partition)) throw new IOException("Empty read group: "+groupBy.name()+" for "+filename+". see https://gatk.broadinstitute.org/hc/en-us/articles/360035890671-Read-groups");
 				for(final String gene: gene2interval.keySet())
 					{
 					

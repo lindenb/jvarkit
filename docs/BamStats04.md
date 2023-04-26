@@ -7,7 +7,13 @@ Coverage statistics for a BED file.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bamstats04  [options] Files
+
 Usage: bamstats04 [options] Files
   Options:
   * -B, --bed
@@ -65,22 +71,10 @@ Usage: bamstats04 [options] Files
  * [https://www.biostars.org/p/348251](https://www.biostars.org/p/348251)
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamstats04
-```
-
-The java jar file will be installed in the `dist` directory.
+20130513
 
 ## Source code 
 
@@ -139,5 +133,6 @@ ref2    16     17   1       S1      6       6       6.0      6.0        0       
 ## Cited in:
 
   *  Han Ming Gan & al. , Genomic evidence of neo-sex chromosomes in the eastern yellow robin, GigaScience, Volume 8, Issue 9, September 2019, giz111, https://doi.org/10.1093/gigascience/giz111
+
 
 

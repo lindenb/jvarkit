@@ -24,6 +24,7 @@ nav:
         - "bammatrix" : BamMatrix.md
         - "bamphased01" : BamPhased01.md
         - "bamrenamechr" : ConvertBamChromosomes.md
+        - "bamstats04" : BamStats04.md
         - "bamstats05" : BamStats05.md
         - "bamwithoutbai" : BamWithoutBai.md
         - "basecoverage" : BaseCoverage.md
@@ -140,6 +141,7 @@ nav:
         - "vcfgenesplitter" : VcfGeneSplitter.md
         - "vcfgnomad" : VcfGnomad.md
         - "vcfhead" : VcfHead.md
+        - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md
         - "vcfpeekaf" : VcfPeekAf.md
         - "vcfphased01" : VcfPhased01.md

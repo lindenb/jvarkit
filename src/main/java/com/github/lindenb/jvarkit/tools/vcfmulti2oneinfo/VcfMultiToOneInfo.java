@@ -22,59 +22,74 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcfmulti2oneinfo;
 
+import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.PostponedVariantContextWriter;
 import htsjdk.variant.vcf.VCFIterator;
+/**
+BEGIN_DOC
 
+before:
+
+```
+RF11	74	.	CAAAAA	CAA	113	.	AC=1;AN=10;ANN=CAA|frameshift_variant&start_lost|HIGH|Gene_78_374|Gene_78_374|transcript|AAG15312.1|protein_coding|1/1|c.-2_1delAAA|p.Met1fs||1/297|1/98||,CAA|disruptive_inframe_deletion|MODERATE|Gene_20_616|Gene_20_616|transcript|AAG15311.1|protein_coding|1/1|c.57_59delAAA|p.Lys19del|57/597|57/597|19/198||,CAA|upstream_gene_variant|MODIFIER|Gene_78_374|Gene_78_374|transcript|AAG15312.1|protein_coding|1/1|c.-2_1delAAA|||||2|;DP=82;DP4=55,0,5,0;HOB=0.02;ICB=0.0439024;IDV=7;IMF=0.388889;INDEL;LOF=(Gene_78_374|Gene_78_374|1|1.00);MQ=60;MQ0F=0;SGB=5.5074;VDB=0.00911888	GT:PL	0/0:0,33,246	0/0:0,36,255	0/0:0,36,255	0/1:149,0,205	0/0:0,33,244
+```
+
+run:
+
+```
+java -jar dist/jvarkit.jar  vcfmulti2oneinfo -i ANN src/test/resources/rotavirus_rf.ann.vcf.gz
+```
+
+after:
+
+```
+RF11	74	.	CAAAAA	CAA	113	.	AC=1;AN=10;ANN=CAA|frameshift_variant&start_lost|HIGH|Gene_78_374|Gene_78_374|transcript|AAG15312.1|protein_coding|1/1|c.-2_1delAAA|p.Met1fs||1/297|1/98||;DP=82;DP4=55,0,5,0;HOB=0.02;ICB=0.0439024;IDV=7;IMF=0.388889;INDEL;LOF=(Gene_78_374|Gene_78_374|1|1.00);MQ=60;MQ0F=0;SGB=5.5074;VDB=0.00911888	GT:PL	0/0:0,33,246	0/0:0,36,255	0/0:0,36,255	0/1:149,0,205	0/0:0,33,244
+RF11	74	.	CAAAAA	CAA	113	.	AC=1;AN=10;ANN=CAA|disruptive_inframe_deletion|MODERATE|Gene_20_616|Gene_20_616|transcript|AAG15311.1|protein_coding|1/1|c.57_59delAAA|p.Lys19del|57/597|57/597|19/198||;DP=82;DP4=55,0,5,0;HOB=0.02;ICB=0.0439024;IDV=7;IMF=0.388889;INDEL;LOF=(Gene_78_374|Gene_78_374|1|1.00);MQ=60;MQ0F=0;SGB=5.5074;VDB=0.00911888	GT:PL	0/0:0,33,246	0/0:0,36,255	0/0:0,36,255	0/1:149,0,205	0/0:0,33,244
+RF11	74	.	CAAAAA	CAA	113	.	AC=1;AN=10;ANN=CAA|upstream_gene_variant|MODIFIER|Gene_78_374|Gene_78_374|transcript|AAG15312.1|protein_coding|1/1|c.-2_1delAAA|||||2|;DP=82;DP4=55,0,5,0;HOB=0.02;ICB=0.0439024;IDV=7;IMF=0.388889;INDEL;LOF=(Gene_78_374|Gene_78_374|1|1.00);MQ=60;MQ0F=0;SGB=5.5074;VDB=0.00911888	GT:PL	0/0:0,33,246	0/0:0,36,255	0/0:0,36,255	0/1:149,0,205	0/0:0,33,244
+```
+
+END_DOC
+ */
 @Program(
 		name="vcfmulti2oneinfo",
-		description="'one INFO with N values' to 'N variants with one INFO'",
-		keywords={"vcf"}
+		description="'one variant with INFO with N values' to 'N variants with one INFO'",
+		keywords={"vcf"},
+		creationDate = "20260106",
+		modificationDate = "20230426",
+		jvarkit_amalgamion = true,
+		menu="VCF Manipulation"
 		)
 public class VcfMultiToOneInfo
-	extends Launcher
+	extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfMultiToOneInfo.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
 	@Parameter(names={"-i","--info"},description="The INFO tag",required=true)
 	private String infoTag = null;
-	@ParametersDelegate
-	private PostponedVariantContextWriter.WritingVcfConfig writingVcfArgs = new PostponedVariantContextWriter.WritingVcfConfig();
 
-	 public VcfMultiToOneInfo()
-		{
-		}
 	 
-	 @Override
+	@Override
 	protected int doVcfToVcf(final String inputName,final VCFIterator in,final VariantContextWriter out) {
 		final VCFHeader srcHeader=in.getHeader();
 		final VCFInfoHeaderLine srcInfo = srcHeader.getInfoHeaderLine(this.infoTag);
 		if( srcInfo == null )
 			{
-			LOG.error("Cannot find INFO FIELD '"+ this.infoTag+"'");
+			LOG.error("Cannot find INFO FIELD '"+ this.infoTag+"' in VCF header.");
 			return -1;
 			}
 		switch( srcInfo.getCountType() )
@@ -82,7 +97,7 @@ public class VcfMultiToOneInfo
 			case INTEGER:break;
 			case UNBOUNDED:break;
 			default: {
-				LOG.error("CountType is not supported '"+ srcInfo.getCountType() +"'");
+				LOG.error("VCF header: INFO/CountType is not supported '"+ srcInfo.getCountType() +"'");
 				return -1;
 				}
 			}
@@ -99,11 +114,15 @@ public class VcfMultiToOneInfo
 		final VCFHeader destHeader= new VCFHeader(srcHeader);
 		super.addMetaData(destHeader);
 		
-		final SAMSequenceDictionaryProgress progess=new SAMSequenceDictionaryProgress(srcHeader);
 		out.writeHeader(destHeader);
 		while(in.hasNext())
 			{
-			final VariantContext ctx=progess.watch(in.next());
+			final VariantContext ctx= in.next();
+			if(!ctx.hasAttribute(srcInfo.getID())) {
+				out.add(ctx);
+				continue;
+				}
+			
 			final List<Object> L=ctx.getAttributeAsList(srcInfo.getID());
 			if( L.isEmpty() || L.size()==1)
 				{
@@ -117,26 +136,23 @@ public class VcfMultiToOneInfo
 				out.add(vcb.make());
 				}
 			}
-		progess.finish();
-		LOG.info("done");
-		return RETURN_OK;
+		return 0;
 		}
-	 
-	@Override
-	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-		return new PostponedVariantContextWriter(this.writingVcfArgs,stdout(),this.outputFile);
-		}
-
-	@Override
-	public int doWork(final List<String> args) {
-		if(this.infoTag==null || this.infoTag.isEmpty())
-			{
+	
+	 @Override
+	protected int beforeVcf() {
+		 if(StringUtil.isBlank(this.infoTag)) {
 			LOG.error("No info tag defined");
 			return -1;
 			}
-		return doVcfToVcf(args,outputFile);
+		return super.beforeVcf();
 		}
 	
+	 @Override
+	protected Logger getLogger() {
+		 return LOG;
+		 }
+	 
 	public static void main(String[] args)
 		{
 		new VcfMultiToOneInfo().instanceMainWithExit(args);

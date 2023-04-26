@@ -107,8 +107,11 @@ END_DOC
 @Program(name="bamstats04",
 	description="Coverage statistics for a BED file.",
 	keywords={"sam","bam","coverage","depth","statistics","bed"},
+	jvarkit_amalgamion = true,
 	biostars= {309673,348251},
-	modificationDate="20191003"
+	creationDate = "20130513",
+	modificationDate="20191003",
+	menu="BAM Manipulation"
 	)
 public class BamStats04 extends Launcher
 	{
@@ -209,7 +212,7 @@ public class BamStats04 extends Launcher
 					
 					if(readGroups==null || readGroups.isEmpty())
 						{
-						LOG.warn("No Read group (RG) in the header of "+filename);
+						LOG.warn("No Read group (RG) in the header of "+filename+". see https://gatk.broadinstitute.org/hc/en-us/articles/360035890671-Read-groups ");
 						all_partitions.add(NO_PARTITION);
 						}
 					else

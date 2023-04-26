@@ -114,7 +114,7 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 description="Merge Vcf from Manta VCF.",
 keywords= {"sv","burden","manta","vcf"},
 creationDate="20190916",
-modificationDate="20191106"
+modificationDate="20230320"
 )
 public class MantaMerger extends Launcher {
 	private static final Logger LOG = Logger.build( MantaMerger.class).make();
