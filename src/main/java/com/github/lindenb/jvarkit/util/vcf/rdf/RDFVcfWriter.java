@@ -27,6 +27,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ns.DC;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.Prediction;
@@ -48,7 +49,6 @@ public class RDFVcfWriter
 
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
 	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;
-	private static final String DC="http://purl.org/dc/elements/1.1/";
 	private static final String NS="http://github.com/lindenb/jvarkit/";
 	private static final String PFX="vcf";
 	private XMLStreamWriter w;
@@ -80,6 +80,11 @@ public class RDFVcfWriter
 			}
 		}
 	
+	@Override
+	public void setHeader(VCFHeader header) {
+		this.header = header;
+		}
+	
 	
 	public void addInfoHandler(RDFVcfInfoHandler handler)
 		{
@@ -103,7 +108,7 @@ public class RDFVcfWriter
 		w.writeStartDocument("UTF-8","1.0");
 		this.w.writeStartElement("rdf", "RDF", RDF);
 		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "rdf",RDF);
-		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, "dc", DC);
+		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI, DC.pfx, DC.NS);
 		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI,  PFX, NS);
 		w.writeAttribute("xmlns", XMLConstants.XML_NS_URI,  "xsd", XSD);
 		_xmlHeaderPrinted=true;
@@ -128,7 +133,7 @@ public class RDFVcfWriter
 			
 			this.w.writeStartElement(PFX, "Source", NS);
 			this.w.writeAttribute("rdf",RDF,"about",this.source.toString());
-				this.w.writeStartElement("dc","title",DC);
+				this.w.writeStartElement(DC.pfx,"title",DC.NS);
 				this.w.writeCharacters(this.source.toString());
 				this.w.writeEndElement();//dc:title
 			this.w.writeEndElement();
@@ -142,7 +147,7 @@ public class RDFVcfWriter
 					this.w.writeStartElement(PFX, "Chromosome", NS);
 					this.w.writeAttribute("rdf",RDF,"about","urn:chromosome/"+ssr.getSequenceName());
 					
-					this.w.writeStartElement("dc","title",DC);
+					this.w.writeStartElement(DC.pfx,"title",DC.NS);
 					this.w.writeCharacters(ssr.getSequenceName());
 					this.w.writeEndElement();//dc:title
 					
@@ -182,12 +187,12 @@ public class RDFVcfWriter
 				this.w.writeStartElement(PFX, "Filter", NS);
 				this.w.writeAttribute("rdf",RDF,"about","urn:filter/"+h.getKey());
 				
-				this.w.writeStartElement("dc","title",DC);
+				this.w.writeStartElement("dc","title",DC.NS);
 				this.w.writeCharacters(h.getKey());
 				this.w.writeEndElement();//dc:title
 
 
-				this.w.writeStartElement("dc","description",DC);
+				this.w.writeStartElement("dc","description",DC.NS);
 				this.w.writeCharacters(h.getValue());
 				this.w.writeEndElement();//dc:title
 				
@@ -201,7 +206,7 @@ public class RDFVcfWriter
 				this.w.writeStartElement(PFX, "Sample", NS);
 				this.w.writeAttribute("rdf",RDF,"about","urn:sample/"+sample);
 				
-				this.w.writeStartElement("dc","title",DC);
+				this.w.writeStartElement("dc","title",DC.NS);
 				this.w.writeCharacters(sample);
 				this.w.writeEndElement();//dc:title
 				

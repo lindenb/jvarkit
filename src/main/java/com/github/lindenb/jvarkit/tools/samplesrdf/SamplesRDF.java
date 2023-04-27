@@ -70,6 +70,7 @@ import com.github.lindenb.jvarkit.stream.CollectorsUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.xml.SimpleEventFilter;
 
 import htsjdk.samtools.util.StringUtil;
 /**
@@ -325,38 +326,19 @@ public class SamplesRDF extends Launcher {
 		}
 	
 	/** reduce the size of the RDF/XML ontology to be loaded */
-	private static class OWLFilter implements EventFilter {
-		private int in_reject_depth = 0;
-		
-		private boolean acceptName(final QName qName) {
-			final String lcl = qName.getLocalPart();
-			if(lcl.equals("Ontology")) return false;
-			if(lcl.equals("AnnotationProperty")) return false;
-			if(lcl.equals("Axiom")) return false;
-			if(lcl.equals("hasDbXref")) return false;
-			if(lcl.equals("hasExactSynonym")) return false;
-			if(lcl.equals("hasOBONamespace")) return false;
-			if(lcl.equals("inSubset")) return false;
-			return true;
-			}
-		@Override
-		public boolean accept(final XMLEvent event) {
-			if(event.isProcessingInstruction()) return false;
-			if(event.isStartElement()) {
-				if(!acceptName( event.asStartElement().getName()) ) {
-					in_reject_depth++;
-					}
-				//System.err.println("<"+event.asStartElement().getName().getLocalPart()+"> Returning "+(in_reject_depth==0)+" and after will be "+in_reject_depth);
-				return in_reject_depth==0;
-				}
-			else if(event.isEndElement()) {
-				boolean curr  = in_reject_depth==0;
-				if( !acceptName(event.asEndElement().getName())) in_reject_depth--;
-				//System.err.println("</"+event.asEndElement().getName().getLocalPart()+"> Returning "+curr+" and after will be "+in_reject_depth);
-				return curr;
-				}
-			//System.err.println("("+event.getEventType()+") in_reject_depth "+in_reject_depth);
-			return in_reject_depth==0;
+	private static class OWLFilter extends SimpleEventFilter {		
+		OWLFilter() {
+			super(qName->{
+				final String lcl = qName.getLocalPart();
+				if(lcl.equals("Ontology")) return false;
+				if(lcl.equals("AnnotationProperty")) return false;
+				if(lcl.equals("Axiom")) return false;
+				if(lcl.equals("hasDbXref")) return false;
+				if(lcl.equals("hasExactSynonym")) return false;
+				if(lcl.equals("hasOBONamespace")) return false;
+				if(lcl.equals("inSubset")) return false;
+				return true;
+				});
 			}
 		}
 	

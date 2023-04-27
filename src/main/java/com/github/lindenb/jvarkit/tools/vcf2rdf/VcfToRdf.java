@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.ns.DC;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
@@ -332,9 +333,8 @@ public class VcfToRdf extends Launcher
 	
 	
 	//private long id_generator=0L;
-	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
+	private static final String XSD=com.github.lindenb.jvarkit.util.ns.XSD.NS; ;
 	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;
-	private static final String DC="http://purl.org/dc/elements/1.1/";
 	private static final String NS="http://github.com/lindenb/jvarkit/";
 	private final Set<String> suffixes=new HashSet<String>();
 	private PrintWriter w = null;
@@ -672,7 +672,7 @@ public class VcfToRdf extends Launcher
 			{
 			this.w= super.openPathOrStdoutAsPrintWriter(this.outputFile);
 			prefix("rdf",RDF);
-			prefix("dc", DC);
+			prefix("dc", DC.NS);
 			prefix("vcf", NS);
 			prefix("xsd", XSD);
 			prefix("vep", "http://www.ensembl.org/info/docs/tools/vep/");
@@ -699,7 +699,7 @@ public class VcfToRdf extends Launcher
 			w=null;
 			return RETURN_OK;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -710,7 +710,7 @@ public class VcfToRdf extends Launcher
 			}
 		
 		}
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfToRdf().instanceMainWithExit(args);
 		}
