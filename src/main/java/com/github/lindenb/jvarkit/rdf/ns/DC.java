@@ -21,12 +21,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-*/
-package com.github.lindenb.jvarkit.util.ns;
 
-public class RDFS {
-/** RDFS namespace */
-public static final String NS="http://www.w3.org/2000/01/rdf-schema#";
-/** RDFS prefix */
-public static final String pfx="rdfs";
+*/
+package com.github.lindenb.jvarkit.rdf.ns;
+
+/** Duplin code namespace */
+public class DC {
+/** RDF namespace */
+public static final String NS="http://purl.org/dc/elements/1.1/";
+/** RDF prefix */
+public static final String pfx="dc";
 }

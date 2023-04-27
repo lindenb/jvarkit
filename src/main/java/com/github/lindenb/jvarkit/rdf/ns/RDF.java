@@ -22,13 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-*/
-package com.github.lindenb.jvarkit.util.ns;
+History:
+* 2014 creation
 
-/** Duplin code namespace */
-public class DC {
+*/
+package com.github.lindenb.jvarkit.rdf.ns;
+
+public class RDF {
 /** RDF namespace */
-public static final String NS="http://purl.org/dc/elements/1.1/";
+public static final String NS="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 /** RDF prefix */
-public static final String pfx="dc";
+public static final String pfx="rdf";
 }

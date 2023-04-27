@@ -49,11 +49,11 @@ import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.rdf.ns.DC;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.ns.DC;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
@@ -333,8 +333,8 @@ public class VcfToRdf extends Launcher
 	
 	
 	//private long id_generator=0L;
-	private static final String XSD=com.github.lindenb.jvarkit.util.ns.XSD.NS; ;
-	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;
+	private static final String XSD=com.github.lindenb.jvarkit.rdf.ns.XSD.NS; ;
+	private static final String RDF=com.github.lindenb.jvarkit.rdf.ns.RDF.NS;
 	private static final String NS="http://github.com/lindenb/jvarkit/";
 	private final Set<String> suffixes=new HashSet<String>();
 	private PrintWriter w = null;

@@ -21,14 +21,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
 */
-package com.github.lindenb.jvarkit.util.ns;
+package com.github.lindenb.jvarkit.rdf.ns;
 
-/**  XML Schema namespace */
-public class XSD {
-/** RDF namespace */
-public static final String NS="http://www.w3.org/2001/XMLSchema#";
-/** RDF prefix */
-public static final String pfx="xsd";
+public class OWL {
+/** OWL namespace */
+public static final String NS="http://www.w3.org/2002/07/owl#";
+/** OWL prefix */
+public static final String pfx="owl";
 }

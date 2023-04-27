@@ -14,6 +14,7 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.rdf.ns.DC;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFPredictions;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -27,7 +28,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.ns.DC;
 import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.Prediction;
@@ -48,7 +48,7 @@ public class RDFVcfWriter
 	private static final Logger LOG=Logger.build(RDFVcfWriter.class).make();
 
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
-	private static final String RDF=com.github.lindenb.jvarkit.util.ns.RDF.NS;
+	private static final String RDF=com.github.lindenb.jvarkit.rdf.ns.RDF.NS;
 	private static final String NS="http://github.com/lindenb/jvarkit/";
 	private static final String PFX="vcf";
 	private XMLStreamWriter w;
