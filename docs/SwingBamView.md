@@ -16,6 +16,8 @@ Usage: java -jar dist/jvarkit.jar swingbamview  [options] Files
 
 Usage: swingbamview [options] Files
   Options:
+    --gff, --gff3
+      Tabix-Indexed GFF3 File
     -h, --help
       print help and exit
     --helpFormat

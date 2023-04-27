@@ -90,6 +90,7 @@ import com.github.lindenb.jvarkit.swing.PropertyChangeObserver;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
+import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -121,6 +122,11 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.TribbleException;
+import htsjdk.tribble.gff.Gff3Codec;
+import htsjdk.tribble.gff.Gff3Codec.DecodeDepth;
+import htsjdk.tribble.gff.Gff3Feature;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFReader;
@@ -145,7 +151,7 @@ END_DOC
 description="Read viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate = "20220503",
-modificationDate="20230331",
+modificationDate="20230427",
 jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
 )
@@ -155,6 +161,8 @@ public class SwingBamView extends Launcher {
 	private Path referenceFile = null;
 	@Parameter(names={"-V","--variant"},description="Indexed VCF File")
 	private Path variantFile = null;
+	@Parameter(names={"--gff","--gff3"},description="Tabix-Indexed GFF3 File")
+	private String gffFile = null;
 
 		
 	
@@ -203,6 +211,7 @@ public class SwingBamView extends Launcher {
 		private final Path referenceFaidx;
 		private final SAMSequenceDictionary dict;
 		private final Path vcfFile;
+		private final String gffFile;
 		private List<VariantContext> all_variants_list = new Vector<>();
 		private final JList<BamFile> jlistBamFilesJList;
 		private final JTextField jtextFieldLocation;
@@ -213,6 +222,7 @@ public class SwingBamView extends Launcher {
 		private final ReferenceSequenceFile referenceSequenceFile;
 		private String referenceStr = null;
 		private final List<List<Read>> rows = new Vector<>();
+		private final List<Gff3Feature> gff3features = new Vector<>();
 		private final JCheckBoxMenuItem jmenuShowClip;
 		private final JCheckBoxMenuItem jmenuShowDuplicates;
 		private final JCheckBoxMenuItem jmenuShowFailQuality;
@@ -374,12 +384,14 @@ public class SwingBamView extends Launcher {
 		
 		XFrame(final Path referenceFaidx,
 				final List<BamFile> bamFiles,
-				final Path vcfFile
+				final Path vcfFile,
+				final String gffFile
 				)
 			{
 			super(SwingBamView.class.getSimpleName());
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			this.vcfFile = vcfFile;
+			this.gffFile = gffFile;
 			final JMenuBar menuBar = new JMenuBar();
 			setJMenuBar(menuBar);
 			JMenu menu=new JMenu("File");
@@ -754,6 +766,48 @@ public class SwingBamView extends Launcher {
 				y+=height;
 				}
 
+			// plot GFF
+			height = getGffTrackHeight();
+			if(height>0.0) {
+				final double midy = y+ height/2.0;
+				g.setColor(Color.BLUE);
+				for(final Gff3Feature gff3: this.gff3features ) {
+					if(!gff3.getType().equals("gene")) continue;
+					final double x0 = pos2pixel(rgn, Math.max(gff3.getStart(),rgn.getStart()));
+					final double x1 = pos2pixel(rgn, Math.min(gff3.getEnd(),rgn.getEnd())+1);
+					g.drawLine((int)x0, (int)midy,(int)x1, (int)midy);
+					final String geneName = gff3.getAttributes().entrySet().stream().
+							filter(KV->KV.getKey().equals("gene_name") || KV.getKey().equals("Name")).
+							flatMap(KV->KV.getValue().stream()).
+							findFirst().
+							orElse(null);
+					if(!StringUtils.isBlank(geneName)) {
+						hershey.paint(g, geneName,new Rectangle2D.Double(
+							x0,
+							y +1,
+							geneName.length()*10,
+							10
+							));
+						}
+					}
+				g.setColor(Color.CYAN);
+				for(final Gff3Feature gff3: this.gff3features ) {
+					if(!(gff3.getType().equals("exon") || gff3.getType().equals("CDS"))) continue;
+					final double x0 = pos2pixel(rgn, Math.max(gff3.getStart(),rgn.getStart()));
+					final double x1 = pos2pixel(rgn, Math.min(gff3.getEnd(),rgn.getEnd())+1);
+					final double h3 = gff3.equals("exon") ? 5 : 10;
+					
+					g.fillRect(
+						(int)x0,
+						(int)(midy - h3/2.0),
+						(int)(x1-x0)+1,
+						(int)h3
+						);
+					}
+				y += height;
+				}
+			
+			
 			/* prepare coverage track */
 			final double coverage_top = y;
 			height= getCoverageTrackHeight();
@@ -797,9 +851,9 @@ public class SwingBamView extends Launcher {
 					final byte[] readBases = read.rec.getReadBases();
 					final Cigar cigar = read.rec.getCigar();
 					// horizontal line for deletions
-					if(row_is_visible && cigar.getCigarElements().stream().anyMatch(OP->OP.equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
-						double x0 = pos2pixel(rgn,read.rec.getStart());
-						double x1 = pos2pixel(rgn,read.rec.getEnd());
+					if(row_is_visible && cigar.getCigarElements().stream().anyMatch(OP->OP.getOperator().equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
+						final double x0 = pos2pixel(rgn,read.rec.getStart());
+						final double x1 = pos2pixel(rgn,read.rec.getEnd());
 						g.setColor(Color.DARK_GRAY);
 						g.draw(new Line2D.Double(x0, y+readRowHeight/2.0, x1, y+readRowHeight/2.0));
 						}
@@ -971,13 +1025,14 @@ public class SwingBamView extends Launcher {
 				if(f==null) return;
 				this.rows.clear();
 				this.all_variants_list.clear();
+				this.gff3features.clear();
 				
 				if(this.vcfFile!=null) {
 					try(VCFReader vcfReader = VCFReaderFactory.makeDefault().open(this.vcfFile, true)) {
 						try(CloseableIterator<VariantContext> iter = vcfReader.query(rgn)) {
 							while(iter.hasNext()) {
 								final VariantContext ctx = iter.next();
-								all_variants_list.add(ctx);
+								this.all_variants_list.add(ctx);
 								}
 							}
 						this.swingVariantsTableModel.setRows(this.all_variants_list);
@@ -987,6 +1042,25 @@ public class SwingBamView extends Launcher {
 						}
 					}
 
+				if(!StringUtils.isBlank(this.gffFile)) {
+					final Gff3Codec codec = new Gff3Codec(DecodeDepth.SHALLOW);
+					try(TabixReader tabix= new TabixReader(this.gffFile)) {
+						final TabixReader.Iterator iter = tabix.query(rgn.getContig(), rgn.getStart(), rgn.getEnd());
+						
+						for(;;) {
+							final String line = iter.next();
+							if(line==null) break;
+							Gff3Feature gff3 = codec.decode(LineIterators.of(Collections.singletonList(line)));
+							if(gff3==null) continue;
+							if(!(gff3.getType().equals("gene") || gff3.getType().equals("exon") || gff3.getType().equals("CDS"))) continue;
+							this.gff3features.add(gff3);
+							}
+						}
+					catch(final IOException|TribbleException err) {
+						LOG.error(err);
+						}
+					}
+				
 				
 				final List<Read> buffer= new ArrayList<>(fetchReads());
 				while(!buffer.isEmpty()) {
@@ -1010,6 +1084,7 @@ public class SwingBamView extends Launcher {
 				{
 				this.referenceStr = "";
 				this.rows.clear();
+				this.gff3features.clear();
 				}
 			adjustScrollBar();
 			this.drawingArea.repaint();
@@ -1033,12 +1108,18 @@ public class SwingBamView extends Launcher {
 			return getReferenceTitleHeight() +
 					getSampleTitleHeight() +
 					getIntervalTitleHeight() +
-					getCoverageTrackHeight()
+					getCoverageTrackHeight() +
+					getGffTrackHeight()
 					;
 			}
 		
+		final double getGffTrackHeight() {
+			if(StringUtils.isBlank(this.gffFile)) return 0.0;
+			return 40;
+			}
+		
 		final double getReadRowHeight() {
-			double remain_height = drawingArea.getHeight() - getMarginTop();
+			double remain_height = (drawingArea.getHeight()-5) - getMarginTop();
 			double row_height = remain_height/ this.rows.size();
 			return Math.max(30, Math.min(row_height, 10));
 			}
@@ -1159,7 +1240,7 @@ public class SwingBamView extends Launcher {
 				bamFiles.add(bf);
 				}
 			
-			final XFrame frame = new XFrame(this.referenceFile,bamFiles,this.variantFile);
+			final XFrame frame = new XFrame(this.referenceFile,bamFiles,this.variantFile,this.gffFile);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 			frame.setBounds(50, 50, screen.width-100, screen.height-100);
 	
