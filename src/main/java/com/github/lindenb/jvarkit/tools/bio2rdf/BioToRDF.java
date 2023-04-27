@@ -8,6 +8,10 @@ import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +25,6 @@ import javax.xml.stream.XMLStreamWriter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
@@ -32,6 +35,7 @@ import org.apache.jena.vocabulary.OWL;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
+import org.xml.sax.SAXException;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
@@ -40,7 +44,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jena.JenaUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.tools.samplesrdf.SamplesRDF.OWLFilter;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -66,9 +70,10 @@ public class BioToRDF extends Launcher {
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;
-	@DynamicParameter(names={"-D"},description="parameters")
+	@DynamicParameter(names={"-D"},description="parameters. -Dkey1=value1  -Dkey2=value2 ...")
 	private Map<String,String> dynaParams = new HashMap<String,String>() {{{
 		put("NCBI_GENE_INFO", "https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene_info.gz");
+		put("NCBI_GENE_GO","https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene2go.gz");
 		put("GENCODE_RELEASE", "43");
 		put("GFF3_GRCH38", "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/gencode.v{GENCODE_RELEASE}.annotation.gff3.gz");
 		put("GFF3_GRCH37", "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/GRCh37_mapping/gencode.v{GENCODE_RELEASE}lift37.annotation.gff3.gz");
@@ -179,6 +184,49 @@ public class BioToRDF extends Launcher {
 		}
 	
 	
+	private void parseNcbiGeneGO(String uri) throws IOException,XMLStreamException {
+		if(StringUtils.isBlank(uri)) return;
+		LOG.info("parsing "+uri);
+		final List<Map.Entry<NcbiGeneInfo,String>> gene2go = new ArrayList<>();
+		
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
+			String line = br.readLine();
+			if(line==null || !line.startsWith("#")) throw new IOException("Cannot read first line or "+uri);
+			line=line.substring(1);//remove '#'
+			final FileHeader header = new FileHeader(CharSplitter.TAB.split(line));
+			while((line=br.readLine())!=null) {
+				final Map<String,String> rec = header.toMap(CharSplitter.TAB.split(line));
+				if(!rec.get("tax_id").equals("9606")) continue;
+				final NcbiGeneInfo info =this.geneid2gene.getOrDefault(rec.get("GeneID"),null);
+				if(info==null) {
+					continue;
+					}
+				gene2go.add(new AbstractMap.SimpleEntry<>(info, rec.get("GO_ID")));
+				}
+			}
+		final Comparator<Map.Entry<NcbiGeneInfo,String>> cmp = (A,B)->{
+			return A.getKey().geneid.compareTo(B.getKey().geneid);
+			};
+		Collections.sort(gene2go,cmp);
+		
+		try(EqualRangeIterator<Map.Entry<NcbiGeneInfo,String>> eq = new EqualRangeIterator<>(gene2go.iterator(),cmp)) {
+			while(eq.hasNext()) {
+				final List<Map.Entry<NcbiGeneInfo,String>> array = eq.next();
+				
+				writer.writeStartElement("rdf", "Resource", RDF.getURI());
+				writer.writeAttribute("rdf", RDF.getURI(),"about",array.get(0).getKey().getURI());
+
+				for(Map.Entry<NcbiGeneInfo,String> kv: array) {
+					writer.writeEmptyElement(PREFIX, "has_go", NS);
+					writer.writeAttribute("rdf",RDF.getURI(),"resource",
+							"http://purl.obolibrary.org/obo/" + kv.getValue().replace(':', '_'));
+					}
+				writer.writeEndElement();
+				}
+			}
+		}
+
+	
 	private void parseGFF(String uri,String build) throws IOException,XMLStreamException {
 		if(StringUtils.isBlank(uri)) return;
 		LOG.info("parsing "+uri);
@@ -256,7 +304,7 @@ public class BioToRDF extends Launcher {
 		}
 	}
 	
-	private void parseHumanDiseaseOntology(String uri) throws IOException,XMLStreamException {
+	private void parseHumanDiseaseOntology(String uri) throws IOException,XMLStreamException,SAXException {
 		if(StringUtils.isBlank(uri)) return;
 		final Model ontModel  = ModelFactory.createDefaultModel();
 		final XMLInputFactory inputFactory = XMLInputFactory.newInstance();
@@ -380,7 +428,7 @@ public class BioToRDF extends Launcher {
 				this.writer.writeCharacters("\n");
 				
 				parseNcbiGeneInfo(resourceMap.getOrDefault("NCBI_GENE_INFO",""));
-				
+				parseNcbiGeneGO(resourceMap.getOrDefault("NCBI_GENE_GO",""));
 				
 				final String gencode_release = resourceMap.getOrDefault("GENCODE_RELEASE", "43");
 				if(!StringUtils.isBlank(gencode_release)) {
