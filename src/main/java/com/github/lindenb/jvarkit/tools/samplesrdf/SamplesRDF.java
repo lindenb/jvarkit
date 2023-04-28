@@ -328,8 +328,8 @@ public class SamplesRDF extends Launcher {
 	/** reduce the size of the RDF/XML ontology to be loaded */
 	private static class OWLFilter extends SimpleEventFilter {		
 		OWLFilter() {
-			super(qName->{
-				final String lcl = qName.getLocalPart();
+			super(STACK->{
+				final String lcl = STACK.get(STACK.size()-1).getLocalPart();
 				if(lcl.equals("Ontology")) return false;
 				if(lcl.equals("AnnotationProperty")) return false;
 				if(lcl.equals("Axiom")) return false;

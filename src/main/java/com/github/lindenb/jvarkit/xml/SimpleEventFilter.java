@@ -24,6 +24,9 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.xml;
 
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 
@@ -43,34 +46,37 @@ StAX2Model.read(reader,this.ontModel,"file://"+path.toString());
 ```
 */
 public class SimpleEventFilter implements EventFilter {
-	private int in_reject_depth = 0;
-	private final Predicate<QName> acceptQName;
-	public SimpleEventFilter(final Predicate<QName> acceptQName) {
+	private int reject_depth = 0;
+	private final Predicate<List<QName>> acceptQName;
+	private final LinkedList<QName> stack = new LinkedList<>();
+	public SimpleEventFilter(final Predicate<List<QName>> acceptQName) {
 		this.acceptQName = Objects.requireNonNull(acceptQName);
 		}
 	
-	private boolean acceptName(final QName qName) {
-		return acceptQName.test(qName);
+	private boolean testStack() {
+		return acceptQName.test(Collections.unmodifiableList(this.stack));
 		}
 	
 	@Override
 	public boolean accept(final XMLEvent event) {
 		if(event.isProcessingInstruction()) return false;
 		if(event.isStartElement()) {
-			if(!acceptName( event.asStartElement().getName()) ) {
-				in_reject_depth++;
+			final QName qName = event.asStartElement().getName();
+			this.stack.add(qName);
+			if(!testStack() ) {
+				reject_depth++;
 				}
-			//System.err.println("<"+event.asStartElement().getName().getLocalPart()+"> Returning "+(in_reject_depth==0)+" and after will be "+in_reject_depth);
-			return in_reject_depth==0;
+			return reject_depth==0;
 			}
 		else if(event.isEndElement()) {
-			boolean curr  = in_reject_depth==0;
-			if( !acceptName(event.asEndElement().getName())) in_reject_depth--;
-			//System.err.println("</"+event.asEndElement().getName().getLocalPart()+"> Returning "+curr+" and after will be "+in_reject_depth);
+			final boolean curr  = reject_depth==0;
+			if(!testStack())  reject_depth--;
+			final QName qName = event.asEndElement().getName();
+			final QName pop = stack.removeLast();
+			if(!qName.equals(pop)) throw new IllegalStateException("expected "+pop+" but got "+qName);
 			return curr;
 			}
-		//System.err.println("("+event.getEventType()+") in_reject_depth "+in_reject_depth);
-		return in_reject_depth==0;
+		return reject_depth==0;
 		}
 	
 

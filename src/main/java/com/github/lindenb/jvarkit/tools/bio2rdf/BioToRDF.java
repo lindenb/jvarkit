@@ -191,7 +191,7 @@ public class BioToRDF extends Launcher {
 		put("HUMAN_HPO_OWL", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/hp.owl");
 		put("HPO_PHENOTYPE_TO_GENE", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/phenotype_to_genes.txt");
 		put("GO_OWL","http://purl.obolibrary.org/obo/go.owl");
-		//put("MONDO_OWL","http://purl.obolibrary.org/obo/mondo.owl");
+		//put("MONDO_OWL","https://github.com/monarch-initiative/mondo/releases/download/v2023-04-04/mondo.owl");
 		}}};
 
 
@@ -274,7 +274,7 @@ public class BioToRDF extends Launcher {
 					}
 				
 				s=rec.get("type_of_gene");
-				if(!StringUtils.isBlank(s)) {
+				if(!StringUtils.isBlank(s) && !s.equals("-")) {
 					writer.writeStartElement(PREFIX,"gene_type",NS);
 					writer.writeCharacters(s.replace('-', '_'));
 					writer.writeEndElement();
@@ -282,15 +282,16 @@ public class BioToRDF extends Launcher {
 				
  				for(String syn: CharSplitter.PIPE.split(rec.get("Synonyms"))) {
  					if(StringUtils.isBlank(syn)) continue;
+ 					if(syn.equals("-")) continue;
  					writer.writeStartElement(PREFIX,"synonym",NS);
 					writer.writeCharacters(syn);
 					writer.writeEndElement();
  					}
  				for(String xref: CharSplitter.PIPE.split(rec.get("dbXrefs"))) {
  					if(StringUtils.isBlank(xref)) continue;
- 					int colon = xref.indexOf(':');
+ 					final int colon = xref.indexOf(':');
  					if(colon==-1) continue;
- 					String key = xref.substring(0,colon);
+ 					final String key = xref.substring(0,colon);
  					if(key.equals("Ensembl")) {
  						writer.writeStartElement(PREFIX,"ensembl_geneid",NS);
  						writer.writeCharacters(xref.substring(colon+1));
@@ -469,8 +470,8 @@ public class BioToRDF extends Launcher {
 	}
 	
 	private EventFilter createOWLEventFilter() {
-		return  new SimpleEventFilter(qName->{
-			final String lcl = qName.getLocalPart();
+		return  new SimpleEventFilter(STACK->{
+			final String lcl = STACK.get(STACK.size()-1).getLocalPart();
 			if(lcl.equals("Ontology")) return false;
 			if(lcl.equals("AnnotationProperty")) return false;
 			if(lcl.equals("Axiom")) return false;
@@ -491,7 +492,7 @@ public class BioToRDF extends Launcher {
 			) throws IOException,XMLStreamException,SAXException {
 
 		if(StringUtils.isBlank(uri)) {
-			LOG.info("skipping OWL ontology... for "+PREFIX+":"+className);
+			LOG.info("skiping OWL ontology... for "+PREFIX+":"+className+" because URL is blank.");
 			return;
 			}
 		
@@ -501,6 +502,7 @@ public class BioToRDF extends Launcher {
 		final Model ontModel  = ModelFactory.createDefaultModel();
 		final XMLInputFactory inputFactory = XMLInputFactory.newInstance();
 		inputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, true);
+		
 		try(Reader r= IOUtils.openURIForBufferedReading(uri)) {
 			final XMLEventReader reader0 = inputFactory.createXMLEventReader(r);
 			final XMLEventReader reader = inputFactory.createFilteredReader(reader0,createOWLEventFilter());
@@ -617,7 +619,7 @@ public class BioToRDF extends Launcher {
 				this.writer.writeCharacters("\n");
 				this.writer.flush();
 				
-				parseMondoOWL(resourceMap.getOrDefault("MONDO_OWL",""));
+				//parseMondoOWL(resourceMap.getOrDefault("MONDO_OWL",""));
 				
 				/** NCBI gene INFO */
 				this.writer.writeComment("NCBI GENE INFO");
