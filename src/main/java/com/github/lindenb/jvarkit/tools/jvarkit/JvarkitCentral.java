@@ -52,6 +52,7 @@ import com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage;
 import com.github.lindenb.jvarkit.tools.bedtools.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv;
 import com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet;
+import com.github.lindenb.jvarkit.tools.bio2rdf.BioToRDF;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar103303;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar105754;
@@ -498,6 +499,7 @@ public class JvarkitCentral {
 		command(BedCluster.class);
 		command(BedNonOverlappingSet.class);
 		command(BioAlcidaeJdk.class);
+		command(BioToRDF.class);
 		command(Biostar103303.class);
 		command(Biostar105754.class);
 		command(Biostar154220.class);

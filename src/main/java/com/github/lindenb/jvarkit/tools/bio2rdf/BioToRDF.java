@@ -10,12 +10,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
+import javax.xml.stream.EventFilter;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
@@ -42,6 +48,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jena.JenaUtils;
+import com.github.lindenb.jvarkit.jena.vocabulary.OBOInOwl;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
@@ -51,10 +58,107 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.xml.SimpleEventFilter;
 
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.gff.Gff3Codec;
 import htsjdk.tribble.gff.Gff3Feature;
 import htsjdk.tribble.readers.LineIterator;
 
+/**
+BEGIN_DOC
+
+# motivation
+
+build  RDF file to build a RDF database.
+ 
+ 
+# usage
+ 
+```
+$ java -jar dist/jvarkit.jar bio2rdf | gzip > bio2rdf.rdf.gz
+```
+
+## Example queries:
+
+### Example
+
+find all the descendant of `GO:0045823`
+
+```
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX dc: <http://purl.org/dc/elements/1.1/>
+
+
+SELECT ?subClass ?label ?desc WHERE { 
+        ?subClass rdfs:subClassOf* <http://purl.obolibrary.org/obo/GO_0045823> . 
+        ?subClass dc:title ?label . 
+        ?subClass dc:description ?desc . 
+    }
+```
+
+```
+$ arq --data=/home/me/bio2rdf.rdf.gz --query query.sparql
+```
+
+| subClass                                    | label        | desc                                                                                                                                    |
+|--- |-- |-- |
+| <http://purl.obolibrary.org/obo/GO_0045823> | "GO:0045823" | "positive regulation of heart contraction"                                                                                              |
+| <http://purl.obolibrary.org/obo/GO_0001989> | "GO:0001989" | "positive regulation of the force of heart contraction involved in baroreceptor response to decreased systemic arterial blood pressure" |
+| <http://purl.obolibrary.org/obo/GO_0010460> | "GO:0010460" | "positive regulation of heart rate"                                                                                                     |
+| <http://purl.obolibrary.org/obo/GO_0001996> | "GO:0001996" | "positive regulation of heart rate by epinephrine-norepinephrine"                                                                       |
+| <http://purl.obolibrary.org/obo/GO_0086024> | "GO:0086024" | "adenylate cyclase-activating adrenergic receptor signaling pathway involved in positive regulation of heart rate"                      |
+| <http://purl.obolibrary.org/obo/GO_0003065> | "GO:0003065" | "positive regulation of heart rate by epinephrine"                                                                                      |
+| <http://purl.obolibrary.org/obo/GO_0003112> | "GO:0003112" | "positive regulation of heart rate by neuronal epinephrine"                                                                             |
+| <http://purl.obolibrary.org/obo/GO_0003111> | "GO:0003111" | "positive regulation of heart rate by circulating epinephrine"                                                                          |
+| <http://purl.obolibrary.org/obo/GO_0003066> | "GO:0003066" | "positive regulation of heart rate by norepinephrine"                                                                                   |
+| <http://purl.obolibrary.org/obo/GO_0003114> | "GO:0003114" | "positive regulation of heart rate by circulating norepinephrine"                                                                       |
+| <http://purl.obolibrary.org/obo/GO_0003113> | "GO:0003113" | "positive regulation of heart rate by neuronal norepinephrine"                                                                          |
+| <http://purl.obolibrary.org/obo/GO_0001988> | "GO:0001988" | "positive regulation of heart rate involved in baroreceptor response to decreased systemic arterial blood pressure"                     |
+| <http://purl.obolibrary.org/obo/GO_0060452> | "GO:0060452" | "positive regulation of cardiac muscle contraction"                                                                                     |
+| <http://purl.obolibrary.org/obo/GO_0003099> | "GO:0003099" | "positive regulation of the force of heart contraction by chemical signal"                                                              |
+| <http://purl.obolibrary.org/obo/GO_0003061> | "GO:0003061" | "positive regulation of the force of heart contraction by norepinephrine"                                                               |
+| <http://purl.obolibrary.org/obo/GO_0003110> | "GO:0003110" | "positive regulation of the force of heart contraction by neuronal norepinephrine"                                                      |
+| <http://purl.obolibrary.org/obo/GO_0003109> | "GO:0003109" | "positive regulation of the force of heart contraction by circulating norepinephrine"                                                   |
+| <http://purl.obolibrary.org/obo/GO_0003059> | "GO:0003059" | "positive regulation of the force of heart contraction by epinephrine"                                                                  |
+| <http://purl.obolibrary.org/obo/GO_0003087> | "GO:0003087" | "positive regulation of the force of heart contraction by neuronal epinephrine"                                                         |
+| <http://purl.obolibrary.org/obo/GO_0003088> | "GO:0003088" | "positive regulation of the force of heart contraction by circulating epinephrine"                                                      |
+| <http://purl.obolibrary.org/obo/GO_0001997> | "GO:0001997" | "positive regulation of the force of heart contraction by epinephrine-norepinephrine"                                                   |
+| <http://purl.obolibrary.org/obo/GO_0003090> | "GO:0003090" | "positive regulation of the force of heart contraction by neuronal epinephrine-norepinephrine"                                          |
+| <http://purl.obolibrary.org/obo/GO_0003089> | "GO:0003089" | "positive regulation of the force of heart contraction by circulating epinephrine-norepinephrine"                                       |
+
+### find all the phenotypes containing the word 'arrhythmia'
+
+```
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX dc: <http://purl.org/dc/elements/1.1/>
+PREFIX bio: <https://umr1087.univ-nantes.fr/bio2rdf/>
+
+SELECT  ?label ?desc WHERE { 
+        ?disease a bio:Phenotype .
+        ?disease dc:title ?label . 
+        ?disease dc:description ?desc . 
+	FILTER (CONTAINS(LCASE(?desc),"arrhythmia")) .
+    }
+```
+
+```
+------------------------------------------------
+| label        | desc                          |
+================================================
+| "HP:0002521" | "Hypsarrhythmia"              |
+| "HP:0011215" | "Hemihypsarrhythmia"          |
+| "HP:0004308" | "Ventricular arrhythmia"      |
+| "HP:0001692" | "Atrial arrhythmia"           |
+| "HP:0005115" | "Supraventricular arrhythmia" |
+| "HP:0011675" | "Arrhythmia"                  |
+------------------------------------------------
+```
+
+
+END_DOC
+ 
+**/
 @Program(
 		name="bio2rdf",
 		description="Build a RDF database for human from misc sources",
@@ -70,14 +174,24 @@ public class BioToRDF extends Launcher {
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;
+	@Parameter(names={"--genes"},description="Limit to those genes names , separated with comma (for debugging)")
+	private String limitGenesStr="";
+
+	
+	
+	@SuppressWarnings("serial")
 	@DynamicParameter(names={"-D"},description="parameters. -Dkey1=value1  -Dkey2=value2 ...")
-	private Map<String,String> dynaParams = new HashMap<String,String>() {{{
+	private Map<String,String> resourceMap = new HashMap<String,String>() {{{
 		put("NCBI_GENE_INFO", "https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene_info.gz");
 		put("NCBI_GENE_GO","https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene2go.gz");
 		put("GENCODE_RELEASE", "43");
 		put("GFF3_GRCH38", "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/gencode.v{GENCODE_RELEASE}.annotation.gff3.gz");
 		put("GFF3_GRCH37", "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/GRCh37_mapping/gencode.v{GENCODE_RELEASE}lift37.annotation.gff3.gz");
-		put("HUMAN_DO_OWL", "https://github.com/DiseaseOntology/HumanDiseaseOntology/raw/main/src/ontology/HumanDO.owl");
+		//put("HUMAN_DO_OWL", "https://github.com/DiseaseOntology/HumanDiseaseOntology/raw/main/src/ontology/HumanDO.owl");
+		put("HUMAN_HPO_OWL", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/hp.owl");
+		put("HPO_PHENOTYPE_TO_GENE", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/phenotype_to_genes.txt");
+		put("GO_OWL","http://purl.obolibrary.org/obo/go.owl");
+		//put("MONDO_OWL","http://purl.obolibrary.org/obo/mondo.owl");
 		}}};
 
 
@@ -113,6 +227,11 @@ public class BioToRDF extends Launcher {
 	
 	private void parseNcbiGeneInfo(String uri) throws IOException,XMLStreamException {
 		LOG.info("parsing "+uri);
+		
+		final Set<String> limit_gene_names = Arrays.stream(limitGenesStr.split("[, \t]")).
+				filter(S->!StringUtils.isBlank(S)).
+				collect(Collectors.toSet());
+				
 		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
 			String line = br.readLine();
 			if(line==null || !line.startsWith("#")) throw new IOException("Cannot read first line or "+uri);
@@ -121,6 +240,11 @@ public class BioToRDF extends Launcher {
 			while((line=br.readLine())!=null) {
 				final Map<String,String> rec = header.toMap(CharSplitter.TAB.split(line));
 				if(!rec.get("tax_id").equals("9606")) continue;
+				//limit gene name for debugging
+				if(!limit_gene_names.isEmpty() && !limit_gene_names.contains(rec.get("Symbol"))) {
+					continue;
+					}
+				
 				final NcbiGeneInfo info = new NcbiGeneInfo();
 				info.geneid = rec.get("GeneID");
 				info.symbol = rec.get("Symbol");
@@ -179,10 +303,48 @@ public class BioToRDF extends Launcher {
  						}
  					}
 				writer.writeEndElement();
+				writer.writeCharacters("\n");
 				}
 			}
 		}
 	
+	private void parseHPO2gene(String uri) throws IOException,XMLStreamException {
+		if(StringUtils.isBlank(uri)) return;
+		LOG.info("parsing "+uri);
+		
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
+			String line = br.readLine();
+			if(line==null) throw new IOException("Cannot read first line or "+uri);
+			final FileHeader header = new FileHeader(CharSplitter.TAB.split(line));
+			String prev_hpo_id=null;
+			final Set<String> ncbi_gene_ids= new HashSet<>();
+			for(;;) {
+				line=br.readLine();
+				final Map<String,String> rec = (line==null?null:header.toMap(CharSplitter.TAB.split(line)));
+				if(rec==null || (prev_hpo_id!=null && !prev_hpo_id.equals(rec.get("hpo_id")))) {
+					if(prev_hpo_id!=null && 
+						!ncbi_gene_ids.isEmpty() &&
+						ncbi_gene_ids.stream().anyMatch(ID->geneid2gene.containsKey(ID))) {
+						writer.writeStartElement("rdf", "Description", RDF.getURI() );
+						writer.writeAttribute("rdf", RDF.getURI(), "about","http://purl.obolibrary.org/obo/" + prev_hpo_id.replace(':', '_'));
+						for(String gene_id : ncbi_gene_ids) {
+							final NcbiGeneInfo gene = this.geneid2gene.get(gene_id);
+							if(gene==null) continue;
+							writer.writeEmptyElement(PREFIX, "has_gene", NS);
+							writer.writeAttribute("rdf",RDF.getURI(),"resource",gene.getURI());
+							}
+						writer.writeEndElement();
+						writer.writeCharacters("\n");
+						}
+					
+					if(rec==null) break;
+					ncbi_gene_ids.clear();
+					}
+				prev_hpo_id = rec.get("hpo_id");
+				ncbi_gene_ids.add(rec.get("ncbi_gene_id"));
+				}
+			}
+		}
 	
 	private void parseNcbiGeneGO(String uri) throws IOException,XMLStreamException {
 		if(StringUtils.isBlank(uri)) return;
@@ -213,7 +375,7 @@ public class BioToRDF extends Launcher {
 			while(eq.hasNext()) {
 				final List<Map.Entry<NcbiGeneInfo,String>> array = eq.next();
 				
-				writer.writeStartElement("rdf", "Resource", RDF.getURI());
+				writer.writeStartElement("rdf", "Description", RDF.getURI());
 				writer.writeAttribute("rdf", RDF.getURI(),"about",array.get(0).getKey().getURI());
 
 				for(Map.Entry<NcbiGeneInfo,String> kv: array) {
@@ -222,6 +384,7 @@ public class BioToRDF extends Launcher {
 							"http://purl.obolibrary.org/obo/" + kv.getValue().replace(':', '_'));
 					}
 				writer.writeEndElement();
+				writer.writeCharacters("\n");
 				}
 			}
 		}
@@ -248,7 +411,7 @@ public class BioToRDF extends Launcher {
 				
 				
 				
-				writer.writeStartElement("rdf", "Resource", RDF.getURI());
+				writer.writeStartElement("rdf", "Description", RDF.getURI());
 				writer.writeAttribute("rdf", RDF.getURI(),"about",info.getURI());
 				
 				String geneid = feat.getAttribute("gene_id").stream().
@@ -274,7 +437,7 @@ public class BioToRDF extends Launcher {
 				
 				writer.writeStartElement(PREFIX,"location",NS);
 				
-				writer.writeStartElement(PREFIX,"Location",NS);
+				writer.writeStartElement(PREFIX,"Interval",NS);
 				
 				writer.writeStartElement(PREFIX,"build",NS);
 				writer.writeCharacters(build);
@@ -296,43 +459,75 @@ public class BioToRDF extends Launcher {
 				writer.writeEndElement();
 
 				
-				writer.writeEndElement(); // Location
+				writer.writeEndElement(); // Interval
 				writer.writeEndElement();//location
 				writer.writeEndElement();//resource
+				writer.writeCharacters("\n");
 				}
 			codec.close(li);	
 		}
 	}
 	
-	private void parseHumanDiseaseOntology(String uri) throws IOException,XMLStreamException,SAXException {
-		if(StringUtils.isBlank(uri)) return;
+	private EventFilter createOWLEventFilter() {
+		return  new SimpleEventFilter(qName->{
+			final String lcl = qName.getLocalPart();
+			if(lcl.equals("Ontology")) return false;
+			if(lcl.equals("AnnotationProperty")) return false;
+			if(lcl.equals("Axiom")) return false;
+			//if(lcl.equals("hasDbXref")) return false;
+			if(lcl.equals("hasRelatedSynonym")) return false;
+			if(lcl.equals("hasExactSynonym")) return false;
+			if(lcl.equals("hasOBONamespace")) return false;
+			if(lcl.equals("inSubset")) return false;
+		return true;
+		});
+	}
+	
+	
+	private void parseOBOOWLOntology(
+			final String uri,
+			final String className,
+			final Predicate<String> acceptTermId
+			) throws IOException,XMLStreamException,SAXException {
+
+		if(StringUtils.isBlank(uri)) {
+			LOG.info("skipping OWL ontology... for "+PREFIX+":"+className);
+			return;
+			}
+		
+		this.writer.writeComment("BEGIN parsing ontology "+uri);
+		this.writer.writeCharacters("\n");
+		
 		final Model ontModel  = ModelFactory.createDefaultModel();
 		final XMLInputFactory inputFactory = XMLInputFactory.newInstance();
 		inputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, true);
 		try(Reader r= IOUtils.openURIForBufferedReading(uri)) {
 			final XMLEventReader reader0 = inputFactory.createXMLEventReader(r);
-			final XMLEventReader reader = inputFactory.createFilteredReader(reader0, new SimpleEventFilter(qName->{
-					final String lcl = qName.getLocalPart();
-					if(lcl.equals("Ontology")) return false;
-					if(lcl.equals("AnnotationProperty")) return false;
-					if(lcl.equals("Axiom")) return false;
-					if(lcl.equals("hasDbXref")) return false;
-					if(lcl.equals("hasExactSynonym")) return false;
-					if(lcl.equals("hasOBONamespace")) return false;
-					if(lcl.equals("inSubset")) return false;
-				return true;
-				}));
-		    StAX2Model.read(reader,ontModel,"file://"+uri); 
+			final XMLEventReader reader = inputFactory.createFilteredReader(reader0,createOWLEventFilter());
+		    StAX2Model.read(reader,ontModel,IOUtil.isUrl(uri)?uri:"file://"+uri); 
 			reader0.close();
 			}
-		final String OBO_IN_OWL= "http://www.geneontology.org/formats/oboInOwl#";
-		ExtendedIterator<Resource> r1= ontModel.listSubjectsWithProperty(RDF.type, OWL.Class);
+		if(ontModel.size()==0) {
+			LOG.warn("no statement foudn in "+uri);
+			return ;
+			}
+		final ExtendedIterator<Resource> r1= ontModel.listSubjectsWithProperty(RDF.type, OWL.Class);
 		final Property deprecated = ResourceFactory.createProperty(OWL.getURI(), "deprecated");
-		final Property oboid = ResourceFactory.createProperty(OBO_IN_OWL, "id");
 		while(r1.hasNext()) {
 			final Resource rsrc = r1.next();
 			if(rsrc.hasLiteral(deprecated, true)) continue;
-			writer.writeStartElement(PREFIX,"Disease",NS);
+			final String term_id = JenaUtils.stream(rsrc.listProperties(OBOInOwl.id)).
+					map(R->R.getObject()).
+					filter(R->R.isLiteral()).
+					map(R->R.asLiteral()).
+					map(L->L.getString()).
+					findFirst().
+					orElse(null);
+			if(term_id==null) continue;
+			if(!acceptTermId.test(term_id)) continue;
+			
+			
+			writer.writeStartElement(PREFIX,className ,NS);
 			writer.writeAttribute("rdf", RDF.getURI(), "about", rsrc.getURI() );
 			
 			String s = JenaUtils.stream(rsrc.listProperties(RDFS.label)).
@@ -349,29 +544,25 @@ public class BioToRDF extends Launcher {
 				writer.writeEndElement();
 				}
 		
-			s = JenaUtils.stream(rsrc.listProperties(oboid)).
-					map(R->R.getObject()).
-					filter(R->R.isLiteral()).
-					map(R->R.asLiteral()).
-					map(L->L.getString()).
-					findFirst().
-					orElse(null);
+			
 			
 			if(!StringUtils.isBlank(s)) {
 				writer.writeStartElement("dc","title",DC.getURI());
-				writer.writeCharacters(s);
+				writer.writeCharacters(term_id);
 				writer.writeEndElement();
 				}
 			
 			
 			final ExtendedIterator<Statement> r2= rsrc.listProperties(RDFS.subClassOf);
 			while(r2.hasNext()) {
-				final Statement rsrc2 = r2.next();
-				if(!rsrc2.getObject().isResource()) continue;
-				
+				final Statement stmt = r2.next();
+				if(!stmt.getObject().isResource()) continue;
+				if(stmt.getObject().isAnon()) continue;
+				if(stmt.getObject().equals(rsrc)) continue;
 				writer.writeEmptyElement("rdfs", "subClassOf", RDFS.getURI());
-				writer.writeAttribute("rdf",RDF.getURI(),"resource",rsrc2.getObject().asResource().getURI());
-				
+				writer.writeAttribute("rdf",RDF.getURI(),
+						"resource",
+						stmt.getObject().asResource().toString());
 				}
 			r2.close();
 			
@@ -379,33 +570,34 @@ public class BioToRDF extends Launcher {
 			writer.writeCharacters("\n");
 			}
 		r1.close();
+		
+		this.writer.writeComment("END parsing ontology "+uri);
+		this.writer.writeCharacters("\n");
+
+		}
+	
+	private void parseHumanDiseaseOntology(String uri) throws IOException,XMLStreamException,SAXException {
+		parseOBOOWLOntology(uri, "Disease" ,S->true);
+		}
+	
+	private void parseHumanPhenotypeOntology(String uri) throws IOException,XMLStreamException,SAXException {
+		parseOBOOWLOntology(uri, "Phenotype",S->S.startsWith("HP:"));
+		}
+	private void parseGO(String uri) throws IOException,XMLStreamException,SAXException {
+		parseOBOOWLOntology(uri, "GOTerm",S->S.startsWith("GO:"));
+		}
+
+	private void parseMondoOWL(String uri)  throws IOException,XMLStreamException,SAXException {
+		parseOBOOWLOntology(uri, "Disease" ,S->true);
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			final Map<String,String> resourceMap = new HashMap<>();
-			try(BufferedReader br = super.openBufferedReader(oneFileOrNull(args))) {
-				String line;
-				while((line=br.readLine())!=null) {
-					if(StringUtils.isBlank(line)) continue;
-					final int tab = line.indexOf('\t');
-					if(tab==-1) {
-						LOG.error("tab missing in resources file: "+line);
-						return -1;
-						}
-					final String key = line.substring(0,tab).toUpperCase().trim();
-					if(resourceMap.containsKey(key)) {
-						LOG.error("duplicate resource key "+line);
-						return -1;
-						}
-					resourceMap.put(
-							key,
-							line.substring(tab).trim()
-							);
-					}
+			if(!args.isEmpty()) {
+				LOG.error("Too many arguments.");
+				return -1;
 				}
-			
 			
 		
 			final String encoding="UTF-8";
@@ -421,14 +613,22 @@ public class BioToRDF extends Launcher {
 				this.writer.writeNamespace("rdf",RDF.getURI());
 				this.writer.writeNamespace("rdfs",RDFS.getURI());
 				this.writer.writeNamespace("xsd",XSD.getURI());
+				this.writer.writeNamespace("dc",DC.getURI());
 				this.writer.writeCharacters("\n");
+				this.writer.flush();
+				
+				parseMondoOWL(resourceMap.getOrDefault("MONDO_OWL",""));
 				
 				/** NCBI gene INFO */
 				this.writer.writeComment("NCBI GENE INFO");
 				this.writer.writeCharacters("\n");
 				
 				parseNcbiGeneInfo(resourceMap.getOrDefault("NCBI_GENE_INFO",""));
+				
+				parseHumanPhenotypeOntology(resourceMap.getOrDefault("HUMAN_HPO_OWL", ""));
+				parseHPO2gene(resourceMap.getOrDefault("HPO_PHENOTYPE_TO_GENE", ""));
 				parseNcbiGeneGO(resourceMap.getOrDefault("NCBI_GENE_GO",""));
+				parseGO(resourceMap.getOrDefault("GO_OWL",""));
 				
 				final String gencode_release = resourceMap.getOrDefault("GENCODE_RELEASE", "43");
 				if(!StringUtils.isBlank(gencode_release)) {
@@ -441,8 +641,8 @@ public class BioToRDF extends Launcher {
 					}
 				
 				
-				//parseHPOA(resourceMap.getAttribute("HPOA", "http://purl.obolibrary.org/obo/hp/hpoa/phenotype.hpoa"));
-				parseHumanDiseaseOntology(resourceMap.getOrDefault("HUMAN_DO_OWL",""));
+				//parseHumanDiseaseOntology(resourceMap.getOrDefault("HUMAN_DO_OWL",""));
+				
 				
 				this.writer.writeEndElement();//RDF
 				this.writer.flush();
