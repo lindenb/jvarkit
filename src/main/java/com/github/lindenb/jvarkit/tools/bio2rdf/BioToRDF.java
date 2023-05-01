@@ -3,6 +3,7 @@ package com.github.lindenb.jvarkit.tools.bio2rdf;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.nio.charset.Charset;
@@ -20,13 +21,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
+import javax.xml.namespace.QName;
 import javax.xml.stream.EventFilter;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+import javax.xml.stream.events.Attribute;
+import javax.xml.stream.events.StartElement;
+import javax.xml.stream.events.XMLEvent;
 
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -171,7 +178,7 @@ public class BioToRDF extends Launcher {
 	private static final Logger LOG = Logger.build(BioToRDF.class).make();
 	private final static String PREFIX="bio";
 	private final static String NS = "https://umr1087.univ-nantes.fr/bio2rdf/";
-	
+	private final static String PSI = "net:sf:psidev:mi";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;
 	@Parameter(names={"--genes"},description="Limit to those genes names , separated with comma (for debugging)")
@@ -191,6 +198,7 @@ public class BioToRDF extends Launcher {
 		put("HUMAN_HPO_OWL", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/hp.owl");
 		put("HPO_PHENOTYPE_TO_GENE", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/phenotype_to_genes.txt");
 		put("GO_OWL","http://purl.obolibrary.org/obo/go.owl");
+		put("BIOGRID","https://downloads.thebiogrid.org/Download/BioGRID/Release-Archive/BIOGRID-4.4.221/BIOGRID-ALL-4.4.221.psi.zip");
 		//put("MONDO_OWL","https://github.com/monarch-initiative/mondo/releases/download/v2023-04-04/mondo.owl");
 		}}};
 
@@ -204,8 +212,18 @@ public class BioToRDF extends Launcher {
 		String symbol;
 		public String getURI() {
 			return "https://www.ncbi.nlm.nih.gov/gene/"+ this.geneid;
+			}
+		@Override
+		public int hashCode() {
+			return geneid.hashCode();
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if(obj==this) return true;
+			if(obj==null || !(obj instanceof NcbiGeneInfo)) return false;
+			return this.geneid.equals(NcbiGeneInfo.class.cast(obj).geneid);
+			}
 		}
-	}
 	private void parseHPOA(String uri) throws IOException,XMLStreamException {
 		LOG.info("parsing "+uri);
 		String line;
@@ -390,6 +408,141 @@ public class BioToRDF extends Launcher {
 			}
 		}
 
+	private Map.Entry<String, NcbiGeneInfo> parseBiogridInteractor(StartElement root, final XMLEventReader xr) throws IOException,XMLStreamException {
+		final QName QNAME_ID= new QName("id");
+		Attribute att =root.getAttributeByName(QNAME_ID);
+		String interactor_id = att.getValue();
+		String ncbiTaxId = null;
+		NcbiGeneInfo gene = null;
+		while(xr.hasNext()) {
+			final XMLEvent evt  = xr.nextEvent();
+			if(evt.isStartElement()) {
+				final StartElement startE = evt.asStartElement();
+				final String lclName = startE.getName().getLocalPart();
+				if(lclName.equals("organism")) {
+					att = startE.getAttributeByName(new QName("ncbiTaxId"));
+					if(att!=null) ncbiTaxId=att.getValue();
+					}
+				else if(lclName.equals("secondaryRef")) {
+					att = startE.getAttributeByName(new QName("db"));
+					if(att!=null && att.getValue().equals("entrez gene/locuslink")) {
+						att = startE.getAttributeByName(QNAME_ID);
+						if(att!=null) {
+							final NcbiGeneInfo g = this.geneid2gene.get(att.getValue());
+							if(g!=null) gene=g;
+							}
+						}
+					}
+				}
+			else if(evt.isEndElement()) {
+				final String lclName = evt.asEndElement().getName().getLocalPart();
+				if(lclName.equals("proteinInteractor")) {
+					break;
+					}
+				}
+			}
+		if(ncbiTaxId==null || !ncbiTaxId.equals("9606")) return null;
+		if(gene==null) return null;
+		return  new AbstractMap.SimpleEntry<String,NcbiGeneInfo>(interactor_id,gene);
+		}
+	
+	private void parseBiogridInteraction(StartElement root, final XMLEventReader xr, final Map<String,NcbiGeneInfo> id2gene) throws IOException,XMLStreamException {
+		Attribute att  = null;
+		final Set<NcbiGeneInfo> genes = new HashSet<>();
+		final Set<String> pmids = new HashSet<>();
+		while(xr.hasNext()) {
+			final XMLEvent evt  = xr.nextEvent();
+			if(evt.isStartElement()) {
+				final StartElement startE = evt.asStartElement();
+				final String lclName = startE.getName().getLocalPart();
+				if(lclName.equals("proteinInteractorRef")) {
+					att = startE.getAttributeByName(new QName("ref"));
+					if(att!=null) {
+						NcbiGeneInfo gene = id2gene.get(att.getValue());
+						if(gene!=null) genes.add(gene);
+						}
+					}
+				else if(lclName.equals("primaryRef")) {
+					att = startE.getAttributeByName(new QName("db"));
+					if(att!=null && att.getValue().equals("pubmed")) {
+						att = startE.getAttributeByName(new QName("id"));
+						if(att!=null) {
+							pmids.add(att.getValue());
+							}
+						}
+					}
+				}
+			else if(evt.isEndElement()) {
+				final String lclName = evt.asEndElement().getName().getLocalPart();
+				if(lclName.equals("interaction")) {
+					break;
+					}
+				}
+			}
+		if(genes.size()>1) {
+			writer.writeStartElement(PREFIX,"Interaction",NS);
+			for(String pmid: pmids) {
+				writer.writeEmptyElement(PREFIX, "pubmed", NS);
+				writer.writeAttribute("rdf",RDF.getURI(),
+						"resource",
+						"http://www.ncbi.nlm.nih.gov/pubmed/"+pmid
+						);
+				}
+			for(NcbiGeneInfo gene: genes) {
+				writer.writeEmptyElement(PREFIX, "gene", NS);
+				writer.writeAttribute("rdf",RDF.getURI(),
+						"resource",
+						gene.getURI()
+						);
+				
+				}
+			writer.writeEndElement();
+			writer.writeCharacters("\n");
+			}
+		}
+	
+	private void parseBioGrid(String uri) throws IOException,XMLStreamException {
+		if(StringUtils.isBlank(uri)) return;
+		Path tmpZip = null;
+		try {
+			tmpZip = Files.createTempFile("biogrid", ".zip");
+			try(InputStream in= IOUtils.openURIForReading(uri)) {
+				IOUtils.copyTo(in, tmpZip);
+				}
+			final Map<String,NcbiGeneInfo> id2gene =new HashMap<>();
+			try(InputStream in = Files.newInputStream(tmpZip)) {
+				ZipInputStream zin = new ZipInputStream(in);
+				for(;;) {
+					final ZipEntry entry = zin.getNextEntry();
+					if(entry==null) break;
+					if(!entry.getName().endsWith(".psi.xml")) continue;
+					final XMLInputFactory xif = XMLInputFactory.newFactory();
+					final XMLEventReader xr = xif.createXMLEventReader(zin, "UTF-8");
+					while(xr.hasNext()) {
+						final XMLEvent evt  = xr.nextEvent();
+						if(evt.isStartElement()) {
+							final String lclName = evt.asStartElement().getName().getLocalPart();
+							if(lclName.equals("proteinInteractor")) {
+								final Map.Entry<String, NcbiGeneInfo> pair = parseBiogridInteractor(evt.asStartElement(), xr);
+								if(pair!=null) {
+									id2gene.put(pair.getKey(), pair.getValue());
+									}
+								}
+							else if(lclName.equals("interaction")) {
+								parseBiogridInteraction(evt.asStartElement(), xr, id2gene);							
+								}
+
+							}
+						}
+					xr.close();
+					break;
+					}
+				}
+			}
+		catch(Throwable err) {
+			if(tmpZip!=null) Files.delete(tmpZip);
+			}
+		}
 	
 	private void parseGFF(String uri,String build) throws IOException,XMLStreamException {
 		if(StringUtils.isBlank(uri)) return;
@@ -642,7 +795,8 @@ public class BioToRDF extends Launcher {
 							);
 					}
 				
-				
+				parseBioGrid(resourceMap.getOrDefault("BIOGRID",""));
+
 				//parseHumanDiseaseOntology(resourceMap.getOrDefault("HUMAN_DO_OWL",""));
 				
 				
