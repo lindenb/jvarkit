@@ -63,8 +63,11 @@ private static Participant parseParticipant(XMLEventReader r) throws XMLStreamEx
 			final StartElement startE = evt.asStartElement();
 			final String lcl  = startE.getName().getLocalPart();
 			if(lcl.equals("proteinInteractorRef")) {
-				Attribute att = startE.getAttributeByName(new QName("ref"));
+				final Attribute att = startE.getAttributeByName(new QName("ref"));
 				if(att!=null) p.interactorId = att.getValue();
+				}
+			else if(lcl.equals("interactorRef")) {
+				p.interactorId = r.getElementText();
 				}
 			else if(lcl.equals("role")) {
 				p.role = r.getElementText();

@@ -25,7 +25,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.psi;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
@@ -37,19 +40,55 @@ import javax.xml.stream.events.XMLEvent;
 public class AbstractPsiObject {
 protected static final QName QNAME_ID = new QName("id");
 protected static class Names  {
-	String shortLabel;
-	String fullName;
+	private String shortLabel= null;
+	private String fullName= null;
+	private Set<String> alias;
+	
+	public String getShortLabel() {
+		return shortLabel;
+		}
+	public String getFullName() {
+		return fullName==null?getShortLabel():this.fullName;
+		}
+	
+	public Set<String> getAliases() {
+		return alias==null?Collections.emptySet():this.alias;
+		}
 	}
 
-protected static class Reference  {
-	boolean primary;
-	String db;
-	String id;
+protected static class BiblioRef  {
+	private boolean primary;
+	private String db;
+	private String id;
+	private BiblioRef() {
+		}
+	public String getDb() {
+		return db;
+		}
+	
+	public String getId() {
+		return id;
+		}
+	
+	@Override
+	public int hashCode() {
+		return id.hashCode()*31 + db.hashCode();
+		}
+	@Override
+	public boolean equals(final Object obj) {
+		if(obj==this) return true;
+		if(obj==null || !(obj instanceof BiblioRef)) return false;
+		final BiblioRef a = BiblioRef.class.cast(obj);
+		return a.primary == this.primary &&
+			a.db.equals(this.db) &&
+			a.id.equals(this.id)
+			;
+		}
 	}
 	
 protected String id = null;
 protected Names names = null;
-protected final List<Reference> references = new ArrayList<>();
+protected final List<BiblioRef> references = new ArrayList<>();
 
 public String getId() {
 	return this.id;
@@ -76,6 +115,10 @@ protected static Names parseNames(XMLEventReader r) throws XMLStreamException {
 			else if(lcl.equals("fullName")) {
 				n.fullName = r.getElementText();
 				}
+			else if(lcl.equals("alias")) {
+				if(n.alias==null) n.alias= new HashSet<>();
+				n.alias.add(r.getElementText());
+				}
 			}
 		else if(evt.isEndElement()) {
 			final String lcl  = evt.asEndElement().getName().getLocalPart();
@@ -84,8 +127,8 @@ protected static Names parseNames(XMLEventReader r) throws XMLStreamException {
 		}
 	return n;
 	}
-protected static List<Reference> parseXref(XMLEventReader r) throws XMLStreamException {
-	final List<Reference> L = new ArrayList<>();
+protected static List<BiblioRef> parseXref(final XMLEventReader r) throws XMLStreamException {
+	final List<BiblioRef> L = new ArrayList<>();
 	while(r.hasNext()) {
 		final XMLEvent evt = r.nextEvent();
 		if(evt.isStartElement()) {
@@ -93,7 +136,7 @@ protected static List<Reference> parseXref(XMLEventReader r) throws XMLStreamExc
 			final String lcl  = startE.getName().getLocalPart();
 			if(lcl.equals("primaryRef") || lcl.equals("secondaryRef")) {
 				Attribute att = startE.getAttributeByName(new QName("db"));
-				Reference ref = new Reference();
+				final BiblioRef ref = new BiblioRef();
 				ref.primary = lcl.charAt(0)=='p';
 				ref.db = att.getValue();
 				att = startE.getAttributeByName(QNAME_ID);

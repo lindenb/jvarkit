@@ -178,7 +178,6 @@ public class BioToRDF extends Launcher {
 	private static final Logger LOG = Logger.build(BioToRDF.class).make();
 	private final static String PREFIX="bio";
 	private final static String NS = "https://umr1087.univ-nantes.fr/bio2rdf/";
-	private final static String PSI = "net:sf:psidev:mi";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;
 	@Parameter(names={"--genes"},description="Limit to those genes names , separated with comma (for debugging)")
@@ -198,7 +197,7 @@ public class BioToRDF extends Launcher {
 		put("HUMAN_HPO_OWL", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/hp.owl");
 		put("HPO_PHENOTYPE_TO_GENE", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/phenotype_to_genes.txt");
 		put("GO_OWL","http://purl.obolibrary.org/obo/go.owl");
-		put("BIOGRID","https://downloads.thebiogrid.org/Download/BioGRID/Release-Archive/BIOGRID-4.4.221/BIOGRID-ALL-4.4.221.psi.zip");
+		put("BIOGRID_XML_25","https://downloads.thebiogrid.org/Download/BioGRID/Release-Archive/BIOGRID-4.4.221/BIOGRID-ALL-4.4.221.psi25.zip");
 		//put("MONDO_OWL","https://github.com/monarch-initiative/mondo/releases/download/v2023-04-04/mondo.owl");
 		}}};
 
@@ -206,11 +205,18 @@ public class BioToRDF extends Launcher {
 	private XMLStreamWriter writer = null;
 	private final Map<String, NcbiGeneInfo> geneid2gene = new HashMap<>();
 	private final Map<String, NcbiGeneInfo> symbol2gene = new HashMap<>();
+	private final Map<String, NcbiGeneInfo> hgnc2gene = new HashMap<>();
 	
 	private static class NcbiGeneInfo {
-		String geneid;
-		String symbol;
+		String geneid = null;
+		String symbol = null;
+		String hgnc = null;
 		public String getURI() {
+			if(hgnc!=null && hgnc.startsWith("HGNC:")) 
+				{
+				final String hgnc_id = this.hgnc.substring(5);
+				return "http://identifiers.org/hgnc/"+ hgnc_id;
+				}
 			return "https://www.ncbi.nlm.nih.gov/gene/"+ this.geneid;
 			}
 		@Override
@@ -224,6 +230,7 @@ public class BioToRDF extends Launcher {
 			return this.geneid.equals(NcbiGeneInfo.class.cast(obj).geneid);
 			}
 		}
+	
 	private void parseHPOA(String uri) throws IOException,XMLStreamException {
 		LOG.info("parsing "+uri);
 		String line;
@@ -316,9 +323,12 @@ public class BioToRDF extends Launcher {
  						writer.writeEndElement();
  						}
  					else if(key.equals("HGNC")) {
+ 						final String hgnc_id= xref.substring(colon+1);
  						writer.writeStartElement(PREFIX,"hgnc_id",NS);
- 						writer.writeCharacters(xref.substring(colon+1));
+ 						writer.writeCharacters(hgnc_id);
  						writer.writeEndElement();
+ 						info.hgnc = hgnc_id;
+ 						hgnc2gene.put(hgnc_id, info);
  						}
  					}
 				writer.writeEndElement();
@@ -455,12 +465,10 @@ public class BioToRDF extends Launcher {
 			if(evt.isStartElement()) {
 				final StartElement startE = evt.asStartElement();
 				final String lclName = startE.getName().getLocalPart();
-				if(lclName.equals("proteinInteractorRef")) {
-					att = startE.getAttributeByName(new QName("ref"));
-					if(att!=null) {
-						NcbiGeneInfo gene = id2gene.get(att.getValue());
-						if(gene!=null) genes.add(gene);
-						}
+				if(lclName.equals("interactorRef")) {
+					final String interactorRef = xr.getElementText();
+					final NcbiGeneInfo gene = id2gene.get(interactorRef);
+					if(gene!=null) genes.add(gene);
 					}
 				else if(lclName.equals("primaryRef")) {
 					att = startE.getAttributeByName(new QName("db"));
@@ -795,7 +803,7 @@ public class BioToRDF extends Launcher {
 							);
 					}
 				
-				parseBioGrid(resourceMap.getOrDefault("BIOGRID",""));
+				parseBioGrid(resourceMap.getOrDefault("BIOGRID_XML_25",""));
 
 				//parseHumanDiseaseOntology(resourceMap.getOrDefault("HUMAN_DO_OWL",""));
 				
@@ -814,7 +822,7 @@ public class BioToRDF extends Launcher {
 			}
 		}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new BioToRDF().instanceMainWithExit(args);
 	}
 	
