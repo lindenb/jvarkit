@@ -23,6 +23,9 @@ Usage: bio2rdf [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --min-stringdb-combined-score
+      Discard interaction with stringdb combined score < 'x'
+      Default: 990
     -o, --out
       Output file. Optional . Default: stdout
     --version
@@ -30,7 +33,7 @@ Usage: bio2rdf [options] Files
     -D
       parameters. -Dkey1=value1  -Dkey2=value2 ...
       Syntax: -Dkey=value
-      Default: {GO_OWL=http://purl.obolibrary.org/obo/go.owl, HUMAN_HPO_OWL=https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/hp.owl, HPO_PHENOTYPE_TO_GENE=https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/phenotype_to_genes.txt, NCBI_GENE_INFO=https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene_info.gz, GFF3_GRCH38=https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/gencode.v{GENCODE_RELEASE}.annotation.gff3.gz, GFF3_GRCH37=https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/GRCh37_mapping/gencode.v{GENCODE_RELEASE}lift37.annotation.gff3.gz, GENCODE_RELEASE=43, MONDO_OWL=http://purl.obolibrary.org/obo/mondo.owl, NCBI_GENE_GO=https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene2go.gz}
+      Default: {GO_OWL=http://purl.obolibrary.org/obo/go.owl, STRINGDB_LINK=https://stringdb-static.org/download/protein.links.v{STRINGDB_RELEASE}/9606.protein.links.v{STRINGDB_RELEASE}.txt.gz, HPO_PHENOTYPE_TO_GENE=https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/phenotype_to_genes.txt, NCBI_GENE_INFO=https://ftp.ncbi.nlm.nih.gov/gene/DATA/GENE_INFO/Mammalia/Homo_sapiens.gene_info.gz, STRINGDB_RELEASE=11.5, GFF3_GRCH38=https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/gencode.v{GENCODE_RELEASE}.annotation.gff3.gz, STRINGDB_PROTEIN_ALIASES=https://stringdb-static.org/download/protein.aliases.v{STRINGDB_RELEASE}/9606.protein.aliases.v{STRINGDB_RELEASE}.txt.gz, GFF3_GRCH37=https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/GRCh37_mapping/gencode.v{GENCODE_RELEASE}lift37.annotation.gff3.gz, GENCODE_RELEASE=43, NCBI_GENE_GO=https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene2go.gz}
 
 ```
 
@@ -133,33 +136,5 @@ $ arq --data=/home/me/bio2rdf.rdf.gz --query query.sparql
 | <http://purl.obolibrary.org/obo/GO_0003090> | "GO:0003090" | "positive regulation of the force of heart contraction by neuronal epinephrine-norepinephrine"                                          |
 | <http://purl.obolibrary.org/obo/GO_0003089> | "GO:0003089" | "positive regulation of the force of heart contraction by circulating epinephrine-norepinephrine"                                       |
 
-### find all the phenotypes containing the word 'arrhythmia'
-
-```
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX dc: <http://purl.org/dc/elements/1.1/>
-PREFIX bio: <https://umr1087.univ-nantes.fr/bio2rdf/>
-
-SELECT  ?label ?desc WHERE { 
-        ?disease a bio:Phenotype .
-        ?disease dc:title ?label . 
-        ?disease dc:description ?desc . 
-	FILTER (CONTAINS(LCASE(?desc),"arrhythmia")) .
-    }
-```
-
-```
-------------------------------------------------
-| label        | desc                          |
-================================================
-| "HP:0002521" | "Hypsarrhythmia"              |
-| "HP:0011215" | "Hemihypsarrhythmia"          |
-| "HP:0004308" | "Ventricular arrhythmia"      |
-| "HP:0001692" | "Atrial arrhythmia"           |
-| "HP:0005115" | "Supraventricular arrhythmia" |
-| "HP:0011675" | "Arrhythmia"                  |
-------------------------------------------------
-```
 
 

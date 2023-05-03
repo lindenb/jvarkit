@@ -31,7 +31,9 @@ nav:
         - "bedcluster" : BedCluster.md
         - "bedmergecnv" : BedMergeCnv.md
         - "bednonoverlappingset" : BedNonOverlappingSet.md
+        - "bedremovebed" : BedRemoveBed.md
         - "bedrenamechr" : ConvertBedChromosomes.md
+        - "bio2rdf" : BioToRDF.md
         - "bioalcidaejdk" : BioAlcidaeJdk.md
         - "biostar103303" : Biostar103303.md
         - "biostar105754" : Biostar105754.md
@@ -140,6 +142,7 @@ nav:
         - "vcfgatkeval" : VcfGatkEval.md
         - "vcfgenesplitter" : VcfGeneSplitter.md
         - "vcfgnomad" : VcfGnomad.md
+        - "vcfgrantham" : VcfGrantham.md
         - "vcfhead" : VcfHead.md
         - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md

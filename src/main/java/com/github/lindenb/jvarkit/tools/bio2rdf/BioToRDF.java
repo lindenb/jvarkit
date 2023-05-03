@@ -3,7 +3,6 @@ package com.github.lindenb.jvarkit.tools.bio2rdf;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.nio.charset.Charset;
@@ -15,25 +14,18 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
-import javax.xml.namespace.QName;
 import javax.xml.stream.EventFilter;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import javax.xml.stream.events.Attribute;
-import javax.xml.stream.events.StartElement;
-import javax.xml.stream.events.XMLEvent;
 
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
@@ -57,6 +49,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jena.JenaUtils;
 import com.github.lindenb.jvarkit.jena.vocabulary.OBOInOwl;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.iterator.LineIterators;
@@ -133,35 +126,6 @@ $ arq --data=/home/me/bio2rdf.rdf.gz --query query.sparql
 | <http://purl.obolibrary.org/obo/GO_0003090> | "GO:0003090" | "positive regulation of the force of heart contraction by neuronal epinephrine-norepinephrine"                                          |
 | <http://purl.obolibrary.org/obo/GO_0003089> | "GO:0003089" | "positive regulation of the force of heart contraction by circulating epinephrine-norepinephrine"                                       |
 
-### find all the phenotypes containing the word 'arrhythmia'
-
-```
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX dc: <http://purl.org/dc/elements/1.1/>
-PREFIX bio: <https://umr1087.univ-nantes.fr/bio2rdf/>
-
-SELECT  ?label ?desc WHERE { 
-        ?disease a bio:Phenotype .
-        ?disease dc:title ?label . 
-        ?disease dc:description ?desc . 
-	FILTER (CONTAINS(LCASE(?desc),"arrhythmia")) .
-    }
-```
-
-```
-------------------------------------------------
-| label        | desc                          |
-================================================
-| "HP:0002521" | "Hypsarrhythmia"              |
-| "HP:0011215" | "Hemihypsarrhythmia"          |
-| "HP:0004308" | "Ventricular arrhythmia"      |
-| "HP:0001692" | "Atrial arrhythmia"           |
-| "HP:0005115" | "Supraventricular arrhythmia" |
-| "HP:0011675" | "Arrhythmia"                  |
-------------------------------------------------
-```
-
 
 END_DOC
  
@@ -182,22 +146,26 @@ public class BioToRDF extends Launcher {
 	private Path outputFile= null;
 	@Parameter(names={"--genes"},description="Limit to those genes names , separated with comma (for debugging)")
 	private String limitGenesStr="";
+	@Parameter(names={"--min-stringdb-combined-score"},description="Discard interaction with stringdb combined score < 'x' ")
+	private int min_stringdb_combined_score=990;
 
 	
 	
 	@SuppressWarnings("serial")
 	@DynamicParameter(names={"-D"},description="parameters. -Dkey1=value1  -Dkey2=value2 ...")
 	private Map<String,String> resourceMap = new HashMap<String,String>() {{{
-		put("NCBI_GENE_INFO", "https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene_info.gz");
+		put("NCBI_GENE_INFO", "https://ftp.ncbi.nlm.nih.gov/gene/DATA/GENE_INFO/Mammalia/Homo_sapiens.gene_info.gz");
 		put("NCBI_GENE_GO","https://ftp.ncbi.nlm.nih.gov/gene/DATA/gene2go.gz");
 		put("GENCODE_RELEASE", "43");
 		put("GFF3_GRCH38", "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/gencode.v{GENCODE_RELEASE}.annotation.gff3.gz");
 		put("GFF3_GRCH37", "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_{GENCODE_RELEASE}/GRCh37_mapping/gencode.v{GENCODE_RELEASE}lift37.annotation.gff3.gz");
 		//put("HUMAN_DO_OWL", "https://github.com/DiseaseOntology/HumanDiseaseOntology/raw/main/src/ontology/HumanDO.owl");
-		put("HUMAN_HPO_OWL", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/hp.owl");
+		//put("HUMAN_HPO_OWL", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/hp.owl");
 		put("HPO_PHENOTYPE_TO_GENE", "https://github.com/obophenotype/human-phenotype-ontology/releases/download/v2023-04-05/phenotype_to_genes.txt");
 		put("GO_OWL","http://purl.obolibrary.org/obo/go.owl");
-		put("BIOGRID_XML_25","https://downloads.thebiogrid.org/Download/BioGRID/Release-Archive/BIOGRID-4.4.221/BIOGRID-ALL-4.4.221.psi25.zip");
+		put("STRINGDB_RELEASE","11.5");
+		put("STRINGDB_PROTEIN_ALIASES","https://stringdb-static.org/download/protein.aliases.v{STRINGDB_RELEASE}/9606.protein.aliases.v{STRINGDB_RELEASE}.txt.gz");
+		put("STRINGDB_LINK","https://stringdb-static.org/download/protein.links.v{STRINGDB_RELEASE}/9606.protein.links.v{STRINGDB_RELEASE}.txt.gz");
 		//put("MONDO_OWL","https://github.com/monarch-initiative/mondo/releases/download/v2023-04-04/mondo.owl");
 		}}};
 
@@ -231,24 +199,7 @@ public class BioToRDF extends Launcher {
 			}
 		}
 	
-	private void parseHPOA(String uri) throws IOException,XMLStreamException {
-		LOG.info("parsing "+uri);
-		String line;
-		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
-			while((line=br.readLine())!=null) {
-				if(line.startsWith("#")) continue;
-				break;
-				}
-			if(line==null) throw new IOException("Cannot read header line of "+uri);
-			final FileHeader header = new FileHeader(CharSplitter.TAB.split(line));
-			while((line=br.readLine())!=null) {
-				final Map<String,String> rec = header.toMap(CharSplitter.TAB.split(line));
-				writer.writeStartElement(PREFIX,"Phenotype",NS);
-
-				writer.writeEndElement();
-				}
-			}
-		}
+	
 	
 	private void parseNcbiGeneInfo(String uri) throws IOException,XMLStreamException {
 		LOG.info("parsing "+uri);
@@ -276,7 +227,7 @@ public class BioToRDF extends Launcher {
 				this.geneid2gene.put(info.geneid, info);
 				this.symbol2gene.put(info.symbol, info);
 				
-				writer.writeStartElement(PREFIX,"Gene",NS);
+				writer.writeStartElement("rdf","Resource",RDF.getURI());
 				writer.writeAttribute("rdf", RDF.getURI(), "about", info.getURI() );
 				
 				writer.writeStartElement("dc","title",DC.getURI());
@@ -337,45 +288,8 @@ public class BioToRDF extends Launcher {
 			}
 		}
 	
-	private void parseHPO2gene(String uri) throws IOException,XMLStreamException {
-		if(StringUtils.isBlank(uri)) return;
-		LOG.info("parsing "+uri);
-		
-		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
-			String line = br.readLine();
-			if(line==null) throw new IOException("Cannot read first line or "+uri);
-			final FileHeader header = new FileHeader(CharSplitter.TAB.split(line));
-			String prev_hpo_id=null;
-			final Set<String> ncbi_gene_ids= new HashSet<>();
-			for(;;) {
-				line=br.readLine();
-				final Map<String,String> rec = (line==null?null:header.toMap(CharSplitter.TAB.split(line)));
-				if(rec==null || (prev_hpo_id!=null && !prev_hpo_id.equals(rec.get("hpo_id")))) {
-					if(prev_hpo_id!=null && 
-						!ncbi_gene_ids.isEmpty() &&
-						ncbi_gene_ids.stream().anyMatch(ID->geneid2gene.containsKey(ID))) {
-						writer.writeStartElement("rdf", "Description", RDF.getURI() );
-						writer.writeAttribute("rdf", RDF.getURI(), "about","http://purl.obolibrary.org/obo/" + prev_hpo_id.replace(':', '_'));
-						for(String gene_id : ncbi_gene_ids) {
-							final NcbiGeneInfo gene = this.geneid2gene.get(gene_id);
-							if(gene==null) continue;
-							writer.writeEmptyElement(PREFIX, "has_gene", NS);
-							writer.writeAttribute("rdf",RDF.getURI(),"resource",gene.getURI());
-							}
-						writer.writeEndElement();
-						writer.writeCharacters("\n");
-						}
-					
-					if(rec==null) break;
-					ncbi_gene_ids.clear();
-					}
-				prev_hpo_id = rec.get("hpo_id");
-				ncbi_gene_ids.add(rec.get("ncbi_gene_id"));
-				}
-			}
-		}
 	
-	private void parseNcbiGeneGO(String uri) throws IOException,XMLStreamException {
+	private void parseNcbiGeneGO(final String uri) throws IOException,XMLStreamException {
 		if(StringUtils.isBlank(uri)) return;
 		LOG.info("parsing "+uri);
 		final List<Map.Entry<NcbiGeneInfo,String>> gene2go = new ArrayList<>();
@@ -418,137 +332,55 @@ public class BioToRDF extends Launcher {
 			}
 		}
 
-	private Map.Entry<String, NcbiGeneInfo> parseBiogridInteractor(StartElement root, final XMLEventReader xr) throws IOException,XMLStreamException {
-		final QName QNAME_ID= new QName("id");
-		Attribute att =root.getAttributeByName(QNAME_ID);
-		String interactor_id = att.getValue();
-		String ncbiTaxId = null;
-		NcbiGeneInfo gene = null;
-		while(xr.hasNext()) {
-			final XMLEvent evt  = xr.nextEvent();
-			if(evt.isStartElement()) {
-				final StartElement startE = evt.asStartElement();
-				final String lclName = startE.getName().getLocalPart();
-				if(lclName.equals("organism")) {
-					att = startE.getAttributeByName(new QName("ncbiTaxId"));
-					if(att!=null) ncbiTaxId=att.getValue();
-					}
-				else if(lclName.equals("secondaryRef")) {
-					att = startE.getAttributeByName(new QName("db"));
-					if(att!=null && att.getValue().equals("entrez gene/locuslink")) {
-						att = startE.getAttributeByName(QNAME_ID);
-						if(att!=null) {
-							final NcbiGeneInfo g = this.geneid2gene.get(att.getValue());
-							if(g!=null) gene=g;
-							}
-						}
-					}
-				}
-			else if(evt.isEndElement()) {
-				final String lclName = evt.asEndElement().getName().getLocalPart();
-				if(lclName.equals("proteinInteractor")) {
-					break;
-					}
-				}
-			}
-		if(ncbiTaxId==null || !ncbiTaxId.equals("9606")) return null;
-		if(gene==null) return null;
-		return  new AbstractMap.SimpleEntry<String,NcbiGeneInfo>(interactor_id,gene);
-		}
-	
-	private void parseBiogridInteraction(StartElement root, final XMLEventReader xr, final Map<String,NcbiGeneInfo> id2gene) throws IOException,XMLStreamException {
-		Attribute att  = null;
-		final Set<NcbiGeneInfo> genes = new HashSet<>();
-		final Set<String> pmids = new HashSet<>();
-		while(xr.hasNext()) {
-			final XMLEvent evt  = xr.nextEvent();
-			if(evt.isStartElement()) {
-				final StartElement startE = evt.asStartElement();
-				final String lclName = startE.getName().getLocalPart();
-				if(lclName.equals("interactorRef")) {
-					final String interactorRef = xr.getElementText();
-					final NcbiGeneInfo gene = id2gene.get(interactorRef);
-					if(gene!=null) genes.add(gene);
-					}
-				else if(lclName.equals("primaryRef")) {
-					att = startE.getAttributeByName(new QName("db"));
-					if(att!=null && att.getValue().equals("pubmed")) {
-						att = startE.getAttributeByName(new QName("id"));
-						if(att!=null) {
-							pmids.add(att.getValue());
-							}
-						}
-					}
-				}
-			else if(evt.isEndElement()) {
-				final String lclName = evt.asEndElement().getName().getLocalPart();
-				if(lclName.equals("interaction")) {
-					break;
-					}
-				}
-			}
-		if(genes.size()>1) {
-			writer.writeStartElement(PREFIX,"Interaction",NS);
-			for(String pmid: pmids) {
-				writer.writeEmptyElement(PREFIX, "pubmed", NS);
-				writer.writeAttribute("rdf",RDF.getURI(),
-						"resource",
-						"http://www.ncbi.nlm.nih.gov/pubmed/"+pmid
-						);
-				}
-			for(NcbiGeneInfo gene: genes) {
-				writer.writeEmptyElement(PREFIX, "gene", NS);
-				writer.writeAttribute("rdf",RDF.getURI(),
-						"resource",
-						gene.getURI()
-						);
-				
-				}
-			writer.writeEndElement();
-			writer.writeCharacters("\n");
-			}
-		}
-	
-	private void parseBioGrid(String uri) throws IOException,XMLStreamException {
-		if(StringUtils.isBlank(uri)) return;
-		Path tmpZip = null;
-		try {
-			tmpZip = Files.createTempFile("biogrid", ".zip");
-			try(InputStream in= IOUtils.openURIForReading(uri)) {
-				IOUtils.copyTo(in, tmpZip);
-				}
-			final Map<String,NcbiGeneInfo> id2gene =new HashMap<>();
-			try(InputStream in = Files.newInputStream(tmpZip)) {
-				ZipInputStream zin = new ZipInputStream(in);
-				for(;;) {
-					final ZipEntry entry = zin.getNextEntry();
-					if(entry==null) break;
-					if(!entry.getName().endsWith(".psi.xml")) continue;
-					final XMLInputFactory xif = XMLInputFactory.newFactory();
-					final XMLEventReader xr = xif.createXMLEventReader(zin, "UTF-8");
-					while(xr.hasNext()) {
-						final XMLEvent evt  = xr.nextEvent();
-						if(evt.isStartElement()) {
-							final String lclName = evt.asStartElement().getName().getLocalPart();
-							if(lclName.equals("proteinInteractor")) {
-								final Map.Entry<String, NcbiGeneInfo> pair = parseBiogridInteractor(evt.asStartElement(), xr);
-								if(pair!=null) {
-									id2gene.put(pair.getKey(), pair.getValue());
-									}
-								}
-							else if(lclName.equals("interaction")) {
-								parseBiogridInteraction(evt.asStartElement(), xr, id2gene);							
-								}
 
-							}
-						}
-					xr.close();
-					break;
-					}
+	private void parseStringDB(String uriAliases, final String uriLinks) throws IOException,XMLStreamException {
+		if(StringUtils.isBlank(uriAliases)) return;
+		if(StringUtils.isBlank(uriLinks)) return;
+		final Map<String,NcbiGeneInfo> proteinId2gene = new HashMap<>(20_000);
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(uriAliases)) {
+			String line;
+			while((line=br.readLine())!=null) {
+				final String[] tokens = CharSplitter.TAB.split(line);
+				if(tokens.length!=3) throw new JvarkitException.TokenErrors(3, tokens);
+				if(!tokens[2].equals("Ensembl_HGNC_HGNC_ID")) continue;
+				final NcbiGeneInfo gene = this.hgnc2gene.get(tokens[1]);
+				if(gene==null) continue;
+				proteinId2gene.put(tokens[0], gene);
 				}
 			}
-		catch(Throwable err) {
-			if(tmpZip!=null) Files.delete(tmpZip);
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(uriLinks)) {
+			String line = br.readLine();
+			if(line==null) throw new IOException("Cannot read first line of "+uriLinks);
+			final FileHeader header = new FileHeader(CharSplitter.SPACE.split(line));
+			while((line=br.readLine())!=null) {
+				final Map<String,String> row = header.toMap(CharSplitter.SPACE.split(line));
+				
+				final int combined_score = Integer.parseInt(row.get("combined_score"));
+				if(combined_score < this.min_stringdb_combined_score) continue;
+				
+				
+				final NcbiGeneInfo gene1 = proteinId2gene.get(row.get("protein1"));
+				if(gene1==null) continue;
+				final NcbiGeneInfo gene2 = proteinId2gene.get(row.get("protein2"));
+				if(gene2==null) continue;
+				writer.writeStartElement(PREFIX,"StringDBInteraction",NS);
+				
+				for(NcbiGeneInfo gene:Arrays.asList(gene1,gene2)) {
+					writer.writeEmptyElement(PREFIX, "interactor", NS);
+					writer.writeAttribute("rdf",RDF.getURI(),"resource", gene.getURI());
+					}
+				
+				writer.writeStartElement(PREFIX,"score",NS);
+				writer.writeAttribute("rdf", RDF.getURI(), "datatype", XSD.integer.getURI());
+				writer.writeCharacters(row.get("combined_score"));
+				writer.writeEndElement();
+
+				
+				writer.writeComment(gene1.symbol+" " + gene2.symbol);
+				
+				writer.writeEndElement();
+				writer.writeCharacters("\n");
+				}
 			}
 		}
 	
@@ -560,13 +392,22 @@ public class BioToRDF extends Launcher {
 			final LineIterator li = LineIterators.of(br);
 			codec.readHeader(li);
 			while(!codec.isDone(li)) {
-				Gff3Feature feat = codec.decode(li);
+				final Gff3Feature feat = codec.decode(li);
 				if(feat==null || !feat.getType().equals("gene")) continue;
-				final NcbiGeneInfo info = feat.getAttribute("gene_name").stream().
-						map(F->this.symbol2gene.get(F)).
+				NcbiGeneInfo info =  feat.getAttribute("hgnc_id").stream().
+						map(F->this.hgnc2gene.get(F)).
 						filter(G->G!=null).
 						findAny().
 						orElse(null);
+				if(info==null) {
+						info = feat.getAttribute("gene_name").stream().
+							map(F->this.symbol2gene.get(F)).
+							filter(G->G!=null).
+							findAny().
+							orElse(null);
+					}
+				
+				
 				if(info==null) {
 					continue;
 					}
@@ -739,20 +580,12 @@ public class BioToRDF extends Launcher {
 
 		}
 	
-	private void parseHumanDiseaseOntology(String uri) throws IOException,XMLStreamException,SAXException {
-		parseOBOOWLOntology(uri, "Disease" ,S->true);
-		}
 	
-	private void parseHumanPhenotypeOntology(String uri) throws IOException,XMLStreamException,SAXException {
-		parseOBOOWLOntology(uri, "Phenotype",S->S.startsWith("HP:"));
-		}
+	
 	private void parseGO(String uri) throws IOException,XMLStreamException,SAXException {
 		parseOBOOWLOntology(uri, "GOTerm",S->S.startsWith("GO:"));
 		}
 
-	private void parseMondoOWL(String uri)  throws IOException,XMLStreamException,SAXException {
-		parseOBOOWLOntology(uri, "Disease" ,S->true);
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -788,8 +621,13 @@ public class BioToRDF extends Launcher {
 				
 				parseNcbiGeneInfo(resourceMap.getOrDefault("NCBI_GENE_INFO",""));
 				
-				parseHumanPhenotypeOntology(resourceMap.getOrDefault("HUMAN_HPO_OWL", ""));
-				parseHPO2gene(resourceMap.getOrDefault("HPO_PHENOTYPE_TO_GENE", ""));
+				final String string_db_release = resourceMap.getOrDefault("STRINGDB_RELEASE", "11.5");;
+				parseStringDB(
+						resourceMap.getOrDefault("STRINGDB_PROTEIN_ALIASES","").replace("{STRINGDB_RELEASE}", string_db_release),
+						resourceMap.getOrDefault("STRINGDB_LINK","").replace("{STRINGDB_RELEASE}", string_db_release)
+						);
+
+				
 				parseNcbiGeneGO(resourceMap.getOrDefault("NCBI_GENE_GO",""));
 				parseGO(resourceMap.getOrDefault("GO_OWL",""));
 				
@@ -803,9 +641,6 @@ public class BioToRDF extends Launcher {
 							);
 					}
 				
-				parseBioGrid(resourceMap.getOrDefault("BIOGRID_XML_25",""));
-
-				//parseHumanDiseaseOntology(resourceMap.getOrDefault("HUMAN_DO_OWL",""));
 				
 				
 				this.writer.writeEndElement();//RDF

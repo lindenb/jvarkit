@@ -53,12 +53,23 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 public class EigenInfoAnnotator implements InfoAnnotator
 	{
+	@Override
+	public void initialize(VCFHeader header) {
+		
+		}
+	@Override
+	public void dispose() {
+		
+		}
+	
+	
 	private static class KeyAndType
 		{
 		final String key;

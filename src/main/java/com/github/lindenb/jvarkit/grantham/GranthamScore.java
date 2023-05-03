@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.util.bio;
+package com.github.lindenb.jvarkit.grantham;
 
 import java.util.function.ToIntBiFunction;
 
@@ -40,7 +40,7 @@ import java.util.function.ToIntBiFunction;
 public class GranthamScore implements ToIntBiFunction<Character, Character>{
 		private static final int DEFAULT_SCORE=255;
 		
-		
+		/** default score is the largest number */
 		public static int getDefaultScore() {
 			return DEFAULT_SCORE;
 			}

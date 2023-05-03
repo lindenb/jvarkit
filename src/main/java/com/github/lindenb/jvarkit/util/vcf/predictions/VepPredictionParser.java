@@ -364,6 +364,14 @@ public class VepPredictionParser implements PredictionParser
 			return getByCol("SYMBOL_SOURCE");
 			}
 		
+		public String getHGVSp() {
+			return getByCol("HGVSp");
+			}
+		public String getAminoAcids() {
+			return getByCol("Amino_acids");
+		}
+		
+		
 		public Map<String,String> getMap()
 			{
 			final Map<String, String> hash = new LinkedHashMap<>();

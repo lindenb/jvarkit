@@ -33,11 +33,16 @@ import java.util.Map;
 import java.util.Set;
 
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /** interface describing a genetic way to add some new INFO in a VCF */
 public interface InfoAnnotator extends Closeable
 	{
+	/** initialize from a VCF header */
+	public void initialize(VCFHeader header);
+	/** dispose data associated to this annotator*/
+	public void dispose();
 	/** name of this annotator */
 	public String getName();
 	/** description of this annotator */

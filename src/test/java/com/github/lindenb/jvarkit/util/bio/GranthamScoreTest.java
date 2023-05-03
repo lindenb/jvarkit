@@ -3,6 +3,8 @@ package com.github.lindenb.jvarkit.util.bio;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.grantham.GranthamScore;
+
 public class GranthamScoreTest {
 @Test
 public void test01() {
