@@ -5,7 +5,8 @@ package com.github.lindenb.jvarkit.tools.vcfgrantham;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.OptionalInt;
+import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.grantham.GranthamScore;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
@@ -57,8 +58,8 @@ public class VcfGrantham extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfGrantham.class).make();
 	
 	
-	private abstract class Handler {
-		abstract OptionalInt parse(VariantContext ctx);
+	private abstract class Handler implements ToIntFunction<VariantContext>{
+		abstract boolean isValid();
 		}
 	
 	
@@ -67,9 +68,10 @@ public class VcfGrantham extends OnePassVcfLauncher {
 		VepPredictionHandler(final VCFHeader header) {
 			this.parser =  new VepPredictionParserFactory(header).get();
 			}
+		@Override boolean isValid() { return this.parser.isValid();}
 		@Override
-		OptionalInt parse(VariantContext ctx) {
-			OptionalInt score= OptionalInt.empty();
+		public int applyAsInt(VariantContext ctx) {
+			int score= 0;
 			for(VepPredictionParser.VepPrediction pred : this.parser.getPredictions(ctx)) {
 				final String s = pred.getAminoAcids();
 				if(StringUtils.isBlank(s)) continue;
@@ -85,16 +87,14 @@ public class VcfGrantham extends OnePassVcfLauncher {
 					continue;
 					}
 				if(aa1s.equals("*") || aa2s.equals("*")) {
-					return OptionalInt.of(GranthamScore.getDefaultScore());
+					return GranthamScore.getDefaultScore();
 					}
 				
 				int curr = GranthamScore.score(
 						aa1s.charAt(0),
 						aa2s.charAt(0)
 						);
-				if(score.isEmpty() || score.getAsInt()< curr) {
-					score = OptionalInt.of(curr);
-					}
+				score = Math.max(score, curr);
 				
 				}
 			return score;
@@ -106,9 +106,10 @@ public class VcfGrantham extends OnePassVcfLauncher {
 		BcsqPredictionHandler(final VCFHeader header) {
 			this.parser =  new BcfToolsPredictionParserFactory(header).get();
 			}
+		@Override boolean isValid() { return this.parser.isValid();}
 		@Override
-		OptionalInt parse(VariantContext ctx) {
-			OptionalInt score= OptionalInt.empty();
+		public int applyAsInt(VariantContext ctx) {
+			int score = 0;
 			for(BcfToolsPredictionParser.BcfToolsPrediction pred : this.parser.getPredictions(ctx)) {
 				final String hgvs = pred.getAminoAcidChange();
 				if(StringUtils.isBlank(hgvs)) continue;
@@ -121,16 +122,14 @@ public class VcfGrantham extends OnePassVcfLauncher {
 				String aa2s = hgvs.substring(lt+1);
 				
 				if(aa1s.endsWith("*") || aa2s.endsWith("*")) {
-					return OptionalInt.of(GranthamScore.getDefaultScore());
+					return GranthamScore.getDefaultScore();
 					}
 				
 				int curr = GranthamScore.score(
 						aa1s.charAt(aa1s.length()-1),
 						aa2s.charAt(aa2s.length()-1)
 						);
-				if(score.isEmpty() || score.getAsInt()< curr) {
-					score = OptionalInt.of(curr);
-					}
+				score = Math.max(score, curr);
 				}
 			return score;
 			}
@@ -141,21 +140,22 @@ public class VcfGrantham extends OnePassVcfLauncher {
 		AnnPredictionHandler(final VCFHeader header) {
 			this.parser =  new AnnPredictionParserFactory().header(header).get();
 			}
+		@Override boolean isValid() { return this.parser.isValid();}
+
 		@Override
-		OptionalInt parse(VariantContext ctx) {
-			OptionalInt score= OptionalInt.empty();
+		public int applyAsInt(VariantContext ctx) {
+			int score = 0;
 			for(AnnPredictionParser.AnnPrediction pred : this.parser.getPredictions(ctx)) {
 				final String hgvs = pred.getHGVSp();
 				if(StringUtils.isBlank(hgvs)) continue;
 				if(!hgvs.startsWith("p.")) continue;
 				String s = hgvs.substring(2);
 				// INDEL
-				if(s.endsWith("fs")) return OptionalInt.of(GranthamScore.getDefaultScore());
-				
+				if(s.endsWith("fs")) return GranthamScore.getDefaultScore();
 				
 				
 				if(s.startsWith("*") || s.endsWith("*")) {
-					return OptionalInt.of(GranthamScore.getDefaultScore());
+					return GranthamScore.getDefaultScore();
 					}
 				
 				
@@ -178,10 +178,9 @@ public class VcfGrantham extends OnePassVcfLauncher {
 					LOG.warning("cannot get loc for "+hgvs);
 					continue;
 					}
-				int curr = GranthamScore.score(aa1.getOneLetterCode(), aa2.getOneLetterCode());
-				if(score.isEmpty() || score.getAsInt()< curr) {
-					score = OptionalInt.of(curr);
-					}
+				final int curr = GranthamScore.score(aa1.getOneLetterCode(), aa2.getOneLetterCode());
+				score = Math.max(score, curr);
+
 				}
 			return score;
 			}
@@ -201,28 +200,33 @@ public class VcfGrantham extends OnePassVcfLauncher {
 				new AnnPredictionHandler(header),
 				new BcsqPredictionHandler(header),
 				new VepPredictionHandler(header)
-				);
+				).stream().
+				filter(H->H.isValid()).
+				collect(Collectors.toList());
+	
+		if(handlers.isEmpty()) {
+			LOG.warn("no annotation handler was found for input file");
+			}
+		
 		header.addMetaDataLine(info);
 		JVarkitVersion.getInstance().addMetaData(this, header);
-		
 		out.writeHeader(header);
 		while(iter.hasNext()) {
 			final VariantContext ctx = iter.next();
 			
-			final OptionalInt score = handlers.stream().
-				map(H->H.parse(ctx)).
-				filter(P->P.isPresent()).
-				mapToInt(P->P.getAsInt()).
-				max();
+			final int score = handlers.stream().
+				mapToInt(H->H.applyAsInt(ctx)).
+				max().
+				orElse(0);
 			
-			if(!score.isPresent() || score.getAsInt()==0)
+			if(score <=0 )
 				{
 				out.add(ctx);
 				}
 			else
 				{
 				out.add(new VariantContextBuilder(ctx).
-						attribute(info.getID(), score.getAsInt()).
+						attribute(info.getID(), score).
 						make());
 				}
 			
