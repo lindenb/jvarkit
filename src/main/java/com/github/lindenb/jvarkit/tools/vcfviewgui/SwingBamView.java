@@ -824,8 +824,8 @@ public class SwingBamView extends Launcher {
 			for(final VariantContext ctx:this.all_variants_list) {
 				final Genotype gt = ctx.getGenotype(bamFile.sn);
 				if(gt==null) continue;
-				double x0 = pos2pixel(rgn,ctx.getStart());
-				double x1 = pos2pixel(rgn,ctx.getEnd()+1);
+				final  double x0 = pos2pixel(rgn,ctx.getStart());
+				final double x1 = pos2pixel(rgn,ctx.getEnd()+1);
 				g.setColor(Color.LIGHT_GRAY);
 				g.fill(new Rectangle2D.Double(x0, y, (x1-x0), this.drawingArea.getHeight()-y));
 
@@ -1119,9 +1119,9 @@ public class SwingBamView extends Launcher {
 			}
 		
 		final double getReadRowHeight() {
-			double remain_height = (drawingArea.getHeight()-5) - getMarginTop();
-			double row_height = remain_height/ this.rows.size();
-			return Math.max(30, Math.min(row_height, 10));
+			final double remain_height = (drawingArea.getHeight()-5) - getMarginTop();
+			final double row_height = remain_height/ this.rows.size();
+			return Math.min(row_height, 30);
 			}
 		
 		final double pos2pixel(final Locatable loc,final int coord) {

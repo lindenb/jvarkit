@@ -151,6 +151,7 @@ public class BioToRDF extends Launcher {
 
 	
 	
+	
 	@SuppressWarnings("serial")
 	@DynamicParameter(names={"-D"},description="parameters. -Dkey1=value1  -Dkey2=value2 ...")
 	private Map<String,String> resourceMap = new HashMap<String,String>() {{{
@@ -174,6 +175,14 @@ public class BioToRDF extends Launcher {
 	private final Map<String, NcbiGeneInfo> geneid2gene = new HashMap<>();
 	private final Map<String, NcbiGeneInfo> symbol2gene = new HashMap<>();
 	private final Map<String, NcbiGeneInfo> hgnc2gene = new HashMap<>();
+	private static class Build {
+		final String uri;
+		final String label;
+		Build(final String uri,final String label) {
+			this.uri = uri;
+			this.label = label;
+			}
+		}
 	
 	private static class NcbiGeneInfo {
 		String geneid = null;
@@ -384,9 +393,20 @@ public class BioToRDF extends Launcher {
 			}
 		}
 	
-	private void parseGFF(String uri,String build) throws IOException,XMLStreamException {
+	private void parseGFF(final String uri,final Build build) throws IOException,XMLStreamException {
 		if(StringUtils.isBlank(uri)) return;
 		LOG.info("parsing "+uri);
+		
+		writer.writeComment("PROCESSING GFF "+uri);
+		
+		writer.writeStartElement(PREFIX, "Build", NS);
+		writer.writeAttribute("rdf", RDF.getURI(),"about",build.uri);
+		writer.writeStartElement("rdfs","label",RDFS.getURI());
+		writer.writeCharacters(build.label);
+		writer.writeEndElement();
+		writer.writeEndElement();
+		writer.writeCharacters("\n");
+		
 		final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW);
 		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
 			final LineIterator li = LineIterators.of(br);
@@ -442,9 +462,9 @@ public class BioToRDF extends Launcher {
 				
 				writer.writeStartElement(PREFIX,"Interval",NS);
 				
-				writer.writeStartElement(PREFIX,"build",NS);
-				writer.writeCharacters(build);
-				writer.writeEndElement();
+				writer.writeEmptyElement(PREFIX,"build",NS);
+				writer.writeAttribute("rdf", RDF.getURI(), "resource",build.uri);
+
 
 				
 				writer.writeStartElement(PREFIX,"contig",NS);
@@ -634,10 +654,10 @@ public class BioToRDF extends Launcher {
 				final String gencode_release = resourceMap.getOrDefault("GENCODE_RELEASE", "43");
 				if(!StringUtils.isBlank(gencode_release)) {
 					parseGFF(resourceMap.getOrDefault("GFF3_GRCH38","").replace("{GENCODE_RELEASE}", gencode_release),
-							"grch38"
+							new Build("https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.40","grch38")
 							);
 					parseGFF(resourceMap.getOrDefault("GFF3_GRCH37","").replace("{GENCODE_RELEASE}", gencode_release),
-							"grch37"
+							new Build("https://www.ncbi.nlm.nih.gov/assembly/GCF_000001405.13","grch37")
 							);
 					}
 				
