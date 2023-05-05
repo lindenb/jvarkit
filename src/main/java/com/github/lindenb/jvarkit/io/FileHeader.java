@@ -141,7 +141,13 @@ public class FileHeader extends AbstractList<String> {
 	 * */
 	public int getColumnIndex(final String col) {
 		final Integer i = this.col2idx.get(col);
-		if(i==null) throw new IllegalArgumentException("Undefined column "+col);
+		if(i==null) {
+			final StringBuilder sb = new StringBuilder("Cannot find column \"").append(col).append("\". Available are:\n");
+			for(int x=0;x< this.cols.size();x++) {
+				sb.append("\t$").append(x+1).append(" : \"").append(cols.get(x)).append("\"\n");
+				}
+			throw new IllegalArgumentException(sb.toString());
+			}
 		return i.intValue();
 		}
 	@Override

@@ -180,6 +180,7 @@ import com.github.lindenb.jvarkit.tools.vcfmulti2oneinfo.VcfMultiToOneInfo;
 import com.github.lindenb.jvarkit.tools.vcfpar.VcfPseudoAutosomalRegion;
 import com.github.lindenb.jvarkit.tools.vcfpolyx.VCFPolyX;
 import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
+import com.github.lindenb.jvarkit.tools.vcfregulomedb.VcfRegulomeDB;
 import com.github.lindenb.jvarkit.tools.vcfserver.VcfServer;
 import com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariants;
 import com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitter;
@@ -624,6 +625,7 @@ public class JvarkitCentral {
 		command(VcfHead.class);
 		command(VcfTail.class);
 		command(VcfServer.class);
+		command(VcfRegulomeDB.class);
 		command(VCFTrios.class);
 		command(VcfPeekAf.class);
 		command(VcfGeneSplitter.class);

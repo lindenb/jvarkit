@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 294d2f3d7
-Compilation : 20230505115709
+Version     : 5218c1355
+Compilation : 20230505173129
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -204,6 +204,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfphased01](VcfPhased01.md) | X10 Phased SVG to Scalar Vector Graphics (SVG) | 20190710 | 20190711 |
 | [vcfpolyx](VCFPolyX.md) | Number of repeated REF bases around POS. | 20200930 | 20211102 |
 | [vcfrebase](VcfRebase.md) | Restriction sites overlaping variations in a vcf | 20131115 | 20200624 |
+| [vcfregulomedb](VcfRegulomeDB.md) | Annotate a VCF with the Regulome2 data (https://regulomedb.org/) | 20140709 | 20230505 |
 | [vcfsetdict](VcfSetSequenceDictionary.md) | Set the `##contig` lines in a VCF header on the fly | 20140105 | 20210201 |
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20200818 |
 | [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files | 202221122 | 202221201 |

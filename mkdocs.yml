@@ -152,6 +152,7 @@ nav:
         - "vcfphased01" : VcfPhased01.md
         - "vcfpolyx" : VCFPolyX.md
         - "vcfrebase" : VcfRebase.md
+        - "vcfregulomedb" : VcfRegulomeDB.md
         - "vcfrenamechr" : ConvertVcfChromosomes.md
         - "vcfserver" : VcfServer.md
         - "vcfsetdict" : VcfSetSequenceDictionary.md

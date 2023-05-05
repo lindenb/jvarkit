@@ -2,55 +2,65 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Annotate a VCF with the Regulome data (http://regulome.stanford.edu/
+Annotate a VCF with the Regulome2 data (https://regulomedb.org/)
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfregulomedb  [options] Files
+
 Usage: vcfregulomedb [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
+    -r, --ranking-regex
+      if defined, only accept the rank matching the regular expression. see 
+      https://regulomedb.org/regulome-help/ . For example: 1a	eQTL/caQTL + TF 
+      binding + matched TF motif + matched Footprint + chromatin accessibility 
+      peak 
+  * -b, --bed, --tabix, --regulomedb
+      RegulomeDB bed sorted, bgzipped and indexed with tabix.
     --version
       print version and exit
     -T
       tag in vcf INFO.
       Default: REGULOMEDB
-  * -b
-       bed indexed with tabix. Format: chrom(tab)start(tab)end(tab)rank
-    -r
-      if defined, only accept the rank matching the regular expression
-    -x
-      (int) base pairs. look.for data around the variation +/- 'x'
-      Default: 5
 
 ```
 
-## Compilation
 
-### Requirements / Dependencies
+## Keywords
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+ * vcf
+ * regulomedb
 
 
-### Download and Compile
 
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfregulomedb
-```
+## Creation Date
 
-The java jar file will be installed in the `dist` directory.
+20140709
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRegulomeDB.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfRegulomeDB.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfregulomedb/VcfRegulomeDB.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfregulomedb/VcfRegulomeDB.java)
 
 
 ## Contribute
@@ -74,39 +84,42 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## Building the Tabix File for regulomeDB:
-```bash
-(for S in 1 2 3 4 5 6 ; do curl -s "http://regulome.stanford.edu/downloads/RegulomeDB.dbSNP132.Category${S}.txt.gz"  | gunzip -c |  cut -f 1,2,5 | sed -e 's/^chrX/23/'  -e 's/^chr//'  | awk -F ' ' '{printf("%s\t%d\t%s\t%s\n",$1,int($2)-1,$2,$3);}' | uniq ; done)| LC_ALL=C sort -t ' ' -k1,1n -k2,2n -k3,3n |  sed 's/^23/X/' | bgzip -c > regulomeDB.bed.gz && tabix  -p bed -f regulomeDB.bed.gz 
+Build the database
+
 ```
+# here, we use `head` to get a short example
+$ wget -q  -O - "https://encode-public.s3.amazonaws.com/2023/03/03/d38f3202-3364-415d-86ed-8690330cb7a2/ENCFF250UJY.tsv" |\
+	head -n 1000 | sed 's/^chrom/#chrom/' > regulome.bed
+$ bgzip -f  regulome.bed 
+$ tabix -f -p bed regulome.bed.gz 
+```
+
 
 ## Example
 
 ```bash
-$   curl -kLs "https://raw.githubusercontent.com/arq5x/gemini/master/test/ALL.wgs.phase1_release_v3.20101123.snps_indels_sv.sites.snippet.snpEff.vcf" |\
-   java -jar dist/vcfstripannot.jar -k '*' |\
-   java -jar dist/vcfregulomedb.jar -b regulomeDB.bed.gz -x 10  |\
-   grep -i REGU | head
+$ wget -q -O - "https://storage.googleapis.com/gcp-public-data--gnomad/release/3.1.2/vcf/genomes/gnomad.genomes.v3.1.2.sites.chr1.vcf.bgz" |\
+	bcftools view --types snps |\
+	java -jar dist/jvarkit.jar vcfregulomedb --regulomedb regulome.bed.gz |\
+	bcftools query -i 'REGULOMEDB>0' -f '%CHROM\t%POS\t%REF\t%ALT\t%REGULOMEDB\n' 
+chr1	10177	A	C	0.829
+chr1	10177	A	G	0.829
+chr1	10181	A	C	0.342
+chr1	10181	A	G	0.342
+chr1	10181	A	T	0.342
+chr1	10248	A	C	0.609
+chr1	10248	A	G	0.609
+chr1	10248	A	T	0.609
+chr1	10250	A	C	0.609
+chr1	10250	A	T	0.609
+chr1	10255	A	T	0.609
+chr1	10257	A	C	0.609
+chr1	10327	T	A	0.796
+chr1	10327	T	C	0.796
+chr1	10327	T	G	0.796
 
-##INFO=<ID=REGULOMEDB,Number=.,Type=String,Description="Format: Position|Distance|Rank">
-##VcfRegulomeDBCmdLine=-b regulomeDB.bed.gz -x 10
-##VcfRegulomeDBVersion=235a18b083ea15c4ad94060de512f1edc74cec42
-1	10583	rs58108140	G	A	100	PASS	REGULOMEDB=10582|0|5
-1	13327	rs144762171	G	C	100	PASS	REGULOMEDB=13326|0|6
-1	13980	rs151276478	T	C	100	PASS	REGULOMEDB=13971|8|6,13979|0|6,13980|1|6
-1	46402	.	C	CTGT	31	PASS	REGULOMEDB=46402|1|6
-1	55164	rs3091274	C	A	100	PASS	REGULOMEDB=55163|0|6
-1	55299	rs10399749	C	T	100	PASS	REGULOMEDB=55298|0|6
-1	55313	rs182462964	A	T	100	PASS	REGULOMEDB=55321|9|6
-1	55326	rs3107975	T	C	100	PASS	REGULOMEDB=55321|4|6,55325|0|6
-1	55330	rs185215913	G	A	100	PASS	REGULOMEDB=55321|8|6,55325|4|6
 
 ```
 
-Those SNPs can be seen at:
 
-* http://regulome.stanford.edu/snp/chr1/10582
-* http://regulome.stanford.edu/snp/chr1/13326
-* http://regulome.stanford.edu/snp/chr1/13971
-* http://regulome.stanford.edu/snp/chr1/46402
-* etc...
 
