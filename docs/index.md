@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : a728902e1
-Compilation : 20230504140640
+Version     : 294d2f3d7
+Compilation : 20230505115709
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -41,7 +41,8 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [mkminibam](MakeMiniBam.md) | Creates an archive of small bams with only a few regions. | 20190410 | 20221019 |
 | [plotsashimi](PlotSashimi.md) | Print Sashimi plots from Bam | 20191117 | 20191104 |
 | [prettysam](PrettySam.md) | Pretty SAM alignments | 20171215 | 20211105 |
-| [wgscoverageplotter](WGSCoveragePlotter.md) | Whole genome coverage plotter | 20201125 | 20210812 |
+| [sv2svg](SvToSVG.md) | BAM to SVG. Used to display structural variations. | 20181115 | 20230505 |
+| [wgscoverageplotter](WGSCoveragePlotter.md) | Whole genome coverage plotter | 20201125 | 20230505 |
 
 ### CNV/SV
 
@@ -189,6 +190,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20220110 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20140218 | 20220119 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
+| [vcffiltergenes](VcFilterGenes.md) | Filter VEP/SnpEff Output from a list of genes. | 20160322 | 20230505 |
 | [vcffilterjdk](VcfFilterJdk.md) | Filtering VCF with dynamically-compiled java expressions | 20170705 | 20220830 |
 | [vcffilterso](VcfFilterSequenceOntology.md) | Filter a VCF file annotated with SNPEff or VEP with terms from Sequence-Ontology. Reasoning : Children of user's SO-terms will be also used. | 20170331 | 20200924 |
 | [vcfflatten](VCFFlatten.md) | Flatten variants to one variant | 20230222 | 20230222 |

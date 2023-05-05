@@ -62,7 +62,6 @@ import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar84452;
 import com.github.lindenb.jvarkit.tools.burden.CaseControlCanvas;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac;
-import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterGenes;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherV;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF;
@@ -105,6 +104,7 @@ import com.github.lindenb.jvarkit.tools.vcfamalgation.VcfXmlAmalgamation;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfcmp.VcfCompareCallers;
+import com.github.lindenb.jvarkit.tools.vcffiltergenes.VcFilterGenes;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
@@ -775,7 +775,7 @@ class TestNg01 {
     	pw.flush();
     	pw.close();
 		final File output =new File(TEST_RESULTS_DIR,"jeter.vcf");
-    	Assert.assertEquals(0,new VcfBurdenFilterGenes().instanceMain(new String[]{
+    	Assert.assertEquals(0,new VcFilterGenes().instanceMain(new String[]{
         		"-o",output.getPath(),
         		"--genes",tmp.getPath(),
         		"--filter","ABCD",

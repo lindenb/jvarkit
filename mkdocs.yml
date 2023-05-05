@@ -122,6 +122,7 @@ nav:
         - "splitvcf" : SplitVcf.md
         - "starretrocopy" : StarRetroCopy.md
         - "sv2fasta" : StructuralVariantToFasta.md
+        - "sv2svg" : SvToSVG.md
         - "swingbamcov" : SwingBamCov.md
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md
@@ -136,6 +137,7 @@ nav:
         - "vcfbigwig" : VCFBigWig.md
         - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
+        - "vcffiltergenes" : VcFilterGenes.md
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md
         - "vcfflatten" : VCFFlatten.md

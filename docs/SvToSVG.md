@@ -7,8 +7,13 @@ BAM to SVG. Used to display structural variations.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/sv2svg.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar sv2svg  [options] Files
+
 Usage: sv2svg [options] Files
   Options:
     --coverage, --depth
@@ -73,23 +78,6 @@ Usage: sv2svg [options] Files
  * [https://www.biostars.org/p/9495994](https://www.biostars.org/p/9495994)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew sv2svg
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -129,7 +117,7 @@ The current reference is:
 
 ```bash
 $ samtools view -b "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/NA20845/high_coverage_alignment/NA20845.wgs.ILLUMINA.bwa.GIH.high_cov_pcr_free.20140203.bam" "7:8352157-8356597" > jeter.bam && samtools index jeter.bam
-$ java -jar dist/svg2svg.jar jeter.bam > jeter.svg
+$ java -jar dist/jvarkit.jar svg2svg jeter.bam > jeter.html
 ```
 
 ### A translocation
@@ -144,7 +132,7 @@ $ samtools view -b "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG0226
 $ samtools view -b "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase3/data/HG02260/alignment/HG02260.mapped.ILLUMINA.bwa.PEL.low_coverage.20130415.bam" "14:79838174-79840174" > jeter2.bam
 $ samtools merge jeter3.bam jeter1.bam jeter2.bam
 $ samtools index jeter3.bam
-$ java -jar dist/sv2svg.jar -r "9:137229907-137231907" -r "14:79838174-79840174"  jeter3.bam > jeter.svg
+$ java -jar dist/jvarkit.jar sv2svg -r "9:137229907-137231907" -r "14:79838174-79840174"  jeter3.bam > jeter.html
 ```
 
 
@@ -174,4 +162,5 @@ $ java -jar dist/sv2svg.jar -r "9:137229907-137231907" -r "14:79838174-79840174"
 [https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09](https://gist.github.com/lindenb/88bb702478cafe732d00e2694e77bc09)
 
 ![https://twitter.com/yokofakun/status/1448993550746759169](https://pbs.twimg.com/media/FBva8sTWUAMNApn?format=jpg&name=large)
+
 

@@ -25,7 +25,7 @@ SOFTWARE.
 History:
 
 */
-package com.github.lindenb.jvarkit.tools.burden;
+package com.github.lindenb.jvarkit.tools.vcffiltergenes;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -80,7 +80,7 @@ T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_007123.5|protein_coding|18
 ```
 $ wget -O - -q "https://github.com/immune-health/antigen.garnish/raw/f0453336a4859c83d27640c286d3960c1672f164/inst/extdata/testdata/antigen.garnish_hg19anno_example.vcf"  |\
 	sed 's/PASS\t[A-Z0-9]*;/PASS\t/' |\ ## the vcf above is malformed, quick hack
-	java -jar dist/vcfburdenfiltergenes.jar -a "NM_206933.2" |\
+	java -jar dist/jvarkit.jar vcffiltergenes.jar -a "NM_206933.2" |\
 	grep -w 216371854  | cut -f 8 | tr ";" "\n"   | grep ^ANN= | cut -c5- | tr "," "\n"
 T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_206933.2|protein_coding|18/72|c.3884G>A|p.Arg1295Gln|4271/18883|3884/15609|1295/5202||
 ```
@@ -89,17 +89,19 @@ T|missense_variant|MODERATE|USH2A|USH2A|transcript|NM_206933.2|protein_coding|18
 END_DOC
 */
 @Program(
-		name="vcfburdenfiltergenes",
+		name="vcffiltergenes",
 		description="Filter VEP/SnpEff Output from a list of genes.",
 		keywords={"gene","vcf","vep","snpeff"},
 		biostars=353011,
-		modificationDate="20200924",
-		creationDate="20160322"
+		modificationDate="20230505",
+		creationDate="20160322",
+		jvarkit_amalgamion = true,
+		menu="VCF Manipulation"
 		)
-public class VcfBurdenFilterGenes
+public class VcFilterGenes
 	extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfBurdenFilterGenes.class).make();
+	private static final Logger LOG = Logger.build(VcFilterGenes.class).make();
 
 
 	@Parameter(names={"-g","--genes"},description="Gene/transcript file: one name per line")
@@ -114,7 +116,7 @@ public class VcfBurdenFilterGenes
 	
 	
 	
-	public VcfBurdenFilterGenes()
+	public VcFilterGenes()
 		{
 		}
 	
@@ -306,6 +308,6 @@ public class VcfBurdenFilterGenes
 	
 	public static void main(final String[] args)
 		{
-		new VcfBurdenFilterGenes().instanceMainWithExit(args);
+		new VcFilterGenes().instanceMainWithExit(args);
 		}
 	}

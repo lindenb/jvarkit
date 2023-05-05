@@ -119,7 +119,7 @@ END_DOC
 	description="Whole genome coverage plotter",
 	keywords={"svg","bam","depth","coverage"},
 	creationDate="20201125",
-	modificationDate="20210812",
+	modificationDate="20230505",
 	biostars={104063,475162,9536274},
 	jvarkit_amalgamion =  true,
 	menu="BAM Visualization"
@@ -321,8 +321,14 @@ public int doWork(final List<String> args) {
 				map(SR->new ChromInfo(SR)).
 				collect(Collectors.toList());
 		if(chromInfos.isEmpty()) {
-			LOG.info("no valid chromosome was found in "+this.refPath);
+			LOG.error("no valid chromosome was found in "+this.refPath);
 			return -1;
+			}
+		else
+			{
+			LOG.info("Will plot the following contigs:" + chromInfos.stream().
+					map(CI->CI.ssr.getContig()).
+					collect(Collectors.joining(", ")));
 			}
 		final double pixelsBetweenChromosomes = Double.parseDouble(dynaParams.getOrDefault("distanceBetweenChromosomes", "1"));
 		final double marginLeft = Double.parseDouble(dynaParams.getOrDefault("margin-left", "100"));
