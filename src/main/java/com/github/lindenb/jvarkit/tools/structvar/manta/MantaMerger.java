@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -74,6 +75,7 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
+import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -130,6 +132,45 @@ public class MantaMerger extends Launcher {
 	private Path excludeBedPath = null;
 
 	
+	private static class MiniGT {
+		final String sample;
+		final GenotypeType genotypeType;
+		MiniGT(final String sample) {
+			this(sample,null);
+			}
+		MiniGT(final String sample,Genotype genotype) {
+			this.sample = sample;
+			if(genotype==null) {
+				this.genotypeType=GenotypeType.UNAVAILABLE;
+				}
+			else
+				{
+				this.genotypeType=genotype.getType();
+				}
+			}
+		@Override
+		public int hashCode() {
+			return sample.hashCode();
+			}
+		@Override
+		public boolean equals(Object obj) {
+			return MiniGT.class.cast(obj).sample.equals(this.sample);
+			}
+		private boolean isA(GenotypeType gt) {
+			return this.genotypeType.equals(gt);
+			}
+		
+		boolean isHet() {
+			return isA(GenotypeType.HET);
+			}
+		boolean isHomVar() {
+			return isA(GenotypeType.HOM_VAR);
+			}
+		boolean isHomRefOrNoCall() {
+			return !isHet() && !isHomVar();
+			}
+		}
+	
 	private class SVKey {
 		final VariantContext archetype;
 		SVKey(final VariantContext archetype) {
@@ -171,7 +212,6 @@ public class MantaMerger extends Launcher {
 	
 @Override
 public int doWork(final List<String> args) {
-	VariantContextWriter out = null;
 	try {
 		final Map<String,VcfInput> sample2inputs = new TreeMap<>();
 		SAMSequenceDictionary dict=null;
@@ -189,8 +229,9 @@ public int doWork(final List<String> args) {
 			lines = args;
 			}
 		
-			
+		/** loop over each input */
 		for(final String line: lines) {
+			/** split each line tokens[0] is path to VCF, tokens[1] if any is sample */
 			final String tokens[]= CharSplitter.TAB.split(line);
 			final VcfInput vcfInput = new VcfInput();
 			vcfInput.vcfPath  = Paths.get(tokens[0]);
@@ -205,13 +246,18 @@ public int doWork(final List<String> args) {
 				}
 			if(tokens.length<2 || StringUtils.isBlank(tokens[1])) {
 				try(VCFReader r= VCFReaderFactory.makeDefault().open(vcfInput.vcfPath, false)) {
-					List<String> snl = r.getHeader().getSampleNamesInOrder();
+					final List<String> snl = r.getHeader().getSampleNamesInOrder();
 					if(snl.size()==1) {
 						vcfInput.sample = snl.get(0);
 						}
+					else if(snl.isEmpty())
+						{
+						vcfInput.sample = IOUtils.getFilenameWithoutCommonSuffixes(vcfInput.vcfPath);
+						}
 					else
 						{
-						vcfInput.sample = vcfInput.vcfPath.toString();
+						LOG.equals("more than one sample in "+ vcfInput.vcfPath);
+						return -1;
 						}
 					}
 				}
@@ -230,6 +276,7 @@ public int doWork(final List<String> args) {
 			LOG.error("no input found");
 			return -1;
 			}
+		
 		if(!StringUtils.isBlank(this.limitContig) && dict.getSequence(this.limitContig)==null) {
 			LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(this.limitContig, dict));
 			return -1;
@@ -284,196 +331,210 @@ public int doWork(final List<String> args) {
 		header.setSequenceDictionary(dict);
 		JVarkitVersion.getInstance().addMetaData(this, header);
 		
-		out = VCFUtils.createVariantContextWriterToPath(this.outputFile);
-		out.writeHeader(header);
-
-		
-		
-		
-		final Decoy decoy = Decoy.getDefaultInstance();
-		for(final SAMSequenceRecord ssr: dict.getSequences()) {
-			if(!StringUtils.isBlank(this.limitContig)) {
-				if(!ssr.getSequenceName().equals(this.limitContig)) continue;
-				}
-			
-			LOG.info("contig "+ssr.getSequenceName());
-			if(decoy.isDecoy(ssr.getSequenceName())) continue;
-			final Map<SVKey,Set<String>> variants2samples = new HashMap<>();
-			for(final VcfInput vcfinput: sample2inputs.values()) {
-				vcfinput.contigCount=0;//reset count for this contig
-				
-				try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
-					vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength()).
-						stream().
-						filter(V->discard_bnd==false || !V.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")).
-						filter(bedPredicate).
-						map(V->new VariantContextBuilder(V).
-								unfiltered().
-								noID().
-								noGenotypes().
-								rmAttribute("EVENT").
-								rmAttribute("HOMSEQ").
-								rmAttribute("HOMLEN").
-								rmAttribute("SVINSSEQ").
-								rmAttribute("SVINSLEN").
-								rmAttribute("MATEID").
-								rmAttribute("LEFT_SVINSSEQ").
-								rmAttribute("RIGHT_SVINSSEQ").
-								rmAttribute("BND_DEPTH").
-								rmAttribute("MATE_BND_DEPTH").
-								rmAttribute("JUNCTION_QUAL").
-								rmAttribute("CIGAR").
-								make()).
-						forEach(V->{
-							final SVKey key1=new SVKey(V);
-							if(!svComparator.test(V, V)) throw new RuntimeException("compare to self failed ! "+V);
-							variants2samples.put(key1, new HashSet<>());
-							vcfinput.contigCount++;
-						});
-					
+		try(VariantContextWriter out = VCFUtils.createVariantContextWriterToPath(this.outputFile)) {
+			out.writeHeader(header);
+			final Decoy decoy = Decoy.getDefaultInstance();
+			for(final SAMSequenceRecord ssr: dict.getSequences()) {
+				if(!StringUtils.isBlank(this.limitContig)) {
+					if(!ssr.getSequenceName().equals(this.limitContig)) continue;
 					}
-				}
-			if(variants2samples.isEmpty()) continue;
-			
-			// build an interval tree for a faster access
-			final IntervalTree<SVKey> intervalTree = new IntervalTree<>();
-			for(final SVKey key: variants2samples.keySet()) {
-				final SimpleInterval r = new SimpleInterval(key.archetype).
-						extend(this.svComparator.getBndDistance()+1);
-				intervalTree.put(r.getStart(), r.getEnd(), key);
 				
-				// paranoidcheck interval is ok to find current archetype
-				boolean found=false;
-				final Iterator<IntervalTree.Node<SVKey>> nodeIter = intervalTree.overlappers(r.getStart(),r.getEnd());
-				while( nodeIter.hasNext()) {
-					final SVKey key1 = nodeIter.next().getValue();
-					if(this.svComparator.test(key1.archetype, key.archetype))  {
-						found=true;
-						break;
+				if(decoy.isDecoy(ssr.getSequenceName())) continue;
+				LOG.info("contig "+ssr.getSequenceName());
+
+				final Map<SVKey,Set<MiniGT>> variants2samples = new HashMap<>();
+				/* scan each input, build a list of intervals */
+				for(final VcfInput vcfinput: sample2inputs.values()) {
+					vcfinput.contigCount=0;//reset count for this contig
+					
+					try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
+						vcfFileReader.query(ssr).
+							stream().
+							filter(V->discard_bnd==false || !V.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")).
+							filter(bedPredicate).
+							map(V->new VariantContextBuilder(V).
+									unfiltered().
+									noID().
+									noGenotypes().
+									rmAttribute("EVENT").
+									rmAttribute("HOMSEQ").
+									rmAttribute("HOMLEN").
+									rmAttribute("SVINSSEQ").
+									rmAttribute("SVINSLEN").
+									rmAttribute("MATEID").
+									rmAttribute("LEFT_SVINSSEQ").
+									rmAttribute("RIGHT_SVINSSEQ").
+									rmAttribute("BND_DEPTH").
+									rmAttribute("MATE_BND_DEPTH").
+									rmAttribute("JUNCTION_QUAL").
+									rmAttribute("CIGAR").
+									make()).
+							forEach(V->{
+								final SVKey key1=new SVKey(V);
+								if(!svComparator.test(V, V)) throw new RuntimeException("compare to self failed ! "+V);
+								variants2samples.put(key1, new HashSet<>());
+								vcfinput.contigCount++;
+							});
+						
 						}
 					}
-				if(!found) {
-					out.close();
-					throw new RuntimeException("cannot find self "+key.archetype+" in "+r);
-					}
-				}
-
-			
-			for(final VcfInput vcfinput: sample2inputs.values()) {
-				try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
+				if(variants2samples.isEmpty()) continue;
+				
+				// build an interval tree for a faster access
+				final IntervalTree<SVKey> intervalTree = new IntervalTree<>();
+				for(final SVKey key: variants2samples.keySet()) {
+					final SimpleInterval r = new SimpleInterval(key.archetype).
+							extend(this.svComparator.getBndDistance()+1);
+					intervalTree.put(r.getStart(), r.getEnd(), key);
 					
-					final CloseableIterator<VariantContext> iter = vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength());
-					while(iter.hasNext()) {
-						final VariantContext ctx = iter.next();
-						
-						if(this.discard_bnd && ctx.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")) continue;
-						if(!bedPredicate.test(ctx)) continue;
-						final SimpleInterval r = new SimpleInterval(ctx).
-								extend(this.svComparator.getBndDistance()+1);
-						
-						
-						final Iterator<IntervalTree.Node<SVKey>> nodeIter = intervalTree.overlappers(r.getStart(),r.getEnd());
-						while( nodeIter.hasNext()) {
-							final SVKey key1 = nodeIter.next().getValue();
-							if(!this.svComparator.test(key1.archetype, ctx)) continue;
-  							final Set<String> samples= variants2samples.get(key1);
-  							samples.add(vcfinput.sample);
+					// paranoidcheck interval is ok to find current archetype
+					boolean found=false;
+					final Iterator<IntervalTree.Node<SVKey>> nodeIter = intervalTree.overlappers(r.getStart(),r.getEnd());
+					while( nodeIter.hasNext()) {
+						final SVKey key1 = nodeIter.next().getValue();
+						if(this.svComparator.test(key1.archetype, key.archetype))  {
+							found=true;
+							break;
 							}
 						}
-					iter.close();
+					if(!found) {
+						out.close();
+						throw new RuntimeException("cannot find self "+key.archetype+" in "+r);
+						}
 					}
-				}
-			final Comparator<VariantContext> sorter =new ContigDictComparator(dict).createLocatableComparator();
-			final List<SVKey> orderedKeys = variants2samples.keySet().
-					stream().
-					filter(K->!variants2samples.get(K).isEmpty()).// no samples for this key ??!
-					sorted((A,B)->sorter.compare(A.archetype, B.archetype)).
-					collect(Collectors.toCollection(ArrayList::new));
-			
-			// remove duplicates
-			int i=0;
-			while(i +1 < orderedKeys.size())
-				{
-				final SVKey key1 = orderedKeys.get(i);
-				final SVKey key2 = orderedKeys.get(i+1);
-				if(svComparator.test(key1.archetype,key2.archetype) &&
-					variants2samples.get(key1).equals(variants2samples.get(key2)) // same samples
-					) {
-					orderedKeys.remove(i+1);
-					}
-				else
-					{
-					i++;
-					}
-				}
-			
-			
-			for(int key_index=0;key_index < orderedKeys.size();key_index++) {
-				final SVKey key = orderedKeys.get(key_index);
-				final Set<String> samples = variants2samples.get(key);
-				final Allele refAllele = key.archetype.getReference();
-				final Allele altAllele = Allele.create("<SV>", false);
-				final Object svType = key.archetype.getAttribute(VCFConstants.SVTYPE, ".");
-				final VariantContextBuilder vcb=new VariantContextBuilder();
-				vcb.chr(key.archetype.getContig());
-				vcb.start(key.archetype.getStart());
-				vcb.stop(key.archetype.getEnd());
-				vcb.log10PError(key.archetype.getLog10PError());
-				vcb.alleles(Arrays.asList(refAllele,altAllele));
-				vcb.attribute(VCFConstants.END_KEY, key.archetype.getEnd());
-				vcb.attribute(VCFConstants.SVTYPE, svType);
-				vcb.attribute(infoSvLen.getID(), (svType.equals("DEL")?-1:1)*key.archetype.getLengthOnReference());
-				vcb.attribute(infoNSamples.getID(),samples.size());
-				vcb.attribute(infoSamples.getID(),samples.stream().sorted().collect(Collectors.toList()));
+	
 				
-				int ac = 0;
-				final List<Genotype> genotypes = new ArrayList<>(sample2inputs.size());
-				for(final String sn:sample2inputs.keySet()) {
-					List<Allele> gta;
-					if(samples.contains(sn))
-						{
-						ac++;
-						gta =  Arrays.asList(refAllele,altAllele);
+				for(final VcfInput vcfinput: sample2inputs.values()) {
+					try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
+						
+						final CloseableIterator<VariantContext> iter = vcfFileReader.query(ssr.getSequenceName(), 1, ssr.getSequenceLength());
+						while(iter.hasNext()) {
+							final VariantContext ctx = iter.next();
+							
+							
+							if(this.discard_bnd && ctx.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")) continue;
+							if(!bedPredicate.test(ctx)) continue;
+							final SimpleInterval r = new SimpleInterval(ctx).
+									extend(this.svComparator.getBndDistance()+1);
+							
+							final MiniGT miniGt;
+							if(ctx.hasGenotypes()) {
+								miniGt=new MiniGT(vcfinput.sample,ctx.getGenotype(0));
+								}
+							else
+								{
+								miniGt=new MiniGT(vcfinput.sample);
+								}
+							
+							
+							final Iterator<IntervalTree.Node<SVKey>> nodeIter = intervalTree.overlappers(r.getStart(),r.getEnd());
+							while( nodeIter.hasNext()) {
+								final SVKey key1 = nodeIter.next().getValue();
+								if(!this.svComparator.test(key1.archetype, ctx)) continue;
+	  							final Set<MiniGT> samples= variants2samples.get(key1);
+	  							samples.add(miniGt);
+								}
+							}
+						iter.close();
+						}
+					}
+				final Comparator<VariantContext> sorter =new ContigDictComparator(dict).createLocatableComparator();
+				final List<SVKey> orderedKeys = variants2samples.keySet().
+						stream().
+						filter(K->!variants2samples.get(K).isEmpty()).// no samples for this key ??!
+						sorted((A,B)->sorter.compare(A.archetype, B.archetype)).
+						collect(Collectors.toCollection(ArrayList::new));
+				
+				// remove duplicates
+				int i=0;
+				while(i +1 < orderedKeys.size())
+					{
+					final SVKey key1 = orderedKeys.get(i);
+					final SVKey key2 = orderedKeys.get(i+1);
+					if(svComparator.test(key1.archetype,key2.archetype) &&
+						variants2samples.get(key1).equals(variants2samples.get(key2)) // same samples
+						) {
+						orderedKeys.remove(i+1);
 						}
 					else
 						{
-						gta =  Arrays.asList(refAllele,refAllele);
+						i++;
 						}
-					genotypes.add(new GenotypeBuilder(sn,gta).make());
 					}
 				
-				vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, ac);
-				vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,sample2inputs.size()*2);
-				if(ac>0) {
-					vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,ac/(float)sample2inputs.size()*2);
-					}
 				
-				if(key_index>0 && svComparator.test(key.archetype,  orderedKeys.get(key_index-1).archetype))
-					{
-					vcb.filter(filterSamePrev.getID());
+				for(int key_index=0;key_index < orderedKeys.size();key_index++) {
+					final SVKey key = orderedKeys.get(key_index);
+					final Set<MiniGT> miniGts = variants2samples.get(key);
+					final Allele refAllele = key.archetype.getReference();
+					final Allele altAllele = Allele.create("<SV>", false);
+					final Object svType = key.archetype.getAttribute(VCFConstants.SVTYPE, ".");
+					final VariantContextBuilder vcb=new VariantContextBuilder();
+					vcb.chr(key.archetype.getContig());
+					vcb.start(key.archetype.getStart());
+					vcb.stop(key.archetype.getEnd());
+					vcb.log10PError(key.archetype.getLog10PError());
+					vcb.alleles(Arrays.asList(refAllele,altAllele));
+					vcb.attribute(VCFConstants.END_KEY, key.archetype.getEnd());
+					vcb.attribute(VCFConstants.SVTYPE, svType);
+					vcb.attribute(infoSvLen.getID(), (svType.equals("DEL")?-1:1)*key.archetype.getLengthOnReference());
+					vcb.attribute(infoNSamples.getID(),miniGts.size());
+					vcb.attribute(infoSamples.getID(),miniGts.stream().map(MG->MG.sample).sorted().collect(Collectors.toList()));
+					
+					int ac = 0;
+					final List<Genotype> genotypes = new ArrayList<>(sample2inputs.size());
+					for(final String sn:sample2inputs.keySet()) {
+						List<Allele> gta;
+						final MiniGT miniGt = miniGts.stream().
+								filter(MG->MG.sample.equals(sn)).
+								findFirst().
+								orElse(null);
+						if(miniGt==null || miniGt.isHomRefOrNoCall())
+							{
+							gta =  Arrays.asList(refAllele,refAllele);
+							}
+						else if(miniGt.isHet()) {
+							ac++;
+							gta =  Arrays.asList(refAllele,altAllele);
+							}
+						else if(miniGt.isHomVar()) {
+							ac+=2;
+							gta =  Arrays.asList(altAllele,altAllele);
+							}
+						else
+							{
+							throw new IllegalStateException();
+							}
+						genotypes.add(new GenotypeBuilder(sn,gta).make());
+						}
+					
+					vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, ac);
+					vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,sample2inputs.size()*2);
+					if(ac>0) {
+						vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,ac/(float)sample2inputs.size()*2);
+						}
+					
+					if(key_index>0 && svComparator.test(key.archetype,  orderedKeys.get(key_index-1).archetype))
+						{
+						vcb.filter(filterSamePrev.getID());
+						}
+					if(key_index+1 < orderedKeys.size()  && svComparator.test(key.archetype,  orderedKeys.get(key_index+1).archetype))
+						{
+						System.err.println("SAME\n"+key.archetype+"\n"+ orderedKeys.get(key_index+1).archetype);
+						vcb.filter(filterSameNext.getID());
+						}
+	
+					
+					vcb.genotypes(genotypes);
+					out.add(vcb.make());
 					}
-				if(key_index+1 < orderedKeys.size()  && svComparator.test(key.archetype,  orderedKeys.get(key_index+1).archetype))
-					{
-					System.err.println("SAME\n"+key.archetype+"\n"+ orderedKeys.get(key_index+1).archetype);
-					vcb.filter(filterSameNext.getID());
-					}
-
-				
-				vcb.genotypes(genotypes);
-				out.add(vcb.make());
 				}
-			}
-		out.close();
-		out=null;
+			} //end out
 		return 0;
 		}
 	catch(final Throwable err) {
 		LOG.error(err);
 		return -1;
-		}
-	finally
-		{
-		CloserUtil.close(out);
 		}
 	}
 
