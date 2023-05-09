@@ -49,7 +49,6 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.tools.vcfcmp.VcfIn;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
@@ -66,7 +65,6 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTree;
@@ -114,9 +112,11 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 @Program(name="mantamerger",
 description="Merge Vcf from Manta VCF.",
-keywords= {"sv","burden","manta","vcf"},
+keywords= {"sv","manta","vcf"},
 creationDate="20190916",
-modificationDate="20230320"
+modificationDate="20230320",
+jvarkit_amalgamion = true,
+menu="VCF Manipulation"
 )
 public class MantaMerger extends Launcher {
 	private static final Logger LOG = Logger.build( MantaMerger.class).make();
@@ -398,7 +398,6 @@ public int doWork(final List<String> args) {
 							}
 						}
 					if(!found) {
-						out.close();
 						throw new RuntimeException("cannot find self "+key.archetype+" in "+r);
 						}
 					}

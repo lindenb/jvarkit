@@ -18,7 +18,7 @@ Usage: bam2haplotypes [options] Files
       Default: all
       Possible Values: [skip, warn, error, N, all]
     --buffer-size
-      When we're looking for variant in a lare VCF file, load the variants in 
+      When we're looking for variants in a lare VCF file, load the variants in 
       an interval of 'N' bases instead of doing a random access for each 
       variant. 
       Default: 1000

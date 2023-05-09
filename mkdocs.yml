@@ -93,6 +93,7 @@ nav:
         - "illuminadir" : IlluminaDirectory.md
         - "kg2bed" : KnownGenesToBed.md
         - "lowresbam2raster" : LowResBam2Raster.md
+        - "mantamerger" : MantaMerger.md
         - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md
         - "msa2vcf" : MsaToVcf.md

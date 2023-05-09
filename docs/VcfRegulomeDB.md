@@ -84,7 +84,8 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-Build the database
+Build the database, for grch38
+
 
 ```
 # here, we use `head` to get a short example
@@ -94,6 +95,7 @@ $ bgzip -f  regulome.bed
 $ tabix -f -p bed regulome.bed.gz 
 ```
 
+for grch37, the database is available at http://legacy.regulomedb.org/downloads/RegulomeDB.dbSNP141.txt.gz .
 
 ## Example
 

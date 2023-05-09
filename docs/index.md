@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 5218c1355
-Compilation : 20230505173129
+Version     : f9f3f467e
+Compilation : 20230509143840
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -181,6 +181,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [builddbsnp](BuildDbsnp.md) | Build a DBSNP file from different sources for GATK | 20200904 | 2021070726 |
 | [findavariation](FindAVariation.md) | Finds a specific mutation in a list of VCF files | 20140623 | 20200217 |
 | [findgvcfsblocks](FindGVCFsBlocks.md) | Find common blocks of calleable regions from a set of gvcfs | 20210806 | 20220401 |
+| [mantamerger](MantaMerger.md) | Merge Vcf from Manta VCF. | 20190916 | 20230320 |
 | [minicaller](MiniCaller.md) | Simple and Stupid Variant Caller designed for @AdrienLeger2 | 201500306 | 20220705 |
 | [swingvcfjexl](SwingVcfJexlFilter.md) | Filter VCF using Java Swing UI and JEXL/Javascript expression | 20220413 | 20220414 |
 | [swingvcfview](SwingVcfView.md) | VCFviewer using Java Swing UI | 20210503 | 20210503 |

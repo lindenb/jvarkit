@@ -160,6 +160,7 @@ import com.github.lindenb.jvarkit.tools.structvar.CoverageMatrix;
 import com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions;
 import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
+import com.github.lindenb.jvarkit.tools.structvar.manta.MantaMerger;
 import com.github.lindenb.jvarkit.tools.sv2fasta.StructuralVariantToFasta;
 import com.github.lindenb.jvarkit.tools.taxonomy.NcbiTaxonomyToXml;
 import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
@@ -567,6 +568,7 @@ public class JvarkitCentral {
 		command(IlluminaDirectory.class);
 		command(KnownGenesToBed.class);
 		command(LowResBam2Raster.class);
+		command(MantaMerger.class);
 		command(MiniCaller.class);
 		command(MsaToVcf.class);
 		command(MakeMiniBam.class);

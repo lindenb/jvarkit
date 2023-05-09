@@ -129,8 +129,13 @@ public class FileHeader extends AbstractList<String> {
 	@Override
 	public boolean contains(Object o) {
 		if(o==null || !(o instanceof String)) return false;
-		return this.col2idx.containsKey(String.class.cast(o));
+		return this.containsKey(String.class.cast(o));
 		}
+	/** return true if column is defined in header */
+	public boolean containsKey(final String colName) {
+		return colName!=null && this.col2idx.containsKey(colName);
+		}
+	
 	@Override
 	public int indexOf(Object o) {
 		if(!contains(o)) return -1;

@@ -158,6 +158,18 @@ public class VcfGrantham extends OnePassVcfLauncher {
 					return GranthamScore.getDefaultScore();
 					}
 				
+				if(s.endsWith("del")) {
+					return GranthamScore.getDefaultScore();
+					}
+				
+				if(s.endsWith("dup")) {
+					return GranthamScore.getDefaultScore();
+					}
+				
+				if(s.length()<3) {
+					LOG.warning("small length for: "+hgvs);
+					continue;
+					}
 				
 				final String aa1s = s.substring(0,3);
 				s=s.substring(3);
