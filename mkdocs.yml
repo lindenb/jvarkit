@@ -120,6 +120,7 @@ nav:
         - "scanretrocopy" : ScanRetroCopy.md
         - "setfiletools" : SetFileTools.md
         - "sortsamrefname" : SortSamRefName.md
+        - "sortvcfoninfo" : SortVcfOnInfo.md
         - "splitvcf" : SplitVcf.md
         - "starretrocopy" : StarRetroCopy.md
         - "sv2fasta" : StructuralVariantToFasta.md
@@ -138,6 +139,7 @@ nav:
         - "vcfbigwig" : VCFBigWig.md
         - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
+        - "vcfdistancevariants" : VcfDistanceBetweenVariants.md
         - "vcffiltergenes" : VcFilterGenes.md
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md

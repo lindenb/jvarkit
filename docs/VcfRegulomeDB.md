@@ -22,6 +22,11 @@ Usage: vcfregulomedb [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    -x, --extends
+      (int) base pairs. look.for data around the variation +/- 'x'. A distance 
+      specified as a positive integer.Commas are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
+      Default: 0
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false

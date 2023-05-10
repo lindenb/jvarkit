@@ -24,19 +24,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.nio.file.Path;
-import java.util.List;
-
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -76,18 +69,24 @@ END_DOC
 		description="Annotate variants with the distance between previous and next variant.",
 		keywords={"vcf","annotation","distance"},
 		creationDate="20190410",
-		modificationDate="20191011"
+		modificationDate="20230510"	,
+		jvarkit_amalgamion = true,
+		menu="VCF Manipulation"
+
 		)
-public class VcfDistanceBetweenVariants extends Launcher{
+public class VcfDistanceBetweenVariants extends OnePassVcfLauncher{
 	private static final Logger LOG = Logger.build(VcfDistanceBetweenVariants.class).make();
 
-	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	 private Path outputFile = null;
-	 @Parameter(names={"-p","--prefix"},description="INFO Attribute Prefix")
-	 private String prefix="DIST_";
-	 @ParametersDelegate
-	 private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
+	@Parameter(names={"-p","--prefix"},description="INFO Attribute Prefix")
+	private String prefix="DIST_";
     
+	
+	private static class Variant {
+		VariantContext ctx;
+		Integer dist_to_prev=null;
+		Integer dist_to_next=null;
+		}
+	
     protected static int distance(final VariantContext v1,final VariantContext v2) {
     	if(v1.overlaps(v2)) 
     		{
@@ -103,66 +102,54 @@ public class VcfDistanceBetweenVariants extends Launcher{
     	{
     		throw new IllegalStateException(""+v1+" "+v2);
     	}
-    	
-    }
+    	}
     
     @Override
-    public int doWork(final List<String> args) {
-    	VCFIterator in = null;
-    	VariantContextWriter w = null;
-    	try {
-    		in = super.openVCFIterator(oneFileOrNull(args));
-    		
-    		
-        	final VCFHeader header= new VCFHeader(in.getHeader());
-        	w =  this.writingVariants.dictionary(header).open(this.outputFile);
-        	
-        	
-        	final VCFInfoHeaderLine infoPrev= new VCFInfoHeaderLine(prefix+"PREV", 1,VCFHeaderLineType.Integer ,"Distance to previous variant.");
-        	final VCFInfoHeaderLine infoNext= new VCFInfoHeaderLine(prefix+"NEXT", 1,VCFHeaderLineType.Integer ,"Distance to next variant.");
-        	
-        	header.addMetaDataLine(infoPrev);
-        	header.addMetaDataLine(infoNext);
-        	
-        	JVarkitVersion.getInstance().addMetaData(this, header);
-        	
-        	VariantContext prev = null;
-        	
-        	final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header).build();
-        	w.writeHeader(header);
-        	while(in.hasNext()) {
-        		final VariantContext ctx = progress.apply(in.next());
-        		final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+    protected Logger getLogger() {
+    	return LOG;
+    	}
+    
+    
+    @Override
+    protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter w) {
+    	final VCFHeader header= new VCFHeader(in.getHeader());        	
+    	final VCFInfoHeaderLine infoPrev= new VCFInfoHeaderLine(prefix+"PREV", 1,VCFHeaderLineType.Integer ,"Distance to previous variant.");
+    	final VCFInfoHeaderLine infoNext= new VCFInfoHeaderLine(prefix+"NEXT", 1,VCFHeaderLineType.Integer ,"Distance to next variant.");
+    	
+    	header.addMetaDataLine(infoPrev);
+    	header.addMetaDataLine(infoNext);
+    	
+    	JVarkitVersion.getInstance().addMetaData(this, header);
+    	Variant prev = null;
+    	w.writeHeader(header);
+    	for(;;) {
+    		if(prev!=null) {
+				final VariantContextBuilder vcb=new VariantContextBuilder(prev.ctx);
         		vcb.rmAttribute(infoPrev.getID());
         		vcb.rmAttribute(infoNext.getID());
-        		
-        		if(prev!=null && prev.contigsMatch(ctx)) {
-        			vcb.attribute(infoPrev.getID(),distance(prev,ctx));
-        			}
-        		
-        		final VariantContext next = in.hasNext()?in.peek():null;
-        		if(next!=null && ctx.contigsMatch(next) ) {
-        			vcb.attribute(infoNext.getID(),distance(ctx,next));
-        			}
-        		
-        		prev=ctx;
-        		
-        		w.add(vcb.make());
-        		}
-        	in.close();in=null;
-        	w.close();w=null;
-        	progress.close();
-        	return 0;
-        	}
-    	catch(final Throwable err) {
-    		LOG.error(err);
-    		return -1;
+    			if(prev.dist_to_prev!=null) vcb.attribute(infoPrev.getID(),prev.dist_to_prev);
+    			if(prev.dist_to_next!=null) vcb.attribute(infoNext.getID(),prev.dist_to_next);
+    			w.add(vcb.make());
+    			}
+        	
+    		final VariantContext ctx =  in.hasNext()?in.next():null;
+    	
+    		if(ctx==null) break;
+    		
+    		final Variant variant = new Variant();
+    		variant.ctx  = ctx;
+    		final VariantContext next = in.hasNext()?in.peek():null;
+    		if(next!=null && ctx.contigsMatch(next) ) {
+    			variant.dist_to_next =  distance(ctx,next);
+    			}
+
+    		if(prev!=null && ctx.contigsMatch(prev.ctx) ) {
+    			variant.dist_to_prev =  distance(prev.ctx,ctx);
+    			}
+    		prev=variant;        		
     		}
-    	finally {
-    		CloserUtil.close(in);
-    		CloserUtil.close(w);
-    		}
-    	}
+    	return 0;
+		}
     	
     	
     public static void main(final String[] args) {

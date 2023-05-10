@@ -7,8 +7,13 @@ Sort a VCF a field in the INFO column
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/sortvcfoninfo.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar sortvcfoninfo  [options] Files
+
 Usage: sortvcfoninfo [options] Files
   Options:
     --bcf-output
@@ -60,23 +65,6 @@ Usage: sortvcfoninfo [options] Files
  * [https://www.biostars.org/p/9536939](https://www.biostars.org/p/9536939)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew sortvcfoninfo
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -124,4 +112,5 @@ chr10	48003992	.	C	T	1047.87	.	AC=4;AF=0.50;AN=8;BaseQRankSum=-0.053;
 chr10	135210791	.	T	C	65.41	.	AC=4;AF=0.50;AN=8;BaseQRankSum=2.054;
 chr10	135369532	.	T	C	122.62	.	AC=2;AF=0.25;AN=8;BaseQRankSum=2.118;
 ```
+
 

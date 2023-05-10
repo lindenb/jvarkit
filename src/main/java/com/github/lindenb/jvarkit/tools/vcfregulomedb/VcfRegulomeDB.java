@@ -47,8 +47,10 @@ import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.variant.vcf.VCFIterator;
@@ -114,7 +116,7 @@ public class VcfRegulomeDB extends OnePassVcfLauncher {
 	private String bedFile=null;
 	@Parameter(names="-T",description="tag in vcf INFO.")
 	private String infoTag="REGULOMEDB";
-	@Parameter(names={"-x","--extends"},description="(int) base pairs. look.for data around the variation +/- 'x' ",hidden = true)
+	@Parameter(names={"-x","--extends"},description="(int) base pairs. look.for data around the variation +/- 'x'. " + DistanceParser.OPT_DESCRIPTION, splitter=NoSplitter.class, converter = DistanceParser.StringConverter.class)
 	private int extend = 0;
 	@Parameter(names={"-r","--ranking-regex"},description="if defined, only accept the rank matching the regular expression. see https://regulomedb.org/regulome-help/ . For example: 1a	eQTL/caQTL + TF binding + matched TF motif + matched Footprint + chromatin accessibility peak")
 	private String acceptRegexStr=null;

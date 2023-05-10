@@ -135,7 +135,7 @@ END_DOC
 		description="Build a RDF database for human from misc sources",
 		keywords={"rdf","ontology","sparql"},
 		creationDate="20220427",
-		modificationDate="20220427",
+		modificationDate="20220510",
 		jvarkit_amalgamion =  true
 		)
 public class BioToRDF extends Launcher {
@@ -168,6 +168,7 @@ public class BioToRDF extends Launcher {
 		put("STRINGDB_PROTEIN_ALIASES","https://stringdb-static.org/download/protein.aliases.v{STRINGDB_RELEASE}/9606.protein.aliases.v{STRINGDB_RELEASE}.txt.gz");
 		put("STRINGDB_LINK","https://stringdb-static.org/download/protein.links.v{STRINGDB_RELEASE}/9606.protein.links.v{STRINGDB_RELEASE}.txt.gz");
 		//put("MONDO_OWL","https://github.com/monarch-initiative/mondo/releases/download/v2023-04-04/mondo.owl");
+		put("BASE_NCBI_REFSEQ","https://ftp.ncbi.nlm.nih.gov/refseq/H_sapiens/RefSeqGene");
 		}}};
 
 
@@ -208,16 +209,19 @@ public class BioToRDF extends Launcher {
 			}
 		}
 	
+	private String log(String uri) {
+		LOG.info("Parsing "+uri);
+		return uri;
+		}
 	
 	
 	private void parseNcbiGeneInfo(String uri) throws IOException,XMLStreamException {
-		LOG.info("parsing "+uri);
 		
 		final Set<String> limit_gene_names = Arrays.stream(limitGenesStr.split("[, \t]")).
 				filter(S->!StringUtils.isBlank(S)).
 				collect(Collectors.toSet());
 				
-		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(log(uri))) {
 			String line = br.readLine();
 			if(line==null || !line.startsWith("#")) throw new IOException("Cannot read first line or "+uri);
 			line=line.substring(1);//remove '#'
@@ -229,10 +233,22 @@ public class BioToRDF extends Launcher {
 				if(!limit_gene_names.isEmpty() && !limit_gene_names.contains(rec.get("Symbol"))) {
 					continue;
 					}
-				
 				final NcbiGeneInfo info = new NcbiGeneInfo();
 				info.geneid = rec.get("GeneID");
 				info.symbol = rec.get("Symbol");
+
+				for(String xref: CharSplitter.PIPE.split(rec.get("dbXrefs"))) {
+ 					if(StringUtils.isBlank(xref)) continue;
+ 					final int colon = xref.indexOf(':');
+ 					if(colon==-1) continue;
+ 					final String key = xref.substring(0,colon);
+ 					if(key.equals("HGNC")) {
+ 						final String hgnc_id= xref.substring(colon+1);
+ 						info.hgnc = hgnc_id;
+ 						break;
+ 						}
+ 					}
+				
 				this.geneid2gene.put(info.geneid, info);
 				this.symbol2gene.put(info.symbol, info);
 				
@@ -246,10 +262,17 @@ public class BioToRDF extends Launcher {
 				writer.writeStartElement(PREFIX,"symbol",NS);
 				writer.writeCharacters(info.symbol);
 				writer.writeEndElement();
-				writer.writeStartElement(PREFIX,"geneid",NS);
+				writer.writeStartElement(PREFIX,"ncbi_gene_id",NS);
 				writer.writeCharacters(info.geneid);
 				writer.writeEndElement();
 
+				if(!StringUtils.isBlank(info.hgnc)) {
+					writer.writeStartElement(PREFIX,"hgnc_id",NS);
+					writer.writeCharacters(info.hgnc);
+					writer.writeEndElement();
+					hgnc2gene.put(info.hgnc, info);
+					}
+				
 				
 				String s=rec.get("description");
 				if(!StringUtils.isBlank(s)) {
@@ -282,14 +305,6 @@ public class BioToRDF extends Launcher {
  						writer.writeCharacters(xref.substring(colon+1));
  						writer.writeEndElement();
  						}
- 					else if(key.equals("HGNC")) {
- 						final String hgnc_id= xref.substring(colon+1);
- 						writer.writeStartElement(PREFIX,"hgnc_id",NS);
- 						writer.writeCharacters(hgnc_id);
- 						writer.writeEndElement();
- 						info.hgnc = hgnc_id;
- 						hgnc2gene.put(hgnc_id, info);
- 						}
  					}
 				writer.writeEndElement();
 				writer.writeCharacters("\n");
@@ -298,12 +313,91 @@ public class BioToRDF extends Launcher {
 		}
 	
 	
+	private void parseNcbiRefseq(final String baserefseq) throws IOException,XMLStreamException {
+		if(StringUtils.isBlank(baserefseq)) return;
+		final List<String> gb_uris = new ArrayList<>();
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(log(baserefseq + "/refseqgene.files.installed"))) {
+			br.lines().
+				map(S-> CharSplitter.TAB.split(S)).
+				filter(T->T[1].endsWith(".gbff.gz")).
+				forEach(T->gb_uris.add(baserefseq+"/"+T[1]));
+			}
+		
+		if(gb_uris.isEmpty()) throw new IOException("cannot any url in "+baserefseq + "/refseqgene.files.installed");
+		
+		final Map<String,NcbiGeneInfo> refseq2gene= new HashMap<>();
+		final String LRG_RefSeqGene = baserefseq+"/LRG_RefSeqGene";
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(log(LRG_RefSeqGene))) {
+			String line=br.readLine();
+			if(line==null) throw new IOException("cannot get first line of "+LRG_RefSeqGene);
+			final FileHeader header = new FileHeader(CharSplitter.TAB.split(line));
+			while((line=br.readLine())!=null) {
+				final Map<String,String> rec = header.toMap(CharSplitter.TAB.split(line));
+				String acn = rec.get("RSG");
+				int dot = acn.lastIndexOf('.');
+				if(dot!=-1) acn=acn.substring(0,dot);
+				final NcbiGeneInfo info = this.geneid2gene.get(rec.get("GeneID"));
+
+				if(info!=null) refseq2gene.put(acn, info);
+				}
+			}
+		
+		for(final String uri :gb_uris )  {
+			if(refseq2gene.isEmpty()) break;
+			try(BufferedReader br = IOUtils.openURIForBufferedReading(log(uri))) {
+				String line;
+				String locus="";
+				int state=-1;
+				StringBuilder desc=new StringBuilder();
+				while((line=br.readLine())!=null) {
+					if(line.startsWith("//")) {
+						final NcbiGeneInfo info = refseq2gene.get(locus);
+						if(info!=null) {
+							writer.writeStartElement("rdf", "Description", RDF.getURI());
+							writer.writeAttribute("rdf", RDF.getURI(),"about",info.getURI());
+
+							writer.writeStartElement(PREFIX, "refseq_summary", NS);
+							writer.writeCharacters(StringUtils.normalizeSpaces(desc.toString()));
+							writer.writeEndElement();
+							
+							writer.writeEndElement();
+							writer.writeCharacters("\n");
+							
+							refseq2gene.remove(locus);//faster ?
+							}
+						state=-1;
+						locus="";
+						desc.setLength(0);
+						}
+					else if(line.startsWith("VERSION ")) {
+						locus = line.substring(12);
+						int dot = locus.lastIndexOf('.');
+						if(dot!=-1) locus=locus.substring(0,dot);
+						state=-1;
+						}
+					else if(line.startsWith("COMMENT ")) {
+						desc.append(line.substring(12));
+						state = 1;
+						}
+					else if(line.startsWith("  ") && state==1) {
+						desc.append(line.substring(12));
+						}
+					else {
+						state=-1;
+						}
+					}
+				}
+			}
+		for(final String key: refseq2gene.keySet()) {
+			LOG.warn("cannot find refseq for "+key);
+			}
+		}
+	
 	private void parseNcbiGeneGO(final String uri) throws IOException,XMLStreamException {
 		if(StringUtils.isBlank(uri)) return;
-		LOG.info("parsing "+uri);
 		final List<Map.Entry<NcbiGeneInfo,String>> gene2go = new ArrayList<>();
 		
-		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(log(uri))) {
 			String line = br.readLine();
 			if(line==null || !line.startsWith("#")) throw new IOException("Cannot read first line or "+uri);
 			line=line.substring(1);//remove '#'
@@ -346,7 +440,7 @@ public class BioToRDF extends Launcher {
 		if(StringUtils.isBlank(uriAliases)) return;
 		if(StringUtils.isBlank(uriLinks)) return;
 		final Map<String,NcbiGeneInfo> proteinId2gene = new HashMap<>(20_000);
-		try(BufferedReader br = IOUtils.openURIForBufferedReading(uriAliases)) {
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(log(uriAliases))) {
 			String line;
 			while((line=br.readLine())!=null) {
 				final String[] tokens = CharSplitter.TAB.split(line);
@@ -357,7 +451,7 @@ public class BioToRDF extends Launcher {
 				proteinId2gene.put(tokens[0], gene);
 				}
 			}
-		try(BufferedReader br = IOUtils.openURIForBufferedReading(uriLinks)) {
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(log(uriLinks))) {
 			String line = br.readLine();
 			if(line==null) throw new IOException("Cannot read first line of "+uriLinks);
 			final FileHeader header = new FileHeader(CharSplitter.SPACE.split(line));
@@ -408,7 +502,7 @@ public class BioToRDF extends Launcher {
 		writer.writeCharacters("\n");
 		
 		final Gff3Codec codec = new Gff3Codec(Gff3Codec.DecodeDepth.SHALLOW);
-		try(BufferedReader br = IOUtils.openURIForBufferedReading(uri)) {
+		try(BufferedReader br = IOUtils.openURIForBufferedReading(log(uri))) {
 			final LineIterator li = LineIterators.of(br);
 			codec.readHeader(li);
 			while(!codec.isDone(li)) {
@@ -525,7 +619,7 @@ public class BioToRDF extends Launcher {
 		final XMLInputFactory inputFactory = XMLInputFactory.newInstance();
 		inputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, true);
 		
-		try(Reader r= IOUtils.openURIForBufferedReading(uri)) {
+		try(Reader r= IOUtils.openURIForBufferedReading(log(uri))) {
 			final XMLEventReader reader0 = inputFactory.createXMLEventReader(r);
 			final XMLEventReader reader = inputFactory.createFilteredReader(reader0,createOWLEventFilter());
 		    StAX2Model.read(reader,ontModel,IOUtil.isUrl(uri)?uri:"file://"+uri); 
@@ -640,6 +734,8 @@ public class BioToRDF extends Launcher {
 				this.writer.writeCharacters("\n");
 				
 				parseNcbiGeneInfo(resourceMap.getOrDefault("NCBI_GENE_INFO",""));
+				
+				parseNcbiRefseq(resourceMap.getOrDefault("BASE_NCBI_REFSEQ", ""));
 				
 				final String string_db_release = resourceMap.getOrDefault("STRINGDB_RELEASE", "11.5");;
 				parseStringDB(

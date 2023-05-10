@@ -7,9 +7,21 @@ Annotate variants with the distance between previous and next variant.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfdistancevariants  [options] Files
+
 Usage: vcfdistancevariants [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -17,7 +29,7 @@ Usage: vcfdistancevariants [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
     -p, --prefix
       INFO Attribute Prefix
@@ -34,23 +46,6 @@ Usage: vcfdistancevariants [options] Files
  * annotation
  * distance
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfdistancevariants
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -105,4 +100,5 @@ ref2	14	.	C	T	0.09	.	AC1=1;AF1=0.487148;BQB=1;DIST_NEXT=0;DP=6;DP4=3,0,1,0;FQ=-1
 ref2	14	.	CAA	CAAATAA	32.43	.	AC1=2;AF1=1;DIST_NEXT=1;DIST_PREV=0;DP=6;DP4=0,0,3,0;FQ=-43.5253;IDV=1;IMF=0.166667;INDEL;MQ=30;MQ0F=0;SGB=-0.511536;VDB=0.354794	GT:PL	1/1:72,9,0
 ref2	17	.	T	A	0.14	.	AC1=1;AF1=0.491968;BQB=1;DIST_PREV=1;DP=6;DP4=4,0,1,0;FQ=-12.2521;MQ=30;MQ0F=0;MQB=1;PV4=1,1,1,0.201057;RPB=1;SGB=-0.379885	GT:PL	0/0:15,0,72
 ```
+
 

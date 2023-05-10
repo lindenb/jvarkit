@@ -77,7 +77,8 @@ description="Sort a VCF a field in the INFO column",
 keywords={"vcf","sort","annotation"},
 creationDate="20140218",
 modificationDate="20201204",
-biostars = 9536939
+biostars = 9536939,
+jvarkit_amalgamion = true
 )
 public class SortVcfOnInfo extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(SortVcfOnInfo.class).make();
@@ -214,7 +215,7 @@ public class SortVcfOnInfo extends OnePassVcfLauncher {
 		switch(this.infoDecl.getType())
 			{	
 			case Float:
-				{	
+				{
 				return new BigDecimal(o1).compareTo(new BigDecimal(o2));
 				}
 			case Integer:
