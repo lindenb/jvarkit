@@ -89,7 +89,7 @@ public default OptionalInt getIntAttribute(final String key) {
 	try {
 		return OptionalInt.of(Integer.parseInt(m.get(key)));
 		} catch(final NumberFormatException err) {
-			throw new IllegalStateException(key,err);
+			throw new IllegalStateException("Cannot parse int attribute for key \""+key+"\".",err);
 		}
 	}
 
@@ -145,6 +145,17 @@ public default Stream<Map.Entry<String, String>> entries() {
 public default void reportMissingKey(final String keyName) {
 	}
 
+static String _toString(final Map<String,String> map)  {
+	final StringBuilder sb=new StringBuilder();
+	int i=1;
+	for(final String key: map.keySet()) {
+		sb.append("$").append(i++).append(" : ").
+			append(key).append(" : ").
+			append(map.get(key)).append("\n");
+		}
+	return sb.toString();
+	}
+
 /** wraps a java.util.map */
 public static AttributeMap wrap(final Map<String, String> hash) {
 	final Map<String,String> umap = Collections.unmodifiableMap(hash);
@@ -152,6 +163,10 @@ public static AttributeMap wrap(final Map<String, String> hash) {
 		@Override
 		public Map<String, String> getAttributes() {
 			return umap;
+			}
+		@Override
+		public String toString() {
+			return _toString(this.getAttributes());
 			}
 		};
 	}
@@ -171,6 +186,10 @@ public static AttributeMap verbose(final AttributeMap src,final Consumer<String>
 				reportMissingKey.accept(keyName);
 				}
 			}
+		@Override
+		public String toString() {
+			return _toString(this.getAttributes());
+			}
 		};
 	}
 /** create a non-null empty attributeMap */
@@ -183,8 +202,8 @@ public static AttributeMap fromPairs(String...array) {
 	if(array.length%2!=0) throw new IllegalArgumentException("not an odd number of strings");
 	final Map<String,String> hash = new HashMap<>(array.length/2);
 	for(int i=0;i+1< array.length;i+=2) {
-		hash.put(array[i], array[i]+1);
-		}	
+		hash.put(array[i], array[i+1]);
+		}
 	return wrap(hash);
 	}
 }

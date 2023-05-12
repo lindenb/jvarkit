@@ -26,9 +26,9 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.variant;
 
 import java.io.IOException;
+import java.util.List;
 
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 
 /** interface describing a genetic way to add some new INFO in a VCF */
@@ -38,7 +38,7 @@ public interface VariantAnnotator extends AutoCloseable
 	public void fillHeader(VCFHeader header);
 
 	/** annotate variant */
-	public void annotate(VariantContext ctx,VariantContextBuilder vcb) throws IOException;
+	public List<VariantContext> annotate(VariantContext ctx) throws IOException;
 	
 	@Override
 	public void close();

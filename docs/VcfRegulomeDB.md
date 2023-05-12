@@ -41,6 +41,7 @@ Usage: vcfregulomedb [options] Files
       https://regulomedb.org/regulome-help/ . For example: 1a	eQTL/caQTL + TF 
       binding + matched TF motif + matched Footprint + chromatin accessibility 
       peak 
+      Default: <empty string>
   * -b, --bed, --tabix, --regulomedb
       RegulomeDB bed sorted, bgzipped and indexed with tabix.
     --version

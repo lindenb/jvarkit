@@ -43,6 +43,8 @@ Usage: vcfsvannotator [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
+    --regulomedb
+      RegulomeDB bed sorted, bgzipped and indexed with tabix.
     --version
       print version and exit
 
@@ -55,6 +57,9 @@ Usage: vcfsvannotator [options] Files
  * annotation
  * prediction
  * sv
+ * gnomad
+ * gtf
+ * regulome
 
 
 

@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.vcfannot;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,17 +40,21 @@ import com.github.lindenb.jvarkit.gtf.GtfTabixSVVariantAnnotator;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.tabix.AbstractTabixVariantAnnotator;
+import com.github.lindenb.jvarkit.regulomedb.RegulomeDBTabixAnnotator;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 
 
@@ -76,7 +81,7 @@ END_DOC
 
 @Program(name="vcfsvannotator",
 	description="SV Variant Effect prediction using gtf, gnomad, etc",
-	keywords={"vcf","annotation","prediction","sv"},
+	keywords={"vcf","annotation","prediction","sv","gnomad","gtf","regulome"},
 	creationDate="20190815",
 	modificationDate="20230512",
 	jvarkit_amalgamion =  true,
@@ -92,6 +97,8 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 	private String gnomadPath = null;
 	@Parameter(names={"--dgv"},description=DGVBedTabixVariantAnnotator.OPT_DESC)
 	private String dgvPath = null;
+	@Parameter(names={"--regulomedb"},description=RegulomeDBTabixAnnotator.OPT_DESC)
+	private String regulomePath = null;
 
 	@SuppressWarnings("serial")
 	@DynamicParameter(names={"-D","--define"},description="Dynamic parameters -Dkey=value ."
@@ -103,7 +110,33 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 		put("fraction","0.9");
 		}}};
 	
-	private final List<AbstractTabixVariantAnnotator> annotators = new ArrayList<>();
+	private final List<VariantAnnotator> annotators = new ArrayList<>();
+	
+	
+	private static class AddSvLen implements VariantAnnotator {
+		@Override
+		public void fillHeader(VCFHeader header) {
+			if(header.getInfoHeaderLine("SVLEN")==null) {
+				header.addMetaDataLine(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
+				}
+			}
+		
+		@Override
+		public void close() {
+			}
+		
+		@Override
+		public List<VariantContext> annotate(VariantContext ctx) throws IOException {
+			if(ctx.hasAttribute(VCFConstants.SVTYPE) && !ctx.hasAttribute("SVLEN")) {
+				int svlen = ctx.getLengthOnReference();
+				if(ctx.getAttribute(VCFConstants.SVTYPE,".").equals("DEL")) {
+					svlen = -svlen;
+					}
+				ctx = new VariantContextBuilder(ctx).attribute("SVLEN", svlen).make();
+				}
+			return Collections.singletonList(ctx);
+			}
+		}
 	
 	@Override
 	protected Logger getLogger() {
@@ -115,6 +148,10 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 		final AttributeMap dynaParams = AttributeMap.wrap(this.__dynaParams);
 		final DistanceParser parser=  new DistanceParser();
 		try {
+			
+			this.annotators.add(new AddSvLen());
+
+			
 			if(!StringUtils.isBlank(this.gtfPath)) {
 				this.annotators.add(new GtfTabixSVVariantAnnotator(this.gtfPath,
 						AttributeMap.fromPairs(
@@ -136,6 +173,13 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 								String.valueOf(dynaParams.getDoubleAttribute("fraction").orElse(0.9))
 						)));
 				}
+			if(!StringUtils.isBlank(this.regulomePath)) {
+				this.annotators.add(new RegulomeDBTabixAnnotator(this.regulomePath,
+						AttributeMap.fromPairs(
+								RegulomeDBTabixAnnotator.EXTEND_KEY,
+								String.valueOf("0")
+						)));
+				}
 			} 
 		catch(IOException err) {
 			LOG.error(err);
@@ -148,8 +192,20 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 	
 	@Override
 	protected void afterVcf() {
-		for(AbstractTabixVariantAnnotator ann:this.annotators) ann.close();
+		for(VariantAnnotator ann:this.annotators) ann.close();
 		super.afterVcf();
+		}
+	
+	private void recursive(VariantContextWriter w, int annotator_idx,VariantContext ctx) throws IOException {
+		if(annotator_idx==this.annotators.size()) {
+			w.add(ctx);
+			}
+		else
+			{
+			for(VariantContext ctx2: this.annotators.get(annotator_idx).annotate(ctx)) {
+				recursive(w,annotator_idx+1,ctx2);
+				}
+			}
 		}
 	
 	@Override
@@ -158,7 +214,7 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 			final VCFHeader header= r.getHeader();
 
 			final VCFHeader h2=new VCFHeader(header);
-			for(AbstractTabixVariantAnnotator ann:this.annotators) {
+			for(VariantAnnotator ann:this.annotators) {
 				ann.fillHeader(h2);
 				}
 			
@@ -167,12 +223,7 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 	
 			while(r.hasNext())
 				{
-				final VariantContext ctx= r.next();
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				for(AbstractTabixVariantAnnotator ann:this.annotators) {
-					ann.annotate(ctx, vcb);
-					}
-				w.add(vcb.make());
+				recursive(w,0,r.next());
 				}
 			return 0;
 		} catch(final Throwable err ) {

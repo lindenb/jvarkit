@@ -34,8 +34,6 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.vcf.VCFHeader;
 
 /** abstract Tabix Reader to annotate Variants */
 public abstract class AbstractTabixVariantAnnotator implements VariantAnnotator {
@@ -79,28 +77,8 @@ public abstract class AbstractTabixVariantAnnotator implements VariantAnnotator 
 		return converter.apply(ctx.getContig());
 		}
 	/** return true if variant contig can be processed */
-	public boolean hasContig(final VariantContext ctx) {
+	protected boolean hasContig(final VariantContext ctx) {
 		return !StringUtil.isBlank(contig(ctx));
-		}
-	/** fill VCF header will new headers */
-	abstract public void fillHeader(VCFHeader header);
-	/** annotate variant
-	 * 
-	 * @param ctx current variant
-	 * @param vcb current variant builder
-	 * @throws IOException
-	 */
-	@Override
-	abstract public void annotate(final VariantContext ctx, final VariantContextBuilder vcb ) throws IOException;
-	
-	/**
-	 * Return annotated variant.
-	 */
-	public VariantContext annotate(final VariantContext ctx) throws IOException {
-		if(!isValid() || !hasContig(ctx)) return ctx;
-		final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-		annotate(ctx,vcb);
-		return vcb.make();
 		}
 	
 	@Override

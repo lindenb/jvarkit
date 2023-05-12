@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfregulomedb;
 
-import java.io.IOException;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
@@ -36,6 +35,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
@@ -102,7 +102,7 @@ public class VcfRegulomeDB extends OnePassVcfLauncher {
 	@Parameter(names={"-x","--extends"},description="(int) base pairs. look.for data around the variation +/- 'x'. " + DistanceParser.OPT_DESCRIPTION, splitter=NoSplitter.class, converter = DistanceParser.StringConverter.class)
 	private int extend = 0;
 	@Parameter(names={"-r","--ranking-regex"},description="if defined, only accept the rank matching the regular expression. see https://regulomedb.org/regulome-help/ . For example: 1a	eQTL/caQTL + TF binding + matched TF motif + matched Footprint + chromatin accessibility peak")
-	private String acceptRegexStr=null;
+	private String acceptRegexStr="";
 	
 	private RegulomeDBTabixAnnotator annotator=null;
 	
@@ -125,10 +125,12 @@ public class VcfRegulomeDB extends OnePassVcfLauncher {
 			
 			while(in.hasNext())
 				{
-				out.add(annotator.annotate(in.next()));
+				for(VariantContext ctx: annotator.annotate(in.next())) {
+					out.add(ctx);
+					}
 				}
 			}
-		catch(IOException err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}

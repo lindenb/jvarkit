@@ -24,8 +24,11 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.gnomad;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
@@ -87,15 +90,15 @@ public class GnomadSVBedTabixVariantAnnotator extends AbstractTabixVariantAnnota
 		this.hdrHasGnomad = new VCFInfoHeaderLine("HAS_GNOMAD_SV",1, VCFHeaderLineType.Flag, "SV was found in "+cmdHelp);
 		this.hdrGnomadSV = new VCFInfoHeaderLine("GNOMAD_SV",VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, 
 				"SV in "+ cmdHelp +" Format:ID|SVTYPE|"+af_column);
-		this.hdrGnomadAF = new VCFInfoHeaderLine("GNOMAD_"+this.af_column+"_MAX",1, VCFHeaderLineType.Float, "Max "+this.af_column+" frequency found in " + cmdHelp);
+		this.hdrGnomadAF = new VCFInfoHeaderLine("GNOMAD_SV_"+this.af_column+"_MAX",1, VCFHeaderLineType.Float, "Max "+this.af_column+" frequency found in " + cmdHelp);
 
 		header.addMetaDataLine(this.hdrHasGnomad);
 		header.addMetaDataLine(this.hdrGnomadSV);
 		header.addMetaDataLine(this.hdrGnomadAF);
 		}
 	@Override
-	public void annotate(final VariantContext ctx, final VariantContextBuilder vcb)  throws IOException {
-		if(super.tabixReader==null || !hasContig(ctx)) return;
+	public List<VariantContext> annotate(final VariantContext ctx)  throws IOException {
+		if(super.tabixReader==null || !hasContig(ctx)) return Collections.singletonList(ctx);
 		final Set<String> gnomad_variants = new HashSet<>();
 		TabixReader.Iterator r = super.tabixReader.query(contig(ctx),ctx.getStart()-1, ctx.getEnd());
 		Double popmax_af = null;
@@ -117,7 +120,7 @@ public class GnomadSVBedTabixVariantAnnotator extends AbstractTabixVariantAnnota
 					mapToDouble(Double::parseDouble).
 					max()
 					;
-			gnomad_variants.add(String.join("|", rec.get("name"),rec.get("type"),(rec_popmax_af.isPresent()?String.valueOf(rec_popmax_af):".")));
+			gnomad_variants.add(String.join("|", rec.get("name"),rec.get("svtype"),(rec_popmax_af.isPresent()?String.valueOf(rec_popmax_af.getAsDouble()):".")));
 			if(rec_popmax_af.isPresent()) {
 				if(popmax_af==null || popmax_af.doubleValue()< rec_popmax_af.getAsDouble()) {
 					popmax_af = rec_popmax_af.getAsDouble();
@@ -126,9 +129,15 @@ public class GnomadSVBedTabixVariantAnnotator extends AbstractTabixVariantAnnota
 			
 			}
 		if(!gnomad_variants.isEmpty()) {
+			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			vcb.attribute(this.hdrHasGnomad.getID(), true);
-			vcb.attribute(this.hdrGnomadSV.getID(), gnomad_variants);
+			vcb.attribute(this.hdrGnomadSV.getID(), new ArrayList<>(gnomad_variants));
 			if(popmax_af!=null) vcb.attribute(this.hdrGnomadAF.getID(), popmax_af);
+			return Collections.singletonList(vcb.make());
+			}
+		else
+			{
+			return Collections.singletonList(ctx);
 			}
 		}
 	

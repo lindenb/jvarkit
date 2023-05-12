@@ -65,7 +65,7 @@ public class FileHeader extends AbstractList<String> {
 		@Override
 		public String get(final Object key) {
 			final int i= owner().indexOf(key);
-			if(i<0) return null;
+			if(i<0) throw new IllegalArgumentException("Cannot find column \""+key+"\" in "+owner().toString());
 			return at(i);
 			}
 		@Override

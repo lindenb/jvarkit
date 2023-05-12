@@ -24,11 +24,15 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.gtf;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tabix.AbstractTabixVariantAnnotator;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
@@ -37,6 +41,7 @@ import htsjdk.samtools.util.CoordMath;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -57,6 +62,9 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 	private VCFInfoHeaderLine hdrGeneIDSet;
 	private VCFInfoHeaderLine hdrGeneNameSet;
 	private VCFInfoHeaderLine hdrGeneBiotypeSet;
+
+	private VCFInfoHeaderLine hdrIntronDelTranscriptIds;
+	private VCFInfoHeaderLine hdrIntronDelFlag;
 
 	
 	private VCFInfoHeaderLine hdrInDownstream;
@@ -93,6 +101,12 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 		header.addMetaDataLine(this.hdrGeneBiotypeSet);
 
 		
+		// intron skip
+		this.hdrIntronDelFlag = new VCFInfoHeaderLine("INTRON_SKIP",1, VCFHeaderLineType.Flag, "SV has the coordinate of an intron (retrogene...) "+helpCmd);
+		header.addMetaDataLine(this.hdrIntronDelFlag);
+		this.hdrIntronDelTranscriptIds = new VCFInfoHeaderLine("INTRON_SKIP_TRANSCRIPTS",VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, "Transcript ids where SV has the coordinate of an intron (retrogene...) "+helpCmd);
+		header.addMetaDataLine(this.hdrIntronDelTranscriptIds);
+
 		
 		helpCmd+=" within a distance of "+this.extend+" bp.";
 		
@@ -102,13 +116,13 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 		header.addMetaDataLine(this.hdrInUpstream);
 		}
 	@Override
-	public void annotate(VariantContext ctx, VariantContextBuilder vcb) throws IOException  {
+	public List<VariantContext> annotate(final VariantContext ctx) throws IOException  {
 		boolean in_cds_flag = false;
 		boolean in_exon_flag = false;
 		boolean in_transcript_flag = false;
 		boolean in_gene_flag = false;
 		boolean in_protein_coding = false;
-		if(super.tabixReader ==null || !hasContig(ctx)) return;
+		if(super.tabixReader ==null || !hasContig(ctx)) return Collections.singletonList(ctx);
 		int extend_start = Math.max(0, ctx.getStart()- this.extend);
 		int extend_end = ctx.getEnd() + this.extend;
 		final Set<String> downstream_genes = new HashSet<>();
@@ -149,6 +163,8 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 					in_protein_coding = true;
 					}
 				}
+			
+			
 			if(this.extend>0 &&
 				!CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), rec_start, rec_end) && 
 				CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), extend_start, extend_end) && 
@@ -182,22 +198,59 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 						));
 					}
 			}
+		//seach for intron deletion
+		final Set<String> intron_skip_transcript_ids;
+		if(in_gene_flag && ctx.getAttribute(VCFConstants.SVTYPE,"").equals("DEL")) {
+			final Set<String> transcript_5 = new HashSet<>();
+			final Set<String> transcript_3 = new HashSet<>();
+			for(int side=0;side<2;side++) {
+				final int junction_extend=5;
+				final int junction_pos = (side==0?ctx.getStart():ctx.getEnd());
+				final int junction_start = Math.max(1, junction_pos-junction_extend);
+				final int junction_end = Math.max(1, junction_pos-junction_extend);
+				r = this.tabixReader.query(contig(ctx), junction_start ,junction_end);
+				for(;;) {
+					final String line = r.next();
+					if(line==null) break;
+					final String tokens[] = CharSplitter.TAB.split(line);
+					if(!tokens[2].equals("exon")) continue;
+					final GTFLine gtfRecord = this.gtfCodec.decode(tokens);
+					if(!CoordMath.overlaps(junction_start, junction_end, gtfRecord.getStart(), gtfRecord.getEnd())) continue;
+					final String transcript_id = gtfRecord.getAttributes().getOrDefault("transcript_id","");
+					if(StringUtils.isBlank(transcript_id)) continue;
+					(side==0?transcript_5:transcript_3).add(transcript_id);
+ 					}
+				}
+			transcript_5.retainAll(transcript_3);
+			intron_skip_transcript_ids = transcript_5;
+			}
+		else
+			{
+			intron_skip_transcript_ids = Collections.emptySet();
+			}
+		
+		final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 		if(in_cds_flag)  vcb.attribute(this.hdrInCDS.getID(), true);
 		if(in_exon_flag)  vcb.attribute(this.hdrInExon.getID(), true);
 		if(in_transcript_flag)  vcb.attribute(this.hdrInTranscript.getID(), true);
 		if(in_gene_flag)  vcb.attribute(this.hdrInGene.getID(), true);
 		if(in_protein_coding)  vcb.attribute(this.hdrInBioTypeProteinCoding.getID(), true);
-		if(!upstream_genes.isEmpty()) vcb.attribute(this.hdrInUpstream.getID(), upstream_genes);
-		if(!downstream_genes.isEmpty()) vcb.attribute(this.hdrInDownstream.getID(), downstream_genes);
+		if(!upstream_genes.isEmpty()) vcb.attribute(this.hdrInUpstream.getID(), new ArrayList<>(upstream_genes));
+		if(!downstream_genes.isEmpty()) vcb.attribute(this.hdrInDownstream.getID(), new ArrayList<>(downstream_genes));
 		
 		if(!all_genes_names.isEmpty()) {
-			 vcb.attribute(this.hdrGeneNameSet.getID(), all_genes_names);
+			 vcb.attribute(this.hdrGeneNameSet.getID(), new ArrayList<>(all_genes_names));
 			}
 		if(!all_genes_biotypes.isEmpty()) {
-			 vcb.attribute(this.hdrGeneBiotypeSet.getID(), all_genes_biotypes);
+			 vcb.attribute(this.hdrGeneBiotypeSet.getID(), new ArrayList<>(all_genes_biotypes));
 			}
 		if(!all_genes_ids.isEmpty()) {
-			 vcb.attribute(this.hdrGeneIDSet.getID(), all_genes_ids);
+			 vcb.attribute(this.hdrGeneIDSet.getID(), new ArrayList<>(all_genes_ids));
 			}
+		if(!intron_skip_transcript_ids.isEmpty()) {
+			vcb.attribute(this.hdrIntronDelFlag.getID(), true);
+			vcb.attribute(this.hdrIntronDelTranscriptIds.getID(), new ArrayList<>(intron_skip_transcript_ids));
+			}
+		return Collections.singletonList(vcb.make());
 		}
 	}

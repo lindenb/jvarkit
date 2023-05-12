@@ -25,6 +25,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.regulomedb;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -83,12 +85,12 @@ public class RegulomeDBTabixAnnotator  extends AbstractTabixVariantAnnotator {
 		}
 
 	@Override
-	public void fillHeader(VCFHeader header) {
+	public void fillHeader(final VCFHeader header) {
 		final SAMSequenceDictionary dict = header.getSequenceDictionary();
 		if(dict!=null && !SequenceDictionaryUtils.isGRCh38(dict)) {
 			throw new IllegalArgumentException("VCF Sequence dictionary doesn't look like grch38 and database grch38 in "+getUri());
 			}
-		final String cmdHelp = " for regulomedb "+this.getUri() + " ranking-regex:"+(this.acceptRegex.pattern())+
+		final String cmdHelp = " for regulomedb "+this.getUri() + " ranking-regex:"+(this.acceptRegex==null?"none":this.acceptRegex.pattern())+
 		". The scoring scheme refers to the following supporting evidence for that particular location or variant id. "
 		+ "In general, if more supporting data is available, the higher is its likelihood of being functional and hence receives a higher score (with 1 being higher and 7 being lower score)."
 			;
@@ -108,8 +110,8 @@ public class RegulomeDBTabixAnnotator  extends AbstractTabixVariantAnnotator {
 		}
 	
 	@Override
-	public void annotate(VariantContext ctx, VariantContextBuilder vcb) throws IOException {
-		if(!isValid() || !hasContig(ctx)) return;
+	public List<VariantContext> annotate(VariantContext ctx) throws IOException {
+		if(!isValid() || !hasContig(ctx)) return Collections.singletonList(ctx);
 		final int start=Math.max(0,ctx.getStart()-this.extend);
 		final int end=ctx.getEnd()+this.extend;
 
@@ -137,9 +139,16 @@ public class RegulomeDBTabixAnnotator  extends AbstractTabixVariantAnnotator {
 			count_probability_score++;
 			}
 		if(count_probability_score>0) {
+			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			vcb.attribute(this.hdrRegulomeDbMaxScore.getID(), max_probability_score);
 			vcb.attribute(this.hdrRegulomeDbMeanScore.getID(), sum_probability_score/count_probability_score);
-			}	    
+			return Collections.singletonList(vcb.make());
+			}
+		else
+			{
+			return Collections.singletonList(ctx);
+			}
+		
     	}
 
 }

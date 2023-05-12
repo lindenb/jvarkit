@@ -24,7 +24,10 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.dgv;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -90,8 +93,8 @@ public class DGVBedTabixVariantAnnotator extends AbstractTabixVariantAnnotator {
 	
 	
 	@Override
-	public void annotate(final VariantContext ctx, final VariantContextBuilder vcb)  throws IOException {
-		if(super.tabixReader==null || !hasContig(ctx)) return;
+	public List<VariantContext> annotate(final VariantContext ctx)  throws IOException {
+		if(super.tabixReader==null || !hasContig(ctx)) return Collections.singletonList(ctx);
 		final Set<String> dgv_variants = new HashSet<>();
 		TabixReader.Iterator r = super.tabixReader.query(contig(ctx),ctx.getStart()-1, ctx.getEnd());
 		Double popmax_af = null;
@@ -121,9 +124,15 @@ public class DGVBedTabixVariantAnnotator extends AbstractTabixVariantAnnotator {
 			}
 
 		if(!dgv_variants.isEmpty()) {
+			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			vcb.attribute(this.hdrHasDGV.getID(), true);
-			vcb.attribute(this.hdrDGVSV.getID(), dgv_variants);
+			vcb.attribute(this.hdrDGVSV.getID(), new ArrayList<>(dgv_variants));
 			if(popmax_af!=null) vcb.attribute(this.hdrDGVAF.getID(), popmax_af);
+			return Collections.singletonList(vcb.make());
+			}
+		else
+			{
+			return Collections.singletonList(ctx);
 			}
 		}
 	
