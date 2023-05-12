@@ -43,7 +43,6 @@ public interface GTFLine
 	public String getType();
 	public Double getScore();
 	public char getStrand();
-	public Iterator<Map.Entry<String, String>> getAttributeIterator();
 	public Map<String, String> getAttributes();
 	public String getAttribute(final String key);
 	public int getPhase();

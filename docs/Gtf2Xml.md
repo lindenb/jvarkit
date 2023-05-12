@@ -16,24 +16,21 @@ Usage: java -jar dist/jvarkit.jar gtf2xml  [options] Files
 
 Usage: gtf2xml [options] Files
   Options:
-    -a, --attributes
-      Don't record attribute types.
-      Default: false
-    -d, --dict
-      Don't record contigs
-      Default: false
-    -f, --features
-      Don't record features types.
-      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
-    -s, --sources
-      Don't record sources
-      Default: false
+    --skip-attributes
+      Don't print the following attributes. Multiple separated by 
+      commas/spaces/semicolons 
+      Default: <empty string>
+    --skip-record
+      Don't record the following stuff at the end. possible values: 
+      FEATURE,SOURCES,CONTIG,ATTIBUTES Multiple separated by 
+      commas/spaces/semicolons 
+      Default: <empty string>
     --version
       print version and exit
 
@@ -61,11 +58,7 @@ Usage: gtf2xml [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gtf2Xml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/Gtf2Xml.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/Gtf2XmlTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/Gtf2XmlTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/Gtf2Xml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/Gtf2Xml.java)
 
 
 ## Contribute

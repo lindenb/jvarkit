@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 09d38275
-Compilation : 20230510173436
+Version     : cbbfb5d70
+Compilation : 20230512132104
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -137,7 +137,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [gtf2bed](GtfToBed.md) | Convert GTF/GFF3 to BED. | 20220629 | 20220630 |
-| [gtf2xml](Gtf2Xml.md) | Convert GTF/GFF to XML | 20150811 | 20190823 |
+| [gtf2xml](Gtf2Xml.md) | Convert GTF/GFF to XML | 20150811 | 20230512 |
 
 ### Utilities
 
@@ -199,6 +199,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfflatten](VCFFlatten.md) | Flatten variants to one variant | 20230222 | 20230222 |
 | [vcfgenesplitter](VcfGeneSplitter.md) | Split VCF+VEP by gene/transcript. | 20160310 | 202220531 |
 | [vcfgnomad](VcfGnomad.md) | Peek annotations from gnomad | 20170407 | 20200702 |
+| [vcfgnomadsv](VcfGnomadSV.md) | Peek annotations from gnomad structural variants | 20190814 | 20211109 |
 | [vcfgrantham](VcfGrantham.md) | add grantham score from annotated VCF variant | 20230503 | 20230503 |
 | [vcfhead](VcfHead.md) | print the first variants of a vcf | 20131210 | 20200518 |
 | [vcfmulti2oneinfo](VcfMultiToOneInfo.md) | 'one variant with INFO with N values' to 'N variants with one INFO' | 20260106 | 20230426 |
@@ -207,10 +208,11 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfphased01](VcfPhased01.md) | X10 Phased SVG to Scalar Vector Graphics (SVG) | 20190710 | 20190711 |
 | [vcfpolyx](VCFPolyX.md) | Number of repeated REF bases around POS. | 20200930 | 20211102 |
 | [vcfrebase](VcfRebase.md) | Restriction sites overlaping variations in a vcf | 20131115 | 20200624 |
-| [vcfregulomedb](VcfRegulomeDB.md) | Annotate a VCF with the Regulome2 data (https://regulomedb.org/) | 20140709 | 20230505 |
+| [vcfregulomedb](VcfRegulomeDB.md) | Annotate a VCF with the Regulome2 data (https://regulomedb.org/) | 20140709 | 20230512 |
 | [vcfsetdict](VcfSetSequenceDictionary.md) | Set the `##contig` lines in a VCF header on the fly | 20140105 | 20210201 |
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20200818 |
 | [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files | 202221122 | 202221201 |
+| [vcfsvannotator](VCFSVAnnotator.md) | SV Variant Effect prediction using gtf, gnomad, etc | 20190815 | 20230512 |
 | [vcftail](VcfTail.md) | print the last variants of a vcf | 20131210 | 20200518 |
 | [vcftrio](VCFTrios.md) | Find mendelian incompatibilitie / denovo variants in a VCF | 20130705 | 20200624 |
 

@@ -24,35 +24,20 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfregulomedb;
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CoordMath;
-import htsjdk.tribble.readers.TabixReader;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
-import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.regex.Pattern;
-
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.lang.AttributeMap;
+import com.github.lindenb.jvarkit.regulomedb.RegulomeDBTabixAnnotator;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -104,7 +89,7 @@ END_DOC
 @Program(name="vcfregulomedb",
 description="Annotate a VCF with the Regulome2 data (https://regulomedb.org/)",
 creationDate = "20140709",
-modificationDate = "20230505",
+modificationDate = "20230512",
 keywords = {"vcf","regulomedb"},
 menu="VCF Manipulation",
 jvarkit_amalgamion = true
@@ -114,17 +99,12 @@ public class VcfRegulomeDB extends OnePassVcfLauncher {
 
 	@Parameter(names={"-b","--bed","--tabix","--regulomedb"},description="RegulomeDB bed sorted, bgzipped and indexed with tabix.",required=true)
 	private String bedFile=null;
-	@Parameter(names="-T",description="tag in vcf INFO.")
-	private String infoTag="REGULOMEDB";
 	@Parameter(names={"-x","--extends"},description="(int) base pairs. look.for data around the variation +/- 'x'. " + DistanceParser.OPT_DESCRIPTION, splitter=NoSplitter.class, converter = DistanceParser.StringConverter.class)
 	private int extend = 0;
 	@Parameter(names={"-r","--ranking-regex"},description="if defined, only accept the rank matching the regular expression. see https://regulomedb.org/regulome-help/ . For example: 1a	eQTL/caQTL + TF binding + matched TF motif + matched Footprint + chromatin accessibility peak")
 	private String acceptRegexStr=null;
 	
-	private Pattern acceptRegex=null;
-	private FileHeader fileHeader = null;
-	private TabixReader regDataTabixFileReader=null;
-	private int database_version=-1; /* 1 : grch37 , 2 : grch38 */
+	private RegulomeDBTabixAnnotator annotator=null;
 	
 	@Override
 	protected Logger getLogger() {
@@ -138,68 +118,14 @@ public class VcfRegulomeDB extends OnePassVcfLauncher {
 			final VariantContextWriter out)
 		{
 		try {
-			final ContigNameConverter ctgConvert = ContigNameConverter.fromContigSet(this.regDataTabixFileReader.getChromosomes());
 			final VCFHeader header=in.getHeader();
-			final SAMSequenceDictionary dict = header.getSequenceDictionary();
-			if(dict!=null && SequenceDictionaryUtils.isGRCh37(dict) && database_version==2) {
-				throw new IllegalArgumentException("VCF Sequence dictionary looks like grch37 and database grch38");
-				}
-			else if(dict!=null && SequenceDictionaryUtils.isGRCh38(dict) && database_version==1) {
-				throw new IllegalArgumentException("VCF Sequence dictionary looks like grch38 and database grch37");
-				}
-			
-			final VCFInfoHeaderLine infoLine = new VCFInfoHeaderLine(
-					this.infoTag,
-					1,
-					VCFHeaderLineType.Float,
-					"Mean probability_score for regulomedb "+this.bedFile + " ranking-regex:"+(this.acceptRegexStr)+
-					". The scoring scheme refers to the following supporting evidence for that particular location or variant id. "
-					+ "In general, if more supporting data is available, the higher is its likelihood of being functional and hence receives a higher score (with 1 being higher and 7 being lower score)."
-					);
-			header.addMetaDataLine(infoLine);
-			
+			this.annotator.fillHeader(header);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			out.writeHeader(header);
 			
 			while(in.hasNext())
 				{
-				final VariantContext ctx=in.next();
-				final String ctg = ctgConvert.apply(ctx.getContig());
-				
-				final int start=Math.max(0,ctx.getStart()-this.extend);
-				final int end=ctx.getEnd()+this.extend;
-				
-				final TabixReader.Iterator iter = this.regDataTabixFileReader.query(StringUtils.isBlank(ctg)?ctx.getContig():ctg, Math.max(start-1,0), end);
-				
-				double sum_probability_score = 0.0;
-				int count_probability_score = 0;
-				for(;;)
-					{
-					final String line = iter.next();
-					if(line==null) break;
-					final Map<String,String> curr = this.fileHeader.toMap(CharSplitter.TAB.split(line));
-					if(this.acceptRegex!=null && 
-					   !this.acceptRegex.matcher(curr.get("ranking")).matches()
-					   )
-						{
-						continue;
-						}
-					final int x0 = Integer.parseInt(curr.get("start")+1);
-					final int x1 = Integer.parseInt(curr.get("end"));
-					if(!CoordMath.overlaps(start, end, x0, x1)) continue;
-					
-					final double probability_score = Double.parseDouble(curr.get("probability_score"));
-					sum_probability_score+=probability_score;
-					count_probability_score++;
-					}
-				if(count_probability_score==0)
-					{
-					out.add(ctx);
-					continue;
-					}
-				out.add(new VariantContextBuilder(ctx).
-						attribute(this.infoTag,sum_probability_score/count_probability_score).
-						make());
+				out.add(annotator.annotate(in.next()));
 				}
 			}
 		catch(IOException err) {
@@ -220,34 +146,12 @@ public class VcfRegulomeDB extends OnePassVcfLauncher {
 		
 		try
 			{
-			if(!StringUtils.isBlank(this.acceptRegexStr))
-				{
-				this.acceptRegex=Pattern.compile(this.acceptRegexStr);
-				}
+			annotator=new RegulomeDBTabixAnnotator(this.bedFile, 
+					AttributeMap.fromPairs(
+							RegulomeDBTabixAnnotator.EXTEND_KEY,String.valueOf(this.extend),
+							RegulomeDBTabixAnnotator.REGEX_KEY,String.valueOf(this.acceptRegexStr)
+					));
 			
-			this.regDataTabixFileReader=new TabixReader(bedFile);
-			final String line = this.regDataTabixFileReader.readLine();
-			if(line==null) throw new IOException("Cannot read header of "+ this.bedFile);
-			if(line.startsWith("chr1")) {
-				this.fileHeader = new FileHeader(Arrays.asList(
-						"col1", "start", "end", "col4", "col5", "col6",
-						"col7", "col8", "col9", "col10",
-						"col11", "col12", "col13", "col14",
-						"col15", "col16", "col17", "col18",
-						"col19", "col20", "col21", "col22",
-						"col23"));
-				this.database_version = 1;
-				/* ok, let's ignore this for now, I cannot find an equivalent description of regulomedb2.2 */
-				LOG.error("cannot decode regulomedb header :"+line);
-				return -1;
-				}
-			else
-				{				
-				this.fileHeader = new FileHeader(CharSplitter.TAB.split(line));
-				this.fileHeader.getColumnIndex("ranking");
-				this.fileHeader.getColumnIndex("probability_score");
-				this.database_version = 2;
-				}
 			}
 		catch(final Throwable err)
 			{
@@ -259,8 +163,8 @@ public class VcfRegulomeDB extends OnePassVcfLauncher {
 	
 	@Override
 	protected void afterVcf() {
-		if(this.regDataTabixFileReader!=null) {
-			this.regDataTabixFileReader.close();
+		if(this.annotator!=null) {
+			this.annotator.close();
 			}
 		super.afterVcf();
 		}

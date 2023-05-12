@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.lang;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -172,5 +173,18 @@ public static AttributeMap verbose(final AttributeMap src,final Consumer<String>
 			}
 		};
 	}
-
+/** create a non-null empty attributeMap */
+public static AttributeMap empty() {
+	return wrap(Collections.emptyMap());
+	}
+/** create from a pairs of string k1,v1,k2,v2,k3,v3... */
+public static AttributeMap fromPairs(String...array) {
+	if(array.length==0) return empty();
+	if(array.length%2!=0) throw new IllegalArgumentException("not an odd number of strings");
+	final Map<String,String> hash = new HashMap<>(array.length/2);
+	for(int i=0;i+1< array.length;i+=2) {
+		hash.put(array[i], array[i]+1);
+		}	
+	return wrap(hash);
+	}
 }

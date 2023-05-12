@@ -25,22 +25,21 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.bio.gtf;
 
 
-import java.util.AbstractMap;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
-import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.AsciiFeatureCodec;
+import htsjdk.tribble.TribbleException;
 import htsjdk.tribble.readers.LineIterator;
 
 /**
@@ -175,7 +174,7 @@ public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 		private final String tokens[];
 		private final int start;
 		private final int end;
-
+		private Map<String,String> attributes = null;
 		public GTFLineImpl(final String tokens[])
 			{
 			this.tokens = tokens;
@@ -245,28 +244,15 @@ public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 		
 		@Override
 		public String getAttribute(final String key) {
-			final Iterator<Map.Entry<String, String>> iter = getAttributeIterator();
-			while(iter.hasNext()) {
-				final Map.Entry<String, String> kv = iter.next();
-				if(kv.getKey().equals(key)) return kv.getValue();
-				}
-			return null;
+			return getAttributes().get(key);
 			}
 		
 		@Override
 		public Map<String, String> getAttributes() {
-			final Map<String, String> hash = new HashMap<String, String>();
-			final Iterator<Map.Entry<String, String>> iter = getAttributeIterator();
-			while(iter.hasNext()) {
-				final Map.Entry<String, String> kv = iter.next();
-				hash.put(kv.getKey(),kv.getValue());
+			if(this.attributes==null) {
+				this.attributes = parseAttributes(get(8));
 				}
-			return hash;
-			}
-
-		@Override
-		public Iterator<Entry<String, String>> getAttributeIterator() {
-			return new AttributeIter(get(8));
+			return this.attributes;
 			}
 		
 		@Override
@@ -276,115 +262,131 @@ public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 		}
 
 	
-	private static class AttributeIter 
-		extends AbstractIterator<Map.Entry<String, String>> 
-		{
-		protected final String mapStr;
-		protected int k=0;
-		AttributeIter(final String mapStr)
-			{
-			this.mapStr = mapStr;
-			}
-		protected void skipws() {
-			while( this.k < this.mapStr.length() &&
-				Character.isWhitespace(this.mapStr.charAt(this.k)))
-				{
-				++this.k;
-				}
-			}
-		
-		
-		@Override
-		protected Entry<String, String> advance() {
-			skipws();
-			if(k>=this.mapStr.length()) return null;
-			for(;;)
-				{
-				skipws();
-				if(this.k>=this.mapStr.length()) return null;
-				char c= mapStr.charAt(k);
-				if(c==';') { ++k; continue;}
-				/* read KEY */
-				final StringBuilder sbk=new StringBuilder();
-				while( this.k < this.mapStr.length()) {
-					c= this.mapStr.charAt(k);
-					++k;
-					if(c=='=' || Character.isWhitespace(c))
-						{
-						break;
-						}
-					sbk.append(c);
-					}
-				/* SKIP WS */
-				skipws();
-				/* EQUAL SIGN */
-				if( this.k < mapStr.length() && mapStr.charAt(k)=='=') {
-					++k;
-					}
-				/* SKIP WS */
-				skipws();
-				
-				if( this.k >= mapStr.length())
-					{
-					if(sbk.length()==0) return null;
-					return new AbstractMap.SimpleEntry<String,String>(sbk.toString(),"");
-					}
-				
-				/* read VALUE */
-				final StringBuilder sbv=new StringBuilder();
-				c=(this.k < mapStr.length()?this.mapStr.charAt(this.k):'\0');
-				// quoted string
-				if( c == '\"')
-					{
-					++this.k;
-					while( this.k < mapStr.length()) {
-						c= mapStr.charAt(k);
-						++k;
-						if(c=='\\')
-							{
-							c=(k < mapStr.length()?mapStr.charAt(k):'\0');
-							++k;
-							switch(c) {
-								case '"': sbv.append("\"");break;
-								case '\'': sbv.append("\'");break;
-								case 't': sbv.append("\t");break;
-								case 'n': sbv.append("\n");break;
-								default:break;
-								}
-							}
-						else if(c=='\"')
-							{
-							break;
-							}
-						else
-							{
-							sbv.append(c);
-							}
-						}
-					}
-				else /* not a quoted string */
-					{
-					while( this.k < this.mapStr.length()) {
-						c= this.mapStr.charAt(k);
-						++k;
-						if(c==';'/* || Character.isWhitespace(c)*/)
-							{
-							break;
-							}
-						sbv.append(c);
-						}
-					}
-				final AbstractMap.SimpleEntry<String,String> entry= new AbstractMap.SimpleEntry<String,String>(sbk.toString(),sbv.toString());
-				skipws();
-				if( this.k < this.mapStr.length() && this.mapStr.charAt(this.k)==';')
-					{
-					this.k++;
-					skipws();
-					}
-				return entry;
-				}
-			}
-		}
+    /**
+     * Parse attributes field for GTF feature
+     * 
+     * Warning: I'm not sure it's the best algotithm to parse attributes UTF-8 escaping is not
+     * handled for now Multiple values for the same key are defined with multiple K=V1; K=V2 Is it
+     * the right gtf way ?
+     * 
+     * 
+     * @param attributesString attributes field string from line in GTF file
+     * @return map of keys to values for attributes of this feature
+     * @throws UnsupportedEncodingException
+     */
+    static private Map<String,String> parseAttributes(final String attributesString) {
+        final char ATTRIBUTE_DELIMITER = ';';
+        final String NO_VALUE = ".";
+    	if (attributesString.equals(NO_VALUE)) {
+            return Collections.emptyMap();
+        }
+        final Map<String,String> attributes = new LinkedHashMap<>();
+        final int len = attributesString.length();
+        int i = 0;
+        for (;;) {
+            // skip whitespaces
+            while (i < len && Character.isWhitespace(attributesString.charAt(i))) {
+                i++;
+            }
+            // end of string
+            if (i >= len) {
+                break;
+            }
+            
+            final StringBuilder keyBuilder = new StringBuilder();
 
+            // consumme key
+            while (i < len && !Character.isWhitespace(attributesString.charAt(i))) {
+                keyBuilder.append(attributesString.charAt(i));
+                i++;
+            }
+            // skip whitespaces
+            while (i < len && Character.isWhitespace(attributesString.charAt(i))) {
+                i++;
+            }
+
+            final String key = keyBuilder.toString();
+
+
+            // no value
+            if (i >= len) {
+                //logger.warn("no value for '" + key + "' in " + attributesString);
+            	attributes.put(key,"");
+                break;
+            }
+
+            /* read VALUE */
+            final StringBuilder valueBuilder = new StringBuilder();
+            // first char of value
+            char c = attributesString.charAt(i);
+
+            if (c == ATTRIBUTE_DELIMITER) { // no value
+                i++;
+                attributes.put(key,"");
+                //logger.warn("no value for '" + key + "' in " + attributesString);
+                continue;
+            }
+
+
+            // quoted string
+            if (c == '\"') {
+                i++;
+                while (i < len) {
+                    c = attributesString.charAt(i);
+                    ++i;
+                    if (c == '\\') {
+                        c = (i < len ? attributesString.charAt(i) : '\0');
+                        ++i;
+                        switch (c) {
+                            case '"':
+                                valueBuilder.append("\"");
+                                break;
+                            case '\'':
+                                valueBuilder.append("\'");
+                                break;
+                            case 't':
+                                valueBuilder.append("\t");
+                                break;
+                            case 'n':
+                                valueBuilder.append("\n");
+                                break;
+                            default:
+                                //logger.warn("unparsed value in " + attributesString);
+                                break;
+                        }
+                    } else if (c == '\"') {
+                        attributes.put(key,valueBuilder.toString());
+                        break;
+                    } else {
+                        valueBuilder.append(c);
+                    }
+                } // end of while
+                
+                // skip whitespaces
+                while (i < len && Character.isWhitespace(attributesString.charAt(i))) {
+                    i++;
+                }
+                if (i >= len) {
+                    break;
+                }
+                if (attributesString.charAt(i) != ATTRIBUTE_DELIMITER)
+                    throw new TribbleException("expected a " + ATTRIBUTE_DELIMITER
+                            + " after value " + valueBuilder);
+                i++;
+            } else /* not a quoted string */
+            {
+                while (i < len) {
+                    c = attributesString.charAt(i);
+                    ++i;
+                    if (c == ATTRIBUTE_DELIMITER) {
+                        break;
+                    }
+                    valueBuilder.append(c);
+                }
+                attributes.put(key,valueBuilder.toString());
+            }
+        }
+        return attributes;
+    	}
 	
 	}

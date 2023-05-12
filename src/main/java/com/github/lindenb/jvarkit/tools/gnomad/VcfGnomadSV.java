@@ -75,7 +75,9 @@ END_DOC
 	description="Peek annotations from gnomad structural variants",
 	keywords={"vcf","annotation","gnomad","sv"},
 	creationDate="20190814",
-	modificationDate="20211109"
+	modificationDate="20211109",
+	jvarkit_amalgamion =  true,
+	menu="VCF Manipulation"
 )
 public class VcfGnomadSV extends OnePassVcfLauncher {
 	

@@ -147,6 +147,7 @@ nav:
         - "vcfgatkeval" : VcfGatkEval.md
         - "vcfgenesplitter" : VcfGeneSplitter.md
         - "vcfgnomad" : VcfGnomad.md
+        - "vcfgnomadsv" : VcfGnomadSV.md
         - "vcfgrantham" : VcfGrantham.md
         - "vcfhead" : VcfHead.md
         - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
@@ -163,6 +164,7 @@ nav:
         - "vcfspliceai" : VcfSpliceAI.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfstrech2svg" : VcfStrechToSvg.md
+        - "vcfsvannotator" : VCFSVAnnotator.md
         - "vcftail" : VcfTail.md
         - "vcftbi2bed" : VcfTbiToBed.md
         - "vcftrio" : VCFTrios.md

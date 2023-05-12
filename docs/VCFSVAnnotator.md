@@ -1,62 +1,50 @@
-# SVPredictions
+# VCFSVAnnotator
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Basic Variant Effect prediction using gtf
+SV Variant Effect prediction using gtf, gnomad, etc
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: svpredictions [options] Files
+Usage: java -jar dist/jvarkit.jar vcfsvannotator  [options] Files
+
+Usage: vcfsvannotator [options] Files
   Options:
-    --bnd
-      Ignore the INFO/END attribute for SVTYPE=BND, so it is just considered 
-      as a single point mutation.
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
       Default: false
-    -F, --filter
-      FILTER to set if variant failing prediction of option --where. Empty: no 
-      FILTER, discard variant.
-      Default: BAD_SV_PRED
+    -D, --define
+      Dynamic parameters -Dkey=value .'extends': GTF Gene Upstream/Downstream 
+      length. 'fraction': min common Fraction between two SVs/CNVs.
+      Syntax: -Dkey=value
+      Default: {extend=1000, fraction=0.9}
+    --dgv
+      DGV SV Variant file as Tabix indexed file from 
+      http://dgv.tcag.ca/dgv/app/downloads 
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
-  * -g, --gtf
-      A GTF (General Transfer Format) file. See 
-      https://www.ensembl.org/info/website/upload/gff.html .
+    --gnomad
+      Gnomad SV as BED file
+    --gtf
+      GTF file
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --max-genes
-      don't print the genes names if their count exceed 'x'. '-1' = 
-      ignore/unlimited 
-      Default: 20
-    -nti, --no-transcript-id
-      don't print transcript id (reduce length of annotation)
-      Default: false
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
-    -r, --remove-attribute
-      Do not print the annotations that don't contain the contraint for the 
-      argument  --where
-      Default: false
-    --tag
-      VCF info attribute
-      Default: SVCSQ
-    -u, --upstream
-      Gene Upstream/Downstream length. A distance specified as a positive 
-      integer.Commas are removed. The following suffixes are interpreted : 
-      b,bp,k,kb,m,mb 
-      Default: 5000
     --version
       print version and exit
-    -w, --where
-      where in gene should overlap the variant. Empty string: no limit/use all 
-      possible annotations. Should be a comma/space/semicolon string with the 
-      following items: 
-      'intergenic|gene|transcript|intron|exon|utr|cds|downstream|upstream' 
-      Default: <empty string>
 
 ```
 
@@ -69,23 +57,6 @@ Usage: svpredictions [options] Files
  * sv
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew svpredictions
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -93,11 +64,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictions.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictions.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictionsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfannot/SVPredictionsTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFSVAnnotator.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfannot/VCFSVAnnotator.java)
 
 
 ## Contribute
@@ -111,7 +78,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **svpredictions** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **vcfsvannotator** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -124,7 +91,7 @@ The current reference is:
 ## Example
 
 ```
-java -Xmx3g -Djava.io.tmpdir=. -jar dist/svpredictions.jar --max-genes 30  --gtf "human.gtf.gz" in.vcf >   out.vcf
+java -Xmx3g -Djava.io.tmpdir=. -jar dist/jvarkit.jar vcfsvannotator --gtf "human.gtf.gz" in.vcf >   out.vcf
 
 more out.vcf
 (...)
@@ -134,5 +101,6 @@ chr22	23478420	MantaDEL:144501:0:1:0:0:0	T	<DEL>	.	.	CIEND=-160,160;CIPOS=-174,1
 (...)
 
 ```
+
 
 

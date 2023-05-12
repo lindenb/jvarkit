@@ -22,33 +22,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2016 creation
-
 */
-package com.github.lindenb.jvarkit.util.vcf;
+package com.github.lindenb.jvarkit.variant;
 
-import java.io.Closeable;
-import java.util.Map;
-import java.util.Set;
+import java.io.IOException;
 
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /** interface describing a genetic way to add some new INFO in a VCF */
-public interface InfoAnnotator extends Closeable
+public interface VariantAnnotator extends AutoCloseable
 	{
 	/** initialize from a VCF header */
-	public void initialize(VCFHeader header);
-	/** dispose data associated to this annotator*/
-	public void dispose();
-	/** name of this annotator */
-	public String getName();
-	/** description of this annotator */
-	public default String getDescription() { return getName();}
-	/** @return the VCFInfoHeaderLine to insert in the VCF header */
-	public Set<VCFInfoHeaderLine> getInfoHeaderLines();
-	/** @return a map key-> data for the variant */
-	public Map<String,Object> getAnnotations(final VariantContext ctx);
+	public void fillHeader(VCFHeader header);
+
+	/** annotate variant */
+	public void annotate(VariantContext ctx,VariantContextBuilder vcb) throws IOException;
+	
+	@Override
+	public void close();
 	}

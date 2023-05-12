@@ -45,9 +45,6 @@ Usage: vcfregulomedb [options] Files
       RegulomeDB bed sorted, bgzipped and indexed with tabix.
     --version
       print version and exit
-    -T
-      tag in vcf INFO.
-      Default: REGULOMEDB
 
 ```
 
