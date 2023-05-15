@@ -77,7 +77,6 @@ JH568905.1	ensembl	stop_codon	3667491	3667493	.	-	0	gene_id "ENSDNOG00000013511"
 
  */
 public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
-	private static final CharSplitter tab=CharSplitter.TAB;
 	private static final String GFF_VERSION="##gff-version";
 	private GTFHeaderImpl header=null;
 	
@@ -93,7 +92,7 @@ public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 			throw new RuntimeIOException("header was not parsed");
 		}*/
 		if(StringUtil.isBlank(line) || line.startsWith("#")) return null;
-		return decode(tab.split(line));
+		return decode(CharSplitter.TAB.split(line));
 		}
 	
 	/** decode from array of strings */

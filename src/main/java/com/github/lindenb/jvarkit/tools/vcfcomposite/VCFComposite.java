@@ -204,8 +204,10 @@ END_DOC
 	description="(in developpement) Finds Variants involved in a Het Compound Disease",
 	keywords={"vcf","disease","annotation","pedigree","haplotype"},
 	creationDate= "20170331",
-	modificationDate = "20200210"
-)
+	modificationDate = "20200210",
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
+		)
 public class VCFComposite extends Launcher {
 	private static final String INFO_TAG="COMPOSITE";
 	private static final Logger LOG= Logger.build(VCFComposite.class).make();

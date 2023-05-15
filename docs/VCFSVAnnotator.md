@@ -30,11 +30,13 @@ Usage: vcfsvannotator [options] Files
     --dgv
       DGV SV Variant file as Tabix indexed file from 
       http://dgv.tcag.ca/dgv/app/downloads 
+    --ensemblreg
+      Gnomad SV as BED file. Compressed with bgzip and indexed with tabix.
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
     --gnomad
-      Gnomad SV as BED file
+      Gnomad SV as BED file. Compressed with bgzip and indexed with tabix.
     --gtf
       GTF file
     -h, --help

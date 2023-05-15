@@ -49,14 +49,14 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /*** tabix annotator using gnomad SV as BED */
 public class GnomadSVBedTabixVariantAnnotator extends AbstractTabixVariantAnnotator {
-	public static final String OPT_DESC="Gnomad SV as BED file";
+	public static final String OPT_DESC="Gnomad SV as BED file. Compressed with bgzip and indexed with tabix.";
 	public static final String FRACTION_KEY ="fraction";
 
 	private final FileHeader bedHeader;
 	private final double fraction;
 	private VCFInfoHeaderLine hdrHasGnomad;
 	private VCFInfoHeaderLine hdrGnomadSV;
-	private VCFInfoHeaderLine hdrGnomadAF;
+	private VCFInfoHeaderLine hdrGnomadMaxAF;
 	private final String af_column;
 	/**
 	 * 
@@ -86,15 +86,20 @@ public class GnomadSVBedTabixVariantAnnotator extends AbstractTabixVariantAnnota
 	@Override
 	public void fillHeader(VCFHeader header) {
 		if(super.tabixReader==null) return;
-		final String cmdHelp = "gnomadSV "+super.getUri()+" with shared overlap of "+this.fraction;
+		final String cmdHelp = "gnomadSV "+super.getUri()+" with shared overlap of "+this.fraction+".";
 		this.hdrHasGnomad = new VCFInfoHeaderLine("HAS_GNOMAD_SV",1, VCFHeaderLineType.Flag, "SV was found in "+cmdHelp);
-		this.hdrGnomadSV = new VCFInfoHeaderLine("GNOMAD_SV",VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, 
+		this.hdrGnomadSV = new VCFInfoHeaderLine("GNOMAD_SV",
+				VCFHeaderLineCount.UNBOUNDED,
+				VCFHeaderLineType.String, 
 				"SV in "+ cmdHelp +" Format:ID|SVTYPE|"+af_column);
-		this.hdrGnomadAF = new VCFInfoHeaderLine("GNOMAD_SV_"+this.af_column+"_MAX",1, VCFHeaderLineType.Float, "Max "+this.af_column+" frequency found in " + cmdHelp);
+		this.hdrGnomadMaxAF = new VCFInfoHeaderLine("GNOMAD_SV_"+this.af_column+"_MAX",1,
+				VCFHeaderLineType.Float,
+				"Max "+this.af_column+" frequency found in " + cmdHelp
+				);
 
 		header.addMetaDataLine(this.hdrHasGnomad);
 		header.addMetaDataLine(this.hdrGnomadSV);
-		header.addMetaDataLine(this.hdrGnomadAF);
+		header.addMetaDataLine(this.hdrGnomadMaxAF);
 		}
 	@Override
 	public List<VariantContext> annotate(final VariantContext ctx)  throws IOException {
@@ -103,7 +108,7 @@ public class GnomadSVBedTabixVariantAnnotator extends AbstractTabixVariantAnnota
 		TabixReader.Iterator r = super.tabixReader.query(contig(ctx),ctx.getStart()-1, ctx.getEnd());
 		Double popmax_af = null;
 		for(;;) {
-			String line = r.next();
+			final String line = r.next();
 			if(line==null) break;
 			final Map<String, String> rec = this.bedHeader.toMap(CharSplitter.TAB.split(line));
 			final int svStart = Integer.parseInt(rec.get("start"))+1;
@@ -132,7 +137,7 @@ public class GnomadSVBedTabixVariantAnnotator extends AbstractTabixVariantAnnota
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 			vcb.attribute(this.hdrHasGnomad.getID(), true);
 			vcb.attribute(this.hdrGnomadSV.getID(), new ArrayList<>(gnomad_variants));
-			if(popmax_af!=null) vcb.attribute(this.hdrGnomadAF.getID(), popmax_af);
+			if(popmax_af!=null) vcb.attribute(this.hdrGnomadMaxAF.getID(), popmax_af);
 			return Collections.singletonList(vcb.make());
 			}
 		else

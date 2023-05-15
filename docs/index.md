@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 4b65b20b2
-Compilation : 20230512170534
+Version     : e591386d
+Compilation : 20230515143449
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -137,7 +137,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [gtf2bed](GtfToBed.md) | Convert GTF/GFF3 to BED. | 20220629 | 20220630 |
-| [gtf2xml](Gtf2Xml.md) | Convert GTF/GFF to XML | 20150811 | 20230512 |
 
 ### Utilities
 
@@ -173,6 +172,12 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |
 | [vcftbi2bed](VcfTbiToBed.md) | extracts BED for each contig in a tabix-indexed VCF peeking first of last variant for each chromosome. | 20230214 | 20230214 |
 
+### Unclassified
+
+| Tool | Description | Creation | Update |
+| ---: | :---------- | :------: | :----: |
+| [gtf2xml](Gtf2Xml.md) | gtf2xml | . | . |
+
 ### VCF Manipulation
 
 | Tool | Description | Creation | Update |
@@ -192,6 +197,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20220110 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20140218 | 20220119 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
+| [vcfcomposite](VCFComposite.md) | (in developpement) Finds Variants involved in a Het Compound Disease | 20170331 | 20200210 |
 | [vcfdistancevariants](VcfDistanceBetweenVariants.md) | Annotate variants with the distance between previous and next variant. | 20190410 | 20230510 |
 | [vcffiltergenes](VcFilterGenes.md) | Filter VEP/SnpEff Output from a list of genes. | 20160322 | 20230505 |
 | [vcffilterjdk](VcfFilterJdk.md) | Filtering VCF with dynamically-compiled java expressions | 20170705 | 20220830 |

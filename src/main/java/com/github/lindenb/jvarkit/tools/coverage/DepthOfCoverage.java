@@ -147,7 +147,6 @@ public class DepthOfCoverage extends Launcher
 	@Override
 	public int doWork(final List<String> args)
 		{
-		PrintWriter out=null;
 		if(this.auto_mask && this.faidx==null) {
 			LOG.error("Cannot auto mask if REF is not defined");
 			return -1;
@@ -177,7 +176,7 @@ public class DepthOfCoverage extends Launcher
 				referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
 				}
 			
-			out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 			out.print("#BAM\tSample\tContig\tContig-Length\tMasked-Contig-Length\tCount\tDepth\tMedian\tMin\tMax\tMaxPos");
 			for(RangeOfIntegers.Range r: this.summaryCov.getRanges()) {
 				if(r.getMinInclusive()==null) continue;
@@ -519,10 +518,10 @@ public class DepthOfCoverage extends Launcher
 					}
 				}
 			out.flush();
-			out.close();
+			}
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
@@ -531,7 +530,6 @@ public class DepthOfCoverage extends Launcher
 			{
 			CloserUtil.close(referenceSequenceFile);
 			}
-
 		}
 	/**
 	 * @param args

@@ -7,7 +7,13 @@
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfcomposite  [options] Files
+
 Usage: vcfcomposite [options] Files
   Options:
     --bcf-output
@@ -59,7 +65,7 @@ Usage: vcfcomposite [options] Files
       Output file. Optional . Default: stdout
   * -p, -ped, --pedigree
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
-      sex:(0:unknown;1:male;2:female), phenotype 
+      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -r, --report
       Optional tabular text report for pairs of variants
@@ -83,7 +89,7 @@ Usage: vcfcomposite [options] Files
       A Java EXpression Language (JEXL) expressions to filter the variants 
       from a VCF. Empty string will accept all variants. Expression returning 
       a TRUE will accept the variant. See 
-      https://gatkforums.broadinstitute.org/gatk/discussion/1255 
+      https://gatk.broadinstitute.org/hc/en-us/articles/360035891011 
       Default: <empty string> (ACCEPT ALL)
     --version
       print version and exit
@@ -99,23 +105,6 @@ Usage: vcfcomposite [options] Files
  * pedigree
  * haplotype
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfcomposite
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -265,6 +254,7 @@ $23  variant2.gt[S3].unaffected : HOM_REF
 <<< 4
 
 ```
+
 
 
 

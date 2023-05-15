@@ -32,24 +32,40 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
+
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 
 /**
  * Header of file with fast access to the column index
  */
 public class FileHeader extends AbstractList<String> {
+	public static final Function<String,List<String>> DEFAULT_SPLITTER = S->CharSplitter.TAB.splitAsStringList(S);
+	
 	private final List<String> cols;
 	private final Map<String,Integer> col2idx;
+	private final Function<String,List<String>> lineSplitter;
+	
+	/** a Map<String,String> where we can access a column using the column header */
+	public interface RowMap extends Map<String,String> {
+		/** return current line as List, there may be less columns that in the header (empty columns at the end ) */
+		public List<String> asList();
+		/** get column content by index */
+		public String at(int i);
+		}
 	
 	/** class used to convert a line in a file as a Map */
-	class RowMap extends AbstractMap<String,String> {
+	private class RowMapImpl extends AbstractMap<String,String> implements RowMap {
 		private final List<String> tokens;
-		protected RowMap(final List<String> tokens) {
+		protected RowMapImpl(final List<String> tokens) {
 			this.tokens = Collections.unmodifiableList(tokens);
 			if(tokens.size()> owner().size()) throw new IllegalArgumentException("line contains "+tokens.size()+" columns but header contains "+ owner().size()+" columns");
 			}
-		FileHeader owner() {return FileHeader.this;}
+		private FileHeader owner() {return FileHeader.this;}
 		/** return this as a list of tokens in the initial list */
+		@Override
 		public List<String> asList() {
 			return this.tokens;
 			}
@@ -57,9 +73,17 @@ public class FileHeader extends AbstractList<String> {
 		public boolean containsKey(final Object key) {
 			return owner().col2idx.containsKey(key);
 			}
-		
-		private String at(int i) {
+		@Override
+		public String at(final int i) {
+			if(i<0 || i >= this.owner().size()) throw new IllegalArgumentException("file "+owner().size()+" columns asked 0-based index  "+ i);
 			return (i<this.tokens.size()?this.tokens.get(i):"");
+			}
+		
+		@Override
+		public String getOrDefault(final Object key,final String def) {
+			final int i= owner().indexOf(key);
+			if(i<0) return def;
+			return at(i);
 			}
 		
 		@Override
@@ -80,8 +104,8 @@ public class FileHeader extends AbstractList<String> {
 		@Override
 		public boolean equals(final Object o) {
 			if(o==this) return true;
-			if(o==null || !(o instanceof RowMap)) return false;
-			final RowMap r = RowMap.class.cast(o);
+			if(o==null || !(o instanceof RowMapImpl)) return false;
+			final RowMapImpl r = RowMapImpl.class.cast(o);
 			return r.tokens.equals(this.tokens);
 			}
 		
@@ -102,7 +126,7 @@ public class FileHeader extends AbstractList<String> {
 			}
 		@Override
 		public String toString() {
-			StringBuilder sb = new StringBuilder();
+			final StringBuilder sb = new StringBuilder();
 			for(int i=0;i< owner().size();i++) {
 				sb.append("$").append(i+1).
 					append(" ").append(owner().get(i)).
@@ -117,11 +141,19 @@ public class FileHeader extends AbstractList<String> {
 		this(Arrays.asList(cols));
 		}
 	public FileHeader(final List<String> cols) {
+		this(cols,DEFAULT_SPLITTER);
+		}
+	public FileHeader(final String headerLine,final Function<String,List<String>> lineSplitter) {
+		this(Objects.requireNonNull(lineSplitter,"undefined lineSplitter").apply(headerLine),lineSplitter);
+		}
+	
+	private FileHeader(final List<String> cols,final Function<String,List<String>> lineSplitter) {
 		this.cols = Collections.unmodifiableList(cols);
-		Map<String,Integer> hash = new HashMap<>(this.cols.size());
+		this.lineSplitter = (lineSplitter==null?DEFAULT_SPLITTER:lineSplitter);
+		final Map<String,Integer> hash = new HashMap<>(this.cols.size());
 		for(int i=0;i< this.cols.size();i++) {
 			final String col = this.cols.get(i);
-			if(hash.containsKey(col)) throw new IllegalArgumentException("Duplicate column "+col);
+			if(hash.containsKey(col)) throw new IllegalArgumentException("Duplicate column "+col+" in "+String.join("; ", cols));
 			hash.put(col, i);
 			}
 		this.col2idx = Collections.unmodifiableMap(hash);
@@ -137,7 +169,7 @@ public class FileHeader extends AbstractList<String> {
 		}
 	
 	@Override
-	public int indexOf(Object o) {
+	public int indexOf(final Object o) {
 		if(!contains(o)) return -1;
 		return this.col2idx.get(String.class.cast(o));
 		}
@@ -156,7 +188,7 @@ public class FileHeader extends AbstractList<String> {
 		return i.intValue();
 		}
 	@Override
-	public String get(int index) {
+	public String get(final int index) {
 		return this.cols.get(index);
 		}
 	@Override
@@ -164,12 +196,17 @@ public class FileHeader extends AbstractList<String> {
 		return this.cols.size();
 		}
 	/** convert a line in the file to a Map where keys are the columns of this header  */
-	public Map<String,String> toMap(final List<String> tokens) {
-		return new RowMap(tokens);
+	public RowMap toMap(final List<String> tokens) {
+		return new RowMapImpl(tokens);
 		}
 	/** convert a line in the file to a Map where keys are the columns of this header  */
-	public Map<String,String> toMap(final String[] tokens) {
+	public RowMap toMap(final String[] tokens) {
 		return toMap(Arrays.asList(tokens));
+		}
+	
+	/** convert a line, split it using the default splitter to a Map where keys are the columns of this header  */
+	public RowMap toMap(final String row) {
+		return toMap(this.lineSplitter.apply(row));
 		}
 	@Override
 	public String toString() {

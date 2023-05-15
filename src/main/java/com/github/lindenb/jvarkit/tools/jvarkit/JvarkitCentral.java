@@ -175,6 +175,7 @@ import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VcfBigBed;
+import com.github.lindenb.jvarkit.tools.vcfcomposite.VCFComposite;
 import com.github.lindenb.jvarkit.tools.vcffiltergenes.VcFilterGenes;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
@@ -623,6 +624,7 @@ public class JvarkitCentral {
 		command(VcFilterGenes.class);
 		command(VcfPhased01.class);
 		command(VcfCadd.class);
+		command(VCFComposite.class);
 		command(VcfDistanceBetweenVariants.class);
 		command(VcfFilterJdk.class);
 		command(VcfAlleleBalance.class);

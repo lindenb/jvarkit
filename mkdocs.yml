@@ -139,6 +139,7 @@ nav:
         - "vcfbigwig" : VCFBigWig.md
         - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
+        - "vcfcomposite" : VCFComposite.md
         - "vcfdistancevariants" : VcfDistanceBetweenVariants.md
         - "vcffiltergenes" : VcFilterGenes.md
         - "vcffilterjdk" : VcfFilterJdk.md

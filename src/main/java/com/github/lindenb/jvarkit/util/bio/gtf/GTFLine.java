@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.util.bio.gtf;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.tribble.Feature;
 
-import java.util.Iterator;
 import java.util.Map;
 
 public interface GTFLine 
@@ -46,4 +45,27 @@ public interface GTFLine
 	public Map<String, String> getAttributes();
 	public String getAttribute(final String key);
 	public int getPhase();
+	
+	public default boolean hasAttribute(final String key) {
+		return getAttributes().containsKey(key);
+		}
+	
+	public default boolean isGene() {
+		return getType().equals("gene");
+		}
+	public default boolean isTranscript() {
+		return getType().equals("transcript");
+		}
+	public default boolean isExon() {
+		return getType().equals("exon");
+		}
+	public default boolean isCDS() {
+		return getType().equals("CDS");
+		}
+	public default boolean isPostiveStrand() {
+		return getStrand()=='+';
+		}
+	public default boolean isNegativeStrand() {
+		return getStrand()=='-';
+		}
 	}

@@ -131,29 +131,26 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 		final Set<String> all_genes_names = new HashSet<>();
 		final Set<String> all_genes_ids = new HashSet<>();
 		final Set<String> all_genes_biotypes = new HashSet<>();
-		
-		TabixReader.Iterator r = this.tabixReader.query(contig(ctx),extend_start, extend_end);
+		TabixReader.Iterator r = this.tabixReader.query(contig(ctx), extend_start, extend_end);
 		for(;;) {
 			String line = r.next();
 			if(line==null) break;
 			final String tokens[] = CharSplitter.TAB.split(line);
 			final int rec_start = Integer.parseInt(tokens[3]);
 			final int rec_end = Integer.parseInt(tokens[4]);
-			GTFLine gtfRecord = null;
+			final GTFLine gtfRecord = this.gtfCodec.decode(tokens);
 			if(CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), rec_start, rec_end)) {
-				String type = tokens[2];
-				if(type.equals("CDS")) {in_cds_flag=true; in_exon_flag=true; in_transcript_flag=true; in_gene_flag=true;}
-				else if(type.equals("exon")) {in_exon_flag=true; in_transcript_flag=true; in_gene_flag=true;}
-				else if(type.equals("transcript")) {in_transcript_flag=true; in_gene_flag=true;}
-				else if(type.equals("gene")) {in_gene_flag=true;}
-				gtfRecord = this.gtfCodec.decode(tokens);
-				if(gtfRecord.getAttributes().containsKey("gene_id")) {
+				if(gtfRecord.isCDS()) {in_cds_flag=true; in_exon_flag=true; in_transcript_flag=true; in_gene_flag=true;}
+				else if(gtfRecord.isExon()) {in_exon_flag=true; in_transcript_flag=true; in_gene_flag=true;}
+				else if(gtfRecord.isTranscript()) {in_transcript_flag=true; in_gene_flag=true;}
+				else if(gtfRecord.isGene()) {in_gene_flag=true;}
+				if(gtfRecord.hasAttribute("gene_id")) {
 					all_genes_ids.add(gtfRecord.getAttributes().get("gene_id"));
 					}
-				if(gtfRecord.getAttributes().containsKey("gene_name")) {
+				if(gtfRecord.hasAttribute("gene_name")) {
 					all_genes_names.add(gtfRecord.getAttributes().get("gene_name"));
 					}
-				if(gtfRecord.getAttributes().containsKey("gene_biotype")) {
+				if(gtfRecord.hasAttribute("gene_biotype")) {
 					all_genes_biotypes.add(gtfRecord.getAttributes().get("gene_biotype"));
 					}
 				if(gtfRecord.getAttributes().entrySet().stream().
@@ -165,11 +162,12 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 				}
 			
 			
+			
 			if(this.extend>0 &&
 				!CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), rec_start, rec_end) && 
 				CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), extend_start, extend_end) && 
 				tokens[2].equals("gene")) {
-					final boolean is_plus_strand = tokens[6].equals("+");
+					final boolean is_plus_strand = gtfRecord.isPostiveStrand();
 					boolean is_upstream;
 					int distance;
 					if(rec_end < ctx.getStart()) {
@@ -183,9 +181,6 @@ public class GtfTabixSVVariantAnnotator extends AbstractTabixVariantAnnotator {
 					else
 						{
 						throw new IllegalStateException();
-						}
-					if(gtfRecord==null) {
-						gtfRecord = this.gtfCodec.decode(tokens);
 						}
 					
 					(is_upstream?upstream_genes:downstream_genes).add(

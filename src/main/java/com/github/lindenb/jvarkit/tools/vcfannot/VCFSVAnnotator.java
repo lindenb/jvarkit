@@ -35,27 +35,25 @@ import java.util.Map;
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.dgv.DGVBedTabixVariantAnnotator;
+import com.github.lindenb.jvarkit.gff3.GffEnsemblRegVariantAnnotator;
 import com.github.lindenb.jvarkit.gnomad.GnomadSVBedTabixVariantAnnotator;
 import com.github.lindenb.jvarkit.gtf.GtfTabixSVVariantAnnotator;
-import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.regulomedb.RegulomeDBTabixAnnotator;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;
+import com.github.lindenb.jvarkit.variant.vcf.AbstractOnePassVcfAnnotator;
 
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import htsjdk.variant.vcf.VCFIterator;
 
 
 /**
@@ -87,7 +85,7 @@ END_DOC
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 	)
-public class VCFSVAnnotator extends OnePassVcfLauncher
+public class VCFSVAnnotator extends AbstractOnePassVcfAnnotator
 	{
 	private static final Logger LOG = Logger.build(VCFSVAnnotator.class).make();
 
@@ -99,6 +97,11 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 	private String dgvPath = null;
 	@Parameter(names={"--regulomedb"},description=RegulomeDBTabixAnnotator.OPT_DESC)
 	private String regulomePath = null;
+	@Parameter(names={"--ensemblreg"},description=GnomadSVBedTabixVariantAnnotator.OPT_DESC)
+	private String ensemblRegGTFPath = null;
+
+	
+	
 
 	@SuppressWarnings("serial")
 	@DynamicParameter(names={"-D","--define"},description="Dynamic parameters -Dkey=value ."
@@ -110,14 +113,14 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 		put("fraction","0.9");
 		}}};
 	
-	private final List<VariantAnnotator> annotators = new ArrayList<>();
 	
 	
 	private static class AddSvLen implements VariantAnnotator {
+		private final String SVLEN="SVLEN";
 		@Override
 		public void fillHeader(VCFHeader header) {
-			if(header.getInfoHeaderLine("SVLEN")==null) {
-				header.addMetaDataLine(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"SV length"));
+			if(header.getInfoHeaderLine(SVLEN)==null) {
+				header.addMetaDataLine(new VCFInfoHeaderLine(SVLEN, 1, VCFHeaderLineType.Integer,"SV length"));
 				}
 			}
 		
@@ -127,12 +130,12 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 		
 		@Override
 		public List<VariantContext> annotate(VariantContext ctx) throws IOException {
-			if(ctx.hasAttribute(VCFConstants.SVTYPE) && !ctx.hasAttribute("SVLEN")) {
+			if(ctx.hasAttribute(VCFConstants.SVTYPE) && !ctx.hasAttribute(SVLEN)) {
 				int svlen = ctx.getLengthOnReference();
 				if(ctx.getAttribute(VCFConstants.SVTYPE,".").equals("DEL")) {
 					svlen = -svlen;
 					}
-				ctx = new VariantContextBuilder(ctx).attribute("SVLEN", svlen).make();
+				ctx = new VariantContextBuilder(ctx).attribute(SVLEN, svlen).make();
 				}
 			return Collections.singletonList(ctx);
 			}
@@ -144,96 +147,59 @@ public class VCFSVAnnotator extends OnePassVcfLauncher
 		}
 	
 	@Override
-	protected int beforeVcf() {
+	protected List<VariantAnnotator> createVariantAnnotators() {
+		final List<VariantAnnotator> annotators = new ArrayList<>();
 		final AttributeMap dynaParams = AttributeMap.wrap(this.__dynaParams);
 		final DistanceParser parser=  new DistanceParser();
 		try {
 			
-			this.annotators.add(new AddSvLen());
+			annotators.add(new AddSvLen());
 
 			
 			if(!StringUtils.isBlank(this.gtfPath)) {
-				this.annotators.add(new GtfTabixSVVariantAnnotator(this.gtfPath,
+				annotators.add(new GtfTabixSVVariantAnnotator(this.gtfPath,
 						AttributeMap.fromPairs(
 								GtfTabixSVVariantAnnotator.EXTEND_KEY,
 								String.valueOf(parser.applyAsInt(dynaParams.getAttribute("extend", "0")))
 						)));
 				}
 			if(!StringUtils.isBlank(this.gnomadPath)) {
-				this.annotators.add(new GnomadSVBedTabixVariantAnnotator(this.gnomadPath,
+				annotators.add(new GnomadSVBedTabixVariantAnnotator(this.gnomadPath,
 						AttributeMap.fromPairs(
 								GnomadSVBedTabixVariantAnnotator.FRACTION_KEY,
 								String.valueOf(dynaParams.getDoubleAttribute("fraction").orElse(0.9))
 						)));
 				}
 			if(!StringUtils.isBlank(this.dgvPath)) {
-				this.annotators.add(new DGVBedTabixVariantAnnotator(this.dgvPath,
+				annotators.add(new DGVBedTabixVariantAnnotator(this.dgvPath,
 						AttributeMap.fromPairs(
 								DGVBedTabixVariantAnnotator.FRACTION_KEY,
 								String.valueOf(dynaParams.getDoubleAttribute("fraction").orElse(0.9))
 						)));
 				}
 			if(!StringUtils.isBlank(this.regulomePath)) {
-				this.annotators.add(new RegulomeDBTabixAnnotator(this.regulomePath,
+				annotators.add(new RegulomeDBTabixAnnotator(this.regulomePath,
 						AttributeMap.fromPairs(
 								RegulomeDBTabixAnnotator.EXTEND_KEY,
 								String.valueOf("0")
 						)));
 				}
-			} 
-		catch(IOException err) {
-			LOG.error(err);
-			return -1;
-			}
-		
-		return super.beforeVcf();
-		}
-	
-	
-	@Override
-	protected void afterVcf() {
-		for(VariantAnnotator ann:this.annotators) ann.close();
-		super.afterVcf();
-		}
-	
-	private void recursive(VariantContextWriter w, int annotator_idx,VariantContext ctx) throws IOException {
-		if(annotator_idx==this.annotators.size()) {
-			w.add(ctx);
-			}
-		else
-			{
-			for(VariantContext ctx2: this.annotators.get(annotator_idx).annotate(ctx)) {
-				recursive(w,annotator_idx+1,ctx2);
-				}
-			}
-		}
-	
-	@Override
-	protected int doVcfToVcf(String inputName, VCFIterator r, VariantContextWriter w) {
-		try {
-			final VCFHeader header= r.getHeader();
-
-			final VCFHeader h2=new VCFHeader(header);
-			for(VariantAnnotator ann:this.annotators) {
-				ann.fillHeader(h2);
+			if(!StringUtils.isBlank(this.ensemblRegGTFPath)) {
+				annotators.add(new GffEnsemblRegVariantAnnotator(this.ensemblRegGTFPath,
+						AttributeMap.empty()
+						));
 				}
 			
-			JVarkitVersion.getInstance().addMetaData(this, h2);			
-			w.writeHeader(h2);
-	
-			while(r.hasNext())
-				{
-				recursive(w,0,r.next());
-				}
-			return 0;
-		} catch(final Throwable err ) {
-			LOG.error(err);
-			return -1;
-		} finally {
-			CloserUtil.close(w);
+			
+			
+			return annotators;
+			} 
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
 			}
-		
-	}
+		}
+	
+	
 	
 	public static void main(final String[] args)
 		{
