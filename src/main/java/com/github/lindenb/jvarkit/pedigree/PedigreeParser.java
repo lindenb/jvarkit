@@ -47,7 +47,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
  * A class parsing pedigrees
  */
 public class PedigreeParser {
-public static final String OPT_DESC="A pedigree file. tab delimited. Columns: family,id,father,mother, sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected)";
+public static final String OPT_DESC="A pedigree file. tab delimited. Columns: family,id,father,mother, sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), phenotype (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected)";
 private static final List<String> PEDFILE_EXTENSIONS=Arrays.asList(".ped",".pedigree",".fam");
 	
 /** return valid extensions for a pedigree file */
@@ -59,14 +59,16 @@ public static List<String> getPedigreeFileExtensions() {
 private static final Function<String, Sex> DEFAULT_SEX_PARSER = S->{
 	if(S.length()==1) {
 		switch(S.charAt(0)) {
-			case '0': return Sex.unknown;
+			case '0': case '.' : return Sex.unknown;
 			case '1': case 'm': case 'M': return Sex.male;
 			case '2': case 'f': case 'F': return Sex.female;
 			}
 		}
+	if(S.equalsIgnoreCase("undefined")) return Sex.unknown;
+	if(S.equalsIgnoreCase("unknown")) return Sex.unknown;
 	if(S.equalsIgnoreCase("male")) return Sex.male;
 	if(S.equalsIgnoreCase("female")) return Sex.female;
-	throw new IllegalArgumentException("bad sex in \""+S+"\", should be 0/1/2/f/m/male/female.");
+	throw new IllegalArgumentException("bad sex in \""+S+"\", should be ./undefined/unknown/0/1/2/f/m/male/female.");
 	};
 
 /* parse sex from string */

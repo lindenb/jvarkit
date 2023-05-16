@@ -139,7 +139,7 @@ public class GroupByGene
 	@Parameter(names={"-l","--list"},description= "[20190626]list all available gene extractors", help=true)
 	private boolean list_extractors = false;
 	@Parameter(names={"-e","-E","--extractors"},description="[20190626]"+GeneExtractorFactory.OPT_DESC)
-	private String extractorsNames="ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE SpliceAi";
+	private String extractorsNames="ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE SpliceAI";
 
 	
 	/** the SAMSequenceDictionary used to sort reference */

@@ -77,6 +77,7 @@ nav:
         - "biostar9556602" : Biostar9556602.md
         - "builddbsnp" : BuildDbsnp.md
         - "cnvtview" : CnvTView.md
+        - "convertliftoverchain" : ConvertLiftOverChain.md
         - "coveragematrix" : CoverageMatrix.md
         - "coverageplotter" : CoveragePlotter.md
         - "coverageserver" : CoverageServer.md

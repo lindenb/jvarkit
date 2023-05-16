@@ -113,6 +113,7 @@ import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
 import com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf;
 import com.github.lindenb.jvarkit.tools.kg2bed.KnownGenesToBed;
+import com.github.lindenb.jvarkit.tools.liftover.ConvertLiftOverChain;
 import com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam;
 import com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed;
 import com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator;
@@ -552,6 +553,7 @@ public class JvarkitCentral {
 		command(Biostar9469733.class);
 		command(Biostar9501110.class);
 		command(Biostar9556602.class);
+		command(ConvertLiftOverChain.class);
 		command(CoverageMatrix.class);
 		command(BuildDbsnp.class);
 		command(CnvTView.class);

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 976c3304
-Compilation : 20230515235153
+Version     : 3af7a3acd
+Compilation : 20230516165744
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -137,6 +137,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [gtf2bed](GtfToBed.md) | Convert GTF/GFF3 to BED. | 20220629 | 20220630 |
+| [gtf2xml](Gtf2Xml.md) | Convert GTF/GFF to XML | 20150811 | 20230512 |
 
 ### Utilities
 
@@ -156,6 +157,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | ---: | :---------- | :------: | :----: |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
 | [bio2rdf](BioToRDF.md) | Build a RDF database for human from misc sources | 20220427 | 20220510 |
+| [convertliftoverchain](ConvertLiftOverChain.md) | Convert the contigs in a liftover chain to match another REFerence. (eg. to remove chr prefix, unknown chromosomes etc...) | 20190409 | 20190409 |
 | [coverageserver](CoverageServer.md) | Jetty Based http server serving Bam coverage. | 20200212 | 20200330 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
 | [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20230215 |
@@ -171,12 +173,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfserver](VcfServer.md) | Web Server displaying VCF file. A web interface for vcf2table | 20171027 | 20220517 |
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |
 | [vcftbi2bed](VcfTbiToBed.md) | extracts BED for each contig in a tabix-indexed VCF peeking first of last variant for each chromosome. | 20230214 | 20230214 |
-
-### Unclassified
-
-| Tool | Description | Creation | Update |
-| ---: | :---------- | :------: | :----: |
-| [gtf2xml](Gtf2Xml.md) | gtf2xml | . | . |
 
 ### VCF Manipulation
 

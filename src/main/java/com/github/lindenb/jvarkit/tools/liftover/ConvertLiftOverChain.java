@@ -46,7 +46,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 ## Example
 
  ```
- $ wget -q  -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz" | gunzip -c | java -jar dist/convertliftoverchain.jar -R1 src/test/resources/human_b37.dict  | grep chain -A 2 -m 4
+ $ wget -q  -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz" | gunzip -c | java -jar dist/jvarkit.jar convertliftoverchain -R1 src/test/resources/human_b37.dict  | grep chain -A 2 -m 4
 
 chain 20851231461 1 249250621 + 10000 249240621 1 248956422 + 10000 248946422 2
 167376	50041	80290
@@ -74,7 +74,8 @@ chain 14571217 1 249250621 + 317719 471368 1 248956422 - 248454805 248608454 495
 		description="Convert the contigs in a liftover chain to match another REFerence. (eg. to remove chr prefix, unknown chromosomes etc...)",
 		keywords={"chain","liftover"},
 		creationDate="20190409",
-		modificationDate="20190409"
+		modificationDate="20190409",
+		jvarkit_amalgamion = true
 		)
 public class ConvertLiftOverChain extends Launcher {
 	private static final Logger LOG = Logger.build(ConvertLiftOverChain.class).make();

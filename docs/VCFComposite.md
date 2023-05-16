@@ -65,7 +65,8 @@ Usage: vcfcomposite [options] Files
       Output file. Optional . Default: stdout
   * -p, -ped, --pedigree
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
-      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
+      sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), 
+      phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -r, --report
       Optional tabular text report for pairs of variants
@@ -154,7 +155,7 @@ X	S1	S2	S3	0	1
 X	S2	0	0	0	0
 X	S3	0	0	0	0
 
-$ java -jar dist/vcfcomposite.jar -r report.txt -g gene.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
+$ java -jar dist/jvarkit.jar  vcfcomposite -r report.txt -g gene.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
 [WARN][VepPredictionParser]NO INFO[CSQ] found in header. This VCF was probably NOT annotated with VEP. But it's not a problem if this tool doesn't need to access VEP Annotations.
 [INFO][VCFComposite]reading variants and genes
 [INFO][VCFComposite]compile per gene

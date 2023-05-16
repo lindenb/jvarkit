@@ -18,7 +18,7 @@ Usage: groupbygene [options] Files
   Options:
     -e, -E, --extractors
       [20190626]Gene Extractors Name. Space/semicolon/Comma separated
-      Default: ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE SpliceAi
+      Default: ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE SpliceAI
     --filtered
       ignore FILTERED variants
       Default: false
@@ -46,7 +46,8 @@ Usage: groupbygene [options] Files
     -p, --ped, --pedigree
       [20170725] A pedigree file. tab delimited. Columns: 
       family,id,father,mother, 
-      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
+      sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), 
+      phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --tmpDir
       tmp working directory. Default: java.io.tmpDir

@@ -95,7 +95,7 @@ X	S1	S2	S3	0	1
 X	S2	0	0	0	0
 X	S3	0	0	0	0
 
-$ java -jar dist/vcfcomposite.jar -r report.txt -g gene.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
+$ java -jar dist/jvarkit.jar  vcfcomposite -r report.txt -g gene.txt -p jeter.ped src/test/resources/rotavirus_rf.ann.vcf.gz --filter "" | grep -v "##"
 [WARN][VepPredictionParser]NO INFO[CSQ] found in header. This VCF was probably NOT annotated with VEP. But it's not a problem if this tool doesn't need to access VEP Annotations.
 [INFO][VCFComposite]reading variants and genes
 [INFO][VCFComposite]compile per gene
@@ -263,8 +263,9 @@ public class VCFComposite extends Launcher {
 	private PrintWriter reportWriter =  null;
 	private PrintWriter reportGeneWriter =  null;
 	
-	private class VariantLine
+	private static class VariantLine
 		{
+		/** used for sorting variant */
 		final long id;
 		VariantContext ctx;
 		VariantLine(long id,VariantContext ctx) {
@@ -278,7 +279,7 @@ public class VCFComposite extends Launcher {
 		@Override
 		public VariantLine decode(final DataInputStream dis) throws IOException {
 			try {
-				long n = dis.readLong();
+				final long n = dis.readLong();
 				final VariantContext ctx = VCFComposite.this.vcfDecoder.decode(IOUtils.readString(dis));
 				return new VariantLine(n,ctx);
 				} 
@@ -882,10 +883,9 @@ public class VCFComposite extends Launcher {
 			
 			
 			//compile data
-			CloseableIterator<GeneAndVariant> iter2=sorting.iterator();
-			EqualRangeIterator<GeneAndVariant> eqiter= new EqualRangeIterator<>(iter2,(A,B)->A.gene.compareTo(B.gene));
-			while(eqiter.hasNext())
-				{
+			try(CloseableIterator<GeneAndVariant> iter2=sorting.iterator()) {
+			try(EqualRangeIterator<GeneAndVariant> eqiter= new EqualRangeIterator<>(iter2,(A,B)->A.gene.compareTo(B.gene))) {
+			while(eqiter.hasNext()) {
 				final List<GeneAndVariant> variants=eqiter.next();
 				scan(
 					variants.get(0).gene,
@@ -895,8 +895,8 @@ public class VCFComposite extends Launcher {
 					);
 				for(final GeneAndVariant ga:variants) outputSorter.add(ga.variant);
 				}
-			eqiter.close();
-			iter2.close();
+			}
+			}
 			sorting.cleanup();
 			//
 			this.reportWriter.flush();
@@ -905,8 +905,8 @@ public class VCFComposite extends Launcher {
 			this.reportGeneWriter.close();
 			
 			LOG.info("write variants");
-			CloseableIterator<VariantLine> iter1 = outputSorter.iterator();
-			EqualRangeIterator<VariantLine > eqiter1 = new EqualRangeIterator<>(iter1,variantLineComparator);
+			try(CloseableIterator<VariantLine> iter1 = outputSorter.iterator()) {
+			try(EqualRangeIterator<VariantLine > eqiter1 = new EqualRangeIterator<>(iter1,variantLineComparator)) {
 			out.writeHeader(header);
 			while(eqiter1.hasNext())
 				{
@@ -944,12 +944,12 @@ public class VCFComposite extends Launcher {
 				out.add(outCtx);
 				}
 			outputSorter.cleanup();
-			eqiter1.close();
-			iter1.close();
+			} // end eqiter
+			} // end iter
 			
 			return 0;
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}

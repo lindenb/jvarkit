@@ -45,7 +45,9 @@ import com.github.lindenb.jvarkit.spliceai.SpliceAI;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-
+/**
+ * A class extracting gene names from annotated VCF
+ */
 public class GeneExtractorFactory {
 
 public interface KeyAndGene
@@ -93,7 +95,7 @@ public static class KeyAndGeneImpl implements KeyAndGene
 		return this.key.hashCode()*31+this.method.hashCode();
 		}
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if(obj==this) return true;
 		if(obj==null || !(obj instanceof KeyAndGene)) return false;
 		return this.compareTo(KeyAndGene.class.cast(obj))==0;

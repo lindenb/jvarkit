@@ -51,7 +51,8 @@ Usage: vcftrio [options] Files
   * -p, --ped, --pedigree
       Pedigree file. A pedigree file. tab delimited. Columns: 
       family,id,father,mother, 
-      sex:(0:unknown;1|male|M:male;2|female|F:female), phenotype 
+      sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), 
+      phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --version
       print version and exit
