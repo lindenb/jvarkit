@@ -13,6 +13,7 @@
  * Rhys T. White, Martina Jelocnik, Natalie Klukowski, Md. Hakimul Haque, Subir Sarker. The first genomic insight into Chlamydia psittaci sequence type (ST)24 from a healthy captive psittacine host in Australia demonstrates evolutionary proximity with strains from psittacine, human, and equine hosts. Veterinary Microbiology, Volume 280, 2023, 109704, ISSN 0378-1135. https://doi.org/10.1016/j.vetmic.2023.109704.
  * Benjamin McClinton, Christopher M. Watson, Laura A. Crinnion, Martin McKibbin, Manir Ali, Chris F. Inglehearn, Carmel Toomes, Haplotyping Using Long-Range PCR and Nanopore Sequencing of Phase Variants; Lessons Learned From the ABCA4 Locus, Laboratory Investigation, 2023, 100160, ISSN 0023-6837 (**biostar214299**)
  * Xiao Shu, Chenyang Huang, Tengwei Li, Jie Cao, Jianzhao Liu,.a6A-seq: N6-allyladenosine-based cellular messenger RNA metabolic labelling and sequencing,.Fundamental Research,.2023,.,.ISSN 2667-3258,.https://doi.org/10.1016/j.fmre.2023.04.010..(https://www.sciencedirect.com/science/article/pii/S2667325823001267). **sam2tsv**
+ * The Mitoribosome. Methods in Molecular Biology. https://doi.org/10.1007/978-1-0716-3171-3 **Biostar84452**
 
 ## 2022
 
