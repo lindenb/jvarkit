@@ -119,7 +119,7 @@ public class DGVBedTabixVariantAnnotator extends AbstractTabixVariantAnnotator {
 			String type = rec.get("variantsubtype");
 			if(StringUtils.isBlank(type)) type= rec.get("varianttype");
 			if(StringUtils.isBlank(type)) type= "";
-					
+			type = type.replace(' ', '_');//eg 'line deletion'
 			dgv_variants.add(String.join("|", rec.get("variantaccession"),type,(rec_af!=null?rec_af.toString():".")));
 			}
 
