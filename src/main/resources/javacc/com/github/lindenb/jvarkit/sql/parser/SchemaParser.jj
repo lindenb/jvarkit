@@ -1,0 +1,523 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2023 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+options {
+	STATIC=false;
+	DEBUG_TOKEN_MANAGER=true;
+	DEBUG_PARSER=true;
+	IGNORE_CASE=true;
+	}
+PARSER_BEGIN(SchemaParser)
+package com.github.lindenb.jvarkit.sql.parser;
+import htsjdk.samtools.util.Locatable;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import java.util.*;
+import java.io.*;
+
+
+/**
+
+java -cp ~/packages/javacc/target/javacc.jar javacc -OUTPUT_DIRECTORY=src/main/java/com/github/lindenb/jvarkit/sql/parser -JDK_VERSION=1.8 src/main/resources/javacc/com/github/lindenb/jvarkit/sql/parser/SchemaParser.jj 
+
+
+**/
+
+
+public class SchemaParser
+	{
+	private final List<SchemaParser.Table> tables=new ArrayList<SchemaParser.Table>();
+
+	/** map a line to an element of the table, implements Locatable if UCSC columns for chrom/start/end were found */
+	public interface Row extends Map<String,String>, Locatable {
+		/** return table */
+		public Table getTable();
+		/** return i-th token */
+		public String get(int idx);
+		}
+
+	/** describe a SQL table */
+	public interface Table {
+		/** return table name */
+		public String getName();
+		/** return columns for that table */
+		public List<Column> getColumns();
+		/** get column by it's name */
+		public Optional<Column> getColumnByName(final String colName);
+		/** convert line to Row */
+		public Row toMap(final String[] tokens);
+		/** convert line to Row */
+		public Row toMap(final List<String> tokens);
+		/**  implements Locatable if UCSC columns for chrom/start/end were found */ 
+		public boolean isLocatable();
+		}
+		
+	/** describe a column of a SQL table */
+	public interface Column {
+		/** get associated table */
+		public Table getTable();
+		/** get O-based index of the column */
+		public int getIndex();
+		/** return column name */
+		public String getName();
+		}
+	
+	private static class RowImpl extends AbstractMap<String,String> implements Row
+		{
+		/** cached value for Locatable::getStart */
+		private int loc_start =-1;
+		/** cached value for Locatable::getEnd */
+		private int loc_end =-1;
+		/** owner table */
+		private final TableImpl table;
+		/** original line */
+		private final List<String> tokens;
+		RowImpl( final TableImpl table, final List<String> tokens) {
+			this.table = table;
+			this.tokens = tokens;
+			}
+		@Override
+		public String getContig() {
+			if(table.contig_col==-1) throw new IllegalStateException("table "+table.getName()+" doesn't support locatable");
+			return get(table.contig_col);
+			}
+		
+        @Override
+        public int getStart() {
+        		if(loc_start!=-1) return loc_start;
+                if(table.start_col==-1) throw new IllegalStateException("table "+table.getName()+" doesn't support locatable");
+                loc_start = Integer.parseInt(get(table.start_col))+1; // UCSC IS 0-BASED
+                return loc_start;
+                }
+        @Override
+        public int getEnd() {
+        		if(loc_end!=-1) return loc_end;
+                if(table.end_col==-1) throw new IllegalStateException("table "+table.getName()+" doesn't support locatable");
+                loc_end =  Integer.parseInt(get(table.end_col));
+                return loc_end;
+                }
+		
+		@Override
+		public Table getTable() {
+			return this.table;
+			}
+		
+        @Override
+        public int size() {
+                return table.getColumns().size();
+                }
+
+        @Override
+        public Set<Entry<String, String>> entrySet() {
+        	final Set<Entry<String, String>> set = new HashSet<>(size());
+        	for(int i=0;i< size();i++) {
+        		set.add(new AbstractMap.SimpleEntry<String,String>(
+        				this.table.columns.get(i).getName(),get(i)));
+        		}
+        	return set;
+        	}
+        
+        @Override
+        public boolean containsKey(Object key) {
+        	if(!(key instanceof String)) return false;
+        	return getTable().getColumnByName(String.class.cast(key)).isPresent();
+        	}
+        
+        @Override
+        public String getOrDefault(Object key, String defaultValue) {
+        	if(!(key instanceof String)) return defaultValue;
+        	final Optional<Column> col= getTable().getColumnByName(String.class.cast(key));
+        	if(!col.isPresent()) return defaultValue;
+        	return get(col.get().getIndex());
+        	}
+        
+        @Override
+        public String get(Object key) {
+        	return getOrDefault(key,null);
+        	}
+        
+        @Override
+        public String get(int idx) {
+        		return idx>=this.tokens.size()?"":this.tokens.get(idx);
+                }
+			
+		@Override
+		public int hashCode() {
+			return tokens.hashCode();
+			}
+		@Override
+		public String toString() {
+			return String.join("\t", tokens);
+			}
+		}
+	
+	private class ColumnImpl implements Column
+		{
+		private int index;
+		private String colName;
+		private String sqlType;
+		private TableImpl table;
+		ColumnImpl() {
+			
+			}
+		
+		@Override
+		public int getIndex() {
+			return this.index;
+			}
+			
+		@Override
+		public String getName() {
+			return this.colName;
+			}
+		
+		@Override
+		public int hashCode() {
+			return colName.hashCode();
+			}
+		
+		@Override
+		public Table getTable() {
+			return this.table;
+			}
+		@Override
+		public String toString() {
+			return getName()+" "+sqlType;
+			}
+		}
+	private class TableImpl implements Table
+		{
+		private String tableName;
+		private int contig_col = -1;
+		private int start_col = -1;
+		private int end_col = -1;
+		
+		final List<Column> columns=new ArrayList<Column>();
+		final Map<String,Column> name2column = new HashMap<String,Column>();
+		void findLocatableColumns() {
+			Column c = name2column.get("chrom");
+			if(c!=null) contig_col = c.getIndex();
+			c = name2column.get("txStart");
+			if(c!=null)  start_col = c.getIndex();
+			if(start_col<0) {
+				c = name2column.get("chromStart");
+				if(c!=null)  start_col = c.getIndex();
+				}
+			if(start_col<0) {
+				c = name2column.get("cdsStart");
+				if(c!=null)  start_col = c.getIndex();
+				}
+			c = name2column.get("txEnd");
+			if(c!=null)  end_col = c.getIndex();
+			if(end_col<0) {
+				c = name2column.get("cdsEnd");
+				if(c!=null)  end_col = c.getIndex();
+				}
+			if(end_col<0) {
+				c = name2column.get("chromEnd");
+				if(c!=null)  end_col = c.getIndex();
+				}
+			}
+		
+		void add(final ColumnImpl col) {
+			if(col==null) return;
+			col.index = this.columns.size();
+			col.table = this;
+			name2column.put(col.getName(),col);
+			this.columns.add(col);
+			}
+		
+		/**  implements Locatable if UCSC columns for chrom/start/end were found */
+		@Override
+		public boolean isLocatable() {
+			return contig_col>=0 && start_col>=0 && end_col>=0;
+			}
+		
+		
+		@Override
+		public int hashCode() {
+			return tableName.hashCode();
+			}
+		
+		@Override
+		public List<Column> getColumns() {
+			return this.columns;
+			}
+		@Override
+		public Optional<Column> getColumnByName(final String colName) {
+			return Optional.ofNullable(name2column.get(colName));
+			}
+		
+		@Override
+		public Row toMap(final String[] tokens) {
+			return toMap(Arrays.asList(tokens));
+			}
+		@Override
+		public Row toMap(final List<String> tokens) {
+			return new RowImpl(this,tokens);
+			}
+		
+		@Override
+		public String getName() {
+			return this.tableName;
+			}
+		@Override
+		public String toString() {
+			return "CREATE TABLE "+getName()+"(" + columns +")";
+			}
+		}
+
+
+    public static Table parseTable(final String uri) throws IOException {
+    	try(InputStream in = IOUtils.openURIForReading(uri)) {
+    		return parseTable(in);
+    		}
+    	}
+    
+    public static List<Table> parseTables(final String uri) throws IOException {
+    	try(InputStream in = IOUtils.openURIForReading(uri)) {
+    		return parseTables(in);
+    		}
+    	}
+
+
+	 public static Table parseTable(final InputStream in) throws IOException {
+        	final List<Table> tables = parseTables(in);
+        	if(tables.size()!=1) throw new IllegalStateException("expected only one table in schema but got "+tables.size());
+        	return tables.get(0);
+        	}
+	
+	public static List<Table> parseTables(InputStream in) throws IOException
+			{
+			try {
+				final SchemaParser parser = new SchemaParser(in);
+				parser.input();
+				return parser.tables;
+				}
+			catch(final Throwable err) {
+				throw new IOException(err);
+				}
+			}
+	}	
+PARSER_END(SchemaParser)
+
+SKIP:{
+ " "
+|"\n"
+| <"--" (~["\n"])* "\n">
+| <"/*" (~["\n"])* "*/">
+}
+
+TOKEN:
+{
+  <DROP: "DROP">
+| <CREATE: "CREATE">
+| <USE: "USE">
+| <TABLE: "TABLE">
+| <TEMPORARY: "TEMPORARY">
+| <DATABASE: "DATABASE">
+| <IF: "IF">
+| <NOT: "NOT">
+| <NULL: "NULL">
+| <EXISTS: "EXISTS">
+| <SET: ("SET"|"set")>
+| <ENUM: ("ENUM"|"enum")>
+| <KEY: "KEY">
+| <VARCHAR: "varchar">
+| <CHAR: "char">
+| <DEFAULTVALUE: ("default"|"DEFAULT")>
+| <LONGBLOB:"longblob">
+| <BLOB:"blob">
+| <INTEGER:"int">
+| <SMALLINT:"smallint">
+| <DATETIME:"datetime">
+| <DOUBLE:"double">
+| <FLOAT:"float">
+| <MEDIUMBLOG:"mediumblob">
+| <TINYINT:"tinyint">
+| <TEXT:("longtext"|"tinytext"|"text"|"mediumtext")>
+| <UNSIGNED:"unsigned">
+| <SIGNED:"signed">
+| <UNIQUE:"UNIQUE">
+| <PRIMARY:"PRIMARY">
+| <CHARACTER:"character">
+| <COLLATE:"collate">
+}
+
+TOKEN:
+{
+  <#LETTER:(["a"-"z"]|["A"-"Z"]|"_")>
+| <#DIGIT:["0"-"9"]>
+| <INT: <DIGIT>(<DIGIT>)* >
+| <IDENTIFIER1: <LETTER> (<DIGIT>|<LETTER>)*  >
+| <IDENTIFIER2: "`"(<IDENTIFIER1>) "`" >
+| <VARIABLE: "@"("@")?<IDENTIFIER1> >
+| <EQ:"=">
+| <SEMICOLON:";">
+| <LPAR:"(">
+| <RPAR:")">
+| <COMMA:",">
+| <#ESCAPE_CHAR: "\\" ["n","t","b","r","f","\\","'","\""] >
+| <SIMPLE_QUOTE_LITERAL: "\'"( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\'">
+| <DOUBLE_QUOTE_LITERAL: "\""( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\"">
+}
+
+
+
+private void input():{TableImpl t;}
+	{
+	(
+	 drop()
+	| set()
+	|create()
+	|use()
+	| <SEMICOLON>
+	)* <EOF>
+	}
+private void use():{}
+	{
+	<USE> identifier() <SEMICOLON>
+	}
+	
+private void create():{}
+	{
+	<CREATE> (createDatabase()|createTable()) <SEMICOLON>
+	}
+private void drop():{}
+	{
+	<DROP> <TABLE> (<IF> <EXISTS>)? identifier() <SEMICOLON>
+	}
+
+private void set():{}
+	{
+	<SET> (identifier()|<VARIABLE> ) <EQ> (identifier()|<VARIABLE> ) <SEMICOLON>
+	}
+
+private void createDatabase():{String s;}
+	{
+	(<DATABASE> s=identifier())
+		{
+		System.err.println("#############create database "+s);
+		}
+	}
+
+private void createTable():{TableImpl table=new TableImpl(); String tableName; ColumnImpl col=null;}
+	{
+	(<TEMPORARY>)? <TABLE>
+	(<IF> <NOT> <EXISTS> )?
+	(tableName=identifier() <LPAR>
+	(col=component() { table.add(col);}
+	(<COMMA> col=component() { table.add(col); } )* )
+	<RPAR> ( identifier() | <EQ> | <DEFAULTVALUE> )* )
+		{
+		table.tableName = tableName;
+		table.findLocatableColumns();
+		tables.add(table);
+		}
+	}
+
+private ColumnImpl component():{ColumnImpl c=null;}
+	{
+	(
+    key()
+	| c=column() { return c;}
+	) { return c;}
+	}
+
+private void key():{}
+	{
+	(<UNIQUE>|<PRIMARY>)?
+	<KEY> (identifier())? <LPAR> identifier() (<LPAR> integer() <RPAR>)?
+	(<COMMA>  identifier() (<LPAR> integer() <RPAR>)? )* <RPAR>
+	
+	
+	}
+
+private ColumnImpl column():{ColumnImpl c=new ColumnImpl();String s; String javaType=null;boolean nil=true;}
+	{
+	(
+	s=identifier()
+	javaType=colType() ((<NOT> { nil=false;} )?  <NULL>)? (<DEFAULTVALUE> (<NULL>|quoted()|integer()))?
+	) {
+	  c.colName=s;
+	  c.sqlType=javaType;
+	  return c;
+	  }
+	}
+
+private String colType():{String s; Token t;Set<String> set;}
+	{
+	(
+	  (t=<VARCHAR>|t=<CHAR>) (dimension())? (charset())?  { return t.image; }
+	| (t=<LONGBLOB>|t=<MEDIUMBLOG>|t=<BLOB>|t=<TEXT>) {  return t.image; }
+	| t=<INTEGER>  (dimension())? (<SIGNED>|<UNSIGNED>)? {  return t.image; }
+	| (t=<SMALLINT>|t=<TINYINT>)  (dimension())? (<SIGNED>|<UNSIGNED>)? { return t.image; }
+	| t=<DATETIME>  { return t.image; }
+	| <ENUM> set=stringset()  (charset())? { return "ENUM("+String.join(",",set)+")"; }
+	| <SET> set=stringset() { return "ENUM("+String.join(",",set)+")"; }
+	| t=<FLOAT> { return t.image; }
+	| t=<DOUBLE> { return t.image; }
+	)
+	}
+
+private Set<String> stringset():{Set<String> set=new HashSet<String>();String s;}
+	{
+	(<LPAR> s=quoted() { set.add(s);} (<COMMA> s=quoted() { set.add(s);}  )* <RPAR>)
+		{
+		return set;
+		}
+	}
+
+private void charset():{}
+	{
+	<CHARACTER> <SET> (identifier()|quoted()) (<COLLATE> (identifier()|quoted()) )?
+	}
+
+private void dimension():{}
+	{
+	<LPAR> integer() <RPAR>
+	}
+
+private String identifier():{Token t;String s;}
+	{
+	(
+	t=<IDENTIFIER1> {s=t.image;}
+	|t=<IDENTIFIER2>  {s=t.image.substring(1,t.image.length()-1);}
+	)
+		{
+		return s;
+		}
+	}
+
+private int integer():{Token t;}
+	{
+	t=<INT> { return Integer.parseInt(t.image); }
+	}
+
+private String quoted():{Token t;}
+	{
+	(
+	  t=<SIMPLE_QUOTE_LITERAL> { return t.image;}
+        | t=<DOUBLE_QUOTE_LITERAL> { return t.image;}
+	)	
+	}

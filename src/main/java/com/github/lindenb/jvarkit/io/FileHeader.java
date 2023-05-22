@@ -36,6 +36,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
+import org.apache.commons.jexl2.JexlContext;
+
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 
 /**
@@ -54,6 +56,31 @@ public class FileHeader extends AbstractList<String> {
 		public List<String> asList();
 		/** get column content by index */
 		public String at(int i);
+		/** convert to an object that is suitable for JEXL expression */
+		public JexlContext asJexlContext();
+		}
+	
+	private static class JexlRow implements JexlContext {
+		private final RowMapImpl row;
+		JexlRow(final RowMapImpl row) {
+			this.row = row;
+			}
+		@Override
+		public Object get(final String key) {
+			return row.get(key);
+			}
+		@Override
+		public boolean has(final String col) {
+			return row.owner().containsKey(col);
+			}
+		@Override
+		public void set(final String col, Object arg1) {
+			throw new java.lang.UnsupportedOperationException("cannot set "+col);
+			}
+		@Override
+		public String toString() {
+			return row.toString();
+			}
 		}
 	
 	/** class used to convert a line in a file as a Map */
@@ -134,6 +161,11 @@ public class FileHeader extends AbstractList<String> {
 					append("\n");
 				}
 			return sb.toString();
+			}
+		
+		@Override
+		public JexlContext asJexlContext() {
+			return new JexlRow(this);
 			}
 		}
 	
