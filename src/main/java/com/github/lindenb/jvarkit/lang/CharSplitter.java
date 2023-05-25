@@ -256,4 +256,5 @@ public static final CharSplitter SEMICOLON = of(';');
 public static final CharSplitter PIPE = of('|');
 public static final CharSplitter DOT = of('.');
 public static final CharSplitter NEWLINE = of('\n');
+public static final CharSplitter UNDERSCORE = of('_');
 }

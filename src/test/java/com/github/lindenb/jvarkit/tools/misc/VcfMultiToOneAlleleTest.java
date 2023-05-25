@@ -13,6 +13,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.tools.vcfmulti2oneallele.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 

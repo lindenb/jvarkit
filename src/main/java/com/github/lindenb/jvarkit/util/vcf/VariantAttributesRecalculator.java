@@ -24,13 +24,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.vcf;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -42,7 +45,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /** recalculate variant context attribute AF, AC, AN */
-public class VariantAttributesRecalculator {
+public class VariantAttributesRecalculator implements  VariantAnnotator {
 @Parameter(names={"--disable-vc-attribute-recalc"},description="When genotypes are removed/changed, Dd not recalculate variant attributes like DP, AF, AC, AN...")
 private boolean recalculation_is_disabled = false;
 @Parameter(names={"--vc-attribute-recalc-ignore-filtered"},description="When recalculating variant attributes like DP AF, AC, AN, ignore FILTERed **Genotypes**")
@@ -58,9 +61,16 @@ private boolean AC_flag=false;
 private boolean AN_flag=false;
 private boolean AF_flag=false;
 
+
+
 /** add missing field to the header */
-public VCFHeader setHeader(final VCFHeader header) {
-	
+public final VCFHeader setHeader(final VCFHeader header) {
+	fillHeader(header);
+	return header;
+	}
+
+@Override
+public void fillHeader(VCFHeader header) {
 	this.header_was_set = true;
 	this.DP_flag = header.getInfoHeaderLine(VCFConstants.DEPTH_KEY)!=null;
 	this.AC_flag = header.getInfoHeaderLine(VCFConstants.ALLELE_COUNT_KEY)!=null;
@@ -80,8 +90,13 @@ public VCFHeader setHeader(final VCFHeader header) {
 		this.AF_flag = true;
 		this.DP_flag = true;
 		headerLines.stream().forEach(L->header.addMetaDataLine(L));
+		}
 	}
-	return header;
+
+
+@Override
+public final List<VariantContext> annotate(VariantContext ctx) throws IOException {
+	return Collections.singletonList(apply(ctx));
 	}
 
 public VariantContext apply(final VariantContext ctx) {
@@ -140,5 +155,9 @@ public VariantContext apply(final VariantContext ctx) {
 		}	
 	
 	return vcb.make();
+	}
+
+@Override
+public void close() {		
 	}
 }

@@ -21,25 +21,20 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-
-
 */
 package com.github.lindenb.jvarkit.tools.vcfmulti2oneinfo;
 
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import htsjdk.variant.vcf.VCFIterator;
+import com.github.lindenb.jvarkit.variant.VariantAnnotator;
+import com.github.lindenb.jvarkit.variant.vcf.AbstractOnePassVcfAnnotator;
+
 /**
 BEGIN_DOC
 
@@ -70,73 +65,21 @@ END_DOC
 		description="'one variant with INFO with N values' to 'N variants with one INFO'",
 		keywords={"vcf"},
 		creationDate = "20260106",
-		modificationDate = "20230426",
+		modificationDate = "20230524",
 		jvarkit_amalgamion = true,
 		menu="VCF Manipulation"
 		)
 public class VcfMultiToOneInfo
-	extends OnePassVcfLauncher
+	extends AbstractOnePassVcfAnnotator
 	{
 	private static final Logger LOG = Logger.build(VcfMultiToOneInfo.class).make();
 
 	@Parameter(names={"-i","--info"},description="The INFO tag",required=true)
 	private String infoTag = null;
-
-	 
+	
 	@Override
-	protected int doVcfToVcf(final String inputName,final VCFIterator in,final VariantContextWriter out) {
-		final VCFHeader srcHeader=in.getHeader();
-		final VCFInfoHeaderLine srcInfo = srcHeader.getInfoHeaderLine(this.infoTag);
-		if( srcInfo == null )
-			{
-			LOG.error("Cannot find INFO FIELD '"+ this.infoTag+"' in VCF header.");
-			return -1;
-			}
-		switch( srcInfo.getCountType() )
-			{
-			case INTEGER:break;
-			case UNBOUNDED:break;
-			default: {
-				LOG.error("VCF header: INFO/CountType is not supported '"+ srcInfo.getCountType() +"'");
-				return -1;
-				}
-			}
-		switch( srcInfo.getType())
-			{
-			case Flag: 
-				{
-				LOG.error("Type is not supported '"+ srcInfo.getType() +"'");
-				return -1;
-				}
-			default:break;
-			}
-		
-		final VCFHeader destHeader= new VCFHeader(srcHeader);
-		super.addMetaData(destHeader);
-		
-		out.writeHeader(destHeader);
-		while(in.hasNext())
-			{
-			final VariantContext ctx= in.next();
-			if(!ctx.hasAttribute(srcInfo.getID())) {
-				out.add(ctx);
-				continue;
-				}
-			
-			final List<Object> L=ctx.getAttributeAsList(srcInfo.getID());
-			if( L.isEmpty() || L.size()==1)
-				{
-				out.add(ctx);
-				continue;
-				}
-			for(final Object o: L)
-				{
-				final VariantContextBuilder vcb =new VariantContextBuilder(ctx);
-				vcb.attribute(srcInfo.getID(), o);
-				out.add(vcb.make());
-				}
-			}
-		return 0;
+	protected List<VariantAnnotator> createVariantAnnotators() {
+		return Collections.singletonList(new MultiToOneInfoVariantAnnotator(this.infoTag));
 		}
 	
 	 @Override
@@ -153,7 +96,7 @@ public class VcfMultiToOneInfo
 		 return LOG;
 		 }
 	 
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new VcfMultiToOneInfo().instanceMainWithExit(args);
 		}
