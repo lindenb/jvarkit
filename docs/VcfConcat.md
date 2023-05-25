@@ -2,20 +2,43 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Concatenante sorted VCF with same sample, does NOT merge genotypes
+Concatenate VCFs with same sample. See also bcftools concat
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfconcat  [options] Files
+
 Usage: vcfconcat [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
+    --chrom, --contig
+      limit to that chromosome
+    -G, --drop-genotypes
+      Drop genotypes
+      Default: false
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
+    -T, --tag
+      if not empty, add INFO/tag containing the source/path of the variant
+      Default: <empty string>
     --version
       print version and exit
 
@@ -27,22 +50,10 @@ Usage: vcfconcat [options] Files
  * vcf
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfconcat
-```
-
-The java jar file will be installed in the `dist` directory.
+20131230
 
 ## Source code 
 
@@ -70,18 +81,32 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Motivation
+
+concat numerous VCF, without checking files at start, doesn't sort.
+
+## Input
+
+input is a set of VCF files or a file with the suffix .list containing the path to the vcfs
+
 ## Example
 
 ### From stdin
 
 ```bash
-$ find ./ -name "*.vcf" | grep Sample1 | java -jar dist/vcfconcat.jar > out.vcf
+$ find ./ -name "*.vcf" | grep Sample1 | java -jar dist/jvarkit vcfconcat > out.vcf
 ```
 
 ### From files
 
 ```bash
-$ java -jar dist/vcfconcat.jar Sample1.samtools.vcf Sample1.gatk.vcf > out.vcf
+$ java -jar dist/jvarkit vcfconcat Sample1.samtools.vcf Sample1.gatk.vcf > out.vcf
+$ java -jar dist/jvarkit vcfconcat paths.list > out.vcf
 ```
+
+
+## See also
+
+bcftools concat
 
 

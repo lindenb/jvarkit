@@ -21,6 +21,7 @@ nav:
         - "bam2svg" : BamToSVG.md
         - "bam2wig" : Bam2Wig.md
         - "bam2xml" : Bam2Xml.md
+        - "bamliftover" : BamLiftOver.md
         - "bammatrix" : BamMatrix.md
         - "bamphased01" : BamPhased01.md
         - "bamrenamechr" : ConvertBamChromosomes.md
@@ -141,6 +142,7 @@ nav:
         - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcfcomposite" : VCFComposite.md
+        - "vcfconcat" : VcfConcat.md
         - "vcfdistancevariants" : VcfDistanceBetweenVariants.md
         - "vcffiltergenes" : VcFilterGenes.md
         - "vcffilterjdk" : VcfFilterJdk.md

@@ -7,30 +7,49 @@ Lift-over a BAM file.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bamliftover  [options] Files
+
 Usage: bamliftover [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
-    -f, --chain
-      LiftOver file. Require
+  * -f, --chain
+      LiftOver file.
+  * -R2, --destination-dict
+      A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
+      indexed with 'picard CreateSequenceDictionary', or any hts file 
+      containing a dictionary (VCF, BAM, CRAM, intervals...)
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -m, --minmatch
-      lift over min-match. default:-1 == use default value from htsjdk 
-      LiftOver.DEFAULT_LIFTOVER_MINMATCH 
-      Default: -1.0
-    -o, --output
+      lift over min-match.
+      Default: 0.95
+    -o, --out
       Output file. Optional . Default: stdout
-    -D, -R, --reference
-      indexed REFerence file for the new sequence dictionary. Required
+    -R, --reference
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard CreateSequenceDictionary
+    --regions
+      Limit analysis to this interval. A source of intervals. The following 
+      suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
+      gtf.gz.Otherwise it could be an empty string (no interval) or a list of 
+      plain interval separated by '[ \t\n;,]'
     --samoutputformat
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --validation-stringency
+      SAM Reader Validation Stringency
+      Default: LENIENT
+      Possible Values: [STRICT, LENIENT, SILENT]
     --version
       print version and exit
 
@@ -42,23 +61,6 @@ Usage: bamliftover [options] Files
  * bam
  * liftover
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamliftover
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -84,6 +86,7 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
 
 
 

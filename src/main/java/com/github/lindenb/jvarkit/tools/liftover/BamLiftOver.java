@@ -33,201 +33,168 @@ END_DOC
  */
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
-
-import htsjdk.samtools.liftover.LiftOver;
-import htsjdk.samtools.util.Interval;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileHeader.SortOrder;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SAMFileWriter;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SAMUtils;
-import htsjdk.samtools.util.CloserUtil;
-
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-
+import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileHeader.SortOrder;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SAMUtils;
+import htsjdk.samtools.liftover.LiftOver;
+import htsjdk.samtools.util.Interval;
+
 @Program(name="bamliftover",
 	description="Lift-over a BAM file.",
-	keywords={"bam","liftover"}
-		)
-public class BamLiftOver extends Launcher
+	keywords={"bam","liftover"},
+	generate_doc = true,
+	jvarkit_amalgamion = true
+	)
+public class BamLiftOver extends OnePassBamLauncher
 	{
 	private static final Logger LOG = Logger.build(BamLiftOver.class).make();
+	@Parameter(names={"-R2","--destination-dict"},description=DICTIONARY_SOURCE,required = true)
+	private Path destDictionaryPath = null;
 
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-
-
-	@Parameter(names={"-f","--chain"},description="LiftOver file. Require")
+	@Parameter(names={"-f","--chain"},description="LiftOver file.",required = true)
 	private File liftOverFile = null;
 
-	@Parameter(names={"-m","--minmatch"},description="lift over min-match. default:-1 == use default value from htsjdk LiftOver.DEFAULT_LIFTOVER_MINMATCH")
-	private double userMinMatch = -1 ;
+	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
+	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
 
-	@Parameter(names={"-D","-R","--reference"},description="indexed REFerence file for the new sequence dictionary. Required")
-	private Path faidx = null;
-
-	@ParametersDelegate
-	private WritingBamArgs writingBamArgs =new WritingBamArgs();
+	private LiftOver liftOver= null;
+	private SAMFileHeader headerOut = null;
+	private SAMSequenceDictionary newDict = null;
 	
 	@Override
-	public int doWork(final List<String> args) {
-		final double minMatch=(this.userMinMatch<=0.0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:this.userMinMatch);
-		if(this.liftOverFile==null)
-			{
-			LOG.error("LiftOver file is undefined.");
-			return -1;
-			}
-		if(this.faidx==null)
-			{
-			LOG.error("New Sequence Dictionary file is undefined.");
-			return -1;
-			}
-		SAMRecordIterator iter=null;
-		SamReader sfr=null;
-		SAMFileWriter sfw=null;
-		try
-			{
-			LOG.info("Reading "+liftOverFile);
-			LiftOver liftOver=new LiftOver(liftOverFile);
-			liftOver.setLiftOverMinMatch(minMatch);
-
-			
-			final SAMSequenceDictionary newDict=SAMSequenceDictionaryExtractor.extractDictionary(faidx);
-			
-			
-			sfr=super.openSamReader(oneFileOrNull(args));
-			
-
-			final SAMFileHeader headerIn=sfr.getFileHeader();
-			final SAMFileHeader headerOut=headerIn.clone();
-			headerOut.setSortOrder(SortOrder.unsorted);
-			
-			sfw = this.writingBamArgs.openSamWriter(outputFile,headerOut, true);
-			
-			
-			iter=sfr.iterator();
-			while(iter.hasNext())
-				{
-				final SAMRecord rec=iter.next();
-				final SAMRecord copy=(SAMRecord)rec.clone();
-				copy.setHeader(headerOut);
-				final StringBuilder sb=new StringBuilder();
-				if(!rec.getReadUnmappedFlag())
-					{
-					final String chrom=rec.getReferenceName();
-					int pos=rec.getAlignmentStart();
-					final Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getReadNegativeStrandFlag(),null));
-					if(interval!=null)
-						{
-						sb.append(chrom+":"+pos+":"+(rec.getReadNegativeStrandFlag()?"-":"+"));
-						final SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
-						if(ssr==null)
-							{
-							sfr.close();
-							sfr=null;
-							LOG.error("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
-							return -1;
-							}
-						copy.setReferenceName(ssr.getSequenceName());
-						copy.setReferenceIndex(ssr.getSequenceIndex());
-						copy.setAlignmentStart(interval.getStart());
-						copy.setReadNegativeStrandFlag(interval.isNegativeStrand());
-						if(rec.getReadNegativeStrandFlag()!=copy.getReadNegativeStrandFlag()) {
-							copy.setReadString(AcidNucleics.reverseComplement(rec.getReadString()));
-							
-							byte qual[]= rec.getBaseQualities();
-							byte quals2[]=  new byte[qual.length];
-							for(int i=0;i< qual.length;++i) {
-								quals2[i]=qual[(qual.length-1)-i];
-							}
-							copy.setBaseQualities(quals2);
-							}
-						}
-					else
-						{
-						sb.append(".");
-						SAMUtils.makeReadUnmapped(copy);
-						}
-					}
-				
-				
-				if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag())
-					{
-					sb.append("/");
-					String chrom=rec.getMateReferenceName();
-					int pos=rec.getMateAlignmentStart();
-					final Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getMateNegativeStrandFlag(),null));
-					if(interval!=null)
-						{
-						sb.append(chrom+":"+pos+":"+(rec.getMateNegativeStrandFlag()?"-":"+"));
-						final SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
-						if(ssr==null)
-							{
-							sfr.close();
-							sfr=null;
-							LOG.error("the chromosome "+interval.getContig()+" is undefined in the sequence dict.");
-							return -1;
-							}
-						copy.setMateReferenceName(ssr.getSequenceName());
-						copy.setMateReferenceIndex(ssr.getSequenceIndex());
-						copy.setMateAlignmentStart(interval.getStart());
-						copy.setMateNegativeStrandFlag(interval.isNegativeStrand());
-						
-						if(!copy.getReadUnmappedFlag() &&
-							copy.getReferenceIndex()==copy.getMateReferenceIndex() 
-							// && copy.getReadNegativeStrandFlag()!=copy.getMateNegativeStrandFlag()
-							)
-							{
-							//don't change ?
-							}
-						else
-							{
-							copy.setProperPairFlag(false);
-							copy.setInferredInsertSize(0);
-							}
-						}
-					else
-						{
-						sb.append(".");
-						SAMUtils.makeReadUnmapped(copy);
-						}
-					}
-				if(sb.length()>0) copy.setAttribute("LO", sb.toString());
-				sfw.addAlignment(copy);
-				}
-			return RETURN_OK;
-			}
-		catch(final Throwable err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(iter);
-			CloserUtil.close(sfr);
-			CloserUtil.close(sfw);
-			}
+	protected Logger getLogger() {
+		return LOG;
 		}
+	
+	@Override
+	protected int beforeSam() {
+		final double minMatch=(this.userMinMatch<=0.0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:this.userMinMatch);
+		this.liftOver =new LiftOver(this.liftOverFile);
+		this.liftOver.setLiftOverMinMatch(minMatch);
+		this.newDict = SequenceDictionaryUtils.extractRequired(this.destDictionaryPath);
+		return super.beforeSam();
+		}
+	
+	@Override
+	protected SAMFileHeader createOutputHeader(final SAMFileHeader headerIn) {
+		this.headerOut =  super.createOutputHeader(headerIn);
+		this.headerOut.setSortOrder(SortOrder.unsorted);
+		return this.headerOut;
+		}
+	
+	@Override
+	protected Function<SAMRecord, List<SAMRecord>> createSAMRecordFunction() {
+		return R->liftRead(R);
+		}
+	
+	private List<SAMRecord> liftRead(final SAMRecord rec) {
+		final SAMRecord copy;
+		try {
+			copy =(SAMRecord)rec.clone();
+			}
+		catch(final CloneNotSupportedException err) {
+			throw new RuntimeException(err); 
+			}
+		copy.setHeader(this.headerOut);
+		final StringBuilder sb=new StringBuilder();
+		if(!rec.getReadUnmappedFlag())
+			{
+			final String chrom = rec.getReferenceName();
+			final int pos=rec.getAlignmentStart();
+			final Interval interval= this.liftOver.liftOver(new Interval(chrom, pos,pos,rec.getReadNegativeStrandFlag(),null));
+			if(interval!=null)
+				{
+				sb.append(chrom+":"+pos+":"+(rec.getReadNegativeStrandFlag()?"-":"+"));
+				final SAMSequenceRecord ssr= this.newDict.getSequence(interval.getContig());
+				if(ssr==null)
+					{
+					throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(),newDict);
+					}
+				copy.setReferenceName(ssr.getSequenceName());
+				copy.setReferenceIndex(ssr.getSequenceIndex());
+				copy.setAlignmentStart(interval.getStart());
+				copy.setReadNegativeStrandFlag(interval.isNegativeStrand());
+				if(rec.getReadNegativeStrandFlag()!=copy.getReadNegativeStrandFlag()) {
+					copy.setReadString(AcidNucleics.reverseComplement(rec.getReadString()));
+					
+					byte qual[]= rec.getBaseQualities();
+					byte quals2[]=  new byte[qual.length];
+					for(int i=0;i< qual.length;++i) {
+						quals2[i]=qual[(qual.length-1)-i];
+					}
+					copy.setBaseQualities(quals2);
+					}
+				}
+			else
+				{
+				sb.append(".");
+				SAMUtils.makeReadUnmapped(copy);
+				}
+			}
+		
+		
+		if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag())
+			{
+			sb.append("/");
+			final String chrom=rec.getMateReferenceName();
+			final int pos=rec.getMateAlignmentStart();
+			final Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getMateNegativeStrandFlag(),null));
+			if(interval!=null)
+				{
+				sb.append(chrom+":"+pos+":"+(rec.getMateNegativeStrandFlag()?"-":"+"));
+				final SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
+				if(ssr==null)
+					{
+					throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(),newDict);
+					}
+				copy.setMateReferenceName(ssr.getSequenceName());
+				copy.setMateReferenceIndex(ssr.getSequenceIndex());
+				copy.setMateAlignmentStart(interval.getStart());
+				copy.setMateNegativeStrandFlag(interval.isNegativeStrand());
+				
+				if(!copy.getReadUnmappedFlag() &&
+					copy.getReferenceIndex()==copy.getMateReferenceIndex() 
+					// && copy.getReadNegativeStrandFlag()!=copy.getMateNegativeStrandFlag()
+					)
+					{
+					//don't change ?
+					}
+				else
+					{
+					copy.setProperPairFlag(false);
+					copy.setInferredInsertSize(0);
+					}
+				}
+			else
+				{
+				sb.append(".");
+				SAMUtils.makeReadUnmapped(copy);
+				}
+			}
+		rec.setAttribute(SAMTag.SA,null);
+		if(sb.length()>0) copy.setAttribute("LO", sb.toString());
+		return Collections.singletonList(copy);
+		}
+	
 
-	/**
-	 * @param args
-	 */
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new BamLiftOver().instanceMainWithExit(args);
 		}

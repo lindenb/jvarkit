@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.primer3;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +34,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
@@ -43,15 +48,16 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 
+/** describe a result for primer3 */
 public class Primer3 extends AbstractList<Primer3.Pair> {
-private String SEQUENCE_ID = null;
+private String SEQUENCE_ID = "undefined";
 private String SEQUENCE_TEMPLATE = null;
 private int PRIMER_FIRST_BASE_INDEX=0;
-private List<Primer> primerLeft =  new ArrayList<>();
-private List<Primer> primerRight =  new ArrayList<>();
-private List<Pair> pairs =  new ArrayList<>();
+private final List<Primer> primerLeft =  new ArrayList<>();
+private final List<Primer> primerRight =  new ArrayList<>();
+private final List<Pair> pairs =  new ArrayList<>();
 
-private abstract class Entity {
+private abstract class Entity implements Locatable {
 	protected final int index;
 	protected final Map<String,String> attributes=new HashMap<>();
 	protected Entity(int index) {
@@ -61,7 +67,13 @@ private abstract class Entity {
 		return this.index;
 	}
 	
-	protected String getAttribute(String key) {
+	@Override
+	public String getContig() {
+		return Primer3.this.getContig();
+		}
+
+	
+	protected String getAttribute(final String key) {
 		if(!this.attributes.containsKey(key)) throw new IllegalArgumentException("Cannot get "+key+" in "+this.attributes);
 		return this.attributes.get(key);
 		}
@@ -85,16 +97,26 @@ private abstract class Entity {
 		return w;
 		}
 	protected abstract String getEntityName();
+	abstract void writeXml(final XMLStreamWriter w) throws XMLStreamException;
+
 	
 }
-
-public class Primer extends Entity implements CharSequence, Locatable {
+/** describe a primer  */
+public class Primer extends Entity implements CharSequence {
 	private String cached_seq = null;
 	private final int side;// 0 LEFT 1 RIGHT
 	Primer(int index,int side) {
 		super(index);
 		this.side=side;
 		}
+	public boolean isLeft() {
+		return this.side==0;
+		}
+	
+	public boolean isRight() {
+		return this.side==1;
+	}
+	
 	public String getSequence() {
 		if(cached_seq==null) {
 			cached_seq =  getAttribute("SEQUENCE").toUpperCase();
@@ -133,7 +155,7 @@ public class Primer extends Entity implements CharSequence, Locatable {
 		return  getSequence().subSequence(start, end);
 		}
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if(obj==this)return true;
 		if(obj==null || !(obj instanceof Primer)) return false;
 		return getSequence().equals(Primer.class.cast(obj).getSequence());
@@ -143,13 +165,9 @@ public class Primer extends Entity implements CharSequence, Locatable {
 		return getSequence().hashCode();
 		}	
 	protected String getEntityName() {
-		return (side==0?"LEFT":"RIGHT");
+		return (isLeft()?"LEFT":"RIGHT");
 		}
 	
-	@Override
-	public String getContig() {
-		return Primer3.this.getContig();
-		}
 
 	@Override
 	public int getStart() {
@@ -162,12 +180,30 @@ public class Primer extends Entity implements CharSequence, Locatable {
 		}
 	
 	@Override
+	void writeXml(final XMLStreamWriter w) throws XMLStreamException {
+		w.writeStartElement(getEntityName().toLowerCase()+"-primer");
+		w.writeAttribute("index", String.valueOf(getIndex()));
+		w.writeAttribute("start", String.valueOf(getStart()));
+		w.writeAttribute("end", String.valueOf(getEnd()));
+		w.writeAttribute("length", String.valueOf(length()));
+		w.writeAttribute("tm", String.valueOf(getMeltingTemperature()));
+		w.writeAttribute("gc", String.valueOf(getGcPercent()));
+		w.writeAttribute("self-any", String.valueOf(getSelfAny()));
+		w.writeAttribute("self-end", String.valueOf(getSelfEnd()));
+		w.writeAttribute("hairpin-th", String.valueOf(getHairpinTh()));
+		w.writeStartElement("sequence");
+		w.writeCharacters(getSequence());
+		w.writeEndElement();
+		w.writeEndElement();
+		}
+	
+	@Override
 	public String toString() {
 		return getSequence();
 		}
 	}
 
-
+/** describe a pair of primers */
 public class Pair extends Entity {
 	Pair(int index) {
 		super(index);
@@ -202,6 +238,29 @@ public class Pair extends Entity {
 	protected String getEntityName() {
 		return "PAIR";
 		}
+	
+	@Override
+	void writeXml(final XMLStreamWriter w) throws XMLStreamException {
+		w.writeStartElement("pair");
+		w.writeAttribute("index", String.valueOf(getIndex()));
+		w.writeAttribute("start", String.valueOf(getStart()));
+		w.writeAttribute("end", String.valueOf(getEnd()));
+		w.writeAttribute("length", String.valueOf(getProductSize()));
+		getLeft().writeXml(w);
+		getRight().writeXml(w);
+		w.writeEndElement();
+		}
+
+	
+	@Override
+	public int getStart() {
+		return getLeft().getStart();
+		}
+	@Override
+	public int getEnd() {
+		return getRight().getEnd();
+		}
+	
 	@Override
 	public String toString() {
 		final StringBuilder sb=new StringBuilder();
@@ -227,6 +286,9 @@ private final CharSequence templateSequence = new AbstractCharSequence() {
 		return SEQUENCE_TEMPLATE.charAt(index);
 	}
 };
+
+private Primer3() {
+}
 
 public String getContig() {
 	return SEQUENCE_ID;
@@ -287,6 +349,28 @@ public int size() {
 	return this.pairs.size();
 	}
 
+public void writeXml(final XMLStreamWriter w) throws XMLStreamException {
+	w.writeStartElement("primer3");
+	w.writeStartElement("template");
+	w.writeAttribute("id", this.SEQUENCE_ID);
+	w.writeAttribute("first-base-index", String.valueOf(this.PRIMER_FIRST_BASE_INDEX));
+	w.writeCharacters(this.SEQUENCE_TEMPLATE);
+	w.writeEndElement();
+	w.writeStartElement("pairs");
+	w.writeAttribute("count", String.valueOf(size()));
+	for(Pair p: this.pairs) {
+		p.writeXml(w);
+		}
+	w.writeEndElement();
+	w.writeEndElement();
+	}
+
+private Primer3 validate() {
+	if(StringUtils.isBlank(SEQUENCE_ID)) throw new IllegalArgumentException("SEQUENCE_ID MISSING");
+	if(StringUtils.isBlank(SEQUENCE_TEMPLATE)) throw new IllegalArgumentException("SEQUENCE_TEMPLATE MISSING");
+	return this;
+	}
+
 @Override
 public String toString() {
 	final StringBuilder sb=new StringBuilder();
@@ -304,10 +388,14 @@ public static CloseableIterator<Primer3> iterator(final Reader r) throws IOExcep
 	return new MyIter(r);
 	}
 
+public static CloseableIterator<Primer3> iterator(final Path path) throws IOException {
+	return iterator(IOUtils.openPathForBufferedReading(path));
+	}
+
 private static class MyIter extends AbstractCloseableIterator<Primer3> {
 	private final BufferedReader br;
 	MyIter(final Reader r) throws IOException {
-		this.br = new BufferedReader(r);
+		this.br = (r instanceof BufferedReader? BufferedReader.class.cast(r):new BufferedReader(r));
 		}
 	@Override
 	protected Primer3 advance() {
@@ -316,7 +404,7 @@ private static class MyIter extends AbstractCloseableIterator<Primer3> {
 			String line;
 			while((line=br.readLine())!=null) {
 				if(line.equals("=")) {
-					if(curr!=null) return curr;
+					if(curr!=null) return curr.validate();
 					continue;
 					}
 				if(curr==null) curr = new Primer3();
@@ -324,9 +412,9 @@ private static class MyIter extends AbstractCloseableIterator<Primer3> {
 				if(eq==-1) throw new IOException("Cannot find '=' in primer3 output "+line);
 				curr.put(line.substring(0,eq),line.substring(eq+1));
 				}
-			return curr;
+			return curr==null?null:curr.validate();
 			}
-		catch(IOException err) {
+		catch(final IOException err) {
 			throw new RuntimeIOException(err);
 			}
 		}

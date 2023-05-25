@@ -26,250 +26,200 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfconcat;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
+
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
+
+## Motivation
+
+concat numerous VCF, without checking files at start, doesn't sort.
+
+## Input
+
+input is a set of VCF files or a file with the suffix .list containing the path to the vcfs
 
 ## Example
 
 ### From stdin
 
 ```bash
-$ find ./ -name "*.vcf" | grep Sample1 | java -jar dist/vcfconcat.jar > out.vcf
+$ find ./ -name "*.vcf" | grep Sample1 | java -jar dist/jvarkit vcfconcat > out.vcf
 ```
 
 ### From files
 
 ```bash
-$ java -jar dist/vcfconcat.jar Sample1.samtools.vcf Sample1.gatk.vcf > out.vcf
+$ java -jar dist/jvarkit vcfconcat Sample1.samtools.vcf Sample1.gatk.vcf > out.vcf
+$ java -jar dist/jvarkit vcfconcat paths.list > out.vcf
 ```
 
+
+## See also
+
+bcftools concat
 
 END_DOC
 */
 @Program(name="vcfconcat",
 	keywords={"vcf"},
-		description="Concatenante sorted VCF with same sample, does NOT merge genotypes"
-		)
+	creationDate = "20131230",
+	modificationDate = "20230525",
+	description="Concatenate VCFs with same sample. See also bcftools concat",
+	generate_doc = true,
+	jvarkit_amalgamion = true
+	)
 public class VcfConcat extends Launcher
 	{
 	private static final Logger LOG =Logger.build(VcfConcat.class).make();
 	
-	public static final String VARIANTSOURCE="VARIANTSOURCE";
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputfile=null;
-	
-	private Set<String> inputFiles=new HashSet<>();
-	
-	public VcfConcat()
-		{
-		}
-	
-	
-	
+	private Path outputFile=null;
+	@Parameter(names={"-T","--tag"},description="if not empty, add INFO/tag containing the source/path of the variant")
+	private String variantsourceTag="";
+	@Parameter(names={"-G","--drop-genotypes"},description="Drop genotypes")
+	private boolean drop_genotypes = false;
+	@Parameter(names={"--chrom","--contig"},description="limit to that chromosome")
+	private String limitChrom = null;
 
-	
-	private int fromFiles(final VariantContextWriter out) throws IOException
-		{
-		List<VCFIterator> inputs=new ArrayList<VCFIterator>(this.inputFiles.size());
-		List<String> inputFiles=new ArrayList<>(this.inputFiles.size());
-		List<String> samples=new ArrayList<>();
-		SAMSequenceDictionary dict=null;
-		try
-			{
-			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
-			
-			/* open each vcf file */
-			for(String vcfFile:this.inputFiles)
-				{
-				LOG.info("Opening "+vcfFile);
-				VCFIterator r=VCFUtils.createVCFIterator(vcfFile);
-				
-				/* check VCF dict */
-				VCFHeader header = r.getHeader();
-				if(dict==null && inputs.isEmpty())
-					{
-					dict = header.getSequenceDictionary();
-					}
-				else if(!inputs.isEmpty() &&
-					(
-					(dict==null && header.getSequenceDictionary()!=null) ||
-					(dict!=null && header.getSequenceDictionary()==null))
-					)
-					{
-					LOG.error("not.the.same.sequence.dictionaries");
-					return -1;
-					}
-				else if(!inputs.isEmpty() && dict!=null && 
-					!SequenceUtil.areSequenceDictionariesEqual(dict, header.getSequenceDictionary()))
-					{
-					LOG.error("not.the.same.sequence.dictionaries");
-					return -1;
-					}
-				/* check samples */
-				if(inputs.isEmpty())
-					{
-					samples = header.getSampleNamesInOrder();
-					}
-				else if(!header.getSampleNamesInOrder().equals(samples))
-					{
-					LOG.error("No same samples");
-					return -1;
-					}
-				
-				metaData.addAll(header.getMetaDataInInputOrder());
-				inputs.add(r);
-				inputFiles.add(VCFUtils.escapeInfoField(vcfFile));
-				}
-			/* create comparator according to dict*/
-			final Comparator<VariantContext> comparator = (dict==null?
-					VCFUtils.createChromPosRefComparator():
-					VCFUtils.createTidPosRefComparator(dict)
-					);
-			metaData.addAll(JVarkitVersion.getInstance().getMetaData(getClass().getSimpleName()));
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"CmdLine",String.valueOf(getProgramCommandLine())));
-			metaData.add(new VCFHeaderLine(getClass().getSimpleName()+"Version",String.valueOf(getVersion())));
-			metaData.add(new VCFInfoHeaderLine(
-					VARIANTSOURCE,1,VCFHeaderLineType.String,
-					"Origin File of Varant"
-					));
-			VCFHeader h2 = new VCFHeader(
-					metaData,
-					samples
-					);
-			out.writeHeader(h2);
-			SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-			for(;;)
-				{
-				/* get 'smallest' variant */
-				VariantContext smallest = null;
-				int idx=0;
-				int best_idx = -1;
-				
-				while(idx < inputs.size())
-					{
-					VCFIterator in= inputs.get(idx);
-					if(!in.hasNext())
-						{
-						CloserUtil.close(in);
-						inputs.remove(idx);
-						inputFiles.remove(idx);
-						}
-					else
-						{
-						VariantContext ctx = in.peek();
-						if( smallest==null ||
-							comparator.compare(smallest,ctx)>0)
-							{
-							smallest = ctx;
-							best_idx = idx;
-							}
-						++idx;
-						}
-					}
-				
-				if(smallest==null ) break;
-				
-				final VariantContext ctx = progress.watch(inputs.get(best_idx).next());
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.attribute(VARIANTSOURCE, inputFiles.get(best_idx));
-				out.add(vcb.make());
-				}
-			progress.finish();
-			return 0;
-			}
-		catch(Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(inputs);
-			}
-
-		}
-	
-		
+	@ParametersDelegate
+	private WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
 
 	@Override
 	public int doWork(final List<String> args) {
 		VariantContextWriter w=null;
-		BufferedReader r=null;
 		try
 			{
+			final List<Path> vcfs;
+			
 			if(args.isEmpty())
 				{
-				LOG.info("Reading filenames from stdin");
-				r= IOUtils.openStdinForBufferedReader();
-				this.inputFiles.addAll(r.lines().
-					filter(line->!(line.trim().isEmpty() || line.startsWith("#"))).
-					collect(Collectors.toSet())
-					);
-				r.close();
-				r=null;
+				try(BufferedReader br=IOUtils.openStreamForBufferedReader(stdin())) {
+					vcfs = br.lines().
+						filter(line->!(StringUtils.isBlank(line) || line.startsWith("#"))).
+						map(F->Paths.get(F)).
+						collect(Collectors.toList());
+					}
 				}
 			else
 				{
-				for(final String filename:args)
-					{
-					this.inputFiles.addAll(IOUtils.unrollFiles(Arrays.asList(filename)));	
-					}
+				vcfs = IOUtils.unrollPaths(args);
 				}
-			if(this.inputFiles.isEmpty())
+			
+			if(vcfs.isEmpty())
 				{
 				LOG.error("No input");
 				return -1;
 				}
-			w= super.openVariantContextWriter(this.outputfile);
-			return fromFiles(w);
+			
+			VCFInfoHeaderLine variantSourceHeader = null;
+			VCFHeader firstHeader=null;
+			long count_variants=0L;
+			SAMSequenceDictionary firstDict=null;
+			final long initMilliSec = System.currentTimeMillis();
+			for(int i=0;i< vcfs.size();i++) {
+				final Path vcfPath = vcfs.get(i);
+				final long startMilliSec = System.currentTimeMillis();
+				LOG.info(String.valueOf(i+1)+"/"+vcfs.size()+" "+vcfPath);
+				try(VCFIterator in = new BcfIteratorBuilder().open(vcfPath)) {
+					final VCFHeader header0 = in.getHeader();
+					final VCFHeader header = drop_genotypes?new VCFHeader(header0.getMetaDataInInputOrder()):header0;
+					final SAMSequenceDictionary dict= header.getSequenceDictionary();
+					if(firstHeader==null) {
+						w=this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
+						firstHeader = header;
+						firstDict = dict;
+						if(dict!=null && limitChrom!=null && dict.getSequence(this.limitChrom)==null) {
+							throw new JvarkitException.ContigNotFoundInDictionary(limitChrom, dict);
+							}
+						if(!StringUtils.isBlank(this.variantsourceTag)) {
+							variantSourceHeader = new VCFInfoHeaderLine(
+									this.variantsourceTag,
+									1,VCFHeaderLineType.String,
+									"Origin File of Varant"
+									);
+							header.addMetaDataLine(variantSourceHeader);
+							}
+						JVarkitVersion.getInstance().addMetaData(this, header);
+						w.writeHeader(firstHeader);
+						}
+					else
+						{
+						if(firstDict!=null && dict!=null) SequenceUtil.assertSequenceDictionariesEqual(firstDict, dict);
+						if(!this.drop_genotypes && !firstHeader.getGenotypeSamples().equals(header.getGenotypeSamples())) {
+							LOG.error("Samples names/order mismatch between "+ vcfs.get(0)+" and "+ vcfPath);
+							return -1;
+							}
+						}
+					while(in.hasNext()) {
+						VariantContext ctx = in.next();
+						if(limitChrom!=null && !ctx.getContig().equals(limitChrom)) {
+							continue;
+							}
+						
+						
+						if(drop_genotypes || variantSourceHeader!=null) {
+							final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+							if(variantSourceHeader!=null) vcb.attribute(
+									variantSourceHeader.getID(),
+									VCFUtils.escapeInfoField(vcfPath.toString())
+									);
+							if(drop_genotypes) vcb.noGenotypes();
+							ctx = vcb.make();
+							}
+						w.add(ctx);
+						count_variants++;
+						}
+					final long millisecPerVcf  = (System.currentTimeMillis() - initMilliSec)/(i+1L);
+					LOG.info("N="+count_variants+". That took: "+StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec)+" Remains: "+ StringUtils.niceDuration((vcfs.size()-(i+1))*millisecPerVcf));
+					}
+				
+				}
+			w.close();
+			w=null;
+			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(w);
-			CloserUtil.close(r);
+			if(w!=null) try {w.close();} catch(Exception err) {}
 			}
 		}
 
-	public static void main(String[] args)	{
-	new VcfConcat().instanceMainWithExit(args);
-	}
+	public static void main(final String[] args)	{
+		new VcfConcat().instanceMainWithExit(args);
+		}
 
 	
 	}
