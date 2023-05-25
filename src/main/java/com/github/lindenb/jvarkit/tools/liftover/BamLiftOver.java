@@ -95,6 +95,7 @@ public class BamLiftOver extends OnePassBamLauncher
 	@Override
 	protected SAMFileHeader createOutputHeader(final SAMFileHeader headerIn) {
 		this.headerOut =  super.createOutputHeader(headerIn);
+		this.headerOut.setSequenceDictionary(this.newDict);
 		this.headerOut.setSortOrder(SortOrder.unsorted);
 		return this.headerOut;
 		}
