@@ -40,11 +40,13 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
+/** a VCF filtering variant using a set of VariantAnnotator */
 public abstract class AbstractOnePassVcfAnnotator extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(AbstractOnePassVcfAnnotator.class).make();
 
 	private final List<VariantAnnotator> annotators =  new ArrayList<>();
 	
+	/** return the {@link VariantAnnotator} . will be called in beforeVcf */
 	protected abstract List<VariantAnnotator> createVariantAnnotators();
 	
 	@Override
@@ -52,10 +54,14 @@ public abstract class AbstractOnePassVcfAnnotator extends OnePassVcfLauncher {
 		return LOG;
 		}
 	
+	/** createVariantAnnotators is called in init */
 	@Override
 	protected int beforeVcf() {
 		try {
 			this.annotators.addAll(createVariantAnnotators());
+			if(this.annotators.isEmpty()) {
+				LOG.warn("NO Variant Annotator was loaded !");
+				}
 			}
 		catch(Throwable err) {
 			getLogger().error(err);
@@ -64,7 +70,7 @@ public abstract class AbstractOnePassVcfAnnotator extends OnePassVcfLauncher {
 		return super.beforeVcf();
 		}
 	
-	private void recursive(VariantContextWriter w, int annotator_idx,VariantContext ctx) throws IOException {
+	private void recursive(VariantContextWriter w, final int annotator_idx, final VariantContext ctx) throws IOException {
 		if(annotator_idx==this.annotators.size()) {
 			w.add(ctx);
 			}
@@ -77,7 +83,7 @@ public abstract class AbstractOnePassVcfAnnotator extends OnePassVcfLauncher {
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, final VCFIterator r, final VariantContextWriter w) {
+	protected int doVcfToVcf(final String inputName, final VCFIterator r, final VariantContextWriter w) {
 		try {
 			final VCFHeader header= r.getHeader();
 			final VCFHeader h2=new VCFHeader(header);

@@ -27,7 +27,9 @@ package com.github.lindenb.jvarkit.variant;
 
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.springframework.context.ApplicationContext;
@@ -37,42 +39,81 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 public class VcfSpringBeanVariantAnnotator implements VariantAnnotator {
-private final List<String> springCongigFiles = new ArrayList<>();
+	public static final String DEFAULT_MAIN_BEAN_NAME="main";
+
+private final List<String>  xmlConfigPaths = new ArrayList<>();
+private String beanName= DEFAULT_MAIN_BEAN_NAME;
 private final List<VariantAnnotator> annotators = new ArrayList<>();
+private boolean initialized_flag = false;
+
 public VcfSpringBeanVariantAnnotator() {
+	// NO this(blablabala) !!
+	}
+public VcfSpringBeanVariantAnnotator(final Path xmlConfigPath,final String beanName) {
+	this(Collections.singletonList(xmlConfigPath.toUri().toString()),beanName);
 	}
 
 
-public void setConfigFiles(final List<String> springCongigFiles) {
-	if(springCongigFiles==null) throw new IllegalArgumentException("springCongigFiles==nunll");
-	this.springCongigFiles.clear();
-	this.springCongigFiles.addAll(springCongigFiles);
+public VcfSpringBeanVariantAnnotator(final List<String> xmlConfigs,final String beanName) {
+	this.xmlConfigPaths.addAll(xmlConfigs);
+	setBeanName(beanName);
+	createAnnotators();
 	}
+
+
+public void setBeanName(String beanName) {
+	this.beanName = beanName;
+	}
+
+public String getBeanName() {
+	return beanName;
+	}
+
 
 private void createAnnotators() {
-	String mainBeanName = "main";
-	if(this.springCongigFiles.isEmpty())
+	if(this.initialized_flag) return;
+	this.initialized_flag = true;
+	if(this.xmlConfigPaths.isEmpty())
 		{
 		throw new IllegalArgumentException("no spring config file was provided");
 		}
-	final ApplicationContext springApplicationContext = 
-			new FileSystemXmlApplicationContext(
-					this.springCongigFiles.toArray(new String[this.springCongigFiles.size()])
-					);
+	try {
+		
+		final ApplicationContext springApplicationContext =  new FileSystemXmlApplicationContext(
+				this.xmlConfigPaths.toArray(new String[this.xmlConfigPaths.size()])
+				);
+		
 	
-	if(!springApplicationContext.containsBean(mainBeanName))
-		{
-		throw new IllegalArgumentException("cannot get bean "+mainBeanName+" in "+
-				String.join(" ",springCongigFiles)
-				); 
+		
+		if(!springApplicationContext.containsBean(getBeanName()))
+			{
+			throw new IllegalArgumentException("cannot get bean "+getBeanName()+" in "+ String.join(" ", this.xmlConfigPaths));
+			}
+		if(!springApplicationContext.containsBean(getBeanName())) {
+			throw new IllegalArgumentException("bean "+getBeanName()+" is was not found in "+ String.join(" ", this.xmlConfigPaths));
+			}
+		final Object o = springApplicationContext.getBean(getBeanName());
+		if( o == null) {
+			throw new IllegalArgumentException("bean "+getBeanName()+" was found but it is null in "+ String.join(" ", this.xmlConfigPaths));
+			}
+		if( !(o instanceof List)) {
+			throw new IllegalArgumentException("bean "+getBeanName()+" is not an instance of java.util.List in "+String.join(" ", this.xmlConfigPaths));
+			}
+		final List<?> list = (List<?>)o;
+		for(int i=0;i< list.size();i++) {
+			final Object o2 = list.get(i);
+			if( o2 == null) {
+				throw new IllegalArgumentException("element["+i+"]found but it is null in "+ String.join(" ", this.xmlConfigPaths));
+				}
+			if( !(o2 instanceof VariantAnnotator)) {
+				throw new IllegalArgumentException("element["+i+"]found but it not an instance of "+VariantAnnotator.class.getName()+" in "+  String.join(" ", this.xmlConfigPaths));
+				}
+			this.annotators.add(VariantAnnotator.class.cast(o2));
+			}
 		}
-	final Object o = springApplicationContext.getBean(mainBeanName);
-	if( o == null || !(o instanceof List))
-		{
-		throw new IllegalArgumentException("bean "+mainBeanName+" is not a  VcfChain but "+
-				(o==null?"null":o.getClass().getName())
-				); 
-		}
+	catch(final Throwable err) {
+			throw new RuntimeException(err);
+			}
 	}
 
 @Override

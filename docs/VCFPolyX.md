@@ -22,10 +22,6 @@ Usage: vcfpolyx [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    -n, --filter
-      if number of repeated bases is greater or equal to 'n' set a FILTER = 
-      (tag) 
-      Default: -1
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -33,6 +29,10 @@ Usage: vcfpolyx [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -n, --filter, --max-repeats
+      if number of repeated bases is greater or equal to 'n' set a FILTER = 
+      (tag) 
+      Default: -1
     -o, --out
       Output file. Optional . Default: stdout
   * -R, --reference

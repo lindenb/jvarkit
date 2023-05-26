@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:util="http://www.springframework.org/schema/util"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans 
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/util
+        https://www.springframework.org/schema/util/spring-util.xsd
+        "
+>
+    <util:list id="main">
+    	<bean class="com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate" >
+    		<constructor-arg index="0" type="String" value="!vc.isSNP()"/>
+    		 <property name="softFiltering" value="true"/>
+    		 <property name="filterName" value="HELLO"/>
+    	</bean>
+    	<bean class="com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate" >
+    		<constructor-arg index="0" type="String" value="vc.homVarCount &gt; 1"/>
+    		 <property name="softFiltering" value="true"/>
+    		 <property name="filterName" value="HELLO2"/>
+    	</bean>
+    	<bean class="com.github.lindenb.jvarkit.tools.vcfpolyx.PolyXVariantAnnotator" >
+    		<constructor-arg  ref="referencePath"/>
+    		 <property name="tag" value="XPOLY"/>
+    	</bean>
+    </util:list>
+    
+    <!-- ========================================================================================== -->
+    
+    <bean id="referencePath" class="java.nio.file.Paths"  factory-method="get">
+    	<constructor-arg index="0"  value="src/test/resources/rotavirus_rf.fa"/>
+    	 <constructor-arg index="1"><array /></constructor-arg>
+    </bean>
+</beans>

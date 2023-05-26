@@ -193,6 +193,7 @@ import com.github.lindenb.jvarkit.tools.vcfregulomedb.VcfRegulomeDB;
 import com.github.lindenb.jvarkit.tools.vcfserver.VcfServer;
 import com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariants;
 import com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitter;
+import com.github.lindenb.jvarkit.tools.vcfspring.VcfSpringFilter;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekAf;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamCov;
@@ -638,6 +639,7 @@ public class JvarkitCentral {
 		command(VcfPseudoAutosomalRegion.class);
 		command(VcfRebase.class);
 		command(VcfGatkEval.class);
+		command(VcfSpringFilter.class);
 		command(VcfGnomadSV.class);
 		command(VcfGrantham.class);
 		command(VcfHead.class);

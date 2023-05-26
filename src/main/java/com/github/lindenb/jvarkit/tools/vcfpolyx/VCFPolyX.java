@@ -24,32 +24,19 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfpolyx;
 
+import java.io.IOException;
 import java.nio.file.Path;
-
-
-import htsjdk.samtools.reference.ReferenceSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFFilterHeaderLine;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLineType;
-import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import java.util.Collections;
+import java.util.List;
+import java.util.OptionalInt;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.variant.VariantAnnotator;
+import com.github.lindenb.jvarkit.variant.vcf.AbstractOnePassVcfAnnotator;
 
-import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.samtools.util.RuntimeIOException;
 
 /*
 BEGIN_DOC
@@ -77,15 +64,15 @@ END_DOC
 	description="Number of repeated REF bases around POS.",
 	keywords={"vcf","repeat"},
 	creationDate="20200930",
-	modificationDate="20211102",
+	modificationDate="20230526",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 	)
-public class VCFPolyX extends OnePassVcfLauncher
+public class VCFPolyX extends AbstractOnePassVcfAnnotator
 	{
 	private static final Logger LOG = Logger.build(VCFPolyX.class).make();
 
-	@Parameter(names={"-n","--filter"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
+	@Parameter(names={"-n","--filter","--max-repeats"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
 	private int filterTrehsold = -1 ;
 	@Parameter(names={"-t","--tag"},description="Tag used in INFO and FILTER columns.")
 	private String polyXtag = "POLYX";
@@ -99,128 +86,21 @@ public class VCFPolyX extends OnePassVcfLauncher
 		return LOG;
 		}
 	
+	
 	@Override
-	protected int doVcfToVcf(
-			final String inputName,
-			final VCFIterator r,
-			final VariantContextWriter w
-			) 
-		{
-		
-		if(StringUtil.isBlank(this.polyXtag)) {
-			LOG.error("Empty tag");
-			return -1;
+	protected List<VariantAnnotator> createVariantAnnotators() {
+		try {
+			final PolyXVariantAnnotator ann = new PolyXVariantAnnotator(this.faixPath);
+			ann.setSkipFiltered(this.skip_filtered);
+			ann.setTag(this.polyXtag);
+			ann.setMaxRepeat(filterTrehsold<0?OptionalInt.empty():OptionalInt.of(filterTrehsold));
+			return Collections.singletonList(ann);
 			}
-		
-		try
-			{
-			try(ReferenceSequenceFile  referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faixPath)) {
-				
-				final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(referenceSequenceFile));
-	
-				
-				final VCFHeader h2 = new VCFHeader(r.getHeader());
-		
-				final VCFInfoHeaderLine infoHeaderLine = new VCFInfoHeaderLine(
-						this.polyXtag.trim(),
-						1,
-						VCFHeaderLineType.Integer,
-						"Number of repeated bases around REF")
-						;
-				h2.addMetaDataLine(infoHeaderLine);
-	
-				final VCFFilterHeaderLine filterHeaderLine = new VCFFilterHeaderLine(
-						infoHeaderLine.getID()+"_ge_"+this.filterTrehsold,
-						"Number of repeated bases around REF is greater or equal to " + this.filterTrehsold
-						);
-				
-				if( this.filterTrehsold>-1) {
-					h2.addMetaDataLine(filterHeaderLine);
-					}
-				ChromosomeSequence genomicContig=null;
-				JVarkitVersion.getInstance().addMetaData(this, h2);
-				w.writeHeader(h2);
-				while(r.hasNext())
-					{
-					final VariantContext ctx = r.next();
-					if(this.skip_filtered && ctx.isFiltered())
-						{
-						w.add(ctx);
-						continue;
-						}
-					
-					final String normalizedContig = contigNameConverter.apply(ctx.getContig());
-					if(StringUtils.isBlank(normalizedContig)) {
-						w.add(ctx);
-						continue;
-						}
-					
-					if(genomicContig==null || !genomicContig.hasName(normalizedContig))
-						{
-						genomicContig= new GenomicSequence(referenceSequenceFile, normalizedContig);
-						}
-					
-					final VariantContextBuilder b = new VariantContextBuilder(ctx);
-	
-					// https://github.com/lindenb/jvarkit/issues/165
-					final boolean indel_flag = ctx.isIndel();
-					
-					int count=1;
-					int pos0 = ctx.getStart()-1;
-					// https://github.com/lindenb/jvarkit/issues/165
-					if(indel_flag) {
-						pos0++;
-						}
-					char c0 = Character.toUpperCase(genomicContig.charAt(pos0));
-					//go left
-					pos0--;
-					while(pos0>=0 && c0==Character.toUpperCase(genomicContig.charAt(pos0)))
-						{
-						++count;
-						pos0--;
-						}
-					//go right
-					pos0 = ctx.getEnd()-1;
-					// https://github.com/lindenb/jvarkit/issues/165
-					if(indel_flag) {
-						pos0++;
-						}
-					
-					c0 = Character.toUpperCase(genomicContig.charAt(pos0));
-					pos0++;
-					while(pos0< genomicContig.length()
-						&& c0==Character.toUpperCase(genomicContig.charAt(pos0)))
-						{
-						++count;
-						++pos0;
-						}
-					b.attribute(infoHeaderLine.getID(),count);
-					
-					/* filter */
-					if(this.filterTrehsold>-1 )
-						{
-						if(count>=this.filterTrehsold) {
-							b.filter(filterHeaderLine.getID());
-							}
-						else if(!ctx.isFiltered()) {
-							b.passFilters();
-							}
-						}
-					
-					w.add(b.make());			
-					}
-				w.close();
-				}
-			return 0;
-			}
-		catch(final Throwable err) {
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
+		catch(IOException err) {
+			throw new RuntimeIOException(err);
 			}
 		}
+	
 
 	public static void main(final String[] args)
 		{

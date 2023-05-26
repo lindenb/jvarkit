@@ -41,6 +41,12 @@ import htsjdk.variant.vcf.VCFHeader;
 public abstract class PredicateVariantAnnotator implements VariantAnnotator,Predicate<VariantContext> {
 private boolean soft_filtering = true;
 private VCFFilterHeaderLine filterHeaderLine = null;
+private String filterName;
+
+public PredicateVariantAnnotator() {
+	this.filterName  = getClass().getSimpleName();
+	}
+
 public void setSoftFiltering(boolean b) {
 	this.soft_filtering = b;
 	}
@@ -49,8 +55,13 @@ public boolean isSoftFiltering() {
 	}
 /** filter name if soft filtering */
 public String getFilterName() {
-	return getClass().getSimpleName();
+	return this.filterName;
 	}
+
+public void setFilterName(String filterName) {
+	this.filterName = filterName;
+	}
+
 /** filter description if soft filtering */
 public String getFilterDescription() {
 	return "Filtered with "+getFilterName();
@@ -74,7 +85,7 @@ public void fillHeader(final VCFHeader header) {
 @Override
 public List<VariantContext> annotate(final VariantContext ctx) throws IOException {
 	final boolean accept= test(ctx);
-	if(this.filterHeaderLine==null) {
+	if(this.filterHeaderLine!=null) /* soft filtering */ {
 		if(accept) {
 			if(ctx.isFiltered()) return Collections.singletonList(ctx);
 			return Collections.singletonList(new VariantContextBuilder(ctx).passFilters().make());
