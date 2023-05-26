@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcfspring;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -32,6 +32,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -54,11 +55,9 @@ END_DOC
 	keywords={"vcf","java","spring","framework"},
 	generate_doc=false
 	)
-public class VcfSpringFilter extends Launcher {
+public class VcfSpringFilter extends OnePassVcfLauncher {
 	private static final Logger LOG=Logger.build(VcfSpringFilter.class).make();
 
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
 	@Parameter(names={"-c","--config"},description="Spring configuration file.")
 	private List<String> springCongigFiles = new ArrayList<>();
 	@Parameter(names={"-m","--main"},description="Main bean name")

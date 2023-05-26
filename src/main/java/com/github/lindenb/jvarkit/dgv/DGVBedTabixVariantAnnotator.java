@@ -51,14 +51,19 @@ public class DGVBedTabixVariantAnnotator extends AbstractTabixVariantAnnotator {
 	public static final String OPT_DESC="DGV SV Variant file as Tabix indexed file from http://dgv.tcag.ca/dgv/app/downloads";
 	public static final String FRACTION_KEY ="fraction";
 	private final FileHeader bedHeader;
-	private final double fraction;
+	private double fraction;
 	private VCFInfoHeaderLine hdrHasDGV;
 	private VCFInfoHeaderLine hdrDGVSV;
 	private VCFInfoHeaderLine hdrDGVAF;
+	
+	public DGVBedTabixVariantAnnotator(final String bedUri) throws IOException {
+		this(bedUri,AttributeMap.empty());
+		}
+	
 	/**
 	 * 
 	 * @param bedUri
-	 * @param meta map with 'af_column': AF column to watch, 'fraction': common overlap fraction
+	 * @param meta 'fraction': common overlap fraction
 	 * @throws IOException
 	 */
 	public DGVBedTabixVariantAnnotator(final String bedUri,  AttributeMap meta) throws IOException {
@@ -77,10 +82,19 @@ public class DGVBedTabixVariantAnnotator extends AbstractTabixVariantAnnotator {
 			}
 		}
 	
+	/** set fraction [0-1] of required multual overlap */
+	public void setFraction(double fraction) {
+		this.fraction = fraction;
+		}
+	
+	public double getFraction() {
+		return fraction;
+		}
+	
 	@Override
 	public void fillHeader(VCFHeader header) {
 		if(super.tabixReader==null) return;
-		final String cmdHelp = "DGV "+super.getUri()+" with shared overlap of "+this.fraction;
+		final String cmdHelp = "DGV "+super.getUri()+" with shared overlap of "+this.getFraction();
 		this.hdrHasDGV = new VCFInfoHeaderLine("HAS_DGV_SV",1, VCFHeaderLineType.Flag, "SV was found in "+cmdHelp);
 		this.hdrDGVSV = new VCFInfoHeaderLine("DGV_SV",VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String, 
 				"SV in "+ cmdHelp +" Format:ID|SVTYPE|Frequency");
@@ -104,7 +118,7 @@ public class DGVBedTabixVariantAnnotator extends AbstractTabixVariantAnnotator {
 			final Map<String, String> rec = this.bedHeader.toMap(CharSplitter.TAB.split(line));
 			final int svStart = Integer.parseInt(rec.get("start"))+1;
 			final int svEnd = Integer.parseInt(rec.get("end"));
-			if(!this.overlaps(ctx, svStart, svEnd,this.fraction)) continue;
+			if(!this.overlaps(ctx, svStart, svEnd,getFraction())) continue;
 			
 			Double rec_af = null;
 			final OptionalInt sample_size = StringUtils.parseInt(rec.get("samplesize"));
