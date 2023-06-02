@@ -152,8 +152,8 @@ public class VCFFlatten extends OnePassVcfLauncher {
 				end = ctx.getEnd();
 				}
 			else if(contig.equals(ctx.getContig())) {
-				start = Math.max(ctx.getStart(), start);
-				end = Math.min(ctx.getEnd(), end);
+				start = Math.min(ctx.getStart(), start);
+				end = Math.max(ctx.getEnd(), end);
 				}
 			else
 				{
