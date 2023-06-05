@@ -30,11 +30,14 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import com.github.lindenb.jvarkit.math.Average;
 
 public class Counter<T>
 	{
@@ -73,6 +76,14 @@ public class Counter<T>
 			this.object2count.put(key,initialValue);
 			this.total+=initialValue;
 			}
+		}
+	
+	/** get average count */
+	public OptionalDouble getAverageCount() {
+		if(isEmpty()) return OptionalDouble.empty();
+		final Average avg = new Average();
+		this.object2count.values().stream().forEach(V->avg.accept(V));
+		return avg.get();
 		}
 	
 	/** increase by 1 returns the new count */

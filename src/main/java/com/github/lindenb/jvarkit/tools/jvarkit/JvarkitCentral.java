@@ -194,6 +194,7 @@ import com.github.lindenb.jvarkit.tools.vcfserver.VcfServer;
 import com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariants;
 import com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitter;
 import com.github.lindenb.jvarkit.tools.vcfspring.VcfSpringFilter;
+import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
 import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekAf;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamCov;
@@ -599,6 +600,7 @@ public class JvarkitCentral {
 		command(VCFPolyX.class);
 		command(VcfSpliceAI.class);
 		command(VcfToTable.class);
+		command(VcfStats.class);
 		command(VcfGnomad.class);
 		command(VcfSetSequenceDictionary.class);
 		command(VcfFilterSequenceOntology.class);
