@@ -38,8 +38,10 @@ import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.DoubleConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.DynamicParameter;
@@ -57,13 +59,13 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
@@ -112,7 +114,33 @@ public class VcfStats extends Launcher {
 		LOG.info("undefined parameter \"" + S + "\". Using default.");
 		});
 	
-	
+	private static abstract class DataPoint implements DoubleConsumer,Supplier<OptionalDouble>{
+		protected long count=0;
+		public long getCount() {
+			return this.count;
+			}
+		public  double getAsDouble() {
+			return  get().getAsDouble();
+			}
+		
+		}
+	private static class DataPointSum extends DataPoint {
+		protected double sum=0.0;
+		
+		
+		@Override
+		public void accept(double v) { sum+=v;super.count++;}
+		@Override
+		public  OptionalDouble get() {
+			return  OptionalDouble.of(sum);
+			}
+		}
+	private static class DataPointAverage extends DataPointSum {
+		@Override
+		public  OptionalDouble get() {
+			return  getCount()==0L?OptionalDouble.empty():OptionalDouble.of(sum/(double)getCount());
+			}
+		}
 	
 	/** Analyzer **/
 	private interface Analyzer {
@@ -132,8 +160,8 @@ public class VcfStats extends Launcher {
 		private String outputFilename =null;
 		private String xlab = "todo_axis_x";
 		private String ylab = "todo_axis_y";
-		protected Predicate<VariantContext> acceptVariant = V->true;
-		protected Predicate<Genotype> acceptGT = V->true;
+		protected Predicate<VariantContext> _acceptVariant = V->true;
+		protected Predicate<Genotype> _acceptGT = V->true;
 
 		@Override
 		public boolean isEnabled() {
@@ -179,12 +207,18 @@ public class VcfStats extends Launcher {
 			return this;
 			}
 		AbstractAnalyzer acceptVariant(final Predicate<VariantContext> f) {
-			this.acceptVariant= f;
+			this._acceptVariant= f;
 			return this;
 			}
 		AbstractAnalyzer acceptGenotype(final Predicate<Genotype> f) {
-			this.acceptGT = f;
+			this._acceptGT = f;
 			return this;
+			}
+		Predicate<VariantContext> getVariantPredicate() {
+			return this._acceptVariant;
+			}
+		Predicate<Genotype> getGenotypePredicate() {
+			return this._acceptGT;
 			}
 		
 		public String getTitle() { return getName();}
@@ -253,20 +287,22 @@ public class VcfStats extends Launcher {
 		public String getColor(String h) { return "lightgray";}
 		}
 	/***************************************************************************/
-	private abstract class AbstractAverageBarPlot extends AbstractBarPlot {
-		protected final Map<String,Average> key2average = new HashMap<>();
+	private abstract class AbstractAggregateBarPlot extends AbstractBarPlot {
+		protected final Map<String,DataPoint> key2average = new HashMap<>();
 		protected void add(final String key,double v) {
-			Average t = key2average.get(key);
+			DataPoint t = key2average.get(key);
 			if(t==null) {
-				t=new Average();
+				t= createDataPoint();
 				key2average.put(key, t);
 				}
 			t.accept(v);
 			}
 		
+		protected abstract DataPoint createDataPoint();
+		
 		protected double[] getYLim() {
 			return new double[] {0.0,key2average.values().stream().mapToDouble(A->A.getAsDouble()).max().orElse(1L)};
-		}
+			}
 		protected Set<String> getSortedKeys() {
 			final Set<String> keys= key2average.keySet().stream().
 					sorted((A,B)->Double.compare(key2average.get(A).getAsDouble(), key2average.get(B).getAsDouble())).
@@ -302,7 +338,7 @@ public class VcfStats extends Launcher {
 		}
 	/***************************************************************************/
 
-	private class RangeBarPlot extends AbstractAverageBarPlot {
+	private class RangeBarPlot extends AbstractAnalyzer {
 		private  class Range {
 			final double lowerBound;
 			final double upperBound;
@@ -324,6 +360,7 @@ public class VcfStats extends Launcher {
 		private final DecimalFormat decimalFormat;
 		private final List<Range> ranges = new ArrayList<>();
 		private boolean logX=false;
+		
 		RangeBarPlot(final String infoTag,int precision) {
 			this.precision=precision;
 			this.infoTag = infoTag;
@@ -352,7 +389,7 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			if(!ctx.hasAttribute(this.infoTag)) return;
 			try {
 				for(String s : ctx.getAttributeAsStringList(this.infoTag,".") ) {
@@ -487,6 +524,7 @@ public class VcfStats extends Launcher {
 	private abstract class AbstractMultipleBarPlot extends AbstractBarPlot {
 		private final Map<String,Counter<String>> horiz2counts = new LinkedHashMap<>();
 		private final Set<String> distinct_vertical = new LinkedHashSet<>();
+		private Function<Long,Double> normalizer = L->L.doubleValue();
 		protected void add(final String h,final String v) {
 			Counter<String> t = horiz2counts.get(h);
 			if(t==null) {
@@ -499,6 +537,12 @@ public class VcfStats extends Launcher {
 		protected boolean isBeside() {
 			return false;
 			}
+		
+		protected AbstractMultipleBarPlot normalizer(Function<Long,Double> normalizer) {
+			this.normalizer = normalizer;
+			return this;
+			}
+		
 		@Override
 		public void finish(PrintWriter w) {
 			if(horiz2counts.isEmpty()) return;
@@ -513,6 +557,7 @@ public class VcfStats extends Launcher {
 				w.print(colName+" <- c(");
 				w.print(this.distinct_vertical.stream().
 					map(V->counter.count(V)).
+					map(V->normalizer.apply(V).doubleValue()).
 					map(V->String.valueOf(V)).
 					collect(Collectors.joining(",")));
 				w.println(")");
@@ -540,17 +585,21 @@ public class VcfStats extends Launcher {
 		}
 	/***************************************************************************/
 	private abstract class AbstractManhattanPlot extends AbstractAnalyzer {
-		private abstract class DataPoint {
-			public abstract double visit(double v);
-			public abstract double get();
-			}
-		private Predicate<SAMSequenceRecord> acceptContig = SSR -> SSR.getContig().matches("(chr)?[0-9XY][0-9]?");
+		
+		private Predicate<SAMSequenceRecord> acceptContig ;
 		private SAMSequenceDictionary dict;
 		private long genomeLength;
-		private Map<String,List<DataPoint>> cat2index = new HashMap<>();
-		private final int win_size=1000;
+		private final Map<String,List<DataPoint>> cat2index = new HashMap<>();
+		private final int win_width;
+		private final int win_height;
+		AbstractManhattanPlot() {
+			this.acceptContig = SSR -> SSR.getContig().matches(VcfStats.this.att.getAttribute("contig.regex","(chr)?[0-9XY][0-9]?"));
+			this.win_width = VcfStats.this.att.getIntAttribute("manhattan.width").orElse(1000);
+			this.win_height = VcfStats.this.att.getIntAttribute("manhattan.height").orElse(300);
+			}
+		
 		@Override
-		public void init(VCFHeader h) {
+		public void init(final VCFHeader h) {
 			final SAMSequenceDictionary dict0 = h.getSequenceDictionary();
 			if(dict0!=null) {
 				this.dict =  new SAMSequenceDictionary(dict0.getSequences().stream().filter(this.acceptContig).collect(Collectors.toList()));
@@ -558,7 +607,7 @@ public class VcfStats extends Launcher {
 				}
 			this.enabled = dict!=null && !dict.isEmpty();
 			}
-		private long pos2index(String contig,int pos) {
+		private long pos2genomeindex(String contig,int pos) {
 			long n=0;
 			for(SAMSequenceRecord ssr:dict.getSequences()) {
 				if(ssr.getContig().equals(contig)) {
@@ -568,11 +617,19 @@ public class VcfStats extends Launcher {
 				}
 			return -1;
 			}
-		protected abstract DataPoint createDataPoint();
 		
-		protected void visit(String category,String contig,int pos,double value) {
-			final SAMSequenceRecord ssr= this.dict.getSequence(contig);
-			if(ssr==null || pos<1 || pos > ssr.getLengthOnReference()) return;
+		private int pos2pixel(String contig,int pos) {
+			return (int)((pos2genomeindex(contig,pos)/(double)this.genomeLength)* this.win_width);
+			}
+		protected DataPoint createDataPoint(final String category) {
+			return new DataPointAverage();
+			}
+		
+		
+		
+		protected void visit(String category,final Locatable loc,double value) {
+			final SAMSequenceRecord ssr= this.dict.getSequence(loc.getContig());
+			if(ssr==null || loc.getStart() <1 || loc.getStart() > ssr.getLengthOnReference()) return;
 			List<DataPoint> datapoints;
 			if(this.cat2index.containsKey(category)) {
 				datapoints = this.cat2index.get(category);
@@ -582,17 +639,92 @@ public class VcfStats extends Launcher {
 				datapoints = new ArrayList<>();
 				this.cat2index.put(category,datapoints);
 				}
-			long genomic_index= pos2index(contig,pos);
-			int pixl = (int)((genomic_index/(double)this.genomeLength)*this.win_size);
-			while(datapoints.size() <= pixl) {
-				datapoints.add(null);
+			final int pixl0 = pos2pixel(loc.getContig(),loc.getStart());
+			final int pixl1 = pos2pixel(loc.getContig(),loc.getEnd());
+			for(int pixl = pixl0;  pixl <= pixl1 ; ++pixl ) {
+				while(datapoints.size() <= pixl) {
+					datapoints.add(null);
+					}
+				DataPoint dp  = datapoints.get(pixl);
+				if(dp==null) {
+					dp = createDataPoint(category);
+					datapoints.set(pixl,dp);
+					}
+				dp.accept(value);
 				}
-			DataPoint dp  = datapoints.get(pixl);
-			if(dp==null) {
-				dp = createDataPoint();
-				datapoints.set(pixl,dp);
+			}
+		@Override
+		public void finish(PrintWriter pw) {
+			if(this.cat2index.isEmpty()) return;
+			final double alpha = Math.max(0.1,1.0/this.cat2index.size());
+			pw.println("palette <- rainbow("+this.cat2index.size()+",alpha="+alpha+")");
+			pw.println("pdf("+quote(getOuputFilename()+".pdf")+",width=40,height=10)");
+			
+			// write manhattan figure
+			pw.println("plot(1,type='n'," +
+					"main="+quote(getTitle())+","+
+					"sub="+quote(getSubTitle())+","+
+					"ylab="+quote(getYLab())+","+
+					"xlim = c(0 ,"+this.win_width+"), ylim = c(0,"+this.win_height+"), xaxt='n' )");
+			for(int tid=0; tid < this.dict.size(); tid++) {
+				final SAMSequenceRecord ssr = this.dict.getSequence(tid);
+				pw.println("rect("+ 
+						pos2pixel(ssr.getContig(), 1)+",0,"+ 
+						pos2pixel(ssr.getContig(), ssr.getLengthOnReference())+","+
+						this.win_height+",border=\"NA\",col= rgb("+(tid%2==0?"0,1.0,0.0":"1.0,1,1")+",alpha=0.05))");
 				}
-			dp.visit(value);
+			// draw vertical lines
+			for(int tid=0; tid +1 < this.dict.size(); tid++) {
+				final SAMSequenceRecord ssr = this.dict.getSequence(tid);
+				pw.println("abline(v="+ pos2pixel(ssr.getContig(), ssr.getLengthOnReference())+",col=\"gray\")");
+				}
+			// draw chromosomes names
+			for(int tid=0; tid < this.dict.size(); tid++) {
+				final SAMSequenceRecord ssr = this.dict.getSequence(tid);
+				pw.println("text(x="+pos2pixel(ssr.getContig(), ssr.getLengthOnReference()/2)+",y=-10,labels="+quote(ssr.getSequenceName())+",col=\"black\",cex=0.5)");
+				}
+			final double maxy = this.cat2index.values().stream().flatMap(L->L.stream()).
+					filter(X->X!=null && X.get().isPresent()).
+					mapToDouble(X->X.get().getAsDouble()).max().orElse(1.0);
+			// plot each cat
+			int cat_idx=0;
+			for(final String cat: this.cat2index.keySet()) {
+				final List<DataPoint> L  = this.cat2index.get(cat);
+				final int count= (int)(L.stream().filter(X->X!=null && X.get().isPresent()).count());
+				if(count==0) continue;
+				final List<Integer> array_x = new ArrayList<>(count);
+				final List<Double> array_y = new ArrayList<>(count);
+				for(int x=0;x< L.size();++x) {
+					final DataPoint pt = L.get(x);
+					if(pt==null || !pt.get().isPresent()) continue;
+					array_x.add(x);
+					array_y.add((pt.get().getAsDouble()/maxy)*win_height);
+					}
+				pw.println("##" + cat);
+				pw.print("lines(x=c(");
+				pw.print(array_x.stream().map(X->String.valueOf(X)).collect(Collectors.joining(",")));
+				pw.print("),y=c(");
+				pw.print(array_y.stream().map(Y->String.valueOf(Y)).collect(Collectors.joining(",")));
+				pw.println("),type=\"p\",col=palette["+ (cat_idx+1) +"])");
+				cat_idx++;
+				}
+			//y axis
+			//pw.println("axis(2,c(0,"+win_height+"),c(0,"+maxy+"), cex.axis = .7)");
+
+			// Add a legend
+			pw.print("legend("+ (win_width+10) +","+maxy+", legend=c("); 
+			pw.print( this.cat2index.keySet().stream().map(S->quote(S)).collect(Collectors.joining(",")));
+			pw.print("),col=c(");
+			cat_idx=0;
+			for(final String cat: this.cat2index.keySet()) {
+				if(cat_idx>0) pw.print(",");
+				pw.print("palette["+(cat_idx+1)+"]");
+				cat_idx++;
+				}
+			
+			pw.println("),lty=1:2, cex=0.8)");
+			
+			pw.println("dev.off()");
 			}
 		}
 	/***************************************************************************/
@@ -603,11 +735,11 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			Genotype single = null;
 			for(Genotype g:ctx.getGenotypes()) {
 				if(g.isNoCall() || g.isHomRef()) continue;
-				if(!acceptGT.test(g)) continue;
+				if(!getGenotypePredicate().test(g)) continue;
 				if(single!=null) return;
 				single=g;
 				}
@@ -630,7 +762,7 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			for(String info: this.confDeNovos) {
 				if(!ctx.hasAttribute(info)) continue;
 				for(final String s: ctx.getAttributeAsStringList(info, "")) {
@@ -643,7 +775,7 @@ public class VcfStats extends Launcher {
 	/***************************************************************************/
 	private class DragenDeNovo extends AbstractMultipleBarPlot {
 		private final String DN = "DN";
-
+		
 		@Override
 		public void init(final VCFHeader h) {
 			VCFFormatHeaderLine hdr= h.getFormatHeaderLine(DN);
@@ -656,9 +788,9 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			for(Genotype g:ctx.getGenotypes()) {
-				if(!acceptGT.test(g)) continue;
+				if(!getGenotypePredicate().test(g)) continue;
 				if(!g.hasExtendedAttribute(DN)) continue;
 				final Object v = g.getExtendedAttribute(DN,"");
 				if(v==null) continue;
@@ -681,7 +813,7 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(final VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			final String svType = ctx.getAttributeAsString(VCFConstants.SVTYPE, null);
 			if(StringUtils.isBlank(svType)) return;
 			super.add(ctx.getContig(), svType);
@@ -700,17 +832,62 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			for(final Genotype gt: ctx.getGenotypes()) {
-				if(!super.acceptGT.test(gt)) continue;
+				if(!getGenotypePredicate().test(gt)) continue;
 				final String value = gt2str.apply(gt);
 				if(StringUtils.isBlank(value)) continue;
 				super.add(gt.getSampleName(), value);	
 				}
 			}
 		}
-	
-
+	/***************************************************************************/
+	private abstract class AbstractSampleToFraction extends AbstractAggregateBarPlot {
+		private long n_variants =0L;
+		@Override
+		protected DataPoint createDataPoint() {
+			return new DataPointSum() {
+				@Override
+				public OptionalDouble get() {
+					if(AbstractSampleToFraction.this.n_variants==0) return OptionalDouble.empty();
+					return OptionalDouble.of(getCount()/(double)AbstractSampleToFraction.this.n_variants);
+					}
+				};
+			}
+		@Override
+		public String getYLab() {
+			return super.getYLab()+" (N="+StringUtils.niceInt(this.n_variants)+")";
+			}
+		@Override
+		public void init(final VCFHeader h) {
+			this.enabled = h.hasGenotypingData();
+			for(final String sn:h.getGenotypeSamples()) {
+				key2average.put(sn, createDataPoint());
+				}
+			}
+		@Override
+		public void visit(VariantContext ctx) {
+			if(!getVariantPredicate().test(ctx)) return;
+			n_variants++;
+			
+			final Predicate<Genotype> filterGT = getGenotypePredicate();
+			for(final Genotype gt: ctx.getGenotypes()) {
+				if(!filterGT.test(gt)) continue;
+				super.add(gt.getSampleName(), 1.0);
+				}
+			}
+		}
+	/***************************************************************************/
+	private class SampleToMissingFraction extends AbstractSampleToFraction {
+		SampleToMissingFraction() {
+			ylab("Fraction of missing (./.) genotypes");
+			xlab("Sample");
+			}
+		@Override
+		Predicate<Genotype> getGenotypePredicate() {
+			return super.getGenotypePredicate().and(GT->GT.isNoCall());
+			}
+		}
 	/***************************************************************************/
 	private class Sample2GTFilters extends AbstractMultipleBarPlot {
 		Sample2GTFilters() {
@@ -728,10 +905,10 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			for(final Genotype gt: ctx.getGenotypes()) {
 				if(!gt.isFiltered()) continue;
-				if(!super.acceptGT.test(gt)) continue;
+				if(!getGenotypePredicate().test(gt)) continue;
 				super.add(gt.getSampleName(), gt.getFilters());	
 				}
 			}
@@ -753,7 +930,7 @@ public class VcfStats extends Launcher {
 		
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			final String st = ctx.getAttributeAsString(VCFConstants.SVTYPE, "");
 			if(StringUtils.isBlank(st) || st.equalsIgnoreCase("BND")) return;
 			int svLen;
@@ -784,11 +961,11 @@ public class VcfStats extends Launcher {
 	
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			final String st = ctx.getAttributeAsString(VCFConstants.SVTYPE, "");
 			if(StringUtils.isBlank(st)) return;
 			for(final Genotype gt:ctx.getGenotypes()) {
-				if(!super.acceptGT.test(gt)) continue;
+				if(!getGenotypePredicate().test(gt)) continue;
 				if(gt.getAlleles().stream().allMatch(A->A.isReference() || A.isNoCall())) continue;
 				super.add(gt.getSampleName(), st);
 				}
@@ -809,7 +986,7 @@ public class VcfStats extends Launcher {
 		
 		@Override
 		public void visit(final VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			final String st = ctx.getAttributeAsString(VCFConstants.SVTYPE, "");
 			if(!this.svType.equals(st)) return;
 			final int svLen;
@@ -820,7 +997,7 @@ public class VcfStats extends Launcher {
 				svLen = ctx.getAttributeAsInt("SVLEN", 0);
 				}
 			for(Genotype g:ctx.getGenotypes()) {
-				if(!super.acceptGT.test(g)) continue;
+				if(!getGenotypePredicate().test(g)) continue;
 				if(g.getAlleles().stream().allMatch(G->G.isReference() || G.isNoCall())) continue;
 				add(g.getSampleName(), svLen);
 				}
@@ -828,11 +1005,16 @@ public class VcfStats extends Launcher {
 		}
 	
 	/*********************************************************************/
-	private abstract class AbstractSampleToAverage extends AbstractAverageBarPlot {
+	private abstract class AbstractSampleToAverage extends AbstractAggregateBarPlot {
 		protected AbstractSampleToAverage() {
 			xlab("sample");
 			ylab("avg("+getFormatKey()+")");
 			}
+		@Override
+		protected DataPoint createDataPoint() {
+			return new DataPointAverage();
+			}
+		
 		protected abstract String getFormatKey();
 		@Override
 		public void init(VCFHeader h) {
@@ -843,9 +1025,9 @@ public class VcfStats extends Launcher {
 		
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!super.acceptVariant.test(ctx)) return;
+			if(!getVariantPredicate().test(ctx)) return;
 			for(Genotype gt:ctx.getGenotypes()) {
-				if(!super.acceptGT.test(gt)) continue;
+				if(!getGenotypePredicate().test(gt)) continue;
 				visit(gt);
 				}
 			}
@@ -857,7 +1039,7 @@ public class VcfStats extends Launcher {
 			return VCFConstants.GENOTYPE_QUALITY_KEY;
 			}
 		@Override
-		protected void visit(Genotype gt) {
+		protected void visit(final Genotype gt) {
 			if(!gt.hasGQ()) return;
 			super.add(gt.getSampleName(), gt.getGQ());
 			}
@@ -869,7 +1051,7 @@ public class VcfStats extends Launcher {
 			return VCFConstants.DEPTH_KEY;
 			}
 		@Override
-		protected void visit(Genotype gt) {
+		protected void visit(final Genotype gt) {
 			if(!gt.hasDP()) return;
 			super.add(gt.getSampleName(), gt.getDP());
 			}
@@ -885,13 +1067,39 @@ public class VcfStats extends Launcher {
 			if(!gt.hasAD()) return;
 			final int[] ad = gt.getAD();
 			if(ad.length!=2) return;
-			double f =  ad[0]+ad[1]==0 ? 0 : (ad[1]/(double)( ad[0]+ad[1]));
+			final double f =  ad[0]+ad[1]==0 ? 0 : (ad[1]/(double)( ad[0]+ad[1]));
 			super.add(gt.getSampleName(), f);
 			}
 		}
-
-	
 	/*********************************************************************/
+	private class CountVariantsManhattanPlot extends AbstractManhattanPlot {
+		@Override
+		public void visit(VariantContext ctx) {
+			if(!getVariantPredicate().test(ctx)) return;
+				visit(ctx.getType().name(),ctx,  1);
+			}
+		}
+	/*********************************************************************/
+	private class CountSamplesVariantsManhattanPlot extends AbstractManhattanPlot {
+		@Override
+		public void init(VCFHeader h) {
+			super.init(h);
+			if(super.enabled && !h.hasGenotypingData()) {
+				super.enabled=false;
+				}
+			}
+		@Override
+		public void visit(VariantContext ctx) {
+			if(!getVariantPredicate().test(ctx)) return;
+			for(Genotype g:ctx.getGenotypes()) {
+				if(!getGenotypePredicate().test(g)) continue;
+				if(g.getAlleles().stream().allMatch(G->G.isReference() || G.isNoCall())) continue;
+				visit(g.getSampleName(),ctx,  1);
+				}
+			}
+		}
+
+	/***************************************************************************/
 
 	private String quote(final String s) {
 		return "\""+StringUtils.escapeC(s)+"\"";
@@ -1075,6 +1283,25 @@ public class VcfStats extends Launcher {
 				xlab("Sample").
 				ylab("Count Variants")
 				);
+
+		modules.add(new CountVariantsManhattanPlot().
+				name("manhattan count variants").
+				description("manhattan count variants").
+				xlab("Genome").
+				ylab("Count Variants")
+				);
+
+		modules.add(new CountSamplesVariantsManhattanPlot().
+				name("manhattan count Samples variants").
+				description("manhattan count variants per sample").
+				xlab("Genome").
+				ylab("Count Variants")
+				);
+		
+		modules.add(new SampleToMissingFraction().
+				name("fraction of missing")
+				
+				);
 		
 		final String input = oneFileOrNull(args);
 		
@@ -1093,13 +1320,18 @@ public class VcfStats extends Launcher {
 				return 0;
 				}
 		
-		
 		try(VCFIterator iter= super.openVCFIterator(input)) {	
 			final VCFHeader header=iter.getHeader();
 			for(Analyzer analyzer:modules) {
 				analyzer.init(header);
+				if(!analyzer.isEnabled()) {
+					LOG.warn("module "+analyzer.getName()+" will be disabled. "+analyzer.getClass().getSimpleName());
+					}
 				}
 			modules.removeIf(M->!M.isEnabled());
+			if(modules.isEmpty()) {
+				LOG.warn("no module was enabled");
+				}
 			while(iter.hasNext()) {
 				final VariantContext ctx = iter.next();
 				for(Analyzer analyzer:modules) {
@@ -1115,6 +1347,7 @@ public class VcfStats extends Launcher {
 			}
 			return 0;
 		} catch (final Throwable e) {
+			e.printStackTrace();
 			LOG.error(e);
 			return -1;
 			}
