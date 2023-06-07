@@ -28,8 +28,8 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.tview;
 
-import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -81,13 +81,17 @@ END_DOC
  */
 @Program(name="tview",
 	description="equivalent of samtools tview",
-	keywords={"sam","bam","visualization","terminal"}
+	keywords={"sam","bam","visualization","terminal"},
+	modificationDate = "20230707",
+	creationDate = "20130613",
+	jvarkit_amalgamion = true,
+	menu="BAM Manipulation"
 	)
 public class TViewCmd extends Launcher
 	{
 	private static final Logger LOG = Logger.build(TViewCmd.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-r","--region"},description="Interval list")
 	private Set<String> intervalStr = new HashSet<>();
 	@Parameter(names={"-width","--width"},description="default screen width")
@@ -155,7 +159,6 @@ public class TViewCmd extends Launcher
 	
 	@Override
 	public int doWork(List<String> args) {
-		PrintStream out = null;
 		try
 			{	
 			args = new ArrayList<>(IOUtils.unrollFiles(args));
@@ -186,25 +189,22 @@ public class TViewCmd extends Launcher
 					}
 				}
 			
-			out = super.openFileOrStdoutAsPrintStream(outputFile);
-			
-			
-			for(final Interval interval : intervals) {
-				tview.setInterval(interval);
-				tview.paint(out);
-			}
-			
-			out.flush();
+			try(PrintStream out = super.openPathOrStdoutAsPrintStream(outputFile)) {
+				for(final Interval interval : intervals) {
+					tview.setInterval(interval);
+					tview.paint(out);
+					}				
+				out.flush();
+				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(out);
 			CloserUtil.close(tview);
 			}
 		

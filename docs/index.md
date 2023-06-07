@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 98f48851
-Compilation : 20230605120932
+Version     : 301aab52
+Compilation : 20230607183529
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -217,6 +217,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20200818 |
 | [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files | 202221122 | 202221201 |
 | [vcfspringfilter](VcfSpringFilter.md) | Uses the java spring Framework to build complex vcf filters | 20230526 | 20230526 |
+| [vcfstats](VcfStats.md) | Produce VCF statitics | 20131212 | 20230707 |
 | [vcfsvannotator](VCFSVAnnotator.md) | SV Variant Effect prediction using gtf, gnomad, etc | 20190815 | 20230512 |
 | [vcftail](VcfTail.md) | print the last variants of a vcf | 20131210 | 20200518 |
 | [vcftrio](VCFTrios.md) | Find mendelian incompatibilitie / denovo variants in a VCF | 20130705 | 20200624 |

@@ -16,9 +16,6 @@ Usage: java -jar dist/jvarkit.jar vcfstats  [options] Files
 
 Usage: vcfstats [options] Files
   Options:
-    -exclude, --exclude
-      name of modules to be excluded
-      Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
@@ -87,4 +84,5 @@ The current reference is:
 ```
 java -jar dist/jvarkit.jar vcfstats src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz |  R --no-save 
 ```
+
 

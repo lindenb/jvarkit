@@ -168,6 +168,7 @@ nav:
         - "vcfspliceai" : VcfSpliceAI.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfspringfilter" : VcfSpringFilter.md
+        - "vcfstats" : VcfStats.md
         - "vcfstrech2svg" : VcfStrechToSvg.md
         - "vcfsvannotator" : VCFSVAnnotator.md
         - "vcftail" : VcfTail.md
