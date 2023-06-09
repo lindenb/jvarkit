@@ -38,13 +38,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.DoubleConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
@@ -425,14 +428,14 @@ public class VcfStats extends Launcher {
 			return Double.parseDouble(this.decimalFormat.format(v));
 			}		
 		@Override
-		public void init(VCFHeader h) {
-			VCFInfoHeaderLine info = h.getInfoHeaderLine(this.infoTag);
+		public void init(final VCFHeader h) {
+			final VCFInfoHeaderLine info = h.getInfoHeaderLine(this.infoTag);
 			this.enabled = info!=null &&
 					(info.getType()==VCFHeaderLineType.Float ||info.getType()==VCFHeaderLineType.Integer )
 					;
 			}
 		@Override
-		public void visit(VariantContext ctx) {
+		public void visit(final VariantContext ctx) {
 			if(!getVariantPredicate().test(ctx)) return;
 			if(!ctx.hasAttribute(this.infoTag)) return;
 			try {
@@ -1149,6 +1152,134 @@ public class VcfStats extends Launcher {
 			}
 		}
 	/*********************************************************************/
+	private abstract class AbstractSampleAvgBoxPlot extends AbstractAnalyzer {
+		protected final Map<String,DataPoint> sample2datapoint = new HashMap<>();
+		protected AbstractSampleAvgBoxPlot() {
+			xlab("phenotype");
+			}
+	
+		protected abstract DataPoint createDataPoint();
+		protected abstract OptionalDouble getValueForGenotype(final Genotype gt);
+		
+		@Override
+		public void init(VCFHeader h) {
+			this.enabled = VcfStats.this.sample2phenotype!=null &&
+					!VcfStats.this.sample2phenotype.isEmpty() &&
+					h.hasGenotypingData();
+			}
+				
+		@Override
+		public void finish(PrintWriter w) {
+			if(sample2datapoint.isEmpty()) return;
+			
+			final List<String> phenotypes = this.sample2datapoint.keySet().stream().
+					map(S->VcfStats.this.sample2phenotype.get(S)).
+					collect(Collectors.toCollection(TreeSet::new)).
+					stream().
+					collect(Collectors.toList());
+			if(phenotypes.isEmpty()) return;
+			w.println(device());
+			
+			w.println("palette <- rainbow("+phenotypes.size()+")");
+			for(int i=0;i< phenotypes.size();i++) {
+				final String phenotype = phenotypes.get(i);
+				w.println("## "+ phenotype);
+				w.print("data"+i+" <-c(");
+				w.print(sample2datapoint.entrySet().stream().
+						filter(KV->VcfStats.this.sample2phenotype.get(KV.getKey()).equals(phenotype)).
+						map(KV->KV.getValue()).
+						filter(KV->KV.isPresent()).
+						map(KV->String.valueOf(KV.getAsDouble())).
+						collect(Collectors.joining(","))
+						);
+				w.println(")");
+				}
+			w.print("boxplot(");
+			
+			for(int i=0;i< phenotypes.size();i++) {
+				w.print("data"+i+",");
+				}
+			
+			w.println(
+				"main="+quote(getTitle())+
+				",sub="+quote(getSubTitle())+
+				",ylab="+quote(getYLab())+","+
+				"las=2,"+
+				"names=c("+ phenotypes.stream().map(S->quote(S)).collect(Collectors.joining(","))+"),"+
+				"col= c(" + IntStream.range(0, phenotypes.size()).mapToObj(S->"palette["+(S+1)+"]").collect(Collectors.joining(",")) + ")" +
+				")");
+			w.println("dev.off()");
+			}
+
+		@Override
+		public void visit(final VariantContext ctx) {
+			if(!getVariantPredicate().test(ctx)) return;
+			for(Genotype gt:ctx.getGenotypes()) {
+				if(!getGenotypePredicate().test(gt)) continue;
+				if(!sample2phenotype.containsKey(gt.getSampleName())) continue;
+				final OptionalDouble value =getValueForGenotype(gt);
+				if(!value.isPresent()) continue;
+				DataPoint dpt = sample2datapoint.get(gt.getSampleName());
+				if(dpt==null) {
+					dpt = createDataPoint();
+					sample2datapoint.put(gt.getSampleName(),dpt);
+					}
+				dpt.accept(value.getAsDouble());
+				}
+			}
+		}
+
+	/*********************************************************************/
+	private class SampleToAvgBoxPlot extends AbstractSampleAvgBoxPlot {
+		private String formatKey;
+		protected SampleToAvgBoxPlot(final String formatKey) {
+			this.formatKey= formatKey; 
+			ylab("avg("+getFormatKey()+")");
+			}
+		@Override
+		protected DataPoint createDataPoint() {
+			return new DataPointAverage(); 
+			}
+		
+		protected String getFormatKey() {
+			return formatKey;
+			}
+		
+		@Override
+		protected OptionalDouble getValueForGenotype(final Genotype gt) {
+			if(getFormatKey().equals(VCFConstants.DEPTH_KEY)) {
+				return gt.hasDP()? OptionalDouble.of(gt.getDP()):OptionalDouble.empty();
+				}
+			else if(getFormatKey().equals(VCFConstants.GENOTYPE_QUALITY_KEY)) {
+				return gt.hasGQ()? OptionalDouble.of(gt.getGQ()):OptionalDouble.empty();
+				}
+			else if(getFormatKey().equals(VCFConstants.GENOTYPE_ALLELE_DEPTHS)) {
+				if(!gt.hasAD()) return OptionalDouble.empty();
+				final int[] ad = gt.getAD();
+				if(ad.length!=2) return  OptionalDouble.empty();
+				final int t = ad[0]+ad[1];
+				if(t==0) return  OptionalDouble.empty();
+				return OptionalDouble.of(ad[1]/(double)t);
+				}
+			else
+				{
+				if(!gt.hasAnyAttribute(getFormatKey())) return OptionalDouble.empty();
+				final Object o = gt.getAnyAttribute(getFormatKey());
+				if(o==null || !(o instanceof Number)) return OptionalDouble.empty();
+				return OptionalDouble.of(Number.class.cast(o).doubleValue());
+				}
+			}
+		
+		@Override
+		public void init(VCFHeader h) {
+			super.init(h);
+			if(this.enabled) {
+				this.enabled =  h.hasGenotypingData() && h.getFormatHeaderLine(getFormatKey())!=null;
+				}
+			}
+		}
+
+	/*********************************************************************/
 	private class SampleToGQ extends AbstractSampleToAverage {
 		@Override
 		public String getFormatKey() {
@@ -1220,9 +1351,7 @@ public class VcfStats extends Launcher {
 	private String quote(final String s) {
 		return "\""+StringUtils.escapeC(s)+"\"";
 		}
-	private String sampleToColor(final String s) {
-		return "yellow";
-		}
+	
 
 
 	private void loadPhenotypes(VCFHeader header) throws IOException {
@@ -1410,7 +1539,9 @@ public class VcfStats extends Launcher {
 				xlab("Sample").
 				ylab("Count Variants")
 				);
-
+		modules.add(new SampleToAvgBoxPlot(VCFConstants.DEPTH_KEY));
+		modules.add(new SampleToAvgBoxPlot(VCFConstants.GENOTYPE_QUALITY_KEY));
+		modules.add(new SampleToAvgBoxPlot(VCFConstants.GENOTYPE_ALLELE_DEPTHS));
 		
 		modules.add(new RangeBarPlot(VCFConstants.DEPTH_KEY, 1).
 				logX(true).

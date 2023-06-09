@@ -81,7 +81,7 @@ END_DOC
 	description="SV Variant Effect prediction using gtf, gnomad, etc",
 	keywords={"vcf","annotation","prediction","sv","gnomad","gtf","regulome"},
 	creationDate="20190815",
-	modificationDate="20230512",
+	modificationDate="20230509",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 	)
@@ -97,7 +97,7 @@ public class VCFSVAnnotator extends AbstractOnePassVcfAnnotator
 	private String dgvPath = null;
 	@Parameter(names={"--regulomedb"},description=RegulomeDBTabixAnnotator.OPT_DESC)
 	private String regulomePath = null;
-	@Parameter(names={"--ensemblreg"},description=GnomadSVBedTabixVariantAnnotator.OPT_DESC)
+	@Parameter(names={"--ensemblreg"},description=GffEnsemblRegVariantAnnotator.OPT_DESC)
 	private String ensemblRegGTFPath = null;
 
 	

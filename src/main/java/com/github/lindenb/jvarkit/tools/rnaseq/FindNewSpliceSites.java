@@ -64,7 +64,6 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -77,9 +76,9 @@ BEGIN_DOC
 ## Example
 
 ```bash
-$  java -jar dist/findnewsplicesites.jar \
-     --gtf http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.gtf.gz \
-      hg19.bam > out.sam
+$  java -jar dist/jvarkit.git findnewsplicesites  \
+     --gtf /pah/to/file.gtf.gz \
+      my.bam > out.sam
 ```
 
 END_DOC
@@ -88,14 +87,16 @@ END_DOC
 	description="use the 'N' operator in the cigar string to find unknown splice sites",
 	keywords={"bam","sam","rnaseq","splice","gtf"},
 	creationDate="20140402",
-	modificationDate="20210913"
+	modificationDate="20230608",
+	jvarkit_amalgamion = true,
+	menu="BAM Manipulation"
 	)
 public class FindNewSpliceSites extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FindNewSpliceSites.class).make();
 	private static long GENERATE_ID=0L;
 	
-	@Parameter(names={"-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	@Parameter(names={"-o","-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-B","--bed"},description="Optional BED output")
 	private Path bedOut = null;
@@ -174,12 +175,7 @@ public class FindNewSpliceSites extends Launcher
 			}
 		
 		}
-	
-	
-	private FindNewSpliceSites()
-		{
-		}
-	
+		
 	/** distance known splice site and cigar */
 	private boolean is_close_to(int d1,int d2)
 		{
@@ -314,7 +310,7 @@ public class FindNewSpliceSites extends Launcher
 		
 		
 		try(SAMRecordIterator iter=in.iterator() ) {
-			ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
+			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			
 			while(iter.hasNext())
 				{
@@ -342,8 +338,6 @@ public class FindNewSpliceSites extends Launcher
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		SamReader sfr=null;
-		PrintWriter bedWriter = null;
 		SortingCollection<Junction> junctionSorter = null;
 		try
 			{
@@ -356,122 +350,118 @@ public class FindNewSpliceSites extends Launcher
 			
 			final String input = oneFileOrNull(args);
 	
-			sfr = input==null?srf.open(SamInputResource.of(stdin())):
-				srf.open(SamInputResource.of(input));
+			final SAMFileHeader header0;
 			
-			final SAMFileHeader header0 =  sfr.getFileHeader();
-			
-			
-			try(GtfReader gftReader=new GtfReader(this.gtfPath))
-				{
-				SAMSequenceDictionary dict = header0.getSequenceDictionary();
-				if(dict!=null) gftReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-				gftReader.getAllGenes().stream().
-					flatMap(G->G.getTranscripts().stream()).
-					filter(T->T.getExonCount()>1).
-					flatMap(T->T.getIntrons().stream()).
-					map(T->T.toInterval()).
-					forEach(T->
+			try(SamReader sfr = input==null?srf.open(SamInputResource.of(stdin())):
+					srf.open(SamInputResource.of(input))) {
+				
+				header0 =  sfr.getFileHeader();
+				
+				
+				try(GtfReader gftReader=new GtfReader(this.gtfPath))
 					{
-					this.intronMap.put(T,T);
-					});
+					final SAMSequenceDictionary dict = header0.getSequenceDictionary();
+					if(dict!=null) gftReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+					gftReader.getAllGenes().stream().
+						flatMap(G->G.getTranscripts().stream()).
+						filter(T->T.getExonCount()>1).
+						flatMap(T->T.getIntrons().stream()).
+						map(T->T.toInterval()).
+						forEach(T->
+						{
+						this.intronMap.put(T,T);
+						});
+					}
+				
+				final SAMFileHeader header1= header0.clone();
+				final SAMProgramRecord p=header1.createProgramRecord();
+				p.setCommandLine(getProgramCommandLine());
+				p.setProgramVersion(getVersion());
+				p.setProgramName(getProgramName());
+				this.sfw=this.writingBamArgs.openSamWriter(outputFile, header1, true);
+				
+				final SAMFileHeader header2 = header0.clone();
+				final SAMProgramRecord p2=header2.createProgramRecord();
+				p2.setCommandLine(getProgramCommandLine());
+				p2.setProgramVersion(getVersion());
+				p2.setProgramName(getProgramName());
+				this.weird=this.writingBamArgs.createSAMFileWriterFactory().makeSAMWriter(header2,true, new NullOuputStream());
+				
+				if(this.bedOut!=null) {
+					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(sfr.getFileHeader());
+					this.junctionComparator = new ContigDictComparator(dict).createLocatableComparator();
+					junctionSorter = SortingCollection.newInstance(
+							Junction.class,
+							new JunctionCodec(),
+							(A,B)->A.compare2(B),
+							this.writingSortingCollection.getMaxRecordsInRam(),
+							this.writingSortingCollection.getTmpPaths()
+							);
+					}
+				
+				
+				scan(sfr,p,p2,junctionSorter);
 				}
-			
-			final SAMFileHeader header1= header0.clone();
-			final SAMProgramRecord p=header1.createProgramRecord();
-			p.setCommandLine(getProgramCommandLine());
-			p.setProgramVersion(getVersion());
-			p.setProgramName(getProgramName());
-			this.sfw=this.writingBamArgs.openSamWriter(outputFile, header1, true);
-			
-			final SAMFileHeader header2 = header0.clone();
-			final SAMProgramRecord p2=header2.createProgramRecord();
-			p2.setCommandLine(getProgramCommandLine());
-			p2.setProgramVersion(getVersion());
-			p2.setProgramName(getProgramName());
-			this.weird=this.writingBamArgs.createSAMFileWriterFactory().makeSAMWriter(header2,true, new NullOuputStream());
-			
-			if(this.bedOut!=null) {
-				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(sfr.getFileHeader());
-				this.junctionComparator = new ContigDictComparator(dict).createLocatableComparator();
-				junctionSorter = SortingCollection.newInstance(
-						Junction.class,
-						new JunctionCodec(),
-						(A,B)->A.compare2(B),
-						this.writingSortingCollection.getMaxRecordsInRam(),
-						this.writingSortingCollection.getTmpPaths()
-						);
-				}
-			
-			
-			scan(sfr,p,p2,junctionSorter);
-			sfr.close();
 			
 			if(this.bedOut!=null) {
 				junctionSorter.doneAdding();
 				
-				
-				bedWriter =  super.openPathOrStdoutAsPrintWriter(this.bedOut);
-	
-				final String sample = StringUtils.ifBlank(
-						header0.
-						getReadGroups().
-						stream().
-						map(RG->RG.getSample()).
-						filter(s->!StringUtils.isBlank(s)).
-						collect(Collectors.toCollection(TreeSet::new)).
-						stream().
-						collect(Collectors.joining(";")),
-						"."
-						);
+				try(PrintWriter bedWriter =  super.openPathOrStdoutAsPrintWriter(this.bedOut)) {
+		
+					final String sample = StringUtils.ifBlank(
+							header0.
+							getReadGroups().
+							stream().
+							map(RG->RG.getSample()).
+							filter(s->!StringUtils.isBlank(s)).
+							collect(Collectors.toCollection(TreeSet::new)).
+							stream().
+							collect(Collectors.joining(";")),
+							"."
+							);
+						
 					
-				
-				try(CloseableIterator<Junction> iter=junctionSorter.iterator()) {
-					final EqualRangeIterator<Junction> eq = new EqualRangeIterator<>(iter, (A,B)->A.compare1(B));
-					while(eq.hasNext()) {
-						final List<Junction> row = eq.next();
-						final Junction first = row.get(0);
-						bedWriter.print(first.getContig());
-						bedWriter.print('\t');
-						bedWriter.print(first.getStart()-1);
-						bedWriter.print('\t');
-						bedWriter.print(first.getEnd());
-						bedWriter.print('\t');
-						bedWriter.print(sample);
-						bedWriter.print('\t');
-						bedWriter.print(first.name);
-						bedWriter.print('\t');
-						bedWriter.print(row.size());
-						bedWriter.println();
+					try(CloseableIterator<Junction> iter=junctionSorter.iterator()) {
+						final EqualRangeIterator<Junction> eq = new EqualRangeIterator<>(iter, (A,B)->A.compare1(B));
+						while(eq.hasNext()) {
+							final List<Junction> row = eq.next();
+							final Junction first = row.get(0);
+							bedWriter.print(first.getContig());
+							bedWriter.print('\t');
+							bedWriter.print(first.getStart()-1);
+							bedWriter.print('\t');
+							bedWriter.print(first.getEnd());
+							bedWriter.print('\t');
+							bedWriter.print(sample);
+							bedWriter.print('\t');
+							bedWriter.print(first.name);
+							bedWriter.print('\t');
+							bedWriter.print(row.size());
+							bedWriter.println();
+							}
+						eq.close();
 						}
-					eq.close();
-				}
-				
-				
-				bedWriter.flush();
-				bedWriter.close();
-				bedWriter=null;
+					
+					
+					bedWriter.flush();
+					}
 				junctionSorter.cleanup();
 				}
 				
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(sfr);
-			CloserUtil.close(this.sfw);
-			CloserUtil.close(this.weird);
-			CloserUtil.close(bedWriter);
+			if(this.sfw!=null) try {this.sfw.close();} catch(Throwable e) {};
+			if(this.weird!=null) try {this.weird.close();} catch(Throwable e) {};
 			}
 		}
-	/**
-	 * @param args
-	 */
+	
 	public static void main(String[] args) {
 		new FindNewSpliceSites().instanceMainWithExit(args);
 

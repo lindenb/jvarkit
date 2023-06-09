@@ -31,7 +31,7 @@ Usage: vcfsvannotator [options] Files
       DGV SV Variant file as Tabix indexed file from 
       http://dgv.tcag.ca/dgv/app/downloads 
     --ensemblreg
-      Gnomad SV as BED file. Compressed with bgzip and indexed with tabix.
+      GFF file from Ensembl, indexed with Tabix. e:g https://ftp.ensembl.org/pub/grch37/current/regulation/homo_sapiens/homo_sapiens.GRCh37.Regulatory_Build.regulatory_features.20201218.gff.gz
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
