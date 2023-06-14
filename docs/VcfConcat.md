@@ -36,6 +36,10 @@ Usage: vcfconcat [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
+    -S, --samples
+      implies --drop-genotypes
+      Default: none
+      Possible Values: [none, all, with_alt]
     -T, --tag
       if not empty, add INFO/tag containing the source/path of the variant
       Default: <empty string>

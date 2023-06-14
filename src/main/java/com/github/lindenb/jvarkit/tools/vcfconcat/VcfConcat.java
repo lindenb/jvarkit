@@ -28,7 +28,11 @@ package com.github.lindenb.jvarkit.tools.vcfconcat;
 import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -46,10 +50,12 @@ import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
@@ -90,7 +96,7 @@ END_DOC
 @Program(name="vcfconcat",
 	keywords={"vcf"},
 	creationDate = "20131230",
-	modificationDate = "20230525",
+	modificationDate = "20230614",
 	description="Concatenate VCFs with same sample. See also bcftools concat",
 	generate_doc = true,
 	jvarkit_amalgamion = true
@@ -98,7 +104,7 @@ END_DOC
 public class VcfConcat extends Launcher
 	{
 	private static final Logger LOG =Logger.build(VcfConcat.class).make();
-	
+	private enum SamplePeek {none,all,with_alt};
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
@@ -106,6 +112,9 @@ public class VcfConcat extends Launcher
 	private String variantsourceTag="";
 	@Parameter(names={"-G","--drop-genotypes"},description="Drop genotypes")
 	private boolean drop_genotypes = false;
+	@Parameter(names={"-S","--samples"},description="implies --drop-genotypes")
+	private SamplePeek samplePeek = SamplePeek.none;
+	
 	@Parameter(names={"--chrom","--contig"},description="limit to that chromosome")
 	private String limitChrom = null;
 
@@ -117,6 +126,16 @@ public class VcfConcat extends Launcher
 		VariantContextWriter w=null;
 		try
 			{
+			final Predicate<Genotype> genotype_peeker;
+			if(!this.samplePeek.equals(SamplePeek.none)) {
+				this.drop_genotypes = true;
+				}
+			switch(this.samplePeek) {
+				case all : genotype_peeker = G->true; break;
+				case with_alt : genotype_peeker = G->G.getAlleles().stream().anyMatch(A->!(A.isReference() || A.isNoCall())); break;
+				default : genotype_peeker = G->false; break;
+				}
+			
 			final List<Path> vcfs;
 			
 			if(args.isEmpty())
@@ -140,6 +159,7 @@ public class VcfConcat extends Launcher
 				}
 			
 			VCFInfoHeaderLine variantSourceHeader = null;
+			VCFInfoHeaderLine variantSampleHeader = null;
 			VCFHeader firstHeader=null;
 			long count_variants=0L;
 			SAMSequenceDictionary firstDict=null;
@@ -167,6 +187,17 @@ public class VcfConcat extends Launcher
 									);
 							header.addMetaDataLine(variantSourceHeader);
 							}
+						
+						if(!this.samplePeek.equals(SamplePeek.none)) {
+							variantSampleHeader = new VCFInfoHeaderLine(
+									"SAMPLES_"+this.samplePeek.name().toUpperCase(),
+									VCFHeaderLineCount.UNBOUNDED,
+									VCFHeaderLineType.String,
+									"Samples (filtered with "+ this.samplePeek.name()+")"
+									);
+							header.addMetaDataLine(variantSampleHeader);
+							}
+						
 						JVarkitVersion.getInstance().addMetaData(this, header);
 						w.writeHeader(firstHeader);
 						}
@@ -191,6 +222,20 @@ public class VcfConcat extends Launcher
 									variantSourceHeader.getID(),
 									VCFUtils.escapeInfoField(vcfPath.toString())
 									);
+							
+							if(variantSampleHeader!=null && ctx.hasGenotypes()) {
+								final Set<String> samples = ctx.getGenotypes().stream().
+											filter(genotype_peeker).
+											map(G->G.getSampleName()).
+											collect(Collectors.toCollection(TreeSet::new));
+								if(!samples.isEmpty()) {
+									vcb.attribute(
+											variantSampleHeader.getID(),
+										new ArrayList<String>(samples)
+										);
+									}
+								}
+							
 							if(drop_genotypes) vcb.noGenotypes();
 							ctx = vcb.make();
 							}
