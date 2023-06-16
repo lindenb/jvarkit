@@ -37,6 +37,7 @@ import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 import com.github.lindenb.jvarkit.variant.VcfSpringBeanVariantAnnotator;
 import com.github.lindenb.jvarkit.variant.vcf.AbstractOnePassVcfAnnotator;
 /**
+
 BEGIN_DOC
 
 # Motivation
@@ -53,7 +54,7 @@ Use the spring framework ( https://docs.spring.io/spring-framework/docs/4.2.x/sp
     xmlns:util="http://www.springframework.org/schema/util"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="
-        http://www.springframework.org/schema/beans 
+        http://www.springframework.org/schema/beans
         http://www.springframework.org/schema/beans/spring-beans.xsd
         http://www.springframework.org/schema/util
         https://www.springframework.org/schema/util/spring-util.xsd
@@ -94,7 +95,7 @@ RF08	992	.	G	C	70	HELLO	AC=4;AN=10;BQB=1;DP=33;DP4=0,21,0,12;HOB=0.48;ICB=0.1173
 
 END_DOC
 
-*/
+**/
 @Program(
 	name="vcfspringfilter",
 	description="Uses the java spring Framework to build complex vcf filters",

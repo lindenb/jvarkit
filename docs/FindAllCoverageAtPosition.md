@@ -77,6 +77,7 @@ Usage: findallcoverageatposition [options] Files
  * [https://www.biostars.org/p/259223](https://www.biostars.org/p/259223)
  * [https://www.biostars.org/p/250099](https://www.biostars.org/p/250099)
  * [https://www.biostars.org/p/409942](https://www.biostars.org/p/409942)
+ * [https://www.biostars.org/p/9566474](https://www.biostars.org/p/9566474)
 
 
 

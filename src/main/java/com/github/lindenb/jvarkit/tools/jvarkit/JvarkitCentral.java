@@ -111,6 +111,7 @@ import com.github.lindenb.jvarkit.tools.gtex.GtexRsToQTL;
 import com.github.lindenb.jvarkit.tools.gtf.Gtf2Xml;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
+import com.github.lindenb.jvarkit.tools.htsfreemarker.HtsFreemarker;
 import com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf;
 import com.github.lindenb.jvarkit.tools.kg2bed.KnownGenesToBed;
 import com.github.lindenb.jvarkit.tools.liftover.BamLiftOver;
@@ -576,6 +577,7 @@ public class JvarkitCentral {
 		command(GoUtils.class);
 		command(GroupByGene.class);
 		command(Gtf2Xml.class);
+		command(HtsFreemarker.class);
 		command(IbdToVcf.class);
 		command(IlluminaDirectory.class);
 		command(KnownGenesToBed.class);

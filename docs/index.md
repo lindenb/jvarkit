@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 27dbfb79
-Compilation : 20230614144237
+Version     : 0ceae1f9f
+Compilation : 20230616160652
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -162,6 +162,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [coverageserver](CoverageServer.md) | Jetty Based http server serving Bam coverage. | 20200212 | 20200330 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
 | [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20230215 |
+| [htsfreemarker](HtsFreemarker.md) | Apply Freemarker to VCF/BAM/JSON files. | 20230616 | 20230616 |
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
 | [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20190427 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
