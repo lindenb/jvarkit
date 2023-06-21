@@ -46,7 +46,8 @@ Usage: biostar78285 [options] Files
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --reference
       Optional. Indexed fasta Reference file. This file must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary
+      samtools faidx and with picard/gatk CreateSequenceDictionary or samtools 
+      dict 
     --version
       print version and exit
 

@@ -25,7 +25,7 @@ Usage: bam2sql [options] Files
       Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     -r, --region
       An interval as the following syntax : "chrom:start-end" or 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 

@@ -55,7 +55,7 @@ Usage: biostar336589 [options] Files
       Default: -1
   * -R
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     -a
       rotate for 'x' seconds. ignore if <=0
       Default: -1

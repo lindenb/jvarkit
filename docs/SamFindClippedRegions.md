@@ -60,7 +60,7 @@ Usage: samfindclippedregions [options] Files
       Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --bed, --regions-file
       restrict to this bed file. A Bed file: (CHROM)<tab>(START 
       0-based)<tab>(END)[<tab>otherfields...]. 

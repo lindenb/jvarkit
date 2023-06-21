@@ -76,7 +76,7 @@ protected IntervalListProvider regionFiles = null;
 /** assert REF was declarated by user */
 protected Path getRequiredReferencePath() {
 	if(this.faidxPath==null) {
-		throw new IllegalStateException("Reference was not specified. " + INDEXED_FASTA_REFERENCE_DESCRIPTION);
+		throw new IllegalStateException("Check the options for this program : Reference was not specified. " + INDEXED_FASTA_REFERENCE_DESCRIPTION);
 		}
 	return this.faidxPath;
 	}

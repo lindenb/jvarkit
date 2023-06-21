@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 0ceae1f9f
-Compilation : 20230616160652
+Version     : 8a9a881b
+Compilation : 20230621100700
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -243,6 +243,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [basecoverage](BaseCoverage.md) | 'Depth of Coverage' per base. | 20220420 | 20220420 |
 | [bioalcidaejdk](BioAlcidaeJdk.md) | java-based version of awk for bioinformatics | 20170712 | 20210412 |
 | [biostar154220](Biostar154220.md) | Cap BAM to a given coverage | 20150812 | 20210312 |
+| [biostar9566948](Biostar9566948.md) | Trim Reads So Only First Base Remains | 20230621 | 20230621 |
 | [findallcoverageatposition](FindAllCoverageAtPosition.md) | Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ? | 20141128 | 20210818 |
 | [sam2tsv](Sam2Tsv.md) | Prints the SAM alignments as a TAB delimited file. | 20170712 | 20210304 |
 | [samgrep](SamGrep.md) | grep read-names in a bam file | 20130506 | 20210726 |

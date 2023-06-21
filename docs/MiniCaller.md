@@ -59,14 +59,15 @@ Usage: minicaller [options] Files
     --other-reference
       Other fasta references if you mix bam mapped on different fasta (will 
       try to convert chromosomes names). Indexed fasta Reference file. This 
-      file must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary 
+      file must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
       Default: []
     -o, --output
       Output file. Optional . Default: stdout
   * -R, --reference
       Main fasta reference. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
   * -r, --region
       An interval as the following syntax : "chrom:start-end" or 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 

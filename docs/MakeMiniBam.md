@@ -59,7 +59,7 @@ Usage: mkminibam [options] Files
     -R, --reference
       Optional Reference file for CRAM files. Multiple allowed. Indexed fasta 
       Reference file. This file must be indexed with samtools faidx and with 
-      picard CreateSequenceDictionary
+      picard/gatk CreateSequenceDictionary or samtools dict
       Default: []
     -T, --tmp
       Tmp working directory

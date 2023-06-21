@@ -37,8 +37,8 @@ Usage: biostar404363 [options] Files
       frequency) field is present, variant is inserted if rand()<= AF.
     -R, --reference
       For reading/writing CRAM files. Indexed fasta Reference file. This file 
-      must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --samoutputformat
       Sam output format.
       Default: SAM

@@ -47,7 +47,8 @@ Usage: bamstats04 [options] Files
     -R, --ref
       [20180126]If set, a column with the GC% will be added. Also used to read 
       CRAM. Indexed fasta Reference file. This file must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary
+      samtools faidx and with picard/gatk CreateSequenceDictionary or samtools 
+      dict 
     --version
       print version and exit
 

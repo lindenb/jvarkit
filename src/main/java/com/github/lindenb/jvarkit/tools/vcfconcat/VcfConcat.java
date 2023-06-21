@@ -183,7 +183,7 @@ public class VcfConcat extends Launcher
 							variantSourceHeader = new VCFInfoHeaderLine(
 									this.variantsourceTag,
 									1,VCFHeaderLineType.String,
-									"Origin File of Varant"
+									"Origin File of Variant"
 									);
 							header.addMetaDataLine(variantSourceHeader);
 							}

@@ -60,7 +60,8 @@ Usage: sam4weblogo [options] Files
       Default: 'Accept all' (Empty expression)
     -R, --reference
       For Reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --version
       print version and exit
 
