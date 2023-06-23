@@ -60,7 +60,7 @@ Usage: scanretrocopy [options] Files
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --version
       print version and exit
     --bai, -bai, --with-bai

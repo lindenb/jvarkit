@@ -33,7 +33,7 @@ Usage: swingbamcov [options] Files
       Default: 1
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --small
       Display the reads when the region is small than 'x' bp. A distance 
       specified as a positive integer.Commas are removed. The following 

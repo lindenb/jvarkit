@@ -49,8 +49,8 @@ Usage: bamstats05 [options] Files
       Output file. Optional . Default: stdout
     -R, --reference
       For reading/writing CRAM files. Indexed fasta Reference file. This file 
-      must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --version
       print version and exit
 

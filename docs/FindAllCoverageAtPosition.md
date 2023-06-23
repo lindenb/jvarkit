@@ -56,7 +56,8 @@ Usage: findallcoverageatposition [options] Files
       Default: []
     -r, -R, --reference
       [20171201]Indexed fasta Reference file. This file must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary
+      samtools faidx and with picard/gatk CreateSequenceDictionary or samtools 
+      dict 
     --version
       print version and exit
 

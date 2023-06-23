@@ -102,8 +102,8 @@ Usage: vcfstrech2svg [options] Files
       Default: {gt.r1=1, gt.r2=7, sample.height=50}
     --reference, -R
       For reading/writing CRAM files. Indexed fasta Reference file. This file 
-      must be indexed with samtools faidx and with picard 
-      CreateSequenceDictionary 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
   * -r, --region, --bed
       BED File
     --samples

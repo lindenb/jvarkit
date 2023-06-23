@@ -39,7 +39,8 @@ Usage: htsfreemarker [options] Files
       Output file. Optional . Default: stdout
     --reference, -R
       For reading CRAM.Indexed fasta Reference file. This file must be indexed 
-      with samtools faidx and with picard CreateSequenceDictionary
+      with samtools faidx and with picard/gatk CreateSequenceDictionary or 
+      samtools dict
     --string
       <name> <string>. Add this pair to the freemarker context.
       Default: []

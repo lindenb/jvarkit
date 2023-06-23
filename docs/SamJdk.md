@@ -51,7 +51,8 @@ Usage: samjdk [options] Files
       Default: false
     -R, --reference
       For reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --samoutputformat
       Sam output format.
       Default: SAM

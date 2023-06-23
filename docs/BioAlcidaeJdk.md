@@ -48,9 +48,9 @@ Usage: bioalcidaejdk [options] Files
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -R, --reference
       [20190808]Indexed fasta Reference file. This file must be indexed with 
-      samtools faidx and with picard CreateSequenceDictionary For reading BAM 
-      files or to try to convert the chromosomes in a GTF file in order to 
-      match the dictionary ('1' -> 'chr1').
+      samtools faidx and with picard/gatk CreateSequenceDictionary or samtools 
+      dict For reading BAM files or to try to convert the chromosomes in a GTF 
+      file in order to match the dictionary ('1' -> 'chr1').
     -f, --scriptfile
       java body file
     --version

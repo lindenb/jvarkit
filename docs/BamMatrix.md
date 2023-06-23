@@ -57,7 +57,7 @@ Usage: bammatrix [options] Files
       Default: 1
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
   * -r, -r1, --region
       first region.An interval as the following syntax : "chrom:start-end" or 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 

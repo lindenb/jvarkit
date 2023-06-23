@@ -62,7 +62,8 @@ Usage: plotsashimi [options] Files
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --reference
       For Reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --skip-empty
       Do not generate a SVG file if there is no read in the interval
       Default: false

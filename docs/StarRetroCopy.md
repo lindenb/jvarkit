@@ -44,8 +44,8 @@ Usage: starretrocopy [options] Files
       Output file. Optional . Default: stdout
     -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary Can be used for reading 
-      CRAM. 
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict Can 
+      be used for reading CRAM.
     --bam, --save-bam
       Optional: save matching reads in this bam file. Can be used to visualize 
       the evidences in IGV.

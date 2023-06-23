@@ -33,8 +33,9 @@ Usage: bednonoverlappingset [options] Files
       '.tar.gz' suffix.
     -R, -r, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary If defined, will be used 
-      to sort the bed record on chrom/pos before writing the bed records.
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict If 
+      defined, will be used to sort the bed record on chrom/pos before writing 
+      the bed records.
     --version
       print version and exit
 

@@ -68,7 +68,7 @@ Usage: coverageserver [options] Files
       Default: 8080
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --sashimi
       Enable sashimi plots.
       Default: false

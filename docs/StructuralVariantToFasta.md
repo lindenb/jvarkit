@@ -32,7 +32,7 @@ Usage: sv2fasta [options] Files
       Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --skip-no-sv
       Exclude VCF without structural variant
       Default: false

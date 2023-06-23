@@ -30,7 +30,7 @@ Usage: convertliftoverchain [options] Files
     -R2, --ref2
       Destination chain REFference mapping. Default : no conversion. Indexed 
       fasta Reference file. This file must be indexed with samtools faidx and 
-      with picard CreateSequenceDictionary
+      with picard/gatk CreateSequenceDictionary or samtools dict
     --version
       print version and exit
 

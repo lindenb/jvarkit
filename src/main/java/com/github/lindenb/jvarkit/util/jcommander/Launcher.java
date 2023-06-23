@@ -88,7 +88,7 @@ public class Launcher {
 private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
-		"This file must be indexed with samtools faidx and with picard CreateSequenceDictionary";
+		"This file must be indexed with samtools faidx and with picard/gatk CreateSequenceDictionary or samtools dict";
 public static final String DICTIONARY_SOURCE="A SAM Sequence dictionary source: it can be a *.dict file, a fasta file indexed with 'picard CreateSequenceDictionary', or any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)";
 
 public static final String CRAM_INDEXED_REFENCE="For reading/writing CRAM files. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION;
