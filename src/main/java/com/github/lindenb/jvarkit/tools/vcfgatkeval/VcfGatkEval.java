@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
@@ -116,6 +117,13 @@ ReadPosRankSum_HIGH_SNP
 SOR_HIGH_SNP
 ```
 
+use with gatk variantFilteration:
+
+```
+gatk VariantFiltration -V in.vcf.gz -R reference.fasta -O out.vcf.gz --arguments_file out1.output.filters.txt
+
+```
+
 # Parallelisation
 
 run in parallel
@@ -140,7 +148,7 @@ END_DOC
 		jvarkit_amalgamion = true,
 		keywords={"vcf","gatk"},
 		creationDate ="20230424",
-		modificationDate="20230425"
+		modificationDate="20230623"
 		)
 public class VcfGatkEval extends Launcher {
 	private static Logger LOG=Logger.build(VcfGatkEval.class).make();
@@ -152,6 +160,8 @@ public class VcfGatkEval extends Launcher {
 	private INPUT_TYPE inputType = INPUT_TYPE.vcf;
 	@Parameter(names={"-p","--percentile"},description="GATK Filters should be applied to this percentile: f < x < (1.0 -f)")
 	private double percentile= 0.025;
+	@Parameter(names={"--depth"},description="include INFO/" + VCFConstants.DEPTH_KEY)
+	private boolean include_depth = false;
 
 	
 		private static class Range {
@@ -257,21 +267,22 @@ public class VcfGatkEval extends Launcher {
 				if(this.ranges.isEmpty()) return ;
 				final String testType;
 				switch(this.variantType) {
-					case SNP: testType = "vc.isSNP() && "; break;
-					case INDEL: testType = "vc.isIndel() && "; break;
+					case SNP: testType = "vc.isSNP()&&"; break;//no blank or gatk fails
+					case INDEL: testType = "vc.isIndel()&&"; break;//no blank or gatk fails
 					default: testType = ""; break;
 					}
+				final String hasAttribute = "vc.hasAttribute(\""+getTag()+"\")&&";
 				OptionalDouble limit = getLowPercentile();
 				if(limit.isPresent()) {
-					out.println("-filter");
-					out.println("\"" +testType + getTag() +" < "+ limit.getAsDouble()+ "\"");
+					out.println("--filter-expression");
+					out.println(testType + hasAttribute +  getTag() +"<"+ limit.getAsDouble()); //no blank or gatk fails
 					out.println("--filter-name");
 					out.println(getTag()+"_LOW_"+variantType.name());
 					}
 				limit = getHighPercentile();
 				if(limit.isPresent()) {
-					out.println("-filter");
-					out.println("\""+testType + getTag() +" > "+ limit.getAsDouble()+ "\"");
+					out.println("--filter-expression");
+					out.println(testType + hasAttribute + getTag() +">"+ limit.getAsDouble());//no blank or gatk fails
 					out.println("--filter-name");
 					out.println(getTag()+"_HIGH_"+variantType.name());
 					}
@@ -427,6 +438,13 @@ public class VcfGatkEval extends Launcher {
 
 		}
 		
+		private class  DepthAnnotation extends Annotation {
+			DepthAnnotation(VariantContext.Type t) { super(t);}
+			@Override String getTag() { return VCFConstants.DEPTH_KEY;}
+			@Override int getPrecision() { return 1;}
+			@Override String getSub() {return "Depth";}
+		}
+		
 		private class  ReadPosRankSumTestAnnotation extends Annotation {
 			ReadPosRankSumTestAnnotation(VariantContext.Type t) { super(t);}
 			@Override String getTag() { return "ReadPosRankSum";}
@@ -451,6 +469,9 @@ public class VcfGatkEval extends Launcher {
 				annotations.add(new RMSMappingQualityAnnotation(type));
 				annotations.add(new MappingQualityRankSumTestAnnotation(type));
 				annotations.add(new ReadPosRankSumTestAnnotation(type));
+				if(this.include_depth) {
+					annotations.add(new DepthAnnotation(type));
+					}
 				}
 			Collections.sort(annotations, (A,B)->{
 				int i= A.getTag().compareTo(B.getTag());

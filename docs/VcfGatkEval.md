@@ -16,6 +16,9 @@ Usage: java -jar dist/jvarkit.jar vcfgatkeval  [options] Files
 
 Usage: vcfgatkeval [options] Files
   Options:
+    --depth
+      include INFO/DP
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -135,6 +138,13 @@ ReadPosRankSum_HIGH_SNP
 "vc.isSNP() && SOR > 3.5"
 --filter-name
 SOR_HIGH_SNP
+```
+
+use with gatk variantFilteration:
+
+```
+gatk VariantFiltration -V in.vcf.gz -R reference.fasta -O out.vcf.gz --arguments_file out1.output.filters.txt
+
 ```
 
 # Parallelisation
