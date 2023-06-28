@@ -7,7 +7,7 @@ LABEL about.tag = "Bioinformatics,NGS,Genomics,BAM,VCF"
 
 MAINTAINER Pierre Lindenbaum PhD Institut-du-Thorax Nantes/France
 
-ARG JVARKIT_VERSION=0f51971fd08b70247f44
+ARG JVARKIT_VERSION=1b2aedf24
 ARG HTS_VERSION=1.17
 ARG BEDTOOLS_VERSION=2.30.0
 ARG BWA_VERSION=139f68fc4c37478137
@@ -15,7 +15,7 @@ ARG PICARD_VERSION=2.27.5
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get -y update && \
-	apt-get -y install git wget openjdk-11-jdk make r-base bzip2 libcurl4-openssl-dev libncurses5-dev python3 libz-dev libbz2-dev liblzma-dev datamash && \
+	apt-get -y install git wget openjdk-17-jdk make r-base bzip2 libcurl4-openssl-dev libncurses5-dev python3 libz-dev libbz2-dev liblzma-dev datamash && \
 	mkdir -p /opt/picard && \
 	wget -O /opt/picard/picard.jar "https://github.com/broadinstitute/picard/releases/download/${PICARD_VERSION}/picard.jar" && \
 	cd /opt/ && \
