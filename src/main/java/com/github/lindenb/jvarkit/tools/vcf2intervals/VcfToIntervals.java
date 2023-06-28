@@ -160,7 +160,9 @@ END_DOC
 	keywords={"vcf","bed","interval"},
 	creationDate="20211112",
 	modificationDate="20221128",
-	biostars= {9506628,9529137}
+	biostars= {9506628,9529137},
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VcfToIntervals extends Launcher
 	{

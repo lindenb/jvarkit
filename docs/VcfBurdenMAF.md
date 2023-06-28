@@ -7,7 +7,13 @@ MAF for Cases / Controls
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfburdenmaf  [options] Files
+
 Usage: vcfburdenmaf [options] Files
   Options:
     --bcf-output
@@ -48,7 +54,8 @@ Usage: vcfburdenmaf [options] Files
       Output file. Optional . Default: stdout
   * -p, --pedigree
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
-      sex:(0:unknown;1:male;2:female), phenotype 
+      sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), 
+      phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -pfx, --prefix
       Prefix for FILTER/INFO. If it is empty and the variant is FILTERed, the 
@@ -68,23 +75,6 @@ Usage: vcfburdenmaf [options] Files
  * case
  * control
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfburdenmaf
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -160,4 +150,5 @@ RF02	877	.	T	A	3.45	BurdenMAFCas;BurdenMAFCaseOrControls	BurdenMAFCas=0.500;Burd
 RF02	1726	.	T	G	8.23	BurdenMAFCaseOrControls;BurdenMAFControls	BurdenMAFCas=0.00;BurdenMAFControls=0.500	GT:PL	0/0:0,18,83	0/1:24,0,40	0/1:24,0,40	0/0:0,27,111	0/0:0,10,78
 RF02	1962	.	TACA	TA	33.43	BurdenMAFCas;BurdenMAFCaseOrControls	BurdenMAFCas=0.500;BurdenMAFControls=0.00	GT:PL	0/1:70,0,159	0/0:0,15,225	0/0:0,15,225	0/0:0,27,231	0/0:0,27,168
 ```
+
 

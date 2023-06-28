@@ -7,8 +7,13 @@ split a vcf to interval or bed for parallelization
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcf2intervals.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcf2intervals  [options] Files
+
 Usage: vcf2intervals [options] Files
   Options:
     --bed, --bed-output
@@ -56,23 +61,6 @@ Usage: vcf2intervals [options] Files
  * [https://www.biostars.org/p/9506628](https://www.biostars.org/p/9506628)
  * [https://www.biostars.org/p/9529137](https://www.biostars.org/p/9529137)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcf2intervals
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -192,4 +180,5 @@ RF09	294	414	3	121
 RF10	46	175	3	130
 RF11	74	79	1	6
 ```
+
 

@@ -137,10 +137,12 @@ nav:
         - "texbam" : TextBam.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
+        - "vcf2intervals" : VcfToIntervals.md
         - "vcf2table" : VcfToTable.md
         - "vcfallelebalance" : VcfAlleleBalance.md
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
+        - "vcfburdenmaf" : VcfBurdenMAF.md
         - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcfcomposite" : VCFComposite.md

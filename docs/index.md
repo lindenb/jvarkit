@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : e5a6a839b
-Compilation : 20230623173511
+Version     : 545cf041
+Compilation : 20230628162422
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -190,10 +190,12 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [minicaller](MiniCaller.md) | Simple and Stupid Variant Caller designed for @AdrienLeger2 | 201500306 | 20220705 |
 | [swingvcfjexl](SwingVcfJexlFilter.md) | Filter VCF using Java Swing UI and JEXL/Javascript expression | 20220413 | 20220414 |
 | [swingvcfview](SwingVcfView.md) | VCFviewer using Java Swing UI | 20210503 | 20210503 |
+| [vcf2intervals](VcfToIntervals.md) | split a vcf to interval or bed for parallelization | 20211112 | 20221128 |
 | [vcf2table](VcfToTable.md) | convert a vcf to a table, to ease display in the terminal | 20170511 | 20220507 |
 | [vcfallelebalance](VcfAlleleBalance.md) | Insert missing allele balance annotation using FORMAT:AD | 20180829 | 20200805 |
 | [vcfbigbed](VcfBigBed.md) | Annotate a VCF with values from a bigbed file | 20220107 | 20220107 |
 | [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20220110 |
+| [vcfburdenmaf](VcfBurdenMAF.md) | MAF for Cases / Controls | 20160418 | 202000713 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20140218 | 20220119 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
 | [vcfcomposite](VCFComposite.md) | (in developpement) Finds Variants involved in a Het Compound Disease | 20170331 | 20200210 |

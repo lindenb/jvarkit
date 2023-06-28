@@ -44,7 +44,6 @@ import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -108,7 +107,9 @@ END_DOC
 	description="MAF for Cases / Controls ",
 	keywords={"vcf","burden","maf","case","control"},
 	modificationDate="202000713",
-	creationDate="20160418"
+	creationDate="20160418",
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VcfBurdenMAF
 	extends OnePassVcfLauncher
