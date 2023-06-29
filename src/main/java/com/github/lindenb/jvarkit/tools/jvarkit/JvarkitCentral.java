@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
 import com.github.lindenb.jvarkit.tools.bam2xml.Bam2Xml;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats04;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats05;
+import com.github.lindenb.jvarkit.tools.barcode.BarcodeGenerator;
 import com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage;
 import com.github.lindenb.jvarkit.tools.bedtools.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv;
@@ -501,6 +502,7 @@ public class JvarkitCentral {
 		command(AlleleFrequencyCalculator.class);
 		command(AddLinearIndexToBed.class);
 		command(BedMergeCnv.class);
+		command(BarcodeGenerator.class);
 		command(BackLocate.class);
 		command(BamToSVG.class);
 		command(BamToHaplotypes.class);

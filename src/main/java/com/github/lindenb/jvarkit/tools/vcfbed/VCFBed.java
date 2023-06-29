@@ -128,6 +128,10 @@ chr19   58865164    rs80109863  C   T   .   .   CAF=[0.9949,0.005051];COMMON=1;G
 
  * Megquier K, Turner-Maier J, Morrill K, Li X, Johnson J, Karlsson EK, et al. (2022) The genomic landscape of canine osteosarcoma cell lines reveals conserved structural complexity and pathway alterations. PLoS ONE 17(9): e0274383. https://doi.org/10.1371/journal.pone.0274383
 
+## Deprecated
+
+use bcftools annotate
+
 END_DOC
 
  */
@@ -136,7 +140,8 @@ END_DOC
 	keywords={"bed","vcf","annotation"},
 	biostars=247224,
 	creationDate="20180406",
-	modificationDate="20200623"
+	modificationDate="20200623",
+	deprecatedMsg = "use bcttools annotate"
 	)
 public class VCFBed extends OnePassVcfLauncher
 	{

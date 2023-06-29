@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : a896d7c6
-Compilation : 20230628183554
+Version     : 766e1f1b5
+Compilation : 20230629173324
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -156,6 +156,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [bamliftover](BamLiftOver.md) | Lift-over a BAM file. |  |  |
+| [barcodegenerator](BarcodeGenerator.md) | Barcode generator for EricCharp | 20230629 | 20230629 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
 | [bio2rdf](BioToRDF.md) | Build a RDF database for human from misc sources | 20220427 | 20220510 |
 | [convertliftoverchain](ConvertLiftOverChain.md) | Convert the contigs in a liftover chain to match another REFerence. (eg. to remove chr prefix, unknown chromosomes etc...) | 20190409 | 20190409 |
