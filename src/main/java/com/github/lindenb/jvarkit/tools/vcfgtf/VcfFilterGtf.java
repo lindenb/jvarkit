@@ -80,10 +80,10 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	private Path gtfPath;
 	@Parameter(names={"-t","--type"},description="What should be used in the gtf to keep vcf records",required = true)
 	private FeatureType featureType = FeatureType.GENE;
-	@Parameter(names={"--coding"},description="What type of gtf feature should be used.")
+	@Parameter(names={"--biotype"},description="What biotype 'x'  should be used.")
 	private Coding codingType = Coding.all;
 
-	@Parameter(names={"--extends"},description="extends each gtf feature by 'x' bases." + DistanceParser.OPT_DESCRIPTION ,splitter = NoSplitter.class, converter = DistanceParser.StringConverter.class)
+	@Parameter(names={"--extend","--extend","-x"},description="extends each gtf feature by 'x' bases." + DistanceParser.OPT_DESCRIPTION ,splitter = NoSplitter.class, converter = DistanceParser.StringConverter.class)
 	private int extend=0;
 	@Parameter(names={"--inverse"},description="inverse output")
 	private boolean inverse = false;
@@ -195,6 +195,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 					intervalTreeMap.put(r, Boolean.TRUE);
 					}
  				}
+			LOG.info("count(intervals)="+intervalTreeMap.entrySet().size());
 			out.writeHeader(header);
 			while(iterin.hasNext()) {
 				final VariantContext ctx = iterin.next();
