@@ -2,12 +2,22 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column
+Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used.
 
+
+## DEPRECATED
+
+I don't use this anymore. See vcfconcat
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfmulti2one  [options] Files
+
 Usage: vcfmulti2one [options] Files
   Options:
     --bcf-output
@@ -69,23 +79,6 @@ Usage: vcfmulti2one [options] Files
  * [https://www.biostars.org/p/130456](https://www.biostars.org/p/130456)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfmulti2one
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -121,6 +114,10 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Deprecated
+
+I don't use this software anymore.
+
 ## Input
 
 if there is only one input with the '.list' suffix, it is interpreted as a file containing the path to the vcf files
@@ -134,7 +131,7 @@ A file with the suffixes '.zip' or '.tar' or '.tar.gz' is interpreted as an arch
 with zip  and tar
 
 ```
-$ tar tvfz ~/jeter.tar.gz && unzip -l ~/jeter.zip && java -jar dist/vcfmulti2one.jar ~/jeter.tar.gz ~/jeter.zip | bcftools view - | wc -l
+$ tar tvfz ~/jeter.tar.gz && unzip -l ~/jeter.zip && java -jar dist/jvarkit.jar vcfmulti2one ~/jeter.tar.gz ~/jeter.zip | bcftools view - | wc -l
 -rw-r--r-- lindenb/lindenb 5805 2019-01-11 18:29 src/test/resources/rotavirus_rf.ann.vcf.gz
 -rw-r--r-- lindenb/lindenb 27450 2019-01-11 18:29 src/test/resources/rotavirus_rf.freebayes.vcf.gz
 -rw-r--r-- lindenb/lindenb  7366 2019-01-11 18:29 src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
@@ -155,7 +152,7 @@ Archive:  /home/lindenb/jeter.zip
 ```bash
 $ curl -s "http://ftp-trace.ncbi.nih.gov/1000genomes/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5.20130502.genotypes.vcf.gz" |\
 gunzip -c |\
-java -jar dist/vcfmulti2one.jar  -c -r -a  |\
+java -jar dist/jvarkit.jar vcfmulti2one  -c -r -a  |\
 grep -v '##' |\
 grep -E '(CHROM|SAMPLENAME)' | head | verticalize 
 
@@ -287,6 +284,7 @@ $9   FORMAT : GT
 $10  SAMPLE : 0|1
 <<< 10
 ```
+
 
 
 

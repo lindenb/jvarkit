@@ -141,6 +141,7 @@ nav:
         - "vcf2intervals" : VcfToIntervals.md
         - "vcf2table" : VcfToTable.md
         - "vcfallelebalance" : VcfAlleleBalance.md
+        - "vcfancestralalleles" : VcfAncestralAllele.md
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
         - "vcfburdenmaf" : VcfBurdenMAF.md
@@ -150,6 +151,7 @@ nav:
         - "vcfconcat" : VcfConcat.md
         - "vcfdistancevariants" : VcfDistanceBetweenVariants.md
         - "vcffiltergenes" : VcFilterGenes.md
+        - "vcffiltergtf" : VcfFilterGtf.md
         - "vcffilterjdk" : VcfFilterJdk.md
         - "vcffilterso" : VcfFilterSequenceOntology.md
         - "vcfflatten" : VCFFlatten.md
@@ -159,6 +161,7 @@ nav:
         - "vcfgnomadsv" : VcfGnomadSV.md
         - "vcfgrantham" : VcfGrantham.md
         - "vcfhead" : VcfHead.md
+        - "vcfmulti2one" : VcfMultiToOne.md
         - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md
         - "vcfpeekaf" : VcfPeekAf.md

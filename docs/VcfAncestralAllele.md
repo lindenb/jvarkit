@@ -7,7 +7,13 @@ Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfancestralalleles  [options] Files
+
 Usage: vcfancestralalleles [options] Files
   Options:
     --bcf-output
@@ -44,23 +50,6 @@ Usage: vcfancestralalleles [options] Files
  * 1000k
  * allele
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfancestralalleles
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -134,7 +123,7 @@ three columns:
 ## Example:
 
 ```
-$ java -jar dist/vcfancestralalleles.jar \
+$ java -jar dist/jvarkit.jar vcfancestralalleles \
 	-m /commun/data/pubdb/ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/human_ancestor_GRCh37_e59/manifest.mf \
 	src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz |\
 	bcftools annotate -x '^INFO/AA'
@@ -162,4 +151,10 @@ $ java -jar dist/vcfancestralalleles.jar \
 1	905637	rs762369764	C	T	313.28	PASS	AA=C
 (...)
 ```
+
+** Cited in
+
+ * "Inferences of Local Genetic Adaptation from Palaeolithic Hunter Gatherers" Dean James Cornish . Thesis. https://discovery.ucl.ac.uk/id/eprint/10170497/1/Cornish_Thesis_MPhil.pdf **VcfAncestralAllele**
+
+
 

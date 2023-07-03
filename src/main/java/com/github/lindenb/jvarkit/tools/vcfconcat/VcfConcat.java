@@ -99,7 +99,8 @@ END_DOC
 	modificationDate = "20230614",
 	description="Concatenate VCFs with same sample. See also bcftools concat",
 	generate_doc = true,
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VcfConcat extends Launcher
 	{

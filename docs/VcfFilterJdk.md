@@ -479,10 +479,8 @@ see https://bioinformatics.stackexchange.com/questions/5518
 java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().allMatch(G->(G.getSampleName().endsWith("M") && G.isHet()) || (G.getSampleName().endsWith("F") && G.isHomRef())); ' input.vcf
 ```
 
-## History:
+## Cited in:
 
-  * 20190222 : removed some jaxb stuff
-  * 201901 : OpenJdk doesn't support anymore in-memory compiling. Switching to OpenJdkCompiler
-
+ * N. Mamoozadeh, C. Goldsworthy, L. Miller, N. Peterson, M. Meek, Sources of coaster brook trout (Salvelinus fontinalis) revealed by genomic analysis of brook trout populations along Minnesota's shoreline with Lake Superior, Journal of Great Lakes Research, 2023, , ISSN 0380-1330, https://doi.org/10.1016/j.jglr.2023.06.005. (https://www.sciencedirect.com/science/article/pii/S0380133023001351)
 
 

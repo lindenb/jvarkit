@@ -41,7 +41,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
  * Barcode generator for EricCharp
- * 
+ *
  */
 @Program(
 		name="barcodegenerator",
@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 		)
 public class BarcodeGenerator extends Launcher {
 	private static final Logger LOG = Logger.build(BarcodeGenerator.class).make();
-	@Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
+	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;
 	@Parameter(names={"--polyx"},description ="max polyx")
 	private int max_stretch_inclusive = 3;

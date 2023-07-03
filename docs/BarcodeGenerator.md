@@ -35,9 +35,8 @@ Usage: barcodegenerator [options] Files
     --number
       number of barcode to generated
       Default: 96
-  * -o, --out
-      An existing directory or a filename ending with the '.zip' or '.tar' or 
-      '.tar.gz' suffix.
+    -o, --out
+      Output file. Optional . Default: stdout
     --polyx
       max polyx
       Default: 3

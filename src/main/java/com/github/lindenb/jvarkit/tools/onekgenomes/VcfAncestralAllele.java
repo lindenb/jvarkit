@@ -97,7 +97,7 @@ three columns:
 ## Example:
 
 ```
-$ java -jar dist/vcfancestralalleles.jar \
+$ java -jar dist/jvarkit.jar vcfancestralalleles \
 	-m /commun/data/pubdb/ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/human_ancestor_GRCh37_e59/manifest.mf \
 	src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz |\
 	bcftools annotate -x '^INFO/AA'
@@ -126,13 +126,20 @@ $ java -jar dist/vcfancestralalleles.jar \
 (...)
 ```
 
+** Cited in
+
+ * "Inferences of Local Genetic Adaptation from Palaeolithic Hunter Gatherers" Dean James Cornish . Thesis. https://discovery.ucl.ac.uk/id/eprint/10170497/1/Cornish_Thesis_MPhil.pdf **VcfAncestralAllele**
+
+
 END_DOC
  */
 @Program(name="vcfancestralalleles",
 description="Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README",
 keywords={"vcf","ancestral","1000k","allele"},
 modificationDate="20220126",
-creationDate="20180418"
+creationDate="20180418",
+jvarkit_amalgamion = true,
+menu="VCF Manipulation"
 )
 public class VcfAncestralAllele
 extends OnePassVcfLauncher
