@@ -27,6 +27,9 @@ package com.github.lindenb.jvarkit.tools.vcfgtf;
 import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -35,6 +38,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -44,10 +48,12 @@ import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFHeader;
@@ -67,14 +73,14 @@ END_DOC
 	description="Filter VCF on GTF",
 	keywords={"vcf","gtf"},
 	creationDate="20230703",
-	modificationDate="20230703",
+	modificationDate="20230704",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 	)
 public class VcfFilterGtf extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfFilterGtf.class).make();
-	private enum FeatureType {GENE,TRANSCRIPT,EXON};
+	private enum FeatureType {GENE,TRANSCRIPT,EXON,EXON_BOUDARIES};
 	private enum Coding {all,protein_coding};
 	@Parameter(names={"-gtf","--gtf"},description="GTF file",required = true)
 	private Path gtfPath;
@@ -83,7 +89,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 	@Parameter(names={"--biotype"},description="What biotype 'x'  should be used.")
 	private Coding codingType = Coding.all;
 
-	@Parameter(names={"--extend","--extend","-x"},description="extends each gtf feature by 'x' bases." + DistanceParser.OPT_DESCRIPTION ,splitter = NoSplitter.class, converter = DistanceParser.StringConverter.class)
+	@Parameter(names={"--extend","--extends","-x"},description="extends each gtf feature by 'x' bases." + DistanceParser.OPT_DESCRIPTION ,splitter = NoSplitter.class, converter = DistanceParser.StringConverter.class)
 	private int extend=0;
 	@Parameter(names={"--inverse"},description="inverse output")
 	private boolean inverse = false;
@@ -132,7 +138,7 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			final UnaryOperator<String> ctgConverter = ContigNameConverter.fromOneDictionary(dict);
 			JVarkitVersion.getInstance().addMetaData(this, header);
-			final IntervalTreeMap<Boolean> intervalTreeMap = new IntervalTreeMap<>();
+			final List<Locatable> locatables = new ArrayList<>(100_000);
 			final GTFCodec codec = new GTFCodec();
 			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.gtfPath)) {
 				String line;
@@ -142,11 +148,11 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 					if(feat==null) continue;
 					final String ctg = ctgConverter.apply(feat.getContig());
 					if(StringUtils.isBlank(ctg)) continue;
-					boolean ok=false;
-					if(!ok) continue;
+					boolean ok=false;					
 					switch(this.featureType) {
 						case TRANSCRIPT: ok = feat.getType().equals("transcript"); break;
 						case GENE: ok = feat.getType().equals("gene"); break;
+						case EXON_BOUDARIES: //continue
 						case EXON: ok = feat.getType().equals("exon"); break;
 						default: break;
 						}
@@ -187,15 +193,53 @@ public class VcfFilterGtf extends OnePassVcfLauncher
 							}
 						}
 					if(!ok) continue;
-					final Interval r = new Interval(
-							ctg,
-							Math.max(1, feat.getStart() - this.extend),
-							feat.getEnd() + this.extend
-							);
-					intervalTreeMap.put(r, Boolean.TRUE);
+					if(this.featureType.equals(FeatureType.EXON_BOUDARIES)) {
+						for(int side=0;side<2;++side) {
+							final int pos = (side==0?feat.getStart():feat.getEnd());
+							locatables.add(new SimpleInterval(
+								ctg,
+								Math.max(1, pos - this.extend),
+								pos + this.extend)
+								);
+							}
+						}
+					else
+						{
+						locatables.add(new SimpleInterval(
+								ctg,
+								Math.max(1, feat.getStart() - this.extend),
+								feat.getEnd() + this.extend)
+								);
+						}
+				
 					}
  				}
-			LOG.info("count(intervals)="+intervalTreeMap.entrySet().size());
+			Collections.sort(locatables,new ContigDictComparator(dict).createLocatableComparator());
+			int x=0;
+			while(x< locatables.size()) {
+				if(x+1< locatables.size() && locatables.get(x).overlaps(locatables.get(x+1))) {
+					final Locatable l0 = locatables.get(x);
+					final Locatable l1 = locatables.get(x+1);
+					locatables.set(x, new SimpleInterval(
+							l0.getContig(),
+							Math.min(l0.getStart(), l1.getStart()),
+							Math.max(l0.getEnd(), l1.getEnd())
+							));
+					locatables.remove(x+1);
+					}
+				else
+					{
+					x++;
+					}
+				}
+			LOG.info("count(intervals)="+locatables.size());
+
+			final IntervalTreeMap<Boolean> intervalTreeMap = new IntervalTreeMap<>();
+			for(Locatable loc:locatables) {
+				intervalTreeMap.put(new Interval(loc),Boolean.TRUE);
+				}
+			locatables.clear();
+			
 			out.writeHeader(header);
 			while(iterin.hasNext()) {
 				final VariantContext ctx = iterin.next();

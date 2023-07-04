@@ -22,11 +22,11 @@ Usage: vcffiltergtf [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    --coding
-      What type of gtf feature should be used.
+    --biotype
+      What biotype 'x'  should be used.
       Default: all
       Possible Values: [all, protein_coding]
-    --extends
+    --extend, --extends, -x
       extends each gtf feature by 'x' bases.A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb,g,gb 
@@ -54,7 +54,7 @@ Usage: vcffiltergtf [options] Files
   * -t, --type
       What should be used in the gtf to keep vcf records
       Default: GENE
-      Possible Values: [GENE, TRANSCRIPT, EXON]
+      Possible Values: [GENE, TRANSCRIPT, EXON, EXON_BOUDARIES]
     --version
       print version and exit
 
