@@ -306,7 +306,19 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 			}
 		}
 	
-	
+	//spliceAI
+	if(AcidNucleics.isATGC(ctx.getReference()) && (isGrch37() || isGrch38())) {
+		for(final Allele alt: ctx.getAlternateAlleles()) {
+			if(!AcidNucleics.isATGC(alt)) continue;
+			urls.add(new LabelledUrlImpl("SpliceAI",
+					variantid+"/"+alt.getDisplayString(),
+					"https://spliceailookup.broadinstitute.org/#variant="+
+					StringUtils.escapeHttp(ucscCtg) + "-" +
+					ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
+					+"&hg="+(isGrch38()?"38":"37")+"&distance=500&mask=1"
+					));
+			}
+		}
 
 	
 	

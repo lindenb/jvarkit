@@ -80,6 +80,7 @@ nav:
         - "biostar9566948" : Biostar9566948.md
         - "builddbsnp" : BuildDbsnp.md
         - "cnvtview" : CnvTView.md
+        - "cnvvalidatorserver" : CNVValidatorServer.md
         - "convertliftoverchain" : ConvertLiftOverChain.md
         - "coveragematrix" : CoverageMatrix.md
         - "coverageplotter" : CoveragePlotter.md

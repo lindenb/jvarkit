@@ -178,6 +178,7 @@ import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
 import com.github.lindenb.jvarkit.tools.textbam.TextBam;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
+import com.github.lindenb.jvarkit.tools.validatorserver.CNVValidatorServer;
 import com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervals;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
@@ -673,6 +674,7 @@ public class JvarkitCentral {
 		command(VCFCombineTwoSnvs.class);
 		command(VcfToIntervals.class);
 		command(VCFShuffle.class);
+		command(CNVValidatorServer.class);
 		command(WesCnvSvg.class);
 		command(WGSCoveragePlotter.class);
 		command(XsltStream.class);

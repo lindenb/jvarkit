@@ -57,7 +57,14 @@ input a set of html+svg generated with coverageplotter or one file with the suff
 ## example:
 
 ```
-java -jar dist/cnvvalidatorserver.jar path/*.html 
+java -jar dist/jvarkit.jar cnvvalidatorserver path/*.html 
+```
+
+or 
+
+```
+find /path/to -type f -name "*.html" > review.list
+java -jar dist/jvarkit.jar cnvvalidatorserver review.list
 ```
 
 ## Screenshot
@@ -76,7 +83,8 @@ END_DOC
 		keywords={"server","xml","rdf","cnv"},
 		creationDate="20220818",
 		modificationDate="20220826",
-		generate_doc = false
+		jvarkit_amalgamion = true,
+		generate_doc = true
 		)
 public class CNVValidatorServer extends Launcher {
 	private static final Logger LOG = Logger.build(CNVValidatorServer.class).make();
@@ -104,8 +112,7 @@ public class CNVValidatorServer extends Launcher {
 	        return map.entrySet().stream().filter(KV->KV.getValue().equals(namespaceURI)).map(KV->KV.getKey()).findFirst().orElse(null);
 	    }
 	 
-	    @SuppressWarnings({"rawtypes" })
-	    public Iterator getPrefixes(final String namespaceURI) {
+	    public Iterator<String> getPrefixes(final String namespaceURI) {
 	        return map.entrySet().stream().filter(KV->KV.getValue().equals(namespaceURI)).map(KV->KV.getKey()).iterator();
 	    	}
 		}
