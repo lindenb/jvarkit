@@ -7,7 +7,13 @@ Fisher Case /Controls per Variant
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfburdenfisherh  [options] Files
+
 Usage: vcfburdenfisherh [options] Files
   Options:
     --attribute
@@ -57,7 +63,8 @@ Usage: vcfburdenfisherh [options] Files
       Output file. Optional . Default: stdout
   * -p, --pedigree
       A pedigree file. tab delimited. Columns: family,id,father,mother, 
-      sex:(0:unknown;1:male;2:female), phenotype 
+      sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), 
+      phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     -Q, --qual
       Overwrite QUAL column with the lowest fisher value.
@@ -76,23 +83,6 @@ Usage: vcfburdenfisherh [options] Files
  * burden
  * fisher
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfburdenfisherh
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -134,5 +124,6 @@ The current reference is:
 Variants in that VCF should have one and only one ALT allele. Use https://github.com/lindenb/jvarkit/wiki/VcfMultiToOneAllele if needed.
 
 VCF header must contain a pedigree ( see VCFinjectPedigree ) or a pedigree must be defined.
+
 
 

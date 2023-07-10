@@ -145,6 +145,7 @@ nav:
         - "vcfancestralalleles" : VcfAncestralAllele.md
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
+        - "vcfburdenfisherh" : VcfBurdenFisherH.md
         - "vcfburdenmaf" : VcfBurdenMAF.md
         - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
