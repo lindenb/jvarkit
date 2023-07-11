@@ -83,7 +83,8 @@ END_DOC
 	description="Fisher Case /Controls per Variant",
 	keywords= {"vcf","burden","fisher"},
 	modificationDate="20200713",
-	creationDate="20160418"
+	creationDate="20160418",
+	jvarkit_amalgamion = true
 	)
 public class VcfBurdenFisherH
 	extends OnePassVcfLauncher
