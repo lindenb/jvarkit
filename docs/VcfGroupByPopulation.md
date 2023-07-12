@@ -2,12 +2,13 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Group VCF data by population, creates a VCF  where each 'SAMPLE' is a population
+create INFO data by population
 
 
 ## Usage
 
 ```
+Usage: java -jar dist/vcfgroupbypop.jar  [options] Files
 Usage: vcfgroupbypop [options] Files
   Options:
     --bcf-output
@@ -23,8 +24,6 @@ Usage: vcfgroupbypop [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-  * -p, --mapping
-      mapping file: each line is (SAMPLE)\t(POP)\n
     -M, --max-fisher
       max inclusive value of fisher test. A decimal number between 0.0 and 
       1.0. If the value ends with '%' it is interpretted as a percentage eg. 
@@ -39,6 +38,8 @@ Usage: vcfgroupbypop [options] Files
       Default: 0.0
     -o, --out
       Output file. Optional . Default: stdout
+  * -p, --mapping, --sample2pop
+      mapping file: each line is (SAMPLE)\t(POP)\n
     --version
       print version and exit
 
@@ -76,7 +77,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfGroupByPopulation.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfGroupByPopulation.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfgroupbypop/VcfGroupByPopulation.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfgroupbypop/VcfGroupByPopulation.java)
 
 
 ## Contribute
@@ -98,4 +99,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
 

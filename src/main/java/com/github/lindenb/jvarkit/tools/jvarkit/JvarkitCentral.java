@@ -194,6 +194,7 @@ import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcfflatten.VCFFlatten;
 import com.github.lindenb.jvarkit.tools.vcfgatkeval.VcfGatkEval;
 import com.github.lindenb.jvarkit.tools.vcfgrantham.VcfGrantham;
+import com.github.lindenb.jvarkit.tools.vcfgroupbypop.VcfGroupByPopulation;
 import com.github.lindenb.jvarkit.tools.vcfgtf.VcfFilterGtf;
 import com.github.lindenb.jvarkit.tools.vcfmulti2oneinfo.VcfMultiToOneInfo;
 import com.github.lindenb.jvarkit.tools.vcfpar.VcfPseudoAutosomalRegion;
@@ -675,6 +676,7 @@ public class JvarkitCentral {
 		command(VCFCombineTwoSnvs.class);
 		command(VcfToIntervals.class);
 		command(VCFShuffle.class);
+		command(VcfGroupByPopulation.class);
 		command(CNVValidatorServer.class);
 		command(VcfBurdenFisherH.class);
 		command(WesCnvSvg.class);

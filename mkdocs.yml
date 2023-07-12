@@ -162,6 +162,7 @@ nav:
         - "vcfgnomad" : VcfGnomad.md
         - "vcfgnomadsv" : VcfGnomadSV.md
         - "vcfgrantham" : VcfGrantham.md
+        - "vcfgroupbypop" : VcfGroupByPopulation.md
         - "vcfhead" : VcfHead.md
         - "vcfmulti2one" : VcfMultiToOne.md
         - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
