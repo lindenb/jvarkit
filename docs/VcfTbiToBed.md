@@ -70,3 +70,17 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Motivation
+
+Extract the first and last variants of a tabix-index-VCF file for each chromosome.
+Output is a BED file contig/start/end/vcf.
+Input can be:
+
+  - stdin (the path to the vcfs, one per line)
+  - the vcfs
+  - a file with the suffix '.list' containing the path to the vcfs, one per line.
+
+## Example:
+
+
+

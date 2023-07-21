@@ -436,7 +436,7 @@ public class JvarkitCentral {
 			out.append("\n");
 			out.append("### Requirements / Dependencies\n");
 			out.append("\n");
-			out.append("* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
+			out.append("* java [compiler SDK 17](https://jdk.java.net/17/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
 			out.append("\n");
 			out.append("\n");
 			out.append("### Download and Compile\n");
@@ -676,6 +676,7 @@ public class JvarkitCentral {
 		command(VCFCombineTwoSnvs.class);
 		command(VcfToIntervals.class);
 		command(VCFShuffle.class);
+		command(VcfTbiToBed.class);
 		command(VcfGroupByPopulation.class);
 		command(CNVValidatorServer.class);
 		command(VcfBurdenFisherH.class);
