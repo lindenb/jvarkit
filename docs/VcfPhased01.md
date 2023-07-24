@@ -17,15 +17,16 @@ Usage: java -jar dist/jvarkit.jar vcfphased01  [options] Files
 Usage: vcfphased01 [options] Files
   Options:
     -xp, --xpos, --extra-highligth
-      Extra Highligth positions that are not always in the vcfs. (comma 
-      separated) 
+      Extra Highligth positions that are not always in the vcfs. (existing 
+      file with one position per line or string comma separated)
       Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -p, --pos, --highligth
-      Highligth positions in the VCFs. (comma separated)
+      Highligth positions in the VCFs. (existing file with one position per 
+      line or string comma separated)
       Default: <empty string>
   * -r, --interval, --region
       interval CHROM:START-END
@@ -113,5 +114,4 @@ java -jar dist/vcfphased01.jar -r "chr1:1000-2000" -xp '1001,1010' in.list
 https://twitter.com/yokofakun/status/1148964221482414080
 
 ![https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg](https://pbs.twimg.com/media/D_Hwd2dXoAAzx8g.jpg)
-
 

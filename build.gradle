@@ -2217,7 +2217,7 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.vcfstats.VcfStats"
+        mainClass = "com.github.lindenb.jvarkit.tools.phased.VcfPhased01"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 

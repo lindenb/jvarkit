@@ -28,7 +28,9 @@ package com.github.lindenb.jvarkit.tools.phased;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -66,6 +68,7 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -106,7 +109,7 @@ END_DOC
 description="X10 Phased SVG to Scalar Vector Graphics (SVG)",
 keywords={"x10","phased","genotypes","svg"},
 creationDate="20190710",
-modificationDate="20190711",
+modificationDate="20230724",
 biostars=9462569,
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
@@ -120,9 +123,9 @@ public class VcfPhased01 extends Launcher {
 
 	@Parameter(names={"-r","--interval","--region"},description="interval CHROM:START-END",required=true)
 	private String intervalStr = null;
-	@Parameter(names={"-p","--pos","--highligth"},description="Highligth positions in the VCFs. (comma separated)")
+	@Parameter(names={"-p","--pos","--highligth"},description="Highligth positions in the VCFs. (existing file with one position per line or string comma separated)")
 	private String hihlight = "";
-	@Parameter(names={"-xp","--xpos","--extra-highligth"},description="Extra Highligth positions that are not always in the vcfs. (comma separated)")
+	@Parameter(names={"-xp","--xpos","--extra-highligth"},description="Extra Highligth positions that are not always in the vcfs. (existing file with one position per line or string comma separated)")
 	private String extrahihlight = "";
 	@Parameter(names={"-k","--knownGenes"},description=KnownGene.OPT_KNOWNGENE_DESC)
 	private String knownGeneUri=KnownGene.getDefaultUri();
@@ -138,20 +141,19 @@ public class VcfPhased01 extends Launcher {
 	
 	private class PhasedVcf
 		{
-		@SuppressWarnings("unused")
-		final Path path;
-		String sample;
-		final List<VariantContext> variants = new ArrayList<>(10_000);
+		final String sample;
+		final List<VariantContext> variants;
 		
-		PhasedVcf(final Path path)
+		PhasedVcf(final String sample, final List<VariantContext> variants)
 			{
-			this.path= path;
+			this.sample = sample;
+			this.variants = variants;
 			}
 		
 		  Element createTrack()
 		 	{
-			final Set<Integer> highlightpos= Arrays.stream(hihlight.split("[ ,;/]")).filter(S->!StringUtils.isBlank(S)).map(S->Integer.parseInt(S)).collect(Collectors.toCollection(HashSet::new));
-			final Set<Integer> extrahighlightpos= Arrays.stream(extrahihlight.split("[ ,;/]")).filter(S->!StringUtils.isBlank(S)).map(S->Integer.parseInt(S)).collect(Collectors.toCollection(HashSet::new));
+			final Set<Integer> highlightpos= readPositions(hihlight);
+			final Set<Integer> extrahighlightpos= readPositions(extrahihlight);
 			  
 			highlightpos.addAll(extrahighlightpos);
 			
@@ -181,13 +183,13 @@ public class VcfPhased01 extends Launcher {
 					{
 					final VariantContext ctxi = this.variants.get(i);
 					@SuppressWarnings("deprecation")
-					int psi = ctxi.getGenotype(0).getAttributeAsInt(X10_FORMAT_PS, -1);
+					final int psi = ctxi.getGenotype(this.sample).getAttributeAsInt(X10_FORMAT_PS, -1);
 					int j=i+1;
 					while(j<this.variants.size())
 						{
-						VariantContext ctxj = this.variants.get(j);
+						final VariantContext ctxj = this.variants.get(j);
 						@SuppressWarnings("deprecation")
-						int psj = ctxj.getGenotype(0).getAttributeAsInt(X10_FORMAT_PS, -1);
+						final int psj = ctxj.getGenotype(this.sample).getAttributeAsInt(X10_FORMAT_PS, -1);
 						if(psi!=psj) {
 							switch_haploblocks.add(ctxj.getStart());
 							break;
@@ -198,15 +200,36 @@ public class VcfPhased01 extends Launcher {
 					}
 				LOG.info("number transitions for haplo-blocks "+switch_haploblocks.size());
 				}
+			else
+				{
+				int i=0;
+				while(i< this.variants.size())
+					{
+					final VariantContext ctxi = this.variants.get(i);
+					final Genotype psi = ctxi.getGenotype(this.sample);
+					int j=i+1;
+					while(j<this.variants.size())
+						{
+						final VariantContext ctxj = this.variants.get(j);
+						final Genotype psj = ctxj.getGenotype(this.sample);
+						if(psi.isPhased()!=psj.isPhased()) {
+							switch_haploblocks.add(ctxj.getStart());
+							break;
+							}
+						j++;
+						}
+					i=j;
+					}
+				}
 			
 			int i=0;
 			boolean side_flip = true;
 			int block_start =  theInterval.getStart();
 			for(;;)
 				{
-				double block_x1 = positionToPixel(block_start);
-				double block_x2 = positionToPixel(i>=switch_haploblocks.size()?theInterval.getEnd():switch_haploblocks.get(i));
-				double block_width = 1+(block_x2-block_x1);
+				final double block_x1 = positionToPixel(block_start);
+				final double block_x2 = positionToPixel(i>=switch_haploblocks.size()?theInterval.getEnd():switch_haploblocks.get(i));
+				final double block_width = 1+(block_x2-block_x1);
 				side_flip=!side_flip;
 				
 				// phase left
@@ -246,7 +269,7 @@ public class VcfPhased01 extends Launcher {
 			// hightlight
 			for(final VariantContext ctx:this.variants) {
 				if(!highlightpos.contains(ctx.getStart())) continue;
-				Element rect = element("rect");
+				final Element rect = element("rect");
 				rect.setAttribute("x",fmt(positionToPixel(ctx.getStart())));
 				rect.setAttribute("y",String.valueOf(-5));
 				rect.setAttribute("width",fmt(1));
@@ -254,8 +277,7 @@ public class VcfPhased01 extends Launcher {
 				rect.setAttribute("class","highlight");
 				rect.appendChild(title(StringUtils.niceInt(ctx.getStart())));
 				g.appendChild(rect);
-
-			}
+				}
 
 
 
@@ -266,7 +288,7 @@ public class VcfPhased01 extends Launcher {
 				double x = positionToPixel(ctx.getStart());
 				
 				String title= ctx.getContig()+":"+ctx.getStart()+" "+ctx.getType().name()+" "+ctx.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/"));
-				final Genotype gt = ctx.getGenotype(0);
+				final Genotype gt = ctx.getGenotype(this.sample);
 				if(gt.isNoCall()) continue;
 				
 
@@ -348,17 +370,33 @@ public class VcfPhased01 extends Launcher {
 		 	}
 		
 		}
-	private double positionToPixel(int pos) {
+	
+	private Set<Integer> readPositions(final String higligth) {
+		if(StringUtils.isBlank(higligth)) {
+			return new HashSet<>();//mutable
+			}
+		final Path p = Paths.get(higligth);
+		if(Files.exists(p)) {
+			try {
+				return Files.readAllLines(p).stream().filter(L->!StringUtils.isBlank(L)).filter(L->!L.startsWith("#")).map(L->Integer.valueOf(L)).collect(Collectors.toSet());
+				}
+			catch(Throwable err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		return  Arrays.stream(higligth.split("[ ,;/]")).filter(S->!StringUtils.isBlank(S)).map(S->Integer.parseInt(S)).collect(Collectors.toCollection(HashSet::new));
+		}
+	
+	private double positionToPixel(final int pos) {
 		return sample_width*((pos-theInterval.getStart())/(double)theInterval.getLengthOnReference());
 	}
 	private void openPhasedVcf(final Path path) throws IOException {
-		final PhasedVcf phased = new PhasedVcf(path);
+		
 		try(final VCFReader vcfFileReader  = VCFReaderFactory.makeDefault().open(path,true)) {
 			final VCFHeader header = vcfFileReader.getHeader();
-			final List<String> samples = header.getSampleNamesInOrder();
-			if(samples.isEmpty()) throw new IOException("no sample in "+path);
-			if(samples.size()>1) throw new IOException("more than one sample in "+path);
-
+			if(!header.hasGenotypingData()) {
+				throw new IOException("No genotype data in "+path);
+				}
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			if(theDict==null) {
 				theDict = dict;
@@ -376,15 +414,15 @@ public class VcfPhased01 extends Launcher {
 						apply(this.intervalStr).
 						orElseThrow(IntervalParserFactory.exception(this.intervalStr));
 				}
-			phased.sample = samples.get(0);
-			phased.variants.addAll(vcfFileReader.query(this.theInterval).
-					stream().
-					collect(Collectors.toList()));
+			final List<VariantContext> variants = vcfFileReader.query(this.theInterval).
+				stream().
+				collect(Collectors.toList())
+				;
+			for(final String sn:header.getSampleNamesInOrder()) {
+				this.phasedVcfs.add(new PhasedVcf(sn, variants));
+				}
 			}
-		for(int i=0;i< phased.variants.size();i++) {
-			
-			}
-		this.phasedVcfs.add(phased);
+		
 		}
 	
 	private String fmt(double f) {
@@ -421,16 +459,16 @@ public class VcfPhased01 extends Launcher {
 			final DocumentBuilder db = dbf.newDocumentBuilder();
 			this.dom = db.newDocument();
 			
-			Element svgRoot = this.dom.createElementNS(SVG.NS, "svg");
-			svgRoot.setAttribute("style", "stroke-width:0.5");
+			final Element svgRoot = element("svg");
 			this.dom.appendChild(svgRoot);
 			svgRoot.appendChild(title("vcfphased01"));
 			
 			svgRoot.appendChild(title(theInterval.getContig()+":"+StringUtils.niceInt(theInterval.getStart())+"-"+StringUtils.niceInt(theInterval.getEnd())));
 			
-			Element style= element("style");
+			final Element style= element("style");
 			style.appendChild(text(
-					  ".frame {fill:none;stroke:darkgray;} "
+					"svg {stroke-width:0.5;} " 
+					+  ".frame {fill:none;stroke:darkgray;} "
 					+ ".phaseL {fill:#d5f4e6;stroke:lightray;} "
 					+ ".phaseM {fill:gainsboro;stroke:lightray;} "
 					+ ".phaseN {fill:#c6c6c6;stroke:lightray;} "
@@ -451,7 +489,7 @@ public class VcfPhased01 extends Launcher {
 					
 					));
 			svgRoot.appendChild(style);
-			Element main=element("g");
+			final Element main=element("g");
 			svgRoot.appendChild(main);
 
 			double y = margin_top;
@@ -465,7 +503,7 @@ public class VcfPhased01 extends Launcher {
 				}
 			
 			final Element mainTitle=element("text");
-			mainTitle.appendChild(text(theInterval.getContig()+":"+StringUtils.niceInt(theInterval.getStart())+"-"+StringUtils.niceInt(theInterval.getEnd())));
+			mainTitle.appendChild(text(theInterval.toNiceString()));
 			mainTitle.setAttribute("x", "5");
 			mainTitle.setAttribute("y", fmt(margin_top/2));
 			main.appendChild(mainTitle);
@@ -484,7 +522,6 @@ public class VcfPhased01 extends Launcher {
 						filter(K->theInterval.getContig().equals(convert.apply(K.getContig()))).
 						filter(K->CoordMath.overlaps(theInterval.getStart(), theInterval.getEnd(), K.getTxStart()+1,  K.getTxEnd())).
 						forEach(K->genes.add(K));
-
 					}
 				}
 			final double featureHeight=12;
@@ -496,14 +533,14 @@ public class VcfPhased01 extends Launcher {
 				double exonHeight=TRANSCRIPT_HEIGHT-5;
 				double midY=TRANSCRIPT_HEIGHT/2;
 		
-				Element g = element("g");
+				final Element g = element("g");
 				main.appendChild(g);
 				
 				g.setAttribute("transform", "translate("+margin_left+","+y+")");
 				
 				g.appendChild(title(kg.getName()));
 				
-				Element label = element("text");
+				final Element label = element("text");
 				label.setAttribute("x", fmt(-10));
 				label.setAttribute("y", fmt(featureHeight-featureHeight/2.0));
 				label.setAttribute("class", "kgname");
@@ -511,7 +548,7 @@ public class VcfPhased01 extends Launcher {
 				g.appendChild(label);
 				
 				/* transcript line */
-				Element line = element("line");
+				final Element line = element("line");
 				
 				line.setAttribute("class","kgtr");
 				line.setAttribute("x1",fmt(positionToPixel(trim.apply(kg.getTxStart()+1))));
@@ -526,7 +563,7 @@ public class VcfPhased01 extends Launcher {
 					{
 					if(!CoordMath.overlaps(theInterval.getStart(), theInterval.getEnd(), exon.getStart()+1, exon.getEnd())) continue;
 
-					Element r = element("rect");
+					final Element r = element("rect");
 					r.setAttribute("class","kgexon");
 					
 					r.setAttribute("x",fmt(positionToPixel(trim.apply(exon.getStart()+1))));

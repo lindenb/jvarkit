@@ -46,6 +46,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.tribble.gff.Gff3Feature;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 
 /**
  * URL supplier
@@ -224,6 +225,27 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 				StringUtils.escapeHttp(toUcsc.apply(ctx.getContig())) +
 				"&position=" + ctx.getStart()
 				));
+		}
+	
+	// Franklin
+	if(isGrch37()) {
+		if(ctx.hasAttribute(VCFConstants.SVTYPE)) {
+				final String svType = ctx.getAttributeAsString(VCFConstants.SVTYPE, "SV");
+				urls.add(new LabelledUrlImpl("genoox",
+						variantid,
+						"https://franklin.genoox.com/clinical-db/variant/sv/"+
+						StringUtils.escapeHttp(ctx.getContig()) + "-" + ctx.getStart()+"-"+ctx.getEnd()+"-"+svType
+						));
+			} else if(AcidNucleics.isATGC(ctx.getReference())) {
+				for(final Allele alt: ctx.getAlternateAlleles()) {
+					if(!AcidNucleics.isATGC(alt)) continue;
+					urls.add(new LabelledUrlImpl("genoox",
+							variantid,
+							"https://franklin.genoox.com/clinical-db/variant/snp/"+
+							StringUtils.escapeHttp(ctx.getContig()) + "-" + ctx.getStart()+"-"+ctx.getEnd()+"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
+							));
+				}
+			}
 		}
 	
 	// popgen
