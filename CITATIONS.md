@@ -16,6 +16,7 @@
  * The Mitoribosome. Methods in Molecular Biology. https://doi.org/10.1007/978-1-0716-3171-3 **Biostar84452**
  * N. Mamoozadeh, C. Goldsworthy, L. Miller, N. Peterson, M. Meek, Sources of coaster brook trout (Salvelinus fontinalis) revealed by genomic analysis of brook trout populations along Minnesota's shoreline with Lake Superior, Journal of Great Lakes Research, 2023, , ISSN 0380-1330, https://doi.org/10.1016/j.jglr.2023.06.005. (https://www.sciencedirect.com/science/article/pii/S0380133023001351) **VcfFilterJdk**
  * "Inferences of Local Genetic Adaptation from Palaeolithic Hunter Gatherers" Dean James Cornish . Thesis. https://discovery.ucl.ac.uk/id/eprint/10170497/1/Cornish_Thesis_MPhil.pdf **VcfAncestralAllele**
+ * Tretter, C., de Andrade Krätzig, N., Pecoraro, M. et al. Proteogenomic analysis reveals RNA as a source for tumor-agnostic neoantigen identification. Nat Commun 14, 4632 (2023). https://doi.org/10.1038/s41467-023-39570-7 **FindAllCoverageAtPosition**
 
 ## 2022
 
