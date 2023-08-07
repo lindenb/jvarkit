@@ -151,7 +151,8 @@ END_DOC
 description="Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
 keywords={"vcf","uorf"},
 creationDate="20190218",
-modificationDate="20200804"
+modificationDate="20200804",
+jvarkit_amalgamion = true
 )
 public class VcfScanUpstreamOrf extends OnePassVcfLauncher
 	{

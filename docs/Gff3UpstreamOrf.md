@@ -7,8 +7,13 @@ Takes a standard GFF3, scan the 5' UTRs and generate a GFF3 containing upstream-
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/gff3upstreamorf.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar gff3upstreamorf  [options] Files
+
 Usage: gff3upstreamorf [options] Files
   Options:
     --break-original-orf
@@ -23,7 +28,7 @@ Usage: gff3upstreamorf [options] Files
       Output file. Optional . Default: stdout
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --strength
       only accept events that are greater or equal to this Kozak strength.
       Default: nil
@@ -41,23 +46,6 @@ Usage: gff3upstreamorf [options] Files
  * uorf
  * uorf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew gff3upstreamorf
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -108,4 +96,5 @@ Wikipedia:
 ```
 
 note to self: test ENSG00000141736 https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1003529
+
 

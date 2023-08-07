@@ -92,7 +92,8 @@ END_DOC
 description="Takes a standard GFF3, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
 keywords={"gff","gff3","uorf","uorf"},
 creationDate="20220724",
-modificationDate="20220725"
+modificationDate="20220725",
+jvarkit_amalgamion = true
 )
 public class Gff3UpstreamOrf extends Launcher
 	{

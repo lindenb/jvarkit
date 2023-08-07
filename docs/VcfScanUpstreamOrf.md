@@ -7,7 +7,13 @@ Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGeneti
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfscanupstreamorf  [options] Files
+
 Usage: vcfscanupstreamorf [options] Files
   Options:
     --archive
@@ -57,7 +63,7 @@ Usage: vcfscanupstreamorf [options] Files
       Output file. Optional . Default: stdout
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --strong
       only accept events that are related to 'Strong' Kozak pattern.
       Default: false
@@ -75,23 +81,6 @@ Usage: vcfscanupstreamorf [options] Files
  * vcf
  * uorf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfscanupstreamorf
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -193,4 +182,5 @@ chr1	1026923	1027554	ENST00000379320.1.uorf	100	-	1027028	1027400	0,0,255	1	631	
 chr1	1026923	1041507	ENST00000379319.1.uorf	100	-	1041338	1041410	0,0,255	1	14584	0
 (...)
 ```
+
 

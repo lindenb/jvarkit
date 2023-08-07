@@ -179,6 +179,8 @@ import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
 import com.github.lindenb.jvarkit.tools.textbam.TextBam;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
+import com.github.lindenb.jvarkit.tools.upstreamorf.Gff3UpstreamOrf;
+import com.github.lindenb.jvarkit.tools.upstreamorf.VcfScanUpstreamOrf;
 import com.github.lindenb.jvarkit.tools.validatorserver.CNVValidatorServer;
 import com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervals;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
@@ -586,6 +588,7 @@ public class JvarkitCentral {
 		command(FindAllCoverageAtPosition.class);
 		command(GtfToBed.class);
 		command(GtexRsToQTL.class);
+		command(Gff3UpstreamOrf.class);
 		command(GoUtils.class);
 		command(GroupByGene.class);
 		command(Gtf2Xml.class);
@@ -665,6 +668,7 @@ public class JvarkitCentral {
 		command(VcfTail.class);
 		command(VcfServer.class);
 		command(VcfRegulomeDB.class);
+		command(VcfScanUpstreamOrf.class);
 		command(VCFTrios.class);
 		command(VcfBurdenMAF.class);
 		command(VcfPeekAf.class);
