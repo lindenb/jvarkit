@@ -35,6 +35,7 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -44,15 +45,24 @@ import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.namespace.QName;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.events.Attribute;
+import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
 
-import org.uniprot.Entry;
-import org.uniprot.FeatureType;
-import org.uniprot.LocationType;
+import org.apache.commons.lang.StringUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -104,8 +114,6 @@ END_DOC
 public class MapUniProtFeatures extends Launcher
 	{
 	private static final String UNIPROT_NS="http://uniprot.org/uniprot";
-	@SuppressWarnings("unused")
-	private org.uniprot.ObjectFactory forceJavacCompiler=null;
 	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private Map<String,List<KnownGene>> prot2genes=new HashMap<String,List<KnownGene>>();
@@ -186,7 +194,51 @@ public class MapUniProtFeatures extends Launcher
 	private File OUT=null;
 
 	
-	
+	private void recursiveBuildXml(final XMLEventReader xr,Document dom,Node root, boolean append) throws XMLStreamException{
+		while(xr.hasNext()) {
+			XMLEvent evt = xr.nextEvent();
+			switch(evt.getEventType()) {
+				case XMLEvent.START_ELEMENT:
+					final StartElement E = evt.asStartElement();
+					final String lclName = E.getName().getLocalPart();
+					final Element n;
+					if(append) {
+						if(lclName.equals("reference")) append = false;
+						else if(lclName.equals("dbReference")) append = false;
+						else if(lclName.equals("proteinExistence")) append = false;
+						else if(lclName.equals("keyword")) append = false;
+						else if(lclName.equals("evidence")) append = false;
+						else if(lclName.equals("sequence")) append = false;
+						}
+					
+					if(append) {
+						n = dom.createElement(lclName);
+						root.appendChild(n);
+						
+						for(Iterator<?> iter =E.getAttributes();iter.hasNext();) {
+							Attribute att =(Attribute)iter.next();
+							n.setAttribute(att.getName().getLocalPart(), att.getValue());
+							}
+						}
+					else
+						{
+						n = null;
+						}
+					recursiveBuildXml(xr,dom,n, append);
+					return;
+				case XMLEvent.END_ELEMENT:
+					return;
+				case XMLEvent.END_DOCUMENT:
+					throw new IllegalStateException();
+				case XMLEvent.CDATA:
+				case XMLEvent.CHARACTERS:
+					if(append) root.appendChild(dom.createTextNode(evt.asCharacters().getData()));
+					break;
+				default:
+					break;
+				}
+		}
+	}
 	
 	@Override
 	public int doWork(List<String> args)
@@ -279,7 +331,12 @@ public class MapUniProtFeatures extends Launcher
 			
 			Reader fr=IOUtils.openURIForBufferedReading(UNIPROT);
 			XMLEventReader rx=xmlInputFactory.createXMLEventReader(fr);
-		
+			final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+			dbf.setNamespaceAware(false);
+			final DocumentBuilder db = dbf.newDocumentBuilder();
+			
+			final XPath xpath = XPathFactory.newInstance().newXPath();
+			
 			final QName uEntry=new QName(UNIPROT_NS,"entry");
 			GenomicSequence genomic=null;
 			while(rx.hasNext())
@@ -291,17 +348,18 @@ public class MapUniProtFeatures extends Launcher
 					rx.next();
 					continue;
 					}
-				JAXBElement<Entry> jaxbElement=uniprotUnmarshaller.unmarshal(rx, Entry.class);
-				Entry entry= jaxbElement.getValue();
-				
-				
+				final Document dom = db.newDocument();
+				Element uniprotNode = dom.createElement("uniprot");
+				dom.appendChild(uniprotNode);
+				recursiveBuildXml(rx, dom, uniprotNode,true);
 
-				
-				if(entry.getFeature().isEmpty()) continue;
+				if(!((Boolean)xpath.evaluate("/uniprot/entry/feature",dom,XPathConstants.BOOLEAN))) continue;
 				List<KnownGene> genes=null;
 				
-				for(String acn:entry.getAccession())
+				NodeList nodeList= (NodeList)xpath.evaluate("/uniprot/entry/accession",dom,XPathConstants.NODESET);
+				for(int i=0;i< nodeList.getLength();i++)
 					{
+					String acn = nodeList.item(i).getTextContent();
 					genes=prot2genes.get(acn);
 					if(genes!=null) break;
 					}
@@ -344,29 +402,38 @@ public class MapUniProtFeatures extends Launcher
 						}
 					if(sameSequenceLength==0) continue;
 					
-					for(FeatureType feat:entry.getFeature())
+					nodeList= (NodeList)xpath.evaluate("/uniprot/entry/feature",dom,XPathConstants.NODESET);
+					for(int i=0;i< nodeList.getLength();i++)
 						{
-						if(feat.getType()==null || feat.getType().isEmpty()) continue;
-						LocationType locType=feat.getLocation();
-						if(locType==null) continue;
+						Element feat = (Element)nodeList.item(i);
+						if(StringUtils.isBlank(feat.getAttribute("type"))) continue;
+						Element location =(Element)xpath.evaluate("location",feat,XPathConstants.NODE);
+						if(location==null) continue;
 						int pepStart,pepEnd;
-						if(locType.getPosition()!=null && locType.getPosition().getPosition()!=null)
+						Element position = (Element)xpath.evaluate("position",location,XPathConstants.NODE);
+						if(position!=null && !StringUtils.isBlank(position.getAttribute("position")))
 							{
-							pepEnd=locType.getPosition().getPosition().intValue();
+							pepEnd= Integer.parseInt(position.getAttribute("position"));
 							pepStart=pepEnd-1;
-							}
-						else if(locType.getBegin()!=null &&
-								locType.getEnd()!=null &&
-								locType.getBegin().getPosition()!=null &&
-								locType.getEnd().getPosition()!=null )
-							{
-							pepStart=locType.getBegin().getPosition().intValue()-1;
-							pepEnd=locType.getEnd().getPosition().intValue();
 							}
 						else
 							{
-							continue;
+							Element begin = (Element)xpath.evaluate("begin",location,XPathConstants.NODE);
+							Element end = (Element)xpath.evaluate("end",location,XPathConstants.NODE);
+							if(begin!=null && end!=null && 
+									begin.hasAttribute("position") &&
+									end.hasAttribute("position")
+									)
+								{
+								pepStart= Integer.parseInt(begin.getAttribute("position"))-1;
+								pepEnd= Integer.parseInt(end.getAttribute("position"))-1;
+								}
+							else
+								{
+								continue;
+								}
 							}
+						
 						if(pepEnd>=sameSequenceLength) continue;
 						
 						List<Integer> genomicPos=new ArrayList<Integer>();
@@ -434,7 +501,7 @@ public class MapUniProtFeatures extends Launcher
 			mappedFeatures.cleanup();
 			*/
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			err.printStackTrace();
 			if(OUT!=null) OUT.deleteOnExit();
@@ -449,7 +516,7 @@ public class MapUniProtFeatures extends Launcher
 		return 0;
 		}
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new MapUniProtFeatures().instanceMainWithExit(args);
 		}

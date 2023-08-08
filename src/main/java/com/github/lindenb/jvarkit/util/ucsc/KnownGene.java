@@ -52,7 +52,7 @@ import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 
-
+@Deprecated
 public class KnownGene implements Iterable<Integer>,Feature
 	{
 	public static final String OPT_KNOWNGENE_DESC=

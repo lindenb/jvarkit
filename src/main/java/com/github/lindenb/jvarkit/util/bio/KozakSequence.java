@@ -35,7 +35,11 @@ public class KozakSequence
 	extends AbstractCharSequence
 	{
 	public enum Strength {
-		Strong,Moderate,Weak,nil;
+		// keep that order please
+		Strong,
+		Moderate,
+		Weak,
+		nil;
 		}
 	
 	/* kozak consensus length */

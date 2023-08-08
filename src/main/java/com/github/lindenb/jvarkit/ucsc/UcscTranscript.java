@@ -26,377 +26,552 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.ucsc;
 
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.Feature;
 import htsjdk.tribble.annotation.Strand;
 
-public class UcscTranscript implements Locatable {
-	private String contig;
-	private int txStart;
-	private int txEnd;
-	private int cdsStart;
-	private int cdsEnd;
-	private char strand;
-	private int[] exonStarts;
-	private int[] exonEnds;
-	private String name;
-	
-	public UcscTranscript(final String s) {
-		this(CharSplitter.TAB.split(s));
-		}
-	
-	public UcscTranscript(final String[] tokens) {
+/**
+ * Describe a UCSC transcript in the genepred format
+ * @author lindenb
+ *
+ */
+public interface UcscTranscript extends Feature {
+/** get Transcript Id */
+public String getTranscriptId();
+public Strand getStrand();
+public boolean isPositiveStrand();
+public boolean isNegativeStrand();
+public int getTxStart();
+public int getTxEnd();
 
-		}
-	private abstract class Coordinates {
-		private final int[] genomicIndexes0;
-		Coordinates(List<Locatable> L) {
-			genomicIndexes0 = new int[L.stream().mapToInt(X->X.getLengthOnReference()).sum()];
-			int i=0;
-			Collections.sort(L,(A,B)->Integer.compare(A.getStart(), B.getStart()));
-			for(Locatable loc: L) {
-				for(int x=loc.getStart();x<=loc.getEnd();++x) {
-					genomicIndexes0[i++] = x-1;
-					}
-				}
+/** return CDS start or throw an exception if it is not a protein coding transcript */
+public int getCdsStart();
+/** return CDS end or throw an exception if it is not a protein coding transcript */
+public int getCdsEnd();
+
+
+/** return sum of length on reference of exons */
+public default int getTranscriptLength() {
+	return getExons().stream().mapToInt(E->E.getLengthOnReference()).sum();
+	}
+/** get TxStart */
+@Override
+public default int getStart() {
+	return getTxStart();
+	}
+
+/** get TxEnd */
+@Override
+public default  int getEnd() {
+	return getTxEnd();
+	}
+/** get count of exons */
+public int getExonCount();
+
+public default boolean hasIntrons() {
+	return this.getExonCount() > 1;
+}
+
+public default int getIntronCount() {
+	return Math.max(0, getExonCount()-1);
+	}
+
+public int getExonStart(int idx);
+public int getExonEnd(int idx);
+
+
+public boolean isProteinCoding();
+
+public default Intron getIntron(int idx) {
+	return new Intron(this,idx);
+	}
+
+public default Exon getExon(int idx) {
+	return new Exon(this,idx);
+	}
+
+public default List<Exon> getExons() {
+	return new AbstractList<Exon>() {
+		@Override
+		public Exon get(int idx) {
+			return getExon(idx);
 			}
-		public int convertToGenomicIndex0(int mRna0) {
-			if(isPositiveStrand()) {
-				return genomicIndexes0[mRna0];
-				}
-			else
-				{
-				return genomicIndexes0[(genomicIndexes0.length-1) - mRna0];
-				}
-			}
+		@Override
 		public int size() {
-			return genomicIndexes0.length;
+			return getExonCount();
 			}
-		}
-	/** ===================================================================*/
-	public abstract class Component implements Locatable {
-		public UcscTranscript getTranscript() {
-			return UcscTranscript.this;
-			}
-		
-		@Override
-		public int hashCode() {
-			int i = getContig().hashCode();
-			i= i*31 + getTranscript().getName().hashCode();
-			i= i*31 + Integer.hashCode(getStart());
-			i= i*31 + Integer.hashCode(getEnd());
-			return i;
-			}
-		
-		public abstract String getName();
-		
-		public Strand getStrand() {
-			return UcscTranscript.this.getStrand();
-			}
-		
-		public boolean isPositiveStrand() {
-			return UcscTranscript.this.isPositiveStrand();
-		}
-		
-		public boolean isNegativeStrand() {
-			return UcscTranscript.this.isNegativeStrand();
-		}
-		
-		@Override
-		public String getContig() {
-			return getTranscript().getContig();
-			}
-		@Override
-		public String toString() {
-			return getClass().getSimpleName()+":"+getTranscript().getName()+":"+getContig()+":"+getStart()+"-"+getEnd();
-			}	
-		}
-	/** ===================================================================*/
-	public class Exon extends Component {
-		private int exon_index;
-		Exon(int exon_index) {
-			this.exon_index = exon_index;
-			}
-		
-		@Override
-		public boolean equals(Object obj) {
-			if(this==obj) return true;
-			if(obj==null || !(obj instanceof Exon)) return false;
-			final Exon o = Exon.class.cast(obj);
-			return exon_index==o.exon_index &&
-					contigsMatch(o) && 
-					getTranscript().getName().equals(o.getTranscript().getName());
-			}
-		
-		@Override
-		public int getStart() {
-			return UcscTranscript.this.exonStarts[this.exon_index] +1 ;
-			}
-		@Override
-		public int getEnd() {
-			return UcscTranscript.this.exonEnds[this.exon_index] ;
-			}
-		@Override
-		public String getName() {
-			return getTranscript().getName()+".Exon"+(isPositiveStrand()?exon_index+1:getExonCount()-exon_index);
-			}
-		}
-	/** ===================================================================*/
-	public class Intron extends Component {
-		private int intron_index;
-		private Intron(int intron_index) {
-			this.intron_index = intron_index;
-			}
-		@Override
-		public int getStart() {
-			return UcscTranscript.this.exonEnds[this.intron_index]  ;
-			}
-		@Override
-		public int getEnd() {
-			return UcscTranscript.this.exonStarts[this.intron_index+1] ;
-			}
-		@Override
-		public String getName() {
-			return getTranscript().getName()+".Intron"+(isPositiveStrand()?intron_index+1:getIntronCount()-intron_index);
-			}
-		
-		@Override
-		public boolean equals(Object obj) {
-			if(this==obj) return true;
-			if(obj==null || !(obj instanceof Intron)) return false;
-			final Intron o = Intron.class.cast(obj);
-			return intron_index==o.intron_index && 
-					contigsMatch(o) && 
-					getTranscript().getName().equals(o.getTranscript().getName());
-			}
-		}
-	/** ===================================================================*/
-	public abstract class ExonComponent extends Component {
-		private final Exon exon;
-		private ExonComponent(final Exon exon) {
-			this.exon = exon;
-			}
-		public final Exon getExon() {
-			return this.exon;
-			}
-		@Override
-		public String getName() {
-			return getTranscript().getName()+"."+getClass().getSimpleName() + "."+getStart()+"-"+getEnd();
-			}
-		}
-	
-	/** ===================================================================*/
+		};
+	}
 
-	public class CDS extends ExonComponent {
-		private CDS(final Exon exon) {
-			super(exon);
-			}
-		@Override
-		public int getStart() {
-			return Math.max(getExon().getStart(), cdsStart+1);
-			}
-		@Override
-		public int getEnd() {
-			return Math.min(getExon().getEnd(), cdsEnd);
-			}
-		@Override
-		public boolean equals(Object obj) {
-			if(this==obj) return true;
-			if(obj==null || !(obj instanceof CDS)) return false;
-			final CDS o = CDS.class.cast(obj);
-			return getStart()==o.getStart() && 
-					getEnd()==o.getEnd() && 
-					contigsMatch(o) && 
-					getTranscript().getName().equals(o.getTranscript().getName());
-			}
-		}
-	/** ===================================================================*/
-	public abstract class UTR extends ExonComponent {
-		protected UTR(final Exon exon) {
-			super(exon);
-			}
-		
-		}
-	/** ===================================================================*/
-	public class UTR5 extends UTR {
-		private UTR5(final Exon exon) {
-			super(exon);
-			}
-		@Override
-		public int getStart() {
-			if(isPositiveStrand()) {
-				return getExon().getStart();
-				}
-			else
-				{
-				return Math.max(getExon().getEnd(), cdsEnd);
-				}
-			}
-		@Override
-		public int getEnd() {
-			if(isPositiveStrand()) {
-				return Math.min(getExon().getEnd(), cdsStart /* no +1, base before */);
-				}
-			else
-				{
-				return getExon().getEnd();
-				}
-			}
-		}
-	/** ===================================================================*/
-	public class UTR3 extends UTR {
-		private UTR3(final Exon exon) {
-			super(exon);
-			}
-		@Override
-		public int getStart() {
-			if(isPositiveStrand()) {
-				return Math.max(getExon().getStart(), cdsEnd);
-				}
-			else
-				{
-				return getExon().getStart();
-				}
-			}
-		@Override
-		public int getEnd() {
-			if(isPositiveStrand()) {
-				return getExon().getEnd();
-				}
-			else
-				{
-				return Math.min(getExon().getEnd(), cdsStart /* no +1, base before */);
-				}
-			}
 
+
+public default List<Intron> getIntrons() {
+	if(!hasIntrons()) return Collections.emptyList();
+	return new AbstractList<Intron>() {
+		@Override
+		public Intron get(int idx) {
+			return getIntron(idx);
+			}
+		@Override
+		public int size() {
+			return getIntronCount();
+			}
+		};
+	}
+
+public default List<CDS> getCDSs() {
+	if(!isProteinCoding()) Collections.emptyList();
+	return getExons().stream().
+		filter(EX->CoordMath.overlaps(
+				EX.getStart(), EX.getEnd(),
+				getCdsStart(), getCdsEnd()
+				)).
+		map(EX->new CDS(EX)).
+		collect(Collectors.toList());
+	}
+
+
+
+
+public abstract class Component implements Locatable {
+	public abstract UcscTranscript getTranscript();
+	
+	@Override
+	public int hashCode() {
+		int i = getContig().hashCode();
+		i= i*31 + getTranscript().getTranscriptId().hashCode();
+		i= i*31 + Integer.hashCode(getStart());
+		i= i*31 + Integer.hashCode(getEnd());
+		return i;
 		}
-	/** ===================================================================*/
 	
 	
+	public boolean containsGenomicLoc1(int pos1) {
+		return getStart() <= pos1 && pos1 <= getEnd();
+	}
+	
+	public abstract String getName();
 	
 	public Strand getStrand() {
-		return Strand.decode(this.strand);
+		return getTranscript().getStrand();
 		}
 	
 	public boolean isPositiveStrand() {
-		return this.strand=='+';
-	}
+		return getTranscript().isPositiveStrand();
+		}
 	
 	public boolean isNegativeStrand() {
-		return this.strand=='-';
-	}
+		return getTranscript().isNegativeStrand();
+		}
 	
 	@Override
 	public String getContig() {
-		return this.contig;
+		return getTranscript().getContig();
+		}
+	@Override
+	public String toString() {
+		return getClass().getSimpleName()+":"+getTranscript().getTranscriptId()+":"+getContig()+":"+getStart()+"-"+getEnd();
+		}
+	
+	public Interval toInterval() {
+		return new Interval(getContig(), getStart(), getEnd(), isNegativeStrand(), getName());
+		}
+	}
+
+
+ public static class RNA<T extends Component> extends AbstractCharSequence  {
+	protected final List<T> delegate;
+	private final UcscTranscript owner;
+	private final int length_;
+	private final CharSequence chromosome;
+	public RNA(final UcscTranscript owner,final List<T> components, final CharSequence chromosome) {
+		this.owner = owner;
+		this.delegate = components;
+		this.length_ = this.delegate.stream().mapToInt(R->R.getLengthOnReference()).sum();
+		this.chromosome = chromosome;
+		}
+	public boolean isPositiveStrand() {
+		return owner.isPositiveStrand();
+		}
+	
+	public Interval toInterval() {
+		return new Interval(owner.getContig(),
+				delegate.stream().mapToInt(R->R.getStart()).min().getAsInt(),	
+				delegate.stream().mapToInt(R->R.getEnd()).max().getAsInt()	
+			);
+		}
+	@Override
+	public int length() {
+		return length_;
+		}
+	
+	@Override
+	public char charAt(int mRNApos0) {
+		final int genomic1 = toGenomic1(mRNApos0);
+		char c = this.chromosome.charAt(genomic1-1);
+		c = Character.toUpperCase(c);
+		return isPositiveStrand()?c:AcidNucleics.complement(c);
+		}
+	
+	public int toGenomic1(int mRNApos0) {
+		if(isPositiveStrand()) {
+			for(int i=0;i< delegate.size();i++) {
+				final T t = delegate.get(i);
+				if(mRNApos0 > t.getLengthOnReference()) {
+					mRNApos0 -= t.getLengthOnReference();
+					continue;
+					}
+				return t.getStart() + mRNApos0;
+				}
+			}
+		else
+			{
+			for(int i= delegate.size()-1;i>=0;i--) {
+				final T t = delegate.get(i);
+				if(mRNApos0 > t.getLengthOnReference()) {
+					mRNApos0 -= t.getLengthOnReference();
+					continue;
+					}
+				return t.getEnd() - mRNApos0;
+				}
+			}
+		throw new IndexOutOfBoundsException("0 < mRNApos0="+mRNApos0+" <= " + length() );
+		}
+	
+	
+	
+	public boolean containGenomicPos(int genomicPos) {
+		return this.delegate.stream().anyMatch(P->P.getStart()<=genomicPos && genomicPos <= P.getEnd());
+		}
+	}
+
+/************************************************************************
+ * 
+ * Exon
+ *
+ */
+public class Exon extends Component {
+	private final UcscTranscript owner;
+	private final int exon_index;
+	Exon(final UcscTranscript owner,int exon_index) {
+		this.owner = owner;
+		this.exon_index = exon_index;
+		}
+	
+	@Override
+	public UcscTranscript getTranscript() {
+		return this.owner;
+		}
+	
+	@Override
+	public boolean equals(final Object obj) {
+		if(this==obj) return true;
+		if(obj==null || !(obj instanceof Exon)) return false;
+		final Exon o = Exon.class.cast(obj);
+		return exon_index == o.exon_index &&
+				contigsMatch(o) &&
+				getTranscript().getTranscriptId().equals(o.getTranscript().getTranscriptId());
+		}
+	
+	/** return 1-based exon index , according to strand */
+	public int getHumanIndex() {
+		return isPositiveStrand()?exon_index+1:getTranscript().getExonCount()-exon_index;
 		}
 	
 	@Override
 	public int getStart() {
-		return getTxStart();
+		return getTranscript().getExonStart(this.exon_index);
 		}
-	
 	@Override
 	public int getEnd() {
-		return getTxEnd();
+		return getTranscript().getExonEnd(this.exon_index);
 		}
-	
-	public boolean isProteinCoding() {
-		return this.cdsStart < this.cdsEnd;
-		}
-	
-	public OptionalInt getCdsStart() {
-		return isProteinCoding()?OptionalInt.of(this.cdsStart+1):OptionalInt.empty();
-		}
-	
-	public OptionalInt getCdsEnd() {
-		return isProteinCoding()?OptionalInt.of(this.cdsEnd):OptionalInt.empty();
-		}
-
-	
-	
+	@Override
 	public String getName() {
-		return name;
-		}
-	
-	@Override
-	public int hashCode() {
-		int i = getName().hashCode();
-		i= i*31 + getContig().hashCode();
-		i= i*31 + Integer.hashCode(txStart);
-		i= i*31 + Integer.hashCode(txEnd);
-		return i;
-		}
-	
-	public int getTxStart() {
-		return txStart+1;
-		}
-	public int getTxEnd() {
-		return txEnd;
-		}
-	
-	
-	public int getIntronCount() {
-		return Math.max(0, getExonCount()-1);
-		}
-	
-	public int getExonCount() {
-		return this.exonStarts.length;
-		}
-	
-	public Intron getIntron(int idx) {
-		return new Intron(idx);
-		}
-	
-	public Exon getExon(int idx) {
-		return new Exon(idx);
-		}
-	
-	public List<Exon> getExons() {
-		return new AbstractList<Exon>() {
-			@Override
-			public Exon get(int idx) {
-				return getExon(idx);
-				}
-			@Override
-			public int size() {
-				return getExonCount();
-				}
-			};
-		}
-	public List<Intron> getIntrons() {
-		if(getIntronCount()==0) return Collections.emptyList();
-		return new AbstractList<Intron>() {
-			@Override
-			public Intron get(int idx) {
-				return getIntron(idx);
-				}
-			@Override
-			public int size() {
-				return getIntronCount();
-				}
-			};
-		}
-	
-	public List<CDS> getCDSs() {
-		if(!isProteinCoding()) return Collections.emptyList();
-		return getExons().stream().
-				filter(EX->CoordMath.overlaps(EX.getStart(), EX.getEnd(), this.cdsStart+1, this.cdsEnd)).
-				map(EX->new CDS(EX)).
-				collect(Collectors.toList());
-		}
-
-	
-	@Override
-	public String toString() {
-		StringBuilder sb= new StringBuilder();
-		return sb.toString();
+		return getTranscript().getTranscriptId()+".Exon"+ getHumanIndex();
 		}
 	}
+
+
+
+/************************************************************************
+ * 
+ * Intron
+ *
+ */
+public class Intron extends Component {
+	private final UcscTranscript owner;
+	private final int intron_index;
+	private Intron(final UcscTranscript owner,int intron_index) {
+		this.owner = owner;
+		this.intron_index = intron_index;
+		}
+	
+	@Override
+	public UcscTranscript getTranscript() {
+		return this.owner;
+		}
+
+	/** return 1-based intron index , according to strand */
+	public int getHumanIndex() {
+		return isPositiveStrand()?intron_index+1:getTranscript().getIntronCount()-intron_index;
+		}
+	
+	@Override
+	public int getStart() {
+		return getTranscript().getExonEnd(this.intron_index) +1;
+		}
+	@Override
+	public int getEnd() {
+		return getTranscript().getExonStart(this.intron_index+1) -1;
+		}
+	@Override
+	public String getName() {
+		return getTranscript().getTranscriptId()+".Intron"+getHumanIndex();
+		}
+	
+	@Override
+	public boolean equals(final Object obj) {
+		if(this==obj) return true;
+		if(obj==null || !(obj instanceof Intron)) return false;
+		final Intron o = Intron.class.cast(obj);
+		return intron_index==o.intron_index && 
+				contigsMatch(o) && 
+				getTranscript().getTranscriptId().equals(o.getTranscript().getTranscriptId());
+		}
+	/** get Surrounding exons */
+	public Exon[] getEnclosingExons() {
+		return new Exon[] {
+				getTranscript().getExon(this.intron_index),
+				getTranscript().getExon(this.intron_index+1),
+			};
+		}
+	}
+
+/** ===================================================================*/
+public abstract class ExonComponent extends Component {
+	private final Exon exon;
+	private ExonComponent(final Exon exon) {
+		this.exon = exon;
+		}
+	
+	@Override
+	public UcscTranscript getTranscript() {
+		return this.exon.getTranscript();
+		}
+	
+	public final Exon getExon() {
+		return this.exon;
+		}
+	@Override
+	public String getName() {
+		return getTranscript().getTranscriptId()+"."+getClass().getSimpleName() + "."+getStart()+"-"+getEnd();
+		}
+	}
+
+
+
+public class CDS extends ExonComponent {
+	private CDS(final Exon exon) {
+		super(exon);
+		}
+	@Override
+	public int getStart() {
+		return Math.max(
+			getExon().getStart(),
+			getTranscript().getCdsStart()
+			);
+		}
+	@Override
+	public int getEnd() {
+		return Math.min(
+			getExon().getEnd(),
+			getTranscript().getCdsEnd()
+			);
+		}
+	@Override
+	public boolean equals(Object obj) {
+		if(this==obj) return true;
+		if(obj==null || !(obj instanceof CDS)) return false;
+		final CDS o = CDS.class.cast(obj);
+		return getStart()==o.getStart() && 
+				getEnd()==o.getEnd() && 
+				contigsMatch(o) && 
+				getTranscript().getTranscriptId().equals(o.getTranscript().getTranscriptId());
+		}
+	}
+
+
+public default boolean hasUTR5() {
+	if(!isProteinCoding()) return false;
+	if(isPositiveStrand()) {
+		return getTxStart() < getCdsStart();
+		}
+	else
+		{
+		return getCdsEnd() < getTxEnd();
+		}
+	}
+
+
+
+public default List<UTR5> getUTR5() {
+	if(!hasUTR5()) return Collections.emptyList();
+	final List<UTR5> L = new ArrayList<>();
+	if(isPositiveStrand()) {
+		for(int i=0;i< getExonCount();i++) {
+			final Exon ex = getExon(i);
+			if(ex.getStart() >= getCdsStart()) break;
+			L.add(new UTR5(ex));
+			}
+		}
+	else
+		{
+		for(int i=0;i< getExonCount();i++) {
+			final Exon ex = getExon(i);
+			if(ex.getEnd() <= getCdsEnd()) continue;
+			L.add(new UTR5(ex));
+			}
+		}
+	return L;
+	}
+
+/** ===================================================================*/
+public abstract class UTR extends ExonComponent {
+	protected UTR(final Exon exon) {
+		super(exon);
+		}
+	}
+/** ===================================================================*/
+public class UTR5 extends UTR {
+	private UTR5(final Exon exon) {
+		super(exon);
+		}
+	@Override
+	public int getStart() {
+		if(isPositiveStrand()) {
+			return getExon().getStart();
+			}
+		else
+			{
+			return Math.max(
+					getExon().getEnd(),
+					getTranscript().getCdsEnd()
+					);
+			}
+		}
+	@Override
+	public int getEnd() {
+		if(isPositiveStrand()) {
+			return Math.min(
+				getExon().getEnd(),
+				getTranscript().getCdsStart() -1
+				);
+			}
+		else
+			{
+			return getExon().getEnd();
+			}
+		}
+	}
+/** ===================================================================*/
+public class UTR3 extends UTR {
+	private UTR3(final Exon exon) {
+		super(exon);
+		}
+	@Override
+	public int getStart() {
+		if(isPositiveStrand()) {
+			return Math.max(
+				getExon().getStart(),
+				getTranscript().getCdsEnd()
+				);
+			}
+		else
+			{
+			return getExon().getStart();
+			}
+		}
+	@Override
+	public int getEnd() {
+		if(isPositiveStrand()) {
+			return getExon().getEnd();
+			}
+		else
+			{
+			return Math.min(
+				getExon().getEnd(),
+				getTranscript().getCdsStart() -1
+				);
+			}
+		}
+
+	}
+/** ===================================================================*/
+/** ===================================================================*/
+public abstract class Codon extends Component {
+	private final UcscTranscript owner;
+	private final int indexes[]=new int[3];
+	protected Codon(final UcscTranscript owner,int pos1) {
+		this.owner = owner;
+		if(!owner.isProteinCoding()) throw new IllegalArgumentException("Not a protein coding transcript");
+		if(isPositiveStrand()) {
+			for(int i=0;i< owner.getExonCount();i++) {
+				Exon ex = owner.getExon(i);
+				if(!ex.containsGenomicLoc1(pos1)) continue;
+				indexes[0] = pos1;
+				
+				}
+			}
+		else
+			{
+			
+			}
+		}
+	@Override
+	public UcscTranscript getTranscript() {
+		return owner;
+		}
+	@Override
+	public int getStart() {
+		return 0;
+		}
+	@Override
+	public int getEnd() {
+		return 0;
+		}
+	}
+/** ===================================================================*/
+public class StartCodon extends Codon {
+	private StartCodon(final UcscTranscript owner) {
+		super(owner,owner.getCdsStart());
+		}
+	@Override
+	public String getName() {
+		return getTranscript().getTranscriptId()+".start_codon";
+		}
+	}
+/** ===================================================================*/
+public class StopCodon extends Codon {
+	private StopCodon(final UcscTranscript owner) {
+		super(owner,owner.getCdsEnd());
+		}
+	
+	@Override
+	public String getName() {
+		return getTranscript().getTranscriptId()+".stop_codon";
+		}
+	}
+
+
+}
