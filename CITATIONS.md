@@ -17,6 +17,7 @@
  * N. Mamoozadeh, C. Goldsworthy, L. Miller, N. Peterson, M. Meek, Sources of coaster brook trout (Salvelinus fontinalis) revealed by genomic analysis of brook trout populations along Minnesota's shoreline with Lake Superior, Journal of Great Lakes Research, 2023, , ISSN 0380-1330, https://doi.org/10.1016/j.jglr.2023.06.005. (https://www.sciencedirect.com/science/article/pii/S0380133023001351) **VcfFilterJdk**
  * "Inferences of Local Genetic Adaptation from Palaeolithic Hunter Gatherers" Dean James Cornish . Thesis. https://discovery.ucl.ac.uk/id/eprint/10170497/1/Cornish_Thesis_MPhil.pdf **VcfAncestralAllele**
  * Tretter, C., de Andrade Krätzig, N., Pecoraro, M. et al. Proteogenomic analysis reveals RNA as a source for tumor-agnostic neoantigen identification. Nat Commun 14, 4632 (2023). https://doi.org/10.1038/s41467-023-39570-7 **FindAllCoverageAtPosition**
+ * Pawar, H., Rymbekova, A., Cuadros-Espinoza, S. et al. Ghost admixture in eastern gorillas. Nat Ecol Evol (2023). https://doi.org/10.1038/s41559-023-02145-2
 
 ## 2022
 
@@ -48,7 +49,7 @@
  *  Han Ming Gan & al. , Genomic evidence of neo-sex chromosomes in the eastern yellow robin, GigaScience, Volume 8, Issue 9, September 2019, giz111, https://doi.org/10.1093/gigascience/giz111
  * "Blood transcriptome analysis in a buck-ewe hybrid and its parents" Falker-Gieske, C., Knorr, C. & Tetens, J. Blood transcriptome analysis in a buck-ewe hybrid and its parents. Sci Rep 9, 17492 (2019) doi:10.1038/s41598-019-53901-z
  * "Accurate detection of m6A RNA modifications in native RNA sequences" Huanle Liu, Oguzhan Begik, Morghan C Lucas, Christopher E Mason, Schraga Schwartz, John S Mattick, Martin A Smith, Eva Maria Novoa bioRxiv 525741; doi: https://doi.org/10.1101/525741 
- * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978  
+ * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978
 
 ## 2018
 
