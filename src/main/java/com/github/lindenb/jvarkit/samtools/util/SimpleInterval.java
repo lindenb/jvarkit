@@ -29,10 +29,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
 /**
@@ -40,7 +40,7 @@ import htsjdk.samtools.util.Locatable;
  * @author lindenb
  *
  */
-public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
+public class SimpleInterval implements BedInterval,Locatable,Comparable<SimpleInterval> {
 	private final String contig;
 	private final int start;
 	private final int end;
@@ -71,6 +71,11 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 		this(loc.getContig(),loc.getStart(),loc.getEnd());
 	}
 	
+	/** no this is ambigous 
+	public SimpleInterval(final BedInterval loc) {
+		this(loc.getContig(),loc.getBedStart()+1,loc.getBedEnd());
+	} */
+	
 	public SimpleInterval(final String contig,final int start,final int end) {
 		this.contig = contig;
 		if(this.contig==null) throw new IllegalArgumentException("contig is null");
@@ -89,6 +94,15 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 	@Override
 	public int getEnd() {
 		return end;
+		}
+	
+	@Override
+	public final int getBedStart() {
+		return getStart() - 1;
+		}
+	@Override
+	public final int getBedEnd() {
+		return getEnd();
 		}
 	
 	/** return true if the interval contains this 1-based position */
@@ -144,6 +158,7 @@ public class SimpleInterval implements Locatable,Comparable<SimpleInterval> {
 	public String toString() {
 		return this.contig+":"+this.start+"-"+this.end;
 	}
+	
 	
 	public SimpleInterval renameContig(final String ctg) {
 		if(ctg.equals(this.getContig())) return this;

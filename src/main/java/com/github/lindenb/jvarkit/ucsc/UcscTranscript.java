@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
@@ -45,7 +46,7 @@ import htsjdk.tribble.annotation.Strand;
  * @author lindenb
  *
  */
-public interface UcscTranscript extends Feature {
+public interface UcscTranscript extends Feature , BedInterval{
 /** get Transcript Id */
 public String getTranscriptId();
 public Strand getStrand();
@@ -64,16 +65,17 @@ public int getCdsEnd();
 public default int getTranscriptLength() {
 	return getExons().stream().mapToInt(E->E.getLengthOnReference()).sum();
 	}
+
 /** get TxStart */
 @Override
 public default int getStart() {
-	return getTxStart();
+	return getBedStart() +1 ;
 	}
 
 /** get TxEnd */
 @Override
 public default  int getEnd() {
-	return getTxEnd();
+	return getBedEnd();
 	}
 /** get count of exons */
 public int getExonCount();
@@ -143,7 +145,7 @@ public default List<CDS> getCDSs() {
 
 
 
-public abstract class Component implements Locatable {
+public abstract class Component implements Locatable, BedInterval {
 	public abstract UcscTranscript getTranscript();
 	
 	@Override
@@ -161,6 +163,16 @@ public abstract class Component implements Locatable {
 	}
 	
 	public abstract String getName();
+	
+	@Override
+	public final int getBedStart() {
+		return getStart()-1;
+		}
+	
+	@Override
+	public final int getBedEnd() {
+		return getEnd();
+		}
 	
 	public Strand getStrand() {
 		return getTranscript().getStrand();
@@ -287,6 +299,8 @@ public class Exon extends Component {
 	public int getHumanIndex() {
 		return isPositiveStrand()?exon_index+1:getTranscript().getExonCount()-exon_index;
 		}
+	
+	
 	
 	@Override
 	public int getStart() {

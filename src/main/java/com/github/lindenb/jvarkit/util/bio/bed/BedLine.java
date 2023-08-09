@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.util.bio.bed;
 import java.util.Arrays;
 import java.util.Objects;
 
+import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
 import htsjdk.samtools.QueryInterval;
@@ -37,7 +38,7 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.Feature;
 
 public class BedLine
-	implements Feature
+	implements Feature, BedInterval
 	{
 	private final String tokens[];
 	private final int _start;
@@ -77,6 +78,16 @@ public class BedLine
 	@Override
 	public int getEnd() {
 		return this._end;
+		}
+	
+	@Override
+	public final int getBedStart() {
+		return getStart() - 1;
+		}
+	
+	@Override
+	public final int getBedEnd() {
+		return getEnd();
 		}
 	
 	/** shortcut to <code>new Interval(getContig(), getStart(), getEnd())</code> */

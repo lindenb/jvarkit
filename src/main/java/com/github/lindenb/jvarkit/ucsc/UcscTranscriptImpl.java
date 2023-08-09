@@ -105,6 +105,15 @@ class UcscTranscriptImpl implements UcscTranscript {
 		}
 	
 	@Override
+	public int getBedStart() {
+		return txStart;
+		}
+	@Override
+	public int getBedEnd() {
+		return txEnd;
+		}
+	
+	@Override
 	public int getTxStart() {
 		return txStart+1;
 		}
