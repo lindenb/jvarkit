@@ -52,4 +52,14 @@ public class BedCoordMath {
     		) {
     	return !((end2 <= start) || (end<= start2));
     	}
+    
+    
+    /**
+     * Determines the amount of overlap between two coordinate ranges. Assumes that the two ranges
+     * actually do overlap and therefore may produce strange results when they do not!
+     */
+    public static int getOverlap(final int start, final int end, final int start2, final int end2) {
+        return getLength(Math.max(start, start2), Math.min(end, end2));
+    }
+
 }

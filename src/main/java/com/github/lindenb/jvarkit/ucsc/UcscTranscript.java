@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript.CodingRNA;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 import htsjdk.samtools.util.CoordMath;
@@ -49,6 +50,8 @@ import htsjdk.tribble.annotation.Strand;
 public interface UcscTranscript extends Feature , BedInterval{
 /** get Transcript Id */
 public String getTranscriptId();
+/** get name2 or 'gene' if available */
+public String getName2();
 public Strand getStrand();
 public boolean isPositiveStrand();
 public boolean isNegativeStrand();
@@ -201,71 +204,6 @@ public abstract class Component implements Locatable, BedInterval {
 	}
 
 
- public static class RNA<T extends Component> extends AbstractCharSequence  {
-	protected final List<T> delegate;
-	private final UcscTranscript owner;
-	private final int length_;
-	private final CharSequence chromosome;
-	public RNA(final UcscTranscript owner,final List<T> components, final CharSequence chromosome) {
-		this.owner = owner;
-		this.delegate = components;
-		this.length_ = this.delegate.stream().mapToInt(R->R.getLengthOnReference()).sum();
-		this.chromosome = chromosome;
-		}
-	public boolean isPositiveStrand() {
-		return owner.isPositiveStrand();
-		}
-	
-	public Interval toInterval() {
-		return new Interval(owner.getContig(),
-				delegate.stream().mapToInt(R->R.getStart()).min().getAsInt(),	
-				delegate.stream().mapToInt(R->R.getEnd()).max().getAsInt()	
-			);
-		}
-	@Override
-	public int length() {
-		return length_;
-		}
-	
-	@Override
-	public char charAt(int mRNApos0) {
-		final int genomic1 = toGenomic1(mRNApos0);
-		char c = this.chromosome.charAt(genomic1-1);
-		c = Character.toUpperCase(c);
-		return isPositiveStrand()?c:AcidNucleics.complement(c);
-		}
-	
-	public int toGenomic1(int mRNApos0) {
-		if(isPositiveStrand()) {
-			for(int i=0;i< delegate.size();i++) {
-				final T t = delegate.get(i);
-				if(mRNApos0 > t.getLengthOnReference()) {
-					mRNApos0 -= t.getLengthOnReference();
-					continue;
-					}
-				return t.getStart() + mRNApos0;
-				}
-			}
-		else
-			{
-			for(int i= delegate.size()-1;i>=0;i--) {
-				final T t = delegate.get(i);
-				if(mRNApos0 > t.getLengthOnReference()) {
-					mRNApos0 -= t.getLengthOnReference();
-					continue;
-					}
-				return t.getEnd() - mRNApos0;
-				}
-			}
-		throw new IndexOutOfBoundsException("0 < mRNApos0="+mRNApos0+" <= " + length() );
-		}
-	
-	
-	
-	public boolean containGenomicPos(int genomicPos) {
-		return this.delegate.stream().anyMatch(P->P.getStart()<=genomicPos && genomicPos <= P.getEnd());
-		}
-	}
 
 /************************************************************************
  * 
@@ -587,5 +525,23 @@ public class StopCodon extends Codon {
 		}
 	}
 
+public interface RNA extends CharSequence {
+	public UcscTranscript getTranscript();
+	public default String getContig() { return getTranscript().getContig(); }
+	public default boolean isPositiveStrand() { return getTranscript().isPositiveStrand();}
+	public default boolean isNegativeStrand() { return getTranscript().isNegativeStrand();}
+}
+
+public interface CodingRNA extends RNA {
+	public Peptide getPeptide();
+}
+
+/** return coding RNA for this chromosome */
+public CodingRNA getCodingRNA(CharSequence chromosomeSequence);
+
+public interface Peptide extends CharSequence {
+	public CodingRNA getCodingRNA();
+	public int[] convertToGenomicCoordinates(int pepPos0);
+}
 
 }
