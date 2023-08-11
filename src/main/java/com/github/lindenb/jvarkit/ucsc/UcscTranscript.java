@@ -35,6 +35,7 @@ import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscript.CodingRNA;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
@@ -525,19 +526,47 @@ public class StopCodon extends Codon {
 		}
 	}
 
-public interface RNA extends CharSequence {
+public interface RNA extends CharSequence, Locatable {
 	public UcscTranscript getTranscript();
+	/** get a description for this RNA */
+	public String getDescription();
 	public default String getContig() { return getTranscript().getContig(); }
 	public default boolean isPositiveStrand() { return getTranscript().isPositiveStrand();}
 	public default boolean isNegativeStrand() { return getTranscript().isNegativeStrand();}
+	
+	/** return true if codon starting a pos0 is an ATG */
+	public boolean isATG(int pos0);
+	/** return true if codon starting a pos0 is a STOP */
+	public boolean isStop(int pos0);
 }
+
+public interface MessengerRNA extends RNA {
+	public default boolean isProteinCoding() {
+		return getTranscript().isProteinCoding();
+		}
+	public CodingRNA getCodingRNA();
+}
+
 
 public interface CodingRNA extends RNA {
 	public Peptide getPeptide();
+	public KozakSequence getKozakSequence();
+	public MessengerRNA getMessengerRNA();
 }
 
-/** return coding RNA for this chromosome */
-public CodingRNA getCodingRNA(CharSequence chromosomeSequence);
+
+public interface FivePrimeUpstreamORF extends RNA {
+}
+
+
+/** return mRNA for this transcript */
+public MessengerRNA getMessengerRNA(CharSequence chromosomeSequence);
+
+
+/** return coding RNA for this transcript */
+public default CodingRNA getCodingRNA(CharSequence chromosomeSequence) {
+	return getMessengerRNA(chromosomeSequence).getCodingRNA();
+	}
 
 public interface Peptide extends CharSequence {
 	public CodingRNA getCodingRNA();

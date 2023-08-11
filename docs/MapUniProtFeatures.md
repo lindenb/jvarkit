@@ -11,29 +11,30 @@ map uniprot features on reference genome
 Usage: java -jar dist/mapuniprot.jar  [options] Files
 Usage: mapuniprot [options] Files
   Options:
+    --format
+      output format 'annotate' is suitable for bcftools annotate
+      Default: bed12
+      Possible Values: [annotate, bed12]
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --version
-      print version and exit
-    -R
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
-    -k
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
+  * -k, --transcripts, --genpred
+      Transcrips as genpred format 
+      https://genome.ucsc.edu/FAQ/FAQformat.html#format9  . The genePred 
+      format is a compact alternative to GFF/GTF because one transcript is 
+      described using only one line.	Beware chromosome names are formatted the 
+      same as your REFERENCE. A typical KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
+    --version
+      print version and exit
+  * -R
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     -o
       Output file. Optional . Default: stdout
-    -u
-      Uniprot.xml.gz URL/File.
-      Default: ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz
 
 ```
 
@@ -44,7 +45,6 @@ Usage: mapuniprot [options] Files
  * bed
  * fasta
  * reference
- * xjc
  * xml
 
 

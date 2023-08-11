@@ -29,21 +29,20 @@ History:
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.io.StringWriter;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -54,11 +53,14 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
-import org.apache.commons.lang.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -70,17 +72,16 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.reference.IndexedFastaSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 /**
 
@@ -119,8 +120,6 @@ public class MapUniProtFeatures extends Launcher
 	{
 	private static final String UNIPROT_NS="http://uniprot.org/uniprot";
 	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
-	private ReferenceSequenceFile indexedFastaSequenceFile=null;
-	private Map<String,List<UcscTranscript>> prot2genes = new HashMap<>();
     private static class Range
     	{
     	Range(int start,int end)
@@ -133,14 +132,16 @@ public class MapUniProtFeatures extends Launcher
     	}
 	private  class UBed
 		{
-		int tid;
+		String contig;
+		String featureType;
+		String featureDesc;
 		List<Range> positions=new ArrayList<Range>();
 		byte strand;
 		String name;
 		
-		String getChrom()
+		String getContig()
 			{
-			return indexedFastaSequenceFile.getSequenceDictionary().getSequence(tid).getSequenceName();
+			return contig;
 			}
 		
 		int start()
@@ -152,10 +153,15 @@ public class MapUniProtFeatures extends Launcher
 			return this.positions.get(positions.size()-1).end;
 			}
 		@Override
-		public String toString()
+		public String toString() {
+			return toBed12();
+			}
+
+		
+		private String toBed12()
 			{
-			StringBuilder b=new StringBuilder();
-			b.append(getChrom());
+			final StringBuilder b=new StringBuilder();
+			b.append(getContig());
 			b.append('\t').append(start());
 			b.append('\t').append(end());
 			b.append('\t').append(name.replaceAll("[ ]+", "_"));
@@ -178,24 +184,59 @@ public class MapUniProtFeatures extends Launcher
 				if(i>0) b.append(',');
 				b.append(positions.get(i).start-start());
 				}
+			b.append('\t');
+			b.append(this.featureType);
 			return b.toString();
 			}
-		void print(PrintWriter pw)
+		
+		private void toAnnotate(PrintWriter pw) {
+			for(Range r: this.positions) {
+				pw.print(this.getContig());
+				pw.print('\t');
+				pw.print(r.start);
+				pw.print('\t');
+				pw.print(r.end);
+				pw.print('\t');
+				pw.print(name.replaceAll("[ ]+", "_"));
+				pw.print('\t');
+				String s= featureType.replaceAll("[ ;=]+", "_");
+				if(StringUtils.isBlank(s)) s=".";
+				pw.print(s);
+				pw.print('\t');
+				s= featureDesc.replaceAll("[ ;=]+", "_");
+				if(StringUtils.isBlank(s)) s=".";
+				pw.print(s);
+				pw.println();
+				}
+			}
+		
+		void print(FormatOut fmt,PrintWriter pw)
 			{
-			pw.println(this.toString());
+			switch(fmt) {
+				case annotate:
+					this.toAnnotate(pw);
+					break;
+				case bed12: //
+				default:
+					pw.println(this.toBed12());
+					break;
+				}
 			}
 		}
-	@Parameter(names="-k",description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String kgUri=KnownGene.getDefaultUri();
 	
-	@Parameter(names="-u",description="Uniprot.xml.gz URL/File.")
-	private String UNIPROT="ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz";
+	private enum FormatOut { annotate, bed12};
 	
-
-	@Parameter(names="-R",description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
-	private File REF=null;
+	@Parameter(names={"-k","--transcripts","--genpred"},description=UcscTranscriptReader.OPT_DESC,required=true)
+	private String kgUri=null;
+	
+	@Parameter(names="-R",description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION, required = true)
+	private Path referencePath = null;
+	
 	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File OUT=null;
+	private Path outputFile =null;
+
+	@Parameter(names="--format",description="output format 'annotate' is suitable for bcftools annotate")
+	private FormatOut formatOut =FormatOut.bed12;
 
 	
 	private void recursiveBuildXml(final XMLEventReader xr,Document dom,Node root, boolean append) throws XMLStreamException{
@@ -206,16 +247,16 @@ public class MapUniProtFeatures extends Launcher
 					final StartElement E = evt.asStartElement();
 					final String lclName = E.getName().getLocalPart();
 					final Element n;
+					boolean appen_child = append;
 					if(append) {
-						if(lclName.equals("reference")) append = false;
-						else if(lclName.equals("dbReference")) append = false;
-						else if(lclName.equals("proteinExistence")) append = false;
-						else if(lclName.equals("keyword")) append = false;
-						else if(lclName.equals("evidence")) append = false;
-						else if(lclName.equals("sequence")) append = false;
+						if(lclName.equals("reference")) appen_child = false;
+						else if(lclName.equals("dbReference")) appen_child = false;
+						else if(lclName.equals("proteinExistence")) appen_child = false;
+						else if(lclName.equals("keyword")) appen_child = false;
+						else if(lclName.equals("evidence")) appen_child = false;
 						}
 					
-					if(append) {
+					if(appen_child) {
 						n = dom.createElement(lclName);
 						root.appendChild(n);
 						
@@ -228,8 +269,8 @@ public class MapUniProtFeatures extends Launcher
 						{
 						n = null;
 						}
-					recursiveBuildXml(xr,dom,n, append);
-					return;
+					recursiveBuildXml(xr,dom,n, appen_child);
+					break;
 				case XMLEvent.END_ELEMENT:
 					return;
 				case XMLEvent.END_DOCUMENT:
@@ -244,19 +285,26 @@ public class MapUniProtFeatures extends Launcher
 		}
 	}
 	
+	
+	private String toString(Document dom) {
+		try {
+			StringWriter  sw = new StringWriter();
+			Transformer tr= TransformerFactory.newInstance().newTransformer();
+			tr.transform(new DOMSource(dom), new StreamResult(sw));
+			return sw.toString();
+		} catch(Throwable err) {
+			return "#ERROR";
+		}
+	}
+	
 	@Override
 	public int doWork(List<String> args)
 		{
+		final Map<String,List<UcscTranscript>> protid2transcripts = new HashMap<>(100_000);
 
-
-		
-		
-		PrintWriter pw=null;
-		try
+		try(ReferenceSequenceFile indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(referencePath) )
 			{
-			
-			this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(REF);
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
 			String line;
 			final UcscTranscriptCodec codec = new UcscTranscriptCodec(kgUri);
 			try(BufferedReader r=IOUtils.openURIForBufferedReading(kgUri)) {
@@ -266,11 +314,11 @@ public class MapUniProtFeatures extends Launcher
 					if(kg==null) continue;
 					if(dict.getSequence(kg.getContig())==null || StringUtils.isBlank(kg.getName2())) continue;
 					
-					List<UcscTranscript> L=prot2genes.get(kg.getName2());
+					List<UcscTranscript> L=protid2transcripts.get(kg.getName2());
 					if(L==null)
 						{
 						L=new ArrayList<>();
-						prot2genes.put(kg.getName2(), L);
+						protid2transcripts.put(kg.getName2(), L);
 						}
 					
 					L.add(kg);
@@ -299,168 +347,180 @@ public class MapUniProtFeatures extends Launcher
 			//mappedFeatures.setDestructiveIteration(true);
 			
 			
-			
-			LOG.info("Scanning "+UNIPROT);
-			
-			Reader fr=IOUtils.openURIForBufferedReading(UNIPROT);
-			XMLEventReader rx=xmlInputFactory.createXMLEventReader(fr);
-			final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-			dbf.setNamespaceAware(false);
-			final DocumentBuilder db = dbf.newDocumentBuilder();
-			
-			final XPath xpath = XPathFactory.newInstance().newXPath();
-			
-			final QName uEntry=new QName(UNIPROT_NS,"entry");
-			GenomicSequence genomic=null;
-			while(rx.hasNext())
-				{
+			try(Reader fr = super.openBufferedReader(this.oneFileOrNull(args))) {
+				final XMLEventReader rx=xmlInputFactory.createXMLEventReader(fr);
+				final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+				dbf.setNamespaceAware(false);
+				final DocumentBuilder db = dbf.newDocumentBuilder();
 				
-				XMLEvent evt=rx.peek();
-				if(!(evt.isStartElement() && evt.asStartElement().getName().equals(uEntry)))
-					{
-					rx.next();
-					continue;
-					}
-				final Document dom = db.newDocument();
-				Element uniprotNode = dom.createElement("uniprot");
-				dom.appendChild(uniprotNode);
-				recursiveBuildXml(rx, dom, uniprotNode,true);
-
-				if(!((Boolean)xpath.evaluate("/uniprot/entry/feature",dom,XPathConstants.BOOLEAN))) continue;
-				List<UcscTranscript> genes=null;
+				final XPath xpath = XPathFactory.newInstance().newXPath();
 				
-				NodeList nodeList= (NodeList)xpath.evaluate("/uniprot/entry/accession",dom,XPathConstants.NODESET);
-				for(int i=0;i< nodeList.getLength();i++)
-					{
-					String acn = nodeList.item(i).getTextContent();
-					genes=prot2genes.get(acn);
-					if(genes!=null) break;
-					}
-				if(genes==null) continue;
-				final String entrySequence = (String)xpath.evaluate("/uniprot/entry/sequence",dom,XPathConstants.STRING);
-				if(StringUtils.isBlank(entrySequence)) continue;
-				
-				for(UcscTranscript kg:genes)
-					{
-					if(genomic==null ||  !genomic.hasName(kg.getContig()))
+				final QName uEntry=new QName(UNIPROT_NS,"entry");
+				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					GenomicSequence genomic=null;
+					while(rx.hasNext())
 						{
-						genomic=new GenomicSequence(this.indexedFastaSequenceFile, kg.getContig());
-						}
-					
-					
-					UcscTranscript.Peptide pep=kg.getCodingRNA(genomic).getPeptide();
-					
-					
-					int sameSequenceLength=0;
-					while(  sameSequenceLength < entrySequence.length() &&
-							sameSequenceLength < pep.length() 
-							)
-						{
-						if(Character.toUpperCase(entrySequence.charAt(sameSequenceLength))!=Character.toUpperCase(pep.charAt(sameSequenceLength)))
+						final XMLEvent evt=rx.peek();
+						if(!(evt.isStartElement() && evt.asStartElement().getName().equals(uEntry)))
 							{
-							break;
+							rx.next();
+							continue;
 							}
-						sameSequenceLength++;
-						}
-					
-					if(sameSequenceLength!=pep.length())
-						{
-						System.err.println("Not Same sequence "+kg.getTranscriptId()+" strand "+kg.getStrand() +" ok-up-to-"+sameSequenceLength);
-						System.err.println("P:"+pep.toString()+" "+pep.length());
-						System.err.println("Q:"+entrySequence+" "+entrySequence.length());
-						if(pep.toString().contains("?"))
+						final Document dom = db.newDocument();
+						Element uniprotNode = dom.createElement("uniprot");
+						dom.appendChild(uniprotNode);
+						recursiveBuildXml(rx, dom, uniprotNode,true);
+						
+						if(!((Boolean)xpath.evaluate("/uniprot/entry/feature",dom,XPathConstants.BOOLEAN))) {
+							LOG.info("no /uniprot/entry/feature found for "+ toString(dom));
+							continue;
+							}
+						
+						final Set<String> transcriptIdSet = new HashSet<>();
+						NodeList nodeList= (NodeList)xpath.evaluate("/uniprot/entry/accession|/uniprot/entry/name|/uniprot/entry/gene/name",dom,XPathConstants.NODESET);
+						for(int i=0;i< nodeList.getLength();i++)
 							{
-							System.err.println("RNA:"+pep.getCodingRNA().toString());
+							final String acn = nodeList.item(i).getTextContent();
+							if(StringUtils.isBlank(acn) || !protid2transcripts.containsKey(acn)) continue;
+							transcriptIdSet.add(acn);
 							}
+						
+						final List<UcscTranscript> genes=transcriptIdSet.stream().
+								flatMap(K->protid2transcripts.get(K).stream()).
+								collect(Collectors.toList());
+						
+						if(genes.isEmpty()) {
+							LOG.info("no gene found for "+ xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING));
+							continue;
+							}
+						LOG.info("got "+genes+" for "+ xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING));
+						final String entrySequence = (String)xpath.evaluate("/uniprot/entry/sequence",dom,XPathConstants.STRING);
+						if(StringUtils.isBlank(entrySequence)) continue;
+						
+						for(UcscTranscript kg:genes)
+							{
+							if(genomic==null ||  !genomic.hasName(kg.getContig()))
+								{
+								genomic=new GenomicSequence(indexedFastaSequenceFile, kg.getContig());
+								}
 							
-						}
-					if(sameSequenceLength==0) continue;
-					
-					nodeList= (NodeList)xpath.evaluate("/uniprot/entry/feature",dom,XPathConstants.NODESET);
-					for(int i=0;i< nodeList.getLength();i++)
-						{
-						Element feat = (Element)nodeList.item(i);
-						if(StringUtils.isBlank(feat.getAttribute("type"))) continue;
-						Element location =(Element)xpath.evaluate("location",feat,XPathConstants.NODE);
-						if(location==null) continue;
-						int pepStart,pepEnd;
-						Element position = (Element)xpath.evaluate("position",location,XPathConstants.NODE);
-						if(position!=null && !StringUtils.isBlank(position.getAttribute("position")))
-							{
-							pepEnd= Integer.parseInt(position.getAttribute("position"));
-							pepStart=pepEnd-1;
-							}
-						else
-							{
-							Element begin = (Element)xpath.evaluate("begin",location,XPathConstants.NODE);
-							Element end = (Element)xpath.evaluate("end",location,XPathConstants.NODE);
-							if(begin!=null && end!=null && 
-									begin.hasAttribute("position") &&
-									end.hasAttribute("position")
+							
+							UcscTranscript.Peptide pep=kg.getCodingRNA(genomic).getPeptide();
+							
+							
+							int sameSequenceLength=0;
+							while(  sameSequenceLength < entrySequence.length() &&
+									sameSequenceLength < pep.length() 
 									)
 								{
-								pepStart= Integer.parseInt(begin.getAttribute("position"))-1;
-								pepEnd= Integer.parseInt(end.getAttribute("position"))-1;
-								}
-							else
-								{
-								continue;
-								}
-							}
-						
-						if(pepEnd>=sameSequenceLength) continue;
-						
-						List<Integer> genomicPos=new ArrayList<Integer>();
-						while(pepStart< pepEnd)
-							{
-							if(pepStart>=pep.length())
-								{
-								System.err.println();
-								System.err.println("P:"+pep.toString()+" "+pep.length()+" "+kg.getStrand());
-								System.err.println("Q:"+entrySequence+" "+ entrySequence.length());
-								//uniprotMarshaller.marshal(new JAXBElement<FeatureType>(new QName(UNIPROT_NS, "feature"), FeatureType.class,feat),System.err);
-								}
-							final int codon[]=pep.convertToGenomicCoordinates(pepStart);
-							pepStart++;
-							for(int gP:codon)
-								{
-								if(gP==-1)
+								if(Character.toUpperCase(entrySequence.charAt(sameSequenceLength))!=Character.toUpperCase(pep.charAt(sameSequenceLength)))
 									{
-									//uniprotMarshaller.marshal(new JAXBElement<FeatureType>(new QName(UNIPROT_NS, "feature"), FeatureType.class,feat),System.err);
-									LOG.error("error in genomoc for ("+pepStart+"/"+pepEnd+"):");
-									System.exit(-1);
+									break;
 									}
-								genomicPos.add(gP);
+								sameSequenceLength++;
 								}
-							}
-						Collections.sort(genomicPos);
-						UBed ubed=new UBed();
-						ubed.tid=this.indexedFastaSequenceFile.getSequenceDictionary().getSequenceIndex(genomic.getChrom());
-						int k0=0;
-						while(k0< genomicPos.size())
-							{
-							Range range=new Range(genomicPos.get(k0), genomicPos.get(k0)+1);
-							k0++;
-							while(
-								k0< genomicPos.size() && 
-								range.end==genomicPos.get(k0)
-								)
+							
+							if(sameSequenceLength!=pep.length())
 								{
-								range=new Range(range.start,range.end+1);
-								++k0;
+								System.err.println("Not Same sequence "+kg.getTranscriptId()+" strand "+kg.getStrand() +" ok-up-to-"+sameSequenceLength);
+								System.err.println("P:"+pep.toString()+" "+pep.length());
+								System.err.println("Q:"+entrySequence+" "+entrySequence.length());
+								if(pep.toString().contains("?"))
+									{
+									System.err.println("RNA:"+pep.getCodingRNA().toString());
+									}
+									
 								}
-							ubed.positions.add(range);
-							}
-						ubed.strand=(byte)(kg.isPositiveStrand()?'+':'-');
-						ubed.name=	(String)xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING);
-
-						ubed.print(pw);
+							if(sameSequenceLength==0) continue;
+							
+							nodeList= (NodeList)xpath.evaluate("/uniprot/entry/feature",dom,XPathConstants.NODESET);
+							for(int i=0;i< nodeList.getLength();i++)
+								{
+								final Element feat = (Element)nodeList.item(i);
+								final String featureType = feat.getAttribute("type");
+								if(StringUtils.isBlank(featureType) || feat.equals("chain")) continue;
+								final  Element location =(Element)xpath.evaluate("location",feat,XPathConstants.NODE);
+								if(location==null) continue;
+								int pepStart,pepEnd;
+								final Element position = (Element)xpath.evaluate("position",location,XPathConstants.NODE);
+								if(position!=null && !StringUtils.isBlank(position.getAttribute("position")))
+									{
+									pepEnd= Integer.parseInt(position.getAttribute("position"));
+									pepStart=pepEnd-1;
+									}
+								else
+									{
+									final Element begin = (Element)xpath.evaluate("begin",location,XPathConstants.NODE);
+									final Element end = (Element)xpath.evaluate("end",location,XPathConstants.NODE);
+									if(begin!=null && end!=null && 
+											begin.hasAttribute("position") &&
+											end.hasAttribute("position")
+											)
+										{
+										pepStart= Integer.parseInt(begin.getAttribute("position"))-1;
+										pepEnd= Integer.parseInt(end.getAttribute("position"))-1;
+										}
+									else
+										{
+										continue;
+										}
+									}
+								
+								if(pepEnd>=sameSequenceLength) continue;
+								
+								final List<Integer> genomicPos=new ArrayList<Integer>();
+								while(pepStart< pepEnd)
+									{
+									if(pepStart>=pep.length())
+										{
+										System.err.println("pepStart > pep.length()");
+										System.err.println("P:"+pep.toString()+" "+pep.length()+" "+kg.getStrand());
+										System.err.println("Q:"+entrySequence+" "+ entrySequence.length());
+										}
+									final int codon[]=pep.convertToGenomicCoordinates(pepStart);
+									pepStart++;
+									for(int gP:codon)
+										{
+										if(gP==-1)
+											{
+											LOG.error("error in genimoc for ("+pepStart+"/"+pepEnd+"):");
+											System.exit(-1);
+											}
+										genomicPos.add(gP);
+										}
+									}
+								Collections.sort(genomicPos);
+								final UBed ubed=new UBed();
+								ubed.contig = genomic.getContig();
+								/** group consecutive coordinates in 'Range' */
+								int k0=0;
+								while(k0< genomicPos.size())
+									{
+									Range range=new Range(genomicPos.get(k0), genomicPos.get(k0)+1);
+									k0++;
+									while(
+										k0< genomicPos.size() && 
+										range.end==genomicPos.get(k0)
+										)
+										{
+										range=new Range(range.start,range.end+1);
+										++k0;
+										}
+									ubed.positions.add(range);
+									}
+								ubed.strand=(byte)(kg.isPositiveStrand()?'+':'-');
+								ubed.name=	(String)xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING);
+								ubed.featureType = featureType;
+								ubed.featureDesc = feat.getAttribute("description");
+								ubed.print(this.formatOut,pw);
+								}
+							}					
+							
 						}
-					}					
-					
-				}
-			rx.close();
-			fr.close();
+					pw.flush();
+					}//end PrintWriter
+				rx.close();
+				} // end file reader
 			LOG.info("End scan uniprot");
 /*
 			mappedFeatures.doneAdding();
@@ -477,15 +537,8 @@ public class MapUniProtFeatures extends Launcher
 			}
 		catch(Throwable err)
 			{
-			err.printStackTrace();
-			if(OUT!=null) OUT.deleteOnExit();
+			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			pw.flush();
-			pw.close();
-			CloserUtil.close(this.indexedFastaSequenceFile);
 			}
 		return 0;
 		}

@@ -1593,8 +1593,7 @@ all.add( task("blast2sam", type: CompileJVarkit) {
 
 all2.add( task("mapuniprot", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.MapUniProtFeatures"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["uniprot"]
+	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("naivecnvdetector", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.NaiveCnvDetector"

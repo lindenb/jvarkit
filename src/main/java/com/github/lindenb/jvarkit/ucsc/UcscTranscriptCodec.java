@@ -28,7 +28,9 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -92,11 +94,12 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 			throw new IllegalArgumentException("uri must end with .sql or "+FILE_SUFFIX);
 			
 		}
+		
 		try(InputStream in=IOUtils.openURIForReading(sqluri)) {
 			final SchemaParser.Table table = SchemaParser.parseTable(in);
 			sql(table);
 		} catch(Throwable err) {
-			throw new RuntimeIOException("cannot parse schema",err);
+			throw new RuntimeIOException("cannot parse schema for "+uri+". File must be associated with a valid sql schema file ("+sqluri+")",err);
 		}
 	}
 	
@@ -142,74 +145,81 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		return decode(Arrays.asList(s));
 		}
 	public UcscTranscript decode(final List<String> tokens) {
-		final UcscTranscriptImpl tr = new UcscTranscriptImpl();
-		if(contig_col==-1) {
-			if(auto_detect_flag) {
-				/* first column may be the bin column 
-				 * we use the strand to detect the format */
-				final int binIdx=tokens.get(2).equals("+") || tokens.get(2).equals("-")?0:1;
-				this.name_col = binIdx + 0;
-				this.contig_col= binIdx + 1;
-		        this.strand_col = binIdx + 2;
-		        this.txStart_col = binIdx + 3;
-		        this.txEnd_col = binIdx + 4;
-		        this.cdsStart_col = binIdx + 5;
-		        this.cdsEnd_col = binIdx + 6;
-		        this.nExon_col = binIdx + 7;
-		        this.exonsStart_col = binIdx + 8;
-		        this.exonsEnd_col = binIdx + 9;
-		        this.name2_col = binIdx + 11 ;
+			try {
+			final UcscTranscriptImpl tr = new UcscTranscriptImpl();
+			if(contig_col==-1) {
+				if(auto_detect_flag) {
+					/* first column may be the bin column 
+					 * we use the strand to detect the format */
+					final int binIdx=tokens.get(2).equals("+") || tokens.get(2).equals("-")?0:1;
+					this.name_col = binIdx + 0;
+					this.contig_col= binIdx + 1;
+			        this.strand_col = binIdx + 2;
+			        this.txStart_col = binIdx + 3;
+			        this.txEnd_col = binIdx + 4;
+			        this.cdsStart_col = binIdx + 5;
+			        this.cdsEnd_col = binIdx + 6;
+			        this.nExon_col = binIdx + 7;
+			        this.exonsStart_col = binIdx + 8;
+			        this.exonsEnd_col = binIdx + 9;
+			        this.name2_col = binIdx + 11 ;
+					}
+				else
+					{
+					throw new IllegalStateException("undefined columns");
+					}
+				}
+			tr.contig = contigConverter.apply(tokens.get(this.contig_col));
+			if(StringUtils.isBlank(tr.contig)) return null;
+			tr.name = tokens.get(this.name_col);
+			tr.txStart = Integer.parseInt(tokens.get(this.txStart_col));
+			tr.txEnd = Integer.parseInt(tokens.get(this.txEnd_col));
+			String s = tokens.get(this.strand_col);
+			if(s.equals("+")) {
+				tr.strand = '+';
+				}
+			else if(s.equals("-")) {
+				tr.strand = '-';
 				}
 			else
 				{
-				throw new IllegalStateException("undefined columns");
+				throw new IllegalArgumentException("bad strand in '"+s+"' for "+String.join(";", tokens));
 				}
+			tr.cdsStart = Integer.parseInt(tokens.get(this.cdsStart_col));
+			tr.cdsEnd = Integer.parseInt(tokens.get(this.cdsEnd_col));
+			final int nExons = Integer.parseInt(tokens.get(this.nExon_col));
+			if(nExons<=0) throw new IllegalArgumentException("transcript without exons");
+			
+			tr.exonStarts = new int[nExons];
+			tr.exonEnds = new int[nExons];
+			
+			String[] ss = CharSplitter.COMMA.split(tokens.get(this.exonsStart_col));
+			if(ss.length!=nExons) {
+				throw new IllegalArgumentException("Expected "+nExons+" exonsStart but got "+ss.length+" for "+String.join(";", tokens));
+				}
+			
+			for(int i=0;i< ss.length;i++) {
+				tr.exonStarts[i] = Integer.parseInt(ss[i]);
+				}
+			
+			ss = CharSplitter.COMMA.split(tokens.get(this.exonsEnd_col));
+			if(ss.length!=nExons) {
+				throw new IllegalArgumentException("Expected "+nExons+" exonsEnd but got "+ss.length+" for "+String.join(";", tokens));
+				}
+			for(int i=0;i< ss.length;i++) {
+				tr.exonEnds[i] = Integer.parseInt(ss[i]);
+				}
+			if(this.name2_col>=0) {
+				tr.name2 = tokens.get(this.name2_col);
+				}
+			if(this.score_col>=0) {
+				tr.score = OptionalInt.of(Integer.parseInt(tokens.get(this.score_col)));
+				}
+	 		return tr;
+	 		}
+		catch(Throwable err) {
+			throw new IllegalArgumentException("Cannot decode "+String.join("\t", tokens),err);
 			}
-		tr.contig = contigConverter.apply(tokens.get(this.contig_col));
-		if(StringUtils.isBlank(tr.contig)) return null;
-		tr.name = tokens.get(this.name_col);
-		tr.txStart = Integer.parseInt(tokens.get(this.txStart_col));
-		tr.txEnd = Integer.parseInt(tokens.get(this.txEnd_col));
-		String s = tokens.get(this.strand_col);
-		if(s.equals("+")) {
-			tr.strand = '+';
-			}
-		else if(s.equals("-")) {
-			tr.strand = '-';
-			}
-		else
-			{
-			throw new IllegalArgumentException("bad strand in '"+s+"' for "+String.join(";", tokens));
-			}
-		tr.cdsStart = Integer.parseInt(tokens.get(this.cdsStart_col));
-		tr.cdsEnd = Integer.parseInt(tokens.get(this.cdsEnd_col));
-		final int nExons = Integer.parseInt(tokens.get(this.nExon_col));
-		
-		tr.exonStarts = new int[] {nExons};
-		tr.exonEnds = new int[] {nExons};
-		
-		String[] ss = CharSplitter.COMMA.split(tokens.get(this.exonsStart_col));
-		if(ss.length!=nExons) {
-			throw new IllegalArgumentException("Expected "+nExons+" exonsStart but got "+ss.length+" for "+String.join(";", tokens));
-			}
-		for(int i=0;i< ss.length;i++) {
-			tr.exonStarts[i] = Integer.parseInt(ss[i]);
-			}
-		
-		ss = CharSplitter.COMMA.split(tokens.get(this.exonsEnd_col));
-		if(ss.length!=nExons) {
-			throw new IllegalArgumentException("Expected "+nExons+" exonsEnd but got "+ss.length+" for "+String.join(";", tokens));
-			}
-		for(int i=0;i< ss.length;i++) {
-			tr.exonEnds[i] = Integer.parseInt(ss[i]);
-			}
-		if(this.name2_col>=0) {
-			tr.name2 = tokens.get(this.name2_col);
-			}
-		if(this.score_col>=0) {
-			tr.score = OptionalInt.of(Integer.parseInt(tokens.get(this.score_col)));
-			}
- 		return tr;
 		}
 	
 	public CloseableIterator<UcscTranscript> iterator(final Path p) throws IOException {
