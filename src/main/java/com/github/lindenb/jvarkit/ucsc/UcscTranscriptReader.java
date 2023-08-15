@@ -52,6 +52,7 @@ public class UcscTranscriptReader implements FeatureReader<UcscTranscript> {
 			+ "	Beware chromosome names are formatted the same as your REFERENCE. A typical KnownGene file is http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz ."
 			+ "If you only have a gff file, you can try to generate a knownGene file with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)";
 	
+	public static final String SQL_DESC="Each instance of transcript can be associated to a .sql schema to help the software to decode the semantics of the columns. Eg.: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql ";
 	
 private final FeatureReader<UcscTranscript> delegate;
 

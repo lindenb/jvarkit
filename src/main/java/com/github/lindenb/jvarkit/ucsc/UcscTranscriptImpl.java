@@ -25,12 +25,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.ucsc;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.OptionalInt;
 
 import com.github.lindenb.jvarkit.bed.BedCoordMath;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
+import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.tribble.annotation.Strand;
 
@@ -72,9 +76,28 @@ class UcscTranscriptImpl implements UcscTranscript {
 		protected abstract int start();
 		/** end of mRNA (could be transcription or traduction */
 		protected abstract int end();
-		
-		
-	
+
+		private boolean hasCodon(final int pos0, char b1,char b2, char b3) {
+			if(pos0 < 0 || pos0 +2 >= this.length()) return false;
+			char c = Character.toUpperCase(charAt(pos0  ));
+			if(c!=b1) return false;
+			c = Character.toUpperCase(charAt(pos0+1));
+			if(c!=b2) return false;
+			c = Character.toUpperCase(charAt(pos0+2));
+			if(c!=b3) return false;
+			return true;
+		}
+
+		protected boolean isATG(final int pos0) {
+			return hasCodon(pos0,'A','T','G');
+			}
+		protected boolean isStop(final int pos0) {
+			return hasCodon(pos0,'T','A','G') ||
+				hasCodon(pos0,'T','A','A') ||
+				hasCodon(pos0,'T','G','A')
+				;
+		}
+
 		/** convert the genomic position to the position in the RNA, return -1 if RNA not in genomic pos */
 		OptionalInt convertGenomic0ToRnaCoordinate0(int genomicPos0)
 			{
@@ -181,46 +204,131 @@ class UcscTranscriptImpl implements UcscTranscript {
 			if(n==-1) 	throw new IndexOutOfBoundsException("0<=index:="+index0+"<"+length());
 			if(isPositiveStrand())
 				{
-				return getDelegate().charAt(n);	
+				return getDelegate().charAt(n);
 				}
 			else
-				{	
-				return AcidNucleics.complement(getDelegate().charAt(n));	
+				{
+				return AcidNucleics.complement(getDelegate().charAt(n));
 				}
 			}
-		
 		}
-	
-	
-	/** same as RNA but without the UTR, starts is cdsStart, end is cdsEnd */
-	public class CodingRNAImpl  extends RNAImpl implements UcscTranscript.CodingRNA
-		{
-		CodingRNAImpl(final CharSequence sequence)
+
+	public class MessengerRNAImpl extends RNAImpl implements UcscTranscript.MessengerRNA {
+		private CodingRNAImpl buffer = null;
+		MessengerRNAImpl(final CharSequence sequence)
 			{
 			super(sequence);
 			}
 		@Override
 		protected  final int start()
 			{
-			return getTranscript().getCdsStart() -1;	
+			return getTranscript().getTxStart() -1;
 			}
 		@Override
 		protected  final int end()
 			{
-			return getTranscript().getCdsEnd();	
+			return getTranscript().getTxEnd();
 			}
+		
+		public CodingRNAImpl getCodingRNA() {
+			if(buffer != null) return buffer;
+			if(!hasCodingRNA()) throw new IllegalStateException("mRNA does not code for a protein");
+			buffer = new CodingRNAImpl(this);
+			return buffer;
+			}
+		
+		public List<CodingRNAImpl> getUpstreamORFs() {
+			if(!hasCodingRNA()) throw new IllegalStateException("mRNA does not code for a protein");
+			int rnaX,rnaY;
+			if(isPositiveStrand()) {
+				rnaX = 0;
+				rnaY = convertGenomic0ToRnaCoordinate0(getCdsStart()-1).getAsInt();
+				}
+			else
+				{
+				rnaX = convertGenomic0ToRnaCoordinate0(getCdsEnd()).getAsInt();
+				rnaY = length();
+				}
+			return getORFs(rnaX,rnaY);
+			}
+		
+		protected List<CodingRNAImpl> getORFs(final int rnaX1, final int rnaX2) {
+			List <CodingRNAImpl> L = null;
+			int i = rnaX1;
+			while(i+2 < length() && i+2 < rnaX2) {
+				if(isATG(i)) {
+					int atg0 = i;
+					i+=3;
+					while(i+2 < rnaX2 && i+2< length() && !isStop(i)) {
+						
+						i+=3;
+						}
+					if(L==null) L = new ArrayList<>();
+					int a = convertToGenomicCoordinate(atg0);
+					int b = convertToGenomicCoordinate(i);
+					if(isNegativeStrand()) {
+						int c = a;
+						a = b-2;
+						b = c-2;
+						}
+					L.add(new CodingRNAImpl(this,a,b));
+					}
+				}
+			return L==null?Collections.emptyList():L;
+			}
+		}
+
+
+	/** same as RNA but without the UTR, starts is cdsStart, end is cdsEnd */
+	public class CodingRNAImpl  extends RNAImpl implements UcscTranscript.CodingRNA
+		{
+		private final MessengerRNAImpl mRNA;
+		private final int _start0;
+		private final int _end0;
+		CodingRNAImpl(final MessengerRNAImpl mRNA, int _start0,int _end0) {
+			super(mRNA.getDelegate());
+			this.mRNA = mRNA;
+			this._start0 = _start0;
+			this._end0 = _end0;
+			}
+		CodingRNAImpl(final MessengerRNAImpl mRNA) {
+			this(mRNA, mRNA.getTranscript().getCdsStart()-1,mRNA.getTranscript().getCdsEnd());
+			}
+		@Override
+		public MessengerRNAImpl getMessengerRNA() {
+			return this.mRNA;
+			}
+		@Override
+		protected  final int start()
+			{
+			return this._start0;
+			}
+		@Override
+		protected  final int end()
+			{
+			return this._end0;
+			}
+		int convertToRNAMessengerCoordinate(int cdna0) {
+			return -1;//TODO
+			}
+		@Override
+		public KozakSequence getKozakSequence() {
+			final int atg0 = convertToRNAMessengerCoordinate(0);
+			return new KozakSequence(getMessengerRNA().getDelegate(),atg0);
+			}
+		
 		public Peptide getPeptide()
 			{
 			return new PeptideImpl(GeneticCode.getStandard(), this);
 			}
 		}
-	
+
 	/** implementation of UcscTranscript.Peptide */
 	public class PeptideImpl extends DelegateCharSequence  implements UcscTranscript.Peptide
 		{
 		private Integer _length=null;
 		private final GeneticCode geneticCode;
-		PeptideImpl(final GeneticCode gc,CodingRNA rna)
+		PeptideImpl(final GeneticCode gc, final CodingRNA rna)
 			{
 			super(rna);
 			this.geneticCode=gc;
@@ -250,8 +358,8 @@ class UcscTranscriptImpl implements UcscTranscript {
 					}
 				
 				final char last=this.getGeneticCode().translate(
-						getCodingRNA().charAt((_length-1)*3+0),	
-						getCodingRNA().charAt((_length-1)*3+1),	
+						getCodingRNA().charAt((_length-1)*3+0),
+						getCodingRNA().charAt((_length-1)*3+1),
 						getCodingRNA().charAt((_length-1)*3+2)
 						);
 				if(!Character.isLetter(last)) _length--;
@@ -262,13 +370,12 @@ class UcscTranscriptImpl implements UcscTranscript {
 		public char[] getCodon(int pepPos0)
 			{
 			return new char[]{
-				getCodingRNA().charAt(pepPos0*3+0),	
-				getCodingRNA().charAt(pepPos0*3+1),	
+				getCodingRNA().charAt(pepPos0*3+0),
+				getCodingRNA().charAt(pepPos0*3+1),
 				getCodingRNA().charAt(pepPos0*3+2)
 				};
 			}
-	
-		
+
 		/** convert the genomic position to the position in the peptide, return -1 if peptide not in genomic pos */
 		public OptionalInt convertGenomicToPeptideCoordinate(int genomicPos0)
 			{
@@ -276,8 +383,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 			if(!rnaIdx.isPresent()) return OptionalInt.empty();
 			return OptionalInt.of(rnaIdx.getAsInt()/3);
 			}
-		
-		
+
 		@Override
 		public int[] convertToGenomicCoordinates(int pepPos0)
 			{
@@ -300,11 +406,75 @@ class UcscTranscriptImpl implements UcscTranscript {
 					);
 			}
 		
+		protected KozakSequence getKozakSequence(int mrna0) {
+			return new KozakSequence(this,mrna0);
+			}
+		
 		public GeneticCode getGeneticCode() {
 			return this.geneticCode;
 			}
 		}
 
+
+	private class UTRImpl extends UcscTranscript.UTR {
+		private int start0;
+		private int end0;
+		UTRImpl(final UcscTranscript.Exon exon,int start0,int end0) {
+			super(exon);
+			this.start0 = start0;
+			this.end0 = end0;
+			if(this.start0>=this.end0) throw new IllegalArgumentException("start0<end0");
+			}
+		@Override
+		public int getStart() {
+			return start0+1;
+			}
+		@Override
+		public int getEnd() {
+			return end0;
+			}
+		@Override
+		public boolean isUTR5() {
+			if(isPositiveStrand()) {
+				return BedCoordMath.overlaps(start0,end0,getTranscript().getTxStart()-1,getTranscript().getCdsStart()-1);
+				}
+			else
+				{
+				return BedCoordMath.overlaps(start0,end0,getTranscript().getCdsEnd(),getTranscript().getTxEnd());
+				}
+			}
+		@Override
+		public boolean isUTR3() {
+			return !isUTR5();
+			}
+		@Override
+		public String getName() {
+			return isUTR5()?"UTR5":"UTR3";
+			}
+		}
+	
+	@Override
+	public List<UTR> getUTRs() {
+		if(!isProteinCoding()) return Collections.emptyList();
+		if(this.txStart==this.cdsStart && this.txEnd==this.cdsEnd) return Collections.emptyList();
+		final List<UTR> L = new ArrayList<>();
+		for(int i=0;i< getExonCount();i++) {
+			final Exon ex = getExon(i);
+			if(BedCoordMath.overlaps(ex.getBedStart(),ex.getBedEnd(),this.txStart,this.cdsStart)) {
+				L.add(new UTRImpl(ex,
+					Math.max(ex.getBedStart(),this.txStart),
+					Math.min(ex.getBedEnd(),this.cdsStart)
+					));
+				}
+			if(BedCoordMath.overlaps(ex.getBedStart(),ex.getBedEnd(),this.cdsEnd,this.txEnd)) {
+				L.add(new UTRImpl(ex,
+					Math.max(ex.getBedStart(),this.cdsEnd),
+					Math.min(ex.getBedEnd(),this.txEnd)
+					));
+				}
+			}
+		return L;
+		}
 	
 	
 	UcscTranscriptImpl() {
@@ -332,19 +502,19 @@ class UcscTranscriptImpl implements UcscTranscript {
 	
 	
 	@Override
-	public boolean isProteinCoding() {
+	public final boolean isProteinCoding() {
 		return this.cdsStart < this.cdsEnd;
 		}
 	
 	@Override
 	public int getCdsStart() {
-		if(!isProteinCoding()) throw new IllegalStateException("Cannot ask cdsStart for non-protein coding");
+		if(!isProteinCoding()) throw new IllegalStateException("Cannot ask cdsStart for non-protein coding. "+getTranscriptId());
 		return this.cdsStart+1;
 		}
 	
 	@Override
 	public int getCdsEnd() {
-		if(!isProteinCoding()) throw new IllegalStateException("Cannot ask cdsend for non-protein coding");
+		if(!isProteinCoding()) throw new IllegalStateException("Cannot ask cdsend for non-protein coding. "+getTranscriptId());
 		return this.cdsEnd;
 		}
 
@@ -403,8 +573,8 @@ class UcscTranscriptImpl implements UcscTranscript {
 		}
 	
 	@Override
-	public CodingRNA getCodingRNA(CharSequence chromosomeSequence) {
-		return new CodingRNAImpl(chromosomeSequence);
+	public MessengerRNA getMessengerRNA(CharSequence chromosomeSequence) {
+		return new MessengerRNAImpl(chromosomeSequence);
 		}
 	
 	@Override

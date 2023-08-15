@@ -31,10 +31,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.jexl2.JexlContext;
+
 import com.github.lindenb.jvarkit.bed.BedInterval;
-import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.ucsc.UcscTranscript.CodingRNA;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
@@ -97,6 +97,7 @@ public int getExonEnd(int idx);
 
 public boolean isProteinCoding();
 
+/** get i-th intron */
 public default Intron getIntron(int idx) {
 	return new Intron(this,idx);
 	}
@@ -133,7 +134,12 @@ public default List<Intron> getIntrons() {
 			}
 		};
 	}
+/** alias for getCDSs() */
+public default List<CDS> getCDS() {
+	return getCDSs();
+	}
 
+/** return list of CDS, in the genomic order */
 public default List<CDS> getCDSs() {
 	if(!isProteinCoding()) Collections.emptyList();
 	return getExons().stream().
@@ -232,14 +238,11 @@ public class Exon extends Component {
 				contigsMatch(o) &&
 				getTranscript().getTranscriptId().equals(o.getTranscript().getTranscriptId());
 		}
-	
+
 	/** return 1-based exon index , according to strand */
 	public int getHumanIndex() {
 		return isPositiveStrand()?exon_index+1:getTranscript().getExonCount()-exon_index;
 		}
-	
-	
-	
 	@Override
 	public int getStart() {
 		return getTranscript().getExonStart(this.exon_index);
@@ -257,7 +260,7 @@ public class Exon extends Component {
 
 
 /************************************************************************
- * 
+ *
  * Intron
  *
  */
@@ -268,7 +271,7 @@ public class Intron extends Component {
 		this.owner = owner;
 		this.intron_index = intron_index;
 		}
-	
+
 	@Override
 	public UcscTranscript getTranscript() {
 		return this.owner;
@@ -363,113 +366,18 @@ public class CDS extends ExonComponent {
 		}
 	}
 
-
-public default boolean hasUTR5() {
-	if(!isProteinCoding()) return false;
-	if(isPositiveStrand()) {
-		return getTxStart() < getCdsStart();
-		}
-	else
-		{
-		return getCdsEnd() < getTxEnd();
-		}
-	}
-
-
-
-public default List<UTR5> getUTR5() {
-	if(!hasUTR5()) return Collections.emptyList();
-	final List<UTR5> L = new ArrayList<>();
-	if(isPositiveStrand()) {
-		for(int i=0;i< getExonCount();i++) {
-			final Exon ex = getExon(i);
-			if(ex.getStart() >= getCdsStart()) break;
-			L.add(new UTR5(ex));
-			}
-		}
-	else
-		{
-		for(int i=0;i< getExonCount();i++) {
-			final Exon ex = getExon(i);
-			if(ex.getEnd() <= getCdsEnd()) continue;
-			L.add(new UTR5(ex));
-			}
-		}
-	return L;
-	}
-
 /** ===================================================================*/
 public abstract class UTR extends ExonComponent {
 	protected UTR(final Exon exon) {
 		super(exon);
 		}
+	public abstract boolean isUTR5();
+	public abstract boolean isUTR3();
 	}
-/** ===================================================================*/
-public class UTR5 extends UTR {
-	private UTR5(final Exon exon) {
-		super(exon);
-		}
-	@Override
-	public int getStart() {
-		if(isPositiveStrand()) {
-			return getExon().getStart();
-			}
-		else
-			{
-			return Math.max(
-					getExon().getEnd(),
-					getTranscript().getCdsEnd()
-					);
-			}
-		}
-	@Override
-	public int getEnd() {
-		if(isPositiveStrand()) {
-			return Math.min(
-				getExon().getEnd(),
-				getTranscript().getCdsStart() -1
-				);
-			}
-		else
-			{
-			return getExon().getEnd();
-			}
-		}
-	}
-/** ===================================================================*/
-public class UTR3 extends UTR {
-	private UTR3(final Exon exon) {
-		super(exon);
-		}
-	@Override
-	public int getStart() {
-		if(isPositiveStrand()) {
-			return Math.max(
-				getExon().getStart(),
-				getTranscript().getCdsEnd()
-				);
-			}
-		else
-			{
-			return getExon().getStart();
-			}
-		}
-	@Override
-	public int getEnd() {
-		if(isPositiveStrand()) {
-			return getExon().getEnd();
-			}
-		else
-			{
-			return Math.min(
-				getExon().getEnd(),
-				getTranscript().getCdsStart() -1
-				);
-			}
-		}
 
-	}
-/** ===================================================================*/
+/** return  list of mixed UTR5/UTR3 */
+public List<UTR> getUTRs();
+
 /** ===================================================================*/
 public abstract class Codon extends Component {
 	private final UcscTranscript owner;
@@ -532,16 +440,60 @@ public interface RNA extends CharSequence {
 	public default boolean isNegativeStrand() { return getTranscript().isNegativeStrand();}
 }
 
-public interface CodingRNA extends RNA {
-	public Peptide getPeptide();
-}
 
-/** return coding RNA for this chromosome */
-public CodingRNA getCodingRNA(CharSequence chromosomeSequence);
+public interface MessengerRNA extends RNA {
+	public default boolean hasCodingRNA() {
+		return getTranscript().isProteinCoding();
+		}
+	public CodingRNA getCodingRNA();
+	}
+
+public interface CodingRNA extends RNA {
+	public MessengerRNA getMessengerRNA();
+	public KozakSequence getKozakSequence();
+	public default KozakSequence.Strength getKozakStrength() {
+		return getKozakSequence().getStrength();
+		}
+ 	public Peptide getPeptide();
+	}
+
+/** return  mRNA for this chromosome */
+public MessengerRNA getMessengerRNA(final CharSequence chromosomeSequence);
 
 public interface Peptide extends CharSequence {
 	public CodingRNA getCodingRNA();
 	public int[] convertToGenomicCoordinates(int pepPos0);
-}
+	}
+
+/** return this transcript as a JEXL context */
+public default JexlContext asJexlContext() {
+	return new AsJexlContext(this);
+	}
+
+static class AsJexlContext implements JexlContext
+	{
+	private final UcscTranscript kg;
+	AsJexlContext(final UcscTranscript kg) {
+		this.kg=kg;
+		}
+	@Override
+	public Object get(final String s) {
+		if(s.equals("kg") || s.equals("gene") || s.equals("transcript")) return this.kg;
+		return null;
+		}
+	@Override
+	public boolean has(final String s) {
+		if(s.equals("kg") || s.equals("gene") || s.equals("transcript")) return true;
+		return false;
+		}
+	@Override
+	public void set(final String arg0, final Object arg1) {
+		throw new UnsupportedOperationException("cannot set "+arg0+" to "+this.kg);
+		}
+	@Override
+	public String toString() {
+		return kg.toString();
+		}
+	}
 
 }

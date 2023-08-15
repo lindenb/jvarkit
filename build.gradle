@@ -2210,7 +2210,7 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.phased.VcfPhased01"
+        mainClass = "com.github.lindenb.jvarkit.tools.kg2bed.KnownGenesToBed"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 

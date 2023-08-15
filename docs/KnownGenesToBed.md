@@ -32,6 +32,10 @@ Usage: kg2bed [options] Files
       stands for Java EXpression Language.  See 
       https://commons.apache.org/proper/commons-jexl/reference/syntax.html 
       Default: <empty string>
+    -sql, --sql
+      SQL Schema URI. Each instance of transcript can be associated to a .sql 
+      schema to help the software to decode the semantics of the columns. Eg.: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql
+      Default: <empty string>
     --version
       print version and exit
 
@@ -113,5 +117,4 @@ chr1	11873	12227	+	uc010nxr.1	UTR	UTR3
 chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
 chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
 ```
-
 

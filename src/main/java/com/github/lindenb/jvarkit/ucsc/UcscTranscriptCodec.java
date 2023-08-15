@@ -185,8 +185,8 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		tr.cdsEnd = Integer.parseInt(tokens.get(this.cdsEnd_col));
 		final int nExons = Integer.parseInt(tokens.get(this.nExon_col));
 		
-		tr.exonStarts = new int[] {nExons};
-		tr.exonEnds = new int[] {nExons};
+		tr.exonStarts = new int[nExons];
+		tr.exonEnds = new int[nExons];
 		
 		String[] ss = CharSplitter.COMMA.split(tokens.get(this.exonsStart_col));
 		if(ss.length!=nExons) {
