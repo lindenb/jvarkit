@@ -28,20 +28,26 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.sql.parser.SchemaParser;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.AsciiFeatureCodec;
@@ -49,6 +55,9 @@ import htsjdk.tribble.readers.LineIterator;
 
 
 public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
+	private static final Logger LOG = Logger.build(UcscTranscriptCodec.class).make();
+
+	
 	static final String FILE_SUFFIX = ".txt.gz";
 	private int contig_col =-1;
 	private int name_col =-1;
@@ -65,6 +74,8 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 	private final boolean auto_detect_flag;
 	private String sqlTableName="gene";
 	private UnaryOperator<String> contigConverter = S->S;
+	// file Header generating other columns
+	private FileHeader fileHeader = null;
 	
 	public UcscTranscriptCodec() {
 		super(UcscTranscript.class);
@@ -128,6 +139,7 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		if(table.getColumnByName("name2").isPresent()) {
 			this.score_col = columnIndex(table,"score");
 			}
+		this.fileHeader = new FileHeader(table.getColumns().stream().map(C->C.getName()).collect(Collectors.toList()));
 		}
 	
 	public UcscTranscriptCodec setContigConverter(UnaryOperator<String> contigConverter) {
@@ -159,6 +171,7 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		        this.exonsStart_col = binIdx + 8;
 		        this.exonsEnd_col = binIdx + 9;
 		        this.name2_col = binIdx + 11 ;
+		        this.fileHeader= new FileHeader(IntStream.of(1,tokens.size()).mapToObj(i->"$"+i).collect(Collectors.toList()));
 				}
 			else
 				{
@@ -209,14 +222,21 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		if(this.score_col>=0) {
 			tr.score = OptionalInt.of(Integer.parseInt(tokens.get(this.score_col)));
 			}
+		
+		// tr.metadata=this.fileHeader.toMap(tokens);
  		return tr;
 		}
 	
-	public CloseableIterator<UcscTranscript> iterator(final Path p) throws IOException {
+	private CloseableIterator<UcscTranscript> iterator(final String uri) throws IOException {
+		return iterator(IOUtils.openURIForBufferedReading(uri));
+		}
+
+	
+	private CloseableIterator<UcscTranscript> iterator(final Path p) throws IOException {
 		return iterator(IOUtils.openPathForBufferedReading(p));
 		}
 	
-	public CloseableIterator<UcscTranscript> iterator(final BufferedReader br) throws IOException {
+	private CloseableIterator<UcscTranscript> iterator(final BufferedReader br) throws IOException {
 		return new AbstractCloseableIterator<UcscTranscript>()
 			{
 			@Override
@@ -272,5 +292,62 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
             toDecode = path;
         }
         return toDecode.endsWith(FILE_SUFFIX);
+    }
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final InputStream in,final String sqluri) throws IOException {
+    	return makeIterator(new BufferedReader(new InputStreamReader(in)),sqluri);
+    	}
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final BufferedReader br,final String sqluri) throws IOException {
+    	final SchemaParser.Table table ;
+    	if(StringUtils.isBlank(sqluri)) {
+    		table = null;
+    		}
+    	else
+    		{
+    		table =  parseSchema(sqluri,true);
+    		}
+    	final UcscTranscriptCodec codec = table==null?new UcscTranscriptCodec():new UcscTranscriptCodec(table);
+    	return codec.iterator(br);
+    	}
+    
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final String uri,final String sqluri) throws IOException {
+    	final SchemaParser.Table table ;
+    	if(StringUtils.isBlank(sqluri)) {
+    		table = parseSchema(getSchemaUri(uri),false);
+    		}
+    	else
+    		{
+    		table =  parseSchema(sqluri,true);
+    		}
+    	return makeIterator(uri,table);
+    	}
+    	
+    private static CloseableIterator<UcscTranscript> makeIterator(final String uri, final SchemaParser.Table schema) throws IOException {
+    	final UcscTranscriptCodec codec = schema==null?new UcscTranscriptCodec():new UcscTranscriptCodec(schema);
+    	return codec.iterator(uri);
+    	}
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final String uri) throws IOException {
+    	return makeIterator(uri,"");
+    	}
+    
+    private static String getSchemaUri(String uri) {
+    	if(uri.endsWith(".gz")) uri =  uri.substring(0,uri.length()-3);
+    	int dot= uri.lastIndexOf(".");
+    	if(dot!=-1) uri=uri.substring(0,dot);
+    	return uri+".sql";
+    	}
+    
+    /** parse SQL schema at given uri */
+    static SchemaParser.Table parseSchema(final String sqluri, boolean failOnError) throws IOException {
+    	try(InputStream in=IOUtils.openURIForReading(sqluri)) {
+			return SchemaParser.parseTable(in);
+		} catch(Throwable err) {
+			if(failOnError) throw new IOException("cannot parse sql schema from "+sqluri,err);
+			LOG.warn("Cannot parse schema at "+sqluri);
+			return null;
+		}
     }
 }

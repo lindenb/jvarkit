@@ -24,37 +24,30 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.kg2fa;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloseableIterator;
 /**
  
 ## Example
@@ -80,9 +73,10 @@ CTGATCCATATGAATTCCTCTTATTAAGAAAAATAAAGCATCCAGGATTCAATGAAGAACTGACTATCACCTTGTTAATC
 */
 
 @Program(name="kg2fa",
-description="convert knownGenes to fasta",
-keywords={"kg","knownGene","fasta"},
-creationDate="2019-02-13"
+description="convert ucsc genpred to fasta",
+keywords={"kg","knownGene","fasta","genpred"},
+creationDate="20190213",
+modificationDate="20230815"
 )
 public class KnownGeneToFasta
 extends Launcher
@@ -103,204 +97,98 @@ private int fastaLineLen=50;
 private boolean remove_introns=false;
 @Parameter(names={"--utrs","--utr"},description="Remove UTRs")
 private boolean remove_utrs=false;
-@Parameter(names={"--case","--style"},description="style: (0) do nothing (1): all UPPERCASE (2): all lowercase (3): exon UPPERCASE + intron LOWERCASE . Otherwise do nothing")
-private int case_style = 0;
-@Parameter(names={"--empty"},description="Discard empty files.")
-private boolean prevent_empty = false;;
-@Parameter(names={"--dict"},description="Write optional dict file")
-private Path outputDict=null;
+@Parameter(names={"--empty"},description="Discard empty sequences.")
+private boolean prevent_empty = false;
+@Parameter(names={"-sql","--sql"},description= "SQL Schema URI. "+UcscTranscriptReader.SQL_DESC)
+private String sqlUri="";
 
+
+	private void writeFasta(PrintWriter pw, final Map<String,String> props, CharSequence seq) {
+		if(seq.length()==0 && prevent_empty) return;
+		props.put("length",String.valueOf(seq.length()));
+		boolean first = true;
+		for(String k: props.keySet()) {
+			pw.print(first?">":"|");
+			pw.print(k);
+			pw.print(":");
+			pw.print(props.get(k));
+			first=false;
+			}
+		
+		for(int i=0;i< seq.length();i++) {
+			if(i%this.fastaLineLen==0) pw.println();
+			pw.print(seq.charAt(i));
+			}
+		pw.println();
+		}
 
 
 	@Override
 	public int doWork(final List<String> args) {
-		BufferedReader br=null;
-		ReferenceSequenceFile indexedFastaSequenceFile = null;
-		GenomicSequence genomicSequence = null;
-		PrintWriter pw = null;
-		BufferedWriter dictWriter =null;
-		try {
-			indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
+		try(ReferenceSequenceFile indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
-			final ContigNameConverter refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);
-
-			
-			
-			final String input = oneFileOrNull(args);
-			if(StringUtils.isBlank(input) && this.use_default_uri) {
-				final String uri = KnownGene.getDefaultUri();
-				LOG.info("default uri is "+uri);
-				br= IOUtils.openURIForBufferedReading(uri);
-				}
-			else if(StringUtils.isBlank(input)) {
-				br = IOUtils.openStreamForBufferedReader(stdin());
-				}
-			else if(this.use_default_uri)
-				{
-				LOG.error("input set and use_default_uri both set.");
-				return -1;
-				}
-			else
-				{
-				br = IOUtils.openURIForBufferedReading(input);
-				}
-			
-			pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			
-			
-			final SAMSequenceDictionaryCodec dictCodec;
-			if(this.outputDict==null)
-				{
-				dictWriter=null;
-				dictCodec=null;
-				}
-			else
-				{
-				dictWriter = Files.newBufferedWriter(this.outputDict);
-				dictCodec = new  SAMSequenceDictionaryCodec(dictWriter);
-				dictCodec.encodeHeaderLine(false);
-				}
-			
-			final CharSplitter tab=CharSplitter.TAB;
-			String line;
+			GenomicSequence genomicSequence = null;
+			final String input = super.oneFileOrNull(args);
+			try(PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
 			final Set<String> contig_not_found = new HashSet<>();
-			while((line=br.readLine())!=null) {
-				if(pw.checkError()) break;
-				if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
-				final String tokens[]=tab.split(line);
-				final KnownGene kg=new KnownGene(tokens);
-
-				if((this.onlyCodingTranscript) && kg.getCdsStart()==kg.getCdsEnd())continue; 
-				final String ctg = refCtgNameConverter.apply(kg.getContig());
-				if(StringUtils.isBlank(ctg)) {
-					if(contig_not_found.add(kg.getContig()))
-						{
-						LOG.warn(JvarkitException.ContigNotFoundInDictionary.getMessage(kg.getContig(), refDict));
-						}
-					continue;
-					}
-				kg.setChrom(ctg);
+			try(CloseableIterator<UcscTranscript> iter = StringUtils.isBlank(input)?
+					UcscTranscriptCodec.makeIterator(stdin(),this.sqlUri):
+					UcscTranscriptCodec.makeIterator(input,this.sqlUri)) {
+				while(iter.hasNext()) {
+				final UcscTranscript kg= iter.next();
 				
-				final SAMSequenceRecord ssr = refDict.getSequence(ctg);
-				if(kg.getTxEnd()>ssr.getSequenceLength()) {
-					LOG.warn("knowngene "+kg+" ends "+kg.getTxEnd()+" beyond chromosome "+ctg+" length:"+ssr.getSequenceLength()+". Wrong REF ?");
+				if((this.onlyCodingTranscript) && !kg.isProteinCoding()) continue; 
+				final SAMSequenceRecord ssr = refDict.getSequence(kg.getContig());
+				if(ssr==null) {
+					if(!contig_not_found.contains(kg.getContig())) LOG.info("contig not found in dict:" + kg.getContig());
+					contig_not_found.add(kg.getContig());
 					continue;
 					}
-				if( genomicSequence==null || !genomicSequence.getChrom().equals(ctg)) {
+				if(kg.getTxEnd() > ssr.getSequenceLength()) {
+					LOG.warn("knowngene "+kg+" ends "+kg.getTxEnd()+" beyond chromosome "+kg.getContig()+" length:"+ssr.getSequenceLength()+". Wrong REF ?");
+					continue;
+					}
+				if( genomicSequence==null || !genomicSequence.hasName(kg.getContig())) {
 					/* now, we can change genomicSequence */
-					genomicSequence = new GenomicSequence(indexedFastaSequenceFile, ctg);
+					genomicSequence = new GenomicSequence(indexedFastaSequenceFile, kg.getContig());
 					}
-				int nBases=0;
+				Map<String,String> props = new LinkedHashMap<>();
+				props.put("id",kg.getTranscriptId());
+				if(!StringUtils.isBlank(kg.getName2())) props.put("gene",kg.getName2());
+				props.put("strand",kg.getStrand().name());
 				
-				final Function<KnownGene,String> fastaHeader = K ->{
-					final StringBuilder sb=new StringBuilder(">");
-					sb.append(kg.getName());
-					sb.append(" ");
-					sb.append(String.join("|", tokens));
-					return sb.toString();
-					};
+				final UcscTranscript.MessengerRNA mRNA = kg.getMessengerRNA(genomicSequence);
+				props.put("type","mRNA");
 				
-				
-				if(!prevent_empty) {
-					pw.print(fastaHeader.apply(kg));
-				}
-				if(this.fastaLineLen<=0) pw.println();
-				
-				
-				for(int segIdx=0;segIdx< kg.getExonCount();++segIdx)
-					{
-					final int exon_index = kg.isPositiveStrand()?segIdx:(kg.getExonCount()-1)-segIdx;
-					
-					//exon and then intron
-					for(int side=0;side<2;++side) {
-						if(side==1 && this.remove_introns) continue;
-						
-						final KnownGene.Segment segment;
-						//exon
-						if(side==0) {
-							segment = kg.getExon(exon_index);
-							}
-						else // intron
-							{
-							if(kg.isPositiveStrand()) {
-								if(exon_index>=kg.getIntronCount()) continue;
-								segment = kg.getIntron(exon_index);
-								}
-							else
-								{
-								if(exon_index==0) continue;
-								segment = kg.getIntron(exon_index-1);
-								}
-							}
-						
-						
-						final int exonLength = segment.getEnd()-segment.getStart();
-						for(int x=0;x< exonLength;++x)
-							{
-							final int gpos0;
-							if(kg.isPositiveStrand()) {
-								gpos0 = segment.getStart()+x;
-								}
-							else
-								{
-								gpos0 = (segment.getEnd()-1)-x;
-								}
-							if(this.remove_utrs) {
-								if(gpos0 < kg.getCdsStart()) continue;
-								if(gpos0 >= kg.getCdsEnd()) continue;
-							}
-							
-							char base= genomicSequence.charAt(gpos0);
-							
-							if(kg.isNegativeStrand()) {
-								base=AcidNucleics.complement(base);
-								}
-							
-							switch(this.case_style)
-								{
-								case 0: break;
-								case 1: base= Character.toUpperCase(base);break;
-								case 2: base= Character.toLowerCase(base);break;
-								case 3: base= side==0?Character.toUpperCase(base):Character.toLowerCase(base);break;
-								default:break;
-								}
-							
-							if(base==0 && this.prevent_empty) {
-								pw.print(fastaHeader.apply(kg));
-								}
-							if(this.fastaLineLen>0 && nBases%this.fastaLineLen==0) pw.println();
-							pw.print(base);
-							nBases++;
-							}//end for x
-						}//end for side
-					}//end for exonIdx
-				pw.println();
-				if(nBases>0 || !this.prevent_empty) 
-					{
-					final SAMSequenceRecord ssrOut =new SAMSequenceRecord(kg.getName(), nBases);
-					dictCodec.encodeSequenceRecord(ssrOut);
+				writeFasta(pw,props,mRNA);
+				if(mRNA.hasCodingRNA()) {
+					final UcscTranscript.CodingRNA cDNA = mRNA.getCodingRNA();
+					props.put("type","cDNA");
+					writeFasta(pw,props,cDNA);
+					final UcscTranscript.Peptide pep = cDNA.getPeptide();
+					props.put("type","peptide");
+					writeFasta(pw,props,pep);
+					if(mRNA.hasUpstreamUntranslatedRNA()) {
+						final UcscTranscript.UntranslatedRNA utr5 = mRNA.getUpstreamUntranslatedRNA();
+						props.put("type","UTR5");
+						writeFasta(pw,props,utr5);
+						}
+					if(mRNA.hasDownstreamUntranslatedRNA()) {
+						final UcscTranscript.UntranslatedRNA utr3 = mRNA.getDownstreamUntranslatedRNA();
+						props.put("type","UTR3");
+						writeFasta(pw,props,utr3);
+						}
 					}
-				}
+				} //end while(iter)
+				} //end iter
 			pw.flush();
-			pw.close();
-			pw=null;
-			if(dictWriter!=null) {
-				dictWriter.flush();
-				dictWriter.close();
-				dictWriter=null;
-				}
-
+			} // end pw
 			return 0;
-		} catch(final Throwable err) {
+		} // end ref
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-		}
-		finally {
-			CloserUtil.close(pw);
-			CloserUtil.close(dictWriter);
-			CloserUtil.close(br);
-			CloserUtil.close(indexedFastaSequenceFile);
-		}
+			}
 	}
 
 public static void main(final String[] args) {

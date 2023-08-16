@@ -2,12 +2,13 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-convert knownGenes to fasta
+convert ucsc genpred to fasta
 
 
 ## Usage
 
 ```
+Usage: java -jar dist/kg2fa.jar  [options] Files
 Usage: kg2fa [options] Files
   Options:
     --coding
@@ -16,10 +17,8 @@ Usage: kg2fa [options] Files
     -D, --default
       Use default Known Gene source from UCSC.
       Default: false
-    --dict
-      Write optional dict file
     --empty
-      Discard empty files.
+      Discard empty sequences.
       Default: false
     -h, --help
       print help and exit
@@ -32,11 +31,11 @@ Usage: kg2fa [options] Files
       Output file. Optional . Default: stdout
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
-    --case, --style
-      style: (0) do nothing (1): all UPPERCASE (2): all lowercase (3): exon 
-      UPPERCASE + intron LOWERCASE . Otherwise do nothing
-      Default: 0
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+    -sql, --sql
+      SQL Schema URI. Each instance of transcript can be associated to a .sql 
+      schema to help the software to decode the semantics of the columns. Eg.: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql
+      Default: <empty string>
     --utrs, --utr
       Remove UTRs
       Default: false
@@ -54,6 +53,7 @@ Usage: kg2fa [options] Files
  * kg
  * knownGene
  * fasta
+ * genpred
 
 
 ## Compilation
@@ -76,7 +76,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Creation Date
 
-2019-02-13
+20190213
 
 ## Source code 
 

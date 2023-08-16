@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.ucsc;
 
 import java.util.AbstractList;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -375,6 +374,8 @@ public abstract class UTR extends ExonComponent {
 	public abstract boolean isUTR3();
 	}
 
+/** return true if mRNA has UTR */
+public boolean hasUTRs();
 /** return  list of mixed UTR5/UTR3 */
 public List<UTR> getUTRs();
 
@@ -445,6 +446,10 @@ public interface MessengerRNA extends RNA {
 	public default boolean hasCodingRNA() {
 		return getTranscript().isProteinCoding();
 		}
+	public boolean hasUpstreamUntranslatedRNA();
+	public UntranslatedRNA getUpstreamUntranslatedRNA();
+	public boolean hasDownstreamUntranslatedRNA();
+	public UntranslatedRNA getDownstreamUntranslatedRNA();
 	public CodingRNA getCodingRNA();
 	}
 
@@ -457,6 +462,13 @@ public interface CodingRNA extends RNA {
  	public Peptide getPeptide();
 	}
 
+
+public interface UntranslatedRNA extends RNA {
+	public MessengerRNA getMessengerRNA();
+	}
+
+
+
 /** return  mRNA for this chromosome */
 public MessengerRNA getMessengerRNA(final CharSequence chromosomeSequence);
 
@@ -464,6 +476,8 @@ public interface Peptide extends CharSequence {
 	public CodingRNA getCodingRNA();
 	public int[] convertToGenomicCoordinates(int pepPos0);
 	}
+
+
 
 /** return this transcript as a JEXL context */
 public default JexlContext asJexlContext() {

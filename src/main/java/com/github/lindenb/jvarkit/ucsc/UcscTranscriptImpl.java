@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 
 import com.github.lindenb.jvarkit.bed.BedCoordMath;
@@ -55,6 +56,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 	String name;
 	String name2 = null;
 	OptionalInt score = OptionalInt.empty();
+	Map<String,String> metadata = Collections.emptyMap();
 	
 	/** an abstract RNA : start() and end() on genomic sequence need to be defined*/
 	abstract class RNAImpl extends DelegateCharSequence implements UcscTranscript.RNA
@@ -230,11 +232,60 @@ class UcscTranscriptImpl implements UcscTranscript {
 			return getTranscript().getTxEnd();
 			}
 		
+		@Override
 		public CodingRNAImpl getCodingRNA() {
 			if(buffer != null) return buffer;
 			if(!hasCodingRNA()) throw new IllegalStateException("mRNA does not code for a protein");
 			buffer = new CodingRNAImpl(this);
 			return buffer;
+			}
+		
+		@Override
+		public boolean hasUpstreamUntranslatedRNA() {
+			if(isPositiveStrand()) {
+				return UcscTranscriptImpl.this.txStart < UcscTranscriptImpl.this.cdsStart;
+				}
+			else
+				{
+				return UcscTranscriptImpl.this.cdsEnd < UcscTranscriptImpl.this.txEnd;
+				}
+			}
+		
+		@Override
+		public UntranslatedRNAImpl getUpstreamUntranslatedRNA() {
+			if(!hasUpstreamUntranslatedRNA()) throw new IllegalStateException("No upstream UTR in "+ getTranscript().getTranscriptId());
+			if(isPositiveStrand()) {
+				return new UntranslatedRNAImpl(this, UcscTranscriptImpl.this.txStart,UcscTranscriptImpl.this.cdsStart);
+				}
+			else
+				{
+				return new UntranslatedRNAImpl(this, UcscTranscriptImpl.this.cdsEnd,UcscTranscriptImpl.this.txEnd);
+				}
+			}
+		
+		
+		
+		@Override
+		public boolean hasDownstreamUntranslatedRNA() {
+			if(isPositiveStrand()) {
+				return UcscTranscriptImpl.this.cdsEnd < UcscTranscriptImpl.this.txEnd;
+				}
+			else
+				{
+				return UcscTranscriptImpl.this.txStart < UcscTranscriptImpl.this.cdsStart;
+				}
+			}
+		
+		@Override
+		public UntranslatedRNAImpl getDownstreamUntranslatedRNA() {
+			if(!hasDownstreamUntranslatedRNA()) throw new IllegalStateException("No downstream UTR in "+ getTranscript().getTranscriptId());
+			if(isPositiveStrand()) {
+				return new UntranslatedRNAImpl(this, UcscTranscriptImpl.this.cdsEnd,UcscTranscriptImpl.this.txEnd);
+				}
+			else
+				{
+				return new UntranslatedRNAImpl(this, UcscTranscriptImpl.this.txStart,UcscTranscriptImpl.this.cdsStart);
+				}
 			}
 		
 		public List<CodingRNAImpl> getUpstreamORFs() {
@@ -253,7 +304,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 			}
 		
 		protected List<CodingRNAImpl> getORFs(final int rnaX1, final int rnaX2) {
-			List <CodingRNAImpl> L = null;
+			List<CodingRNAImpl> L = null;
 			int i = rnaX1;
 			while(i+2 < length() && i+2 < rnaX2) {
 				if(isATG(i)) {
@@ -320,6 +371,34 @@ class UcscTranscriptImpl implements UcscTranscript {
 		public Peptide getPeptide()
 			{
 			return new PeptideImpl(GeneticCode.getStandard(), this);
+			}
+		}
+
+
+	class UntranslatedRNAImpl extends RNAImpl implements UcscTranscript.UntranslatedRNA {
+		private final MessengerRNAImpl mRNA;
+		private final int utrStart;
+		private final int utrEnd;
+		UntranslatedRNAImpl(MessengerRNAImpl mRNA,int utrStart,int utrEnd) {
+			super(mRNA.getDelegate());
+			this.mRNA = mRNA;
+			this.utrStart = utrStart;
+			this.utrEnd = utrEnd;
+			if(this.utrStart>=this.utrEnd) throw new IllegalArgumentException("utrStart>=utrEnd");
+			}
+		@Override
+		public MessengerRNAImpl getMessengerRNA() {
+			return this.mRNA;
+			}
+		@Override
+		protected  final int start()
+			{
+			return this.utrStart;
+			}
+		@Override
+		protected  final int end()
+			{
+			return this.utrEnd;
 			}
 		}
 
@@ -573,7 +652,15 @@ class UcscTranscriptImpl implements UcscTranscript {
 		}
 	
 	@Override
-	public MessengerRNA getMessengerRNA(CharSequence chromosomeSequence) {
+	public boolean hasUTRs() {
+		if(!isProteinCoding()) return false;
+		if(txStart < cdsStart) return true;
+		if(cdsEnd < txEnd) return true;
+		return false;
+		}
+	
+	@Override
+	public MessengerRNA getMessengerRNA(final CharSequence chromosomeSequence) {
 		return new MessengerRNAImpl(chromosomeSequence);
 		}
 	
