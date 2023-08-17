@@ -24,22 +24,23 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.gtf;
 
-import java.io.BufferedReader;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene.CodingRNA;
 
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.gff.Gff3FeatureImpl;
@@ -107,10 +108,11 @@ END_DOC
 **/
 @Program(
 		name="kg2gff",
-		description="Convert UCSC knowGene file to gff3",
+		description="Convert UCSC genpred file to gff3",
 		creationDate="20210106",
-		modificationDate="20210107",
-		keywords= {"gff","gff3","ucsc"}
+		modificationDate="20230817",
+		keywords= {"gff","gff3","ucsc","genpred"},
+		jvarkit_amalgamion = true
 		)
 public class KgToGff extends Launcher {
 	private static final Logger LOG = Logger.build(KgToGff.class).make();
@@ -124,7 +126,6 @@ public class KgToGff extends Launcher {
 
 	private static int ID_GENERATOR=0;
 	
-	KgToGff() {}
 
 	private static Map<String,List<String>> convertMap(final Map<String,String> map) {
 		final Map<String,List<String>> atts = new LinkedHashMap<>(map.size());
@@ -134,136 +135,91 @@ public class KgToGff extends Launcher {
 		return atts;
 		}
 	
-	private void process(final Gff3Writer out,final String line) {
+	private void process(final Gff3Writer out,final List<UcscTranscript> kgs) {
 		try {
 		final char delim = ':';
 		final double UNDEFINED_SCORE=-1;
 		final int UNDEFINED_PHASE=-1;
-		final String tokens[] = CharSplitter.TAB.split(line);
-		final KnownGene kg = new KnownGene(tokens);
-		if(coding_only && kg.isNonCoding()) return;
 		final Map<String,String> atts = new LinkedHashMap<>();
 		final int lclid = (++ID_GENERATOR);
-		final String bioType = kg.isNonCoding()?"misc_RNA":"protein_coding";
-		final String geneId = kg.getName()+".g"+ lclid;
-		final Strand strand = Strand.decode(kg.getStrand().encodeAsChar());
-		final String protName = (StringUtils.isBlank(kg.getName2())?kg.getName():kg.getName2());
+		final UcscTranscript first = kgs.get(0);
+		
+		final String bioType = !first.isProteinCoding()?"misc_RNA":"protein_coding";
+		final String geneId = first.getName2();
+		final Strand strand = Strand.decode(first.getStrand().encodeAsChar());
+		final String protName = (StringUtils.isBlank(first.getName2())?first.getTranscriptId():first.getName2());
 		atts.put("ID", "gene"+delim+geneId);
 		atts.put("Name",protName+"."+lclid);
 		atts.put("biotype",bioType);
 		atts.put("gene_id",geneId);
 		
 		out.addFeature(new Gff3FeatureImpl(
-				kg.getContig(),
+				first.getContig(),
 				this.source,
 				"gene",
-				kg.getTxStart()+1,
-				kg.getTxEnd(),
+				kgs.stream().mapToInt(K->K.getTxStart()).min().getAsInt(),
+				kgs.stream().mapToInt(K->K.getTxEnd()).max().getAsInt(),
 				UNDEFINED_SCORE,
 				strand,
 				UNDEFINED_PHASE,
 				convertMap(atts)
 				));
 		
-		//final String transcriptId =;
-
-		atts.clear();
-		atts.put("ID", "transcript"+delim+geneId);
-		atts.put("Parent", "gene"+delim+geneId);
-		atts.put("Name",protName+"."+lclid);
-		atts.put("biotype",bioType);
-		atts.put("transcript_id", kg.getName()+".t"+lclid);
-		out.addFeature(new Gff3FeatureImpl(
-				kg.getContig(),
-				this.source,
-				"mRNA",
-				kg.getTxStart()+1,
-				kg.getTxEnd(),
-				UNDEFINED_SCORE,
-				strand,
-				UNDEFINED_PHASE,
-				convertMap(atts)
-				));
-		
-		final CodingRNA cDNA = (kg.isNonCoding()?null:kg.getCodingRNA());
-		
-		for(KnownGene.Exon exon: kg.getExons()) {
+		for(UcscTranscript kg:kgs) {
 			atts.clear();
-			atts.put("ID",kg.getName()+delim+"E"+exon.getIndex());
-			atts.put("Parent",  "transcript"+delim+geneId);
-			atts.put("Name",kg.getName());
+			atts.put("ID", "transcript"+delim+geneId);
+			atts.put("Parent", "gene"+delim+geneId);
+			atts.put("Name",protName+"."+lclid);
 			atts.put("biotype",bioType);
-			atts.put("exon_id",kg.getName()+delim+"E"+exon.getIndex());
+			atts.put("transcript_id", kg.getTranscriptId()+".t"+lclid);
 			out.addFeature(new Gff3FeatureImpl(
 					kg.getContig(),
 					this.source,
-					"exon",
-					exon.getStart()+1,
-					exon.getEnd(),
+					"mRNA",
+					kg.getTxStart(),
+					kg.getTxEnd(),
 					UNDEFINED_SCORE,
 					strand,
 					UNDEFINED_PHASE,
 					convertMap(atts)
 					));
-			if(cDNA!=null && !(exon.getEnd() <= kg.getCdsStart() || kg.getCdsEnd()<=exon.getStart())) {
-				final int cdsStart = Math.max(exon.getStart(),kg.getCdsStart());
-				final int cdsEnd = Math.min(exon.getEnd(),kg.getCdsEnd());
-				if(cdsStart >= cdsEnd ) continue;
+			
+			
+			for(UcscTranscript.Exon exon: kg.getExons()) {
 				atts.clear();
-				atts.put("Parent", "transcript"+delim+geneId);
-				atts.put("ID", "CDS"+delim+kg.getName()+delim+"CDS"+exon.getIndex());
-				atts.put("protein_id",kg.getName());
-				int i= 0;
-				// the phase number in gff tells us how many bases to skip in this
-	            // feature to reach the first base of the next codon
-				int phase = -1;
-				if(kg.isNegativeStrand()) {
-					final int firstExonPos= cdsEnd-1;
-					while(i< cDNA.length()) {
-						final int pos = cDNA.convertToGenomicCoordinate(i);
-						if( firstExonPos == pos) {
-							phase = i%3;
-							phase=phase==0?0:3-phase;
-							break;
-							}
-						i++;
-						}
-					}
-				else
-					{
-					final int firstExonPos= cdsStart;
-					while(i< cDNA.length()) {
-						final int pos = cDNA.convertToGenomicCoordinate(i);
-						if( firstExonPos == pos) {
-							phase = i%3;
-							phase=phase==0?0:3-phase;
-							break;
-							}
-						i++;
-						}
-					}
-				if(phase<0  || phase>2) {
-					LOG.warn("cannot get phase for "+kg.getName()+" "+exon.getName()+" strand:"+kg.getStrand()+
-						" kg="+ kg.getCdsStart()+"-"+kg.getCdsEnd()+
-						" ex="+exon.getStart()+"-"+exon.getEnd()+
-						" rn:"+cdsStart+"-"+cdsEnd +
-						" phase="+phase+" leng="+cDNA.length()+" "+line);
-					phase = UNDEFINED_PHASE;
-					}
+				atts.put("ID",kg.getTranscriptId()+delim+"E"+exon.getIndex());
+				atts.put("Parent",  "transcript"+delim+geneId);
+				atts.put("Name",kg.getTranscriptId());
+				atts.put("biotype",bioType);
+				atts.put("exon_id",kg.getTranscriptId()+delim+"E"+exon.getIndex());
 				out.addFeature(new Gff3FeatureImpl(
 						kg.getContig(),
 						this.source,
-						"CDS",
-						cdsStart+1,
-						cdsEnd,
+						"exon",
+						exon.getStart(),
+						exon.getEnd(),
 						UNDEFINED_SCORE,
 						strand,
-						phase,
+						UNDEFINED_PHASE,
 						convertMap(atts)
 						));
 				}
+			if(kg.isProteinCoding()) {
+				for(UcscTranscript.CDS cds: kg.getCDSs()) {
+						out.addFeature(new Gff3FeatureImpl(
+								kg.getContig(),
+								this.source,
+								"CDS",
+								cds.getStart(),
+								cds.getEnd(),
+								UNDEFINED_SCORE,
+								strand,
+								cds.getGFFPhase(),
+								convertMap(atts)
+								));
+						}
+				}
 			}
-		
 		} catch(final Throwable err) {
 			throw new RuntimeIOException(err);
 		}
@@ -273,9 +229,24 @@ public class KgToGff extends Launcher {
 	public int doWork(final List<String> args) {
 		try {
 			final String input = super.oneFileOrNull(args);
-			try(BufferedReader br = super.openBufferedReader(input)) {
+			try(CloseableIterator<UcscTranscript> iter= (input!=null?UcscTranscriptCodec.makeIterator(input):UcscTranscriptCodec.makeIterator(stdin()))) {
+				final Map<String,List<UcscTranscript>> name2kgs = new HashMap<>(60_000);
+				while(iter.hasNext()) {
+					final UcscTranscript kg=iter.next();
+					if(coding_only && !kg.isProteinCoding()) continue;
+					final String gene = kg.getContig()+"~"+kg.getName2();
+					List<UcscTranscript> L = name2kgs.get(gene);
+					if(L==null) {
+						L = new ArrayList<>();
+						name2kgs.put(gene,L);
+						}
+					L.add(kg);
+					}
+				
 				try( Gff3Writer gffw = new Gff3Writer(super.openPathOrStdoutAsPrintStream(this.outputFile))) {
-					br.lines().forEach(L->process(gffw,L));
+					for(List<UcscTranscript> L:name2kgs.values()) {
+						process(gffw,L);
+						}
 					}
 				}
 			return 0;

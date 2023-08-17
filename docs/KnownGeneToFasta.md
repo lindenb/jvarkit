@@ -7,26 +7,29 @@ convert ucsc genpred to fasta
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/kg2fa.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar kg2fa  [options] Files
+
 Usage: kg2fa [options] Files
   Options:
     --coding
       ignore non-coding transcripts.
       Default: false
-    -D, --default
-      Use default Known Gene source from UCSC.
-      Default: false
     --empty
       Discard empty sequences.
       Default: false
+    --hide, --exclude
+      Exclude the following type of sequence: mRNA, cDNA, peptide, utr5, utr3 
+      , uORF, uPeptide (case insensitive, comma/space separated)
+      Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --introns, --intron
-      Remove introns
-      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -r, -R, --reference
@@ -36,9 +39,6 @@ Usage: kg2fa [options] Files
       SQL Schema URI. Each instance of transcript can be associated to a .sql 
       schema to help the software to decode the semantics of the columns. Eg.: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql
       Default: <empty string>
-    --utrs, --utr
-      Remove UTRs
-      Default: false
     --version
       print version and exit
     -L
@@ -55,23 +55,6 @@ Usage: kg2fa [options] Files
  * fasta
  * genpred
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew kg2fa
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -102,4 +85,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
 

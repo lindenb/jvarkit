@@ -294,6 +294,10 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
         return toDecode.endsWith(FILE_SUFFIX);
     }
     
+    public static CloseableIterator<UcscTranscript> makeIterator(final InputStream in) throws IOException {
+    	return makeIterator(in,null);
+    	}
+    
     public static CloseableIterator<UcscTranscript> makeIterator(final InputStream in,final String sqluri) throws IOException {
     	return makeIterator(new BufferedReader(new InputStreamReader(in)),sqluri);
     	}

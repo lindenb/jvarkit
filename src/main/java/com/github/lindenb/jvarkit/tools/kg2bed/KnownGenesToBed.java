@@ -36,7 +36,6 @@ import java.util.function.Predicate;
 
 import org.apache.commons.jexl2.JexlContext;
 
-import com.github.lindenb.jvarkit.bed.BedCoordMath;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jexl.JexlPredicate;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
@@ -99,11 +98,10 @@ public class KnownGenesToBed extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-hide","--hide"},description="don't show the following items (comma separated, one of 'INTRON,UTR,CDS,EXON,TRANSCRIPT,NON_CODING,CODING'). Empty don't hide anything")
+	@Parameter(names={"--exclude","--hide"},description="don't show the following items (comma separated, one of 'INTRON,UTR,CDS,EXON,TRANSCRIPT,NON_CODING,CODING'). Empty don't hide anything")
 	private String hideStr="";
 	@Parameter(names={"-s","--select"},description="JEXL select expression. Object 'kg' is an instance of KnownGene (https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/ucsc/KnownGene.java)." +JexlPredicate.OPT_WHAT_IS_JEXL)
 	private String selectExpr="";
-
 	@Parameter(names={"-sql","--sql"},description= "SQL Schema URI. "+UcscTranscriptReader.SQL_DESC)
 	private String sqlUri="";
 

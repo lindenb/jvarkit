@@ -24,13 +24,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.kg2fa;
 
-import java.io.File;
+
 import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+import java.nio.file.Path;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -42,6 +45,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -76,31 +80,27 @@ CTGATCCATATGAATTCCTCTTATTAAGAAAAATAAAGCATCCAGGATTCAATGAAGAACTGACTATCACCTTGTTAATC
 description="convert ucsc genpred to fasta",
 keywords={"kg","knownGene","fasta","genpred"},
 creationDate="20190213",
-modificationDate="20230815"
+modificationDate="20230815",
+jvarkit_amalgamion = true
 )
-public class KnownGeneToFasta
-extends Launcher
-{
-private static final Logger LOG = Logger.build(KnownGeneToFasta.class).make();
+public class KnownGeneToFasta extends Launcher
+	{
+	private static final Logger LOG = Logger.build(KnownGeneToFasta.class).make();
 
-@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-private File faidx = null;
-@Parameter(names={"-D","--default"},description="Use default Known Gene source from UCSC.")
-private boolean use_default_uri=false;
-@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-private File outputFile = null;
-@Parameter(names={"--coding"},description="ignore non-coding transcripts.")
-private boolean onlyCodingTranscript=false;
-@Parameter(names={"-L"},description="fasta line length.")
-private int fastaLineLen=50;
-@Parameter(names={"--introns","--intron"},description="Remove introns")
-private boolean remove_introns=false;
-@Parameter(names={"--utrs","--utr"},description="Remove UTRs")
-private boolean remove_utrs=false;
-@Parameter(names={"--empty"},description="Discard empty sequences.")
-private boolean prevent_empty = false;
-@Parameter(names={"-sql","--sql"},description= "SQL Schema URI. "+UcscTranscriptReader.SQL_DESC)
-private String sqlUri="";
+	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidx = null;
+	@Parameter(names={"--hide","--exclude"},description="Exclude the following type of sequence: mRNA, cDNA, peptide, utr5, utr3 , uORF, uPeptide (case insensitive, comma/space separated)")
+	private String excludeStr="";
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private Path outputFile = null;
+	@Parameter(names={"--coding"},description="ignore non-coding transcripts.")
+	private boolean onlyCodingTranscript=false;
+	@Parameter(names={"-L"},description="fasta line length.")
+	private int fastaLineLen=50;
+	@Parameter(names={"--empty"},description="Discard empty sequences.")
+	private boolean prevent_empty = false;
+	@Parameter(names={"-sql","--sql"},description= "SQL Schema URI. "+UcscTranscriptReader.SQL_DESC)
+	private String sqlUri="";
 
 
 	private void writeFasta(PrintWriter pw, final Map<String,String> props, CharSequence seq) {
@@ -125,11 +125,19 @@ private String sqlUri="";
 
 	@Override
 	public int doWork(final List<String> args) {
+		final Set<String> hideSet =  Arrays.stream(excludeStr.toUpperCase().split("[ ,;]+")).collect(Collectors.toSet());
+		final boolean with_mrna = !hideSet.contains("MRNA");
+		final boolean with_cdna = !hideSet.contains("CDNA");
+		final boolean with_peptide = !hideSet.contains("PEPTIDE");
+		final boolean with_utr5 = !hideSet.contains("UTR5");
+		final boolean with_utr3 = !hideSet.contains("UTR3");
+		final boolean with_upstream_orf = !hideSet.contains("UORF");
+		final boolean with_upstream_pep = !hideSet.contains("UPEPTIDE");
 		try(ReferenceSequenceFile indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
 			final SAMSequenceDictionary refDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
 			GenomicSequence genomicSequence = null;
 			final String input = super.oneFileOrNull(args);
-			try(PrintWriter pw = super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 			final Set<String> contig_not_found = new HashSet<>();
 			try(CloseableIterator<UcscTranscript> iter = StringUtils.isBlank(input)?
 					UcscTranscriptCodec.makeIterator(stdin(),this.sqlUri):
@@ -154,29 +162,38 @@ private String sqlUri="";
 					}
 				Map<String,String> props = new LinkedHashMap<>();
 				props.put("id",kg.getTranscriptId());
+				props.put("contig",kg.getContig());
 				if(!StringUtils.isBlank(kg.getName2())) props.put("gene",kg.getName2());
 				props.put("strand",kg.getStrand().name());
+				
 				
 				final UcscTranscript.MessengerRNA mRNA = kg.getMessengerRNA(genomicSequence);
 				props.put("type","mRNA");
 				
-				writeFasta(pw,props,mRNA);
+				if(with_mrna) writeFasta(pw,props,mRNA);
 				if(mRNA.hasCodingRNA()) {
 					final UcscTranscript.CodingRNA cDNA = mRNA.getCodingRNA();
 					props.put("type","cDNA");
-					writeFasta(pw,props,cDNA);
+					if(with_cdna) writeFasta(pw,props,cDNA);
 					final UcscTranscript.Peptide pep = cDNA.getPeptide();
 					props.put("type","peptide");
-					writeFasta(pw,props,pep);
+					if(with_peptide) writeFasta(pw,props,pep);
 					if(mRNA.hasUpstreamUntranslatedRNA()) {
 						final UcscTranscript.UntranslatedRNA utr5 = mRNA.getUpstreamUntranslatedRNA();
 						props.put("type","UTR5");
-						writeFasta(pw,props,utr5);
+						if(with_utr5) writeFasta(pw,props,utr5);
+						for(UcscTranscript.CodingRNA untr : utr5.getORFs()) {
+							props.put("type","UpstreamORF");
+							if(with_upstream_orf) writeFasta(pw,props,untr);
+							final UcscTranscript.Peptide pep2 = untr.getPeptide();
+							props.put("type","microPep");
+							if(with_upstream_pep) writeFasta(pw,props,pep2);
+							}
 						}
 					if(mRNA.hasDownstreamUntranslatedRNA()) {
 						final UcscTranscript.UntranslatedRNA utr3 = mRNA.getDownstreamUntranslatedRNA();
 						props.put("type","UTR3");
-						writeFasta(pw,props,utr3);
+						if(with_utr3) writeFasta(pw,props,utr3);
 						}
 					}
 				} //end while(iter)

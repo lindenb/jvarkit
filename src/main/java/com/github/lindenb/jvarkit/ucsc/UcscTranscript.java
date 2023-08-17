@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 import org.apache.commons.jexl2.JexlContext;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
+import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript.CodingRNA;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
@@ -223,6 +225,11 @@ public class Exon extends Component {
 		this.exon_index = exon_index;
 		}
 	
+	/** return 0-based exon index in the genome order */
+	public int getIndex() {
+		return this.exon_index;
+		}
+	
 	@Override
 	public UcscTranscript getTranscript() {
 		return this.owner;
@@ -270,7 +277,10 @@ public class Intron extends Component {
 		this.owner = owner;
 		this.intron_index = intron_index;
 		}
-
+	/** return 0-based intron index in the genome order */
+	public int getIndex() {
+		return this.intron_index;
+		}
 	@Override
 	public UcscTranscript getTranscript() {
 		return this.owner;
@@ -353,6 +363,39 @@ public class CDS extends ExonComponent {
 			getTranscript().getCdsEnd()
 			);
 		}
+	
+	/** the phase number in gff tells us how many bases to skip in this
+        feature to reach the first base of the next codon */
+	public int getGFFPhase() {
+		int i= 0;
+		int phase = -1;
+		final CodingRNA cDNA = getTranscript().getMessengerRNA().getCodingRNA();
+		if(isNegativeStrand()) {
+			final int firstExonPos= getEnd();
+			while(i< cDNA.length()) {
+				final int pos = cDNA.convertToGenomic0Coordinate(i);
+				if( firstExonPos == pos) {
+					phase = i%3;
+					return phase==0?0:3-phase;
+					}
+				i++;
+				}
+			}
+		else
+			{
+			final int firstExonPos= getStart();
+			while(i< cDNA.length()) {
+				final int pos = cDNA.convertToGenomic0Coordinate(i);
+				if( firstExonPos == pos) {
+					phase = i%3;
+					return phase==0?0:3-phase;
+					}
+				i++;
+				}
+			}
+		return -1;
+		}
+	
 	@Override
 	public boolean equals(Object obj) {
 		if(this==obj) return true;
@@ -435,6 +478,8 @@ public class StopCodon extends Codon {
 	}
 
 public interface RNA extends CharSequence {
+	/** convert 0-based rna to 0-based genomic */
+	public int convertToGenomic0Coordinate(int rnaPos0);
 	public UcscTranscript getTranscript();
 	public default String getContig() { return getTranscript().getContig(); }
 	public default boolean isPositiveStrand() { return getTranscript().isPositiveStrand();}
@@ -465,12 +510,30 @@ public interface CodingRNA extends RNA {
 
 public interface UntranslatedRNA extends RNA {
 	public MessengerRNA getMessengerRNA();
+	//find ORF starting in this UTR
+	public List<CodingRNA> getORFs();
 	}
 
 
 
 /** return  mRNA for this chromosome */
 public MessengerRNA getMessengerRNA(final CharSequence chromosomeSequence);
+
+/** return  mRNA for this chromosome with a fake genomic sequence. base of the genome should never be asked*/
+public default MessengerRNA getMessengerRNA() {
+	return getMessengerRNA(new AbstractCharSequence() {	
+		@Override
+		public int length() {
+			return Integer.MAX_VALUE-100;
+		}
+		@Override
+		public char charAt(int arg0) {
+			return 'N';
+		}
+	});
+}
+
+
 
 public interface Peptide extends CharSequence {
 	public CodingRNA getCodingRNA();

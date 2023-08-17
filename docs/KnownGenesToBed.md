@@ -16,15 +16,15 @@ Usage: java -jar dist/jvarkit.jar kg2bed  [options] Files
 
 Usage: kg2bed [options] Files
   Options:
-    -h, --help
-      print help and exit
-    --helpFormat
-      What kind of help. One of [usage,markdown,xml].
-    -hide, --hide
+    --exclude, --hide
       don't show the following items (comma separated, one of 
       'INTRON,UTR,CDS,EXON,TRANSCRIPT,NON_CODING,CODING'). Empty don't hide 
       anything 
       Default: <empty string>
+    -h, --help
+      print help and exit
+    --helpFormat
+      What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
     -s, --select
@@ -117,4 +117,5 @@ chr1	11873	12227	+	uc010nxr.1	UTR	UTR3
 chr1	12645	12697	+	uc010nxr.1	EXON	Exon 2
 chr1	12697	13220	+	uc010nxr.1	INTRON	Intron 2
 ```
+
 

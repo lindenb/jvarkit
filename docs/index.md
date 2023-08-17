@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 71d506f61
-Compilation : 20230815155943
+Version     : 46d3e94c0
+Compilation : 20230817152113
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -168,6 +168,8 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [htsfreemarker](HtsFreemarker.md) | Apply Freemarker to VCF/BAM/JSON files. | 20230616 | 20230616 |
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
 | [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20230815 |
+| [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
+| [kg2gff](KgToGff.md) | Convert UCSC genpred file to gff3 | 20210106 | 20230817 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
 | [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
