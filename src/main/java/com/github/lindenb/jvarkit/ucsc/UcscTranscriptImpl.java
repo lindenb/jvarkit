@@ -61,6 +61,9 @@ class UcscTranscriptImpl implements UcscTranscript {
 	OptionalInt score = OptionalInt.empty();
 	Map<String,String> metadata = Collections.emptyMap();
 	
+		
+	
+	
 	/** an abstract RNA : start() and end() on genomic sequence need to be defined*/
 	abstract class RNAImpl extends DelegateCharSequence implements UcscTranscript.RNA
 		{
@@ -73,7 +76,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 
 		/** get Gene associated to this RNA */
 		@Override
-		public final UcscTranscriptImpl getTranscript()
+		public /** final no : overriden by internal ORF */ UcscTranscriptImpl getTranscript()
 			{
 			return UcscTranscriptImpl.this;
 			}
@@ -330,7 +333,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 							b = convertToGenomic0Coordinate(atg0)+1;//one base past ATG
 							}
 						if(a>=b) throw new IllegalStateException("boum");
-						final CodingRNAImpl coding = new CodingRNAImpl(this,a,b);
+						final CodingRNAImpl coding = new MicroCodingRNAImpl(this,a,b);
 						if(!coding.isATG(0)) throw new IllegalStateException("not an atg in "+coding);
 						L.add(coding);
 						}
@@ -433,6 +436,26 @@ class UcscTranscriptImpl implements UcscTranscript {
 			}
 		}
 
+	public class MicroCodingRNAImpl extends CodingRNAImpl {
+		final UcscTranscriptImpl transcript2;
+		MicroCodingRNAImpl(final MessengerRNAImpl mRNA, int _start0,int _end0) {
+			super(mRNA,_start0,_end0);
+			this.transcript2 = new UcscTranscriptImpl(mRNA.getTranscript()) {
+				@Override
+				public MessengerRNA getMessengerRNA(CharSequence chromosomeSequence) {
+					return mRNA;
+					}
+				};
+			this.transcript2.name += ".uORF."+(_start0+1)+"-"+(_end0);
+			this.transcript2.cdsStart = _start0;
+			this.transcript2.cdsEnd = _end0;
+			}
+		@Override
+		public final UcscTranscriptImpl getTranscript() {
+			return transcript2;
+			}
+		}
+	
 	/** implementation of UcscTranscript.Peptide */
 	public class PeptideImpl extends DelegateCharSequence  implements UcscTranscript.Peptide
 		{
@@ -495,7 +518,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 			}
 
 		@Override
-		public int[] convertToGenomicCoordinates(int pepPos0)
+		public int[] convertToGenomic0Coordinates(int pepPos0)
 			{
 			if(pepPos0<0) throw new IndexOutOfBoundsException("negative offset : "+pepPos0);
 			if(pepPos0>=this.length()) throw new IndexOutOfBoundsException(" idx="+pepPos0+" and length="+this.length());
@@ -590,6 +613,23 @@ class UcscTranscriptImpl implements UcscTranscript {
 	UcscTranscriptImpl() {
 		}
 
+
+
+	UcscTranscriptImpl(final UcscTranscriptImpl cp) {
+		this.contig = cp.contig;
+		this.txStart = cp.txStart;
+		this.txEnd = cp.txEnd;
+		this.cdsStart = cp.cdsStart;
+		this.cdsEnd = cp.cdsEnd;
+		this.exonStarts = cp.exonStarts;
+		this.exonEnds = cp.exonEnds;
+		this.name = cp.name;
+		this.name2 = cp.name2;
+		this.score = cp.score;
+		this.metadata = cp.metadata;
+	}
+	
+	
 	@Override
 	public Strand getStrand() {
 		return Strand.decode(this.strand);

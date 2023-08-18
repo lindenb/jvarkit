@@ -337,6 +337,11 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
     	return makeIterator(uri,"");
     	}
     
+    public static CloseableIterator<UcscTranscript> makeIterator(final Path path) throws IOException {
+    	return makeIterator(path.toString(),"");
+    	}
+
+    
     private static String getSchemaUri(String uri) {
     	if(uri.endsWith(".gz")) uri =  uri.substring(0,uri.length()-3);
     	int dot= uri.lastIndexOf(".");

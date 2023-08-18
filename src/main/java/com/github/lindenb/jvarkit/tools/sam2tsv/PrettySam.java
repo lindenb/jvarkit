@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.sam2tsv;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -42,7 +41,6 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.ansi.AnsiUtils;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
@@ -54,7 +52,9 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.Cigar;
@@ -279,7 +279,7 @@ public class PrettySam extends OnePassBamLauncher {
 	private boolean hide_cigar_string = false;
 	@Parameter(names={"-color","--colors"},description="using ansi escape colors")
 	private boolean with_colors = false;
-	@Parameter(names={"-kg","--knowngenes"},description="[20171219]"+KnownGene.OPT_KNOWNGENE_DESC+" Memory intensive: the file is loaded in memory.")
+	@Parameter(names={"-kg","--knowngenes"},description=UcscTranscriptReader.OPT_DESC+" Memory intensive: the file is loaded in memory.")
 	private String knownGeneUri = null;
 	@Parameter(names={"-u","--unstranslated"},description="[20171219]Show untranslated regions (used with option -kg)")
 	private boolean show_untranslated_region=false;
@@ -302,9 +302,18 @@ public class PrettySam extends OnePassBamLauncher {
 		CigarOperator cigaroperator = null;
 		}
 
+	private enum PosType {
+		EXON,
+		INTRON,
+		UTR5,
+		UTR3,
+		INTERGENIC
+		}
+	
+	
 	private static class AminoAcid
 		{
-		KnownGene.PosType posType=null;
+		PosType posType=null;
 		char pepSymbol='\0';
 		int  refpos1=-1;
 		int cdnapos0 = -1;
@@ -316,9 +325,9 @@ public class PrettySam extends OnePassBamLauncher {
 		}
 	private static class KnownGeneInfo
 		{
-		final KnownGene gene;
+		final UcscTranscript gene;
 		final Map<Integer,AminoAcid> refpos1topep = new HashMap<>(1000);
-		KnownGeneInfo(final KnownGene gene) {
+		KnownGeneInfo(final UcscTranscript gene) {
 			this.gene = gene;
 			}
 		AminoAcid get(int pos1) { return this.refpos1topep.get(pos1);}
@@ -336,6 +345,19 @@ public class PrettySam extends OnePassBamLauncher {
 	private final Function<Boolean, String> isNegativeStrandToString = NEGATIVE ->
 		(this.disable_unicode?(NEGATIVE?"<--":"-->"):(NEGATIVE?"\u2190":"\u2192"));
 	
+		
+	private static PosType getPositionTypeAt(final UcscTranscript kg,int  genomic1) {
+		if(kg.isCoding()) {
+			if(genomic1 < kg.getCdsStart())	 return kg.isPositiveStrand()?PosType.UTR5:PosType.UTR3;
+			if(genomic1 > kg.getCdsEnd())	 return kg.isPositiveStrand()?PosType.UTR3:PosType.UTR5;
+			}
+		for(UcscTranscript.Exon ex:kg.getExons()) {
+			if(ex.containsGenomicLoc1(genomic1)) return PosType.EXON;
+			}
+		if(kg.getStart()<= genomic1 && genomic1<=kg.getEnd()) return PosType.INTRON;
+		return PosType.INTERGENIC;
+		}
+		
 	private String baseToString(final char C) {
 		if(!this.with_colors) return String.valueOf(C);
 		
@@ -518,29 +540,19 @@ public class PrettySam extends OnePassBamLauncher {
 					}
 				else
 					{
-					LOG.info("loading "+knownGeneUri);
-					BufferedReader r=null;
-					try {
-						final CharSplitter tab = CharSplitter.TAB;
-						r = IOUtils.openURIForBufferedReading(PrettySam.this.knownGeneUri);
-						r.lines().
-							filter(S->!StringUtil.isBlank(S) || S.startsWith("#")).
-							map(S->new KnownGene(tab.split(S))).
-							filter(K->getChromosomeSequenceFor(K.getContig())!=null).
-							forEach(K->{
-								final Interval i = new Interval(K.getContig(),K.getStart(),K.getEnd());
-								List<KnownGeneInfo> L = this.knownGenes.get(i);
-								if(L==null) {L=new ArrayList<>();this.knownGenes.put(i,L);}
-								L.add(new KnownGeneInfo(K));
-							});
+					try (CloseableIterator<UcscTranscript> iter=UcscTranscriptCodec.makeIterator(PrettySam.this.knownGeneUri)) {
+						while(iter.hasNext()) {
+							final UcscTranscript kg=iter.next();
+							if(getChromosomeSequenceFor(kg.getContig())==null) continue;
+							final Interval i = new Interval(kg.getContig(),kg.getStart(),kg.getEnd());
+							List<KnownGeneInfo> L = this.knownGenes.get(i);
+							if(L==null) {L=new ArrayList<>();this.knownGenes.put(i,L);}
+							L.add(new KnownGeneInfo(kg));
+							}
 						}
-					catch(IOException err)
+					catch(final IOException err)
 						{
 						throw new RuntimeIOException(err);
-						}
-					finally
-						{
-						CloserUtil.close(r);
 						}
 					}
 				}
@@ -882,28 +894,28 @@ public class PrettySam extends OnePassBamLauncher {
 							if(kgInfo.gene.getStart()>x1) continue;
 							if(kgInfo.gene.getEnd()<x1) break;
 							final AminoAcid aa = new AminoAcid();
-							aa.posType = kgInfo.gene.getPositionTypeAt(x1-1);
-							if(!PrettySam.this.show_untranslated_region && !aa.posType.equals(KnownGene.PosType.EXON)) continue;
+							aa.posType = getPositionTypeAt(kgInfo.gene,x1);
+							if(!PrettySam.this.show_untranslated_region && !aa.posType.equals(PosType.EXON)) continue;
 							aa.refpos1 = x1;
 							kgInfo.refpos1topep.put(x1, aa);
 							}
 						if(referenceContig!=null)
 							{
-							final KnownGene.CodingRNA cDna= kgInfo.gene.getCodingRNA(referenceContig);
+							final UcscTranscript.CodingRNA cDna= kgInfo.gene.getMessengerRNA(referenceContig).getCodingRNA();
 							for(final AminoAcid aa:kgInfo.refpos1topep.values())
 								{
-								aa.cdnapos0 = cDna.convertGenomicToRnaCoordinate(aa.refpos1-1);
+								aa.cdnapos0 = cDna.convertToGenomic0Coordinate(aa.refpos1-1);
 								}
 							
 							if(!kgInfo.gene.isNonCoding())
 								{
-								final KnownGene.Peptide pep = cDna.getPeptide();
+								final UcscTranscript.Peptide pep = cDna.getPeptide();
 								for(int y=0;y< pep.length();++y)
 									{
 									final com.github.lindenb.jvarkit.util.bio.AminoAcids.AminoAcid aa1=AminoAcids.getAminoAcidFromOneLetterCode(pep.charAt(y));
 									final String aa3letter = (aa1==null?null:aa1.getThreeLettersCode());
 									if(aa3letter==null) continue;
-									final int codonpos[] = pep.convertToGenomicCoordinates(y);
+									final int codonpos[] = pep.convertToGenomic0Coordinates(y);
 									Arrays.sort(codonpos);
 									for(int codonidx=0;codonidx< codonpos.length;++codonidx)
 										{
@@ -1060,7 +1072,7 @@ public class PrettySam extends OnePassBamLauncher {
 							final String label ;
 							switch(side)
 								{
-								case 0: label = kginfo.gene.getName()+(kginfo.gene.isPositiveStrand()?"(+)":"(-)")+" type";break;
+								case 0: label = kginfo.gene.getTranscriptId()+(kginfo.gene.isPositiveStrand()?"(+)":"(-)")+" type";break;
 								case 1:
 									if(!lineInfo.values().stream().anyMatch(A->A.cdnapos0>=0)) continue;
 									label="cDNA-Pos";

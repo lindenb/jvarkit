@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.util.AbstractList;
 import java.util.Collections;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
 import org.apache.commons.jexl2.JexlContext;
@@ -97,6 +98,16 @@ public int getExonEnd(int idx);
 
 
 public boolean isProteinCoding();
+
+/** negate isCoding */
+public default boolean isNonCoding() {
+	return !isCoding();
+	}
+/** alias of isProteinCoding */
+public default boolean isCoding() {
+	return isProteinCoding();
+	}
+
 
 /** get i-th intron */
 public default Intron getIntron(int idx) {
@@ -270,6 +281,15 @@ public class Exon extends Component {
  * Intron
  *
  */
+
+public default int getIntronStart(int idx) {
+	return getExonEnd(idx) +1;
+	}
+public default int getIntronEnd(int idx) {
+	return getExonStart(idx+1) -1;
+	}
+
+
 public class Intron extends Component {
 	private final UcscTranscript owner;
 	private final int intron_index;
@@ -293,11 +313,11 @@ public class Intron extends Component {
 	
 	@Override
 	public int getStart() {
-		return getTranscript().getExonEnd(this.intron_index) +1;
+		return getTranscript().getIntronStart(this.intron_index);
 		}
 	@Override
 	public int getEnd() {
-		return getTranscript().getExonStart(this.intron_index+1) -1;
+		return getTranscript().getIntronEnd(this.intron_index);
 		}
 	@Override
 	public String getName() {
@@ -537,7 +557,14 @@ public default MessengerRNA getMessengerRNA() {
 
 public interface Peptide extends CharSequence {
 	public CodingRNA getCodingRNA();
-	public int[] convertToGenomicCoordinates(int pepPos0);
+	public int[] convertToGenomic0Coordinates(int pepPos0);
+	/** convert the genomic position to the position in the peptide, return -1 if peptide not in genomic pos */
+	public default int convertGenomic0ToPeptideCoordinate(int genomicPos0)
+		{
+		final int rnaIdx=getCodingRNA().convertToGenomic0Coordinate(genomicPos0);
+		if(rnaIdx==-1) return  -1;
+		return rnaIdx/3;
+		}
 	}
 
 

@@ -101,6 +101,7 @@ nav:
         - "kg2bed" : KnownGenesToBed.md
         - "kg2fa" : KnownGeneToFasta.md
         - "kg2gff" : KgToGff.md
+        - "knownretrocopy" : KnownRetroCopy.md
         - "lowresbam2raster" : LowResBam2Raster.md
         - "mantamerger" : MantaMerger.md
         - "minicaller" : MiniCaller.md

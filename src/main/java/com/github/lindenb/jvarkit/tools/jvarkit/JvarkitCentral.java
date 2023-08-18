@@ -156,6 +156,7 @@ import com.github.lindenb.jvarkit.tools.pubmed.PubmedGender;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedGraph;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedMap;
 import com.github.lindenb.jvarkit.tools.ref2html.ReferenceToHtml;
+import com.github.lindenb.jvarkit.tools.retrocopy.KnownRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.ScanRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.StarRetroCopy;
 import com.github.lindenb.jvarkit.tools.sam2tsv.CnvTView;
@@ -598,6 +599,7 @@ public class JvarkitCentral {
 		command(IbdToVcf.class);
 		command(IlluminaDirectory.class);
 		command(KgToGff.class);
+		command(KnownRetroCopy.class);
 		command(KnownGenesToBed.class);
 		command(KnownGeneToFasta.class);
 		command(LowResBam2Raster.class);

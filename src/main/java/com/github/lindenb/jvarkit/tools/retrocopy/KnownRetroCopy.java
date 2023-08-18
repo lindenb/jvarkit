@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.retrocopy;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,18 +35,20 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
-import com.github.lindenb.jvarkit.util.bio.structure.Intron;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -83,16 +84,15 @@ END_DOC
 @Program(name="knownretrocopy",
 description="Annotate VCF structural variants that could be intron from retrocopies.",
 keywords={"gtf","retrocopy","deletion"},
-creationDate="2019-08-15",
-modificationDate="2019-08-15"
+creationDate="20190815",
+modificationDate="20230817",
+jvarkit_amalgamion = true
 )
-public class KnownRetroCopy extends Launcher
+public class KnownRetroCopy extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(KnownRetroCopy.class).make();
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-gtf","--gtf"},description="GTF file that was used by STAR",required=true)
-	private Path gtfPath = null;
+	@Parameter(names={"-genpred","--genpred","--kg","--transcripts"},description= UcscTranscriptReader.OPT_DESC,required=true)
+	private String genPredURI = null;
 	@Parameter(names={"-d","--distance"},description="max distance between an intron and the deletion found in the VCF")
 	private int distance = 10;
 	@Parameter(names={"--mic","--min-intron-count"},description="Min intron count.",hidden=true)
@@ -104,6 +104,16 @@ public class KnownRetroCopy extends Launcher
 	private final static String ATT_FILTER_INTRON="RETROCOPY_INTRON";
 	private final static String ATT_FILTER_KNOWN="RETROCOPY_KNOWN";
 
+	
+	private static class Intron extends SimpleInterval {
+		final String transcriptId;
+		final String geneId;
+		Intron(UcscTranscript.Intron intron) {
+			super(intron);
+			this.transcriptId = intron.getTranscript().getTranscriptId();
+			this.geneId = intron.getTranscript().getName2();
+		}
+	}
 	
 	private boolean isWithinDistance(int a, int b) {
 		return Math.abs(a-b) < this.distance;
@@ -134,24 +144,23 @@ public class KnownRetroCopy extends Launcher
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			final IntervalTreeMap<List<Intron>> intronMap = new IntervalTreeMap<>();
 			
-			final GtfReader gtfReader = new GtfReader(this.gtfPath);
-			if(dict!=null && !dict.isEmpty()) gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-			gtfReader.getAllGenes().
-					stream().
-					filter(G->G.getTranscripts().stream().count()>0L).
-					filter(G->G.getTranscripts().stream().anyMatch(T->T.getIntronCount()>=this.min_intron_count)).
-					flatMap(G->G.getTranscripts().stream()).
-					flatMap(G->G.getIntrons().stream()).
-					forEach(INTRON->{
-						List<Intron> introns= intronMap.get(INTRON);
-						if(introns==null) {
-							introns=new ArrayList<>();
-							intronMap.put(INTRON.toInterval(),introns);
+			try(CloseableIterator<UcscTranscript> iter = UcscTranscriptCodec.makeIterator(this.genPredURI)) {
+					while(iter.hasNext()) {
+						final UcscTranscript kg = iter.next();
+						if(!kg.hasIntrons()) continue;
+						if(dict.getSequence(kg.getContig())==null) continue;
+						for(UcscTranscript.Intron kgi: kg.getIntrons()) {
+							final Intron intron = new Intron(kgi);
+							final Interval r = new Interval(intron);
+							List<Intron> introns= intronMap.get(r);
+							if(introns==null) {
+								introns=new ArrayList<>();
+								intronMap.put(r,introns);
+								}
+							introns.add(intron);
+							}
 						}
-						introns.add(INTRON);
-					})
-					;
-			gtfReader.close();
+					}
 			
 			/** build vcf header */
 			final VCFHeader header2=new VCFHeader(header); 
@@ -163,10 +172,8 @@ public class KnownRetroCopy extends Launcher
 			
 			out.writeHeader(header2);
 
-			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(dict).build();
 			while(iterin.hasNext()){
-				final VariantContext ctx=progress.apply(iterin.next());
+				final VariantContext ctx= iterin.next();
 				if(ctx.getStart()==ctx.getEnd()) {
 					out.add(ctx);
 					continue;
@@ -187,16 +194,11 @@ public class KnownRetroCopy extends Launcher
 						collect(Collectors.toList())
 						) 
 					{
-					if(knownGeneIds.contains(intron.getTranscript().getGene().getId())) {
+					if(knownGeneIds.contains(intron.geneId)) {
 						known_flag=true;
 						}
-					retrocopy_identifiers.add(VCFUtils.escapeInfoField(intron.getTranscript().getGene().getId()));
-					retrocopy_identifiers.add(VCFUtils.escapeInfoField(intron.getTranscript().getId()));
-					
-					String s=intron.getTranscript().getGene().getProperties().getOrDefault("gene_name", "");
-					if(!StringUtils.isBlank(s)) retrocopy_identifiers.add(VCFUtils.escapeInfoField(s));
-					s=intron.getTranscript().getProperties().getOrDefault("transcript_name", "");
-					if(!StringUtils.isBlank(s)) retrocopy_identifiers.add(VCFUtils.escapeInfoField(s));
+					retrocopy_identifiers.add(VCFUtils.escapeInfoField(intron.geneId));
+					retrocopy_identifiers.add(VCFUtils.escapeInfoField(intron.transcriptId));
 					}					
 				
 				if(retrocopy_identifiers.isEmpty()) {
@@ -212,21 +214,18 @@ public class KnownRetroCopy extends Launcher
 				out.add(vcb.make());
 				}
 						
-			progress.close();
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			}
 		}
+	
 	@Override
-	public int doWork(final List<String> args) {
-		return doVcfToVcf(args, outputFile);
+	protected Logger getLogger() {
+		return LOG;
 		}
 	public static void main(final String[] args) {
 		new KnownRetroCopy().instanceMainWithExit(args);

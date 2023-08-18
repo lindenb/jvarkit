@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.retrocopy;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -43,10 +42,8 @@ import java.util.stream.Stream;
 
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -59,7 +56,9 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -206,7 +205,7 @@ END_DOC
 description="Scan BAM for retrocopies",
 keywords={"sam","bam","cigar","clip","sv","retrocopy"},
 creationDate = "20190125",
-modificationDate = "20190709",
+modificationDate = "20230818",
 jvarkit_amalgamion = true,
 menu="Retrocopy"
 )
@@ -218,8 +217,8 @@ public class ScanRetroCopy extends Launcher
 	
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
-	@Parameter(names={"-k","-K","--kg","-kg"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String knownGeneUri = KnownGene.getDefaultUri();
+	@Parameter(names={"-k","-K","--kg","-kg"},description=UcscTranscriptReader.OPT_DESC)
+	private String knownGeneUri = null;
 	@Parameter(names={"-n","--min-cigar-size"},description="Minimal cigar element length.")
 	private int minCigarSize = 6;
 	@Parameter(names={"-m"},description="Ignore reads having a clip lower than this value",hidden=true)
@@ -256,7 +255,7 @@ public class ScanRetroCopy extends Launcher
 	private ContigNameConverter refCtgNameConverter =null;
 	private GenomicSequence genomicSequence=null;
 	private PrintWriter saveInsertionsPw = null;
-	private final IntervalTreeMap<List<KnownGene>> knownGenesMap = new IntervalTreeMap<>();
+	private final IntervalTreeMap<List<UcscTranscript>> knownGenesMap = new IntervalTreeMap<>();
 	private final List<Match> intronBuffer=new ArrayList<>(100_000);
 	
 
@@ -340,17 +339,17 @@ public class ScanRetroCopy extends Launcher
 	/** exon with one based coordinate */
 	private class ExonOne extends AbstractCharSequence implements Locatable
 		{
-		private final KnownGene.Exon delegate;
-		ExonOne(final KnownGene.Exon delegate) {
+		private final UcscTranscript.Exon delegate;
+		ExonOne(final UcscTranscript.Exon delegate) {
 			this.delegate = delegate;
 			}
 		@Override
 		public String getContig() {
-			return delegate.getGene().getContig();
+			return delegate.getTranscript().getContig();
 			}
 		@Override
 		public int getStart() {
-			return this.delegate.getStart()+1;
+			return this.delegate.getStart();
 			}
 		@Override
 		public int getEnd() {
@@ -385,7 +384,7 @@ public class ScanRetroCopy extends Launcher
 	private class Match implements Locatable
 		{
 		/** associated transcript */
-		final KnownGene knownGene;
+		final UcscTranscript knownGene;
 		/** associated sample */
 		final String sampleName;
 		/** intron index in knownGene */
@@ -395,8 +394,8 @@ public class ScanRetroCopy extends Launcher
 		final byte side;/* 5 or 3 */
 		final int clip_length;
 		
-		Match(final KnownGene.Intron intron,final String sampleName,final SAMRecord rec,final byte side,final int clip_length) {
-			this.knownGene = intron.getGene();
+		Match(final UcscTranscript.Intron intron,final String sampleName,final SAMRecord rec,final byte side,final int clip_length) {
+			this.knownGene = intron.getTranscript();
 			this.sampleName = sampleName;
 			this.intron_index = intron.getIndex();
 			this.clip_length = clip_length;
@@ -436,7 +435,7 @@ public class ScanRetroCopy extends Launcher
 		
 		@Override
 		public int getStart() {
-			return this.knownGene.getIntronStart(this.intron_index)+1;
+			return this.knownGene.getIntronStart(this.intron_index);
 			}
 		
 		@Override
@@ -459,7 +458,7 @@ public class ScanRetroCopy extends Launcher
 		
 		@Override
 		public String toString() {
-			return  this.knownGene.getName()+" "+this.knownGene.getContig()+":"+ this.knownGene.getIntronStart(this.intron_index)+"-"+this.knownGene.getIntronEnd(this.intron_index)+" "+this.sampleName+" "+this.side+" "+this.clip_length;
+			return  this.knownGene.getTranscriptId()+" "+this.knownGene.getContig()+":"+ this.knownGene.getIntronStart(this.intron_index)+"-"+this.knownGene.getIntronEnd(this.intron_index)+" "+this.sampleName+" "+this.side+" "+this.clip_length;
 			}
 		
 		}
@@ -499,7 +498,7 @@ public class ScanRetroCopy extends Launcher
 		{
 		final List<JunctionInfo> intron_5_side;
 		final List<JunctionInfo> intron_3_side;
-		GeneInfo(final KnownGene kg) {
+		GeneInfo(final UcscTranscript kg) {
 			//we must find one exon-exon junction with a least 'min_depth'
 			this.intron_5_side = new ArrayList<>(kg.getIntronCount());
 			this.intron_3_side = new ArrayList<>(kg.getIntronCount());
@@ -545,7 +544,7 @@ public class ScanRetroCopy extends Launcher
 		int longestClip() {
 			return all().filter(V->V.hasValidDepth()).mapToInt(M->M.longestClip()).max().orElse(0);
 			}
-		Genotype makeGenotype(final KnownGene kg,final String sample,List<Allele> refalt) {
+		Genotype makeGenotype(final UcscTranscript kg,final String sample,List<Allele> refalt) {
 			final GenotypeBuilder gb ;
 			if(!this.hasValidDepth())
 				{
@@ -599,7 +598,7 @@ public class ScanRetroCopy extends Launcher
 			final String s1 = ScanRetroCopy.this.knownGenesMap.getOverlapping(R).
 					stream().
 					flatMap(G->G.stream()).
-					map(G->G.getName()).
+					map(G->G.getTranscriptId()).
 					sorted().
 					collect(Collectors.joining(";"));
 			final boolean coding = knownGenesMap.getOverlapping(R).
@@ -611,14 +610,14 @@ public class ScanRetroCopy extends Launcher
 			};
 		
 		// genes to be considered for this dump
-		final Set<KnownGene> candidateGenes = this.intronBuffer.
+		final Set<UcscTranscript> candidateGenes = this.intronBuffer.
 				stream().
 				map(K->K.knownGene).
 				filter(K->before==null || K.getEnd() < before.getStart()).
-				collect(Collectors.toCollection(()->new TreeSet<KnownGene>((A,B)-> {
+				collect(Collectors.toCollection(()->new TreeSet<UcscTranscript>((A,B)-> {
 					final int i= Integer.compare(A.getStart(), B.getStart());
 					if(i!=0) return i;
-					return A.getName().compareTo(B.getName());
+					return A.getTranscriptId().compareTo(B.getTranscriptId());
 					})));
 		
 		// get samples affected
@@ -629,7 +628,7 @@ public class ScanRetroCopy extends Launcher
 				collect(Collectors.toSet());
 		
 		// loop over genes
-		for(final KnownGene kg: candidateGenes) {
+		for(final UcscTranscript kg: candidateGenes) {
 			boolean filter_set=false;
 			
 			final Map<String,GeneInfo> sample2geneinfo = new HashMap<>(candidateSamples.size());
@@ -637,7 +636,7 @@ public class ScanRetroCopy extends Launcher
 			// visit all matches for this gene
 			this.intronBuffer.
 				stream().
-				filter(M->M.knownGene.getName().equals(kg.getName())).
+				filter(M->M.knownGene.getTranscriptId().equals(kg.getTranscriptId())).
 				forEach(M->sample2geneinfo.get(M.sampleName).visit(M));
 			
 			// we need at least one junction with a min depth
@@ -650,7 +649,7 @@ public class ScanRetroCopy extends Launcher
 			vcb.chr(kg.getContig());
 			vcb.start(kg.getStart());
 			vcb.stop(kg.getEnd());
-			vcb.id(kg.getName());
+			vcb.id(kg.getTranscriptId());
 			final Allele ref= Allele.create((byte)genomicSequence.charAt(kg.getTxStart()), true);
 			final List<Allele> alleles = Arrays.asList(ref,alt);
 
@@ -687,16 +686,16 @@ public class ScanRetroCopy extends Launcher
 			// introns sequences
 			final List<String> intronInfos=new ArrayList<>(kg.getIntronCount());
 			for(int intron_idx=0;intron_idx < kg.getIntronCount();++intron_idx) {
-				final KnownGene.Intron the_intron = kg.getIntron(intron_idx);
+				final UcscTranscript.Intron the_intron = kg.getIntron(intron_idx);
 				final int tmp_idx = intron_idx;
 				if(sample2geneinfo.values().stream().noneMatch(X->X.hasValidDepth(tmp_idx))) continue;
 				
 				final CharSequence intronSequence = ScanRetroCopy.this.genomicSequence.subSequence(the_intron.getStart(),the_intron.getEnd());
 				final StringBuilder sb=new StringBuilder(the_intron.getName().replaceAll("[ ]","_"));
 				sb.append("|");
-				sb.append(String.valueOf(the_intron.getStart()+1));
+				sb.append(String.valueOf(the_intron.getStart()));
 				sb.append("|");
-				sb.append(String.valueOf(the_intron.getEnd()+1));
+				sb.append(String.valueOf(the_intron.getEnd()));
 				sb.append("|");
 				sb.append(StringUtils.left(intronSequence,ScanRetroCopy.this.minCigarSize));
 				sb.append("|");
@@ -728,7 +727,7 @@ public class ScanRetroCopy extends Launcher
 			final List<Interval> insertions = this.intronBuffer.
 					stream().
 					filter(M->M.mateInterval!=null).
-					filter(M->M.knownGene.getName().equals(kg.getName())).
+					filter(M->M.knownGene.getTranscriptId().equals(kg.getTranscriptId())).
 					filter(M->sample2geneinfo.get(M.sampleName).hasValidDepth(M.intron_index)).
 					map(M->M.mateInterval).
 					sorted().
@@ -750,16 +749,16 @@ public class ScanRetroCopy extends Launcher
 						++count_evidence;
 						}
 					i=j;
-					final List<KnownGene> mateGenes = ScanRetroCopy.this.knownGenesMap.getOverlapping(insertion).
+					final List<UcscTranscript> mateGenes = ScanRetroCopy.this.knownGenesMap.getOverlapping(insertion).
 								stream().
 								flatMap(G->G.stream()).
-								sorted((A,B)->A.getName().compareTo(B.getName())).
+								sorted((A,B)->A.getTranscriptId().compareTo(B.getTranscriptId())).
 								collect(Collectors.toList());
 					final StringBuilder sb=new StringBuilder(insertion.getContig()+":"+insertion.getStart()+"-"+insertion.getEnd());
 					sb.append("|");
 					sb.append(count_evidence);
 					sb.append("|");
-					sb.append(mateGenes.isEmpty()?".":mateGenes.stream().map(G->G.getName()).collect(Collectors.joining("&")));
+					sb.append(mateGenes.isEmpty()?".":mateGenes.stream().map(G->G.getTranscriptId()).collect(Collectors.joining("&")));
 					sb.append("|");
 					sb.append(!mateGenes.isEmpty() && mateGenes.stream().allMatch(G->G.isNonCoding())?ATT_FILTER_NONDOCODING:".");
 					sb.append("|");
@@ -802,7 +801,7 @@ public class ScanRetroCopy extends Launcher
 					saveInsertionsPw.print("\t");
 
 					// "Any number of additional, user-defined fields ..."
-					saveInsertionsPw.print(kg.getName());
+					saveInsertionsPw.print(kg.getTranscriptId());
 					saveInsertionsPw.print("\t");
 					saveInsertionsPw.print(findGenes.apply(insertion));
 					saveInsertionsPw.print("\t");
@@ -843,7 +842,7 @@ public class ScanRetroCopy extends Launcher
 			vcw.add(vcb.make());
 			
 			// cleanup
-			this.intronBuffer.removeIf(M->M.knownGene.getName().equals(kg.getName()));
+			this.intronBuffer.removeIf(M->M.knownGene.getTranscriptId().equals(kg.getTranscriptId()));
 			}		
 		
 		
@@ -886,23 +885,16 @@ public class ScanRetroCopy extends Launcher
 
 			/* READ KNOWGENES FILES */
 			LOG.info("Loading "+this.knownGeneUri);
-			try(BufferedReader br= IOUtils.openURIForBufferedReading(this.knownGeneUri)) {
-				String line;
-				final CharSplitter tab=CharSplitter.TAB;
-				while((line=br.readLine())!=null)
+			try(CloseableIterator<UcscTranscript> br= UcscTranscriptCodec.makeIterator(this.knownGeneUri)) {
+				while(br.hasNext())
 					{
-					if(StringUtils.isBlank(line))continue;
-					final String tokens[]=tab.split(line);
-					final KnownGene kg=new KnownGene(tokens);
+					final UcscTranscript kg = br.next();
 					if(kg.getExonCount()<2) continue;
 					if(this.onlyCodingTranscript && kg.isNonCoding()) continue; 
-					final String ctg = this.refCtgNameConverter.apply(kg.getContig());
-					if(StringUtils.isBlank(ctg)) continue;
-					kg.setChrom(ctg);
-					final Interval interval = new Interval(ctg,kg.getTxStart()+1,kg.getTxEnd(),kg.isNegativeStrand(),kg.getName());
-					List<KnownGene> L=  this.knownGenesMap.get(interval);
+					final Interval interval = new Interval(kg.getContig(),kg.getTxStart(),kg.getTxEnd(),kg.isNegativeStrand(),kg.getTranscriptId());
+					List<UcscTranscript> L=  this.knownGenesMap.get(interval);
 					if(L==null) {
-						L=new ArrayList<KnownGene>();
+						L=new ArrayList<>();
 						this.knownGenesMap.put(interval,L);
 						}
 					L.add(kg);
@@ -949,8 +941,8 @@ public class ScanRetroCopy extends Launcher
 						flatMap(KG->KG.getExons().stream()).
 						flatMap(exon->{
 							// we need the reads overlapping the exon bounds
-							final int tid=samdict.getSequenceIndex(samConvert.apply(exon.getGene().getContig()));
-							final QueryInterval q1=new QueryInterval(tid,exon.getStart()+1,exon.getStart()+1);
+							final int tid=samdict.getSequenceIndex(samConvert.apply(exon.getContig()));
+							final QueryInterval q1=new QueryInterval(tid,exon.getStart(),exon.getStart());
 							final QueryInterval q2=new QueryInterval(tid,exon.getEnd(),exon.getEnd());
 							return Arrays.stream(new QueryInterval[]{q1,q2});
 						}).
@@ -1087,7 +1079,7 @@ public class ScanRetroCopy extends Launcher
 					continue;
 				}
 				
-				final List<KnownGene> genes = this.knownGenesMap.getOverlapping(
+				final List<UcscTranscript> genes = this.knownGenesMap.getOverlapping(
 						new Interval(refContig,rec.getUnclippedStart(),rec.getUnclippedEnd())
 						).stream().
 						flatMap(L->L.stream()).
@@ -1116,7 +1108,7 @@ public class ScanRetroCopy extends Launcher
 				for(int side=0;side<2 && !genes.isEmpty();++side) {
 					final CigarElement ce_side = (side==0?leftCigar:rightCigar);
 					if(!isCandidateCigarElement(ce_side)) continue;
-					for(final KnownGene knownGene:genes) {
+					for(final UcscTranscript knownGene:genes) {
 						for(int exonIndex=0;exonIndex< knownGene.getExonCount();exonIndex++) {
 							if(side==0) /* looking at cigar string in 5' */
 								{
@@ -1160,7 +1152,7 @@ public class ScanRetroCopy extends Launcher
 								
 								if(matchLength<this._priv_ignoreCigarSize) continue;
 								
-								final KnownGene.Intron intron=knownGene.getIntron(exonIndex-1); 
+								final UcscTranscript.Intron intron=knownGene.getIntron(exonIndex-1); 
 								
 								//find match or create new
 								final Match match = new Match(intron, sampleName, rec,SIDE_3_PRIME,matchLength);
@@ -1211,7 +1203,7 @@ public class ScanRetroCopy extends Launcher
 
 								//find match or create new
 								
-								final KnownGene.Intron intron=knownGene.getIntron(exonIndex); 
+								final UcscTranscript.Intron intron=knownGene.getIntron(exonIndex); 
 								
 								final Match match = new Match(intron, sampleName, rec,SIDE_5_PRIME,matchLength);
 								this.intronBuffer.add(match);

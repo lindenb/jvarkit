@@ -56,8 +56,8 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;
@@ -73,6 +73,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -123,7 +124,7 @@ public class TView implements Closeable
 	private int numCoverageRows=10;
 	@Parameter(names={"-layout","--layout"},description="Layout reads")
 	private LayoutReads layoutReads=LayoutReads.pileup;
-	@Parameter(names={"-kg","--knownGenes"},description="Tabix indexed UCSC knownGene File",hidden=true)
+	@Parameter(names={"-kg","--knownGenes"},description=UcscTranscriptReader.OPT_TABIX_DESC,hidden=true)
 	private String knownGeneUri = null;
 
 	
@@ -285,10 +286,9 @@ public class TView implements Closeable
 	private final List<SamInputResource> samInputResources=new ArrayList<>();
 	private final List<SamReader> samReaders=new ArrayList<>();
 	private final List<VcfSource> vcfReaders=new ArrayList<>();
-	private TabixKnownGeneFileReader tabixKnownGene =null;
+	private UcscTranscriptReader tabixKnownGene =null;
 	
 	public TView() {
-		
 	}
 	
 	public Path getReferenceFile()
@@ -385,7 +385,7 @@ public class TView implements Closeable
 			this.vcfReaders.add(vcfSource);
 			}
 		if(this.tabixKnownGene!=null) {
-			this.tabixKnownGene = new TabixKnownGeneFileReader(this.knownGeneUri);
+			this.tabixKnownGene = new UcscTranscriptReader(this.knownGeneUri);
 			}
 		return 0;
 		}
@@ -407,13 +407,13 @@ public class TView implements Closeable
 		this.samInputResources.clear();
 		this.samReaders.clear();
 		this.vcfReaders.clear();
-		CloserUtil.close(this.tabixKnownGene);
+		if(this.tabixKnownGene!=null) this.tabixKnownGene.close();
 		this.tabixKnownGene =null;
 		}
 	
 	public SamRecordFilter getRecordFilter() {
 		return this.samRecordFilter;
-	}
+		}
 	
 	
 	
@@ -959,14 +959,23 @@ public class TView implements Closeable
 		
 		if(this.tabixKnownGene!=null && this.indexedFastaSequenceFile!=null)
 			{
-			final List<KnownGene> genes =  this.tabixKnownGene.getItemsInInterval(this.interval);
+			final List<UcscTranscript> genes;
+			try {
+				genes = this.tabixKnownGene.query(this.interval).
+					stream().
+					collect(Collectors.toList());
+				}
+			catch(final IOException err) {
+				throw new RuntimeIOException(err);
+				}
 			if(!genes.isEmpty()) {
 				out.println(this.knownGeneUri);
-				for(final KnownGene gene: genes) {
-					final KnownGene.CodingRNA codingRna=gene.getCodingRNA(contigSequence);
-					final KnownGene.Peptide peptide = codingRna.getPeptide();
+				for(final UcscTranscript gene: genes) {
+					final UcscTranscript.MessengerRNA mRna = gene.getMessengerRNA(contigSequence);
+					final UcscTranscript.CodingRNA codingRna = mRna.getCodingRNA();
+					final UcscTranscript.Peptide peptide = codingRna.getPeptide();
 
-					out.print(margin(gene.getName()));
+					out.print(margin(gene.getTranscriptId()));
 					x = 0;
 					int ref0 = this.interval.getStart()-1;
 					while(x<pixelWidth)
@@ -982,12 +991,12 @@ public class TView implements Closeable
 							if(ref0>=gene.getTxStart() && ref0<gene.getTxEnd())
 								{
 								pepChar=(gene.isPositiveStrand()?'>':'<');
-								int pepIdx = peptide.convertGenomicToPeptideCoordinate(ref0);
+								final int pepIdx = peptide.convertGenomic0ToPeptideCoordinate(ref0);
 								if(pepIdx!=-1)
 									{
 									final AminoAcid aa= AminoAcids.getAminoAcidFromOneLetterCode(peptide.charAt(pepIdx));
 									final String aa3 = aa==null?"***":aa.getThreeLettersCode();
-									final int offset[] = peptide.convertToGenomicCoordinates(pepIdx);
+									final int offset[] = peptide.convertToGenomic0Coordinates(pepIdx);
 									if(offset!=null && offset.length==3 && aa3!=null && aa3.length()==3) {
 										if(offset[0]==ref0 ) pepChar=aa3.charAt(0);
 										else if(offset[1]==ref0 ) pepChar=aa3.charAt(1);
