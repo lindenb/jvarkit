@@ -192,5 +192,6 @@ nav:
         - "vcftrio" : VCFTrios.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
+        - "wib2bedgraph" : WibToBedGraph.md
         - "xsltstream" : XsltStream.md
 

@@ -218,6 +218,7 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamView;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfJexlFilter;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfView;
 import com.github.lindenb.jvarkit.tools.viewmate.SamViewWithMate;
+import com.github.lindenb.jvarkit.tools.wib.WibToBedGraph;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -690,6 +691,7 @@ public class JvarkitCentral {
 		command(VcfGroupByPopulation.class);
 		command(CNVValidatorServer.class);
 		command(VcfBurdenFisherH.class);
+		command(WibToBedGraph.class);
 		command(WesCnvSvg.class);
 		command(WGSCoveragePlotter.class);
 		command(XsltStream.class);

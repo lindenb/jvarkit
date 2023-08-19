@@ -16,11 +16,6 @@ Usage: java -jar dist/jvarkit.jar vcfbigwig  [options] Files
 
 Usage: vcfbigwig [options] Files
   Options:
-    -a, --aggregate
-      How to aggregate overlapping values: 'avg' average; 'median': median, 
-      'first': use first, 'all' : print all the data
-      Default: avg
-      Possible Values: [avg, median, first, all]
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 
@@ -28,13 +23,7 @@ Usage: vcfbigwig [options] Files
       checked 2019-11-15)
       Default: false
   * -B, --bigwig
-      Path to the bigwig file. [20180122] If the path ends with '.xml' it is 
-      interpretted as a XML file containing describing a set of BigWig 
-      resources; See online doc.
-    -C, --contained
-      Specifies wig values must be contained by region. if false: return any 
-      intersecting region values
-      Default: false
+      Path/URI to bigwig file.
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -69,10 +58,6 @@ Usage: vcfbigwig [options] Files
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfbigwig/VCFBigWig.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfbigwig/VCFBigWig.java)
 
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfbigwig/VCFBigWigTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfbigwig/VCFBigWigTest.java)
-
 
 ## Contribute
 
@@ -95,15 +80,6 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## XML definition
-
-multiple BigWig files can be specified using a XML file.
-
-* Root is `<registry>`
-* under `<registry>` is a set of `<bigwig>' elements.
-* under `<bigwig>` contains the `<uri>'(required) , `<tag>` and `<description>`
-
-
 ## Example
 
 ```bash
@@ -116,6 +92,5 @@ multiple BigWig files can be specified using a XML file.
 A	33926	.	G	A	182	.	GERP=-6.35(...)
 A	45365	.	A	G	222	.	GERP=-3.55(...)
 ```
-
 
 

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 8ffabc37e
-Compilation : 20230818143628
+Version     : cd6fe53f0
+Compilation : 20230819162538
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -184,6 +184,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfserver](VcfServer.md) | Web Server displaying VCF file. A web interface for vcf2table | 20171027 | 20220517 |
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |
 | [vcftbi2bed](VcfTbiToBed.md) | extracts BED for each contig in a tabix-indexed VCF peeking first of last variant for each chromosome. | 20230214 | 20230214 |
+| [wib2bedgraph](WibToBedGraph.md) | Extract Wib files to bedgraph or wig | 20230819 | 20230819 |
 
 ### VCF Manipulation
 
@@ -203,7 +204,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfallelebalance](VcfAlleleBalance.md) | Insert missing allele balance annotation using FORMAT:AD | 20180829 | 20200805 |
 | [vcfancestralalleles](VcfAncestralAllele.md) | Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README | 20180418 | 20220126 |
 | [vcfbigbed](VcfBigBed.md) | Annotate a VCF with values from a bigbed file | 20220107 | 20220107 |
-| [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20220110 |
+| [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20230819 |
 | [vcfburdenmaf](VcfBurdenMAF.md) | MAF for Cases / Controls | 20160418 | 202000713 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20140218 | 20220119 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
