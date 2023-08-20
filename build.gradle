@@ -2197,7 +2197,7 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig"
+        mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.Gff3UpstreamOrf"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 

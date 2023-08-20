@@ -28,7 +28,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.function.UnaryOperator;
 
-
+import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -53,7 +53,7 @@ public class WibReader implements AutoCloseable {
 	public static final String TABIX_DESC="A wib associated indexed tabix file.e.g: wget \"https://hgdownload.soe.ucsc.edu/gbdb/hg38/multiz100way/phastCons100way.wib\" && wget -O - \"https://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/phastCons100way.txt.gz\" | gunzip -c | bgzip > phastCons100way.txt.gz && tabix --force -0 -s 2 -e 3 -e 4 phastCons100way.txt.gz\n";
 	public static final String WIB_DESC="The wib file itself e.g: wget 'https://hgdownload.soe.ucsc.edu/gbdb/hg38/multiz100way/phastCons100way.wib' .";
 
-	  static public interface WigItem extends Locatable {
+	  static public interface WigItem extends Locatable, BedInterval {
 		  public double getValue();
 	  }
 	  

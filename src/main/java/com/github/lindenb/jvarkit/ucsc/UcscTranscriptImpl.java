@@ -33,10 +33,13 @@ import java.util.OptionalInt;
 
 import com.github.lindenb.jvarkit.bed.BedCoordMath;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 import com.github.lindenb.jvarkit.util.log.Logger;
+
+import htsjdk.samtools.util.Locatable;
 import htsjdk.tribble.annotation.Strand;
 
 /**
@@ -73,17 +76,28 @@ class UcscTranscriptImpl implements UcscTranscript {
 			{
 			super(sequence);
 			}
+		
+		@Override
+		public Strand getStrand() {
+			return getTranscript().getStrand();
+			}
 
+
+		@Override
+		public int getStart() {
+			return  getBedStart()+1;
+			}
+		@Override
+		public int getEnd() {
+			return getBedEnd();
+			}
+		
 		/** get Gene associated to this RNA */
 		@Override
 		public /** final no : overriden by internal ORF */ UcscTranscriptImpl getTranscript()
 			{
 			return UcscTranscriptImpl.this;
 			}
-		/** start of mRNA (could be transcription or traduction */
-		protected abstract int start();
-		/** end of mRNA (could be transcription or traduction */
-		protected abstract int end();
 
 		private boolean hasCodon(final int pos0, char b1,char b2, char b3) {
 			if(pos0 < 0 || pos0 +2 >= this.length()) return false;
@@ -109,7 +123,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 		void checkCoordinates() {
 			if(!DEBUG) return;
 			for(int i=0;i< length();i++) {
-				int g0 = convertToGenomic0Coordinate(i);
+				int g0 = convertToGenomic0Coordinate0(i);
 				OptionalInt r0 = convertGenomic0ToRnaCoordinate0(g0);
 				if(!r0.isPresent()|| r0.getAsInt()!=i) throw new IllegalStateException();
 				}
@@ -117,7 +131,8 @@ class UcscTranscriptImpl implements UcscTranscript {
 
 
 		/** convert the genomic position to the position in the RNA, return -1 if RNA not in genomic pos */
-		OptionalInt convertGenomic0ToRnaCoordinate0(int genomicPos0)
+		@Override
+		public OptionalInt convertGenomic0ToRnaCoordinate0(int genomicPos0)
 			{
 			if(DEBUG) LOG.debug("convertGenomic0ToRnaCoordinate0 g0="+genomicPos0+" for "+ getTranscript());
 			int rnaPos0=0;
@@ -125,10 +140,10 @@ class UcscTranscriptImpl implements UcscTranscript {
 				{
 				for(final Exon ex:getTranscript().getExons())
 					{
-					if(this.start() >= ex.getBedEnd()) continue;
-					if(this.end() <= ex.getBedStart()) break;
-					final int beg = Math.max(this.start(), ex.getBedStart());
-					final int end = Math.min(this.end(), ex.getBedEnd());
+					if(this.getBedStart() >= ex.getBedEnd()) continue;
+					if(this.getBedEnd() <= ex.getBedStart()) break;
+					final int beg = Math.max(this.getBedStart(), ex.getBedStart());
+					final int end = Math.min(this.getBedEnd(), ex.getBedEnd());
 					if(beg<= genomicPos0 && genomicPos0<end)
 						{
 						return OptionalInt.of((genomicPos0-beg)+rnaPos0);
@@ -141,11 +156,11 @@ class UcscTranscriptImpl implements UcscTranscript {
 				for(int idx=getTranscript().getExonCount()-1;idx>=0;idx--)
 					{
 					final Exon ex=getExon(idx);
-					if(DEBUG) System.err.println(ex.getName()+" ex.start:"+ex.getBedStart()+"-"+ex.getBedEnd()+" "+rnaPos0+" "+this.start()+"-"+this.end());
-					if(this.start()>=ex.getBedEnd()) break;
-					if(this.end()<=ex.getBedStart()) continue;
-					final int beg = Math.max(this.start(), ex.getBedStart());
-					final int end = Math.min(this.end(), ex.getBedEnd());
+					if(DEBUG) System.err.println(ex.getName()+" ex.start:"+ex.getBedStart()+"-"+ex.getBedEnd()+" "+rnaPos0+" "+this.getBedStart()+"-"+this.getBedEnd());
+					if(this.getBedStart()>=ex.getBedEnd()) break;
+					if(this.getBedEnd()<=ex.getBedStart()) continue;
+					final int beg = Math.max(this.getBedStart(), ex.getBedStart());
+					final int end = Math.min(this.getBedEnd(), ex.getBedEnd());
 					if(beg<= genomicPos0 && genomicPos0<end)
 						{
 						return OptionalInt.of(((end-1)-genomicPos0) + rnaPos0);
@@ -156,7 +171,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 			return OptionalInt.empty();
 			}
 		@Override
-		public int convertToGenomic0Coordinate(int rnaPos0)
+		public int convertToGenomic0Coordinate0(int rnaPos0)
 			{
 			if(rnaPos0<0) throw new IllegalArgumentException("negative index:"+rnaPos0);
 			if(rnaPos0>=this.length()) throw new IndexOutOfBoundsException("out of bound index:"+rnaPos0+"<"+this.length());
@@ -165,10 +180,10 @@ class UcscTranscriptImpl implements UcscTranscript {
 				{
 				for(Exon ex:getTranscript().getExons())
 					{
-					if(this.start()>=ex.getBedEnd()) continue;
-					if(this.end()<=ex.getBedStart()) break;
-					final int beg=Math.max(this.start(), ex.getBedStart());
-					final int len= BedCoordMath.getOverlap(this.start(), this.end(), ex.getBedStart(), ex.getBedEnd());
+					if(this.getBedStart()>=ex.getBedEnd()) continue;
+					if(this.getBedEnd()<=ex.getBedStart()) break;
+					final int beg=Math.max(this.getBedStart(), ex.getBedStart());
+					final int len= BedCoordMath.getOverlap(this.getBedStart(), this.getBedEnd(), ex.getBedStart(), ex.getBedEnd());
 					if(rnaPos0<len)
 						{
 						return beg+rnaPos0;
@@ -181,10 +196,10 @@ class UcscTranscriptImpl implements UcscTranscript {
 				for(int idx=getTranscript().getExonCount()-1;idx>=0;idx--)
 					{
 					final Exon ex=getExon(idx);
-					if(this.start() >= ex.getBedEnd()) break;
-					if(this.end() <= ex.getBedStart()) continue;
-					final int end=Math.min(this.end(), ex.getBedEnd());
-					final int len= BedCoordMath.getOverlap(this.start(), this.end(), ex.getBedStart(), ex.getBedEnd());
+					if(this.getBedStart() >= ex.getBedEnd()) break;
+					if(this.getBedEnd() <= ex.getBedStart()) continue;
+					final int end=Math.min(this.getBedEnd(), ex.getBedEnd());
+					final int len= BedCoordMath.getOverlap(this.getBedStart(), this.getBedEnd(), ex.getBedStart(), ex.getBedEnd());
 					if(rnaPos0<len)
 						{
 						return (end-1)-rnaPos0;
@@ -205,10 +220,10 @@ class UcscTranscriptImpl implements UcscTranscript {
 				this._length=0;
 				for(final Exon ex:getTranscript().getExons())
 					{
-					if(this.start() >= ex.getBedEnd()) continue;
-					if(this.end() <= ex.getBedStart()) break;
+					if(this.getBedStart() >= ex.getBedEnd()) continue;
+					if(this.getBedEnd() <= ex.getBedStart()) break;
 					this._length+= BedCoordMath.getOverlap(
-							this.start(),this.end(),
+							this.getBedStart(),this.getBedEnd(),
 							ex.getBedStart(),ex.getBedEnd()
 							);
 					}
@@ -220,7 +235,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 			{
 			if(index0<0) throw new IllegalArgumentException("negative index:"+index0);
 			if(index0>=this.length()) throw new IndexOutOfBoundsException("index:"+index0 +" < "+this.length());
-			int n= convertToGenomic0Coordinate(index0);
+			int n= convertToGenomic0Coordinate0(index0);
 			if(n==-1) 	throw new IndexOutOfBoundsException("0<=index:="+index0+"<"+length());
 			if(isPositiveStrand())
 				{
@@ -239,13 +254,14 @@ class UcscTranscriptImpl implements UcscTranscript {
 			{
 			super(sequence);
 			}
+	
 		@Override
-		protected  final int start()
+		public final int getBedStart()
 			{
 			return getTranscript().getTxStart() -1;
 			}
 		@Override
-		protected  final int end()
+		public final int getBedEnd()
 			{
 			return getTranscript().getTxEnd();
 			}
@@ -259,16 +275,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 			return buffer;
 			}
 		
-		@Override
-		public boolean hasUpstreamUntranslatedRNA() {
-			if(isPositiveStrand()) {
-				return UcscTranscriptImpl.this.txStart < UcscTranscriptImpl.this.cdsStart;
-				}
-			else
-				{
-				return UcscTranscriptImpl.this.cdsEnd < UcscTranscriptImpl.this.txEnd;
-				}
-			}
+
 		
 		@Override
 		public UntranslatedRNAImpl getUpstreamUntranslatedRNA() {
@@ -284,16 +291,6 @@ class UcscTranscriptImpl implements UcscTranscript {
 		
 		
 		
-		@Override
-		public boolean hasDownstreamUntranslatedRNA() {
-			if(isPositiveStrand()) {
-				return UcscTranscriptImpl.this.cdsEnd < UcscTranscriptImpl.this.txEnd;
-				}
-			else
-				{
-				return UcscTranscriptImpl.this.txStart < UcscTranscriptImpl.this.cdsStart;
-				}
-			}
 		
 		@Override
 		public UntranslatedRNAImpl getDownstreamUntranslatedRNA() {
@@ -324,17 +321,17 @@ class UcscTranscriptImpl implements UcscTranscript {
 						final int a;
 						final int b;
 						if(isPositiveStrand()) {
-							a = convertToGenomic0Coordinate(atg0);
-							b = convertToGenomic0Coordinate(i);
+							a = convertToGenomic0Coordinate0(atg0);
+							b = convertToGenomic0Coordinate0(i);
 							}
 						else
 							{
-							a = convertToGenomic0Coordinate(i);
-							b = convertToGenomic0Coordinate(atg0)+1;//one base past ATG
+							a = convertToGenomic0Coordinate0(i);
+							b = convertToGenomic0Coordinate0(atg0)+1;//one base past ATG
 							}
 						if(a>=b) throw new IllegalStateException("boum");
 						final CodingRNAImpl coding = new MicroCodingRNAImpl(this,a,b);
-						if(!coding.isATG(0)) throw new IllegalStateException("not an atg in "+coding);
+						if(!coding.isATG(0)) throw new IllegalStateException("not an atg in "+coding+" "+getContig()+":"+a+"-"+b+" "+getStrand());
 						L.add(coding);
 						}
 					else
@@ -368,21 +365,23 @@ class UcscTranscriptImpl implements UcscTranscript {
 			return this.mRNA;
 			}
 		@Override
-		protected  final int start()
+		public  final int getBedStart()
 			{
 			return this._start0;
 			}
 		@Override
-		protected  final int end()
+		public  final int getBedEnd()
 			{
 			return this._end0;
 			}
-		int convertToRNAMessengerCoordinate(int cdna0) {
-			return -1;//TODO
+		@Override
+		public int convertCoding0ToMessenger0(int cdna0) {
+			final int g0 = convertToGenomic0Coordinate0(cdna0);
+			return getMessengerRNA().convertGenomic0ToRnaCoordinate0(g0).getAsInt();
 			}
 		@Override
 		public KozakSequence getKozakSequence() {
-			final int atg0 = convertToRNAMessengerCoordinate(0);
+			final int atg0 = convertCoding0ToMessenger0(0);
 			return new KozakSequence(getMessengerRNA().getDelegate(),atg0);
 			}
 		
@@ -397,7 +396,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 		private final MessengerRNAImpl mRNA;
 		private final int utrStart;
 		private final int utrEnd;
-		UntranslatedRNAImpl(MessengerRNAImpl mRNA,int utrStart,int utrEnd) {
+		UntranslatedRNAImpl(final MessengerRNAImpl mRNA,int utrStart,int utrEnd) {
 			super(mRNA.getDelegate());
 			this.mRNA = mRNA;
 			this.utrStart = utrStart;
@@ -409,25 +408,20 @@ class UcscTranscriptImpl implements UcscTranscript {
 			return this.mRNA;
 			}
 		@Override
-		protected  final int start()
+		public  final int getBedStart()
 			{
 			return this.utrStart;
 			}
 		@Override
-		protected  final int end()
+		public  final int getBedEnd()
 			{
 			return this.utrEnd;
 			}
-		public List<CodingRNA> getORFs() {
-			
-			final int atg_genomic0;
-			if(isPositiveStrand()) {
-				atg_genomic0 = getTranscript().getCdsStart()-1;//0 based ATG
-				}
-			else
-				{
-				atg_genomic0 = getTranscript().getCdsEnd()-1;//ATG is *before* the END position
-				}
+		
+		
+		
+		public List<CodingRNA> getORFs() {			
+			final int atg_genomic0 = getTranscript().getGenome0ATG();
 			final OptionalInt atg0 = getMessengerRNA().convertGenomic0ToRnaCoordinate0(atg_genomic0);
 			if(!atg0.isPresent()) {
 				throw new IllegalStateException("Cannot get atg0 for "+getTranscript()+" g0="+atg_genomic0+" "+getMessengerRNA().hasUpstreamUntranslatedRNA());
@@ -481,9 +475,9 @@ class UcscTranscriptImpl implements UcscTranscript {
 					{
 					return 0;
 					}
-				final int idx1=getCodingRNA().convertToGenomic0Coordinate((_length-1)*3+0);
-				final int idx2=getCodingRNA().convertToGenomic0Coordinate((_length-1)*3+1);
-				final int idx3=getCodingRNA().convertToGenomic0Coordinate((_length-1)*3+2);
+				final int idx1=getCodingRNA().convertToGenomic0Coordinate0((_length-1)*3+0);
+				final int idx2=getCodingRNA().convertToGenomic0Coordinate0((_length-1)*3+1);
+				final int idx3=getCodingRNA().convertToGenomic0Coordinate0((_length-1)*3+2);
 				if(idx1==-1 || idx2==-1 || idx3==-1)
 					{
 					System.err.println("Bizarre pour "+getCodingRNA().getTranscript().getTranscriptId()+" "+getStrand());
@@ -524,9 +518,9 @@ class UcscTranscriptImpl implements UcscTranscript {
 			if(pepPos0>=this.length()) throw new IndexOutOfBoundsException(" idx="+pepPos0+" and length="+this.length());
 			
 			return new int[]{
-				getCodingRNA().convertToGenomic0Coordinate(pepPos0*3+0),	
-				getCodingRNA().convertToGenomic0Coordinate(pepPos0*3+1),	
-				getCodingRNA().convertToGenomic0Coordinate(pepPos0*3+2)
+				getCodingRNA().convertToGenomic0Coordinate0(pepPos0*3+0),	
+				getCodingRNA().convertToGenomic0Coordinate0(pepPos0*3+1),	
+				getCodingRNA().convertToGenomic0Coordinate0(pepPos0*3+2)
 				};
 			}
 		
@@ -621,6 +615,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 		this.txEnd = cp.txEnd;
 		this.cdsStart = cp.cdsStart;
 		this.cdsEnd = cp.cdsEnd;
+		this.strand = cp.strand;
 		this.exonStarts = cp.exonStarts;
 		this.exonEnds = cp.exonEnds;
 		this.name = cp.name;
@@ -723,14 +718,6 @@ class UcscTranscriptImpl implements UcscTranscript {
 		}
 	
 	@Override
-	public boolean hasUTRs() {
-		if(!isProteinCoding()) return false;
-		if(txStart < cdsStart) return true;
-		if(cdsEnd < txEnd) return true;
-		return false;
-		}
-	
-	@Override
 	public MessengerRNA getMessengerRNA(final CharSequence chromosomeSequence) {
 		final MessengerRNAImpl rna= new MessengerRNAImpl(chromosomeSequence);
 		if(DEBUG) rna.checkCoordinates();
@@ -746,6 +733,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 			append(" txStart:").append(getTxStart()).
 			append(" txEnd:").append(getTxEnd());
 		if(isProteinCoding()) {
+			sb.append(" coding:true");
 			sb.append(" cdsStart:").append(getCdsStart()).
 			append(" cdsEnd:").append(getCdsEnd());
 			}

@@ -27,7 +27,9 @@ package com.github.lindenb.jvarkit.ucsc;
 
 import java.util.AbstractList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
@@ -35,7 +37,6 @@ import org.apache.commons.jexl2.JexlContext;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.ucsc.UcscTranscript.CodingRNA;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
@@ -99,9 +100,23 @@ public int getExonEnd(int idx);
 
 public boolean isProteinCoding();
 
+
+/** return 0-based genomic position of the **A**TG initiator */
+public default int getGenome0ATG() {
+	if(!isProteinCoding()) throw new IllegalStateException("non coding protein");
+	if(isPositiveStrand()) {
+		return getCdsStart()-1;//0 based ATG
+		}
+	else
+		{
+		return getCdsEnd()-1;//ATG is *before* the END position
+		}
+	}
+
+
 /** negate isCoding */
 public default boolean isNonCoding() {
-	return !isCoding();
+	return !isProteinCoding();
 	}
 /** alias of isProteinCoding */
 public default boolean isCoding() {
@@ -154,13 +169,14 @@ public default List<CDS> getCDS() {
 /** return list of CDS, in the genomic order */
 public default List<CDS> getCDSs() {
 	if(!isProteinCoding()) Collections.emptyList();
-	return getExons().stream().
+	final List<CDS> L = getExons().stream().
 		filter(EX->CoordMath.overlaps(
 				EX.getStart(), EX.getEnd(),
 				getCdsStart(), getCdsEnd()
 				)).
 		map(EX->new CDS(EX)).
 		collect(Collectors.toList());
+	return L;
 	}
 
 
@@ -235,6 +251,7 @@ public class Exon extends Component {
 		this.owner = owner;
 		this.exon_index = exon_index;
 		}
+	
 	
 	/** return 0-based exon index in the genome order */
 	public int getIndex() {
@@ -349,6 +366,7 @@ public abstract class ExonComponent extends Component {
 		this.exon = exon;
 		}
 	
+	
 	@Override
 	public UcscTranscript getTranscript() {
 		return this.exon.getTranscript();
@@ -384,37 +402,6 @@ public class CDS extends ExonComponent {
 			);
 		}
 	
-	/** the phase number in gff tells us how many bases to skip in this
-        feature to reach the first base of the next codon */
-	public int getGFFPhase() {
-		int i= 0;
-		int phase = -1;
-		final CodingRNA cDNA = getTranscript().getMessengerRNA().getCodingRNA();
-		if(isNegativeStrand()) {
-			final int firstExonPos= getEnd();
-			while(i< cDNA.length()) {
-				final int pos = cDNA.convertToGenomic0Coordinate(i);
-				if( firstExonPos == pos) {
-					phase = i%3;
-					return phase==0?0:3-phase;
-					}
-				i++;
-				}
-			}
-		else
-			{
-			final int firstExonPos= getStart();
-			while(i< cDNA.length()) {
-				final int pos = cDNA.convertToGenomic0Coordinate(i);
-				if( firstExonPos == pos) {
-					phase = i%3;
-					return phase==0?0:3-phase;
-					}
-				i++;
-				}
-			}
-		return -1;
-		}
 	
 	@Override
 	public boolean equals(Object obj) {
@@ -438,9 +425,31 @@ public abstract class UTR extends ExonComponent {
 	}
 
 /** return true if mRNA has UTR */
-public boolean hasUTRs();
+public default boolean hasUTRs() {
+	return hasUTR5() || hasUTR3();
+}
 /** return  list of mixed UTR5/UTR3 */
 public List<UTR> getUTRs();
+
+/** return true if there is a 5' UTR */
+public default boolean hasUTR5() {
+	return isProteinCoding() &&
+		(isPositiveStrand()?
+			getTxStart() < getCdsStart():
+			getCdsEnd() < getTxEnd())
+			;
+	}
+
+
+/** return true if there is a 3' UTR */
+public default boolean hasUTR3() {
+	return isProteinCoding() &&
+		(isPositiveStrand()?
+			getCdsEnd() < getTxEnd():
+			getTxStart() < getCdsStart()
+			);
+	}
+
 
 /** ===================================================================*/
 public abstract class Codon extends Component {
@@ -497,10 +506,14 @@ public class StopCodon extends Codon {
 		}
 	}
 
-public interface RNA extends CharSequence {
+public interface RNA extends CharSequence , Locatable, BedInterval {
 	/** convert 0-based rna to 0-based genomic */
-	public int convertToGenomic0Coordinate(int rnaPos0);
+	public int convertToGenomic0Coordinate0(int rnaPos0);
+	/** convert the genomic position to the position in the RNA, return empty( if RNA not in genomic pos */
+	public OptionalInt convertGenomic0ToRnaCoordinate0(int genomicPos0);
+	/** return associated transcript, it it's a micro-ORF, the new transcript associated to the ORF will be returned */
 	public UcscTranscript getTranscript();
+	public default Strand getStrand() { return getTranscript().getStrand();}
 	public default String getContig() { return getTranscript().getContig(); }
 	public default boolean isPositiveStrand() { return getTranscript().isPositiveStrand();}
 	public default boolean isNegativeStrand() { return getTranscript().isNegativeStrand();}
@@ -511,11 +524,16 @@ public interface MessengerRNA extends RNA {
 	public default boolean hasCodingRNA() {
 		return getTranscript().isProteinCoding();
 		}
-	public boolean hasUpstreamUntranslatedRNA();
+	public default boolean hasUpstreamUntranslatedRNA() {
+		return getTranscript().hasUTR5();
+		}
 	public UntranslatedRNA getUpstreamUntranslatedRNA();
-	public boolean hasDownstreamUntranslatedRNA();
+	public default boolean hasDownstreamUntranslatedRNA() {
+		return getTranscript().hasUTR3();
+		}
 	public UntranslatedRNA getDownstreamUntranslatedRNA();
 	public CodingRNA getCodingRNA();
+	
 	}
 
 public interface CodingRNA extends RNA {
@@ -524,6 +542,8 @@ public interface CodingRNA extends RNA {
 	public default KozakSequence.Strength getKozakStrength() {
 		return getKozakSequence().getStrength();
 		}
+	/** convert cDNA position to mRNA 0-based position */
+	public int convertCoding0ToMessenger0(int cDNA0);
  	public Peptide getPeptide();
 	}
 
@@ -559,9 +579,9 @@ public interface Peptide extends CharSequence {
 	public CodingRNA getCodingRNA();
 	public int[] convertToGenomic0Coordinates(int pepPos0);
 	/** convert the genomic position to the position in the peptide, return -1 if peptide not in genomic pos */
-	public default int convertGenomic0ToPeptideCoordinate(int genomicPos0)
+	public default int convertGenomic0ToPeptideCoordinate0(int genomicPos0)
 		{
-		final int rnaIdx=getCodingRNA().convertToGenomic0Coordinate(genomicPos0);
+		final int rnaIdx=getCodingRNA().convertToGenomic0Coordinate0(genomicPos0);
 		if(rnaIdx==-1) return  -1;
 		return rnaIdx/3;
 		}
