@@ -218,7 +218,7 @@ public class ScanRetroCopy extends Launcher
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
 	@Parameter(names={"-k","-K","--kg","-kg"},description=UcscTranscriptReader.OPT_DESC)
-	private String knownGeneUri = null;
+	private String ucscTranscriptUri = null;
 	@Parameter(names={"-n","--min-cigar-size"},description="Minimal cigar element length.")
 	private int minCigarSize = 6;
 	@Parameter(names={"-m"},description="Ignore reads having a clip lower than this value",hidden=true)
@@ -255,7 +255,7 @@ public class ScanRetroCopy extends Launcher
 	private ContigNameConverter refCtgNameConverter =null;
 	private GenomicSequence genomicSequence=null;
 	private PrintWriter saveInsertionsPw = null;
-	private final IntervalTreeMap<List<UcscTranscript>> knownGenesMap = new IntervalTreeMap<>();
+	private final IntervalTreeMap<List<UcscTranscript>> ucscTranscriptMap = new IntervalTreeMap<>();
 	private final List<Match> intronBuffer=new ArrayList<>(100_000);
 	
 
@@ -384,7 +384,7 @@ public class ScanRetroCopy extends Launcher
 	private class Match implements Locatable
 		{
 		/** associated transcript */
-		final UcscTranscript knownGene;
+		final UcscTranscript ucscTranscript;
 		/** associated sample */
 		final String sampleName;
 		/** intron index in knownGene */
@@ -395,7 +395,7 @@ public class ScanRetroCopy extends Launcher
 		final int clip_length;
 		
 		Match(final UcscTranscript.Intron intron,final String sampleName,final SAMRecord rec,final byte side,final int clip_length) {
-			this.knownGene = intron.getTranscript();
+			this.ucscTranscript = intron.getTranscript();
 			this.sampleName = sampleName;
 			this.intron_index = intron.getIndex();
 			this.clip_length = clip_length;
@@ -415,8 +415,8 @@ public class ScanRetroCopy extends Launcher
 				final Interval mateInterval = new Interval(mateCtg,rec.getMateAlignmentStart(),mateEnd);		
 				
 				/* same overlapping gene */
-				if(mateCtg.equals(this.knownGene.getContig()) && 
-					ScanRetroCopy.this.knownGenesMap.getOverlapping(this.knownGene).
+				if(mateCtg.equals(this.ucscTranscript.getContig()) && 
+					ScanRetroCopy.this.ucscTranscriptMap.getOverlapping(this.ucscTranscript).
 					stream().
 					flatMap(L->L.stream()).
 					anyMatch(R->R.overlaps(mateInterval))) {			
@@ -430,17 +430,17 @@ public class ScanRetroCopy extends Launcher
 
 		@Override
 		public String getContig() {
-			return this.knownGene.getContig();
+			return this.ucscTranscript.getContig();
 			}
 		
 		@Override
 		public int getStart() {
-			return this.knownGene.getIntronStart(this.intron_index);
+			return this.ucscTranscript.getIntronStart(this.intron_index);
 			}
 		
 		@Override
 		public int getEnd() {
-			return this.knownGene.getIntronEnd(this.intron_index);
+			return this.ucscTranscript.getIntronEnd(this.intron_index);
 			}
 		/*
 		boolean isInterval(final Locatable loc) {
@@ -458,7 +458,7 @@ public class ScanRetroCopy extends Launcher
 		
 		@Override
 		public String toString() {
-			return  this.knownGene.getTranscriptId()+" "+this.knownGene.getContig()+":"+ this.knownGene.getIntronStart(this.intron_index)+"-"+this.knownGene.getIntronEnd(this.intron_index)+" "+this.sampleName+" "+this.side+" "+this.clip_length;
+			return  this.ucscTranscript.getTranscriptId()+" "+this.ucscTranscript.getContig()+":"+ this.ucscTranscript.getIntronStart(this.intron_index)+"-"+this.ucscTranscript.getIntronEnd(this.intron_index)+" "+this.sampleName+" "+this.side+" "+this.clip_length;
 			}
 		
 		}
@@ -595,13 +595,13 @@ public class ScanRetroCopy extends Launcher
 		
 		/* get a list of overlapping gene as string + coding state*/
 		final Function<Locatable,String> findGenes = R->{
-			final String s1 = ScanRetroCopy.this.knownGenesMap.getOverlapping(R).
+			final String s1 = ScanRetroCopy.this.ucscTranscriptMap.getOverlapping(R).
 					stream().
 					flatMap(G->G.stream()).
 					map(G->G.getTranscriptId()).
 					sorted().
 					collect(Collectors.joining(";"));
-			final boolean coding = knownGenesMap.getOverlapping(R).
+			final boolean coding = ucscTranscriptMap.getOverlapping(R).
 					stream().
 					flatMap(G->G.stream()).
 					anyMatch(G->!G.isNonCoding());
@@ -612,7 +612,7 @@ public class ScanRetroCopy extends Launcher
 		// genes to be considered for this dump
 		final Set<UcscTranscript> candidateGenes = this.intronBuffer.
 				stream().
-				map(K->K.knownGene).
+				map(K->K.ucscTranscript).
 				filter(K->before==null || K.getEnd() < before.getStart()).
 				collect(Collectors.toCollection(()->new TreeSet<UcscTranscript>((A,B)-> {
 					final int i= Integer.compare(A.getStart(), B.getStart());
@@ -623,7 +623,7 @@ public class ScanRetroCopy extends Launcher
 		// get samples affected
 		final Set<String> candidateSamples = this.intronBuffer.
 				stream().
-				filter(M->candidateGenes.contains(M.knownGene)).
+				filter(M->candidateGenes.contains(M.ucscTranscript)).
 				map(M->M.sampleName).
 				collect(Collectors.toSet());
 		
@@ -636,7 +636,7 @@ public class ScanRetroCopy extends Launcher
 			// visit all matches for this gene
 			this.intronBuffer.
 				stream().
-				filter(M->M.knownGene.getTranscriptId().equals(kg.getTranscriptId())).
+				filter(M->M.ucscTranscript.getTranscriptId().equals(kg.getTranscriptId())).
 				forEach(M->sample2geneinfo.get(M.sampleName).visit(M));
 			
 			// we need at least one junction with a min depth
@@ -727,7 +727,7 @@ public class ScanRetroCopy extends Launcher
 			final List<Interval> insertions = this.intronBuffer.
 					stream().
 					filter(M->M.mateInterval!=null).
-					filter(M->M.knownGene.getTranscriptId().equals(kg.getTranscriptId())).
+					filter(M->M.ucscTranscript.getTranscriptId().equals(kg.getTranscriptId())).
 					filter(M->sample2geneinfo.get(M.sampleName).hasValidDepth(M.intron_index)).
 					map(M->M.mateInterval).
 					sorted().
@@ -749,7 +749,7 @@ public class ScanRetroCopy extends Launcher
 						++count_evidence;
 						}
 					i=j;
-					final List<UcscTranscript> mateGenes = ScanRetroCopy.this.knownGenesMap.getOverlapping(insertion).
+					final List<UcscTranscript> mateGenes = ScanRetroCopy.this.ucscTranscriptMap.getOverlapping(insertion).
 								stream().
 								flatMap(G->G.stream()).
 								sorted((A,B)->A.getTranscriptId().compareTo(B.getTranscriptId())).
@@ -781,9 +781,9 @@ public class ScanRetroCopy extends Launcher
 					// save insertions
 					saveInsertionsPw.print(kg.getContig());
 					saveInsertionsPw.print("\t");
-					saveInsertionsPw.print(kg.getStart()-1);
+					saveInsertionsPw.print(kg.getBedStart());
 					saveInsertionsPw.print("\t");
-					saveInsertionsPw.print(kg.getEnd());
+					saveInsertionsPw.print(kg.getBedEnd());
 					saveInsertionsPw.print("\t");
 					saveInsertionsPw.print(insertion.getContig());
 					saveInsertionsPw.print("\t");
@@ -842,13 +842,13 @@ public class ScanRetroCopy extends Launcher
 			vcw.add(vcb.make());
 			
 			// cleanup
-			this.intronBuffer.removeIf(M->M.knownGene.getTranscriptId().equals(kg.getTranscriptId()));
+			this.intronBuffer.removeIf(M->M.ucscTranscript.getTranscriptId().equals(kg.getTranscriptId()));
 			}		
 		
 		
 		if(before!=null) {
 			// remove transcript if there is not enough evidence(s).
-			this.intronBuffer.removeIf(M->M.knownGene.getEnd() < before.getStart());
+			this.intronBuffer.removeIf(M->M.ucscTranscript.getEnd() < before.getStart());
 			} 
 		else
 			{
@@ -884,28 +884,28 @@ public class ScanRetroCopy extends Launcher
 			this.refCtgNameConverter= ContigNameConverter.fromOneDictionary(refDict);
 
 			/* READ KNOWGENES FILES */
-			LOG.info("Loading "+this.knownGeneUri);
-			try(CloseableIterator<UcscTranscript> br= UcscTranscriptCodec.makeIterator(this.knownGeneUri)) {
+			LOG.info("Loading "+this.ucscTranscriptUri);
+			try(CloseableIterator<UcscTranscript> br= UcscTranscriptCodec.makeIterator(this.ucscTranscriptUri)) {
 				while(br.hasNext())
 					{
 					final UcscTranscript kg = br.next();
 					if(kg.getExonCount()<2) continue;
 					if(this.onlyCodingTranscript && kg.isNonCoding()) continue; 
 					final Interval interval = new Interval(kg.getContig(),kg.getTxStart(),kg.getTxEnd(),kg.isNegativeStrand(),kg.getTranscriptId());
-					List<UcscTranscript> L=  this.knownGenesMap.get(interval);
+					List<UcscTranscript> L=  this.ucscTranscriptMap.get(interval);
 					if(L==null) {
 						L=new ArrayList<>();
-						this.knownGenesMap.put(interval,L);
+						this.ucscTranscriptMap.put(interval,L);
 						}
 					L.add(kg);
 					}
 				}
 
-			if(this.knownGenesMap.isEmpty()) {
-				LOG.error("no gene found in "+this.knownGeneUri);
+			if(this.ucscTranscriptMap.isEmpty()) {
+				LOG.error("no gene found in "+this.ucscTranscriptUri);
 				return -1;
 				}
-			LOG.info("Number of transcripts: "+ this.knownGenesMap.values().stream().flatMap(L->L.stream()).count());
+			LOG.info("Number of transcripts: "+ this.ucscTranscriptMap.values().stream().flatMap(L->L.stream()).count());
 			
 			// open the sam file
 			final SamReaderFactory samReaderFactory = super.createSamReaderFactory();
@@ -934,7 +934,7 @@ public class ScanRetroCopy extends Launcher
 				final SAMSequenceDictionary samdict= SequenceDictionaryUtils.extractRequired(samFileHeader);
 
 				final ContigNameConverter samConvert = ContigNameConverter.fromOneDictionary(samdict);
-				final List<QueryInterval> intervalsL = this.knownGenesMap.values().
+				final List<QueryInterval> intervalsL = this.ucscTranscriptMap.values().
 						stream().
 						flatMap(K->K.stream()).
 						filter(KG->samConvert.apply(KG.getContig())!=null).
@@ -1079,7 +1079,7 @@ public class ScanRetroCopy extends Launcher
 					continue;
 				}
 				
-				final List<UcscTranscript> genes = this.knownGenesMap.getOverlapping(
+				final List<UcscTranscript> genes = this.ucscTranscriptMap.getOverlapping(
 						new Interval(refContig,rec.getUnclippedStart(),rec.getUnclippedEnd())
 						).stream().
 						flatMap(L->L.stream()).
@@ -1092,7 +1092,7 @@ public class ScanRetroCopy extends Launcher
 					int minTxStart= genes.stream().mapToInt(K->K.getTxStart()).min().getAsInt();
 					final int maxTxStart= genes.stream().mapToInt(K->K.getTxEnd()).max().getAsInt();
 					// update minTxtStart to get the lowest gene overlapping the set of genes
-					minTxStart = this.knownGenesMap.getOverlapping(
+					minTxStart = this.ucscTranscriptMap.getOverlapping(
 							new Interval(refContig,minTxStart,maxTxStart)
 							).stream().
 							flatMap(L->L.stream()).

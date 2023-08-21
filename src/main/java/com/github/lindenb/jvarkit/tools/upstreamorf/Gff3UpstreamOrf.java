@@ -87,7 +87,7 @@ END_DOC
 description="Takes a ucsc genpred file, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs ",
 keywords={"gff","gff3","uorf","uorf"},
 creationDate="20220724",
-modificationDate="20230819",
+modificationDate="20230820",
 jvarkit_amalgamion = true
 )
 public class Gff3UpstreamOrf extends Launcher
@@ -141,16 +141,6 @@ public class Gff3UpstreamOrf extends Launcher
 		return k.getStrength().compareTo(this.user_kozak_strength)<=0;
 		}
 	
-        /** the phase number in gff tells us how many bases to skip in this
-        feature to reach the first base of the next codon */
-        private static int getGFFPhase(final UcscTranscript.CDS cds, final UcscTranscript.CodingRNA cDNA) {
-		final int firstExonPos0 = cDNA.isPositiveStrand()?cds.getBedStart():cds.getBedEnd()-1;
-		System.err.println("cds "+cds+" has firstBase0="+firstExonPos0+" "+cDNA.getStrand());
-		final int p = cDNA.convertGenomic0ToRnaCoordinate0(firstExonPos0).getAsInt();
-		System.err.println("in rna coordinate it's "+p+" so phase is "+p%3);
-		if(cDNA.isPositiveStrand() && cDNA.getStart()==cds.getStart() && p!=0) throw new IllegalStateException("boum");
-		return p%3;
-                }
 	static private boolean containsOpenReadingFrame(
 			final UcscTranscript.CodingRNA cDNA,
 			final UcscTranscript.CodingRNA uorf

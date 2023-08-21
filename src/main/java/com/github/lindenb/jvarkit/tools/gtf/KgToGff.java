@@ -164,7 +164,7 @@ public class KgToGff extends Launcher {
 				UNDEFINED_PHASE,
 				convertMap(atts)
 				));
-		
+
 		for(UcscTranscript kg:kgs) {
 			atts.clear();
 			atts.put("ID", "transcript"+delim+geneId);
@@ -183,8 +183,7 @@ public class KgToGff extends Launcher {
 					UNDEFINED_PHASE,
 					convertMap(atts)
 					));
-			
-			
+
 			for(UcscTranscript.Exon exon: kg.getExons()) {
 				atts.clear();
 				atts.put("ID",kg.getTranscriptId()+delim+"E"+exon.getIndex());
@@ -214,7 +213,7 @@ public class KgToGff extends Launcher {
 								cds.getEnd(),
 								UNDEFINED_SCORE,
 								strand,
-								cds.getGFFPhase(),
+								-1, //TODO
 								convertMap(atts)
 								));
 						}
@@ -222,8 +221,7 @@ public class KgToGff extends Launcher {
 			}
 		} catch(final Throwable err) {
 			throw new RuntimeIOException(err);
-		}
-		
+			}
 		}
 	@Override
 	public int doWork(final List<String> args) {

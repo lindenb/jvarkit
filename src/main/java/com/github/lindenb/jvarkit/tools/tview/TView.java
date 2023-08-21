@@ -991,7 +991,7 @@ public class TView implements Closeable
 							if(ref0>=gene.getTxStart() && ref0<gene.getTxEnd())
 								{
 								pepChar=(gene.isPositiveStrand()?'>':'<');
-								final int pepIdx = peptide.convertGenomic0ToPeptideCoordinate(ref0);
+								final int pepIdx = peptide.convertGenomic0ToPeptideCoordinate0(ref0);
 								if(pepIdx!=-1)
 									{
 									final AminoAcid aa= AminoAcids.getAminoAcidFromOneLetterCode(peptide.charAt(pepIdx));

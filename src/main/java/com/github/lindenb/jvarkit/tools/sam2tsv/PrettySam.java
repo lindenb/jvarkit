@@ -904,7 +904,7 @@ public class PrettySam extends OnePassBamLauncher {
 							final UcscTranscript.CodingRNA cDna= kgInfo.gene.getMessengerRNA(referenceContig).getCodingRNA();
 							for(final AminoAcid aa:kgInfo.refpos1topep.values())
 								{
-								aa.cdnapos0 = cDna.convertToGenomic0Coordinate(aa.refpos1-1);
+								aa.cdnapos0 = cDna.convertToGenomic0Coordinate0(aa.refpos1-1);
 								}
 							
 							if(!kgInfo.gene.isNonCoding())

@@ -382,7 +382,7 @@ class UcscTranscriptImpl implements UcscTranscript {
 		@Override
 		public KozakSequence getKozakSequence() {
 			final int atg0 = convertCoding0ToMessenger0(0);
-			return new KozakSequence(getMessengerRNA().getDelegate(),atg0);
+			return new KozakSequence(getMessengerRNA(),atg0);
 			}
 		
 		public Peptide getPeptide()

@@ -139,7 +139,7 @@ public class KnownGenesToBed extends Launcher
 				KG->true:
 				new JexlPredicate(this.selectExpr)
 				; 
-		
+
 		for(String str : CharSplitter.COMMA.split(this.hideStr)) {
 			if(StringUtils.isBlank(str)) continue;
 			str = str.trim().toUpperCase();
@@ -150,19 +150,19 @@ public class KnownGenesToBed extends Launcher
 			if(str.equals("TRANSCRIPT") || str.equals("TRANSCRIPTS")) hide_transcripts=true;
 			if(str.equals("NON_CODING")) hide_non_coding=true;
 			if(str.equals("CODING")) hide_coding=true;
-			}		
-		
+			}
+
 		String line;
 		while((line=r.readLine())!=null)
 			{
 			final UcscTranscript kg= codec.decode(line);
 			if(kg==null) continue;
-			
+
 			if(hide_coding && kg.isProteinCoding()) continue;
 			if(hide_non_coding && !kg.isProteinCoding()) continue;
-			
+
 			if(!predicate.test(kg.asJexlContext())) continue;
-			
+
 			if(!hide_transcripts) {
 				print(out, kg,kg.getBedStart(),kg.getBedEnd(),"TRANSCRIPT",kg.getTranscriptId());
 				}
@@ -177,8 +177,8 @@ public class KnownGenesToBed extends Launcher
 					{
 					print(out, kg,intron.getBedStart(),intron.getBedEnd(),"INTRON",intron.getName());
 					}
-				}		
-			
+				}
+
 			if(!hide_cds && kg.isProteinCoding()) {
 				for(final UcscTranscript.CDS cds: kg.getCDS())
 					{
@@ -190,7 +190,7 @@ public class KnownGenesToBed extends Launcher
 					{
 					print(out, kg,utr.getBedStart(),utr.getBedEnd(),"UTR",utr.getName());
 					}
-				}				
+				}
 			}
 		}
 
