@@ -187,6 +187,7 @@ import com.github.lindenb.jvarkit.tools.upstreamorf.VcfScanUpstreamOrf;
 import com.github.lindenb.jvarkit.tools.validatorserver.CNVValidatorServer;
 import com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervals;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
@@ -657,6 +658,7 @@ public class JvarkitCentral {
 		command(VcfAncestralAllele.class);
 		command(VcfMultiToOne.class);
 		command(VcFilterGenes.class);
+		command(Vcf2Xml.class);
 		command(VcfPhased01.class);
 		command(VcfConcat.class);
 		command(VcfCadd.class);

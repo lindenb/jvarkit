@@ -5,16 +5,38 @@ package com.github.lindenb.jvarkit.tools.vcf2xml;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+
+import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFContigHeaderLine;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
-import com.github.lindenb.jvarkit.util.vcf.XMLVcfWriterFactory;
 /**
 BEGIN_DOC
 
@@ -23,11 +45,13 @@ BEGIN_DOC
 
 ```bash
 $  curl "https://raw.github.com/arq5x/gemini/master/test/test.region.vep.vcf" |\
-   java -jar dist/vcf2xml.jar   |\
+   java -jar dist/jvarkit.jar vcf2xml   |\
    xmllint --format -
 ```
 
 ### Result
+
+This is an old exampe: the format/schema may have changed since I created the tool
 
 ```xml
 <?xml version="1.0"?>
@@ -1502,17 +1526,401 @@ $ xsltproc vcf2mongo.xsl vcf.xml | mongo
 END_DOC
  
  */
-@Program(name="vcf2xml",description="Convert VCF to XML",keywords={"vcf","xml"})
+@Program(
+		name="vcf2xml",
+		description="Convert VCF to XML",
+		keywords={"vcf","xml"},
+		modificationDate = "20230822",
+		jvarkit_amalgamion = true
+		)
 public class Vcf2Xml extends Launcher
 	{
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	public Vcf2Xml()
+	/** VCF writer */
+	private class XMLVcfWriter implements VariantContextWriter
 		{
+		private XMLStreamWriter writer=null;
+		private OutputStream delegateOut=null;
+		private VCFHeader  header=null;
+
+
+		@Override
+		public boolean checkError()
+			{
+			if( delegateOut==null) return false;
+			if( !(delegateOut instanceof java.io.PrintStream) ) return false;
+			return  java.io.PrintStream.class.cast(delegateOut).checkError();
+			}
+
+		private XMLVcfWriter()
+			{
+			}		
 		
+		protected void start(String tag) throws XMLStreamException
+			{
+			this.writer.writeStartElement(tag);
+			}
+		
+		protected void attribute(String tag,Object o) throws XMLStreamException
+			{
+			this.writer.writeAttribute(tag, String.valueOf(o));
+			}
+		
+		protected void end() throws XMLStreamException
+			{
+			this.writer.writeEndElement();
+			}
+		
+		protected void element(String tag,Object content) throws XMLStreamException
+			{
+			if(content==null)
+				{
+				this.writer.writeEmptyElement(tag);
+				return;
+				}
+			start(tag);
+			characters(content);
+			end();
+			}
+	
+		protected void characters(Object content)
+				throws XMLStreamException
+			{
+			if(content==null) return;
+			this.writer.writeCharacters(String.valueOf(content));
+			}
+		
+		@Override
+		public void setHeader(final VCFHeader header) {
+			throw new UnsupportedOperationException("setHeader shouldn't be called"); 
+			}
+		
+		@Override
+		public void writeHeader(VCFHeader header)
+			{
+			if(this.header!=null) throw new RuntimeException("Header was already written");
+			this.header=header;
+	
+			try
+				{
+				start("vcf");
+				start("header");
+				if(header.getInfoHeaderLines()!=null)
+					{
+					start("infos");
+					for(final VCFInfoHeaderLine h:header.getInfoHeaderLines())
+						{
+						start("info");
+						attribute("id",h.getID());
+						attribute("countType",h.getCountType());
+						if(h.getCountType()==VCFHeaderLineCount.INTEGER)
+							{
+							attribute("count",h.getCount());
+							}
+						if(h.getValue()!=null && !h.getValue().isEmpty())
+							attribute("value",h.getValue());
+						characters(h.getDescription());
+						end();
+						}
+					end();
+					}
+				
+				if(header.getFormatHeaderLines()!=null)
+					{
+					start("formats");
+					for(final VCFFormatHeaderLine h: header.getFormatHeaderLines())
+						{
+						start("format");
+						attribute("id",h.getID());
+						attribute("countType",h.getCountType());
+						if(h.getCountType()==VCFHeaderLineCount.INTEGER)
+							{
+							attribute("count",h.getCount());
+							}
+						if(h.getValue()!=null && !h.getValue().isEmpty())
+							attribute("value",h.getValue());
+						characters(h.getDescription());
+						end();
+						}
+					end();
+					}
+				
+				if(header.getFilterLines()!=null)
+					{
+					start("filters");
+					for(VCFFilterHeaderLine h: header.getFilterLines())
+						{
+						start("filter");
+						element("id",h.getID());
+						characters(h.getValue());
+						end();
+						}
+					end();
+					}
+				
+				if(header.getContigLines()!=null)
+					{
+					start("contigs");
+					for(final VCFContigHeaderLine h:header.getContigLines())
+						{
+						start("contig");
+						attribute("tid", h.getContigIndex());
+						element("key",h.getID());
+						Map<String,String> fields = h.getGenericFields();
+						for(final String k1: fields.keySet()) {
+							start("property");
+							attribute("name",k1);
+							characters(fields.get(k1));
+							end();
+							}
+						end();
+						}
+					end();
+					}
+				
+				if(header.getSampleNamesInOrder()!=null)
+					{
+					start("samples");
+					for(final String name:header.getSampleNamesInOrder())
+						{
+						start("sample");
+						attribute("index", header.getSampleNameToOffset().get(name));
+						characters(name);
+						end();
+						}
+					end();
+					}
+				if(header.getMetaDataInInputOrder()!=null)
+					{
+					start("metas");
+					for(final VCFHeaderLine meta:header.getMetaDataInInputOrder())
+						{
+						if(meta.getKey().equals("INFO"))continue;
+						if(meta.getKey().equals("FORMAT"))continue;
+						if(meta.getKey().equals("contig"))continue;
+						if(meta.getKey().equals("FILTER"))continue;
+						if(meta.getKey().equals("fileformat"))continue;
+						start("meta");
+						attribute("key", meta.getKey());
+						characters(meta.getValue());
+						end();
+						}
+					end();
+					}
+				end();//header
+				start("variations");
+				characters("\n");
+				}
+			catch (final XMLStreamException e)
+				{
+				e.printStackTrace();
+				throw new RuntimeException(String.valueOf(e.getMessage()),e);
+				}
+			}
+		
+	    // should we write genotypes or just sites?
+		private boolean doNotWriteGenotypes=false;
+		
+		@Override
+		public void add(VariantContext variant)
+			{
+			if(this.header==null) throw new RuntimeException("No header was written.");
+	
+			try
+				{
+				 if ( doNotWriteGenotypes )
+					 variant = new VariantContextBuilder(variant).noGenotypes().make();
+							 
+				start("variation");
+				element("chrom",variant.getContig());
+				element("start",variant.getStart());
+				element("end",variant.getEnd());
+				if(variant.hasID())
+					{
+					element("id",variant.getID());	
+					}
+				element("ref",variant.getReference().getDisplayString());
+				
+				if ( variant.isVariant() )
+					{
+					for(Allele a:variant.getAlternateAlleles())
+						{
+						element("alt",a.getDisplayString());
+						}
+					}
+				
+				if(variant.hasLog10PError())
+					{
+					element("qual", variant.getPhredScaledQual());
+					}
+				
+				if(variant.isFiltered() || variant.filtersWereApplied())
+					{
+					start("filters");
+					if(variant.isFiltered())
+						{
+						for(String s: variant.getFilters())
+							{
+							element("filter",s);
+							}
+						}
+					else if(variant.filtersWereApplied())
+						{
+						element("filter",VCFConstants.PASSES_FILTERS_v4);
+						}
+					end();
+					}
+					
+				if(variant.getAttributes()!=null)
+					{
+					start("infos");
+					writeAttributes(variant.getAttributes());
+					end();
+					}
+				
+				
+				
+				if(variant.hasGenotypes())
+					{
+					start("genotypes");
+					for(String sample:variant.getSampleNames())
+						{
+						final Genotype g=variant.getGenotype(sample);
+						if(g==null) continue;
+						start("genotype");
+						attribute("available",g.isAvailable());
+						attribute("called",g.isCalled());
+						attribute("het",g.isHet());
+						attribute("hom",g.isHom());
+						attribute("homRef",g.isHomRef());
+						attribute("homVar",g.isHomVar());
+						attribute("mixed",g.isMixed());
+						attribute("noCall",g.isNoCall());
+						attribute("nonInformative",g.isNonInformative());
+						attribute("filtered",g.isFiltered());
+						attribute("phased",g.isPhased());
+						attribute("sample",g.getSampleName());
+						if(g.hasAD())
+							{
+							start("AD");
+							for(int ad:g.getAD())
+								{
+								element("value", ad);
+								}
+							end();
+							}
+						if(g.hasDP())
+							{
+							element("DP", g.getDP());
+							}
+						if(g.hasGQ())
+							{
+							element("GQ", g.getGQ());
+							}
+						if(g.hasPL())
+							{
+							start("PL");
+							int index=0;
+							for(int v:g.getPL())
+								{
+								start("value");
+								attribute("index", ++index);
+								characters(v);
+								end();
+								}
+							end();
+							}
+						
+						
+						
+						start("alleles");
+						for(Allele a:g.getAlleles())
+							{
+							if(a.isNoCall()) continue;
+							if(a.getBaseString().isEmpty()) continue;
+							if(a.getBaseString().equals(".")) continue;
+							start("allele");
+							if(a.isReference()) attribute("ref", a.isReference());
+							if(a.isSymbolic()) attribute("symbolic",true);
+							characters(a.getBaseString());
+							end();
+							}
+						end();
+						
+						
+						writeAttributes(g.getExtendedAttributes());
+						end();
+						}
+					end();
+					}
+				end();//variation
+				characters("\n");
+				}
+			catch (XMLStreamException e)
+				{
+				throw new RuntimeException(e);
+				}
+			}
+		
+		@Override
+		public void close()
+			{
+			if(this.writer==null) return;
+			if(this.header==null) throw new RuntimeException("No header was written.");
+			try {
+				end();//variations
+				end();//vcf
+				writer.close();
+				if(this.delegateOut!=null) {delegateOut.flush(); delegateOut.close();}
+				this.writer=null;
+				} 
+			catch (Exception e)
+				{
+				e.printStackTrace();
+				throw new RuntimeException("close failed",e);
+				}
+			}
+		@SuppressWarnings("rawtypes")
+		private void writeAttributes(final Map<String, Object> hash) throws XMLStreamException {
+			if (hash == null)
+				return;
+			for (String key : hash.keySet()) {
+				boolean is_array = false;
+				final Object o = hash.get(key);
+				final Collection col;
+				if (o == null)
+					continue;
+				if (o.getClass().isArray()) {
+					Object array[] = (Object[]) o;
+					col = Arrays.asList(array);
+					is_array = true;
+				} else if (o instanceof Collection) {
+					Collection array = (Collection) o;
+					col = array;
+					is_array = true;
+				} else {
+					col = Collections.singletonList(o);
+				}
+				if (col.isEmpty())
+					continue;
+				start("attribute");
+				attribute("id", key);
+				int idx=1;
+				for (Object v: col) {
+					start("value");
+					if (is_array)
+						attribute("index", String.valueOf(idx++));
+					characters(String.valueOf(v));
+					end();
+				}
+
+			}
 		}
+		}
+
+	
 	@Override
 	protected int doVcfToVcf(
 			final String inputName,
@@ -1532,16 +1940,30 @@ public class Vcf2Xml extends Launcher
 	/** open VariantContextWriter */
 	@Override
 	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-		final XMLVcfWriterFactory factory=XMLVcfWriterFactory.newInstance();
-		if(outorNull!=null)
-			{
-			factory.setOutputFile(outorNull);
-			}
-		return factory.createVariantContextWriter();
+		final XMLVcfWriter w=new XMLVcfWriter();
+       try {
+               final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+               if(this.outputFile!=null)
+                       {
+                       w.delegateOut=IOUtils.openFileForWriting(this.outputFile);
+                       }
+               else
+                       {
+                       w.delegateOut= stdout();
+                       }
+               w.writer = xmlfactory.createXMLStreamWriter(w.delegateOut);
+               } 
+       catch (final XMLStreamException e)
+               {
+	           if(w.writer!=null) try {w.writer.close();} catch(Throwable e2) {}
+	           if(w.delegateOut!=null) try {w.delegateOut.close();}catch(Throwable e2) {}
+               throw new IOException(e);
+               }
+		return w;
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		return doVcfToVcf(args, outputFile);
 		}
 	

@@ -7,7 +7,13 @@ Convert VCF to XML
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcf2xml  [options] Files
+
 Usage: vcf2xml [options] Files
   Options:
     -h, --help
@@ -27,23 +33,6 @@ Usage: vcf2xml [options] Files
  * vcf
  * xml
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcf2xml
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -76,11 +65,13 @@ The current reference is:
 
 ```bash
 $  curl "https://raw.github.com/arq5x/gemini/master/test/test.region.vep.vcf" |\
-   java -jar dist/vcf2xml.jar   |\
+   java -jar dist/jvarkit.jar vcf2xml   |\
    xmllint --format -
 ```
 
 ### Result
+
+This is an old exampe: the format/schema may have changed since I created the tool
 
 ```xml
 <?xml version="1.0"?>
@@ -1551,4 +1542,5 @@ $ xsltproc vcf2mongo.xsl vcf.xml | mongo
 { "_id" : ObjectId("5267e19a7bc3eca84c83784f"), "chrom" : "chr1", "start" : 10180, "end" : 10180 }
 { "_id" : ObjectId("5267e19a7bc3eca84c837850"), "chrom" : "chr1", "start" : 10234, "end" : 10234 }
 ```
+
 
