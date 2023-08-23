@@ -68,7 +68,7 @@ import htsjdk.samtools.util.StringUtil;
 /**
 BEGIN_DOC
 
-## Input 
+## Input
 
 input is one or more indexed bam file.
 
@@ -81,7 +81,7 @@ If there is no argument, stdin is interpreted as a list of path to the bam like 
 
   * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
   * "Future MicrobiologyVol. 15, No. 15  Comparative genomics of Sporothrix species and identification of putative pathogenic-gene determinants.  Published Online:12 Nov 2020https://doi.org/10.2217/fmb-2019-0302"
-
+  * "Key innovation triggers widespread radiation of the genus Medicago". Zhipeng Liu & al. https://doi.org/10.21203/rs.3.rs-3181566/v1
 
 ## Example
 
