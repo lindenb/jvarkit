@@ -32,14 +32,14 @@ Usage: scanretrocopy [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -k, -K, --kg, -kg
-      UCSC knownGene File/URL. The knowGene format is a compact alternative to 
-      GFF/GTF because one transcript is described using only one line.	Beware 
-      chromosome names are formatted the same as your REFERENCE. A typical 
-      KnownGene file is 
+      Transcrips as genpred format 
+      https://genome.ucsc.edu/FAQ/FAQformat.html#format9  . The genePred 
+      format is a compact alternative to GFF/GTF because one transcript is 
+      described using only one line.	Beware chromosome names are formatted the 
+      same as your REFERENCE. A typical KnownGene file is 
       http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/wgEncodeGencodeBasicV19.txt.gz
     --mapq, -mapq
       Min mapping quality
       Default: 1

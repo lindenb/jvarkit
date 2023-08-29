@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -43,6 +42,7 @@ import java.util.TreeSet;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.Allele;
@@ -51,12 +51,12 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.ucsc.TabixKnownGeneFileReader;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -86,8 +86,8 @@ public class VcfDoest
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 
-	@Parameter(names={"-k","--kg"},description=KnownGene.OPT_KNOWNGENE_DESC+". File must be compressed and indexed with tabix.",required=true)
-	private String knownGeneURI = KnownGene.getDefaultUri();
+	@Parameter(names={"-k","--kg"},description=UcscTranscriptReader.OPT_TABIX_DESC,required=true)
+	private String knownGeneURI = null;
 
 	@Parameter(names={"-knc","--keepnoncoding"},description="keep non coding transcripts")
 	private boolean keepNonCoding = false;
@@ -97,7 +97,7 @@ public class VcfDoest
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
-	private TabixKnownGeneFileReader knownGenesTabix=null;
+	private UcscTranscriptReader knownGenesTabix=null;
 	
 	private static class TranscriptInfo implements Comparable<TranscriptInfo>
 		{
@@ -222,14 +222,18 @@ public class VcfDoest
 		}
 	 
 
-	private List<KnownGene> overlap(final Interval interval) {
-		final List<KnownGene> genes= new ArrayList<>();
-		Iterator<KnownGene> iter= this.knownGenesTabix.iterator(interval);
-		while(iter.hasNext())
-			{
-			final KnownGene  kg= iter.next();
-			if(kg.isNonCoding() && !this.keepNonCoding) continue;
-			genes.add(kg);
+	private List<UcscTranscript> overlap(final Interval interval) {
+		final List<UcscTranscript> genes= new ArrayList<>();
+		try(CloseableIterator<UcscTranscript> iter= this.knownGenesTabix.query(interval)) {
+			while(iter.hasNext())
+				{
+				final UcscTranscript  kg= iter.next();
+				if(kg.isNonCoding() && !this.keepNonCoding) continue;
+				genes.add(kg);
+				}
+			}
+		catch(IOException err) {
+			throw new RuntimeIOException(err);
 			}
 		return genes;
 		}
@@ -323,16 +327,16 @@ public class VcfDoest
 							ctx.getEnd()
 							);
 					
-					final List<KnownGene> genes = this.overlap(interval);
+					final List<UcscTranscript> genes = this.overlap(interval);
 					if(genes.isEmpty())  continue;
 					/* find gene archetype = longest */
 					
-					for(final KnownGene kg:genes) {
+					for(final UcscTranscript kg:genes) {
 						final TranscriptInfo trInfo = new TranscriptInfo();
 						trInfo.contig = kg.getContig();
 						trInfo.txStart = kg.getTxStart();
 						trInfo.txEnd = kg.getTxEnd();
-						trInfo.transcriptName = kg.getName();
+						trInfo.transcriptName = kg.getTranscriptId();
 						trInfo.strand = (byte)(kg.isPositiveStrand()?'+':'-');
 						trInfo.exonCount = kg.getExonCount();
 						trInfo.transcriptLength = kg.getTranscriptLength();
@@ -381,16 +385,16 @@ public class VcfDoest
 						
 						
 						
-						KnownGene archetype=kg;
+						UcscTranscript archetype=kg;
 						/* find gene archetype = longest overlapping */
-						for(final KnownGene kg2:genes) {
+						for(final UcscTranscript kg2:genes) {
 							if(kg2==kg) continue;
 							if(archetype.getStrand().equals(kg2.getStrand()) && archetype.getTranscriptLength()< kg2.getTranscriptLength()) {
 								archetype=kg2;
 							}
 						}
 						
-						trInfo.archetypeName = archetype.getName();
+						trInfo.archetypeName = archetype.getTranscriptId();
 						trInfo.archetypeLength = archetype.getTranscriptLength();
 						
 						
@@ -399,7 +403,7 @@ public class VcfDoest
 						final int ctxPos0=ctx.getStart()-1;
 						int indexInTranscript0=0;
 						
-						for(final KnownGene.Exon exon:kg.getExons()) {
+						for(final UcscTranscript.Exon exon:kg.getExons()) {
 							//variant in exon ?
 							if(!(exon.getStart()>(ctx.getEnd()-1)  || (ctx.getStart()-1)>=exon.getEnd())) {
 								ctxWasFoundInExon=true;
@@ -426,10 +430,10 @@ public class VcfDoest
 					indexInTranscript0=0;
 					//search closest intron/exon junction
 					for(int ex=0;ex+1<kg.getExonCount();++ex) {
-						final KnownGene.Exon exon1= kg.getExon(ex  );
+						final UcscTranscript.Exon exon1= kg.getExon(ex  );
 						indexInTranscript0+= (exon1.getEnd()-exon1.getStart());
 						
-						final KnownGene.Exon exon2= kg.getExon(ex+1);
+						final UcscTranscript.Exon exon2= kg.getExon(ex+1);
 						if(exon1.getEnd()<=ctxPos0 && ctxPos0<exon2.getStart())
 							{
 							final int dist_to_exon1 = ctxPos0 - exon1.getEnd();
@@ -443,7 +447,7 @@ public class VcfDoest
 								indexInTranscript0 =  (kg.getTranscriptLength()-1)-indexInTranscript0;
 								}
 							trInfo.indexInTranscript0=indexInTranscript0;
-							trInfo.overlapName = exon1.getNextIntron().getName();
+							trInfo.overlapName = kg.getIntron(ex).getName();
 							sorting.add(trInfo);
 							break;
 							}
@@ -565,7 +569,7 @@ public class VcfDoest
 		PrintWriter pw=null;
 		try {
 			LOG.info("loading tabix knownGene :"+this.knownGeneURI);
-			this.knownGenesTabix = new TabixKnownGeneFileReader(this.knownGeneURI);
+			this.knownGenesTabix = new UcscTranscriptReader(this.knownGeneURI);
 			final String inputFile = oneFileOrNull(args);
 			
 			pw=super.openFileOrStdoutAsPrintWriter(this.outputFile);

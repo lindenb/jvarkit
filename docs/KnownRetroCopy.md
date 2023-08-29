@@ -7,14 +7,27 @@ Annotate VCF structural variants that could be intron from retrocopies.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar knownretrocopy  [options] Files
+
 Usage: knownretrocopy [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -d, --distance
       max distance between an intron and the deletion found in the VCF
       Default: 10
-  * -gtf, --gtf
-      GTF file that was used by STAR
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -22,8 +35,17 @@ Usage: knownretrocopy [options] Files
     -k, --known
       Gene-ID of known retrogenes. One per line. A source could be : 
       http://retrogenedb.amu.edu.pl/static/download/ 
-    -o, --output
+    -o, --out
       Output file. Optional . Default: stdout
+  * -genpred, --genpred, --kg, --transcripts
+      Transcrips as genpred format 
+      https://genome.ucsc.edu/FAQ/FAQformat.html#format9  . The genePred 
+      format is a compact alternative to GFF/GTF because one transcript is 
+      described using only one line.	Beware chromosome names are formatted the 
+      same as your REFERENCE. A typical KnownGene file is 
+      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
+      .If you only have a gff file, you can try to generate a knownGene file 
+      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
     --version
       print version and exit
 
@@ -37,27 +59,10 @@ Usage: knownretrocopy [options] Files
  * deletion
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew knownretrocopy
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
-2019-08-15
+20190815
 
 ## Source code 
 
@@ -89,5 +94,18 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Example
+
+```
+$ java -jar dist/knownretrocopy.jar --gtf Homo_sapiens.GRCh37.87.gtf.gz candidateSV.vcf.gz | grep RETR
+
+##FILTER=<ID=RETROCOPY_INTRON,Description="variant could be a deleted intron from a retrocopy">
+##FILTER=<ID=RETROCOPY_KNOWN,Description="variant could be a deleted intron from a known retrocopy">
+##INFO=<ID=RETROCOPY,Number=.,Type=String,Description="Identifiers for the retrocopies.">
+chr1	38077349	MantaDEL:2204:0:0:0:0:0	CTTATCCCCATACTAGTTATTATCGAAACCATCAGCCTACTCATTCAACCAATAGCCCTGGCCGTACGCCTA	C	.RETROCOPY_INTRON	CIGAR=1M71D;DOWNSTREAM_PAIR_COUNT=0;END=38077420;PAIR_COUNT=0;RETROCOPY=ENSG00000169218,ENST00000356545,ENST00000401071,RSPO1,RSPO1-201,RSPO1-202;SVLEN=-71;SVTYPE=DEL;UPSTREAM_PAIR_COUNT=0
+chr1	38077349	MantaDEL:2204:0:1:0:0:0	CTTATCCCCATACTAGTTATTATCGAAACCATCAGCCTACTCATTCAACCAATAGCCCTGGCCGTACGCCTA	C	.RETROCOPY_INTRON	CIGAR=1M71D;DOWNSTREAM_PAIR_COUNT=0;END=38077420;PAIR_COUNT=0;RETROCOPY=ENSG00000169218,ENST00000356545,ENST00000401071,RSPO1,RSPO1-201,RSPO1-202;SVLEN=-71;SVTYPE=DEL;UPSTREAM_PAIR_COUNT=0
+chr1	38077349	MantaDEL:2204:1:1:0:0:0	CTTATCCCCATACTAGTTATTATCGAAACCATCAGCCTACTCATTCAACCAATAGCCCTGGCCGTACGCCTA	C	.RETROCOPY_INTRON	CIGAR=1M71D;DOWNSTREAM_PAIR_COUNT=0;END=38077420;PAIR_COUNT=0;RETROCOPY=ENSG00000169218,ENST00000356545,ENST00000401071,RSPO1,RSPO1-201,RSPO1-202;SVLEN=-71;SVTYPE=DEL;UPSTREAM_PAIR_COUNT=0
+(...)
+```
 
 

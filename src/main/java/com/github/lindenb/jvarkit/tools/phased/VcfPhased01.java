@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.phased;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
@@ -52,21 +51,22 @@ import org.w3c.dom.Text;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
@@ -109,7 +109,7 @@ END_DOC
 description="X10 Phased SVG to Scalar Vector Graphics (SVG)",
 keywords={"x10","phased","genotypes","svg"},
 creationDate="20190710",
-modificationDate="20230724",
+modificationDate="20230818",
 biostars=9462569,
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
@@ -127,8 +127,8 @@ public class VcfPhased01 extends Launcher {
 	private String hihlight = "";
 	@Parameter(names={"-xp","--xpos","--extra-highligth"},description="Extra Highligth positions that are not always in the vcfs. (existing file with one position per line or string comma separated)")
 	private String extrahihlight = "";
-	@Parameter(names={"-k","--knownGenes"},description=KnownGene.OPT_KNOWNGENE_DESC)
-	private String knownGeneUri=KnownGene.getDefaultUri();
+	@Parameter(names={"-k","--knownGenes"},description=UcscTranscriptReader.OPT_DESC,required=false)
+	private String knownGeneUri=null;
 
 	private SAMSequenceDictionary theDict= null;
 	private SimpleInterval theInterval = null;
@@ -510,23 +510,20 @@ public class VcfPhased01 extends Launcher {
 
 			
 			
-			final List<KnownGene> genes = new ArrayList<>();
+			final List<UcscTranscript> genes = new ArrayList<>();
 			if(!StringUtils.isBlank(this.knownGeneUri)) {
-				final ContigNameConverter convert = ContigNameConverter.fromOneDictionary(theDict);
-				try(BufferedReader br = IOUtils.openURIForBufferedReading(this.knownGeneUri)) {
-					br.lines().
-						filter(S->!StringUtils.isBlank(S)).
-						filter(S->!S.startsWith("#")).
-						map(S->CharSplitter.TAB.split(S)).
-						map(T->new KnownGene(T)).
-						filter(K->theInterval.getContig().equals(convert.apply(K.getContig()))).
-						filter(K->CoordMath.overlaps(theInterval.getStart(), theInterval.getEnd(), K.getTxStart()+1,  K.getTxEnd())).
-						forEach(K->genes.add(K));
+				try(CloseableIterator<UcscTranscript> br = UcscTranscriptCodec.makeIterator(this.knownGeneUri)) {
+					while(br.hasNext()) {
+						final UcscTranscript kg = br.next();
+						if(!kg.contigsMatch(theInterval)) continue;
+						if(!CoordMath.overlaps(theInterval.getStart(), theInterval.getEnd(), kg.getTxStart(),  kg.getTxEnd())) continue;
+						genes.add(kg);
+						}
 					}
 				}
 			final double featureHeight=12;
 			final double TRANSCRIPT_HEIGHT=10;
-			for(final KnownGene kg:genes)
+			for(final UcscTranscript kg:genes)
 				{
 				final IntFunction<Integer> trim = P-> Math.max(theInterval.getStart(),Math.min(theInterval.getEnd(), P));
 				//int cdsHeigh= 5;
@@ -538,20 +535,20 @@ public class VcfPhased01 extends Launcher {
 				
 				g.setAttribute("transform", "translate("+margin_left+","+y+")");
 				
-				g.appendChild(title(kg.getName()));
+				g.appendChild(title(kg.getTranscriptId()));
 				
 				final Element label = element("text");
 				label.setAttribute("x", fmt(-10));
 				label.setAttribute("y", fmt(featureHeight-featureHeight/2.0));
 				label.setAttribute("class", "kgname");
-				label.appendChild(text(kg.getName()));
+				label.appendChild(text(kg.getTranscriptId()));
 				g.appendChild(label);
 				
 				/* transcript line */
 				final Element line = element("line");
 				
 				line.setAttribute("class","kgtr");
-				line.setAttribute("x1",fmt(positionToPixel(trim.apply(kg.getTxStart()+1))));
+				line.setAttribute("x1",fmt(positionToPixel(trim.apply(kg.getTxStart()))));
 				line.setAttribute("y1",fmt(midY));
 				line.setAttribute("x2",fmt(positionToPixel(trim.apply(kg.getTxEnd()))));
 				line.setAttribute("y2",fmt(midY));
@@ -559,14 +556,14 @@ public class VcfPhased01 extends Launcher {
 				
 			
 				/* exons */
-				for(final KnownGene.Exon exon:kg.getExons())
+				for(final UcscTranscript.Exon exon:kg.getExons())
 					{
-					if(!CoordMath.overlaps(theInterval.getStart(), theInterval.getEnd(), exon.getStart()+1, exon.getEnd())) continue;
+					if(!CoordMath.overlaps(theInterval.getStart(), theInterval.getEnd(), exon.getStart(), exon.getEnd())) continue;
 
 					final Element r = element("rect");
 					r.setAttribute("class","kgexon");
 					
-					r.setAttribute("x",fmt(positionToPixel(trim.apply(exon.getStart()+1))));
+					r.setAttribute("x",fmt(positionToPixel(trim.apply(exon.getStart()))));
 					r.setAttribute("y",String.valueOf(midY-exonHeight/2));
 					r.setAttribute("width",fmt(positionToPixel(trim.apply(exon.getEnd()))-positionToPixel((trim.apply(exon.getStart())))));
 					r.setAttribute("height",fmt(exonHeight));

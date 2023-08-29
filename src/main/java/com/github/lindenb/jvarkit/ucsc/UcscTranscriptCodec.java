@@ -28,22 +28,26 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalInt;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.sql.parser.SchemaParser;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.AsciiFeatureCodec;
@@ -51,6 +55,9 @@ import htsjdk.tribble.readers.LineIterator;
 
 
 public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
+	private static final Logger LOG = Logger.build(UcscTranscriptCodec.class).make();
+
+	
 	static final String FILE_SUFFIX = ".txt.gz";
 	private int contig_col =-1;
 	private int name_col =-1;
@@ -67,6 +74,8 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 	private final boolean auto_detect_flag;
 	private String sqlTableName="gene";
 	private UnaryOperator<String> contigConverter = S->S;
+	// file Header generating other columns
+	private FileHeader fileHeader = null;
 	
 	public UcscTranscriptCodec() {
 		super(UcscTranscript.class);
@@ -94,12 +103,11 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 			throw new IllegalArgumentException("uri must end with .sql or "+FILE_SUFFIX);
 			
 		}
-		
 		try(InputStream in=IOUtils.openURIForReading(sqluri)) {
 			final SchemaParser.Table table = SchemaParser.parseTable(in);
 			sql(table);
 		} catch(Throwable err) {
-			throw new RuntimeIOException("cannot parse schema for "+uri+". File must be associated with a valid sql schema file ("+sqluri+")",err);
+			throw new RuntimeIOException("cannot parse schema",err);
 		}
 	}
 	
@@ -131,6 +139,7 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		if(table.getColumnByName("name2").isPresent()) {
 			this.score_col = columnIndex(table,"score");
 			}
+		this.fileHeader = new FileHeader(table.getColumns().stream().map(C->C.getName()).collect(Collectors.toList()));
 		}
 	
 	public UcscTranscriptCodec setContigConverter(UnaryOperator<String> contigConverter) {
@@ -145,88 +154,89 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		return decode(Arrays.asList(s));
 		}
 	public UcscTranscript decode(final List<String> tokens) {
-			try {
-			final UcscTranscriptImpl tr = new UcscTranscriptImpl();
-			if(contig_col==-1) {
-				if(auto_detect_flag) {
-					/* first column may be the bin column 
-					 * we use the strand to detect the format */
-					final int binIdx=tokens.get(2).equals("+") || tokens.get(2).equals("-")?0:1;
-					this.name_col = binIdx + 0;
-					this.contig_col= binIdx + 1;
-			        this.strand_col = binIdx + 2;
-			        this.txStart_col = binIdx + 3;
-			        this.txEnd_col = binIdx + 4;
-			        this.cdsStart_col = binIdx + 5;
-			        this.cdsEnd_col = binIdx + 6;
-			        this.nExon_col = binIdx + 7;
-			        this.exonsStart_col = binIdx + 8;
-			        this.exonsEnd_col = binIdx + 9;
-			        this.name2_col = binIdx + 11 ;
-					}
-				else
-					{
-					throw new IllegalStateException("undefined columns");
-					}
-				}
-			tr.contig = contigConverter.apply(tokens.get(this.contig_col));
-			if(StringUtils.isBlank(tr.contig)) return null;
-			tr.name = tokens.get(this.name_col);
-			tr.txStart = Integer.parseInt(tokens.get(this.txStart_col));
-			tr.txEnd = Integer.parseInt(tokens.get(this.txEnd_col));
-			String s = tokens.get(this.strand_col);
-			if(s.equals("+")) {
-				tr.strand = '+';
-				}
-			else if(s.equals("-")) {
-				tr.strand = '-';
+		final UcscTranscriptImpl tr = new UcscTranscriptImpl();
+		if(contig_col==-1) {
+			if(auto_detect_flag) {
+				/* first column may be the bin column 
+				 * we use the strand to detect the format */
+				final int binIdx=tokens.get(2).equals("+") || tokens.get(2).equals("-")?0:1;
+				this.name_col = binIdx + 0;
+				this.contig_col= binIdx + 1;
+		        this.strand_col = binIdx + 2;
+		        this.txStart_col = binIdx + 3;
+		        this.txEnd_col = binIdx + 4;
+		        this.cdsStart_col = binIdx + 5;
+		        this.cdsEnd_col = binIdx + 6;
+		        this.nExon_col = binIdx + 7;
+		        this.exonsStart_col = binIdx + 8;
+		        this.exonsEnd_col = binIdx + 9;
+		        this.name2_col = binIdx + 11 ;
+		        this.fileHeader= new FileHeader(IntStream.of(1,tokens.size()).mapToObj(i->"$"+i).collect(Collectors.toList()));
 				}
 			else
 				{
-				throw new IllegalArgumentException("bad strand in '"+s+"' for "+String.join(";", tokens));
+				throw new IllegalStateException("undefined columns");
 				}
-			tr.cdsStart = Integer.parseInt(tokens.get(this.cdsStart_col));
-			tr.cdsEnd = Integer.parseInt(tokens.get(this.cdsEnd_col));
-			final int nExons = Integer.parseInt(tokens.get(this.nExon_col));
-			if(nExons<=0) throw new IllegalArgumentException("transcript without exons");
-			
-			tr.exonStarts = new int[nExons];
-			tr.exonEnds = new int[nExons];
-			
-			String[] ss = CharSplitter.COMMA.split(tokens.get(this.exonsStart_col));
-			if(ss.length!=nExons) {
-				throw new IllegalArgumentException("Expected "+nExons+" exonsStart but got "+ss.length+" for "+String.join(";", tokens));
-				}
-			
-			for(int i=0;i< ss.length;i++) {
-				tr.exonStarts[i] = Integer.parseInt(ss[i]);
-				}
-			
-			ss = CharSplitter.COMMA.split(tokens.get(this.exonsEnd_col));
-			if(ss.length!=nExons) {
-				throw new IllegalArgumentException("Expected "+nExons+" exonsEnd but got "+ss.length+" for "+String.join(";", tokens));
-				}
-			for(int i=0;i< ss.length;i++) {
-				tr.exonEnds[i] = Integer.parseInt(ss[i]);
-				}
-			if(this.name2_col>=0) {
-				tr.name2 = tokens.get(this.name2_col);
-				}
-			if(this.score_col>=0) {
-				tr.score = OptionalInt.of(Integer.parseInt(tokens.get(this.score_col)));
-				}
-	 		return tr;
-	 		}
-		catch(Throwable err) {
-			throw new IllegalArgumentException("Cannot decode "+String.join("\t", tokens),err);
 			}
+		tr.contig = contigConverter.apply(tokens.get(this.contig_col));
+		if(StringUtils.isBlank(tr.contig)) return null;
+		tr.name = tokens.get(this.name_col);
+		tr.txStart = Integer.parseInt(tokens.get(this.txStart_col));
+		tr.txEnd = Integer.parseInt(tokens.get(this.txEnd_col));
+		String s = tokens.get(this.strand_col);
+		if(s.equals("+")) {
+			tr.strand = '+';
+			}
+		else if(s.equals("-")) {
+			tr.strand = '-';
+			}
+		else
+			{
+			throw new IllegalArgumentException("bad strand in '"+s+"' for "+String.join(";", tokens));
+			}
+		tr.cdsStart = Integer.parseInt(tokens.get(this.cdsStart_col));
+		tr.cdsEnd = Integer.parseInt(tokens.get(this.cdsEnd_col));
+		final int nExons = Integer.parseInt(tokens.get(this.nExon_col));
+		
+		tr.exonStarts = new int[nExons];
+		tr.exonEnds = new int[nExons];
+		
+		String[] ss = CharSplitter.COMMA.split(tokens.get(this.exonsStart_col));
+		if(ss.length!=nExons) {
+			throw new IllegalArgumentException("Expected "+nExons+" exonsStart but got "+ss.length+" for "+String.join(";", tokens));
+			}
+		for(int i=0;i< ss.length;i++) {
+			tr.exonStarts[i] = Integer.parseInt(ss[i]);
+			}
+		
+		ss = CharSplitter.COMMA.split(tokens.get(this.exonsEnd_col));
+		if(ss.length!=nExons) {
+			throw new IllegalArgumentException("Expected "+nExons+" exonsEnd but got "+ss.length+" for "+String.join(";", tokens));
+			}
+		for(int i=0;i< ss.length;i++) {
+			tr.exonEnds[i] = Integer.parseInt(ss[i]);
+			}
+		if(this.name2_col>=0) {
+			tr.name2 = tokens.get(this.name2_col);
+			}
+		if(this.score_col>=0) {
+			tr.score = OptionalInt.of(Integer.parseInt(tokens.get(this.score_col)));
+			}
+		
+		// tr.metadata=this.fileHeader.toMap(tokens);
+ 		return tr;
 		}
 	
-	public CloseableIterator<UcscTranscript> iterator(final Path p) throws IOException {
+	private CloseableIterator<UcscTranscript> iterator(final String uri) throws IOException {
+		return iterator(IOUtils.openURIForBufferedReading(uri));
+		}
+
+	
+	private CloseableIterator<UcscTranscript> iterator(final Path p) throws IOException {
 		return iterator(IOUtils.openPathForBufferedReading(p));
 		}
 	
-	public CloseableIterator<UcscTranscript> iterator(final BufferedReader br) throws IOException {
+	private CloseableIterator<UcscTranscript> iterator(final BufferedReader br) throws IOException {
 		return new AbstractCloseableIterator<UcscTranscript>()
 			{
 			@Override
@@ -282,5 +292,71 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
             toDecode = path;
         }
         return toDecode.endsWith(FILE_SUFFIX);
+    }
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final InputStream in) throws IOException {
+    	return makeIterator(in,null);
+    	}
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final InputStream in,final String sqluri) throws IOException {
+    	return makeIterator(new BufferedReader(new InputStreamReader(in)),sqluri);
+    	}
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final BufferedReader br,final String sqluri) throws IOException {
+    	final SchemaParser.Table table ;
+    	if(StringUtils.isBlank(sqluri)) {
+    		table = null;
+    		}
+    	else
+    		{
+    		table =  parseSchema(sqluri,true);
+    		}
+    	final UcscTranscriptCodec codec = table==null?new UcscTranscriptCodec():new UcscTranscriptCodec(table);
+    	return codec.iterator(br);
+    	}
+    
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final String uri,final String sqluri) throws IOException {
+    	final SchemaParser.Table table ;
+    	if(StringUtils.isBlank(sqluri)) {
+    		table = parseSchema(getSchemaUri(uri),false);
+    		}
+    	else
+    		{
+    		table =  parseSchema(sqluri,true);
+    		}
+    	return makeIterator(uri,table);
+    	}
+    	
+    private static CloseableIterator<UcscTranscript> makeIterator(final String uri, final SchemaParser.Table schema) throws IOException {
+    	final UcscTranscriptCodec codec = schema==null?new UcscTranscriptCodec():new UcscTranscriptCodec(schema);
+    	return codec.iterator(uri);
+    	}
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final String uri) throws IOException {
+    	return makeIterator(uri,"");
+    	}
+    
+    public static CloseableIterator<UcscTranscript> makeIterator(final Path path) throws IOException {
+    	return makeIterator(path.toString(),"");
+    	}
+
+    
+    private static String getSchemaUri(String uri) {
+    	if(uri.endsWith(".gz")) uri =  uri.substring(0,uri.length()-3);
+    	int dot= uri.lastIndexOf(".");
+    	if(dot!=-1) uri=uri.substring(0,dot);
+    	return uri+".sql";
+    	}
+    
+    /** parse SQL schema at given uri */
+    static SchemaParser.Table parseSchema(final String sqluri, boolean failOnError) throws IOException {
+    	try(InputStream in=IOUtils.openURIForReading(sqluri)) {
+			return SchemaParser.parseTable(in);
+		} catch(Throwable err) {
+			if(failOnError) throw new IOException("cannot parse sql schema from "+sqluri,err);
+			LOG.warn("Cannot parse schema at "+sqluri);
+			return null;
+		}
     }
 }

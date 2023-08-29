@@ -2,44 +2,43 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-convert knownGenes to fasta
+convert ucsc genpred to fasta
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar kg2fa  [options] Files
+
 Usage: kg2fa [options] Files
   Options:
     --coding
       ignore non-coding transcripts.
       Default: false
-    -D, --default
-      Use default Known Gene source from UCSC.
-      Default: false
-    --dict
-      Write optional dict file
     --empty
-      Discard empty files.
+      Discard empty sequences.
       Default: false
+    --hide, --exclude
+      Exclude the following type of sequence: mRNA, cDNA, peptide, utr5, utr3 
+      , uORF, uPeptide (case insensitive, comma/space separated)
+      Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --introns, --intron
-      Remove introns
-      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
-    --case, --style
-      style: (0) do nothing (1): all UPPERCASE (2): all lowercase (3): exon 
-      UPPERCASE + intron LOWERCASE . Otherwise do nothing
-      Default: 0
-    --utrs, --utr
-      Remove UTRs
-      Default: false
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+    -sql, --sql
+      SQL Schema URI. Each instance of transcript can be associated to a .sql 
+      schema to help the software to decode the semantics of the columns. Eg.: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql
+      Default: <empty string>
     --version
       print version and exit
     -L
@@ -54,29 +53,13 @@ Usage: kg2fa [options] Files
  * kg
  * knownGene
  * fasta
+ * genpred
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew kg2fa
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
 
-2019-02-13
+20190213
 
 ## Source code 
 
@@ -102,4 +85,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
 

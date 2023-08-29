@@ -99,6 +99,9 @@ nav:
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md
         - "kg2bed" : KnownGenesToBed.md
+        - "kg2fa" : KnownGeneToFasta.md
+        - "kg2gff" : KgToGff.md
+        - "knownretrocopy" : KnownRetroCopy.md
         - "lowresbam2raster" : LowResBam2Raster.md
         - "mantamerger" : MantaMerger.md
         - "minicaller" : MiniCaller.md
@@ -142,6 +145,7 @@ nav:
         - "uniprot2svg" : UniprotToSvg.md
         - "vcf2intervals" : VcfToIntervals.md
         - "vcf2table" : VcfToTable.md
+        - "vcf2xml" : Vcf2Xml.md
         - "vcfallelebalance" : VcfAlleleBalance.md
         - "vcfancestralalleles" : VcfAncestralAllele.md
         - "vcfbigbed" : VcfBigBed.md
@@ -189,5 +193,6 @@ nav:
         - "vcftrio" : VCFTrios.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
+        - "wib2bedgraph" : WibToBedGraph.md
         - "xsltstream" : XsltStream.md
 

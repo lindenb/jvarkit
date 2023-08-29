@@ -26,15 +26,17 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.ucsc;
 
 import java.util.AbstractList;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
+
+import org.apache.commons.jexl2.JexlContext;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.ucsc.UcscTranscript.CodingRNA;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
@@ -98,6 +100,31 @@ public int getExonEnd(int idx);
 
 public boolean isProteinCoding();
 
+
+/** return 0-based genomic position of the **A**TG initiator */
+public default int getGenome0ATG() {
+	if(!isProteinCoding()) throw new IllegalStateException("non coding protein");
+	if(isPositiveStrand()) {
+		return getCdsStart()-1;//0 based ATG
+		}
+	else
+		{
+		return getCdsEnd()-1;//ATG is *before* the END position
+		}
+	}
+
+
+/** negate isCoding */
+public default boolean isNonCoding() {
+	return !isProteinCoding();
+	}
+/** alias of isProteinCoding */
+public default boolean isCoding() {
+	return isProteinCoding();
+	}
+
+
+/** get i-th intron */
 public default Intron getIntron(int idx) {
 	return new Intron(this,idx);
 	}
@@ -134,16 +161,22 @@ public default List<Intron> getIntrons() {
 			}
 		};
 	}
+/** alias for getCDSs() */
+public default List<CDS> getCDS() {
+	return getCDSs();
+	}
 
+/** return list of CDS, in the genomic order */
 public default List<CDS> getCDSs() {
 	if(!isProteinCoding()) Collections.emptyList();
-	return getExons().stream().
+	final List<CDS> L = getExons().stream().
 		filter(EX->CoordMath.overlaps(
 				EX.getStart(), EX.getEnd(),
 				getCdsStart(), getCdsEnd()
 				)).
 		map(EX->new CDS(EX)).
 		collect(Collectors.toList());
+	return L;
 	}
 
 
@@ -219,6 +252,12 @@ public class Exon extends Component {
 		this.exon_index = exon_index;
 		}
 	
+	
+	/** return 0-based exon index in the genome order */
+	public int getIndex() {
+		return this.exon_index;
+		}
+	
 	@Override
 	public UcscTranscript getTranscript() {
 		return this.owner;
@@ -233,14 +272,11 @@ public class Exon extends Component {
 				contigsMatch(o) &&
 				getTranscript().getTranscriptId().equals(o.getTranscript().getTranscriptId());
 		}
-	
+
 	/** return 1-based exon index , according to strand */
 	public int getHumanIndex() {
 		return isPositiveStrand()?exon_index+1:getTranscript().getExonCount()-exon_index;
 		}
-	
-	
-	
 	@Override
 	public int getStart() {
 		return getTranscript().getExonStart(this.exon_index);
@@ -258,10 +294,19 @@ public class Exon extends Component {
 
 
 /************************************************************************
- * 
+ *
  * Intron
  *
  */
+
+public default int getIntronStart(int idx) {
+	return getExonEnd(idx) +1;
+	}
+public default int getIntronEnd(int idx) {
+	return getExonStart(idx+1) -1;
+	}
+
+
 public class Intron extends Component {
 	private final UcscTranscript owner;
 	private final int intron_index;
@@ -269,7 +314,10 @@ public class Intron extends Component {
 		this.owner = owner;
 		this.intron_index = intron_index;
 		}
-	
+	/** return 0-based intron index in the genome order */
+	public int getIndex() {
+		return this.intron_index;
+		}
 	@Override
 	public UcscTranscript getTranscript() {
 		return this.owner;
@@ -282,11 +330,11 @@ public class Intron extends Component {
 	
 	@Override
 	public int getStart() {
-		return getTranscript().getExonEnd(this.intron_index) +1;
+		return getTranscript().getIntronStart(this.intron_index);
 		}
 	@Override
 	public int getEnd() {
-		return getTranscript().getExonStart(this.intron_index+1) -1;
+		return getTranscript().getIntronEnd(this.intron_index);
 		}
 	@Override
 	public String getName() {
@@ -317,6 +365,7 @@ public abstract class ExonComponent extends Component {
 	private ExonComponent(final Exon exon) {
 		this.exon = exon;
 		}
+	
 	
 	@Override
 	public UcscTranscript getTranscript() {
@@ -352,6 +401,8 @@ public class CDS extends ExonComponent {
 			getTranscript().getCdsEnd()
 			);
 		}
+	
+	
 	@Override
 	public boolean equals(Object obj) {
 		if(this==obj) return true;
@@ -364,113 +415,42 @@ public class CDS extends ExonComponent {
 		}
 	}
 
-
-public default boolean hasUTR5() {
-	if(!isProteinCoding()) return false;
-	if(isPositiveStrand()) {
-		return getTxStart() < getCdsStart();
-		}
-	else
-		{
-		return getCdsEnd() < getTxEnd();
-		}
-	}
-
-
-
-public default List<UTR5> getUTR5() {
-	if(!hasUTR5()) return Collections.emptyList();
-	final List<UTR5> L = new ArrayList<>();
-	if(isPositiveStrand()) {
-		for(int i=0;i< getExonCount();i++) {
-			final Exon ex = getExon(i);
-			if(ex.getStart() >= getCdsStart()) break;
-			L.add(new UTR5(ex));
-			}
-		}
-	else
-		{
-		for(int i=0;i< getExonCount();i++) {
-			final Exon ex = getExon(i);
-			if(ex.getEnd() <= getCdsEnd()) continue;
-			L.add(new UTR5(ex));
-			}
-		}
-	return L;
-	}
-
 /** ===================================================================*/
 public abstract class UTR extends ExonComponent {
 	protected UTR(final Exon exon) {
 		super(exon);
 		}
+	public abstract boolean isUTR5();
+	public abstract boolean isUTR3();
 	}
-/** ===================================================================*/
-public class UTR5 extends UTR {
-	private UTR5(final Exon exon) {
-		super(exon);
-		}
-	@Override
-	public int getStart() {
-		if(isPositiveStrand()) {
-			return getExon().getStart();
-			}
-		else
-			{
-			return Math.max(
-					getExon().getEnd(),
-					getTranscript().getCdsEnd()
-					);
-			}
-		}
-	@Override
-	public int getEnd() {
-		if(isPositiveStrand()) {
-			return Math.min(
-				getExon().getEnd(),
-				getTranscript().getCdsStart() -1
-				);
-			}
-		else
-			{
-			return getExon().getEnd();
-			}
-		}
-	}
-/** ===================================================================*/
-public class UTR3 extends UTR {
-	private UTR3(final Exon exon) {
-		super(exon);
-		}
-	@Override
-	public int getStart() {
-		if(isPositiveStrand()) {
-			return Math.max(
-				getExon().getStart(),
-				getTranscript().getCdsEnd()
-				);
-			}
-		else
-			{
-			return getExon().getStart();
-			}
-		}
-	@Override
-	public int getEnd() {
-		if(isPositiveStrand()) {
-			return getExon().getEnd();
-			}
-		else
-			{
-			return Math.min(
-				getExon().getEnd(),
-				getTranscript().getCdsStart() -1
-				);
-			}
-		}
 
+/** return true if mRNA has UTR */
+public default boolean hasUTRs() {
+	return hasUTR5() || hasUTR3();
+}
+/** return  list of mixed UTR5/UTR3 */
+public List<UTR> getUTRs();
+
+/** return true if there is a 5' UTR */
+public default boolean hasUTR5() {
+	return isProteinCoding() &&
+		(isPositiveStrand()?
+			getTxStart() < getCdsStart():
+			getCdsEnd() < getTxEnd())
+			;
 	}
-/** ===================================================================*/
+
+
+/** return true if there is a 3' UTR */
+public default boolean hasUTR3() {
+	return isProteinCoding() &&
+		(isPositiveStrand()?
+			getCdsEnd() < getTxEnd():
+			getTxStart() < getCdsStart()
+			);
+	}
+
+
 /** ===================================================================*/
 public abstract class Codon extends Component {
 	private final UcscTranscript owner;
@@ -526,51 +506,118 @@ public class StopCodon extends Codon {
 		}
 	}
 
-public interface RNA extends CharSequence, Locatable {
+public interface RNA extends CharSequence , Locatable, BedInterval {
+	/** convert 0-based rna to 0-based genomic */
+	public int convertToGenomic0Coordinate0(int rnaPos0);
+	/** convert the genomic position to the position in the RNA, return empty( if RNA not in genomic pos */
+	public OptionalInt convertGenomic0ToRnaCoordinate0(int genomicPos0);
+	/** return associated transcript, it it's a micro-ORF, the new transcript associated to the ORF will be returned */
 	public UcscTranscript getTranscript();
-	/** get a description for this RNA */
-	public String getDescription();
+	public default Strand getStrand() { return getTranscript().getStrand();}
 	public default String getContig() { return getTranscript().getContig(); }
 	public default boolean isPositiveStrand() { return getTranscript().isPositiveStrand();}
 	public default boolean isNegativeStrand() { return getTranscript().isNegativeStrand();}
-	
-	/** return true if codon starting a pos0 is an ATG */
-	public boolean isATG(int pos0);
-	/** return true if codon starting a pos0 is a STOP */
-	public boolean isStop(int pos0);
 }
+
 
 public interface MessengerRNA extends RNA {
-	public default boolean isProteinCoding() {
+	public default boolean hasCodingRNA() {
 		return getTranscript().isProteinCoding();
 		}
+	public default boolean hasUpstreamUntranslatedRNA() {
+		return getTranscript().hasUTR5();
+		}
+	public UntranslatedRNA getUpstreamUntranslatedRNA();
+	public default boolean hasDownstreamUntranslatedRNA() {
+		return getTranscript().hasUTR3();
+		}
+	public UntranslatedRNA getDownstreamUntranslatedRNA();
 	public CodingRNA getCodingRNA();
-}
-
+	
+	}
 
 public interface CodingRNA extends RNA {
-	public Peptide getPeptide();
-	public KozakSequence getKozakSequence();
 	public MessengerRNA getMessengerRNA();
-}
-
-
-public interface FivePrimeUpstreamORF extends RNA {
-}
-
-
-/** return mRNA for this transcript */
-public MessengerRNA getMessengerRNA(CharSequence chromosomeSequence);
-
-
-/** return coding RNA for this transcript */
-public default CodingRNA getCodingRNA(CharSequence chromosomeSequence) {
-	return getMessengerRNA(chromosomeSequence).getCodingRNA();
+	public KozakSequence getKozakSequence();
+	public default KozakSequence.Strength getKozakStrength() {
+		return getKozakSequence().getStrength();
+		}
+	/** convert cDNA position to mRNA 0-based position */
+	public int convertCoding0ToMessenger0(int cDNA0);
+ 	public Peptide getPeptide();
 	}
+
+
+public interface UntranslatedRNA extends RNA {
+	public MessengerRNA getMessengerRNA();
+	//find ORF starting in this UTR
+	public List<CodingRNA> getORFs();
+	}
+
+
+
+/** return  mRNA for this chromosome */
+public MessengerRNA getMessengerRNA(final CharSequence chromosomeSequence);
+
+/** return  mRNA for this chromosome with a fake genomic sequence. base of the genome should never be asked*/
+public default MessengerRNA getMessengerRNA() {
+	return getMessengerRNA(new AbstractCharSequence() {	
+		@Override
+		public int length() {
+			return Integer.MAX_VALUE-100;
+		}
+		@Override
+		public char charAt(int arg0) {
+			return 'N';
+		}
+	});
+}
+
+
 
 public interface Peptide extends CharSequence {
 	public CodingRNA getCodingRNA();
-	public int[] convertToGenomicCoordinates(int pepPos0);
-}
+	public int[] convertToGenomic0Coordinates(int pepPos0);
+	/** convert the genomic position to the position in the peptide, return -1 if peptide not in genomic pos */
+	public default int convertGenomic0ToPeptideCoordinate0(int genomicPos0)
+		{
+		final int rnaIdx=getCodingRNA().convertToGenomic0Coordinate0(genomicPos0);
+		if(rnaIdx==-1) return  -1;
+		return rnaIdx/3;
+		}
+	}
+
+
+
+/** return this transcript as a JEXL context */
+public default JexlContext asJexlContext() {
+	return new AsJexlContext(this);
+	}
+
+static class AsJexlContext implements JexlContext
+	{
+	private final UcscTranscript kg;
+	AsJexlContext(final UcscTranscript kg) {
+		this.kg=kg;
+		}
+	@Override
+	public Object get(final String s) {
+		if(s.equals("kg") || s.equals("gene") || s.equals("transcript")) return this.kg;
+		return null;
+		}
+	@Override
+	public boolean has(final String s) {
+		if(s.equals("kg") || s.equals("gene") || s.equals("transcript")) return true;
+		return false;
+		}
+	@Override
+	public void set(final String arg0, final Object arg1) {
+		throw new UnsupportedOperationException("cannot set "+arg0+" to "+this.kg);
+		}
+	@Override
+	public String toString() {
+		return kg.toString();
+		}
+	}
 
 }

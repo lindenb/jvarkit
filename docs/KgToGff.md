@@ -2,12 +2,18 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Convert UCSC knowGene file to gff3
+Convert UCSC genpred file to gff3
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar kg2gff  [options] Files
+
 Usage: kg2gff [options] Files
   Options:
     --coding
@@ -33,24 +39,8 @@ Usage: kg2gff [options] Files
  * gff
  * gff3
  * ucsc
+ * genpred
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew kg2gff
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -60,10 +50,6 @@ The java jar file will be installed in the `dist` directory.
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/KgToGff.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/KgToGff.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gtf/KgToGffTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gtf/KgToGffTest.java)
 
 
 ## Contribute
@@ -141,4 +127,5 @@ chr22	ucsc	exon	18389315	18389652	.	-	.	ID=uc002znh.2:E19;Parent=transcript:uc00
 chr22	ucsc	CDS	18389315	18389578	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS19;protein_id=uc002znh.2
 chr22	ucsc	exon	18507047	18507325	.	-	.	ID=uc002znh.2:E20;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E20
 ```
+
 

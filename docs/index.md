@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : dab972d9
-Compilation : 20230809195611
+Version     : a69b708e8
+Compilation : 20230822162727
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -163,17 +163,21 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [convertliftoverchain](ConvertLiftOverChain.md) | Convert the contigs in a liftover chain to match another REFerence. (eg. to remove chr prefix, unknown chromosomes etc...) | 20190409 | 20190409 |
 | [coverageserver](CoverageServer.md) | Jetty Based http server serving Bam coverage. | 20200212 | 20200330 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
-| [gff3upstreamorf](Gff3UpstreamOrf.md) | Takes a standard GFF3, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20220724 | 20220725 |
+| [gff3upstreamorf](Gff3UpstreamOrf.md) | Takes a ucsc genpred file, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20220724 | 20230820 |
 | [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20230215 |
 | [htsfreemarker](HtsFreemarker.md) | Apply Freemarker to VCF/BAM/JSON files. | 20230616 | 20230616 |
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
-| [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20190427 |
+| [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20230815 |
+| [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
+| [kg2gff](KgToGff.md) | Convert UCSC genpred file to gff3 | 20210106 | 20230817 |
+| [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
 | [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
+| [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |
 | [vcfgatkeval](VcfGatkEval.md) | Eval/Plot gatk INFO tags for filtering | 20230424 | 20230623 |
 | [vcfgroupbypop](VcfGroupByPopulation.md) | create INFO data by population | 20190319 | 20230712 |
@@ -181,6 +185,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfserver](VcfServer.md) | Web Server displaying VCF file. A web interface for vcf2table | 20171027 | 20220517 |
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |
 | [vcftbi2bed](VcfTbiToBed.md) | extracts BED for each contig in a tabix-indexed VCF peeking first of last variant for each chromosome. | 20230214 | 20230214 |
+| [wib2bedgraph](WibToBedGraph.md) | Extract Wib files to bedgraph or wig | 20230819 | 20230819 |
 
 ### VCF Manipulation
 
@@ -200,7 +205,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfallelebalance](VcfAlleleBalance.md) | Insert missing allele balance annotation using FORMAT:AD | 20180829 | 20200805 |
 | [vcfancestralalleles](VcfAncestralAllele.md) | Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README | 20180418 | 20220126 |
 | [vcfbigbed](VcfBigBed.md) | Annotate a VCF with values from a bigbed file | 20220107 | 20220107 |
-| [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20220110 |
+| [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20230819 |
 | [vcfburdenmaf](VcfBurdenMAF.md) | MAF for Cases / Controls | 20160418 | 202000713 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20140218 | 20220119 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
@@ -220,7 +225,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfmulti2oneinfo](VcfMultiToOneInfo.md) | 'one variant with INFO with N values' to 'N variants with one INFO' | 20260106 | 20230524 |
 | [vcfpar](VcfPseudoAutosomalRegion.md) | Flag human sexual regions excluding PAR. | 20200908 | 20200908 |
 | [vcfpeekaf](VcfPeekAf.md) | Peek the AF from another VCF | 20200624 | 20200904 |
-| [vcfphased01](VcfPhased01.md) | X10 Phased SVG to Scalar Vector Graphics (SVG) | 20190710 | 20230724 |
+| [vcfphased01](VcfPhased01.md) | X10 Phased SVG to Scalar Vector Graphics (SVG) | 20190710 | 20230818 |
 | [vcfpolyx](VCFPolyX.md) | Number of repeated REF bases around POS. | 20200930 | 20230526 |
 | [vcfrebase](VcfRebase.md) | Restriction sites overlaping variations in a vcf | 20131115 | 20200624 |
 | [vcfregulomedb](VcfRegulomeDB.md) | Annotate a VCF with the Regulome2 data (https://regulomedb.org/) | 20140709 | 20230512 |
@@ -237,7 +242,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
-| [scanretrocopy](ScanRetroCopy.md) | Scan BAM for retrocopies | 20190125 | 20190709 |
+| [scanretrocopy](ScanRetroCopy.md) | Scan BAM for retrocopies | 20190125 | 20230818 |
 | [starretrocopy](StarRetroCopy.md) | Scan retrocopies from the star-aligner/bwa output | 20190710 | 20191008 |
 
 ### BAM Manipulation

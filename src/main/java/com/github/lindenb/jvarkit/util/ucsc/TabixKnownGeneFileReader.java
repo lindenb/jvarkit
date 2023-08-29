@@ -37,6 +37,7 @@ import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
  * AbstractTabixObjectReader specialized for KnownGene
  *
  */
+@Deprecated
 public class TabixKnownGeneFileReader extends AbstractTabixObjectReader<KnownGene>
 	{
     public TabixKnownGeneFileReader(final String uri) throws IOException

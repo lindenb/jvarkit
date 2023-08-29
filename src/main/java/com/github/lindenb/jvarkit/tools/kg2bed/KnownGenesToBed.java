@@ -29,21 +29,20 @@ package com.github.lindenb.jvarkit.tools.kg2bed;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Predicate;
 
 import org.apache.commons.jexl2.JexlContext;
 
-import htsjdk.samtools.util.CloserUtil;
-
-
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jexl.JexlPredicate;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -90,7 +89,7 @@ END_DOC
 	keywords={"ucsc","bed","knownGenes"},
 	biostars= {151628,9557497},
 	creationDate = "20140311",
-	modificationDate="20190427",
+	modificationDate="20230815",
 	jvarkit_amalgamion = true
 	)
 public class KnownGenesToBed extends Launcher
@@ -99,43 +98,19 @@ public class KnownGenesToBed extends Launcher
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-hide","--hide"},description="don't show the following items (comma separated, one of 'INTRON,UTR,CDS,EXON,TRANSCRIPT,NON_CODING,CODING'). Empty don't hide anything")
+	@Parameter(names={"--exclude","--hide"},description="don't show the following items (comma separated, one of 'INTRON,UTR,CDS,EXON,TRANSCRIPT,NON_CODING,CODING'). Empty don't hide anything")
 	private String hideStr="";
 	@Parameter(names={"-s","--select"},description="JEXL select expression. Object 'kg' is an instance of KnownGene (https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/ucsc/KnownGene.java)." +JexlPredicate.OPT_WHAT_IS_JEXL)
 	private String selectExpr="";
+	@Parameter(names={"-sql","--sql"},description= "SQL Schema URI. "+UcscTranscriptReader.SQL_DESC)
+	private String sqlUri="";
 
-	private PrintStream out;
 	
-	private static class KgContext implements JexlContext
-		{
-		private final KnownGene kg;
-		KgContext(final KnownGene kg) {
-			this.kg=kg;
-			}
-		@Override
-		public Object get(final String s) {
-			if(s.equals("kg") || s.equals("gene") || s.equals("transcript")) return this.kg;
-			return null;
-			}
-		@Override
-		public boolean has(final String s) {
-			if(s.equals("kg") || s.equals("gene") || s.equals("transcript")) return true;
-			return false;
-			}
-		@Override
-		public void set(String arg0, Object arg1) {
-			throw new UnsupportedOperationException();
-			}
-		@Override
-		public String toString() {
-			return kg.toString();
-			}
-		}
 	
-	private void print(final KnownGene kg,final int start,final int end,final String type,final String name)
+	private void print(	final PrintWriter out, final UcscTranscript kg,final int start,final int end,final String type,final String name)
 		{
 		if(start>=end) return;
-		out.print(kg.getChromosome());
+		out.print(kg.getContig());
 		out.print('\t');
 		out.print(start);
 		out.print('\t');
@@ -143,7 +118,7 @@ public class KnownGenesToBed extends Launcher
 		out.print('\t');
 		out.print(kg.isPositiveStrand()?'+':'-');
 		out.print('\t');
-		out.print(kg.getName());
+		out.print(kg.getTranscriptId());
 		out.print('\t');
 		out.print(type);
 		out.print('\t');
@@ -151,7 +126,7 @@ public class KnownGenesToBed extends Launcher
 		out.println();
 		}
 	// 
-	private void scan(final BufferedReader r) throws IOException
+	private void scan(final PrintWriter out,final UcscTranscriptCodec codec,final BufferedReader r) throws IOException
 		{
 		boolean hide_introns = false;
 		boolean hide_utrs = false;
@@ -164,7 +139,7 @@ public class KnownGenesToBed extends Launcher
 				KG->true:
 				new JexlPredicate(this.selectExpr)
 				; 
-		
+
 		for(String str : CharSplitter.COMMA.split(this.hideStr)) {
 			if(StringUtils.isBlank(str)) continue;
 			str = str.trim().toUpperCase();
@@ -175,95 +150,80 @@ public class KnownGenesToBed extends Launcher
 			if(str.equals("TRANSCRIPT") || str.equals("TRANSCRIPTS")) hide_transcripts=true;
 			if(str.equals("NON_CODING")) hide_non_coding=true;
 			if(str.equals("CODING")) hide_coding=true;
-			}		
-		
+			}
+
 		String line;
-		final CharSplitter tab=CharSplitter.TAB;
 		while((line=r.readLine())!=null)
 			{
-			if(out.checkError()) break;
-			final String tokens[]=tab.split(line);
-			final KnownGene kg=new KnownGene(tokens);
-			
-			if(hide_coding && !kg.isNonCoding()) continue;
-			if(hide_non_coding && kg.isNonCoding()) continue;
-			
-			if(!predicate.test(new KgContext(kg))) continue;
-			
-			if(!hide_transcripts) print(kg,kg.getTxStart(),kg.getTxEnd(),"TRANSCRIPT",kg.getName());
-			for(int i=0;i< kg.getExonCount();++i)
-				{
-				final KnownGene.Exon exon=kg.getExon(i);
-				if(!hide_exons) print(kg,exon.getStart(),exon.getEnd(),"EXON",exon.getName());
-				
-				if(!hide_utrs && kg.getCdsStart()>exon.getStart())
+			final UcscTranscript kg= codec.decode(line);
+			if(kg==null) continue;
+
+			if(hide_coding && kg.isProteinCoding()) continue;
+			if(hide_non_coding && !kg.isProteinCoding()) continue;
+
+			if(!predicate.test(kg.asJexlContext())) continue;
+
+			if(!hide_transcripts) {
+				print(out, kg,kg.getBedStart(),kg.getBedEnd(),"TRANSCRIPT",kg.getTranscriptId());
+				}
+			if(!hide_exons) {
+				for(final UcscTranscript.Exon exon: kg.getExons())
 					{
-					print(kg,exon.getStart(),
-							Math.min(kg.getCdsStart(),exon.getEnd()),"UTR","UTR"+(kg.isPositiveStrand()?"5":"3"));
+					print(out, kg,exon.getBedStart(),exon.getBedEnd(),"EXON",exon.getName());
 					}
-				
-				if(!hide_cds && !(kg.getCdsStart()>=exon.getEnd() || kg.getCdsEnd()<exon.getStart()))
+				}
+			if(!hide_introns) {
+				for(final UcscTranscript.Intron intron: kg.getIntrons())
 					{
-					print(kg,
-							Math.max(kg.getCdsStart(),exon.getStart()),
-							Math.min(kg.getCdsEnd(),exon.getEnd()),
-							"CDS",exon.getName()
-							);
+					print(out, kg,intron.getBedStart(),intron.getBedEnd(),"INTRON",intron.getName());
 					}
-				
-				final KnownGene.Intron intron=exon.getNextIntron();
-				if(!hide_introns && intron!=null)
+				}
+
+			if(!hide_cds && kg.isProteinCoding()) {
+				for(final UcscTranscript.CDS cds: kg.getCDS())
 					{
-					print(kg,intron.getStart(),intron.getEnd(),"INTRON",intron.getName());
+					print(out, kg,cds.getBedStart(),cds.getBedEnd(),"CDS",cds.getName());
 					}
-				
-				if(!hide_utrs && kg.getCdsEnd()<exon.getEnd())
+				}
+			if(!hide_utrs && kg.isProteinCoding()) {
+				for(final UcscTranscript.UTR utr: kg.getUTRs())
 					{
-					print(kg,Math.max(kg.getCdsEnd(),exon.getStart()),
-							exon.getEnd(),
-							"UTR","UTR"+(kg.isPositiveStrand()?"3":"5"));
+					print(out, kg,utr.getBedStart(),utr.getBedEnd(),"UTR",utr.getName());
 					}
-				
 				}
 			}
 		}
 
 	@Override
 	public int doWork(final List<String> args) {
-		BufferedReader r=null;
 		try
 			{
-			this.out = super.openPathOrStdoutAsPrintStream(this.outputFile);
-			if(args.isEmpty())
-				{
-				r=IOUtils.openStreamForBufferedReader(super.stdin());
-				scan(r);
-				r.close();r=null;
-				}
-			else
-				{
-				for(final String filename:args)
+			final UcscTranscriptCodec codec = StringUtils.isBlank(this.sqlUri)? new UcscTranscriptCodec():new UcscTranscriptCodec(sqlUri);
+
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				if(args.isEmpty())
 					{
-					r=IOUtils.openURIForBufferedReading(filename);
-					scan(r);
-					r.close();r=null;
+					try(BufferedReader r =IOUtils.openStreamForBufferedReader(super.stdin())) {
+						scan(out,codec,r);
+						}
 					}
+				else
+					{
+					for(final String filename:args)
+						{
+						try(BufferedReader r=IOUtils.openURIForBufferedReading(filename)) {
+							scan(out,codec,r);
+							}
+						}
+					}
+				out.flush();
 				}
-			this.out.flush();
-			this.out.close();
-			this.out=null;
 			return 0;
 			}
 		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(r);
-			CloserUtil.close(this.out);
-			this.out=null;
 			}
 		}
 

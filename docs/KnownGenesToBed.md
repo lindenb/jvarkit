@@ -16,21 +16,25 @@ Usage: java -jar dist/jvarkit.jar kg2bed  [options] Files
 
 Usage: kg2bed [options] Files
   Options:
-    -h, --help
-      print help and exit
-    --helpFormat
-      What kind of help. One of [usage,markdown,xml].
-    -hide, --hide
+    --exclude, --hide
       don't show the following items (comma separated, one of 
       'INTRON,UTR,CDS,EXON,TRANSCRIPT,NON_CODING,CODING'). Empty don't hide 
       anything 
       Default: <empty string>
+    -h, --help
+      print help and exit
+    --helpFormat
+      What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
     -s, --select
       JEXL select expression. Object 'kg' is an instance of KnownGene (https://github.com/lindenb/jvarkit/blob/master/src/main/java/com/github/lindenb/jvarkit/util/ucsc/KnownGene.java).JEXL 
       stands for Java EXpression Language.  See 
       https://commons.apache.org/proper/commons-jexl/reference/syntax.html 
+      Default: <empty string>
+    -sql, --sql
+      SQL Schema URI. Each instance of transcript can be associated to a .sql 
+      schema to help the software to decode the semantics of the columns. Eg.: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql
       Default: <empty string>
     --version
       print version and exit
