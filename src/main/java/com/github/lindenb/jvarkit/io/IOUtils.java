@@ -701,15 +701,19 @@ public class IOUtils {
 		return new ArrayList<>(fileset);
 		}
 	
+	@Deprecated
+	public static List<String> unrollStrings2018(final java.util.List<String> args) {
+		return 	unrollStrings(args);
+		}
+	
 	 /** 
-     * new version of unrollFiles in 2018, for common usage...
      * only one list
      * return List of Strings
      */
-	public static List<String> unrollStrings2018(final java.util.List<String> args)
+	public static List<String> unrollStrings(final java.util.List<String> args)
 		{
 		if(args.isEmpty()) return Collections.emptyList();
-		final List<String> fileset = new ArrayList<>();
+		final List<String> filelist = new ArrayList<>();
 		if(args.size()==1 && args.get(0).endsWith(".list"))
 			{
 			final File listFile = new File(args.get(0));
@@ -717,14 +721,14 @@ public class IOUtils {
 			IOUtil.readLines(listFile).forEach(s->{
 				if (s.endsWith("#")) return;
 				if (StringUtil.isBlank(s)) return;
-				fileset.add(s);
+				filelist.add(s);
 				});
 			}
 		else
 			{
-			fileset.addAll(args);
+			filelist.addAll(args);
 			}
-		return fileset;
+		return filelist;
 		}
 
 	/** test wether the two first bytes are gzip */

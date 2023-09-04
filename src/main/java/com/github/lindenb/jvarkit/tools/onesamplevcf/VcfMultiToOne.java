@@ -472,7 +472,7 @@ public class VcfMultiToOne extends Launcher
 		
 		try
 			{
-			final List<String> paths = IOUtils.unrollStrings2018(args);
+			final List<String> paths = IOUtils.unrollStrings(args);
 			if(paths.isEmpty())
 				{
 				LOG.error("No vcf provided");
