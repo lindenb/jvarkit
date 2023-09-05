@@ -77,3 +77,10 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Example
+
+```
+$ java -jar dist/jvarkit.jar ref2html -o TMP --regions "RF02:1-500" -R src/test/resources/rotavirus_rf.fa src/test/resources/rotavirus_rf.vcf.gz
+```
+
+

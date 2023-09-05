@@ -59,7 +59,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.IOUtil;
 
 /**
 BEGIN_DOC

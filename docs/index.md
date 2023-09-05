@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 2bbae3cc2
-Compilation : 20230829095306
+Version     : b99839f0
+Compilation : 20230903182124
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -146,7 +146,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20211020 |
 | [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document |  |  |
 | [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
-| [samplesrdf](SamplesRDF.md) | Digests a  database of samples from a set of recfiles | 20230201 | 20230202 |
 | [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
 | [uniprot2svg](UniprotToSvg.md) | plot uniprot to SVG | 20220608 | 20220922 |
 | [xsltstream](XsltStream.md) | XSLT transformation for large XML files. xslt is only applied on a given subset of nodes. |  | 20190222 |
@@ -172,6 +171,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [kg2gff](KgToGff.md) | Convert UCSC genpred file to gff3 | 20210106 | 20230817 |
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
+| [rdfcombine](RDFCombine.md) | Substract/Add RDF models | 20230903 | 20230903 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
 | [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |

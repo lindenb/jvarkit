@@ -117,6 +117,7 @@ nav:
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "pubmedmap" : PubmedMap.md
+        - "rdfcombine" : RDFCombine.md
         - "ref2html" : ReferenceToHtml.md
         - "sam2json" : SamToJson.md
         - "sam2tsv" : Sam2Tsv.md
@@ -124,7 +125,6 @@ nav:
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samgrep" : SamGrep.md
         - "samjdk" : SamJdk.md
-        - "samplesrdf" : SamplesRDF.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
         - "samviewwithmate" : SamViewWithMate.md
         - "scanretrocopy" : ScanRetroCopy.md
