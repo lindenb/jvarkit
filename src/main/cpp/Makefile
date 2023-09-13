@@ -4,6 +4,13 @@ CC?=gcc
 CFLAGS=-O3 -Wall  -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 ARCH=$(shell arch)
 
+
+
+
+cvarkit.o : cvarkit.cpp
+	$(CC) -c -o $@ $(CFLAGS) $<
+
+
 ifeq (${JAVA_HOME},)
 $(error $${JAVA_HOME} is not defined)
 endif
