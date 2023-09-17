@@ -7,7 +7,13 @@ vcf to bam
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcf2bam  [options] Files
+
 Usage: vcf2bam [options] Files
   Options:
     --bamcompression
@@ -27,7 +33,7 @@ Usage: vcf2bam [options] Files
       Default: 100
   * -r, -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -51,23 +57,6 @@ Usage: vcf2bam [options] Files
  * [https://www.biostars.org/p/420363](https://www.biostars.org/p/420363)
  * [https://www.biostars.org/p/458494](https://www.biostars.org/p/458494)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcf2bam
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -137,5 +126,6 @@ $ java -jar dist-1.139/vcf2bam.jar -R ref.fa  samtools.vcf.gz 2> /dev/null | gre
 0000003640	147	seg1	1454	60	94=1X5=	=	954	-500	TAGAAAGCATTCCAAAATCTCTTACCAGTTTTATCTCCTATGAAAGTCCTTCACACTTTCTCTCATTTAAACTTTATTGCATTTTCCTCACTTTCTCTCA	IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII	RG:Z:NA12891	NM:i:1
 
 ```
+
 
 
