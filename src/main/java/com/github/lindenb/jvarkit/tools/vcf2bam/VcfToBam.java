@@ -113,7 +113,8 @@ END_DOC
 	keywords={"ref","vcf","bam"},
 	creationDate="20150612",
 	modificationDate="20211022",
-	biostars= {420363,458494}
+	biostars= {420363,458494},
+	jvarkit_amalgamion = true
 	)
 public class VcfToBam extends Launcher
 	{

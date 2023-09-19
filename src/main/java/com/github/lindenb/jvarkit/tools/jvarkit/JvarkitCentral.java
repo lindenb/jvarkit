@@ -185,6 +185,7 @@ import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
 import com.github.lindenb.jvarkit.tools.upstreamorf.Gff3UpstreamOrf;
 import com.github.lindenb.jvarkit.tools.upstreamorf.VcfScanUpstreamOrf;
 import com.github.lindenb.jvarkit.tools.validatorserver.CNVValidatorServer;
+import com.github.lindenb.jvarkit.tools.vcf2bam.VcfToBam;
 import com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervals;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
@@ -631,6 +632,7 @@ public class JvarkitCentral {
 		command(VcfGnomad.class);
 		command(VcfSetSequenceDictionary.class);
 		command(VcfFilterSequenceOntology.class);
+		command(VcfToBam.class);
 		command(Sam2Tsv.class);
 		command(SamGrep.class);
 		command(SamViewWithMate.class);
