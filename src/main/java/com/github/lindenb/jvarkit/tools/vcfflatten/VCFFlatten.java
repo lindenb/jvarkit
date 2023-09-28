@@ -38,7 +38,6 @@ import java.util.Set;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
-import com.github.lindenb.jvarkit.tools.vcffixindels.VCFFixIndels;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -106,7 +105,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class VCFFlatten extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VCFFixIndels.class).make();
+	private static final Logger LOG = Logger.build(VCFFlatten.class).make();
 	@Parameter(names={"-i","--id"},description="Default Variant ID")
 	protected String default_variant_id = "FLATTEN_VARIANT";
 	@Parameter(names={"--gene-extractor"},description="Activate default gene extractors. Variant will be grouped by gene using snpeff/bcftools/vep annotations")
