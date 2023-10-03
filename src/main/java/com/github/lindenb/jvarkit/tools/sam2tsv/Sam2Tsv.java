@@ -128,6 +128,7 @@ Sam2tsv was cited in :
   * Liu H., Begik O., Novoa E.M. (2021) EpiNano: Detection of m6A RNA Modifications Using Oxford Nanopore Direct RNA Sequencing. In: McMahon M. (eds) RNA Modifications. Methods in Molecular Biology, vol 2298. Humana, New York, NY. https://doi.org/10.1007/978-1-0716-1374-0_3
   * Yang & al. "Sequencing 5-Formyluracil in Genomic DNA at Single-Base Resolution"  (2021) Analytical Chemistry doi: 10.1021/acs.analchem.1c03339
   * Xiao Shu, Chenyang Huang, Tengwei Li, Jie Cao, Jianzhao Liu,.a6A-seq: N6-allyladenosine-based cellular messenger RNA metabolic labelling and sequencing,.Fundamental Research,.2023,.,.ISSN 2667-3258, https://doi.org/10.1016/j.fmre.2023.04.010..(https://www.sciencedirect.com/science/article/pii/S2667325823001267).
+  * Xu, Z., Sziraki, A., Lee, J. et al. Dissecting key regulators of transcriptome kinetics through scalable single-cell RNA profiling of pooled CRISPR screens. Nat Biotechnol (2023). https://doi.org/10.1038/s41587-023-01948-9
 
 END_DOC
 */
