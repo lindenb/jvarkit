@@ -7,7 +7,13 @@ LiftOver GTF file.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar gtfliftover  [options] Files
+
 Usage: gtfliftover [options] Files
   Options:
   * -f, --chain
@@ -37,23 +43,6 @@ Usage: gtfliftover [options] Files
  * gtf
  * liftover
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew gtfliftover
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -134,4 +123,5 @@ chr22	ensembl_havana	gene	43367582	43426207	.	+	.	gene_id "ENSG00000100403"; gen
 chr22	ensembl_havana	transcript	43367582	43426207	.	+	.	gene_id "ENSG00000100403"; gene_version "10"; transcript_id "ENST00000352645"; transcript_version "4"; gene_name "ZC3H7B"; gene_source "ensembl_havana"; gene_biotype "protein_coding"; transcript_name "ZC3H7B-001"; transcript_source "ensembl_havana"; transcript_biotype "protein_coding"; tag "CCDS"; ccds_id "CCDS14013"; havana_transcript "OTTHUMT00000320696"; havana_transcript_version "1"; tag "basic";
 chr22	havana	exon	43367775	43367832	.	+	.	gene_id "ENSG00000100403"; gene_version "10"; transcript_id "ENST00000486331"; transcript_version "1"; exon_number "1"; gene_name "ZC3H7B"; gene_source "ensembl_havana"; gene_biotype "protein_coding"; transcript_name "ZC3H7B-002"; transcript_source "havana"; transcript_biotype "retained_intron"; havana_transcript "OTTHUMT00000320697"; havana_transcript_version "1"; exon_id "ENSE00001942555"; exon_version "1";
 ```
+
 

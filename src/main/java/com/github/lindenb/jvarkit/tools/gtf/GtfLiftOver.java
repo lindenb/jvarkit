@@ -111,7 +111,8 @@ END_DOC
 		description="LiftOver GTF file.",
 		creationDate="20190823",
 		modificationDate="20190823",
-		keywords= {"gtf","liftover"}
+		keywords= {"gtf","liftover"},
+		jvarkit_amalgamion = true
 		)
 public class GtfLiftOver
 	extends Launcher

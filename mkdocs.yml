@@ -95,6 +95,7 @@ nav:
         - "gtexrs2qtl" : GtexRsToQTL.md
         - "gtf2bed" : GtfToBed.md
         - "gtf2xml" : Gtf2Xml.md
+        - "gtfliftover" : GtfLiftOver.md
         - "htsfreemarker" : HtsFreemarker.md
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md
