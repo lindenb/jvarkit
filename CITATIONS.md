@@ -24,6 +24,8 @@
  * Xu, Z., Sziraki, A., Lee, J. et al. Dissecting key regulators of transcriptome kinetics through scalable single-cell RNA profiling of pooled CRISPR screens. Nat Biotechnol (2023). https://doi.org/10.1038/s41587-023-01948-9 **sam2tsv**
  * Shinde SS, Sharma A and Vijay N (2023) Decoding the fibromelanosis locus complex chromosomal rearrangement of black-bone chicken: genetic differentiation, selective sweeps and protein-coding changes in Kadaknath chicken. Front. Genet. 14:1180658. doi: 10.3389/fgene.2023.1180658 **biostar214299**
  * Braton & al (2023) HIVepsilon-seq—scalable characterization of intact persistent proviral HIV reservoirs in women. Virology. https://doi.org/10.1128/jvi.00705-23  **SAM2tsv**
+ * Ansari, Nadia et al.  Environmental surveillance for COVID-19 using SARS-CoV-2 RNA concentration in wastewater – a study in District East, Karachi, Pakistan The Lancet Regional Health - Southeast Asia, Volume 0, Issue 0, 100299. https://doi.org/10.1016/j.lansea.2023.100299
+
 
 ## 2022
 
