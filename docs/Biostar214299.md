@@ -151,5 +151,6 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
  * Fine structure and transcription dynamics of bread wheat ribosomal DNA loci deciphered by a multi-omics approach. Z Tulpova & al.  2022.  The Plante Genome. https://doi.org/10.1002/tpg2.20191
  * Watson CM, Jackson L, Crinnion LA, et al. Long-read sequencing to resolve the parent of origin of a de novo pathogenic UBE3A variant. Journal of Medical Genetics Published Online First: 12 April 2022. doi: 10.1136/jmedgenet-2021-108314
  * Benjamin McClinton, Christopher M. Watson, Laura A. Crinnion, Martin McKibbin, Manir Ali, Chris F. Inglehearn, Carmel Toomes, Haplotyping Using Long-Range PCR and Nanopore Sequencing of Phase Variants; Lessons Learned From the ABCA4 Locus, Laboratory Investigation, 2023, 100160, ISSN 0023-6837
+ * Shinde SS, Sharma A and Vijay N (2023) Decoding the fibromelanosis locus complex chromosomal rearrangement of black-bone chicken: genetic differentiation, selective sweeps and protein-coding changes in Kadaknath chicken. Front. Genet. 14:1180658. doi: 10.3389/fgene.2023.1180658
 
 

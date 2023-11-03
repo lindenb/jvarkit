@@ -35,7 +35,8 @@ Usage: vcfgnomad [options] Files
       Generate MD5 checksum for VCF output.
       Default: false
   * -g, --gnomad
-      Path to Indexed Gnomad VCF file.
+      Path to Indexed Gnomad VCF file. Or a file with the '.list' suffix 
+      containing the path to the indexed VCFs (one per contig).
     -h, --help
       print help and exit
     --helpFormat

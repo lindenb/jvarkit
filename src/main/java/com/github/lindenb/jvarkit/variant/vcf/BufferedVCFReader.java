@@ -49,10 +49,11 @@ public class BufferedVCFReader implements VCFReader {
 	private final List<VariantContext> buffer = new ArrayList<>();
 	private Locatable lastInterval = null;
 	private UnaryOperator<VariantContext> simplifier = V->V;
+	
 	private class MyIter extends AbstractCloseableIterator<VariantContext> {
 		int i=0;
 		final Locatable query;
-		MyIter(Locatable query) {
+		MyIter(final Locatable query) {
 			this.query = query;
 			}
 		@Override

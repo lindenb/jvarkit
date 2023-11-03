@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
+import com.github.lindenb.jvarkit.variant.vcf.PerContigVcfReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
@@ -83,7 +84,7 @@ END_DOC
 @Program(name="vcfgnomad",
 	description="Peek annotations from gnomad",
 	keywords={"vcf","annotation","gnomad"},
-	modificationDate="20200702",
+	modificationDate="20231103",
 	creationDate="20170407",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
@@ -93,7 +94,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
 	
 	
-	@Parameter(names={"-g","--gnomad"},description="Path to Indexed Gnomad VCF file.",required=true)
+	@Parameter(names={"-g","--gnomad"},description="Path to Indexed Gnomad VCF file. Or a file with the '.list' suffix containing the path to the indexed VCFs (one per contig).",required=true)
 	private Path gnomadPath =null;
 	@Parameter(names={"--bufferSize"},description= BufferedVCFReader.OPT_BUFFER_DESC+" "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int gnomadBufferSize= 10_000;
@@ -128,7 +129,14 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	@Override
 	protected int beforeVcf() {
 		try {
-			final VCFReader r = VCFReaderFactory.makeDefault().open(this.gnomadPath,true);
+			final VCFReader r; 
+			if(this.gnomadPath.getFileName().toString().endsWith(".list")) {
+				r = new PerContigVcfReader(gnomadPath);
+				}
+			else
+				{
+				r = VCFReaderFactory.makeDefault().open(this.gnomadPath,true);
+				}
 			this.gnomadReader = new BufferedVCFReader(r, this.gnomadBufferSize);
 			this.ctgNameConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(r.getHeader()));
 			}
