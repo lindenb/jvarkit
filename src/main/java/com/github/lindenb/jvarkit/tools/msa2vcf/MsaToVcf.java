@@ -86,6 +86,8 @@ input is a clustalw file like: https://github.com/biopython/biopython/blob/maste
   * 'Tracking the origin of two genetic components associated with transposable element bursts in domesticated rice'. Nature Communicationsvolume 10, Article number: 641 (2019) https://www.nature.com/articles/s41467-019-08451-3
   * 'Predicting antimicrobial resistance in Pseudomonas aeruginosa with machine learning-enabled molecular diagnostics'. EMBO Mol Med (2020)e10264https://doi.org/10.15252/emmm.201910264
   *  Xi, L., Sun, Y., Xu, T., Wang, Z., Chiu, M. Y., Plouviez, S., Jollivet, D., & Qiu, J.-W. (2022). Phylogenetic divergence and population genetics of the hydrothermal vent annelid genus Hesiolyra along the East Pacific Rise: Reappraisal using multi-locus data. Diversity and Distributions, 00, 1-15. https://doi.org/10.1111/ddi.13653
+  * Yu-Qian Qin, Chu-Yun Yang, Ze-Long Nie, Jun Wen, Ying Meng,.Phylogenomics and divergence pattern of Polygonatum (Asparagaceae: Polygonateae) in the north temperate region,.Molecular Phylogenetics and Evolution,.2023,.107962,.ISSN 1055-7903,.https://doi.org/10.1016/j.ympev.2023.107962.
+
 
 ## Example
 

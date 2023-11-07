@@ -52,6 +52,8 @@ import htsjdk.variant.vcf.VCFConstants;
  * URL supplier
  */
 public class UrlSupplier {
+private static final String GNOMAD_HG38 = "gnomad_r4";
+
 private final SAMSequenceDictionary dict;
 private final ContigNameConverter toUcsc = ContigNameConverter.createConvertToUcsc();
 private final ContigNameConverter toEnsembl = ContigNameConverter.createConvertToEnsembl();
@@ -124,6 +126,8 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Gene ResearchAllOfUs",id,"https://databrowser.researchallofus.org/genomic-variants/"+ StringUtils.escapeHttp(id)));
 		// intron retention associated variants
 		urls.add(new LabelledUrlImpl("IRAVs",id,"https://iravdb.io/gene/"+ StringUtils.escapeHttp(id)));
+		//finngen
+		urls.add(new LabelledUrlImpl("Finngen",id,"https://public-metaresults-fg-ukbb.finngen.fi/gene/"+ StringUtils.escapeHttp(id)));
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
@@ -157,7 +161,6 @@ private void _gff3(final Gff3Feature feat,final Set<LabelledUrl> urls) {
 	feat.getAttribute("CCDS").stream().forEach(X->urls.addAll(of("CCDS",X)));;
 	_locatable(feat, urls);
 	}
-
 private void _string(final String str,final Set<LabelledUrl> urls) {
 	if(StringUtils.isBlank(str)) return;
 	else if(this.hgncPattern.matcher(str).matches()) {
@@ -168,7 +171,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		urls.add(new LabelledUrlImpl("dbsnp",str,"https://www.ncbi.nlm.nih.gov/snp/"+str.substring(2)));
 		urls.add(new LabelledUrlImpl("opensnp",str,"https://opensnp.org/snps/"+str.toLowerCase()));
 		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh37",str,"https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r2_1"));
-		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh38",str,"https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r3"));
+		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh38",str,"https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset="+GNOMAD_HG38));
 		if(hasDict() && SequenceDictionaryUtils.isHuman(this.dict)) {
 			urls.add(new LabelledUrlImpl("clinvar",str,"https://www.ncbi.nlm.nih.gov/clinvar?term="+str.toLowerCase()+"%5BVariant%20ID%5D"));
 			}
@@ -297,7 +300,7 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 				urls.add(new LabelledUrlImpl("Variant Gnomad 3 " + alt.getDisplayString(),
 						variantid+"/"+alt.getDisplayString(),
 						"https://gnomad.broadinstitute.org/variant/"+
-						StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=gnomad_r3"
+						StringUtils.escapeHttp(ensemblCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()+"?dataset=" +GNOMAD_HG38
 						));
 				urls.add(new LabelledUrlImpl("OpenTargets " + alt.getDisplayString(),
 						variantid+"/"+alt.getDisplayString(),
