@@ -74,6 +74,15 @@ public class BamLiftOver extends OnePassBamLauncher
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
 
+	@Parameter(names={"--unmapped"},description="discard unmapped reads/unlifted reads")
+	private boolean discard_unmapped = false ;
+
+	@Parameter(names={"--save-position"},description="Save original position in SMA attribute")
+	private boolean  save_original_position = false ;
+	@Parameter(names={"--drop-seq"},description="drop SEQ and QUAL")
+	private boolean  drop_seq_and_qual = false ;
+
+	
 	private LiftOver liftOver= null;
 	private SAMFileHeader headerOut = null;
 	private SAMSequenceDictionary newDict = null;
@@ -105,24 +114,38 @@ public class BamLiftOver extends OnePassBamLauncher
 		return R->liftRead(R);
 		}
 	
-	private List<SAMRecord> liftRead(final SAMRecord rec) {
+	private SAMRecord dropSeqAndQual(final SAMRecord rec) {
+		if(this.drop_seq_and_qual) {
+			rec.setReadBases(SAMRecord.NULL_QUALS);
+			rec.setBaseQualities(SAMRecord.NULL_QUALS);
+			}
+		return rec;
+		}
+	
+	private void makeReadUnmapped(final SAMRecord rec) {
+		SAMUtils.makeReadUnmapped(dropSeqAndQual(rec));
+		
+	}
+	
+	private List<SAMRecord> liftRead(final SAMRecord source) {
 		final SAMRecord copy;
 		try {
-			copy =(SAMRecord)rec.clone();
+			copy =(SAMRecord)source.clone();
 			}
 		catch(final CloneNotSupportedException err) {
 			throw new RuntimeException(err); 
 			}
 		copy.setHeader(this.headerOut);
-		final StringBuilder sb=new StringBuilder();
-		if(!rec.getReadUnmappedFlag())
+		final StringBuilder sb =(save_original_position?new StringBuilder():null);
+		if(!source.getReadUnmappedFlag())
 			{
-			final String chrom = rec.getReferenceName();
-			final int pos=rec.getAlignmentStart();
-			final Interval interval= this.liftOver.liftOver(new Interval(chrom, pos,pos,rec.getReadNegativeStrandFlag(),null));
+			final String chrom = source.getReferenceName();
+			final int pos=source.getAlignmentStart();
+			Interval interval= this.liftOver.liftOver(new Interval(chrom, pos,pos,source.getReadNegativeStrandFlag(),null));
+			if(interval!=null && this.newDict.getSequence(interval.getContig())==null) interval=null;
 			if(interval!=null)
 				{
-				sb.append(chrom+":"+pos+":"+(rec.getReadNegativeStrandFlag()?"-":"+"));
+				if(sb!=null) sb.append(chrom+":"+pos+":"+(source.getReadNegativeStrandFlag()?"-":"+"));
 				final SAMSequenceRecord ssr= this.newDict.getSequence(interval.getContig());
 				if(ssr==null)
 					{
@@ -132,11 +155,16 @@ public class BamLiftOver extends OnePassBamLauncher
 				copy.setReferenceIndex(ssr.getSequenceIndex());
 				copy.setAlignmentStart(interval.getStart());
 				copy.setReadNegativeStrandFlag(interval.isNegativeStrand());
-				if(rec.getReadNegativeStrandFlag()!=copy.getReadNegativeStrandFlag()) {
-					copy.setReadString(AcidNucleics.reverseComplement(rec.getReadString()));
+				
+				if(drop_seq_and_qual) {
+					copy.setReadBases(SAMRecord.NULL_QUALS);
+					copy.setBaseQualities(SAMRecord.NULL_QUALS);
+					}
+				else if(source.getReadNegativeStrandFlag()!=copy.getReadNegativeStrandFlag()) {
+					copy.setReadString(AcidNucleics.reverseComplement(source.getReadString()));
 					
-					byte qual[]= rec.getBaseQualities();
-					byte quals2[]=  new byte[qual.length];
+					final byte qual[]= source.getBaseQualities();
+					final byte quals2[]=  new byte[qual.length];
 					for(int i=0;i< qual.length;++i) {
 						quals2[i]=qual[(qual.length-1)-i];
 					}
@@ -145,52 +173,93 @@ public class BamLiftOver extends OnePassBamLauncher
 				}
 			else
 				{
-				sb.append(".");
-				SAMUtils.makeReadUnmapped(copy);
+				if(discard_unmapped) return Collections.emptyList();
+				if(sb!=null) sb.append(".");
+				this.makeReadUnmapped(copy);
 				}
+			}
+		else
+			{
+			if(discard_unmapped) return Collections.emptyList();
+			this.makeReadUnmapped(copy);
 			}
 		
 		
-		if(rec.getReadPairedFlag() && !rec.getMateUnmappedFlag())
+		if(source.getReadPairedFlag())
 			{
-			sb.append("/");
-			final String chrom=rec.getMateReferenceName();
-			final int pos=rec.getMateAlignmentStart();
-			final Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,rec.getMateNegativeStrandFlag(),null));
-			if(interval!=null)
-				{
-				sb.append(chrom+":"+pos+":"+(rec.getMateNegativeStrandFlag()?"-":"+"));
-				final SAMSequenceRecord ssr=newDict.getSequence(interval.getContig());
-				if(ssr==null)
+			if(!source.getMateUnmappedFlag()) {
+				if(sb!=null)sb.append("/");
+				final String chrom = source.getMateReferenceName();
+				final int pos = source.getMateAlignmentStart();
+				Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,source.getMateNegativeStrandFlag(),null));
+				if(interval!=null && this.newDict.getSequence(interval.getContig())==null) interval=null;
+				if(interval!=null)
 					{
-					throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(),newDict);
-					}
-				copy.setMateReferenceName(ssr.getSequenceName());
-				copy.setMateReferenceIndex(ssr.getSequenceIndex());
-				copy.setMateAlignmentStart(interval.getStart());
-				copy.setMateNegativeStrandFlag(interval.isNegativeStrand());
-				
-				if(!copy.getReadUnmappedFlag() &&
-					copy.getReferenceIndex()==copy.getMateReferenceIndex() 
-					// && copy.getReadNegativeStrandFlag()!=copy.getMateNegativeStrandFlag()
-					)
-					{
-					//don't change ?
+					if(sb!=null) sb.append(chrom+":"+pos+":"+(source.getMateNegativeStrandFlag()?"-":"+"));
+					final SAMSequenceRecord ssr= this.newDict.getSequence(interval.getContig());
+					if(ssr==null)
+						{
+						throw new JvarkitException.ContigNotFoundInDictionary(interval.getContig(),this.newDict);
+						}
+					copy.setMateReferenceName(ssr.getSequenceName());
+					copy.setMateReferenceIndex(ssr.getSequenceIndex());
+					copy.setMateAlignmentStart(interval.getStart());
+					copy.setMateNegativeStrandFlag(interval.isNegativeStrand());
+					
+					if(!copy.getReadUnmappedFlag() &&
+						copy.getReferenceIndex()==copy.getMateReferenceIndex() 
+						// && copy.getReadNegativeStrandFlag()!=copy.getMateNegativeStrandFlag()
+						)
+						{
+						//don't change ?
+						}
+					else
+						{
+						copy.setProperPairFlag(false);
+						copy.setInferredInsertSize(0);
+						}
 					}
 				else
 					{
+					if(sb!=null) sb.append(".");
+					copy.setMateUnmappedFlag(true);
+					copy.setMateReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+					copy.setMateReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX);
+					copy.setMateAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
 					copy.setProperPairFlag(false);
 					copy.setInferredInsertSize(0);
 					}
 				}
-			else
+			else //mate unmapped BUT mate-reference is defined
 				{
-				sb.append(".");
-				SAMUtils.makeReadUnmapped(copy);
+				if(copy.getReadUnmappedFlag()) {
+					copy.setMateReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
+					copy.setMateReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX);
+					copy.setMateAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
+					copy.setProperPairFlag(false);
+					copy.setInferredInsertSize(0);
+					}
+				else
+					{
+					copy.setMateReferenceName(copy.getReferenceName());
+					copy.setMateReferenceIndex(copy.getReferenceIndex());
+					copy.setMateAlignmentStart(copy.getAlignmentStart());
+					copy.setProperPairFlag(false);
+					copy.setInferredInsertSize(0);
+					}
 				}
 			}
-		rec.setAttribute(SAMTag.SA,null);
-		if(sb.length()>0) copy.setAttribute("LO", sb.toString());
+		/*
+		if(
+			(copy.getReferenceName()!=null && !copy.getReferenceName().equals(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME) && this.newDict.getSequence(copy.getReferenceName())==null) ||
+			(copy.getMateReferenceName()!=null && !copy.getMateReferenceName().equals(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME) && this.newDict.getSequence(copy.getMateReferenceName())==null)
+			) {
+			throw new IllegalStateException("\nsource: "+source.getSAMString()+"\ndest "+copy.getSAMString()+"\n");
+		}*/
+		
+		copy.setAttribute(SAMTag.SA,null);
+		if(sb!=null && sb.length()>0) copy.setAttribute("LO", sb.toString());
+		dropSeqAndQual(copy);
 		return Collections.singletonList(copy);
 		}
 	

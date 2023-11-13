@@ -25,6 +25,9 @@ Usage: bamliftover [options] Files
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary', or any hts file 
       containing a dictionary (VCF, BAM, CRAM, intervals...)
+    --drop-seq
+      drop SEQ and QUAL
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -46,6 +49,12 @@ Usage: bamliftover [options] Files
       Sam output format.
       Default: SAM
       Possible Values: [BAM, SAM, CRAM]
+    --save-position
+      Save original position in SMA attribute
+      Default: false
+    --unmapped
+      discard unmapped reads/unlifted reads
+      Default: false
     --validation-stringency
       SAM Reader Validation Stringency
       Default: LENIENT
