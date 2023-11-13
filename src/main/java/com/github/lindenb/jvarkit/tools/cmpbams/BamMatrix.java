@@ -355,7 +355,7 @@ public class BamMatrix  extends Launcher
 				}
 			this.dict = SequenceDictionaryUtils.extractRequired(this.samReaderX.getFileHeader());
 			
-			if(inputY==null) {
+			if(inputY!=null) {
 				this.samReaderY = srf.open(SamInputResource.of(inputY));
 				if(!this.samReaderY.hasIndex()) {
 					LOG.error("Input "+inputY+" is not indexed");
