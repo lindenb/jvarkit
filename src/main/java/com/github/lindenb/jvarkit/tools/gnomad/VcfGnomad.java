@@ -111,8 +111,11 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	private double max_af = 1.0;
 	@Parameter(names={"--debug"},description="debug",hidden=true)
 	private boolean debug = false;
+	@Parameter(names={"--ome"},description="is the genome vcf exome or genome ? If 'undefined', try to guess from filename")
+	private OmeType user_ome_type = OmeType.undefined;
 
-	
+
+	private enum OmeType {genome,exome,undefined;}
 	private BufferedVCFReader gnomadReader = null;
 	private ContigNameConverter ctgNameConverter = null;
 	private final Set<String> gnomad_info_af_attributes = new HashSet<>();
@@ -131,7 +134,8 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		try {
 			final VCFReader r; 
 			if(this.gnomadPath.getFileName().toString().endsWith(".list")) {
-				r = new PerContigVcfReader(gnomadPath);
+				if(debug) LOG.debug("opening as PerContigVcfReader");
+ 				r = new PerContigVcfReader(gnomadPath);
 				}
 			else
 				{
@@ -156,7 +160,12 @@ public class VcfGnomad extends OnePassVcfLauncher {
 					filter(F->F.getID().equalsIgnoreCase(field)).
 					findFirst().orElse(null);
 			if(info==null) {
-				LOG.error("field INFO/"+field +" is undefined in "+this.gnomadPath);
+				LOG.error("field INFO/"+field +" is undefined in "+this.gnomadPath+" . available info fields are:"+
+						gnomadHeader.getInfoHeaderLines().
+						stream().
+							map(F->F.getID()).
+							collect(Collectors.joining( " ; "))
+						);
 				return -1;
 				}
 			if(!field.equals(info.getID())) {
@@ -241,22 +250,25 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		{
 		final VCFHeader h0 = iter.getHeader();
 		final VCFHeader h2 = new VCFHeader(h0);
-		final String ome;
-		if(this.gnomadPath.getFileName().toString().contains("genomes")) {
-			ome= "genome";
+		final OmeType ome;
+		if(!this.user_ome_type.equals(OmeType.undefined)) {
+			ome = this.user_ome_type;
+			}
+		else if(this.gnomadPath.getFileName().toString().contains("genomes")) {
+			ome= OmeType.genome;
 			}
 		else if(this.gnomadPath.getFileName().toString().contains("exomes")) {
-			ome= "exome";
+			ome= OmeType.exome;
 			}
 		else
 			{
-			LOG.info("Cannot identify if gnomad is exome or genome :"+this.gnomadPath);
+			LOG.info("Cannot identify if gnomad is exome or genome :"+this.gnomadPath+". use option --ome .");
 			return -1;
 			}
 		/* output FILTER name */
-		final UnaryOperator<String> toNewFilter = S-> this.filteredInGnomadFilterPrefix+"_"+ome.toUpperCase()+"_"+S;
+		final UnaryOperator<String> toNewFilter = S-> this.filteredInGnomadFilterPrefix+"_"+ome.name().toUpperCase()+"_"+S;
 		/* output INFO name */
-		final UnaryOperator<String> toNewInfo = S-> "gnomad_" + ome + "_"+ S.toUpperCase();
+		final UnaryOperator<String> toNewInfo = S-> "gnomad_" + ome.name() + "_"+ S.toUpperCase();
 		
 		
 		final VCFHeader gnomadHeader = this.gnomadReader.getHeader();
@@ -270,12 +282,12 @@ public class VcfGnomad extends OnePassVcfLauncher {
 				if(fh.getID().equals(VCFConstants.PASSES_FILTERS_v4)) continue;
 				final VCFFilterHeaderLine fh2 = new VCFFilterHeaderLine(
 						toNewFilter.apply(fh.getID()),
-						"[gnomad-"+ome+"]" + fh.getDescription()+" in "+ gnomadPath
+						"[gnomad-"+ome.name()+"]" + fh.getDescription()+" in "+ gnomadPath
 						);
 				if(this.debug) LOG.debug("adding vcf filter "+fh2.getID());
 				h2.addMetaDataLine(fh2);
 				}
-			filterFrequencyHeader = new VCFFilterHeaderLine(this.filteredInGnomadFilterPrefix+"_"+ome.toUpperCase()+"_BAD_AF",
+			filterFrequencyHeader = new VCFFilterHeaderLine(this.filteredInGnomadFilterPrefix+"_"+ome.name().toUpperCase()+"_BAD_AF",
 					"AF if not between "+this.min_af+"<= 'af' <="+this.max_af+" for "+this.gnomadPath
 					);
 			h2.addMetaDataLine(filterFrequencyHeader);
@@ -297,7 +309,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 					toNewInfo.apply(fh.getID()),
 					VCFHeaderLineCount.A,
 					VCFHeaderLineType.Float,
-					"[gnomad-"+ome+"]" + fh.getDescription()+" in "+ gnomadPath
+					"[gnomad-"+ome.name()+"]" + fh.getDescription()+" in "+ gnomadPath
 					);
 			h2.addMetaDataLine(fh2);
 			if(this.debug) LOG.debug("Adding INFO vcf "+fh2.getID());
@@ -305,7 +317,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		
 		
 		final VCFInfoHeaderLine infoFlagContigStartRef = new VCFInfoHeaderLine(
-				"IN_GNOMAD_"+ome.toUpperCase(),
+				"IN_GNOMAD_"+ome.name().toUpperCase(),
 				1,
 				VCFHeaderLineType.Flag,
 				"Variant CHROM/POS/REF was found in gnomad "+this.gnomadPath
@@ -314,7 +326,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		if(this.debug) LOG.debug("adding vcfheader "+infoFlagContigStartRef.getID());
 
 		final VCFInfoHeaderLine infoNumOverlapping = new VCFInfoHeaderLine(
-				"N_GNOMAD_"+ome.toUpperCase(),
+				"N_GNOMAD_"+ome.name().toUpperCase(),
 				1,
 				VCFHeaderLineType.Integer,
 				"Count Gnomad Variants that were found overlapping the user variant, not necessarily at the same CHROM/POS in "+this.gnomadPath

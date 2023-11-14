@@ -50,6 +50,11 @@ Usage: vcfgnomad [options] Files
     --noUpdateId
       do Not Update ID if it is missing in user's variant
       Default: false
+    --ome
+      is the genome vcf exome or genome ? If 'undefined', try to guess from 
+      filename 
+      Default: undefined
+      Possible Values: [genome, exome, undefined]
     -o, --out
       Output file. Optional . Default: stdout
     --prefix

@@ -2180,8 +2180,8 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.rdfcombine.RDFCombine"
-        jarLibs = combineLibs("htsjdk","testng","jcommander","jena")
+        mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
 
