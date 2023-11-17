@@ -173,7 +173,7 @@ extends OnePassVcfLauncher
 			while((line=r.readLine())!=null) {
 				if(line.isEmpty() || StringUtil.isBlank(line)) continue;
 				final String tokens[] = tab.split(line);
-				if(tokens.length<3) throw new JvarkitException.TokenErrors("expected two columns", tokens);
+				if(tokens.length<3) throw new JvarkitException.TokenErrors("expected 3 columns", tokens);
 				final String ancestralContig  = tokens[1];
 				final Path fastaPath  = Paths.get(tokens[2]);
 				IOUtil.assertFileIsReadable(fastaPath);
