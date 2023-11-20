@@ -50,14 +50,12 @@ import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -91,7 +89,8 @@ END_DOC
 description="Scan retrocopies by comparing the gtf/intron and the deletions in a VCF",
 keywords={"gtf","retrocopy","deletion"},
 creationDate="20190813",
-modificationDate="20191104"
+modificationDate="20191104",
+jvarkit_amalgamion = true
 )
 public class GtfRetroCopy extends Launcher
 	{
@@ -136,8 +135,6 @@ public class GtfRetroCopy extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		VCFReader vcfFileReader = null;
-		VariantContextWriter vcw0=null;
 		try {
 			/* load the reference genome */
 			/* create a contig name converter from the REF */
@@ -158,213 +155,202 @@ public class GtfRetroCopy extends Launcher
 				}
 			// open the sam file
 			final String input = oneAndOnlyOneFile(args);
-			vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input), true);
-			final VCFHeader header = vcfFileReader.getHeader();
-			final SAMSequenceDictionary dict = header.getSequenceDictionary();
-			
-			final Comparator<String> contigCmp =
-					dict == null?
-					(A,B)->A.compareTo(B):
-					new ContigDictComparator(dict)
-					;
-			final Comparator<Gene> geneCmp = (A,B)->{
-				int i= contigCmp.compare(A.getContig(),B.getContig());
-				if(i!=0) return i;
-				i =  Integer.compare(A.getStart(),B.getStart());
-				if(i!=0) return i;
-				return Integer.compare(A.getEnd(),B.getEnd());
-			};
-			
-			final GtfReader gtfReader = new GtfReader(this.gtfPath);
-			if(dict!=null && !dict.isEmpty()) {
-				this.writingVcf.dictionary(dict);
-				gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-			}
-			final List<Gene> genes = gtfReader.getAllGenes().
-					stream().
-					filter(G->G.getTranscripts().stream().count()>0L).
-					filter(G->G.getTranscripts().stream().anyMatch(T->T.getIntronCount()>=this.min_intron_count)).
-					sorted(geneCmp).
-					collect(Collectors.toList())
-					;
-			gtfReader.close();
-			
-			/** build vcf header */
-			final Set<VCFHeaderLine> metaData = new HashSet<>();
-			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS,true));
-			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_NUMBER_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY,true));
-			metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY,true));
-			metaData.add(new VCFInfoHeaderLine(VCFConstants.SVTYPE, 1, VCFHeaderLineType.String,"Variation type"));
-			metaData.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"Variation Length"));
-			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_BOUNDS, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,"Introns boundaries"));
-			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_SIZES, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.Integer,"Introns sizes"));
-			metaData.add(new VCFFilterHeaderLine(ATT_NOT_ALL_INTRONS,"Not all introns were found retrocopied"));
-
-			for(final String att:ENSEMBL_TRANSCRIPT_ATTS)
-				{
-				metaData.add(new VCFInfoHeaderLine(att, 1, VCFHeaderLineType.String,"Value for the attribute '"+att+"' in the gtf"));
-				}
-			
-			
-			//metaData.add(new VCFFormatHeaderLine(ATT_COUNT_SUPPORTING_READS, 2,VCFHeaderLineType.Integer,"Count supporting reads [intron-left/intron-right]"));
-			//metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
-			//		"Retrocopy attributes: transcript-id|strand|exon-left|exon-left-bases|exon-right-bases|exon-right"));
-			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_COUNT, 1, VCFHeaderLineType.Integer,"Number of introns for the Transcript"));
-			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_COUNT, 1, VCFHeaderLineType.Integer,"Number of introns found retrocopied for the transcript"));
-			metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_FRACTION, 1, VCFHeaderLineType.Float,"Fraction of introns found retrocopied for the transcript"));
-			metaData.add(new VCFFilterHeaderLine(ATT_NOT_ALL_INTRONS,"Not all introns were found retrocopied"));
-			metaData.add(new VCFFilterHeaderLine(ATT_KNOWN,"Known RetroGenes. "+(this.knownPath==null?"":" Source: "+this.knownPath)));
-			
-			
-			
-			
-			
-			final VCFHeader header2=new VCFHeader(header); 
-			metaData.stream().forEach(H->header2.addMetaDataLine(H));
-			
-			JVarkitVersion.getInstance().addMetaData(this, header2);
-			
-			final Allele ref= Allele.create((byte)'N', true);
-			final Allele alt= Allele.create("<RETROCOPY>", false);
-			
-			
-			/* open vcf for writing*/
-			vcw0= this.writingVcf.open(this.outputFile);
-			vcw0.writeHeader(header2);
-
-			
-			final ProgressFactory.Watcher<Gene> progress = ProgressFactory.newInstance().logger(LOG).dictionary(dict).build();
-			for(final Gene gene : genes) {
-				progress.apply(gene);
-				final List<VariantContext> variants = new ArrayList<>();
-				final CloseableIterator<VariantContext> iter2 = vcfFileReader.query(gene.getContig(),gene.getStart(),gene.getEnd());
-				while(iter2.hasNext()) {
-					final VariantContext ctx = iter2.next();
-					if(ctx.getStart()==ctx.getEnd()) continue;//SNV
-					StructuralVariantType svType = ctx.getStructuralVariantType();
-					if(StructuralVariantType.BND.equals(svType)) continue;
-					if(StructuralVariantType.INS.equals(svType)) continue;
-					variants.add(ctx);
-					}
-				iter2.close();
-				if(variants.isEmpty()) continue;
+			try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input), true) ) {
+				final VCFHeader header = vcfFileReader.getHeader();
+				final SAMSequenceDictionary dict = header.getSequenceDictionary();
 				
-				for(final Transcript transcript:gene.getTranscripts()) {
-					if(!transcript.hasIntron()) continue;
-					if(transcript.getIntronCount() < this.min_intron_count) continue;
-					final Counter<String> samples = new Counter<>();
-					for(final Intron intron: transcript.getIntrons()) {
-						for(final VariantContext ctx:variants) {
-							if(!isWithinDistance(intron.getStart(),ctx.getStart())) continue;
-							if(!isWithinDistance(intron.getEnd(),ctx.getEnd())) continue;
-							if(ctx.hasGenotypes()) {
-								for(final Genotype g:ctx.getGenotypes()) {
-									if(g.isNoCall() || g.isHomRef()) continue;
-									samples.incr(g.getSampleName());
-									}
-								}
-							else
-								{
-								samples.incr("*");
-								}
-							} // end iter2
-						}// end intron
-					final long max_count = samples.stream().mapToLong(E->E.getValue()).max().orElse(0L);
-					if(max_count==0) continue;
-					if(this.only_all_introns && max_count!=transcript.getIntronCount()) continue;
-					
-					// ok good candidate
-					final VariantContextBuilder vcb = new VariantContextBuilder();
-					vcb.chr(transcript.getContig());
-					vcb.start(transcript.getStart());
-					vcb.stop(transcript.getEnd());
-					switch(this.idKey) {
-						case gene_name:
-							final String gn= transcript.getGene().getGeneName();
-							vcb.id( StringUtils.isBlank(gn)?transcript.getId():gn);
-							break;
-						case gene_id:vcb.id(transcript.getGene().getId());break;
-						case transcript_id : vcb.id(transcript.getId());break;
-						default: throw new IllegalStateException();
-						}
-					
-					final List<Allele> alleles = Arrays.asList(ref,alt);
-
-					//vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,2);
-					//vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,1);
-					//vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,0.5);
-					vcb.attribute(VCFConstants.SVTYPE,"DEL");
-					vcb.attribute(VCFConstants.END_KEY,transcript.getEnd());
-					vcb.attribute("SVLEN",transcript.getLengthOnReference());
-					vcb.attribute(ATT_INTRONS_BOUNDS, transcript.getIntrons().stream().map(S->""+S.getStart()+"-"+S.getEnd()).collect(Collectors.toList()));
-					vcb.attribute(ATT_INTRONS_SIZES, transcript.getIntrons().stream().mapToInt(S->S.getLengthOnReference()).toArray());
-					
-					
-					for(final String att:ENSEMBL_TRANSCRIPT_ATTS) {
-						final String v= transcript.getProperties().get(att);
-						if(StringUtils.isBlank(v)) continue;
-						vcb.attribute(att, v);
-						}
-					
-					vcb.alleles(alleles);
-					boolean pass_filter=true;
-					// introns sequences
-					vcb.attribute(ATT_INTRONS_CANDIDATE_COUNT,max_count);
-					vcb.attribute(ATT_INTRONS_COUNT,transcript.getIntronCount());
-					vcb.attribute(ATT_INTRONS_CANDIDATE_FRACTION,max_count/(float)transcript.getIntronCount());
-					if(transcript.getIntronCount()!=max_count) {
-						vcb.filter(ATT_NOT_ALL_INTRONS);
-						pass_filter=false;
-						}
-					if(knownGeneIds.contains(transcript.getGene().getId())) {
-						vcb.filter(ATT_KNOWN);
-						pass_filter=false;
-						}
-					
-					if(header.hasGenotypingData()) {
-						final List<Genotype> genotypes = new ArrayList<>();
-						for(final String sn: header.getSampleNamesInOrder()) {
-							final List<Allele> gtalleles;
-							if(samples.count(sn)==0L)
-								{
-								gtalleles=Arrays.asList(ref,ref);
-								}
-							else
-								{
-								gtalleles=Arrays.asList(ref,alt);
-								}	
-							final GenotypeBuilder gb = new GenotypeBuilder(sn,gtalleles);
-							genotypes.add(gb.make());
-							}
-						vcb.genotypes(genotypes);
-						}					
-					if(pass_filter) vcb.passFilters();
-					vcw0.add(vcb.make());
+				final Comparator<String> contigCmp =
+						dict == null?
+						(A,B)->A.compareTo(B):
+						new ContigDictComparator(dict)
+						;
+				final Comparator<Gene> geneCmp = (A,B)->{
+					int i= contigCmp.compare(A.getContig(),B.getContig());
+					if(i!=0) return i;
+					i =  Integer.compare(A.getStart(),B.getStart());
+					if(i!=0) return i;
+					return Integer.compare(A.getEnd(),B.getEnd());
+				};
+				
+				final GtfReader gtfReader = new GtfReader(this.gtfPath);
+				if(dict!=null && !dict.isEmpty()) {
+					this.writingVcf.dictionary(dict);
+					gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 				}
-			}
+				final List<Gene> genes = gtfReader.getAllGenes().
+						stream().
+						filter(G->G.getTranscripts().stream().count()>0L).
+						filter(G->G.getTranscripts().stream().anyMatch(T->T.getIntronCount()>=this.min_intron_count)).
+						sorted(geneCmp).
+						collect(Collectors.toList())
+						;
+				gtfReader.close();
+				
+				/** build vcf header */
+				final Set<VCFHeaderLine> metaData = new HashSet<>();
+				metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.DEPTH_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS,true));
+				metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_NUMBER_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY,true));
+				metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY,true));
+				metaData.add(new VCFInfoHeaderLine(VCFConstants.SVTYPE, 1, VCFHeaderLineType.String,"Variation type"));
+				metaData.add(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer,"Variation Length"));
+				metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_BOUNDS, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.String,"Introns boundaries"));
+				metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_SIZES, VCFHeaderLineCount.UNBOUNDED, VCFHeaderLineType.Integer,"Introns sizes"));
+				metaData.add(new VCFFilterHeaderLine(ATT_NOT_ALL_INTRONS,"Not all introns were found retrocopied"));
+	
+				for(final String att:ENSEMBL_TRANSCRIPT_ATTS)
+					{
+					metaData.add(new VCFInfoHeaderLine(att, 1, VCFHeaderLineType.String,"Value for the attribute '"+att+"' in the gtf"));
+					}
+				
+				
+				//metaData.add(new VCFFormatHeaderLine(ATT_COUNT_SUPPORTING_READS, 2,VCFHeaderLineType.Integer,"Count supporting reads [intron-left/intron-right]"));
+				//metaData.add(new VCFInfoHeaderLine(ATT_RETRO_DESC, VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,
+				//		"Retrocopy attributes: transcript-id|strand|exon-left|exon-left-bases|exon-right-bases|exon-right"));
+				metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_COUNT, 1, VCFHeaderLineType.Integer,"Number of introns for the Transcript"));
+				metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_COUNT, 1, VCFHeaderLineType.Integer,"Number of introns found retrocopied for the transcript"));
+				metaData.add(new VCFInfoHeaderLine(ATT_INTRONS_CANDIDATE_FRACTION, 1, VCFHeaderLineType.Float,"Fraction of introns found retrocopied for the transcript"));
+				metaData.add(new VCFFilterHeaderLine(ATT_NOT_ALL_INTRONS,"Not all introns were found retrocopied"));
+				metaData.add(new VCFFilterHeaderLine(ATT_KNOWN,"Known RetroGenes. "+(this.knownPath==null?"":" Source: "+this.knownPath)));
+				
+				
+				
+				
+				
+				final VCFHeader header2=new VCFHeader(header); 
+				metaData.stream().forEach(H->header2.addMetaDataLine(H));
+				
+				JVarkitVersion.getInstance().addMetaData(this, header2);
+				
+				final Allele ref= Allele.create((byte)'N', true);
+				final Allele alt= Allele.create("<RETROCOPY>", false);
+				
+				
+				/* open vcf for writing*/
+				try( VariantContextWriter vcw0= this.writingVcf.open(this.outputFile)) {
+					vcw0.writeHeader(header2);
+					
+					for(final Gene gene : genes) {
+						final List<VariantContext> variants = new ArrayList<>();
+						final CloseableIterator<VariantContext> iter2 = vcfFileReader.query(gene.getContig(),gene.getStart(),gene.getEnd());
+						while(iter2.hasNext()) {
+							final VariantContext ctx = iter2.next();
+							if(ctx.getStart()==ctx.getEnd()) continue;//SNV
+							StructuralVariantType svType = ctx.getStructuralVariantType();
+							if(StructuralVariantType.BND.equals(svType)) continue;
+							if(StructuralVariantType.INS.equals(svType)) continue;
+							variants.add(ctx);
+							}
+						iter2.close();
+						if(variants.isEmpty()) continue;
 						
-			progress.close();
-			vcw0.close();
-			vcfFileReader.close();
-			vcfFileReader=null;
+						for(final Transcript transcript:gene.getTranscripts()) {
+							if(!transcript.hasIntron()) continue;
+							if(transcript.getIntronCount() < this.min_intron_count) continue;
+							final Counter<String> samples = new Counter<>();
+							for(final Intron intron: transcript.getIntrons()) {
+								for(final VariantContext ctx:variants) {
+									if(!isWithinDistance(intron.getStart(),ctx.getStart())) continue;
+									if(!isWithinDistance(intron.getEnd(),ctx.getEnd())) continue;
+									if(ctx.hasGenotypes()) {
+										for(final Genotype g:ctx.getGenotypes()) {
+											if(g.isNoCall() || g.isHomRef()) continue;
+											samples.incr(g.getSampleName());
+											}
+										}
+									else
+										{
+										samples.incr("*");
+										}
+									} // end iter2
+								}// end intron
+							final long max_count = samples.stream().mapToLong(E->E.getValue()).max().orElse(0L);
+							if(max_count==0) continue;
+							if(this.only_all_introns && max_count!=transcript.getIntronCount()) continue;
+							
+							// ok good candidate
+							final VariantContextBuilder vcb = new VariantContextBuilder();
+							vcb.chr(transcript.getContig());
+							vcb.start(transcript.getStart());
+							vcb.stop(transcript.getEnd());
+							switch(this.idKey) {
+								case gene_name:
+									final String gn= transcript.getGene().getGeneName();
+									vcb.id( StringUtils.isBlank(gn)?transcript.getId():gn);
+									break;
+								case gene_id:vcb.id(transcript.getGene().getId());break;
+								case transcript_id : vcb.id(transcript.getId());break;
+								default: throw new IllegalStateException();
+								}
+							
+							final List<Allele> alleles = Arrays.asList(ref,alt);
+		
+							//vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,2);
+							//vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,1);
+							//vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,0.5);
+							vcb.attribute(VCFConstants.SVTYPE,"DEL");
+							vcb.attribute(VCFConstants.END_KEY,transcript.getEnd());
+							vcb.attribute("SVLEN",transcript.getLengthOnReference());
+							vcb.attribute(ATT_INTRONS_BOUNDS, transcript.getIntrons().stream().map(S->""+S.getStart()+"-"+S.getEnd()).collect(Collectors.toList()));
+							vcb.attribute(ATT_INTRONS_SIZES, transcript.getIntrons().stream().mapToInt(S->S.getLengthOnReference()).toArray());
+							
+							
+							for(final String att:ENSEMBL_TRANSCRIPT_ATTS) {
+								final String v= transcript.getProperties().get(att);
+								if(StringUtils.isBlank(v)) continue;
+								vcb.attribute(att, v);
+								}
+							
+							vcb.alleles(alleles);
+							boolean pass_filter=true;
+							// introns sequences
+							vcb.attribute(ATT_INTRONS_CANDIDATE_COUNT,max_count);
+							vcb.attribute(ATT_INTRONS_COUNT,transcript.getIntronCount());
+							vcb.attribute(ATT_INTRONS_CANDIDATE_FRACTION,max_count/(float)transcript.getIntronCount());
+							if(transcript.getIntronCount()!=max_count) {
+								vcb.filter(ATT_NOT_ALL_INTRONS);
+								pass_filter=false;
+								}
+							if(knownGeneIds.contains(transcript.getGene().getId())) {
+								vcb.filter(ATT_KNOWN);
+								pass_filter=false;
+								}
+							
+							if(header.hasGenotypingData()) {
+								final List<Genotype> genotypes = new ArrayList<>();
+								for(final String sn: header.getSampleNamesInOrder()) {
+									final List<Allele> gtalleles;
+									if(samples.count(sn)==0L)
+										{
+										gtalleles=Arrays.asList(ref,ref);
+										}
+									else
+										{
+										gtalleles=Arrays.asList(ref,alt);
+										}	
+									final GenotypeBuilder gb = new GenotypeBuilder(sn,gtalleles);
+									genotypes.add(gb.make());
+									}
+								vcb.genotypes(genotypes);
+								}					
+							if(pass_filter) vcb.passFilters();
+							vcw0.add(vcb.make());
+						}
+					}							
+				}
+				}//end VCF reader
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(vcfFileReader);
-			CloserUtil.close(vcw0);
 			}
 		}
 	

@@ -158,6 +158,7 @@ import com.github.lindenb.jvarkit.tools.pubmed.PubmedGraph;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedMap;
 import com.github.lindenb.jvarkit.tools.rdfcombine.RDFCombine;
 import com.github.lindenb.jvarkit.tools.ref2html.ReferenceToHtml;
+import com.github.lindenb.jvarkit.tools.retrocopy.GtfRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.KnownRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.ScanRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.StarRetroCopy;
@@ -596,6 +597,7 @@ public class JvarkitCentral {
 		command(GtfToBed.class);
 		command(GtfLiftOver.class);
 		command(GtexRsToQTL.class);
+		command(GtfRetroCopy.class);
 		command(Gff3UpstreamOrf.class);
 		command(GoUtils.class);
 		command(GroupByGene.class);
