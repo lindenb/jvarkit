@@ -2171,7 +2171,7 @@ all2.add(task("jvarkit", type: CompileJVarkit) {
 
 
 all2.add(task("jeter", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad"
+        mainClass = "com.github.lindenb.jvarkit.tools.plink.SwingPLinkSelectCluster"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 

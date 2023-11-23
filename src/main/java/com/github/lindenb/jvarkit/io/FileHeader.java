@@ -227,6 +227,12 @@ public class FileHeader extends AbstractList<String> {
 	public int size() {
 		return this.cols.size();
 		}
+	
+	/** return all headers as list */
+	public List<String> asList() {
+		return Collections.unmodifiableList(this.cols);
+		}
+	
 	/** convert a line in the file to a Map where keys are the columns of this header  */
 	public RowMap toMap(final List<String> tokens) {
 		return new RowMapImpl(tokens);
