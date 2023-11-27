@@ -32,113 +32,55 @@ import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
-import java.awt.Shape;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ComponentAdapter;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
-import java.awt.geom.Rectangle2D;
+import java.awt.geom.Point2D;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
+import java.io.PrintWriter;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Enumeration;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Vector;
 import java.util.function.Function;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import javax.swing.AbstractAction;
-import javax.swing.Action;
-import javax.swing.BorderFactory;
-import javax.swing.DefaultListModel;
-import javax.swing.JButton;
-import javax.swing.JCheckBoxMenuItem;
-import javax.swing.JDialog;
+import javax.swing.AbstractButton;
+import javax.swing.ButtonGroup;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
-import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
-import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
+import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 
-import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
-import com.github.lindenb.jvarkit.samtools.swing.SAMRecordPanel;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
-import com.github.lindenb.jvarkit.swing.PropertyChangeObserver;
+import com.github.lindenb.jvarkit.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.hershey.Hershey;
-import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.variant.swing.SwingVCFGenotypesTableModel;
-import com.github.lindenb.jvarkit.variant.swing.SwingVCFInfoTableModel;
-import com.github.lindenb.jvarkit.variant.swing.SwingVariantsTableModel;
-import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
-
-import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFlag;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
-import htsjdk.samtools.filter.AggregateFilter;
-import htsjdk.samtools.filter.AlignedFilter;
-import htsjdk.samtools.filter.DuplicateReadFilter;
-import htsjdk.samtools.filter.FailsVendorReadQualityFilter;
-import htsjdk.samtools.filter.MappingQualityFilter;
-import htsjdk.samtools.filter.SamRecordFilter;
-import htsjdk.samtools.filter.SecondaryAlignmentFilter;
-import htsjdk.samtools.reference.ReferenceSequence;
-import htsjdk.samtools.reference.ReferenceSequenceFile;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.StringUtil;
-import htsjdk.tribble.TribbleException;
-import htsjdk.tribble.gff.Gff3Codec;
-import htsjdk.tribble.gff.Gff3Codec.DecodeDepth;
-import htsjdk.tribble.gff.Gff3Feature;
-import htsjdk.tribble.readers.TabixReader;
-import htsjdk.variant.variantcontext.Genotype;
-import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFReader;
 
 /**
 BEGIN_DOC
@@ -158,16 +100,18 @@ jvarkit_amalgamion =  true
 )
 public class SwingPLinkSelectCluster extends Launcher {
 private static final Logger LOG = Logger.build(SwingPLinkSelectCluster.class).make();
+private static final String ACTION_XY_KEY= "plink.xy";
+private static final String ACTION_TOOL= "select.tool";
+private  enum ToolType {AND,NOT,XOR}
+
 private static class Column {
 	final int index;
 	final String label;
-	final int index_in_file;
 	double min = 0.0;
 	double max = 0.0;
-	Column(int index,String label, int index_in_file) {
+	Column(int index,String label) {
 		this.index  = index;
 		this.label = label;
-		this.index_in_file= index_in_file;
 		}
 	}
 
@@ -187,21 +131,24 @@ private static class ColXY {
 	}
 }
 
+
+
 private static class Sample {
 	String fid;
 	String iid;
 	double[] C;
 	//
-	boolean selected=false;
-	int state = 0;
+	boolean selectedInTable = false;
+	boolean selectForOutput = true;
 	}
 
+@SuppressWarnings("serial")
 private static class SampleTableModel extends AbstractTableModel{
-	final ColXY columnXY;
 	final List<Sample> rows;
-	 SampleTableModel(final ColXY columnXY,final List<Sample> rows) {
+	final int countCcols;
+	 SampleTableModel(final List<Sample> rows,final int countCcols) {
 		this.rows= rows;
-		this.columnXY = columnXY;
+		this.countCcols = countCcols;
 	 	}
 	 
 	@Override
@@ -209,9 +156,7 @@ private static class SampleTableModel extends AbstractTableModel{
 		 switch(columnIndex) {
 			case 0:
 			case 1: return String.class;
-			case 2:
-			case 3: return Double.class;
-			default: return Object.class;
+			default: return Double.class;
 			}
 	 	}
 	@Override
@@ -220,7 +165,7 @@ private static class SampleTableModel extends AbstractTableModel{
 		}
 	@Override
 	public int getColumnCount() {
-		return 4;
+		return this.countCcols+2;
 		}
 	@Override
 	public boolean isCellEditable(int rowIndex, int columnIndex) {
@@ -231,9 +176,7 @@ private static class SampleTableModel extends AbstractTableModel{
 		switch(columnIndex) {
 			case 0: return "FID";
 			case 1: return "IID";
-			case 2: return this.columnXY.get(0).label;
-			case 3: return this.columnXY.get(1).label;
-			default: return null;
+			default: return "C"+((columnIndex-2)+1);
 			}
 		}
 	@Override
@@ -242,9 +185,7 @@ private static class SampleTableModel extends AbstractTableModel{
 		switch(columnIndex) {
 			case 0: return o.fid;
 			case 1: return o.iid;
-			case 2: return o.C[this.columnXY.get(0).index];
-			case 3: return o.C[this.columnXY.get(1).index];
-			default: return null;
+			default: return o.C[columnIndex-2];
 			}
 		}
 	}
@@ -252,28 +193,62 @@ private static class SampleTableModel extends AbstractTableModel{
 @SuppressWarnings("serial")
 private static class XFrame extends JFrame {
 	final List<Sample> samples;
-	final List<ColXY> columnsXY;
+	final ButtonGroup buttonGroupXY;
+	final ButtonGroup buttonGroupTool;
 	final JPanel drawingArea ;
-	final List<JTable> XYTables = new Vector<>();
-	final JTabbedPane jTabbedPane ;
-	XFrame(final List<ColXY> columnsXY,
+	final JTable XYTable;
+	private boolean dirtyFlag=false;
+	private File saveAsFile = null;
+	XFrame(final List<Column> columns,
 			final List<Sample> samples
 			)
 		{
 		super(SwingPLinkSelectCluster.class.getSimpleName());
-		this.columnsXY=columnsXY;
+		
+		
+		final List<ColXY> columnsXY = new Vector<>();
+		for(int x=0;x< columns.size();++x) {
+			for(int y=x+1;y< columns.size();++y) {
+				columnsXY.add( new ColXY(columns.get(x),columns.get(y)));
+			}
+		}
 		this.samples= samples;
-		super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		super.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		this.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				if(dirtyFlag) {
+					saveAs();
+					}
+				XFrame.this.setVisible(false);
+				XFrame.this.dispose();
+				}
+			});
 		
 		
 		final JMenuBar menuBar = new JMenuBar();
 		setJMenuBar(menuBar);
-		JMenu menu=new JMenu("File");
+		final JMenu menu=new JMenu("File");
 		menuBar.add(menu);
+		menu.add(new JMenuItem(new AbstractAction("Save...") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				saveAs(saveAsFile);
+				}
+			}));
+		menu.add(new JMenuItem(new AbstractAction("Save As") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				saveAs();
+				}
+			}));
 		menu.add(new JSeparator());
 		menu.add(new JMenuItem(new AbstractAction("Quit") {
 			@Override
 			public void actionPerformed(ActionEvent arg0) {
+				if(dirtyFlag) {
+					saveAs();
+					}
 				XFrame.this.setVisible(false);
 				XFrame.this.dispose();
 				}
@@ -281,36 +256,36 @@ private static class XFrame extends JFrame {
 		final JPanel mainPanel=new JPanel(new BorderLayout());
 		this.setContentPane(mainPanel);
 		
+		final JPanel topPane = new JPanel(new FlowLayout()); 
+		mainPanel.add(topPane,BorderLayout.NORTH);
+		
+		this.buttonGroupXY = new ButtonGroup();
+		this.buttonGroupTool = new ButtonGroup();
+		
 		this.drawingArea = new JPanel(null) {
 			@Override
 			public String getToolTipText(MouseEvent event) {
-				final int width = this.getWidth();
-				final int height = this.getHeight();
-				int idx = jTabbedPane.getSelectedIndex();
-				if(idx<0) return "";
-				StringBuilder sb = new StringBuilder();
-				SampleTableModel tm = (SampleTableModel)XYTables.get(idx).getModel();
+				final ColXY columnXY = getCurrentColXY();
+				if(columnXY==null) return "";
+				StringBuilder sb = null;
 				for(int i=0;i< samples.size();i++) {
 					final Sample sn = samples.get(i);
-					Column col = tm.columnXY.get(0);
-					double x = sn.C[col.index];
-					x = ((x-col.min)/(col.max-col.min))*width;
-					col = tm.columnXY.get(1);
-					double y = sn.C[col.index];
-					y = ((y-col.min)/(col.max-col.min))*height;
-					if(Point.distance(event.getX(), event.getY(), x, y) < 3) {
-						if(sb.length()>0) sb.append(" ");
+					final Point2D pt = sampleToPixel(columnXY,sn);
+					
+					if(pt.distance(event.getX(), event.getY()) < 3) {
+						if(sb==null) sb=new StringBuilder();
+						else if(sb.length()>0) sb.append(" ");
 						sb.append(sn.iid);
 						}
 					}
-				return sb.toString();
+				return sb==null?null:sb.toString();
 				}
 			@Override
 			protected void paintComponent(Graphics g) {
 				paintDrawingArea(Graphics2D.class.cast(g));
 				}
 			};
-		drawingArea.setToolTipText("x");
+		drawingArea.setToolTipText("");
 		drawingArea.setPreferredSize(new Dimension(100,100));
 		drawingArea.setOpaque(true);
 		final MouseAdapter mouse = new MouseAdapter() {
@@ -333,60 +308,193 @@ private static class XFrame extends JFrame {
 			@Override
 			public void mouseReleased(MouseEvent e) {
 				gpath.closePath();
-				int idx = jTabbedPane.getSelectedIndex();
-				SampleTableModel tm = (SampleTableModel)XYTables.get(idx).getModel();
-				for(int i=0;i< samples.size();i++) {
+				final ToolType tt = getCurrentTooltype();
+				final ColXY cxy = getCurrentColXY();
+				for(int i=0;cxy!=null && i< samples.size();i++) {
 					final Sample sn = samples.get(i);
-					Column col = tm.columnXY.get(0);
-					double x = sn.C[col.index];
-					x = ((x-col.min)/(col.max-col.min))*drawingArea.getWidth();
-					col = tm.columnXY.get(1);
-					double y = sn.C[col.index];
-					y = ((y-col.min)/(col.max-col.min))*drawingArea.getHeight();
-					if(gpath.contains(x, y)) {
-						sn.state = 1;
+					final Point2D pt = sampleToPixel(cxy, sn);
+					if(gpath.contains(pt.getX(),pt.getY())) {
+						switch(tt) {
+							case AND: sn.selectForOutput=true; break;
+							case NOT: sn.selectForOutput=false; break;
+							case XOR: sn.selectForOutput=!sn.selectForOutput; break;
+							}
 						}
 					}
 				drawingArea.repaint();
+				dirtyFlag=true;
 				gpath= null;
 				prev=null;
 				}
 			};
 		this.drawingArea.addMouseListener(mouse);
 		this.drawingArea.addMouseMotionListener(mouse);
-		this.jTabbedPane = new JTabbedPane();
-		for(ColXY cxy: columnsXY ) {
-			JPanel pane = new JPanel(new BorderLayout());
-			this.jTabbedPane.addTab(cxy.getName(), pane);
+		
+		
+		final JPanel paneTool = new JPanel(new FlowLayout());
+		paneTool.add(new JLabel("Tool:"));
+		topPane.add(paneTool);
+		
+		for(ToolType toolType: ToolType.values() ) {
+			final AbstractAction action = new AbstractAction(toolType.name()) {
+					@Override
+					public void actionPerformed(ActionEvent e) {
+					}
+				};
+			action.putValue(ACTION_TOOL, toolType);
+			final JToggleButton button=new  JToggleButton(action);
 			
-			final JTable table = new JTable(new SampleTableModel(cxy,samples));
-			table.getSelectionModel().addListSelectionListener(E->{
+			this.buttonGroupTool.add(button);
+			this.buttonGroupTool.setSelected(button.getModel(), true);
+			paneTool.add(button);
+			}
+		
+		final JPanel paneFlowXY = new JPanel(new FlowLayout());
+		paneFlowXY.add(new JLabel("XY:"));
+		topPane.add(paneFlowXY);
+		for(ColXY cxy: columnsXY ) {
+			final AbstractAction action = new AbstractAction(cxy.getName()) {
+					@Override
+					public void actionPerformed(ActionEvent e) {
+						drawingArea.repaint();
+					}
+				};
+			action.putValue(ACTION_XY_KEY, cxy);
+			final JToggleButton button=new  JToggleButton(action);
+			this.buttonGroupXY.add(button);
+			this.buttonGroupXY.setSelected(button.getModel(), true);
+			paneFlowXY.add(button);
+			}
+		
+		
+		
+		
+		
+			JPanel pane2 = new JPanel(new BorderLayout());
+			
+			this.XYTable = new JTable(new SampleTableModel(samples,columns.size()));
+			this.XYTable.getSelectionModel().addListSelectionListener(E->{
 				if(E.getValueIsAdjusting()) return;
-				resetSelectedSamples();
-				int[] idxy  = table.getSelectedRows();
+				for(Sample sample: samples) {
+					sample.selectedInTable= false;
+					}
+				final  int[] idxy  = this.XYTable.getSelectedRows();
 				for(int i1:idxy) {
-					int i2 = table.convertRowIndexToModel(i1);
+					int i2 = this.XYTable.convertRowIndexToModel(i1);
 					if(i2<0) continue;
-					samples.get(i2).selected=true;
+					samples.get(i2).selectedInTable=true;
 					}
 				drawingArea.repaint();
 				});
-			this.XYTables.add(table);
-			pane.add(new JScrollPane(table));
-			}
+			final DefaultTableCellRenderer renderer = new DefaultTableCellRenderer() {
+				public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+					java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+					if(!isSelected) {
+						c.setBackground(row%2==0?Color.WHITE:Color.LIGHT_GRAY);
+						if(column==0 || column==1) {
+							row = table.convertRowIndexToModel(row);
+							if(row==-1) return c;
+							final SampleTableModel tm = (SampleTableModel)XYTable.getModel();
+							c.setBackground(tm.rows.get(row).selectForOutput?Color.GREEN:Color.RED);
+							}
+						}
+					return c;
+					}
+				};
+				this.XYTable.setDefaultRenderer(Object.class, renderer);
+				this.XYTable.setDefaultRenderer(String.class, renderer);
+				this.XYTable.setDefaultRenderer(Double.class, renderer);
+			pane2.add(new JScrollPane(this.XYTable));
+			
 		
-		this.jTabbedPane.addChangeListener((AE)->drawingArea.repaint());
 		
 		mainPanel.add(
-				new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,this.drawingArea,jTabbedPane),
+				new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,this.drawingArea,pane2),
 				BorderLayout.CENTER
 				);
 		}
 	
-	private void resetSelectedSamples() {
-		for(Sample sample: samples) sample.selected= false;
-	}
 	
+	private boolean saveAs(final File fname) {
+		if(fname==null) {
+			return saveAs();
+			}
+		try( PrintWriter pw = IOUtils.openFileForPrintWriter(fname)) {
+			for(int i=0;i< this.samples.size();i++) {
+				final Sample sn = this.samples.get(i);
+				pw.print(sn.fid);
+				pw.print("\t");
+				pw.print(sn.iid);
+				pw.print("\t");
+				pw.print(sn.selectForOutput?".":"EXCLUDED");
+				pw.println();
+				}
+			pw.flush();
+			}
+		catch(final Throwable err) {
+			ThrowablePane.show(this, err);
+			return false;
+			}
+		dirtyFlag=false;
+		saveAsFile=fname;
+		return true;
+		}
+	
+	
+	private boolean saveAs() {
+		final JFileChooser chooser = new JFileChooser(PreferredDirectory.get(SwingPLinkSelectCluster.class));
+		int ret=chooser.showSaveDialog(this);
+		if(ret==JFileChooser.CANCEL_OPTION) return false;
+		
+		final File f = chooser.getSelectedFile();
+		if(f.exists() && JOptionPane.showConfirmDialog(this, "File "+f.getName()+" exists. Overwite ?", "Overwite ?", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null)!=JOptionPane.OK_OPTION)
+			{
+			return false;
+			}
+		if(saveAs(f)) {
+			PreferredDirectory.update(f);
+			return true;
+			}
+		return false;
+		}
+	
+	private Point2D sampleToPixel(ColXY columnXY,Sample sn) {
+		final double width = drawingArea.getWidth();
+		final double height = drawingArea.getHeight();
+		Column col = columnXY.get(0);
+		double x = sn.C[col.index];
+		x = ((x-col.min)/(col.max-col.min))*width;
+		col =columnXY.get(1);
+		double y = sn.C[col.index];
+		y = ((y-col.min)/(col.max-col.min))*height;
+		return new Point2D.Double(x,y);
+		}
+	
+	private ColXY getCurrentColXY() {
+		 for (Enumeration<AbstractButton> iter = this.buttonGroupXY.getElements();
+				iter.hasMoreElements();) {
+	            final JToggleButton button = (JToggleButton)iter.nextElement();
+
+	            if (button.isSelected()) {
+	                return ColXY.class.cast(AbstractAction.class.cast(button.getAction()).getValue(ACTION_XY_KEY));
+	            }
+	        }
+		 return null;
+		}
+
+	private ToolType getCurrentTooltype() {
+		 for (Enumeration<AbstractButton> iter = this.buttonGroupTool.getElements();
+				iter.hasMoreElements();) {
+	            final JToggleButton button = (JToggleButton)iter.nextElement();
+
+	            if (button.isSelected()) {
+	                return ToolType.class.cast(AbstractAction.class.cast(button.getAction()).getValue(ACTION_TOOL));
+	            }
+	        }
+		 return ToolType.XOR;
+		}
+	
+
 	private void paintDrawingArea(Graphics2D g) {
 		final int width = this.drawingArea.getWidth();
 		final int height = this.drawingArea.getHeight();
@@ -394,26 +502,45 @@ private static class XFrame extends JFrame {
 		g.fillRect(0, 0,width,height);
 		g.setColor(Color.DARK_GRAY);
 		g.drawRect(0, 0,width-1,height-1);
-		int idx = this.jTabbedPane.getSelectedIndex();
-		if(idx<0) return;
-		SampleTableModel tm = (SampleTableModel)this.XYTables.get(idx).getModel();
-		for(int i=0;i< this.samples.size();i++) {
-			final Sample sn = this.samples.get(i);
-			Column col = tm.columnXY.get(0);
-			double x = sn.C[col.index];
-			x = ((x-col.min)/(col.max-col.min))*width;
-			col = tm.columnXY.get(1);
-			double y = sn.C[col.index];
-			y = ((y-col.min)/(col.max-col.min))*height;
-			g.setColor(sn.selected?Color.RED:Color.BLUE);
-			if(sn.state==0) {
-				g.draw(new Line2D.Double(x-5, y, x+5, y));
-				g.draw(new Line2D.Double(x, y-5, x, y+5));
+		final ColXY columnXY = getCurrentColXY();
+		if(columnXY==null) return;
+		final int radius =5;
+		
+		for(int side=0;side<2;++side) {
+			for(int i=0;i< this.samples.size();i++) {
+				final Sample sn = this.samples.get(i);
+				final Point2D pt = sampleToPixel(columnXY, sn);
+				
+				
+				if(side==1) {
+					if(sn.selectedInTable) {
+						g.setColor(Color.BLUE);
+						g.draw(new Ellipse2D.Double(
+								pt.getX()-(radius+1),
+								pt.getY()-(radius+2),
+								(radius+1)*2,
+								(radius+1)*2)
+								);
+						}
+					}
+				else
+					{
+					
+					if(!sn.selectForOutput) {
+						g.setColor(Color.RED);
+						g.draw(new Line2D.Double(pt.getX()-radius, pt.getY(), pt.getX()+radius, pt.getY()));
+						g.draw(new Line2D.Double(pt.getX(), pt.getY()-radius, pt.getX(), pt.getY()+radius));
+						}
+					else
+						{
+						g.setColor(Color.GREEN);
+						g.fill(new Ellipse2D.Double(pt.getX()-radius, pt.getY()-radius, radius*2,radius*2));
+						g.setColor(Color.GRAY);
+						g.draw(new Ellipse2D.Double(pt.getX()-radius, pt.getY()-radius, radius*2,radius*2));
+						}
+					}
 				}
-			else
-				{
-				g.fill(new Ellipse2D.Double(x-5, y-5, 10, 10));
-				}
+			if(this.XYTable.getSelectionModel().isSelectionEmpty()) break;
 			}
 		}
 
@@ -435,7 +562,7 @@ public int doWork(List<String> args) {
 			for(int i=0;i< header.size();i++) {
 				final String col = header.get(i);
 				if(col.matches("C[0-9]+")) {
-					columns.add(new Column(columns.size(),col,i));
+					columns.add(new Column(columns.size(),col));
 					}
 				}
 			if(columns.size()<2) {
@@ -470,14 +597,9 @@ public int doWork(List<String> args) {
 			col.min-=diff;
 			col.max+=diff;
 		}
-		final List<ColXY> colsXY = new Vector<>();
-		for(int x=0;x< columns.size();++x) {
-			for(int y=x+1;y< columns.size();++y) {
-				colsXY.add( new ColXY(columns.get(x),columns.get(y)));
-			}
-		}
+
 		
-		final XFrame frame = new XFrame(colsXY,rows);
+		final XFrame frame = new XFrame(columns,rows);
 		final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 		frame.setBounds(50, 50, screen.width-100, screen.height-100);
 
