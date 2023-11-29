@@ -26,6 +26,7 @@
  * Braton & al (2023) HIVepsilon-seq—scalable characterization of intact persistent proviral HIV reservoirs in women. Virology. https://doi.org/10.1128/jvi.00705-23  **SAM2tsv**
  * Ansari, Nadia et al.  Environmental surveillance for COVID-19 using SARS-CoV-2 RNA concentration in wastewater – a study in District East, Karachi, Pakistan The Lancet Regional Health - Southeast Asia, Volume 0, Issue 0, 100299. https://doi.org/10.1016/j.lansea.2023.100299
  * Yu-Qian Qin, Chu-Yun Yang, Ze-Long Nie, Jun Wen, Ying Meng,.Phylogenomics and divergence pattern of Polygonatum (Asparagaceae: Polygonateae) in the north temperate region,.Molecular Phylogenetics and Evolution,.2023,.107962,.ISSN 1055-7903,.https://doi.org/10.1016/j.ympev.2023.107962. **msa2vcf**
+ * Heczko, L., Hlaváč, V., Holý, P. et al. Prognostic potential of whole exome sequencing in the clinical management of metachronous colorectal cancer liver metastases. Cancer Cell Int 23, 295 (2023). https://doi.org/10.1186/s12935-023-03135-x **vcfpolyx**
 
 ## 2022
 
