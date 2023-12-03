@@ -27,6 +27,7 @@
  * Ansari, Nadia et al.  Environmental surveillance for COVID-19 using SARS-CoV-2 RNA concentration in wastewater – a study in District East, Karachi, Pakistan The Lancet Regional Health - Southeast Asia, Volume 0, Issue 0, 100299. https://doi.org/10.1016/j.lansea.2023.100299
  * Yu-Qian Qin, Chu-Yun Yang, Ze-Long Nie, Jun Wen, Ying Meng,.Phylogenomics and divergence pattern of Polygonatum (Asparagaceae: Polygonateae) in the north temperate region,.Molecular Phylogenetics and Evolution,.2023,.107962,.ISSN 1055-7903,.https://doi.org/10.1016/j.ympev.2023.107962. **msa2vcf**
  * Heczko, L., Hlaváč, V., Holý, P. et al. Prognostic potential of whole exome sequencing in the clinical management of metachronous colorectal cancer liver metastases. Cancer Cell Int 23, 295 (2023). https://doi.org/10.1186/s12935-023-03135-x **vcfpolyx**
+ * Kaylee J Watson & al. Common analysis of direct RNA sequencinG CUrrently leads to misidentification of m5/C at GCU motifs .  10.26508/lsa.202302201 .
 
 ## 2022
 
@@ -43,6 +44,8 @@
  * Distinct genetic determinants and mechanisms of SARS-CoV-2 resistance to remdesivir .Laura J. Stevens, Andrea J. Pruijssers, Hery W. Lee, Calvin J. Gordon, Egor P. Tchesnokov, Jennifer Gribble, Amelia S. George, Tia M. Hughes, Xiaotao Lu, Jiani Li, Jason K. Perry, Danielle P. Porter, Tomas Cihlar, Timothy P. Sheahan, Ralph S. Baric, Matthias Götte, Mark R. Denison bioRxiv 2022.01.25.477724; doi: https://doi.org/10.1101/2022.01.25.477724 
  * Cappelletti E, Piras FM, Sola L, Santagostino M, Abdelgadir WA, Raimondi E, Lescai F, Nergadze SG, Giulotto E. Robertsonian fusion and centromere repositioning contributed to the formation of satellite-free centromeres during the evolution of zebras. Mol Biol Evol. 2022 Jul 26:msac162. doi: 10.1093/molbev/msac162. Epub ahead of print. PMID: 35881460.
  * High-throughput Detection of T-DNA Insertion Sites for Multiple Transgenes in Complex Genomes. Edwards & al. Research Square. https://doi.org/10.21203/rs.3.rs-1325310/v1
+
+
 
 ## 2021
 
