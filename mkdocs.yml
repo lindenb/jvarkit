@@ -96,6 +96,7 @@ nav:
         - "gtf2bed" : GtfToBed.md
         - "gtf2xml" : Gtf2Xml.md
         - "gtfliftover" : GtfLiftOver.md
+        - "gtfretrocopy" : GtfRetroCopy.md
         - "htsfreemarker" : HtsFreemarker.md
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md

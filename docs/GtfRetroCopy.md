@@ -7,11 +7,23 @@ Scan retrocopies by comparing the gtf/intron and the deletions in a VCF
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar gtfretrocopy  [options] Files
+
 Usage: gtfretrocopy [options] Files
   Options:
     --all
       all introns must be found
+      Default: false
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
       Default: false
     -d, --distance
       max distance between an intron and the deletion found in the VCF
@@ -21,7 +33,8 @@ Usage: gtfretrocopy [options] Files
       Default: false
   * -gtf, --gtf
       A GTF (General Transfer Format) file. See 
-      https://www.ensembl.org/info/website/upload/gff.html .
+      https://www.ensembl.org/info/website/upload/gff.html . Please note that 
+      CDS are only detected if a start and stop codons are defined.
     -h, --help
       print help and exit
     --helpFormat
@@ -48,23 +61,6 @@ Usage: gtfretrocopy [options] Files
  * retrocopy
  * deletion
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew gtfretrocopy
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -106,4 +102,5 @@ The current reference is:
 ```
 java -jar dist/gtfretrocopy.jar --gtf transcript.gtf.gz input.vcf.gz > retrocopies.vcf
 ```
+
 

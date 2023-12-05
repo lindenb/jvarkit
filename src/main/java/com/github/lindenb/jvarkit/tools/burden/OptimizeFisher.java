@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.burden;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -37,8 +38,10 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
+import java.util.Vector;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -46,44 +49,51 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.date.DurationParser;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.ProcessExecutor;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
+import htsjdk.variant.vcf.VCFReader;
 
-@Program(name="optimizervtest",
-description="Optimize rvtest",
+@Program(name="optimizefisher",
+description="Optimize fisher test on VCF using genetic algo",
 keywords= {"vcf","burden","fisher"},
 modificationDate="20221013",
-creationDate="20221013",
+creationDate="20231205",
 generate_doc = false
 )
-public class OptimizeRVTest extends Launcher {
-	private static final Logger LOG = Logger.build( OptimizeRVTest.class).make();
+public class OptimizeFisher extends Launcher {
+	private static final Logger LOG = Logger.build( OptimizeFisher.class).make();
 	private static long ID_GENERATOR=0L;
-	@Parameter(names={"--pedigree"},description="path to the pedigree",required = true)
-	private Path pedPath;
-	@Parameter(names={"--rvtest"},description="path rvtest")
-	private String rvtestPath="rvtest";
+	@Parameter(names={"--cases"},description="path to a file containing the cases samples",required = true)
+	private Path casesSamplePath=null;
+	@Parameter(names={"--controls"},description="path to a file containing the controls samples",required = true)
+	private Path controlsSamplePath=null;
+	@Parameter(names={"--properties"},description="optional path to a java property file defining the preferences. Such kind is saved by a run.", hidden = true)
+	private Path propertyFile =null;
+
+	
 	@Parameter(names={"--n-samples-per-generation","-nsg"},description="Number of samples per generation.")
 	private int n_samples_per_generation = 5;
-	@Parameter(names={"--tmp-dir","-T"},description="Temporary directory")
-	private Path tmpDirectory = IOUtils.getDefaultTempDir();
+	@Parameter(names={"--output","-o"},description="Output directory",required=true)
+	private Path  outputDir = null;
 	@Parameter(names={"--chiasma"},description="Proba chiasma")
 	private double proba_chiasma  = 0.01;
 	@Parameter(names={"--mutation"},description="Proba mutation")
@@ -93,56 +103,33 @@ public class OptimizeRVTest extends Launcher {
 	@Parameter(names={"--disable"},description="disable factory(ies) by name. Comma separated")
 	private String disableFactoriesNames="";
 
-	/*
-	private static interface OpCompare {
-		public String getName();
-		public boolean test(double v1,double v2);
-		}
-
-	private static final OpCompare LT_compare = new OpCompare() {
-		@Override public String getName() { return "<";};
-		@Override public boolean test(double v1, double v2) {return Double.compare(v1, v2)<0;}
-		};
-	private static final OpCompare LE_compare = new OpCompare() {
-		@Override public String getName() { return "<=";};
-		@Override public boolean test(double v1, double v2) {return Double.compare(v1, v2)<=0;}
-		};
-	private static final OpCompare GT_compare = new OpCompare() {
-		@Override public String getName() { return ">";};
-		@Override public boolean test(double v1, double v2) {return Double.compare(v1, v2)>0;}
-		};
-	private static final OpCompare GE_compare = new OpCompare() {
-		@Override public String getName() { return ">=";};
-		@Override public boolean test(double v1, double v2) {return Double.compare(v1, v2)>=0;}
-		};
+	private VCFHeader vcfHeader;
+	private final List<VariantContext> variants = new Vector<>(100_00);
 	
 	
-	private class Range {
-		double min;
-		double max;
-		Range(double x,double y) {
-			this.min = Math.min(x, y);
-			this.max = Math.max(x, y);
-			}
-		}*/
+	private class SlidingWindow {
+		int window_size;
+		int window_shift;
+	}
 	
-	private interface Trait {
+	private interface Trait{
+		/** get Owner Factory */
 		public TraitFactory getFactory();
 		
 		public default String asString() {
 			return getFactory().asString(this);
 			}
-		public default boolean test(final VariantContext ctx) {
-			return getFactory().test(ctx, this);
-			}
+		/** compare two traits */
 		public default boolean isSame(Trait t) {
 			return getFactory() == t.getFactory() && t.getFactory().isSame(this,t);
 			}
+		/** export content of this trait  */
 		public default void export(BufferedWriter w) throws IOException {
 			getFactory().export(w,this);
 			}
 		}
 	
+	/** Trait creator */
 	private abstract class TraitFactory {
 		boolean enabled = true;
 		protected class AbstractTrait implements Trait {
@@ -155,10 +142,13 @@ public class OptimizeRVTest extends Launcher {
 				return asString();
 				}
 			}
-		void initialize(VCFHeader v) {
+		void initialize(final Properties props) {
+			
+		}
+		void initialize(final VCFHeader v) {
 			
 			}
-		abstract void initialize(VariantContext v);
+		abstract void initialize(final VariantContext v);
 		boolean isEnabled() {
 			return enabled;
 			}
@@ -194,6 +184,9 @@ public class OptimizeRVTest extends Launcher {
 		abstract void export(BufferedWriter w,Trait v) throws IOException;
 		}
 	
+	private static short STATE_UNDEFINED=0;
+	private static short STATE_SET_BY_USER = 1;
+	private static short STATE_FILL = 2;
 	
 	private abstract class AbstractNumberFactory extends TraitFactory {
 		protected class MyTrait extends AbstractTrait {
@@ -202,15 +195,39 @@ public class OptimizeRVTest extends Launcher {
 				this.v = v;
 				}
 			}
-		
+		private OptionalDouble startValue = OptionalDouble.empty();
 		private double minValue=0;
 		private double maxValue=0;
-		private boolean init_seen=false;
+		private short init_state=STATE_UNDEFINED;
+		
+		@Override
+		void initialize(final Properties props) {
+			super.initialize(props);
+			String key = this.getName()+".min";
+			if(props.containsKey(key)) {
+				this.minValue = Double.parseDouble(props.getProperty(key));
+				this.init_state = STATE_SET_BY_USER;
+				}
+			key = this.getName()+".max";
+			if(props.containsKey(key)) {
+				this.maxValue = Double.parseDouble(props.getProperty(key));
+				this.init_state = STATE_SET_BY_USER;
+				}
+			key = this.getName()+".value";
+			if(props.containsKey(key)) {
+				this.startValue = OptionalDouble.of(Double.parseDouble(props.getProperty(key)));
+				}
+		
+			}
+		
 		protected void initialize(final double v) {
-			if(!init_seen) {
+			if(this.init_state==STATE_SET_BY_USER) {
+				//nothing
+				}
+			else if(this.init_state==STATE_UNDEFINED) {
 				minValue=v;	
 				maxValue=v;	
-				init_seen=true;
+				this.init_state = STATE_FILL;
 				}
 			else
 				{
@@ -230,10 +247,10 @@ public class OptimizeRVTest extends Launcher {
 			return getMin() + (random.nextDouble() * delta());
 			}
 		protected double makeFirstNumber() {
-			return makeNumber();
+			return  startValue.isPresent()?startValue.getAsDouble():makeNumber();
 			}
 
-		Trait mute(Trait t) {
+		Trait mute(final Trait t) {
 			final MyTrait t2 = MyTrait.class.cast(t);
 			double v = t2.v;
 			if(random.nextBoolean()) {
@@ -274,7 +291,7 @@ public class OptimizeRVTest extends Launcher {
 
 
 		@Override
-		boolean isSame(Trait a, Trait b) {
+		boolean isSame(final Trait a, final Trait b) {
 			final MyTrait ta = MyTrait.class.cast(a);
 			final MyTrait tb = MyTrait.class.cast(b);
 			return Double.compare(ta.v,tb.v)==0 ;
@@ -295,10 +312,45 @@ public class OptimizeRVTest extends Launcher {
 		}
 	
 	
+	private class AFTagFactory extends AbstractNumberFactory {
+		
+			
+		@Override
+		void initialize(VariantContext v) {
+			initialize(getMaf(v));
+			}
+
+	   private double getMaf(VariantContext ctx) {
+			double an=0.0;
+			double ac=0.0;
+			for(Genotype gt :ctx.getGenotypes()) {
+				if(!cases.contains(gt.getSampleName()) && !controls.contains(gt.getSampleName())) continue;
+				for(Allele a: gt.getAlleles()) {
+					if(a.isNoCall()) continue;
+					an++;
+					if(!a.isReference()) ac++;
+					}
+				}
+			return ac/an;
+	        }
+	   @Override
+		boolean test(VariantContext ctx, Trait t) {
+			return getMaf(ctx) <= MyTrait.class.cast(t).v;
+		   }
+		   
+		@Override
+		String asString(Trait t) {
+			return getName() + " <= "+ MyTrait.class.cast(t).v;
+			}
+		
+		@Override
+		String getName() {
+			return VCFConstants.ALLELE_FREQUENCY_KEY;
+			}
+		}
 	
 	
 	private abstract class  SimpleDoubleTagFactory  extends AbstractNumberFactory {
-		
 		@Override
 		void initialize(final VariantContext ctx) {
 			if(!ctx.hasAttribute(getTag())) return;
@@ -314,12 +366,28 @@ public class OptimizeRVTest extends Launcher {
 			}
 		
 		}
-	
+	/** QD **/
+	private class  QDFactory  extends SimpleDoubleTagFactory {
+		@Override
+		String asString(final Trait t) {
+			return getTag() +" >= " + MyTrait.class.cast(t).v;
+			}
+		
+		@Override
+		boolean test(final VariantContext ctx,final Trait t) {
+			if(!ctx.hasAttribute(getTag())) return true;
+			return ctx.getAttributeAsDouble(getTag(), 0.0) >= MyTrait.class.cast(t).v;
+			}
+		@Override
+		String getTag() {
+			return "QD";
+			}
+		}
 	
 	/** FS **/
 	private class  FSFactory  extends SimpleDoubleTagFactory {
 		@Override
-		String asString(Trait t) {
+		String asString(final Trait t) {
 			return getTag() +" =< " + MyTrait.class.cast(t).v;
 			}
 		@Override
@@ -339,7 +407,7 @@ public class OptimizeRVTest extends Launcher {
 	/** MQ **/
 	private class RMSMappingQualityFactory  extends SimpleDoubleTagFactory {
 		@Override
-		String asString(Trait t) {
+		String asString(final Trait t) {
 			return getTag() +" >= " + MyTrait.class.cast(t).v;
 			}
 		@Override
@@ -347,18 +415,19 @@ public class OptimizeRVTest extends Launcher {
 			return 59.0;
 			}
 		@Override
-		boolean test(VariantContext ctx, Trait t) {
+		final boolean test(final VariantContext ctx, final Trait t) {
 			if(!ctx.hasAttribute(getTag())) return true;
 			return ctx.getAttributeAsDouble(getTag(), 0.0) >= MyTrait.class.cast(t).v;
-			}		@Override
-		String getTag() {
+			}
+		@Override
+		final String getTag() {
 			return "MQ";
 			}
 		}
 	/** MQRankSum **/
 	private class MQRankSumFactory  extends SimpleDoubleTagFactory {
 		@Override
-		String asString(Trait t) {
+		String asString(final Trait t) {
 			final double x = Math.abs(MyTrait.class.cast(t).v);
 			return ""+(-x)+" <= "+getTag()+" <= "+ x;
 			}
@@ -367,15 +436,55 @@ public class OptimizeRVTest extends Launcher {
 			return 3.0;
 			}
 		@Override
-		boolean test(VariantContext ctx, Trait t) {
+		boolean test(final VariantContext ctx, final Trait t) {
 			if(!ctx.hasAttribute(getTag())) return true;
 			final double x = Math.abs(MyTrait.class.cast(t).v);
 			return (-x) <= ctx.getAttributeAsDouble(getTag(), 0.0) &&
 					ctx.getAttributeAsDouble(getTag(), 0.0) < x;
 			}	
 		@Override
-		String getTag() {
+		final String getTag() {
 			return "MQRankSum";
+			}
+		}
+	
+	/** ReadPosRankSumFactory **/
+	private class ReadPosRankSumFactory  extends SimpleDoubleTagFactory {
+		@Override
+		String asString(final Trait t) {
+			final double x = Math.abs(MyTrait.class.cast(t).v);
+			return getTag()+" <= "+ x;
+			}
+		
+		@Override
+		boolean test(final VariantContext ctx, final Trait t) {
+			if(!ctx.hasAttribute(getTag())) return true;
+			final double x = MyTrait.class.cast(t).v;
+			return  ctx.getAttributeAsDouble(getTag(), 0.0) < x;
+			}	
+		@Override
+		final String getTag() {
+			return "ReadPosRankSum";
+			}
+		}
+
+	/** SORFactory **/
+	private class SORFactory  extends SimpleDoubleTagFactory {
+		@Override
+		String asString(final Trait t) {
+			final double x = Math.abs(MyTrait.class.cast(t).v);
+			return getTag()+" <= "+ x;
+			}
+		
+		@Override
+		boolean test(final VariantContext ctx, final Trait t) {
+			if(!ctx.hasAttribute(getTag())) return true;
+			final double x = MyTrait.class.cast(t).v;
+			return  ctx.getAttributeAsDouble(getTag(), 0.0) < x;
+			}	
+		@Override
+		final String getTag() {
+			return "SOR";
 			}
 		}
 	
@@ -440,15 +549,15 @@ public class OptimizeRVTest extends Launcher {
 		
 		@Override
 		boolean test(final VariantContext ctx, final Trait trait) {
-			Genotype singleton = getSingleton(ctx);
+			final Genotype singleton = getSingleton(ctx);
 			if(singleton==null) return true;
 			if(!singleton.isHet()) return true;
 			if(!singleton.hasAD()) return true;
 			int[] ad = singleton.getAD();
 			if(ad.length!=2) return true;
-			double t = ad[0]+ad[1];
+			final double t = ad[0]+ad[1];
 			if(t==0) return true;
-			double f=ad[1]/t;
+			final double f=ad[1]/t;
 			if(f <  MyTrait.class.cast(trait).v) return false;
 			if(f >  (1.0-MyTrait.class.cast(trait).v)) return false;
 			return true;
@@ -462,7 +571,7 @@ public class OptimizeRVTest extends Launcher {
 	/** Singleton GQ */
 	private class SingletonGQFactory extends AbstractNumberFactory {
 		@Override
-		void initialize(VariantContext ctx) {
+		void initialize(final VariantContext ctx) {
 			final Genotype g = getSingleton(ctx);
 			if(g==null || !g.hasGQ()) return;
 			initialize((double)g.getGQ());	
@@ -712,29 +821,31 @@ public class OptimizeRVTest extends Launcher {
 
 	
 	private class Solution {
-		final long id = (++OptimizeRVTest.ID_GENERATOR);
-		final long generation = OptimizeRVTest.this.n_generations;
+		final long id = (++OptimizeFisher.ID_GENERATOR);
+		final long generation = OptimizeFisher.this.n_generations;
 		double pvalue=1.0;
 		final List<Trait> traits;
-		final List<String> assoc=new ArrayList<>();
+		final List<VariantContext> subset = new Vector<>();
+		SlidingWindow sliding_window = new SlidingWindow();
+		
 		Solution() {
 			this(false);
 			}
 		Solution(boolean is_first) {
-			this.traits = new ArrayList<>(traitFactories.size());
-			for(TraitFactory t: traitFactories) {
+			this.traits = new ArrayList<>(OptimizeFisher.this.traitFactories.size());
+			for(TraitFactory t: OptimizeFisher.this.traitFactories) {
 				traits.add(is_first?t.createFirst():t.create());
 				}
+			this.sliding_window.window_size= rnd(100,1_000_000);
+			this.sliding_window.window_shift = this.sliding_window.window_size/rnd(2,5);
 			}
 		
 		int size() {
 			return traitFactories.size();
 			}
 		
-		final List<Interval> saveVCF(final Path inVCF,final String filename) throws IOException {
-			final List<Interval> L = new ArrayList<>();
-			try(VCFIterator iter = new VCFIteratorBuilder().open(inVCF)) {
-				final VCFHeader hdr = iter.getHeader();
+		final void saveVCF(final String filename) throws IOException {
+				final VCFHeader hdr = new VCFHeader(OptimizeFisher.this.vcfHeader);
 				hdr.addMetaDataLine(new VCFHeaderLine("PVALUE", String.valueOf(this.pvalue)));
 				try( VariantContextWriter vw=  new VariantContextWriterBuilder().
 						setOutputPath(Paths.get(filename+".vcf.gz")).
@@ -742,85 +853,101 @@ public class OptimizeRVTest extends Launcher {
 						setOption(Options.INDEX_ON_THE_FLY).
 						build()) {
 					vw.writeHeader(hdr);
-					while(iter.hasNext()) {
-						final VariantContext ctx=iter.next();
-						if(!this.traits.stream().allMatch(T->T.test(ctx))) continue;
+					for(VariantContext ctx:this.subset) {
 						vw.add(ctx);
-						L.add(new Interval(ctx));
 						}
 					}
 				}
-			if(!this.assoc.isEmpty()) {
-				Files.write(Paths.get(filename+".assoc"), this.assoc);
+	
+
+		
+		void run() throws IOException {
+			LOG.info("running "+this.toString());
+			this.pvalue=1.0;
+			this.subset.clear();
+			final List<VariantContext> L = new Vector<>(OptimizeFisher.this.variants.size());
+			final Set<String> contigs = new HashSet<>();
+			for(VariantContext ctx: OptimizeFisher.this.variants) {
+				boolean keep=true;
+				for(Trait t:this.traits) {
+					if(!t.getFactory().test(ctx, t)) {
+						keep = false;
+						break;
+						}
+					}
+				if(!keep) continue;
+				L.add(ctx);
+				contigs.add(ctx.getContig());
 				}
-			Collections.sort(L);
-			int i=0;
-			while(i+1 < L.size()) {
-				if(L.get(i).overlaps(L.get(i+1))) {
-					L.set(i,new Interval(
-							L.get(i).getContig(),
-							Math.min(L.get(i).getStart(), L.get(i+1).getStart()),
-							Math.max(L.get(i).getEnd(), L.get(i+1).getEnd())
-							));
-					L.remove(i+1);
+			for(final String contig: contigs) {
+				final List<VariantContext> L2 = new ArrayList<>(L);
+				L2.removeIf(V->!V.getContig().equals(contig));
+				
+				int start = L2.get(0).getStart();
+				for(;;) {
+					final List<VariantContext> L3 = new ArrayList<>();
+					for(VariantContext ctx: L2) {
+						if(ctx.getStart()< start) continue;
+						if(!L3.isEmpty() && CoordMath.getLength(L3.get(0).getStart(), ctx.getStart())> this.sliding_window.window_size) {
+							break;
+							}
+						L3.add(ctx);
+						}
+					if(L3.isEmpty())
+						{
+						break;
+						}
+					final int[]  counts = getFisherCount(L3);
+					final double pv = FisherExactTest.compute(counts).getAsDouble();
+					if(pv < this.pvalue) {
+						this.pvalue = pv;
+						this.subset.clear();
+						this.subset.addAll(L3);
+						}
+					
+					start+= this.sliding_window.window_shift;
+					}
+				}
+					
+			
+			
+			}
+			
+		int[] getFisherCount(final List<VariantContext> variants) {
+			int case_alt = 0;
+			int case_ref = 0;
+			int ctrl_alt = 0;
+			int ctrl_ref = 0;
+			for(String cas : OptimizeFisher.this.cases) {
+				boolean has_alt =  variants.stream().map(G->G.getGenotype(cas)).anyMatch(G->G.hasAltAllele());
+				if(has_alt) {
+					case_alt++;
 					}
 				else
 					{
-					i++;
+					case_ref++;
 					}
 				}
-			return L;
+			
+			for(String ctrl : OptimizeFisher.this.controls) {
+				boolean has_alt = variants.stream().map(G->G.getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
+				if(has_alt) {
+					ctrl_alt++;
+					}
+				else
+					{
+					ctrl_ref++;
+					}
+				}
+			return new int[] {
+					case_alt,case_ref,
+					ctrl_alt,ctrl_ref
+				};
 			}
-
 		
-		void run(final Path inputVCF) throws IOException {
-			LOG.info("running "+this.toString());
-			final String filename= tmpDirectory.resolve("tmp").toString();
-			this.pvalue=1.0;
-			final List<Interval> intervals = saveVCF(inputVCF,filename);
-			if(intervals.isEmpty()) {
-				LOG.info("No interval for this");
-				return;
-				}
-			
-			try(BufferedWriter w = Files.newBufferedWriter(Paths.get(filename+".setfile"))) {
-				w.write("REGION"+this.id+"\t"+
-					intervals.stream().map(R->R.getContig()+":"+R.getStart()+"-"+R.getEnd()).collect(Collectors.joining(","))+"\n"
-					);
-				w.flush();
-				}
-			
-			
-			final StringBuilder commandb = new StringBuilder();
-			commandb.append(rvtestPath + " --pheno "+pedPath+"  --setFile "+filename+".setfile --inVcf "+filename +".vcf.gz  --burden exactCMC --out "+filename);
-			final String command = commandb.toString();
-			final int ret = ProcessExecutor.execute(command);
-			if(ret!=0)
-				{
-				throw new IOException("Error RVTEST returned "+ret+" (!=0).");
-				}
-			try(BufferedReader br = Files.newBufferedReader(Paths.get(filename+".CMCFisherExact.assoc"))) {
-				String line;
-				this.assoc.clear();
-				while((line=br.readLine())!=null) {
-					this.assoc.add(line);
-					if(line.startsWith("Range")) continue;
-					String[] tokens = line.split("[\\s]+");
-					String pvalue = tokens[9];
-					try {
-						this.pvalue = Double.parseDouble(pvalue);
-						LOG.info("ID:"+id+"="+pvalue);
-						}
-					catch(final Throwable err) {
-						err.printStackTrace();
-						this.pvalue=1.0;
-						}
-					}
-				}
-			
-			}
-			
 		boolean isSame(final Solution other) {
+			if(this.sliding_window.window_size!=other.sliding_window.window_size) return false;
+			if(this.sliding_window.window_shift!=other.sliding_window.window_shift) return false;
 			for(int i=0;i< size();i++) {
 				if(!traits.get(i).isSame(other.traits.get(i))) return false;
 				}
@@ -835,6 +962,7 @@ public class OptimizeRVTest extends Launcher {
 	
 	private Solution mate(final Solution s1,final Solution s2)  {
 		final Solution c = new Solution();
+		c.sliding_window = random.nextBoolean()?s1.sliding_window:s2.sliding_window;
 		int side= 0;//always start with same , no when scanning X*Y, we're always starting with the other sample.
 		for(int i=0;i< s1.size();i++) {
 			c.traits.set(i,(side==0?s1:s2).traits.get(i));
@@ -850,39 +978,93 @@ public class OptimizeRVTest extends Launcher {
 		return c;
 		}
 
+	private int rnd(int m,int M) {
+		return m + this.random.nextInt(M-m);
+	}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
 			final Path vcfPath = Paths.get(oneAndOnlyOneFile(args));
 			IOUtil.assertFileIsReadable(vcfPath);
-			IOUtil.assertDirectoryIsWritable(this.tmpDirectory);
+			IOUtil.assertDirectoryIsWritable(this.outputDir);
 			
 			
-			/* get case controls */
-			try(BufferedReader br = Files.newBufferedReader(this.pedPath)) {
-				String line;
-				while((line=br.readLine())!=null) {
-					if(line.startsWith("fid\t")) continue;
-					final String[] tokens = line.split("[\\s]+");
-					if(tokens[5].equals("2")) {
-						this.cases.add(tokens[1]);
-						}
-					else if(tokens[5].equals("1")) {
-						this.controls.add(tokens[1]);
+			/* get cases */
+			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.casesSamplePath)) {
+				this.cases.addAll( br.lines().
+						filter(S->!StringUtils.isBlank(S) || S.startsWith("#")).
+						collect(Collectors.toSet())
+						);
+				LOG.info("cases N="+this.cases.size());
+				
+				}
+			/* get controls */
+			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.controlsSamplePath)) {
+				this.controls.addAll( br.lines().
+						filter(S->!StringUtils.isBlank(S) || S.startsWith("#")).
+						collect(Collectors.toSet())
+						);
+				LOG.info("controls N="+this.controls.size());
+				
+				}
+			
+			try(VCFReader r = VCFReaderFactory.makeDefault().open(vcfPath,false))  {
+				this.vcfHeader = r.getHeader();
+				this.cases.removeIf(S->!this.vcfHeader.getSampleNameToOffset().containsKey(S));
+				this.controls.removeIf(S->!this.vcfHeader.getSampleNameToOffset().containsKey(S));
+				
+				try(CloseableIterator<VariantContext> iter=r.iterator()) {
+					while(iter.hasNext()) {
+						final VariantContext ctx = iter.next();
+						if(ctx.getGenotypes().stream().
+								filter(G->cases.contains(G.getSampleName()) || controls.contains(G.getSampleName())).
+								noneMatch(G->G.hasAltAllele())) {
+							continue;
+							}
+						this.variants.add(ctx);
 						}
 					}
+				Collections.sort(this.variants, this.vcfHeader.getVCFRecordComparator());
 				}
-
 			
+			if(this.cases.isEmpty()) {
+				LOG.error("No case.");
+				return -1;
+				}
+			if(this.controls.isEmpty()) {
+				LOG.error("No control.");
+				return -1;
+				}
+			
+			if(cases.stream().anyMatch(S->controls.contains(S))) {
+				LOG.error("Common samples between cases and controls.");
+				return -1;
+				}
+			
+			if(this.variants.isEmpty()) {
+				LOG.error("No variant was found.");
+				return -1;
+				}
+			final Properties properties = new Properties();
+			if(this.propertyFile!=null) {
+				try(Reader r = IOUtils.openPathForBufferedReading(this.propertyFile)) {
+					properties.load(r);
+					}
+				}
+				
 			this.traitFactories.addAll(
 				Arrays.asList(
+					new AFTagFactory(),
+					new QDFactory(),
 					new VepPredictionFactory(),
 					new GnomadAFFactory(),
 					new FSFactory(),
 					new RMSMappingQualityFactory(),
 					new MQRankSumFactory(),
+					new ReadPosRankSumFactory(),
 					new MissingFactory(),
+					new SORFactory(),
 					new SingletonADFactory(),
 					new SingletonGQFactory(),
 					new PolyXFactory(),
@@ -898,21 +1080,18 @@ public class OptimizeRVTest extends Launcher {
 			
 			
 			LOG.info("initialize factories");
-			try(VCFIterator iter = new VCFIteratorBuilder().open(vcfPath)) {
-				final VCFHeader header = iter.getHeader();
-				//initialize with header
-				for(TraitFactory trait:traitFactories) {
-					trait.initialize(header);
-					}
-				while(iter.hasNext()) {
-					final VariantContext ctx = iter.next();
-					//initialize with current variant
-					for(TraitFactory trait:traitFactories) {
-						trait.initialize(ctx);
-						}
-					}
-				
+			for(TraitFactory trait:traitFactories) {
+				trait.initialize(vcfHeader);
+				trait.initialize(properties);
 				}
+			for(final VariantContext ctx:this.variants) {
+				//initialize with current variant
+				for(TraitFactory traitF:traitFactories) {
+					traitF.initialize(ctx);
+					}
+				}
+			
+				
 			for(TraitFactory trait:traitFactories) {
 				LOG.info(trait.toString()+" enabled:"+trait.isEnabled());
 			}
@@ -927,8 +1106,6 @@ public class OptimizeRVTest extends Launcher {
 			
 
 
-			LOG.info("cases: "+this.cases.size());
-			LOG.info("controls: "+this.controls.size());
 			final long stop = System.currentTimeMillis() + new DurationParser().convert(this.durationStr).toMillis();
 			
 			//write header
@@ -942,15 +1119,15 @@ public class OptimizeRVTest extends Launcher {
 			
 			
 			Solution best = new Solution(true /* invoke createFirst() */);
-			best.run(vcfPath);
-			best.saveVCF(vcfPath,"best");
+			best.run();
+			best.saveVCF("best");
 
 			
 			List<Solution> generation = new ArrayList<>();
 			generation.add(best);
 			while(generation.size()< this.n_samples_per_generation) {
 				final Solution c= new Solution();
-				c.run(vcfPath);
+				c.run();
 				generation.add(c);
 				}
 			while(System.currentTimeMillis()< stop) {
@@ -959,7 +1136,7 @@ public class OptimizeRVTest extends Launcher {
 					if(sol.pvalue < best.pvalue ) {
 						LOG.info("new best "+sol);
 						best=sol;
-						best.saveVCF(vcfPath,"best");
+						best.saveVCF("best");
 
 						try(BufferedWriter w = Files.newBufferedWriter(Paths.get("best.tsv"),StandardOpenOption.APPEND,StandardOpenOption.CREATE)) {
 							w.write(""+System.currentTimeMillis()+"\t"+StringUtils.now()+"\t"+best.id+"\t"+best.generation+"\t"+best.pvalue);
@@ -981,7 +1158,7 @@ public class OptimizeRVTest extends Launcher {
 				LOG.info("Generation "+n_generations+" best:"+best.pvalue+" "+TimeUnit.MILLISECONDS.toMinutes(stop-System.currentTimeMillis())+" minutes");
 				final Solution external = new Solution();
 				if(generation.stream().noneMatch(S->S.isSame(external)) && !external.isSame(best)) {
-					external.run(vcfPath);
+					external.run();
 					generation.add(external);
 					}
 				final List<Solution> generation2 = new ArrayList<>(generation.size()*generation.size());
@@ -996,14 +1173,16 @@ public class OptimizeRVTest extends Launcher {
 							}
 						else
 							{
-							c.run(vcfPath);
+							c.run();
 							}
 						if(c.pvalue==1.0) continue;
 						generation2.add(c);
 						}
 					}
-				Collections.sort(generation2,(A,B)->Double.compare(A.pvalue,B.pvalue));
-				generation = generation2.subList(0, Math.min(generation2.size(),this.n_samples_per_generation));
+				if(!generation2.isEmpty()) {
+					Collections.sort(generation2,(A,B)->Double.compare(A.pvalue,B.pvalue));
+					generation = generation2.subList(0, Math.min(generation2.size(),this.n_samples_per_generation));
+					}
 				while(generation.size()< this.n_samples_per_generation) {
 					final Solution x = mate(best, best);
 					generation.add(x);
@@ -1019,6 +1198,6 @@ public class OptimizeRVTest extends Launcher {
 		}
 	
 	public static void main(final String[] args) {
-		new OptimizeRVTest().instanceMainWithExit(args);
+		new OptimizeFisher().instanceMainWithExit(args);
 	}
 }
