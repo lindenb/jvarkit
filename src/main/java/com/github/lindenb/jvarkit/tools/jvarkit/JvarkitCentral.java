@@ -98,6 +98,7 @@ import com.github.lindenb.jvarkit.tools.biostar.Biostar9469733;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9501110;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9556602;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9566948;
+import com.github.lindenb.jvarkit.tools.burden.OptimizeFisher;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF;
 import com.github.lindenb.jvarkit.tools.cadd.VcfCadd;
@@ -615,6 +616,7 @@ public class JvarkitCentral {
 		command(MsaToVcf.class);
 		command(MakeMiniBam.class);
 		command(NcbiTaxonomyToXml.class);
+		command(OptimizeFisher.class);
 		command(OboUtils.class);
 		command(PubmedDump.class);
 		command(Pubmed404.class);

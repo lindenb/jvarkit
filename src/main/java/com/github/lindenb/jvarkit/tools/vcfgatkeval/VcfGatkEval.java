@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -398,7 +399,7 @@ public class VcfGatkEval extends Launcher {
 		
 		private class QualByDepthAnnotation extends Annotation {
 			QualByDepthAnnotation(VariantContext.Type t) { super(t);}
-			@Override String getTag() { return "QD";}
+			@Override String getTag() { return GATKConstants.QD_KEY;}
 			@Override int getPrecision() { return 1;}
 			@Override OptionalDouble getHighPercentile() { return OptionalDouble.empty();}
 			@Override String getSub() {return "Variant Confidence (QUAL) / Quality by Depth.";}
@@ -407,7 +408,7 @@ public class VcfGatkEval extends Launcher {
 		
 		private class FisherStrandAnnotation extends Annotation {
 			FisherStrandAnnotation(VariantContext.Type t) { super(t);}
-			@Override String getTag() { return "FS";}
+			@Override String getTag() { return GATKConstants.FS_KEY;}
 			@Override int getPrecision() { return 1;}
 			@Override boolean logX() { return true;}
 			@Override OptionalDouble getLowPercentile() { return OptionalDouble.empty();}
@@ -416,7 +417,7 @@ public class VcfGatkEval extends Launcher {
 		
 		private class StrandOddsRatioAnnotation extends Annotation {
 			StrandOddsRatioAnnotation(VariantContext.Type t) { super(t);}
-			@Override String getTag() { return "SOR";}
+			@Override String getTag() { return GATKConstants.SOR_KEY;}
 			@Override int getPrecision() { return 10;}
 			@Override OptionalDouble getLowPercentile() { return OptionalDouble.empty();}
 			@Override String getSub() {return "Symmetric Odds Ratio of 2x2 contingency table to detect strand bias";}
@@ -424,7 +425,7 @@ public class VcfGatkEval extends Launcher {
 		
 		private class  RMSMappingQualityAnnotation extends Annotation {
 			RMSMappingQualityAnnotation(VariantContext.Type t) { super(t);}
-			@Override String getTag() { return "MQ";}
+			@Override String getTag() { return GATKConstants.MQ_KEY;}
 			@Override int getPrecision() { return 1;}
 			@Override OptionalDouble getHighPercentile() { return OptionalDouble.empty();}
 			@Override String getSub() {return "Mean square mapping quality over all the reads at the site";}
@@ -432,7 +433,7 @@ public class VcfGatkEval extends Launcher {
 		
 		private class  MappingQualityRankSumTestAnnotation extends Annotation {
 			MappingQualityRankSumTestAnnotation(VariantContext.Type t) { super(t);}
-			@Override String getTag() { return "MQRankSum";}
+			@Override String getTag() { return GATKConstants.MQRankSum_KEY;}
 			@Override int getPrecision() { return 10;}
 			@Override String getSub() {return "Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities";}
 

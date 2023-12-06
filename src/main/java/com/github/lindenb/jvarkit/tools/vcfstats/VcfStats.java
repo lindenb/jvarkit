@@ -51,6 +51,7 @@ import java.util.stream.IntStream;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
@@ -843,7 +844,10 @@ public class VcfStats extends Launcher {
 	
 	/***************************************************************************/
 	private class GatkDeNovo extends AbstractMultipleBarPlot {
-		private final String[] confDeNovos = new String[]{"hiConfDeNovo", "loConfDeNovo"};
+		private final String[] confDeNovos = new String[]{
+				GATKConstants.hiConfDeNovo,
+				GATKConstants.loConfDeNovo
+				};
 
 		@Override
 		public void init(final VCFHeader h) {
@@ -1482,47 +1486,47 @@ public class VcfStats extends Launcher {
 				);
 		
 		
-		modules.add(new RangeBarPlot("QD", 1).
-				name("QD").
+		modules.add(new RangeBarPlot(GATKConstants.QD_KEY, 1).
+				name(GATKConstants.QD_KEY).
 				description("Variant Confidence (QUAL) / Quality by Depth.").
-				xlab("QD").
+				xlab(GATKConstants.QD_KEY).
 				ylab("Count Variants")
 				);
 		
 		
-		modules.add(new RangeBarPlot("FS", 1).
+		modules.add(new RangeBarPlot(GATKConstants.FS_KEY, 1).
 			logX(true).
-			name("FQ").
+			name(GATKConstants.FS_KEY).
 			description("Phred-scaled p-value using Fisher's exact test to detect strand bias").
-			xlab("FS").
+			xlab(GATKConstants.FS_KEY).
 			ylab("Count Variants")
 			);
 		
-		modules.add(new RangeBarPlot("SOR", 10).
-			name("SOR").
+		modules.add(new RangeBarPlot(GATKConstants.SOR_KEY, 10).
+			name(GATKConstants.SOR_KEY).
 			description("Symmetric Odds Ratio of 2x2 contingency table to detect strand bias").
-			xlab("SOR").
+			xlab(GATKConstants.SOR_KEY).
 			ylab("Count Variants")
 			);
 		
-		modules.add(new RangeBarPlot("MQ", 1).
-			name("MQ").
+		modules.add(new RangeBarPlot(GATKConstants.MQ_KEY, 1).
+			name(GATKConstants.MQ_KEY).
 			description("Mean square mapping quality over all the reads at the site").
-			xlab("MQ").
+			xlab(GATKConstants.MQ_KEY).
 			ylab("Count Variants")
 			);
 
-		modules.add(new RangeBarPlot("MQRankSum", 10).
-			name("MQRankSum").
+		modules.add(new RangeBarPlot(GATKConstants.MQRankSum_KEY, 10).
+			name(GATKConstants.MQRankSum_KEY).
 			description("Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities").
-			xlab("MQRankSum").
+			xlab(GATKConstants.MQRankSum_KEY).
 			ylab("Count Variants")
 			);
 		
-		modules.add(new RangeBarPlot("ReadPosRankSum", 10).
-			name("ReadPosRankSum").
+		modules.add(new RangeBarPlot(GATKConstants.ReadPosRankSum_KEY, 10).
+			name(GATKConstants.ReadPosRankSum_KEY).
 			description("Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias").
-			xlab("ReadPosRankSum").
+			xlab(GATKConstants.ReadPosRankSum_KEY).
 			ylab("Count Variants")
 			);
 
