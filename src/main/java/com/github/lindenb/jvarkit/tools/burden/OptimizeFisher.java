@@ -129,7 +129,7 @@ public class OptimizeFisher extends Launcher {
 	private final List<VariantContext> variants = new Vector<>(100_00);
 	
 	
-	private class SlidingWindow {
+	private class SlidingWindow implements Comparable<SlidingWindow>{
 		 int window_size;
 		int window_shift;
 		
@@ -162,8 +162,11 @@ public class OptimizeFisher extends Launcher {
 				}
 			sl.window_shift = sl.window_size/rnd(2,5);
 			return sl;
-		}	
-		
+			}	
+		@Override
+		public int compareTo(final SlidingWindow o) {
+			return Integer.compare(this.window_size, o.window_size);
+		}
 		
 		@Override
 		public String toString() {
@@ -172,7 +175,7 @@ public class OptimizeFisher extends Launcher {
 	}
 	
 	/** an instance of "parameter in the genetic algorithm */
-	private interface Trait{
+	private interface Trait extends Comparable<Trait> {
 		/** get Owner Factory */
 		public TraitFactory getFactory();
 		
@@ -180,8 +183,13 @@ public class OptimizeFisher extends Launcher {
 			return getFactory().asString(this);
 			}
 		/** compare two traits */
-		public default boolean isSame(Trait t) {
+		public default boolean isSame(final Trait t) {
 			return getFactory() == t.getFactory() && t.getFactory().isSame(this,t);
+			}
+		@Override
+		public default int compareTo(final Trait t) {
+			if(getFactory() != t.getFactory()) throw new IllegalStateException();
+			return getFactory().compare(this,t);
 			}
 		}
 	
@@ -243,7 +251,7 @@ public class OptimizeFisher extends Launcher {
 		abstract String asString(Trait t);
 		abstract boolean test(VariantContext ctx,Trait v);
 		abstract boolean isSame(Trait a,Trait b);
-		abstract void export(BufferedWriter w,Trait v) throws IOException;
+		abstract int compare(Trait a,Trait b);
 		}
 	
 	private static short STATE_UNDEFINED=0;
@@ -378,12 +386,14 @@ public class OptimizeFisher extends Launcher {
 			return Double.compare(ta.v,tb.v)==0 ;
 			}
 		@Override
-		void export(BufferedWriter w,Trait t) throws IOException {
-			w.write(getName());
-			w.write("\t");
-			w.write(String.valueOf(MyTrait.class.cast(t).v));
-			w.write("\n");
+		int compare(final Trait a, final Trait b) {
+			final double v1 = MyTrait.class.cast(a).v;
+			final double v2 = MyTrait.class.cast(b).v;
+			if(v1==v2) return 0;
+			/* invert the output of comparator. The idea is we don't need a stringent Trait  */
+			return getCompareOp().test(v1, v2)?1:-1;
 			}
+		
 
 		protected abstract CompareOp getCompareOp();
 		protected abstract OptionalDouble getValueForVariant(final VariantContext ctx);
@@ -827,6 +837,12 @@ public class OptimizeFisher extends Launcher {
 			if(a.getFactory()!=b.getFactory()) return false;
 			return MyTrait.class.cast(a).acns.equals(MyTrait.class.cast(b).acns);
 			}
+		
+		@Override
+		int compare(Trait a, Trait b) {
+			return Integer.compare(MyTrait.class.cast(a).acns.size(),MyTrait.class.cast(b).acns.size());
+			}
+		
 		abstract String getTag();
 		
 		Set<String> makeSetOfSOTerms() {
@@ -859,13 +875,6 @@ public class OptimizeFisher extends Launcher {
 			return t3;
 			}
 		
-		@Override
-		void export(BufferedWriter w, final Trait t) throws IOException {
-			w.write(getName());
-			w.write("\t");
-			w.write(String.join(",", MyTrait.class.cast(t).acns));
-			w.write("\n");
-			}
 		
 		@Override
 		String asString(final Trait t) {
@@ -919,7 +928,7 @@ public class OptimizeFisher extends Launcher {
 	private final Set<String> controls = new HashSet<>();
 
 	
-	private class Solution {
+	private class Solution implements Comparable<Solution> {
 		final long id = (++OptimizeFisher.ID_GENERATOR);
 		final long generation = OptimizeFisher.this.n_generations;
 		private OptionalDouble optPvalue=OptionalDouble.empty();
@@ -937,6 +946,12 @@ public class OptimizeFisher extends Launcher {
 				}
 			}
 		
+		private int getScaledPValue() {
+			double p = getPValue();
+			if(p< 1E-100) p=1E-100;
+			return (int)((-Math.log10(p))*10);
+			}
+		
 		double getPValue() {
 			if(!optPvalue.isPresent()) {
 				throw new IllegalStateException("Pvalue was not set");
@@ -946,6 +961,25 @@ public class OptimizeFisher extends Launcher {
 		
 		int size() {
 			return traitFactories.size();
+			}
+		
+		public int compareTo(final Solution other) {
+			if(this==other) return 0;
+			int v1 = this.getScaledPValue();
+			int v2 = other.getScaledPValue();
+			if(v1!=v2) return (v1>v2?-1:1);
+			int score1 = 0;
+			int score2 = 0;
+			int i = this.sliding_window.compareTo(other.sliding_window);
+			if(i<0) { score1++;} else if(i>0) {score2++;}
+			for(int t=0;t< size();++t) {
+				final Trait t1 = this.traits.get(t);
+				final Trait t2 = other.traits.get(t);
+				i = t1.compareTo(t2);
+				if(i<0) { score1++;} else if(i>0) {score2++;}
+				}
+			
+			return Integer.compare(score2, score1 /* greater is best */);
 			}
 		
 		final void save() throws IOException {
@@ -1334,7 +1368,7 @@ public class OptimizeFisher extends Launcher {
 						}
 					}
 				if(!generation2.isEmpty()) {
-					Collections.sort(generation2,(A,B)->Double.compare(A.getPValue(),B.getPValue()));
+					Collections.sort(generation2);
 					generation = generation2.subList(0, Math.min(generation2.size(),this.n_samples_per_generation));
 					}
 				while(generation.size()< this.n_samples_per_generation) {

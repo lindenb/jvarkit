@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 9169519e5
-Compilation : 20231121150308
+Version     : addf1933f
+Compilation : 20231207111507
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -172,6 +172,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
 | [kg2gff](KgToGff.md) | Convert UCSC genpred file to gff3 | 20210106 | 20230817 |
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
+| [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20231205 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [rdfcombine](RDFCombine.md) | Substract/Add RDF models | 20230903 | 20230903 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
