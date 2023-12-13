@@ -24,34 +24,36 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.iterator.SlidingWindowIterator;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFReader;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
@@ -59,7 +61,7 @@ BEGIN_DOC
 # Example
 
 ```
-$ java -jar dist/vcfburdenslidingwindow.jar --pedigree ./src/test/resources/test_vcf01.ped -t 1 ./src/test/resources/test_vcf01.vcf  | head
+$ java -jar dist/jvarkit.jar vcfburdenslidingwindow --cases cases.txt --controls controls.txt -t 1 ./src/test/resources/test_vcf01.vcf  | head
 
 #chrom	start0	end	name	length	p-value	affected_alt	affected_hom	unaffected_alt	unaffected_hom	variants.count
 1	832199	833200	1:832200-833200	1001	1.0	0	3	1	2	1
@@ -80,15 +82,18 @@ END_DOC
 description="Run Burden Sliding window",
 keywords={"vcf","burden","case","control"},
 creationDate="20190920",
-modificationDate="20190920"
+modificationDate="20231213"
 )
-public class VcfBurdenSlidingWindow
-extends AbstractVcfBurden
-{
+public class VcfBurdenSlidingWindow extends Launcher {
 	private static final Logger LOG = Logger.build(VcfBurdenSlidingWindow.class).make();
+	
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	private Path outputFile = null;
+	@ParametersDelegate
+	private CasesControls casesControls = new CasesControls();
 	@Parameter(names={"-f","--filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
-	@Parameter(names={"-t","--treshold"},description="fisher-test treshold. Discard results greater than this value.")
+	@Parameter(names={"-t","--treshold"},description="fisher-test treshold. Discard results greater than this value.",splitter=NoSplitter.class,converter=FractionConverter.class)
 	private double fisherTreshold = 1e-5;
 	@Parameter(names={"-w","--window-size"},description="Window size",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int window_size=1_000;
@@ -96,111 +101,187 @@ extends AbstractVcfBurden
 	private int window_shift=300;
 	@Parameter(names={"-C","--contig"},description="limit to this contig")
 	private String limitContig = null;
+	@Parameter(names={"-save-vcf","--save-vcf"},description="Save Matching variants into that VCF.")
+	private Path outputVcfPath = null;
 
-
-	private boolean accept(final VariantContext ctx) {
-		if(!variantFilter.test(ctx))return false;
-		return true;
-	}
-
+	
 	@Override
-	protected void runBurden(final PrintWriter pw, final VCFReader vcfReader, final VariantContextWriter vcw) throws IOException {
-		if(this.window_size<=0) throw new IllegalArgumentException("bad window size: "+this.window_size);
-		if(this.window_shift<=0) throw new IllegalArgumentException("bad window shift:" + this.window_shift);
-		
-		final SAMSequenceDictionary vcfDict = SequenceDictionaryUtils.extractRequired(vcfReader.getHeader());
-		
-		pw.print("#chrom");
-		pw.print("\t");
-		pw.print("start0");
-		pw.print("\t");
-		pw.print("end");
-		pw.print("\t");
-		pw.print("name");
-		pw.print("\t");
-		pw.print("length");
-		pw.print("\t");
-		pw.print("p-value");
-		pw.print("\t");
-		pw.print("affected_alt");
-		pw.print("\t");
-		pw.print("affected_hom");
-		pw.print("\t");
-		pw.print("unaffected_alt");
-		pw.print("\t");
-		pw.print("unaffected_hom");
-		pw.print("\t");
-		pw.print("variants.count");
-		pw.println();
-
-		
-		final ProgressFactory.Watcher<Locatable> progress = ProgressFactory.newInstance().logger(LOG).dictionary(vcfDict).build();
-		
-		
-		
-		CloseableIterator<VariantContext> iter;
-		if(!StringUtils.isBlank(this.limitContig)) {
-			final SAMSequenceRecord ssr= vcfDict.getSequence(this.limitContig);
-			if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(limitContig, vcfDict);
-			iter = vcfReader.query(ssr);
-			}
-		else
-			{	
-			iter = vcfReader.iterator();
-			}
-	
-		
-		final SlidingWindowIterator<VariantContext> iter2 = new SlidingWindowIterator<>(
-				iter.stream().filter(CTX->accept(CTX)).iterator(),
-				this.window_size,
-				this.window_shift
-				);
-		while(iter2.hasNext()) {
-			final Map.Entry<? extends Locatable, List<VariantContext>> entry = iter2.next();
-			
-			final Locatable W =  progress.apply(entry.getKey());
-			final FisherResult fisher = runFisher(entry.getValue());
-			if(fisher.p_value> this.fisherTreshold) continue;
-			
-			pw.print(W.getContig());
-			pw.print("\t");
-			pw.print(W.getStart()-1);
-			pw.print("\t");
-			pw.print(W.getEnd());
-			pw.print("\t");
-			pw.print(new SimpleInterval(W).toString());
-			pw.print("\t");
-			pw.print(W.getLengthOnReference());
-			pw.print("\t");
-			pw.print(fisher.p_value);
-			pw.print("\t");
-			pw.print(fisher.affected_alt);
-			pw.print("\t");
-			pw.print(fisher.affected_hom);
-			pw.print("\t");
-			pw.print(fisher.unaffected_alt);
-			pw.print("\t");
-			pw.print(fisher.unaffected_hom);
-			pw.print("\t");
-			pw.print(entry.getValue().size());
-			pw.println();
-
-			
-			
-			if(vcw!=null) {
-				for(final VariantContext ctx:entry.getValue()) {
-					vcw.add(new VariantContextBuilder(ctx).
-							attribute(BURDEN_KEY, VCFUtils.escapeInfoField(W.toString())).
-							make());
+	public int doWork(final List<String> args) {
+		try {
+			if(window_size < 1 || window_shift < 1 || window_size< window_shift) {
+				LOG.error("bad window size / window_shift");
+				return -1;
 				}
-			}
-		
+			final String input  = oneFileOrNull(args);
+
+			double best_pvalue= 1.0;
+			this.casesControls.load();
+			this.casesControls.checkNoCommon().checkHaveCasesControls();
+			
+			final Predicate<VariantContext> accept = ctx->{
+				if(!StringUtils.isBlank(limitContig) && !limitContig.equals(ctx.getContig())) return false;
+				if(!variantFilter.test(ctx))return false;
+				return true;
+				};
+			
+			
+			try(VCFIterator iter = super.openVCFIterator(input)) {
+			final VCFHeader header = iter.getHeader();
+			this.casesControls.retain(header);
+			this.casesControls.checkNoCommon().checkHaveCasesControls();
+			
+			final SAMSequenceDictionary dict = header.getSequenceDictionary();
+			if(dict!=null && !StringUtils.isBlank(limitContig) && dict.getSequence(this.limitContig)==null) {
+				throw new JvarkitException.ContigNotFoundInDictionary(this.limitContig, dict);
+				}
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				pw.print("#chrom");
+				pw.print("\t");
+				pw.print("start0");
+				pw.print("\t");
+				pw.print("end");
+				pw.print("\t");
+				pw.print("name");
+				pw.print("\t");
+				pw.print("length");
+				pw.print("\t");
+				pw.print("p-value");
+				pw.print("\t");
+				pw.print("affected_alt");
+				pw.print("\t");
+				pw.print("affected_hom");
+				pw.print("\t");
+				pw.print("unaffected_alt");
+				pw.print("\t");
+				pw.print("unaffected_hom");
+				pw.print("\t");
+				pw.print("variants.count");
+				pw.println();
+			
+			
+				final List<VariantContext> buffer = new ArrayList<>(100_000);
+				for(;;) {
+					final VariantContext ctx1 = iter.hasNext()?iter.peek():null;
+					//first variant in buffer ?
+					if(buffer.isEmpty() && ctx1!=null) {
+						if(!accept.test(ctx1)) {
+							iter.next();//consumme
+							}
+						else
+							{
+							buffer.add(iter.next());//consumme
+							}
+						continue;
+						}
+					// dont check for contig here !
+					
+					if((ctx1==null || !ctx1.contigsMatch(buffer.get(0)) || CoordMath.getLength(buffer.get(0).getStart(), ctx1.getStart()) > this.window_size) && !buffer.isEmpty()) {
+						int case_alt = 0;
+						int case_ref = 0;
+						int ctrl_alt = 0;
+						int ctrl_ref = 0;
+						for(String cas : this.casesControls.getCases()) {
+							boolean has_alt =  buffer.stream().map(V->V.getGenotype(cas)).anyMatch(G->G.hasAltAllele());
+							if(has_alt) {
+								case_alt++;
+								}
+							else
+								{
+								case_ref++;
+								}
+							}
+						
+						for(String ctrl : this.casesControls.getControls()) {
+							boolean has_alt = buffer.stream().map(V->V.getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
+							if(has_alt) {
+								ctrl_alt++;
+								}
+							else
+								{
+								ctrl_ref++;
+								}
+							}
+						final double pvalue = FisherExactTest.compute(case_alt, case_ref,ctrl_alt,ctrl_ref).getAsDouble();
+						if(pvalue <= this.fisherTreshold) {
+							final String title = new SimpleInterval(buffer.get(0).getContig(),buffer.get(0).getStart(),buffer.get(buffer.size()-1).getStart()).toString();
+							pw.print(buffer.get(0).getContig());
+							pw.print("\t");
+							pw.print(buffer.get(0).getStart()-1);
+							pw.print("\t");
+							pw.print(buffer.get(buffer.size()-1).getStart());
+							pw.print("\t");
+							pw.print(title);
+							pw.print("\t");
+							pw.print(CoordMath.getLength(buffer.get(0).getStart(),buffer.get(buffer.size()-1).getStart()));
+							pw.print("\t");
+							pw.print(pvalue);
+							pw.print("\t");
+							pw.print(case_alt);
+							pw.print("\t");
+							pw.print(case_ref);
+							pw.print("\t");
+							pw.print(ctrl_alt);
+							pw.print("\t");
+							pw.print(ctrl_ref);
+							pw.print("\t");
+							pw.print(buffer.size());
+							pw.println();
+							
+							//save vcf
+							if(this.outputVcfPath!=null && pvalue < best_pvalue) {
+								final VCFHeader hdr = new VCFHeader(header);
+								hdr.addMetaDataLine(new VCFHeaderLine("PVALUE", String.valueOf(pvalue)));
+								try( VariantContextWriter vw=  new VariantContextWriterBuilder().
+										setOutputPath(this.outputVcfPath).
+										setOutputFileType(VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF).
+										setOption(Options.INDEX_ON_THE_FLY).
+										build()) {
+									vw.writeHeader(hdr);
+									for(VariantContext ctx:buffer) {
+										vw.add(ctx);
+										}
+									}
+								}
+							
+							if( pvalue < best_pvalue) {
+								LOG.info("New best p-value "+pvalue+" "+title);
+								best_pvalue=pvalue;
+								pw.flush();
+								}
+							}
+
+						//reduce
+						int buffer_start = buffer.get(0).getStart();
+						while(!buffer.isEmpty() && CoordMath.getLength(buffer_start, buffer.get(0).getStart()) < this.window_shift) {
+							buffer.remove(0);
+							}
+						}
+					//EOF
+					if(buffer.isEmpty() && ctx1==null) {
+						break;
+						}
+					
+					// this test here, not above, otherwise, the burden will not be applied
+					if(ctx1!=null && !accept.test(ctx1)) {
+						iter.next();//consumme
+						continue;
+						}
+					//consumme
+					if(ctx1!=null && (buffer.isEmpty() || ctx1.contigsMatch(buffer.get(0)))) {
+						buffer.add(iter.next());
+						}
+					}//end while iter
+				pw.flush();
+				} //end PrintWriter
+			} //end VCF iterator
+		return 0;
 		}
-		
-	
-	iter.close();
-	progress.close();	
+	catch(Throwable err) {
+		LOG.error(err);
+		return -1;
+		}
 	}
+
 	
 public static void main(final String[] args) {
 	new VcfBurdenSlidingWindow().instanceMainWithExit(args);

@@ -113,4 +113,3 @@ loads a (small) VCF and memory and, using a genetic-algorithm, tries, to find th
 java -jar TMP/jvarkit.jar optimizefisher --cases TMP/cases.txt --controls TMP/ctrls.txt -o TMP TMP/normalized.vcf.gz
 ```
 
-

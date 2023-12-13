@@ -28,6 +28,7 @@
  * Yu-Qian Qin, Chu-Yun Yang, Ze-Long Nie, Jun Wen, Ying Meng,.Phylogenomics and divergence pattern of Polygonatum (Asparagaceae: Polygonateae) in the north temperate region,.Molecular Phylogenetics and Evolution,.2023,.107962,.ISSN 1055-7903,.https://doi.org/10.1016/j.ympev.2023.107962. **msa2vcf**
  * Heczko, L., Hlaváč, V., Holý, P. et al. Prognostic potential of whole exome sequencing in the clinical management of metachronous colorectal cancer liver metastases. Cancer Cell Int 23, 295 (2023). https://doi.org/10.1186/s12935-023-03135-x **vcfpolyx**
  * Kaylee J Watson & al. Common analysis of direct RNA sequencinG CUrrently leads to misidentification of m5/C at GCU motifs .  10.26508/lsa.202302201 .
+ * Hany U, Watson CM, Liu L, et al. Novel Ameloblastin Variants, Contrasting Amelogenesis Imperfecta Phenotypes. Journal of Dental Research. 2023;0(0). doi:10.1177/00220345231203694 **Biostar214299**
 
 ## 2022
 

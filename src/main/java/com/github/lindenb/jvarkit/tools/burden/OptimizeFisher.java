@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.Reader;
@@ -35,24 +34,30 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.Vector;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.date.DurationParser;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.pedigree.CasesControls;
+import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -62,6 +67,8 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.StopWatch;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -98,10 +105,8 @@ creationDate="20221013"
 public class OptimizeFisher extends Launcher {
 	private static final Logger LOG = Logger.build( OptimizeFisher.class).make();
 	private static long ID_GENERATOR=0L;
-	@Parameter(names={"--cases"},description="path to a file containing the cases samples",required = true)
-	private Path casesSamplePath=null;
-	@Parameter(names={"--controls"},description="path to a file containing the controls samples",required = true)
-	private Path controlsSamplePath=null;
+	@ParametersDelegate
+	private CasesControls casesControls = new CasesControls();
 	@Parameter(names={"--properties"},description="optional path to a java property file defining the preferences. Such kind is saved by a run.", hidden = true)
 	private Path propertyFile =null;
 
@@ -118,16 +123,40 @@ public class OptimizeFisher extends Launcher {
 	private String durationStr  = "23h";
 	@Parameter(names={"--disable"},description="disable factory(ies) by name. Comma separated")
 	private String disableFactoriesNames="";
-	@Parameter(names={"--min-window-size"},description="min sliding window side")
+	@Parameter(names={"--min-window-size"},description="min sliding window side",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int min_sliding_window_size = 100;
-	@Parameter(names={"--max-window-size"},description="max sliding window side")
+	@Parameter(names={"--max-window-size"},description="max sliding window side",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_sliding_window_size = 100_000;
 
 	
 	
 	private VCFHeader vcfHeader;
-	private final List<VariantContext> variants = new Vector<>(100_00);
+	private final List<VariantWrapper> variants = new Vector<>(100_00);
 	
+	
+	private static class VariantWrapper implements Locatable {
+		final VariantContext ctx;
+		final Map<String,OptionalDouble> tag2value = new HashMap<>();
+		VariantWrapper(final VariantContext ctx) {
+			this.ctx = ctx;
+			}
+		@Override
+		public String getContig() {
+			return ctx.getContig();
+			}
+		@Override
+		public int getStart() {
+			return ctx.getStart();
+			}
+		@Override
+		public int getEnd() {
+			return ctx.getEnd();
+			}
+		@Override
+		public String toString() {
+			return ctx.toString();
+			}
+		}
 	
 	private class SlidingWindow implements Comparable<SlidingWindow>{
 		 int window_size;
@@ -215,7 +244,7 @@ public class OptimizeFisher extends Launcher {
 		void initialize(final VCFHeader v) {
 			
 			}
-		abstract void initialize(final VariantContext v);
+		abstract void initialize(final VariantWrapper v);
 		boolean isEnabled() {
 			return enabled;
 			}
@@ -234,7 +263,7 @@ public class OptimizeFisher extends Launcher {
 			Genotype singleton = null;
 			for(Genotype g:ctx.getGenotypes()) {
 				final String sn = g.getSampleName();
-				if(!cases.contains(sn) && !controls.contains(sn)) continue;
+				if(!casesControls.contains(sn)) continue;
 				if(g.isHet() || g.isHomVar()) {
 					if(singleton==null) {
 						singleton  = g;
@@ -249,7 +278,7 @@ public class OptimizeFisher extends Launcher {
 			}
 		abstract String getName();
 		abstract String asString(Trait t);
-		abstract boolean test(VariantContext ctx,Trait v);
+		abstract boolean test(VariantWrapper ctx,Trait v);
 		abstract boolean isSame(Trait a,Trait b);
 		abstract int compare(Trait a,Trait b);
 		}
@@ -304,10 +333,7 @@ public class OptimizeFisher extends Launcher {
 			props.setProperty(this.getName()+".value", String.valueOf(MyTrait.class.cast(trait).v));
 			}
 		@Override
-		void initialize(final VariantContext v) {
-			final OptionalDouble opt=getValueForVariant(v);
-			if(opt.isPresent()) initialize(opt.getAsDouble());
-			}
+		abstract protected void initialize(final VariantWrapper v);
 		
 		protected void initialize(final double v) {
 			if(this.init_state==STATE_SET_BY_USER) {
@@ -396,11 +422,13 @@ public class OptimizeFisher extends Launcher {
 		
 
 		protected abstract CompareOp getCompareOp();
-		protected abstract OptionalDouble getValueForVariant(final VariantContext ctx);
+		private final OptionalDouble getValueForVariant(final VariantWrapper w) {
+			return w.tag2value.get(getName());
+			}
 		
 		
 		@Override
-		boolean test(VariantContext ctx, Trait t) {
+		final boolean test(final VariantWrapper ctx, final Trait t) {
 		   final OptionalDouble opt = getValueForVariant(ctx);
 		   if(!opt.isPresent()) return true;
 		   return getCompareOp().test(opt.getAsDouble(),MyTrait.class.cast(t).v);
@@ -420,19 +448,21 @@ public class OptimizeFisher extends Launcher {
 	
 	private class AFTagFactory extends AbstractNumberFactory {
 		@Override
+		protected void initialize(VariantWrapper w) {
+			final OptionalDouble v = getAF(w.ctx);
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(Math.min(0.1,v.getAsDouble()));
+			}
+		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.LowerOrEqual;
 			}
-		@Override
-		protected double getMax() {
-			return 0.01;
-			}
-	   @Override
-	   protected OptionalDouble getValueForVariant(VariantContext ctx) {
+		
+	   private OptionalDouble getAF(VariantContext ctx){
 			double an=0.0;
 			double ac=0.0;
 			for(Genotype gt :ctx.getGenotypes()) {
-				if(!cases.contains(gt.getSampleName()) && !controls.contains(gt.getSampleName())) continue;
+				if(!casesControls.contains(gt)) continue;
 				for(Allele a: gt.getAlleles()) {
 					if(a.isNoCall()) continue;
 					an++;
@@ -452,10 +482,15 @@ public class OptimizeFisher extends Launcher {
 	
 	private abstract class  SimpleDoubleTagFactory  extends AbstractNumberFactory {
 		@Override
-		protected  OptionalDouble getValueForVariant(VariantContext ctx) {
-			if(!ctx.hasAttribute(getTag())) return OptionalDouble.empty();
-			return OptionalDouble.of(ctx.getAttributeAsDouble(getTag(), 0.0));
+		protected final void initialize(VariantWrapper w) {
+			final OptionalDouble v = !w.ctx.hasAttribute(getTag()) ?
+					OptionalDouble.empty():
+					OptionalDouble.of(w.ctx.getAttributeAsDouble(getTag(), 0.0))
+					;
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(v.getAsDouble());
 			}
+		
 		abstract String getTag();
 		
 		@Override
@@ -564,24 +599,22 @@ public class OptimizeFisher extends Launcher {
 	/** MISSING ./. */
 	private class MissingFactory extends AbstractNumberFactory {
 		@Override
+		protected void initialize(VariantWrapper w) {
+			final OptionalDouble v= getMissingValue(w.ctx);
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(Math.min(0.1,v.getAsDouble()));
+			}
+		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.LowerOrEqual;
 			}
-		@Override
-		protected double getMax() {
-			return 0.1;
-			}
-		@Override
-		protected double makeFirstNumber() {
-			return 0.01;
-			}
-		@Override
-		protected OptionalDouble getValueForVariant(VariantContext ctx) {
+		
+		private OptionalDouble getMissingValue(final VariantContext ctx) {
 			double n=0.0;
 			double miss = 0.0;
 			for(Genotype g:ctx.getGenotypes()) {
 				final String sn = g.getSampleName();
-				if(!cases.contains(sn) && !controls.contains(sn)) continue;
+				if(!casesControls.contains(sn)) continue;
 				n++;
 				if(g.isNoCall()) miss++;
 				}
@@ -599,22 +632,18 @@ public class OptimizeFisher extends Launcher {
 	/** horizontal fisher */
 	private class FisherH extends AbstractNumberFactory {
 		@Override
-		void initialize(VariantContext ctx) {
+		protected void initialize(final VariantWrapper w) {
+			final OptionalDouble v= getFisherH(w.ctx);
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(Math.min(0.1,v.getAsDouble()));
 			}
+		
 		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.GreaterOrEqual;
 			}
-		@Override
-		protected double getMin() {
-			return 0;
-			}
-		@Override
-		protected double getMax() {
-			return 0.1;
-			}
 		
-		protected OptionalDouble getValueForVariant(VariantContext ctx) {
+		private OptionalDouble getFisherH(final VariantContext ctx) {
 			int cases_alt = 0;
 			int cases_ref = 0;
 			int ctrl_alt = 0;
@@ -622,7 +651,7 @@ public class OptimizeFisher extends Launcher {
 			for(Genotype g:ctx.getGenotypes()) {
 				if(g.isNoCall()) continue;
 				final String sn = g.getSampleName();
-				if(cases.contains(sn)) {
+				if(casesControls.isCase(sn)) {
 					if(g.hasAltAllele()) {
 						cases_alt++;
 						}
@@ -631,7 +660,7 @@ public class OptimizeFisher extends Launcher {
 						cases_ref++;
 						}
 					}
-				else if(controls.contains(sn)) {
+				else if(casesControls.isControl(sn)) {
 					if(g.hasAltAllele()) {
 						ctrl_alt++;
 						}
@@ -658,20 +687,18 @@ public class OptimizeFisher extends Launcher {
 	/** Singleton AD */
 	private class SingletonADFactory extends AbstractNumberFactory {
 		@Override
+		protected void initialize(final VariantWrapper w) {
+			final OptionalDouble v= getADRatio(w.ctx);
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(Math.max(0.25,Math.min(0.5,v.getAsDouble())));
+			}
+		
+		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.GreaterOrEqual;
 			}
 		
-		@Override
-		protected double getMin() {
-			return 0.25;
-			}
-		@Override
-		protected double getMax() {
-			return 0.5;
-			}
-		@Override
-		protected OptionalDouble getValueForVariant(VariantContext ctx) {
+		private OptionalDouble getADRatio(final VariantContext ctx) {
 			final Genotype singleton = getSingleton(ctx);
 			if(singleton==null) return OptionalDouble.empty();
 			if(!singleton.isHet()) return OptionalDouble.empty();
@@ -692,21 +719,20 @@ public class OptimizeFisher extends Launcher {
 
 	/** Singleton GQ */
 	private class SingletonGQFactory extends AbstractNumberFactory {
+		
+		@Override
+		protected void initialize(final VariantWrapper w) {
+			final OptionalDouble v= getSingletonGQ(w.ctx);
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(Math.max(70,v.getAsDouble()));
+			}
+		
 		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.GreaterOrEqual;
 			}
-		@Override
-		protected double getMin() {
-			return 70.0;
-			}
-		@Override
-		protected double makeFirstNumber() {
-			return 80.0;
-			}
 		
-		@Override
-		protected OptionalDouble getValueForVariant(VariantContext ctx) {
+		private OptionalDouble getSingletonGQ(final VariantContext ctx) {
 			final Genotype singleton = getSingleton(ctx);
 			if(singleton==null) return OptionalDouble.empty();
 			if(!singleton.hasGQ()) return OptionalDouble.empty();
@@ -721,15 +747,22 @@ public class OptimizeFisher extends Launcher {
 	//
 	/** Gnomad AF */
 	private class GnomadAFFactory extends AbstractNumberFactory {
-		final String tag = "gnomad_genome_AF_POPMAX";
+		private final String tag = "gnomad_genome_AF_POPMAX";
+		
+		@Override
+		protected void initialize(final VariantWrapper w) {
+			final OptionalDouble v= getGnomadAF(w.ctx);
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(v.getAsDouble());
+			}
 		
 		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.LowerOrEqual;
 			}
 		
-		@Override
-		protected OptionalDouble getValueForVariant(VariantContext ctx) {
+		private OptionalDouble getGnomadAF(final VariantContext ctx) {
+			if(!ctx.hasAttribute(tag)) return OptionalDouble.of(0);
 			return OptionalDouble.of( ctx.getAttributeAsDoubleList(tag, 0.0).stream().
 					mapToDouble(V->V.doubleValue()).min().orElse(0.0));
 			}
@@ -747,12 +780,19 @@ public class OptimizeFisher extends Launcher {
 
 	private class CaddPhredFactory extends AbstractNumberFactory {
 		final String tag = "CADD_PHRED";
+		
+		@Override
+		protected void initialize(final VariantWrapper w) {
+			final OptionalDouble v= getCADD(w.ctx);
+			w.tag2value.put(getName(), v);
+			if(v.isPresent()) initialize(v.getAsDouble());
+			}
+		
 		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.GreaterOrEqual;
 			}
-		@Override
-		protected OptionalDouble getValueForVariant(VariantContext ctx) {
+		private OptionalDouble getCADD(final VariantContext ctx) {
 			return ctx.getAttributeAsStringList(tag,"0").
 					stream().
 					filter(S->StringUtils.isDouble(S)).
@@ -767,20 +807,16 @@ public class OptimizeFisher extends Launcher {
 			}
 		}
 	
-	private class PolyXFactory extends AbstractNumberFactory {
+	private class PolyXFactory extends SimpleDoubleTagFactory {
 		@Override
 		protected CompareOp getCompareOp() {
 			return OptimizeFisher.LowerOrEqual;
 			}
 		
-		@Override
-		protected OptionalDouble getValueForVariant(VariantContext ctx) {
-			if(!ctx.hasAttribute(getName())) return OptionalDouble.empty();
-			return OptionalDouble.of(ctx.getAttributeAsInt(getName(),0));
-			}
+		
 		
 		@Override
-		String getName() {
+		String getTag() {
 			return "POLYX";
 			}
 		}
@@ -898,16 +934,16 @@ public class OptimizeFisher extends Launcher {
 			this.vep = new VepPredictionParserFactory(header).get();
 			}
 		@Override
-		void initialize(final VariantContext ctx) {
-			vep.getPredictions(ctx).stream().
+		void initialize(final VariantWrapper w) {
+			this.vep.getPredictions(w.ctx).stream().
 					flatMap(P->P.getSOTermsStrings().stream()).
-					forEach(S->all_acns.add(S));
+					forEach(S->super.all_acns.add(S));
 			}
 		
 		@Override
-		boolean test(final VariantContext ctx,final Trait v) {
+		boolean test(final VariantWrapper wrapper,final Trait v) {
 			final MyTrait mt = MyTrait.class.cast(v);
-			return vep.getPredictions(ctx).stream().
+			return vep.getPredictions(wrapper.ctx).stream().
 					flatMap(P->P.getSOTermsStrings().stream()).
 					anyMatch(S->mt.acns.contains(S));
 			}
@@ -924,8 +960,6 @@ public class OptimizeFisher extends Launcher {
 	private final List<TraitFactory> traitFactories = new ArrayList<>();
 	private long n_generations = 0;
 	private Random random = new Random(System.currentTimeMillis());
-	private final Set<String> cases = new HashSet<>();
-	private final Set<String> controls = new HashSet<>();
 
 	
 	private class Solution implements Comparable<Solution> {
@@ -933,7 +967,7 @@ public class OptimizeFisher extends Launcher {
 		final long generation = OptimizeFisher.this.n_generations;
 		private OptionalDouble optPvalue=OptionalDouble.empty();
 		final List<Trait> traits;
-		final List<VariantContext> subset = new Vector<>();
+		final List<VariantWrapper> subset = new Vector<>();
 		SlidingWindow sliding_window = new SlidingWindow();
 		
 		Solution() {
@@ -992,8 +1026,8 @@ public class OptimizeFisher extends Launcher {
 						setOption(Options.INDEX_ON_THE_FLY).
 						build()) {
 					vw.writeHeader(hdr);
-					for(VariantContext ctx:this.subset) {
-						vw.add(ctx);
+					for(VariantWrapper w:this.subset) {
+						vw.add(w.ctx);
 						}
 					}
 				final Properties props = new Properties();
@@ -1027,36 +1061,37 @@ public class OptimizeFisher extends Launcher {
 
 		
 		void run()  {
-			LOG.info("running "+this.toString());
+			final StopWatch stopWatch = new StopWatch();
+			stopWatch.start();
 			this.optPvalue = OptionalDouble.empty();
 			double pvalue= 1.0;
 			this.subset.clear();
-			final List<VariantContext> L1 = new Vector<>(OptimizeFisher.this.variants.size());
+			final List<VariantWrapper> L1 = new Vector<>(OptimizeFisher.this.variants.size());
 			final Set<String> contigs = new HashSet<>();
-			for(VariantContext ctx: OptimizeFisher.this.variants) {
+			for(VariantWrapper w: OptimizeFisher.this.variants) {
 				boolean keep=true;
 				for(Trait t:this.traits) {
-					if(!t.getFactory().test(ctx, t)) {
+					if(!t.getFactory().test(w, t)) {
 						keep = false;
 						break;
 						}
 					}
 				if(!keep) continue;
-				L1.add(ctx);
-				contigs.add(ctx.getContig());
+				L1.add(w);
+				contigs.add(w.getContig());
 				}
 			if(L1.isEmpty()) {
 				LOG.warn("no variant for "+this.toString());
-			}
+				}
 			
 			for(final String contig: contigs) {
-				final List<VariantContext> L2 = new ArrayList<>(L1);
+				final List<VariantWrapper> L2 = new ArrayList<>(L1);
 				L2.removeIf(V->!V.getContig().equals(contig));
 				
 				int start = L2.get(0).getStart();
 				for(;;) {
-					final List<VariantContext> L3 = new ArrayList<>();
-					for(VariantContext ctx: L2) {
+					final List<VariantWrapper> L3 = new ArrayList<>();
+					for(VariantWrapper ctx: L2) {
 						if(ctx.getStart()< start) continue;
 						if(!L3.isEmpty() && CoordMath.getLength(L3.get(0).getStart(), ctx.getStart())> this.sliding_window.window_size) {
 							break;
@@ -1078,18 +1113,18 @@ public class OptimizeFisher extends Launcher {
 					start+= this.sliding_window.window_shift;
 					}
 				}
-					
-			LOG.info("value="+pvalue);
+			stopWatch.stop();
 			this.optPvalue = OptionalDouble.of(pvalue);
+			LOG.info("run="+this.toString()+" "+ StringUtils.niceDuration(stopWatch.getElapsedTime()));
 			}
 			
-		int[] getFisherCount(final List<VariantContext> variants) {
+		int[] getFisherCount(final List<VariantWrapper> variants) {
 			int case_alt = 0;
 			int case_ref = 0;
 			int ctrl_alt = 0;
 			int ctrl_ref = 0;
-			for(String cas : OptimizeFisher.this.cases) {
-				boolean has_alt =  variants.stream().map(G->G.getGenotype(cas)).anyMatch(G->G.hasAltAllele());
+			for(String cas : OptimizeFisher.this.casesControls.getCases()) {
+				boolean has_alt =  variants.stream().map(V->V.ctx.getGenotype(cas)).anyMatch(G->G.hasAltAllele());
 				if(has_alt) {
 					case_alt++;
 					}
@@ -1099,8 +1134,8 @@ public class OptimizeFisher extends Launcher {
 					}
 				}
 			
-			for(String ctrl : OptimizeFisher.this.controls) {
-				boolean has_alt = variants.stream().map(G->G.getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
+			for(String ctrl : OptimizeFisher.this.casesControls.getControls()) {
+				boolean has_alt = variants.stream().map(V->V.ctx.getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
 				if(has_alt) {
 					ctrl_alt++;
 					}
@@ -1173,30 +1208,13 @@ public class OptimizeFisher extends Launcher {
 			IOUtil.assertFileIsReadable(vcfPath);
 			IOUtil.assertDirectoryIsWritable(this.outputDir);
 			
-			
-			/* get cases */
-			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.casesSamplePath)) {
-				this.cases.addAll( br.lines().
-						filter(S->!StringUtils.isBlank(S) || S.startsWith("#")).
-						collect(Collectors.toSet())
-						);
-				LOG.info("cases N="+this.cases.size());
-				
-				}
-			/* get controls */
-			try(BufferedReader br = IOUtils.openPathForBufferedReading(this.controlsSamplePath)) {
-				this.controls.addAll( br.lines().
-						filter(S->!StringUtils.isBlank(S) || S.startsWith("#")).
-						collect(Collectors.toSet())
-						);
-				LOG.info("controls N="+this.controls.size());
-				
-				}
+			this.casesControls.load();
+			this.casesControls.checkHaveCasesControls().checkNoCommon();
 			
 			try(VCFReader r = VCFReaderFactory.makeDefault().open(vcfPath,false))  {
 				this.vcfHeader = r.getHeader();
-				this.cases.removeIf(S->!this.vcfHeader.getSampleNameToOffset().containsKey(S));
-				this.controls.removeIf(S->!this.vcfHeader.getSampleNameToOffset().containsKey(S));
+				this.casesControls.retain(vcfHeader);
+				
 				
 				try(CloseableIterator<VariantContext> iter=r.iterator()) {
 					while(iter.hasNext()) {
@@ -1209,30 +1227,19 @@ public class OptimizeFisher extends Launcher {
 							continue;
 							}
 						if(ctx.getGenotypes().stream().
-								filter(G->cases.contains(G.getSampleName()) || controls.contains(G.getSampleName())).
+								filter(G->this.casesControls.contains(G)).
 								noneMatch(G->G.hasAltAllele())) {
 							continue;
 							}
-						this.variants.add(ctx);
+						this.variants.add(new VariantWrapper(ctx));
 						}
 					}
-				Collections.sort(this.variants, this.vcfHeader.getVCFRecordComparator());
+				final Comparator<VariantContext> cmp1 =  this.vcfHeader.getVCFRecordComparator();
+				Collections.sort(this.variants, (V1,V2)->cmp1.compare(V1.ctx, V2.ctx));
 				}
 			LOG.info("N-variants:="+this.variants.size());
 
-			if(this.cases.isEmpty()) {
-				LOG.error("No case.");
-				return -1;
-				}
-			if(this.controls.isEmpty()) {
-				LOG.error("No control.");
-				return -1;
-				}
-			
-			if(cases.stream().anyMatch(S->controls.contains(S))) {
-				LOG.error("Common samples between cases and controls.");
-				return -1;
-				}
+			this.casesControls.checkHaveCasesControls().checkNoCommon();
 			
 			if(this.variants.isEmpty()) {
 				LOG.error("No variant was found.");
@@ -1277,7 +1284,7 @@ public class OptimizeFisher extends Launcher {
 				trait.initialize(vcfHeader);
 				trait.initialize(properties);
 				}
-			for(final VariantContext ctx:this.variants) {
+			for(final VariantWrapper ctx:this.variants) {
 				//initialize with current variant
 				for(TraitFactory traitF:traitFactories) {
 					traitF.initialize(ctx);
@@ -1336,6 +1343,8 @@ public class OptimizeFisher extends Launcher {
 				}
 			while(System.currentTimeMillis()< stop) {
 				++n_generations;
+				final StopWatch stopWatch = new StopWatch();
+				stopWatch.start();
 				for(Solution sol:generation) {
 					if(sol.getPValue() < best.getPValue() ) {
 						LOG.info("new best "+sol);
@@ -1343,7 +1352,7 @@ public class OptimizeFisher extends Launcher {
 						best.save();
 						}
 					}
-				LOG.info("Generation "+n_generations+" best:"+best.getPValue()+" "+TimeUnit.MILLISECONDS.toMinutes(stop-System.currentTimeMillis())+" minutes");
+				LOG.info("Generation "+n_generations+" best:"+best.getPValue());
 				final Solution external = new Solution();
 				if(generation.stream().noneMatch(S->S.isSame(external)) && !external.isSame(best)) {
 					external.run();
@@ -1375,6 +1384,8 @@ public class OptimizeFisher extends Launcher {
 					final Solution x = mate(best, best);
 					generation.add(x);
 					}
+				stopWatch.stop();
+				LOG.info("Generation : That took:" + StringUtils.niceDuration(stopWatch.getElapsedTime()) );
 				}
 			LOG.info("Done. Best "+best.getPValue());
 			return 0;
