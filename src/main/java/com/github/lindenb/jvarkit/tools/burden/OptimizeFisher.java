@@ -50,6 +50,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.date.DurationParser;
+import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -100,7 +101,8 @@ END_DOC
 description="Optimize fisher test on VCF using genetic algo",
 keywords= {"vcf","burden","fisher"},
 modificationDate="20231205",
-creationDate="20221013"
+creationDate="20221013",
+jvarkit_amalgamion = true
 )
 public class OptimizeFisher extends Launcher {
 	private static final Logger LOG = Logger.build( OptimizeFisher.class).make();
@@ -1217,8 +1219,9 @@ public class OptimizeFisher extends Launcher {
 				
 				
 				try(CloseableIterator<VariantContext> iter=r.iterator()) {
+					final OrderChecker<VariantContext> check = new OrderChecker<>(this.vcfHeader.getSequenceDictionary(),false);
 					while(iter.hasNext()) {
-						final VariantContext ctx = iter.next();
+						final VariantContext ctx = check.apply( iter.next());
 						if(ctx.getAlleles().size()!=2) {
 							LOG.error("Use bcftools norm. Expected only two alleles but then I got "+ctx);
 							return -1;

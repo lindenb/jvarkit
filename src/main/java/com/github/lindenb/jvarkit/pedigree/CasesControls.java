@@ -30,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -101,14 +102,22 @@ public class CasesControls {
 	/** retain cases / controls that are in the VCF header */
 	public void retain(final VCFHeader header) {
 		if(header==null) throw new NullPointerException("vcf header is null");
-		final Set<String> vcfsamples = new HashSet<>(header.getSampleNamesInOrder());
-		if(vcfsamples.isEmpty()) {
+		if(!header.hasGenotypingData()) {
 			LOG.warn("the vcf header contains no genotype/sample.");
+			}
+		retain(header.getGenotypeSamples());
+		}
+	
+	/** retain cases / controls that are in collection */
+	public void retain(final Collection<String> other) {
+		if(other==null) throw new NullPointerException("other header is null");
+		final Set<String> vcfsamples = new HashSet<>(other);
+		if(vcfsamples.isEmpty()) {
+			LOG.warn("the collection contains no genotype/sample.");
 			}
 		
 		this._cases = Collections.unmodifiableSet(this._cases.stream().filter(S->vcfsamples.contains(S)).collect(Collectors.toSet()));
 		this._controls = Collections.unmodifiableSet(this._controls.stream().filter(S->vcfsamples.contains(S)).collect(Collectors.toSet()));
-		checkNoCommon();
 		}
 	
 	public Set<String> getCases() {
@@ -128,7 +137,7 @@ public class CasesControls {
 		}
 	
 	public CasesControls checkHaveCasesControls() {
-		return checkHaveCases().checkHaveCasesControls();
+		return checkHaveCases().checkHaveControls();
 		}
 	
 	/** return true if cases or controls contains(gt.getSampleName()) */
@@ -137,7 +146,7 @@ public class CasesControls {
 	}
 	
 	/** return true if cases or controls contains sn */
-	public boolean contains(String sample) {
+	public boolean contains(final String sample) {
 		return this._cases.contains(sample) || this._controls.contains(sample);
 	}
 	

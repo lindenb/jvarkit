@@ -32,6 +32,7 @@ import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -47,7 +48,9 @@ import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.PeekIterator;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.variantcontext.filter.FilteringVariantContextIterator;
 import htsjdk.variant.variantcontext.writer.Options;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -57,6 +60,10 @@ import htsjdk.variant.vcf.VCFIterator;
 
 /**
 BEGIN_DOC
+
+# Motivation
+
+apply fisher test on VCF using a sliding window
 
 # Example
 
@@ -79,10 +86,11 @@ END_DOC
 */
 
 @Program(name="vcfburdenslidingwindow",
-description="Run Burden Sliding window",
+description="apply fisher test on VCF using a sliding window",
 keywords={"vcf","burden","case","control"},
 creationDate="20190920",
-modificationDate="20231213"
+modificationDate="20231213",
+jvarkit_amalgamion = true
 )
 public class VcfBurdenSlidingWindow extends Launcher {
 	private static final Logger LOG = Logger.build(VcfBurdenSlidingWindow.class).make();
@@ -94,7 +102,7 @@ public class VcfBurdenSlidingWindow extends Launcher {
 	@Parameter(names={"-f","--filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
 	@Parameter(names={"-t","--treshold"},description="fisher-test treshold. Discard results greater than this value.",splitter=NoSplitter.class,converter=FractionConverter.class)
-	private double fisherTreshold = 1e-5;
+	private double fisherTreshold = 1.0;
 	@Parameter(names={"-w","--window-size"},description="Window size",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int window_size=1_000;
 	@Parameter(names={"-s","--window-shift"},description="Window shift",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
@@ -118,162 +126,159 @@ public class VcfBurdenSlidingWindow extends Launcher {
 			this.casesControls.load();
 			this.casesControls.checkNoCommon().checkHaveCasesControls();
 			
-			final Predicate<VariantContext> accept = ctx->{
-				if(!StringUtils.isBlank(limitContig) && !limitContig.equals(ctx.getContig())) return false;
-				if(!variantFilter.test(ctx))return false;
-				return true;
-				};
 			
-			
-			try(VCFIterator iter = super.openVCFIterator(input)) {
-			final VCFHeader header = iter.getHeader();
-			this.casesControls.retain(header);
-			this.casesControls.checkNoCommon().checkHaveCasesControls();
-			
-			final SAMSequenceDictionary dict = header.getSequenceDictionary();
-			if(dict!=null && !StringUtils.isBlank(limitContig) && dict.getSequence(this.limitContig)==null) {
-				throw new JvarkitException.ContigNotFoundInDictionary(this.limitContig, dict);
-				}
-			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-				pw.print("#chrom");
-				pw.print("\t");
-				pw.print("start0");
-				pw.print("\t");
-				pw.print("end");
-				pw.print("\t");
-				pw.print("name");
-				pw.print("\t");
-				pw.print("length");
-				pw.print("\t");
-				pw.print("p-value");
-				pw.print("\t");
-				pw.print("affected_alt");
-				pw.print("\t");
-				pw.print("affected_hom");
-				pw.print("\t");
-				pw.print("unaffected_alt");
-				pw.print("\t");
-				pw.print("unaffected_hom");
-				pw.print("\t");
-				pw.print("variants.count");
-				pw.println();
-			
-			
-				final List<VariantContext> buffer = new ArrayList<>(100_000);
-				for(;;) {
-					final VariantContext ctx1 = iter.hasNext()?iter.peek():null;
-					//first variant in buffer ?
-					if(buffer.isEmpty() && ctx1!=null) {
-						if(!accept.test(ctx1)) {
-							iter.next();//consumme
+			try(VCFIterator iter1 = super.openVCFIterator(input)) {
+				final VCFHeader header = iter1.getHeader();
+				final OrderChecker<VariantContext> check = new OrderChecker<>(header.getSequenceDictionary(),false);
+
+				this.casesControls.retain(header);
+				this.casesControls.checkNoCommon().checkHaveCasesControls();
+
+				
+				
+				final FilteringVariantContextIterator iter2 = new FilteringVariantContextIterator(iter1,CTX->{
+					if(!StringUtils.isBlank(limitContig) && !limitContig.equals(CTX.getContig())) return false;
+					if(CTX.getGenotypes().stream().filter(G->casesControls.contains(G)).noneMatch(G->G.hasAltAllele())) return false;
+					if(!variantFilter.test(CTX))return false;
+					return true;
+					});
+				final PeekIterator<VariantContext> iter = new PeekIterator<>(iter2);
+				
+				
+				final SAMSequenceDictionary dict = header.getSequenceDictionary();
+				if(dict!=null && !StringUtils.isBlank(limitContig) && dict.getSequence(this.limitContig)==null) {
+					throw new JvarkitException.ContigNotFoundInDictionary(this.limitContig, dict);
+					}
+				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					pw.print("#chrom");
+					pw.print("\t");
+					pw.print("start0");
+					pw.print("\t");
+					pw.print("end");
+					pw.print("\t");
+					pw.print("name");
+					pw.print("\t");
+					pw.print("length");
+					pw.print("\t");
+					pw.print("p-value");
+					pw.print("\t");
+					pw.print("affected_alt");
+					pw.print("\t");
+					pw.print("affected_hom");
+					pw.print("\t");
+					pw.print("unaffected_alt");
+					pw.print("\t");
+					pw.print("unaffected_hom");
+					pw.print("\t");
+					pw.print("variants.count");
+					pw.println();
+				
+				
+					final List<VariantContext> buffer = new ArrayList<>(100_000);
+					for(;;) {
+						final VariantContext ctx1 = iter.hasNext()?iter.peek():null;
+						//first variant in buffer ?
+						if(buffer.isEmpty() && ctx1!=null) {
+							buffer.add(check.apply(iter.next()));//consumme
+							continue;
 							}
-						else
-							{
-							buffer.add(iter.next());//consumme
-							}
-						continue;
-						}
-					// dont check for contig here !
-					
-					if((ctx1==null || !ctx1.contigsMatch(buffer.get(0)) || CoordMath.getLength(buffer.get(0).getStart(), ctx1.getStart()) > this.window_size) && !buffer.isEmpty()) {
-						int case_alt = 0;
-						int case_ref = 0;
-						int ctrl_alt = 0;
-						int ctrl_ref = 0;
-						for(String cas : this.casesControls.getCases()) {
-							boolean has_alt =  buffer.stream().map(V->V.getGenotype(cas)).anyMatch(G->G.hasAltAllele());
-							if(has_alt) {
-								case_alt++;
-								}
-							else
-								{
-								case_ref++;
-								}
-							}
+						// dont check for contig here !
 						
-						for(String ctrl : this.casesControls.getControls()) {
-							boolean has_alt = buffer.stream().map(V->V.getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
-							if(has_alt) {
-								ctrl_alt++;
-								}
-							else
-								{
-								ctrl_ref++;
-								}
-							}
-						final double pvalue = FisherExactTest.compute(case_alt, case_ref,ctrl_alt,ctrl_ref).getAsDouble();
-						if(pvalue <= this.fisherTreshold) {
-							final String title = new SimpleInterval(buffer.get(0).getContig(),buffer.get(0).getStart(),buffer.get(buffer.size()-1).getStart()).toString();
-							pw.print(buffer.get(0).getContig());
-							pw.print("\t");
-							pw.print(buffer.get(0).getStart()-1);
-							pw.print("\t");
-							pw.print(buffer.get(buffer.size()-1).getStart());
-							pw.print("\t");
-							pw.print(title);
-							pw.print("\t");
-							pw.print(CoordMath.getLength(buffer.get(0).getStart(),buffer.get(buffer.size()-1).getStart()));
-							pw.print("\t");
-							pw.print(pvalue);
-							pw.print("\t");
-							pw.print(case_alt);
-							pw.print("\t");
-							pw.print(case_ref);
-							pw.print("\t");
-							pw.print(ctrl_alt);
-							pw.print("\t");
-							pw.print(ctrl_ref);
-							pw.print("\t");
-							pw.print(buffer.size());
-							pw.println();
-							
-							//save vcf
-							if(this.outputVcfPath!=null && pvalue < best_pvalue) {
-								final VCFHeader hdr = new VCFHeader(header);
-								hdr.addMetaDataLine(new VCFHeaderLine("PVALUE", String.valueOf(pvalue)));
-								try( VariantContextWriter vw=  new VariantContextWriterBuilder().
-										setOutputPath(this.outputVcfPath).
-										setOutputFileType(VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF).
-										setOption(Options.INDEX_ON_THE_FLY).
-										build()) {
-									vw.writeHeader(hdr);
-									for(VariantContext ctx:buffer) {
-										vw.add(ctx);
-										}
+						if((ctx1==null || !ctx1.contigsMatch(buffer.get(0)) || CoordMath.getLength(buffer.get(0).getStart(), ctx1.getStart()) > this.window_size) && !buffer.isEmpty()) {
+							int case_alt = 0;
+							int case_ref = 0;
+							int ctrl_alt = 0;
+							int ctrl_ref = 0;
+							for(String cas : this.casesControls.getCases()) {
+								boolean has_alt =  buffer.stream().map(V->V.getGenotype(cas)).anyMatch(G->G.hasAltAllele());
+								if(has_alt) {
+									case_alt++;
+									}
+								else
+									{
+									case_ref++;
 									}
 								}
 							
-							if( pvalue < best_pvalue) {
-								LOG.info("New best p-value "+pvalue+" "+title);
-								best_pvalue=pvalue;
-								pw.flush();
+							for(String ctrl : this.casesControls.getControls()) {
+								boolean has_alt = buffer.stream().map(V->V.getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
+								if(has_alt) {
+									ctrl_alt++;
+									}
+								else
+									{
+									ctrl_ref++;
+									}
+								}
+							final double pvalue = FisherExactTest.compute(case_alt, case_ref,ctrl_alt,ctrl_ref).getAsDouble();
+							if(pvalue <= this.fisherTreshold) {
+								final String title = new SimpleInterval(buffer.get(0).getContig(),buffer.get(0).getStart(),buffer.get(buffer.size()-1).getStart()).toString();
+								pw.print(buffer.get(0).getContig());
+								pw.print("\t");
+								pw.print(buffer.get(0).getStart()-1);
+								pw.print("\t");
+								pw.print(buffer.get(buffer.size()-1).getStart());
+								pw.print("\t");
+								pw.print(title);
+								pw.print("\t");
+								pw.print(CoordMath.getLength(buffer.get(0).getStart(),buffer.get(buffer.size()-1).getStart()));
+								pw.print("\t");
+								pw.print(pvalue);
+								pw.print("\t");
+								pw.print(case_alt);
+								pw.print("\t");
+								pw.print(case_ref);
+								pw.print("\t");
+								pw.print(ctrl_alt);
+								pw.print("\t");
+								pw.print(ctrl_ref);
+								pw.print("\t");
+								pw.print(buffer.size());
+								pw.println();
+								
+								//save vcf
+								if(this.outputVcfPath!=null && pvalue < best_pvalue) {
+									final VCFHeader hdr = new VCFHeader(header);
+									hdr.addMetaDataLine(new VCFHeaderLine("PVALUE", String.valueOf(pvalue)));
+									try( VariantContextWriter vw=  new VariantContextWriterBuilder().
+											setOutputPath(this.outputVcfPath).
+											setOutputFileType(VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF).
+											setOption(Options.INDEX_ON_THE_FLY).
+											build()) {
+										vw.writeHeader(hdr);
+										for(VariantContext ctx:buffer) {
+											vw.add(ctx);
+											}
+										}
+									}
+								
+								if( pvalue < best_pvalue) {
+									LOG.info("New best p-value "+pvalue+" "+title);
+									best_pvalue=pvalue;
+									pw.flush();
+									}
+								}
+	
+							//reduce
+							int buffer_start = buffer.get(0).getStart();
+							while(!buffer.isEmpty() && CoordMath.getLength(buffer_start, buffer.get(0).getStart()) < this.window_shift) {
+								buffer.remove(0);
 								}
 							}
-
-						//reduce
-						int buffer_start = buffer.get(0).getStart();
-						while(!buffer.isEmpty() && CoordMath.getLength(buffer_start, buffer.get(0).getStart()) < this.window_shift) {
-							buffer.remove(0);
+						//EOF
+						if(buffer.isEmpty() && ctx1==null) {
+							break;
 							}
-						}
-					//EOF
-					if(buffer.isEmpty() && ctx1==null) {
-						break;
-						}
 					
-					// this test here, not above, otherwise, the burden will not be applied
-					if(ctx1!=null && !accept.test(ctx1)) {
-						iter.next();//consumme
-						continue;
-						}
-					//consumme
-					if(ctx1!=null && (buffer.isEmpty() || ctx1.contigsMatch(buffer.get(0)))) {
-						buffer.add(iter.next());
-						}
-					}//end while iter
-				pw.flush();
-				} //end PrintWriter
-			} //end VCF iterator
+						//consumme
+						if(ctx1!=null && (buffer.isEmpty() || ctx1.contigsMatch(buffer.get(0)))) {
+							buffer.add(check.apply(iter.next()));
+							}
+						}//end while iter
+					pw.flush();
+					} //end PrintWriter
+				iter2.close();
+				} //end VCF iterator
 		return 0;
 		}
 	catch(Throwable err) {

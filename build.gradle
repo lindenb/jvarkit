@@ -2190,6 +2190,10 @@ all2.add(task("jeter5", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.burden.OptimizeFisher"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
+all2.add(task("jeter6", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfBurdenSlidingWindow"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
 
 
 /** bottom task */

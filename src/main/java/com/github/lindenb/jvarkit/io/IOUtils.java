@@ -845,8 +845,8 @@ public class IOUtils {
 	public static final String getFileSuffix(final Path path) {
 		if(path==null) throw new IllegalArgumentException("path is null");
 		final String s = path.getFileName().toString();
-		int dot = s.lastIndexOf('.');
-		if(dot==-1) throw new IllegalArgumentException("cannot find dot file of "+path);
+		final int dot = s.lastIndexOf('.');
+		if(dot==-1) throw new IllegalArgumentException("cannot find dot character in "+path);
 		return s.substring(dot);
 		}
 	
