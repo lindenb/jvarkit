@@ -44,6 +44,9 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -129,6 +132,8 @@ public class OptimizeFisher extends Launcher {
 	private int min_sliding_window_size = 100;
 	@Parameter(names={"--max-window-size"},description="max sliding window side",splitter=NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int max_sliding_window_size = 100_000;
+	@Parameter(names={"--threads"},description="number of threads")
+	private int nThreads = 1;
 
 	
 	
@@ -964,7 +969,7 @@ public class OptimizeFisher extends Launcher {
 	private Random random = new Random(System.currentTimeMillis());
 
 	
-	private class Solution implements Comparable<Solution> {
+	private class Solution implements Comparable<Solution>,Runnable {
 		final long id = (++OptimizeFisher.ID_GENERATOR);
 		final long generation = OptimizeFisher.this.n_generations;
 		private OptionalDouble optPvalue=OptionalDouble.empty();
@@ -1061,8 +1066,8 @@ public class OptimizeFisher extends Launcher {
 				}
 	
 
-		
-		void run()  {
+		@Override
+		public void run()  {
 			final StopWatch stopWatch = new StopWatch();
 			stopWatch.start();
 			this.optPvalue = OptionalDouble.empty();
@@ -1361,24 +1366,23 @@ public class OptimizeFisher extends Launcher {
 					external.run();
 					generation.add(external);
 					}
-				final List<Solution> generation2 = new ArrayList<>(generation.size()*generation.size());
+				final List<Solution> generation2 = new Vector<>(generation.size()*generation.size());
 				for(int x=0;x< generation.size();++x) {
 					for(int y=0;y< generation.size();++y) {
 						final Solution c = mate(generation.get(x),generation.get(y));
 						if(generation2.stream().anyMatch(S->S.isSame(c))) continue;
-						
-						final Solution same = generation.stream().filter(S->S.isSame(c)).findFirst().orElse(null);
-						if(same!=null) {
-							c.optPvalue = same.optPvalue;
-							}
-						else
-							{
-							c.run();
-							}
-						if(c.getPValue()==1.0) continue;
 						generation2.add(c);
 						}
 					}
+		        final ExecutorService executorService = Executors.newFixedThreadPool(this.nThreads);
+				for(int i=0; i < generation2.size();i+=this.nThreads) {
+					final List<Solution> batch = generation2.subList(i, Math.min(i + this.nThreads, generation2.size()));
+					batch.forEach(executorService::execute);
+					}
+				executorService.shutdown();
+				executorService.awaitTermination(365, TimeUnit.DAYS);
+				generation2.removeIf(C->C.getPValue()==1);
+				
 				if(!generation2.isEmpty()) {
 					Collections.sort(generation2);
 					generation = generation2.subList(0, Math.min(generation2.size(),this.n_samples_per_generation));

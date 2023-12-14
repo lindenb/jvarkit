@@ -7,17 +7,22 @@ Optimize fisher test on VCF using genetic algo
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/optimizefisher.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar optimizefisher  [options] Files
+
 Usage: optimizefisher [options] Files
   Options:
-  * --cases
-      path to a file containing the cases samples
+    --cases
+      File or comma-separated list of control samples
     --chiasma
       Proba chiasma
       Default: 0.01
-  * --controls
-      path to a file containing the controls samples
+    --controls
+      File or comma-separated list of control samples
     --disable
       disable factory(ies) by name. Comma separated
       Default: <empty string>
@@ -42,6 +47,9 @@ Usage: optimizefisher [options] Files
       Default: 5
   * --output, -o
       Output directory
+    --threads
+      number of threads
+      Default: 1
     --version
       print version and exit
 
@@ -54,23 +62,6 @@ Usage: optimizefisher [options] Files
  * burden
  * fisher
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew optimizefisher
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
