@@ -152,5 +152,6 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
  * Watson CM, Jackson L, Crinnion LA, et al. Long-read sequencing to resolve the parent of origin of a de novo pathogenic UBE3A variant. Journal of Medical Genetics Published Online First: 12 April 2022. doi: 10.1136/jmedgenet-2021-108314
  * Benjamin McClinton, Christopher M. Watson, Laura A. Crinnion, Martin McKibbin, Manir Ali, Chris F. Inglehearn, Carmel Toomes, Haplotyping Using Long-Range PCR and Nanopore Sequencing of Phase Variants; Lessons Learned From the ABCA4 Locus, Laboratory Investigation, 2023, 100160, ISSN 0023-6837
  * Shinde SS, Sharma A and Vijay N (2023) Decoding the fibromelanosis locus complex chromosomal rearrangement of black-bone chicken: genetic differentiation, selective sweeps and protein-coding changes in Kadaknath chicken. Front. Genet. 14:1180658. doi: 10.3389/fgene.2023.1180658
+ * Hany U, Watson CM, Liu L, et al. Novel Ameloblastin Variants, Contrasting Amelogenesis Imperfecta Phenotypes. Journal of Dental Research. 2023;0(0). doi:10.1177/00220345231203694
 
 
