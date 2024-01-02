@@ -156,6 +156,7 @@ nav:
         - "vcfbigwig" : VCFBigWig.md
         - "vcfburdenfisherh" : VcfBurdenFisherH.md
         - "vcfburdenmaf" : VcfBurdenMAF.md
+        - "vcfburdenslidingwindow" : VcfBurdenSlidingWindow.md
         - "vcfcadd" : VcfCadd.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcfcomposite" : VCFComposite.md
