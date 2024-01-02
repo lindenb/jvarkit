@@ -697,7 +697,7 @@ public class OptimizeFisher extends Launcher {
 		protected void initialize(final VariantWrapper w) {
 			final OptionalDouble v= getADRatio(w.ctx);
 			w.tag2value.put(getName(), v);
-			if(v.isPresent()) initialize(Math.max(0.25,Math.min(0.5,v.getAsDouble())));
+			if(v.isPresent()) initialize(Math.max(0.25,Math.min(0.4,v.getAsDouble())));
 			}
 		
 		@Override
