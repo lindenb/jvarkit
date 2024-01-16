@@ -1,5 +1,9 @@
 # Citations
 
+## 2024
+
+ *  Jin Hee Kim & Jeongsik Kim (2024) Comprehensive analysis of the chloroplast genome and phylogenetic relationships of Sasa quelpaertensis Nakai, Mitochondrial DNA Part B, 9:1, 88-93, DOI: 10.1080/23802359.2023.2301017 
+
 ## 2023
 
  * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Corrêa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114  **wgscoverageplotter**
