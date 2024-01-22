@@ -27,7 +27,8 @@ public class BasesTrack extends Track {
 	
 	@Override
 	public void paint(SVGContext ctx) {
-	
+		if(StringUtils.isBlank(getReference())) return;
+		
 		double featureWidth=  ctx.image_width/(double)(ctx.loc.getLengthOnReference()); 
 		double featureHeight= Math.min(Math.max(5.0,featureWidth),30); 			//base
 		if(!isVisible() || featureWidth<5) return;

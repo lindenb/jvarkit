@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.tools.genome2svg.beans;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -19,6 +20,7 @@ import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 
@@ -70,6 +72,9 @@ public class BamCoverageTrack extends Track {
 		final double featureHeight = getFeatureHeight();
 		String sampleName = getBam();
 		final SamReaderFactory srf = SamReaderFactory.make();
+		srf.validationStringency(ValidationStringency.LENIENT);
+		if(!StringUtils.isBlank(getReference())) srf.referenceSequence(Paths.get(getReference()));
+		
 		try(SamReader sr=srf.open(SamInputResource.of(getBam()))) {
 			final SAMFileHeader header = sr.getFileHeader();
 			sampleName = header.getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(getBam());
