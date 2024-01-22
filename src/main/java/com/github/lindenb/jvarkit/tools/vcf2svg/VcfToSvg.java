@@ -44,13 +44,12 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.pedigree.Pedigree;
-import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
-import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
@@ -101,8 +100,8 @@ END_DOC
  */
 @Program(name="vcf2svg",
 	description="write a vcf to svg , with gene context",
-	keywords={"vcf","svg","xlm","visualization"},
-	modificationDate="20200715",
+	keywords={"vcf","svg","xml","visualization"},
+	modificationDate="20240120",
 	creationDate="20170411"
 	)
 public class VcfToSvg extends Launcher {
@@ -128,8 +127,8 @@ private boolean variantsInExonOnly = false;
 private double variantFILTEREDOpacity = 1.0;
 @Parameter(names={"--alphaINDEL"},description="Variant INDEL opacity (0== hide INDEL variants) ")
 private double variantIndelOpacity = 1.0;
-@Parameter(names={"--pedigree"},description="Optional pedigree. "+PedigreeParser.OPT_DESC)
-private Path pedPath=null;
+@ParametersDelegate
+private CasesControls casesControls = new CasesControls();
 
 
 
@@ -179,13 +178,8 @@ public int doWork(final List<String> args) {
 			manifestW= new PrintWriter(new NullOuputStream());
 			}
 		
-		final Pedigree pedigree;
-		if(this.pedPath==null) {
-			pedigree = PedigreeParser.empty();
-		} else {
-			pedigree = new PedigreeParser().parse(this.pedPath);
-		}
-
+		this.casesControls.load();
+		
 		final Path tmpSvg = Files.createTempFile("vcf.", ".svg");
 		final XMLOutputFactory xof=XMLOutputFactory.newInstance();
 		
@@ -530,10 +524,9 @@ public int doWork(final List<String> args) {
 			for(int step=0;step<3;++step) {
 				for(final String sample: samples )
 					{
-					final Sample individual = pedigree.getSampleById(sample);
-					if(step==0 && (individual==null || !individual.isAffected())) continue;
-					if(step==1 && (individual==null || !individual.isUnaffected())) continue;
-					if(step==2 && individual!=null && individual.isStatusSet()) continue;
+					if(step==0 && !this.casesControls.isCase(sample)) continue;
+					if(step==1 && !this.casesControls.isControl(sample)) continue;
+					if(step==2 && !this.casesControls.contains(sample)) continue;
 					
 					w.writeStartElement("g");//sample
 					switch(step) {

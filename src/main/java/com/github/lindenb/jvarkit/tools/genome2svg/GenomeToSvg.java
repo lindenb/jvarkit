@@ -9,7 +9,10 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
@@ -308,6 +311,13 @@ public class GenomeToSvg extends Launcher {
 			return tabix;
 			}
 		@Override void paint(SVGContext ctx) {
+			
+			
+			ctx.styleNode.appendChild(ctx.text("."+getId()+"strand {fill:none;stroke:gray;stroke-width:0.5px;}\n"));
+			ctx.styleNode.appendChild(ctx.text("."+getId()+"kgtr {fill:none;stroke:gray;stroke-width:1px;}\n"));
+			ctx.styleNode.appendChild(ctx.text("."+getId()+"kgexon {fill:lightgray;stroke:gray;stroke-width:1px;}\n"));
+
+			
 			final Element g0 = ctx.element("g");
 			ctx.tracksNode.appendChild(g0);
 			insertTitle(g0,ctx);
@@ -329,11 +339,13 @@ public class GenomeToSvg extends Launcher {
 				Element polyline = ctx.element("polyline");
 				ctx.defsNode.appendChild(polyline);
 				polyline.setAttribute("id", "strandF");
+				polyline.setAttribute("class", getId()+"strand");
 				polyline.setAttribute("points", "-5,-5 0,0 -5,5");
 				
 				polyline = ctx.element("polyline");
 				ctx.defsNode.appendChild(polyline);
 				polyline.setAttribute("id", "strandR");
+				polyline.setAttribute("class", getId()+"strand");
 				polyline.setAttribute("points", "5,-5 0,0 5,5");
 				}
 			final double exonHeight = 10;
@@ -347,7 +359,7 @@ public class GenomeToSvg extends Launcher {
 					/* transcript line */
 					Element line = ctx.element("line");
 					g.appendChild(line);
-					line.setAttribute("class","kgtr");
+					line.setAttribute("class",getId()+"kgtr");
 					line.setAttribute("x1",String.valueOf(ctx.pos2pixel(ctx.trimpos(tr.getStart()))));
 					line.setAttribute("y1",String.valueOf(midY));
 					line.setAttribute("x2",String.valueOf(ctx.pos2pixel(ctx.trimpos(tr.getEnd()))));
@@ -365,7 +377,6 @@ public class GenomeToSvg extends Launcher {
 						if(pos1> tr.getEnd()) break;
 						Element use = ctx.element("use");
 						g.appendChild(use);
-						use.setAttribute("class", "kgstrand");
 						use.setAttribute("href", "#strand"+(tr.isPositiveStrand()?"F":"R"));
 						use.setAttribute("x",String.valueOf(pixX));
 						use.setAttribute("y",String.valueOf(midY));
@@ -377,7 +388,7 @@ public class GenomeToSvg extends Launcher {
 						if(!exon.overlaps(ctx.loc)) continue;
 						Element rect = ctx.element("rect");
 						g.appendChild(rect);
-						rect.setAttribute("class","kgexon");
+						rect.setAttribute("class",getId()+"kgexon");
 						
 						rect.setAttribute("x",String.valueOf(ctx.pos2pixel(ctx.trimpos(exon.getStart()))));
 						rect.setAttribute("y",String.valueOf(midY-exonHeight/2));
@@ -386,8 +397,24 @@ public class GenomeToSvg extends Launcher {
 						rect.setAttribute("height",String.valueOf(exonHeight));
 						rect.appendChild(ctx.title(exon.getName()));
 						}
+					
 					}
+				
+				// legend
+				{
+				final Set<String> geneNames = row.stream().map(KG->StringUtils.ifBlank(KG.getName2(), KG.getTranscriptId())).collect(Collectors.toCollection(LinkedHashSet::new));
+				if(geneNames.size()<10) {
+					final Element legend = ctx.element("text",String.join(" ", geneNames));
+					legend.setAttribute("style", "text-anchor:end;font-size:10px;");
+					legend.setAttribute("x", format(-5));
+					legend.setAttribute("y",String.valueOf(ctx.y+10));
+					g0.appendChild(legend);
+					}
+				}
+
+				
 				ctx.y += exonHeight;
+				ctx.y += 2;
 				}
 			}
 		}
@@ -585,7 +612,6 @@ public class GenomeToSvg extends Launcher {
 				points.add(new Point2D.Double(0,featureHeight));
 				x=1;
 				while(x<points.size()) {
-					System.err.println(points.get(x).getY());
 					if(x>0 && x+1 < points.size() &&  points.get(x-1).getY()==points.get(x).getY() && points.get(x).getY()==points.get(x+1).getY()) {
 						points.remove(x);
 						}

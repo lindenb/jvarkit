@@ -48,6 +48,7 @@ public int getDeltaPositionAcceptorGain();
 public int getDeltaPositionAcceptorLoss();
 public int getDeltaPositionDonorGain();
 public int getDeltaPositionDonorLoss();
+
 public default double[] getDeltaScores() {
 	return new double[] {
 			getDeltaScoreAcceptorGain(),

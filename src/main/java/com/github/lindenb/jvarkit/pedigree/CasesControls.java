@@ -89,35 +89,37 @@ public class CasesControls {
 		if(set.isEmpty()) LOG.warn("No valid sample was found in "+path+". "+nature);
 		return Collections.unmodifiableSet(set);
 		}
-	public void load() {
+	public CasesControls load() {
 		try {
 			this._cases = load(this.sourceCases);
 			this._controls = load(this.sourceControls);
 			}
-		catch(IOException err) {
+		catch(final IOException err) {
 			throw new RuntimeIOException(err);
 			}
+		return this;
 		}
 	
 	/** retain cases / controls that are in the VCF header */
-	public void retain(final VCFHeader header) {
+	public CasesControls retain(final VCFHeader header) {
 		if(header==null) throw new NullPointerException("vcf header is null");
 		if(!header.hasGenotypingData()) {
 			LOG.warn("the vcf header contains no genotype/sample.");
 			}
-		retain(header.getGenotypeSamples());
+		return retain(header.getGenotypeSamples());
 		}
 	
 	/** retain cases / controls that are in collection */
-	public void retain(final Collection<String> other) {
+	public CasesControls retain(final Collection<String> other) {
 		if(other==null) throw new NullPointerException("other header is null");
 		final Set<String> vcfsamples = new HashSet<>(other);
 		if(vcfsamples.isEmpty()) {
-			LOG.warn("the collection contains no genotype/sample.");
+			LOG.warn("CasesControls::retain the collection contains no genotype/sample.");
 			}
 		
 		this._cases = Collections.unmodifiableSet(this._cases.stream().filter(S->vcfsamples.contains(S)).collect(Collectors.toSet()));
 		this._controls = Collections.unmodifiableSet(this._controls.stream().filter(S->vcfsamples.contains(S)).collect(Collectors.toSet()));
+		return this;
 		}
 	
 	public Set<String> getCases() {
@@ -147,7 +149,7 @@ public class CasesControls {
 	
 	/** return true if cases or controls contains sn */
 	public boolean contains(final String sample) {
-		return this._cases.contains(sample) || this._controls.contains(sample);
+		return isCase(sample) || isControl(sample);
 	}
 	
 	public boolean isCase(final Genotype gt) {

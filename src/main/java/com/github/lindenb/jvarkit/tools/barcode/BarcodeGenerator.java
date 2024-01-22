@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Random;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;

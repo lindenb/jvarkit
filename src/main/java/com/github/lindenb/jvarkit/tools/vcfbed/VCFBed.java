@@ -141,7 +141,7 @@ END_DOC
 	biostars=247224,
 	creationDate="20180406",
 	modificationDate="20200623",
-	deprecatedMsg = "use bcttools annotate"
+	deprecatedMsg = "use bcftools annotate"
 	)
 public class VCFBed extends OnePassVcfLauncher
 	{

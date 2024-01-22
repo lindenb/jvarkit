@@ -216,10 +216,10 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		for(int i=0;i< ss.length;i++) {
 			tr.exonEnds[i] = Integer.parseInt(ss[i]);
 			}
-		if(this.name2_col>=0) {
+		if(this.name2_col>=0 && this.name2_col < tokens.size()) {
 			tr.name2 = tokens.get(this.name2_col);
 			}
-		if(this.score_col>=0) {
+		if(this.score_col>=0 && this.score_col < tokens.size()) {
 			tr.score = OptionalInt.of(Integer.parseInt(tokens.get(this.score_col)));
 			}
 		
