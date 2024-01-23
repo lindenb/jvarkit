@@ -7,19 +7,39 @@ import org.w3c.dom.Element;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
 
+
 public abstract class Track {
 	private static int ID_GENERATOR = 0;
 	private final String id = "id"+(++ID_GENERATOR);
 	protected String shortDesc = null;
 	protected String longDesc = null;
 	private String display = "";
+	private String reference = null;
+	private double featureHeight = 10;
+	
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+	
 	protected Track() {
 		}
 	
 	public String getId() {
 		return id;
 		}
+	
+	public void setReference(String reference) {
+		this.reference = reference;
+		}
+	public String getReference() {
+		return reference;
+		}
+
+	public void setFeatureHeight(double featureHeight) {
+		this.featureHeight = featureHeight;
+		}
+	public double getFeatureHeight() {
+		return featureHeight;
+		}
+	
 	
 	public void setShortDesc(String shortDesc) {
 		this.shortDesc = shortDesc;

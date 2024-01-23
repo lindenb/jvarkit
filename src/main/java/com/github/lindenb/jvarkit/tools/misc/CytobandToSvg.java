@@ -48,6 +48,7 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
+import com.github.lindenb.jvarkit.ucsc.Cytoband;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -56,7 +57,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
 /**
 BEGIN_DOC
@@ -107,69 +107,6 @@ private int height = 700;
 private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 private final int contig_title_size = 12;
 private final int round_rect = 5;
-
-private class Cytoband
-	implements Locatable
-	{
-	private final String contig;
-	private final int chromStart;
-	private final int chromEnd;
-	private final String name;
-	private final String gieStain;
-	public Cytoband(
-			final String contig,
-			final int chromStart,
-			final int chromEnd,
-			final String name,
-			final String gieStain
-			) {
-		this.contig = contig;
-		this.chromStart = chromStart;
-		this.chromEnd = chromEnd;
-		this.name = name;
-		this.gieStain = gieStain;
-		}
-	@Override
-	public String getContig() { return this.contig;}
-	@Override
-	public int getStart() { return this.chromStart;}
-	@Override
-	public int getEnd() { return this.chromEnd;}
-	public String getName() {
-		return name;
-		}
-	public String getStain() {
-		return gieStain;
-		}
-	/* https://github.com/ENCODE-DCC/kentUtils/blob/master/src/hg/lib/hCytoBand.c#L43 */
-	public String getFillColor() {
-		final String stain = this.getStain();
-		if (stain.startsWith("gneg"))
-		    {
-		    return "lightblue";
-		    }
-		else if (stain.startsWith("gpos") && stain.length()>4)
-		    {
-		    int percentage;
-		    try {
-		    	percentage = Math.max(0, Math.min(100,Integer.parseInt(stain.substring(4))));
-		    	}
-		    catch(final NumberFormatException err) {
-		    	percentage = 100;
-		    	}
-		    final int g = 40 + (int)(215.0*(percentage/100.0));
-		    return "rgb("+g+","+g+","+g+")";
-		    }
-		else if (stain.startsWith("gvar"))
-		    {
-		    return "slategray";
-		    }
-		else 
-		    {
-		    return "honeydew";
-		    }
-		}
-	}
 
 private class Contig
 	{
@@ -269,7 +206,7 @@ private class Contig
 		for(final  Cytoband c:this.cytobands) {
 			w.writeStartElement("rect");
 			w.writeAttribute("class","cytoband");
-			w.writeAttribute("style","fill:"+c.getFillColor()+";");
+			w.writeAttribute("style","fill:"+c.getCssColor()+";");
 			w.writeAttribute("clip-path","url(#clip_"+getContig()+")");
 			w.writeAttribute("x",format(r.getX()));
 			w.writeAttribute("y",format(pos2pixel(c.getStart(),r)));
@@ -334,13 +271,7 @@ private List<Cytoband>  parseCytobands(final BufferedReader r) throws IOExceptio
 	final Pattern tab=Pattern.compile("[\t]");
 	return r.lines().
 			map(L->tab.split(L)).
-			map(T->new Cytoband(
-					T[0],
-					Integer.parseInt(T[1]),
-					Integer.parseInt(T[2]),
-					T[3],
-					T[4]
-					)).
+			map(T->Cytoband.of(T)).
 			collect(Collectors.toList())
 			;
 	}

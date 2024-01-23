@@ -25,19 +25,11 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class BamCoverageTrack extends Track {
-	private String reference = null;
 	private String bamPath = null;
-	private int featureHeight = 100;
 	private Predicate<SAMRecord> samFilter = R->true;
 	private int minCoverage = -1;
 	public BamCoverageTrack() {
-		}
-	
-	public void setReference(String reference) {
-		this.reference = reference;
-		}
-	public String getReference() {
-		return reference;
+		setFeatureHeight(100);
 		}
 
 	
@@ -59,17 +51,11 @@ public class BamCoverageTrack extends Track {
 		return StringUtils.isBlank(super.shortDesc)?this.getBam():super.shortDesc;
 		}
 	
-	public void setFeatureHeight(int featureHeight) {
-		this.featureHeight = featureHeight;
-		}
-	public int getFeatureHeight() {
-		return Math.max(10,featureHeight);
-		}
 	
 	@Override
 	public void paint(SVGContext ctx) {
 		final int width = (int)ctx.image_width;
-		final double featureHeight = getFeatureHeight();
+		final double featureHeight =  Math.max(10,getFeatureHeight());
 		String sampleName = getBam();
 		final SamReaderFactory srf = SamReaderFactory.make();
 		srf.validationStringency(ValidationStringency.LENIENT);

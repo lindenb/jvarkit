@@ -22,6 +22,10 @@ public class VcfTrack extends Track {
 	private  BiFunction<VCFHeader, VariantContext, String> variantToString = (H,V)->V.getContig()+":"+V.getStart()+" "+V.getType();
 	private  BiFunction<VCFHeader, VariantContext, String> variantToStyle =  (H,V)->"fill:red;stroke:blue;";
 	private  BiFunction<VCFHeader, VariantContext, String> variantToURL =  (H,V)->"";
+	public VcfTrack() {
+		setFeatureHeight(10);
+		}
+	
 	public void setVcf(String path) {
 		this.path = path;
 		}
@@ -35,7 +39,7 @@ public class VcfTrack extends Track {
 		final Element g = ctx.element("g");
 		ctx.tracksNode.appendChild(g);
 		insertTitle(g,ctx);
-		double featureHeight = 10;
+		final double featureHeight = getFeatureHeight();
 		
 		try(VCFReader reader = VCFReaderFactory.makeDefault().open(getVcf(), true)) {
 			final VCFHeader header= reader.getHeader();
@@ -43,26 +47,11 @@ public class VcfTrack extends Track {
 				while(iter.hasNext()) {
 					final VariantContext vc = iter.next();
 					if(!this.filter.test(header, vc)) continue;
-					Element rect = ctx.element("rect");
+					final Element rect = ctx.rect(vc,ctx.y,featureHeight);
 					
-					String url = variantToURL.apply(header, vc);
-					if(StringUtils.isBlank(url)) {
-						g.appendChild(rect);
-						}
-					else
-						{
-						Element a = ctx.element("a");
-						a.setAttribute("href", url);
-						g.appendChild(a);
-						a.appendChild(rect);
-						}
+					final String url = variantToURL.apply(header, vc);
+					g.appendChild(ctx.anchor(rect, url));
 						
-					
-					rect.setAttribute("x",String.valueOf(ctx.pos2pixel(ctx.trimpos(vc.getStart()))));
-					rect.setAttribute("y",String.valueOf(ctx.y));
-					rect.setAttribute("width",String.valueOf(
-							ctx.pos2pixel(ctx.trimpos(vc.getEnd()+1))-ctx.pos2pixel(ctx.trimpos(vc.getStart()))));
-					rect.setAttribute("height",String.valueOf(featureHeight));
 					String title = this.variantToString.apply(header,vc);
 					if(!StringUtils.isBlank(title)) rect.appendChild(ctx.title(title));
 					

@@ -17,13 +17,6 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class BasesTrack extends Track {
-	private String reference;
-	public void setReference(String reference) {
-		this.reference = reference;
-		}
-	public String getReference() {
-		return reference;
-		}
 	
 	@Override
 	public void paint(SVGContext ctx) {
