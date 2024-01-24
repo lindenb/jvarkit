@@ -47,7 +47,7 @@ public class KnownGeneTrack extends Track {
 					ctx.loc.getEnd()
 					);
 			final UcscTranscriptCodec codec = new UcscTranscriptCodec();
-			Pileup<UcscTranscript> pileup = new Pileup<>();
+			final Pileup<UcscTranscript> pileup = new Pileup<>(ctx.createCollisionPredicate());
 			
 			while(iter.hasNext()) {
 				final UcscTranscript tr=codec.decode(iter.next());

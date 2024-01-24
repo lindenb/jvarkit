@@ -122,9 +122,11 @@ public class CasesControls {
 		return this;
 		}
 	
+	
 	public Set<String> getCases() {
 		return _cases;
 		}
+		
 	public Set<String> getControls() {
 		return _controls;
 		}

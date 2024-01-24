@@ -1,31 +1,50 @@
 package com.github.lindenb.jvarkit.tools.genome2svg.beans;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.w3c.dom.Element;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
-import com.github.lindenb.jvarkit.util.iterator.LineIterators;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.tribble.annotation.Strand;
-import htsjdk.tribble.gff.Gff3Codec;
-import htsjdk.tribble.gff.Gff3Codec.DecodeDepth;
-import htsjdk.tribble.gff.Gff3Feature;
-import htsjdk.tribble.readers.LineIteratorImpl;
-import htsjdk.tribble.readers.TabixIteratorLineReader;
 import htsjdk.tribble.readers.TabixReader;
 
-public class GffTrack extends Track {
-
+public class GtfTrack extends Track {
 	private String tabix;
-	public GffTrack() {
+	
+	private static class Transcript implements Locatable {
+		GTFLine transcript = null;
+		final List<GTFLine> exons = new ArrayList<>();
+		Transcript() {
+			}
+		@Override
+		public String getContig() {
+			return transcript.getContig();
+			}
+		@Override
+		public int getStart() {
+			return transcript.getStart();
+			}
+		@Override
+		public int getEnd() {
+			return transcript.getEnd();
+			}
+		}
+	
+	public GtfTrack() {
 		
 		}
 	public void setTabix(String tabix) {
@@ -35,20 +54,6 @@ public class GffTrack extends Track {
 		return tabix;
 		}
 	
-	
-	private void recursive(Gff3Feature feat,Pileup<Gff3Feature> pileup) {
-		if(feat.getType().equals("gene")) {
-			for(Gff3Feature c:feat.getChildren()) {
-				pileup.add(c);
-				}
-			}
-		else
-			{
-			for(Gff3Feature c:feat.getChildren()) {
-				recursive(c,pileup);
-				}
-			}
-		}
 	
 	@Override
 	public void paint(SVGContext ctx) {
@@ -75,44 +80,48 @@ public class GffTrack extends Track {
 		ctx.tracksNode.appendChild(g0);
 		insertTitle(g0,ctx);
 		
-		int chromStart = ctx.loc.getStart();
-		int chromEnd = ctx.loc.getEnd();
-		final Pileup<Gff3Feature> pileup = new Pileup<>(ctx.createCollisionPredicate());
-
+		final Pileup<Transcript> pileup = new Pileup<>(ctx.createCollisionPredicate());
+		final GTFCodec codec = new GTFCodec();
 		try(TabixReader tbx = new TabixReader(getTabix())) {
-			Gff3Codec codec = new Gff3Codec(DecodeDepth.SHALLOW);
+			final Map<String,Transcript> id2transcript= new HashMap<>();
 			TabixReader.Iterator iter = tbx.query(ctx.loc.getContig(), ctx.loc.getStart(), ctx.loc.getEnd());
 			for(;;) {
 				final String line = iter.next();
 				if(line==null) break;
-				final Gff3Feature gff3 = codec.decode(LineIterators.of(Collections.singletonList(line)));
-				if(gff3==null) continue;
-				if(!(gff3.getType().equals("gene"))) continue;
-				chromStart = Math.min(chromStart, gff3.getStart());
-				chromEnd = Math.max(chromEnd, gff3.getEnd());
-				}
-			codec = new Gff3Codec(DecodeDepth.DEEP);
-			iter = tbx.query(ctx.loc.getContig(),chromStart, chromEnd);
-			try(TabixIteratorLineReader lr = new TabixIteratorLineReader(iter)) {
-				final LineIteratorImpl li = new LineIteratorImpl(lr);
-				while(!codec.isDone(li)) {
-					final Gff3Feature  feat = codec.decode(li);
-					if(feat==null) continue;
-					recursive(feat,pileup);
+				final GTFLine gtf = codec.decode(line);
+				if(gtf==null) continue;
+				if(!gtf.hasAttribute("transcript_id")) continue;
+				final String transcript_id = gtf.getAttribute("transcript_id");
+				if(StringUtils.isBlank(transcript_id)) continue;
+				if(!(gtf.getType().equals("transcript") || gtf.getType().equals("exon"))) {
+					continue;
 					}
-				codec.close(li);
+				Transcript tr = id2transcript.get(transcript_id);
+				if(tr==null) {
+					tr =new Transcript();
+					id2transcript.put(transcript_id,tr);
+					}
+				if(gtf.getType().equals("transcript")) {
+					tr.transcript = gtf;
+					}
+				else if(gtf.getType().equals("exon")) {
+					tr.exons.add(gtf);
+					}
 				}
+			id2transcript.values().
+				stream().
+				filter(T->T.transcript!=null && !T.exons.isEmpty()).
+				sorted((A,B)->Integer.compare(A.getStart(),B.getStart())).
+				forEach(T->pileup.add(T));
 			}
 		catch(IOException err) {
 			throw new RuntimeIOException(err);
 			}
-		
-		
-		final double exonHeight = 10;
-		
-		for(List<Gff3Feature> row:pileup.getRows()) {
+
+		final double exonHeight = getFeatureHeight();
+		for(List<Transcript> row:pileup.getRows()) {
 			double midY= ctx.y + exonHeight/2.0;
-			for(Gff3Feature tr:row) {
+			for(Transcript tr:row) {
 				final Element g = ctx.element("g");
 				g0.appendChild(g);
 				
@@ -137,15 +146,14 @@ public class GffTrack extends Track {
 					if(pos1> tr.getEnd()) break;
 					Element use = ctx.element("use");
 					g.appendChild(use);
-					use.setAttribute("href", "#strand"+(tr.getStrand()==Strand.POSITIVE?"F":"R"));
+					use.setAttribute("href", "#strand"+(tr.transcript.isPostiveStrand()?"F":"R"));
 					use.setAttribute("x",String.valueOf(pixX));
 					use.setAttribute("y",String.valueOf(midY));
 					}
 				
 				/* exons */
-				for(final Gff3Feature exon: tr.getChildren())
+				for(final GTFLine exon: tr.exons)
 					{
-					if(!exon.getType().equals("exon")) continue;
 					if(!exon.overlaps(ctx.loc)) continue;
 					Element rect = ctx.element("rect");
 					g.appendChild(rect);
@@ -156,14 +164,13 @@ public class GffTrack extends Track {
 					rect.setAttribute("width",String.valueOf(
 							ctx.pos2pixel(ctx.trimpos(exon.getEnd()))-ctx.pos2pixel(ctx.trimpos(exon.getStart()))));
 					rect.setAttribute("height",String.valueOf(exonHeight));
-					rect.appendChild(ctx.title(exon.getName()));
 					}
 				
 				}
 			
 			// legend
 			{
-			final Set<String> geneNames = row.stream().flatMap(KG->KG.getAttribute("gene_name").stream()).collect(Collectors.toCollection(LinkedHashSet::new));
+			final Set<String> geneNames = row.stream().map(KG->KG.transcript.getAttribute("gene_name")).collect(Collectors.toCollection(LinkedHashSet::new));
 			if(geneNames.size()<10) {
 				final Element legend = ctx.element("text",String.join(" ", geneNames));
 				legend.setAttribute("style", "text-anchor:end;font-size:10px;");

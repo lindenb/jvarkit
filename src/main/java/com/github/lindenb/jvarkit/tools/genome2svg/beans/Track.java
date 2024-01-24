@@ -1,11 +1,14 @@
 package com.github.lindenb.jvarkit.tools.genome2svg.beans;
 
 import java.text.DecimalFormat;
+import java.util.function.BiPredicate;
 
 import org.w3c.dom.Element;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
+
+import htsjdk.samtools.util.Locatable;
 
 
 public abstract class Track {
@@ -85,6 +88,8 @@ public abstract class Track {
 		ctx.y += fontSize;
 		ctx.y += 5;
 		}
+	
+
 	
 	/** convert double to string */
 	protected String format(final double v)

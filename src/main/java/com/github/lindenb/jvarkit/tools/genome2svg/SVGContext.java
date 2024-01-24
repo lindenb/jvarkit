@@ -1,12 +1,13 @@
 package com.github.lindenb.jvarkit.tools.genome2svg;
 
 import java.text.DecimalFormat;
+import java.util.function.BiPredicate;
 
-import org.apache.commons.lang.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.util.Locatable;
@@ -81,5 +82,23 @@ public class SVGContext {
 	
 	public String format(double v) {
 		return this.decimalFormater.format(v);
+		}
+	
+	public <T extends Locatable> BiPredicate<T, T> createCollisionPredicate() {
+		return (A,B)->{
+			int diff = 1;
+			double x2 = pos2pixel(A.getEnd()) + diff;
+			double y1 = pos2pixel(B.getStart()) - diff;
+			
+
+			if(x2 < y1) return true;
+			
+			double x1 = pos2pixel(A.getStart()) - diff;
+			double y2 = pos2pixel(B.getEnd()) + diff;
+			
+			if(x1 > y2) return true;
+			
+			return false;
+			};
 		}
 }
