@@ -58,7 +58,7 @@ BEGIN_DOC
 export gtex eqtl data from a list of RS using the GTEX API
 
 ## Example
-
+```
 $ cat mylist.of.rs.txt | java -jar dist/jvarkit.jar gtexrs2qtl  | head | column -t
 
 method            chromosome  datasetId  gencodeId           geneSymbol  geneSymbolUpper  nes        pValue       pos       snpId      tissueSiteDetailId                   variantId               phenotypeId
@@ -71,6 +71,7 @@ singleTissueEqtl  chr20       gtex_v8    ENSG00000100991.11  TRPC4AP     TRPC4AP
 singleTissueEqtl  chr20       gtex_v8    ENSG00000088298.12  EDEM2       EDEM2            -0.265171  2.8512e-15   35045523  rs6088690  Thyroid                              chr20_35045523_A_G_b38  .
 singleTissueEqtl  chr20       gtex_v8    ENSG00000101000.5   PROCR       PROCR            -0.181498  9.80399e-07  35045523  rs6088690  Thyroid                              chr20_35045523_A_G_b38  .
 singleTissueEqtl  chr20       gtex_v8    ENSG00000078814.15  MYH7B       MYH7B            0.211821   3.58767e-08  35045523  rs6088690  Esophagus_Gastroesophageal_Junction  chr20_35045523_A_G_b38  .
+```
 
 END_DOC
 */
@@ -83,9 +84,11 @@ jvarkit_amalgamion = true
 )
 public class GtexRsToQTL extends Launcher {
 private static final Logger LOG=Logger.build(GtexRsToQTL.class).make(); 
-private final static String BASE_API="https://gtexportal.org/rest/v1";
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private Path outputFile = null;
+@Parameter(names={"--base-api"},description="GTEX base API")
+private String gtex_base_api = "https://gtexportal.org/api/v2";
+
 @Parameter(names={"--debug-json"},hidden = true)
 private boolean debug_json = false;
 
@@ -108,6 +111,17 @@ private static final class Params {
 	CloseableHttpClient httpClient;
 	final JsonParser jsonparser = new JsonParser();
 	PrintWriter out;
+	}
+
+private void test_paginf(JsonElement e) {
+	if(!e.isJsonObject()) return;
+	JsonObject o = e.getAsJsonObject();
+	if(!o.has("paging_info")) return;
+	e= o.get("paging_info");
+	if(!e.isJsonObject()) return;
+	o = e.getAsJsonObject();
+	if(!o.has("numberOfPages")) return;
+	if(o.get("numberOfPages").getAsInt()>1) throw new IllegalStateException("fix this numpage>1");
 	}
 
 private JsonElement call(
@@ -152,16 +166,17 @@ private void tissue(
 		final String method,
 		final String variantId
 		)  throws IOException {
-	final String url= BASE_API + "/association/"+ method +
-			"?format=json&variantId="+variantId+"&datasetId=gtex_v8";
+	final String url= this.gtex_base_api + "/association/"+ method +
+			"?format=json&variantId=" + variantId + "&datasetId=gtex_v8";
 	final PrintWriter out = params.out;
 	final JsonElement e  = call(params,url);
+	test_paginf(e);
 	final JsonObject object1 = e.getAsJsonObject();
-	if(!object1.has(method)) {
-		LOG.warning("no "+ method+" in "+e);
+	if(!object1.has("data")) {
+		LOG.warning("no data in "+e);
 		return;
 		}
-	final JsonArray array = object1.get(method).getAsJsonArray();
+	final JsonArray array = object1.get("data").getAsJsonArray();
 	for(JsonElement e2:array) {
 		final JsonObject object2 = e2.getAsJsonObject();
 		out.print(method);
@@ -196,11 +211,12 @@ private void oneRS(
 		final Params params, 
 		final String rs
 		) throws IOException {
-	JsonElement e1 = call(params, BASE_API + "/dataset/variant?format=json&snpId="+ rs + "&datasetId=gtex_v8");
+	JsonElement e1 = call(params, this.gtex_base_api + "/dataset/variant?format=json&snpId="+ rs + "&datasetId=gtex_v8");
+	test_paginf(e1);
 	JsonObject o1 = e1.getAsJsonObject();
-	if(!o1.has("variant")) return;
+	if(!o1.has("data")) return;
 	
-	JsonArray array = o1.get("variant").getAsJsonArray();
+	JsonArray array = o1.get("data").getAsJsonArray();
 	if(array.size()==0) return;
 	for(JsonElement e2: array) {
 		JsonObject o2 = e2.getAsJsonObject();

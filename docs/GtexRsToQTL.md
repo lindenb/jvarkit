@@ -16,6 +16,9 @@ Usage: java -jar dist/jvarkit.jar gtexrs2qtl  [options] Files
 
 Usage: gtexrs2qtl [options] Files
   Options:
+    --base-api
+      GTEX base API
+      Default: https://gtexportal.org/api/v2
     -h, --help
       print help and exit
     --helpFormat
@@ -71,7 +74,7 @@ The current reference is:
 export gtex eqtl data from a list of RS using the GTEX API
 
 ## Example
-
+```
 $ cat mylist.of.rs.txt | java -jar dist/jvarkit.jar gtexrs2qtl  | head | column -t
 
 method            chromosome  datasetId  gencodeId           geneSymbol  geneSymbolUpper  nes        pValue       pos       snpId      tissueSiteDetailId                   variantId               phenotypeId
@@ -84,5 +87,6 @@ singleTissueEqtl  chr20       gtex_v8    ENSG00000100991.11  TRPC4AP     TRPC4AP
 singleTissueEqtl  chr20       gtex_v8    ENSG00000088298.12  EDEM2       EDEM2            -0.265171  2.8512e-15   35045523  rs6088690  Thyroid                              chr20_35045523_A_G_b38  .
 singleTissueEqtl  chr20       gtex_v8    ENSG00000101000.5   PROCR       PROCR            -0.181498  9.80399e-07  35045523  rs6088690  Thyroid                              chr20_35045523_A_G_b38  .
 singleTissueEqtl  chr20       gtex_v8    ENSG00000078814.15  MYH7B       MYH7B            0.211821   3.58767e-08  35045523  rs6088690  Esophagus_Gastroesophageal_Junction  chr20_35045523_A_G_b38  .
+```
 
 
