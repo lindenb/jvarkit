@@ -5,23 +5,29 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.w3c.dom.Element;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class BamCoverageTrack extends Track {
@@ -50,6 +56,154 @@ public class BamCoverageTrack extends Track {
 	public String getShortDesc() {
 		return StringUtils.isBlank(super.shortDesc)?this.getBam():super.shortDesc;
 		}
+	private SamReader openSamReader() {
+		final SamReaderFactory srf = SamReaderFactory.make();
+		srf.validationStringency(ValidationStringency.LENIENT);
+		if(!StringUtils.isBlank(getReference())) srf.referenceSequence(Paths.get(getReference()));
+		return srf.open(SamInputResource.of(getBam()));
+		}
+	
+	private String getSampleName(final SAMFileHeader header) {
+		return header.getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(getBam());
+	}
+	
+	private static class Fragment implements Locatable, Comparable<Fragment >{
+		private SAMRecord rec1 = null;
+		private SAMRecord rec2 = null;
+		Fragment(final SAMRecord rec1) {
+			this.rec1 = rec1;
+			}
+		
+		@Override
+		public int compareTo(Fragment o) {
+			return Integer.compare(getStart(), o.getStart());
+			}
+		
+		SAMRecord getFirst() {
+			return this.rec1;
+			}
+		SAMRecord getSecond() {
+			return this.rec1==null?getFirst():this.rec2;
+			}
+		
+		@Override
+		public String getContig() {
+			return getFirst().getContig();
+			}
+		@Override
+		public int getStart() {
+			return Math.min(getFirst().getStart(), getSecond().getStart());
+			}
+		
+		String getTitle() {
+			return rec1.getReadName()+" "+rec1.getContig()+":"+getStart()+"-"+getEnd();
+			}
+		
+		private int getMateEnd(final SAMRecord rec) {
+			if(!rec.getReadPairedFlag()) return -1;
+			if(rec.getReadUnmappedFlag()) return -1;
+			int n = rec.getMateAlignmentStart();
+			if(rec.hasAttribute(SAMTag.MC)) n = Math.max(n, SAMUtils.getMateAlignmentEnd(rec));
+			return n;
+			}
+		
+		@Override
+		public int getEnd() {
+			int n = this.rec1.getEnd();
+			if(this.rec2!=null) {
+				Math.max(rec2.getEnd(),n);
+				}
+			else
+				{
+				n  = Math.max(getMateEnd(this.rec1),n);
+				}
+			return n;
+			}
+		
+		void put(SAMRecord rec) {
+			if(this.rec2!=null) return;
+			if(!rec1.getReadPairedFlag()) return;
+			if(rec1.getMateUnmappedFlag()) return;
+			if(!this.rec1.getReadName().equals(rec.getReadName())) return;
+			if(!rec.getReadPairedFlag()) return;
+			if(rec.getFirstOfPairFlag()==this.rec1.getFirstOfPairFlag()) return;
+			if(rec.getSecondOfPairFlag()==this.rec1.getSecondOfPairFlag()) return;
+			if(this.rec1.getStart() < rec2.getStart()) {
+				this.rec2=rec;
+				}
+			else
+				{
+				this.rec2=this.rec1;
+				this.rec1=rec;
+				}
+			}
+		Element display(SVGContext ctx) {
+			Element g= ctx.element("g");
+			boolean require_line=true;
+			double R1x1 = ctx.pixel2genomic(rec1.getStart());
+			double R1x2 = ctx.pixel2genomic(rec1.getEnd());
+			
+			if(rec2!=null) {
+				double R2x1 = ctx.pixel2genomic(rec2.getStart());
+				double R2x2 = ctx.pixel2genomic(rec2.getEnd());
+				if(R2x1 <= R1x2) {
+					require_line = false;
+					}
+				}
+			else
+				{
+				require_line = false;
+				}
+			
+			if(require_line) {
+				Element line = ctx.line(this,ctx.y);
+				g.insertBefore(line, g.getFirstChild());
+				}
+			return g;
+			}
+		}
+	
+	
+	private boolean paintLowResolution(SVGContext ctx) {
+		final long max_reads = 1000L;
+		final long count_read = 0L;
+		final Map<String,Fragment> readName2frag  = new HashMap<>();
+		try(SamReader sr= openSamReader()) {
+			final SAMFileHeader header = sr.getFileHeader();
+			try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctx.loc.getContig(), ctx.loc.getStart(), ctx.loc.getEnd())) {
+				while(iter.hasNext()) {
+					final SAMRecord rec = iter.next();
+					Fragment frag = readName2frag.get(rec.getReadName());
+					if(frag==null) {
+						frag = new Fragment(rec);
+						readName2frag.put(rec.getReadName(), frag);
+						}
+					frag.put(rec);
+					count_read++;
+					if(count_read>max_reads) return false;
+					}
+				}
+		} catch(IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		final Pileup<Fragment> pileup = new Pileup<>(ctx.createCollisionPredicate());
+		pileup.addAll(readName2frag.
+				values().
+				stream().
+				filter(F->samFilter.test(F.getFirst()) || samFilter.test(F.getSecond())).
+				sorted().
+				collect(Collectors.toList()
+				);
+		Element g0 = ctx.element("g");
+		for(List<Fragment> row: pileup.getRows()) {
+			ctx.y+=1;
+			for(Fragment frag : row) {
+				g0.appendChild(frag.display(ctx));
+				}
+			ctx.y+= getFeatureHeight();
+			ctx.y+=1;
+			}
+		}
 	
 	
 	@Override
@@ -57,13 +211,9 @@ public class BamCoverageTrack extends Track {
 		final int width = (int)ctx.image_width;
 		final double featureHeight =  Math.max(10,getFeatureHeight());
 		String sampleName = getBam();
-		final SamReaderFactory srf = SamReaderFactory.make();
-		srf.validationStringency(ValidationStringency.LENIENT);
-		if(!StringUtils.isBlank(getReference())) srf.referenceSequence(Paths.get(getReference()));
-		
-		try(SamReader sr=srf.open(SamInputResource.of(getBam()))) {
+		try(SamReader sr=openSamReader()) {
 			final SAMFileHeader header = sr.getFileHeader();
-			sampleName = header.getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(getBam());
+			sampleName = getSampleName(header);
 			final double[] array = new double[width];
 			Arrays.fill(array, -999);
 			try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctx.loc.getContig(), ctx.loc.getStart(), ctx.loc.getEnd())) {

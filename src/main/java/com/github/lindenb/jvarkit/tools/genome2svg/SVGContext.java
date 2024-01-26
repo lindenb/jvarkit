@@ -67,6 +67,21 @@ public class SVGContext {
 		return rect;
 		}
 	
+	public Element line(Locatable locatable,double y) {
+		return line(locatable.getStart(),locatable.getEnd(),y);
+		}
+	
+	public Element line(int chromStart1,int chromEnd1,double y) {
+		final Element line = element("line");
+		double x1 = pos2pixel(trimpos(chromStart1));
+		double x2 = pos2pixel(trimpos(chromEnd1+1));
+		line.setAttribute("x1", format(x1));
+		line.setAttribute("y1", format(y));
+		line.setAttribute("x2", format(x2));
+		line.setAttribute("y2", format(y));
+		return line;
+		}
+	
 	public Element anchor(Element child,final String url) {
 		if(StringUtils.isBlank(url)) return child;
 		final Element a = element("a");

@@ -79,7 +79,7 @@ END_DOC
 description="extract gtex eqtl data from a list of RS",
 keywords={"gtex","rs","eqtl","sqtl"},
 creationDate="20230215",
-modificationDate="20230215",
+modificationDate="20240225",
 jvarkit_amalgamion = true
 )
 public class GtexRsToQTL extends Launcher {
