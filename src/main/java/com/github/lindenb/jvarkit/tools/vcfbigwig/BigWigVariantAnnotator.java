@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.tools.vcfbigwig;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -35,6 +34,7 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 import com.github.lindenb.jvarkit.wig.BigWigReader;
 
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
@@ -118,22 +118,23 @@ public class BigWigVariantAnnotator implements VariantAnnotator {
 		double sum=0.0;
 		double minV=0;
 		double maxV=0;
-		final Iterator<BigWigReader.WigItem> iter=this.bigWigReader.query(loc);
-		while(iter.hasNext())
-			{
-			final BigWigReader.WigItem item=iter.next();
-			if(!item.overlaps(loc)) continue;//paranoid
-			final float v=item.getValue();
-			sum+=v;
-			count++;
-			if(count==1) {
-				minV = v;
-				maxV = v;
-				}
-			else
+		try(final CloseableIterator<BigWigReader.WigItem> iter=this.bigWigReader.query(loc)) {
+			while(iter.hasNext())
 				{
-				minV = Math.min(minV, v);
-				maxV = Math.max(maxV, v);
+				final BigWigReader.WigItem item=iter.next();
+				if(!item.overlaps(loc)) continue;//paranoid
+				final float v=item.getValue();
+				sum+=v;
+				count++;
+				if(count==1) {
+					minV = v;
+					maxV = v;
+					}
+				else
+					{
+					minV = Math.min(minV, v);
+					maxV = Math.max(maxV, v);
+					}
 				}
 			}
 		if(count==0) return Collections.singletonList(ctx);

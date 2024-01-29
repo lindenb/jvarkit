@@ -33,7 +33,6 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -79,10 +78,9 @@ public class GenomeToSvg extends Launcher {
 	
 	
 	
-	
-	private ApplicationContext configuration = null;
 	@Override
 	public int doWork(List<String> args) {
+		FileSystemXmlApplicationContext configuration = null;
 		try {
 			if(args.isEmpty()) {
 				LOG.error("Spring config empty");
@@ -91,10 +89,16 @@ public class GenomeToSvg extends Launcher {
 			final SVGContext svgContext = new SVGContext();
 			svgContext.image_width = this.image_width;
 			svgContext.image_width = this.image_width;
-			this.configuration =  new FileSystemXmlApplicationContext(args.toArray(new String[args.size()]));
 			
+			configuration =  new FileSystemXmlApplicationContext(args.toArray(new String[args.size()]));
 			
-			
+			/*
+		    DefaultConversionService service = new DefaultConversionService();
+		    service.addConverter(Converter);
+			ConfigurableEnvironment environment = new StandardEnvironment();
+			environment.setConversionService(service);
+			configuration.setEnvironment(environment);
+			*/
 			svgContext.loc = IntervalParserFactory.newInstance().
 					make().
 					apply(this.intervalStr).
@@ -128,7 +132,7 @@ public class GenomeToSvg extends Launcher {
 			frame.setAttribute("width", String.valueOf(svgContext.image_width+ svgContext.left_margin-1));
 			
 
-			for(Object ot:this.configuration.getBean("tracks",List.class)) {
+			for(Object ot: configuration.getBean("tracks",List.class)) {
 				final Track track = Track.class.cast(ot);
 				if(!track.isVisible()) continue;
 				double prev_y = svgContext.y;

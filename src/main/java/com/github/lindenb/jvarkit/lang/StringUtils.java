@@ -316,6 +316,15 @@ public static String niceFileSize(final long bytes) {
     return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 
+public static String assertNotBlank(final String s,final String errorMessage) {
+	if(isBlank(s)) throw new IllegalArgumentException(String.valueOf(errorMessage));
+	return s;
+	}
+public static String assertNotBlank(final String s) {
+	return assertNotBlank(s,"String cannot be null or empry");
+	}
+
+
 public static String ifBlank(final String s,final String def) {
 	return isBlank(s)?def:s;
 	}

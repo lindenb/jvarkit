@@ -27,24 +27,19 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.SamLocusIterator;
+import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
 
-public class BamCoverageTrack extends Track {
-	private String bamPath = null;
-	private Predicate<SAMRecord> samFilter = R->true;
+public class BamCoverageTrack extends AbstractBamTrack {
 	private int minCoverage = -1;
 	public BamCoverageTrack() {
 		setFeatureHeight(100);
 		}
-
 	
-	public void setBam(String path) {
-		this.bamPath = path;
-		}
-	public String getBam() {
-		return bamPath;
-		}
 	public void setMinCoverage(int minCoverage) {
 		this.minCoverage = minCoverage;
 		}
@@ -54,20 +49,20 @@ public class BamCoverageTrack extends Track {
 	
 	@Override
 	public String getShortDesc() {
-		return StringUtils.isBlank(super.shortDesc)?this.getBam():super.shortDesc;
-		}
-	private SamReader openSamReader() {
-		final SamReaderFactory srf = SamReaderFactory.make();
-		srf.validationStringency(ValidationStringency.LENIENT);
-		if(!StringUtils.isBlank(getReference())) srf.referenceSequence(Paths.get(getReference()));
-		return srf.open(SamInputResource.of(getBam()));
+		String s = super.getShortDesc();
+		if(StringUtils.isBlank(s)) {
+			if(getBams().size()==1) {
+				s = getBams().get(0).getShortDesc();
+				}
+			else
+				{
+				s = String.valueOf(getBams().size())+" Bams";
+				}
+			}
+		return s;
 		}
 	
-	private String getSampleName(final SAMFileHeader header) {
-		return header.getReadGroups().stream().map(RG->RG.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(getBam());
-	}
-	
-	private static class Fragment implements Locatable, Comparable<Fragment >{
+	private  class Fragment implements Locatable, Comparable<Fragment >{
 		private SAMRecord rec1 = null;
 		private SAMRecord rec2 = null;
 		Fragment(final SAMRecord rec1) {
@@ -137,50 +132,72 @@ public class BamCoverageTrack extends Track {
 				this.rec1=rec;
 				}
 			}
-		Element display(SVGContext ctx) {
-			Element g= ctx.element("g");
+		
+		
+		Element display(SVGContext ctx,double height) {
+			final Element g= ctx.element("g");
 			boolean require_line=true;
-			double R1x1 = ctx.pixel2genomic(rec1.getStart());
-			double R1x2 = ctx.pixel2genomic(rec1.getEnd());
 			
 			if(rec2!=null) {
-				double R2x1 = ctx.pixel2genomic(rec2.getStart());
-				double R2x2 = ctx.pixel2genomic(rec2.getEnd());
-				if(R2x1 <= R1x2) {
+				if(rec1.getEnd() >= rec2.getStart() || (int)ctx.pos2pixel(rec1.getEnd()) >= (int)ctx.pos2pixel(rec2.getStart()) ) {
 					require_line = false;
+					Element rect12 = ctx.rect(
+							Math.min(rec1.getStart(),rec2.getStart()),
+							Math.max(rec1.getEnd(),rec2.getEnd()),
+							ctx.y,
+							height
+							);
+					g.appendChild(rect12);
+					}
+				else
+					{
+					Element rect = ctx.rect(rec1.getStart(),rec1.getEnd(),ctx.y,height);
+					g.appendChild(rect);
+					
+					rect = ctx.rect(rec2.getStart(),rec2.getEnd(),ctx.y,height);
+					g.appendChild(rect);
 					}
 				}
 			else
 				{
 				require_line = false;
+				Element rect1 = ctx.rect(rec1.getStart(),rec1.getEnd(),ctx.y,height);
+				g.appendChild(rect1);
 				}
+			
+			
 			
 			if(require_line) {
 				Element line = ctx.line(this,ctx.y);
 				g.insertBefore(line, g.getFirstChild());
 				}
-			return g;
+			g.appendChild(ctx.title(getTitle()));
+			return ctx.anchor(g, getUrlForLocatable(this));
+			}
+		}
+	private boolean paintLowResolution(SVGContext ctx,double featureHeight) {
+		for(BamBean bamBean:getBams()) {
+			vapaintLowResolution( bamBean, ctx,featureHeight);
 			}
 		}
 	
-	
-	private boolean paintLowResolution(SVGContext ctx) {
+	private Element paintLowResolution(BamBean bamBean,SVGContext ctx, double featureHeight) {
 		final long max_reads = 1000L;
-		final long count_read = 0L;
 		final Map<String,Fragment> readName2frag  = new HashMap<>();
-		try(SamReader sr= openSamReader()) {
-			final SAMFileHeader header = sr.getFileHeader();
-			try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctx.loc.getContig(), ctx.loc.getStart(), ctx.loc.getEnd())) {
-				while(iter.hasNext()) {
-					final SAMRecord rec = iter.next();
-					Fragment frag = readName2frag.get(rec.getReadName());
-					if(frag==null) {
-						frag = new Fragment(rec);
-						readName2frag.put(rec.getReadName(), frag);
+		try(SamReader sr= bamBean.openSamReader()) {
+			final Locatable loc = bamBean.resolveContig(ctx.loc);
+			if(loc!=null) {
+				try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(loc.getContig(), loc.getStart(), loc.getEnd())) {
+					while(iter.hasNext()) {
+						final SAMRecord rec = iter.next();
+						Fragment frag = readName2frag.get(rec.getReadName());
+						if(frag==null) {
+							frag = new Fragment(rec);
+							readName2frag.put(rec.getReadName(), frag);
+							if(readName2frag.size() > max_reads) return null;
+							}
+						frag.put(rec);
 						}
-					frag.put(rec);
-					count_read++;
-					if(count_read>max_reads) return false;
 					}
 				}
 		} catch(IOException err) {
@@ -190,153 +207,199 @@ public class BamCoverageTrack extends Track {
 		pileup.addAll(readName2frag.
 				values().
 				stream().
-				filter(F->samFilter.test(F.getFirst()) || samFilter.test(F.getSecond())).
+				filter(F->(getSamFilter().test(F.getFirst())  || getSamFilter().test(F.getSecond()) )).
 				sorted().
-				collect(Collectors.toList()
+				collect(Collectors.toList())
 				);
 		Element g0 = ctx.element("g");
 		for(List<Fragment> row: pileup.getRows()) {
 			ctx.y+=1;
 			for(Fragment frag : row) {
-				g0.appendChild(frag.display(ctx));
+				g0.appendChild(frag.display(ctx, featureHeight));
 				}
-			ctx.y+= getFeatureHeight();
+			ctx.y+= featureHeight;
 			ctx.y+=1;
 			}
+		return g0;
 		}
 	
-	
-	@Override
-	public void paint(SVGContext ctx) {
-		final int width = (int)ctx.image_width;
-		final double featureHeight =  Math.max(10,getFeatureHeight());
-		String sampleName = getBam();
-		try(SamReader sr=openSamReader()) {
-			final SAMFileHeader header = sr.getFileHeader();
-			sampleName = getSampleName(header);
-			final double[] array = new double[width];
-			Arrays.fill(array, -999);
-			try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctx.loc.getContig(), ctx.loc.getStart(), ctx.loc.getEnd())) {
+	private int maxCoverage(BamBean bamBean, Locatable interval) {
+		final Locatable loc = bamBean.resolveContig(interval);
+		if(loc==null) return 0;
+		long maxCov=0L;
+		try(SamReader sr= bamBean.openSamReader()) {
+			final IntervalList il = new IntervalList(sr.getFileHeader());
+			il.add(new Interval(loc));
+			try(SamLocusIterator iter = new SamLocusIterator(sr, il,true)) {
 				while(iter.hasNext()) {
-					final SAMRecord rec = iter.next();
-					if(!samFilter.test(rec) || rec.getReadUnmappedFlag()) continue;
-					int prev=-1;
-					for(AlignmentBlock block : rec.getAlignmentBlocks()) {
-						for(int x=0;x< block.getLength();++x) {
-							int p1 = block.getReferenceStart()+x;
-							if(p1 < ctx.loc.getStart()) continue;
-							if(p1 > ctx.loc.getEnd()) break;
-							int p2 = (int)ctx.pos2pixel(p1);
-							if(prev==p2) continue;
-							prev=p2;
-							if(p2<0 || p2>array.length) continue;
-							if(array[p2]<0) array[p2]=0;
-							array[p2]++;
-							}
-						}
+					final SamLocusIterator.LocusInfo locusInfo = iter.next();
+					maxCov = Math.max(maxCov,
+							locusInfo.getRecordAndOffsets().
+							stream().
+							filter(LI->getSamFilter().test((LI.getRecord()))).
+							count()
+							)
+							;
 					}
 				}
-			int x=0;
-			while(x<array.length) {
-				if(array[x]<0) {
-					array[x] = x>0?array[x-1]:0;
-					}
-				x++;
-				}
-			double maxcov = Math.max(1, Arrays.stream(array).max().orElse(1));
-			if(getMinCoverage()>0 && maxcov < getMinCoverage()) maxcov = getMinCoverage();
-			//defs
-			{
-			Element grad= ctx.element("linearGradient");
-			ctx.defsNode.appendChild(grad);
-			grad.setAttribute("id",getId()+"grad");
-			grad.setAttribute("x1","0%");
-			grad.setAttribute("y1","0%");
-			grad.setAttribute("x2","0%");
-			grad.setAttribute("y2","100%");
-			//grad.setAttribute("gradientTransform","rotate(90)");
-			
-			Element stop = ctx.element("stop");
-			grad.appendChild(stop);
-			stop.setAttribute("offset", "0%");
-			stop.setAttribute("stop-color",(maxcov>50?"red":maxcov>20?"green":"blue"));
-			
-			stop = ctx.element("stop");
-			grad.appendChild(stop);
-			stop.setAttribute("offset", "100%");
-			stop.setAttribute("stop-color", "darkblue");
-			}
-			
-			
-			final Element g0 = ctx.element("g");
-			ctx.tracksNode.appendChild(g0);
-			insertTitle(g0,ctx);
-			
-			final Element legend = ctx.element("text",sampleName);
-			legend.setAttribute("x", format(-ctx.left_margin));
-			legend.setAttribute("y",String.valueOf(ctx.y+10));
-			g0.appendChild(legend);
-			
-			final Element g = ctx.element("g");
-			g0.appendChild(g);
-			g.setAttribute("transform", "translate(0,"+ctx.y+")");
-			ctx.tracksNode.appendChild(g);
-			
-			final Element path = ctx.element("polyline");
-			path.setAttribute("style", "stroke:red;fill:url('#"+getId()+"grad')");
-			g.appendChild(path);
-			final List<Point2D> points = new ArrayList<>(array.length+2);
-			points.add(new Point2D.Double(0,featureHeight));
-			for(int i=0;i< array.length;i++) {
-				points.add(new Point2D.Double(i, featureHeight - (array[i]/maxcov)*featureHeight));
-				}
-			points.add(new Point2D.Double(array.length-1,featureHeight));
-			points.add(new Point2D.Double(0,featureHeight));
-			x=1;
-			while(x<points.size()) {
-				if(x>0 && x+1 < points.size() &&  points.get(x-1).getY()==points.get(x).getY() && points.get(x).getY()==points.get(x+1).getY()) {
-					points.remove(x);
-					}
-				else
-					{
-					++x;
-					}
-				}
-							
-			path.setAttribute("points", points.stream().
-					map(P->format(P.getX())+","+format(P.getY())).
-					collect(Collectors.joining(" "))
-					);
-			// yaxis
-			ctx.styleNode.appendChild(ctx.text("."+getId()+"ticks{stroke:darkgray;stroke-width:1px;}\n"));
-			ctx.styleNode.appendChild(ctx.text("."+getId()+"lbl{text-anchor:end;font-size:10px;}\n"));
-			final int nTicks = 10;
-			for(int i=0;i< nTicks;i++) {
-				final double cov = (maxcov/nTicks)*i;
-				final double v = featureHeight - (cov/maxcov) * featureHeight;
-				final Element line = ctx.element("line");
-				line.setAttribute("x1", format(0));
-				line.setAttribute("y1", format(v));
-				line.setAttribute("x2", format(-5));
-				line.setAttribute("y2", format(v));
-				line.setAttribute("class",getId()+"ticks");
-
-				g.appendChild(line);
-				
-				final Element text = ctx.element("text",format(cov));
-				text.setAttribute("class",getId()+"lbl");
-				text.setAttribute("x", format(-5));
-				text.setAttribute("y", format(v));
-				g.appendChild(text);
-				
-			}
-			
-			ctx.y+=featureHeight;
 			}
 		catch(IOException err) {
 			throw new RuntimeIOException(err);
 			}
+		return (int)maxCov;
 		}
 	
-
+		private boolean paintCoverage(SVGContext ctx) {
+			final int width = (int)ctx.image_width;
+			final double featureHeight =  Math.max(10,getFeatureHeight());
+			String sampleName;
+			
+			int userMaxCov=0;
+			for(BamBean bamBean: getBams()) {
+				userMaxCov = Math.max(maxCoverage(bamBean, ctx.loc), userMaxCov);
+				}
+			
+			final double[] array = new double[width];
+	
+			for(BamBean bamBean: getBams()) {
+				try(SamReader sr= bamBean.openSamReader()) {
+					final SAMFileHeader header = sr.getFileHeader();
+					sampleName = bamBean.getSampleName();
+					Arrays.fill(array, -999);
+					try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctx.loc.getContig(), ctx.loc.getStart(), ctx.loc.getEnd())) {
+						while(iter.hasNext()) {
+							final SAMRecord rec = iter.next();
+							if(!getSamFilter().test(rec) || rec.getReadUnmappedFlag()) continue;
+							int prev=-1;
+							for(AlignmentBlock block : rec.getAlignmentBlocks()) {
+								for(int x=0;x< block.getLength();++x) {
+									int p1 = block.getReferenceStart()+x;
+									if(p1 < ctx.loc.getStart()) continue;
+									if(p1 > ctx.loc.getEnd()) break;
+									int p2 = (int)ctx.pos2pixel(p1);
+									if(prev==p2) continue;
+									prev=p2;
+									if(p2<0 || p2>array.length) continue;
+									if(array[p2]<0) array[p2]=0;
+									array[p2]++;
+									}
+								}
+							}
+						}
+					int x=0;
+					while(x<array.length) {
+						if(array[x]<0) {
+							array[x] = x>0?array[x-1]:0;
+							}
+						x++;
+						}
+					double maxcov = Math.max(1, Arrays.stream(array).max().orElse(1));
+					if(getMinCoverage()>0 && maxcov < getMinCoverage()) maxcov = getMinCoverage();
+					//defs
+					{
+					Element grad= ctx.element("linearGradient");
+					ctx.defsNode.appendChild(grad);
+					grad.setAttribute("id",getId()+"grad");
+					grad.setAttribute("x1","0%");
+					grad.setAttribute("y1","0%");
+					grad.setAttribute("x2","0%");
+					grad.setAttribute("y2","100%");
+					//grad.setAttribute("gradientTransform","rotate(90)");
+					
+					Element stop = ctx.element("stop");
+					grad.appendChild(stop);
+					stop.setAttribute("offset", "0%");
+					stop.setAttribute("stop-color",(maxcov>50?"red":maxcov>20?"green":"blue"));
+					
+					stop = ctx.element("stop");
+					grad.appendChild(stop);
+					stop.setAttribute("offset", "100%");
+					stop.setAttribute("stop-color", "darkblue");
+					}
+					
+					
+					final Element g0 = ctx.element("g");
+					ctx.tracksNode.appendChild(g0);
+					insertTitle(g0,ctx);
+					
+					final Element legend = ctx.element("text",sampleName);
+					legend.setAttribute("x", format(-ctx.left_margin));
+					legend.setAttribute("y",String.valueOf(ctx.y+10));
+					g0.appendChild(legend);
+					
+					final Element g = ctx.element("g");
+					g0.appendChild(g);
+					g.setAttribute("transform", "translate(0,"+ctx.y+")");
+					ctx.tracksNode.appendChild(g);
+					
+					final Element path = ctx.element("polyline");
+					path.setAttribute("style", "stroke:red;fill:url('#"+getId()+"grad')");
+					g.appendChild(path);
+					final List<Point2D> points = new ArrayList<>(array.length+2);
+					points.add(new Point2D.Double(0,featureHeight));
+					for(int i=0;i< array.length;i++) {
+						points.add(new Point2D.Double(i, featureHeight - (array[i]/maxcov)*featureHeight));
+						}
+					points.add(new Point2D.Double(array.length-1,featureHeight));
+					points.add(new Point2D.Double(0,featureHeight));
+					x=1;
+					while(x<points.size()) {
+						if(x>0 && x+1 < points.size() &&  points.get(x-1).getY()==points.get(x).getY() && points.get(x).getY()==points.get(x+1).getY()) {
+							points.remove(x);
+							}
+						else
+							{
+							++x;
+							}
+						}
+									
+					path.setAttribute("points", points.stream().
+							map(P->format(P.getX())+","+format(P.getY())).
+							collect(Collectors.joining(" "))
+							);
+					// yaxis
+					ctx.styleNode.appendChild(ctx.text("."+getId()+"ticks{stroke:darkgray;stroke-width:1px;}\n"));
+					ctx.styleNode.appendChild(ctx.text("."+getId()+"lbl{text-anchor:end;font-size:10px;}\n"));
+					final int nTicks = 10;
+					for(int i=0;i< nTicks;i++) {
+						final double cov = (maxcov/nTicks)*i;
+						final double v = featureHeight - (cov/maxcov) * featureHeight;
+						final Element line = ctx.element("line");
+						line.setAttribute("x1", format(0));
+						line.setAttribute("y1", format(v));
+						line.setAttribute("x2", format(-5));
+						line.setAttribute("y2", format(v));
+						line.setAttribute("class",getId()+"ticks");
+	
+						g.appendChild(line);
+						
+						final Element text = ctx.element("text",format(cov));
+						text.setAttribute("class",getId()+"lbl");
+						text.setAttribute("x", format(-5));
+						text.setAttribute("y", format(v));
+						g.appendChild(text);
+						
+					}
+					
+				}
+				catch(IOException err) {
+					throw new RuntimeIOException(err);
+					}
+				ctx.y+=featureHeight;
+			}
+				
+		return true;
+		}
+	
+	@Override
+	public void paint(SVGContext ctx) {
+		
+		
+		double save_y = ctx.y;
+		if(paintLowResolution(ctx,10)) {
+			return;
+			}
+		ctx.y = save_y;
+		paintCoverage(ctx);
+		}
 }

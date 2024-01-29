@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.tools.fastq;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -41,6 +42,7 @@ import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.fastq.FastqRecordCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -150,17 +152,18 @@ public class FastqShuffle extends Launcher
 	
 	private static class OneReadCodec extends AbstractDataCodec<OneRead>
 		{
+		private final FastqRecordCodec fqCodec = new FastqRecordCodec();
 		@Override
 		public OneRead decode(final DataInputStream dis) throws IOException
 			{
 			final OneRead r=new OneRead();
 			try {
 				r.random = dis.readLong();
-			} catch (final IOException e) {
+			} catch (final EOFException e) {
 				return null;
 				}
 			r.index = dis.readLong();
-			r.first=readFastqRecord(dis);
+			r.first= this.fqCodec.decode(dis);
 			return r;
 			}
 		@Override
@@ -168,7 +171,7 @@ public class FastqShuffle extends Launcher
 				throws IOException {
 			dos.writeLong(r.random);
 			dos.writeLong(r.index);
-			writeFastqRecord(dos,r.first);
+			this.fqCodec.encode(dos,r.first);
 			}
 		@Override
 		public AbstractDataCodec<OneRead> clone() {
@@ -178,18 +181,19 @@ public class FastqShuffle extends Launcher
 	
 	private static class TwoReadsCodec extends AbstractDataCodec<TwoReads>
 		{
+		private final FastqRecordCodec fqCodec = new FastqRecordCodec();
 		@Override
 		public TwoReads decode(final DataInputStream dis) throws IOException
 			{
 			final TwoReads r=new TwoReads();
 			try {
 				r.random = dis.readLong();
-			} catch (final IOException e) {
+			} catch (final EOFException e) {
 				return null;
 				}
 			r.index = dis.readLong();
-			r.first=readFastqRecord(dis);
-			r.second=readFastqRecord(dis);
+			r.first= this.fqCodec.decode(dis);
+			r.second= this.fqCodec.decode(dis);
 			return r;
 			}
 		@Override
@@ -197,36 +201,13 @@ public class FastqShuffle extends Launcher
 				throws IOException {
 			dos.writeLong(r.random);
 			dos.writeLong(r.index);
-			writeFastqRecord(dos,r.first);
-			writeFastqRecord(dos,r.second);
+			this.fqCodec.encode(dos,r.first);
+			this.fqCodec.encode(dos,r.second);
 			}
 		@Override
 		public AbstractDataCodec<TwoReads> clone() {
 			return new TwoReadsCodec();
 			}
-		}
-
-	
-	private static FastqRecord readFastqRecord(final DataInputStream dis)  throws IOException
-		{
-		final String seqHeader=dis.readUTF();
-		final String seqLine=dis.readUTF();
-		final String qualHeader=dis.readUTF();
-		final String qualLine=dis.readUTF();
-		return new FastqRecord(seqHeader, seqLine, qualHeader, qualLine);
-		}
-	
-	private static String notNull(final String s)
-		{
-		return s==null?"":s;
-		}	
-	
-	private static void writeFastqRecord(final DataOutputStream dos,final FastqRecord r)  throws IOException
-		{
-		dos.writeUTF(notNull(r.getReadName()));
-		dos.writeUTF(notNull(r.getReadString()));
-		dos.writeUTF(notNull(r.getBaseQualityHeader()));
-		dos.writeUTF(notNull(r.getBaseQualityString()));
 		}
 
 	

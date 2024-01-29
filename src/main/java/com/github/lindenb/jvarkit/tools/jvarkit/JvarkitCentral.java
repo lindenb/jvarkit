@@ -108,6 +108,7 @@ import com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix;
 import com.github.lindenb.jvarkit.tools.coverageserver.CoverageServer;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
+import com.github.lindenb.jvarkit.tools.fastq.RepairFastq;
 import com.github.lindenb.jvarkit.tools.findallcov.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadSV;
@@ -629,6 +630,7 @@ public class JvarkitCentral {
 		command(PrettySam.class);
 		command(ReferenceToHtml.class);
 		command(RDFCombine.class);
+		command(RepairFastq.class);
 		command(VCFBigWig.class);
 		command(VcfBigBed.class);
 		command(VcfFilterGtf.class);

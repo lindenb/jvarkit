@@ -34,15 +34,19 @@ public class SVGContext {
 		return e;
 		}
 	
-	public double pos2pixel(double pos1) {
+	public double trimPos2pixel(int pos1) {
 		return ((pos1 - loc.getStart())/(double)loc.getLengthOnReference()) * image_width;
-	}
+		}
+	
+	public double pos2pixel(int pos1) {
+		return ((pos1 - loc.getStart())/(double)loc.getLengthOnReference()) * image_width;
+		}
 	
 	public double pixel2genomic(double pixX) {
 		 return loc.getStart()+(pixX/image_width)*loc.getLengthOnReference();
 	}
 	
-	public double trimpos(double pos1) {
+	public int trimpos(int pos1) {
 		return Math.max(loc.getStart(), Math.min(loc.getEnd(), pos1));
 	}
 	public Text text(final String s) {

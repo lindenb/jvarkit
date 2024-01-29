@@ -20,14 +20,14 @@ import htsjdk.samtools.util.RuntimeIOException;
 
 public class KnownGeneTrack extends Track {
 
-	private String tabix;
+	private PathBean tabix;
 	public KnownGeneTrack() {
 		
 		}
-	public void setTabix(String tabix) {
+	public void setTabix(PathBean tabix) {
 		this.tabix = tabix;
 		}
-	public String getTabix() {
+	public PathBean getTabix() {
 		return tabix;
 		}
 	@Override
@@ -40,7 +40,7 @@ public class KnownGeneTrack extends Track {
 		final Element g0 = ctx.element("g");
 		ctx.tracksNode.appendChild(g0);
 		insertTitle(g0,ctx);
-		try(TabixFileReader tbx = new TabixFileReader(getTabix())) {
+		try(TabixFileReader tbx = new TabixFileReader(getTabix().getPath())) {
 			Iterator<String> iter= tbx.iterator(
 					ctx.loc.getContig(),
 					ctx.loc.getStart(),

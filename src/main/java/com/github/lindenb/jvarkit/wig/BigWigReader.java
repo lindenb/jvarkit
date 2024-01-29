@@ -32,11 +32,13 @@ import java.util.Iterator;
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
 
+import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.util.AbstractIterator;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 
 
@@ -87,11 +89,11 @@ public class BigWigReader implements AutoCloseable {
 		this.contigNameConverter = ContigNameConverter.fromContigSet(new HashSet<>(this.bbFileReader.getChromosomeNames()));
 		}
 	
-	public Iterator<WigItem> query(final Locatable locatable)
+	public CloseableIterator<WigItem> query(final Locatable locatable)
 		{
-		if(this.bbFileReader==null) return Collections.emptyIterator();
+		if(this.bbFileReader==null) return AbstractCloseableIterator.empty();
 		final String resolvedContig = this.contigNameConverter.apply(locatable.getContig());
-		if(StringUtils.isBlank(resolvedContig)) return Collections.emptyIterator();
+		if(StringUtils.isBlank(resolvedContig))  return AbstractCloseableIterator.empty();
 		return new WigItemIterator(
 				this.bbFileReader.getBigWigIterator(
 				resolvedContig,
@@ -121,8 +123,9 @@ public class BigWigReader implements AutoCloseable {
 	/** wraps a BigWigIterator */
 	private static class WigItemIterator
 		extends AbstractIterator<WigItem>
+		implements CloseableIterator<WigItem>
 		{
-		private final BigWigIterator delegate;
+		private BigWigIterator delegate;
 		private final String userContig;
 		WigItemIterator(final BigWigIterator delegate,final String userContig ){
 			this.delegate  = delegate;
@@ -133,6 +136,10 @@ public class BigWigReader implements AutoCloseable {
 			if(this.delegate==null) return null;
 			if(!this.delegate.hasNext()) return null;
 			return new WigItemImpl(this.userContig,this.delegate.next());
+			}
+		@Override
+		public void close() {
+			this.delegate=null;
 			}
 		}
 	}

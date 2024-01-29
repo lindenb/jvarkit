@@ -1,7 +1,5 @@
 package com.github.lindenb.jvarkit.tools.genome2svg.beans;
 
-import java.text.DecimalFormat;
-import java.util.function.BiPredicate;
 
 import org.w3c.dom.Element;
 
@@ -11,30 +9,23 @@ import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
 import htsjdk.samtools.util.Locatable;
 
 
-public abstract class Track {
-	private static int ID_GENERATOR = 0;
-	private final String id = "id"+(++ID_GENERATOR);
-	protected String shortDesc = null;
-	protected String longDesc = null;
+public abstract class Track extends AbstractBean {
 	private String display = "";
-	private String reference = null;
 	private double featureHeight = 10;
 	
-	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 	
 	protected Track() {
 		}
-	
-	public String getId() {
-		return id;
-		}
-	
-	public void setReference(String reference) {
+
+	private ReferenceBean reference = null;
+
+	public void setReference(ReferenceBean reference) {
 		this.reference = reference;
 		}
-	public String getReference() {
+	public ReferenceBean getReference() {
 		return reference;
 		}
+
 
 	public void setFeatureHeight(double featureHeight) {
 		this.featureHeight = featureHeight;
@@ -42,22 +33,7 @@ public abstract class Track {
 	public double getFeatureHeight() {
 		return featureHeight;
 		}
-	
-	
-	public void setShortDesc(String shortDesc) {
-		this.shortDesc = shortDesc;
-	}
-	
-	public String getShortDesc() {
-		return StringUtils.isBlank(this.shortDesc)?getClass().getName():this.shortDesc;
-		}
-	
-	public void setLongDesc(String longDesc) {
-		this.longDesc = longDesc;
-		}
-	public String getLongDesc() {
-		return StringUtils.isBlank(this.longDesc)?getShortDesc():this.longDesc;
-		}
+
 	
 	public void setDisplay(String display) {
 		this.display = display;
@@ -90,10 +66,10 @@ public abstract class Track {
 		}
 	
 
-	
-	/** convert double to string */
-	protected String format(final double v)
-		{
-		return this.decimalFormater.format(v);
+	protected String getUrlForLocatable(final Locatable loc) {
+		return null;
 		}
+	
+	
+	
 	}
