@@ -115,7 +115,7 @@ END_DOC
 @Program(name="fastqshuffle",
 	description="Shuffle Fastq files",
 	keywords="fastq",
-	modificationDate="20191209",
+	modificationDate="20240129",
 	creationDate="20140901"
 	)
 public class FastqShuffle extends Launcher

@@ -86,6 +86,7 @@ nav:
         - "coverageplotter" : CoveragePlotter.md
         - "coverageserver" : CoverageServer.md
         - "evadumpfiles" : EVADumpFiles.md
+        - "fastqshuffle" : FastqShuffle.md
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
@@ -122,6 +123,7 @@ nav:
         - "pubmedmap" : PubmedMap.md
         - "rdfcombine" : RDFCombine.md
         - "ref2html" : ReferenceToHtml.md
+        - "repairfastq" : RepairFastq.md
         - "sam2json" : SamToJson.md
         - "sam2tsv" : Sam2Tsv.md
         - "sam4weblogo" : SAM4WebLogo.md

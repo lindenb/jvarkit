@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 71dd04062
-Compilation : 20240125111400
+Version     : 5eca2a4ee
+Compilation : 20240130091010
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -162,8 +162,9 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [convertliftoverchain](ConvertLiftOverChain.md) | Convert the contigs in a liftover chain to match another REFerence. (eg. to remove chr prefix, unknown chromosomes etc...) | 20190409 | 20190409 |
 | [coverageserver](CoverageServer.md) | Jetty Based http server serving Bam coverage. | 20200212 | 20200330 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
+| [fastqshuffle](FastqShuffle.md) | Shuffle Fastq files | 20140901 | 20240129 |
 | [gff3upstreamorf](Gff3UpstreamOrf.md) | Takes a ucsc genpred file, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20220724 | 20230820 |
-| [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20230215 |
+| [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20240225 |
 | [gtfliftover](GtfLiftOver.md) | LiftOver GTF file. | 20190823 | 20190823 |
 | [gtfretrocopy](GtfRetroCopy.md) | Scan retrocopies by comparing the gtf/intron and the deletions in a VCF | 20190813 | 20191104 |
 | [htsfreemarker](HtsFreemarker.md) | Apply Freemarker to VCF/BAM/JSON files. | 20230616 | 20230616 |
@@ -175,6 +176,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20231205 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [rdfcombine](RDFCombine.md) | Substract/Add RDF models | 20230903 | 20230903 |
+| [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
 | [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |

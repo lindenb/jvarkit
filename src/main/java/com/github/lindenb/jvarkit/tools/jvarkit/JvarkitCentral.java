@@ -108,6 +108,7 @@ import com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix;
 import com.github.lindenb.jvarkit.tools.coverageserver.CoverageServer;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
+import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
 import com.github.lindenb.jvarkit.tools.fastq.RepairFastq;
 import com.github.lindenb.jvarkit.tools.findallcov.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
@@ -594,6 +595,7 @@ public class JvarkitCentral {
 		command(CoveragePlotter.class);
 		command(CoverageServer.class);
 		command(EVADumpFiles.class);
+		command(FastqShuffle.class);
 		command(FindGVCFsBlocks.class);
 		command(FindAVariation.class);
 		command(FindAllCoverageAtPosition.class);

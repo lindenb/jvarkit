@@ -8,6 +8,7 @@ Shuffle Fastq files
 ## Usage
 
 ```
+Usage: java -jar dist/fastqshuffle.jar  [options] Files
 Usage: fastqshuffle [options] Files
   Options:
     -h, --help
@@ -146,6 +147,7 @@ $ paste <(gunzip  -c S2.R1.fq.gz | paste - - - -)  <(gunzip  -c S2.R2.fq.gz |pas
 	sort -t $'\t' -k1,1g |\
 	awk -F '\t' '{printf("%s\n%s\n%s\n%s\n",$2,$3,$4,$5) > "random.R1.fq"; printf("%s\n%s\n%s\n%s\n",$6,$7,$8,$9) > "random.R2.fq" }'
 ```
+
 
 
 
