@@ -14,6 +14,9 @@ Usage: atacseqenrich [options] Files
     --bins
       normalize coverage over TSS using 'x' regions
       Default: 100
+    --contig-regex
+      use contigs matching this regex
+      Default: (chr)?[0-9XY]+
     --extend, -x
       extend tss site by 'x' bases.A distance specified as a positive 
       integer.Commas are removed. The following suffixes are interpreted : 
@@ -121,6 +124,14 @@ https://www.encodeproject.org/data-standards/terms/#enrichment
 ```
 find /path -type f -name "*.bam" > bams.list
 java -jar dist/jvarkit.jar atacseqenrich -R ref.fa --gtf jeter.gtf bams.list > output.txt
+```
+
+## Output
+
+output is a multipart text file. Each part can be isolated using, for example
+
+```
+awk '($1=="RAW")' output.txt | cut -f 2-
 ```
 
 

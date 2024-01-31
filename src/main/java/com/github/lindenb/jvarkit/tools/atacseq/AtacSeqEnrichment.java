@@ -95,6 +95,14 @@ find /path -type f -name "*.bam" > bams.list
 java -jar dist/jvarkit.jar atacseqenrich -R ref.fa --gtf jeter.gtf bams.list > output.txt
 ```
 
+## Output
+
+output is a multipart text file. Each part can be isolated using, for example
+
+```
+awk '($1=="RAW")' output.txt | cut -f 2-
+```
+
 END_DOC
  
 */
@@ -128,9 +136,10 @@ public class AtacSeqEnrichment extends Launcher {
     private int num_bins = 100;
     @Parameter(names={"--treshold"},description="comma separated tresholds to set a status concerning,acceptable/ideal see https://www.encodeproject.org/atac-seq/#standards")
     private String treshold_str  ="6,10";
+    @Parameter(names={"--contig-regex"},description="use contigs matching this regex")
+    private String contigRegexStr  = "(chr)?[0-9XY]+" ;
 
     
-	private static final Pattern CONTIG_REGEX = Pattern.compile(System.getProperty("autosome.regex", "(chr)?[0-9XY]+"));
 
     
 	private static class TSS implements Locatable {
@@ -208,7 +217,6 @@ public class AtacSeqEnrichment extends Launcher {
 				finish();
 				prevContig= rec.getContig();
 				}
-			if(!AtacSeqEnrichment.CONTIG_REGEX.matcher(rec.getContig()).matches()) return;
 			for(Iterator<Integer> iterator = position2coverage.keySet().iterator(); iterator.hasNext(); ) {
 				final int pos = iterator.next();
 				if(pos >= rec.getStart()) break;
@@ -342,7 +350,7 @@ public class AtacSeqEnrichment extends Launcher {
 		}
 
 	
-	private static long count_N_in_reference(final Path ref) throws IOException {
+	private static long count_N_in_reference(final Path ref,Pattern contigRegex) throws IOException {
 		if(ref==null) return 0L;
 		long n=0L;
 		boolean in_autosome=false;
@@ -351,7 +359,7 @@ public class AtacSeqEnrichment extends Launcher {
 			while((line=br.readLine())!=null) {
 				if(line.startsWith(">")) {
 					line=line.substring(1).split("[ \t]")[0];
-					in_autosome = AtacSeqEnrichment.CONTIG_REGEX.matcher(line).matches();
+					in_autosome = contigRegex.matcher(line).matches();
 					continue;
 					}
 				for(int i=0;in_autosome && i< line.length();++i) {
@@ -374,10 +382,11 @@ public class AtacSeqEnrichment extends Launcher {
 	public int doWork(final List<String> args) {
 		try {
 			final IntervalTreeMap<TSS> tssMap = new IntervalTreeMap<>();
-			final Predicate<SAMRecord> samFilter = REC->SAMRecordDefaultFilter.accept(REC,this.mapq);
 			final List<Path> bamPaths = IOUtils.unrollPaths(args);
 			
-			
+			final Pattern contigRegex = Pattern.compile(contigRegexStr);
+			final Predicate<SAMRecord> samFilter = REC->SAMRecordDefaultFilter.accept(REC,this.mapq) && contigRegex.matcher(REC.getContig()).matches();
+
 			
 			if(bamPaths.isEmpty()) {
 				LOG.error("input missing");
@@ -420,14 +429,14 @@ public class AtacSeqEnrichment extends Launcher {
 			
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceFile);
 			final long raw_autosome_length = dict.getSequences().stream().
-					filter(SR->AtacSeqEnrichment.CONTIG_REGEX.matcher(SR.getSequenceName()).matches()).
+					filter(SR->contigRegex.matcher(SR.getSequenceName()).matches()).
 					mapToLong(SR->SR.getSequenceLength()).
 					sum();
 			if(raw_autosome_length==0) {
-				LOG.info("no autosome found in "+this.referenceFile+" using regex "+AtacSeqEnrichment.CONTIG_REGEX.pattern());
+				LOG.info("no autosome found in "+this.referenceFile+" using regex "+ contigRegex.pattern());
 				return -1;
 				}
-            final long N_in_reference = count_N_in_reference(this.referenceFile);
+            final long N_in_reference = count_N_in_reference(this.referenceFile,contigRegex);
 			final long adjusted_reference_length = raw_autosome_length - N_in_reference;
 			
 			try(BufferedReader br =  IOUtils.openPathForBufferedReading(this.gtfPath)) {
@@ -440,6 +449,7 @@ public class AtacSeqEnrichment extends Launcher {
 					if(entry==null || !entry.getType().equals(use_transcript_type?"transcript":"gene")) continue;
 					final String ctg = ctgConverter.apply(entry.getContig());
 					if(StringUtils.isBlank(ctg)) continue;
+					if(!contigRegex.matcher(ctg).matches()) continue;
 					final int pos;
 					if(entry.isPostiveStrand()) {
 						pos = entry.getStart();
@@ -492,7 +502,7 @@ public class AtacSeqEnrichment extends Launcher {
             	pw.println("version\t"+getVersion());
             	pw.println("extend_tss\t"+this.extend_tss);
             	pw.println("fasta\t"+this.referenceFile);
-            	pw.println("contig_regex\t"+CONTIG_REGEX.pattern());
+            	pw.println("contig_regex\t"+contigRegex.pattern());
             	pw.println("raw_autosome_length\t"+raw_autosome_length);
             	pw.println("number of N in fasta\t"+N_in_reference);
             	pw.println("adjusted_genome_length\t"+adjusted_reference_length);
