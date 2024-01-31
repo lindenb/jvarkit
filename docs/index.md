@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 5eca2a4ee
-Compilation : 20240130091010
+Version     : dc759574
+Compilation : 20240131173416
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -154,6 +154,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
+| [atacseqenrich](AtacSeqEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240130 |
 | [bamliftover](BamLiftOver.md) | Lift-over a BAM file. |  |  |
 | [barcodegenerator](BarcodeGenerator.md) | Barcode generator for EricCharp | 20230629 | 20230629 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |

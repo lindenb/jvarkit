@@ -13,6 +13,7 @@ nav:
         - "jvarkit" : JvarkitCentral.md
         - "addlinearindextobed" : AddLinearIndexToBed.md
         - "allelefreqcalc" : AlleleFrequencyCalculator.md
+        - "atacseqenrich" : AtacSeqEnrichment.md
         - "backlocate" : BackLocate.md
         - "bam2haplotypes" : BamToHaplotypes.md
         - "bam2mnv" : BamToMNV.md

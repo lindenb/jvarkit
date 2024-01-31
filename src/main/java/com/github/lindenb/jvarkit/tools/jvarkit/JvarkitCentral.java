@@ -37,6 +37,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.tools.allelebalance.VcfAlleleBalance;
+import com.github.lindenb.jvarkit.tools.atacseq.AtacSeqEnrichment;
 import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotter;
@@ -518,9 +519,10 @@ public class JvarkitCentral {
 			}
 		}
 	
-	private void run(String[] args) {
+	private void run(final String[] args) {
 		command(AlleleFrequencyCalculator.class);
 		command(AddLinearIndexToBed.class);
+		command(AtacSeqEnrichment.class);
 		command(BedMergeCnv.class);
 		command(BarcodeGenerator.class);
 		command(BackLocate.class);

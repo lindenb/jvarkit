@@ -4,6 +4,7 @@
 
  *  Jin Hee Kim & Jeongsik Kim (2024) Comprehensive analysis of the chloroplast genome and phylogenetic relationships of Sasa quelpaertensis Nakai, Mitochondrial DNA Part B, 9:1, 88-93, DOI: 10.1080/23802359.2023.2301017 
  * genomic and transcriptomic insight into the evolution and breeding of turfgrass species, poa annua and bouteloua dactyloides. Thesis. Christopher W. Benson. https://etda.libraries.psu.edu/files/final_submissions/29057 **WGSCoveragePlotter**
+ * Functional benefit of CRISPR/Cas9-induced allele deletion for RYR1 dominant mutation Mathilde Beaufils, Margaux Melka, Julie Brocard, Clement Benoit, Nagi Debbah, Kamel Mamchaoui, Norma B. Romero, Anne Frédérique Dalmas-Laurent, Susana Quijano-Roy, Julien Fauré, John Rendu, Isabelle Marty doi: https://doi.org/10.1101/2024.01.24.576997 
 
 ## 2023
 
