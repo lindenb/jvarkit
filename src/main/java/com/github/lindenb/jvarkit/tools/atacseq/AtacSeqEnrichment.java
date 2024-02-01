@@ -97,10 +97,13 @@ java -jar dist/jvarkit.jar atacseqenrich -R ref.fa --gtf jeter.gtf bams.list > o
 
 ## Output
 
-output is a multipart text file. Each part can be isolated using, for example
+output is a multipart text file. Each part can be isolated using awk. For example the following
+commands plot the normalized peaks using R
 
 ```
-awk '($1=="RAW")' output.txt | cut -f 2-
+$ awk '$1=="NORMALIZED"' output.txt | cut -f 2- > jeter.txt
+$ awk '$1=="R_PLOT"' output.txt  | cut -f 2-  | sed 's/__INPUT__/jeter.txt/;s/__OUTPUT__/jeter.svg/' > jeter.R
+$ R --vanilla < jeter.R
 ```
 
 END_DOC
@@ -428,6 +431,13 @@ public class AtacSeqEnrichment extends Launcher {
 			}
 			
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceFile);
+			if(SequenceDictionaryUtils.isGRCh38(dict) && (treshold_low!=5 || treshold_high!=7)) {
+				LOG.warning("for hg38, recommandation for treshold are 5,7 (you: "+treshold_low+","+treshold_high+")");
+				}
+			else if(SequenceDictionaryUtils.isGRCh37(dict) && (treshold_low!=6 || treshold_high!=10)) {
+				LOG.warning("for hg19, recommandation for treshold are 6,10 (you: "+treshold_low+","+treshold_high+")");
+				}
+			
 			final long raw_autosome_length = dict.getSequences().stream().
 					filter(SR->contigRegex.matcher(SR.getSequenceName()).matches()).
 					mapToLong(SR->SR.getSequenceLength()).
@@ -497,6 +507,8 @@ public class AtacSeqEnrichment extends Launcher {
 			
             
             try(PrefixSuffixWriter pw = new PrefixSuffixWriter(super.openPathOrStdoutAsPrintWriter(output))) {
+            	pw.setNoPrefix();
+            	pw.println("# This is the output of "+getProgramName());
             	pw.setPrefix("GENERAL\t");
             	pw.println("date\t"+StringUtils.now());
             	pw.println("version\t"+getVersion());
@@ -513,13 +525,17 @@ public class AtacSeqEnrichment extends Launcher {
             	pw.println("use_strand\t"+this.use_strand_info);
             	pw.println("use_transcript_type\t"+this.use_transcript_type);
             	pw.println("command\t"+this.getProgramCommandLine());
-
+            	
+            	pw.setNoPrefix();
+            	pw.println("# List of bams");
             	pw.setPrefix("FILE\t");
             	for(Path bamPath: bamPaths) {
             		pw.println(bamPath.toString());
             		}
             	
             	//
+            	pw.setNoPrefix();
+            	pw.println("# Raw outputs");
             	pw.setPrefix("RAW\t");
             	pw.write("sample\ttotal_reads\ttotal_reads_in_tss\tmean_depth\tcount_tss_with_reads");
             	for(int i=0;i< this.extend_tss*2;i++) {
@@ -547,7 +563,8 @@ public class AtacSeqEnrichment extends Launcher {
             		}
             	
             	// normalisation
-				
+            	pw.setNoPrefix();
+            	pw.println("# normalized outputs");
             	pw.setPrefix("NORMALIZED\t");
             	final int winsize = Math.max(1, (this.extend_tss*2)/this.num_bins);
             	pw.write("sample");
@@ -577,8 +594,12 @@ public class AtacSeqEnrichment extends Launcher {
             		}
             	
             	// R PLOT
+            	pw.setNoPrefix();
+            	pw.println("#\tR script used to plot the normalized results");
+            	pw.println("#\t$ awk '$1==\"NORMALIZED\"' output.txt | cut -f 2- > jeter.txt");
+            	pw.println("#\t$ awk '$1==\"R_PLOT\"' output.txt  | cut -f 2-  | sed 's/__INPUT__/jeter.txt/;s/__OUTPUT__/jeter.svg/' > jeter.R");
+            	pw.println("#\t$ R --vanilla < jeter.R");
             	pw.setPrefix("R_PLOT\t");
-
             	pw.write("data <- read.table(\"__INPUT__\", header = TRUE, sep = \"\\t\")\n");
             	pw.write("data_values <- data[, -1]\n");
             	pw.write("sample_name <- data[, 1]\n");
@@ -622,7 +643,8 @@ public class AtacSeqEnrichment extends Launcher {
         			pw.write(score2status.apply(summary.max_ratio));
             		pw.print("\n");
             		}
-            	
+            	pw.setNoPrefix();
+            	pw.println("# work in progress do not use.");
             	pw.setPrefix("MULTIQC\t");
             	pw.println("plot_type: \"linegraph\"");
             	pw.println("description: \"multiqc output is not ready\"");
@@ -640,7 +662,10 @@ public class AtacSeqEnrichment extends Launcher {
             			pw.println("    \""+ (i-this.extend_tss)+"\": "+array2[i/winsize]/genome_mean_cov);
                 		}
             		}
-
+            	
+            	
+            	pw.setNoPrefix();
+            	pw.println("# EOF");
             	pw.flush();
             	}
             

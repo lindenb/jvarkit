@@ -128,10 +128,13 @@ java -jar dist/jvarkit.jar atacseqenrich -R ref.fa --gtf jeter.gtf bams.list > o
 
 ## Output
 
-output is a multipart text file. Each part can be isolated using, for example
+output is a multipart text file. Each part can be isolated using awk. For example the following
+commands plot the normalized peaks using R
 
 ```
-awk '($1=="RAW")' output.txt | cut -f 2-
+$ awk '$1=="NORMALIZED"' output.txt | cut -f 2- > jeter.txt
+$ awk '$1=="R_PLOT"' output.txt  | cut -f 2-  | sed 's/__INPUT__/jeter.txt/;s/__OUTPUT__/jeter.svg/' > jeter.R
+$ R --vanilla < jeter.R
 ```
 
 

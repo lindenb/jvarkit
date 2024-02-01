@@ -30,7 +30,12 @@ import java.io.Writer;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+import htsjdk.samtools.util.RuntimeIOException;
 
+/**
+ * A writing adding suffix of prefix after/before each carriage return.
+ *
+ */
 public class PrefixSuffixWriter extends Writer {
 	private Writer delegate;
 	private boolean at_start = true;
@@ -69,12 +74,29 @@ public class PrefixSuffixWriter extends Writer {
 		return setSuffix(()->prefix);
 		}
 	
-	public final void println(final String s) throws IOException  {
-		print(s);
-		print("\n");
+	public PrefixSuffixWriter setNoPrefix() {
+		this.prefixSupplier = ()->null;
+		return this;
 		}
-	public final void print(final String s) throws IOException  {
-		write(s);
+	public PrefixSuffixWriter setNoSuffix() {
+		this.suffixSupplier = ()->null;
+		return this;
+		}
+	
+	public final void println(final String s)  {
+		print(s);
+		println();
+		}
+	public final void print(final String s)  {
+		try {
+			write(s);
+			}
+		catch(final IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
+	public final void println()  {
+		print("\n");
 		}
 
 	@Override
