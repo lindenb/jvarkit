@@ -37,7 +37,6 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.tools.allelebalance.VcfAlleleBalance;
-import com.github.lindenb.jvarkit.tools.atacseq.AtacSeqEnrichment;
 import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotter;
@@ -187,6 +186,7 @@ import com.github.lindenb.jvarkit.tools.sv2fasta.StructuralVariantToFasta;
 import com.github.lindenb.jvarkit.tools.taxonomy.NcbiTaxonomyToXml;
 import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
 import com.github.lindenb.jvarkit.tools.textbam.TextBam;
+import com.github.lindenb.jvarkit.tools.tss.TSSEnrichment;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
 import com.github.lindenb.jvarkit.tools.upstreamorf.Gff3UpstreamOrf;
@@ -522,7 +522,7 @@ public class JvarkitCentral {
 	private void run(final String[] args) {
 		command(AlleleFrequencyCalculator.class);
 		command(AddLinearIndexToBed.class);
-		command(AtacSeqEnrichment.class);
+		command(TSSEnrichment.class);
 		command(BedMergeCnv.class);
 		command(BarcodeGenerator.class);
 		command(BackLocate.class);

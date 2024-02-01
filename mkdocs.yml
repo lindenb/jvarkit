@@ -13,7 +13,6 @@ nav:
         - "jvarkit" : JvarkitCentral.md
         - "addlinearindextobed" : AddLinearIndexToBed.md
         - "allelefreqcalc" : AlleleFrequencyCalculator.md
-        - "atacseqenrich" : AtacSeqEnrichment.md
         - "backlocate" : BackLocate.md
         - "bam2haplotypes" : BamToHaplotypes.md
         - "bam2mnv" : BamToMNV.md
@@ -147,6 +146,7 @@ nav:
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
         - "texbam" : TextBam.md
+        - "tssenrich" : TSSEnrichment.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
         - "vcf2bam" : VcfToBam.md

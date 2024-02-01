@@ -1,4 +1,4 @@
-# AtacSeqEnrichment
+# TSSEnrichment
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
@@ -8,8 +8,8 @@ Transcription Start Site (TSS) Enrichment Score calculation
 ## Usage
 
 ```
-Usage: java -jar dist/atacseqenrich.jar  [options] Files
-Usage: atacseqenrich [options] Files
+Usage: java -jar dist/tssenrich.jar  [options] Files
+Usage: tssenrich [options] Files
   Options:
     --bins
       normalize coverage over TSS using 'x' regions
@@ -74,7 +74,7 @@ Usage: atacseqenrich [options] Files
 ```bash
 $ git clone "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
-$ ./gradlew atacseqenrich
+$ ./gradlew tssenrich
 ```
 
 The java jar file will be installed in the `dist` directory.
@@ -86,7 +86,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/atacseq/AtacSeqEnrichment.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/atacseq/AtacSeqEnrichment.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/tss/TSSEnrichment.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/tss/TSSEnrichment.java)
 
 
 ## Contribute
@@ -100,7 +100,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **atacseqenrich** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **tssenrich** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -123,7 +123,7 @@ https://www.encodeproject.org/data-standards/terms/#enrichment
 
 ```
 find /path -type f -name "*.bam" > bams.list
-java -jar dist/jvarkit.jar atacseqenrich -R ref.fa --gtf jeter.gtf bams.list > output.txt
+java -jar dist/jvarkit.jar tssenrich -R ref.fa --gtf jeter.gtf bams.list > output.txt
 ```
 
 ## Output

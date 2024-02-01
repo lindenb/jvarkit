@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : f23a30912
-Compilation : 20240201171004
+Version     : c70f6515
+Compilation : 20240201184005
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -154,7 +154,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
-| [atacseqenrich](AtacSeqEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240130 |
 | [bamliftover](BamLiftOver.md) | Lift-over a BAM file. |  |  |
 | [barcodegenerator](BarcodeGenerator.md) | Barcode generator for EricCharp | 20230629 | 20230629 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
@@ -183,6 +182,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
+| [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240201 |
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
 | [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |

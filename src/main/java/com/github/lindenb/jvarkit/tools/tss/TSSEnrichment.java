@@ -23,7 +23,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.atacseq;
+package com.github.lindenb.jvarkit.tools.tss;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -92,7 +92,7 @@ https://www.encodeproject.org/data-standards/terms/#enrichment
 
 ```
 find /path -type f -name "*.bam" > bams.list
-java -jar dist/jvarkit.jar atacseqenrich -R ref.fa --gtf jeter.gtf bams.list > output.txt
+java -jar dist/jvarkit.jar tssenrich -R ref.fa --gtf jeter.gtf bams.list > output.txt
 ```
 
 ## Output
@@ -110,14 +110,14 @@ END_DOC
  
 */
 
-@Program(name="atacseqenrich",
+@Program(name="tssenrich",
 description="Transcription Start Site (TSS) Enrichment Score calculation",
 keywords={"bam","atacseq"},
-modificationDate="20240130",
+modificationDate="20240201",
 creationDate="20240130"
 )
-public class AtacSeqEnrichment extends Launcher {
-	private static final Logger LOG = Logger.build(AtacSeqEnrichment.class).make();
+public class TSSEnrichment extends Launcher {
+	private static final Logger LOG = Logger.build(TSSEnrichment.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output;
@@ -678,7 +678,7 @@ public class AtacSeqEnrichment extends Launcher {
 		}
 	
 	public static void main(final String[] args) {
-		new AtacSeqEnrichment().instanceMainWithExit(args);
+		new TSSEnrichment().instanceMainWithExit(args);
 
 	}
 
