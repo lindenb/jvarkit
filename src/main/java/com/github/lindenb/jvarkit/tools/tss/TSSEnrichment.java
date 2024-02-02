@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -67,6 +68,7 @@ import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -141,9 +143,10 @@ public class TSSEnrichment extends Launcher {
     private String treshold_str  ="6,10";
     @Parameter(names={"--contig-regex"},description="use contigs matching this regex")
     private String contigRegexStr  = "(chr)?[0-9XY]+" ;
-
+    @Parameter(names={"--remove-tss-length"},description="remove TSS lengths to actual genome length")
+    private boolean remove_tss_from_genome_length  = false ;
     
-
+    
     
 	private static class TSS implements Locatable {
 		private final String contig;
@@ -446,8 +449,6 @@ public class TSSEnrichment extends Launcher {
 				LOG.info("no autosome found in "+this.referenceFile+" using regex "+ contigRegex.pattern());
 				return -1;
 				}
-            final long N_in_reference = count_N_in_reference(this.referenceFile,contigRegex);
-			final long adjusted_reference_length = raw_autosome_length - N_in_reference;
 			
 			try(BufferedReader br =  IOUtils.openPathForBufferedReading(this.gtfPath)) {
 				String line;
@@ -477,7 +478,36 @@ public class TSSEnrichment extends Launcher {
 				return -1;
 				}
 			
+            final long N_in_reference = count_N_in_reference(this.referenceFile,contigRegex);
+			
+            final long tss_length;
+            
+            if(remove_tss_from_genome_length)
+            	{
+            	long n_sum = 0L;
+            	for(final SAMSequenceRecord ssr: dict.getSequences()) {
+            		final BitSet bitSet=new BitSet(ssr.getSequenceLength());
+            		for(Locatable loc: tssMap.getOverlapping(ssr)) {
+            			for(int i=Math.max(1,loc.getStart());i<=loc.getEnd() && i-1 < ssr.getSequenceLength();i++) {
+            				bitSet.set(i-1, true);
+            				}
+            			}
+            		n_sum += bitSet.stream().count();
+            		}
+            	tss_length =n_sum;
+            	}
+            else
+            	{
+            	tss_length = 0;
+            	}
+            
+            
+            final long adjusted_reference_length = raw_autosome_length - (N_in_reference + tss_length);
 
+            if(adjusted_reference_length <=0L) {
+				LOG.error("adjusted_reference_length <=0");
+				return -1;
+            	}
 			
 			final List<TSSScanner> bams = bamPaths.stream().
 					map(B->new TSSScanner(B,referenceFile,samFilter,tssMap,extend_tss)).
@@ -626,10 +656,8 @@ public class TSSEnrichment extends Launcher {
 					for(int i=0;i< array2.length;i++) {
 						final double v = (array2[i]/genome_mean_cov);
 						pw.print(summary.sampleName+ "\t"+((i-array2.length/2)*winsize)+"\t"+v+"\t"+  score2status.apply(v) + "\t");
-						for(int x=0;x< (v/max)*80;++x) {
-							pw.print("#");
-							}
-						pw.print("\n");
+						pw.print(StringUtils.repeat((int)((v/max)*80), '#'));
+						pw.println();
 						}
 	            	}
             	
@@ -637,11 +665,11 @@ public class TSSEnrichment extends Launcher {
             	pw.println("sample\tscore\tstatus");
             	for(final Summary summary: tss_summaries) {
             		pw.print(summary.sampleName);
-        			pw.write("\t");
+        			pw.print("\t");
             		pw.print(String.valueOf(summary.max_ratio));
-        			pw.write("\t");
-        			pw.write(score2status.apply(summary.max_ratio));
-            		pw.print("\n");
+        			pw.print("\t");
+        			pw.print(score2status.apply(summary.max_ratio));
+        			pw.println();
             		}
             	pw.setNoPrefix();
             	pw.println("# work in progress do not use.");
@@ -661,9 +689,7 @@ public class TSSEnrichment extends Launcher {
             		for(int i=0;i< this.extend_tss*2;i+=winsize) {
             			pw.println("    \""+ (i-this.extend_tss)+"\": "+array2[i/winsize]/genome_mean_cov);
                 		}
-            		}
-            	
-            	
+            		}            	
             	pw.setNoPrefix();
             	pw.println("# EOF");
             	pw.flush();
