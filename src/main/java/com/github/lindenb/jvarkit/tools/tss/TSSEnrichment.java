@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -68,7 +67,6 @@ import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -142,10 +140,7 @@ public class TSSEnrichment extends Launcher {
     @Parameter(names={"--treshold"},description="comma separated tresholds to set a status concerning,acceptable/ideal see https://www.encodeproject.org/atac-seq/#standards")
     private String treshold_str  ="6,10";
     @Parameter(names={"--contig-regex"},description="use contigs matching this regex")
-    private String contigRegexStr  = "(chr)?[0-9XY]+" ;
-    @Parameter(names={"--remove-tss-length"},description="remove TSS lengths to actual genome length")
-    private boolean remove_tss_from_genome_length  = false ;
-    
+    private String contigRegexStr  = "(chr)?[0-9XY]+" ;    
     
     
 	private static class TSS implements Locatable {
@@ -480,29 +475,8 @@ public class TSSEnrichment extends Launcher {
 			
             final long N_in_reference = count_N_in_reference(this.referenceFile,contigRegex);
 			
-            final long tss_length;
             
-            if(remove_tss_from_genome_length)
-            	{
-            	long n_sum = 0L;
-            	for(final SAMSequenceRecord ssr: dict.getSequences()) {
-            		final BitSet bitSet=new BitSet(ssr.getSequenceLength());
-            		for(Locatable loc: tssMap.getOverlapping(ssr)) {
-            			for(int i=Math.max(1,loc.getStart());i<=loc.getEnd() && i-1 < ssr.getSequenceLength();i++) {
-            				bitSet.set(i-1, true);
-            				}
-            			}
-            		n_sum += bitSet.stream().count();
-            		}
-            	tss_length =n_sum;
-            	}
-            else
-            	{
-            	tss_length = 0;
-            	}
-            
-            
-            final long adjusted_reference_length = raw_autosome_length - (N_in_reference + tss_length);
+            final long adjusted_reference_length = raw_autosome_length - (N_in_reference);
 
             if(adjusted_reference_length <=0L) {
 				LOG.error("adjusted_reference_length <=0");
