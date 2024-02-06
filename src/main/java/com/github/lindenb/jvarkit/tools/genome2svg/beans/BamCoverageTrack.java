@@ -51,12 +51,12 @@ public class BamCoverageTrack extends AbstractBamTrack {
 	public String getShortDesc() {
 		String s = super.getShortDesc();
 		if(StringUtils.isBlank(s)) {
-			if(getBams().size()==1) {
-				s = getBams().get(0).getShortDesc();
+			if(getPaths().size()==1) {
+				s = getPaths().get(0).getShortDesc();
 				}
 			else
 				{
-				s = String.valueOf(getBams().size())+" Bams";
+				s = String.valueOf(getPaths().size())+" Bams";
 				}
 			}
 		return s;
@@ -176,9 +176,10 @@ public class BamCoverageTrack extends AbstractBamTrack {
 			}
 		}
 	private boolean paintLowResolution(SVGContext ctx,double featureHeight) {
-		for(BamBean bamBean:getBams()) {
-			vapaintLowResolution( bamBean, ctx,featureHeight);
+		for(PathBean bamBean:getPaths()) {
+			paintLowResolution( BamBean.class.cast(bamBean), ctx,featureHeight);
 			}
+		return true;
 		}
 	
 	private Element paintLowResolution(BamBean bamBean,SVGContext ctx, double featureHeight) {
@@ -255,16 +256,15 @@ public class BamCoverageTrack extends AbstractBamTrack {
 			String sampleName;
 			
 			int userMaxCov=0;
-			for(BamBean bamBean: getBams()) {
-				userMaxCov = Math.max(maxCoverage(bamBean, ctx.loc), userMaxCov);
+			for(PathBean bamBean: getPaths()) {
+				userMaxCov = Math.max(maxCoverage(BamBean.class.cast(bamBean), ctx.loc), userMaxCov);
 				}
 			
 			final double[] array = new double[width];
 	
-			for(BamBean bamBean: getBams()) {
-				try(SamReader sr= bamBean.openSamReader()) {
-					final SAMFileHeader header = sr.getFileHeader();
-					sampleName = bamBean.getSampleName();
+			for(PathBean bamBean: getPaths()) {
+				try(SamReader sr= BamBean.class.cast(bamBean).openSamReader()) {
+					sampleName = BamBean.class.cast(bamBean).getSampleName();
 					Arrays.fill(array, -999);
 					try(CloseableIterator<SAMRecord> iter = sr.queryOverlapping(ctx.loc.getContig(), ctx.loc.getStart(), ctx.loc.getEnd())) {
 						while(iter.hasNext()) {

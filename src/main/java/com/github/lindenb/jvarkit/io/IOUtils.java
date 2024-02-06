@@ -882,7 +882,7 @@ public class IOUtils {
         		".xls",".tsv",".csv",".gff",".gtf",".csi",".tbi",
         		".fasta",".fa",
         		".fastq",".fq",
-        		".bb",".bw",".bigbed",".bigwig",
+        		".bb",".bw",".bigbed",".bigwig",".bigWig",
         		".tar",".gz",
         		".pdf",".xml",
         		".interval_list",

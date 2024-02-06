@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.tools.genome2svg.beans.GffTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.KnownGeneTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.Track;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.VcfTrack;
+import com.github.lindenb.jvarkit.tools.genome2svg.beans.WiggleTrack;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -70,7 +71,7 @@ public class GenomeToSvg extends Launcher {
 	private BamCoverageTrack _force_compile3 =null;
 	private GffTrack _force_compile4 =null;
 	private VcfTrack _force_compile5 =null;
-	
+	private WiggleTrack _force_compile6=null;
 
 	
 	

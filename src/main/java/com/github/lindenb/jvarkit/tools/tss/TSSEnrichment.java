@@ -32,11 +32,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -112,8 +109,8 @@ END_DOC
 
 @Program(name="tssenrich",
 description="Transcription Start Site (TSS) Enrichment Score calculation",
-keywords={"bam","atacseq"},
-modificationDate="20240201",
+keywords={"bam","atacseq","peak","tss"},
+modificationDate="20240206",
 creationDate="20240130"
 )
 public class TSSEnrichment extends Launcher {
@@ -135,7 +132,7 @@ public class TSSEnrichment extends Launcher {
     private boolean use_strand_info = false;
     @Parameter(names={"--threads"},description="number of parallel jobs")
     private int nThreads = 1;
-    @Parameter(names={"--bins"},description="normalize coverage over TSS using 'x' regions")
+    @Parameter(names={"--bins"},description="in the graphical output, normalize coverage over TSS using 'x' regions")
     private int num_bins = 100;
     @Parameter(names={"--treshold"},description="comma separated tresholds to set a status concerning,acceptable/ideal see https://www.encodeproject.org/atac-seq/#standards")
     private String treshold_str  ="6,10";
@@ -202,42 +199,13 @@ public class TSSEnrichment extends Launcher {
 		double[] array;
 		
 		// coverage
-		long sum_depth = 0L;
+		long sum_depth_not_in_tss = 0L;
 		int count_tss_with_reads = 0;
 		
 		// max score, will be used to show the quality
 		double max_ratio = 0;
 		}
-	
-	private static class CoverageCalculator {
-		private String prevContig = null;
-		long sum_depth=0;
-		private final SortedMap<Integer,Integer> position2coverage=new TreeMap<>();
-		public void visit(final SAMRecord rec) {
-			if(prevContig==null || !rec.getContig().equals(prevContig)) {
-				finish();
-				prevContig= rec.getContig();
-				}
-			for(Iterator<Integer> iterator = position2coverage.keySet().iterator(); iterator.hasNext(); ) {
-				final int pos = iterator.next();
-				if(pos >= rec.getStart()) break;
-				sum_depth += position2coverage.get(pos).intValue();
-				iterator.remove();
-				}
-			for(AlignmentBlock ab: rec.getAlignmentBlocks()) {
-				for(int n=0;n<ab.getLength();++n) {
-					final int pos = ab.getReferenceStart()+n;
-					final Integer cov = position2coverage.getOrDefault(pos, null);
-					position2coverage.put(pos, cov==null?1:cov.intValue()+1);
-					}
-				}
-			}
-		void finish() {
-			position2coverage.entrySet().stream().mapToInt(K->K.getValue().intValue()).forEach(V->sum_depth+=V);
-			position2coverage.clear();
-			}
-		}
-	
+		
 	private static class TSSScanner implements Callable<Summary>  {
 		protected final Path bamPath;
 		protected final Path fastaPath;
@@ -285,16 +253,13 @@ public class TSSEnrichment extends Launcher {
 			try {
 				final Set<TSS> found_tss = new HashSet<>();
 				try (SamReader sr = open()){
-					final CoverageCalculator covCalc = new CoverageCalculator();
 					final SAMFileHeader header =  sr.getFileHeader();
 					summary.sampleName = getSample(header);
 					try(CloseableIterator<SAMRecord> iter= sr.iterator()) {
 						while(iter.hasNext()) {
 							final SAMRecord record = iter.next();
 							if(!this.samFilter.test(record)) continue;
-							
-							covCalc.visit(record);
-							
+
 							summary.count_reads++;
 							TSS closest = null;
 							for(TSS tss:this.intervalTreeMap.getOverlapping(record)) {
@@ -319,10 +284,15 @@ public class TSSEnrichment extends Launcher {
 										}
 									} // end align block
 								} // end closest!=null
+							else 
+								{
+								// no read overlapping
+								for(AlignmentBlock ab: record.getAlignmentBlocks()) {
+									summary.sum_depth_not_in_tss  += ab.getLength();
+									}
+								}
 							}
 						}
-					covCalc.finish();
-					summary.sum_depth  = covCalc.sum_depth;
 					summary.count_tss_with_reads = found_tss.size();
 					}
 				}
@@ -555,7 +525,7 @@ public class TSSEnrichment extends Launcher {
             		pw.write("\t");
             		pw.write(String.valueOf(summary.count_reads_in_tss));
             		pw.write("\t");
-            		pw.write(String.valueOf(summary.sum_depth/(double)(adjusted_reference_length)));
+            		pw.write(String.valueOf(summary.sum_depth_not_in_tss/(double)(adjusted_reference_length)));
             		pw.write("\t");
             		pw.write(String.valueOf(summary.count_tss_with_reads));
 
@@ -587,7 +557,7 @@ public class TSSEnrichment extends Launcher {
             		
             		pw.write(summary.sampleName);
             		final double[] array2 = bin_array(summary.array,winsize);
-            		final double genome_mean_cov = summary.sum_depth/(double)adjusted_reference_length;
+            		final double genome_mean_cov = summary.sum_depth_not_in_tss/(double)adjusted_reference_length;
             		for(int i=0;i< array2.length;i++) {
             			pw.write("\t");
             			final double score= array2[i]/(genome_mean_cov);
@@ -624,7 +594,7 @@ public class TSSEnrichment extends Launcher {
             	pw.setPrefix("HIST\t");
             	pw.println("sample\tindex\tf\tstatus\thistogram");
             	for(final Summary summary: tss_summaries) {
-            		final double genome_mean_cov = summary.sum_depth/(double)(adjusted_reference_length);
+            		final double genome_mean_cov = summary.sum_depth_not_in_tss/(double)(adjusted_reference_length);
             		final double[] array2 = bin_array(summary.array,winsize);
 	            	final double max=Arrays.stream(array2).map(V->V/genome_mean_cov).max().orElse(1.0);
 					for(int i=0;i< array2.length;i++) {
@@ -658,7 +628,7 @@ public class TSSEnrichment extends Launcher {
             	for(final Summary summary: tss_summaries) {
             		pw.println("  \"" + summary.sampleName+"\":");
             		final double[] array2 = bin_array(summary.array,winsize);
-        			final double genome_mean_cov = summary.sum_depth/(double)(adjusted_reference_length);
+        			final double genome_mean_cov = summary.sum_depth_not_in_tss/(double)(adjusted_reference_length);
 
             		for(int i=0;i< this.extend_tss*2;i+=winsize) {
             			pw.println("    \""+ (i-this.extend_tss)+"\": "+array2[i/winsize]/genome_mean_cov);

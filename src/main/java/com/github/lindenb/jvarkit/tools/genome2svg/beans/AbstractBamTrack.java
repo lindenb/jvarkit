@@ -27,27 +27,5 @@ public abstract class AbstractBamTrack extends Track {
 		this.samFilter = samFilter;
 		}
 		
-	public void setBam(BamBean oneBam) {
-		if(oneBam==null) {
-			setBams(Collections.emptyList());
-			}
-		else
-			{
-			setBams(Collections.singletonList(oneBam));
-			}
-		}
 
-	
-	public void setBams(List<BamBean> bamList) {
-		if(bamList==null) {
-			this.bamList =  Collections.emptyList();
-			}
-		else
-			{
-			this.bamList = bamList;
-			}
-		}
-	public List<BamBean> getBams() {
-		return bamList;
-		}
 	}

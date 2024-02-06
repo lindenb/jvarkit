@@ -11,7 +11,8 @@ public class AbstractBean {
 	private final String id = "id"+(++ID_GENERATOR);
 	protected String shortDesc = null;
 	protected String longDesc = null;
-
+	protected String stroke=null;
+	protected String fill=null;
 	protected AbstractBean() {
 	}
 
@@ -26,19 +27,38 @@ public class AbstractBean {
 	}
 	
 	public String getShortDesc() {
-		return StringUtils.isBlank(this.shortDesc)?getClass().getName():this.shortDesc;
+		return  this.shortDesc;
 		}
 	
 	public void setLongDesc(String longDesc) {
 		this.longDesc = longDesc;
 		}
 	public String getLongDesc() {
-		return StringUtils.isBlank(this.longDesc)?getShortDesc():this.longDesc;
+		return this.longDesc;
 		}
 	
 	/** convert double to string */
 	protected String format(final double v)
 		{
 		return decimalFormater.format(v);
+		}
+	
+	public void setFill(String fill) {
+		this.fill = fill;
+		}
+	public String getFill() {
+		return fill;
+		}
+	public void setStroke(String stroke) {
+		this.stroke = stroke;
+		}
+	
+	public String getStroke() {
+		return stroke;
+		}
+	
+	@Override
+	public String toString() {
+		return String.valueOf(getClass())+" id:"+getId();
 		}
 	}

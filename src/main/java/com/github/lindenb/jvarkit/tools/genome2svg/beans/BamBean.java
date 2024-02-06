@@ -1,7 +1,6 @@
 package com.github.lindenb.jvarkit.tools.genome2svg.beans;
 
 
-import java.io.IOException;
 import java.lang.ref.SoftReference;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -36,10 +35,11 @@ public class BamBean extends PathBean {
 		SAMFileHeader hdr = this.samFileHeader.get();
 		if(hdr==null) {
 			try(SamReader sr =  openSamReader()) {
-				hdr = samFileHeader.get();
-				if(hdr==null) throw new IllegalStateException();
+				hdr = sr.getFileHeader();
+				if(hdr==null) throw new IllegalStateException("Cannot get Header from "+getPath());
+				this.samFileHeader =  new SoftReference<SAMFileHeader>(hdr);
 				}
-			catch(IOException err) {
+			catch(Throwable err) {
 				throw new RuntimeIOException(err);
 				}
 			}

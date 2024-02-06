@@ -1,8 +1,11 @@
 package com.github.lindenb.jvarkit.tools.genome2svg;
 
 import java.text.DecimalFormat;
+import java.util.Map;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
 
+import org.w3c.dom.Comment;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Text;
@@ -51,7 +54,11 @@ public class SVGContext {
 	}
 	public Text text(final String s) {
 		return svgDom.createTextNode(s);
-	}
+		}
+	public Comment comment(final String s) {
+		return svgDom.createComment(StringUtils.ifBlank(s,""));
+		}
+
 	public Element title(final String s) {
 		return element("title",s);
 		}
@@ -99,6 +106,12 @@ public class SVGContext {
 		this.styleNode.appendChild(text(s+"\n"));
 		}
 	
+	public void appendStyle(String className,final Map<String,Object> hash) {
+		if(StringUtils.isBlank(className) || hash.isEmpty()) return ;
+		appendStyle("."+className+"{"+ hash.entrySet().stream().map(KV->KV.getKey()+":"+KV.getValue()+";").collect(Collectors.joining()) +"}");
+		}
+
+	
 	public String format(double v) {
 		return this.decimalFormater.format(v);
 		}
@@ -120,4 +133,40 @@ public class SVGContext {
 			return false;
 			};
 		}
+	
+	
+	public Element createYAxis(
+			final double x,
+			final double y,
+			final double minV,
+			final double maxV,
+			final double featureHeight
+			) {
+		final Element g = this.element("g");
+		g.setAttribute("transform", "translate("+format(x)+","+format(y)+")");
+		final double amplitude = maxV-minV;
+		if(amplitude<=0) return g;
+		// yaxis
+		final int nTicks = 10;
+		for(int i=0;i< nTicks;i++) {
+			final double cov = minV+(amplitude/nTicks)*i;
+			final double v = featureHeight - (cov/amplitude) * featureHeight;
+			final Element line = this.element("line");
+			line.setAttribute("x1", format(0));
+			line.setAttribute("y1", format(v));
+			line.setAttribute("x2", format(-5));
+			line.setAttribute("y2", format(v));
+			line.setAttribute("style","stroke:gray;");
+	
+			g.appendChild(line);
+			
+			final Element text = this.element("text",format(cov));
+			text.setAttribute("x", format(-5));
+			text.setAttribute("y", format(v));
+			text.setAttribute("style","fill:gray;stroke:none;text-anchor:end;font-size:10px;");
+			g.appendChild(text);
+			}
+		return g;
+		}
+
 }

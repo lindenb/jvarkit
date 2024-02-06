@@ -23,15 +23,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 public class CytobandTrack extends Track {
-	private String cytobandsPath = null;
 	private Function<Locatable,String> locatable2url = null;
-	public void setPath(String path) {
-		this.cytobandsPath = path;
-		}
-	public String getPath() {
-		return cytobandsPath;
-		}
-	
 
 	@Override
 	public void paint(final SVGContext ctx) {
@@ -41,8 +33,8 @@ public class CytobandTrack extends Track {
 		BufferedReader br=null;
 		try {
 			
-			if(!StringUtils.isBlank(getReference())) {
-				final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(getReference()));
+			if(getReference()!=null) {
+				final SAMSequenceDictionary dict = getReference().getSAMSequenceDictionary();
 				if(dict!=null) {
 					if(SequenceDictionaryUtils.isGRCh37(dict)) {
 						ucsc_name = "hg19";
@@ -58,14 +50,14 @@ public class CytobandTrack extends Track {
 				}
 			
 			
-			if(StringUtils.isBlank(getPath())) {
+			if(getPath()==null) {
 				if(StringUtils.isBlank(ucsc_name)) return;
 				final String url = "https://hgdownload.cse.ucsc.edu/goldenpath/"+ucsc_name+"/database/cytoBand.txt.gz";
 				br = IOUtils.openURIForBufferedReading(url);
 				}
 			else
 				{
-				br = IOUtils.openPathForBufferedReading(Paths.get(getPath()));
+				br = IOUtils.openPathForBufferedReading(getPath().asPath());
 				}
 			for(;;) {
 				final String line = br.readLine();

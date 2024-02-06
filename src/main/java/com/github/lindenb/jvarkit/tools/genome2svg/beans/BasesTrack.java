@@ -20,7 +20,7 @@ public class BasesTrack extends Track {
 	
 	@Override
 	public void paint(SVGContext ctx) {
-		if(StringUtils.isBlank(getReference())) return;
+		if(getReference()==null) return;
 		
 		double featureWidth=  ctx.image_width/(double)(ctx.loc.getLengthOnReference()); 
 		double featureHeight= Math.min(Math.max(5.0,featureWidth),30); 			//base
@@ -48,7 +48,7 @@ public class BasesTrack extends Track {
 					));
 			path.appendChild(ctx.title(base));
 			}
-		final Path faidx = Paths.get(getReference());
+		final Path faidx = getReference().asPath();
 		try(ReferenceSequenceFile refseqfile =  ReferenceSequenceFileFactory.getReferenceSequenceFile(faidx)) {
 			final GenomicSequence genomicSequence = new GenomicSequence(refseqfile, ctx.loc.getContig());
 			Element g = ctx.element("g");

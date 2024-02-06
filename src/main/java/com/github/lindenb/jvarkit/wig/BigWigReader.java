@@ -25,9 +25,11 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.wig;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Objects;
 
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
@@ -71,9 +73,12 @@ public class BigWigReader implements AutoCloseable {
 			}
 		}
 	
+	public BigWigReader(final Path path) throws IOException {
+		this(Objects.requireNonNull(path).toString());
+		}
 	
 	public BigWigReader(final String biwWigFile) throws IOException {
-		this.biwWigFile = biwWigFile;
+		this.biwWigFile = Objects.requireNonNull(biwWigFile);
 		try {
 			this.bbFileReader= new BBFileReader(this.biwWigFile);
 			}

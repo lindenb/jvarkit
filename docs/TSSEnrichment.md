@@ -12,7 +12,7 @@ Usage: java -jar dist/tssenrich.jar  [options] Files
 Usage: tssenrich [options] Files
   Options:
     --bins
-      normalize coverage over TSS using 'x' regions
+      in the graphical output, normalize coverage over TSS using 'x' regions
       Default: 100
     --contig-regex
       use contigs matching this regex
@@ -60,6 +60,8 @@ Usage: tssenrich [options] Files
 
  * bam
  * atacseq
+ * peak
+ * tss
 
 
 ## Compilation
@@ -136,5 +138,4 @@ $ awk '$1=="NORMALIZED"' output.txt | cut -f 2- > jeter.txt
 $ awk '$1=="R_PLOT"' output.txt  | cut -f 2-  | sed 's/__INPUT__/jeter.txt/;s/__OUTPUT__/jeter.svg/' > jeter.R
 $ R --vanilla < jeter.R
 ```
-
 
