@@ -17,7 +17,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
 public class VcfTrack extends Track {
-	private String path = null;
 	private BiPredicate<VCFHeader,VariantContext> filter = (H,V)->true;
 	private  BiFunction<VCFHeader, VariantContext, String> variantToString = (H,V)->V.getContig()+":"+V.getStart()+" "+V.getType();
 	private  BiFunction<VCFHeader, VariantContext, String> variantToStyle =  (H,V)->"fill:red;stroke:blue;";
@@ -26,12 +25,6 @@ public class VcfTrack extends Track {
 		setFeatureHeight(10);
 		}
 	
-	public void setVcf(String path) {
-		this.path = path;
-		}
-	public String getVcf() {
-		return path;
-		}
 	
 	@Override
 	public void paint(SVGContext ctx) {
@@ -41,7 +34,7 @@ public class VcfTrack extends Track {
 		insertTitle(g,ctx);
 		final double featureHeight = getFeatureHeight();
 		
-		try(VCFReader reader = VCFReaderFactory.makeDefault().open(getVcf(), true)) {
+		try(VCFReader reader = VCFReaderFactory.makeDefault().open(getPath().asPath(), true)) {
 			final VCFHeader header= reader.getHeader();
 			try(CloseableIterator<VariantContext> iter = reader.query(ctx.loc)) {
 				while(iter.hasNext()) {

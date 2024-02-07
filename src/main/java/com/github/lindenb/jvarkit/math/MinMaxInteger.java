@@ -33,6 +33,14 @@ public class MinMaxInteger implements IntConsumer {
 	private long count=0L;
 	private int minV;
 	private int maxV;
+	
+	/** loop accept(v) over all array */
+	public void accept(int...values) {
+		for(int i=0;i< values.length;++i) {
+			accept(values[i]);
+			}
+		}
+	
 	@Override
 	public void accept(int value) {
 		if(count==0L) {
@@ -51,8 +59,24 @@ public class MinMaxInteger implements IntConsumer {
 	public MinMaxInteger() {
 		}
 	
+	
+	public MinMaxInteger(int m,int M) {
+		if(m>M) throw new IllegalArgumentException("min "+m+" > max "+M);
+		minV = m;
+		maxV = M;
+		count=1L;
+		}
+
+	public MinMaxInteger(int v) {
+		minV = v;
+		maxV = v;
+		count=1L;
+		}
+
+
+	
 	/** create a new instance with is the combination of 'this' and 'other' */
-	public MinMaxInteger plus(MinMaxInteger other) {
+	public MinMaxInteger plus(final MinMaxInteger other) {
 		
 		if(this.count>0 && other.count>0) {
 			final MinMaxInteger mM = new MinMaxInteger();

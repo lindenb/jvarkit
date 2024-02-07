@@ -35,6 +35,8 @@ public class MinMaxDouble implements DoubleConsumer {
 	private double maxV;
 	@Override
 	public void accept(double value) {
+		if(Double.isNaN(value)) throw new IllegalArgumentException("cannot accept(NaN)");
+		
 		if(count==0L) {
 			minV = value;
 			maxV = value;
@@ -50,6 +52,23 @@ public class MinMaxDouble implements DoubleConsumer {
 	
 	public MinMaxDouble() {
 		}
+	
+	public MinMaxDouble(double m,double M) {
+		if(Double.isNaN(m)) throw new IllegalArgumentException("NaNa(m)");
+		if(Double.isNaN(M)) throw new IllegalArgumentException("NaNa(M)");
+		if(m>M) throw new IllegalArgumentException("min "+m+" > max "+M);
+		minV = m;
+		maxV = M;
+		count=1L;
+		}
+
+	public MinMaxDouble(double v) {
+		if(Double.isNaN(v)) throw new IllegalArgumentException("NaNa(v)");
+		minV = v;
+		maxV = v;
+		count=1L;
+		}
+
 	
 	/** create a new instance with is the combination of 'this' and 'other' */
 	public MinMaxDouble plus(MinMaxDouble other) {

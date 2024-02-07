@@ -50,33 +50,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
-import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Text;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.date.DurationParser;
 import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.MinMaxDouble;
+import com.github.lindenb.jvarkit.math.MinMaxInteger;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -124,7 +125,7 @@ END_DOC
 @Program(name="optimizefisher",
 description="Optimize fisher test on VCF using genetic algo",
 keywords= {"vcf","burden","fisher"},
-modificationDate="20231205",
+modificationDate="20240207",
 creationDate="20221013",
 jvarkit_amalgamion = true
 )
@@ -157,12 +158,77 @@ public class OptimizeFisher extends Launcher {
 	private int nThreads = 1;
 	@Parameter(names={"--gtf"},description="tabix indexed gtf file for context drawing")
 	private String gtfPath = null;
+	@Parameter(names={"--roi"},description="ROI regions of interesets as a BED file chrom/start/end/ROI-NAME . Multiple interval can be defined for the same ROI-NAME. Use the whole contig if undefined")
+	private Path roiPath = null;
 
 	
 	
 	private VCFHeader vcfHeader;
 	private final List<VariantWrapper> variants = new Vector<>(100_00);
+	private final List<RegionOfInterest> regions_of_interest = new ArrayList<>();
 	
+	
+	private static class RegionOfInterest implements Locatable {
+		private final String name;
+		private final List<Locatable> items = new ArrayList<>();
+		
+		RegionOfInterest(final String name) {
+			this.name= name;
+			}
+		RegionOfInterest(final String name,Locatable loc) {
+			this(name);
+			this.items.add(loc);
+			}
+		void sort() {
+			for(int x=0;x +1 < items.size();++x) {
+				for(int y=x +1; y < items.size();++y) {
+					if(!items.get(x).contigsMatch(items.get(y))) throw new IllegalStateException(""+getName());
+					if(items.get(x).overlaps(items.get(y))) throw new IllegalStateException("overlapping items in "+getName());
+					}
+				}
+			Collections.sort(items,(A,B)->Integer.compare(A.getStart(), B.getStart()));
+			}
+
+		public String getContig() {
+			return items.get(0).getContig();
+			}
+		public String getName() {
+			return name;
+			}
+		public int getStart() {
+			return items.get(0).getStart();
+			}
+		public int getEnd() {
+			return items.get(items.size()-1).getEnd();
+			}
+		@Override
+		public boolean overlaps(final Locatable other) {
+			return items.stream().anyMatch(X->overlaps(other));
+			}
+		
+		@Override
+		public int hashCode() {
+			return ((getContig().hashCode()*31)+Integer.hashCode(getStart())*13)+Integer.hashCode(getEnd());
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if(obj==this) return true;
+			if(obj==null || !(obj instanceof RegionOfInterest)) return false;
+			final RegionOfInterest o = RegionOfInterest.class.cast(obj);
+			if(!this.contigsMatch(o)) return false;
+			if(this.items.size()!=o.items.size()) return false;
+			for(int i=0;i< this.items.size();i++) {
+				if(this.items.get(i).getStart() != o.items.get(i).getStart()) return false;
+				if(this.items.get(i).getEnd() != o.items.get(i).getEnd()) return false;
+				}
+			return true;
+			}
+		
+		@Override
+		public String toString() {
+			return getContig()+":"+getStart()+"-"+getEnd();
+			}
+		}
 	
 	private static class VariantWrapper implements Locatable {
 		final VariantContext ctx;
@@ -315,7 +381,6 @@ public class OptimizeFisher extends Launcher {
 	
 	private static short STATE_UNDEFINED=0;
 	private static short STATE_SET_BY_USER = 1;
-	private static short STATE_FILL = 2;
 	
 	
 	private static interface CompareOp {
@@ -339,8 +404,7 @@ public class OptimizeFisher extends Launcher {
 				}
 			}
 		private OptionalDouble startValue = OptionalDouble.empty();
-		private double minValue=0;
-		private double maxValue=0;
+		private MinMaxDouble minMaxValues = new MinMaxDouble();
 		private short init_state=STATE_UNDEFINED;
 		
 		@Override
@@ -351,8 +415,10 @@ public class OptimizeFisher extends Launcher {
 			final String key3 = this.getName()+".value";
 			if(props.containsKey(key1) && props.containsKey(key2)&& props.containsKey(key3)) {
 				this.init_state = STATE_SET_BY_USER;
-				this.minValue = Double.parseDouble(props.getProperty(key1));
-				this.maxValue = Double.parseDouble(props.getProperty(key2));
+				this.minMaxValues = new MinMaxDouble(
+						Double.parseDouble(props.getProperty(key1)),
+						Double.parseDouble(props.getProperty(key2))
+						);
 				this.startValue = OptionalDouble.of(Double.parseDouble(props.getProperty(key3)));
 				}
 			}
@@ -369,20 +435,13 @@ public class OptimizeFisher extends Launcher {
 			if(this.init_state==STATE_SET_BY_USER) {
 				//nothing
 				}
-			else if(this.init_state==STATE_UNDEFINED) {
-				minValue=v;	
-				maxValue=v;	
-				this.init_state = STATE_FILL;
-				}
-			else
-				{
-				minValue = Math.min(minValue, v);
-				maxValue = Math.max(maxValue, v);
+			else{
+				this.minMaxValues.accept(v);
 				}
 			}
 		
-		protected double getMin() { return this.minValue;}
-		protected double getMax() { return this.maxValue;}
+		protected double getMin() { return this.minMaxValues.getMinAsDouble();}
+		protected double getMax() { return this.minMaxValues.getMaxAsDouble();}
 		
 		private double delta() {
 			return getMax() - getMin();
@@ -411,7 +470,7 @@ public class OptimizeFisher extends Launcher {
 		
 		@Override
 		boolean isEnabled() {
-			return getMin() < getMax();
+			return !this.minMaxValues.isEmpty() && getMin() < getMax();
 			}
 		
 		@Override
@@ -646,7 +705,7 @@ public class OptimizeFisher extends Launcher {
 				final String sn = g.getSampleName();
 				if(!casesControls.contains(sn)) continue;
 				n++;
-				if(g.isNoCall()) miss++;
+				if(g.isNoCall() || (g.hasDP() && g.getDP()==0)) miss++;
 				}
 			if(n==0) throw new IllegalStateException();
 			final double f_missing = miss/n;
@@ -679,7 +738,7 @@ public class OptimizeFisher extends Launcher {
 			int ctrl_alt = 0;
 			int ctrl_ref = 0;
 			for(Genotype g:ctx.getGenotypes()) {
-				if(g.isNoCall()) continue;
+				if(g.isNoCall() || (g.hasDP() && g.getDP()==0)) continue;
 				final String sn = g.getSampleName();
 				if(casesControls.isCase(sn)) {
 					if(g.hasAltAllele()) {
@@ -999,6 +1058,7 @@ public class OptimizeFisher extends Launcher {
 		final List<Trait> traits;
 		final List<VariantWrapper> subset = new Vector<>();
 		SlidingWindow sliding_window = new SlidingWindow();
+		RegionOfInterest my_region_of_interest = null;
 		
 		Solution() {
 			this(false);
@@ -1079,7 +1139,10 @@ public class OptimizeFisher extends Launcher {
 				final Path tsvName = OptimizeFisher.this.outputDir.resolve("best.tsv");
 				try(BufferedWriter w = Files.newBufferedWriter(tsvName,StandardOpenOption.WRITE,StandardOpenOption.APPEND)) {
 					w.write(""+System.currentTimeMillis()+"\t"+StringUtils.now()+"\t"+this.id+"\t"+this.generation+"\t"+this.getPValue()+"\t"+getInterval()+"\t"+this.subset.size()+"\t"+
-								this.sliding_window.window_size+"\t"+this.sliding_window.window_shift);
+								this.sliding_window.window_size+"\t"+this.sliding_window.window_shift+"\t"+
+								(this.my_region_of_interest==null?".":this.my_region_of_interest.toString()) +"\t"+
+								(this.my_region_of_interest==null?".":this.my_region_of_interest.getName())
+								);
 					for(int i=0;i< this.traits.size();i++) {
 						w.write("\t"+ this.traits.get(i));
 						}
@@ -1226,7 +1289,6 @@ public class OptimizeFisher extends Launcher {
 			double pvalue= 1.0;
 			this.subset.clear();
 			final List<VariantWrapper> L1 = new Vector<>(OptimizeFisher.this.variants.size());
-			final Set<String> contigs = new HashSet<>();
 			for(VariantWrapper w: OptimizeFisher.this.variants) {
 				boolean keep=true;
 				for(Trait t:this.traits) {
@@ -1237,15 +1299,16 @@ public class OptimizeFisher extends Launcher {
 					}
 				if(!keep) continue;
 				L1.add(w);
-				contigs.add(w.getContig());
 				}
 			if(L1.isEmpty()) {
 				LOG.warn("no variant for "+this.toString());
 				}
 			
-			for(final String contig: contigs) {
-				final List<VariantWrapper> L2 = new ArrayList<>(L1);
-				L2.removeIf(V->!V.getContig().equals(contig));
+			for(final RegionOfInterest region_of_interest:OptimizeFisher.this.regions_of_interest) {
+				final List<VariantWrapper> L2 = L1.stream().
+						filter(V->region_of_interest.overlaps(V)).
+						collect(Collectors.toList());
+				if(L2.isEmpty()) continue;
 				
 				int start = L2.get(0).getStart();
 				for(;;) {
@@ -1267,6 +1330,7 @@ public class OptimizeFisher extends Launcher {
 						pvalue = pv;
 						this.subset.clear();
 						this.subset.addAll(L3);
+						this.my_region_of_interest = region_of_interest;
 						}
 					
 					start+= this.sliding_window.window_shift;
@@ -1375,6 +1439,7 @@ public class OptimizeFisher extends Launcher {
 		return m + this.random.nextInt(M-m);
 	}
 	
+		
 	@Override
 	public int doWork(final List<String> args) {
 		try {
@@ -1385,6 +1450,31 @@ public class OptimizeFisher extends Launcher {
 			this.casesControls.load();
 			this.casesControls.checkHaveCasesControls().checkNoCommon();
 			
+			
+			if(this.roiPath!=null) {
+				Map<String,RegionOfInterest> id2roi=new HashMap<>();
+				try(BedLineReader blr = new BedLineReader(this.roiPath)) {
+					while(blr.hasNext()) {
+						final BedLine bl = blr.next();
+						final String roiName =bl.getOrDefault(3, "");
+						if( StringUtils.isBlank(roiName)) {
+							LOG.error("no name in bedline "+bl);
+							return -1;
+							}
+						if(!id2roi.containsKey(roiName)) {
+							id2roi.put(roiName, new RegionOfInterest(roiName,bl));
+							}
+						else
+							{
+							id2roi.get(roiName).items.add(bl);
+							}
+						}
+					}
+				id2roi.values().forEach(R->R.sort());
+				this.regions_of_interest.addAll(new HashSet<>(id2roi.values()));/** Set used to remove duplicate coordinates */
+				}
+
+			
 			try(VCFReader r = VCFReaderFactory.makeDefault().open(vcfPath,false))  {
 				this.vcfHeader = r.getHeader();
 				this.casesControls.retain(vcfHeader);
@@ -1394,6 +1484,10 @@ public class OptimizeFisher extends Launcher {
 					final OrderChecker<VariantContext> check = new OrderChecker<>(this.vcfHeader.getSequenceDictionary(),false);
 					while(iter.hasNext()) {
 						final VariantContext ctx = check.apply( iter.next());
+						// ROI was loaded as BED
+						if(this.roiPath!=null) {
+							if(this.regions_of_interest.stream().noneMatch(R->R.overlaps(ctx))) continue;
+							}
 						if(ctx.getAlleles().size()!=2) {
 							LOG.error("Use bcftools norm. Expected only two alleles but then I got "+ctx);
 							return -1;
@@ -1421,6 +1515,25 @@ public class OptimizeFisher extends Launcher {
 				return -1;
 				}
 				
+			if(this.roiPath==null) {
+				for(final String contig: this.variants.stream().map(V->V.getContig()).collect(Collectors.toSet())) {
+					final MinMaxInteger mm = new MinMaxInteger();
+					this.variants.stream().filter(V->contig.equals(V.getContig())).forEach(V->mm.accept(V.getStart(),V.getEnd()));
+					if(mm.isEmpty()) continue;
+					final RegionOfInterest rgn= new RegionOfInterest("ROI"+regions_of_interest.size(),new SimpleInterval(contig, mm.getMinAsInt(), mm.getMaxAsInt()));
+					regions_of_interest.add(rgn);
+					}
+				}
+			
+			//remove ROI without variant
+			this.regions_of_interest.removeIf(R->this.variants.stream().noneMatch(V->R.overlaps(V)));
+			
+			
+			if(regions_of_interest.isEmpty()) {
+				LOG.error("No ROI was found.");
+				return -1;
+				}
+			
 			this.traitFactories.addAll(
 				Arrays.asList(
 					new AFTagFactory(),
@@ -1485,7 +1598,7 @@ public class OptimizeFisher extends Launcher {
 			
 			//write header
 			try(BufferedWriter w = Files.newBufferedWriter( OptimizeFisher.this.outputDir.resolve("best.tsv"),StandardOpenOption.WRITE,StandardOpenOption.CREATE)) {
-				w.append("TIMESTAMP\tDATE\tID\tGENERATION\tPVALUE\tINTERVAL\tN-VARIANTS\tWIN_SIZE\tWIN_SHIFT");
+				w.append("TIMESTAMP\tDATE\tID\tGENERATION\tPVALUE\tINTERVAL\tN-VARIANTS\tWIN_SIZE\tWIN_SHIFT\tROI_INTERVAL\tROI_NAME");
 				for(TraitFactory tf:this.traitFactories) w.append("\t"+tf.getName());
 				w.append("\n");
 				w.flush();
