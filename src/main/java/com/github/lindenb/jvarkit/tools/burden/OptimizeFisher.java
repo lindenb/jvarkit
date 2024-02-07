@@ -47,7 +47,22 @@ import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.DoubleUnaryOperator;
+import java.util.function.Function;
+import java.util.function.IntUnaryOperator;
+import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Text;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -59,11 +74,16 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
@@ -74,6 +94,7 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StopWatch;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -134,6 +155,8 @@ public class OptimizeFisher extends Launcher {
 	private int max_sliding_window_size = 100_000;
 	@Parameter(names={"--threads"},description="number of threads")
 	private int nThreads = 1;
+	@Parameter(names={"--gtf"},description="tabix indexed gtf file for context drawing")
+	private String gtfPath = null;
 
 	
 	
@@ -969,7 +992,7 @@ public class OptimizeFisher extends Launcher {
 	private Random random = new Random(System.currentTimeMillis());
 
 	
-	private class Solution implements Comparable<Solution>,Runnable {
+	private class Solution implements Comparable<Solution>,Runnable,Locatable {
 		final long id = (++OptimizeFisher.ID_GENERATOR);
 		final long generation = OptimizeFisher.this.n_generations;
 		private OptionalDouble optPvalue=OptionalDouble.empty();
@@ -1063,6 +1086,135 @@ public class OptimizeFisher extends Launcher {
 					w.write("\n");
 					w.flush();
 					}
+				if(!this.subset.isEmpty()) {
+					final int featureHeight = 20;
+					final int window_size = 700;
+					final int margin_left=100;
+					final Locatable loc = new SimpleInterval(this.getContig(),
+							Math.max(1, this.getStart() + this.getLengthOnReference()/2),
+							 this.getEnd() + this.getLengthOnReference()/2
+							);
+					try {
+						DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+						dbf.setNamespaceAware(true);
+						DocumentBuilder db = dbf.newDocumentBuilder();
+						final Document dom = db.newDocument();
+						final DoubleUnaryOperator pos2pixel = P-> ((P - loc.getStart())/(double)(loc.getLengthOnReference()))*(double)window_size + margin_left;
+						final Function<String, Element> element = S->dom.createElementNS(SVG.NS, S);
+						final IntUnaryOperator trimPos = P->Math.min(Math.max(loc.getStart(), P),loc.getEnd());
+						final Element root = element.apply("svg");
+						dom.appendChild(root);
+						Element E = element.apply("title");
+						root.appendChild(E);
+						E.appendChild(dom.createTextNode(getInterval()+" extended to "+ loc.toString()));
+						root.setAttribute("width", String.valueOf(window_size+margin_left+1));
+						int y=0;
+						if(OptimizeFisher.this.gtfPath!=null) {
+							try(TabixReader tabix = new TabixReader(OptimizeFisher.this.gtfPath)) {
+								GTFCodec codec = new GTFCodec();
+								TabixReader.Iterator iter=tabix.query(loc.getContig(),loc.getStart(),loc.getEnd());
+								final List<GTFLine> features= new ArrayList<>();
+								for(;;) {
+									String line = iter.next();
+									if(line==null) break;
+									final GTFLine feat= codec.decode(line);
+									if(!(feat.getType().equals("exon") || feat.getType().equals("transcript"))) continue;
+									features.add(feat);
+									}
+								final Pileup<GTFLine> pileup = new Pileup<>((A,B)->{
+									double x1 = pos2pixel.applyAsDouble(A.getEnd());
+									double x2 = pos2pixel.applyAsDouble(B.getStart());
+									if(x1 + 2 < x2) return true;
+									x1 = pos2pixel.applyAsDouble(B.getEnd());
+									x2 = pos2pixel.applyAsDouble(A.getStart());
+									if(x1 + 2 < x2) return true;
+									return false;
+									});
+								pileup.addAll(features.stream().filter(G->G.getType().equals("transcript")).sorted((A,B)->Integer.compare(A.getStart(), B.getStart())).collect(Collectors.toList()));
+								//plot each transcript
+								for(List<GTFLine> row: pileup.getRows()) {
+									for(final GTFLine feat: row) {
+										final String transcript_id =  StringUtils.ifBlank(feat.getAttribute("transcript_id"),"") ;
+										final String gene_name = StringUtils.ifBlank(feat.getAttribute("gene_name"),transcript_id) ;
+										E = element.apply("line");
+										E.setAttribute("style", "stroke:darkgray;stroke-width:1px");
+										E.setAttribute("x1", String.valueOf( pos2pixel.applyAsDouble( trimPos.applyAsInt(feat.getStart()))));
+										E.setAttribute("y1", String.valueOf(y + featureHeight/2.0));
+										E.setAttribute("x2", String.valueOf( pos2pixel.applyAsDouble( trimPos.applyAsInt(feat.getEnd()+1))));
+										E.setAttribute("y2", String.valueOf(y + featureHeight/2.0));
+										root.appendChild(E);
+										
+										E = element.apply("text");
+										E.setAttribute("style", "font-width:10px;text-anchor:end;");
+										E.appendChild(dom.createTextNode(transcript_id+" "+gene_name));
+										E.setAttribute("x",String.valueOf(margin_left-5));
+										E.setAttribute("y", String.valueOf(y+5));
+										root.appendChild(E);
+										
+										for(GTFLine exon: features.stream().filter(G->transcript_id.equals(G.getAttribute("transcript_id")) && G.getType().equals("exon")).sorted((A,B)->Integer.compare(A.getStart(), B.getStart())).collect(Collectors.toList())) {
+											E  = element.apply("rect");
+											double x1 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(exon.getStart()));
+											double x2 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(exon.getEnd()+1));
+											E.setAttribute("style", "stroke:darkgray;fill:lightgray;stroke-width:1px");
+											E.setAttribute("x", String.valueOf(x1));
+											E.setAttribute("y", String.valueOf(y));
+											E.setAttribute("width", String.valueOf(x2-x1));
+											E.setAttribute("height", String.valueOf(featureHeight));
+											root.appendChild(E);
+											}
+										
+										y+= featureHeight+1;
+										}
+									y+= featureHeight+1;
+									}
+								for(int side=0;side < 2;++side) {
+									final Set<String> sn = (side==0?OptimizeFisher.this.casesControls.getCases():OptimizeFisher.this.casesControls.getControls());
+									for(VariantWrapper w:this.subset) {
+										if(w.ctx.getGenotypes().stream().filter(G->G.hasAltAllele()).noneMatch(G->sn.contains(G.getSampleName()))) continue;
+										
+										
+										E  = element.apply("rect");
+										double x1 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(w.getStart()));
+										double x2 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(w.getEnd()+1));
+										E.setAttribute("style", "stroke:none;fill:"+ (side==0?"red":"blue") +";stroke-width:1px");
+										E.setAttribute("x", String.valueOf(x1));
+										E.setAttribute("y", String.valueOf(y));
+										E.setAttribute("width", String.valueOf(x2-x1));
+										E.setAttribute("height", String.valueOf(featureHeight));
+										E.setAttribute("title", String.valueOf(w.ctx.getContig()+":"+w.ctx.getStart()));
+										root.appendChild(E);
+										}
+									y+= featureHeight+1;
+									}
+								}
+							}
+						
+						E  = element.apply("rect");
+						E.setAttribute("style", "stroke:gray;fill:none;stroke-width:1px");
+						E.setAttribute("x", String.valueOf(0));
+						E.setAttribute("y", String.valueOf(0));
+						E.setAttribute("width", String.valueOf(window_size+margin_left));
+						E.setAttribute("height", String.valueOf(y));
+						root.appendChild(E);
+
+						E  = element.apply("rect");
+						E.setAttribute("style", "stroke:gray;fill:none;stroke-width:1px");
+						E.setAttribute("x", String.valueOf(0));
+						E.setAttribute("y", String.valueOf(0));
+						E.setAttribute("width", String.valueOf(margin_left));
+						E.setAttribute("height", String.valueOf(y));
+						root.appendChild(E);
+						
+						root.setAttribute("height", String.valueOf(y+1));
+						final Path svgName = OptimizeFisher.this.outputDir.resolve("best.svg");
+						TransformerFactory.newInstance().newTransformer().
+							transform(new DOMSource(dom), new StreamResult(svgName.toFile()));
+						}
+					catch(Throwable err) {
+						throw new IOException(err);
+						}
+					}
+				
 				}
 	
 
@@ -1166,10 +1318,25 @@ public class OptimizeFisher extends Launcher {
 			return true;
 			}
 		
+		@Override
+		public String getContig() {
+			return this.subset.isEmpty()? "." : this.subset.get(0).getContig();
+			}
+		
+		@Override
+		public int getStart() {
+			return  this.subset.isEmpty()? 0 : this.subset.get(0).getStart();
+			}
+		
+		@Override
+		public int getEnd() {
+			return  this.subset.isEmpty()? 0 : this.subset.get(this.subset.size()-1).getStart();
+			}
+		
 		String getInterval() {
 			return this.subset.isEmpty()?
 					".":
-					this.subset.get(0).getContig()+":"+this.subset.get(0).getStart()+"-"+this.subset.get(this.subset.size()-1).getStart();
+					this.getContig()+":"+this.getStart()+"-"+ this.getEnd();
 			}
 		@Override
 		public String toString() {
