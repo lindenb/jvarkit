@@ -1149,6 +1149,25 @@ public class OptimizeFisher extends Launcher {
 					w.write("\n");
 					w.flush();
 					}
+				
+				final Path remainbedName = OptimizeFisher.this.outputDir.resolve("remain.bed");
+				try(BufferedWriter w = Files.newBufferedWriter(remainbedName,StandardOpenOption.WRITE,StandardOpenOption.TRUNCATE_EXISTING)) {
+					for(RegionOfInterest roi:  OptimizeFisher.this.regions_of_interest) {
+						if(this.my_region_of_interest!=null && roi.overlaps(this.my_region_of_interest)) {
+							if(this.getStart() < roi.getStart()) {
+								w.write(roi.getContig()+"\t"+(this.getStart()-1)+"\t"+roi.getStart()+"\t"+roi.getName()+"\n");
+								}
+							if(this.getEnd() > roi.getEnd()) {
+								w.write(roi.getContig()+"\t"+(roi.getEnd())+"\t"+this.getEnd()+"\t"+roi.getName()+"\n");
+								}
+							}
+						else {
+							w.write(roi.getContig()+"\t"+(roi.getStart()-1)+"\t"+roi.getEnd()+"\t"+roi.getName()+"\n");
+							}
+						}
+					w.flush();
+					}
+				
 				if(!this.subset.isEmpty()) {
 					final int featureHeight = 20;
 					final int window_size = 700;
@@ -1303,7 +1322,7 @@ public class OptimizeFisher extends Launcher {
 			if(L1.isEmpty()) {
 				LOG.warn("no variant for "+this.toString());
 				}
-			
+						
 			for(final RegionOfInterest region_of_interest:OptimizeFisher.this.regions_of_interest) {
 				final List<VariantWrapper> L2 = L1.stream().
 						filter(V->region_of_interest.overlaps(V)).
