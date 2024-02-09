@@ -29,6 +29,8 @@ Usage: optimizefisher [options] Files
     --duration
       format: <integer>(years|week|days|hours|minutes|seconds)
       Default: 23h
+    --gtf
+      tabix indexed gtf file for context drawing
     -h, --help
       print help and exit
     --helpFormat
@@ -47,6 +49,10 @@ Usage: optimizefisher [options] Files
       Default: 5
   * --output, -o
       Output directory
+    --roi
+      ROI regions of interesets as a BED file chrom/start/end/ROI-NAME . 
+      Multiple interval can be defined for the same ROI-NAME. Use the whole 
+      contig if undefined
     --threads
       number of threads
       Default: 1

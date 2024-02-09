@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : c70f6515
-Compilation : 20240201184005
+Version     : dea54f1a2
+Compilation : 20240209164553
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -173,7 +173,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
 | [kg2gff](KgToGff.md) | Convert UCSC genpred file to gff3 | 20210106 | 20230817 |
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
-| [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20231205 |
+| [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20240207 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [rdfcombine](RDFCombine.md) | Substract/Add RDF models | 20230903 | 20230903 |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
@@ -182,7 +182,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
-| [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240201 |
+| [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240206 |
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
 | [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |

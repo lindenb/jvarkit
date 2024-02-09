@@ -203,7 +203,7 @@ public class OptimizeFisher extends Launcher {
 			}
 		@Override
 		public boolean overlaps(final Locatable other) {
-			return items.stream().anyMatch(X->overlaps(other));
+			return items.stream().anyMatch(X->X.overlaps(other));
 			}
 		
 		@Override
@@ -440,8 +440,8 @@ public class OptimizeFisher extends Launcher {
 				}
 			}
 		
-		protected double getMin() { return this.minMaxValues.getMinAsDouble();}
-		protected double getMax() { return this.minMaxValues.getMaxAsDouble();}
+		protected double getMin() { return this.minMaxValues.getMin().orElse(0);}
+		protected double getMax() { return this.minMaxValues.getMax().orElse(0);}
 		
 		private double delta() {
 			return getMax() - getMin();
@@ -1152,18 +1152,20 @@ public class OptimizeFisher extends Launcher {
 				
 				final Path remainbedName = OptimizeFisher.this.outputDir.resolve("remain.bed");
 				try(BufferedWriter w = Files.newBufferedWriter(remainbedName,StandardOpenOption.WRITE,StandardOpenOption.TRUNCATE_EXISTING)) {
-					for(RegionOfInterest roi:  OptimizeFisher.this.regions_of_interest) {
-						if(this.my_region_of_interest!=null && roi.overlaps(this.my_region_of_interest)) {
-							if(this.getStart() < roi.getStart()) {
-								w.write(roi.getContig()+"\t"+(this.getStart()-1)+"\t"+roi.getStart()+"\t"+roi.getName()+"\n");
+					for(RegionOfInterest theroi:  OptimizeFisher.this.regions_of_interest) {
+						for(Locatable item : theroi.items) {
+							if(this.my_region_of_interest!=null && item.overlaps(this.my_region_of_interest)) {
+									if(this.getStart() < item.getStart()) {
+										w.write(item.getContig()+"\t"+(this.getStart()-1)+"\t"+item.getStart()+"\t"+theroi.getName()+"\n");
+										}
+									if(this.getEnd() > item.getEnd()) {
+										w.write(item.getContig()+"\t"+(item.getEnd())+"\t"+this.getEnd()+"\t"+theroi.getName()+"\n");
+										}
+									}
+								else {
+									w.write(item.getContig()+"\t"+(item.getStart()-1)+"\t"+item.getEnd()+"\t"+theroi.getName()+"\n");
+									}
 								}
-							if(this.getEnd() > roi.getEnd()) {
-								w.write(roi.getContig()+"\t"+(roi.getEnd())+"\t"+this.getEnd()+"\t"+roi.getName()+"\n");
-								}
-							}
-						else {
-							w.write(roi.getContig()+"\t"+(roi.getStart()-1)+"\t"+roi.getEnd()+"\t"+roi.getName()+"\n");
-							}
 						}
 					w.flush();
 					}
@@ -1322,6 +1324,7 @@ public class OptimizeFisher extends Launcher {
 			if(L1.isEmpty()) {
 				LOG.warn("no variant for "+this.toString());
 				}
+			
 						
 			for(final RegionOfInterest region_of_interest:OptimizeFisher.this.regions_of_interest) {
 				final List<VariantWrapper> L2 = L1.stream().

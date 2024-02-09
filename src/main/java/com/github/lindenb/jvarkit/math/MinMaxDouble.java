@@ -27,12 +27,21 @@ package com.github.lindenb.jvarkit.math;
 import java.util.Arrays;
 import java.util.OptionalDouble;
 import java.util.function.DoubleConsumer;
+import java.util.function.DoubleUnaryOperator;
 import java.util.stream.DoubleStream;
 
-public class MinMaxDouble implements DoubleConsumer {
+public class MinMaxDouble implements DoubleConsumer, DoubleUnaryOperator {
 	private long count=0L;
 	private double minV;
 	private double maxV;
+	
+	/** allow this class to be used in stream, returns the original value */
+	@Override
+	public final double applyAsDouble(double v) {
+		accept(v);
+		return v;
+		}
+	
 	@Override
 	public void accept(double value) {
 		if(Double.isNaN(value)) throw new IllegalArgumentException("cannot accept(NaN)");
