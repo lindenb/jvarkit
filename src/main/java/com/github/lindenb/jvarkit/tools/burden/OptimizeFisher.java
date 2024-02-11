@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -48,34 +49,32 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.DoubleUnaryOperator;
-import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
 import java.util.stream.Collectors;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-
-import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.date.DurationParser;
 import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.MinMaxDouble;
 import com.github.lindenb.jvarkit.math.MinMaxInteger;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
+import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
+import com.github.lindenb.jvarkit.svg.SVGDocument;
+import com.github.lindenb.jvarkit.util.Algorithm;
+import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
@@ -84,7 +83,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.svg.SVG;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
@@ -160,6 +158,8 @@ public class OptimizeFisher extends Launcher {
 	private String gtfPath = null;
 	@Parameter(names={"--roi"},description="ROI regions of interesets as a BED file chrom/start/end/ROI-NAME . Multiple interval can be defined for the same ROI-NAME. Use the whole contig if undefined")
 	private Path roiPath = null;
+	@Parameter(names={"--max-variants-per-solution"},description="Maximum number of variants per solution.")
+	private long max_variants_per_solution = 3_000_000_000L;
 
 	
 	
@@ -230,27 +230,13 @@ public class OptimizeFisher extends Launcher {
 			}
 		}
 	
-	private static class VariantWrapper implements Locatable {
-		final VariantContext ctx;
+	private static class VariantWrapper extends LocatableDelegate<VariantContext> {
 		final Map<String,OptionalDouble> tag2value = new HashMap<>();
 		VariantWrapper(final VariantContext ctx) {
-			this.ctx = ctx;
+			super(ctx);
 			}
-		@Override
-		public String getContig() {
-			return ctx.getContig();
-			}
-		@Override
-		public int getStart() {
-			return ctx.getStart();
-			}
-		@Override
-		public int getEnd() {
-			return ctx.getEnd();
-			}
-		@Override
-		public String toString() {
-			return ctx.toString();
+		public VariantContext getCtx() {
+			return getDelegate();
 			}
 		}
 	
@@ -260,7 +246,8 @@ public class OptimizeFisher extends Launcher {
 		
 		SlidingWindow() {
 			this.window_size =rnd(min_sliding_window_size,max_sliding_window_size);
-			this.window_shift = this.window_size/rnd(2,5);
+			this.window_shift = this.window_size/rnd(2,100);
+			//this.window_shift = 1; //TODO FORCE PLUS 1 TESTING
 		}
 		
 		void fill(final Properties props) {
@@ -286,6 +273,7 @@ public class OptimizeFisher extends Launcher {
 				sl.window_size = Math.min(max_sliding_window_size, (int)(this.window_size* (1.0 + random.nextDouble())));
 				}
 			sl.window_shift = sl.window_size/rnd(2,5);
+			//sl.window_shift = 1; //TODO FORCE PLUS 1 TESTING
 			return sl;
 			}	
 		@Override
@@ -538,7 +526,7 @@ public class OptimizeFisher extends Launcher {
 	private class AFTagFactory extends AbstractNumberFactory {
 		@Override
 		protected void initialize(VariantWrapper w) {
-			final OptionalDouble v = getAF(w.ctx);
+			final OptionalDouble v = getAF(w.getCtx());
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(Math.min(0.1,v.getAsDouble()));
 			}
@@ -572,9 +560,9 @@ public class OptimizeFisher extends Launcher {
 	private abstract class  SimpleDoubleTagFactory  extends AbstractNumberFactory {
 		@Override
 		protected final void initialize(VariantWrapper w) {
-			final OptionalDouble v = !w.ctx.hasAttribute(getTag()) ?
+			final OptionalDouble v = !w.getCtx().hasAttribute(getTag()) ?
 					OptionalDouble.empty():
-					OptionalDouble.of(w.ctx.getAttributeAsDouble(getTag(), 0.0))
+					OptionalDouble.of(w.getCtx().getAttributeAsDouble(getTag(), 0.0))
 					;
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(v.getAsDouble());
@@ -689,7 +677,7 @@ public class OptimizeFisher extends Launcher {
 	private class MissingFactory extends AbstractNumberFactory {
 		@Override
 		protected void initialize(VariantWrapper w) {
-			final OptionalDouble v= getMissingValue(w.ctx);
+			final OptionalDouble v= getMissingValue(w.getCtx());
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(Math.min(0.1,v.getAsDouble()));
 			}
@@ -722,7 +710,7 @@ public class OptimizeFisher extends Launcher {
 	private class FisherH extends AbstractNumberFactory {
 		@Override
 		protected void initialize(final VariantWrapper w) {
-			final OptionalDouble v= getFisherH(w.ctx);
+			final OptionalDouble v= getFisherH(w.getCtx());
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(Math.min(0.1,v.getAsDouble()));
 			}
@@ -777,7 +765,7 @@ public class OptimizeFisher extends Launcher {
 	private class SingletonADFactory extends AbstractNumberFactory {
 		@Override
 		protected void initialize(final VariantWrapper w) {
-			final OptionalDouble v= getADRatio(w.ctx);
+			final OptionalDouble v= getADRatio(w.getCtx());
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(Math.max(0.25,Math.min(0.4,v.getAsDouble())));
 			}
@@ -811,7 +799,7 @@ public class OptimizeFisher extends Launcher {
 		
 		@Override
 		protected void initialize(final VariantWrapper w) {
-			final OptionalDouble v= getSingletonGQ(w.ctx);
+			final OptionalDouble v= getSingletonGQ(w.getCtx());
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(Math.max(70,v.getAsDouble()));
 			}
@@ -840,7 +828,7 @@ public class OptimizeFisher extends Launcher {
 		
 		@Override
 		protected void initialize(final VariantWrapper w) {
-			final OptionalDouble v= getGnomadAF(w.ctx);
+			final OptionalDouble v= getGnomadAF(w.getCtx());
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(v.getAsDouble());
 			}
@@ -872,7 +860,7 @@ public class OptimizeFisher extends Launcher {
 		
 		@Override
 		protected void initialize(final VariantWrapper w) {
-			final OptionalDouble v= getCADD(w.ctx);
+			final OptionalDouble v= getCADD(w.getCtx());
 			w.tag2value.put(getName(), v);
 			if(v.isPresent()) initialize(v.getAsDouble());
 			}
@@ -1024,7 +1012,7 @@ public class OptimizeFisher extends Launcher {
 			}
 		@Override
 		void initialize(final VariantWrapper w) {
-			this.vep.getPredictions(w.ctx).stream().
+			this.vep.getPredictions(w.getCtx()).stream().
 					flatMap(P->P.getSOTermsStrings().stream()).
 					forEach(S->super.all_acns.add(S));
 			}
@@ -1032,7 +1020,7 @@ public class OptimizeFisher extends Launcher {
 		@Override
 		boolean test(final VariantWrapper wrapper,final Trait v) {
 			final MyTrait mt = MyTrait.class.cast(v);
-			return vep.getPredictions(wrapper.ctx).stream().
+			return vep.getPredictions(wrapper.getCtx()).stream().
 					flatMap(P->P.getSOTermsStrings().stream()).
 					anyMatch(S->mt.acns.contains(S));
 			}
@@ -1117,7 +1105,7 @@ public class OptimizeFisher extends Launcher {
 						build()) {
 					vw.writeHeader(hdr);
 					for(VariantWrapper w:this.subset) {
-						vw.add(w.ctx);
+						vw.add(w.getCtx());
 						}
 					}
 				final Properties props = new Properties();
@@ -1131,7 +1119,7 @@ public class OptimizeFisher extends Launcher {
 				
 				
 				final Path propsName = OptimizeFisher.this.outputDir.resolve("best.properties");
-				try(BufferedWriter w = Files.newBufferedWriter(propsName,StandardOpenOption.WRITE,StandardOpenOption.TRUNCATE_EXISTING)) {
+				try(BufferedWriter w = Files.newBufferedWriter(propsName,StandardOpenOption.CREATE,StandardOpenOption.WRITE,StandardOpenOption.TRUNCATE_EXISTING)) {
 					props.store(w, "pvalue="+this.getPValue()+" generation="+this.generation);
 					w.flush();
 					}
@@ -1151,15 +1139,16 @@ public class OptimizeFisher extends Launcher {
 					}
 				
 				final Path remainbedName = OptimizeFisher.this.outputDir.resolve("remain.bed");
-				try(BufferedWriter w = Files.newBufferedWriter(remainbedName,StandardOpenOption.WRITE,StandardOpenOption.TRUNCATE_EXISTING)) {
+				try(BufferedWriter w = Files.newBufferedWriter(remainbedName,StandardOpenOption.CREATE,StandardOpenOption.WRITE,StandardOpenOption.TRUNCATE_EXISTING)) {
 					for(RegionOfInterest theroi:  OptimizeFisher.this.regions_of_interest) {
 						for(Locatable item : theroi.items) {
-							if(this.my_region_of_interest!=null && item.overlaps(this.my_region_of_interest)) {
-									if(this.getStart() < item.getStart()) {
-										w.write(item.getContig()+"\t"+(this.getStart()-1)+"\t"+item.getStart()+"\t"+theroi.getName()+"\n");
-										}
-									if(this.getEnd() > item.getEnd()) {
-										w.write(item.getContig()+"\t"+(item.getEnd())+"\t"+this.getEnd()+"\t"+theroi.getName()+"\n");
+							if(!this.subset.isEmpty() && item.overlaps(this)) {
+									// solution contains whole item
+									if(CoordMath.encloses(this.getStart(), this.getEnd(), item.getStart(), item.getEnd())) continue;
+									int x1 = Math.max(item.getStart(), this.getStart());
+									int x2 = Math.min(item.getEnd(), this.getEnd());
+									if(x1 <= x2) {
+										w.write(item.getContig()+"\t"+(x1-1)+"\t"+x2 +"\t"+theroi.getName()+"\n");
 										}
 									}
 								else {
@@ -1175,124 +1164,203 @@ public class OptimizeFisher extends Launcher {
 					final int window_size = 700;
 					final int margin_left=100;
 					final Locatable loc = new SimpleInterval(this.getContig(),
-							Math.max(1, this.getStart() + this.getLengthOnReference()/2),
+							Math.max(1, this.getStart() - this.getLengthOnReference()/2),
 							 this.getEnd() + this.getLengthOnReference()/2
 							);
 					try {
-						DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-						dbf.setNamespaceAware(true);
-						DocumentBuilder db = dbf.newDocumentBuilder();
-						final Document dom = db.newDocument();
+						final Hyperlink hyperlink= Hyperlink.compile(OptimizeFisher.this.vcfHeader.getSequenceDictionary());
+						final SVGDocument svgDoc = new SVGDocument();
 						final DoubleUnaryOperator pos2pixel = P-> ((P - loc.getStart())/(double)(loc.getLengthOnReference()))*(double)window_size + margin_left;
-						final Function<String, Element> element = S->dom.createElementNS(SVG.NS, S);
+						final String mainTitle = getInterval()+" extended to "+ loc.toString()+" P="+this.getPValue()+" "+(this.my_region_of_interest==null?"":this.my_region_of_interest.getName()+" "+this.my_region_of_interest.toString());
 						final IntUnaryOperator trimPos = P->Math.min(Math.max(loc.getStart(), P),loc.getEnd());
-						final Element root = element.apply("svg");
-						dom.appendChild(root);
-						Element E = element.apply("title");
-						root.appendChild(E);
-						E.appendChild(dom.createTextNode(getInterval()+" extended to "+ loc.toString()));
-						root.setAttribute("width", String.valueOf(window_size+margin_left+1));
-						int y=0;
+						svgDoc.setWidth(window_size+margin_left+1);
+						svgDoc.appendStyle(
+							".transcript {stroke:darkgray;stroke-width:1px}\n" +
+							".exon {stroke:none;fill:gray;}\n" +
+							".cds {stroke:none;fill:darkslategray;}\n" +
+							".case {stroke:none;fill:red;opacity:0.3;}\n" +
+							".control {stroke:none;fill:blue;opacity:0.3;}\n" +
+							".frame {stroke:gray;fill:none;stroke-width:1px}\n"+
+							".caset {font-size:7px;text-anchor:end;fill:red;}\n"+
+							".controlt {font-size:7px;text-anchor:end;fill:blue;}\n"+
+							".highlight {stroke:none;fill:mistyrose;opacity:0.2;}\n"
+							);
+						
+						svgDoc.setTitle(mainTitle);
+						
+						svgDoc.svgElement.appendChild(svgDoc.comment(StringUtils.now()));
+						
+						int y=2;
+						
+						final Element highlight = svgDoc.element("rect",Maps.of(
+							"class","highlight",
+							"x", pos2pixel.applyAsDouble(this.getStart()),
+							"y", 0,
+							"width", (pos2pixel.applyAsDouble(1+this.getEnd()) - pos2pixel.applyAsDouble(this.getStart()) ),
+							"height",0
+							 ));
+						svgDoc.rootElement.appendChild(highlight);
+						
+						
+						// main title
+						Element E = svgDoc.text(
+								margin_left+window_size/2,
+								featureHeight,
+								mainTitle,
+								Maps.of("style", "font-size:10px;text-anchor:middle;fill:black;")
+								);
+						svgDoc.rootElement.appendChild(E);
+						svgDoc.setTitle(E,mainTitle);
+						y+=featureHeight+2;
+						
 						if(OptimizeFisher.this.gtfPath!=null) {
 							try(TabixReader tabix = new TabixReader(OptimizeFisher.this.gtfPath)) {
-								GTFCodec codec = new GTFCodec();
-								TabixReader.Iterator iter=tabix.query(loc.getContig(),loc.getStart(),loc.getEnd());
+								final GTFCodec codec = new GTFCodec();
 								final List<GTFLine> features= new ArrayList<>();
+								final TabixReader.Iterator iter=tabix.query(loc.getContig(),loc.getStart(),loc.getEnd());
 								for(;;) {
 									String line = iter.next();
 									if(line==null) break;
 									final GTFLine feat= codec.decode(line);
-									if(!(feat.getType().equals("exon") || feat.getType().equals("transcript"))) continue;
+									if(!(feat.getType().equals("exon") || feat.getType().equals("transcript")|| feat.getType().equals("CDS"))) continue;
 									features.add(feat);
 									}
+								svgDoc.rootElement.appendChild(svgDoc.comment("number of GTF in interval "+features.size()));
 								final Pileup<GTFLine> pileup = new Pileup<>((A,B)->{
-									double x1 = pos2pixel.applyAsDouble(A.getEnd());
-									double x2 = pos2pixel.applyAsDouble(B.getStart());
-									if(x1 + 2 < x2) return true;
-									x1 = pos2pixel.applyAsDouble(B.getEnd());
-									x2 = pos2pixel.applyAsDouble(A.getStart());
-									if(x1 + 2 < x2) return true;
-									return false;
+									int x1 = (int)pos2pixel.applyAsDouble(A.getStart());
+									int x2 = (int)pos2pixel.applyAsDouble(A.getEnd());
+									int y1 = (int)pos2pixel.applyAsDouble(B.getStart());
+									int y2 = (int)pos2pixel.applyAsDouble(B.getEnd());
+
+									return !CoordMath.overlaps(x1, x2, y1-2, y2+2);
 									});
-								pileup.addAll(features.stream().filter(G->G.getType().equals("transcript")).sorted((A,B)->Integer.compare(A.getStart(), B.getStart())).collect(Collectors.toList()));
+								pileup.addAll(features.stream().
+										filter(G->G.getType().equals("transcript")).
+										sorted((A,B)->Integer.compare(A.getStart(), B.getStart())).
+										collect(Collectors.toList()));
 								//plot each transcript
 								for(List<GTFLine> row: pileup.getRows()) {
+									final Set<String> names= new LinkedHashSet<>();
 									for(final GTFLine feat: row) {
+										
 										final String transcript_id =  StringUtils.ifBlank(feat.getAttribute("transcript_id"),"") ;
 										final String gene_name = StringUtils.ifBlank(feat.getAttribute("gene_name"),transcript_id) ;
-										E = element.apply("line");
-										E.setAttribute("style", "stroke:darkgray;stroke-width:1px");
-										E.setAttribute("x1", String.valueOf( pos2pixel.applyAsDouble( trimPos.applyAsInt(feat.getStart()))));
-										E.setAttribute("y1", String.valueOf(y + featureHeight/2.0));
-										E.setAttribute("x2", String.valueOf( pos2pixel.applyAsDouble( trimPos.applyAsInt(feat.getEnd()+1))));
-										E.setAttribute("y2", String.valueOf(y + featureHeight/2.0));
-										root.appendChild(E);
+										final Element g = svgDoc.group();
+										svgDoc.rootElement.appendChild(g);
+										svgDoc.setTitle(g, transcript_id+" "+gene_name);
 										
-										E = element.apply("text");
-										E.setAttribute("style", "font-width:10px;text-anchor:end;");
-										E.appendChild(dom.createTextNode(transcript_id+" "+gene_name));
-										E.setAttribute("x",String.valueOf(margin_left-5));
-										E.setAttribute("y", String.valueOf(y+5));
-										root.appendChild(E);
+										names.add(transcript_id+" "+gene_name);
 										
-										for(GTFLine exon: features.stream().filter(G->transcript_id.equals(G.getAttribute("transcript_id")) && G.getType().equals("exon")).sorted((A,B)->Integer.compare(A.getStart(), B.getStart())).collect(Collectors.toList())) {
-											E  = element.apply("rect");
-											double x1 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(exon.getStart()));
-											double x2 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(exon.getEnd()+1));
-											E.setAttribute("style", "stroke:darkgray;fill:lightgray;stroke-width:1px");
-											E.setAttribute("x", String.valueOf(x1));
-											E.setAttribute("y", String.valueOf(y));
-											E.setAttribute("width", String.valueOf(x2-x1));
-											E.setAttribute("height", String.valueOf(featureHeight));
-											root.appendChild(E);
+										E = svgDoc.line(
+											pos2pixel.applyAsDouble( trimPos.applyAsInt(feat.getStart())),
+											y + featureHeight/2.0,
+											pos2pixel.applyAsDouble( trimPos.applyAsInt(feat.getEnd()+1)),
+											y + featureHeight/2.0,
+											Maps.of("class", "transcript")
+											);
+										g.appendChild(E);
+										
+										for(int side=0;side < 2;++side) {
+											final String gtf_type = (side==0?"exon":"CDS");
+											for(GTFLine exon: features.stream().
+													filter(G->transcript_id.equals(G.getAttribute("transcript_id")) && G.getType().equals(gtf_type)).
+													sorted((A,B)->Integer.compare(A.getStart(), B.getStart())).
+													collect(Collectors.toList())) {
+												
+												final double x1 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(exon.getStart()));
+												final double x2 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(exon.getEnd()+1));
+												
+												E  = svgDoc.rect(
+													x1,
+													y+(side==0?3:0),
+													Math.max(1,x2-x1),
+													featureHeight-(side==0?6:0),
+													Maps.of("class",(side==0?"exon":"cds"))
+													);
+												
+												g.appendChild(E);
+												}
 											}
-										
-										y+= featureHeight+1;
 										}
-									y+= featureHeight+1;
+									E  = svgDoc.text(
+											margin_left-5,
+											y+featureHeight/2+7,
+											String.join(" ", names),
+											Maps.of("style", "font-size:7px;text-anchor:end;")
+											);
+									svgDoc.rootElement.appendChild(E);
+
+									
+									y+= featureHeight+2;
 									}
 								for(int side=0;side < 2;++side) {
 									final Set<String> sn = (side==0?OptimizeFisher.this.casesControls.getCases():OptimizeFisher.this.casesControls.getControls());
+									
+									int nVariants = 0;
 									for(VariantWrapper w:this.subset) {
-										if(w.ctx.getGenotypes().stream().filter(G->G.hasAltAllele()).noneMatch(G->sn.contains(G.getSampleName()))) continue;
+										final int nSamplesHavingAlt = (int)w.getCtx().getGenotypes().
+												stream().
+												filter(G->G.hasAltAllele()).
+												filter(G->sn.contains(G.getSampleName())).
+												count();
+										if(nSamplesHavingAlt==0) continue;
+										
+										nVariants++;
+										svgDoc.svgElement.appendChild(svgDoc.comment(w.getCtx().getContig()+":"+w.getCtx().getStart()));
+										final double x1 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(w.getStart()));
+										final double x2 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(w.getEnd()+1));
+										final double h2 = featureHeight*((sn.size()-nSamplesHavingAlt)/(double)sn.size());
 										
 										
-										E  = element.apply("rect");
-										double x1 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(w.getStart()));
-										double x2 =  pos2pixel.applyAsDouble( trimPos.applyAsInt(w.getEnd()+1));
-										E.setAttribute("style", "stroke:none;fill:"+ (side==0?"red":"blue") +";stroke-width:1px");
-										E.setAttribute("x", String.valueOf(x1));
-										E.setAttribute("y", String.valueOf(y));
-										E.setAttribute("width", String.valueOf(x2-x1));
-										E.setAttribute("height", String.valueOf(featureHeight));
-										E.setAttribute("title", String.valueOf(w.ctx.getContig()+":"+w.ctx.getStart()));
-										root.appendChild(E);
+										E  = svgDoc.rect(
+												x1,
+												y + featureHeight -h2,
+												Math.max(1,x2-x1),
+												h2,
+												Maps.of("class",(side==0?"case":"control"))
+												);
+
+										
+										svgDoc.setTitle(E,w.getCtx().getContig()+":"+w.getCtx().getStart()+" n-samples="+nSamplesHavingAlt+" "+StringUtils.ifBlank(w.getCtx().getID(), ""));
+										
+										svgDoc.rootElement.appendChild(svgDoc.anchor(E, hyperlink.apply(w.getCtx()).orElse("")));
+										
+										
 										}
-									y+= featureHeight+1;
+									E = svgDoc.text(
+										margin_left-5,
+										y+featureHeight/2+7,
+										(side==0?"cases":"controls")+" N="+nVariants,
+										Maps.of("class",(side==0?"caset":"controlt"))
+										);
+									
+									svgDoc.rootElement.appendChild(E);
+
+									y+= featureHeight+2;
 									}
 								}
 							}
+						y+= featureHeight+1;
 						
-						E  = element.apply("rect");
-						E.setAttribute("style", "stroke:gray;fill:none;stroke-width:1px");
-						E.setAttribute("x", String.valueOf(0));
-						E.setAttribute("y", String.valueOf(0));
-						E.setAttribute("width", String.valueOf(window_size+margin_left));
-						E.setAttribute("height", String.valueOf(y));
-						root.appendChild(E);
+						
+						E  = svgDoc.rect(
+								0,0,window_size+margin_left,y,
+								Maps.of("class", "frame")
+								);
+						
+						svgDoc.rootElement.appendChild(E);
 
-						E  = element.apply("rect");
-						E.setAttribute("style", "stroke:gray;fill:none;stroke-width:1px");
-						E.setAttribute("x", String.valueOf(0));
-						E.setAttribute("y", String.valueOf(0));
-						E.setAttribute("width", String.valueOf(margin_left));
-						E.setAttribute("height", String.valueOf(y));
-						root.appendChild(E);
+						E  = svgDoc.rect(
+								0,0,margin_left,y,
+								Maps.of("class", "frame")
+								);
+
+						svgDoc.rootElement.appendChild(E);
+						highlight.setAttribute("height", ""+y);
 						
-						root.setAttribute("height", String.valueOf(y+1));
+						svgDoc.setHeight(y+1);
 						final Path svgName = OptimizeFisher.this.outputDir.resolve("best.svg");
-						TransformerFactory.newInstance().newTransformer().
-							transform(new DOMSource(dom), new StreamResult(svgName.toFile()));
+						svgDoc.saveTo(svgName);
 						}
 					catch(Throwable err) {
 						throw new IOException(err);
@@ -1309,6 +1377,11 @@ public class OptimizeFisher extends Launcher {
 			this.optPvalue = OptionalDouble.empty();
 			double pvalue= 1.0;
 			this.subset.clear();
+			final Algorithm<VariantWrapper,SimplePosition> algorithm = new Algorithm<>(
+					VW->new SimplePosition(VW.getContig(),VW.getStart()),
+					(A,B)->A.compareTo(B)
+					);
+
 			final List<VariantWrapper> L1 = new Vector<>(OptimizeFisher.this.variants.size());
 			for(VariantWrapper w: OptimizeFisher.this.variants) {
 				boolean keep=true;
@@ -1325,11 +1398,19 @@ public class OptimizeFisher extends Launcher {
 				LOG.warn("no variant for "+this.toString());
 				}
 			
-						
+			algorithm.sortIfNeeded(L1);
+			
+			
 			for(final RegionOfInterest region_of_interest:OptimizeFisher.this.regions_of_interest) {
-				final List<VariantWrapper> L2 = L1.stream().
+				final List<VariantWrapper> L2 = algorithm.equalList(
+							L1,
+							new SimplePosition(region_of_interest.getContig(),region_of_interest.getStart()),
+							new SimplePosition(region_of_interest.getContig(),region_of_interest.getEnd()+1)
+							).
+						stream().
 						filter(V->region_of_interest.overlaps(V)).
 						collect(Collectors.toList());
+				
 				if(L2.isEmpty()) continue;
 				
 				int start = L2.get(0).getStart();
@@ -1340,12 +1421,20 @@ public class OptimizeFisher extends Launcher {
 						if(!L3.isEmpty() && CoordMath.getLength(L3.get(0).getStart(), ctx.getStart())> this.sliding_window.window_size) {
 							break;
 							}
+						if(OptimizeFisher.this.max_variants_per_solution> 0L && (L3.size() > OptimizeFisher.this.max_variants_per_solution)) {
+							break;
+							}
 						L3.add(ctx);
 						}
 					if(L3.isEmpty())
 						{
 						break;
 						}
+					if(OptimizeFisher.this.max_variants_per_solution> 0L && (L3.size() > OptimizeFisher.this.max_variants_per_solution)) {
+						start = L3.get(0).getStart()+1;
+						continue;
+						}
+					
 					final int[]  counts = getFisherCount(L3);
 					final double pv = FisherExactTest.compute(counts).getAsDouble();
 					if(pv < pvalue) {
@@ -1356,6 +1445,11 @@ public class OptimizeFisher extends Launcher {
 						}
 					
 					start+= this.sliding_window.window_shift;
+					
+					//second variant is after start ? speed up things !
+					if(L3.size()>1 && L3.get(1).getStart() > start) {
+						start = L3.get(1).getStart();
+						}
 					}
 				}
 			stopWatch.stop();
@@ -1369,7 +1463,7 @@ public class OptimizeFisher extends Launcher {
 			int ctrl_alt = 0;
 			int ctrl_ref = 0;
 			for(String cas : OptimizeFisher.this.casesControls.getCases()) {
-				boolean has_alt =  variants.stream().map(V->V.ctx.getGenotype(cas)).anyMatch(G->G.hasAltAllele());
+				boolean has_alt =  variants.stream().map(V->V.getCtx().getGenotype(cas)).anyMatch(G->G.hasAltAllele());
 				if(has_alt) {
 					case_alt++;
 					}
@@ -1380,7 +1474,7 @@ public class OptimizeFisher extends Launcher {
 				}
 			
 			for(String ctrl : OptimizeFisher.this.casesControls.getControls()) {
-				boolean has_alt = variants.stream().map(V->V.ctx.getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
+				boolean has_alt = variants.stream().map(V->V.getCtx().getGenotype(ctrl)).anyMatch(G->G.hasAltAllele());
 				if(has_alt) {
 					ctrl_alt++;
 					}
@@ -1429,7 +1523,7 @@ public class OptimizeFisher extends Launcher {
 			return "G"+this.generation+" ID"+id+" P="+this.optPvalue+
 					" traits:["+ traits.stream().map(T->T.toString()).collect(Collectors.joining(" && ")) +
 					"] interval:"+getInterval()+ " N="+ this.subset.size()+" "+
-					this.sliding_window;
+					this.sliding_window+(this.sliding_window==null?"":" "+this.my_region_of_interest.toString()+" "+this.my_region_of_interest.getName());
 			}
 		}
 	
@@ -1498,6 +1592,8 @@ public class OptimizeFisher extends Launcher {
 
 			
 			try(VCFReader r = VCFReaderFactory.makeDefault().open(vcfPath,false))  {
+				final StopWatch stopWatch = new StopWatch();
+				stopWatch.start();
 				this.vcfHeader = r.getHeader();
 				this.casesControls.retain(vcfHeader);
 				
@@ -1526,7 +1622,9 @@ public class OptimizeFisher extends Launcher {
 						}
 					}
 				final Comparator<VariantContext> cmp1 =  this.vcfHeader.getVCFRecordComparator();
-				Collections.sort(this.variants, (V1,V2)->cmp1.compare(V1.ctx, V2.ctx));
+				Collections.sort(this.variants, (V1,V2)->cmp1.compare(V1.getCtx(), V2.getCtx()));
+				stopWatch.stop();
+				LOG.info("Read VCF : That took:" + StringUtils.niceDuration(stopWatch.getElapsedTime()) );
 				}
 			LOG.info("N-variants:="+this.variants.size());
 
@@ -1636,10 +1734,14 @@ public class OptimizeFisher extends Launcher {
 				if(this.propertyFile!=null) {
 					best.sliding_window.initialize(properties);
 					}
+				LOG.warning("run...");
+
 				best.run();
 				if(best.getPValue()>=1.0) {
+					LOG.warning("pvalue > 1.0... search again..");
 					continue;
 					}
+				LOG.warning("ok got it...");
 				best.save();
 				break;
 				}

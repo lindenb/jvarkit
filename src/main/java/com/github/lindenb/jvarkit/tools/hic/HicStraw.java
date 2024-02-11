@@ -51,10 +51,10 @@ import com.github.lindenb.jvarkit.hic.Normalization;
 import com.github.lindenb.jvarkit.hic.Unit;
 import com.github.lindenb.jvarkit.io.CustomSeekableStreamFactory;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.svg.SVG;
 
 import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
 import htsjdk.samtools.util.CoordMath;

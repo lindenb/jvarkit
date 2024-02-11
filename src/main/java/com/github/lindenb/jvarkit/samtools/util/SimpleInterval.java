@@ -29,8 +29,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.bed.BedInterval;
-import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
@@ -40,7 +38,7 @@ import htsjdk.samtools.util.Locatable;
  * @author lindenb
  *
  */
-public class SimpleInterval implements BedInterval,Locatable,Comparable<SimpleInterval> {
+public class SimpleInterval extends AbstractLocatable implements Comparable<SimpleInterval> {
 	private final String contig;
 	private final int start;
 	private final int end;
@@ -95,20 +93,8 @@ public class SimpleInterval implements BedInterval,Locatable,Comparable<SimpleIn
 	public int getEnd() {
 		return end;
 		}
+
 	
-	@Override
-	public final int getBedStart() {
-		return getStart() - 1;
-		}
-	@Override
-	public final int getBedEnd() {
-		return getEnd();
-		}
-	
-	/** return true if the interval contains this 1-based position */
-	public boolean contains(int g1) {
-		return this.start <=g1 && g1 <=this.end;
-	}
 	
 	/** alias for getLengthOnReference */
 	public final int length() {
@@ -117,47 +103,14 @@ public class SimpleInterval implements BedInterval,Locatable,Comparable<SimpleIn
 	
 	@Override
 	public boolean equals(final Object obj) {
-		if(this==obj) return true;
-		if(obj==null || !(obj instanceof SimpleInterval)) return false;
- 		final SimpleInterval o = SimpleInterval.class.cast(obj);
- 		if(this.getStart()!=o.getStart()) return false;
- 		if(this.getEnd()!=o.getEnd()) return false;
-		return this.getContig().equals(o.getContig());
+		return super.equals(obj);
 		}
 	
 	@Override
 	public int compareTo(final SimpleInterval o) {
-		int i= this.getContig().compareTo(o.getContig());
-		if(i!=0) return i;
-		i = Integer.compare(this.getStart(),o.getStart());
-		if(i!=0) return i;
-		i = Integer.compare(this.getEnd(),o.getEnd());
-		return i;
+		return AbstractLocatable.compareTo(this, o);
 		}
 	
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + contig.hashCode();
-		result = prime * result + end;
-		result = prime * result + start;
-		return result;
-	}
-	
-	
-	/** use StringUtils.niceInt to format start and end  */
-	public String toNiceString() {
-		return this.contig+":"+ 
-				StringUtils.niceInt(this.start) + "-"+ 
-				StringUtils.niceInt(this.end)
-				;
-	}
-	
-	@Override
-	public String toString() {
-		return this.contig+":"+this.start+"-"+this.end;
-	}
 	
 	
 	public SimpleInterval renameContig(final String ctg) {

@@ -35,6 +35,9 @@ Usage: optimizefisher [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --max-variants-per-solution
+      Maximum number of variants per solution.
+      Default: 3000000000
     --max-window-size
       max sliding window side
       Default: 100000
@@ -109,5 +112,4 @@ loads a (small) VCF and memory and, using a genetic-algorithm, tries, to find th
 ```
 java -jar TMP/jvarkit.jar optimizefisher --cases TMP/cases.txt --controls TMP/ctrls.txt -o TMP TMP/normalized.vcf.gz
 ```
-
 

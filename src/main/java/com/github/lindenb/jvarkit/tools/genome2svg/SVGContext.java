@@ -11,7 +11,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Text;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.svg.SVG;
+import com.github.lindenb.jvarkit.svg.SVG;
 
 import htsjdk.samtools.util.Locatable;
 

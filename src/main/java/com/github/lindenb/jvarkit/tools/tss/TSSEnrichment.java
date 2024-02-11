@@ -50,6 +50,7 @@ import com.github.lindenb.jvarkit.io.PrefixSuffixWriter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -140,7 +141,7 @@ public class TSSEnrichment extends Launcher {
     private String contigRegexStr  = "(chr)?[0-9XY]+" ;    
     
     
-	private static class TSS implements Locatable {
+	private static class TSS extends AbstractLocatable {
 		private final String contig;
 		private final int position;
 		private final int extend;

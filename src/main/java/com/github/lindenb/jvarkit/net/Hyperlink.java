@@ -124,7 +124,7 @@ public interface Hyperlink extends Function<Locatable,Optional<String>> {
 		else if(s.equals("igv")) {
 			s="http://"+IgvConstants.DEFAULT_HOST+":"+IgvConstants.DEFAULT_PORT+"/goto?locus=__CHROM__%3A__START__-__END__";
 			}
-		HyperkinkImpl h= new HyperkinkImpl(s);
+		final HyperkinkImpl h= new HyperkinkImpl(s);
 		h.convertContig = convert;
 		return h;
 		}

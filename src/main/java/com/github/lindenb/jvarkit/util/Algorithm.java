@@ -86,7 +86,11 @@ public class Algorithm<T,V> {
 			return comparator.compare( extractor.apply(A), extractor.apply(B));
 			});
 		}
-	
+	public void sortIfNeeded(final List<T> dataVector) {
+		if(!isSorted(dataVector)) {
+			sort(dataVector);
+			}
+		}
 	
 	/** C+ lower_bound */
 	public int lower_bound(
@@ -204,6 +208,37 @@ public class Algorithm<T,V> {
 		}
 		return new int[] { first, first };
 	}
+	
+	
+	public List<T> equalList(
+			final List<T> dataVector,
+			final V lowerV,
+			final V upperV
+			)
+		{
+		return equalList(dataVector,0,dataVector.size(),lowerV,upperV);
+		}
+
+	
+	public List<T> equalList(
+			final List<T> dataVector,
+			int first,
+			final int last,
+			final V lowerV,
+			final V upperV
+			)
+		{
+		if(lower_than(upperV, lowerV)) throw new IllegalArgumentException("upper < lowerV");
+		final int i0 = this.lower_bound(dataVector, first, last, lowerV);
+		if(i0<first) throw new IllegalStateException("index(lower)="+i0);
+		if(i0>last) throw new IllegalStateException("index(lower)> vector.length="+dataVector.size());
+		final int i1 = this.upper_bound(dataVector, i0, last, upperV);
+		if(i1<first) throw new IllegalStateException("index(upper)="+i1);
+		if(i1>last) throw new IllegalStateException("index(upper)> vector.length="+dataVector.size());
+		if(i0>i1) throw new IllegalStateException("index(lower)="+i0+" > index(upper)="+i1);
+		if(i0==i1) return Collections.emptyList();
+		return dataVector.subList(i0,i1);
+		}
 	
 	public List<T> equalList(
 			final List<T> dataVector,

@@ -33,7 +33,7 @@ import htsjdk.samtools.util.Locatable;
  * @author lindenb
  *
  */
-public class SimplePosition implements Locatable,Comparable<SimplePosition> {
+public class SimplePosition extends AbstractLocatable implements Comparable<SimplePosition> {
 	private final String contig;
 	private final int pos;
 	
@@ -70,11 +70,11 @@ public class SimplePosition implements Locatable,Comparable<SimplePosition> {
 	}
 	
 	@Override
-	public int getStart() {
+	public final int getStart() {
 		return this.getPosition();
 		}
 	@Override
-	public int getEnd() {
+	public final int getEnd() {
 		return this.getPosition();
 		}
 	
@@ -94,7 +94,7 @@ public class SimplePosition implements Locatable,Comparable<SimplePosition> {
 		if(obj==null || !(obj instanceof SimplePosition)) return false;
  		final SimplePosition o = SimplePosition.class.cast(obj);
  		if(this.getPosition()!=o.getPosition()) return false;
-		return this.getContig().equals(o.getContig());
+		return this.contigsMatch(o);
 		}
 	
 	@Override
@@ -110,7 +110,7 @@ public class SimplePosition implements Locatable,Comparable<SimplePosition> {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + contig.hashCode();
-		result = prime * result + pos;
+		result = prime * result + Integer.hashCode(pos);
 		return result;
 	}
 	
