@@ -38,6 +38,7 @@ import org.w3c.dom.Node;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.lang.primitive.DoubleArray;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.xml.DocumentWrapper;
 
@@ -61,6 +62,8 @@ public SVGDocument(final Document document) {
 	this.document =  Objects.requireNonNull(document);
 	this.svgElement = element( "svg",Maps.of("version","1.1"));
 	this.document.appendChild(this.svgElement);
+	this.svgElement.appendChild(document.createComment("jvarkit.version: "+JVarkitVersion.getInstance().getGitHash()));
+
 	
 	this.titleElement = element("title","untitled");
 	this.svgElement.appendChild(this.titleElement);
@@ -86,6 +89,7 @@ public SVGDocument(final Document document) {
 	
 	this.rootElement = element("g");
 	this.svgElement.appendChild(this.rootElement);
+	
 	}
 
 public SVGDocument() {
@@ -122,9 +126,15 @@ public String format(double v) {
 	}
 /** if given style is not delcared in the style element, add it to style and return the class-id */
 public String style2class(final String style) {
+	return style2class(null,style);
+	}
+
+
+/** if given style is not delcared in the style element, add it to style and return the className */
+public String style2class(final String className,final String style) {
 	String id = this._style2class.get(style);
 	if(id!=null) return id;
-	id = "c"+nextId();
+	id = StringUtils.ifBlank(className, "c"+nextId());
 	appendStyle("."+id+"{"+style+"}");
 	this._style2class.put(style, id);
 	return id;
@@ -201,6 +211,11 @@ public Element group(Node...items) {
 public Element group() {
 	return group(Collections.emptyMap());
 	}
+
+/** return a css selector for translate */
+public String translate(double dx,double dy) {
+	return "translate("+format(dx)+","+format(dy)+")";
+}
 
 public class Shape implements Supplier<Element> {
 	private final StringBuilder sb = new StringBuilder();
@@ -387,6 +402,10 @@ public Polygon createPolygon() {
 	}
 public Polygon createPolyline() {
 	return new Polygon("polyline");
+	}
+
+public Shape createShape() {
+	return new Shape();
 	}
 
 public Element anchor(Element wrapped,String url) {

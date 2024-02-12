@@ -62,9 +62,10 @@ public default Locatable toLocatable() {
 	return this;
 	}
 
+/** convert this to Interval, useful to insert in IntervalTreeMap */
 public default Interval toInterval() {
 	if(this instanceof Interval) return Interval.class.cast(this);
-	return new Interval(getContig(),getStart(),getEnd());
+	return new Interval(this);
 	}
 
 
