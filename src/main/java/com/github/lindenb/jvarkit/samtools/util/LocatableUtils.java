@@ -24,12 +24,16 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.samtools.util;
 
+import java.util.Comparator;
+
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
 
 public class LocatableUtils extends CoordMath {
+	public static final Comparator<Locatable> DEFAULT_COMPARATOR = (A,B)->LocatableUtils.compareTo(A,B);
+	
 	/** generic comparator on chrom/start/end */
 	public static int compareTo(final Locatable A, Locatable B) {
 		int i= A.getContig().compareTo(B.getContig());
