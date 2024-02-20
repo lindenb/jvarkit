@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -322,6 +322,15 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 					StringUtils.escapeHttp(ctx.getContig()) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
 					));
 
+
+			if(!StringUtils.isBlank(ucscCtg)) {
+				urls.add(new LabelledUrlImpl("AF.ukbiobank",
+						variantid+"/"+alt.getDisplayString(),
+						"https://afb.ukbiobank.ac.uk/variant/"+
+						StringUtils.escapeHttp(ucscCtg) + "-" + ctx.getStart() +"-"+ctx.getReference().getDisplayString()+"-"+alt.getDisplayString()
+						));
+				}
+			
 			urls.add(new LabelledUrlImpl("Genebe",
 					variantid+"/"+alt.getDisplayString(),
 					"https://genebe.net/variant/hg38/"+
@@ -394,7 +403,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 	int extend = 100;
 	final int xstart1 = Math.max(loc.getStart()-extend,1);
 	final int xend1 = loc.getEnd()+1;
-	final String locid = new SimpleInterval(loc).toNiceString();
+	final String locid = LocatableUtils.toNiceString(loc);
 	
 	urls.add(new LabelledUrlImpl("IGV",locid,"https://"+ IgvConstants.DEFAULT_HOST +":"+IgvConstants.DEFAULT_PORT + "/goto?locus="+
 			StringUtils.escapeHttp(loc.getContig()) + "%3A" +xstart1 +"-"+loc.getEnd()
@@ -417,6 +426,9 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		urls.add(new LabelledUrlImpl("Region Gnomad 3",locid,"https://gnomad.broadinstitute.org/region/"+
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_3"
 			));
+		
+		
+		
 		}
 	
 	final String ucscCtg =  toUcsc.apply(loc.getContig());
@@ -425,6 +437,9 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		urls.add(new LabelledUrlImpl("Region ResearchAllOfUs",locid,"https://databrowser.researchallofus.org/genomic-variants/"+
 			StringUtils.escapeHttp(ucscCtg) + ":" + xstart1 +"-"+ xend1
 			));
+		urls.add(new LabelledUrlImpl("AF.ukbiobank",locid,"https://afb.ukbiobank.ac.uk/region/"+
+				StringUtils.escapeHttp(ucscCtg) + "-" + xstart1 +"-"+ xend1
+				));
 		}
 
 	
