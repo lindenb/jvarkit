@@ -29,14 +29,60 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiPredicate;
+import java.util.function.Supplier;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.stream.DefaultCollector;
 
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
 
 public class LocatableUtils extends CoordMath {
 	public static final Comparator<Locatable> DEFAULT_COMPARATOR = (A,B)->LocatableUtils.compareTo(A,B);
+	
+	
+	/** return the shared interval between two loc */
+	public static Locatable sharedInterval(final Locatable loc1, final Locatable loc2) {
+		if(!loc1.overlaps(loc2)) throw new IllegalArgumentException("no overlap between "+toString(loc1)+" and "+toString(loc2));
+		return new SimpleInterval(loc1.getContig(),
+				Math.max(loc1.getStart(), loc2.getStart()),
+				Math.min(loc1.getEnd(), loc2.getEnd())
+				);
+		}	
+	
+	/** extend locatable to 'amount' fraction of interval length. Extends if amount > 1.0  */
+	public static Locatable slopByFraction(final Locatable loc,double amount,final SAMSequenceDictionary dic) {
+		return slopByBases(loc,(int)(loc.getLengthOnReference()*amount),dic);
+		}
+	
+	/** extend locatable to 'amount' base pair. if amount==2, extends by 2 bp on 5' and 2 bp on 3'. shrink if amount <0  */
+	public static Locatable slopByBases(final Locatable loc,int amount,final SAMSequenceDictionary dic) {
+		final SAMSequenceRecord ssr = dic.getSequence(loc.getContig());
+		if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(loc.getContig(), dic);
+		if(loc.getStart() > ssr.getSequenceLength() || loc.getEnd()> ssr.getLengthOnReference()) throw new IllegalArgumentException(toString(loc)+" is out of bound of ref sequence "+toString(ssr));
+		if(amount==0) {
+			return loc;
+			}
+		else if(amount>0) {
+			return new SimpleInterval(loc.getContig(),
+					Math.max(1, loc.getStart()-amount),
+					Math.min(loc.getEnd()+amount, ssr.getLengthOnReference())
+					);
+			}
+		else
+			{
+			final int x1 = loc.getStart()+Math.abs(amount);
+			final int x2 = loc.getEnd()-Math.abs(amount);
+			if(x1==x2) return new  SimplePosition(loc.getContig(),x1);
+			if(x1<=x2) return new  SimpleInterval(loc.getContig(),x1,x2);
+			return new  SimplePosition(loc.getContig(),loc.getStart()+ loc.getLengthOnReference()/2);
+			}
+		}
 	
 	/** convert locatable to simpleInterval or to simpleposition if length==1  */
 	public static Locatable reduce(final Locatable A) {
@@ -56,7 +102,11 @@ public class LocatableUtils extends CoordMath {
 		return true;
 		}
 	
-	/** merge intervals on criteria */
+	public static <T extends Locatable> Collector<T, ?, List<Locatable>> mergeIntervals() {
+		return Collectors.collectingAndThen(Collectors.toList(), X->mergeIntervals(X));
+		}
+ 	
+	/** merge intervals on criteria. return a NEW list */
 	public static List<Locatable> mergeIntervals(final List<? extends Locatable> L0,final BiPredicate<Locatable, Locatable> predicate) {
 		final List<Locatable> L=new ArrayList<>(L0);
 		if(!isSorted(L)) Collections.sort(L,DEFAULT_COMPARATOR);
@@ -80,12 +130,12 @@ public class LocatableUtils extends CoordMath {
 		return L;
 		}
 	
-	/** merge overlapping intervals if they are withing distance of 'x' */
+	/** merge overlapping intervals if they are withing distance of 'x' . return a NEW list */
 	public static List<Locatable> mergeIntervals(final List<? extends Locatable> L, final int distance) {
 		return mergeIntervals(L,(A,B)->A.withinDistanceOf(B, distance));
 		}
 	
-	/** merge overlapping intervals */
+	/** merge overlapping intervals. return a NEW list */
 	public static List<Locatable> mergeIntervals(final List<? extends Locatable> L) {
 		return mergeIntervals(L,0);
 		}

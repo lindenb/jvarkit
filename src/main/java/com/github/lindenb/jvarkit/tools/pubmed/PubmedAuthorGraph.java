@@ -129,9 +129,9 @@ public class PubmedAuthorGraph
 	private boolean scale_authors = false;
 	@Parameter(names={"-i","--initals"},description="use author's initials to build the author-identifier. In the old pubmed record, the forename is not available.")
 	private boolean use_initials_to_build_sample_id = false;	
-	@Parameter(names={"-uc","--author-color"},description="viz:Color for the Authors." +ColorUtils.Converter.OPT_DESC,converter=ColorUtils.Converter.class)
+	@Parameter(names={"-uc","--author-color"},description="viz:Colors for the Authors." +ColorUtils.Converter.OPT_DESC,converter=ColorUtils.Converter.class)
 	private Color authorColor = null;
-	@Parameter(names={"-rc","--article-color"},description="viz:Color for the Articles." +ColorUtils.Converter.OPT_DESC,converter=ColorUtils.Converter.class)
+	@Parameter(names={"-rc","--article-color"},description="viz:Colors for the Articles." +ColorUtils.Converter.OPT_DESC,converter=ColorUtils.Converter.class)
 	private Color articleColor = null;
 	
 	

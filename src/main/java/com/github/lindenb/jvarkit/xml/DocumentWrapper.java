@@ -67,6 +67,7 @@ public abstract class DocumentWrapper  {
 		return null;
 		}
 	
+	
 	public String convertObjectToString(final Object s) {
 		return s==null?"":String.valueOf(s);
 		}
@@ -93,8 +94,16 @@ public abstract class DocumentWrapper  {
 		return att;
 		}
 
+	/** give a chance to change the map before it's used as a source of attribute. For example,
+	 * in SVG change {stroke=x,fill=y} to {style=stroke:x;fill:y} 
+	 * @param atts may be null
+	 * @return
+	 */
+	protected Map<String,Object> updateAttributes( Map<String, Object> atts) {
+		return atts;
+		}
 	
-	public Element element(final String tag,Object textContent,final Map<String, Object> atts) {
+	public Element element(final String tag,Object textContent, Map<String, Object> atts) {
 		final String ns = getDefaultNamespace();
 		final Element e;
 		if(StringUtils.isBlank(ns)) {
@@ -102,6 +111,8 @@ public abstract class DocumentWrapper  {
 		} else {
 			e = getDocument().createElementNS(ns, tag);
 			}
+		
+		atts = updateAttributes(atts);
 		
 		if(atts!=null && !atts.isEmpty()) {
 			for(final String key: atts.keySet()) {
@@ -165,6 +176,17 @@ public abstract class DocumentWrapper  {
 		saveTo(out.toFile());
 		}
 	
+	public void saveToFileOrStdout(final Path pathOrNull) throws IOException {
+		if(pathOrNull!=null) {
+			saveTo(pathOrNull);
+			}
+		else
+			{
+			saveTo(System.out);
+			}
+		}
+
+	
 	@Override
 	public String toString() {
 		try {
@@ -179,7 +201,7 @@ public abstract class DocumentWrapper  {
 	public String nextId() {
 		return "n"+(++ID_GENERATOR);
 	}
-	
+	/** return o is it a org.w3c.dom.Node, otherwise, convert it to text */
 	public Node toNode(Object o)  {
 		if(o==null) return text("");
 		if(o instanceof Node) {

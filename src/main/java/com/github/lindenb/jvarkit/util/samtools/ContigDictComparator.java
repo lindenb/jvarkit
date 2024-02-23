@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.samtools;
 
 import java.util.Comparator;
+import java.util.Objects;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 
@@ -39,7 +40,7 @@ public class ContigDictComparator implements Comparator<String> {
 private final SAMSequenceDictionary dict;
 
 public ContigDictComparator(final SAMSequenceDictionary dict) {
-	this.dict = dict;
+	this.dict = Objects.requireNonNull(dict, "dict is null");
 	}
 protected int convertToTid(final String name) {
 	final int tid = this.dict.getSequenceIndex(name);
@@ -60,6 +61,11 @@ public <T extends Locatable> Comparator<T> createLocatableComparator() {
 		if(i!=0) return i;
 		return Integer.compare(A.getEnd(), B.getEnd());
 		};
+	}
+
+/** creates a generic comparator for Locatable using this Dictionary */
+public static  <T extends Locatable> Comparator<T> createLocatableComparator(final SAMSequenceDictionary dict) {
+	return new ContigDictComparator(dict).createLocatableComparator();
 	}
 
 }

@@ -25,9 +25,13 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.ucsc;
 
+import java.util.Optional;
+
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Locatable;
 
 /**
@@ -39,7 +43,7 @@ public interface Cytoband extends Locatable {
 	public String getStain();
 	
 	
-	/* CSS Color https://github.com/ENCODE-DCC/kentUtils/blob/master/src/hg/lib/hCytoBand.c#L43 */
+	/* CSS Colors https://github.com/ENCODE-DCC/kentUtils/blob/master/src/hg/lib/hCytoBand.c#L43 */
 	public default String getCssColor() {
 		final String stain = getStain();
 		if (stain.startsWith("gneg"))
@@ -93,5 +97,21 @@ public interface Cytoband extends Locatable {
 		public String getStain() {
 			return this.stain;
 			}
+		}
+	
+	/** return download URL for given sam dict */
+	public static Optional<String> getURLForBuild(final SAMSequenceDictionary dict) {
+		final String ucsc_name;
+		if(SequenceDictionaryUtils.isGRCh37(dict)) {
+			ucsc_name = "hg19";
+			}
+		else if(SequenceDictionaryUtils.isGRCh38(dict)) {
+			ucsc_name = "hg38";
+			}
+		else
+			{
+			return Optional.empty();
+			}
+		return Optional.of("https://hgdownload.cse.ucsc.edu/goldenpath/"+ucsc_name+"/database/cytoBand.txt.gz");
 		}
 }

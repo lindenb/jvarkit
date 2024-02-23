@@ -183,7 +183,7 @@ public class MyHelper extends SwingIndexCov.DefaultHelper {
 		return s;
 		}
 	@Override
-	public Optional<Color> getColor(int[] indexes,float[] values) {
+	public Optional<Colors> getColor(int[] indexes,float[] values) {
 		int n_cases = 0;
 		int n_other = 0;
 		float treshold =  0.45f;
@@ -197,7 +197,7 @@ public class MyHelper extends SwingIndexCov.DefaultHelper {
 			else {n_other++;}
 			}
 
-		if(n_cases>0 && n_other==0) return Optional.of(Color.RED);
+		if(n_cases>0 && n_other==0) return Optional.of(Colors.RED);
 		return Optional.empty();
 		}
 	}

@@ -206,11 +206,11 @@ public class Bam2Raster extends AbstractBam2Raster
    /*
    private class QualityColorizer implements Colorizer
 		{
-	   public Color getColor(SAMRecord rec)
+	   public Colors getColor(SAMRecord rec)
 			{	
 		    int f=rec.getMappingQuality();
 		    if(f>255) f=255;
-		    return new Color(f,f,f);
+		    return new Colors(f,f,f);
 			}
 		}*/
    

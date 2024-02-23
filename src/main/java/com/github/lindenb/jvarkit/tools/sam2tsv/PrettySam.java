@@ -421,8 +421,8 @@ public class PrettySam extends OnePassBamLauncher {
 			tags.put("CM","Edit distance between the color sequence and the color reference.");
 			tags.put("CO","Free-text comments");
 			tags.put("CP","Leftmost coordinate of the next hit");
-			tags.put("CQ","Color read base qualities");
-			tags.put("CS","Color read sequence");
+			tags.put("CQ","Colors read base qualities");
+			tags.put("CS","Colors read sequence");
 			tags.put("CT","Complete read annotation tag, used for consensus annotation dummy features");
 			tags.put("E2","The 2nd most likely base calls");
 			tags.put("FI","The index of segment in the template");
@@ -474,7 +474,7 @@ public class PrettySam extends OnePassBamLauncher {
 		/** returns SAM attribute definition. Never null */
 		private String getTagDescription(final String attName) {
 			if(attName.equals(ColorUtils.YC_TAG)) {
-				return "IGV Color tag";
+				return "IGV Colors tag";
 				}
 			if(attName.startsWith("X") ||
 				attName.startsWith("Y") ||

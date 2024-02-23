@@ -395,8 +395,8 @@ public class ColorUtils
     
     /**
      * Choose a gradient color between two colors
-     * @param first the first Color
-     * @param second the second Color
+     * @param first the first Colors
+     * @param second the second Colors
      * @param ratio the fraction of the first/second colors
      * @return the gradient color
      */
@@ -423,11 +423,11 @@ public class ColorUtils
         }
     
     /**
-     * parse Color as a string.
+     * parse Colors as a string.
      * String can be a nominal SVG value e.g. "blue","red"... or
      * a RGB definition such as "rgb(100,200,300)" or "#ab12cc"
      * @param c the color as a string
-     * @return the Color or null if it is "none" or if it cannot convert the string
+     * @return the Colors or null if it is "none" or if it cannot convert the string
      */
     public Color parse(String c)
         {
@@ -460,7 +460,7 @@ public class ColorUtils
                 }
             }
         final Color color= text2color.get(c);
-        if(color==null) throw new IllegalArgumentException("Illegal Color:"+c);
+        if(color==null) throw new IllegalArgumentException("Illegal Colors:"+c);
         return color;
         }
     
@@ -473,7 +473,7 @@ public class ColorUtils
     public static class SAMRecordColorExtractor 
     	implements Function<SAMRecord,Color>
     		{
-    		/** return the Color for this read. return null on error or if there is no YC tag*/
+    		/** return the Colors for this read. return null on error or if there is no YC tag*/
     		@Override
     		public Color apply(final SAMRecord rec) {
     			if( rec==null) return null;

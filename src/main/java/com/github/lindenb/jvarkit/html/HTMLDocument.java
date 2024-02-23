@@ -1,11 +1,14 @@
 package com.github.lindenb.jvarkit.html;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
 import com.github.lindenb.jvarkit.util.Maps;
@@ -63,10 +66,10 @@ public class HTMLDocument extends DocumentWrapper {
 	public Element th(Node n) { return wrap("th",n);}
 	public Element td(Node n) { return wrap("td",n);}
 
-	public Element anchor(Element wrapped,String url) {
-		if(StringUtils.isBlank(url)) return wrapped;
+	public Node anchor(Object wrapped,String url) {
+		if(StringUtils.isBlank(url)) return toNode(wrapped);
 		final Element a = element("a",Maps.of("href", url));
-		a.appendChild(wrapped);
+		a.appendChild(toNode(wrapped));
 		return a;
 		}
 
@@ -80,11 +83,13 @@ public class HTMLDocument extends DocumentWrapper {
 		return "http://www.w3.org/1999/xhtml";
 		}
 	
+	
 	public class Table {
-		Element table;
+		public Element table;
 		Element thead;
 		Element tbody;
 		final int nCols;
+		final Map<String,Integer> col2index= new HashMap<>();
 		Table(List<Object> header) {
 			this.table = element("table");
 			this.thead = element("thead");
@@ -92,35 +97,83 @@ public class HTMLDocument extends DocumentWrapper {
 			this.tbody = element("tbody");
 			this.table.appendChild(tbody);
 			this.nCols = header.size();
-			for(Object o:header) {
-				final Element tr=element("tr");
-				thead.appendChild(tr);
-				for(Object t:header) {
-					final Element th=element("th");
-					tr.appendChild(th);
-					th.appendChild(convert(t));
-					}
+			//
+			final Element tr=element("tr");
+			thead.appendChild(tr);
+			for(Object t:header) {
+				final Element th=element("th");
+				tr.appendChild(th);
+				Node lblNode = toNode(t);
+				final String label = lblNode.getTextContent();
+				col2index.put(label, col2index.size());
+				th.appendChild(lblNode);
 				}
+				
 			}
+		
+		public int getColumnCount() {
+			return nCols;
+			}
+		
+		public int getRowCount() {
+			int row=0;
+			for(Node n = this.tbody.getFirstChild();n!=null ;n=n.getNextSibling())
+				{
+				row++;
+				}
+			return row;
+			}
+		
+		public Element appendRow() {
+			return get(getRowCount());
+			}
+		
 		public Element get(int y) {
 			int row=0;
-			for(Node n = this.tbody.getFirstChild();n!=null ;n=n.getNextSibling(),row++)
+			for(Node n = this.tbody.getFirstChild();n!=null ;n=n.getNextSibling())
 				{
 				if(row==y) return Element.class.cast(n);
+				row++;
 				}
+			Element last=null;
+			while(row<= y) {
+				last = element("tr");
+				this.tbody.appendChild(last);
+				for(int i=0;i< getColumnCount();++i) {
+					final Element td=element("td");
+					last.appendChild(td);
+					}
+				row++;
+				}
+			return last;
 			}
 		public Element get(int y,int x) {
+			int c=0;
 			Element row=get(y);
+			for(Node n = row.getFirstChild();n!=null ;n=n.getNextSibling())
+				{
+				if(c==x) return Element.class.cast(n);
+				c++;
+				}
 			return null;
+			}
+		public Element get(int y,String label) {
+			return get(y,this.col2index.getOrDefault(label,-1));
 			}
 		public void set(int y,int x, Object o) {
 			Element r= get(y,x);
 			removeAllChildren(r);
-			r.appendChild(convert(o));
+			r.appendChild(toNode(o));
 			}
-		
+		public void set(int y,String label, Object o) {
+			set(y,this.col2index.getOrDefault(label,-1),o);
+			}
+
 		}
 	
+	public Table createTable(List<Object> header) {
+		return new Table(header);
+	}
 	
 	
 }

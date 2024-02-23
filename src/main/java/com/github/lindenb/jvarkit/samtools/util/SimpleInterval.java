@@ -108,7 +108,7 @@ public class SimpleInterval extends AbstractLocatable implements Comparable<Simp
 	
 	@Override
 	public int compareTo(final SimpleInterval o) {
-		return AbstractLocatable.compareTo(this, o);
+		return LocatableUtils.compareTo(this, o);
 		}
 	
 	

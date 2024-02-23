@@ -254,7 +254,7 @@ public class JfxNgs extends Application {
 
 	
 
-    /** utility Function to convert base to Color */
+    /** utility Function to convert base to Colors */
     public static final Function<Character, Color> BASE2COLOR= new Function<Character, Color>() {
 		@Override
 		public Color apply(final Character c) {

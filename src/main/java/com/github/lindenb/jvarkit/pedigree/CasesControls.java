@@ -131,6 +131,17 @@ public class CasesControls {
 		return _controls;
 		}
 	
+	/**
+	 * return getCases() for side==0 && getControls() for side==1
+	 */
+	public Set<String> get(int side) {
+		switch(side) {
+		case 0: return this.getCases();
+		case 1: return this.getControls();
+		default: throw new ArrayIndexOutOfBoundsException(side);
+		}
+	}
+	
 	public CasesControls checkHaveCases() {
 		if(this._cases.isEmpty()) throw new IllegalArgumentException("No case(s) was found");
 		return this;

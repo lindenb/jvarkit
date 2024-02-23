@@ -410,7 +410,7 @@ public class GephiCmd  extends Launcher {
 
 	// from https://raw.githubusercontent.com/gephi/gephi/master/modules/PreviewAPI/src/main/java/org/gephi/preview/api/PreviewProperty.java
 	private final BoolProperty PROP_DIRECTED = new BoolProperty(PreviewProperty.DIRECTED,null,true);
-	private final StringProperty PROP_BACKGROUND_COLOR = new StringProperty(PreviewProperty.BACKGROUND_COLOR,"General Color property of the background color","");
+	private final StringProperty PROP_BACKGROUND_COLOR = new StringProperty(PreviewProperty.BACKGROUND_COLOR,"General Colors property of the background color","");
 	private final FloatProperty PROP_VISIBILITY_RATIO = new FloatProperty(PreviewProperty.VISIBILITY_RATIO,"the ratio of the visible graph used in preview. For instance if 0.5 only 50% of nodes items are built",1f);
 	private final FloatProperty PROP_MARGIN = new FloatProperty(PreviewProperty.MARGIN,"percentage (0-100) describing the margin size.",5f);
 	private final FloatProperty PROP_NODE_BORDER_WIDTH = new FloatProperty(PreviewProperty.NODE_BORDER_WIDTH,"node border size.",0.5f);

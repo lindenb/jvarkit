@@ -27,9 +27,12 @@ package com.github.lindenb.jvarkit.svg;
 import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -94,6 +97,37 @@ public SVGDocument(final Document document) {
 
 public SVGDocument() {
 	this(DocumentWrapper.makedoc(true));
+	}
+
+private static final Set<String> LOOKS_LIKE_STYLE = new HashSet<String>() {{{
+	add("stroke");
+	add("fill");
+	add("text-anchor");
+	add("opacity");
+	add("font-size");
+	add("stroke-width");
+	}}};
+
+@Override
+protected Map<String, Object> updateAttributes(Map<String, Object> atts) {
+	if(atts==null || atts.containsKey("style") || atts.containsKey("class")) return atts;
+	Map<String,String> style= null;
+	for(final String key:atts.keySet()) {
+		if(LOOKS_LIKE_STYLE.contains(key)) {
+			if(style==null) style = new HashMap<>();
+			style.put(key, convertObjectToString(atts.get(key)));
+			}
+		}
+	if(style==null) {
+		return atts;
+		}
+	//copy if unmodifiable
+	atts = new HashMap<>(atts);
+	for(final String key:style.keySet()) {
+		atts.remove(key);
+		}
+	atts.put("style", style.entrySet().stream().map(KV->KV.getKey()+":"+KV.getValue()).collect(Collectors.joining(";")));
+	return atts;
 	}
 
 public void appendStyle(final String s) {
@@ -421,6 +455,5 @@ public Element setTitle(Element root,final String  s) {
 	root.appendChild(e);
 	return root;
 	}
-
 
 }

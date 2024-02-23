@@ -2198,6 +2198,10 @@ all2.add(task("jeter7", type: CompileJVarkit) {
 all2.add(task("jeter8", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.tss.TSSEnrichment"
         jarLibs = combineLibs("htsjdk","testng","jcommander")
+	});
+all2.add(task("jeter9", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.plotrare.PlotRareVariants"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
 

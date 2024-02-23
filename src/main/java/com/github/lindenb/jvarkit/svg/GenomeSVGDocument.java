@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import org.w3c.dom.Element;
@@ -53,6 +54,7 @@ public class IntervalInfo extends LocatableDelegate<Locatable> {
 	final String id = nextId();
 	int index;//index in intervals, useful to colorize using %2==0
 	double yTop = 0;
+	private double leftX=0;
 	private double width=0;
 	final Element group;//group associated to this interval used for clipping
 	
@@ -60,6 +62,11 @@ public class IntervalInfo extends LocatableDelegate<Locatable> {
 		super(delegate);
 		this.group = GenomeSVGDocument.this.group();
 		this.group.appendChild( comment("interval "+ LocatableUtils.toNiceString(delegate)));
+		}
+	
+	/** return left pixel */
+	public double getX() {
+		return this.leftX;
 		}
 	
 	public double getWidth() {
@@ -81,21 +88,30 @@ public class IntervalInfo extends LocatableDelegate<Locatable> {
 
 	
 	public double pos2pixel(int pos) {
-		return ((pos-getStart())/(double)getLengthOnReference())* this.getWidth();
+		return this.getX() +((pos-getStart())/(double)getLengthOnReference())* this.getWidth();
 		}
+	
+	public double pixel2genomic(double x) {
+		return getStart()+ ((x-getX())/this.getWidth())*this.getLengthOnReference();
+	}
+	
 	public int trimPos(int pos) {
 		return Math.max(getStart(), Math.min(pos, getEnd()));
 		}
 	public double trimPixel(double pix) {
-		return Math.max(0, Math.min(getWidth(), pix));
+		return Math.max(getX(), Math.min(getX()+getWidth(), pix));
 		}
 	
-	Element rect(Locatable r,double y,double height,Map<String,Object> atts) {
+	public Locatable trim(Locatable loc) {
+		return LocatableUtils.sharedInterval(loc,this);
+		}
+	
+	public Element rect(final Locatable r,double y,double height,final Map<String,Object> atts) {
 		final double x0 = pos2pixel(trimPos(r.getStart()));
 		final double x1 = pos2pixel(trimPos(r.getEnd()+1));
-		return owner().rect( x0, y, (x1-x0), height, atts);
+		return owner().rect( x0, y, Math.max(x1-x0,owner().properties.getDoubleAttribute("min-width").orElse(1)), height, atts);
 		}
-	Element rect(Locatable r,double y,double height) {
+	public Element rect(Locatable r,double y,double height) {
 		return rect(r,y,height,Collections.emptyMap());
 		}
 	
@@ -173,32 +189,58 @@ public class IntervalInfo extends LocatableDelegate<Locatable> {
 			}
 		return ruler_gh;
 		}
+	/** create a frame around this info from y1 to y2 */
+	public Element frame(double y1,double y2) {
+		return owner().rect(getX(), y1, getWidth(), y2-y1,
+				Maps.of(
+						"class", style2class("stroke:darkgray;fill:none;")
+					)
+				);
+		}
+	
+	/** create a predicate for Pileup */
+	public <T extends Locatable> BiPredicate<T,T> createCollisionPredicate() {
+		return (A,B)->{
+			double limit=1;
+			double ax2 = this.pos2pixel(A.getEnd());
+			double bx1 = this.pos2pixel(B.getStart());
+			if(ax2+limit < bx1) return true;
+			double bx2 = this.pos2pixel(B.getEnd());
+			double ax1 = this.pos2pixel(A.getStart());
+			if(bx2+limit < ax1) return true;
+			return false;
+			};
+		}
+
 	}
 
 private final SAMSequenceDictionary dict;
+private final Comparator<Locatable> locatableSorter;
 private final AttributeMap properties;
 private final List<IntervalInfo> intervals;
 private final IntervalTreeMap<IntervalInfo> intervalsTreeMap;
-private final double image_width;
-private final double margin_left;
+public final double image_width;
+public final double margin_left;
 private final List<Runnable> callbacks_on_finish = new ArrayList<>();
-private double lastY = 0;
+public double lastY = 0;
 private final List<Interval> highlights = new ArrayList<>();
 
 public GenomeSVGDocument(
 		final SAMSequenceDictionary dict,
-		final List<Interval> intervals,
+		final List<? extends Locatable> intervals,
 		final AttributeMap properties
 		) {
 	this.dict = Objects.requireNonNull(dict);
-	if(Objects.requireNonNull(intervals).isEmpty()) throw new IllegalArgumentException();
+	if(Objects.requireNonNull(intervals).isEmpty()) throw new IllegalArgumentException("no interval was provided");
 	this.properties=properties;
 	
-	final Comparator<Locatable> sorter = new ContigDictComparator(this.dict).createLocatableComparator();
+	this.locatableSorter = ContigDictComparator.createLocatableComparator(dict);
 	this.intervals = intervals.stream().
-		sorted(sorter).
+		sorted(this.locatableSorter).
 		map(R->new IntervalInfo(R)).
 		collect(Collectors.toList());
+	
+	
 	this.intervalsTreeMap = new IntervalTreeMap<>();
 	for(IntervalInfo ii: this.intervals) {
 		this.intervalsTreeMap.put(ii.toInterval(),ii);
@@ -216,6 +258,7 @@ public GenomeSVGDocument(
 		final IntervalInfo ii = this.intervals.get(i);
 		ii.index=i;
 		ii.group.setAttribute("transform",translate(x,this.lastY));//TODO shit top
+		ii.leftX = x;
 		ii.width = (ii.getLengthOnReference()/(double)sum_length_on_ref)* adjust_image_width;
 		x+= ii.width;
 		}
@@ -226,6 +269,18 @@ public GenomeSVGDocument(
 	this.callbacks_on_finish.add(()->{
 	
 		});
+	}
+
+public List<IntervalInfo> getIntervalInfoList() {
+	return this.intervals;
+	}
+
+public List<IntervalInfo> getIntervalInfoForInterval(final Locatable loc) {
+	return this.intervalsTreeMap.
+			getOverlapping(loc).
+			stream().
+			sorted(this.locatableSorter).
+			collect(Collectors.toList());
 	}
 
 public void finish() {
@@ -245,8 +300,13 @@ public void finish() {
 	callbacks_on_finish.stream().forEach(R->R.run());
 	}
 
+
+public SAMSequenceDictionary getSAMSequenceDictionary() {
+	return this.dict;
+	}
+
 public String getUrl(final Locatable loc) {
-	return Hyperlink.compile(this.dict).apply(loc).orElse("");
+	return Hyperlink.compile(getSAMSequenceDictionary()).apply(loc).orElse("");
 	}
 
 public Element anchor(Element wrapped, Locatable loc) {
@@ -263,9 +323,26 @@ public void insertRuler() {
 
 	}
 
+
+/** create a frame all info from y1 to y2 */
+public void frame(double y1,double y2) {
+	// left margin
+	Element r= rect(0, y1, this.margin_left, y2-y1,
+			Maps.of(
+					"class", style2class("stroke:darkgray;fill:none;")
+				)
+			);
+	this.rootElement.appendChild(r);
+	for(IntervalInfo ii: getIntervalInfoList()) {
+		this.rootElement.appendChild(ii.frame(y1,y2));
+		}
+	}
+
+
 /** return true if any IntervalInfo overlaps loc */
 public boolean overlaps(final Locatable loc) {
 	return this.intervals.stream().anyMatch(R->R.overlaps(loc));
 	}
+
 
 }

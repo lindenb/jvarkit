@@ -1084,7 +1084,7 @@ public class SigFrame
 		                                    g.drawLine((int)x2, 0, (int)x2,  gc.height);
 		                                    
 		                                    /*
-		                                    g.setColor(Color.BLACK);
+		                                    g.setColor(Colors.BLACK);
 				                    		old=g.getTransform();
 				                    		AffineTransform tr= AffineTransform.getTranslateInstance(x2+2, 10);
 				                    		tr.rotate(Math.PI/2);
@@ -1457,7 +1457,7 @@ public class SigFrame
 					case 2: return "End";
 					case 3: return "Name";
 					case 4: return "Value";
-					case 5: return "Color";
+					case 5: return "Colors";
 					}
 				return null;
 				}
