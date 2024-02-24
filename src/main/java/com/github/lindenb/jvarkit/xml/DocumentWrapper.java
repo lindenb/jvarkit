@@ -30,9 +30,13 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.Path;
+import java.text.DecimalFormat;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -47,6 +51,7 @@ import org.w3c.dom.Attr;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Comment;
 import org.w3c.dom.Document;
+import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.Text;
@@ -62,14 +67,75 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 public abstract class DocumentWrapper  {
 	public abstract Document getDocument();
 	private static int ID_GENERATOR = 0;
-	
-	public String getDefaultNamespace() {
-		return null;
+	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+
+	/** utiliy class to build a Dom tree */
+	public class NodeBuilder {
+		private NodeBuilder parent;
+		private Node root;
+		
+		NodeBuilder() {
+			this.root = DocumentWrapper.this.fragment();
+			}
+		NodeBuilder(String name,Map<String,Object> hash) {
+			this.root = DocumentWrapper.this.element(name,hash);
+			}
+		
+		public NodeBuilder startElement(String name,Map<String,Object> hash) {
+			NodeBuilder b=new  NodeBuilder(name,hash);
+			b.parent = this;
+			this.root.appendChild(b.root);
+			return b;
+			}
+		
+		public NodeBuilder startElement(String name) {
+			return startElement(name,Collections.emptyMap());
+			}
+		
+		public NodeBuilder text(Object c) {
+			if(c!=null) this.root.appendChild(DocumentWrapper.this.text(c));
+			return this;
+			}
+		public NodeBuilder comment(Object c) {
+			if(c!=null) this.root.appendChild(DocumentWrapper.this.comment(c)); 
+			return this;
+			}
+		public NodeBuilder attribute(String key,Object v) {
+			if(v!=null) {
+				Element.class.cast(this.root).setAttribute(key,DocumentWrapper.this.convertObjectToString(v));
+				}
+			return this;
+			}
+		public NodeBuilder endElement() {
+			return this.parent;
+			}
+		public Node make() {
+			if(this.parent!=null) return parent.make();
+			return this.root;
+			}
 		}
 	
 	
+	public NodeBuilder makeNodeBuilder() { return new NodeBuilder();}
+	public NodeBuilder makeNodeBuilder(String name,Map<String,Object> att) { return new NodeBuilder(name,att);}
+	public NodeBuilder makeNodeBuilder(String name) { return new NodeBuilder(name,Collections.emptyMap());}
+	
+	
+	public String getDefaultNamespace() {
+		return XMLConstants.NULL_NS_URI;
+		}
+	
+	
+	public String format(double v) {
+		if((long)v==v) return String.valueOf((long)v);
+		return this.decimalFormater.format(v);
+		}
+	
 	public String convertObjectToString(final Object s) {
-		return s==null?"":String.valueOf(s);
+		if(s==null) return "";
+		if(s instanceof Double) return format(Double.class.cast(s).doubleValue());
+		if(s instanceof Float) return format(Float.class.cast(s).doubleValue());
+		return String.valueOf(s);
 		}
 	
 	public Text text(final Object s) {
@@ -81,6 +147,11 @@ public abstract class DocumentWrapper  {
 		}
 	public CDATASection cdataSection(final Object s) {
 		return getDocument().createCDATASection(convertObjectToString(s));
+		}
+	
+	/** create a document fragment */
+	public DocumentFragment fragment() {
+		return getDocument().createDocumentFragment();
 		}
 	
 	public Attr attribute(final String key) {
@@ -103,15 +174,16 @@ public abstract class DocumentWrapper  {
 		return atts;
 		}
 	
-	public Element element(final String tag,Object textContent, Map<String, Object> atts) {
+	public Element element(final String tag,Object content, Map<String, Object> atts) {
 		final String ns = getDefaultNamespace();
 		final Element e;
-		if(StringUtils.isBlank(ns)) {
+		if(StringUtils.isBlank(ns) || XMLConstants.NULL_NS_URI.equals(ns)) {
 			e = getDocument().createElement(tag);
 		} else {
 			e = getDocument().createElementNS(ns, tag);
 			}
 		
+		/* give a chance to change the attribute for example to group SVG stroke, fill, etc under 'style' */
 		atts = updateAttributes(atts);
 		
 		if(atts!=null && !atts.isEmpty()) {
@@ -122,8 +194,8 @@ public abstract class DocumentWrapper  {
 				}
 			}
 		
-		if(textContent!=null) {
-			e.appendChild(this.text(textContent));
+		if(content!=null) {
+			e.appendChild(this.toNode(content));
 			}
 		return e;
 		}
@@ -201,11 +273,22 @@ public abstract class DocumentWrapper  {
 	public String nextId() {
 		return "n"+(++ID_GENERATOR);
 	}
-	/** return o is it a org.w3c.dom.Node, otherwise, convert it to text */
+	/** return o is it a org.w3c.dom.Node, DocumentFragment is List of array, otherwise, convert it to text */
 	public Node toNode(Object o)  {
 		if(o==null) return text("");
 		if(o instanceof Node) {
 			return Node.class.cast(o);
+			}
+		else if(o instanceof Collection) {
+			final Collection<?> L =Collection.class.cast(o);
+			final DocumentFragment df = this.fragment();
+			for(Object c: L) {
+				df.appendChild(toNode(c));
+				}
+			return df;
+			}
+		else if(o.getClass().isArray()) {
+			return toNode(Arrays.asList((Object[])o));
 			}
 		else
 			{

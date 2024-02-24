@@ -150,6 +150,7 @@ public class PlotRareVariants extends Launcher {
 				final CytobandTrack cytobandTrack = new CytobandTrack();
 				cytobandTrack.setDocument(svgDoc);
 				cytobandTrack.paint();
+				
 				final GtfTrack gtfTrack = new GtfTrack();
 				gtfTrack.setDocument(svgDoc);
 				gtfTrack.paint();

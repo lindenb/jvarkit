@@ -42,6 +42,9 @@ public interface Cytoband extends Locatable {
 	public String getName();
 	public String getStain();
 	
+	public default boolean isCentromere() {
+		return getStain().contains("acen");
+	}
 	
 	/* CSS Colors https://github.com/ENCODE-DCC/kentUtils/blob/master/src/hg/lib/hCytoBand.c#L43 */
 	public default String getCssColor() {
@@ -49,6 +52,10 @@ public interface Cytoband extends Locatable {
 		if (stain.startsWith("gneg"))
 		    {
 		    return "lightblue";
+		    }
+		else if (stain.startsWith("acen"))
+		    {
+		    return "orange";
 		    }
 		else if (stain.startsWith("gpos") && stain.length()>4)
 		    {

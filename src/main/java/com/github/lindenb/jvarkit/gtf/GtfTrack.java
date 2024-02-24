@@ -60,6 +60,8 @@ public class GtfTrack {
 	
 	
 	public void paint() {
+		if(this.gtfPath==null) return;
+		if(this.svgDoc==null) return;
 		final String strandClass = svgDoc.style2class("strand", "fill:none;stroke:gray;stroke-width:0.5px;");
 		final String ktrClass = svgDoc.style2class("strand", "fill:none;stroke:gray;stroke-width:1px;");
 		final String exonClass = svgDoc.style2class("strand", "fill:lightgray;stroke:gray;stroke-width:1px;");

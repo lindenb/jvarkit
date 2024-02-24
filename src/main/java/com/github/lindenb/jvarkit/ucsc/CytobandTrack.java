@@ -3,28 +3,39 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
+import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.svg.GenomeSVGDocument;
 import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class CytobandTrack {
+	private static final Logger LOG = Logger.build(CytobandTrack.class).make();
 	private Path cytobandPath = null;
 	private GenomeSVGDocument svgDoc = null;
 	final double featureHeight=20;
@@ -36,7 +47,47 @@ public class CytobandTrack {
 		CytoInfo(Cytoband c) {
 			super(c);
 			}
+		boolean isCentromer() { return getDelegate().getStain().contains("acen");}
+		double getMaxX() { return x+width;}
 		}
+	
+	private static class Chromosome implements ExtendedLocatable,Iterable<CytoInfo> {
+		List<CytoInfo> bands = new ArrayList<>();
+		@Override
+		public String getContig() {
+			return bands.get(0).getContig();
+			}
+		@Override
+		public int getStart() {
+			return bands.get(0).getStart();
+			}
+		@Override
+		public int getEnd() {
+			return bands.get(bands.size()-1).getEnd();
+			}
+		@Override
+		public Iterator<CytoInfo> iterator() {
+			return bands.iterator();
+			}
+		void sort() {
+			Collections.sort(bands,LocatableUtils.DEFAULT_COMPARATOR);
+			}
+		OptionalDouble getCentromereX() {
+			List<CytoInfo> L = this.bands.stream().filter(C->C.isCentromer()).collect(Collectors.toList());
+			if(L.isEmpty()) return OptionalDouble.empty();
+			if(L.size()==1) return OptionalDouble.of(L.get(0).x+(L.get(0).width/2));
+			if(L.size()==2) return OptionalDouble.of(L.get(0).getMaxX());
+			return  OptionalDouble.empty();
+			}
+		double getX() { return bands.get(0).x;}
+		double getMaxX() { return bands.get(bands.size()-1).getMaxX();}
+		double getWidth() { return getMaxX()-getX();}
+		
+		double loc2pix(int pos) {
+			return getX()+(pos/(double)getLengthOnReference())*getWidth();
+			}
+		}
+	
 	
 	public CytobandTrack() {
 		}
@@ -49,15 +100,13 @@ public class CytobandTrack {
 		this.svgDoc = svgDoc;
 		}
 	
-	private double loc2pix(final String contig,final int pos,List<CytoInfo> entries) {
-		CytoInfo c = entries.stream().filter(C->C.getContig().equals(contig) && C.contains(pos)).findFirst().orElse(null);
-		if(c==null) throw new IllegalArgumentException();
-		return c.x + ((pos-c.getStart())/(double)c.getLengthOnReference())* c.width;
-		}
+	
+
 
 	
 	public void paint() {
-		final AutoMap<String,CytoInfo,List<CytoInfo>> entries= AutoMap.makeList();
+		if(this.svgDoc==null) return;
+		final AutoMap<String,Chromosome,Chromosome> entries= AutoMap.make(()->new Chromosome());
 		final SAMSequenceDictionary dict = this.svgDoc.getSAMSequenceDictionary();
 		final ContigDictComparator ctgCompare = new ContigDictComparator(dict);
 		BufferedReader br = null;
@@ -65,6 +114,7 @@ public class CytobandTrack {
 			if(this.cytobandPath==null) {
 				final Optional<String> opt = Cytoband.getURLForBuild(dict);
 				if(!opt.isPresent()) return;
+				LOG.info("download cytobands from "+opt.get());
 				br = IOUtils.openURIForBufferedReading(opt.get());
 				}
 			else
@@ -81,11 +131,9 @@ public class CytobandTrack {
 				tokens[0] = ctg;
 				final CytoInfo e = new CytoInfo(Cytoband.of(tokens));
 				if(this.svgDoc.getIntervalInfoList().stream().noneMatch(C->C.contigsMatch(e))) continue;
-				entries.insert(ctg, e);
+				entries.insert(ctg).bands.add(e);
 				}
-			for(List<CytoInfo> L: entries.values()) {
-				Collections.sort(L, ctgCompare.createLocatableComparator());
-				}
+			entries.values().stream().forEach(C->C.sort());
 			}
 		catch(final IOException err) {
 			throw new RuntimeIOException(err);
@@ -98,64 +146,152 @@ public class CytobandTrack {
 		
 		
 		
-		if(entries.isEmpty()) return ;
-		double spaceBetweenInterval = 1;
+		if(entries.isEmpty()) {
+			LOG.info("no cytoband was found");
+			return ;
+			}
+		double spaceBetweenInterval = 5;
 		double y = svgDoc.lastY;
 		
 		svgDoc.appendStyle(
-			".ctgborderp {fill:url(#grad01);stroke:green;}" +
-			".ctgborderq {fill:url(#grad01);stroke:green;}" +
-			".ctglabel {text-anchor:middle;stroke:none;fill:darkgrey;font: bold 10px Verdana, Helvetica, Arial, sans-serif;}" +
-			".cytoband {fill:silver;stroke:none;}" +
-			".bedlabel {stroke:red;fill:none;text-anchor:start;font: normal 7px Verdana, Helvetica, Arial, sans-serif;}" +
-			".maintitle {stroke:none;fill:darkgrey;text-anchor:middle;font: normal 12px Verdana, Helvetica, Arial, sans-serif;}" +
-			".ctgback {fill:gainsboro;stroke:none;filter:url(#filter01);}"
+			".ctgborderp {fill:url(#grad01);stroke:green;}\n" +
+			".ctgborderq {fill:url(#grad01);stroke:green;}\n" +
+			".ctglabel {text-anchor:middle;stroke:none;fill:darkgrey;font: bold 10px Verdana, Helvetica, Arial, sans-serif;}\n" +
+			".cytoband {fill:silver;stroke:none;}\n" +
+			".bedlabel {stroke:red;fill:none;text-anchor:start;font: normal 7px Verdana, Helvetica, Arial, sans-serif;}\n" +
+			".maintitle {stroke:none;fill:darkgrey;text-anchor:middle;font: normal 12px Verdana, Helvetica, Arial, sans-serif;}\n" +
+			".ctgback {fill:gainsboro;stroke:none;filter:url(#filter01);}\n"
 			);
 		
 		final double sum_length_on_ref = entries.values().stream().
-				flatMap(T->T.stream()).
 				mapToLong(T->T.getLengthOnReference()).
 				sum();
-		final List<String> orderedChromosomes = entries.keySet().stream().sorted(ctgCompare).collect(Collectors.toList());
+		final List<Chromosome> orderedChromosomes = entries.
+				values().
+				stream().
+				sorted(ctgCompare.createLocatableComparator()).
+				collect(Collectors.toList());
 		final double adjust_image_width = this.svgDoc.image_width - Math.max(0,(entries.size()-1)*spaceBetweenInterval);
 		
+		final Element g = svgDoc.group();
+		g.appendChild(svgDoc.comment("BEGIN cytoband"));
+		
+		final Map<String,String> stain2gradientid=new HashMap<>();
+		
 		double x = this.svgDoc.margin_left;
-		for(int i=0;i< orderedChromosomes.size();++i) {
-			final String ctg =orderedChromosomes.get(i);
-			
+		for(Chromosome chromosome : orderedChromosomes) {
 			final Element gContig = svgDoc.group();
+			g.appendChild(gContig);
 			
-			if(i>0) x+=spaceBetweenInterval;
-			for(CytoInfo ii: entries.get(ctg)) {
+			
+			
+			final double contigX1 = x;
+
+			
+			for(CytoInfo ii: chromosome.bands) {
 				ii.x=x;
 				ii.width = (ii.getLengthOnReference()/(double)sum_length_on_ref)* adjust_image_width;
 				x+= ii.width;
+				}
+			
+			final String clipId = svgDoc.nextId();
+			final Element clipPath = svgDoc.clipPath();
+			svgDoc.defsElement.appendChild(clipPath);
+			clipPath.setAttribute("id", clipId);
+
+			final double roundRec = featureHeight/2;
+			final OptionalDouble centromere = chromosome.getCentromereX();
+			List<Element> at_the_end_clone_and_stroke = new ArrayList<>();
+			
+			if(centromere.isPresent()) {
+				Element r= svgDoc.rect(
+						chromosome.getX(),
+						y+featureHeight,
+						centromere.getAsDouble() - chromosome.getX(),
+						featureHeight,
+						Maps.of("rx",roundRec)
+						);
+				at_the_end_clone_and_stroke.add(r);
+				clipPath.appendChild(r);
+				
+				r = svgDoc.rect(
+						centromere.getAsDouble(),
+						y+featureHeight,
+						chromosome.getMaxX()-centromere.getAsDouble(),
+						featureHeight,
+						Maps.of("rx",roundRec)
+						);
+				clipPath.appendChild(r);
+				at_the_end_clone_and_stroke.add(r);
+				}
+			else
+				{
+				final Element r= svgDoc.rect(
+						chromosome.getX(),
+						y+featureHeight,
+						chromosome.getWidth(),
+						featureHeight,
+						Maps.of("rx",roundRec)
+						);
+				clipPath.appendChild(r);
+				at_the_end_clone_and_stroke.add(r);
+				}
+			
+			for(CytoInfo ii: chromosome.bands) {
+				String gradientid = stain2gradientid.get(ii.getDelegate().getStain());
+				if(gradientid==null) {
+					gradientid = svgDoc.createVerticalLinearGradient("black", ii.getDelegate().getCssColor());
+					stain2gradientid.put(ii.getDelegate().getStain(), gradientid);
+					}
+				
 				
 				final Element rec = svgDoc.rect(
-						ii.x,y, ii.width,featureHeight,
-						Maps.of("class", svgDoc.style2class("stroke:none;fill:"+ii.getDelegate().getCssColor()))
+						ii.x,y+featureHeight, ii.width,featureHeight,
+						Maps.of("fill", "url(#"+gradientid+")")
 						);
-				svgDoc.setTitle(rec,ii.getDelegate().getName());
+				if(clipId!=null) rec.setAttribute("clip-path", "url(#"+clipId+")");
+				svgDoc.setTitle(rec,ii.getContig()+ii.getDelegate().getName());
 				gContig.appendChild(svgDoc.anchor(rec, ii));
 				}
+			
+			// create frame over clipped elements
+			for(Element rec0: at_the_end_clone_and_stroke) {
+				final Element rec= Element.class.cast(rec0.cloneNode(false));
+				rec.setAttribute("class",svgDoc.style2class("stroke:black;fill:none;"));
+				gContig.appendChild(rec);
+				}
+			
+			
+			gContig.appendChild(svgDoc.text(
+					(contigX1+x)/2.0,
+					y+featureHeight,
+					chromosome.getContig(),
+					Maps.of("text-align", "center"))
+					);
+			
 			for(GenomeSVGDocument.IntervalInfo info: this.svgDoc.getIntervalInfoList()) {
-				if(!info.getContig().equals(ctg)) continue;
-				double x1= loc2pix(info.getContig(),info.getStart(),entries.get(ctg));
-				double x2= loc2pix(info.getContig(),info.getEnd()+1,entries.get(ctg));
+				if(!info.getContig().equals(chromosome.getContig())) continue;
+				final double x1= chromosome.loc2pix(info.getStart());
+				final double x2= chromosome.loc2pix(info.getEnd());
+				final double y1 =y+featureHeight*2;
+				final double y2 =y+featureHeight*3;
 				
-				Element polygon = svgDoc.createPolygon().
-					lineTo(x1,y+featureHeight).
-					lineTo(x2,y+featureHeight).
-					lineTo(info.getX()+info.getWidth(),y+featureHeight*2).
-					lineTo(info.getX(),y+featureHeight*2).
-					make(Maps.of("stroke","red","fill","red"));
+				final Element polygon = svgDoc.createPolygon().
+					lineTo(x1,y1).
+					lineTo(x2,y1).
+					lineTo(info.getX()+info.getWidth(),y2).
+					lineTo(info.getX(),y2).
+					make(Maps.of("stroke","red","fill","red","opacity",0.6));
 				svgDoc.setTitle(polygon,info.toNiceString());
 				gContig.appendChild(svgDoc.anchor(polygon, info));	
 				}
 			
-		
+			x+=spaceBetweenInterval;
 			}
-		y+= featureHeight*2;
+		svgDoc.rootElement.appendChild(g);
+		g.appendChild(svgDoc.comment("END cytoband"));
+		
+		y+= featureHeight*3;
 		svgDoc.lastY =y;
 		}
 

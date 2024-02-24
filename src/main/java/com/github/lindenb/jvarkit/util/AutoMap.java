@@ -70,6 +70,7 @@ public class AutoMap<K,V,C> extends AbstractMap<K,C> {
 
 	
 	public C insert(K key, V value) {
+		Objects.requireNonNull(value,"value is null");
 		C col = this.delegate.get(key);
 		if(col==null) {
 			col = Objects.requireNonNull(this.collectionMaker.apply(key,value));
@@ -94,6 +95,23 @@ public class AutoMap<K,V,C> extends AbstractMap<K,C> {
 				);
 		}
 
+	/** create a simple key value */
+	public static <K,V> AutoMap<K,V,V> make( BiFunction<K,V,V> collectionMaker) {
+		return new AutoMap<K,V,V>(
+				()->new HashMap<>(),
+				(A,B)->collectionMaker.apply(A,B),
+				(A,B)->{}
+				);
+		}
+	/** create a simple key value , with a supplier that doesn't need the key to be instanied */
+	public static <K,V> AutoMap<K,V,V> make( Supplier<V> simpleValueMaker) {
+		return new AutoMap<K,V,V>(
+				()->new HashMap<>(),
+				(A,B)->simpleValueMaker.get(),
+				(A,B)->{}
+				);
+		}
+	
 	public int size() {
 		return delegate.size();
 	}

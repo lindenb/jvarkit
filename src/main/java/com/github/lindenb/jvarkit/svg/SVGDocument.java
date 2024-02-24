@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.svg;
 
-import java.text.DecimalFormat;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,7 +54,6 @@ public final Element rootElement;
 public final Element defsElement;
 public final Element scriptElement;
 public final Element rdfRoot;
-private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
 private final Map<String, String> _style2class = new HashMap<>();
 /**
  * SVGDocument
@@ -99,13 +97,17 @@ public SVGDocument() {
 	this(DocumentWrapper.makedoc(true));
 	}
 
+
+@SuppressWarnings("serial")
 private static final Set<String> LOOKS_LIKE_STYLE = new HashSet<String>() {{{
 	add("stroke");
 	add("fill");
 	add("text-anchor");
+	add("text-align");
 	add("opacity");
 	add("font-size");
 	add("stroke-width");
+	add("opacity");
 	}}};
 
 @Override
@@ -154,10 +156,6 @@ public String getDefaultNamespace() {
 	return SVG.NS;
 	}
 
-public String format(double v) {
-	if((long)v==v) return String.valueOf((long)v);
-	return this.decimalFormater.format(v);
-	}
 /** if given style is not delcared in the style element, add it to style and return the class-id */
 public String style2class(final String style) {
 	return style2class(null,style);
@@ -232,6 +230,9 @@ public Element group(Map<String,Object> atts) {
 	return this.element("g",null,atts);
 	}
 
+public Element clipPath() {
+	return this.element("clipPath");
+	}
 
 public Element group(Node...items) {
 	final Element g = group();
@@ -455,5 +456,31 @@ public Element setTitle(Element root,final String  s) {
 	root.appendChild(e);
 	return root;
 	}
+
+public String createVerticalLinearGradient(String color1,String color2) {
+	final String id= this.nextId();
+	Node n= this.makeNodeBuilder("linearGradient").
+		attribute("id",id).
+		attribute("x1","50%").
+		attribute("x2","50%").
+		attribute("y1","0%").
+		attribute("y2","100%").
+		startElement("stop").
+			attribute("offset","0%").
+			attribute("style","stop-color:"+color1+";stop-opacity:1;").
+		endElement().
+		startElement("stop").
+			attribute("offset","50%").
+			attribute("style","stop-color:"+color2+";stop-opacity:1;").
+		endElement().
+		startElement("stop").
+			attribute("offset","100%").
+			attribute("style","stop-color:"+color1+";stop-opacity:1;").
+		endElement().
+		make();
+	this.defsElement.appendChild(n);
+	return id;
+	}
+
 
 }

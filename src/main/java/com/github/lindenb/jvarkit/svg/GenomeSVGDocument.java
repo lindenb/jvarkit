@@ -50,169 +50,193 @@ import htsjdk.samtools.util.Locatable;
 
 public class GenomeSVGDocument extends SVGDocument {
 
-public class IntervalInfo extends LocatableDelegate<Locatable> {
-	final String id = nextId();
-	int index;//index in intervals, useful to colorize using %2==0
-	double yTop = 0;
-	private double leftX=0;
-	private double width=0;
-	final Element group;//group associated to this interval used for clipping
-	
-	public IntervalInfo(final Locatable delegate) {
-		super(delegate);
-		this.group = GenomeSVGDocument.this.group();
-		this.group.appendChild( comment("interval "+ LocatableUtils.toNiceString(delegate)));
-		}
-	
-	/** return left pixel */
-	public double getX() {
-		return this.leftX;
-		}
-	
-	public double getWidth() {
-		return this.width;
-		}
-
-	
-	public double getHeight() {
-		return 0;
-		}
-	
-	GenomeSVGDocument owner() {
-		return GenomeSVGDocument.this;
-		}
-	
-	public double length2pixel(int w) {
-		return ((w)/(double)getLengthOnReference())* this.getWidth();
-		}
-
-	
-	public double pos2pixel(int pos) {
-		return this.getX() +((pos-getStart())/(double)getLengthOnReference())* this.getWidth();
-		}
-	
-	public double pixel2genomic(double x) {
-		return getStart()+ ((x-getX())/this.getWidth())*this.getLengthOnReference();
-	}
-	
-	public int trimPos(int pos) {
-		return Math.max(getStart(), Math.min(pos, getEnd()));
-		}
-	public double trimPixel(double pix) {
-		return Math.max(getX(), Math.min(getX()+getWidth(), pix));
-		}
-	
-	public Locatable trim(Locatable loc) {
-		return LocatableUtils.sharedInterval(loc,this);
-		}
-	
-	public Element rect(final Locatable r,double y,double height,final Map<String,Object> atts) {
-		final double x0 = pos2pixel(trimPos(r.getStart()));
-		final double x1 = pos2pixel(trimPos(r.getEnd()+1));
-		return owner().rect( x0, y, Math.max(x1-x0,owner().properties.getDoubleAttribute("min-width").orElse(1)), height, atts);
-		}
-	public Element rect(Locatable r,double y,double height) {
-		return rect(r,y,height,Collections.emptyMap());
-		}
-	
-	private int bestTicks(final int max) {
-		if(max<=10) return 1;
-		if(max<=100) return 10;
-		if(max<=1000) return 100;
-		final int ndigit=(int)Math.ceil(Math.log10(max-1));
-		return Math.max(1,(int)Math.pow(10, ndigit-2));
-		}
-
-	void finish() {
-		//background-color
-		final Element background = rect(this,0,this.getHeight(),Maps.of("class", style2class("stroke:none;fill:"+(this.index==0?"white":"gray")+";")));
-		this.group.insertBefore(background, this.group.getFirstChild());
-		
-		// add clip
+	/**
+	 * Description of an interval
+	 *
+	 */
+	public class IntervalInfo extends LocatableDelegate<Locatable> {
 		final String id = nextId();
+		int index;//index in intervals, useful to colorize using %2==0
+		double yTop = 0;
+		private double leftX=0;
+		private double width=0;
+		final Element myGroup;//group associated to this interval used for drawing background  etc..
 		
-		
-		final Element clipPath = element("clipPath",Maps.of("id",id));
-		owner().defsElement.appendChild(clipPath);
-		clipPath.appendChild(
-				createShape().
-					moveToR(0, -1).
-					horizonal(getWidth()).
-					make()
-				);
-		final Element t = element("text");
-		this.group.appendChild(t);
-		final Element tp = element("textPath",toNiceString(),Maps.of("href","#"+id));
-		setTitle(tp,toNiceString());
-		t.appendChild(tp);
-		
-		this.group.insertBefore(anchor(tp,this),  this.group.getFirstChild());
-		}
-	
-	public void plotHightlights() {
-		if(owner().highlights.isEmpty()) return;
-		final Element highgroup = group(Maps.of("class", style2class("highlight","stroke:none;fill:pink;opacity:0.4")));
-		for(Interval rgn: owner().highlights) {
-			if(!rgn.overlaps(this)) continue;
-			final Element rect = rect(rgn,0,this.getHeight());
-			setTitle(rect,rgn.getName());
-			highgroup.appendChild(rect);
+		public IntervalInfo(final Locatable delegate) {
+			super(delegate);
+			this.myGroup = GenomeSVGDocument.this.group();
+			this.myGroup.appendChild( comment("interval "+ LocatableUtils.toNiceString(delegate)));
 			}
-		this.group.insertBefore(highgroup, this.group.getFirstChild());
-		}
-	
-	public Element insertRuler() {
-		/** vertical ruler */
-		final Element ruler_gh = group();
 		
-		final int sep= bestTicks(this.getLengthOnReference());
-		int pos = this.getStart() + this.getStart()%sep;
-		
-		while(pos<= this.getEnd())
-			{
-			double x= pos2pixel(pos);
-			final Element line = line(x,x,this.yTop,this.yTop,Maps.of("class", style2class("ruler","stroke:lightgray;stroke-width:0.5px")));
-			callbacks_on_finish.add(()->line.setAttribute("y2", String.valueOf(GenomeSVGDocument.this.lastY)));
-			setTitle(line,StringUtils.niceInt(pos));
-			ruler_gh.appendChild(line);
-			
-			final Element label = text(
-					0,0,
-					StringUtils.niceInt(pos),
-					Maps.of(
-						"class", style2class("rulerlabel","stroke:gray;stroke-width:0.5px;font-size:7px;"),
-						"transform", translate(x,this.yTop)+" rotate(90) "
-					));
-			ruler_gh.appendChild(label);
-			
-			pos+=sep;
+		/** return left pixel */
+		public double getX() {
+			return this.leftX;
 			}
-		return ruler_gh;
-		}
-	/** create a frame around this info from y1 to y2 */
-	public Element frame(double y1,double y2) {
-		return owner().rect(getX(), y1, getWidth(), y2-y1,
-				Maps.of(
-						"class", style2class("stroke:darkgray;fill:none;")
-					)
-				);
-		}
+		
+		public double getWidth() {
+			return this.width;
+			}
 	
-	/** create a predicate for Pileup */
-	public <T extends Locatable> BiPredicate<T,T> createCollisionPredicate() {
-		return (A,B)->{
-			double limit=1;
-			double ax2 = this.pos2pixel(A.getEnd());
-			double bx1 = this.pos2pixel(B.getStart());
-			if(ax2+limit < bx1) return true;
-			double bx2 = this.pos2pixel(B.getEnd());
-			double ax1 = this.pos2pixel(A.getStart());
-			if(bx2+limit < ax1) return true;
-			return false;
-			};
+		
+		public double getHeight() {
+			return 0;
+			}
+		
+		GenomeSVGDocument owner() {
+			return GenomeSVGDocument.this;
+			}
+		
+		public double length2pixel(int w) {
+			return ((w)/(double)getLengthOnReference())* this.getWidth();
+			}
+	
+		
+		public double pos2pixel(int pos) {
+			return this.getX() +((pos-getStart())/(double)getLengthOnReference())* this.getWidth();
+			}
+		
+		public double pixel2genomic(double x) {
+			return getStart()+ ((x-getX())/this.getWidth())*this.getLengthOnReference();
 		}
+		
+		public int trimPos(int pos) {
+			return Math.max(getStart(), Math.min(pos, getEnd()));
+			}
+		public double trimPixel(double pix) {
+			return Math.max(getX(), Math.min(getX()+getWidth(), pix));
+			}
+		
+		public Locatable trim(Locatable loc) {
+			return LocatableUtils.sharedInterval(loc,this);
+			}
+		
+		public Element rect(final Locatable r,double y,double height,final Map<String,Object> atts) {
+			final double x0 = pos2pixel(trimPos(r.getStart()));
+			final double x1 = pos2pixel(trimPos(r.getEnd()+1));
+			return this.owner().rect( x0, y, Math.max(x1-x0,owner().properties.getDoubleAttribute("min-width").orElse(1)), height, atts);
+			}
+		public Element rect(final Locatable r,double y,double height) {
+			return this.rect(r,y,height,Collections.emptyMap());
+			}
+		
+		public Element line(final Locatable r,double y,final Map<String,Object> atts) {
+			final double x0 = pos2pixel(trimPos(r.getStart()));
+			final double x1 = pos2pixel(trimPos(r.getEnd()+1));
+			return owner().line( x0, y,x1,y, atts);
+			}
+		/** get horizonal line at y */
+		public Element line(final Locatable r,double y) {
+			return line(r,y,Collections.emptyMap());
+			}
 
-	}
+		public String getName() {
+			if(getDelegate() instanceof Interval) {
+				return Interval.class.cast(getDelegate()).getName();
+				}
+			return toNiceString();
+			}
+		
+		private int bestTicks(final int max) {
+			if(max<=10) return 1;
+			if(max<=100) return 10;
+			if(max<=1000) return 100;
+			final int ndigit=(int)Math.ceil(Math.log10(max-1));
+			return Math.max(1,(int)Math.pow(10, ndigit-2));
+			}
+	
+		void finish() {
+			//background-color
+			final Element background = rect(this,0,this.getHeight(),Maps.of("class", style2class("stroke:none;fill:"+(this.index==0?"white":"gray")+";")));
+			this.myGroup.insertBefore(background, this.myGroup.getFirstChild());
+			
+			// add clip
+			final String id = nextId();
+			
+			
+			final Element clipPath = element("clipPath",Maps.of("id",id));
+			owner().defsElement.appendChild(clipPath);
+			clipPath.appendChild(
+					createShape().
+						moveToR(0, -1).
+						horizonal(getWidth()).
+						make()
+					);
+			final Element t = element("text");
+			this.myGroup.appendChild(t);
+			final Element tp = element("textPath",toNiceString(),Maps.of("href","#"+id));
+			setTitle(tp,toNiceString());
+			t.appendChild(tp);
+			
+			this.myGroup.insertBefore(anchor(tp,this),  this.myGroup.getFirstChild());
+			}
+		
+		public void plotHightlights() {
+			if(owner().highlights.isEmpty()) return;
+			final Element highgroup = group(Maps.of("class", style2class("highlight","stroke:none;fill:pink;opacity:0.4")));
+			for(Interval rgn: owner().highlights) {
+				if(!rgn.overlaps(this)) continue;
+				final Element rect = rect(rgn,0,this.getHeight());
+				setTitle(rect,rgn.getName());
+				highgroup.appendChild(rect);
+				}
+			this.myGroup.insertBefore(highgroup, this.myGroup.getFirstChild());
+			}
+		
+		public void insertVerticalRuler(double y1,double y2) {
+			/** vertical ruler */
+			final Element ruler_gh = group();
+			this.myGroup.appendChild(ruler_gh);
+			
+			final int sep= bestTicks(this.getLengthOnReference());
+			int pos = this.getStart() + this.getStart()%sep;
+			
+			while(pos<= this.getEnd())
+				{
+				double x= pos2pixel(pos);
+				final Element line = owner().line(
+						x,x,y1,y2,
+						Maps.of("class", style2class("ruler","stroke:lightgray;stroke-width:0.5px")));
+				callbacks_on_finish.add(()->line.setAttribute("y2", String.valueOf(GenomeSVGDocument.this.lastY)));
+				setTitle(line,StringUtils.niceInt(pos));
+				ruler_gh.appendChild(line);
+				
+				final Element label = text(
+						0,0,
+						StringUtils.niceInt(pos),
+						Maps.of(
+							"class", style2class("rulerlabel","stroke:gray;stroke-width:0.5px;font-size:7px;"),
+							"transform", translate(x,this.yTop)+" rotate(90) "
+						));
+				ruler_gh.appendChild(label);
+				
+				pos+=sep;
+				}
+			}
+		
+		/** create a frame around this info from y1 to y2 */
+		public Element frame(double y1,double y2) {
+			return owner().rect(getX(), y1, getWidth(), y2-y1,
+					Maps.of(
+							"class", style2class("stroke:darkgray;fill:none;")
+						)
+					);
+			}
+		
+		/** create a predicate for Pileup */
+		public <T extends Locatable> BiPredicate<T,T> createCollisionPredicate() {
+			return (A,B)->{
+				final double limit= owner().properties.getDoubleAttribute("collision-distance").orElse(1);
+				final double ax2 = this.pos2pixel(A.getEnd());
+				final double bx1 = this.pos2pixel(B.getStart());
+				if(ax2+limit < bx1) return true;
+				final double bx2 = this.pos2pixel(B.getEnd());
+				final double ax1 = this.pos2pixel(A.getStart());
+				if(bx2+limit < ax1) return true;
+				return false;
+				};
+			}
+	
+		}
 
 private final SAMSequenceDictionary dict;
 private final Comparator<Locatable> locatableSorter;
@@ -224,6 +248,7 @@ public final double margin_left;
 private final List<Runnable> callbacks_on_finish = new ArrayList<>();
 public double lastY = 0;
 private final List<Interval> highlights = new ArrayList<>();
+private final Element groupForIntervalInfo;
 
 public GenomeSVGDocument(
 		final SAMSequenceDictionary dict,
@@ -233,6 +258,10 @@ public GenomeSVGDocument(
 	this.dict = Objects.requireNonNull(dict);
 	if(Objects.requireNonNull(intervals).isEmpty()) throw new IllegalArgumentException("no interval was provided");
 	this.properties=properties;
+	
+	
+	this.groupForIntervalInfo = group();
+	super.rootElement.appendChild(this.groupForIntervalInfo);
 	
 	this.locatableSorter = ContigDictComparator.createLocatableComparator(dict);
 	this.intervals = intervals.stream().
@@ -257,7 +286,7 @@ public GenomeSVGDocument(
 		if(i>0) x+=spaceBetweenInterval;
 		final IntervalInfo ii = this.intervals.get(i);
 		ii.index=i;
-		ii.group.setAttribute("transform",translate(x,this.lastY));//TODO shit top
+		this.groupForIntervalInfo.appendChild(ii.myGroup);
 		ii.leftX = x;
 		ii.width = (ii.getLengthOnReference()/(double)sum_length_on_ref)* adjust_image_width;
 		x+= ii.width;
@@ -313,24 +342,23 @@ public Element anchor(Element wrapped, Locatable loc) {
 	return this.anchor(wrapped, getUrl(loc));
 	}
 
-public void insertRuler() {
-	/** vertical ruler */
-	final Element ruler_gv = group();
-	for(IntervalInfo ii:this.intervals) {
-		final Element g = ii.insertRuler();
-		ruler_gv.appendChild(g);
+public void insertVerticalRuler(double y1,double y2) {
+	for(IntervalInfo ii:getIntervalInfoList()) {
+		 ii.insertVerticalRuler(y1,y2);
 		}
-
 	}
 
+public AttributeMap getAttributes() {
+	return this.properties;
+	}
 
 /** create a frame all info from y1 to y2 */
 public void frame(double y1,double y2) {
 	// left margin
-	Element r= rect(0, y1, this.margin_left, y2-y1,
-			Maps.of(
-					"class", style2class("stroke:darkgray;fill:none;")
-				)
+	Element r= rect(
+			0, y1,
+			this.margin_left, y2-y1,
+			Maps.of("class", style2class("stroke:darkgray;fill:none;"))
 			);
 	this.rootElement.appendChild(r);
 	for(IntervalInfo ii: getIntervalInfoList()) {
