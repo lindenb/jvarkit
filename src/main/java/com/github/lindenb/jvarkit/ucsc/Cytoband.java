@@ -28,18 +28,18 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.util.Optional;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.HasName;
+import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.Locatable;
 
 /**
  * A cytoband in UCSC
  *
  */
-public interface Cytoband extends Locatable {
-	public String getName();
+public interface Cytoband extends ExtendedLocatable,HasName {
 	public String getStain();
 	
 	public default boolean isCentromere() {

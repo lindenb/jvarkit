@@ -73,7 +73,7 @@ public SVGDocument(final Document document) {
 	this.titleElement = element("title","untitled");
 	this.svgElement.appendChild(this.titleElement);
 
-	this.metaElement = element("meta");
+	this.metaElement = element("metadata");
 	this.svgElement.appendChild(this.metaElement);
 	
 	
@@ -83,7 +83,10 @@ public SVGDocument(final Document document) {
 	
 	this.styleElement = element("style",
 			"svg {stroke:black;fill:none;stroke-width:1px;}\n"+
-			"text {stroke:none;}\n"
+					"rect {stroke:black;fill:none;}\n"+
+					"polygon {stroke:black;fill:none;}\n"+
+					"path {stroke:black;fill:none;}\n"+
+					"text {stroke:none;fill:black;}\n"
 			);
 	this.svgElement.appendChild(this.styleElement);
 	
@@ -205,7 +208,7 @@ public Element rect(double x,double y,double width,double height) {
 public Element text(double x,double y,Object str,Map<String,Object> atts) {
 	final Map<String,Object> m =  Maps.of("x", x, "y", y);
 	if(atts!=null) m.putAll(atts);
-	return  this.element("text",str,m);
+	return this.element("text",str,m);
 	}
 
 public Element text(double x,double y,Object str) {
@@ -223,7 +226,7 @@ public Element circle(double x,double y,double r) {
 	}
 
 public Element use(double x,double y,String id, final Map<String,Object> atts) {
-	final Map<String,Object> m = Maps.of("x", x, "y", y, "href", "#"+id);
+	final Map<String,Object> m = Maps.of("x", x, "y", y, "href", (id.startsWith("#")?id:"#"+id));
 	if(atts!=null) m.putAll(atts);
 	return  this.element("use",null,m);
 	}
@@ -450,14 +453,18 @@ public Shape createShape() {
 	return new Shape();
 	}
 
-public Element anchor(Element wrapped,String url) {
+public Element anchor(final Element wrapped,final String url) {
 	if(StringUtils.isBlank(url)) return wrapped;
+	final Node parent = wrapped.getParentNode();
 	final Element a = element("a",Maps.of("href", url,"target","_blank"));
+	if(parent!=null) {
+		parent.replaceChild(a, wrapped);
+		}
 	a.appendChild(wrapped);
 	return a;
 	}
 
-public Element setTitle(Element root,final String  s) {
+public Element setTitle(final Element root,final String  s) {
 	if(root==null || StringUtils.isBlank(s)) return root;
 	final Element e= element("title",s);
 	root.appendChild(e);

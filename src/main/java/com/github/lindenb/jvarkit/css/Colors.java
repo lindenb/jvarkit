@@ -177,7 +177,10 @@ public class Colors {
 			}
 		}
 
-			
+	public static String toRGB(int gray) {
+		return toRGB(gray,gray,gray);
+		}
+	
 	public static String toRGB(int r, int g,int b) {
 		return "rgb("+r+","+g+","+b+")";
 		}
@@ -245,7 +248,7 @@ public class Colors {
         }
 	
 	public static String shadeOf(
-			final float f,
+			final double f,
 			final String named1,
 			final String named2
 			)
@@ -262,7 +265,7 @@ public class Colors {
 		}
 	
 	public static String shadeOf(
-			float f,
+			double f,
 			int ra, int ga, int ba,int aa,
 			int rb, int gb, int bb,int ab
 			)
@@ -276,7 +279,7 @@ public class Colors {
 		}
 	
 	public static String shadeOf(
-			float f,
+			double f,
 			int ra, int ga, int ba,
 			int rb, int gb, int bb
 			)

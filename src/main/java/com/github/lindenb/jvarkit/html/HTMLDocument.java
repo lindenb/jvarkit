@@ -9,7 +9,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
-import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.xml.DocumentWrapper;
@@ -66,8 +65,16 @@ public class HTMLDocument extends DocumentWrapper {
 		}
 	
 	public Node importSVG(SVGDocument dom) {
-		return getDocument().importNode(dom.svgElement,true);
-	}
+		Node n= getDocument().importNode(dom.svgElement,true);
+		for(Node c=n.getFirstChild();c!=null;c=c.getNextSibling()) {
+			// remove title or there is a thumbnail everywhere in the doc
+			if("title".equals(c.getLocalName())) {
+				n.removeChild(c);
+				break;
+				}
+			}
+		return n;
+		}
 	
 	public Document getDocument() {
 		return document;
@@ -211,8 +218,13 @@ public class HTMLDocument extends DocumentWrapper {
 		}
 	
 	public Element div() {
+		return div(null,null);
+		}
+	
+	public Element div(Object content,Map<String,Object> atts) {
 		return element("div");
 		}
+
 	
 	public Element hr() {
 		return element("hr");
@@ -227,7 +239,9 @@ public class HTMLDocument extends DocumentWrapper {
 		}
 	
 	public Element h1() { return header(1); }
+	public Element h1(Object content) { return element("h1",content,null); }
 	public Element h2() { return header(2); }
+	public Element h2(Object content) { return element("h2",content,null); }
 	public Element h3() { return header(3); }
 	public Element h4() { return header(4); }
 	

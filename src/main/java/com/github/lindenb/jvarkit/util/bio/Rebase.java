@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import com.github.lindenb.jvarkit.lang.HasName;
+
 /**
  * Restriction Enzyme Database
  * @author lindenb
@@ -46,9 +48,7 @@ public class Rebase
 	implements Iterable<Rebase.Enzyme>
 	{
 	private final List<Rebase.Enzyme> enzymes=new ArrayList<Rebase.Enzyme>();
-	public interface Enzyme
-		{
-		public String getName();
+	public interface Enzyme extends HasName {
 		public String getDecl();
 		public String getBases();
 		public boolean isPalindromic();

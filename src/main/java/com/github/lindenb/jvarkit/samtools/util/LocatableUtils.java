@@ -117,7 +117,7 @@ public class LocatableUtils extends CoordMath {
 			if(loc1.contigsMatch(loc2) && predicate.test(loc1,loc2)) {
 				L.set(i,(Locatable)new SimpleInterval(
 						loc1.getContig(),
-						loc1.getStart(),
+						Math.min(loc1.getStart(), loc2.getStart()),
 						Math.max(loc1.getEnd(), loc2.getEnd())
 						));
 				L.remove(i+1);

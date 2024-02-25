@@ -145,21 +145,15 @@ public class CytobandTrack {
 		
 		
 		if(entries.isEmpty()) {
-			LOG.info("no cytoband was found");
+			LOG.warning("no cytoband was found");
 			return ;
 			}
 		double spaceBetweenInterval = 5;
-		double y = svgDoc.lastY;
 		
-		svgDoc.appendStyle(
-			".ctgborderp {fill:url(#grad01);stroke:green;}\n" +
-			".ctgborderq {fill:url(#grad01);stroke:green;}\n" +
-			".ctglabel {text-anchor:middle;stroke:none;fill:darkgrey;font: bold 10px Verdana, Helvetica, Arial, sans-serif;}\n" +
-			".cytoband {fill:silver;stroke:none;}\n" +
-			".bedlabel {stroke:red;fill:none;text-anchor:start;font: normal 7px Verdana, Helvetica, Arial, sans-serif;}\n" +
-			".maintitle {stroke:none;fill:darkgrey;text-anchor:middle;font: normal 12px Verdana, Helvetica, Arial, sans-serif;}\n" +
-			".ctgback {fill:gainsboro;stroke:none;filter:url(#filter01);}\n"
-			);
+		svgDoc.addBanner("Cytobands", 10);
+		
+		double y = svgDoc.lastY;
+		y+=2;
 		
 		final double sum_length_on_ref = entries.values().stream().
 				mapToLong(T->T.getLengthOnReference()).
@@ -188,7 +182,7 @@ public class CytobandTrack {
 			
 			for(CytoInfo ii: chromosome.bands) {
 				ii.x=x;
-				ii.width = (ii.getLengthOnReference()/(double)sum_length_on_ref)* adjust_image_width;
+				ii.width = (ii.getLengthOnReference()/sum_length_on_ref)* adjust_image_width;
 				x+= ii.width;
 				}
 			
@@ -271,17 +265,16 @@ public class CytobandTrack {
 				if(!info.getContig().equals(chromosome.getContig())) continue;
 				final double x1= chromosome.loc2pix(info.getStart());
 				final double x2= chromosome.loc2pix(info.getEnd());
-				final double y1 =y+featureHeight*2;
-				final double y2 =y+featureHeight*3;
 				
-				final Element polygon = svgDoc.createPolygon().
-					lineTo(x1,y1).
-					lineTo(x2,y1).
-					lineTo(info.getX()+info.getWidth(),y2).
-					lineTo(info.getX(),y2).
-					make(Maps.of("stroke","red","fill","red","opacity",0.6));
-				svgDoc.setTitle(polygon,info.toNiceString());
-				gContig.appendChild(svgDoc.anchor(polygon, info));	
+				final Element r = this.svgDoc.rect(
+					x1,
+					y+featureHeight-2,
+					Math.max(1,x2-x1),
+					featureHeight+4,
+					Maps.of("stroke","red","fill","red","opacity",0.6)
+					);
+				svgDoc.setTitle(r,info.getName());
+				gContig.appendChild(svgDoc.anchor(r, info));	
 				}
 			
 			x+=spaceBetweenInterval;
@@ -289,7 +282,7 @@ public class CytobandTrack {
 		svgDoc.rootElement.appendChild(g);
 		g.appendChild(svgDoc.comment("END cytoband"));
 		
-		y+= featureHeight*3;
+		y+= featureHeight*2+3;
 		svgDoc.lastY =y;
 		}
 

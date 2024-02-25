@@ -4,10 +4,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -15,16 +13,18 @@ import org.w3c.dom.Element;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
-import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.GenomeSVGDocument;
+import com.github.lindenb.jvarkit.svg.SVGDocument;
 import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.TabixReader;
@@ -80,13 +80,12 @@ public class GtfTrack {
 			return transcript.getEnd();
 			}
 		String getGeneId() {
-			String s= transcript.getAttribute("gene_id");
-			return s;
+			return transcript.getGeneId();
 			}
-
+		boolean isCoding() { return cdsStart>0 && cdsEnd>cdsStart;}
 		String getGeneName() {
-			String s= transcript.getAttribute("gene_name");
-			if(StringUtils.isBlank(s)) s=transcript.getAttribute("transcript_id");
+			String s= transcript.getGeneName();
+			if(StringUtils.isBlank(s)) s=transcript.getTranscriptId();
 			return s;
 			}
 		}
@@ -96,6 +95,7 @@ public class GtfTrack {
 		String strandClass;
 		String ktrClass;
 		String exonClass;
+		String cdsClass;
 		String strandFId;
 		String strandRId;
 		double max_y;
@@ -123,7 +123,7 @@ public class GtfTrack {
 				final GTFLine gtf = codec.decode(line);
 				if(gtf==null) continue;
 				if(!gtf.hasAttribute("transcript_id")) continue;
-				final String transcript_id = gtf.getAttribute("transcript_id");
+				final String transcript_id = gtf.getTranscriptId();
 				if(StringUtils.isBlank(transcript_id)) continue;
 				if(!(gtf.isExon() || gtf.isTranscript() || gtf.isCDS())) {
 					continue;
@@ -156,6 +156,43 @@ public class GtfTrack {
 		return feat.toNiceString();
 	}
 	
+	private boolean painDense(final Params params,GenomeSVGDocument.IntervalInfo ii, double ii_y) {
+		final AutoMap<String,Transcript,List<Transcript>> gene2tr = AutoMap.makeList();
+		for(Transcript tr:params.transcripts) {
+			String gn = tr.getGeneId();
+			if(StringUtils.isBlank(gn)) continue;
+			gene2tr.insert(gn,tr);
+			}		
+		final List<Locatable> merged_genes = LocatableUtils.mergeIntervals(
+				gene2tr.entrySet().stream().
+					map(KV->new Gene(KV.getValue())).
+					map(LocatableUtils::reduce).
+					collect(Collectors.toList()),
+				ii.createCollisionPredicate(1).negate()
+				);
+		
+		ii_y += 2;
+		final Element g0 = this.svgDoc.group();
+		final double featureHeight = 12;
+		final double exonHeight = featureHeight;
+		final double midY= ii_y + exonHeight/2.0;
+		for(Locatable gene:merged_genes) {
+			g0.appendChild(svgDoc.anchor( ii.rect(
+					gene,
+					midY-exonHeight/2,
+					exonHeight,
+					Maps.of("class",params.exonClass)
+					),gene));
+			}
+
+		ii_y += exonHeight;
+		ii_y += 2;
+		params.max_y = Math.max(ii_y, params.max_y);
+		svgDoc.rootElement.appendChild(g0);
+		return true;
+		}
+
+	
 	private boolean painPacked(final Params params,GenomeSVGDocument.IntervalInfo ii, double ii_y) {
 		final AutoMap<String,Transcript,List<Transcript>> gene2tr = AutoMap.makeList();
 		for(Transcript tr:params.transcripts) {
@@ -168,12 +205,11 @@ public class GtfTrack {
 				sorted(LocatableUtils.DEFAULT_COMPARATOR).
 				collect(Collectors.toList()));
 
-		/** TODO
+
 		if(pileup.getRowCount() > this.max_rows) {
 			LOG.info("too many rows for "+ii+" painPacked.");
 			return false;
 			}
-			*/
 		final Element g0 = this.svgDoc.group();
 		final double featureHeight = 12;
 		final double exonHeight = featureHeight;
@@ -248,24 +284,24 @@ public class GtfTrack {
 			}
 		
 		final double featureHeight = 12;
-		final double exonHeight = featureHeight;
+		final double cdsHeight = featureHeight-1;
+		final double exonHeight = cdsHeight/2;
 	
 		for(List<Transcript> row:pileup.getRows()) {
 			double midY= ii_y + exonHeight/2.0;
 			
 			for(Transcript tr:row) {
 				final Element g = svgDoc.group();
-				g0.appendChild(g);
+				g0.appendChild(svgDoc.anchor(svgDoc.setTitle(g,tr.getGeneName()+" "+tr.transcript.getTranscriptId()),tr));
 				
-				/* transcript line */
-				g.appendChild(svgDoc.anchor(svgDoc.setTitle(svgDoc.line(
+				
+				g.appendChild(svgDoc.line(
 						ii.pos2pixel(ii.trimPos(tr.getStart())),
 						midY,
 						ii.pos2pixel(ii.trimPos(tr.getEnd()+1)),
 						midY,
 						Maps.of("class",params.ktrClass)
-						),toString(tr.transcript)),tr));
-				
+						));
 				
 				/* strand symbols */
 				for(double pixX=0;
@@ -275,13 +311,18 @@ public class GtfTrack {
 					final double pos1= ii.pixel2genomic(pixX+ii.getX());
 					if(pos1< tr.getStart()) continue;
 					if(pos1> tr.getEnd()) break;
-					g.appendChild(svgDoc.use(pixX, midY,"#"+(tr.transcript.isPostiveStrand()?params.strandFId:params.strandRId)));
+					if(tr.exons.stream().anyMatch(EX->EX.contains((int)pos1))) continue;
+					g.appendChild(svgDoc.use(pixX+ii.getX(), midY,"#"+(tr.transcript.isPostiveStrand()?params.strandFId:params.strandRId)));
 					}
 				
 				/* exons */
 				for(final GTFLine exon: tr.exons)
 					{
 					if(!exon.overlaps(ii)) continue;
+					// don't plot exon if CDS==exon
+					if(tr.isCoding() && CoordMath.encloses(tr.cdsStart,tr.cdsEnd,exon.getStart(),exon.getEnd())) {
+						continue;
+						}
 					g.appendChild(ii.rect(
 						exon,
 						midY-exonHeight/2,
@@ -289,14 +330,32 @@ public class GtfTrack {
 						Maps.of("class",params.exonClass)
 						));
 					}
-				
+				if(tr.cdsStart>0 && tr.cdsEnd>0) {
+					for(final GTFLine exon: tr.exons)
+						{
+						if(!exon.overlaps(ii)) continue;
+						if(exon.getEnd() < tr.cdsStart) continue;
+						if(exon.getStart() > tr.cdsEnd) continue;
+						g.appendChild(ii.rect(
+							new SimpleInterval(
+									exon.getContig(),
+									Math.max(tr.cdsStart, exon.getStart()),
+									Math.min(tr.cdsEnd, exon.getEnd())
+									),
+							midY-cdsHeight/2,
+							cdsHeight,
+							Maps.of("class",params.cdsClass)
+							));
+						}
+					}
+
 				} // end for transcript
 			final Set<String> geneNames = row.stream().
-					map(KG->KG.transcript.getAttribute("gene_name")).
+					map(KG->KG.transcript.getGeneName()).
 					collect(Collectors.toCollection(LinkedHashSet::new));
 			y2legend.insert((int)ii_y).addAll(geneNames);
 			
-			ii_y += exonHeight;
+			ii_y += featureHeight;
 			ii_y += 2;
 			params.max_y = Math.max(ii_y, params.max_y);
 			} // end of rows
@@ -327,9 +386,10 @@ public class GtfTrack {
 		if(this.svgDoc==null) return;
 		final Params params = new Params();
 		params.max_y = svgDoc.lastY;
-		params.strandClass = svgDoc.style2class("strand", "fill:none;stroke:gray;stroke-width:0.5px;");
-		params.ktrClass = svgDoc.style2class("strand", "fill:none;stroke:gray;stroke-width:1px;");
-		params.exonClass = svgDoc.style2class("strand", "fill:lightgray;stroke:gray;stroke-width:1px;");
+		params.strandClass = svgDoc.style2class("fill:none;stroke:gray;stroke-width:0.5px;");
+		params.ktrClass = svgDoc.style2class("fill:none;stroke:gray;stroke-width:1px;");
+		params.exonClass = svgDoc.style2class("fill:lightgray;stroke:gray;stroke-width:1px;");
+		params.cdsClass = svgDoc.style2class("fill:plum;stroke:gray;stroke-width:1px;");
 		LOG.info("BEGIN GTF");
 
 		
@@ -348,11 +408,17 @@ public class GtfTrack {
 					makeElement()
 				);
 		
-		final double y = svgDoc.lastY;
+		svgDoc.addBanner("Genes ("+this.gtfPath.getFileName().toString()+")", 12);
+		svgDoc.lastY+=14;
+		double y = svgDoc.lastY;
+
+		
 		for(GenomeSVGDocument.IntervalInfo ii : this.svgDoc.getIntervalInfoList()) {
 			params.transcripts = fetch(ii);
 			if(!paintFull(params,ii,y)) {
-				painPacked(params,ii,y);
+				if(!painPacked(params,ii,y)) {
+					painDense(params,ii,y);
+					}
 				}
 			}
 		svgDoc.frame(svgDoc.lastY,params.max_y);

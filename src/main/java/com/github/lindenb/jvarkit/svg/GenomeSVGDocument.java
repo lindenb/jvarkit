@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.svg;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 import org.w3c.dom.Element;
 
 import com.github.lindenb.jvarkit.lang.AttributeMap;
+import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
@@ -54,7 +56,7 @@ public class GenomeSVGDocument extends SVGDocument {
 	 * Description of an interval
 	 *
 	 */
-	public class IntervalInfo extends LocatableDelegate<Locatable> {
+	public class IntervalInfo extends LocatableDelegate<Locatable> implements HasName {
 		final String id = nextId();
 		int index;//index in intervals, useful to colorize using %2==0
 		double yTop = 0;
@@ -90,7 +92,10 @@ public class GenomeSVGDocument extends SVGDocument {
 			return ((w)/(double)getLengthOnReference())* this.getWidth();
 			}
 	
-		
+		public double pos2pixelTrim(int pos) {
+			return trimPixel(pos2pixel(pos));
+			}
+
 		public double pos2pixel(int pos) {
 			return this.getX() +((pos-getStart())/(double)getLengthOnReference())* this.getWidth();
 			}
@@ -129,6 +134,7 @@ public class GenomeSVGDocument extends SVGDocument {
 			return line(r,y,Collections.emptyMap());
 			}
 
+		@Override
 		public String getName() {
 			if(getDelegate() instanceof Interval) {
 				return Interval.class.cast(getDelegate()).getName();
@@ -222,10 +228,9 @@ public class GenomeSVGDocument extends SVGDocument {
 					);
 			}
 		
-		/** create a predicate for Pileup */
-		public <T extends Locatable> BiPredicate<T,T> createCollisionPredicate() {
+		/** create a predicate for Pileup, return TRUE if there is NO collision */
+		public <T extends Locatable> BiPredicate<T,T> createCollisionPredicate(final double limit) {
 			return (A,B)->{
-				final double limit= owner().properties.getDoubleAttribute("collision-distance").orElse(2);
 				final double ax2 = this.pos2pixel(A.getEnd());
 				final double bx1 = this.pos2pixel(B.getStart());
 				if(ax2+limit < bx1) return true;
@@ -235,7 +240,9 @@ public class GenomeSVGDocument extends SVGDocument {
 				return false;
 				};
 			}
-	
+		public <T extends Locatable> BiPredicate<T,T> createCollisionPredicate() {
+			return createCollisionPredicate(owner().properties.getDoubleAttribute("collision-distance").orElse(2));
+			}
 		}
 
 private final SAMSequenceDictionary dict;
@@ -274,8 +281,8 @@ public GenomeSVGDocument(
 	for(IntervalInfo ii: this.intervals) {
 		this.intervalsTreeMap.put(ii.toInterval(),ii);
 		}
-	this.image_width =  this.properties.getDoubleAttribute("image-width").orElse(700);
-	this.margin_left =  this.properties.getDoubleAttribute("margin-left").orElse(this.image_width/10.0);
+	this.image_width =  this.properties.getDoubleAttribute("image-width").orElse(1000);
+	this.margin_left =  this.properties.getDoubleAttribute("margin-left").orElse(this.image_width/6.0);
 	double spaceBetweenInterval = this.properties.getDoubleAttribute("space-between-regions").orElse(1);
 	final double margin_right =  this.properties.getDoubleAttribute("margin-right").orElse(10);
 	
@@ -372,5 +379,32 @@ public boolean overlaps(final Locatable loc) {
 	return this.intervals.stream().anyMatch(R->R.overlaps(loc));
 	}
 
+public Element addBanner(final Object o,final int fontSize) {
+	return addBanner(o,Maps.of(
+		"font-size", String.valueOf(fontSize),
+		"text-anchor","middle"
+		));
+	}
 
+public Element addBanner(final Object o,Map<String,Object> atts) {
+	atts = (atts==null?new HashMap<>():new HashMap<>(atts));
+	String s = String.valueOf(atts.getOrDefault("font-size", "12"));
+	if(s.endsWith("px")) s=s.substring(0,s.length()-2);
+	int fontSize = Integer.parseInt(s);
+	atts.put("font-size", String.valueOf(fontSize)+"px");
+	if(!atts.containsKey("text-anchor")) {
+		atts.put("text-anchor","middle");
+		}
+	this.lastY+=2;
+	Element e = text(
+		this.margin_left + this.image_width/2.0 ,
+		lastY+fontSize,
+		o,
+		atts
+		);
+	this.rootElement.appendChild(e);
+	this.lastY+=fontSize;
+	this.lastY+=2;
+	return setTitle(e,convertObjectToString(o));
+	}
 }

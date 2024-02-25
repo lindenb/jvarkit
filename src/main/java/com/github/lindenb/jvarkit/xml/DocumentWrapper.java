@@ -34,7 +34,10 @@ import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -300,7 +303,26 @@ public abstract class DocumentWrapper  {
 			return text(o);
 			}
 		}
-
+	
+	/** collect a stream of nodes and put them in a list, inserting sep as a text separator */
+	public Collector<Node,?,DocumentFragment> joining(String sep) {
+		return Collectors.collectingAndThen(
+				Collectors.toList(),
+				(L)->{
+					final DocumentFragment f=fragment();
+					for(int i=0;i< L.size();i++) {
+						if(i>0 && sep!=null && !sep.isEmpty()) f.appendChild(text(sep));
+						f.appendChild(L.get(i));
+						}
+					return f;
+					}
+				);
+			}
+	
+	/** collect a stream of nodes and put them in a list, inserting sep as a text separator */
+	public Collector<Node,?,DocumentFragment> joining() {
+		return joining(null);
+		}
 	
 	protected static Document makedoc(boolean namespaceAware) {
 		try {

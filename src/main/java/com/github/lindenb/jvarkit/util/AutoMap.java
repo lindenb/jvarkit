@@ -112,6 +112,7 @@ public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 				);
 		}
 	
+	
 	public int size() {
 		return delegate.size();
 	}

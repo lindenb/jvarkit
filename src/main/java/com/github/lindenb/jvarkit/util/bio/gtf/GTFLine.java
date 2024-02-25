@@ -50,7 +50,15 @@ public interface GTFLine
 	public default boolean hasAttribute(final String key) {
 		return getAttributes().containsKey(key);
 		}
-	
+	public default String getGeneName() {
+		return getAttribute("gene_name");
+		}
+	public default String getGeneId() {
+		return getAttribute("gene_id");
+		}
+	public default String getTranscriptId() {
+		return getAttribute("transcript_id");
+		}
 	public default boolean isGene() {
 		return getType().equals("gene");
 		}
