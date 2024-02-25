@@ -33,9 +33,13 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.w3c.dom.Text;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.lang.primitive.DoubleArray;
@@ -77,7 +81,10 @@ public SVGDocument(final Document document) {
 	this.metaElement.appendChild(this.rdfRoot);
 
 	
-	this.styleElement = element("style");
+	this.styleElement = element("style",
+			"svg {stroke:black;fill:none;stroke-width:1px;}\n"+
+			"text {stroke:none;}\n"
+			);
 	this.svgElement.appendChild(this.styleElement);
 	
 	
@@ -458,9 +465,7 @@ public Element setTitle(Element root,final String  s) {
 	}
 
 public String createVerticalLinearGradient(String color1,String color2) {
-	final String id= this.nextId();
 	Node n= this.makeNodeBuilder("linearGradient").
-		attribute("id",id).
 		attribute("x1","50%").
 		attribute("x2","50%").
 		attribute("y1","0%").
@@ -478,9 +483,63 @@ public String createVerticalLinearGradient(String color1,String color2) {
 			attribute("style","stop-color:"+color1+";stop-opacity:1;").
 		endElement().
 		make();
-	this.defsElement.appendChild(n);
-	return id;
+	return insertDefElement(Element.class.cast(n));
+	}
+/** insert element in <defs> , check if very same element exists add new @id if missing, return @id */
+public String insertDefElement(final Element e) {
+	for(Node c1=this.defsElement.getFirstChild();c1!=null;c1=c1.getNextSibling()) {
+		if(c1.getNodeType()!=Node.ELEMENT_NODE) continue;
+		Element e1 = Element.class.cast(c1);
+		if(!e.hasAttribute("id")) continue;
+		final String id = e.getAttribute("id");
+		if(StringUtils.isBlank(id)) continue;
+		if(same(e1,e,0)) {
+			return id;
+			}
+		}
+	
+	if(!e.hasAttribute("id")) e.setAttribute("id", nextId());
+	this.defsElement.appendChild(e);
+	return e.getAttribute("id");
 	}
 
-
+private boolean same(Element root, Element other,int depth) {
+	if(!root.getNodeName().equals(other.getNamespaceURI())) return false;
+	NamedNodeMap nm1 = root.getAttributes();
+	NamedNodeMap nm2 = other.getAttributes();
+	for(int i=0;i< nm1.getLength();i++) {
+		Attr att1 = (Attr)nm1.item(i);
+		if(depth==0 && att1.getNodeName().equals("id")) continue;
+		Attr att2=  (Attr)nm2.getNamedItem(att1.getName());
+		if(att2==null) return false;
+		if(!att1.getNodeValue().equals(att2.getNodeValue())) return false;
+		}
+	for(int i=0;i< nm2.getLength();i++) {
+		Attr att1 = (Attr)nm2.item(i);
+		if(depth==0 && att1.getNodeName().equals("id")) continue;
+		Attr att2=  (Attr)nm1.getNamedItem(att1.getName());
+		if(att2==null) return false;
+		if(!att1.getNodeValue().equals(att2.getNodeValue())) return false;
+		}
+	final NodeList L1 = root.getChildNodes();
+	final NodeList L2 = other.getChildNodes();
+	if(L1.getLength()!=L2.getLength()) return false;
+	for(int i=0;i<L1.getLength();i++) {
+		Node c1= L1.item(i);
+		Node c2= L2.item(i);
+		if(c1.getNodeType()!=c2.getNodeType()) return false;
+		if(c1.getNodeType()==Node.COMMENT_NODE) continue;
+		else if(c1.getNodeType()==Node.ELEMENT_NODE) {
+			if(!same(Element.class.cast(c1),Element.class.cast(c2),depth+1)) return false;
+			}
+		else if(c1.getNodeType()==Node.TEXT_NODE) {
+			if(!Text.class.cast(c1).getTextContent().equals(Text.class.cast(c2).getTextContent())) return false;
+			}
+		else
+			{
+			return false;
+			}
+		}
+	return true;
+	}
 }

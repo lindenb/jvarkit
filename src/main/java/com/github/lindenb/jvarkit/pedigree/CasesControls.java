@@ -34,6 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -122,6 +123,14 @@ public class CasesControls {
 		return this;
 		}
 	
+	/** get Cases AND controls */
+	public Set<String> getAll() {
+		final Set<String> set = new TreeSet<>();
+		set.addAll(getCases());
+		set.addAll(getControls());
+		return set;
+		}
+
 	
 	public Set<String> getCases() {
 		return _cases;

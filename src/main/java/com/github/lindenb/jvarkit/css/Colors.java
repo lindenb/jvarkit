@@ -28,6 +28,7 @@ public class Colors {
 				put("brown",new int[]{165, 42, 42});
 				put("burlywood",new int[]{222, 184, 135});
 				put("blue",new int[]{0,0,255});
+				put("black",new int[]{255,255,255});
 				put("cadetblue",new int[]{ 95, 158, 160});
 				put("carmine",new int[]{215, 0, 64});
 				put("cerise",new int[]{222, 49, 99});
@@ -69,6 +70,7 @@ public class Colors {
 				put("ghostwhite",new int[]{248, 248, 255});
 				put("goldenrod",new int[]{218, 165, 32});
 				put("gold",new int[]{255, 215, 0});
+				put("grey",new int[]{128, 128, 128});
 				put("gray",new int[]{128, 128, 128});
 				put("green",new int[]{0,128,0});
 				put("greenyellow",new int[]{173, 255, 47});

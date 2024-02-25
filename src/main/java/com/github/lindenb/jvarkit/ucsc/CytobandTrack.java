@@ -15,7 +15,6 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
@@ -23,7 +22,6 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.svg.GenomeSVGDocument;
 import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Maps;
@@ -266,7 +264,7 @@ public class CytobandTrack {
 					(contigX1+x)/2.0,
 					y+featureHeight,
 					chromosome.getContig(),
-					Maps.of("text-align", "center"))
+					Maps.of("text-align", "center","fill","black"))
 					);
 			
 			for(GenomeSVGDocument.IntervalInfo info: this.svgDoc.getIntervalInfoList()) {

@@ -24,13 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.gtf;
 
-import htsjdk.samtools.util.Locatable;
 import htsjdk.tribble.Feature;
 
 import java.util.Map;
 
+import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
+
 public interface GTFLine 
-	extends Locatable,Feature
+	extends ExtendedLocatable,Feature
 
 	{
 	public static final int NO_PHASE=-1;

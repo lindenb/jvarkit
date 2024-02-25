@@ -38,14 +38,14 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 
-public class AutoMap<K,V,C> extends AbstractMap<K,C> {
-	private BiFunction<K,V,C> collectionMaker;
-	private final Map<K,C> delegate;
-	private final BiConsumer<C,V> inserter;
+public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
+	private BiFunction<K,V,CONTAINER_OF_V> collectionMaker;
+	private final Map<K,CONTAINER_OF_V> delegate;
+	private final BiConsumer<CONTAINER_OF_V,V> inserter;
 	public AutoMap(
-			Supplier<Map<K,C>> mapMaker,
-			BiFunction<K,V,C> collectionMaker,
-			BiConsumer<C,V> inserter
+			Supplier<Map<K,CONTAINER_OF_V>> mapMaker,
+			BiFunction<K,V,CONTAINER_OF_V> collectionMaker,
+			BiConsumer<CONTAINER_OF_V,V> inserter
 			) {
 		this.delegate = mapMaker.get();
 		this.collectionMaker = collectionMaker;
@@ -53,14 +53,14 @@ public class AutoMap<K,V,C> extends AbstractMap<K,C> {
 		}
 	
 	public AutoMap(
-			BiFunction<K,V,C> collectionMaker,
-			BiConsumer<C,V> inserter
+			BiFunction<K,V,CONTAINER_OF_V> collectionMaker,
+			BiConsumer<CONTAINER_OF_V,V> inserter
 			) {
-		this(()->new HashMap<K,C>(),collectionMaker,inserter);
+		this(()->new HashMap<K,CONTAINER_OF_V>(),collectionMaker,inserter);
 		}
 	
-	public C insert(K key) {
-		C col = this.delegate.get(key);
+	public CONTAINER_OF_V insert(K key) {
+		CONTAINER_OF_V col = this.delegate.get(key);
 		if(col==null) {
 			col = Objects.requireNonNull(this.collectionMaker.apply(key,null));
 			this.delegate.put(key, col);
@@ -69,9 +69,9 @@ public class AutoMap<K,V,C> extends AbstractMap<K,C> {
 		}
 
 	
-	public C insert(K key, V value) {
+	public CONTAINER_OF_V insert(K key, V value) {
 		Objects.requireNonNull(value,"value is null");
-		C col = this.delegate.get(key);
+		CONTAINER_OF_V col = this.delegate.get(key);
 		if(col==null) {
 			col = Objects.requireNonNull(this.collectionMaker.apply(key,value));
 			this.delegate.put(key, col);
@@ -128,19 +128,19 @@ public class AutoMap<K,V,C> extends AbstractMap<K,C> {
 		return delegate.containsValue(value);
 	}
 
-	public C get(Object key) {
+	public CONTAINER_OF_V get(Object key) {
 		return delegate.get(key);
 	}
 
-	public C put(K key, C value) {
+	public CONTAINER_OF_V put(K key, CONTAINER_OF_V value) {
 		return delegate.put(key, value);
 	}
 
-	public C remove(Object key) {
+	public CONTAINER_OF_V remove(Object key) {
 		return delegate.remove(key);
 	}
 
-	public void putAll(Map<? extends K, ? extends C> m) {
+	public void putAll(Map<? extends K, ? extends CONTAINER_OF_V> m) {
 		delegate.putAll(m);
 	}
 
@@ -152,11 +152,11 @@ public class AutoMap<K,V,C> extends AbstractMap<K,C> {
 		return delegate.keySet();
 	}
 
-	public Collection<C> values() {
+	public Collection<CONTAINER_OF_V> values() {
 		return delegate.values();
 	}
 
-	public Set<Entry<K, C>> entrySet() {
+	public Set<Entry<K, CONTAINER_OF_V>> entrySet() {
 		return delegate.entrySet();
 		}
 

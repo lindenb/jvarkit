@@ -96,7 +96,7 @@ public class GenomeSVGDocument extends SVGDocument {
 			}
 		
 		public double pixel2genomic(double x) {
-			return getStart()+ ((x-getX())/this.getWidth())*this.getLengthOnReference();
+			return getStart()+ ((x-this.getX())/this.getWidth())*this.getLengthOnReference();
 		}
 		
 		public int trimPos(int pos) {
@@ -225,7 +225,7 @@ public class GenomeSVGDocument extends SVGDocument {
 		/** create a predicate for Pileup */
 		public <T extends Locatable> BiPredicate<T,T> createCollisionPredicate() {
 			return (A,B)->{
-				final double limit= owner().properties.getDoubleAttribute("collision-distance").orElse(1);
+				final double limit= owner().properties.getDoubleAttribute("collision-distance").orElse(2);
 				final double ax2 = this.pos2pixel(A.getEnd());
 				final double bx1 = this.pos2pixel(B.getStart());
 				if(ax2+limit < bx1) return true;

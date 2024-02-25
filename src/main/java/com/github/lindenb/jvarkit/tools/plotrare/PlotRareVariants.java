@@ -152,6 +152,7 @@ public class PlotRareVariants extends Launcher {
 				cytobandTrack.paint();
 				
 				final GtfTrack gtfTrack = new GtfTrack();
+				gtfTrack.setGtfPath(this.gtfFile);
 				gtfTrack.setDocument(svgDoc);
 				gtfTrack.paint();
 
@@ -221,8 +222,52 @@ public class PlotRareVariants extends Launcher {
 				y+= featureHeight;
 				y+= 5;
 				}// end loop for side /case+ctrl
+				
 				svgDoc.frame(svgDoc.lastY,y);
 				svgDoc.lastY = y;
+				
+				{
+				y+=10;
+				final Element g1 = svgDoc.group();
+				double featureHeight=12;
+				final double pop_width = svgDoc.image_width*0.9;
+				final double pop_x = svgDoc.margin_left + svgDoc.image_width-pop_width;
+				final double sample_width= pop_width/(casesControls.getAll().size());
+				final int maxVariantPerSamples= (int)casesControls.getAll().stream().mapToLong(SN->variants.stream().map(V->V.getGenotype(SN)).filter(G->G.hasAltAllele()).count()).max().orElse(1L);
+				double x=pop_x;
+				for(int side=0;side<2;++side) {
+					for(final String sn: casesControls.get(side)) {
+						g1.appendChild(
+								svgDoc.setTitle(
+										svgDoc.rect(x, y, sample_width, featureHeight,Maps.of("fill", (side==0?"red":"blue"),"stroke","orange")),
+										sn
+										)
+								);
+						int countVariantsForSample = (int)variants.stream().map(V->V.getGenotype(sn)).filter(G->G.hasAltAllele()).count();
+						if(countVariantsForSample>0) {
+							double h =(countVariantsForSample/(double)maxVariantPerSamples)*featureHeight;
+							String color = Colors.shadeOf((countVariantsForSample/(float)maxVariantPerSamples), "black","darkgray");
+							g1.appendChild(
+									svgDoc.setTitle(
+											svgDoc.rect(x,  y+featureHeight+featureHeight-h, sample_width, h,Maps.of("fill",color,"stroke","none")),
+											sn+" "+countVariantsForSample+" Variant(s)."
+											)
+									);
+							}
+						x+=sample_width;
+						}
+					}
+				y+=10;
+				g1.appendChild(
+						svgDoc.rect(pop_x, y, pop_width, featureHeight*2+10,Maps.of("fill","none","stroke","gray"))
+						);
+				y+=featureHeight*3;
+				
+				svgDoc.rootElement.appendChild(g1);
+				svgDoc.frame(svgDoc.lastY,y);
+				svgDoc.lastY = y;
+				}
+				
 				svgDoc.finish();
 				
 				

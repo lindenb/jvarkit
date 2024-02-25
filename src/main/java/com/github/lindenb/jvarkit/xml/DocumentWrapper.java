@@ -113,6 +113,11 @@ public abstract class DocumentWrapper  {
 			if(this.parent!=null) return parent.make();
 			return this.root;
 			}
+		public Element makeElement() {
+			final Node x = make();
+			if(x.getNodeType()!=Node.ELEMENT_NODE) throw new IllegalStateException();
+			return Element.class.cast(x);
+			}
 		}
 	
 	
