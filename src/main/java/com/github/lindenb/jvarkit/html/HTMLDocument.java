@@ -190,7 +190,7 @@ public class HTMLDocument extends DocumentWrapper {
 			return get(y,this.col2index.getOrDefault(label,-1));
 			}
 		public void set(int y,int x, Object o) {
-			Element r= get(y,x);
+			final Element r= get(y,x);
 			removeAllChildren(r);
 			r.appendChild(toNode(o));
 			}
@@ -250,7 +250,9 @@ public class HTMLDocument extends DocumentWrapper {
 		if(content!=null) b.appendChild(toNode(content));
 		return b;
 		}
-
+	public Element span() {
+		return span(null,null);
+		}
 	
 	public Element button(Object content,Map<String,Object> atts) {
 		Element  b = element("button",atts);

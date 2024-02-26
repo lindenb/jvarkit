@@ -5,12 +5,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.w3c.dom.DocumentFragment;
 import org.w3c.dom.Element;
 
 import com.beust.jcommander.DynamicParameter;
@@ -18,6 +20,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.css.Colors;
+import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.gtf.GtfTrack;
 import com.github.lindenb.jvarkit.html.HTMLDocument;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
@@ -48,13 +51,13 @@ import htsjdk.variant.vcf.VCFReader;
 
 public class PlotRareVariants extends Launcher {
 	private static final Logger LOG = Logger.build(PlotRareVariants.class).make();
-	@Parameter(names={"-o","--output"},description="TODO")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile=null;
-	@Parameter(names={"-B","--bed"},description="TODO",required=true)
+	@Parameter(names={"-B","--bed"},description="BED file for the regions to be displayed",required=true)
 	protected Path bedFile=null;
-	@Parameter(names={"-gtf","--gtf"},description="TODO",required=false)
+	@Parameter(names={"-gtf","--gtf"},description="GTF file for plotting genes",required=false)
 	protected Path gtfFile=null;
-	@DynamicParameter(names={"-D"},description="properties")
+	@DynamicParameter(names={"-D"},description="undocumented properties")
 	protected Map<String,String> _properties = new HashMap<>();
 	@ParametersDelegate
 	protected CasesControls casesControls = new CasesControls();
@@ -75,12 +78,15 @@ public class PlotRareVariants extends Launcher {
 			return pred.test(t);
 			}
 		}
-	
+
 	@Override
 	public int doWork(List<String> args) {
 		try {
 			final HTMLDocument htmlDoc = new HTMLDocument();
-			
+			final Set<String> observableInfoFields = new HashSet<>(
+					Arrays.asList(VCFConstants.ALLELE_COUNT_KEY,VCFConstants.ALLELE_FREQUENCY_KEY,VCFConstants.ALLELE_NUMBER_KEY,
+							GATKConstants.FS_KEY,GATKConstants.MQ_KEY,GATKConstants.SOR_KEY,GATKConstants.ReadPosRankSum_KEY,GATKConstants.QD_KEY,GATKConstants.MQRankSum_KEY
+							));
 			casesControls.load();
 			casesControls.checkHaveCasesControls();
 			LOG.info("open vcf");
@@ -147,7 +153,7 @@ public class PlotRareVariants extends Launcher {
 				
 				/* TABLE OF VARIANTS **************************************************************************************/
 				htmlDoc.bodyElement.appendChild(htmlDoc.h2("Variants Table"));
-				HTMLDocument.Table table= htmlDoc.createTable(Arrays.asList("Variant","REF","ALT","INFO",
+				HTMLDocument.Table table= htmlDoc.createTable(Arrays.asList("Variant","ID","REF","ALT","INFO",
 						"CASES (N="+StringUtils.niceInt(this.casesControls.getCases().size())+")",
 						"CONTROLS (N="+StringUtils.niceInt(this.casesControls.getControls().size())+")"
 						));
@@ -158,22 +164,64 @@ public class PlotRareVariants extends Launcher {
 							ctx.getContig()+":"+StringUtils.niceInt(ctx.getStart()),
 							hyperlink.apply(variants.get(i)).orElse("")
 							));
-					table.set(i, 1,ctx.getReference().getDisplayString());
-					table.set(i, 2,ctx.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
 					
-					table.set(i, 3,
+					if(ctx.hasID()) {
+						table.set(i, 1,Arrays.stream(ctx.getID().split(VCFConstants.ID_FIELD_SEPARATOR)).map(ID->{
+							if(ID.startsWith("rs")) {
+								return htmlDoc.anchor( ID,"https://www.ncbi.nlm.nih.gov/snp/"+ID);
+								}
+							else
+								{
+								return htmlDoc.text(ID);
+						}
+							}).collect(htmlDoc.joining("; ")));
+						}
+					table.set(i, 2,ctx.getReference().getDisplayString());
+					table.set(i, 3,ctx.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")));
+					
+					table.set(i, 4,
 							ctx.getAttributes().entrySet().
 							stream().
-							filter(KV->KV.getKey().equals(VCFConstants.ALLELE_COUNT_KEY) || KV.getKey().equals(VCFConstants.ALLELE_FREQUENCY_KEY)|| KV.getKey().equals(VCFConstants.ALLELE_COUNT_KEY)).
-							map(KV->KV.getKey()+"="+KV.getValue()).
-							collect(Collectors.joining("; "))
+							filter(KV->observableInfoFields.contains(KV.getKey())).
+							sorted((A,B)->A.getKey().compareTo(B.getKey())).
+							map(KV->{
+								final DocumentFragment df = htmlDoc.fragment();
+								df.appendChild(htmlDoc.bold(KV.getKey()));
+								df.appendChild(htmlDoc.text(":"));
+								df.appendChild(htmlDoc.text(KV.getValue()));
+								return df;
+								}).
+							collect(htmlDoc.joining("; "))
 							);
 
 					
 					for(int side=0;side<2;++side) {
-						List<Genotype> gL=ctx.getGenotypes(this.casesControls.get(side)).stream().filter(G->G.hasAltAllele()).collect(Collectors.toList());
+						final List<Genotype> gL=ctx.getGenotypes(this.casesControls.get(side)).stream().filter(G->G.hasAltAllele()).collect(Collectors.toList());
 						if(gL.isEmpty()) continue;
-						table.set(i, 4+side, gL.stream().map(A->A.getSampleName()).collect(Collectors.joining(" "))+" N="+gL.size());
+						table.set(i, 5+side, gL.stream().map(G->{
+							final DocumentFragment df = htmlDoc.fragment();
+							df.appendChild(htmlDoc.bold(G.getSampleName()));
+							df.appendChild(htmlDoc.text(":"+G.getType().name()));
+							if(G.hasDP()) {
+								df.appendChild(htmlDoc.text(":"));
+								df.appendChild(htmlDoc.bold("DP"));
+								df.appendChild(htmlDoc.text("="));
+								df.appendChild(htmlDoc.text(G.getDP()));
+								}
+							if(G.hasGQ()) {
+								df.appendChild(htmlDoc.text(":"));
+								df.appendChild(htmlDoc.bold("GQ"));
+								df.appendChild(htmlDoc.text("="));
+								df.appendChild(htmlDoc.text(G.getGQ()));
+								}
+							if(G.hasAD()) {
+								df.appendChild(htmlDoc.text(":"));
+								df.appendChild(htmlDoc.bold("AD"));
+								df.appendChild(htmlDoc.text("="));
+								df.appendChild(htmlDoc.text(Arrays.stream(G.getAD()).mapToObj(Integer::toString).collect(Collectors.joining(","))));
+								}
+							return df;
+							}).collect(htmlDoc.joining("; ")));
 						}
 					}
 				
@@ -218,76 +266,79 @@ public class PlotRareVariants extends Launcher {
 
 				final int fontSize=10;
 				double y = svgDoc.lastY;
+				y+=5;
 				final Element g  = svgDoc.group();
 				svgDoc.rootElement.appendChild(g);
 				
-				for(int side=0;side< 2;++side) {
-					int featureHeight=10;
-					final Set<String> samples = this.casesControls.get(side);
+				for(int side=0;side< 3;++side) {
+					int featureHeight=20;
+					final Set<String> samples = (side==0?this.casesControls.getCases():side==1?this.casesControls.getAll():this.casesControls.getControls());
+					
+					
 					LOG.info("ploting variant side="+side);
 					final Element g1 = svgDoc.group();
 					g.appendChild(g1);
-					g1.setAttribute("transform", "translate(0,"+(y)+")");
-					g1.appendChild(svgDoc.comment("BEGIN "+(side==0?"CASES":"CONTROLS")));
+					g1.appendChild(svgDoc.comment("BEGIN side="+side));
 					int countVariants =0;
 					
 					for(final VariantContext ctx:variants) {
-						final List<String> sampleWithAlt = ctx.getGenotypes().
-								stream().
-								filter(G->samples.contains(G.getSampleName())).
-								filter(G->G.hasAltAllele()).
-								map(G->G.getSampleName()).
-								collect(Collectors.toList());
-								;
-						if(sampleWithAlt.isEmpty()) continue;
-						countVariants++;
-						final double height2 = featureHeight/(double)sampleWithAlt.size();
-						
-						for(GenomeSVGDocument.IntervalInfo ii: svgDoc.getIntervalInfoForInterval(ctx)) {
-							final Element g2 = svgDoc.group(Maps.of(
-									"stroke", "none",
-									"opacity","0.7"
-									));
-							g1.appendChild(g2);
-							for(int i=0;i< sampleWithAlt.size();i++) {
-									final Element rec = ii.rect(
-											ii.trim(ctx),
-											i*height2,
-											height2,
-											Maps.of(
-												"stroke","none",
-												"fill",(side==0?
-														Colors.shadeOf(i/(float)sampleWithAlt.size(),"crimson","carmine"):
-														Colors.shadeOf(i/(float)sampleWithAlt.size(),"royalblue","blue"))
-												)
-											);
-									svgDoc.setTitle(rec,ctx.getContig()+":"+
-											StringUtils.niceInt(ctx.getStart())+":"+
-											ctx.getReference().getDisplayString()+" "+
-											sampleWithAlt.get(i)+
-											" (sample "+(i+1)+"/"+sampleWithAlt.size()+")"
-											);
-									g2.appendChild(rec);
-									}
-							g1.appendChild( svgDoc.anchor(g2, ctx));
+						final Set<String> sampleWithAlt = ctx.getGenotypes().
+									stream().
+									filter(G->samples.contains(G.getSampleName())).
+									filter(G->G.hasAltAllele()).
+									map(G->G.getSampleName()).
+									collect(Collectors.toSet());
+									;
+							
+						//side == 1 must have both case and controls
+						if(side==1 && !(
+								ctx.getGenotypes().stream().filter(G->G.hasAltAllele()).anyMatch(G->casesControls.isCase(G)) &&
+								ctx.getGenotypes().stream().filter(G->G.hasAltAllele()).anyMatch(G->casesControls.isControl(G)) 
+								)) {
+							sampleWithAlt.clear();//don't continue, we increase y later
 							}
-						}
-				g1.appendChild(svgDoc.line(svgDoc.margin_left-5,featureHeight/2,svgDoc.margin_left,featureHeight/2));
-				g1.appendChild(svgDoc.text(
-						svgDoc.margin_left-5,
-						fontSize,
-						(side==0?"Cases":"Controls")+" N="+StringUtils.niceInt(countVariants),
-						Maps.of("fill",(side==0?"red":"blue"),
-								"text-anchor","end",
-								"font-size",fontSize+"px"
-								)
-						));
-					
-				g1.appendChild(svgDoc.comment("END "+(side==0?"CASES":"CONTROLS")));
-
-				y+= featureHeight;
-				y+= 5;
-				}// end loop for side /case+ctrl
+							
+									
+						if(!sampleWithAlt.isEmpty()) {
+							countVariants++;
+							for(GenomeSVGDocument.IntervalInfo ii: svgDoc.getIntervalInfoForInterval(ctx)) {
+								if(!ctx.overlaps(ii)) continue;
+								final Element rec = ii.rect(
+										ii.trim(ctx),
+										y,
+										featureHeight,
+										Maps.of(
+											"stroke","none",
+											"fill",(side==0?"red":(side==1?"green":"blue"))
+											)
+										);
+								svgDoc.setTitle(rec,ctx.getContig()+":"+
+										StringUtils.niceInt(ctx.getStart())+":"+
+										ctx.getReference().getDisplayString()+" "+
+										String.join(" ", sampleWithAlt)
+										);
+										
+										
+								g1.appendChild( svgDoc.anchor(rec, ctx));
+								}// loop over ii
+							}// if sampleWithAlt != empty
+						}//loop over variants
+					g1.appendChild(svgDoc.line(svgDoc.margin_left-5,y+featureHeight/2,svgDoc.margin_left,y+featureHeight/2));
+					g1.appendChild(svgDoc.text(
+							svgDoc.margin_left-5,
+							y+fontSize+fontSize/2,
+							(side==0?"Cases":(side==1?"Case and Controls":"Controls"))+" N="+StringUtils.niceInt(countVariants),
+							Maps.of("fill",(side==0?"red":(side==2?"blue":"green")),
+									"text-anchor","end",
+									"font-size",fontSize+"px"
+									)
+							));
+						
+					g1.appendChild(svgDoc.comment("END "+side));
+	
+					y+= featureHeight;
+					y+= 5;
+					}// end loop for side /case+ctrl
 				
 				svgDoc.frame(svgDoc.lastY,y);
 				svgDoc.lastY = y;

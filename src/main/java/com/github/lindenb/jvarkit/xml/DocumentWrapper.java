@@ -34,8 +34,9 @@ import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
@@ -71,7 +72,15 @@ public abstract class DocumentWrapper  {
 	public abstract Document getDocument();
 	private static int ID_GENERATOR = 0;
 	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
-
+	private Function<Object,String> stringConverter = new Function<Object,String>() {
+		@Override
+		public String apply(Object s) {
+			if(s==null) return "";
+			if(s instanceof Double) return format(Double.class.cast(s).doubleValue());
+			if(s instanceof Float) return format(Float.class.cast(s).doubleValue());
+			return String.valueOf(s);
+			}
+		};
 	/** utiliy class to build a Dom tree */
 	public class NodeBuilder {
 		private NodeBuilder parent;
@@ -139,12 +148,19 @@ public abstract class DocumentWrapper  {
 		return this.decimalFormater.format(v);
 		}
 	
-	public String convertObjectToString(final Object s) {
-		if(s==null) return "";
-		if(s instanceof Double) return format(Double.class.cast(s).doubleValue());
-		if(s instanceof Float) return format(Float.class.cast(s).doubleValue());
-		return String.valueOf(s);
+	public Function<Object,String> getStringConverter() {
+		return this.stringConverter;
 		}
+	public void setStringConverter(Function<Object, String> stringConverter) {
+		this.stringConverter = Objects.requireNonNull(stringConverter);
+		}
+	
+	
+	public String convertObjectToString(final Object s) {
+		return getStringConverter().apply(s);
+		}
+	
+	
 	
 	public Text text(final Object s) {
 		return getDocument().createTextNode(convertObjectToString(s));
