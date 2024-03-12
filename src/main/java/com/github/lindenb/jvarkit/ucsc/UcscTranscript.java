@@ -27,9 +27,7 @@ package com.github.lindenb.jvarkit.ucsc;
 
 import java.util.AbstractList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
