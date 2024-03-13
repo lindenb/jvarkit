@@ -7,7 +7,13 @@ convert indexcov data to vcf
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar indexcov2vcf  [options] Files
+
 Usage: indexcov2vcf [options] Files
   Options:
     --bcf-output
@@ -16,6 +22,10 @@ Usage: indexcov2vcf [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    --cases
+      File or comma-separated list of control samples
+    --controls
+      File or comma-separated list of control samples
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -23,15 +33,24 @@ Usage: indexcov2vcf [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
+    --no-merge
+      disable adjacent block merging for the same variant (keep the original 
+      bed structure)
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -p, --pedigree
-      Optional Pedigree. A pedigree file. tab delimited. Columns: 
-      family,id,father,mother, sex:(0:unknown;1:male;2:female), phenotype 
-      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
-    -R, --reference
+  * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     -t, --treshold
       DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 
       0.0-x<=depth<=0.0+x.. A decimal number between 0.0 and 1.0. If the value 
@@ -53,22 +72,10 @@ Usage: indexcov2vcf [options] Files
  * indexcov
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew indexcov2vcf
-```
-
-The java jar file will be installed in the `dist` directory.
+20200528
 
 ## Source code 
 
@@ -135,7 +142,4 @@ output:
 chr1	0	.	N	<DUP>	.	.	END=16384;NDEL=0;NDUP=8	GT:DUP:F	0:0:1.59	0:0:1.31	0:0:1.67	0:0:1.61	0:0:1.83 (...)
 ```
 
-## history
-
-  * 20191112 : add pedigree
 

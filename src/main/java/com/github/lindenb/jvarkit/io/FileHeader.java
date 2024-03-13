@@ -190,6 +190,13 @@ public class FileHeader extends AbstractList<String> {
 			}
 		this.col2idx = Collections.unmodifiableMap(hash);
 		}
+	
+	public FileHeader assertColumn(String colContent,int index) {
+		if(index<0 || index>=this.size()) throw new IndexOutOfBoundsException("0<"+index+"<"+size());
+		if(!get(index).equals(colContent))  throw new IllegalArgumentException("col["+index+"]="+get(index)+" but expected "+colContent);
+		return this;
+		}
+	
 	@Override
 	public boolean contains(Object o) {
 		if(o==null || !(o instanceof String)) return false;
@@ -244,8 +251,14 @@ public class FileHeader extends AbstractList<String> {
 	
 	/** convert a line, split it using the default splitter to a Map where keys are the columns of this header  */
 	public RowMap toMap(final String row) {
-		return toMap(this.lineSplitter.apply(row));
+		return toMap(split(row));
 		}
+	
+	/** split a line using the internal splitter  */
+	public List<String> split(final String line) {
+		return this.lineSplitter.apply(line);
+		}
+	
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();

@@ -180,6 +180,7 @@ import com.github.lindenb.jvarkit.tools.spliceai.VcfSpliceAI;
 import com.github.lindenb.jvarkit.tools.structvar.CoverageMatrix;
 import com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions;
 import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
+import com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToVcf;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
 import com.github.lindenb.jvarkit.tools.structvar.manta.MantaMerger;
 import com.github.lindenb.jvarkit.tools.sv2fasta.StructuralVariantToFasta;
@@ -612,6 +613,7 @@ public class JvarkitCentral {
 		command(HtsFreemarker.class);
 		command(IbdToVcf.class);
 		command(IlluminaDirectory.class);
+		command(IndexCovToVcf.class);
 		command(KgToGff.class);
 		command(KnownRetroCopy.class);
 		command(KnownGenesToBed.class);

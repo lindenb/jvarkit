@@ -24,34 +24,54 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar.indexcov;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.stat.descriptive.rank.Median;
+import org.apache.commons.math3.stat.descriptive.summary.Sum;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.pedigree.Pedigree;
-import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
-import com.github.lindenb.jvarkit.pedigree.Sample;
+import com.github.lindenb.jvarkit.lang.primitive.FloatArray;
+import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -103,9 +123,6 @@ output:
 chr1	0	.	N	<DUP>	.	.	END=16384;NDEL=0;NDUP=8	GT:DUP:F	0:0:1.59	0:0:1.31	0:0:1.67	0:0:1.61	0:0:1.83 (...)
 ```
 
-## history
-
-  * 20191112 : add pedigree
 
 END_DOC
  */
@@ -113,7 +130,10 @@ END_DOC
 		name="indexcov2vcf",
 		description="convert indexcov data to vcf",
 		keywords={"cnv","duplication","deletion","sv","indexcov"},
-		modificationDate="20200227"
+		creationDate = "20200528",
+		modificationDate="20400313",
+		jvarkit_amalgamion = true,
+		menu="CNV/SV"
 		)
 public class IndexCovToVcf extends Launcher {
 	private static final Logger LOG = Logger.build(IndexCovToVcf.class).make();
@@ -121,14 +141,58 @@ public class IndexCovToVcf extends Launcher {
 	private Path outputFile = null;
 	@Parameter(names={"-t","--treshold"},description=IndexCovUtils.TRESHOLD_OPT_DESC+". " +FractionConverter.OPT_DESC,converter=FractionConverter.class)
 	private double treshold = IndexCovUtils.DEFAULT_TRESHOLD;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
 	private Path refFile = null;
-	@Parameter(names={"-p","--pedigree"},description="Optional Pedigree. "+PedigreeParser.OPT_DESC)
-	private Path pedFile = null;
+	@Parameter(names={"--limit"},description="limit to x lines for debugging",hidden = true)
+	private long max_line_count=-1;
+	@Parameter(names={"--no-merge"},description="disable adjacent block merging for the same variant (keep the original bed structure)")
+	private boolean disable_block_merge=false;
 
 	@ParametersDelegate
+	private CasesControls caseControls=new CasesControls();
+	@ParametersDelegate
 	private WritingVariantsDelegate writingDelegate = new WritingVariantsDelegate();
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection= new WritingSortingCollection();
 	
+	
+	private static class GenotypeV {
+		int tid;
+		int chromStart;
+		int chromEnd;
+		int sampleIdx;
+		float normDepth;
+		}
+	
+	private static class GenotypeVCodec extends AbstractDataCodec<GenotypeV> {
+		@Override
+		public AbstractDataCodec<GenotypeV> clone() {
+			return new GenotypeVCodec();
+		}
+		@Override
+		public GenotypeV decode(DataInputStream dis) throws IOException {
+			GenotypeV g = new GenotypeV();
+			try {
+				g.tid = dis.readInt();
+				}
+			catch(EOFException err) {
+				return null;
+				}
+			g.chromStart = dis.readInt();
+			g.chromEnd = dis.readInt();
+			g.sampleIdx = dis.readInt();
+			g.normDepth = dis.readFloat();
+			return g;
+		}
+		@Override
+		public void encode(DataOutputStream dos, GenotypeV g) throws IOException {
+			dos.writeInt(g.tid);
+			dos.writeInt(g.chromStart);
+			dos.writeInt(g.chromEnd);
+			dos.writeInt(g.sampleIdx);
+			dos.writeFloat(g.normDepth);
+		}
+	}
 	
 	public IndexCovToVcf() {
 	}
@@ -137,37 +201,137 @@ public class IndexCovToVcf extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		final IndexCovUtils indexCovUtils = new IndexCovUtils(this.treshold);
-		
-		final CharSplitter tab = CharSplitter.TAB;
 		BufferedReader r = null;
 		VariantContextWriter vcw  = null;
+		TabixReader tabix = null;
 		try {
 
+			final SAMSequenceDictionary dictionary =  SequenceDictionaryUtils.extractRequired(this.refFile);
 			
-			final SAMSequenceDictionary dict;
-			if(this.refFile==null) {
-				dict = null;
-			} else
-			{
-				dict= SequenceDictionaryUtils.extractRequired(this.refFile);
-			}
+			final String input = oneFileOrNull(args);
+			if(input!=null && input.endsWith(".bed.gz")) {
+				Path tbi = Paths.get(input+FileExtensions.TABIX_INDEX);
+				if(Files.exists(tbi)) {
+					tabix = new TabixReader(input);
+					}
+				}
+			if(tabix==null) {
+				LOG.warn("Cannot instantiate a tabix reader= using stdin or non-indexed file");
+				}
 			
-			
-			
-			r = super.openBufferedReader(oneFileOrNull(args));
+			r = super.openBufferedReader(input);
 			String line = r.readLine();
 			if(line==null) {		
 				LOG.error( "Cannot read first line of input");
 				return -1;
 				}
-			String tokens[] = tab.split(line);
-			if(tokens.length<4 ||
-				!tokens[0].equals("#chrom") ||
-				!tokens[1].equals("start") ||
-				!tokens[2].equals("end")) {
-				LOG.error( "bad first line "+line );
-				return -1;
+			 final FileHeader tabixFileHeader = new FileHeader(line,S->Arrays.asList(CharSplitter.TAB.split(S)));
+			 tabixFileHeader.
+			 	assertColumn("#chrom",0).
+			 	assertColumn("start",1).
+			 	assertColumn("end",2)
+			 	;
+			
+			final Comparator<GenotypeV> sortByPosition = (A,B)->{
+				int i= Integer.compare(A.tid, B.tid);
+				if(i!=0) return i;
+				i= Integer.compare(A.chromStart, B.chromStart);
+				if(i!=0) return i;
+				return Integer.compare(A.chromEnd, B.chromEnd);
+				};
+				
+			final Comparator<GenotypeV> sortBySamplePos = (A,B)->{
+				int i= Integer.compare(A.sampleIdx, B.sampleIdx);
+				if(i!=0) return i;
+				return sortByPosition.compare(A,B);
+				};	
+				
+			 
+			SortingCollection<GenotypeV> sorter1 =  SortingCollection.newInstance(
+					GenotypeV.class,
+					new GenotypeVCodec(),
+					sortBySamplePos,
+					writingSortingCollection.getMaxRecordsInRam(),
+					writingSortingCollection.getTmpPaths()
+					);
+			sorter1.setDestructiveIteration(true);
+			
+			long nLine=0L;
+			while((line=r.readLine())!=null) {
+				++nLine;
+				if(this.max_line_count>=0 && nLine>this.max_line_count) break;
+				if(StringUtil.isBlank(line)) continue;
+				final List<String> tokens =  tabixFileHeader.split(line);
+				for(int i=3;i< tokens.size();i++) {
+					final float normDepth = Float.parseFloat(tokens.get(i));
+					
+					 if(!IndexCovUtils.isValidNumber(normDepth)) {
+							LOG.error("Bad fold "+normDepth+" for sample "+ tabixFileHeader.get(i)+" in "+line);
+							continue;
+						 	}
+					
+					if(!disable_block_merge && !indexCovUtils.isVariant(normDepth)) continue;
+					 
+					final GenotypeV g = new GenotypeV();
+					g.chromStart = Integer.parseInt(tokens.get(1));
+					g.chromEnd = Integer.parseInt(tokens.get(2));
+					g.normDepth = normDepth ;
+					g.sampleIdx = i;
+					
+					
+					
+					final SAMSequenceRecord ssr = dictionary.getSequence(tokens.get(0));
+					if(ssr==null) {
+						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(tokens.get(0),dictionary));
+						return -1;
+					}
+					if(g.chromEnd>ssr.getSequenceLength()) {
+						LOG.warn("WARNING sequence length in "+line+" is greater than in dictionary ");
+						}
+					g.tid = ssr.getSequenceIndex();
+					sorter1.add(g);
+					}
 				}
+			sorter1.doneAdding();
+			
+			
+			SortingCollection<GenotypeV> sorter2 =  SortingCollection.newInstance(
+					GenotypeV.class,
+					new GenotypeVCodec(),
+					sortByPosition,
+					writingSortingCollection.getMaxRecordsInRam(),
+					writingSortingCollection.getTmpPaths()
+					);
+			sorter2.setDestructiveIteration(true);
+			
+			try(CloseableIterator<GenotypeV> iter0=sorter1.iterator()) {
+				try(final EqualRangeIterator<GenotypeV> eq = new EqualRangeIterator<>(iter0,(A,B)->{
+					int i= Integer.compare(A.sampleIdx, B.sampleIdx);
+					if(i!=0) return i;
+					return  Integer.compare(A.tid, B.tid);
+					})) {
+						while(eq.hasNext()) {
+							final List<GenotypeV> array = new ArrayList<>(eq.next());
+							while(!array.isEmpty()) {
+								GenotypeV first = array.remove(0);
+								int i=0;
+								while(!array.isEmpty() && !disable_block_merge) {
+									final GenotypeV o = array.get(i);
+									if(o.tid!=first.tid) throw new IllegalStateException();
+									if(o.sampleIdx!=first.sampleIdx) throw new IllegalStateException();
+									if(o.chromStart<first.chromStart) throw new IllegalStateException();
+									if(first.chromEnd!=o.chromStart) break;
+									array.remove(0);
+									first.chromEnd = o.chromEnd;
+									}
+								sorter2.add(first);
+								}
+						}
+					}
+				}
+			
+			sorter2.doneAdding();
+			sorter1.cleanup();
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_KEY,VCFConstants.GENOTYPE_QUALITY_KEY);
@@ -188,7 +352,8 @@ public class IndexCovToVcf extends Launcher {
 			final VCFFilterHeaderLine filterHomDup = new VCFFilterHeaderLine("HOM_DUP", "There is one Homozygous duplication.");
 			metaData.add(filterHomDup);
 
-			
+			final VCFInfoHeaderLine infoSVLEN = new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer, "SV length");
+			metaData.add(infoSVLEN);
 			final VCFInfoHeaderLine infoNumDup = new VCFInfoHeaderLine("NDUP", 1, VCFHeaderLineType.Integer,"Number of samples being duplicated");
 			metaData.add(infoNumDup);
 			final VCFInfoHeaderLine infoNumDel = new VCFInfoHeaderLine("NDEL", 1, VCFHeaderLineType.Integer,"Number of samples being deleted");
@@ -197,32 +362,32 @@ public class IndexCovToVcf extends Launcher {
 			metaData.add(infoSingleton);
 			final VCFInfoHeaderLine infoAllAffected = new VCFInfoHeaderLine("ALL_CASES", 1, VCFHeaderLineType.Flag,"All cases are affected");
 			metaData.add(infoAllAffected);
-			
-			
-			final List<String> samples = Arrays.asList(tokens). subList(3,tokens.length);
-			final Pedigree pedigree;
-			
-			final int count_cases_in_pedigree;
-			if(this.pedFile==null) {
-				pedigree = PedigreeParser.empty();
-				count_cases_in_pedigree = 0;
-			} else
-			{
-				pedigree = new PedigreeParser().parse(this.pedFile);
-				final Set<String> set = new HashSet<>(samples);
-				count_cases_in_pedigree = (int)pedigree.getAffectedSamples().stream().filter(S->set.contains(S.getId())).count();
-			}
+			final VCFInfoHeaderLine infoFisher = new VCFInfoHeaderLine("FISHER", 1, VCFHeaderLineType.Float,"Fisher test case/control");
+			metaData.add(infoFisher);
+			metaData.add(new VCFInfoHeaderLine("MEDIAN_ALL", 1, VCFHeaderLineType.Float, "Median normalized depth"));
+			metaData.add(new VCFInfoHeaderLine("MEAN_ALL", 1, VCFHeaderLineType.Float,"Mean normalized depth"));
+			metaData.add(new VCFInfoHeaderLine("STDDEV_ALL", 1, VCFHeaderLineType.Float,"Stddev normalized depth"));
+			metaData.add(new VCFInfoHeaderLine("MEDIAN_VAR", 1, VCFHeaderLineType.Float, "Median normalized depth for Variants"));
+			metaData.add(new VCFInfoHeaderLine("MEAN_VAR", 1, VCFHeaderLineType.Float,"Mean normalized depth for Variants"));
+			metaData.add(new VCFInfoHeaderLine("STDDEV_VAR", 1, VCFHeaderLineType.Float,"Stddev normalized depth for Variants"));
+			metaData.add(new VCFInfoHeaderLine("MEDIAN_REF", 1, VCFHeaderLineType.Float, "Median normalized depth for REF"));
+			metaData.add(new VCFInfoHeaderLine("MEAN_REF", 1, VCFHeaderLineType.Float,"Mean normalized depth for REF"));
+			metaData.add(new VCFInfoHeaderLine("STDDEV_REF", 1, VCFHeaderLineType.Float,"Stddev normalized depth for REF"));
+			metaData.add(new VCFInfoHeaderLine("NBLOCKS", 1, VCFHeaderLineType.Integer,"number of indexcov BLOCKS (size="));
 
+			
+			final List<String> samples =tabixFileHeader.subList(3,tabixFileHeader.size());
+			caseControls.load().retain(samples);
+			
 			
 			final VCFHeader vcfHeader = new VCFHeader(metaData, samples);
 	  		JVarkitVersion.getInstance().addMetaData(this, vcfHeader);
 
 			
-			if(dict!=null) {
-				vcfHeader.setSequenceDictionary(dict);
-			}
+			vcfHeader.setSequenceDictionary(dictionary);
 			
-			vcw = this.writingDelegate.dictionary(dict).open(outputFile);
+			
+			vcw = this.writingDelegate.dictionary(dictionary).open(outputFile);
 			vcw.writeHeader(vcfHeader);
 			
 			//final List<Allele> NO_CALL_NO_CALL = Arrays.asList(Allele.NO_CALL,Allele.NO_CALL);
@@ -230,174 +395,204 @@ public class IndexCovToVcf extends Launcher {
 			final Allele DEL_ALLELE =Allele.create("<DEL>",false);
 			final Allele REF_ALLELE =Allele.create("N",true);
 
-			while((line=r.readLine())!=null) {
-				if(StringUtil.isBlank(line)) continue;
-				tokens =  tab.split(line);
-				if(tokens.length!=3+samples.size()) {
-					r.close();
-					vcw.close();
-					throw new JvarkitException.TokenErrors("expected "+(samples.size()+3)+ "columns.", tokens);
-					}
-				
-				final Set<Allele> alleles =  new HashSet<>();
-				alleles.add(REF_ALLELE);
-				
-				final VariantContextBuilder vcb = new VariantContextBuilder();
-				vcb.chr(tokens[0]);
-				vcb.start(Integer.parseInt(tokens[1]));
-				final int chromEnd = Integer.parseInt(tokens[2]);
-				vcb.stop(chromEnd);
-				vcb.attribute(VCFConstants.END_KEY, chromEnd);
-				
-				if(dict!=null) {
-					final SAMSequenceRecord ssr = dict.getSequence(tokens[0]);
-					if(ssr==null) {
-						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(tokens[0],dict));
-						return -1;
-					}
-					if(chromEnd>ssr.getSequenceLength()) {
-						LOG.warn("WARNING sequence length in "+line+" is greater than in dictionary ");
-					}
-				}
-				
-				int count_dup=0;
-				int count_del=0;
-				final Map<String,Float> sample2fold = new HashMap<>(samples.size());
-				for(int i=3;i<tokens.length;i++) {
-					final String sampleName = samples.get(i-3);
-					final float f = Float.parseFloat(tokens[i]);
-					 if(f<0 || Float.isNaN(f) ||! Float.isFinite(f)) {
-						 LOG.error("Bad fold "+f+" for sample "+sampleName+" in "+line);
-					 	}
-					sample2fold.put(sampleName, f);
-					}
-				
-				
-				final List<Genotype> genotypes = new ArrayList<>(samples.size());
-				
-				int count_sv_cases = 0;
-				int count_sv_controls = 0;
-				int count_ref_cases = 0;
-				int count_ref_controls = 0;
-
-				boolean got_sv = false;
-				for(final String sampleName:sample2fold.keySet())
-					{
-					final float normDepth = sample2fold.get(sampleName);
-					final IndexCovUtils.SvType type = indexCovUtils.getType(normDepth);
+			
+			try(CloseableIterator<GenotypeV> iter0=sorter2.iterator()) {
+				try(EqualRangeIterator<GenotypeV> eq = new EqualRangeIterator<>(iter0,sortByPosition)) {
+			
+				while(eq.hasNext()) {
+					final List<GenotypeV> array = new ArrayList<>(eq.next());
+					final GenotypeV first = array.get(0);
 					
-					final GenotypeBuilder gb;
-
-					switch(type) {
-						case REF: {
-							gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));
-							break;
-							}
-						case HET_DEL:{
-							gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
-							alleles.add(DEL_ALLELE);
-							count_del++;
-							break;
-							}
-						case HOM_DEL: {
-							gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
-							alleles.add(DEL_ALLELE);
-							count_del++;
-							vcb.filter(filterHomDel.getID());
-							break;
-							}
-						case HET_DUP: {
-							gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
-							alleles.add(DUP_ALLELE);
-							count_dup++;
-							break;
-							}
-						case HOM_DUP: {
-							gb = new GenotypeBuilder(sampleName,Arrays.asList(DUP_ALLELE,DUP_ALLELE));
-							alleles.add(DUP_ALLELE);
-							vcb.filter(filterHomDup.getID());
-							count_dup++;
-							break;
-							}
-						default:
-							{
-							gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
-							break;
-							}
+					
+					final Set<Allele> alleles =  new HashSet<>();
+					alleles.add(REF_ALLELE);
+					final String contig= dictionary.getSequence(first.tid).getSequenceName();
+					final VariantContextBuilder vcb = new VariantContextBuilder();
+					vcb.chr(contig);
+					vcb.start(first.chromStart+1);
+					vcb.stop( first.chromEnd);
+					vcb.attribute(VCFConstants.END_KEY,  first.chromEnd);
+					vcb.attribute(infoSVLEN.getID(), first.chromEnd-first.chromStart);
+					vcb.attribute("NBLOCKS", (first.chromEnd-first.chromStart)/IndexCovUtils.BAI_BLOCK_SIZE);
+					
+					
+					final Map<String,Float> sample2fold = new HashMap<>(samples.size());
+					for(GenotypeV g:array) {
+						final String sampleName = tabixFileHeader.get(g.sampleIdx);
+						sample2fold.put(sampleName, g.normDepth);
 						}
-					if(type.isVariant()) got_sv=true;
-					gb.attribute(foldHeader.getID(),normDepth);
-					gb.GQ(type.getGenotypeQuality(normDepth));
 
-					final Sample sn = pedigree.getSampleById(sampleName);
-					if(sn!=null) {
-						if(type.isVariant()) {
-							if(sn.isAffected())
-								{
-								count_sv_cases++;
-								}
-							else if(sn.isUnaffected())
-								{
-								count_sv_controls++;
+					if(tabix!=null) {
+						final Set<String> samplesWithVariant = array.stream().map(G-> tabixFileHeader.get(G.sampleIdx)).collect(Collectors.toSet());
+						final AutoMap<String, Sum,Sum> sample2sum = AutoMap.make(()->new Sum());
+						final FloatArray floatArrayAll =new FloatArray();
+						final FloatArray floatArrayWithVariant =new FloatArray();
+						final FloatArray floatArrayWithNoVariant =new FloatArray();
+						TabixReader.Iterator tbxr =tabix.query(contig,first.chromStart+1, first.chromEnd);
+						for(;;) {
+							line = tbxr.next();
+							if(line==null) break;
+							final List<String> tokens = tabixFileHeader.split(line);
+							for(int i=3;i<tokens.size();i++) {
+								final float normDepth = Float.parseFloat(tokens.get(i));
+								if(!IndexCovUtils.isValidNumber(normDepth)) continue;
+								floatArrayAll.add(normDepth);
+								final String sn =  tabixFileHeader.get(i);
+								if(!sample2fold.containsKey(sn)) {
+									sample2sum.insert(sn).increment(normDepth);
+									}
+								
+								if(samplesWithVariant.contains(sn) && (!this.disable_block_merge || indexCovUtils.isVariant(normDepth))) {
+									floatArrayWithVariant.add(normDepth);
+									}
+								else {
+									floatArrayWithNoVariant.add(normDepth);
+									}
 								}
 							}
-						else
-							{
-							if(sn.isAffected())
-								{
-								count_ref_cases++;
-								}
-							else if(sn.isUnaffected())
-								{
-								count_ref_controls++;
-								}
+						double[] values;
+						if(!floatArrayAll.isEmpty()) {
+							values= floatArrayAll.stream().mapToDouble(X->X).toArray();
+							vcb.attribute("MEDIAN_ALL",new Median().evaluate(values));
+							vcb.attribute("MEAN_ALL",new Mean().evaluate(values));
+							vcb.attribute("STDDEV_ALL",new StandardDeviation().evaluate(values));
+							}
+						if(!floatArrayWithVariant.isEmpty()) {
+							values= floatArrayWithVariant.stream().mapToDouble(X->X).toArray();
+							vcb.attribute("MEDIAN_VAR",new Median().evaluate(values));
+							vcb.attribute("MEAN_VAR",new Mean().evaluate(values));
+							vcb.attribute("STDDEV_VAR",new StandardDeviation().evaluate(values));
+							}
+						if(!floatArrayWithNoVariant.isEmpty()) {
+							values= floatArrayWithNoVariant.stream().mapToDouble(X->X).toArray();
+							vcb.attribute("MEDIAN_REF",new Median().evaluate(values));
+							vcb.attribute("MEAN_REF",new Mean().evaluate(values));
+							vcb.attribute("STDDEV_REF",new StandardDeviation().evaluate(values));
+							}
+						for(final String sn:sample2sum.keySet()) {
+							final Sum sum = sample2sum.get(sn);
+							sample2fold.put(sn,(float)(sum.getResult()/sum.getN()));
 							}
 						}
 					
 					
-					genotypes.add(gb.make());
-					}
-				
-				
-				vcb.alleles(alleles);
-				
-				if(!pedigree.isEmpty() &&
-						count_sv_cases==1 && 
-						count_ref_cases>0 &&
-						count_sv_controls==0 &&
-						count_ref_controls>0
-					) {
-					vcb.attribute(infoSingleton.getID(),Boolean.TRUE);
-				} else if(!pedigree.isEmpty() &&
-						count_sv_cases>0 && 
-						count_sv_cases == count_cases_in_pedigree &&
-						count_ref_cases==0 &&
-						count_sv_controls==0 &&
-						count_ref_controls>0
-					) {
-					vcb.attribute(infoAllAffected.getID(),Boolean.TRUE);
-				}
-				
+					int count_dup=0;
+					int count_del=0;
 					
-				
-				vcb.genotypes(genotypes);
-				
-				if(count_dup == samples.size() && samples.size()!=1) {
-					vcb.filter(filterAllDup.getID());
-				}
-				if(count_del == samples.size() && samples.size()!=1) {
-					vcb.filter(filterAllDel.getID());
-				}
-				
-				if(!got_sv) {
-					vcb.filter(filterNoSV.getID());
+					
+					
+					final List<Genotype> genotypes = new ArrayList<>(samples.size());
+					
+					int count_sv_cases = 0;
+					int count_sv_controls = 0;
+	
+					for(final String sampleName:sample2fold.keySet())
+						{
+						final float normDepth = sample2fold.get(sampleName);
+						final IndexCovUtils.SvType type = indexCovUtils.getType(normDepth);
+						
+						final GenotypeBuilder gb;
+	
+						switch(type) {
+							case REF: {
+								gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,REF_ALLELE));
+								break;
+								}
+							case HET_DEL:{
+								gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DEL_ALLELE));						
+								alleles.add(DEL_ALLELE);
+								count_del++;
+								break;
+								}
+							case HOM_DEL: {
+								gb = new GenotypeBuilder(sampleName,Arrays.asList(DEL_ALLELE,DEL_ALLELE));						
+								alleles.add(DEL_ALLELE);
+								count_del++;
+								vcb.filter(filterHomDel.getID());
+								break;
+								}
+							case HET_DUP: {
+								gb = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,DUP_ALLELE));
+								alleles.add(DUP_ALLELE);
+								count_dup++;
+								break;
+								}
+							case HOM_DUP: {
+								gb = new GenotypeBuilder(sampleName,Arrays.asList(DUP_ALLELE,DUP_ALLELE));
+								alleles.add(DUP_ALLELE);
+								vcb.filter(filterHomDup.getID());
+								count_dup++;
+								break;
+								}
+							default:
+								{
+								gb = new GenotypeBuilder(sampleName,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));
+								break;
+								}
+							}
+						gb.attribute(foldHeader.getID(),normDepth);
+						gb.GQ(type.getGenotypeQuality(normDepth));
+	
+						if(!caseControls.isEmpty()) {
+							if(type.isVariant()) {
+								if(caseControls.isCase(sampleName))
+									{
+									count_sv_cases++;
+									}
+								else if(caseControls.isControl((sampleName)))
+									{
+									count_sv_controls++;
+									}
+								}
+							}						
+						genotypes.add(gb.make());
+						}
+					
+					
+					vcb.alleles(alleles);
+					
+					if(!caseControls.isEmpty()) {
+						if(		count_sv_cases==1 && 
+								count_sv_controls==0
+							) {
+							vcb.attribute(infoSingleton.getID(),Boolean.TRUE);
+						} else if( count_sv_cases>0 && 
+								count_sv_cases == caseControls.getCases().size() &&
+								count_sv_controls==0
+							) {
+							vcb.attribute(infoAllAffected.getID(),Boolean.TRUE);
+							}
+						int count_ref_cases = caseControls.getCases().size() - count_sv_cases;
+						int count_ref_controls= caseControls.getControls().size() - count_sv_controls;
+
+						vcb.attribute(infoFisher.getID(),FisherExactTest.compute(
+								count_sv_cases, count_sv_controls,
+								count_ref_cases, count_ref_controls
+								).getAsDouble());
+						}
+						
+					
+					vcb.genotypes(genotypes);
+					
+					if(count_dup == samples.size() && samples.size()!=1) {
+						vcb.filter(filterAllDup.getID());
 					}
-				
-				vcb.attribute(infoNumDel.getID(), count_del);
-				vcb.attribute(infoNumDup.getID(), count_dup);
-				
-				vcw.add(vcb.make());
+					if(count_del == samples.size() && samples.size()!=1) {
+						vcb.filter(filterAllDel.getID());
+					}
+					
+					
+					
+					vcb.attribute(infoNumDel.getID(), count_del);
+					vcb.attribute(infoNumDup.getID(), count_dup);
+					
+					
+					if(alleles.size()==1) continue;
+					
+					vcw.add(vcb.make());
+					}
 				}
+			}
 			vcw.close();
 			vcw=null;
 			r.close();
@@ -410,8 +605,9 @@ public class IndexCovToVcf extends Launcher {
 			}
 		finally
 			{
-			CloserUtil.close(r);
-			CloserUtil.close(vcw);
+			if(r!=null) try {r.close();} catch(Throwable err) {}
+			if(vcw!=null) try {vcw.close();} catch(Throwable err) {}
+			if(tabix!=null) try {tabix.close();} catch(Throwable err) {}
 			}
 		}
 

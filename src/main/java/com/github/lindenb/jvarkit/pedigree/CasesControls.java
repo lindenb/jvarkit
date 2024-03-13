@@ -197,6 +197,11 @@ public class CasesControls {
 			}
 		return this;
 		}
+	
+	/** return true if no case and no control */
+	public boolean isEmpty() {
+		return getCases().isEmpty() && getControls().isEmpty();
+	}
 
 	@Override
 	public boolean equals(final Object obj) {

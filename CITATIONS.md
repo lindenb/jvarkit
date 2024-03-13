@@ -2,10 +2,12 @@
 
 ## 2024
 
- *  Jin Hee Kim & Jeongsik Kim (2024) Comprehensive analysis of the chloroplast genome and phylogenetic relationships of Sasa quelpaertensis Nakai, Mitochondrial DNA Part B, 9:1, 88-93, DOI: 10.1080/23802359.2023.2301017 
+ * Jin Hee Kim & Jeongsik Kim (2024) Comprehensive analysis of the chloroplast genome and phylogenetic relationships of Sasa quelpaertensis Nakai, Mitochondrial DNA Part B, 9:1, 88-93, DOI: 10.1080/23802359.2023.2301017 
  * genomic and transcriptomic insight into the evolution and breeding of turfgrass species, poa annua and bouteloua dactyloides. Thesis. Christopher W. Benson. https://etda.libraries.psu.edu/files/final_submissions/29057 **WGSCoveragePlotter**
  * Functional benefit of CRISPR/Cas9-induced allele deletion for RYR1 dominant mutation Mathilde Beaufils, Margaux Melka, Julie Brocard, Clement Benoit, Nagi Debbah, Kamel Mamchaoui, Norma B. Romero, Anne Frédérique Dalmas-Laurent, Susana Quijano-Roy, Julien Fauré, John Rendu, Isabelle Marty doi: https://doi.org/10.1101/2024.01.24.576997 
  * Epigenomic profiling of active regulatory elements by enrichment of unmodified CpG dinucleotides. https://www.biorxiv.org/content/biorxiv/early/2024/02/16/2024.02.16.575381.full.pdf
+ * Malena Daich Varela, Elena Schiff, Samantha Malka, Genevieve Wright, Omar A. Mahroo, Andrew R. Webster, Michel Michaelides, Gavin Arno; PHYH c.678+5G>T Leads to In-Frame Exon Skipping and Is Associated With Attenuated Refsum Disease. Invest. Ophthalmol. Vis. Sci. 2024;65(2):38. https://doi.org/10.1167/iovs.65.2.38. **Biostar214299**
+ * Imprinted X chromosome inactivation at the gamete-to-embryo transition. Chunyao Wei & al. Published:March 07, 2024 Molecular Cell DOI:https://doi.org/10.1016/j.molcel.2024.02.013
 
 ## 2023
 

@@ -35,9 +35,17 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
-
+/**
+ * map inserting key,value if it doesn't already exists
+ * @author lindenb
+ *
+ * @param <K>
+ * @param <V>
+ * @param <CONTAINER_OF_V>
+ */
 public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 	private BiFunction<K,V,CONTAINER_OF_V> collectionMaker;
 	private final Map<K,CONTAINER_OF_V> delegate;
@@ -103,6 +111,14 @@ public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 				(A,B)->{}
 				);
 		}
+	
+	/** create a simple key value using a function that creates a value from a key*/
+	public static <K,V> AutoMap<K,V,V> make( final Function<K,V> createValueFromKey) {
+		final BiFunction<K,V,V> collectionMaker = (A,B)->createValueFromKey.apply(A);
+		return make(collectionMaker);
+		}
+
+	
 	/** create a simple key value , with a supplier that doesn't need the key to be instanied */
 	public static <K,V> AutoMap<K,V,V> make( Supplier<V> simpleValueMaker) {
 		return new AutoMap<K,V,V>(
@@ -111,52 +127,58 @@ public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 				(A,B)->{}
 				);
 		}
-	
-	
+	@Override	
 	public int size() {
 		return delegate.size();
 	}
 
+	@Override	
 	public boolean isEmpty() {
 		return delegate.isEmpty();
 	}
 
+	@Override	
 	public boolean containsKey(Object key) {
 		return delegate.containsKey(key);
 	}
 
+	@Override	
 	public boolean containsValue(Object value) {
 		return delegate.containsValue(value);
 	}
 
+	@Override	
 	public CONTAINER_OF_V get(Object key) {
 		return delegate.get(key);
 	}
 
+	@Override	
 	public CONTAINER_OF_V put(K key, CONTAINER_OF_V value) {
 		return delegate.put(key, value);
 	}
 
+	@Override	
 	public CONTAINER_OF_V remove(Object key) {
 		return delegate.remove(key);
 	}
 
+	@Override	
 	public void putAll(Map<? extends K, ? extends CONTAINER_OF_V> m) {
 		delegate.putAll(m);
 	}
-
+	@Override	
 	public void clear() {
 		delegate.clear();
 	}
-
+	@Override	
 	public Set<K> keySet() {
 		return delegate.keySet();
 	}
-
+	@Override	
 	public Collection<CONTAINER_OF_V> values() {
 		return delegate.values();
 	}
-
+	@Override	
 	public Set<Entry<K, CONTAINER_OF_V>> entrySet() {
 		return delegate.entrySet();
 		}

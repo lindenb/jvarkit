@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.structvar.indexcov;
 public class IndexCovUtils {
 public static final String TRESHOLD_OPT_DESC = "DUP if 1.5-x<=depth<=1.5+x . HET_DEL if 0.5-x<=depth<=0.5+x HOM_DEL if 0.0-x<=depth<=0.0+x.";
 public static final double DEFAULT_TRESHOLD=0.05;
+public static final int BAI_BLOCK_SIZE= 16384;
 private final double treshold;
 public enum SvType {HOM_DEL(0),HET_DEL(0.5),REF(1.0),HET_DUP(1.5),HOM_DUP(2.0),AMBIGOUS(-1);
 	final double theoritical;
@@ -98,7 +99,10 @@ public boolean isHetDel(double normDepth) { return testLimit(normDepth,0.5) || (
 public boolean isHomDup(double normDepth) { return testLimit(normDepth,2.0) || normDepth>2.0 ;}
 public boolean isHetDup(double normDepth) { return testLimit(normDepth,1.5) || (!isHomDup(normDepth) && normDepth>=1.5) ;}
 public boolean isRef(double normDepth) { return testLimit(normDepth,1.0);}
-
+public static boolean isValidNumber(float normDepth) {
+	if(normDepth <0 || Float.isNaN(normDepth) ||! Float.isFinite(normDepth)) return false;
+	return true;
+	}
 public boolean isVariant(double normDepth) {
 	return getType(normDepth).isVariant();
 	}
