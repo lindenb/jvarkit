@@ -1866,10 +1866,7 @@ all2.add( task("vcfderby01", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.burden.VcfDerby01"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","derby")
 	});
-all.add( task("indexcov2vcf", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToVcf"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","math")
-	});
+
 all2.add( task("indexcov2sv", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToSV"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

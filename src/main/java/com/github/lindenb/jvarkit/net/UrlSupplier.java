@@ -424,7 +424,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 			}
 	if(isGrch38() && ! StringUtils.isBlank(ensemblCtg)) {
 		urls.add(new LabelledUrlImpl("Region Gnomad 3",locid,"https://gnomad.broadinstitute.org/region/"+
-			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_3"
+			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset="+GNOMAD_HG38
 			));
 		
 		

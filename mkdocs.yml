@@ -101,6 +101,7 @@ nav:
         - "htsfreemarker" : HtsFreemarker.md
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md
+        - "indexcov2vcf" : IndexCovToVcf.md
         - "kg2bed" : KnownGenesToBed.md
         - "kg2fa" : KnownGeneToFasta.md
         - "kg2gff" : KgToGff.md

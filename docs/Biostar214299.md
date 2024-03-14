@@ -153,5 +153,6 @@ rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       
  * Benjamin McClinton, Christopher M. Watson, Laura A. Crinnion, Martin McKibbin, Manir Ali, Chris F. Inglehearn, Carmel Toomes, Haplotyping Using Long-Range PCR and Nanopore Sequencing of Phase Variants; Lessons Learned From the ABCA4 Locus, Laboratory Investigation, 2023, 100160, ISSN 0023-6837
  * Shinde SS, Sharma A and Vijay N (2023) Decoding the fibromelanosis locus complex chromosomal rearrangement of black-bone chicken: genetic differentiation, selective sweeps and protein-coding changes in Kadaknath chicken. Front. Genet. 14:1180658. doi: 10.3389/fgene.2023.1180658
  * Hany U, Watson CM, Liu L, et al. Novel Ameloblastin Variants, Contrasting Amelogenesis Imperfecta Phenotypes. Journal of Dental Research. 2023;0(0). doi:10.1177/00220345231203694
+ * Malena Daich Varela, Elena Schiff, Samantha Malka, Genevieve Wright, Omar A. Mahroo, Andrew R. Webster, Michel Michaelides, Gavin Arno; PHYH c.678+5G>T Leads to In-Frame Exon Skipping and Is Associated With Attenuated Refsum Disease. Invest. Ophthalmol. Vis. Sci. 2024;65(2):38. https://doi.org/10.1167/iovs.65.2.38
 
 

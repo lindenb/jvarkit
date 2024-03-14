@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 589337957
-Compilation : 20240312161155
+Version     : f2b81afee
+Compilation : 20240314155515
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -51,6 +51,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bammatrix](BamMatrix.md) | Bam matrix, inspired from 10x/loupe | 20190620 | 20211206 |
 | [cnvtview](CnvTView.md) | Text visualization of bam DEPTH for multiple regions in a terminal | 20181018 | 20210412 |
 | [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20221125 |
+| [indexcov2vcf](IndexCovToVcf.md) | convert indexcov data to vcf | 20200528 | 20400313 |
 | [samfindclippedregions](SamFindClippedRegions.md) | Fins clipped position in one or more bam. | 20140228 | 20220329 |
 | [swingindexcov](SwingIndexCov.md) | indexcov visualization | 2020511 | 2020512 |
 | [vcfstrech2svg](VcfStrechToSvg.md) | another VCF to SVG | 20210304 | 20210309 |
