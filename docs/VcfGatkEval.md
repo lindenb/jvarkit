@@ -16,9 +16,6 @@ Usage: java -jar dist/jvarkit.jar vcfgatkeval  [options] Files
 
 Usage: vcfgatkeval [options] Files
   Options:
-    --depth
-      include INFO/DP
-      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -36,6 +33,9 @@ Usage: vcfgatkeval [options] Files
       Default: 0.025
     --version
       print version and exit
+    --depth, --with-depth
+      include INFO/DP
+      Default: false
 
 ```
 

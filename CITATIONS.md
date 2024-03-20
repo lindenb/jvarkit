@@ -8,6 +8,7 @@
  * Epigenomic profiling of active regulatory elements by enrichment of unmodified CpG dinucleotides. https://www.biorxiv.org/content/biorxiv/early/2024/02/16/2024.02.16.575381.full.pdf
  * Malena Daich Varela, Elena Schiff, Samantha Malka, Genevieve Wright, Omar A. Mahroo, Andrew R. Webster, Michel Michaelides, Gavin Arno; PHYH c.678+5G>T Leads to In-Frame Exon Skipping and Is Associated With Attenuated Refsum Disease. Invest. Ophthalmol. Vis. Sci. 2024;65(2):38. https://doi.org/10.1167/iovs.65.2.38. **Biostar214299**
  * Imprinted X chromosome inactivation at the gamete-to-embryo transition. Chunyao Wei & al. Published:March 07, 2024 Molecular Cell DOI:https://doi.org/10.1016/j.molcel.2024.02.013
+ * Investigating the potential of single-cell DNA methylation data to detect allele-specific methylation and imprinting. Nicholas D. Johnson, David J. Cutler, Karen N. Conneely , 2024 DOI:https://doi.org/10.1016/j.ajhg.2024.02.009
 
 ## 2023
 

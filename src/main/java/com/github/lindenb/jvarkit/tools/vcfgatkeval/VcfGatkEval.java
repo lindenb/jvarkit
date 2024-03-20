@@ -149,7 +149,7 @@ END_DOC
 		jvarkit_amalgamion = true,
 		keywords={"vcf","gatk"},
 		creationDate ="20230424",
-		modificationDate="20230623"
+		modificationDate="20240320"
 		)
 public class VcfGatkEval extends Launcher {
 	private static Logger LOG=Logger.build(VcfGatkEval.class).make();
@@ -161,241 +161,241 @@ public class VcfGatkEval extends Launcher {
 	private INPUT_TYPE inputType = INPUT_TYPE.vcf;
 	@Parameter(names={"-p","--percentile"},description="GATK Filters should be applied to this percentile: f < x < (1.0 -f)")
 	private double percentile= 0.025;
-	@Parameter(names={"--depth"},description="include INFO/" + VCFConstants.DEPTH_KEY)
+	@Parameter(names={"--depth","--with-depth"},description="include INFO/" + VCFConstants.DEPTH_KEY)
 	private boolean include_depth = false;
 
 	
-		private static class Range {
-			final double lowerBound;
-			final double upperBound;
-			long count = 0L;
-			Range(final double m,final double M) {
-				this.lowerBound = m;
-				this.upperBound = M;
+	private static class Range {
+		final double lowerBound;
+		final double upperBound;
+		long count = 0L;
+		Range(final double m,final double M) {
+			this.lowerBound = m;
+			this.upperBound = M;
+			}
+		boolean contains(final double f) {
+			return this.lowerBound <= f && f < this.upperBound;
+			}
+		@Override
+		public String toString() {
+			return "("+lowerBound+"/"+upperBound+"(:"+count;
+			}
+		}
+		
+	private abstract class Annotation {
+		final VariantContext.Type variantType;
+		final List<Range> ranges = new ArrayList<>();
+		protected VCFInfoHeaderLine infoHeaderLine = null;
+		private final DecimalFormat decimalFormat;
+		Annotation(final VariantContext.Type variantType) {
+			this.variantType = variantType;
+			String str="#.";
+			int p = getPrecision();
+			while(p>1) {
+				str+="#";
+				p=p/10;
 				}
-			boolean contains(final double f) {
-				return this.lowerBound <= f && f < this.upperBound;
-				}
-			@Override
-			public String toString() {
-				return "("+lowerBound+"/"+upperBound+"(:"+count;
+			this.decimalFormat = new DecimalFormat(str);
+			this.decimalFormat.setRoundingMode(java.math.RoundingMode.CEILING);
+			}
+		
+		abstract String getTag();
+		void init(final VCFHeader header) {
+			this.infoHeaderLine = header.getInfoHeaderLine(getTag());
+			if(this.infoHeaderLine==null) {
+				LOG.warning("The following tag was not found in header:"+getTag());
 				}
 			}
 		
-		private abstract class Annotation {
-			final VariantContext.Type variantType;
-			final List<Range> ranges = new ArrayList<>();
-			protected VCFInfoHeaderLine infoHeaderLine = null;
-			private final DecimalFormat decimalFormat;
-			Annotation(final VariantContext.Type variantType) {
-				this.variantType = variantType;
-				String str="#.";
-				int p = getPrecision();
-				while(p>1) {
-					str+="#";
-					p=p/10;
+
+		abstract int getPrecision();
+		abstract String getSub();
+
+		boolean logX() { return false;}
+		
+
+		double round(final double v) {
+			return Double.parseDouble(this.decimalFormat.format(v));
+			}		
+
+		
+		void visit(final VariantContext ctx) {
+			if(this.infoHeaderLine==null) return;
+			if(!ctx.getType().equals(this.variantType)) return;
+			if(!ctx.hasAttribute(getTag())) return;
+			try {
+			for(String s : ctx.getAttributeAsStringList(getTag(),".") ) {
+				if(s.equals(".")) continue;
+				final double v0 = Double.parseDouble(s);
+				if(Double.isNaN(v0)) continue;
+				if(Double.isInfinite(v0)) continue;
+				final double v = round(v0); 
+				int i=0;
+				for(i=0;i< this.ranges.size();i++) {
+					final Range r = ranges.get(i);
+					if(r.contains(v)) {
+						r.count++;
+						break;
+						}
 					}
-				this.decimalFormat = new DecimalFormat(str);
-				this.decimalFormat.setRoundingMode(java.math.RoundingMode.CEILING);
-			}
-			
-			abstract String getTag();
-			void init(final VCFHeader header) {
-				this.infoHeaderLine = header.getInfoHeaderLine(getTag());
-				if(this.infoHeaderLine==null) {
-					LOG.warning("The following tag was not found in header:"+getTag());
+				if(i!=this.ranges.size()) continue;
+				
+				final int precision = getPrecision();
+				final double v1 = v;
+				final double v2 = v1 + 1.0/precision;
+				final Range r = new Range(v1,v2);
+				if(!r.contains(v)) throw new IllegalStateException(""+r+" "+v);
+				r.count = 1L;
+
+				if(this.ranges.stream().anyMatch(R->R.lowerBound==r.lowerBound)) {
+					System.err.println("r.size "+this.ranges.size());
+					for(Range r2: this.ranges) {
+						System.err.println("# "+r2+"="+r2.contains(v)+" v="+v);
+						}
+					throw new IllegalStateException(""+this.ranges+" -- and -- "+r+" i="+i+" v="+v+" v1="+v1+" v2="+v2+" precision="+precision);
 					}
+		
+				this.ranges.add(r);
+				Collections.sort(this.ranges,(A,B)->Double.compare(A.lowerBound, B.lowerBound));
 				}
-			
+			} catch(Throwable err) {
+				LOG.severe("Error "+err.getMessage()+" "+ctx+" "+toString());
+				throw err;
+				}
+			}
+		
+		void saveFilter(PrintWriter out) throws IOException {
+			if(this.ranges.isEmpty()) return ;
+			final String testType;
+			switch(this.variantType) {
+				case SNP: testType = "vc.isSNP()&&"; break;//no blank or gatk fails
+				case INDEL: testType = "vc.isIndel()&&"; break;//no blank or gatk fails
+				default: testType = ""; break;
+				}
+			final String hasAttribute = "vc.hasAttribute(\""+getTag()+"\")&&";
+			OptionalDouble limit = getLowPercentile();
+			if(limit.isPresent()) {
+				out.println("--filter-expression");
+				out.println(testType + hasAttribute +  getTag() +"<"+ limit.getAsDouble()); //no blank or gatk fails
+				out.println("--filter-name");
+				out.println(getTag()+"_LOW_"+variantType.name());
+				}
+			limit = getHighPercentile();
+			if(limit.isPresent()) {
+				out.println("--filter-expression");
+				out.println(testType + hasAttribute + getTag() +">"+ limit.getAsDouble());//no blank or gatk fails
+				out.println("--filter-name");
+				out.println(getTag()+"_HIGH_"+variantType.name());
+				}
 
-			abstract int getPrecision();
-			abstract String getSub();
-
-			boolean logX() { return false;}
-			
-
-			double round(final double v) {
-				return Double.parseDouble(this.decimalFormat.format(v));
-				}		
-
-			
-			void visit(final VariantContext ctx) {
-				if(this.infoHeaderLine==null) return;
-				if(!ctx.getType().equals(this.variantType)) return;
-				if(!ctx.hasAttribute(getTag())) return;
-				try {
-				for(String s : ctx.getAttributeAsStringList(getTag(),".") ) {
-					if(s.equals(".")) continue;
-					final double v0 = Double.parseDouble(s);
-					if(Double.isNaN(v0)) continue;
-					if(Double.isInfinite(v0)) continue;
-					final double v = round(v0); 
-					int i=0;
-					for(i=0;i< this.ranges.size();i++) {
-						final Range r = ranges.get(i);
-						if(r.contains(v)) {
-							r.count++;
-							break;
-							}
-						}
-					if(i!=this.ranges.size()) continue;
-					
-					final int precision = getPrecision();
-					final double v1 = v;
-					final double v2 = v1 + 1.0/precision;
-					final Range r = new Range(v1,v2);
-					if(!r.contains(v)) throw new IllegalStateException(""+r+" "+v);
-					r.count = 1L;
-
-					if(this.ranges.stream().anyMatch(R->R.lowerBound==r.lowerBound)) {
-						System.err.println("r.size "+this.ranges.size());
-						for(Range r2: this.ranges) {
-							System.err.println("# "+r2+"="+r2.contains(v)+" v="+v);
-							}
-						throw new IllegalStateException(""+this.ranges+" -- and -- "+r+" i="+i+" v="+v+" v1="+v1+" v2="+v2+" precision="+precision);
-						}
-			
+			}
+		
+		void saveTable(PrintWriter out) throws IOException {
+			out.println(getTag());
+			out.println(this.variantType.name());
+			out.println(this.ranges.size());
+			for(Range r: ranges) {
+				out.print(r.lowerBound);
+				out.print("\t");
+				out.print(r.upperBound);
+				out.print("\t");
+				out.println(r.count);
+				}
+			}
+		
+		void loadTable(BufferedReader br) throws IOException {
+			String line = br.readLine();
+			if(line==null) throw new IOException("count missing for "+getTag());
+			int n = Integer.parseInt(line);
+			for(int i=0;i< n;i++) {
+				line = br.readLine();
+				if(line==null) throw new IOException("line["+i+"] missing for "+getTag());
+				final String[] tokens = line.split("[\t]");
+				final double m = round(Double.parseDouble(tokens[0]));
+				final double M = round(Double.parseDouble(tokens[1]));
+				final long count = Long.parseLong(tokens[2]);
+				Range r = this.ranges.stream().
+						filter(R->R.lowerBound==m && R.upperBound==M).
+						findFirst().
+						orElse(null);
+				if(r!=null) {
+					r.count+= count;
+					}
+				else {
+					r=new Range(m,M);
+					r.count = count;
 					this.ranges.add(r);
 					Collections.sort(this.ranges,(A,B)->Double.compare(A.lowerBound, B.lowerBound));
 					}
-				} catch(Throwable err) {
-					LOG.severe("Error "+err.getMessage()+" "+ctx+" "+toString());
-					throw err;
+				}
+			}
+		
+		long getCount() {
+			return ranges.stream().mapToLong(R->R.count).sum();
+			}
+		
+		private OptionalDouble getPercentile(double f) {
+			final long count = getCount();
+			if(count==0L) return OptionalDouble.empty();
+			long count2 = (long)(count*f);
+			for(Range r: ranges) {
+				for(long i=0;i< r.count;i++) {
+					if(count2==0L) return OptionalDouble.of(r.lowerBound);
+					count2--;
 					}
 				}
-			
-			void saveFilter(PrintWriter out) throws IOException {
-				if(this.ranges.isEmpty()) return ;
-				final String testType;
-				switch(this.variantType) {
-					case SNP: testType = "vc.isSNP()&&"; break;//no blank or gatk fails
-					case INDEL: testType = "vc.isIndel()&&"; break;//no blank or gatk fails
-					default: testType = ""; break;
-					}
-				final String hasAttribute = "vc.hasAttribute(\""+getTag()+"\")&&";
-				OptionalDouble limit = getLowPercentile();
-				if(limit.isPresent()) {
-					out.println("--filter-expression");
-					out.println(testType + hasAttribute +  getTag() +"<"+ limit.getAsDouble()); //no blank or gatk fails
-					out.println("--filter-name");
-					out.println(getTag()+"_LOW_"+variantType.name());
-					}
-				limit = getHighPercentile();
-				if(limit.isPresent()) {
-					out.println("--filter-expression");
-					out.println(testType + hasAttribute + getTag() +">"+ limit.getAsDouble());//no blank or gatk fails
-					out.println("--filter-name");
-					out.println(getTag()+"_HIGH_"+variantType.name());
-					}
+			throw new IllegalStateException();
+			}
+		
+		OptionalDouble getLowPercentile() {
+			return getPercentile(VcfGatkEval.this.percentile);
+			}
+		
+		OptionalDouble getHighPercentile() {
+			return getPercentile(1.0 - VcfGatkEval.this.percentile);
+			}
+		
+		void saveAsR(PrintWriter out) throws IOException {
+			if(ranges.isEmpty()) return;
+			final long count = getCount();
+			String title = getClass().getSimpleName();
+			title = title.substring(0,title.length()-10);
 
-				}
+			out.print("x <- c(");
+			out.print(ranges.stream().map(R->String.valueOf((R.lowerBound+R.upperBound)/2.0)).collect(Collectors.joining(",")));
+			out.println(")");
 			
-			void saveTable(PrintWriter out) throws IOException {
-				out.println(getTag());
-				out.println(this.variantType.name());
-				out.println(this.ranges.size());
-				for(Range r: ranges) {
-					out.print(r.lowerBound);
-					out.print("\t");
-					out.print(r.upperBound);
-					out.print("\t");
-					out.println(r.count);
-					}
-				}
+			out.print("y <- c(");
+			out.print(ranges.stream().map(R->String.valueOf(R.count/(double)count)).collect(Collectors.joining(",")));
+			out.println(")");
 			
-			void loadTable(BufferedReader br) throws IOException {
-				String line = br.readLine();
-				if(line==null) throw new IOException("count missing for "+getTag());
-				int n = Integer.parseInt(line);
-				for(int i=0;i< n;i++) {
-					line = br.readLine();
-					if(line==null) throw new IOException("line["+i+"] missing for "+getTag());
-					final String[] tokens = line.split("[\t]");
-					final double m = round(Double.parseDouble(tokens[0]));
-					final double M = round(Double.parseDouble(tokens[1]));
-					final long count = Long.parseLong(tokens[2]);
-					Range r = this.ranges.stream().
-							filter(R->R.lowerBound==m && R.upperBound==M).
-							findFirst().
-							orElse(null);
-					if(r!=null) {
-						r.count+= count;
-						}
-					else {
-						r=new Range(m,M);
-						r.count = count;
-						this.ranges.add(r);
-						Collections.sort(this.ranges,(A,B)->Double.compare(A.lowerBound, B.lowerBound));
-						}
-					}
-				}
-			
-			long getCount() {
-				return ranges.stream().mapToLong(R->R.count).sum();
-				}
-			
-			private OptionalDouble getPercentile(double f) {
-				final long count = getCount();
-				if(count==0L) return OptionalDouble.empty();
-				long count2 = (long)(count*f);
-				for(Range r: ranges) {
-					for(long i=0;i< r.count;i++) {
-						if(count2==0L) return OptionalDouble.of(r.lowerBound);
-						count2--;
-						}
-					}
-				throw new IllegalStateException();
-				}
-			
-			OptionalDouble getLowPercentile() {
-				return getPercentile(VcfGatkEval.this.percentile);
-				}
-			
-			OptionalDouble getHighPercentile() {
-				return getPercentile(1.0 - VcfGatkEval.this.percentile);
-				}
-			
-			void saveAsR(PrintWriter out) throws IOException {
-				if(ranges.isEmpty()) return;
-				final long count = getCount();
-				String title = getClass().getSimpleName();
-				title = title.substring(0,title.length()-10);
+			double minx = 	this.ranges.stream().mapToDouble(R->R.lowerBound).min().getAsDouble();
+			if(minx <=0 && logX()) minx=1.0;
 
-				out.print("x <- c(");
-				out.print(ranges.stream().map(R->String.valueOf((R.lowerBound+R.upperBound)/2.0)).collect(Collectors.joining(",")));
-				out.println(")");
-				
-				out.print("y <- c(");
-				out.print(ranges.stream().map(R->String.valueOf(R.count/(double)count)).collect(Collectors.joining(",")));
-				out.println(")");
-				
-				double minx = 	this.ranges.stream().mapToDouble(R->R.lowerBound).min().getAsDouble();
-				if(minx <=0 && logX()) minx=1.0;
-
-				out.println("plot(x,y,pch=19,type=\"b\",col=\"blue\"," +
-						"log=\""+(logX()?"x":"")+"\"," + 
-						"xlim=c("+ minx +
-							"," +  
-							this.ranges.stream().mapToDouble(R->R.upperBound).max().getAsDouble() +
-							"),"+
-						"ylim=c(0,max(y)),"+
-						"sub=\"" + getSub() + "\"," +
-						"main=\""+ title +" "+this.variantType.name()+"\",ylab=\"Density\",xlab=\""+getTag()+" "+this.variantType.name()+"\")");
-				
-				OptionalDouble limit = getLowPercentile();
-				if(limit.isPresent()) {
-					out.println("abline(v="+limit.getAsDouble()+", col=\"green\")");
-					}
-				limit = getHighPercentile();
-				if(limit.isPresent()) {
-					out.println("abline(v="+limit.getAsDouble()+", col=\"green\")");
-					}
+			out.println("plot(x,y,pch=19,type=\"b\",col=\"blue\"," +
+					"log=\""+(logX()?"x":"")+"\"," + 
+					"xlim=c("+ minx +
+						"," +  
+						this.ranges.stream().mapToDouble(R->R.upperBound).max().getAsDouble() +
+						"),"+
+					"ylim=c(0,max(y)),"+
+					"sub=\"" + getSub() + "\"," +
+					"main=\""+ title +" "+this.variantType.name()+"\",ylab=\"Density\",xlab=\""+getTag()+" "+this.variantType.name()+"\")");
+			
+			OptionalDouble limit = getLowPercentile();
+			if(limit.isPresent()) {
+				out.println("abline(v="+limit.getAsDouble()+", col=\"green\")");
 				}
-			@Override
-			public String toString() {
-				return getTag()+"("+this.variantType.name()+")";
+			limit = getHighPercentile();
+			if(limit.isPresent()) {
+				out.println("abline(v="+limit.getAsDouble()+", col=\"green\")");
 				}
-		}
+			}
+		@Override
+		public String toString() {
+			return getTag()+"("+this.variantType.name()+")";
+			}
+	}
 		
 		private class QualByDepthAnnotation extends Annotation {
 			QualByDepthAnnotation(VariantContext.Type t) { super(t);}
@@ -435,6 +435,7 @@ public class VcfGatkEval extends Launcher {
 			MappingQualityRankSumTestAnnotation(VariantContext.Type t) { super(t);}
 			@Override String getTag() { return GATKConstants.MQRankSum_KEY;}
 			@Override int getPrecision() { return 10;}
+			@Override OptionalDouble getHighPercentile() { return OptionalDouble.empty();}
 			@Override String getSub() {return "Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities";}
 
 		}
@@ -450,6 +451,7 @@ public class VcfGatkEval extends Launcher {
 			ReadPosRankSumTestAnnotation(VariantContext.Type t) { super(t);}
 			@Override String getTag() { return "ReadPosRankSum";}
 			@Override int getPrecision() { return 10;}
+			@Override OptionalDouble getHighPercentile() { return OptionalDouble.empty();}
 			@Override String getSub() {return "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias";}
 		}
 
