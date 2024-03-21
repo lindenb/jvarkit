@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -149,7 +150,7 @@ END_DOC
 		jvarkit_amalgamion = true,
 		keywords={"vcf","gatk"},
 		creationDate ="20230424",
-		modificationDate="20240320"
+		modificationDate="20240321"
 		)
 public class VcfGatkEval extends Launcher {
 	private static Logger LOG=Logger.build(VcfGatkEval.class).make();
@@ -168,7 +169,8 @@ public class VcfGatkEval extends Launcher {
 	private static class Range {
 		final double lowerBound;
 		final double upperBound;
-		long count = 0L;
+		long count_ALL = 0L;
+		long count_PASS = 0L;
 		Range(final double m,final double M) {
 			this.lowerBound = m;
 			this.upperBound = M;
@@ -178,7 +180,7 @@ public class VcfGatkEval extends Launcher {
 			}
 		@Override
 		public String toString() {
-			return "("+lowerBound+"/"+upperBound+"(:"+count;
+			return "("+lowerBound+"/"+upperBound+"(:PASS~"+count_PASS+"/ALL~"+count_ALL;
 			}
 		}
 		
@@ -234,7 +236,10 @@ public class VcfGatkEval extends Launcher {
 				for(i=0;i< this.ranges.size();i++) {
 					final Range r = ranges.get(i);
 					if(r.contains(v)) {
-						r.count++;
+						r.count_ALL++;
+						if(ctx.isNotFiltered()) {
+							r.count_PASS++;
+							}
 						break;
 						}
 					}
@@ -245,7 +250,10 @@ public class VcfGatkEval extends Launcher {
 				final double v2 = v1 + 1.0/precision;
 				final Range r = new Range(v1,v2);
 				if(!r.contains(v)) throw new IllegalStateException(""+r+" "+v);
-				r.count = 1L;
+				r.count_ALL = 1L;
+				if(ctx.isNotFiltered()) {
+					r.count_PASS=1L;
+					}
 
 				if(this.ranges.stream().anyMatch(R->R.lowerBound==r.lowerBound)) {
 					System.err.println("r.size "+this.ranges.size());
@@ -299,7 +307,9 @@ public class VcfGatkEval extends Launcher {
 				out.print("\t");
 				out.print(r.upperBound);
 				out.print("\t");
-				out.println(r.count);
+				out.print(r.count_ALL);
+				out.print("\t");
+				out.println(r.count_PASS);
 				}
 			}
 		
@@ -310,36 +320,42 @@ public class VcfGatkEval extends Launcher {
 			for(int i=0;i< n;i++) {
 				line = br.readLine();
 				if(line==null) throw new IOException("line["+i+"] missing for "+getTag());
-				final String[] tokens = line.split("[\t]");
+				final String[] tokens = CharSplitter.TAB.split(line);
 				final double m = round(Double.parseDouble(tokens[0]));
 				final double M = round(Double.parseDouble(tokens[1]));
-				final long count = Long.parseLong(tokens[2]);
+				final long count_ALL = Long.parseLong(tokens[2]);
+				final long count_PASS = Long.parseLong(tokens[3]);
 				Range r = this.ranges.stream().
 						filter(R->R.lowerBound==m && R.upperBound==M).
 						findFirst().
 						orElse(null);
 				if(r!=null) {
-					r.count+= count;
+					r.count_ALL+= count_ALL;
+					r.count_PASS+= count_PASS;
 					}
 				else {
 					r=new Range(m,M);
-					r.count = count;
+					r.count_ALL = count_ALL;
+					r.count_PASS = count_PASS;
 					this.ranges.add(r);
 					Collections.sort(this.ranges,(A,B)->Double.compare(A.lowerBound, B.lowerBound));
 					}
 				}
 			}
 		
-		long getCount() {
-			return ranges.stream().mapToLong(R->R.count).sum();
+		long getCountAll() {
+			return ranges.stream().mapToLong(R->R.count_ALL).sum();
 			}
-		
+		long getCountPass() {
+			return ranges.stream().mapToLong(R->R.count_PASS).sum();
+			}
+
 		private OptionalDouble getPercentile(double f) {
-			final long count = getCount();
+			final long count = getCountAll();
 			if(count==0L) return OptionalDouble.empty();
 			long count2 = (long)(count*f);
 			for(Range r: ranges) {
-				for(long i=0;i< r.count;i++) {
+				for(long i=0;i< r.count_ALL;i++) {
 					if(count2==0L) return OptionalDouble.of(r.lowerBound);
 					count2--;
 					}
@@ -357,7 +373,7 @@ public class VcfGatkEval extends Launcher {
 		
 		void saveAsR(PrintWriter out) throws IOException {
 			if(ranges.isEmpty()) return;
-			final long count = getCount();
+			final long count_ALL = getCountAll();
 			String title = getClass().getSimpleName();
 			title = title.substring(0,title.length()-10);
 
@@ -366,21 +382,35 @@ public class VcfGatkEval extends Launcher {
 			out.println(")");
 			
 			out.print("y <- c(");
-			out.print(ranges.stream().map(R->String.valueOf(R.count/(double)count)).collect(Collectors.joining(",")));
+			out.print(ranges.stream().map(R->String.valueOf(R.count_ALL/(double)count_ALL)).collect(Collectors.joining(",")));
 			out.println(")");
 			
 			double minx = 	this.ranges.stream().mapToDouble(R->R.lowerBound).min().getAsDouble();
 			if(minx <=0 && logX()) minx=1.0;
-
+			final double maxx = this.ranges.stream().mapToDouble(R->R.upperBound).max().getAsDouble() ;
+			// plot ALL
 			out.println("plot(x,y,pch=19,type=\"b\",col=\"blue\"," +
 					"log=\""+(logX()?"x":"")+"\"," + 
 					"xlim=c("+ minx +
 						"," +  
-						this.ranges.stream().mapToDouble(R->R.upperBound).max().getAsDouble() +
+						maxx +
 						"),"+
 					"ylim=c(0,max(y)),"+
 					"sub=\"" + getSub() + "\"," +
 					"main=\""+ title +" "+this.variantType.name()+"\",ylab=\"Density\",xlab=\""+getTag()+" "+this.variantType.name()+"\")");
+			
+			final long count_PASS = getCountPass();
+			if(count_PASS>0L && 	this.ranges.stream().anyMatch(R->R.count_ALL!=R.count_PASS)) {
+				out.print("y <- c(");
+				out.print(ranges.stream().map(R->String.valueOf(R.count_PASS/(double)count_PASS)).collect(Collectors.joining(",")));
+				out.println(")");
+				// plot FILTERED
+				out.println("lines(x,y,col=\"cyan4\",pch=19,type=\"b\")");
+
+				out.println("legend(x=\"topright\",legend=c(\"ALL\",\"PASS\"),fill=c(\"blue\",\"cyan4\"))");
+
+				}
+			
 			
 			OptionalDouble limit = getLowPercentile();
 			if(limit.isPresent()) {
@@ -549,7 +579,7 @@ public class VcfGatkEval extends Launcher {
 				}
 			
 			
-		annotations.removeIf(A->A.getCount()==0L);
+		annotations.removeIf(A->A.getCountAll()==0L);
 			
 	
 		try(PrintWriter w = IOUtils.openPathForPrintWriter(Paths.get(this.basename + ".output.R"))) {
