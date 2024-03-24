@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.io;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -68,6 +69,7 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.SynchronousLineReader;
+import htsjdk.variant.bcf2.BCF2Codec;
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.util.BlockCompressedInputStream;
@@ -965,5 +967,43 @@ public class IOUtils {
       }
     }
     
+    /**
+     * call mayBeGzippedInputStream with recursive=true
+     * @param in inputstream
+     * @return
+     */
     
+    public static InputStream mayBeGzippedInputStream(InputStream in) throws IOException {
+    	return mayBeGzippedInputStream(in,true);
+    	}
+    
+    
+    /**
+     * uncompressed gzipped input stream if needed
+     * @param in inputstream
+     * @param recursive gunzip as long as the input stream is compressed
+     * @return
+     */
+    
+    public static InputStream mayBeGzippedInputStream(InputStream in,boolean recursive) throws IOException {
+    	/* NO don't do this if gzipped twice ! */
+	    	//if(in instanceof GZIPInputStream) return in;
+	    	//if(in instanceof BlockCompressedInputStream) return in;
+        for(;;) {
+	    	// wrap the input stream into a BufferedInputStream to reset/read a BCFHeader or a GZIP
+	        // buffer must be large enough to contain the BCF header and/or GZIP signature
+	       final  BufferedInputStream  bufferedinput = new BufferedInputStream(in,1+ IOUtil.GZIP_HEADER_READ_LENGTH);
+	        // test for gzipped inputstream
+	        if(IOUtil.isGZIPInputStream(bufferedinput)) {
+	            // this is a gzipped input stream, wrap it into GZIPInputStream
+	            // and re-wrap it into BufferedInputStream so we can test for the BCF header
+	            in = new GZIPInputStream(bufferedinput);
+	            if(!recursive) return in;
+	        	}
+	        else
+		        {
+		        return bufferedinput;
+		        }
+	        }
+    	}
 	}

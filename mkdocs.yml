@@ -112,6 +112,7 @@ nav:
         - "mkminibam" : MakeMiniBam.md
         - "msa2vcf" : MsaToVcf.md
         - "ncbitaxonomy2xml" : NcbiTaxonomyToXml.md
+        - "ngsfilessummary" : NgsFilesSummary.md
         - "oboutils" : OboUtils.md
         - "optimizefisher" : OptimizeFisher.md
         - "plotsashimi" : PlotSashimi.md

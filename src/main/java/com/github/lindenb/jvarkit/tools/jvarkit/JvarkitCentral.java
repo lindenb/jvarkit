@@ -146,6 +146,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.misc.XsltStream;
 import com.github.lindenb.jvarkit.tools.msa2vcf.MsaToVcf;
+import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.nobai.BamWithoutBai;
 import com.github.lindenb.jvarkit.tools.obo.OboUtils;
 import com.github.lindenb.jvarkit.tools.onekgenomes.VcfAncestralAllele;
@@ -624,6 +625,7 @@ public class JvarkitCentral {
 		command(MsaToVcf.class);
 		command(MakeMiniBam.class);
 		command(NcbiTaxonomyToXml.class);
+		command(NgsFilesSummary.class);
 		command(OptimizeFisher.class);
 		command(OboUtils.class);
 		command(PubmedDump.class);

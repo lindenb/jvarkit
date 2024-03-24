@@ -35,6 +35,11 @@ import javax.xml.namespace.QName;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import org.w3c.dom.Comment;
+import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
+import org.w3c.dom.Node;
+
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.samtools.util.RuntimeIOException;
@@ -86,6 +91,16 @@ public class ExtendedXmlStreamWriter implements Closeable, Flushable {
 		return writeEndElement();
 		}
 	
+	public AutoCloseable element(final String localName) {
+		writeStartElement(localName);
+		return new AutoCloseable() {
+			@Override
+			public void close() throws Exception {
+				writeEndElement();
+				}
+			};
+		}
+	
 	public ExtendedXmlStreamWriter writeStartElement(String localName)  {
 		try {
 			getDelegate().writeStartElement(localName);
@@ -112,6 +127,18 @@ public class ExtendedXmlStreamWriter implements Closeable, Flushable {
 		return this;
 		}
 
+	public AutoCloseable element(String namespaceURI, String localName) {
+		writeStartElement(namespaceURI,localName);
+		return new AutoCloseable() {
+			@Override
+			public void close() throws Exception {
+				writeEndElement();
+				}
+			};
+		}
+
+	
+	
 	public ExtendedXmlStreamWriter writeElement(String prefix, String localName, String namespaceURI,Object value) {
 		writeStartElement(prefix, localName, namespaceURI);
 		writeCharacters(value);
@@ -336,6 +363,48 @@ public class ExtendedXmlStreamWriter implements Closeable, Flushable {
 	public ExtendedXmlStreamWriter nl() {
 		return writeCharacters("\n");
 	}
+	
+	
+	public ExtendedXmlStreamWriter writeDOM(Node root) {
+		if(root==null) return this;
+		switch(root.getNodeType()) {
+			case Node.DOCUMENT_NODE:
+				writeStartDocument(Document.class.cast(root).getXmlVersion(),Document.class.cast(root).getInputEncoding());
+				for(Node n1=root.getFirstChild();n1!=null;n1=n1.getNextSibling()) writeDOM(n1);
+				return writeEndDocument();
+			case Node.DOCUMENT_FRAGMENT_NODE:
+				for(Node n1=root.getFirstChild();n1!=null;n1=n1.getNextSibling()) writeDOM(n1);
+				return this;
+			case Node.COMMENT_NODE:
+				return writeComment(Comment.class.cast(root).getData());
+			case Node.TEXT_NODE:
+				return writeCharacters(org.w3c.dom.Text.class.cast(root).getData());
+			case Node.CDATA_SECTION_NODE:
+				return writeCData(org.w3c.dom.CDATASection.class.cast(root).getData());
+			case Node.ATTRIBUTE_NODE:
+				return writeAttribute( root.getPrefix(),root.getNamespaceURI(), root.getLocalName(),root.getNodeValue());
+			case Node.ELEMENT_NODE:
+				if(!root.hasChildNodes()) {
+					writeEmptyElement(root.getPrefix(), root.getLocalName(), root.getNamespaceURI());
+					if(root.hasAttributes()) {
+						final NamedNodeMap nm = root.getAttributes();
+						for(int i=0;i< nm.getLength();i++) writeDOM(nm.item(i));
+						}
+					}
+				else
+					{
+					writeStartElement(root.getPrefix(), root.getLocalName(), root.getNamespaceURI());
+					if(root.hasAttributes()) {
+						final NamedNodeMap nm = root.getAttributes();
+						for(int i=0;i< nm.getLength();i++) writeDOM(nm.item(i));
+						}
+					for(Node n1=root.getFirstChild();n1!=null;n1=n1.getNextSibling()) writeDOM(n1);
+					writeEndDocument();
+					}
+				return this;
+			default: throw new IllegalStateException();
+			}
+		}
 	
 	public ExtendedXmlStreamWriter writeCharacters(Object o) {
 		try {

@@ -103,6 +103,7 @@ This tool was cited in
 
   * Extensive sequencing of seven human genomes to characterize benchmark reference materials Sci Data. 2016; 3: 160025..
   * Robust mapping of polyadenylated and non-polyadenylated RNA 3'-ends at nucleotide resolution by 3' end sequencing 23 May 2019. Roy & al. Methods.  https://doi.org/10.1016/j.ymeth.2019.05.016
+  * Erik McShane, Mary Couvillion, Robert Ietswaart, Gyan Prakash, Brendan M. Smalec, Iliana Soto, Autum R. Baxter-Koenigs, Karine Choquet, L. Stirling Churchman, A kinetic dichotomy between mitochondrial and nuclear gene expression processes, Molecular Cell, 2024, , ISSN 1097-2765, https://doi.org/10.1016/j.molcel.2024.02.028. (https://www.sciencedirect.com/science/article/pii/S1097276524001709)
 
 END_DOC
 

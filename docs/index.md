@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 5f98a0b20
-Compilation : 20240321094838
+Version     : d05f4a7b
+Compilation : 20240324184228
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -145,7 +145,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20211020 |
-| [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document |  |  |
+| [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document or as a table | 20120320 | 20240320 |
 | [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
 | [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
 | [uniprot2svg](UniprotToSvg.md) | plot uniprot to SVG | 20220608 | 20220922 |
@@ -174,6 +174,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
 | [kg2gff](KgToGff.md) | Convert UCSC genpred file to gff3 | 20210106 | 20230817 |
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
+| [ngsfilessummary](NgsFilesSummary.md) | Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples. | 20140430 | 20240324 |
 | [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20240207 |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [rdfcombine](RDFCombine.md) | Substract/Add RDF models | 20230903 | 20230903 |

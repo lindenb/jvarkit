@@ -7,7 +7,13 @@ Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar ngsfilessummary  [options] Files
+
 Usage: ngsfilessummary [options] Files
   Options:
     -header, --header
@@ -20,9 +26,6 @@ Usage: ngsfilessummary [options] Files
     -i, --indexed
       [20190905]VCF or BAM must be indexed
       Default: false
-    --no-read-group
-      Flag form SAM/VCF without read group/ samples
-      Default: __NO_READ_GROUP__
     -o, --output
       Output file. Optional . Default: stdout
     -p, --partition
@@ -32,7 +35,10 @@ Usage: ngsfilessummary [options] Files
       Default: sample
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     -R, --reference
-      [20190905]restrict to that reference. Also is used to read CRAM files
+      [20190905]restrict to thoses reference(s). Also is used to read CRAM 
+      files. A file with the '.list' suffix is interpreted as a list of paths 
+      to fasta REF.
+      Default: []
     --version
       print version and exit
 
@@ -47,22 +53,10 @@ Usage: ngsfilessummary [options] Files
  * util
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew ngsfilessummary
-```
-
-The java jar file will be installed in the `dist` directory.
+20140430
 
 ## Source code 
 
@@ -111,3 +105,4 @@ SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.freebayes.v
 SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.gatk.vcf.gz	106390	Mon Jun 17 11:57:19 CEST 2013
 SAMPLE2	VCF	/projects/align01/Samples/SAMPLE2/VCF/SAMPLE2_variations.samtools.vcf.gz	52709	Mon Jun 17 11:58:04 CEST 2013
 ```
+

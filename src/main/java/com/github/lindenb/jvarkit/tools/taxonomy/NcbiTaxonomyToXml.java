@@ -33,6 +33,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -125,8 +127,10 @@ END_DOC
 */
 
 @Program(name="ncbitaxonomy2xml",
-	description="Dump NCBI taxonomy tree as a hierarchical XML document",
+	description="Dump NCBI taxonomy tree as a hierarchical XML document or as a table",
 	keywords={"taxonomy","ncbi","xml"},
+	creationDate = "20120320",
+	modificationDate = "20240320",
 	biostars=10327,
 	jvarkit_amalgamion = true,
 	menu="Utilities"
@@ -136,9 +140,11 @@ public class NcbiTaxonomyToXml extends Launcher
 	private static final Logger LOG = Logger.build(NcbiTaxonomyToXml.class).make();
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-r","--root"},description="NCBI taxon root id.")
 	private int root_id=1;
+	@Parameter(names={"-t","--tabular"},description="produce tabular output instead of xml")
+	private boolean tabular_output=false;
 
 	
 	private final Map<Integer,Node> id2node=new HashMap<Integer,Node>();
@@ -147,7 +153,7 @@ public class NcbiTaxonomyToXml extends Launcher
 		{
 		int id=0;
 		int parent_id=-1;
-		Set<Node> children=new HashSet<Node>();;
+		final Set<Node> children=new HashSet<Node>();;
 		String common_name=null;
 		String scientific_name=null;
 		String rank=null;
@@ -161,7 +167,7 @@ public class NcbiTaxonomyToXml extends Launcher
 		@Override
 		public int hashCode()
 			{
-			return id;
+			return Integer.hashCode(id);
 			}
 		@Override
 		public boolean equals(Object obj)
@@ -170,6 +176,21 @@ public class NcbiTaxonomyToXml extends Launcher
 			return Node.class.cast(obj).id==this.id;
 			}
 		
+		void writeTabular(final PrintWriter w) {
+			w.print(String.valueOf(this.id));
+			w.print("\t");
+			w.print(this.parent_id!=-1?String.valueOf(this.parent_id):".");
+			w.print("\t");
+			w.print(this.scientific_name);
+			w.print("\t");
+			w.print(this.rank!=null && !this.rank.equals("no rank")?this.rank:".");
+			w.println();
+			
+			for(Node c:this.children)
+				{
+				c.writeTabular(w);
+				}
+			}
 		
 		void writeXml(final XMLStreamWriter w) throws XMLStreamException
 			{
@@ -205,7 +226,7 @@ public class NcbiTaxonomyToXml extends Launcher
 		
 		}
 	
-	private NcbiTaxonomyToXml()
+	public NcbiTaxonomyToXml()
 		{
 		
 		}
@@ -223,13 +244,13 @@ public class NcbiTaxonomyToXml extends Launcher
 	
 	private void readNames(BufferedReader in) throws IOException
 		{
-		Pattern delim=Pattern.compile("\t\\|(\t)?");
+		final Pattern delim=Pattern.compile("\t\\|(\t)?");
 		String line;
 		while((line=in.readLine())!=null)
 			{
-			String tokens[]=delim.split(line);
+			final String tokens[]=delim.split(line);
 			int id= Integer.parseInt(tokens[0].trim());
-			Node node=this.id2node.get(id);
+			final Node node=this.id2node.get(id);
 			if(node==null) continue;
 			
 			if(tokens[3].equals("common name"))
@@ -244,14 +265,14 @@ public class NcbiTaxonomyToXml extends Launcher
 		}	
 	private void readNodes(BufferedReader in) throws IOException
 		{
-		Pattern delim=Pattern.compile("\t\\|(\t)?");
+		final Pattern delim=Pattern.compile("\t\\|(\t)?");
 		String line;
 		while((line=in.readLine())!=null)
 			{
-			String tokens[]=delim.split(line);
+			final String tokens[]=delim.split(line);
 			
-			Node node = getNodeById(Integer.parseInt( tokens[0].trim()));
-			Node parent= getNodeById(Integer.parseInt( tokens[1].trim()));
+			final Node node = getNodeById(Integer.parseInt( tokens[0].trim()));
+			final Node parent= getNodeById(Integer.parseInt( tokens[1].trim()));
 			if(parent!=node)
 				{
 				parent.children.add(node);
@@ -263,11 +284,10 @@ public class NcbiTaxonomyToXml extends Launcher
 	
 	
 	@Override
-	public int doWork(List<String> args) {
-		OutputStream out=null;
-		File baseDir=null;
+	public int doWork(final List<String> args) {
 		try
 			{
+			final File baseDir;
 			final String baseDirStr = super.oneFileOrNull(args);
 			if(baseDirStr==null)
 				{
@@ -282,49 +302,54 @@ public class NcbiTaxonomyToXml extends Launcher
 			
 			File inputFile=new File(baseDir,"nodes.dmp");
 			LOG.info("Reading Nodes "+inputFile);
-			BufferedReader in=IOUtils.openFileForBufferedReading(inputFile);
-			readNodes(in);
-			in.close();
+			try(BufferedReader in=IOUtils.openFileForBufferedReading(inputFile)) {
+				readNodes(in);
+				}
 			
 			inputFile=new File(baseDir,"names.dmp");
 			LOG.info("Reading Names "+inputFile);
-			in=IOUtils.openFileForBufferedReading(inputFile);
-			readNames(in);
-			in.close();
+			try(BufferedReader in=IOUtils.openFileForBufferedReading(inputFile)) {
+				readNames(in);
+				}
 			
-			Node root= this.id2node.get(root_id);
+			final Node root= this.id2node.get(root_id);
 			if(root==null)
 				{
 				LOG.error("Cannot get node id."+root_id);
 				return -1;
 				}
+			if(tabular_output) {
+				try(PrintWriter out= super.openPathOrStdoutAsPrintWriter(outputFile)) {
+					out.println("#taxon\tparent\tname\trank");
+					root.writeTabular(out);
+					out.flush();
+					}
+				}
+			else
+				{
+				try(OutputStream out= super.openPathOrStdoutAsStream(outputFile)) {
+					final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+					final XMLStreamWriter w=xof.createXMLStreamWriter(out, "UTF-8");
+					w.writeStartDocument("UTF-8", "1.0");
+					w.writeStartElement("TaxaSet");
+					w.writeComment(getProgramCommandLine());
+					root.writeXml(w);
+					w.writeEndElement();//TaxaSet
 			
-			out= super.openFileOrStdoutAsStream(outputFile);
-			XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			XMLStreamWriter w=xof.createXMLStreamWriter(out, "UTF-8");
-			w.writeStartDocument("UTF-8", "1.0");
-			w.writeStartElement("TaxaSet");
-			w.writeComment(getProgramCommandLine());
-			root.writeXml(w);
-			w.writeEndElement();//TaxaSet
-	
-			w.writeEndDocument();
-			w.flush();
-			out.flush();
-			out.close();out=null;
+					w.writeEndDocument();
+					w.flush();
+					out.flush();
+					}
+				}
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(out);
-			}
 		}
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		new NcbiTaxonomyToXml().instanceMainWithExit(args);
 		}

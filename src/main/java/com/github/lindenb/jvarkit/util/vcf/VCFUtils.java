@@ -480,6 +480,8 @@ public class VCFUtils
 		return isTribbleVcfPath(IOUtil.toPath(f));
 		}
 	
+	
+	
 	/** returns true if file ends with .vcf.gz and a .tbi file is associated */
 	public static boolean isTabixVcfPath(final Path f)
 		{
@@ -502,6 +504,20 @@ public class VCFUtils
 		final Path index=Paths.get(
 				f.getParent().toString(),
 				filename+ FileExtensions.TRIBBLE_INDEX
+				);
+		return Files.exists(index) && !Files.isDirectory(index);
+		}
+
+	
+	/** returns true if file ends with .bcf and a .csi file is associated */
+	public static boolean isBcfIndexedPath(final Path f)
+		{
+		final String filename=f.getFileName().toString();
+		if(!filename.endsWith(FileExtensions.BCF)) return false;
+		if(!Files.exists(f)) return false;
+		final Path index=Paths.get(
+				f.getParent().toString(),
+				filename+ FileExtensions.CSI
 				);
 		return Files.exists(index) && !Files.isDirectory(index);
 		}
