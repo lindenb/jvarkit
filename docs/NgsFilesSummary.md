@@ -16,6 +16,10 @@ Usage: java -jar dist/jvarkit.jar ngsfilessummary  [options] Files
 
 Usage: ngsfilessummary [options] Files
   Options:
+    --format
+      output format
+      Default: tsv
+      Possible Values: [tsv, xml]
     -header, --header
       [20180725]print header
       Default: false

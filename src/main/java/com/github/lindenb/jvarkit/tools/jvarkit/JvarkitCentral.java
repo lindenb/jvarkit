@@ -125,6 +125,7 @@ import com.github.lindenb.jvarkit.tools.htsfreemarker.HtsFreemarker;
 import com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf;
 import com.github.lindenb.jvarkit.tools.kg2bed.KnownGenesToBed;
 import com.github.lindenb.jvarkit.tools.kg2fa.KnownGeneToFasta;
+import com.github.lindenb.jvarkit.tools.labguru.ScanLabGuru;
 import com.github.lindenb.jvarkit.tools.liftover.BamLiftOver;
 import com.github.lindenb.jvarkit.tools.liftover.ConvertLiftOverChain;
 import com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam;
@@ -657,6 +658,7 @@ public class JvarkitCentral {
 		command(SamToJson.class);
 		command(SamRemoveDuplicatedNames.class);
 		command(ScanRetroCopy.class);
+		command(ScanLabGuru.class);
 		command(SortVcfOnInfo.class);
 		command(StarRetroCopy.class);
 		command(SetFileTools.class);

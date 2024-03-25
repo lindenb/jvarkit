@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.tools.ngsfiles;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,6 +40,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -58,6 +63,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.vcf.VCFHeader;
@@ -94,6 +100,7 @@ END_DOC
 	)
 public class NgsFilesSummary extends Launcher
 	{
+	private enum Format {tsv,xml};
 	private static final Logger LOG = Logger.build(NgsFilesSummary.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -105,6 +112,8 @@ public class NgsFilesSummary extends Launcher
 	private boolean must_be_indexed=false;
 	@Parameter(names={"-p","--partition"},description="For BAM files: "+SAMRecordPartition.OPT_DESC)
 	private SAMRecordPartition partition = SAMRecordPartition.sample;
+	@Parameter(names={"--format"},description="output format")
+	private Format outputFormat = Format.tsv;
 
 	
 	private final Map<Path,SAMSequenceDictionary> ref2dict = new HashMap<>();
@@ -182,6 +191,75 @@ public class NgsFilesSummary extends Launcher
 		
 		}
 
+	private class XmlReporter extends Reporter {
+		final OutputStream os;
+		final XMLStreamWriter w;
+		Path prev=null;
+		XmlReporter(OutputStream os) {
+			this.os = os;
+			XMLOutputFactory xof= XMLOutputFactory.newInstance();
+			try {
+				this.w=xof.createXMLStreamWriter(os);
+				this.w.writeStartDocument("UTF-8", "1.0");
+				this.w.writeStartElement("summary");
+			} catch (XMLStreamException e) {
+				throw new RuntimeIOException(e);
+				}
+			}
+		private void write(String tag,Object o) throws XMLStreamException {
+			if(o==null) return;
+			this.w.writeStartElement(tag);
+			this.w.writeCharacters(String.valueOf(o));
+			this.w.writeEndElement();
+			}
+		@Override
+		void print(String sample, String type, Path path, String index, Optional<Path> reference) {
+			try {
+				if(prev==null || !this.prev.equals(path) ) {
+					if(prev!=null) this.w.writeEndElement();
+					this.w.writeStartElement(type);
+					this.write("path",path.toString());
+					if(reference.isPresent()) {
+						this.write("reference",reference.get().toString());
+						}
+					if(Files.isRegularFile(path))
+						{
+						try {
+							long size=Files.size(path);
+							this.write("size",size);
+							}
+						catch(IOException err) {
+							}
+						try {
+							Date modif=new Date(Files.getLastModifiedTime(path).toMillis());
+							this.write("modified",modif);
+							}
+						catch(final IOException err) {
+							}
+						}
+					}
+				this.write("sample",sample);
+				this.prev=path;
+				}  
+			catch (final XMLStreamException e) {
+				throw new RuntimeIOException(e);
+				}
+			}
+		@Override
+		public void close() throws Exception {
+			try { 
+				if(prev!=null) this.w.writeEndElement();
+				this.w.writeEndElement();
+				this.w.writeEndDocument();
+				this.w.close(); } catch (XMLStreamException e) {
+				throw new RuntimeIOException(e);
+				}
+			try { this.os.close(); } catch (IOException e) {
+				throw new RuntimeIOException(e);
+				}
+			}
+		
+	}
 	
     public NgsFilesSummary()
     	{
@@ -317,29 +395,36 @@ public class NgsFilesSummary extends Launcher
 
     @Override
 	public int doWork(final List<String> args) {
-		try
+    	Reporter  w = null;
+    	try
 			{
 			for(Path faix:IOUtils.unrollPaths(this.faidxPathList)) {
 				this.ref2dict.put(faix,SequenceDictionaryUtils.extractRequired(faix));
 				}
 			
-			try(Reporter w  = new TsvReporter(super.openPathOrStdoutAsPrintWriter(this.outputFile))) {
-				if(args.isEmpty())
+			w =  this.outputFormat.equals(Format.tsv)?
+				new TsvReporter(super.openPathOrStdoutAsPrintWriter(this.outputFile)):
+				new XmlReporter(super.openPathOrStdoutAsStream(this.outputFile))
+				;
+			
+			
+			if(args.isEmpty())
+				{
+				try(BufferedReader r = new BufferedReader(new InputStreamReader(stdin()))) {
+					scan(w,r);
+					}
+				}
+			else
+				{
+				for(final String filename:args)
 					{
-					try(BufferedReader r = new BufferedReader(new InputStreamReader(stdin()))) {
+					try(final BufferedReader r=IOUtils.openURIForBufferedReading(filename)) {
 						scan(w,r);
 						}
 					}
-				else
-					{
-					for(final String filename:args)
-						{
-						try(final BufferedReader r=IOUtils.openURIForBufferedReading(filename)) {
-							scan(w,r);
-							}
-						}
-					}
 				}
+			w.close();
+			w= null;
 			return 0;
 			}
 		catch(final Throwable err)
@@ -347,6 +432,9 @@ public class NgsFilesSummary extends Launcher
 			LOG.error(err);
 			return -1;
 			}
+    	finally {
+    		if(w!=null) try {w.close();} catch(Throwable err) {}
+    		}
 		}
 	
 	public static void main(final String[] args) {

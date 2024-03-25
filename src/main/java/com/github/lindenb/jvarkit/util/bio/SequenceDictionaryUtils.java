@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util.bio;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.variant.vcf.VcfHeaderExtractor;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMFileHeader;
@@ -181,7 +183,23 @@ public static SAMSequenceDictionary extractRequired(final VCFHeader h) {
 /** extract required SAMSequenceDictionary */
 public static SAMSequenceDictionary extractRequired(final Path f) {
 	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
-	final SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(f);
+	final SAMSequenceDictionary dict;
+	if(StringUtils.endsWith(f.getFileName().toString(),FileExtensions.BCF))
+		{
+		VCFHeader h;
+		try {
+			h = VcfHeaderExtractor.decode(f);
+			}
+		catch(IOException err) {
+			h = null;
+			}
+		dict = (h==null?null:h.getSequenceDictionary());
+		}
+	else
+		{
+		dict= SAMSequenceDictionaryExtractor.extractDictionary(f);
+		}
+	
 	if(dict==null || dict.isEmpty()) 
 		{
 		if(StringUtils.endsWith(f.getFileName().toString(),
