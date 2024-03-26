@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : cb2fb2ac
-Compilation : 20240325090043
+Version     : b9feb347
+Compilation : 20240326222446
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -182,6 +182,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
 | [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
+| [scanlabguru](ScanLabGuru.md) | scan the files stored in labguru | 20240325 | 20240325 |
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
 | [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240206 |
@@ -220,7 +221,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20140218 | 20220119 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
 | [vcfcomposite](VCFComposite.md) | (in developpement) Finds Variants involved in a Het Compound Disease | 20170331 | 20200210 |
-| [vcfconcat](VcfConcat.md) | Concatenate VCFs with same sample. See also bcftools concat | 20131230 | 20230614 |
+| [vcfconcat](VcfConcat.md) | Concatenate VCFs with same sample. See also bcftools concat | 20131230 | 20240426 |
 | [vcfdistancevariants](VcfDistanceBetweenVariants.md) | Annotate variants with the distance between previous and next variant. | 20190410 | 20230510 |
 | [vcffiltergenes](VcFilterGenes.md) | Filter VEP/SnpEff Output from a list of genes. | 20160322 | 20230505 |
 | [vcffiltergtf](VcfFilterGtf.md) | Filter VCF on GTF | 20230703 | 20230704 |

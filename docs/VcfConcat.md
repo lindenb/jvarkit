@@ -34,6 +34,9 @@ Usage: vcfconcat [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --merge
+      merge all samples. First Scan all files to get all distinct samples
+      Default: false
     -o, --out
       Output file. Optional . Default: stdout
     -S, --samples

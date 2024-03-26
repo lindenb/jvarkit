@@ -47,10 +47,12 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
+import com.github.lindenb.jvarkit.variant.vcf.VcfHeaderExtractor;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -96,7 +98,7 @@ END_DOC
 @Program(name="vcfconcat",
 	keywords={"vcf"},
 	creationDate = "20131230",
-	modificationDate = "20230614",
+	modificationDate = "20240426",
 	description="Concatenate VCFs with same sample. See also bcftools concat",
 	generate_doc = true,
 	jvarkit_amalgamion = true,
@@ -119,6 +121,10 @@ public class VcfConcat extends Launcher
 	@Parameter(names={"--chrom","--contig"},description="limit to that chromosome")
 	private String limitChrom = null;
 
+	@Parameter(names={"--merge"},description="merge all samples. First Scan all files to get all distinct samples")
+	private boolean merge_distinct_samples = false;
+
+	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
 
@@ -138,6 +144,7 @@ public class VcfConcat extends Launcher
 				}
 			
 			final List<Path> vcfs;
+			
 			
 			if(args.isEmpty())
 				{
@@ -159,6 +166,19 @@ public class VcfConcat extends Launcher
 				return -1;
 				}
 			
+			final Set<String> distinct_samples;
+			if(!drop_genotypes && this.merge_distinct_samples) {
+				final Set<String> set = new TreeSet<>();
+				for(Path path: vcfs) {
+					set.addAll(VcfHeaderExtractor.decode(path).getGenotypeSamples());
+					}
+				distinct_samples = set.isEmpty()?null:set;
+				}
+			else
+				{
+				distinct_samples = null;
+				}
+			
 			VCFInfoHeaderLine variantSourceHeader = null;
 			VCFInfoHeaderLine variantSampleHeader = null;
 			VCFHeader firstHeader=null;
@@ -171,7 +191,9 @@ public class VcfConcat extends Launcher
 				LOG.info(String.valueOf(i+1)+"/"+vcfs.size()+" "+vcfPath);
 				try(VCFIterator in = new BcfIteratorBuilder().open(vcfPath)) {
 					final VCFHeader header0 = in.getHeader();
-					final VCFHeader header = drop_genotypes?new VCFHeader(header0.getMetaDataInInputOrder()):header0;
+					final VCFHeader header = drop_genotypes?
+							new VCFHeader(header0.getMetaDataInInputOrder()):
+							(distinct_samples==null?header0:new VCFHeader(header0.getMetaDataInInputOrder(),distinct_samples));
 					final SAMSequenceDictionary dict= header.getSequenceDictionary();
 					if(firstHeader==null) {
 						w=this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
@@ -206,7 +228,8 @@ public class VcfConcat extends Launcher
 						{
 						if(firstDict!=null && dict!=null) SequenceUtil.assertSequenceDictionariesEqual(firstDict, dict);
 						if(!this.drop_genotypes && !firstHeader.getGenotypeSamples().equals(header.getGenotypeSamples())) {
-							LOG.error("Samples names/order mismatch between "+ vcfs.get(0)+" and "+ vcfPath);
+							LOG.error("Samples names/order mismatch between "+ vcfs.get(0)+" and "+ vcfPath+
+									". You can also use --merge to merge all genotypes, or --drop-genotypes");
 							return -1;
 							}
 						}
@@ -215,8 +238,7 @@ public class VcfConcat extends Launcher
 						if(limitChrom!=null && !ctx.getContig().equals(limitChrom)) {
 							continue;
 							}
-						
-						
+												
 						if(drop_genotypes || variantSourceHeader!=null) {
 							final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 							if(variantSourceHeader!=null) vcb.attribute(
@@ -236,10 +258,27 @@ public class VcfConcat extends Launcher
 										);
 									}
 								}
+							if(drop_genotypes) {
+								vcb.noGenotypes();
+								}
 							
-							if(drop_genotypes) vcb.noGenotypes();
 							ctx = vcb.make();
 							}
+						
+						if(distinct_samples!=null)
+							{
+							final int ploidy = ctx.getGenotypes().stream().mapToInt(G->G.getPloidy()).max().orElse(2);
+							final List<Genotype> genotypes=new ArrayList<>(distinct_samples.size());
+							for(String sn:distinct_samples) {
+								Genotype g = ctx.getGenotype(sn);
+								if(g==null) {
+									g = GenotypeBuilder.createMissing(sn, ploidy);
+									}
+								genotypes.add(g);
+								}
+							ctx= new VariantContextBuilder(ctx).genotypes(genotypes).make();
+							}
+						
 						w.add(ctx);
 						count_variants++;
 						}

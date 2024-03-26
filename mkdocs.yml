@@ -134,6 +134,7 @@ nav:
         - "samjdk" : SamJdk.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
         - "samviewwithmate" : SamViewWithMate.md
+        - "scanlabguru" : ScanLabGuru.md
         - "scanretrocopy" : ScanRetroCopy.md
         - "setfiletools" : SetFileTools.md
         - "sortsamrefname" : SortSamRefName.md
