@@ -60,6 +60,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -229,10 +230,17 @@ class Attachment extends JsonWrapper {
 					if(h.getID().equals(VCFConstants.SVTYPE)) flags.add("SVTYPE");
 					else if(h.getID().equals("SVLEN")) flags.add("SVLEN");
 					}
-				if(header.getInfoHeaderLine("BaseQRankSum")!=null && 
+				if(header.getInfoHeaderLine(GATKConstants.MQRankSum_KEY)!=null && 
 					header.getOtherHeaderLines().stream().anyMatch(H->H.getValue().contains("GATKCommandLine"))) {
 					flags.add("GATK");
 					}
+				if(header.getOtherHeaderLines().stream().anyMatch(V->V.getValue().contains("configManta.py"))) {
+					flags.add("MANTA");
+					}
+				
+				if(header.getFilterHeaderLine("FailDellyFilter")!=null || header.getFormatHeaderLine("RDCN")!=null) {
+						flags.add("DELLY");
+						}
 				
 				for(final String flag: flags) {
 					w.writeStartElement("attribute");
