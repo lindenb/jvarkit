@@ -10,6 +10,7 @@
  * Imprinted X chromosome inactivation at the gamete-to-embryo transition. Chunyao Wei & al. Published:March 07, 2024 Molecular Cell DOI:https://doi.org/10.1016/j.molcel.2024.02.013
  * Investigating the potential of single-cell DNA methylation data to detect allele-specific methylation and imprinting. Nicholas D. Johnson, David J. Cutler, Karen N. Conneely , 2024 DOI:https://doi.org/10.1016/j.ajhg.2024.02.009
  * Erik McShane, Mary Couvillion, Robert Ietswaart, Gyan Prakash, Brendan M. Smalec, Iliana Soto, Autum R. Baxter-Koenigs, Karine Choquet, L. Stirling Churchman, A kinetic dichotomy between mitochondrial and nuclear gene expression processes, Molecular Cell, 2024, , ISSN 1097-2765, https://doi.org/10.1016/j.molcel.2024.02.028. (https://www.sciencedirect.com/science/article/pii/S1097276524001709) **SamFixCigar**
+ * Pauly R, Alexander Feltus F. Simplified detection of genetic background admixture using artificial intelligence. Clin Genet. 2024 Apr 1. doi: 10.1111/cge.14527. Epub ahead of print. PMID: 38561851.
 
 ## 2023
 
