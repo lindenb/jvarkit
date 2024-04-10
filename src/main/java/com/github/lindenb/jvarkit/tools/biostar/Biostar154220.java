@@ -97,7 +97,7 @@ END_DOC
 */
 @Program(name="biostar154220",
 	description="Cap BAM to a given coverage",
-	biostars={154220,9471266},
+	biostars={154220,9471266,9592303},
 	keywords={"bam","sam","coverage","depth"},
 	modificationDate="20210312",
 	creationDate="20150812",

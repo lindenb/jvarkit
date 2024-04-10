@@ -78,6 +78,7 @@ Usage: biostar154220 [options] Files
 
  * [https://www.biostars.org/p/154220](https://www.biostars.org/p/154220)
  * [https://www.biostars.org/p/9471266](https://www.biostars.org/p/9471266)
+ * [https://www.biostars.org/p/9592303](https://www.biostars.org/p/9592303)
 
 
 

@@ -138,7 +138,7 @@ public class VcfBurdenSlidingWindow extends Launcher {
 				
 				final FilteringVariantContextIterator iter2 = new FilteringVariantContextIterator(iter1,CTX->{
 					if(!StringUtils.isBlank(limitContig) && !limitContig.equals(CTX.getContig())) return false;
-					if(CTX.getGenotypes().stream().filter(G->casesControls.contains(G)).noneMatch(G->G.hasAltAllele())) return false;
+					if(CTX.getGenotypes().stream().filter(G->casesControls.contains(G)).noneMatch( G->G.hasAltAllele())) return false;
 					if(!variantFilter.test(CTX))return false;
 					return true;
 					});
@@ -162,13 +162,13 @@ public class VcfBurdenSlidingWindow extends Launcher {
 					pw.print("\t");
 					pw.print("p-value");
 					pw.print("\t");
-					pw.print("affected_alt");
+					pw.print("case_alt");
 					pw.print("\t");
-					pw.print("affected_hom");
+					pw.print("case_ref");
 					pw.print("\t");
-					pw.print("unaffected_alt");
+					pw.print("controls_alt");
 					pw.print("\t");
-					pw.print("unaffected_hom");
+					pw.print("controls_ref");
 					pw.print("\t");
 					pw.print("variants.count");
 					pw.println();
@@ -281,7 +281,7 @@ public class VcfBurdenSlidingWindow extends Launcher {
 				} //end VCF iterator
 		return 0;
 		}
-	catch(Throwable err) {
+	catch(final Throwable err) {
 		LOG.error(err);
 		return -1;
 		}

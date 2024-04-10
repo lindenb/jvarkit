@@ -68,7 +68,7 @@ public class MinMaxDouble implements DoubleConsumer, DoubleUnaryOperator {
 		if(m>M) throw new IllegalArgumentException("min "+m+" > max "+M);
 		minV = m;
 		maxV = M;
-		count=1L;
+		count=2L;
 		}
 
 	public MinMaxDouble(double v) {

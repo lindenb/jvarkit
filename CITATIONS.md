@@ -63,7 +63,7 @@
 ## 2021
 
  * Yang & al. "Sequencing 5-Formyluracil in Genomic DNA at Single-Base Resolution"  (2021) Analytical Chemistry doi: 10.1021/acs.analchem.1c03339" Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892." +
- * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0
+ * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0 **Biostar154220**
  * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
  *  Lado, S. & al. Innate and Adaptive Immune Genes Associated with MERS-CoV Infection in Dromedaries. Cells 2021, 10, 1291. https://doi.org/10.3390/cells10061291 
  * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623

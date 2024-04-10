@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.MinMaxDouble;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 import com.github.lindenb.jvarkit.wig.BigWigReader;
@@ -114,36 +115,26 @@ public class BigWigVariantAnnotator implements VariantAnnotator {
 			loc = ctx;
 			}
 
-		int count=0;
+		
+		final MinMaxDouble minMax= new MinMaxDouble();
 		double sum=0.0;
-		double minV=0;
-		double maxV=0;
 		try(final CloseableIterator<BigWigReader.WigItem> iter=this.bigWigReader.query(loc)) {
 			while(iter.hasNext())
 				{
 				final BigWigReader.WigItem item=iter.next();
 				if(!item.overlaps(loc)) continue;//paranoid
 				final float v=item.getValue();
+				minMax.accept(v);
 				sum+=v;
-				count++;
-				if(count==1) {
-					minV = v;
-					maxV = v;
-					}
-				else
-					{
-					minV = Math.min(minV, v);
-					maxV = Math.max(maxV, v);
-					}
 				}
 			}
-		if(count==0) return Collections.singletonList(ctx);
+		if(minMax.isEmpty()) return Collections.singletonList(ctx);
 		final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-		final double average = sum/count;
+		final double average = sum/minMax.getCount();
 		vcb.attribute(this.averageInfo.getID(), average);
-		if(count>1) {
-			if(average!=minV) vcb.attribute(this.minInfo.getID(), minV);
-			if(average!=maxV) vcb.attribute(this.maxInfo.getID(), maxV);
+		if(minMax.getCount()>1L) {
+			if(average!=minMax.getMinAsDouble()) vcb.attribute(this.minInfo.getID(), minMax.getMinAsDouble());
+			if(average!=minMax.getMaxAsDouble()) vcb.attribute(this.maxInfo.getID(), minMax.getMaxAsDouble());
 			}
 		if(++count_variants%1000L==0)
 			{
