@@ -10,6 +10,7 @@
  * Imprinted X chromosome inactivation at the gamete-to-embryo transition. Chunyao Wei & al. Published:March 07, 2024 Molecular Cell DOI:https://doi.org/10.1016/j.molcel.2024.02.013
  * Investigating the potential of single-cell DNA methylation data to detect allele-specific methylation and imprinting. Nicholas D. Johnson, David J. Cutler, Karen N. Conneely , 2024 DOI:https://doi.org/10.1016/j.ajhg.2024.02.009
  * Erik McShane, Mary Couvillion, Robert Ietswaart, Gyan Prakash, Brendan M. Smalec, Iliana Soto, Autum R. Baxter-Koenigs, Karine Choquet, L. Stirling Churchman, A kinetic dichotomy between mitochondrial and nuclear gene expression processes, Molecular Cell, 2024, , ISSN 1097-2765, https://doi.org/10.1016/j.molcel.2024.02.028. (https://www.sciencedirect.com/science/article/pii/S1097276524001709) **SamFixCigar**
+ * Pauly R, Alexander Feltus F. Simplified detection of genetic background admixture using artificial intelligence. Clin Genet. 2024 Apr 1. doi: 10.1111/cge.14527. Epub ahead of print. PMID: 38561851.
 
 ## 2023
 
@@ -62,7 +63,7 @@
 ## 2021
 
  * Yang & al. "Sequencing 5-Formyluracil in Genomic DNA at Single-Base Resolution"  (2021) Analytical Chemistry doi: 10.1021/acs.analchem.1c03339" Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892." +
- * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0
+ * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0 **Biostar154220**
  * Reciprocal allopolyploid grasses (Festuca × Lolium) display stable patterns of genome dominance . Marek Glombik & al. 2021. The plant journal.  doi:10.1111/tpj.15375
  *  Lado, S. & al. Innate and Adaptive Immune Genes Associated with MERS-CoV Infection in Dromedaries. Cells 2021, 10, 1291. https://doi.org/10.3390/cells10061291 
  * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623

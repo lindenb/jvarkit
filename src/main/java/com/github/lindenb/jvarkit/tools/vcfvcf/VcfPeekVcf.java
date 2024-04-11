@@ -45,15 +45,12 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
@@ -70,7 +67,7 @@ BEGIN_DOC
 
 ## Alternate tools
 
-you can also use `GATK VariantAnnotator` or `bcftools`. But this tool contains some interesting options.
+you can also use `GATK VariantAnnotator` or `bcftools annotate -a db.vcf.gz`.
 
 ## Example
 
@@ -96,11 +93,7 @@ grep NCBI135_
 (...)
 ```
 
-## History
 
-2018-10-31: add buffered list to speed up things
-2017-06-08: more intelligent for AlleleCount.A and AlleleCount.R
-2018-07-13: ignore spanning deletions, (for @SolenaSLS)
 
 END_DOC
 
@@ -108,7 +101,9 @@ END_DOC
 @Program(name="vcfpeekvcf",
 		description="Get the INFO from a VCF and use it for another VCF",
 		keywords={"vcf","annotation"},
-		modificationDate="20200624"
+		creationDate="20150521",
+		modificationDate="20240405",
+		jvarkit_amalgamion = true
 		)
 public class VcfPeekVcf extends OnePassVcfLauncher
 	{
@@ -137,8 +132,9 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 	@Parameter(names={"-span","--span"},description="[20180713] when checking for the '--alt' option, ignore spanning deletion: "+Allele.SPAN_DEL_STRING)
 	private boolean ignoreSpanningDel = false;
 	
-	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description="buffer size (in bp). We don't do a random access for each variant. Instead of this, load all the variants in a defined window. "+DistanceParser.OPT_DESCRIPTION,splitter=NoSplitter.class)
+	@Parameter(names={"-b","--buffer-size"},converter=DistanceParser.StringConverter.class, description=BufferedVCFReader.OPT_BUFFER_DESC+". "+DistanceParser.OPT_DESCRIPTION ,splitter=NoSplitter.class)
 	private int buffer_size = 100_000;
+	
 	@Parameter(names={"--default-int"},description="default value for Type=Integer")
 	private Integer defaultInteger = null;
 	@Parameter(names={"--default-float"},description="default value for Type=Float")
@@ -149,10 +145,7 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 	
 
 	private final Set<String> peek_info_tags=new HashSet<String>();
-	private VCFReader indexedVcfFileReader=null;
-	private final List<VariantContext> buffer = new ArrayList<>();
-	private Interval last_buffer_interval = null;
-	
+	private BufferedVCFReader bufferedVcfReader = null;
 	
 	public VcfPeekVcf()
 		{
@@ -164,48 +157,7 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 		{
 		return this.ignoreSpanningDel && A.equals(Allele.SPAN_DEL);
 		}
-	
-	private List<VariantContext> getOverlappingBuffer(
-			final String contig,
-			final int start,
-			final int end
-			) {
-		if(	!(
-			this.last_buffer_interval!=null &&
-			this.last_buffer_interval.getContig().equals(contig) &&
-			this.last_buffer_interval.getStart() < start && 
-			end < this.last_buffer_interval.getEnd()
-			))
-			{
-			this.buffer.clear();
-			
-			this.last_buffer_interval = new Interval(
-					contig,
-					Math.max(0,start-1),
-					(end+1+this.buffer_size)
-					);
-			
-			try( CloseableIterator<VariantContext> t = this.indexedVcfFileReader.query(
-					contig,
-					Math.max(0,start-1),
-					(end+1+this.buffer_size)
-					)) {
-				while(t.hasNext())
-					{
-					VariantContext ctx = t.next();
-					if(ctx.hasGenotypes()) //reduce memory
-						{
-						ctx = new VariantContextBuilder(ctx).noGenotypes().make();
-						}
-					this.buffer.add(ctx);
-					}
-				}
-			}
-		return this.buffer.stream().
-				filter(V->V.getContig().equals(contig) && CoordMath.overlaps(V.getStart(), V.getEnd(), start, end)).
-				collect(Collectors.toList());
-		}
-	
+		
 	/** get default value for a given tag . Automatic for AC or AF */
 	private Object getDefaultValue(final VCFInfoHeaderLine info) {
 		if(info.getID().equals(VCFConstants.ALLELE_FREQUENCY_KEY)) {
@@ -240,7 +192,7 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 			
 			final Map<String,VCFInfoHeaderLine> databaseTags = new HashMap<String, VCFInfoHeaderLine>();
 			
-			final VCFHeader databaseHeader= this.indexedVcfFileReader.getHeader();
+			final VCFHeader databaseHeader= this.bufferedVcfReader.getHeader();
 			
 			 
 
@@ -294,15 +246,9 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 			JVarkitVersion.getInstance().addMetaData(this, h2);
 			
 			out.writeHeader(h2);
-			final ProgressFactory.Watcher<VariantContext> progress = 
-					ProgressFactory.newInstance().
-					dictionary(h).
-					logger(LOG).
-					build()
-					;
 			while(vcfIn.hasNext())
 				{
-				final VariantContext ctx=progress.apply(vcfIn.next());
+				final VariantContext ctx= vcfIn.next();
 				final String outContig = nameConverter.apply(ctx.getContig());
 				if(outContig==null)
 					{
@@ -312,137 +258,128 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 				
 				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 				
-				for(final VariantContext ctx2 : this.getOverlappingBuffer(outContig,ctx.getStart(),ctx.getEnd()))
+				try(CloseableIterator<VariantContext> iter2= this.bufferedVcfReader.query(outContig,ctx.getStart(),ctx.getEnd()))
 					{
-					if(!outContig.equals(ctx2.getContig())) continue;
-					if(ctx.getStart()!=ctx2.getStart()) continue;
-					if(!ctx.getReference().equals(ctx2.getReference())) continue;
-					
-					boolean okAllele;
-					
-					switch(this.altAlleleMatcher)
-						{
-						case all:
-							{
-							okAllele = true; 
-							for(final Allele A: ctx.getAlternateAlleles())
-								{
-								if(isIgnorableSpanDel(A)) continue;
-								if(!ctx2.hasAlternateAllele(A))
-									{
-									okAllele=false;
-									break;
-									}
-								}
-							break;
-							}
-						case at_least_one: 
-							{
-							okAllele = false;
-							
-							for(final Allele A: ctx.getAlternateAlleles())
-								{
-								if(isIgnorableSpanDel(A)) continue;
-								if(ctx2.hasAlternateAllele(A))
-									{
-									okAllele=true;
-									break;
-									}
-								}
-							break;
-							}
-						case none: okAllele=true;break;
-						default: throw new IllegalStateException(altAlleleMatcher.name());
-						}
-					
-					if(!okAllele) continue;
-					
-					
-					if(this.peekId && ctx2.hasID())
-						{
-						vcb.id(ctx2.getID());
-						}
-					boolean somethingWasChanged=false;
-					for(final String key: databaseTags.keySet())
-						{
-						if(!ctx2.hasAttribute(key)) continue;
+					while(iter2.hasNext()) {
+						final VariantContext ctx2 = iter2.next();
+						if(!outContig.equals(ctx2.getContig())) continue;
+						if(ctx.getStart()!=ctx2.getStart()) continue;
+						if(!ctx.getReference().equals(ctx2.getReference())) continue;
 						
-						final VCFInfoHeaderLine dbHeader= databaseTags.get(key);
-						switch(dbHeader.getCountType())
+						boolean okAllele;
+						
+						switch(this.altAlleleMatcher)
 							{
-							case A:
+							case all:
 								{
-								final List<Object> newatt = new ArrayList<>();
-								final List<Object> ctx2att = ctx2.getAttributeAsList(key);
-								boolean got_value = false;
-								for(int i=0;i< ctx.getAlternateAlleles().size();++i)
-									{
-									final Allele ctxalt = ctx.getAlternateAllele(i);
-									int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
-									if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
-										{
-										Object value2 = getDefaultValue(dbHeader);
-										
-										newatt.add(value2);
-										}
-									else
-										{
-										final Object value2 = ctx2att.get(index2);
-										if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
-										newatt.add(value2);
-										}
-									}
-								if(got_value)
-									{
-									vcb.attribute(this.peekTagPrefix+key, newatt);
-									somethingWasChanged=true;
-									}
+								okAllele =  ctx.getAlternateAlleles().
+									stream().
+									filter(A->!isIgnorableSpanDel(A)).
+									allMatch(A->ctx2.hasAlternateAllele(A))
+									;
 								break;
 								}
-							case R:
+							case at_least_one: 
 								{
-								boolean got_value = false;
-								final List<Object> newatt = new ArrayList<>();
-								final List<Object> ctx2att = ctx2.getAttributeAsList(key);
-								for(int i=0;i< ctx.getAlleles().size();++i)
-									{
-									final Allele ctxalt = ctx.getAlleles().get(i);
-									int index2 = ctx2.getAlleleIndex(ctxalt);
-									if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
-										{
-										newatt.add(getDefaultValue(dbHeader));
-										}
-									else
-										{
-										final Object value2 = ctx2att.get(index2);
-										if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
-										newatt.add(value2);
-										}
-									}
-								if(got_value)
-									{
-									vcb.attribute(this.peekTagPrefix+key, newatt);
-									somethingWasChanged=true;
-									}
+								okAllele = ctx.getAlternateAlleles().
+									stream().
+									filter(A->!isIgnorableSpanDel(A)).
+									anyMatch(A->ctx2.hasAlternateAllele(A))
+									;
 								break;
 								}
-							default:
+							case none: okAllele=true;break;
+							default: throw new IllegalStateException(altAlleleMatcher.name());
+							}
+						
+						if(!okAllele) continue;
+						
+						
+						if(this.peekId && ctx2.hasID())
+							{
+							vcb.id(ctx2.getID());
+							}
+						boolean somethingWasChanged=false;
+						for(final String key: databaseTags.keySet())
+							{
+							if(!ctx2.hasAttribute(key)) continue;
+							
+							final VCFInfoHeaderLine dbHeader= databaseTags.get(key);
+							switch(dbHeader.getCountType())
 								{
-								final Object o = ctx2.getAttribute(key);
-								vcb.attribute(this.peekTagPrefix+key, o);
-								somethingWasChanged=true;
-								break;
+								case A:
+									{
+									final List<Object> newatt = new ArrayList<>();
+									final List<Object> ctx2att = ctx2.getAttributeAsList(key);
+									boolean got_value = false;
+									for(int i=0;i< ctx.getAlternateAlleles().size();++i)
+										{
+										final Allele ctxalt = ctx.getAlternateAllele(i);
+										int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
+										if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
+											{
+											Object value2 = getDefaultValue(dbHeader);
+											
+											newatt.add(value2);
+											}
+										else
+											{
+											final Object value2 = ctx2att.get(index2);
+											if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
+											newatt.add(value2);
+											}
+										}
+									if(got_value)
+										{
+										vcb.attribute(this.peekTagPrefix+key, newatt);
+										somethingWasChanged=true;
+										}
+									break;
+									}
+								case R:
+									{
+									boolean got_value = false;
+									final List<Object> newatt = new ArrayList<>();
+									final List<Object> ctx2att = ctx2.getAttributeAsList(key);
+									for(int i=0;i< ctx.getAlleles().size();++i)
+										{
+										final Allele ctxalt = ctx.getAlleles().get(i);
+										int index2 = ctx2.getAlleleIndex(ctxalt);
+										if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
+											{
+											newatt.add(getDefaultValue(dbHeader));
+											}
+										else
+											{
+											final Object value2 = ctx2att.get(index2);
+											if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
+											newatt.add(value2);
+											}
+										}
+									if(got_value)
+										{
+										vcb.attribute(this.peekTagPrefix+key, newatt);
+										somethingWasChanged=true;
+										}
+									break;
+									}
+								default:
+									{
+									final Object o = ctx2.getAttribute(key);
+									vcb.attribute(this.peekTagPrefix+key, o);
+									somethingWasChanged=true;
+									break;
+									}
 								}
 							}
+						if(somethingWasChanged) break;
 						}
-					if(somethingWasChanged) break;
 					}
 				
 				out.add(vcb.make());
 					
 				if(out.checkError()) break;
 				}
-			progress.close();
 			if(!unmatchedcontigs.isEmpty())
 				{
 				LOG.debug("Unmatched contigs: "+unmatchedcontigs.stream().collect(Collectors.joining("; ")));
@@ -464,7 +401,6 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 
 	@Override
 	protected int beforeVcf() {
-		this.indexedVcfFileReader = null;
 		if(this.buffer_size<1) {
 			LOG.error("bad buffer-size");
 			return -1;
@@ -482,7 +418,9 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 				{
 				LOG.warn("No tag defined");
 				}
-			this.indexedVcfFileReader = VCFReaderFactory.makeDefault().open(resourceVcfFile,true);
+			final VCFReader r = VCFReaderFactory.makeDefault().open(resourceVcfFile,true);
+			this.bufferedVcfReader = new BufferedVCFReader(r, this.buffer_size);
+			this.bufferedVcfReader.setSimplifier(V->new VariantContextBuilder(V).noGenotypes().make());
 			return 0;
 			} 
 		catch(final Throwable err)
@@ -494,8 +432,12 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 	
 	@Override
 	protected void afterVcf() {
-		CloserUtil.close(this.indexedVcfFileReader);
-		this.indexedVcfFileReader=null;
+		if(this.bufferedVcfReader!=null) {
+			try {bufferedVcfReader.close();}
+			catch(Throwable err) {
+				LOG.error(err);
+				}
+			}		
 		this.peek_info_tags.clear();	
 		}
 	

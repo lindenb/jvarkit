@@ -74,7 +74,8 @@ END_DOC
 		description="Add FILTER(s) to a variant when it is known to map elsewhere after liftover.",
 		keywords={"vcf","liftover"},
 		modificationDate="20210603",
-		creationDate="20190418"
+		creationDate="20190418",
+		jvarkit_amalgamion = true
 		)
 public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfFilterByLiftOver.class).make();

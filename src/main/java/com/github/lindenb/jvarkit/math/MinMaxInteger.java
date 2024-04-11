@@ -72,7 +72,7 @@ public class MinMaxInteger implements IntConsumer, IntUnaryOperator {
 		if(m>M) throw new IllegalArgumentException("min "+m+" > max "+M);
 		minV = m;
 		maxV = M;
-		count=1L;
+		count=2L;
 		}
 
 	public MinMaxInteger(int v) {

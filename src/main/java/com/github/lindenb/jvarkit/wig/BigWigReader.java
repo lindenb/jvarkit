@@ -26,9 +26,7 @@ package com.github.lindenb.jvarkit.wig;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Objects;
 
 import org.broad.igv.bbfile.BBFileReader;
@@ -36,6 +34,7 @@ import org.broad.igv.bbfile.BigWigIterator;
 
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
@@ -53,7 +52,7 @@ public class BigWigReader implements AutoCloseable {
 	private BBFileReader bbFileReader=null;
 	private ContigNameConverter contigNameConverter = null;
 
-	public static interface WigItem extends Locatable {
+	public static interface WigItem extends ExtendedLocatable {
 		public float getValue();
 	}
 	
