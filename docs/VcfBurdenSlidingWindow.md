@@ -35,7 +35,7 @@ Usage: vcfburdenslidingwindow [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -save-vcf, --save-vcf
-      Save Matching variants into that VCF.
+      Save Matching variants for the best p-value into that VCF.
     -t, --treshold
       fisher-test treshold. Discard results greater than this value.
       Default: 1.0

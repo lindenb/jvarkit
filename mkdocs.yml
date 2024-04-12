@@ -168,6 +168,7 @@ nav:
         - "vcfcomposite" : VCFComposite.md
         - "vcfconcat" : VcfConcat.md
         - "vcfdistancevariants" : VcfDistanceBetweenVariants.md
+        - "vcffilterbyliftover" : VcfFilterByLiftOver.md
         - "vcffiltergenes" : VcFilterGenes.md
         - "vcffiltergtf" : VcfFilterGtf.md
         - "vcffilterjdk" : VcfFilterJdk.md
@@ -184,6 +185,7 @@ nav:
         - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md
         - "vcfpeekaf" : VcfPeekAf.md
+        - "vcfpeekvcf" : VcfPeekVcf.md
         - "vcfphased01" : VcfPhased01.md
         - "vcfpolyx" : VCFPolyX.md
         - "vcfrebase" : VcfRebase.md

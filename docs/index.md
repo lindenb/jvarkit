@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : d19e1afc
-Compilation : 20240410151217
+Version     : 9b5c192ab
+Compilation : 20240412112112
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -190,8 +190,10 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |
 | [vcfburdenslidingwindow](VcfBurdenSlidingWindow.md) | apply fisher test on VCF using a sliding window | 20190920 | 20231213 |
+| [vcffilterbyliftover](VcfFilterByLiftOver.md) | Add FILTER(s) to a variant when it is known to map elsewhere after liftover. | 20190418 | 20210603 |
 | [vcfgatkeval](VcfGatkEval.md) | Eval/Plot gatk INFO tags for filtering | 20230424 | 20240321 |
 | [vcfgroupbypop](VcfGroupByPopulation.md) | create INFO data by population | 20190319 | 20230712 |
+| [vcfpeekvcf](VcfPeekVcf.md) | Get the INFO from a VCF and use it for another VCF | 20150521 | 20240405 |
 | [vcfscanupstreamorf](VcfScanUpstreamOrf.md) | Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20190218 | 20200804 |
 | [vcfserver](VcfServer.md) | Web Server displaying VCF file. A web interface for vcf2table | 20171027 | 20220517 |
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |

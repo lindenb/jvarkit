@@ -99,7 +99,7 @@ public class VcfBurdenSlidingWindow extends Launcher {
 	private Path outputFile = null;
 	@ParametersDelegate
 	private CasesControls casesControls = new CasesControls();
-	@Parameter(names={"-f","--filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
+	@Parameter(names={"-f","--filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,splitter = NoSplitter.class, converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
 	@Parameter(names={"-t","--treshold"},description="fisher-test treshold. Discard results greater than this value.",splitter=NoSplitter.class,converter=FractionConverter.class)
 	private double fisherTreshold = 1.0;
@@ -109,7 +109,7 @@ public class VcfBurdenSlidingWindow extends Launcher {
 	private int window_shift=300;
 	@Parameter(names={"-C","--contig"},description="limit to this contig")
 	private String limitContig = null;
-	@Parameter(names={"-save-vcf","--save-vcf"},description="Save Matching variants into that VCF.")
+	@Parameter(names={"-save-vcf","--save-vcf"},description="Save Matching variants for the best p-value into that VCF.")
 	private Path outputVcfPath = null;
 
 	
@@ -145,10 +145,24 @@ public class VcfBurdenSlidingWindow extends Launcher {
 				final PeekIterator<VariantContext> iter = new PeekIterator<>(iter2);
 				
 				
-				final SAMSequenceDictionary dict = header.getSequenceDictionary();
+				final SAMSequenceDictionary						
+ dict = header.getSequenceDictionary();
 				if(dict!=null && !StringUtils.isBlank(limitContig) && dict.getSequence(this.limitContig)==null) {
 					throw new JvarkitException.ContigNotFoundInDictionary(this.limitContig, dict);
 					}
+				
+				// create empty VCF so there is always a VCF in output
+				if(this.outputVcfPath!=null ) {
+					final VCFHeader hdr = new VCFHeader(header);
+					try( VariantContextWriter vw=  new VariantContextWriterBuilder().
+							setOutputPath(this.outputVcfPath).
+							setOutputFileType(VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF).
+							setOption(Options.INDEX_ON_THE_FLY).
+							build()) {
+						vw.writeHeader(hdr);
+						}
+					}
+				
 				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 					pw.print("#chrom");
 					pw.print("\t");
@@ -240,6 +254,7 @@ public class VcfBurdenSlidingWindow extends Launcher {
 								if(this.outputVcfPath!=null && pvalue < best_pvalue) {
 									final VCFHeader hdr = new VCFHeader(header);
 									hdr.addMetaDataLine(new VCFHeaderLine("PVALUE", String.valueOf(pvalue)));
+									hdr.addMetaDataLine(new VCFHeaderLine("N_VARIANTS", String.valueOf(buffer.size())));
 									try( VariantContextWriter vw=  new VariantContextWriterBuilder().
 											setOutputPath(this.outputVcfPath).
 											setOutputFileType(VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF).
