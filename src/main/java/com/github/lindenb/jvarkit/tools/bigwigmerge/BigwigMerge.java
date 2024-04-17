@@ -4,6 +4,7 @@ import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 import org.apache.commons.math3.stat.descriptive.rank.Median;
@@ -34,6 +35,15 @@ merge several Bigwig files using different descriptive statistics (mean, median,
 
 Output is a BedGraph file.
  
+input is a set of bigwig file or a file with the '.list' suffix containing the path to the bigwig 
+ 
+
+## Example
+
+```
+find DIR -type f -name "*.bigWig" > tmp.list
+java -jar ~/jeter8.jar -R genome.fa tmp.list --interval "chr1:234-567" --header  > bedGraph.bed
+```
 
 
 END_DOC
@@ -49,7 +59,7 @@ END_DOC
 		)
 public class BigwigMerge extends Launcher {
 	private static final Logger LOG = Logger.build(BigwigMerge.class).make();
-	private enum Method {median,average,count,sum,min,max};
+	private enum Method {median,average,count,sum,min,max,random};
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=DICTIONARY_SOURCE,required = true)
@@ -65,6 +75,8 @@ public class BigwigMerge extends Launcher {
 	@Parameter(names={"--header"},description="write track header")
 	private boolean with_track_header=false;
 
+	private final Random random = new Random(System.currentTimeMillis());
+	
 	
 	private static class OneWigBase {
 		final String contig;
@@ -188,6 +200,10 @@ public class BigwigMerge extends Launcher {
 
 	private float computeValue(final List<OneWigBase> row) {
 		switch(this.method) {
+			case random: {
+				final double[] array = row.stream().mapToDouble(it->(double)it.value).toArray();
+				return (float)array[random.nextInt(array.length)];
+				}
 			case count: return row.size();
 			case median:{
 				return (float)new Median().evaluate(
