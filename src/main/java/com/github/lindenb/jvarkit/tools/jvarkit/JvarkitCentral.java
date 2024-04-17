@@ -55,6 +55,7 @@ import com.github.lindenb.jvarkit.tools.bedtools.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv;
 import com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet;
 import com.github.lindenb.jvarkit.tools.bedtools.BedRemoveBed;
+import com.github.lindenb.jvarkit.tools.bigwigmerge.BigwigMerge;
 import com.github.lindenb.jvarkit.tools.bio2rdf.BioToRDF;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdk;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar103303;
@@ -550,6 +551,7 @@ public class JvarkitCentral {
 		command(BedNonOverlappingSet.class);
 		command(BedRemoveBed.class);
 		command(BioAlcidaeJdk.class);
+		command(BigwigMerge.class);
 		command(BioToRDF.class);
 		command(Biostar103303.class);
 		command(Biostar105754.class);

@@ -89,7 +89,7 @@ private static final Logger LOG=Logger.build( Launcher.class).make();
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
 		"This file must be indexed with samtools faidx and with picard/gatk CreateSequenceDictionary or samtools dict";
-public static final String DICTIONARY_SOURCE="A SAM Sequence dictionary source: it can be a *.dict file, a fasta file indexed with 'picard CreateSequenceDictionary', or any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)";
+public static final String DICTIONARY_SOURCE="A SAM Sequence dictionary source: it can be a *.dict file, a fasta file indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)";
 
 public static final String CRAM_INDEXED_REFENCE="For reading/writing CRAM files. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION;
 
@@ -864,13 +864,13 @@ protected java.io.PrintWriter openFileOrStdoutAsPrintWriter(final File out) thro
 /** open output (path or stdout) as PrintWriter */
 protected java.io.PrintWriter openPathOrStdoutAsPrintWriter(final Path out) throws java.io.IOException
 	{
-	if(out!=null)
+	if(out==null || out.toString().equals("-"))
 		{
-		return IOUtils.openPathForPrintWriter(out);
+		return new java.io.PrintWriter( stdout() );
 		}
 	else
 		{
-		return new java.io.PrintWriter( stdout() );
+		return IOUtils.openPathForPrintWriter(out);
 		}
 	}
 
@@ -884,13 +884,13 @@ protected java.io.PrintStream openFileOrStdoutAsPrintStream(final File out) thro
 /** open output (file or stdout if out is null ) as PrintStream */
 protected java.io.PrintStream openPathOrStdoutAsPrintStream(final Path out) throws java.io.IOException
 	{
-	if(out!=null)
+	if(out==null || out.toString().equals("-"))
 		{
-		return new PrintStream(IOUtils.openPathForWriting(out));
+		return stdout();
 		}
 	else
 		{
-		return stdout();
+		return new PrintStream(IOUtils.openPathForWriting(out));
 		}
 	}
 
@@ -904,13 +904,13 @@ protected java.io.OutputStream openFileOrStdoutAsStream(final File out) throws j
 /** open output (file or stdout) as OutputStream */
 protected java.io.OutputStream openPathOrStdoutAsStream(final Path out) throws java.io.IOException
 	{
-	if(out!=null)
+	if(out==null || out.toString().equals("-"))
 		{
-		return  IOUtils.openPathForWriting(out);
+		return stdout();
 		}
 	else
 		{
-		return stdout();
+		return  IOUtils.openPathForWriting(out);
 		}
 	}
 

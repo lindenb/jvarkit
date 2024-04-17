@@ -709,28 +709,25 @@ public class IOUtils {
 		}
 	
 	 /** 
-     * only one list
-     * return List of Strings
+     * if there is one argument and it ends with '.list' it is interpretted as a file containing a list of string
+     * otherwise return a copy of 'args'
      */
 	public static List<String> unrollStrings(final java.util.List<String> args)
 		{
-		if(args.isEmpty()) return Collections.emptyList();
-		final List<String> filelist = new ArrayList<>();
 		if(args.size()==1 && args.get(0).endsWith(".list"))
 			{
-			final File listFile = new File(args.get(0));
+			final Path listFile = Paths.get(args.get(0));
 			IOUtil.assertFileIsReadable(listFile);
-			IOUtil.readLines(listFile).forEach(s->{
-				if (s.endsWith("#")) return;
-				if (StringUtil.isBlank(s)) return;
-				filelist.add(s);
-				});
+			try {
+				return Files.lines(listFile).collect(Collectors.toList());
+			} catch (IOException err) {
+				throw new RuntimeIOException("Cannot unroll the content of file "+listFile,err);
+				}
 			}
 		else
 			{
-			filelist.addAll(args);
+			return new ArrayList<>(args);
 			}
-		return filelist;
 		}
 
 	/** test wether the two first bytes are gzip */

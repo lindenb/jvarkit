@@ -307,6 +307,12 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 						"https://genetics.opentargets.org/variant/"+
 						String.join("_",StringUtils.escapeHttp(ensemblCtg) ,""+ctx.getStart(),ctx.getReference().getDisplayString(),alt.getDisplayString())
 						));
+				
+				urls.add(new LabelledUrlImpl("MexicoCPS" + alt.getDisplayString(),
+						variantid+"/"+alt.getDisplayString(),
+						"https://rgc-mcps.regeneron.com/variant/"+
+						StringUtils.escapeHttp(ensemblCtg) + ":" + ctx.getStart() +":"+ctx.getReference().getDisplayString()+":"+alt.getDisplayString()
+						));
 				}
 			if(!StringUtils.isBlank(ucscCtg)) {
 				urls.add(new LabelledUrlImpl("Decaf Decode",
