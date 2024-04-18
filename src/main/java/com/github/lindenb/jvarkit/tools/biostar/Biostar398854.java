@@ -47,7 +47,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.reference.ReferenceSequence;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -71,7 +70,7 @@ import htsjdk.variant.vcf.VCFReader;
 	keywords= {"vcf","gtf"},
 	biostars=398854,
 	creationDate="20190916",
-	modificationDate="20190916",
+	modificationDate="20240418",
 	jvarkit_amalgamion =  true,
 	menu="Biostars"
 	)
@@ -84,109 +83,113 @@ public class Biostar398854 extends Launcher {
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
 	
-	private ReferenceSequenceFile referenceSequenceFile = null;;
 	
 	@Override
 	public int doWork(final List<String> args) {
-		PrintWriter out = null;
 		try {
-			this.referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.referenceSequenceFile);
+			try(ReferenceSequenceFile referenceSequenceFile  = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
+				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(referenceSequenceFile);
 			
-			
-			try(VCFReader in = VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)),true)) {
-				out = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-				final PrintWriter final_out= out;
-				final List<String> samples = in.getHeader().getSampleNamesInOrder();
-
-				
-				try(GtfReader gtfReader= new GtfReader(this.gtfIn)) {
-					final SAMSequenceDictionary dict2 = in.getHeader().getSequenceDictionary();
-					if(dict2!=null) SequenceUtil.assertSequenceDictionariesEqual(dict, dict2);
-					gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-					gtfReader.getAllGenes().
-						stream().
-						flatMap(G->G.getTranscripts().stream()).
-						filter(T->T.hasCDS()).
-						forEach(transcript->{
-							final List<VariantContext> variants1 = in.query(transcript).
-									stream().
-									filter(V->V.isVariant() && AcidNucleics.isATGCN(V.getReference()) &&  V.getAlternateAlleles().stream().anyMatch(A->AcidNucleics.isATGCN(A))).
-									collect(Collectors.toCollection(ArrayList::new));
-							
-							if(variants1.isEmpty()) return;
-							
-							final int positions1[]=transcript.getAllCds().
-									stream().
-									flatMapToInt(CDS->IntStream.rangeClosed(CDS.getStart(), CDS.getEnd())).
-									toArray();
-
-							
-							final List<VariantContext> variants = variants1.
-									stream().
-									filter(V->{
-										int insert = Arrays.binarySearch(positions1, V.getStart());
-										return insert>=0 && insert < positions1.length;
-										}).
-									collect(Collectors.toCollection(ArrayList::new));
-							if(variants.isEmpty()) return;
-							
-							final ReferenceSequence refSeq = this.referenceSequenceFile.getSubsequenceAt(transcript.getContig(),transcript.getStart(), transcript.getEnd());
-							
-							
-							
-							for(int nSample=0;nSample<=/* yes <= */ samples.size();nSample++)
-								{
-								final String fastaName= transcript.getId()+" "+transcript.getGene().getId()+" "+transcript.getGene().getGeneName()+" "+(nSample< samples.size()?samples.get(nSample):"ALL")+
-											" " + transcript.getContig()+":"+transcript.getStart()+"-"+transcript.getEnd()+"("+transcript.getStrand()+")";
-								final StringBuilder sb = new StringBuilder();
-								int array_index=0;
-								
-								while(array_index< positions1.length) {
-									final int x1 = positions1[array_index];
+				try(VCFReader in = VCFReaderFactory.makeDefault().open(Paths.get(oneAndOnlyOneFile(args)),true)) {
+					try(final PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+						final List<String> samples = in.getHeader().getSampleNamesInOrder();
+		
+						
+						try(GtfReader gtfReader= new GtfReader(this.gtfIn)) {
+							final SAMSequenceDictionary dict2 = in.getHeader().getSequenceDictionary();
+							if(dict2!=null) SequenceUtil.assertSequenceDictionariesEqual(dict, dict2);
+							gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+							gtfReader.getAllGenes().
+								stream().
+								flatMap(G->G.getTranscripts().stream()).
+								filter(T->T.hasCDS()).
+								forEach(transcript->{
+									final List<VariantContext> variants1 = in.query(transcript).
+											stream().
+											filter(V->V.isVariant() && AcidNucleics.isATGCN(V.getReference()) &&  V.getAlternateAlleles().stream().anyMatch(A->AcidNucleics.isATGCN(A))).
+											collect(Collectors.toCollection(ArrayList::new));
 									
-									final int refseqidx0 = x1-transcript.getStart();
+									if(variants1.isEmpty()) return;
 									
-									char refbase = (refseqidx0<0 || refseqidx0>=refSeq.length()?'N':(char)refSeq.getBases()[refseqidx0]);
-									final int x1_final = x1;
-									String base= String.valueOf(refbase);
-									final VariantContext ctx=variants.stream().filter(V->V.getStart()==x1_final).findFirst().orElse(null);
-									Allele alt = ctx==null?null:ctx.getAlternateAlleles().stream().filter(A->AcidNucleics.isATGCN(A)).findFirst().orElse(null);
-									if(ctx!=null && nSample< samples.size()) {
-										final Genotype gt = ctx.getGenotype(nSample);
-										alt = gt.getAlleles().stream().filter(A->!A.isReference() &&! A.isNoCall() && AcidNucleics.isATGCN(A)).findFirst().orElse(null);
-										}
+									final int positions1[]=transcript.getAllCds().
+											stream().
+											flatMapToInt(CDS->IntStream.rangeClosed(CDS.getStart(), CDS.getEnd())).
+											toArray();
+		
 									
-									if(alt!=null)
+									final List<VariantContext> variants = variants1.
+											stream().
+											filter(V->{
+												int insert = Arrays.binarySearch(positions1, V.getStart());
+												return insert>=0 && insert < positions1.length;
+												}).
+											collect(Collectors.toCollection(ArrayList::new));
+									if(variants.isEmpty()) return;
+									
+									final ReferenceSequence refSeq = referenceSequenceFile.getSubsequenceAt(transcript.getContig(),transcript.getStart(), transcript.getEnd());
+									
+									
+									
+									for(int nSample=0;nSample<=/* yes <= last if for ALL samples */ samples.size();nSample++)
 										{
-										base = alt.getBaseString().toUpperCase();
-										int i=0;
-										while(i< ctx.getReference().length() && array_index<positions1.length)
-											{
-											array_index++;
-											i++;
+										final String fastaName= transcript.getId()+" "+transcript.getGene().getId()+" "+transcript.getGene().getGeneName()+" "+(nSample< samples.size()?samples.get(nSample):"ALL")+
+													" " + transcript.getContig()+":"+transcript.getStart()+"-"+transcript.getEnd()+"("+transcript.getStrand()+")";
+										final StringBuilder sb = new StringBuilder();
+										int array_index=0;
+										
+										while(array_index< positions1.length) {
+											final int x1 = positions1[array_index];
+											
+											final int refseqidx0 = x1-transcript.getStart();
+											
+											final char refbase = (refseqidx0<0 || refseqidx0>=refSeq.length()?'N':(char)refSeq.getBases()[refseqidx0]);
+											final int x1_final = x1;
+											String base= String.valueOf(refbase);
+											final VariantContext ctx=variants.stream().filter(V->V.getStart()==x1_final).findFirst().orElse(null);
+											Allele alt = ctx==null?null:ctx.getAlternateAlleles().stream().
+													filter(A->AcidNucleics.isATGCN(A)).
+													findFirst().
+													orElse(null);
+											if(ctx!=null && nSample< samples.size()) {
+												final Genotype gt = ctx.getGenotype(nSample);
+												if(gt.hasAltAllele() && (!gt.hasDP() || gt.getDP()>0)) {
+													alt = gt.getAlleles().stream().
+															filter(A->!A.isReference() &&! A.isNoCall() && AcidNucleics.isATGCN(A)).
+															findFirst().
+															orElse(null);
+													}
+												}
+											
+											if(alt!=null)
+												{
+												base = alt.getBaseString().toUpperCase();
+												int i=0;
+												while(i< ctx.getReference().length() && array_index<positions1.length)
+													{
+													array_index++;
+													i++;
+													}
+												}
+											else
+												{
+												base = base.toLowerCase();
+												array_index++;
+												}
+											sb.append(base);									
 											}
+										
+										final String fastaSeq  = transcript.isNegativeStrand()?AcidNucleics.reverseComplement(sb.toString()):sb.toString();
+										out.print(">");
+										out.println(fastaName);
+										out.println(fastaSeq);
 										}
-									else
-										{
-										base = base.toLowerCase();
-										array_index++;
-										}
-									sb.append(base);									
-									}
-								
-								String fastaSeq  = transcript.isNegativeStrand()?AcidNucleics.reverseComplement(sb.toString()):sb.toString();
-								final_out.print(">");
-								final_out.println(fastaName);
-								final_out.println(fastaSeq);
-								}
-							}
-						);
-					}
-				out.flush();
-				out.close();
-				out=null;
-				}
+									} // end for each transcripts
+								);
+							} // end gtf
+						out.flush();
+						} // end out
+					} // end vcf reader
+			} // end ref
 			return 0;
 		} catch (final Throwable e) {
 			LOG.error(e);
@@ -194,8 +197,6 @@ public class Biostar398854 extends Launcher {
 			}
 		finally
 			{
-			CloserUtil.close(out);
-			CloserUtil.close(this.referenceSequenceFile);
 			}
 		}	
 		

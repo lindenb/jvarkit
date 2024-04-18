@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 4f4bf4d7d
-Compilation : 20240418092015
+Version     : 6fe7338c2
+Compilation : 20240418142746
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -94,7 +94,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar332826](Biostar332826.md) | Fast Extraction of Variants from a list of IDs | 20180817 | 20210412 |
 | [biostar336589](Biostar336589.md) | displays circular map as SVG from BED and REF file | 20180907 | 20210818 |
 | [biostar352930](Biostar352930.md) | Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the same name carrying this information. |  |  |
-| [biostar398854](Biostar398854.md) | Extract every CDS sequences from a VCF file | 20190916 | 20190916 |
+| [biostar398854](Biostar398854.md) | Extract every CDS sequences from a VCF file | 20190916 | 20240418 |
 | [biostar404363](Biostar404363.md) | introduce artificial mutation SNV in bam | 20191023 | 20191024 |
 | [biostar480685](Biostar480685.md) | paired-end bam clip bases outside insert range | 20201223 | 20200220 |
 | [biostar489074](Biostar489074.md) | call variants for every paired overlaping read | 20200205 | 20210412 |
