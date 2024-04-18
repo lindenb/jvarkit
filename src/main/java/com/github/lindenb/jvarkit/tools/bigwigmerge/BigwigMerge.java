@@ -34,20 +34,20 @@ BEGIN_DOC
 merge several Bigwig files using different descriptive statistics (mean, median, etc..)
 
 Output is a BedGraph file.
- 
-input is a set of bigwig file or a file with the '.list' suffix containing the path to the bigwig 
- 
+
+Input is a set of bigwig file or a file with the '.list' suffix containing the path to the bigwig
+
 
 ## Example
 
 ```
 find DIR -type f -name "*.bigWig" > tmp.list
-java -jar ~/jeter8.jar -R genome.fa tmp.list --interval "chr1:234-567" --header  > bedGraph.bed
+java -jar jvarkit.jar bigwigmerge -R genome.fa tmp.list --interval "chr1:234-567" --header --method median  > bedGraph.bed
 ```
 
 
 END_DOC
- 
+
 **/
 @Program(
 		name="bigwigmerge",

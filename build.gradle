@@ -1286,7 +1286,7 @@ all2.add( task("svneg", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("sigframe", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.sigframe.SigFrame"
+	mainClass = "com.github.lindenb.jvarkit.tools.sigframe.SigFrame.Main"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all.add( task("simpleplot", type: CompileJVarkit) {

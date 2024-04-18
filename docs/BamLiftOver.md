@@ -23,8 +23,8 @@ Usage: bamliftover [options] Files
       LiftOver file.
   * -R2, --destination-dict
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
-      indexed with 'picard CreateSequenceDictionary', or any hts file 
-      containing a dictionary (VCF, BAM, CRAM, intervals...)
+      indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
+      any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
     --drop-seq
       drop SEQ and QUAL
       Default: false

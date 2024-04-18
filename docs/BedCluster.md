@@ -51,8 +51,8 @@ Usage: bedcluster [options] Files
     -R, --reference
       For sorting, writing interval_list,A SAM Sequence dictionary source: it 
       can be a *.dict file, a fasta file indexed with 'picard 
-      CreateSequenceDictionary', or any hts file containing a dictionary (VCF, 
-      BAM, CRAM, intervals...)
+      CreateSequenceDictionary' or 'samtools dict', or any hts file containing 
+      a dictionary (VCF, BAM, CRAM, intervals...)
     --sex, --par
       Detects human dictionary ans splits pseudo-autosomal regions and group 
       by sex.

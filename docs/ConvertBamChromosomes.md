@@ -21,9 +21,9 @@ Usage: bamrenamechr [options] Files
       Default: 5
     --dict
       Use this new dictionary A SAM Sequence dictionary source: it can be a 
-      *.dict file, a fasta file indexed with 'picard 
-      CreateSequenceDictionary', or any hts file containing a dictionary (VCF, 
-      BAM, CRAM, intervals...)
+      *.dict file, a fasta file indexed with 'picard CreateSequenceDictionary' 
+      or 'samtools dict', or any hts file containing a dictionary (VCF, BAM, 
+      CRAM, intervals...)
     -h, --help
       print help and exit
     --helpFormat

@@ -28,8 +28,8 @@ Usage: bedremovebed [options] Files
       Output is a setfile. Output file. Optional . Default: stdout
     -R, -r, --reference
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
-      indexed with 'picard CreateSequenceDictionary', or any hts file 
-      containing a dictionary (VCF, BAM, CRAM, intervals...)
+      indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
+      any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
     --version
       print version and exit
 
