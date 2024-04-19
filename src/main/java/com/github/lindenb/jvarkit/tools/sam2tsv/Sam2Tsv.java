@@ -129,7 +129,7 @@ Sam2tsv was cited in :
   * Yang & al. "Sequencing 5-Formyluracil in Genomic DNA at Single-Base Resolution"  (2021) Analytical Chemistry doi: 10.1021/acs.analchem.1c03339
   * Xiao Shu, Chenyang Huang, Tengwei Li, Jie Cao, Jianzhao Liu,.a6A-seq: N6-allyladenosine-based cellular messenger RNA metabolic labelling and sequencing,.Fundamental Research,.2023,.,.ISSN 2667-3258, https://doi.org/10.1016/j.fmre.2023.04.010..(https://www.sciencedirect.com/science/article/pii/S2667325823001267).
   * Xu, Z., Sziraki, A., Lee, J. et al. Dissecting key regulators of transcriptome kinetics through scalable single-cell RNA profiling of pooled CRISPR screens. Nat Biotechnol (2023). https://doi.org/10.1038/s41587-023-01948-9
-  * Braton & al (2023) HIVepsilon-seq—scalable characterization of intact persistent proviral HIV reservoirs in women. Virology. https://doi.org/10.1128/jvi.00705-23
+  * Braton & al (2023) HIVepsilon-seq-scalable characterization of intact persistent proviral HIV reservoirs in women. Virology. https://doi.org/10.1128/jvi.00705-23
 
 END_DOC
 */

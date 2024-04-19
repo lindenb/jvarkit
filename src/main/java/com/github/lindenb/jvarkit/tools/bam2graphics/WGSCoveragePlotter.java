@@ -103,7 +103,7 @@ java -jar dist/jvarkit.jar wgscoverageplotter --dimension 1500x500 -C -1 --clip 
  * Varani AM, Silva SR, Lopes S, Barbosa JBF, Oliveira D, Correa MA, Moraes AP, Miranda VFO, Prosdocimi F. 2022. The complete organellar genomes of the entheogenic plant Psychotria viridis (Rubiaceae), a main component of the ayahuasca brew. PeerJ 10:e14114 https://doi.org/10.7717/peerj.14114
  * Cho, C.H., Park, S.I., Huang, TY. et al. Genome-wide signatures of adaptation to extreme environments in red algae. Nat Commun 14, 10 (2023). https://doi.org/10.1038/s41467-022-35566-x
  * Rhys T. White, Martina Jelocnik, Natalie Klukowski, Md. Hakimul Haque, Subir Sarker. The first genomic insight into Chlamydia psittaci sequence type (ST)24 from a healthy captive psittacine host in Australia demonstrates evolutionary proximity with strains from psittacine, human, and equine hosts. Veterinary Microbiology, Volume 280, 2023, 109704, ISSN 0378-1135. https://doi.org/10.1016/j.vetmic.2023.109704.
- * Rhys T. White. A discovery down under: decoding the draft genome sequence of Pantoea stewartii from Australia’s Critically Endangered western ground parrot/kyloring (Pezoporus flaviventris). https://doi.org/10.1099/mgen.0.001101 . Microbial Genomics Vol9 Issue 9
+ * Rhys T. White. A discovery down under: decoding the draft genome sequence of Pantoea stewartii from Australia's Critically Endangered western ground parrot/kyloring (Pezoporus flaviventris). https://doi.org/10.1099/mgen.0.001101 . Microbial Genomics Vol9 Issue 9
  * genomic and transcriptomic insight into the evolution and breeding of turfgrass species, poa annua and bouteloua dactyloides. Thesis. Christopher W. Benson. https://etda.libraries.psu.edu/files/final_submissions/29057 **WGSCoveragePlotter**
 
 ## Screenshot
