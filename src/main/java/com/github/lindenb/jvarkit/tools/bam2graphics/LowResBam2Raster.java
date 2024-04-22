@@ -91,6 +91,10 @@ java -jar dist/lowresbam2raster.jar \
 	 -clip -srf "" -R ref.fasta  -kg knownGene.txt.gz
 ```
 
+## Cited in
+
+ * Baudic M, Murata H, Bosada FM, Melo US, Aizawa T, Lindenbaum P, van der Maarel LE, Guedon A, Baron E, Fremy E, Foucal A, Ishikawa T, Ushinohama H, Jurgens SJ, Choi SH, Kyndt F, Le Scouarnec S, Wakker V, Thollet A, Rajalu A, Takaki T, Ohno S, Shimizu W, Horie M, Kimura T, Ellinor PT, Petit F, Dulac Y, Bru P, Boland A, Deleuze JF, Redon R, Le Marec H, Le Tourneau T, Gourraud JB, Yoshida Y, Makita N, Vieyres C, Makiyama T, Mundlos S, Christoffels VM, Probst V, Schott JJ, Barc J. TAD boundary deletion causes PITX2-related cardiac electrical and structural defects. Nat Commun. 2024 Apr 20;15(1):3380. doi: 10.1038/s41467-024-47739-x. PMID: 38643172; PMCID: PMC11032321.
+
 ## see also
 
   * https://twitter.com/yokofakun/status/951769190884610051

@@ -406,6 +406,7 @@ java -jar dist/vcffilterjdk.jar -e 'return variant.getGenotypes().stream().allMa
 ## Cited in:
 
  * N. Mamoozadeh, C. Goldsworthy, L. Miller, N. Peterson, M. Meek, Sources of coaster brook trout (Salvelinus fontinalis) revealed by genomic analysis of brook trout populations along Minnesota's shoreline with Lake Superior, Journal of Great Lakes Research, 2023, , ISSN 0380-1330, https://doi.org/10.1016/j.jglr.2023.06.005. (https://www.sciencedirect.com/science/article/pii/S0380133023001351)
+ * Herve J, Haurogne K, Allard M, Sourice S, Lindenbaum P, Bach JM, Lieubeau B. Spontaneous Akt2 deficiency in a colony of NOD mice exhibiting early diabetes. Sci Rep. 2024 Apr 20;14(1):9100. doi: 10.1038/s41598-024-60021-w. PMID: 38643275; PMCID: PMC11032318. 
 
 END_DOC
  */
