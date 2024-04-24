@@ -36,7 +36,6 @@ nav:
         - "bedremovebed" : BedRemoveBed.md
         - "bedrenamechr" : ConvertBedChromosomes.md
         - "bigwigmerge" : BigwigMerge.md
-        - "bio2rdf" : BioToRDF.md
         - "bioalcidaejdk" : BioAlcidaeJdk.md
         - "biostar103303" : Biostar103303.md
         - "biostar105754" : Biostar105754.md
@@ -124,7 +123,6 @@ nav:
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "pubmedmap" : PubmedMap.md
-        - "rdfcombine" : RDFCombine.md
         - "ref2html" : ReferenceToHtml.md
         - "repairfastq" : RepairFastq.md
         - "sam2json" : SamToJson.md

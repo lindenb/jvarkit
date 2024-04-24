@@ -7,7 +7,7 @@ import java.util.*;
 import java.io.*;
 
 /** Token Manager. */
-@SuppressWarnings ("unused")
+@SuppressWarnings ({"unused","cast"})
 public class SchemaParserTokenManager implements SchemaParserConstants {
 
   /** Debug output. */

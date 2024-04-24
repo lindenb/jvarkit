@@ -120,6 +120,8 @@ public class NgsFilesSummary extends Launcher
 	
 	private abstract class Reporter implements AutoCloseable {
 		abstract void print(final String sample,final String type,final Path f,final String index, final Optional<Path> reference);
+		@Override 
+		public abstract void close();
 		}
 	
 	private class TsvReporter extends Reporter {
@@ -246,7 +248,7 @@ public class NgsFilesSummary extends Launcher
 				}
 			}
 		@Override
-		public void close() throws Exception {
+		public void close() {
 			try { 
 				if(prev!=null) this.w.writeEndElement();
 				this.w.writeEndElement();
