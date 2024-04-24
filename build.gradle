@@ -2192,7 +2192,11 @@ all2.add(task("jeter9", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 
-
+all2.add(task("jeter10", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.palindromefinder.PalindromeFinder"
+        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        });
+        
 /** bottom task */
 
 task("all2",dependsOn:all2) {

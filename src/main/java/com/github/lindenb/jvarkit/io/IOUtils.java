@@ -684,7 +684,10 @@ public class IOUtils {
 		{
 		if(args.isEmpty()) return Collections.emptyList();
 		final LinkedHashSet<Path> fileset = new LinkedHashSet<>();
-		if(args.size()==1 && args.get(0).endsWith(".list"))
+		if(args.size()==1 && args.get(0).equals("-")) /* stdin */ {
+			return Collections.emptyList();
+			}
+		else if(args.size()==1 && args.get(0).endsWith(".list"))
 			{
 			final File listFile = new File(args.get(0));
 			IOUtil.assertFileIsReadable(listFile);

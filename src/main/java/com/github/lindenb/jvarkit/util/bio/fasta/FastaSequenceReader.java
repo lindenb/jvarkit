@@ -31,8 +31,11 @@ package com.github.lindenb.jvarkit.util.bio.fasta;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PushbackReader;
 import java.io.Reader;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -76,11 +79,24 @@ public CloseableIterator<FastaSequence> iterator(final Reader r) throws IOExcept
 	return new MyIterator(r);
 	}
 
+public CloseableIterator<FastaSequence> iterator(final InputStream r) throws IOException {
+	return iterator(new InputStreamReader(r));
+	}
+
+
 public CloseableIterator<FastaSequence> iterator(final File file) throws IOException {
 	return iterator(IOUtils.openFileForReader(file));
 	}
 
+public CloseableIterator<FastaSequence> iterator(final Path file) throws IOException {
+	return iterator(IOUtils.openPathForBufferedReading(file));
+	}
+
+
 public Iterable<FastaSequence> getSequencesIn(final File file)  {
+	return getSequencesIn(file.toPath());
+	}
+public Iterable<FastaSequence> getSequencesIn(final Path file)  {
 	return new FastaIterable(file);
 	}
 
@@ -137,7 +153,7 @@ protected FastaSequence read(final PushbackReader reader) throws IOException {
 							);
 					}
 				name = new StringBuilder();
-				sequence =new ByteArrayOutputStream(this.sequenceCapacity);
+				sequence =new ByteArrayOutputStream(this.getSequenceCapacity());
 				/* consume header */
 				while((c=reader.read())!=-1 && c!='\n') {
 				name.append((char)c);	
@@ -149,7 +165,7 @@ protected FastaSequence read(final PushbackReader reader) throws IOException {
 				throw new IOException("Illegal character "+(char)c);
 			} else
 			{
-				sequence.write(c);	
+				sequence.write(c);
 				while((c=reader.read())!=-1 && c!='\n') {
 					sequence.write(c);	
 				}
@@ -196,34 +212,37 @@ private class MyIterator extends AbstractCloseableIterator<FastaSequence>
 		}
 	}
 
-private static class SequenceImpl
-	extends AbstractCharSequence
-	implements FastaSequence {
-	final String name;
-	final byte seq[];
-	SequenceImpl(final String name,final byte seq[]) {
-		this.name=name;
-		this.seq=seq;
-	}
-	@Override
-	public String getName() {
-		return name;
+	private static class SequenceImpl
+		extends AbstractCharSequence
+		implements FastaSequence {
+		private final String name;
+		private final byte seq[];
+		SequenceImpl(final String name,final byte seq[]) {
+			this.name=name;
+			this.seq=seq;
 		}
-	@Override
-	public int length() {
-		return seq.length;
+		@Override
+		public String getName() {
+			return name;
+			}
+		@Override
+		public int length() {
+			return seq.length;
+			}
+		@Override
+		public char charAt(final int index) {
+			return (char)seq[index];
+			}
 		}
-	@Override
-	public char charAt(final int index) {
-		return (char)seq[index];
-		}
-	}
 
 	public class FastaIterable implements Iterable<FastaSequence> {
-		final File fastaFile;
-		FastaIterable(final File fastaFile) {
+		final Path fastaFile;
+		FastaIterable(final Path fastaFile) {
 			this.fastaFile = fastaFile;
-		}
+			}
+		FastaIterable(final File fastaFile) {
+			this(fastaFile.toPath());
+			}
 		@Override
 		public CloseableIterator<FastaSequence> iterator() {
 			try {
