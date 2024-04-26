@@ -159,6 +159,12 @@ public static String toTitle(final String s) {
 	if(s.length()==1) return s.toUpperCase();
 	return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
 	}
+
+/** double quote and escape C */
+public static String doubleQuote(final String str) {
+	return new StringBuilder("\"").append(escapeC(str)).append("\"").toString();
+}
+
 /** escape C string , returns null is str is null */
 public static String escapeC(final String str) {
 	if(str==null) return null;

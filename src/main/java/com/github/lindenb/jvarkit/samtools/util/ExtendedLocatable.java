@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.samtools.util;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
 
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
@@ -67,6 +68,22 @@ public default Interval toInterval() {
 	if(this instanceof Interval) return Interval.class.cast(this);
 	return new Interval(this);
 	}
-
-
+/** if this and other are not on the same contig, throws an exception
+ *  if they overlap return 0
+ *  otherwise return distance from end to start
+ **/
+public default int getDistanceTo(final Locatable other) {
+	if(!contigsMatch(other)) throw new IllegalArgumentException("not the same contigs");
+	if(CoordMath.overlaps(getStart(), getEnd(), other.getStart(), other.getEnd())) return 0;
+	if(this.getEnd() < other.getStart()) {
+		return CoordMath.getLength(getEnd(), other.getStart());
+		}
+	else if(other.getEnd() < this.getStart()) {
+		return CoordMath.getLength(other.getEnd(), this.getStart());
+		}
+	else
+		{
+		throw new IllegalStateException();
+		}
+	}
 }
