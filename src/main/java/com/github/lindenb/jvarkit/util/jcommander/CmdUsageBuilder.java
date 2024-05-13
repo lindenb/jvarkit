@@ -314,7 +314,7 @@ public  class CmdUsageBuilder
 				{
 				sb.append("```\nUsage: java -jar dist/"+getProgram().name() +".jar  [options] Files\n");
 				}
-			jc.usage(sb);
+			jc.getUsageFormatter().usage(sb);
 			sb.append("\n```\n\n");
 
 			if(hasProgram()){
@@ -425,7 +425,7 @@ public  class CmdUsageBuilder
 				{
 				jc.setProgramName(getMainClass().getSimpleName());
 				}
-			jc.usage(sb);
+			jc.getUsageFormatter().usage(sb);
 			}
 		
 		public Class<?> getMainClass()

@@ -182,6 +182,7 @@ import com.github.lindenb.jvarkit.tools.setfile.SetFileTools;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.spliceai.VcfSpliceAI;
 import com.github.lindenb.jvarkit.tools.structvar.CoverageMatrix;
+import com.github.lindenb.jvarkit.tools.structvar.SVCasesControls;
 import com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions;
 import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToVcf;
@@ -460,6 +461,10 @@ public class JvarkitCentral {
 			out.append("* java [compiler SDK 17](https://jdk.java.net/17/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
 			out.append("\n");
 			out.append("\n");
+			out.append("### Download a pre-compiled executable jar\n");
+			out.append("\n");
+			out.append("A pre-compiled java executable of jvarkit.jar is available at "+hyperlink("https://uncloud.univ-nantes.fr/index.php/s/4sL77oWR2BFzSBH"));
+			out.append("\n");
 			out.append("### Download and Compile\n");
 			out.append("\n");
 			out.append("```bash\n");
@@ -670,6 +675,7 @@ public class JvarkitCentral {
 		command(SetFileTools.class);
 		command(SplitVcf.class);
 		command(StructuralVariantToFasta.class);
+		command(SVCasesControls.class);
 		command(SAM4WebLogo.class);
 		command(SamFindClippedRegions.class);
 		command(SwingVcfView.class);

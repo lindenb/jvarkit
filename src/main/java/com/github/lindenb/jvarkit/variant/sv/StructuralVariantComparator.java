@@ -44,7 +44,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 
 /** test if two SV are the same */
-public class StructuralVariantComparator implements BiPredicate<VariantContext,VariantContext>{
+public class StructuralVariantComparator /* implements BiPredicate<VariantContext,VariantContext> see https://github.com/cbeust/jcommander/issues/582 */{
 
 	@Parameter(names={"--bnd-distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
 	private int bnd_max_distance = 100;
@@ -175,7 +175,13 @@ private boolean contigsMatch(final Locatable a,final Locatable b)  {
 	return this.contigComparator.test(a.getContig(), b.getContig());
 }
 
-@Override
+// https://github.com/cbeust/jcommander/issues/582
+public BiPredicate<VariantContext,VariantContext> asBiPredicate() {
+	return (V1,V2)->this.test(V1, V2);
+}
+
+
+//@Override
 public boolean test(final VariantContext a, final VariantContext b) {
 	if(a==null || b==null) return false;
 	

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 8ebd2be2
-Compilation : 20240424122145
+Version     : 85d76d7d
+Compilation : 20240513173217
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -30,6 +30,9 @@ or
 * java [compiler SDK 17](https://jdk.java.net/17/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 
 
+### Download a pre-compiled executable jar
+
+A pre-compiled java executable of jvarkit.jar is available at [https://uncloud.univ-nantes.fr/index.php/s/4sL77oWR2BFzSBH](https://uncloud.univ-nantes.fr/index.php/s/4sL77oWR2BFzSBH)
 ### Download and Compile
 
 ```bash

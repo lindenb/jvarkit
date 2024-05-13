@@ -1,8 +1,8 @@
-# VcfGnomadSV
+# SVCasesControls
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Peek annotations from gnomad structural variants
+Find SV present in cases but not in controls.
 
 
 ## Usage
@@ -12,14 +12,10 @@ This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentra
 
 
 ```
-Usage: java -jar dist/jvarkit.jar vcfgnomadsv  [options] Files
+Usage: java -jar dist/jvarkit.jar svcasescontrols  [options] Files
 
-Usage: vcfgnomadsv [options] Files
+Usage: svcasescontrols [options] Files
   Options:
-    --any-overlap-filter
-      If not empty, set this FILTER if any variant in gnomad is found 
-      overlaping the variant BUT we didn't find a correct match
-      Default: <empty string>
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 
@@ -31,17 +27,15 @@ Usage: vcfgnomadsv [options] Files
       xxx bases. A distance specified as a positive integer.Commas are 
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 100
+    -cases, --cases
+      samples's name for cases
+      Default: []
     --check-bnd-mate
       When comparing two BND, check that their mate (using the ALT allele) are 
       the same too
       Default: false
-    --discordant_svtype
-      If not empty, set this FILTER if SVTYPE are discordants
-      Default: <empty string>
-    --filter
-      set this FILTER is the allele frequency found in the population is not 
-      min-af<=x<=max-af. Discard variant if it is blank.
-      Default: BAD_AF
+    -c, --contig
+      limit to this contig
     --force-svtype
       When comparing two SV variants, their INFO/SVTYPE should be the same. 
       Default is to just use coordinates to compare non-BND variants.
@@ -49,36 +43,15 @@ Usage: vcfgnomadsv [options] Files
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
-  * -g, --gnomad
-      Gnomad-SV VCF file. see 
-      https://gnomad.broadinstitute.org/downloads#structural-variants 
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --in-gnomad-filter
-      If not empty, set this FILTER is variant was found in gnomad
-      Default: <empty string>
-    --max-af
-      max allele frequency in watched population. A decimal number between 0.0 
-      and 1.0. If the value ends with '%' it is interpretted as a percentage 
-      eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' 
-      => '0.01'.
-      Default: 1.0
-    --min-af
-      min allele frequency in watched population. A decimal number between 0.0 
-      and 1.0. If the value ends with '%' it is interpretted as a percentage 
-      eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' 
-      => '0.01'.
-      Default: 0.0
-    -o, --out
+    --no-bnd
+      discar BND
+      Default: false
+    -o, --output
       Output file. Optional . Default: stdout
-    --population
-      Watch gnomad population for AF
-      Default: POPMAX_AF
-    -p, --prefix
-      INFO field prefix
-      Default: GNOMAD_
     --sv-alleles-bases
       When comparing two non-BND SV variants, use their ALT alleles to adjust 
       the interval. It solves the problem of  
@@ -103,24 +76,19 @@ Usage: vcfgnomadsv [options] Files
 
 ## Keywords
 
- * vcf
- * annotation
- * gnomad
  * sv
+ * manta
+ * vcf
 
 
 
 ## Creation Date
 
-20190814
+20240513
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomadSV.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomadSV.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomadSVTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gnomad/VcfGnomadSVTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SVCasesControls.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/structvar/SVCasesControls.java)
 
 
 ## Contribute
@@ -134,7 +102,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **vcfgnomadsv** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **svcasescontrols** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -143,13 +111,21 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
-
-# Example:
-
-```
-java -jar dist/vcfgnomadsv.jar \
-	-g src/test/resources/gnomad_v2_sv.sites.vcf.gz \
-	./src/test/resources/manta.B00GWGD.vcf.gz
-```
-
+ 
+ # Input
+ 
+ input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
+ 
+ 
+ # Example
+ 
+ ```
+ $ find src -name "manta*z" > jeter.list
+ $ java -jar jvarkit.jar svcasescontrols jeter.list 2> /dev/null
+ 
+ (...)
+ 
+ 
+ 
+ ```
 

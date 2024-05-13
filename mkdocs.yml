@@ -142,6 +142,7 @@ nav:
         - "starretrocopy" : StarRetroCopy.md
         - "sv2fasta" : StructuralVariantToFasta.md
         - "sv2svg" : SvToSVG.md
+        - "svcasescontrols" : SVCasesControls.md
         - "swingbamcov" : SwingBamCov.md
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md

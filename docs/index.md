@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 8ebd2be2
-Compilation : 20240424122145
+Version     : 85d76d7d
+Compilation : 20240513173217
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -210,6 +210,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [findgvcfsblocks](FindGVCFsBlocks.md) | Find common blocks of calleable regions from a set of gvcfs | 20210806 | 20220401 |
 | [mantamerger](MantaMerger.md) | Merge Vcf from Manta VCF. | 20190916 | 20230320 |
 | [minicaller](MiniCaller.md) | Simple and Stupid Variant Caller designed for @AdrienLeger2 | 201500306 | 20220705 |
+| [svcasescontrols](SVCasesControls.md) | Find SV present in cases but not in controls. | 20240513 | 20240513 |
 | [swingvcfjexl](SwingVcfJexlFilter.md) | Filter VCF using Java Swing UI and JEXL/Javascript expression | 20220413 | 20220414 |
 | [swingvcfview](SwingVcfView.md) | VCFviewer using Java Swing UI | 20210503 | 20210503 |
 | [vcf2intervals](VcfToIntervals.md) | split a vcf to interval or bed for parallelization | 20211112 | 20221128 |
