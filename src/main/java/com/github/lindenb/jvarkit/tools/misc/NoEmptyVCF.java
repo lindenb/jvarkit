@@ -44,14 +44,14 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
- BEGIN_DOC
- 
+BEGIN_DOC
+
 ## History
- 
- 2017:  moved to jcommander
- 
- END_DOC
- */
+
+2017:  moved to jcommander
+
+END_DOC
+*/
 @Program(name="noemptyvcf",
 	description="If VCF is empty or doesn't exists, create a dummy one",
 	deprecatedMsg="Was developped at the time where VEP didn't send an output if there was no variant, just a header in the source vcf."

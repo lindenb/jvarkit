@@ -58,7 +58,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 
 /**
- BEGIN_DOC
+BEGIN_DOC
  
 
 ## Example
@@ -125,18 +125,8 @@ HWI-1KL149:18:C0RNBACXX:3:1101:11560:69825/2	EQ	chrMasked:581319335->chrMasked:5
 
 ```
 
-
-## See also
-
-* CmpBams
-
-## History
-
-* 2014: Creation
- 
- 
- END_DOC
- */
+END_DOC
+*/
 @Program(
 		name="cmpbamsandbuild",
 		description="Compare two  BAM files mapped on two different builds. Requires a liftover chain file")

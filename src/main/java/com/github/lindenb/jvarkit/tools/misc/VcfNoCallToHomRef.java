@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
- BEGIN_DOC
+BEGIN_DOC
 
 ## Deprecated
 

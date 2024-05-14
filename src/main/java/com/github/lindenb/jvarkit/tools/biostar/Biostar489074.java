@@ -75,8 +75,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
- * 
- BEGIN_DOC
+BEGIN_DOC
 
 ## Description
 
@@ -92,9 +91,9 @@ $ samtools view -O BAM --reference "ref.fasta" in.cram "chr22:41201525-41490147"
 	java -jar dist/biostar489074.jar --reference "ref.fasta"
 ```
 
- END_DOC
- *
- */
+END_DOC
+
+*/
 
 @Program(name="biostar489074",
 keywords={"sam","bam","vcf","call"},

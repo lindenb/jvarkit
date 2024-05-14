@@ -58,12 +58,12 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
- BEGIN_DOC
- 
- ## Example
+BEGIN_DOC
+
+## Example
  
 
- ```
+```
 $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resources/test_vcf01.vcf | bcftools annotate -x '^INFO/ENZ' | bcftools view --drop-genotypes | grep ENZ
 
 ##INFO=<ID=ENZ,Number=.,Type=String,Description="Enzyme overlapping: Format: (Name|Site|Sequence|pos|strand)">
@@ -98,7 +98,7 @@ $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resou
 1	1017170	.	C	G	507	PASS	ENZ=AloI|(7/12)GAACNNNNNNTCC(12/7)|GAACAGAGcATCC|1017162|+
 ```
  
- END_DOC
+END_DOC
  
  */
 @Program(name="vcfrebase",

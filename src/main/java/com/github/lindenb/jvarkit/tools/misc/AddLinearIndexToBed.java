@@ -47,10 +47,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 /**
- BEGIN_DOC
+BEGIN_DOC
 
 ## EXAMPLE
- 
+
 ```
 $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta 
 
@@ -63,7 +63,7 @@ $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta
 3095271502      Y       58967656        59363566
 ```
 
- END_DOC
+END_DOC
  */
 @Program(
 		name="addlinearindextobed",

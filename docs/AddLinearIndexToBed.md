@@ -70,7 +70,7 @@ The current reference is:
 
 
 ## EXAMPLE
- 
+
 ```
 $ cat input.bed | java -jar dist/addlinearindextobed.jar -R  human_g1k_v37.fasta 
 

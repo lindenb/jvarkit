@@ -22,10 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-* 2015 moving to knime
-
 */
 package com.github.lindenb.jvarkit.tools.burden;
 
@@ -75,14 +71,13 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPr
 
 /**
 
- * @author lindenb
- * 
- BEGIN_DOC
- 
- 
- 
- END_DOC
- 
+
+BEGIN_DOC
+
+
+
+END_DOC
+
  */
 @Program(name="vcfburdensplitter2",description="new version",keywords={"vcf","burden","gene","vep","snpeff","prediction"})
 public class VcfBurdenSplitter2 

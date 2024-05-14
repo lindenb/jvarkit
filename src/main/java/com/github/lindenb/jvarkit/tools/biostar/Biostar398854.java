@@ -53,17 +53,17 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFReader;
 /**
- BEGIN_DOC
- ## Example
- 
- ```
- java -jar ${JVARKIT_DIST}/biostar398854.jar \
- 	--gtf input.gtf.gz \
- 	-R ref.fasta input.vcf > out.fasta
- 
- ```
- 
- END_DOC
+BEGIN_DOC
+## Example
+
+```
+java -jar ${JVARKIT_DIST}/biostar398854.jar \
+--gtf input.gtf.gz \
+-R ref.fasta input.vcf > out.fasta
+
+```
+
+END_DOC
  */
 @Program(name="biostar398854",
 	description="Extract every CDS sequences from a VCF file",

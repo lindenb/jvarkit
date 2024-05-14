@@ -63,7 +63,7 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloserUtil;
 /**
- BEGIN_DOC
+BEGIN_DOC
 
 ## Example
 
@@ -122,7 +122,7 @@ backlocate was cited in:
  * CRISPR-STOP: gene silencing through base-editing-induced nonsense mutations. 2017 Nat Meth. [http://dx.doi.org/10.1038/nmeth.4327](http://dx.doi.org/10.1038/nmeth.4327).
  * "Differential 3' Processing of Specific Transcripts Expands Regulatory and Protein Diversity Across Neuronal Cell Types" Sasa Jereb, Hun-Way Hwang, Eric Van Otterloo, Eve-Ellen Govek, John J Fak, Yuan Yuan, Mary E Hatten, Robert B Darnell BioRxiv [https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf](https://www.biorxiv.org/content/biorxiv/early/2018/01/10/245886.full.pdf)
  
- END_DOC
+END_DOC
  */
 @Program(name="backlocate",
 	description="Mapping a mutation on a protein back to the genome.",

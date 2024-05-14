@@ -91,11 +91,11 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- 
- ## Example
+
+## Example
  
 
- ```
+```
 $ java -jar dist/vcfrebase.jar -w 6 -R ~/data/human_g1k_v37.fasta src/test/resources/test_vcf01.vcf | bcftools annotate -x '^INFO/ENZ' | bcftools view --drop-genotypes | grep ENZ
 
 ##INFO=<ID=ENZ,Number=.,Type=String,Description="Enzyme overlapping: Format: (Name|Site|Sequence|pos|strand)">

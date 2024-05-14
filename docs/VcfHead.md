@@ -82,11 +82,11 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- 
+
 
 ```bash
 $ curl -s "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
- java -jar dist/vcfhead.jar -n 2 | grep -v "##"
+java -jar dist/vcfhead.jar -n 2 | grep -v "##"
 
 #CHROM  POS ID  REF ALT QUAL    FILTER  INFO    FORMAT  1094PC0005  1094PC0009  1094PC0012  1094PC0013
 chr1    30860   .   G   C   33.46   .   AC=2;AF=0.053;AN=38;BaseQRankSum=2.327;DP=49;Dels=0.00;EFF=DOWNSTREAM(MODIFIER||||85|FAM138A|protein_coding|COD
@@ -101,5 +101,5 @@ chr1    69270   .   A   G   2694.18 .   AC=40;AF=1.000;AN=40;DP=83;Dels=0.00;EFF
 NG|ENST00000335137|exon_1_69091_70008);FS=0.000;HRun=0;HaplotypeScore=0.0000;InbreedingCoeff=-0.0598;MQ=31.06;MQ0=0;QD=32.86 GT:AD:DP:GQ:PL  ./. ./. 1/
 1:0,3:3:9.03:106,9,0  1/1:0,6:6:18.05:203,18,0
 ```
- 
+
 

@@ -75,7 +75,7 @@ import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 
 /**
- BEGIN_DOC
+BEGIN_DOC
  
 ## Input
 

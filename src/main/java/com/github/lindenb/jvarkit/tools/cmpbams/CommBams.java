@@ -19,7 +19,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.PeekableIterator;
 /**
- BEGIN_DOC
+BEGIN_DOC
 
 ## Example
 
@@ -54,8 +54,8 @@ PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAA
 ```
 
 
- END_DOC
- */
+END_DOC
+*/
 @Program(name="commbams",
 	description="Equivalent of unix 'comm' for bams sorted on queryname",
 	keywords={"sam","bam","comm","compare"},

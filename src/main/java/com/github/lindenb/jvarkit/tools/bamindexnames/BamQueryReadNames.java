@@ -56,9 +56,9 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
- BEGIN_DOC
- 
- 
+BEGIN_DOC
+
+
 ## Example
 
 
@@ -90,8 +90,8 @@ ZZZZ:X
 ```
 
 
- 
- END_DOC
+
+END_DOC
  */
 @Program(description="Query a Bam file indexed with BamIndexReadNames")
 public class BamQueryReadNames extends BaseBamIndexReadNames

@@ -62,13 +62,13 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 /**
- BEGIN_DOC
- 
- ## Example
- 
+BEGIN_DOC
+
+## Example
+
 ```
- $ java -jar dist/knime2txt.jar -g out.dot  knime_3.3.2/workspace/TEST/  | xmllint --format - > out.html
- [INFO][KnimeToText]read XML: knime_3.3.2/workspace/TEST/workflow.knime
+$ java -jar dist/knime2txt.jar -g out.dot  knime_3.3.2/workspace/TEST/  | xmllint --format - > out.html
+[INFO][KnimeToText]read XML: knime_3.3.2/workspace/TEST/workflow.knime
 [INFO][KnimeToText]read XML: knime_3.3.2/workspace/TEST/Interactive Table (#3)/settings.xml
 [INFO][KnimeToText]read XML: knime_3.3.2/workspace/TEST/File Reader (#4)/settings.xml
 [INFO][KnimeToText]read XML: knime_3.3.2/workspace/TEST/Java Snippet Row Filter (#5)/settings.xml
@@ -78,27 +78,27 @@ import htsjdk.samtools.util.IOUtil;
 [INFO][KnimeToText]read XML: knime_3.3.2/workspace/TEST/Column Filter (#10)/settings.xml
 [INFO][KnimeToText]read XML: knime_3.3.2/workspace/TEST/CSV Writer (#9)/settings.xml
 ```
- 
+
 ```
 $ xmllint out.html  | head
 <?xml version="1.0"?>
 <div>
-  <div>
-    <p>Interactive Table (#3)/settings.xml</p>
-    <ul>
-      <li><b>factory</b>  value:"<i>org.knime.base.node.viz.table.TableNodeFactory</i>"</li>
-      <li><b>customDescription</b>  value:"<i/>"</li>
-    </ul>
-  </div>
-  <div>
+<div>
+<p>Interactive Table (#3)/settings.xml</p>
+<ul>
+  <li><b>factory</b>  value:"<i>org.knime.base.node.viz.table.TableNodeFactory</i>"</li>
+  <li><b>customDescription</b>  value:"<i/>"</li>
+</ul>
+</div>
+<div>
 (...)
 ```
- 
- 
- 
- 
- END_DOC
- */
+
+
+
+
+END_DOC
+*/
 @Program(name="knime2txt",
 		description="converts a Knime Workflow to a html representation.",
 		keywords={"knime","workflow","convert"}

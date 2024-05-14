@@ -61,7 +61,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 /**
  * PubmedGender
- BEGIN_DOC
+BEGIN_DOC
  
 ## Building the database
 
@@ -201,8 +201,8 @@ with tr.xsl:
 
 
  
- END_DOC
- */
+END_DOC
+*/
 @Program(name="pubmedgender",
 	keywords={"pubmed","gender","ncbi","xml"},
 	description="Add gender-related attributes in the Author tag of pubmed xml. ",

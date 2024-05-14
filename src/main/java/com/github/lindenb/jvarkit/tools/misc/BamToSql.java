@@ -61,7 +61,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 /**
- BEGIN_DOC
+BEGIN_DOC
  
 ## Motivation
 
@@ -268,8 +268,8 @@ S4.bam    S4      163   rotavirus  M         0         T          10         5  
 ```
 
  
- END_DOC
- */
+END_DOC
+*/
 @Program(name="bam2sql",
 	description="Convert a SAM/BAM to sqlite statements",
 	keywords={"bam","sam","sql","sqlite"},

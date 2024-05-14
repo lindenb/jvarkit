@@ -79,7 +79,7 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StopWatch;
 
 /**
- BEGIN_DOC
+BEGIN_DOC
  
 
 # Motivation
@@ -118,7 +118,7 @@ No errors detected in compressed data of out.zip.
 ```
  
  
- END_DOC
+END_DOC
  
  */
 @Program(

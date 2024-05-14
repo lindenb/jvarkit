@@ -88,25 +88,22 @@ import htsjdk.variant.vcf.VCFReader;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
- BEGIN_DOC
- 
- # Input
- 
- input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
- 
- 
- # Example
- 
- ```
- $ find src -name "manta*z" > jeter.list
- $ java -jar dist/mantamerger.jar jeter.list 2> /dev/null
- 
- (...)
- 
- 
- 
- ```
- END_DOC
+BEGIN_DOC
+
+# Input
+
+input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
+
+
+# Example
+
+```
+$ find src -name "manta*z" > jeter.list
+$ java -jar dist/mantamerger.jar jeter.list 2> /dev/null
+
+(...)
+```
+END_DOC
 
  */
 

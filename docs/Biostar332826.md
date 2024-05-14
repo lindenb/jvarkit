@@ -100,13 +100,13 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- 
- ## Example
- 
- ```
- $ wget -O - -q "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" |\
- 	gunzip -c |\
- 	java -jar dist/biostar332826 --ids ids.txt > out.vcf 
- ```
- 
+
+## Example
+
+```
+$ wget -O - -q "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" |\
+gunzip -c |\
+java -jar dist/biostar332826 --ids ids.txt > out.vcf 
+```
+
 

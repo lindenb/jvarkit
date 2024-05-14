@@ -48,17 +48,17 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 /**
- BEGIN_DOC
- 
- ## Example
- 
- ```
- $ wget -O - -q "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" |\
- 	gunzip -c |\
- 	java -jar dist/biostar332826 --ids ids.txt > out.vcf 
- ```
- 
- END_DOC
+BEGIN_DOC
+
+## Example
+
+```
+$ wget -O - -q "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr1.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" |\
+gunzip -c |\
+java -jar dist/biostar332826 --ids ids.txt > out.vcf 
+```
+
+END_DOC
  */
 @Program(name="biostar332826",
 description="Fast Extraction of Variants from a list of IDs",

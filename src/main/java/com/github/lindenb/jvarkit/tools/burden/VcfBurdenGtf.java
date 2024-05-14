@@ -65,10 +65,10 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFReader;
 
 /**
- BEGIN_DOC
- 
- 
- END_DOC
+BEGIN_DOC
+
+
+END_DOC
  */
 
 @Program(name="vcfburdengtf",

@@ -81,10 +81,10 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /* 
- BEGIN_DOC
- 
- 
- END_DOC
+BEGIN_DOC
+
+
+END_DOC
  */
 @Program(
 		name="vcfannotwithbeacon",

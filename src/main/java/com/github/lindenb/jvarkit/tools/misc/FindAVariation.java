@@ -63,7 +63,7 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFReader;
 /** 
- BEGIN_DOC
+BEGIN_DOC
  
 ## Example
 
@@ -80,12 +80,9 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
 htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12892	HET	C T
 ```
 
-## History
-
-  * 20180914 : replace DP4 with AD
  
- END_DOC
- */
+END_DOC
+*/
 @Program(name="findavariation",
 	description="Finds a specific mutation in a list of VCF files",
 	keywords={"vcf","variation","search","find","bcf"},

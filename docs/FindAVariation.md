@@ -111,8 +111,5 @@ htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2
 htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	2	2	2	.		NA12892	HET	C T
 ```
 
-## History
-
-  * 20180914 : replace DP4 with AD
  
 

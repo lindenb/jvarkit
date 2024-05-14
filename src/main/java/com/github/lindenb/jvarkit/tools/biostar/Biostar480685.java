@@ -49,7 +49,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 /**
  * 
- BEGIN_DOC
+BEGIN_DOC
 
 ## Description
 
@@ -61,7 +61,7 @@ input must be sorted on read name using `samtools sort -n` or ` samtools collate
 samtools collate -O input.bam| java -jar dist/biostar480685.jar
 ```
 
- END_DOC
+END_DOC
  *
  */
 

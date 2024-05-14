@@ -39,12 +39,12 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 
 /**
- BEGIN_DOC
- 
- Example:
- 
- ```
- $ java -jar dist/jvarkit.jar wib2bedgraph  --tabix ~/phastCons100way.txt.gz --wib ~/phastCons100way.wib -r "chr2:1-125168903" | head
+BEGIN_DOC
+
+Example:
+
+```
+$ java -jar dist/jvarkit.jar wib2bedgraph  --tabix ~/phastCons100way.txt.gz --wib ~/phastCons100way.wib -r "chr2:1-125168903" | head
 
 chr2	11391	11392	0.14969291
 chr2	11392	11393	0.14667717
@@ -71,9 +71,8 @@ variableStep chrom=chr2 span=1
 11400	0.1557244
 ```
  
- END_DOC
- */
-
+END_DOC
+*/
 @Program(name="wib2bedgraph",
 description="Extract Wib files to bedgraph or wig",
 keywords={"wib","wig","bed"},

@@ -22,9 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2015 creation
-
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
@@ -53,9 +50,6 @@ import htsjdk.variant.vcf.VCFIterator;
 
 BEGIN_DOC
 
-
-
-
 ### Example
 
 The script injects in the context:
@@ -76,7 +70,7 @@ rotavirus       130     .       T       C       4.12    .       AC1=1;AF1=0.1249
 
 
 ```
-
+END_DOC
 
  */
 import com.beust.jcommander.Parameter;

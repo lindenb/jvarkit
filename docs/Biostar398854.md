@@ -77,13 +77,13 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- ## Example
- 
- ```
- java -jar ${JVARKIT_DIST}/biostar398854.jar \
- 	--gtf input.gtf.gz \
- 	-R ref.fasta input.vcf > out.fasta
- 
- ```
- 
+## Example
+
+```
+java -jar ${JVARKIT_DIST}/biostar398854.jar \
+--gtf input.gtf.gz \
+-R ref.fasta input.vcf > out.fasta
+
+```
+
 

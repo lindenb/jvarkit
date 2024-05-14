@@ -105,21 +105,18 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- 
- # Input
- 
- input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
- 
- 
- # Example
- 
- ```
- $ find src -name "manta*z" > jeter.list
- $ java -jar dist/mantamerger.jar jeter.list 2> /dev/null
- 
- (...)
- 
- 
- 
- ```
+
+# Input
+
+input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
+
+
+# Example
+
+```
+$ find src -name "manta*z" > jeter.list
+$ java -jar dist/mantamerger.jar jeter.list 2> /dev/null
+
+(...)
+```
 

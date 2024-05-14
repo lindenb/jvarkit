@@ -28,11 +28,18 @@ Usage: svcasescontrols [options] Files
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 100
     -cases, --cases
-      samples's name for cases
+      samples's name for cases. We first test it's the content an existing 
+      file. Otherwise it's one or more names.
       Default: []
     --check-bnd-mate
       When comparing two BND, check that their mate (using the ALT allele) are 
       the same too
+      Default: false
+    --complex
+      By default this tool select the SV that are found in the cases but not 
+      in the controls. When using this flag, all variants for cases are 
+      extracted and a count of CASE/CONTROL having the SV is added in the INFO 
+      column. 
       Default: false
     -c, --contig
       limit to this contig
@@ -112,20 +119,22 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
  
- # Input
+# Motivation
+ 
+Find SV present in cases and controls.
+
+
+ 
+# Input
  
  input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
  
  
- # Example
+# Example
  
  ```
- $ find src -name "manta*z" > jeter.list
- $ java -jar jvarkit.jar svcasescontrols jeter.list 2> /dev/null
- 
- (...)
- 
- 
- 
+ $ find manta/ -name "diploid.vcf.gz" > jeter.list
+ $ java -jar jvarkit.jar svcasescontrols --cases sample1,sample2,sample3 jeter.list > output.vcf
  ```
+
 

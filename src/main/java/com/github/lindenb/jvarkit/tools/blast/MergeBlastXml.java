@@ -63,16 +63,16 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SortingCollection;
 
 /**
- BEGIN_DOC
- 
- ## Example
- 
- ```
- $ java -jar dist/mergeblastxml.jar input1.blastn.xml  input2.blastn.xml  input2.blastn.xml > out.xml
- ``` 
- 
- 
- END_DOC
+BEGIN_DOC
+
+## Example
+
+```
+$ java -jar dist/mergeblastxml.jar input1.blastn.xml  input2.blastn.xml  input2.blastn.xml > out.xml
+``` 
+
+
+END_DOC
  */
 @Program(name="mergeblastxml",biostars=246958,
 description="merge XML blast results (same Iteration/Iteration_query-def in multiple xml files",
