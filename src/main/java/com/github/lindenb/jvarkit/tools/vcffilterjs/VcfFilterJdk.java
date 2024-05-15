@@ -418,7 +418,7 @@ END_DOC
 				304979,310155,317388,319148,327035,337645,343569,
 				347173,351205,351404,354126,302217,384864,416955,
 				436412,476718,9481318,9489144,9498113,9500825,9509515,9527886,9536293,
-				9537149,9567314,9568820,9580387,9587613,9594364,9594639
+				9537149,9567314,9568820,9580387,9587613,9594364,9594639,9594882
 				},
 		references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
 		creationDate="20170705",

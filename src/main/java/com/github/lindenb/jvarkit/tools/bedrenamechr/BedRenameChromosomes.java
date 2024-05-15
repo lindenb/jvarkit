@@ -26,11 +26,11 @@ History:
 * 2014 creation
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.bedrenamechr;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -41,7 +41,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -62,7 +61,7 @@ BEGIN_DOC
 ```bash
 $   curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz |\
     gunzip -c | \
-    java -jar dist/bedrenamechr.jar -f src/main/resources/chromnames/hg19_to_g1kv37.tsv -c 2 |\
+    java -jar dist/jvarkit bedrenamechr -f src/main/resources/chromnames/hg19_to_g1kv37.tsv -c 2 |\
    tail
 
 
@@ -86,14 +85,15 @@ END_DOC
 		name="bedrenamechr",
 		description="Convert the names of the chromosomes in a Bed file",
 		keywords={"bed","chromosome","contig","convert"},
-		modificationDate="20190503",
+		creationDate="20190503",
+		modificationDate="20240515",
 		jvarkit_amalgamion =  true,
 		menu="BED Manipulation"
 		)
-public class ConvertBedChromosomes
+public class BedRenameChromosomes
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ConvertBedChromosomes.class).make();
+	private static final Logger LOG = Logger.build(BedRenameChromosomes.class).make();
 	
 	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 
@@ -106,19 +106,17 @@ public class ConvertBedChromosomes
 	private String chromColumnsStr="1";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;
-	@Parameter(names={"-s","--header"},description="Ignore lines starting with this java regular expression")
+	@Parameter(names={"-s","--header"},description="Ignore lines starting with this java regular expression but print them anyway")
 	private String ignoreLinesPattern="(#|browser|track)";
 	@Parameter(names={"-d","--delim"},description="field delimiter.")
 	private String delimStr="\t";
 
 	
 	private ContigNameConverter customMapping=ContigNameConverter.getIdentity();
-	private Set<String> unmappedChromosomes=new HashSet<String>();
+	private final Set<String> unmappedChromosomes=new HashSet<String>();
 	private int chromColumns0[];
 	
-	
-	@SuppressWarnings("resource")
-	protected int doWork(final BufferedReader in,PrintStream out)
+	protected int doWork(final BufferedReader in,PrintWriter out)
 			throws IOException
 		{
 		String line;
@@ -166,8 +164,6 @@ public class ConvertBedChromosomes
 	
 	@Override
 	public int doWork(final List<String> args) {
-		
-		PrintStream out=null;
 		try
 			{
 			this.customMapping=ContigNameConverter.fromPathOrOneDictionary(this.mappingFile);
@@ -185,24 +181,25 @@ public class ConvertBedChromosomes
 				return -1;
 				}
 			
-			out = super.openPathOrStdoutAsPrintStream(this.outputFile);
-			if(args.isEmpty())
-				{
-				doWork(IOUtils.openStreamForBufferedReader(stdin()), out);
-				}
-			else
-				{
-				for(final String filename:args) {
-					try(final BufferedReader br=IOUtils.openURIForBufferedReading(filename)) {
-						doWork(br, out);
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				if(args.isEmpty() || (args.size()==1 && args.get(0).equals("-")))
+					{
+					doWork(IOUtils.openStreamForBufferedReader(stdin()), out);
+					}
+				else
+					{
+					for(final String filename:args) {
+						try(final BufferedReader br=IOUtils.openURIForBufferedReading(filename)) {
+							doWork(br, out);
+							}
 						}
 					}
+				if(!unmappedChromosomes.isEmpty())
+					{
+					LOG.warning("Unmapped chromosomes:"+unmappedChromosomes);
+					}
+				out.flush();
 				}
-			if(!unmappedChromosomes.isEmpty())
-				{
-				LOG.warning("Unmapped chromosomes:"+unmappedChromosomes);
-				}
-			out.flush();
 			return 0;
 			}
 		catch(final Throwable err)
@@ -210,15 +207,11 @@ public class ConvertBedChromosomes
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(out);
-			}
 		}
 	
 
 	public static void main(final String[] args)
 		{
-		new ConvertBedChromosomes().instanceMainWithExit(args);
+		new BedRenameChromosomes().instanceMainWithExit(args);
 		}
 	}

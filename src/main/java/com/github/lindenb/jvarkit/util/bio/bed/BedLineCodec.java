@@ -71,32 +71,39 @@ public class BedLineCodec
         	}
 		if(BedLine.isBedHeader(line)) return null;
 		
-        final String[] tokens = CharSplitter.TAB.split(line);
+        return decode(CharSplitter.TAB.split(line));
+		}
+        
+        
+    	/** may be null if tokens==null */
+	public BedLine decode(final String[] tokens) {
+    	if(tokens==null) return null;
+    	
         if(tokens.length<2) {
-        	raiseError("not enough tokens in BED line",line);
+        	raiseError("not enough tokens in BED line",String.join("\t",tokens));
         	return null;
         	}
         if(tokens[1].equals(tokens[2])) {
-        	raiseError("cannot use empty BED interval",line);
+        	raiseError("cannot use empty BED interval where start==end.",String.join("\t",tokens));
         	return null;
         	}
         
         if(StringUtil.isBlank(tokens[0])) {
-        	raiseError("empty chromosome",line);
+        	raiseError("empty chromosome",String.join("\t",tokens));
         	return null;
         	}
         
         if(this.chromosomeConverter!=null) {
         	final String ctg = this.chromosomeConverter.apply(tokens[0]);
         	if(StringUtil.isBlank(ctg)) {
-            	raiseError("cannot use/find contig \""+tokens[0]+"\". Check reference dictionary ?",line);
+            	raiseError("cannot use/find contig \""+tokens[0]+"\". Check reference dictionary ?",String.join("\t",tokens));
         		return null;
         		}
         	tokens[0] = ctg;
         	}
         
-        return new BedLine(tokens);
-        }
+	    return new BedLine(tokens);
+	    }
 	
 	private void raiseError(final String msg,final String line) {
 		switch(getValidationStringency()) {
