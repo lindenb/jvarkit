@@ -127,14 +127,18 @@ Find SV present in cases and controls.
  
 # Input
  
- input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
+ input is a tab delimited file with a header:
+ 
+  - vcf: the path to the vcf
+  - sample : the sample name associated to the vcf. If empty the name will be searched in the CHROM header
+  - status : case OR control
  
  
 # Example
  
  ```
- $ find manta/ -name "diploid.vcf.gz" > jeter.list
- $ java -jar jvarkit.jar svcasescontrols --cases sample1,sample2,sample3 jeter.list > output.vcf
+
+ $ java -jar jvarkit.jar svcasescontrols input.tsv > output.vcf
  ```
 
 

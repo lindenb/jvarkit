@@ -2,12 +2,18 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Plot a Hilbert Curve from a VCF file.
+Plot a Hilbert Curve from a VCF file as SVG
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcf2hilbert  [options] Files
+
 Usage: vcf2hilbert [options] Files
   Options:
     -h, --help
@@ -16,9 +22,9 @@ Usage: vcf2hilbert [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
-    -r, --radius
-      Radius Size
-      Default: 3.0
+    -r, --recursion
+      Hilbdert Curve level of recursion
+      Default: 6
     --version
       print version and exit
     -w, --width
@@ -33,24 +39,13 @@ Usage: vcf2hilbert [options] Files
  * vcf
  * image
  * visualization
+ * svg
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcf2hilbert
-```
-
-The java jar file will be installed in the `dist` directory.
+20171201
 
 ## Source code 
 
@@ -82,6 +77,6 @@ The current reference is:
 
 ```bash
 $  curl -s "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140123_NA12878_Illumina_Platinum/NA12878.wgs.illumina_platinum.20140404.snps_v2.vcf.gz" | gunzip -c |\
- java -jar dist/vcf2hilbert.jar  -r 1.1 -w 1000 -o hilbert.png
+ java -jar dist/jvarkit.jar vcf2hilbert > hilbert.svg
 ```
 

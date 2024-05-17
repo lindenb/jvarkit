@@ -35,28 +35,31 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
-import java.awt.geom.Point2D.Double;
 import java.awt.image.BufferedImage;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-import javax.imageio.ImageIO;
+import org.w3c.dom.Element;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.hilbert.HilbertCurve;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.svg.SVGDocument;
+import com.github.lindenb.jvarkit.util.Maps;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -67,169 +70,36 @@ BEGIN_DOC
 
 ```bash
 $  curl -s "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140123_NA12878_Illumina_Platinum/NA12878.wgs.illumina_platinum.20140404.snps_v2.vcf.gz" | gunzip -c |\
- java -jar dist/vcf2hilbert.jar  -r 1.1 -w 1000 -o hilbert.png
+ java -jar dist/jvarkit.jar vcf2hilbert > hilbert.svg
 ```
 
 END_DOC
 
  */
 @Program(name="vcf2hilbert",
-	keywords={"vcf","image","visualization"},
-	description="Plot a Hilbert Curve from a VCF file.")
+	keywords={"vcf","image","visualization","svg"},
+	description="Plot a Hilbert Curve from a VCF file as SVG",
+	creationDate="20171201",
+	modificationDate="20240517",
+	jvarkit_amalgamion = true
+	)
 public class VcfToHilbert extends Launcher
 	{
 	
 	private static final Logger LOG=Logger.build(VcfToHilbert.class).make();
 
-	/** graphics context */ 
-	private Graphics2D g;
-	/** dictionary */
-	private SAMSequenceDictionary dict;
     /** level of recursion */
+    @Parameter(names={"-r","--recursion"},description="Hilbdert Curve level of recursion")
     private int recursionLevel=6;
     /** with/height of the final picture */
     @Parameter(names={"-w","--width"},description="Image width")
     private int imageWidth=1000;
-    private double sampleWidth=0;
-    private double genomicSizePerCurveUnit=0L;
     /** radius of a point */
-    @Parameter(names={"-r","--radius"},description="Radius Size")
-    private float radiusSize =3.0f;
     @Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-    private File imgOut =null;
-    
-    private abstract class HilbertSegmentHandler
-    	{
-        /** last index of the position in the genome */
-    	double prev_base=0;
-        /** size (in pb) of an edge */
-        private final double d_base=VcfToHilbert.this.genomicSizePerCurveUnit;
-    	/** size of an edge */
-        private double dist=-1;
-        /** last time we plot a segment, point at end */
-        private Point2D.Double prevPoint;
+    private Path imgOut =null;
         
-        
-        
-        protected HilbertSegmentHandler()
-        	{
-        	this.dist = VcfToHilbert.this.sampleWidth;
-        	for (int i= VcfToHilbert.this.recursionLevel; i>0; i--)
-	            {
-	            this.dist /= 2.0;
-	            }
-        	this.prevPoint=new Point2D.Double(
-        			this.dist/2.0,
-        			this.dist/2.0
-        			);
-            this.prev_base=0L;
-        	}
-        
-        abstract void segment(
-        		Point2D.Double beg,
-        		Point2D.Double end,
-        		long chromStart,
-        		long chromEnd
-        		);
-        
-        void run()
-        	{
-        	this.HilbertU(recursionLevel);
-        	}	
-        
-        private void lineRel(double deltaX, double deltaY)
-        	{
-        	Point2D.Double point=new Point2D.Double(
-        		this.prevPoint.x + deltaX,
-        		this.prevPoint.y + deltaY
-        		);
-            long chromStart=(long)prev_base;
-            long chromEnd=(long)(chromStart+ d_base);
-            segment(prevPoint, point, chromStart, chromEnd);
-            this.prevPoint= point;
-            this.prev_base= chromEnd;;
-        	}
- 	//make U shaped curve       
-        private void HilbertU(int level)
-            {
-            if (level <= 0) return;
-            HilbertD(level-1);    this.lineRel(0, dist);
-            HilbertU(level-1);    this.lineRel(dist, 0);
-            HilbertU(level-1);    this.lineRel(0, -dist);
-            HilbertC(level-1);
-            }
-     
-	//make D shaped rule
-        private void HilbertD(int level)
-        	{
-        	if (level <= 0) return;
-            HilbertU(level-1);    this.lineRel(dist, 0);
-            HilbertD(level-1);    this.lineRel(0, dist);
-            HilbertD(level-1);    this.lineRel(-dist, 0);
-            HilbertA(level-1);
-    		}
-     
-	// make C shaped
-        private void HilbertC(int level)
-        	{
-        	if (level <= 0) return;
-            HilbertA(level-1);    this.lineRel(-dist, 0);
-            HilbertC(level-1);    this.lineRel(0, -dist);
-            HilbertC(level-1);    this.lineRel(dist, 0);
-            HilbertU(level-1);
-        	}
-     	//make A shaped
-        private void HilbertA(int level) {
-        	if (level <= 0) return;
-            HilbertC(level-1);    this.lineRel(0, -dist);
-            HilbertA(level-1);    this.lineRel(-dist, 0);
-            HilbertA(level-1);    this.lineRel(0, dist);
-            HilbertD(level-1);
-        	}
-    	}	
-    private class EvalCurve extends HilbertSegmentHandler
-    	{
-    
-    	long count=0;
-    	@Override
-    	void segment(Double beg, Double end, long chromStart, long chromEnd) {
-    		count++;
-    		}
-    	}
-    
-    private class PaintSegment extends HilbertSegmentHandler
-    	{
-    	long genomicStart;
-    	long genomicEnd;
-    	@Override
-    	void segment(
-         		final Point2D.Double beg,
-         		final Point2D.Double end,
-         		final long chromStart,
-         		final long chromEnd
-         		)
-    		{
-    		if(this.genomicStart > chromEnd) return;
-    		if(this.genomicEnd < chromStart) return;
-    		
-    		long p0= Math.max(this.genomicStart,chromStart);
-    		long p1= Math.min(this.genomicEnd,chromEnd);
-    		double segsize=chromEnd-chromStart;
-    		if(segsize==0) segsize=1.0;
-    		
-    		double r0= (p0-(double)chromStart)/segsize;
-    		double r1= (p1-(double)chromStart)/segsize;
-    		
-    		double x0= beg.x + (end.x - beg.x)*r0;
-    		double y0= beg.y + (end.y - beg.y)*r0;
-    		double x1= beg.x + (end.x - beg.x)*r1;
-    		double y1= beg.y + (end.y - beg.y)*r1;
-    		    		
-    		g.draw(new Line2D.Double(x0,y0,x1,y1));
-    		}
-    	}
-    
-    private class PaintVariant extends HilbertSegmentHandler
+    /*
+    private class PaintVariant implements HilbertCurve.Handler
 		{
 		VariantContext ctx;
 		private long genomic_index;
@@ -240,7 +110,7 @@ public class VcfToHilbert extends Launcher
 			this.ctx=ctx;
 			this.sample_x=sample_x;
 			this.sample_y=sample_y;
-			for(SAMSequenceRecord ssr:VcfToHilbert.this.dict.getSequences())
+			for(SAMSequenceRecord ssr:dict.getSequences())
 				{
 				if(ssr.getSequenceName().equals(ctx.getContig()))
 					{
@@ -269,7 +139,7 @@ public class VcfToHilbert extends Launcher
 			}
 		
 		@Override
-		void segment(
+		public void segment(
 	     		final Point2D.Double beg,
 	     		final Point2D.Double end,
 	     		final long chromStart,
@@ -380,15 +250,15 @@ public class VcfToHilbert extends Launcher
 			g.setComposite(composite);
 			}
 		}
-    
+   
 	
 	
 
     
-    private void paintReference()
+    private void paintReference(final HilbertCurve hilbertCurve,final List<Interval> intervals,final SVGDocument svgDoc)
     	{
-    	int n_colors=this.dict.getSequences().size();
-    	ArrayList<Color> colors=new ArrayList<Color>(n_colors);
+    	final int n_colors= intervals.size();
+    	final ArrayList<Color> colors=new ArrayList<Color>(n_colors);
     	for(int i=0;i<n_colors;++i)
     		{
     		float gray=(i/(float)n_colors)*0.6f;
@@ -412,165 +282,134 @@ public class VcfToHilbert extends Launcher
     		SAMSequenceRecord ssr= this.dict.getSequence(tid);
     		g.setColor(colors.get(tid%colors.size()));
     		
-    		PaintSegment paintSeg=new PaintSegment();
-        	paintSeg.genomicStart = pos;
-        	paintSeg.genomicEnd   = pos+ssr.getSequenceLength();
-        	paintSeg.run();
+    		
     		
     		pos+=ssr.getSequenceLength();
     		}
     	g.setComposite(composite);
     	 g.setStroke(oldStroke);
     	}
-    
+     */
     
     
     @Override
     public int doWork(final List<String> args) {
-		if(this.imgOut==null)
-			{
-			LOG.error("output image file not defined");
-			return -1;
-			}
-		
 		if(this.imageWidth<1)
 			{
 			LOG.error("Bad image size:" +this.imageWidth);
 			return -1;
 			}
-		VCFIterator iter=null;
-		try
-			{
-			iter = this.openVCFIterator(oneFileOrNull(args));
-			
+		
+		
+		
+		try(VCFIterator iter=this.openVCFIterator(oneFileOrNull(args))) {
 			final VCFHeader header=iter.getHeader();
-			this.dict = header.getSequenceDictionary();
-			if(this.dict == null)
-				{
-				throw new JvarkitException.FastaDictionaryMissing("no dict in input");
+			SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+			final List<Interval> intervals = new ArrayList<>();
+			for(SAMSequenceRecord ssr:dict.getSequences()) {
+				intervals.add(new Interval(ssr.getContig(),1,ssr.getSequenceLength(),false,ssr.getSequenceName()));
 				}
-			final List<String> samples=header.getSampleNamesInOrder();
-			if(samples.isEmpty())
-				{
-				throw new JvarkitException.SampleMissing("no.sample.in.vcf");
-				}
-			LOG.info("N-Samples:"+samples.size());
-			double marginWidth = (this.imageWidth-2)*0.05;
-			this.sampleWidth= ((this.imageWidth-2)-marginWidth)/samples.size();
-			LOG.info("sample Width:"+sampleWidth);
-			BufferedImage img = new BufferedImage(this.imageWidth, this.imageWidth, BufferedImage.TYPE_INT_RGB);
-			this.g = (Graphics2D)img.getGraphics();
-			this.g.setColor(Color.WHITE);
-			this.g.fillRect(0, 0, imageWidth, imageWidth);
 			
-			g.setColor(Color.BLACK);
-			final Hershey hershey =new Hershey();
-
-			EvalCurve evalCurve=new EvalCurve();
-			evalCurve.run();
-			this.genomicSizePerCurveUnit = ((double)dict.getReferenceLength()/(double)(evalCurve.count));
-			if(this.genomicSizePerCurveUnit<1) this.genomicSizePerCurveUnit=1;
-			LOG.info("genomicSizePerCurveUnit:"+genomicSizePerCurveUnit);
+			final long genomeLength=intervals.stream().mapToLong(it->it.getLengthOnReference()).sum();
+			LOG.info("genome length "+genomeLength);
 			
-			for(int x=0;x< samples.size();++x)
-				{
-				String samplex =  samples.get(x);
-				
-				double labelHeight=marginWidth;
-				if(labelHeight>50) labelHeight=50;
-				
-				g.setColor(Color.BLACK);
-				hershey.paint(g,
-						samplex,
-						marginWidth + x*sampleWidth,
-						marginWidth - labelHeight,
-						sampleWidth*0.9,
-						labelHeight*0.9
-						);
-				
-        		AffineTransform old=g.getTransform();
-        		AffineTransform tr= AffineTransform.getTranslateInstance(
-        				marginWidth ,
-        				marginWidth + x*sampleWidth
-        				);
-        		tr.rotate(Math.PI/2);
-        		g.setTransform(tr);
-        		hershey.paint(g,
-        				samplex,
-						0.0,
-						0.0,
-						sampleWidth*0.9,
-						labelHeight*0.9
-						);        		//g.drawString(this.tabixFile.getFile().getName(),0,0);
-        		g.setTransform(old);
-				
-				
-				double tx = marginWidth+x*sampleWidth;
-				for(int y=0;y< samples.size();++y)
-					{
-					double ty = marginWidth+y*sampleWidth;
-					g.translate(tx, ty);
-					g.setColor(Color.BLUE);
-					g.draw(new Rectangle2D.Double(0, 0, sampleWidth, sampleWidth));
-					//paint each chromosome
-					paintReference();	
-					g.translate(-tx, -ty);
+			final HilbertCurve hilbertCurve = new HilbertCurve(this.imageWidth,genomeLength, this.recursionLevel);
+			final SVGDocument svgDoc = new SVGDocument();
+			svgDoc.setHeight(this.imageWidth+1);
+			svgDoc.setWidth(this.imageWidth+1);
+			long pos=1;
+			for(int i=0;i< intervals.size();i++) {
+				final Interval ssr = intervals.get(i);
+				final int color[] = new int[] {0,0,0};
+				if(ssr.getContig().matches("(chr)?[X]")) {
+					color[2]=255;
 					}
+				else if(ssr.getContig().matches("(chr)?[Y]")) {
+					color[0]=255;
+					color[1]=192;
+					color[2]=203;
+					}
+				else if(i%2==0)
+					{
+					color[0]=205;
+					color[1]=133;
+					color[2]=63;
+					}
+				else
+					{
+					color[0]=100;
+					color[1]=100;
+					color[2]=100;
+					}
+				
+	        	final List<Point2D.Double> points = hilbertCurve.getPoints(pos, pos+ssr.getLengthOnReference());
+	        	if(!points.isEmpty()) {
+		        	Element E = svgDoc.polyline(Maps.of("stroke-width",3,"stroke","rgb("+color[0]+","+color[1]+","+color[2]+")"));
+		        	svgDoc.rootElement.appendChild(E);
+		        	E.setAttribute("points",svgDoc.toString(points));
+		        	svgDoc.setTitle(E,ssr.getName());
+		        	}
+	        	pos+=ssr.getLengthOnReference();
 				}
-			LOG.info("genomicSizePerCurveUnit:"+(long)genomicSizePerCurveUnit*evalCurve.count+" "+dict.getReferenceLength()+" count="+evalCurve.count);
-			LOG.info("Scanning variants");
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(this.dict);
+			
 			while(iter.hasNext())
 				{
-				final VariantContext var=progress.watch(iter.next());
-				for(int x=0;x< samples.size();++x)
-					{
-					final String samplex =  samples.get(x);
-					final Genotype gx = var.getGenotype(samplex);
-					if(!gx.isCalled()) continue;
-					double tx = marginWidth+x*sampleWidth;
-
-					for(int y=0;y< samples.size();++y)
+				final VariantContext ctx= iter.next();
+				if(!ctx.isVariant()) continue;
+				long n1=0;
+				long n2=0;
+				for(SAMSequenceRecord ssr:dict.getSequences()) {
+					if(ssr.contigsMatch(ctx)) {
+						n2=n1+ctx.getEnd();
+						n1+=ctx.getStart();
+						break;
+						}
+					else
 						{
-						final String sampley =  samples.get(y);
-						final Genotype gy = var.getGenotype(sampley);
-						if(!gy.isCalled()) continue;
-						if(gx.isHomRef() && gy.isHomRef()) continue;
-						double ty = marginWidth+y*sampleWidth;
-						g.translate(tx, ty);
-						final PaintVariant paint=new PaintVariant(var, x, y);
-						paint.run();
-						g.translate(-tx, -ty);
+						n1+=ssr.getLengthOnReference();
 						}
 					}
+				final List<Point2D.Double> points = hilbertCurve.getPoints(n1,n2);
+				if(points.isEmpty()) continue;
+				
+				double length = 0;
+				double x = points.get(0).getX();
+				double y = points.get(0).getY();
+				for(int i=0;i+1< points.size();i++) {
+					length+= points.get(i).distance(points.get(i+1));
+					x+= points.get(i+1).getX();
+					y+= points.get(i+1).getY();
+					}
+				x/=points.size();
+				y/=points.size();
+				Element E;
+				if(length<=2) {
+					E= svgDoc.circle(x,y,10);
+					E.setAttribute("fill","yellow");
+					E.setAttribute("stroke","black");
+					}
+				else
+					{
+		        	E = svgDoc.polyline(Maps.of("stroke-width",5,"stroke","yellow"));
+		        	E.setAttribute("points",svgDoc.toString(points));
+					}
+				svgDoc.rootElement.appendChild(E);
+				svgDoc.setTitle(E,ctx.getContig()+":"+ctx.getStart());
 				}
-			progress.finish();
-			this.g.dispose();
 			
-			//save file
-			LOG.info("saving "+imgOut);
-			if(imgOut!=null)
-				{
-				ImageIO.write(img, imgOut.getName().toLowerCase().endsWith(".png")
-						?"PNG":"JPG", imgOut);
-				}
-			else
-				{
-				ImageIO.write(img, "PNG", stdout());
-				}
+			svgDoc.saveToFileOrStdout(this.imgOut);
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(iter);
-			}
+		
 		}
-	public static void main(String[] args) {
+    
+	public static void main(final String[] args) {
 		new VcfToHilbert().instanceMainWithExit(args);
+		}
 	}
-}
+	
