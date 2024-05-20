@@ -30,6 +30,7 @@ import java.util.Objects;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -38,6 +39,7 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.Feature;
 
 public class BedLine
+	extends AbstractLocatable
 	implements Feature, BedInterval
 	{
 	private final String tokens[];

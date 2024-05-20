@@ -190,6 +190,12 @@ public class FileHeader extends AbstractList<String> {
 			}
 		this.col2idx = Collections.unmodifiableMap(hash);
 		}
+	/** assert column exist at any position , otherwise throw exception */
+	public FileHeader assertColumnExists(String colContent) {
+		this.getColumnIndex(colContent);
+		return this;
+		}
+
 	
 	public FileHeader assertColumn(String colContent,int index) {
 		if(index<0 || index>=this.size()) throw new IndexOutOfBoundsException("0<"+index+"<"+size());

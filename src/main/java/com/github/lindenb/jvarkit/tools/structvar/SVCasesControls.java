@@ -24,8 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -39,7 +39,8 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.FileHeader;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
@@ -83,14 +84,18 @@ Find SV present in cases and controls.
  
 # Input
  
- input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
+ input is a tab delimited file with a header:
+ 
+  - vcf: the path to the vcf
+  - sample : the sample name associated to the vcf. If empty the name will be searched in the CHROM header
+  - status : case OR control
  
  
 # Example
  
  ```
- $ find manta/ -name "diploid.vcf.gz" > jeter.list
- $ java -jar jvarkit.jar svcasescontrols --cases sample1,sample2,sample3 jeter.list > output.vcf
+
+ $ java -jar jvarkit.jar svcasescontrols input.tsv > output.vcf
  ```
 
 END_DOC
@@ -101,7 +106,7 @@ END_DOC
 description="Find SV present in cases but not in controls.",
 keywords= {"sv","manta","vcf"},
 creationDate="20240513",
-modificationDate="20240513",
+modificationDate="20240516",
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
@@ -111,12 +116,10 @@ public class SVCasesControls extends Launcher {
 	private Path outputFile = null;
 	@ParametersDelegate
 	private StructuralVariantComparator svComparator = new StructuralVariantComparator();
-	@Parameter(names={"-c","--contig"},description="limit to this contig")
+	@Parameter(names={"-c","--contig","--chrom"},description="limit to this contig")
 	private String limitContig = null;
 	@Parameter(names={"--no-bnd"},description="discar BND")
 	private boolean discard_bnd = false;
-	@Parameter(names={"-cases","--cases"},description="samples's name for cases. We first test it's the content an existing file. Otherwise it's one or more names.")
-	private List<String> casesStr=new ArrayList<>();
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 	@Parameter(names={"--debug"},hidden=true)
@@ -149,52 +152,72 @@ public class SVCasesControls extends Launcher {
 			return new SimpleInterval(ctx.getContig(),Math.max(1, ctx.getStart()+x),ctx.getEnd()+x);
 			}
 		return ctx;
-	}
+		}
 
 	@Override
 	public int doWork(final List<String> args) {
 		try {
 			SAMSequenceDictionary dict=null;
-			final Set<String> cases ;
-			
-			if(this.casesStr.size()==1 && Files.exists( Paths.get(this.casesStr.get(0)))) {
-				cases = Files.lines( Paths.get(this.casesStr.get(0))).map(S->S.trim()).filter(S->!StringUtils.isBlank(S)).collect(Collectors.toSet());
-				}
-			else
-				{
-				cases = this.casesStr.stream().flatMap(S->Arrays.stream(S.split("[ ,\t;]"))).filter(S->!StringUtils.isBlank(S)).collect(Collectors.toSet());
-				}
-			
-			
-			
-			
 			final List<VcfInput> vcfInputs = new ArrayList<>();
-			
-			
-			
-			for(Path path: IOUtils.unrollPaths(args)) {
-				try(VCFReader r = open(path)) {
-					final VCFHeader header = r.getHeader();
-					final List<String> samples = header.getGenotypeSamples();
-					if(samples.size()!=1) {
-						LOG.error("expected one and only one sample in "+path+" but got "+samples.size());
+
+			final String input =  oneFileOrNull(args);
+			try(BufferedReader br = super.openBufferedReader(input)) {
+				String line = br.readLine();
+				if(line==null) throw new IOException("cannot read first line of input "+(input==null?"stdin":input) );
+				final FileHeader fileHeader = new FileHeader(line,S->Arrays.asList(CharSplitter.TAB.split(S)));
+				fileHeader.assertColumnExists("vcf").assertColumnExists("status");
+				while((line=br.readLine())!=null) {
+					final FileHeader.RowMap row= fileHeader.toMap(line);
+					final Path path = Paths.get(row.get("vcf"));
+					String sample = row.getOrDefault("sample", "");
+					String status = row.get("status");
+					final boolean is_case;
+					if(status.equals("case")) {
+						is_case=true;
+						}
+					else if(status.equals("control") || status.equals(".") ||StringUtils.isBlank(status) ) {
+						is_case=false;
+						}
+					else
+						{
+						LOG.error("bad status in "+row);
 						return -1;
 						}
-					final String sn = samples.get(0);
-					final SAMSequenceDictionary dict1= SequenceDictionaryUtils.extractRequired(header);
-					if(dict==null) {
-						dict=dict1;
+					
+					try(VCFReader r = open(path)) {
+						final VCFHeader header = r.getHeader();
+						if(StringUtils.isBlank(sample)) {
+							final List<String> samples = header.getGenotypeSamples();
+							if(samples.isEmpty()) {
+								LOG.error("no genotype in "+path+" using path as sample name");
+								sample = path.toString();
+								}
+							else if(samples.size()!=1) {
+								LOG.error("expected one and only one sample in "+path+" but got "+samples.size());
+								return -1;
+								}
+							else
+								{
+								sample = samples.get(0);
+								}
+							}
+						final SAMSequenceDictionary dict1= SequenceDictionaryUtils.extractRequired(header);
+						if(dict==null) {
+							dict=dict1;
+							}
+						else if(!SequenceUtil.areSequenceDictionariesEqual(dict, dict1))
+							{
+							throw new JvarkitException.DictionariesAreNotTheSame(dict1, dict);
+							}
 						}
-					else if(!SequenceUtil.areSequenceDictionariesEqual(dict, dict1))
-						{
-						throw new JvarkitException.DictionariesAreNotTheSame(dict1, dict);
+					final String final_sn = sample;
+					if(vcfInputs.stream().anyMatch(V->V.sample.equals(final_sn))) {
+						LOG.warning("DUPLICATE SAMPLE for sample "+final_sn);
 						}
-					if(vcfInputs.stream().anyMatch(V->V.sample.equals(sn))) {
-						LOG.warning("DUPLICATE SAMPLE for sample "+sn);
-						}
-					vcfInputs.add(new VcfInput(path, sn,cases.isEmpty() || cases.contains(sn)));
+					vcfInputs.add(new VcfInput(path,sample,is_case));
 					}
 				}
+
 			if(vcfInputs.isEmpty()) {
 				LOG.error("no input");
 				return -1;

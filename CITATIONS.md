@@ -13,6 +13,7 @@
  * Pauly R, Alexander Feltus F. Simplified detection of genetic background admixture using artificial intelligence. Clin Genet. 2024 Apr 1. doi: 10.1111/cge.14527. Epub ahead of print. PMID: 38561851.
  * Hervé J, Haurogné K, Allard M, Sourice S, Lindenbaum P, Bach JM, Lieubeau B. Spontaneous Akt2 deficiency in a colony of NOD mice exhibiting early diabetes. Sci Rep. 2024 Apr 20;14(1):9100. doi: 10.1038/s41598-024-60021-w. PMID: 38643275; PMCID: PMC11032318. **vcffilterjdk**
  * Baudic M, Murata H, Bosada FM, Melo US, Aizawa T, Lindenbaum P, van der Maarel LE, Guedon A, Baron E, Fremy E, Foucal A, Ishikawa T, Ushinohama H, Jurgens SJ, Choi SH, Kyndt F, Le Scouarnec S, Wakker V, Thollet A, Rajalu A, Takaki T, Ohno S, Shimizu W, Horie M, Kimura T, Ellinor PT, Petit F, Dulac Y, Bru P, Boland A, Deleuze JF, Redon R, Le Marec H, Le Tourneau T, Gourraud JB, Yoshida Y, Makita N, Vieyres C, Makiyama T, Mundlos S, Christoffels VM, Probst V, Schott JJ, Barc J. TAD boundary deletion causes PITX2-related cardiac electrical and structural defects. Nat Commun. 2024 Apr 20;15(1):3380. doi: 10.1038/s41467-024-47739-x. PMID: 38643172; PMCID: PMC11032321. **lowresbamtoraster**
+ * Pauly, R., Johnson, L., Feltus, F.A. et al. Enrichment of a subset of Neanderthal polymorphisms in autistic probands and siblings. Mol Psychiatry (2024). https://doi.org/10.1038/s41380-024-02593-7
 
 ## 2023
 

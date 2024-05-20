@@ -123,6 +123,7 @@ import com.github.lindenb.jvarkit.tools.gtf.GtfLiftOver;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
 import com.github.lindenb.jvarkit.tools.gtf.KgToGff;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
+import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.htsfreemarker.HtsFreemarker;
 import com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf;
 import com.github.lindenb.jvarkit.tools.kg2bed.KnownGenesToBed;
@@ -724,6 +725,7 @@ public class JvarkitCentral {
 		command(VcfToIntervals.class);
 		command(VCFShuffle.class);
 		command(VcfTbiToBed.class);
+		command(VcfToHilbert.class);
 		command(VcfGroupByPopulation.class);
 		command(CNVValidatorServer.class);
 		command(VcfBurdenFisherH.class);

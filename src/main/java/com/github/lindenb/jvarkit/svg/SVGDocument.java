@@ -24,9 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.svg;
 
+import java.awt.geom.Point2D;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -86,6 +88,7 @@ public SVGDocument(final Document document) {
 					"rect {stroke:black;fill:none;}\n"+
 					"polygon {stroke:black;fill:none;}\n"+
 					"path {stroke:black;fill:none;}\n"+
+					"polyline {stroke:black;fill:none;}\n"+
 					"text {stroke:none;fill:black;}\n"
 			);
 	this.svgElement.appendChild(this.styleElement);
@@ -215,14 +218,14 @@ public Element text(double x,double y,Object str) {
 	return this.text(x, y, str,Collections.emptyMap());
 	}
 
-public Element circle(double x,double y,double r, final Map<String,Object> atts) {
-	final Map<String,Object> m = Maps.of("x", x, "y", y, "r", r);
+public Element circle(double cx,double cy,double r, final Map<String,Object> atts) {
+	final Map<String,Object> m = Maps.of("cx", cx, "cy", cy, "r", r);
 	if(atts!=null) m.putAll(atts);
 	return  this.element("circle",null,m);
 	}
 
-public Element circle(double x,double y,double r) {
-	return this.circle(x, y, r,Collections.emptyMap());
+public Element circle(double cx,double cy,double r) {
+	return this.circle(cx, cy, r,Collections.emptyMap());
 	}
 
 public Element use(double x,double y,String id, final Map<String,Object> atts) {
@@ -242,6 +245,24 @@ public Element group(Map<String,Object> atts) {
 
 public Element clipPath() {
 	return this.element("clipPath");
+	}
+
+public Element polyline(final Map<String,Object> atts) {
+	return this.element("polyline",null,atts);
+	}
+public Element polyline() {
+	return polyline(Collections.emptyMap());
+	}
+
+public String toString(final List<? extends Point2D> points) {
+	final StringBuilder sb = new StringBuilder();
+	for(int i=0;i< points.size();i++) {
+		if(i>0) sb.append(" ");
+		sb.append(format(points.get(i).getX()));
+		sb.append(",");
+		sb.append(format(points.get(i).getY()));
+		}
+	return sb.toString();
 	}
 
 public Element group(Node...items) {

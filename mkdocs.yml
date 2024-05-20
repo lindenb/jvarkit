@@ -34,7 +34,7 @@ nav:
         - "bedmergecnv" : BedMergeCnv.md
         - "bednonoverlappingset" : BedNonOverlappingSet.md
         - "bedremovebed" : BedRemoveBed.md
-        - "bedrenamechr" : ConvertBedChromosomes.md
+        - "bedrenamechr" : BedRenameChromosomes.md
         - "bigwigmerge" : BigwigMerge.md
         - "bioalcidaejdk" : BioAlcidaeJdk.md
         - "biostar103303" : Biostar103303.md
