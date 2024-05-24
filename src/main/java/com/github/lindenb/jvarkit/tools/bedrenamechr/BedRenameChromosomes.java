@@ -61,7 +61,7 @@ BEGIN_DOC
 ```bash
 $   curl -s http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz |\
     gunzip -c | \
-    java -jar dist/jvarkit bedrenamechr -f src/main/resources/chromnames/hg19_to_g1kv37.tsv -c 2 |\
+    java -jar dist/jvarkit.jar bedrenamechr -f src/main/resources/chromnames/hg19_to_g1kv37.tsv -c 2 |\
    tail
 
 

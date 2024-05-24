@@ -27,10 +27,6 @@ Usage: svcasescontrols [options] Files
       xxx bases. A distance specified as a positive integer.Commas are 
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 100
-    -cases, --cases
-      samples's name for cases. We first test it's the content an existing 
-      file. Otherwise it's one or more names.
-      Default: []
     --check-bnd-mate
       When comparing two BND, check that their mate (using the ALT allele) are 
       the same too
@@ -41,7 +37,7 @@ Usage: svcasescontrols [options] Files
       extracted and a count of CASE/CONTROL having the SV is added in the INFO 
       column. 
       Default: false
-    -c, --contig
+    -c, --contig, --chrom
       limit to this contig
     --force-svtype
       When comparing two SV variants, their INFO/SVTYPE should be the same. 

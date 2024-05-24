@@ -16,6 +16,9 @@ Usage: java -jar dist/jvarkit.jar vcf2hilbert  [options] Files
 
 Usage: vcf2hilbert [options] Files
   Options:
+    -B, --bed
+      reduce input to this BED file. 4th column can be used to name the 
+      interval 
     -h, --help
       print help and exit
     --helpFormat
@@ -30,6 +33,10 @@ Usage: vcf2hilbert [options] Files
     -w, --width
       Image width
       Default: 1000
+    -D
+      other parameters.
+      Syntax: -Dkey=value
+      Default: {}
 
 ```
 
@@ -79,4 +86,5 @@ The current reference is:
 $  curl -s "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20140123_NA12878_Illumina_Platinum/NA12878.wgs.illumina_platinum.20140404.snps_v2.vcf.gz" | gunzip -c |\
  java -jar dist/jvarkit.jar vcf2hilbert > hilbert.svg
 ```
+
 

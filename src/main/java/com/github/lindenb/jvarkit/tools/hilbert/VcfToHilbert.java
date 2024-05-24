@@ -80,9 +80,9 @@ END_DOC
 	)
 public class VcfToHilbert extends Launcher
 	{
-	
 	private static final Logger LOG=Logger.build(VcfToHilbert.class).make();
-
+	private static final String SIGNATURE="HILBERT_";
+	
     /** level of recursion */
     @Parameter(names={"-r","--recursion"},description="Hilbdert Curve level of recursion")
     private int recursionLevel=6;
@@ -172,7 +172,7 @@ public class VcfToHilbert extends Launcher
 					}
 				else
 					{
-					r.color="rgb(100,100,1000)";
+					r.color="rgb(100,100,100)";
 					}
 				
 				}
@@ -219,12 +219,26 @@ public class VcfToHilbert extends Launcher
 						}
 					x/=points.size();
 					y/=points.size();
-					final String fill = ctx.getAttributeAsString("hilbert.fill", "yellow");
-					final String stroke = ctx.getAttributeAsString("hilbert.stroke", "black");
-					final String fillOpacity =  ctx.getAttributeAsString("hilbert.fill-opacity", "0.8");
+					
+					final Map<String,String> variantProps = new HashMap<>();
+					ctx.getAttributes().entrySet().stream().
+						filter(K->K.getKey().startsWith(SIGNATURE)).
+						forEach(KV->{
+							final String k = KV.getKey().substring(SIGNATURE.length()).toLowerCase().replace('_', '-');
+							final String v = String.valueOf(KV.getValue());
+							variantProps.put(k, v);
+							});
+					
+					final String fill = variantProps.getOrDefault("fill",this.dynaParams.getOrDefault("fill", "yellow"));
+					final String stroke = variantProps.getOrDefault("stroke",this.dynaParams.getOrDefault("stroke", "black"));
+					final String opacity = variantProps.getOrDefault("opacity",this.dynaParams.getOrDefault("opacity", "0.6"));
+					final String title = variantProps.getOrDefault("title",ctx.getContig()+":"+ctx.getStart());
+					final String url = variantProps.getOrDefault("url",hyperlink.apply(ctx).orElse(""));
+
 					Element E;
 					if(length<=2) {
-						E= svgDoc.circle(x,y,10);
+						final String radius = variantProps.getOrDefault("radius",this.dynaParams.getOrDefault("radius", "10"));
+						E= svgDoc.circle(x,y,Double.parseDouble(radius));
 						}
 					else
 						{
@@ -233,11 +247,11 @@ public class VcfToHilbert extends Launcher
 						}
 					E.setAttribute("fill",fill);
 					E.setAttribute("stroke",stroke);
-					E.setAttribute("fill-opacity",fillOpacity);
+					E.setAttribute("fill-opacity",opacity);
 
-					svgDoc.setTitle(E,ctx.getContig()+":"+ctx.getStart());
+					svgDoc.setTitle(E,title);
 					
-					E = svgDoc.anchor(E, hyperlink.apply(ctx).orElse(null));
+					E = svgDoc.anchor(E,url);
 					svgDoc.rootElement.appendChild(E);
 					}
 				}

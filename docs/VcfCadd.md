@@ -27,12 +27,6 @@ Usage: vcfcadd [options] Files
       integer.Commas are removed. The following suffixes are interpreted : 
       b,bp,k,kb,m,mb,g,gb 
       Default: 1000
-    -f, --fields
-      Other Fields to be included. See the header of http://krishna.gs.washington.edu/download/CADD/v1.3/whole_genome_SNVs_inclAnno.tsv.gz 
-      . Multiple separeted by space, semicolon or comma. Warning: This tool 
-      currently uses the first CHROM/POS/REF/ALT values it finds while I saw 
-      some duplicated fields in 'whole_genome_SNVs_inclAnno.tsv.gz'.
-      Default: <empty string>
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -42,15 +36,9 @@ Usage: vcfcadd [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
-    -P, --phred, --phred-tag
-      INFO tag for phred
-      Default: CADD_PHRED
-    -S, --score, --score-tag
-      INFO tag for score
-      Default: CADD_SCORE
-    -u, --uri, --tabix, --cadd
+  * -u, --uri, --tabix, --cadd
       Combined Annotation Dependent Depletion (CADD) Tabix file URI
-      Default: https://krishna.gs.washington.edu/download/CADD/v1.6/GRCh37/whole_genome_SNVs.tsv.gz
+      Default: <empty string>
     --version
       print version and exit
     -na
@@ -71,7 +59,7 @@ Usage: vcfcadd [options] Files
 
 ## Creation Date
 
-20140218
+20220119
 
 ## Source code 
 
@@ -105,7 +93,7 @@ The current reference is:
 ## Example
 
 ```bash
-$ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/vcfcadd.jar \
+$ java -Dhttp.proxyHost=my.proxy.host.fr -Dhttp.proxyPort=1234 -jar dist/jvarkit.jar vcfcadd \
 	-u "http://krishna.gs.washington.edu/download/CADD/v1.3/1000G_phase3.tsv.gz"  \
 	src/test/resources/gnomad.exomes.r2.0.1.sites.vcf.gz 2> /dev/null | ~/package/bcftools/bcftools annotate -x '^INFO/CADD_SCORE,INFO/CADD_PHRED'
 

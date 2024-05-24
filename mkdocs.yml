@@ -153,6 +153,7 @@ nav:
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
         - "vcf2bam" : VcfToBam.md
+        - "vcf2hilbert" : VcfToHilbert.md
         - "vcf2intervals" : VcfToIntervals.md
         - "vcf2table" : VcfToTable.md
         - "vcf2xml" : Vcf2Xml.md
