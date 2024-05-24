@@ -128,6 +128,7 @@ nav:
         - "sam2json" : SamToJson.md
         - "sam2tsv" : Sam2Tsv.md
         - "sam4weblogo" : SAM4WebLogo.md
+        - "samextractclip" : SamExtractClip.md
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samgrep" : SamGrep.md
         - "samjdk" : SamJdk.md

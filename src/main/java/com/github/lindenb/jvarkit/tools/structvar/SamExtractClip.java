@@ -132,7 +132,9 @@ END_DOC
 	keywords= {"sam","bam","fastq","clip"},
 	biostars= {125874},
 	creationDate="20140228",
-	modificationDate="20220215"
+	modificationDate="20240524",
+	jvarkit_amalgamion = true,
+	menu="BAM Manipulation"
 	)
 public class SamExtractClip extends Launcher
 	{
@@ -196,118 +198,118 @@ public class SamExtractClip extends Launcher
 		final SAMFileHeader header=r.getFileHeader();
 		//w=swf.make(header, System.out);
 		final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
-		final SAMRecordIterator it= r.iterator();
-		while(it.hasNext())
-			{
-			final SAMRecord rec=progress.apply(it.next());
-			if(rec.getReadUnmappedFlag()) continue;
-			if(this.samRecordFilter.filterOut(rec)) continue;
-			
-			final Cigar cigar=rec.getCigar();
-			if(cigar==null || cigar.isEmpty()) continue;
-			
-			// https://github.com/lindenb/jvarkit/issues/121
-			
-			if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) {
-				LOG.warning("skipping read "+rec.getReadName()+" without sequence string");
-				continue;
-			}
-			
-			
-		
-			
-			String suffix="";
-			if(rec.getReadPairedFlag())
+		try(final SAMRecordIterator it= r.iterator()) {
+			while(it.hasNext())
 				{
-				suffix=(rec.getFirstOfPairFlag()?"/1":"/2");
-				}
-			
-			
-			startend[0]=0;
-			startend[1]=rec.getReadLength();
-			boolean found=false;
-			
-			final String srcBaseString = rec.getReadString();
-			final String srcQualString ;
-			
-			// https://github.com/lindenb/jvarkit/issues/121
-			if(rec.getBaseQualities()==SAMRecord.NULL_QUALS)
-				{
-				srcQualString = StringUtils.repeat(srcBaseString.length(),'#');
-				}
-			else
-				{
-				srcQualString = rec.getBaseQualityString();
-				}
-			
-			for(int side=0;side<2;++side)
-				{
-				final CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
-				if(!ce.getOperator().equals(CigarOperator.S)) continue;
-				if(ce.getLength() < min_clip_length) continue;
+				final SAMRecord rec=progress.apply(it.next());
+				if(rec.getReadUnmappedFlag()) continue;
+				if(this.samRecordFilter.filterOut(rec)) continue;
 				
-				found=true;
-				String clippedSeq;
-				String clippedQual;
+				final Cigar cigar=rec.getCigar();
+				if(cigar==null || cigar.isEmpty()) continue;
+				
+				// https://github.com/lindenb/jvarkit/issues/121
+				
+				if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) {
+					LOG.warning("skipping read "+rec.getReadName()+" without sequence string");
+					continue;
+				}
 				
 				
-				if(side==0)
+			
+				
+				String suffix="";
+				if(rec.getReadPairedFlag())
 					{
-					startend[0]=ce.getLength();
-					clippedSeq = srcBaseString.substring(0, startend[0]);
-					clippedQual = srcQualString.substring(0, startend[0]);
+					suffix=(rec.getFirstOfPairFlag()?"/1":"/2");
+					}
+				
+				
+				startend[0]=0;
+				startend[1]=rec.getReadLength();
+				boolean found=false;
+				
+				final String srcBaseString = rec.getReadString();
+				final String srcQualString ;
+				
+				// https://github.com/lindenb/jvarkit/issues/121
+				if(rec.getBaseQualities()==SAMRecord.NULL_QUALS)
+					{
+					srcQualString = StringUtils.repeat(srcBaseString.length(),'#');
 					}
 				else
 					{
-					startend[1]=rec.getReadLength()-ce.getLength();
-					clippedSeq = srcBaseString.substring(startend[1]);
-					clippedQual = srcQualString.substring(startend[1]);
+					srcQualString = rec.getBaseQualityString();
 					}
 				
+				for(int side=0;side<2;++side)
+					{
+					final CigarElement ce=cigar.getCigarElement(side==0?0:cigar.numCigarElements()-1);
+					if(!ce.getOperator().equals(CigarOperator.S)) continue;
+					if(ce.getLength() < min_clip_length) continue;
+					
+					found=true;
+					String clippedSeq;
+					String clippedQual;
+					
+					
+					if(side==0)
+						{
+						startend[0]=ce.getLength();
+						clippedSeq = srcBaseString.substring(0, startend[0]);
+						clippedQual = srcQualString.substring(0, startend[0]);
+						}
+					else
+						{
+						startend[1]=rec.getReadLength()-ce.getLength();
+						clippedSeq = srcBaseString.substring(startend[1]);
+						clippedQual = srcQualString.substring(startend[1]);
+						}
+					
+					if( rec.getReadNegativeStrandFlag())
+						{
+						clippedSeq=AcidNucleics.reverseComplement(clippedSeq);
+						clippedQual=new StringBuilder(clippedQual).reverse().toString();
+						}
+					
+					out.write(new FastqRecord(
+							rec.getReadName()+suffix+";"+side+";"+rec.getReferenceName()+";"+rec.getAlignmentStart()+";"+rec.getFlags()+";"+rec.getCigarString()+";"+(side==0?"5'":"3'"),
+							clippedSeq,
+							"",
+							clippedQual
+							));
+					}
+				if(!found) continue;
+				
+				String bases= srcBaseString;
+				String qual= srcQualString;
 				if( rec.getReadNegativeStrandFlag())
 					{
-					clippedSeq=AcidNucleics.reverseComplement(clippedSeq);
-					clippedQual=new StringBuilder(clippedQual).reverse().toString();
+					bases = AcidNucleics.reverseComplement(bases);
+					qual = new StringBuilder(qual).reverse().toString();
 					}
 				
-				out.write(new FastqRecord(
-						rec.getReadName()+suffix+";"+side+";"+rec.getReferenceName()+";"+rec.getAlignmentStart()+";"+rec.getFlags()+";"+rec.getCigarString()+";"+(side==0?"5'":"3'"),
-						clippedSeq,
-						"",
-						clippedQual
-						));
-				}
-			if(!found) continue;
-			
-			String bases= srcBaseString;
-			String qual= srcQualString;
-			if( rec.getReadNegativeStrandFlag())
-				{
-				bases = AcidNucleics.reverseComplement(bases);
-				qual = new StringBuilder(qual).reverse().toString();
-				}
-			
-			if(this.print_original_read)
-				{
-				out.write(new FastqRecord(
-						rec.getReadName()+suffix,
-						bases,
-						"",
-						qual
-						));
-				}
-			
-			if(this.print_clipped_read)
-				{
-				out.write(new FastqRecord(
-						rec.getReadName()+suffix+":clipped",
-						bases.substring(startend[0], startend[1]),
-						"",
-						qual.substring(startend[0], startend[1])
-						));
+				if(this.print_original_read)
+					{
+					out.write(new FastqRecord(
+							rec.getReadName()+suffix,
+							bases,
+							"",
+							qual
+							));
+					}
+				
+				if(this.print_clipped_read)
+					{
+					out.write(new FastqRecord(
+							rec.getReadName()+suffix+":clipped",
+							bases.substring(startend[0], startend[1]),
+							"",
+							qual.substring(startend[0], startend[1])
+							));
+					}
 				}
 			}
-		it.close();
 		progress.close();
 		}
 	

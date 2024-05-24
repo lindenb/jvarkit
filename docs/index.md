@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : bc1e0e833
-Compilation : 20240524171802
+Version     : 441d410b
+Compilation : 20240524235050
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -144,7 +144,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
-| [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20211020 |
+| [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20240523 |
 | [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document or as a table | 20120320 | 20240320 |
 | [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
 | [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
@@ -275,6 +275,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar9566948](Biostar9566948.md) | Trim Reads So Only First Base Remains | 20230621 | 20230621 |
 | [findallcoverageatposition](FindAllCoverageAtPosition.md) | Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ? | 20141128 | 20210818 |
 | [sam2tsv](Sam2Tsv.md) | Prints the SAM alignments as a TAB delimited file. | 20170712 | 20210304 |
+| [samextractclip](SamExtractClip.md) | Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ | 20140228 | 20240524 |
 | [samgrep](SamGrep.md) | grep read-names in a bam file | 20130506 | 20210726 |
 | [samrmdupnames](SamRemoveDuplicatedNames.md) | remove duplicated names in sorted BAM | 20221207 | 20221207 |
 | [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20191004 |

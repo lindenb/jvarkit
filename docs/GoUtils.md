@@ -48,7 +48,7 @@ Usage: goutils [options] Files
       print version and exit
     -go
       Gene ontology URI. Formatted as OBO format.
-      Default: http://purl.obolibrary.org/obo/go/go-basic.obo
+      Default: http://current.geneontology.org/ontology/go-basic.obo
     -goa
       Gene Ontology Annotation GOA input in GAF format (e.g 
       http://geneontology.org/gene-associations/goa_human.gaf.gz). 

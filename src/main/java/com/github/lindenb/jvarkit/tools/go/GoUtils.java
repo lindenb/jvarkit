@@ -135,7 +135,7 @@ END_DOC
 		keywords={"geneontology","go","gexf"},
 		biostars={488538},
 		creationDate="20180130",
-		modificationDate="20211020",
+		modificationDate="20240523",
 		jvarkit_amalgamion = true,
 		menu="Utilities"
 		)

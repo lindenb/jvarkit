@@ -38,7 +38,7 @@ import java.util.Set;
 public interface GOOntology extends Iterable<GOOntology.Term>
 	{
 
-	public static final String GO_OBO_URL="http://purl.obolibrary.org/obo/go/go-basic.obo";
+	public static final String GO_OBO_URL="http://current.geneontology.org/ontology/go-basic.obo";
 	
 	public static interface Term {
 		public Set<String> getSynonyms();

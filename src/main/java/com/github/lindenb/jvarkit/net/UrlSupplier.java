@@ -313,7 +313,14 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 						"https://rgc-mcps.regeneron.com/variant/"+
 						StringUtils.escapeHttp(ensemblCtg) + ":" + ctx.getStart() +":"+ctx.getReference().getDisplayString()+":"+alt.getDisplayString()
 						));
+				
+				urls.add(new LabelledUrlImpl("rgc-research" + alt.getDisplayString(),
+						variantid+"/"+alt.getDisplayString(),
+						"https://rgc-research.regeneron.com/me/variant/"+
+						StringUtils.escapeHttp(ensemblCtg) + ":" + ctx.getStart() +":"+ctx.getReference().getDisplayString()+":"+alt.getDisplayString()
+						));
 				}
+			
 			if(!StringUtils.isBlank(ucscCtg)) {
 				urls.add(new LabelledUrlImpl("Decaf Decode",
 						variantid+"/"+alt.getDisplayString(),

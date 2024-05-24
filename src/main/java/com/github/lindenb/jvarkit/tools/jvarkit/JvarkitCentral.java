@@ -184,6 +184,7 @@ import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.spliceai.VcfSpliceAI;
 import com.github.lindenb.jvarkit.tools.structvar.CoverageMatrix;
 import com.github.lindenb.jvarkit.tools.structvar.SVCasesControls;
+import com.github.lindenb.jvarkit.tools.structvar.SamExtractClip;
 import com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions;
 import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToVcf;
@@ -682,6 +683,7 @@ public class JvarkitCentral {
 		command(SwingVcfView.class);
 		command(SwingBamCov.class);
 		command(SwingBamView.class);
+		command(SamExtractClip.class);
 		command(SwingIndexCov.class);
 		command(SwingVcfJexlFilter.class);
 		command(SvToSVG.class);
