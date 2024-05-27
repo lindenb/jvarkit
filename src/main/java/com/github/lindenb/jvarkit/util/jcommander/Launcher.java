@@ -600,53 +600,31 @@ protected int doVcfToVcf(final String inputName,final VCFIterator iterin,final V
 
 
 protected int doVcfToVcf(final String inputNameOrNull,final File outorNull){
-	VCFIterator iterin=null;
-	VariantContextWriter w=null;
-	try {
-		iterin = openVCFIterator(inputNameOrNull);
-		w = openVariantContextWriter(outorNull);
-		int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
-		w.close();
-		w=null;
-		iterin.close();
-		iterin=null;
-		return ret;
+	try (VCFIterator iterin = openVCFIterator(inputNameOrNull)) {
+		try(VariantContextWriter w = openVariantContextWriter(outorNull) ) {
+			int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
+			return ret;
+			}
 		}
 	catch(final Exception err)
 		{
 		LOG.error(err);
 		return -1;
-		}
-	finally
-		{
-		CloserUtil.close(iterin);
-		CloserUtil.close(w);
 		}
 	}
 
 
 protected int doVcfToVcfPath(final String inputNameOrNull,final WritingVariantsDelegate delegate,final Path outorNull){
-	VCFIterator iterin=null;
-	VariantContextWriter w=null;
-	try {
-		iterin = openVCFIterator(inputNameOrNull);
-		w = delegate.dictionary(iterin.getHeader()).open(outorNull);
-		int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
-		w.close();
-		w=null;
-		iterin.close();
-		iterin=null;
-		return ret;
+	try(VCFIterator iterin = openVCFIterator(inputNameOrNull)) {
+		try(VariantContextWriter w = delegate.dictionary(iterin.getHeader()).open(outorNull)) {
+			int ret=doVcfToVcf(inputNameOrNull==null?"<STDIN>":inputNameOrNull,iterin,w);
+			return ret;
+			}
 		}
 	catch(final Exception err)
 		{
 		LOG.error(err);
 		return -1;
-		}
-	finally
-		{
-		CloserUtil.close(iterin);
-		CloserUtil.close(w);
 		}
 	}
 

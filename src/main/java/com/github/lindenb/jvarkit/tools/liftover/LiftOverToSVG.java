@@ -78,7 +78,7 @@ all: test.svg
 
 
 test.svg: hg16ToHg17.over.chain hg17ToHg18.over.chain hg18ToHg19.over.chain hg19ToHg38.over.chain dist/liftover2svg.jar
-	java -jar dist/liftover2svg.jar -b hg16 -b hg17 -b hg18 -b hg19 -b hg38 \
+	java -jar dist/jvarkit.jar liftover2svg-b hg16 -b hg17 -b hg18 -b hg19 -b hg38 \
 			 hg16ToHg17.over.chain hg17ToHg18.over.chain hg18ToHg19.over.chain hg19ToHg38.over.chain > $@
 
 hg16ToHg17.over.chain : 
@@ -102,9 +102,6 @@ hg19ToHg38.over.chain hg19ToPanTro4.over.chain :
 	grep chain > $@
 
 
-dist/liftover2svg.jar: ./src/main/java/com/github/lindenb/jvarkit/tools/liftover/LiftOverToSVG.java
-	$(MAKE)  liftover2svg
-
 ```
 
 END_DOC
@@ -112,7 +109,8 @@ END_DOC
  */
 @Program(name="liftover2svg",
 	description="Convert LiftOver chain files to animated SVG",
-	keywords={"svg","liftover","ucsc","xml"}	
+	keywords={"svg","liftover","ucsc","xml"},
+	jvarkit_amalgamion = true
 	)
 public class LiftOverToSVG extends Launcher
 	{

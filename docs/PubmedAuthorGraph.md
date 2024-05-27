@@ -8,16 +8,15 @@ Creates a graph from Pubmed and Authors
 ## Usage
 
 ```
+Usage: java -jar dist/pubmedauthorgraph.jar  [options] Files
 Usage: pubmedauthorgraph [options] Files
   Options:
     -rc, --article-color
-      viz:Color for the Articles. A named color ('red', 'blue'...) use the 
+      viz:Colors for the Articles. A named color ('red', 'blue'...) use the 
       syntax 'rgb(int,int,int)'.
     -uc, --author-color
-      viz:Color for the Authors. A named color ('red', 'blue'...) use the 
+      viz:Colors for the Authors. A named color ('red', 'blue'...) use the 
       syntax 'rgb(int,int,int)'.
-  * -D, --berkeydb
-      BerkeleyDB tmpDir
     -h, --help
       print help and exit
     --helpFormat
@@ -118,6 +117,7 @@ https://twitter.com/yokofakun/status/1034107797439504384
 https://twitter.com/yokofakun/status/1034397660189523968
 
 ![https://twitter.com/yokofakun/status/1034397660189523968](https://pbs.twimg.com/media/DlrqXqvX4AE6r27.jpg)
+
 
 
 

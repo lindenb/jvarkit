@@ -43,6 +43,10 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 /*
 BEGIN_DOC
+## Warning
+
+Barey used. Just use bcftools sort...
+
 ## Example
 
 ```bash
@@ -52,7 +56,11 @@ END_DOC
 
 
 */
-@Program(name="almostsortedvcf",description="Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.")
+@Program(name="almostsortedvcf",
+description="Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.",
+deprecatedMsg = "USE BCFTOOLS",
+jvarkit_amalgamion = true
+)
 public class AlmostSortedVcf extends Launcher
 	{
 	private static final Logger LOG = Logger.build(AlmostSortedVcf.class).make();
@@ -215,8 +223,7 @@ public class AlmostSortedVcf extends Launcher
     	}
     
 	public static void main(String[] args) {
-	new AlmostSortedVcf().instanceMainWithExit(args);
-
+		new AlmostSortedVcf().instanceMainWithExit(args);
 	}
 
 }

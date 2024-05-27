@@ -136,7 +136,8 @@ END_DOC
 	description="For @wouter_decoster : slice (long reads) overlapping the records of a BED file",
 	keywords={"sam","bam","bed"},
 	creationDate="20191030",
-	modificationDate="20210615"
+	modificationDate="20210615",
+	jvarkit_amalgamion = true
 	)
 public class BamSliceBed extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(BamSliceBed.class).make();

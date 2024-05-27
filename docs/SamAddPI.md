@@ -7,11 +7,17 @@ Add predicted median insert size 'PI' to SAM Read groups (RG).
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar samaddpi  [options] Files
+
 Usage: samaddpi [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     --filter
       A JEXL Expression that will be used to filter out some sam-records (see 
@@ -47,23 +53,6 @@ Usage: samaddpi [options] Files
  * sam
  * bam
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew samaddpi
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -127,3 +116,4 @@ rotavirus_1_535_4:0:0_4:0:0_1a6	163	rotavirus	1	60	70M	=	466	535	GGCTTTTACTGCTTT
 rotavirus_1_543_5:0:0_11:0:0_390	163	rotavirus	1	60	70M	=	487	530	GGCTTTTAATGCTTTTCATTTGATGCTGCTCAAGATGGAGTCTACACAGCAGATGGTCAGCTCTATTATT	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++	MD:Z:18G1G1T22T11A12	RG:Z:S1	NM:i:5	AS:i:45XS:i:0
 
 ```
+

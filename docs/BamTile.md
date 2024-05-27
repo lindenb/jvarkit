@@ -7,11 +7,17 @@ Answer to @sjackman : Is there a bedtools command to determine a minimal tiling 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bamtile  [options] Files
+
 Usage: bamtile [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -e, --exclude
       [20171206]A JEXL Expression that will be used to filter out some 
@@ -30,6 +36,10 @@ Usage: bamtile [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For Reading Cram. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -44,6 +54,7 @@ Usage: bamtile [options] Files
 
  * bam
  * sam
+ * tile
 
 
 
@@ -51,23 +62,6 @@ Usage: bamtile [options] Files
 
  * [https://www.biostars.org/p/287915](https://www.biostars.org/p/287915)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamtile
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -108,7 +102,7 @@ The current reference is:
 ```
 $ make bamtile && \
   curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20110915_CEUtrio_b37_decoy_alignment/CEUTrio.HiSeq.WGS.b37_decoy.NA12892.clean.dedup.recal.bam" |\
-  java -jar dist/bamtile.jar
+  java -jar dist/jvarkit.jar bamtile
 (...)
 B00EGABXX110201:5:25:14956:33658	121	1	9994	23	101M	=	9994	0	CTTCCGATCTCCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAAC	AC:C;BA<CACCDCD=CACBD9?AE?D?CDECDDDDECDDDDECDDDDEDD?DDECDCDDDCECDDECECDDEDECDDDBDADDD?DBDDD@DACCDAC@A	X0:i:1	X1:i:1	XA:Z:X,+155260188,101M,5;	MD:Z:0T0G6A0A91	RG:Z:B00EG.5	XG:i:0	AM:i:0	NM:i:4	SM:i:23	XM:i:4	XN:i:7	XO:i:0BQ:Z:\^U^V]\W^\PPQPQJPNPOQFLNRLQLPQRPQQQQRPQQQQRPQQQQRQQLQQRPQPQQQPRPQQRPRPQQRQRPQQQOQNQQQLQOQQQMQNPPQNPMN	OQ:Z:EE:EEEC;EACEEEE7DBCCD/<>@>D6ADDEFBFEDCE>EFECE@FFFFF9EEDDG@GFGFHEHHHFHFHHHHHHGGGFGCGGG@HFHHHEHFHHHGHHH	XT:A:U
 B06PYABXX110322:7:2203:15946:92062	99	1	10091	1	87M1I3M1I7M2S	=	10378	371	TAACCCTAACCCTAACCCAACCCTAACCCTAACCCTAACCCTAACCCAAACCCTAACCCCTAACCCTAACCCTAACCCTAACCCTAACCCTAAACCCTAAA	AACACCDCEBCCDCEBDBCECDDEBDCDDEDEB@DDCECCDEDFBDCBEDB<CECE@CCCECCBAAEBDBDCD@DBCCE7D@@@C?DBACC76<A4>D###	X0:i:1	X1:i:3XA:Z:1,+10091,87M1I3M1I7M,5;21,-48119790,5M1I33M1I59M,5;1,-249240224,5M1I27M1D6M1I59M,5;	XC:i:99	MD:Z:47T49	RG:Z:B06PY.7	XG:i:2	AM:i:1	NM:i:3	SM:i:1	XM:i:2	XO:i:1	BQ:Z:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\^[@QU@@@@@@@	MQ:i:1	OQ:Z:HHHHGHGHHHHHHGHHGEHHGHHHEFHHHHHFF@HFFHHFHDHHDHFBFEF<FEEFBDFEEFBFBBDCEEDC=?EDDEE5DAAAA=EEBF?55:C5=@###	XT:A:U
@@ -131,7 +125,7 @@ print name and prev.end-current.start with awk:
 
 ```
 curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20110915_CEUtrio_b37_decoy_alignment/CEUTrio.HiSeq.WGS.b37_decoy.NA12892.clean.dedup.recal.bam" |\
-java -jar dist/bamtile.jar| grep -v '^@' |\
+java -jar dist/jvarkit.jar bamtile | grep -v '^@' |\
 awk -F ' ' 'BEGIN{prev=-1;} {printf("%s %d\n",$1,int($4)-prev);prev=int($4)+length($10);}' 
 B00EGABXX110201:5:25:14956:33658 9995
 B06PYABXX110322:7:2203:15946:92062 -4
@@ -184,5 +178,6 @@ B06PYABXX110322:5:2207:5218:123898 -1
 B06PYABXX110322:6:2108:10847:149590 -9
 B06PYABXX110322:8:1204:19832:68914 -3
 ```
+
 
 

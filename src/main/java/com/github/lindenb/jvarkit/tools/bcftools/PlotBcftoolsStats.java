@@ -36,11 +36,13 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 /**
 BEGIN_DOC
 
+## Warning
+
+this tool is not stable
+
 ## Example
-```
-$ find . -type f > jeter.list
-$ java -jar ~/src/jvarkit-git/dist/plotmosdepth.jar --max-coverage 100 --prefix 20210622.mosdepth. --format png jeter.list | R --vanilla > /dev/null
-```
+
+todo
 
 END_DOC
  */
@@ -51,7 +53,8 @@ description="Plot bcftools stats output",
 creationDate="20210622",
 modificationDate="20210622",
 keywords={"bcftools","qc","vcf"},
-generate_doc=false
+generate_doc=true,
+jvarkit_amalgamion = true
 )
 public class PlotBcftoolsStats extends Launcher {
 	private static final Logger LOG = Logger.build(PlotBcftoolsStats.class).make();

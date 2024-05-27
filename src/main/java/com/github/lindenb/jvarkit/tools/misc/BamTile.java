@@ -62,7 +62,7 @@ BEGIN_DOC
 ```
 $ make bamtile && \
   curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20110915_CEUtrio_b37_decoy_alignment/CEUTrio.HiSeq.WGS.b37_decoy.NA12892.clean.dedup.recal.bam" |\
-  java -jar dist/bamtile.jar
+  java -jar dist/jvarkit.jar bamtile
 (...)
 B00EGABXX110201:5:25:14956:33658	121	1	9994	23	101M	=	9994	0	CTTCCGATCTCCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAACCCTAAC	AC:C;BA<CACCDCD=CACBD9?AE?D?CDECDDDDECDDDDECDDDDEDD?DDECDCDDDCECDDECECDDEDECDDDBDADDD?DBDDD@DACCDAC@A	X0:i:1	X1:i:1	XA:Z:X,+155260188,101M,5;	MD:Z:0T0G6A0A91	RG:Z:B00EG.5	XG:i:0	AM:i:0	NM:i:4	SM:i:23	XM:i:4	XN:i:7	XO:i:0BQ:Z:\^U^V]\W^\PPQPQJPNPOQFLNRLQLPQRPQQQQRPQQQQRPQQQQRQQLQQRPQPQQQPRPQQRPRPQQRQRPQQQOQNQQQLQOQQQMQNPPQNPMN	OQ:Z:EE:EEEC;EACEEEE7DBCCD/<>@>D6ADDEFBFEDCE>EFECE@FFFFF9EEDDG@GFGFHEHHHFHFHHHHHHGGGFGCGGG@HFHHHEHFHHHGHHH	XT:A:U
 B06PYABXX110322:7:2203:15946:92062	99	1	10091	1	87M1I3M1I7M2S	=	10378	371	TAACCCTAACCCTAACCCAACCCTAACCCTAACCCTAACCCTAACCCAAACCCTAACCCCTAACCCTAACCCTAACCCTAACCCTAACCCTAAACCCTAAA	AACACCDCEBCCDCEBDBCECDDEBDCDDEDEB@DDCECCDEDFBDCBEDB<CECE@CCCECCBAAEBDBDCD@DBCCE7D@@@C?DBACC76<A4>D###	X0:i:1	X1:i:3XA:Z:1,+10091,87M1I3M1I7M,5;21,-48119790,5M1I33M1I59M,5;1,-249240224,5M1I27M1D6M1I59M,5;	XC:i:99	MD:Z:47T49	RG:Z:B06PY.7	XG:i:2	AM:i:1	NM:i:3	SM:i:1	XM:i:2	XO:i:1	BQ:Z:@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\^[@QU@@@@@@@	MQ:i:1	OQ:Z:HHHHGHGHHHHHHGHHGEHHGHHHEFHHHHHFF@HFFHHFHDHHDHFBFEF<FEEFBDFEEFBFBBDCEEDC=?EDDEE5DAAAA=EEBF?55:C5=@###	XT:A:U
@@ -85,7 +85,7 @@ print name and prev.end-current.start with awk:
 
 ```
 curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/technical/working/20110915_CEUtrio_b37_decoy_alignment/CEUTrio.HiSeq.WGS.b37_decoy.NA12892.clean.dedup.recal.bam" |\
-java -jar dist/bamtile.jar| grep -v '^@' |\
+java -jar dist/jvarkit.jar bamtile | grep -v '^@' |\
 awk -F ' ' 'BEGIN{prev=-1;} {printf("%s %d\n",$1,int($4)-prev);prev=int($4)+length($10);}' 
 B00EGABXX110201:5:25:14956:33658 9995
 B06PYABXX110322:7:2203:15946:92062 -4
@@ -147,7 +147,8 @@ END_DOC
 		description="Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target.",
 		keywords={"bam","sam","tile"},
 		biostars=287915,
-		modificationDate="20191010"
+		modificationDate="20191010",
+		jvarkit_amalgamion = true
 		)
 public class BamTile
 	extends Launcher

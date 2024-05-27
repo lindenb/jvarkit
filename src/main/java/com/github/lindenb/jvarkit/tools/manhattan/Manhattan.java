@@ -53,8 +53,9 @@ import htsjdk.variant.vcf.VCFIterator;
 
 BEGIN_DOC
 
-## INPUT
+## Node
 
+this program is very unstable. I often change everything...
 
 
 END_DOC
@@ -65,8 +66,9 @@ END_DOC
 		description="Manhattan plot SVG picture from different sources.",
 		keywords={"chromosome","reference","chart","visualization","svg"},
 		creationDate="20220525",
-		modificationDate="20220525",
-		generate_doc=true
+		modificationDate="20240525",
+		generate_doc=true,
+		jvarkit_amalgamion = true
 		)
 public class Manhattan extends Launcher {
 	

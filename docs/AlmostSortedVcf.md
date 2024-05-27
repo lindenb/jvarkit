@@ -5,9 +5,19 @@
 Sort an 'almost' sorted VCF. Most variants should be sorted but a few  consecutive lines might have been switched by a caller.
 
 
+## DEPRECATED
+
+USE BCFTOOLS
+
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar almostsortedvcf  [options] Files
+
 Usage: almostsortedvcf [options] Files
   Options:
     -N, --buffersize
@@ -23,23 +33,6 @@ Usage: almostsortedvcf [options] Files
       print version and exit
 
 ```
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew almostsortedvcf
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -66,8 +59,13 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+## Warning
+
+Barey used. Just use bcftools sort...
+
 ## Example
 
 ```bash
 $  java -jar dist/almostsortedvcf.jar < in.vcf > out.vcf
 ```
+

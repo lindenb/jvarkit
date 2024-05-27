@@ -47,12 +47,25 @@ import com.github.lindenb.jvarkit.jcommander.OnePassFastqLauncher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+/**
+BEGIN_DOC
+
+TODO
+
+## Deprecation:
+
+use picard
+
+END_DOC
+*/
+
 @Program(
 	name="fastqgrep",
 	description="Grep reads names in fastq",
 	deprecatedMsg="use picard",
 	keywords={"fastq"},
-	modificationDate="20220208"
+	modificationDate="20220208",
+	jvarkit_amalgamion = true
 	)
 public class FastqGrep
 	extends OnePassFastqLauncher

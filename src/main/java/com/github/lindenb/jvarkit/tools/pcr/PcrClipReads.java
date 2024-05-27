@@ -74,7 +74,7 @@ after processing the BAM file should be sorted, processed with samtools calmd an
 
 ```
 echo  "seq2\t1100\t1200" > test.bed
-java -jar dist/pcrclipreads.jar -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
+java -jar dist/jvarkit.jar pcrclipreads -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
 	samtools  view -q 1 -F 4 -Sbu  -  |\
 	samtools  sort -o clipped.bam -  && samtools index clipped.bam
 
@@ -137,7 +137,8 @@ END_DOC
 	biostars={147136,178308,498088},
 	keywords={"sam","bam","pcr","bed"},
 	modificationDate="20210322",
-	creationDate="20150618"
+	creationDate="20150618",
+	jvarkit_amalgamion = true
     )
 public class PcrClipReads extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.build(PcrClipReads.class).make();

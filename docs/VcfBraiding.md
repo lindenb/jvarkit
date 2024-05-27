@@ -7,7 +7,13 @@ visualization for variants and attributes using https://visdunneright.github.io/
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfbraiding  [options] Files
+
 Usage: vcfbraiding [options] Files
   Options:
     --alleles
@@ -53,23 +59,6 @@ Usage: vcfbraiding [options] Files
  * visualization
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfbraiding
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -100,26 +89,4 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
-## Example
-
-```
-bcftools view src/test/resources/rotavirus_rf.vcf.gz "RF02" "RF03" |\
-	java -jar /home/lindenb/src/jvarkit-git/dist/vcfbraiding.jar --title "Rotavirus Variants" > variants.html
-```
-
-## Screenshots
-
-  https://twitter.com/yokofakun/status/1319221221611941889
-  
-  ![https://twitter.com/yokofakun/status/1319221221611941889](https://pbs.twimg.com/media/Ek7QRz9WMAApITu?format=jpg&name=large)
-
-  https://twitter.com/yokofakun/status/1319228442043387905
-  
-  ![https://twitter.com/yokofakun/status/1319228442043387905](https://pbs.twimg.com/media/Ek7W9jaXEAEQ_TN?format=png&name=small)
-
-
-
-## See also:
- 
-  * https://visdunneright.github.io/sequence_braiding/docs/
 

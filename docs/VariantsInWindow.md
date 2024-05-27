@@ -7,9 +7,21 @@ Annotate Number of Variants overlaping a sliding window.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar variantsinwindow  [options] Files
+
 Usage: variantsinwindow [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     --best, -best
       Only print the window with the hightest number of matches
       Default: false
@@ -17,6 +29,9 @@ Usage: variantsinwindow [options] Files
       if --treshold is != -1 and the number of matches is greater than 
       threshold, set this FILTER
       Default: TOO_MANY_CLOSE_VARIANTS
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -31,17 +46,17 @@ Usage: variantsinwindow [options] Files
       excluded from the window.A Java EXpression Language (JEXL) expressions 
       to filter the variants from a VCF. Empty string will accept all 
       variants. Expression returning a TRUE will accept the variant. See 
-      https://gatkforums.broadinstitute.org/gatk/discussion/1255 
+      https://gatk.broadinstitute.org/hc/en-us/articles/360035891011 
       Default: <empty string> (ACCEPT ALL)
     --version
       print version and exit
     -S, --shift, --windowShift
-      Window shift.A distance specified as a positive integer.Comma are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      Window shift.A distance specified as a positive integer.Commas are 
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 50
     -W, --windowSize
-      Window Size.A distance specified as a positive integer.Comma are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      Window Size.A distance specified as a positive integer.Commas are 
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 150
     -noemptywin
       Don't print Windows in INFO having zero match.
@@ -64,23 +79,6 @@ Usage: variantsinwindow [options] Files
 
  * [https://www.biostars.org/p/291144](https://www.biostars.org/p/291144)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew variantsinwindow
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -115,17 +113,10 @@ The current reference is:
 ## Example
 
 ```
-##fileformat=VCFv4.2
-##ALT=<ID=X,Description="Represents allele(s) other than observed.">
-##FILTER=<ID=PASS,Description="All filters passed">
-##FILTER=<ID=TOO_MANY_CLOSE_VARIANTS,Description="Filter defined in vcfwindowvariants">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
-##INFO=<ID=AC1,Number=1,Type=Float,Description="Max-likelihood estimate of the first ALT allele count (no HWE assumption)">
-##INFO=<ID=AF1,Number=1,Type=Float,Description="Max-likelihood estimate of the first ALT allele frequency (assuming HWE)">
-##INFO=<ID=AF2,Number=1,Type=Float,Description="Max-likelihood estimate of the first and second group ALT allele frequency (assuming HWE)">
-##INFO=<ID=BQB,Number=1,Type=Float,Description="Mann-Whitney U test of Base Quality Bias (bigger is better)">
-[lindenb@kaamelot-master01 jvarkit-git]$ java -jar dist/variantsinwindow.jar ~/src/gatk-ui/testdata/mutations.vcf --treshold 1 -shift 1 -windowSize 10
+
+
+
+$ jvarkit-git]$ java -jar dist/jvarkit.jar variantsinwindow ~/src/gatk-ui/testdata/mutations.vcf --treshold 1 -shift 1 -windowSize 10
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2	S3	S4
 rotavirus	51	.	A	G	22.55	.	AC1=2;AF1=0.25;BQB=1;DP=944;DP4=849,0,93,0;FQ=23.7972;G3=0.75,0,0.25;HWE=0.033921;MQ=60;MQ0F=0;MQB=1;PV4=1,1,1,1;RPB=0.993129;SGB=-61.9012;VDB=3.53678e-05;WINDOW=41|50|1|0,42|51|1|0,43|52|1|0,44|53|1|0,45|54|1|0,46|55|1|0,47|56|1|0,48|57|1|0,49|58|1|0,50|59|1|0,51|60|1|0	GT:PL	0/0:0,255,134	0/0:0,255,127	0/0:0,255,137	1/1:70,255,0
 rotavirus	91	.	A	T	5.45	.	AC1=1;AF1=0.124963;BQB=0.951201;DP=1359;DP4=1134,0,225,0;FQ=5.8713;MQ=60;MQ0F=0;MQB=1;PV4=1,4.80825e-05,1,1;RPB=0.0393173;SGB=-369.163;VDB=0.313337;WINDOW=81|90|1|0,82|91|1|0,83|92|1|0,84|93|1|0,85|94|1|0,86|95|1|0,87|96|1|0,88|97|1|0,89|98|1|0,90|99|1|0,91|100|1|0	GT:PL	0/0:0,255,133	0/1:40,0,31	0/0:0,255,134	0/0:0,255,82
@@ -138,4 +129,5 @@ rotavirus	520	.	T	A	53.99	.	AC1=1;AF1=0.125;BQB=0.215002;DP=2372;DP4=1055,856,22
 rotavirus	1054	.	C	G	15.65	TOO_MANY_CLOSE_VARIANTS	AC1=2;AF1=0.249999;BQB=1;DP=487;DP4=0,364,0,120;FQ=16.8692;G3=0.75,2.21169e-28,0.25;HWE=0.0339211;MQ=60;MQ0F=0;MQB=1;PV4=1,1,1,1;RPB=0.95941;SGB=42.7815;VDB=1.4013e-45;WINDOW=1044|1053|3|0,1045|1054|2|0,1046|1055|1|0,1047|1056|1|0,1048|1057|1|0,1049|1058|1|0,1050|1059|1|0,1051|1060|1|0,1052|1061|1|0,1053|1062|1|0,1054|1063|2|0	GT:PL	0/0:0,255,90	1/1:63,235,0	0/0:0,255,99	0/0:0,132,66
 rotavirus	1064	.	G	A	21.56	TOO_MANY_CLOSE_VARIANTS	AC1=2;AF1=0.25;BQB=0.683886;DP=250;DP4=0,219,0,31;FQ=22.8019;G3=0.75,2.37734e-17,0.25;HWE=0.033921;MQ=60;MQ0F=0;MQB=1;PV4=1,1.22605e-06,1,1;RPB=0.935144;SGB=8.40135;VDB=2.70971e-16;WINDOW=1054|1063|2|0,1055|1064|1|0,1056|1065|1|0,1057|1066|1|0,1058|1067|1|0,1059|1068|1|0,1060|1069|1|0,1061|1070|1|0,1062|1071|1|0,1063|1072|1|0,1064|1073|1|0	GT:PL	0/0:0,244,70	0/0:0,199,65	0/0:0,217,68	1/1:69,84,0
 ```
+
 

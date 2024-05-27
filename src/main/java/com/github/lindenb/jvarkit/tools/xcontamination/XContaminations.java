@@ -49,7 +49,6 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -66,6 +65,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
@@ -79,6 +79,8 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.JexlGenotypePredicate;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -102,7 +104,7 @@ Other parameters are a list of bam file or a file ending with '.list' and contai
 
 ```bash
 $ find . -type f -name "*.bam" > bam.list
-$  head -n 10000 variant.vcf | java -jar dist/xcontaminations.jar - bam.list > out.tsv
+$  head -n 10000 variant.vcf | java -jar dist/jvarlit.jar xcontaminations - bam.list > out.tsv
 $ verticalize out.tsv
 
 
@@ -209,13 +211,14 @@ END_DOC
 
 @Program(name="xcontaminations",
 	description="For @AdrienLeger2 : cross contamination between samples by looking at the homozygous genotypes.",
-	keywords= {"sam","bam","vcf","contamination"}
+	keywords= {"sam","bam","vcf","contamination"},
+	jvarkit_amalgamion = true
 	)
 public class XContaminations extends Launcher
 	{
 	private static final Logger LOG=Logger.build(XContaminations.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-filter","--filter"},description="[20171201](moved to jexl). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildDefault();
 	@Parameter(names={"-sample","--sample","--sample-only"},description="Just use sample's name. Don't use lane/flowcell/etc... data.")
@@ -237,6 +240,8 @@ public class XContaminations extends Launcher
 	private boolean use_singleton = false;
 	@Parameter(names={"-R","--reference"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refFaidx = null;
+    @ParametersDelegate
+    private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
 
 	
 	private DoublePredicate passFractionTreshold  = (V) -> V > fraction_treshold;
@@ -433,11 +438,9 @@ public class XContaminations extends Launcher
 	
 	
 	private void saveToFile(final Map<SamplePair,SampleAlleles> contaminationTable) throws IOException{
-		PrintWriter pw = null;
-		try 
-			{
+		try(PrintWriter pw= super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 			boolean somethingPrinted=false;
-			pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			
 			
 			/* we're done, print the result */
 			pw.print("#");
@@ -517,19 +520,13 @@ public class XContaminations extends Launcher
 				pw.println();
 				somethingPrinted=true;				
 				}
-			pw.flush();
-			pw.close();
-			pw=null;
-			
+			pw.flush();			
 			if(!somethingPrinted)
 				{
 				LOG.warn("Warning: NO output");
 				}
 			}
-		finally
-			{
-			CloserUtil.close(pw);
-			}
+		
 		}
 	
 	@Override
@@ -655,7 +652,7 @@ public class XContaminations extends Launcher
 			final List<SamplePair> sampleListForVcf;
 			if(this.output_as_vcf)
 				{
-				vcfw = super.openVariantContextWriter(outputFile);
+				vcfw = writingVariants.open(outputFile);
 				final Set<VCFHeaderLine> metaData = new HashSet<>();
 				metaData.add(new VCFFormatHeaderLine("S1S1", 1, VCFHeaderLineType.Integer,"reads sample 1 supporting sample 1"));
 				metaData.add(new VCFFormatHeaderLine("S1S2", 1, VCFHeaderLineType.Integer,"reads sample 1 supporting sample 2"));

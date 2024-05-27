@@ -11,7 +11,13 @@ use bedtools/bamtobed
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar sam2psl  [options] Files
+
 Usage: sam2psl [options] Files
   Options:
     -h, --help
@@ -22,7 +28,7 @@ Usage: sam2psl [options] Files
       Output file. Optional . Default: stdout
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     -s, --single
       treat all reads as single end.
       Default: false
@@ -41,23 +47,6 @@ Usage: sam2psl [options] Files
  * bam
  * psl
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew sam2psl
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -111,7 +100,7 @@ What ? **bamtobed** http://bedtools.readthedocs.org/en/latest/content/tools/bamt
 
 ```
 $ samtools view -b  http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/wgEncodeCaltechRnaSeq/wgEncodeCaltechRnaSeq10t12C3hFR2x75Th131Il200AlnRep1.bam "chr15:81575506-81616397" |\
-   java -jar ~/src/jvarkit-git/dist/sam2psl.jar -s   > out.psl
+   java -jar ~/src/jvarkit-git/dist/jvarkit.jar sam2psl -s   > out.psl
 
 $ tail out.psl
 6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:1105:11756:193850_2:N:0:/2_147	101	0	101	chr15	10349497481616327	81622456	3	1,5,95,	0,1,6,	81616327,81616393,81622362,
@@ -140,4 +129,5 @@ used as a custom track in the **UCSC genome browser**.
   * "Depletion of hemoglobin transcripts and long read sequencing improves the transcriptome annotation of the polar bear (Ursus maritimus)
   * Ashley Byrne, Megan A Supple, Roger Volden, Kristin L Laidre, Beth Shapiro, Christopher Vollmers" bioRxiv 527978; doi: https://doi.org/10.1101/527978  
   * Building A Better Transcriptome. Byrne, Ashley . 2019. Thesis. "https://escholarship.org/content/qt71z3w6dc/qt71z3w6dc.pdf"
+
 

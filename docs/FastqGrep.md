@@ -11,20 +11,37 @@ use picard
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar fastqgrep  [options] Files
+
 Usage: fastqgrep [options] Files
   Options:
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --output
-      Output file. Optional . Default: stdout
+    -md5, --md5
+      write md5 file
+      Default: false
+    -o, --out, -R1
+      Output file for R1 fastq record or interleaved output.Output file. 
+      Optional . Default: stdout
+    --paired
+      assume input is paired end: we expect two files, or the input is assumed 
+      interleaved fastq.
+      Default: false
     --version
       print version and exit
     -R
       add the read
       Default: []
+    -R2
+      Output file for R2 fastq record. If input is paired but R2 is omitted, 
+      output will be interleaved.
     -V
       invert)
       Default: false
@@ -42,23 +59,6 @@ Usage: fastqgrep [options] Files
 
  * fastq
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew fastqgrep
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -84,4 +84,12 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+TODO
+
+## Deprecation:
+
+use picard
+
 

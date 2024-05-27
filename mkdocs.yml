@@ -13,7 +13,9 @@ nav:
         - "jvarkit" : JvarkitCentral.md
         - "addlinearindextobed" : AddLinearIndexToBed.md
         - "allelefreqcalc" : AlleleFrequencyCalculator.md
+        - "almostsortedvcf" : AlmostSortedVcf.md
         - "backlocate" : BackLocate.md
+        - "bam2fastq" : BamToFastq.md
         - "bam2haplotypes" : BamToHaplotypes.md
         - "bam2mnv" : BamToMNV.md
         - "bam2raster" : Bam2Raster.md
@@ -21,16 +23,21 @@ nav:
         - "bam2svg" : BamToSVG.md
         - "bam2wig" : Bam2Wig.md
         - "bam2xml" : Bam2Xml.md
+        - "bamclip2insertion" : BamClipToInsertion.md
+        - "bamcmpcoverage" : BamCmpCoverage.md
         - "bamliftover" : BamLiftOver.md
         - "bammatrix" : BamMatrix.md
         - "bamphased01" : BamPhased01.md
         - "bamrenamechr" : ConvertBamChromosomes.md
+        - "bamslicebed" : BamSliceBed.md
         - "bamstats04" : BamStats04.md
         - "bamstats05" : BamStats05.md
+        - "bamtile" : BamTile.md
         - "bamwithoutbai" : BamWithoutBai.md
         - "barcodegenerator" : BarcodeGenerator.md
         - "basecoverage" : BaseCoverage.md
         - "bedcluster" : BedCluster.md
+        - "bedliftover" : BedLiftOver.md
         - "bedmergecnv" : BedMergeCnv.md
         - "bednonoverlappingset" : BedNonOverlappingSet.md
         - "bedremovebed" : BedRemoveBed.md
@@ -82,14 +89,18 @@ nav:
         - "cnvtview" : CnvTView.md
         - "cnvvalidatorserver" : CNVValidatorServer.md
         - "convertliftoverchain" : ConvertLiftOverChain.md
+        - "copynumber01" : CopyNumber01.md
         - "coveragematrix" : CoverageMatrix.md
         - "coverageplotter" : CoveragePlotter.md
         - "coverageserver" : CoverageServer.md
+        - "cytoband2svg" : CytobandToSvg.md
         - "evadumpfiles" : EVADumpFiles.md
+        - "fastqgrep" : FastqGrep.md
         - "fastqshuffle" : FastqShuffle.md
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
+        - "gff2kg" : Gff2KnownGene.md
         - "gff3upstreamorf" : Gff3UpstreamOrf.md
         - "goutils" : GoUtils.md
         - "groupbygene" : GroupByGene.md
@@ -105,8 +116,11 @@ nav:
         - "kg2bed" : KnownGenesToBed.md
         - "kg2fa" : KnownGeneToFasta.md
         - "kg2gff" : KgToGff.md
+        - "knowndel" : KnownDeletion.md
         - "knownretrocopy" : KnownRetroCopy.md
+        - "liftover2svg" : LiftOverToSVG.md
         - "lowresbam2raster" : LowResBam2Raster.md
+        - "manhattan" : Manhattan.md
         - "mantamerger" : MantaMerger.md
         - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md
@@ -115,9 +129,12 @@ nav:
         - "ngsfilessummary" : NgsFilesSummary.md
         - "oboutils" : OboUtils.md
         - "optimizefisher" : OptimizeFisher.md
+        - "pcrclipreads" : PcrClipReads.md
+        - "plotbcftoolsstats" : PlotBcftoolsStats.md
         - "plotsashimi" : PlotSashimi.md
         - "prettysam" : PrettySam.md
         - "pubmed404" : Pubmed404.md
+        - "pubmedauthorgraph" : PubmedAuthorGraph.md
         - "pubmedcodinglang" : PubmedCodingLanguages.md
         - "pubmeddump" : PubmedDump.md
         - "pubmedgender" : PubmedGender.md
@@ -126,8 +143,10 @@ nav:
         - "ref2html" : ReferenceToHtml.md
         - "repairfastq" : RepairFastq.md
         - "sam2json" : SamToJson.md
+        - "sam2psl" : SamToPsl.md
         - "sam2tsv" : Sam2Tsv.md
         - "sam4weblogo" : SAM4WebLogo.md
+        - "samaddpi" : SamAddPI.md
         - "samextractclip" : SamExtractClip.md
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samgrep" : SamGrep.md
@@ -153,6 +172,7 @@ nav:
         - "tssenrich" : TSSEnrichment.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
+        - "variantsinwindow" : VariantsInWindow.md
         - "vcf2bam" : VcfToBam.md
         - "vcf2hilbert" : VcfToHilbert.md
         - "vcf2intervals" : VcfToIntervals.md
@@ -162,6 +182,7 @@ nav:
         - "vcfancestralalleles" : VcfAncestralAllele.md
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
+        - "vcfbraiding" : VcfBraiding.md
         - "vcfburdenfisherh" : VcfBurdenFisherH.md
         - "vcfburdenmaf" : VcfBurdenMAF.md
         - "vcfburdenslidingwindow" : VcfBurdenSlidingWindow.md
@@ -209,5 +230,6 @@ nav:
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
         - "wib2bedgraph" : WibToBedGraph.md
+        - "xcontaminations" : XContaminations.md
         - "xsltstream" : XsltStream.md
 

@@ -7,9 +7,21 @@ For @AdrienLeger2 : cross contamination between samples by looking at the homozy
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar xcontaminations  [options] Files
+
 Usage: xcontaminations [options] Files
   Options:
+    --bcf-output
+      If this program writes a VCF to a file, The format is first guessed from 
+      the file suffix. Otherwise, force BCF output. The current supported BCF 
+      version is : 2.1 which is not compatible with bcftools/htslib (last 
+      checked 2019-11-15)
+      Default: false
     -factor, --factor
       Fail factor: set if (reads sample x supporting x) <= factor (reads 
       sample x supporting y)
@@ -25,6 +37,9 @@ Usage: xcontaminations [options] Files
     -ft, --frasction-treshold
       FractionTreshold treshold
       Default: 1.0E-5
+    --generate-vcf-md5
+      Generate MD5 checksum for VCF output.
+      Default: false
     -gf, --genotype-filter
       A Java EXpression Language (JEXL) expressions to filter a genotye in a 
       VCF. Empty string will accept all genotypes. Expression returning a TRUE 
@@ -40,6 +55,10 @@ Usage: xcontaminations [options] Files
     -ov, --output-vcf
       output results as a vcf file; only is --sample option is set.
       Default: false
+    -R, --reference
+      For reading CRAM. Indexed fasta Reference file. This file must be 
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     -sample, --sample, --sample-only
       Just use sample's name. Don't use lane/flowcell/etc... data.
       Default: false
@@ -56,7 +75,7 @@ Usage: xcontaminations [options] Files
       A Java EXpression Language (JEXL) expressions to filter the variants 
       from a VCF. Empty string will accept all variants. Expression returning 
       a TRUE will accept the variant. See 
-      https://gatkforums.broadinstitute.org/gatk/discussion/1255 
+      https://gatk.broadinstitute.org/hc/en-us/articles/360035891011 
       Default: <empty string> (ACCEPT ALL)
     --version
       print version and exit
@@ -71,23 +90,6 @@ Usage: xcontaminations [options] Files
  * vcf
  * contamination
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew xcontaminations
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -137,7 +139,7 @@ Other parameters are a list of bam file or a file ending with '.list' and contai
 
 ```bash
 $ find . -type f -name "*.bam" > bam.list
-$  head -n 10000 variant.vcf | java -jar dist/xcontaminations.jar - bam.list > out.tsv
+$  head -n 10000 variant.vcf | java -jar dist/jvarlit.jar xcontaminations - bam.list > out.tsv
 $ verticalize out.tsv
 
 
@@ -236,5 +238,6 @@ rotavirus	1045	.	C	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S3;LE=3	F:S1A:S1S1:S
 rotavirus	1054	.	C	G	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S2;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	1.00:C:82:0:5:G:97:0:5	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:0:97:5:C:0:88:11	1.00:G:0:97:5:C:0:39:1	-1.0:.:-1:-1:-1:.:-1:-1:-1
 rotavirus	1064	.	G	A	.	BADSAMPLES;XCONTAMINATION	BADSAMPLES=S4;LE=3	F:S1A:S1S1:S1S2:S1SO:S2A:S2S1:S2S2:S2SO	-1.0:.:-1:-1:-1:.:-1:-1:-1	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:47:0:1:A:24:0:0	-1.0:.:-1:-1:-1:.:-1:-1:-1	1.00:G:57:0:6:A:24:0:0	1.00:G:49:0:4:A:24:0:0
 ```
+
 
 

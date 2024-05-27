@@ -62,7 +62,6 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.StringUtil;
@@ -89,7 +88,8 @@ END_DOC
 	keywords= {"cnv","bam","sam","vcf","sv","deletion"},
 	creationDate="20190523",
 	modificationDate="20190523",
-	generate_doc=false
+	generate_doc=false,
+	jvarkit_amalgamion = true
 	)
 public class KnownDeletion extends Launcher
 	{
@@ -121,11 +121,10 @@ public class KnownDeletion extends Launcher
 				REC.getMateAlignmentStart()
 				;
 		
-		PrintWriter pw = null;
 		SAMFileWriter sfw = null;
 		try
 			{
-			pw = super.openPathOrStdoutAsPrintWriter(this.outputFile);
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
 					referenceSequence(this.faidx).
 					validationStringency(ValidationStringency.LENIENT);
@@ -258,7 +257,7 @@ public class KnownDeletion extends Launcher
 				pw.println(filename+"\t"+sampleName+"\t"+this.regionStr+"\t"+count_disc+"\t"+count_split+"\t"+count_del+"\t"+(count_del+count_disc+count_split));
 				}
 			}
-			pw.flush();
+			}
 			if(sfw!=null) sfw.close(); sfw=null;
 			return 0;
 			}
@@ -269,7 +268,6 @@ public class KnownDeletion extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(sfw);
 			}
 		}
 	

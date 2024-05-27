@@ -7,7 +7,13 @@ Creates the figure of a comparative view of the depths sample vs sample. Memory 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bamcmpcoverage  [options] Files
+
 Usage: bamcmpcoverage [options] Files
   Options:
     -b, --bed
@@ -55,23 +61,6 @@ Usage: bamcmpcoverage [options] Files
  * visualization
  * coverage
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamcmpcoverage
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -125,5 +114,6 @@ $ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
 ```
 $ java -jar distBamCmpCoverage.jar  -o out.png file1.bam file2.bam fileN.bam
 ```
+
 
 

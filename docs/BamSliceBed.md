@@ -7,7 +7,13 @@ For @wouter_decoster : slice (long reads) overlapping the records of a BED file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bamslicebed  [options] Files
+
 Usage: bamslicebed [options] Files
   Options:
     --attributes
@@ -33,7 +39,7 @@ Usage: bamslicebed [options] Files
       Output file. Optional . Default: stdout
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --regions
       Limit analysis to this interval. A source of intervals. The following 
       suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
@@ -59,23 +65,6 @@ Usage: bamslicebed [options] Files
  * bam
  * bed
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bamslicebed
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -115,7 +104,7 @@ The current reference is:
 
 ## See also
 
-* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+* (2021) `samtools ampliconclip` - clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
 
 
 ## Input/Output
@@ -180,4 +169,5 @@ ggctattaaagctatacaATGGGGAAGTATAATCTA
                               .....
                               C....
 ```
+
 

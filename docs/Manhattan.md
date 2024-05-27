@@ -7,8 +7,13 @@ Manhattan plot SVG picture from different sources.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/manhattan.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar manhattan  [options] Files
+
 Usage: manhattan [options] Files
   Options:
     --bed, -L
@@ -33,7 +38,7 @@ Usage: manhattan [options] Files
       Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --version
       print version and exit
     -l
@@ -54,23 +59,6 @@ Usage: manhattan [options] Files
  * visualization
  * svg
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew manhattan
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -103,7 +91,9 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## INPUT
+## Node
+
+this program is very unstable. I often change everything...
 
 
 

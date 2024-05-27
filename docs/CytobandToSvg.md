@@ -7,13 +7,19 @@ Creates a svg karyotype .
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar cytoband2svg  [options] Files
+
 Usage: cytoband2svg [options] Files
   Options:
     -C, --cytobands
       Cytoband URI. tab delimited file. no header. 
       chrom/chromStart/chromEnd/name/gieStain. '-'=stdin
-      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/cytoBand.txt.gz
+      Default: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz
     -H, --height
       Image height
       Default: 700
@@ -41,23 +47,6 @@ Usage: cytoband2svg [options] Files
  * svg
  * ideogram
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew cytoband2svg
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -110,4 +99,5 @@ $ wget -O - "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/cytoBand.tx
 	gunzip -c |\
 	sort -t $'\t' -k1,1V -k2,2n > cytoBand.txt
 ```
+
 

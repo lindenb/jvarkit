@@ -24,7 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.misc;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,12 +34,15 @@ import java.util.TreeSet;
 import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.Locatable;
@@ -60,17 +63,10 @@ BEGIN_DOC
 ## Example
 
 ```
-##fileformat=VCFv4.2
-##ALT=<ID=X,Description="Represents allele(s) other than observed.">
-##FILTER=<ID=PASS,Description="All filters passed">
-##FILTER=<ID=TOO_MANY_CLOSE_VARIANTS,Description="Filter defined in vcfwindowvariants">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##FORMAT=<ID=PL,Number=G,Type=Integer,Description="List of Phred-scaled genotype likelihoods">
-##INFO=<ID=AC1,Number=1,Type=Float,Description="Max-likelihood estimate of the first ALT allele count (no HWE assumption)">
-##INFO=<ID=AF1,Number=1,Type=Float,Description="Max-likelihood estimate of the first ALT allele frequency (assuming HWE)">
-##INFO=<ID=AF2,Number=1,Type=Float,Description="Max-likelihood estimate of the first and second group ALT allele frequency (assuming HWE)">
-##INFO=<ID=BQB,Number=1,Type=Float,Description="Mann-Whitney U test of Base Quality Bias (bigger is better)">
-[lindenb@kaamelot-master01 jvarkit-git]$ java -jar dist/variantsinwindow.jar ~/src/gatk-ui/testdata/mutations.vcf --treshold 1 -shift 1 -windowSize 10
+
+
+
+$ jvarkit-git]$ java -jar dist/jvarkit.jar variantsinwindow ~/src/gatk-ui/testdata/mutations.vcf --treshold 1 -shift 1 -windowSize 10
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	S1	S2	S3	S4
 rotavirus	51	.	A	G	22.55	.	AC1=2;AF1=0.25;BQB=1;DP=944;DP4=849,0,93,0;FQ=23.7972;G3=0.75,0,0.25;HWE=0.033921;MQ=60;MQ0F=0;MQB=1;PV4=1,1,1,1;RPB=0.993129;SGB=-61.9012;VDB=3.53678e-05;WINDOW=41|50|1|0,42|51|1|0,43|52|1|0,44|53|1|0,45|54|1|0,46|55|1|0,47|56|1|0,48|57|1|0,49|58|1|0,50|59|1|0,51|60|1|0	GT:PL	0/0:0,255,134	0/0:0,255,127	0/0:0,255,137	1/1:70,255,0
 rotavirus	91	.	A	T	5.45	.	AC1=1;AF1=0.124963;BQB=0.951201;DP=1359;DP4=1134,0,225,0;FQ=5.8713;MQ=60;MQ0F=0;MQB=1;PV4=1,4.80825e-05,1,1;RPB=0.0393173;SGB=-369.163;VDB=0.313337;WINDOW=81|90|1|0,82|91|1|0,83|92|1|0,84|93|1|0,85|94|1|0,86|95|1|0,87|96|1|0,88|97|1|0,89|98|1|0,90|99|1|0,91|100|1|0	GT:PL	0/0:0,255,133	0/1:40,0,31	0/0:0,255,134	0/0:0,255,82
@@ -91,13 +87,14 @@ END_DOC
 		name="variantsinwindow",
 		description="Annotate Number of Variants overlaping a sliding window.",
 		keywords={"vcf","annotation"},
-		biostars=291144
+		biostars=291144,
+		jvarkit_amalgamion = true
 		)
 public class VariantsInWindow extends Launcher{
 	private static final Logger LOG = Logger.build(VariantsInWindow.class).make();
 
 	 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	 private File outputFile = null;
+	 private Path outputFile = null;
 
 	@Parameter(names={"-vf","--variant-filter"},description="Variants we want to keep. Variant FAILING that Jexl expression will be excluded from the window." +JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
 	private Predicate<VariantContext> variantFilter = JexlVariantPredicate.create("");
@@ -115,7 +112,8 @@ public class VariantsInWindow extends Launcher{
     protected String filterName = "TOO_MANY_CLOSE_VARIANTS";
     @Parameter(names={"-treshold","--treshold"}, description="Number of variants to set the FILTER")
     protected int treshold = -1;
-
+    @ParametersDelegate
+    private WritingVariantsDelegate writingVariants = new WritingVariantsDelegate();
     
     /** a sliding window */
     private class Window
@@ -438,7 +436,7 @@ public class VariantsInWindow extends Launcher{
     		LOG.error("Bad INFO ID windowName");
     		return -1;
     		}
-        return doVcfToVcf(args, this.outputFile);
+        return doVcfToVcfPath(this.oneFileOrNull(args),this.writingVariants, this.outputFile);
     	}
     	
     	

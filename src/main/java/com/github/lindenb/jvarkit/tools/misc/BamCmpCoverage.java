@@ -111,7 +111,8 @@ END_DOC
 @Program(
 	name="bamcmpcoverage",
 	description="Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2",
-	keywords={"sam","bam","visualization","coverage"}
+	keywords={"sam","bam","visualization","coverage"},
+	jvarkit_amalgamion = true
 	)
 public class BamCmpCoverage extends Launcher
 	{

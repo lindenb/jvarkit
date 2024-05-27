@@ -72,7 +72,7 @@ What ? **bamtobed** http://bedtools.readthedocs.org/en/latest/content/tools/bamt
 
 ```
 $ samtools view -b  http://hgdownload-test.cse.ucsc.edu/goldenPath/mm9/encodeDCC/wgEncodeCaltechRnaSeq/wgEncodeCaltechRnaSeq10t12C3hFR2x75Th131Il200AlnRep1.bam "chr15:81575506-81616397" |\
-   java -jar ~/src/jvarkit-git/dist/sam2psl.jar -s   > out.psl
+   java -jar ~/src/jvarkit-git/dist/jvarkit.jar sam2psl -s   > out.psl
 
 $ tail out.psl
 6065	0	0	0	0	0	0	5964	-	HWI-ST0787:100:C02F9ACXX:3:1105:11756:193850_2:N:0:/2_147	101	0	101	chr15	10349497481616327	81622456	3	1,5,95,	0,1,6,	81616327,81616393,81622362,
@@ -109,7 +109,8 @@ END_DOC
 	description="Convert SAM/BAM to PSL http://genome.ucsc.edu/FAQ/FAQformat.html#format2 or BED12",
 	keywords={"sam","bam","psl"},
 	modificationDate="20191018",
-	creationDate="20140404"
+	creationDate="20140404",
+	jvarkit_amalgamion = true
 	)
 public class SamToPsl extends Launcher
 	{

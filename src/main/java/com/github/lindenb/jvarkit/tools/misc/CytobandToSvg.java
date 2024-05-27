@@ -87,7 +87,8 @@ END_DOC
  */
 @Program(name="cytoband2svg",
 	description="Creates a svg karyotype .",
-	keywords={"karyotype","svg","ideogram"}
+	keywords={"karyotype","svg","ideogram"},
+	jvarkit_amalgamion = true
 	)
 public class CytobandToSvg extends Launcher {
 private static final Logger LOG = Logger.build(CytobandToSvg.class).make();
@@ -96,7 +97,7 @@ private static final Logger LOG = Logger.build(CytobandToSvg.class).make();
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private File outputFile = null;
 @Parameter(names={"-C","--cytobands"},description="Cytoband URI. tab delimited file. no header. chrom/chromStart/chromEnd/name/gieStain. '-'=stdin")
-private String cytobandsUri = "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/cytoBand.txt.gz";
+private String cytobandsUri = "http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/cytoBand.txt.gz";
 @Parameter(names={"-t","--title"},description="title")
 private String title = "";
 @Parameter(names={"-W","-width","--width"},description="Image width")

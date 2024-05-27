@@ -7,7 +7,13 @@ Soft clip bam files based on PCR target regions
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar pcrclipreads  [options] Files
+
 Usage: pcrclipreads [options] Files
   Options:
     --bamcompression
@@ -39,7 +45,7 @@ Usage: pcrclipreads [options] Files
       Default: false
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --regions
       Limit analysis to this interval. A source of intervals. The following 
       suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
@@ -74,23 +80,6 @@ Usage: pcrclipreads [options] Files
  * [https://www.biostars.org/p/178308](https://www.biostars.org/p/178308)
  * [https://www.biostars.org/p/498088](https://www.biostars.org/p/498088)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew pcrclipreads
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -130,7 +119,7 @@ The current reference is:
 
 ## See also
 
-* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+* (2021) `samtools ampliconclip` - clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
 
 
 ## Motivation
@@ -152,7 +141,7 @@ after processing the BAM file should be sorted, processed with samtools calmd an
 
 ```
 echo  "seq2\t1100\t1200" > test.bed
-java -jar dist/pcrclipreads.jar -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
+java -jar dist/jvarkit.jar pcrclipreads -B test.bed  samtools-0.1.19/examples/ex1.bam  |\
 	samtools  view -q 1 -F 4 -Sbu  -  |\
 	samtools  sort -o clipped.bam -  && samtools index clipped.bam
 
@@ -204,6 +193,7 @@ AAACAAAGGAGGTCATCATACAATGATAAAAAGATCAATTCAGCAAGAAGATATAACCATCCTACTAAATACATATGCAC
 ## History
 
  * 20170630 : rewritten after [https://github.com/lindenb/jvarkit/issues/81](https://github.com/lindenb/jvarkit/issues/81)
+
 
 
 

@@ -8,6 +8,7 @@ experimental CNV detection.
 ## Usage
 
 ```
+Usage: java -jar dist/copynumber01.jar  [options] Files
 Usage: copynumber01 [options] Files
   Options:
     --bed, --capture
@@ -41,7 +42,7 @@ Usage: copynumber01 [options] Files
       Output file. Optional . Default: stdout
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --sex
       Sexual contigs, comma or space separated
       Default: chrX,chrY,X,Y
@@ -52,7 +53,7 @@ Usage: copynumber01 [options] Files
     --smooth-distance
       When using --smooth. Only merge if windows are within that distance.A 
       distance specified as a positive integer.Commas are removed. The 
-      following suffixes are interpreted : b,bp,k,kb,m,mb
+      following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 1000
     --univariateDepth
       How to calculate depth in a BAM interval.
@@ -77,15 +78,15 @@ Usage: copynumber01 [options] Files
     --win-min
       Discard window where length on reference is lower than 'x'. A distance 
       specified as a positive integer.Commas are removed. The following 
-      suffixes are interpreted : b,bp,k,kb,m,mb
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 100
     -s, --win-shift
       window shift. A distance specified as a positive integer.Commas are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 500
     -w, --win-size
       window size. A distance specified as a positive integer.Commas are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 1000
 
 ```
@@ -191,4 +192,5 @@ RF07	0	1001	S1	13878	0.329	7.900	0.996
 RF08	0	1001	S1	14952	0.358	7.876	1.008
 RF09	0	1001	S1	16011	0.374	7.919	1.089
 ```
+
 

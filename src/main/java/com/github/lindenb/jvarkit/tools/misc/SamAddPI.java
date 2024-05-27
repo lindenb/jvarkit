@@ -26,6 +26,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -91,7 +92,8 @@ END_DOC
 @Program(
 		name="samaddpi",
 		description="Add predicted median insert size 'PI' to SAM Read groups (RG).",
-		keywords= {"sam","bam"}
+		keywords= {"sam","bam"},
+		jvarkit_amalgamion = true
 		)
 public class SamAddPI extends Launcher
 	{
@@ -99,7 +101,7 @@ public class SamAddPI extends Launcher
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-w","--overwrite"},description="Overwrite median insert size if it already exists")
 	private boolean overwrite_existing=false;
 	@Parameter(names={"-N","--num-reads"},description="Number of reads to test. Negative=all = memory consuming.")
@@ -120,7 +122,6 @@ public class SamAddPI extends Launcher
 		SAMFileWriter sfw=null;
 		File tmpBam = null; 
 		SAMFileWriter tmpBamWriter = null;
-		SAMFileWriter outWriter = null;
 		CloseableIterator<SAMRecord> iter = null;
 		CloseableIterator<SAMRecord> iterTmp = null;
 		try
@@ -179,24 +180,24 @@ public class SamAddPI extends Launcher
 						evaluate(insertlist.stream().mapToDouble(I->I.doubleValue())).getAsDouble());
 				}
 			header.addComment("Processed with "+getClass().getSimpleName()+" "+getProgramCommandLine());
-			outWriter =  this.writingBamArgs.openSAMFileWriter(this.outputFile, header,true);
-			while(iterTmp.hasNext())
-				{
-				outWriter.addAlignment(iterTmp.next());
-				}
-			iterTmp.close();iterTmp=null;
-			sfrTmp.close();sfrTmp=null;
-			tmpBam.delete();
-			//finish writing original input
-			while(iter.hasNext())
-				{
-				outWriter.addAlignment(progress.watch(iter.next()));
+			try(SAMFileWriter outWriter =  this.writingBamArgs.openSamWriter(this.outputFile, header,true)) {
+				while(iterTmp.hasNext())
+					{
+					outWriter.addAlignment(iterTmp.next());
+					}
+				iterTmp.close();iterTmp=null;
+				sfrTmp.close();sfrTmp=null;
+				tmpBam.delete();
+				//finish writing original input
+				while(iter.hasNext())
+					{
+					outWriter.addAlignment(progress.watch(iter.next()));
+					}
 				}
 			progress.finish();
 			iter.close();iter=null;
 			sfr.close();sfr=null;
 			
-			outWriter.close();
 			return RETURN_OK;
 			}
 		catch(final Exception err)
@@ -208,7 +209,6 @@ public class SamAddPI extends Launcher
 			{
 			CloserUtil.close(tmpBamWriter);
 			if(tmpBam!=null) tmpBam.delete();
-			CloserUtil.close(outWriter);
 			CloserUtil.close(sfr);
 			CloserUtil.close(sfw);
 			}

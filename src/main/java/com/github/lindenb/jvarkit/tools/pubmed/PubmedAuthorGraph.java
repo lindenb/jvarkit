@@ -27,17 +27,19 @@ package com.github.lindenb.jvarkit.tools.pubmed;
 
 import java.awt.Color;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.text.Normalizer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -52,24 +54,10 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
-import com.sleepycat.bind.tuple.StringBinding;
-import com.sleepycat.bind.tuple.TupleBinding;
-import com.sleepycat.bind.tuple.TupleInput;
-import com.sleepycat.bind.tuple.TupleOutput;
-import com.sleepycat.je.Cursor;
-import com.sleepycat.je.Database;
-import com.sleepycat.je.DatabaseConfig;
-import com.sleepycat.je.DatabaseEntry;
-import com.sleepycat.je.Environment;
-import com.sleepycat.je.EnvironmentConfig;
-import com.sleepycat.je.LockMode;
-import com.sleepycat.je.OperationStatus;
-import com.sleepycat.je.Transaction;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.gexf.GexfConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -118,9 +106,7 @@ public class PubmedAuthorGraph
 	private static final Logger LOG = Logger.build(PubmedAuthorGraph.class).make();
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	@Parameter(names={"-D","--berkeydb"},description="BerkeleyDB tmpDir",required=true)
-	private File bdbDir = null;
+	private Path outputFile = null;
 	@Parameter(names={"-S","-singleton","--singleton"},description="Remove singleton authors (authors linked to only one paper)")
 	private boolean remove_singleton_authors = false;
 	@Parameter(names={"-r","--scale-articles"},description="Scale articles in function of the number of authors")
@@ -140,15 +126,10 @@ public class PubmedAuthorGraph
 
 	
 	private long ID_GENERATOR = 0L;
-	private Database authorDatabase=null;
-	private Database articleDatabase=null;
-	private Environment environment=null;
-	private Transaction txn=null;
+	private final Map<String,Author> authorDatabase=new HashMap<>();
+	private final Map<String,Article> articleDatabase=new HashMap<>();
 	
-	private static String _s(final String s) {
-		return s==null?"":s;
-	}
-	
+
 
 	
 	private static String normalize(final String s) {
@@ -250,40 +231,6 @@ public class PubmedAuthorGraph
 		
 
 		}
-	private class ArticleBinding extends TupleBinding<Article>
-		{
-		@Override
-		public Article entryToObject(final TupleInput in) {
-			final Article a = new Article();
-			a.pmid = in.readString();
-			a.ArticleTitle= in.readString();
-			a.Year = in.readString();
-			a.ISOAbbreviation = in.readString();
-			a.doi = in.readString();
-			
-			final int n_authors =in.readInt();
-			for(int i=0;i<n_authors;++i){
-				a.authors.add(in.readString());
-			}
-			a.singleton_flag = in.readBoolean();
-			return a;
-			}
-		@Override
-		public void objectToEntry(final Article a, final TupleOutput w) {
-			w.writeString(_s(a.pmid));
-			w.writeString(_s(a.ArticleTitle));
-			w.writeString(_s(a.Year));
-			w.writeString(_s(a.ISOAbbreviation));
-			w.writeString(_s(a.doi));
-			w.writeInt(a.authors.size());
-			for(final String auth:a.authors)
-				{
-				w.writeString(auth);
-				}
-			w.writeBoolean(a.singleton_flag);
-			}
-		}
-	private final ArticleBinding articleBinding = new ArticleBinding();
 
 	
 
@@ -386,52 +333,7 @@ public class PubmedAuthorGraph
 			w.writeEndElement();//node
 		}
 		
-		}	
-	private  class AuthorBinding extends TupleBinding<Author>
-		{
-		@Override
-		public Author entryToObject(final TupleInput in) {
-			final Author a=new Author();
-			a.foreName = in.readString();
-			a.lastName = in.readString();
-			a.id = in.readString();
-			a.initials = in.readString();
-			a.affiliation = in.readString();
-			// pubmed gender
-			a.male = in.readString();
-			a.female = in.readString();
-			// pubmed map
-			a.place = in.readString();
-			
-			int n_pmid=in.readInt();
-			for(int i=0;i<n_pmid;++i){
-				a.pmids.add(in.readString());
-			}
-			return a;
-			}
-		@Override
-		public void objectToEntry(final Author a, TupleOutput w) {
-			w.writeString(_s(a.foreName));
-			w.writeString(_s(a.lastName));
-			w.writeString(_s(a.id));
-			w.writeString(_s(a.initials));
-			w.writeString(_s(a.affiliation));
-			// pubmed gender
-			w.writeString(_s(a.male));
-			w.writeString(_s(a.female));
-			// pubmed map
-			w.writeString(_s(a.place));
-
-			
-			w.writeInt(a.pmids.size());
-			for(final String pmid:a.pmids)
-				{
-				w.writeString(_s(pmid));
-				}
-			}
-		}
-	private final AuthorBinding authorBinding = new AuthorBinding();
-	
+		}		
 	
 	/** extract text from stream. Cannot use XMLEventReader.getTextContent() 
 	 * when a public title contains some tag like '<sup>'
@@ -590,12 +492,9 @@ public class PubmedAuthorGraph
 			}
 		article.authors.addAll(authors.stream().map(A->A.id).collect(Collectors.toSet()));
 		
-		DatabaseEntry key=new DatabaseEntry();
-		DatabaseEntry data=new DatabaseEntry();
 
 		
-		StringBinding.stringToEntry(article.pmid, key);
-		if(this.articleDatabase.get(txn, key, data, LockMode.DEFAULT)!=OperationStatus.NOTFOUND)
+		if(this.articleDatabase.containsKey(article.pmid))
 			{
 			LOG.debug("Article already in database : "+article.pmid);
 			return;
@@ -608,29 +507,21 @@ public class PubmedAuthorGraph
 		for(int x=0;x< authors.size();++x)
 			{
 			Author au = authors.get(x);
-			StringBinding.stringToEntry(au.id, key);
 			// replace with old value
-			if(this.authorDatabase.get(txn, key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
+			if(this.authorDatabase.containsKey(au.id))
 				{
 				//LOG.debug("Author already in database : "+au.id);
-				au = authorBinding.entryToObject(data);
+				au = this.authorDatabase.get(au.id);
+				}
+			else
+				{
+				this.authorDatabase.put(au.id,au);
 				}
 			//add pmid
 			au.pmids.add(article.pmid);
-			
-			this.authorBinding.objectToEntry(au, data);
-			if(this.authorDatabase.put(txn, key, data)!=OperationStatus.SUCCESS) {
-				throw new JvarkitException.BerkeleyDbError("Cannot update author");
-				}		
 			}
 		
-		StringBinding.stringToEntry(article.pmid, key);
-		this.articleBinding.objectToEntry(article, data);
-		if(this.articleDatabase.put(txn, key, data)!=OperationStatus.SUCCESS) 
-			{
-			throw new JvarkitException.BerkeleyDbError("Cannot put in article db");
-			}
-		
+		this.articleDatabase.put(article.pmid,article);
 		}
 	
 	
@@ -663,13 +554,8 @@ public class PubmedAuthorGraph
 	private void dumpGexf()
 		{
 		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
-		PrintWriter pw=null;
 		XMLStreamWriter w=null;
-		DatabaseEntry key=new DatabaseEntry();
-		DatabaseEntry data=new DatabaseEntry();
-		Cursor cursor = null;
-		try {
-			pw = openFileOrStdoutAsPrintWriter(this.outputFile);
+		try (PrintWriter pw = openPathOrStdoutAsPrintWriter(this.outputFile)) {
 			w = xof.createXMLStreamWriter(pw);
 			
 			w.writeStartDocument("UTF-8","1.0");
@@ -735,62 +621,36 @@ public class PubmedAuthorGraph
 			
 			/* nodes */
 			w.writeStartElement("nodes");
-			cursor  = this.authorDatabase.openCursor(txn, null);
-			while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
-				{
-				final Author au=this.authorBinding.entryToObject(data);
+			for(Author au: this.authorDatabase.values()) {
 				if(this.remove_singleton_authors && au.pmids.size()<2)
 					{
 					continue;
 					}
 				au.gexf(w);
 				}
-			cursor.close();
 			
-			cursor  = this.articleDatabase.openCursor(txn, null);
-			while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
-				{
-				final Article article =this.articleBinding.entryToObject(data);
+			for(Article article: this.articleDatabase.values()) {
 				if(this.remove_singleton_authors )
 					{
 					boolean ok=false;
 					for(final String author_id: article.authors) {
-						DatabaseEntry key2 = new DatabaseEntry();
-						DatabaseEntry data2 = new DatabaseEntry();
-						StringBinding.stringToEntry(author_id, key2);
-						if(this.authorDatabase.get(txn, key2, data2, LockMode.DEFAULT)!=OperationStatus.SUCCESS)
-							{
-							LOG.warn("cannot get "+author_id);
-							continue;
-							}
-						final Author author = authorBinding.entryToObject(data2);
+						final Author author = authorDatabase.get(author_id);
 						if(author.pmids.size()<2) continue;
 						ok=true;
 						break;
 						}
 					if(!ok) {
 						article.singleton_flag = true;
-						articleBinding.objectToEntry(article, data);
-						if(cursor.putCurrent(data)!=OperationStatus.SUCCESS)
-							{
-							LOG.warn("cannot update "+article.pmid);
-							continue;
-							}
-						continue;
 						}
 					}
 				article.gexf(w);
 				}
-			cursor.close();
 			
 			w.writeEndElement();//nodes
 			
 			w.writeStartElement("edges");
-			key=new DatabaseEntry();
-			cursor  = this.articleDatabase.openCursor(this.txn, null);
-			while(cursor.getNext(key, data, LockMode.DEFAULT)==OperationStatus.SUCCESS)
+			for(Article article: this.articleDatabase.values())
 				{
-				final Article article =this.articleBinding.entryToObject(data);
 				if(article.singleton_flag) {
 					w.writeComment("ignoring singleton article PMID: "+article.pmid);
 					LOG.debug("ignoring singleton "+article.pmid);
@@ -800,14 +660,7 @@ public class PubmedAuthorGraph
 				
 				for(final String author_id: article.authors)
 					{
-					final DatabaseEntry key2 = new DatabaseEntry();
-					final DatabaseEntry data2 = new DatabaseEntry();
-					StringBinding.stringToEntry(author_id,key2);
-					if(this.authorDatabase.get(this.txn, key2, data2, LockMode.DEFAULT)!=OperationStatus.SUCCESS) {
-						LOG.warn("cannot get "+author_id);
-						continue;
-						}
-					final Author au=this.authorBinding.entryToObject(data2);
+					final Author au=this.authorDatabase.get(author_id);
 					if(this.remove_singleton_authors && au.pmids.size()<2)
 						{
 						continue;
@@ -821,7 +674,6 @@ public class PubmedAuthorGraph
 					}
 				//
 				}
-			cursor.close();
 			
 			w.writeEndElement();//edges
 
@@ -829,19 +681,15 @@ public class PubmedAuthorGraph
 			w.writeEndElement();
 			w.writeEndDocument();
 			w.flush();
+			w.close();
 			pw.flush();
-			pw.close();pw=null;
 			}
 		catch(final Exception err) {
 			err.printStackTrace();
 			LOG.error(err);
 			throw new RuntimeIOException(err);
 			}
-		finally 
-			{
-			CloserUtil.close(w);
-			CloserUtil.close(pw);
-			}
+		
 		}
 
 	
@@ -855,19 +703,7 @@ public class PubmedAuthorGraph
 		InputStream in=null;
 		XMLEventReader r = null;
 		try {
-			//open BDB
-			final EnvironmentConfig envCfg=new EnvironmentConfig();
-			envCfg.setAllowCreate(true);
-			envCfg.setReadOnly(false);
-			LOG.info("open BDB env...");
-			this.environment= new Environment(this.bdbDir, envCfg);
-			LOG.info("open BDB databases...");
-			final DatabaseConfig config = new DatabaseConfig();
-			config.setAllowCreate(true);
-			config.setReadOnly(false);
-			config.setTemporary(true);
-			this.authorDatabase=this.environment.openDatabase(txn, "authors",config);
-			this.articleDatabase=this.environment.openDatabase(txn, "articles",config);
+			
 			
 			
 			/* input is a efetch stream */
@@ -885,9 +721,6 @@ public class PubmedAuthorGraph
 		} finally {
 			CloserUtil.close(in);
 			CloserUtil.close(r);
-			CloserUtil.close(authorDatabase);
-			CloserUtil.close(articleDatabase);
-			CloserUtil.close(environment);
 			}
 		}
 

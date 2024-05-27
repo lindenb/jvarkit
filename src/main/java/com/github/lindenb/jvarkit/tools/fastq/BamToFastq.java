@@ -62,6 +62,13 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 BEGIN_DOC
 
+## DEPRECATED
+
+use  
+```
+ samtools collate | samtools fastq
+```
+
 ## Example
 
 ```
@@ -95,7 +102,8 @@ END_DOC
 	description="convert paired-end SAM to fastq using a memory buffer.",
 	keywords={"fastq","bam"},
 	modificationDate="20220225",
-	creationDate="20131120"
+	creationDate="20131120",
+	deprecatedMsg = "Use samtools collate | samtools fastq"
 	)
 public class BamToFastq extends MultiBamLauncher
 	{

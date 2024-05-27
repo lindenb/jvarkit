@@ -8,6 +8,7 @@ Lift-over a VCF file
 ## Usage
 
 ```
+Usage: java -jar dist/bedliftover.jar  [options] Files
 Usage: bedliftover [options] Files
   Options:
   * -f, --chain
@@ -27,7 +28,8 @@ Usage: bedliftover [options] Files
     -o, --output
       Output file. Optional . Default: stdout
   * -D, -R, -r, --reference
-      indexed REFerence file.
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --version
       print version and exit
 
@@ -81,4 +83,6 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
 

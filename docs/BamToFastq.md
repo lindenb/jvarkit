@@ -5,6 +5,10 @@
 convert paired-end SAM to fastq using a memory buffer.
 
 
+## DEPRECATED
+
+Use samtools collate | samtools fastq
+
 ## Usage
 
 ```
@@ -30,7 +34,7 @@ Usage: bam2fastq [options] Files
       Default: 50000
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --regions
       Limit analysis to this interval. A source of intervals. The following 
       suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
@@ -114,6 +118,13 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## DEPRECATED
+
+use  
+```
+ samtools collate | samtools fastq
+```
+
 ## Example
 
 ```
@@ -140,4 +151,5 @@ TGGGGAAGTATAATCTAATCTTGTCAGAATATTTATCATTTATATATAACTCACAATCCGCAGTTCAACT
 ## Cited In:
 
   * "Plastomes of nine hornbeams and phylogenetic implications", Ying Li & al;  Ecology and Evolution, 2018; DOI: 10.1002/ece3.4414; https://onlinelibrary.wiley.com/doi/pdf/10.1002/ece3.4414 
+
 

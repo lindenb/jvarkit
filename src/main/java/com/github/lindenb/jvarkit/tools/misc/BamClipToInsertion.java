@@ -44,14 +44,12 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 /**
 BEGIN_DOC
@@ -62,7 +60,8 @@ END_DOC
  */
 @Program(name="bamclip2insertion",
 	description="Convert SOFT clip to Insertion if other read confirm it",
-	keywords={"sam","bam","clip"}
+	keywords={"sam","bam","clip"},
+	jvarkit_amalgamion = true
 	)
 public class BamClipToInsertion
 	extends Launcher
@@ -214,100 +213,94 @@ public class BamClipToInsertion
 	@Override
 	public int doWork(final List<String> args)
 		{
-		SAMRecordIterator iter=null;
-		SamReader sfr=null;
-		SAMFileWriter sfw =null;
 		try
 			{			
-			sfr = super.openSamReader(oneFileOrNull(args));
-			
-			final SAMFileHeader header1=sfr.getFileHeader();
-			if(header1==null)
-				{
-				LOG.error("File header missing");
-				return -1;
-				}
-			
-			if(header1.getSortOrder()!=SortOrder.coordinate)
-				{
-				LOG.error("Input is not sorted on coordinate.");
-				return -1;
-				}
-			
-			final SAMFileHeader header2=header1.clone();
-			header2.addComment(getProgramName()+":"+getVersion()+":"+getProgramCommandLine());
-			header2.setSortOrder(SortOrder.unsorted);
-			
-			sfw =  this.writingBamArgs.openSAMFileWriter(output,header2, true);
-			
-			final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(header1);
-			iter=sfr.iterator();
-			String curContig=null;
-			LinkedList<SamAndCigar> buffer=new LinkedList<>();
-			for(;;)
-				{
-				SAMRecord rec=null;
-				if( iter.hasNext())
+			try(SamReader sfr = super.openSamReader(oneFileOrNull(args))) {
+				
+				final SAMFileHeader header1=sfr.getFileHeader();
+				if(header1==null)
 					{
-					rec= progress.watch(iter.next());
-					//ignore unmapped reads
-					if(rec.getReadUnmappedFlag())
-						{
-						sfw.addAlignment(rec);
-						continue;
-						}
+					LOG.error("File header missing");
+					return -1;
 					}
 				
-				if(rec==null || (curContig!=null && !curContig.equals(rec.getReferenceName())))
+				if(header1.getSortOrder()!=SortOrder.coordinate)
 					{
-					for(final SamAndCigar r: buffer) sfw.addAlignment(r.getSAMRecord());
-					buffer.clear();
-					// we're done
-					if(rec==null) break;
- 					curContig = rec.getReferenceName();
+					LOG.error("Input is not sorted on coordinate.");
+					return -1;
 					}
-				final SamAndCigar sac = new  SamAndCigar(rec);
-				if(!sac.containsIorS )
-					{
-					sfw.addAlignment(rec);
-					continue;
-					}
-				buffer.add(sac);
 				
-				int i=0;
-				while( i < buffer.size())
-					{
-					final SamAndCigar ri = buffer.get(i);
-					if(ri.getSAMRecord().getUnclippedEnd() < rec.getUnclippedStart())
-						{
-						for(int j=0;j< buffer.size();++j)
+				final SAMFileHeader header2=header1.clone();
+				header2.addComment(getProgramName()+":"+getVersion()+":"+getProgramCommandLine());
+				header2.setSortOrder(SortOrder.unsorted);
+				
+					try(SAMFileWriter sfw =  this.writingBamArgs.openSAMFileWriter(output,header2, true) ) {
+					
+					try(SAMRecordIterator iter=sfr.iterator()) {
+						String curContig=null;
+						LinkedList<SamAndCigar> buffer=new LinkedList<>();
+						for(;;)
 							{
-							if(i==j) continue;
-							ri.merge(buffer.get(j));
+							SAMRecord rec=null;
+							if( iter.hasNext())
+								{
+								rec=  iter.next();
+								//ignore unmapped reads
+								if(rec.getReadUnmappedFlag())
+									{
+									sfw.addAlignment(rec);
+									continue;
+									}
+								}
+							
+							if(rec==null || (curContig!=null && !curContig.equals(rec.getReferenceName())))
+								{
+								for(final SamAndCigar r: buffer) sfw.addAlignment(r.getSAMRecord());
+								buffer.clear();
+								// we're done
+								if(rec==null) break;
+			 					curContig = rec.getReferenceName();
+								}
+							final SamAndCigar sac = new  SamAndCigar(rec);
+							if(!sac.containsIorS )
+								{
+								sfw.addAlignment(rec);
+								continue;
+								}
+							buffer.add(sac);
+							
+							int i=0;
+							while( i < buffer.size())
+								{
+								final SamAndCigar ri = buffer.get(i);
+								if(ri.getSAMRecord().getUnclippedEnd() < rec.getUnclippedStart())
+									{
+									for(int j=0;j< buffer.size();++j)
+										{
+										if(i==j) continue;
+										ri.merge(buffer.get(j));
+										}
+									sfw.addAlignment(ri.build());
+									buffer.remove(i);
+									}
+								else
+									{
+									++i;
+									}
+								}
 							}
-						sfw.addAlignment(ri.build());
-						buffer.remove(i);
-						}
-					else
-						{
-						++i;
 						}
 					}
 				}
-			progress.finish();
-			LOG.info("done");
-			return RETURN_OK;
+			return 0;
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(iter);
-			CloserUtil.close(sfr);
-			CloserUtil.close(sfw);
 			}
 		}
 				

@@ -52,7 +52,7 @@ BEGIN_DOC
 
 ```
 bcftools view src/test/resources/rotavirus_rf.vcf.gz "RF02" "RF03" |\
-	java -jar /home/lindenb/src/jvarkit-git/dist/vcfbraiding.jar --title "Rotavirus Variants" > variants.html
+	java -jar /home/lindenb/src/jvarkit-git/dist/jvarkit.jar vcfbraiding --title "Rotavirus Variants" > variants.html
 ```
 
 ## Screenshots
@@ -78,7 +78,8 @@ END_DOC
 	description="visualization for variants and attributes using https://visdunneright.github.io/sequence_braiding/docs/ .",
 	keywords={"vcf","visualization"},
 	creationDate="20201021",
-	modificationDate="20201022"
+	modificationDate="20201022",
+	jvarkit_amalgamion = true
 	)
 public class VcfBraiding extends Launcher {
 	private static final Logger LOG = Logger.build(VcfBraiding.class).make();

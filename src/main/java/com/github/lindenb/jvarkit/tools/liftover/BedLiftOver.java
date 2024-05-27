@@ -32,6 +32,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -41,9 +42,13 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.IOUtil;
 
+/**
+BEGIN_DOC
 
+END_DOC
+*/
 @Program(
 		name="bedliftover",
 		description="Lift-over a VCF file",
@@ -56,12 +61,12 @@ public class BedLiftOver extends Launcher
 
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
 	private File liftOverFile = null;
 	@Parameter(names={"-x","--failed"},description="  write bed failing the liftOver here. Optional.")
-	private File failedFile = null;
+	private Path failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
 	@Parameter(names={"-D","-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
@@ -105,64 +110,50 @@ public class BedLiftOver extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
-		
-		if(liftOverFile==null)
-			{
-			LOG.error("LiftOver file is undefined.");
-			return -1;
-			}
+	public int doWork(final List<String> args) {
+		IOUtil.assertFileIsReadable(liftOverFile);
+
 		this.liftOver=new LiftOver(liftOverFile);
 		this.liftOver.setLiftOverMinMatch(this.userMinMatch);
 		
-		PrintWriter out=null;
-		PrintWriter failed=null;
 		try
 			{
 			if(!this.ignoreLiftOverValidation) {
 				this.liftOver.validateToSequences(SequenceDictionaryUtils.extractRequired(faidx));
 				}
 			
-			out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			
-			if(this.failedFile!=null)
-				{
-				failed= super.openFileOrStdoutAsPrintWriter(failedFile);
-				}
-			if(args.isEmpty())
-				{
-				BufferedReader r= openBufferedReader(null);
-				scan(r,out,failed);
-				CloserUtil.close(r);
-				}
-			else
-				{
-				for(final String filename:args)
-					{
-					BufferedReader r=openBufferedReader(filename);
-					scan(r,out,failed);
-					CloserUtil.close(r);
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				try(PrintWriter failed=(this.failedFile!=null?super.openPathOrStdoutAsPrintWriter(this.failedFile):new PrintWriter(new NullOuputStream()))) {
+					if(args.isEmpty())
+						{
+						try(BufferedReader r= openBufferedReader(null)) {
+							scan(r,out,failed);
+							}
+						}
+					else
+						{
+						for(final String filename:args)
+							{
+							try(BufferedReader r=openBufferedReader(filename)) {
+								scan(r,out,failed);
+								}
+							}
+						}
+					
+					failed.flush();
 					}
+				out.flush();
 				}
-			out.flush();
-			out.close();
-			out=null;
-			if(failed!=null) {
-				failed.flush();
-				failed.close();
-				failed=null;
-			}
+			
 			return 0;
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(out);
-			CloserUtil.close(failed);
 			}
 		}
 
