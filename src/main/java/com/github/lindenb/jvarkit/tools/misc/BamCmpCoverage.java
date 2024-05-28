@@ -184,7 +184,7 @@ public class BamCmpCoverage extends Launcher
 			int ty =(this.sample_y*owner.bitSize + scaledy) *owner.getWidth(); 
 			
 			
-			int bit_index= (int)(tx+ty);
+			int bit_index= (tx+ty);
 			if(bit_index> owner.getWidth()*owner.getWidth())
 				{
 				throw new RuntimeException(
