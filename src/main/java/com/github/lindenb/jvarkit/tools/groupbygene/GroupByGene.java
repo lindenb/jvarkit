@@ -30,6 +30,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
@@ -48,22 +49,19 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
-import com.github.lindenb.jvarkit.pedigree.Pedigree;
-import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
+import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
@@ -99,10 +97,6 @@ chr10   135336656  135369532  CYP2E1     snpeff-gene-name  3                 2  
 
 ```
 
-## History
-
-* 201707: added pedigree, removed XML output
-
 
 END_DOC
  */
@@ -112,7 +106,7 @@ END_DOC
 		biostars={342790},
 		description="Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff",
 		modificationDate="20220529",
-		creationDate="20131209",
+		creationDate="20140531",
 		jvarkit_amalgamion =  true,
 		menu="Functional prediction"
 		)
@@ -121,33 +115,27 @@ public class GroupByGene
 	{
 	private static final Logger LOG = Logger.build(GroupByGene.class).make();
 
-	@Parameter(names={"--filtered"},description="ignore FILTERED variants")
-	private boolean ignore_filtered = false;
-	@Parameter(names={"--gtFiltered"},description="[20170725] ignore FILTERED genotypes")
+	@Parameter(names={"--gtFiltered","--ignore-filtered-gt"},description="ignore FILTERED genotypes")
 	private boolean ignore_filtered_genotype = false;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;
-	@Parameter(names={"-p","--ped","--pedigree"},description="[20170725] "+ PedigreeParser.OPT_DESC)
-	private Path pedigreePath=null;
+	
+	@ParametersDelegate
+	private CasesControls casesControls= new CasesControls();
+	
 	@Parameter(names={"-positions"},description="include variants positions in the output table.")
 	private boolean print_positions=false;
 
-	@Parameter(names={"--fisher"},description="[20170726] Print fisher for case/control (experimental, need to work on this)")
-	private boolean print_fisher=false;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	@Parameter(names={"-l","--list"},description= "[20190626]list all available gene extractors", help=true)
 	private boolean list_extractors = false;
-	@Parameter(names={"-e","-E","--extractors"},description="[20190626]"+GeneExtractorFactory.OPT_DESC)
+	@Parameter(names={"-e","-E","--extractors"},description=GeneExtractorFactory.OPT_DESC)
 	private String extractorsNames="ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE SpliceAI";
 
 	
 	/** the SAMSequenceDictionary used to sort reference */
 	private ContigDictComparator contigDictComparator = null;
-
-
-
-	
 	
 	
 	private static class GeneName
@@ -277,355 +265,259 @@ public class GroupByGene
 	private void read(final String input) throws IOException
 		{
 		SortingCollection<Call> sortingCollection=null;
-		VCFIterator vcfIterator = null;
 		
 		
 		try {
+			this.casesControls.load();
+			final List<String> sampleNames;
+			
 			final BcfIteratorBuilder iterbuilder = new BcfIteratorBuilder();
-			vcfIterator = (input==null?
+			try(VCFIterator vcfIterator = (input==null?
 						iterbuilder.open(stdin()):
 						iterbuilder.open(input)
-						);
-			final VCFHeader header = vcfIterator.getHeader();
-			this.contigDictComparator = new ContigDictComparator(SequenceDictionaryUtils.extractRequired(header));
-
-
-			sortingCollection =SortingCollection.newInstance(
-					Call.class,
-					new CallCodec(header),
-					(C1,C2)->C1.compare2(C2),
-					this.writingSortingCollection.getMaxRecordsInRam(),
-					this.writingSortingCollection.getTmpPaths()
-					);
-			sortingCollection.setDestructiveIteration(true);
+							)) {
+				final VCFHeader header = vcfIterator.getHeader();
+				this.contigDictComparator = new ContigDictComparator(SequenceDictionaryUtils.extractRequired(header));
 	
-			
-			
-			final GeneExtractorFactory geneExtractorFactory = new GeneExtractorFactory(header);
-			final List<GeneExtractorFactory.GeneExtractor> geneExtractors = geneExtractorFactory.parse(this.extractorsNames);
-
-			
-			
-			final List<String> sampleNames;
-			if(header.getSampleNamesInOrder()!=null)
-				{
-				sampleNames = header.getSampleNamesInOrder();
-				}
-			else
-				{
-				sampleNames = Collections.emptyList();
-				}
-			
-			final Pedigree pedigree;
-			if(this.pedigreePath!=null) {
-				final PedigreeParser pedParser = new PedigreeParser();
-				pedigree = pedParser.parse(this.pedigreePath);
-				}
-			else
-				{
-				pedigree = PedigreeParser.empty();
-				}
-			
-			final ProgressFactory.Watcher<VariantContext> progress= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
-			while(vcfIterator.hasNext())
-				{
-				final VariantContext ctx = progress.apply(vcfIterator.next());
-				if(!ctx.isVariant()) continue;
-				if(ignore_filtered && ctx.isFiltered()) continue;
+	
+				sortingCollection =SortingCollection.newInstance(
+						Call.class,
+						new CallCodec(header),
+						(C1,C2)->C1.compare2(C2),
+						this.writingSortingCollection.getMaxRecordsInRam(),
+						this.writingSortingCollection.getTmpPaths()
+						);
+				sortingCollection.setDestructiveIteration(true);
+		
 				
-				//simplify line
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				vcb.noID();
-				vcb.log10PError(VariantContext.NO_LOG10_PERROR);
-				vcb.unfiltered();
-				vcb.attributes(Collections.emptyMap());
-				final VariantContext ctx2 = vcb.make();
 				
-				final SortingCollection<Call> finalSorter = sortingCollection; 
-				geneExtractors.stream().
-					flatMap(EX->EX.apply(ctx).keySet().stream()).
-					forEach(KG->{
-						final Call c=new Call();
-						c.ctx=ctx2;
-						c.gene=new GeneName(KG.getKey(),KG.getGene(),KG.getMethod());
-						finalSorter.add(c);
-					});
 				
+				final GeneExtractorFactory geneExtractorFactory = new GeneExtractorFactory(header);
+				final List<GeneExtractorFactory.GeneExtractor> geneExtractors = geneExtractorFactory.parse(this.extractorsNames);
+	
+				
+				
+				
+				if(header.hasGenotypingData())
+					{
+					sampleNames = header.getSampleNamesInOrder();
+					}
+				else
+					{
+					sampleNames = Collections.emptyList();
+					}
+				
+				if(!this.casesControls.isEmpty()) {
+					this.casesControls.retain(header);
+					}			
+				while(vcfIterator.hasNext())
+					{
+					final VariantContext ctx = vcfIterator.next();
+					if(!ctx.isVariant()) continue;
+					
+					//simplify line
+					final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+					vcb.noID();
+					vcb.log10PError(VariantContext.NO_LOG10_PERROR);
+					vcb.unfiltered();
+					vcb.attributes(Collections.emptyMap());
+					final VariantContext ctx2 = vcb.make();
+					
+					final SortingCollection<Call> finalSorter = sortingCollection; 
+					geneExtractors.stream().
+						flatMap(EX->EX.apply(ctx).keySet().stream()).
+						forEach(KG->{
+							final Call c=new Call();
+							c.ctx=ctx2;
+							c.gene=new GeneName(KG.getKey(),KG.getGene(),KG.getMethod());
+							finalSorter.add(c);
+						});
+					
+					}
 				}
-			CloserUtil.close(vcfIterator);vcfIterator=null;
 			sortingCollection.doneAdding();
-			progress.close();
 			
 			
 			/** dump */			
-	
-			final Set<String> casesSamples = pedigree.getAffectedSamples().stream().
-						map(P->P.getId()).
-						filter(ID->sampleNames.contains(ID)).
-						collect(Collectors.toSet())
-						;
-			final Set<String> controlsSamples = pedigree.getUnaffectedSamples().stream().
-					map(P->P.getId()).
-					filter(ID->sampleNames.contains(ID)).
-					collect(Collectors.toSet())
-					;
-
-			final Set<String> maleSamples = pedigree.getSamples().stream().
-					filter(P->P.isMale()).
-					map(P->P.getId()).
-					filter(ID->sampleNames.contains(ID)).
-					collect(Collectors.toSet())
-					;
-			final Set<String> femaleSamples = pedigree.getSamples().stream().
-					filter(P->P.isFemale()).
-					map(P->P.getId()).
-					filter(ID->sampleNames.contains(ID)).
-					collect(Collectors.toSet())
-					;
 			final Predicate<Genotype> genotypeFilter = genotype -> {
-				if(!genotype.isAvailable()) return false;
-				if(!genotype.isCalled()) return false;
-				if(genotype.isNoCall()) return false;
-				if(genotype.isHomRef()) return false;
 				if(this.ignore_filtered_genotype && genotype.isFiltered()) return false;
-				return true;
+				return genotype.hasAltAllele();
 				};
 			
 			
 			
-			PrintStream pw = openPathOrStdoutAsPrintStream(this.outFile);
-			
-			
-			pw.print("#chrom");
-			pw.print('\t');
-			pw.print("min.POS");
-			pw.print('\t');
-			pw.print("max.POS");
-			pw.print('\t');
-			pw.print("gene.name");
-			pw.print('\t');
-			pw.print("gene.label");
-			pw.print('\t');
-			pw.print("gene.type");
-			pw.print('\t');			
-			pw.print("samples.affected");
-			pw.print('\t');
-			pw.print("count.variations");
-			if(this.print_positions) {
-				pw.print('\t');
-				pw.print("positions");
-				}
-			
-			if(!casesSamples.isEmpty())
-				{
-				pw.print('\t');
-				pw.print("pedigree.cases");
-				}
-			if(!controlsSamples.isEmpty())
-				{
-				pw.print('\t');
-				pw.print("pedigree.controls");
-				}
-			if(!maleSamples.isEmpty())
-				{
-				pw.print('\t');
-				pw.print("pedigree.males");
-				}
-			if(!femaleSamples.isEmpty())
-				{
-				pw.print('\t');
-				pw.print("pedigree.females");
-				}
-			
-			if(this.print_fisher && !controlsSamples.isEmpty() && !casesSamples.isEmpty())
-				{
-				pw.print('\t');
-				pw.print("fisher");
-				}
-
-			
-			for(final String sample:sampleNames)
-				{
-				pw.print('\t');
-				pw.print(sample);
-				}
-			
-			pw.println();
-		
+			try(PrintStream pw = openPathOrStdoutAsPrintStream(this.outFile)) {
 				
-			
-			final CloseableIterator<Call> iter=sortingCollection.iterator();
-			final EqualRangeIterator<Call> eqiter = new EqualRangeIterator<>(iter, (C1,C2)->C1.compareTo(C2));
-			while(eqiter.hasNext())
-				{
-				final List<Call> row = eqiter.next();
-				final Call first= row.get(0);
-	
-				final List<VariantContext> variantList =row.stream().map(R-> R.ctx).collect(Collectors.toList());
-				final int minPos = variantList.stream().mapToInt(R->R.getStart()).min().getAsInt();
-				final int maxPos = variantList.stream().mapToInt(R->R.getEnd()).max().getAsInt();
-				final Set<String> sampleCarryingMut = new HashSet<String>();
-				final Counter<String> pedCasesCarryingMut = new Counter<String>();
-				final Counter<String> pedCtrlsCarryingMut = new Counter<String>();
-				final Counter<String> malesCarryingMut = new Counter<String>();
-				final Counter<String> femalesCarryingMut = new Counter<String>();
-				final Counter<String> sample2count = new Counter<String>();
-				for(final VariantContext ctx: variantList)
-					{
-					for(final Genotype genotype:ctx.getGenotypes())
-						{
-						if(!genotypeFilter.test(genotype)) continue;
-	 					final String sampleName= genotype.getSampleName();
-	 					
-						sample2count.incr(sampleName);
-						sampleCarryingMut.add(sampleName);
-						
-						if(casesSamples.contains(sampleName))
-							{
-							pedCasesCarryingMut.incr(sampleName);
-							}
-						if(controlsSamples.contains(sampleName))
-							{
-							pedCtrlsCarryingMut.incr(sampleName);
-							}
-						if(maleSamples.contains(sampleName))
-							{
-							malesCarryingMut.incr(sampleName);
-							}
-						if(femaleSamples.contains(sampleName))
-							{
-							femalesCarryingMut.incr(sampleName);
-							}
-						}
+				
+				pw.print("#chrom");
+				pw.print('\t');
+				pw.print("min.POS");
+				pw.print('\t');
+				pw.print("max.POS");
+				pw.print('\t');
+				pw.print("gene.name");
+				pw.print('\t');
+				pw.print("gene.label");
+				pw.print('\t');
+				pw.print("gene.type");
+				pw.print('\t');			
+				pw.print("samples.affected");
+				pw.print('\t');
+				pw.print("count.variations");
+				if(this.print_positions) {
+					pw.print('\t');
+					pw.print("positions");
 					}
 				
-				
-					pw.print(first.getContig());
+				if(!this.casesControls.isEmpty()) {
 					pw.print('\t');
-					pw.print(minPos-1);//convert to bed
+					pw.print("cases_ALT");
 					pw.print('\t');
-					pw.print(maxPos);
+					pw.print("cases_REF");
 					pw.print('\t');
-					pw.print(first.gene.name);
+					pw.print("controls_ALT");
 					pw.print('\t');
-					pw.print(first.gene.label);
+					pw.print("controls_REF");
 					pw.print('\t');
-					pw.print(first.gene.type);
-					pw.print('\t');
-					pw.print(sampleCarryingMut.size());
-					pw.print('\t');
-					pw.print(variantList.size());
-					if(this.print_positions) {
-						pw.print('\t');
-						pw.print(variantList.stream().
-								map(CTX->String.valueOf(CTX.getStart())+":"+CTX.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/"))).
-								collect(Collectors.joining(";"))
-							);
-						}
-					
-					
-					
-					if(!casesSamples.isEmpty())
-						{
-						pw.print('\t');
-						pw.print(pedCasesCarryingMut.getCountCategories());
-						}
-					if(!controlsSamples.isEmpty())
-						{
-						pw.print('\t');
-						pw.print(pedCtrlsCarryingMut.getCountCategories());
-						}
-					if(!maleSamples.isEmpty())
-						{
-						pw.print('\t');
-						pw.print(malesCarryingMut.getCountCategories());
-						}
-					if(!femaleSamples.isEmpty())
-						{
-						pw.print('\t');
-						pw.print(femalesCarryingMut.getCountCategories());
-						}
-					
-					if(this.print_fisher && !controlsSamples.isEmpty() && !casesSamples.isEmpty())
-						{
-						int count_case_mut =0;
-						int count_ctrl_mut = 0;
-						int count_case_wild = 0;
-						int count_ctrl_wild = 0;
-						
-						for(final String sampleName : header.getSampleNamesInOrder())  {
-							final boolean has_mutation  = variantList.stream().
-									map(V->V.getGenotype(sampleName)).
-									anyMatch(G->G!=null && genotypeFilter.test(G));
-							if( controlsSamples.contains(sampleName)) {
-								if(has_mutation)
-									{
-									count_ctrl_mut++;
-									}
-								else
-									{
-									count_ctrl_wild++;
-									}
-								}
-							else if( casesSamples.contains(sampleName)) {
-								if(has_mutation)
-									{
-									count_case_mut++;
-									}
-								else
-									{
-									count_case_wild++;
-									}
-								}
-							}					
-
-						final FisherExactTest fisher = FisherExactTest.compute(
-								count_case_mut,count_case_wild,
-								count_ctrl_mut,count_ctrl_wild
-								);
-						pw.print('\t');
-						pw.print(fisher.getAsDouble());
-						}
+					pw.print("fisher");
+					}
 	
+				
+				for(final String sample:sampleNames)
+					{
+					pw.print('\t');
+					pw.print(sample);
+					}
+				
+				pw.println();
+			
 					
-					for(final String sample: sampleNames)
+				
+					try(final CloseableIterator<Call> iter=sortingCollection.iterator()) {
+					final EqualRangeIterator<Call> eqiter = new EqualRangeIterator<>(iter, (C1,C2)->C1.compareTo(C2));
+					while(eqiter.hasNext())
 						{
-						pw.print('\t');
-						pw.print(sample2count.count(sample));
-						}
-					pw.println();
-					if(pw.checkError()) break;
+						final List<Call> row = eqiter.next();
+						final Call first= row.get(0);
+			
+						final List<VariantContext> variantList =row.stream().map(R-> R.ctx).collect(Collectors.toList());
+						final int minPos = variantList.stream().mapToInt(R->R.getStart()).min().getAsInt();
+						final int maxPos = variantList.stream().mapToInt(R->R.getEnd()).max().getAsInt();
+						final Set<String> sampleCarryingMut = new HashSet<String>();
+						final Counter<String> sample2count = new Counter<String>();
+						for(final VariantContext ctx: variantList)
+							{
+							for(final Genotype genotype:ctx.getGenotypes())
+								{
+								if(!genotypeFilter.test(genotype)) continue;
+			 					final String sampleName= genotype.getSampleName();
+			 					
+								sample2count.incr(sampleName);
+								sampleCarryingMut.add(sampleName);
+								}
+							}
+						
 					
+						pw.print(first.getContig());
+						pw.print('\t');
+						pw.print(minPos-1);//convert to bed
+						pw.print('\t');
+						pw.print(maxPos);
+						pw.print('\t');
+						pw.print(first.gene.name);
+						pw.print('\t');
+						pw.print(first.gene.label);
+						pw.print('\t');
+						pw.print(first.gene.type);
+						pw.print('\t');
+						pw.print(sampleCarryingMut.size());
+						pw.print('\t');
+						pw.print(variantList.size());
+						if(this.print_positions) {
+							pw.print('\t');
+							pw.print(variantList.stream().
+									map(CTX->String.valueOf(CTX.getStart())+":"+CTX.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining("/"))).
+									collect(Collectors.joining(";"))
+								);
+							}
+							
+	
+							
+						if(!this.casesControls.isEmpty()) {
+							final int count_case_mut = (int)sample2count.entrySet().
+									stream().
+									filter(KV->this.casesControls.isCase(KV.getKey())).
+									filter(KV->KV.getValue()>0L).
+									count();
+							final int count_case_wild = this.casesControls.getCases().size() - count_case_mut;
+							
+							pw.print('\t');
+							pw.print(count_case_mut);
+							pw.print('\t');
+							pw.print(count_case_wild);
+							
+						
+							final int count_ctrl_mut = (int)sample2count.entrySet().
+									stream().
+									filter(KV->this.casesControls.isControl(KV.getKey())).
+									filter(KV->KV.getValue()>0L).
+									count();
+							final int count_ctrl_wild = this.casesControls.getControls().size() - count_ctrl_mut;
+							
+							pw.print('\t');
+							pw.print(count_ctrl_mut);
+							pw.print('\t');
+							pw.print(count_ctrl_wild);
+							
+							final FisherExactTest fisher = FisherExactTest.compute(
+									count_case_mut,count_case_wild,
+									count_ctrl_mut,count_ctrl_wild
+									);
+							pw.print('\t');
+							pw.print(fisher.getAsDouble());
+							}
+			
+						
+						for(final String sample: sampleNames)
+							{
+							pw.print('\t');
+							pw.print(sample2count.count(sample));
+							}
+						pw.println();							
+						}
+					eqiter.close();
+					}
+				pw.flush();
 				}
-			eqiter.close();
-			iter.close();
-			pw.flush();
-			if(this.outFile!=null) pw.close();
 			
 			
 			}
 		finally
 			{
-			CloserUtil.close(vcfIterator);
 			if(sortingCollection!=null) sortingCollection.cleanup();
 			}
 		}
 	
 	@Override
 	public int doWork(final List<String> args) {
-		if(this.list_extractors) {
-			for(final String en: GeneExtractorFactory.getExtractorNames()) {
-				System.out.println(en);
-				}
-			return 0;
-			}
+		
 		
 		try
 			{
+			if(this.list_extractors) {
+				try(PrintWriter w = super.openPathOrStdoutAsPrintWriter(this.outFile)) {
+					for(final String en: GeneExtractorFactory.getExtractorNames()) {
+						w.println(en);
+						}
+					}
+				return 0;
+				}
+			
+			
 			read(oneFileOrNull(args));
 			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

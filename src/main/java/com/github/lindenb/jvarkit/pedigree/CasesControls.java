@@ -151,12 +151,25 @@ public class CasesControls {
 		}
 	}
 	
+	public boolean haveCases() {
+		return !this._cases.isEmpty();
+		}
+	
+	public boolean haveControls() {
+		return !this._controls.isEmpty();
+		}
+	
+	public boolean haveCasesAndControls() {
+		return haveCases() && haveControls();
+		}
+
+	
 	public CasesControls checkHaveCases() {
-		if(this._cases.isEmpty()) throw new IllegalArgumentException("No case(s) was found");
+		if(!haveCases()) throw new IllegalArgumentException("No case(s) was found");
 		return this;
 		}
 	public CasesControls checkHaveControls() {
-		if(this._controls.isEmpty()) throw new IllegalArgumentException("No control(s) was found");
+		if(!haveControls()) throw new IllegalArgumentException("No control(s) was found");
 		return this;
 		}
 	

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 0fea7e6dc
-Compilation : 20240528092236
+Version     : b61ead485
+Compilation : 20240531145521
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -62,7 +62,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [backlocate](BackLocate.md) | Mapping a mutation on a protein back to the genome. | 20140619 | 20190820 |
-| [groupbygene](GroupByGene.md) | Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff | 20131209 | 20220529 |
+| [groupbygene](GroupByGene.md) | Group VCF data by gene/transcript. By default it uses data from VEP , SnpEff | 20140531 | 20220529 |
 
 ### BED Manipulation
 

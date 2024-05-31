@@ -128,6 +128,12 @@ public class Counter<T>
 		return this.object2count.keySet();
 		}
 	
+	public Set<Map.Entry<T,Long>> entrySet()
+		{
+		return Collections.unmodifiableSet(this.object2count.entrySet());
+		}
+
+	
 	public T getMostFrequent()
 		{
 		T key=null;

@@ -17,7 +17,9 @@ Usage: java -jar dist/jvarkit.jar vcfgenesplitter  [options] Files
 Usage: vcfgenesplitter [options] Files
   Options:
     -e, -E, --extractors
-      Gene Extractors Name. Space/semicolon/Comma separated
+      Gene Extractors Name. Space/semicolon/Comma separated. custom:tag is a 
+      custom extractor extracting all the values for INFO/tag as one or more 
+      gene name
       Default: ANN/GeneId VEP/GeneId
     -h, --help
       print help and exit

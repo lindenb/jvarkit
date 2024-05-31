@@ -23,7 +23,9 @@ Usage: vcfcomposite [options] Files
       checked 2019-11-15)
       Default: false
     -e, -E, --extractors
-      Gene Extractors Name. Space/semicolon/Comma separated
+      Gene Extractors Name. Space/semicolon/Comma separated. custom:tag is a 
+      custom extractor extracting all the values for INFO/tag as one or more 
+      gene name
       Default: ANN/GeneId VEP/GeneId
     --filter
       [20180718] set FILTER for the variants that are not part of a composite 

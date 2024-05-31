@@ -49,7 +49,7 @@ import htsjdk.variant.vcf.VCFHeader;
  * A class extracting gene names from annotated VCF
  */
 public class GeneExtractorFactory {
-
+private static final String CUSTOM_PREFIX="custom:";
 public interface KeyAndGene
 	extends Comparable<KeyAndGene>
 	{	
@@ -70,8 +70,11 @@ public interface KeyAndGene
 	
 public static class KeyAndGeneImpl implements KeyAndGene
 	{
+	/** get the name of the entity (gene-id, transcript-id, etc... )*/
 	final String key;
+	/** name of the gene may be null , not used for comparaison */
 	final String gene;
+	/** name of the extractor */
 	final String method;
 	public KeyAndGeneImpl(final String key,final String gene,final String method) {
 		this.key = key;
@@ -341,6 +344,33 @@ private class SpliceAiGeneExtractor extends AbstractGeneExtractorImpl {
 		}
 	}
 
+private class CustomGeneExtractor extends AbstractGeneExtractorImpl {
+	CustomGeneExtractor(final String name)
+		{
+		super(name);
+		}
+	@Override
+	public Map<KeyAndGene, Set<String>> apply(final VariantContext vc) {
+		final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
+		for(final String geneName: vc.getAttributeAsStringList(getInfoTag(),"")){
+			if(StringUtils.isBlank(geneName) || geneName.equals(".")) continue;
+			final KeyAndGene keyAndGene = new KeyAndGeneImpl(geneName, geneName,"custom/"+this.getName());
+			Set<String> values = gene2values.get(keyAndGene);
+			if(values==null)  {
+				values = new LinkedHashSet<>();
+				gene2values.put(keyAndGene,values);
+				}
+			values.add(geneName);
+			}
+		return gene2values;
+		}
+	@Override
+	public String getInfoTag()
+		{
+		return getName();
+		}
+	}
+
 
 private final List<GeneExtractor> extractors =  new ArrayList<>();
 /* WARNING keep that order: see constuctor */
@@ -350,11 +380,12 @@ private static List<String> AVAILABLE_EXTRACTORS_NAMES = Collections.unmodifiabl
 		"EFF/Gene","EFF/Transcript",// 6 & 7
 		"BCSQ/gene","BCSQ/transcript",//8 & 9
 		"SMOOVE", //10
-		"SpliceAI" //11
+		"SpliceAI", //11
+		CUSTOM_PREFIX+"tag"//12
 		))
 		;
 
-public static final String OPT_DESC = "Gene Extractors Name. Space/semicolon/Comma separated";
+public static final String OPT_DESC = "Gene Extractors Name. Space/semicolon/Comma separated. "+CUSTOM_PREFIX+"tag is a custom extractor extracting all the values for INFO/tag as one or more gene name";
 
 public GeneExtractorFactory(final VCFHeader header) {
 	
@@ -386,6 +417,8 @@ public GeneExtractorFactory(final VCFHeader header) {
 	extractors.add( new SmooveExtractor(AVAILABLE_EXTRACTORS_NAMES.get(10), smooveGenesParser));
 	
 	extractors.add( new SpliceAiGeneExtractor(AVAILABLE_EXTRACTORS_NAMES.get(11)));
+	
+	//12 is custom : tag
 	}
 
 /** return a list of all the available extractors' names */
@@ -406,6 +439,16 @@ public List<GeneExtractor> parse(final String arg)
 
 	for(final String s:arg.split("[\\s,;]+")) {
 		if(StringUtils.isBlank(s)) continue;
+		if(s.startsWith(CUSTOM_PREFIX)) {
+			final String tag = s.substring(CUSTOM_PREFIX.length()).trim();
+			if(StringUtils.isBlank(tag)) {
+				throw new IllegalArgumentException("Custom tag is empty: "+s);
+				}
+			L.add(new CustomGeneExtractor(tag));
+			continue;
+			}
+		
+		
 		final Optional<GeneExtractor> ex = this.getAllExtractors().
 				stream().
 				filter(E->E.getName().equals(s)).

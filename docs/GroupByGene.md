@@ -16,23 +16,22 @@ Usage: java -jar dist/jvarkit.jar groupbygene  [options] Files
 
 Usage: groupbygene [options] Files
   Options:
+    --cases
+      File or comma-separated list of control samples
+    --controls
+      File or comma-separated list of control samples
     -e, -E, --extractors
-      [20190626]Gene Extractors Name. Space/semicolon/Comma separated
+      Gene Extractors Name. Space/semicolon/Comma separated. custom:tag is a 
+      custom extractor extracting all the values for INFO/tag as one or more 
+      gene name
       Default: ANN/GeneId VEP/GeneId BCSQ/gene SMOOVE SpliceAI
-    --filtered
-      ignore FILTERED variants
-      Default: false
-    --fisher
-      [20170726] Print fisher for case/control (experimental, need to work on 
-      this) 
-      Default: false
-    --gtFiltered
-      [20170725] ignore FILTERED genotypes
-      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --gtFiltered, --ignore-filtered-gt
+      ignore FILTERED genotypes
+      Default: false
     -l, --list
       [20190626]list all available gene extractors
     --maxRecordsInRam
@@ -43,12 +42,6 @@ Usage: groupbygene [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
-    -p, --ped, --pedigree
-      [20170725] A pedigree file. tab delimited. Columns: 
-      family,id,father,mother, 
-      sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), 
-      phenotype 
-      (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -76,7 +69,7 @@ Usage: groupbygene [options] Files
 
 ## Creation Date
 
-20131209
+20140531
 
 ## Source code 
 
@@ -134,10 +127,6 @@ chr10   135336656  135369532  CYP2E1     snpeff-gene-name  3                 2  
 ```
 
 ```
-
-## History
-
-* 201707: added pedigree, removed XML output
 
 
 
