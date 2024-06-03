@@ -94,6 +94,7 @@ nav:
         - "coverageplotter" : CoveragePlotter.md
         - "coverageserver" : CoverageServer.md
         - "cytoband2svg" : CytobandToSvg.md
+        - "dict2bed" : DictToBed.md
         - "evadumpfiles" : EVADumpFiles.md
         - "fastqgrep" : FastqGrep.md
         - "fastqshuffle" : FastqShuffle.md

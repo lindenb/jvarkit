@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : b61ead485
-Compilation : 20240531145521
+Version     : 7642da8f
+Compilation : 20240603134017
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -169,6 +169,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [copynumber01](CopyNumber01.md) | experimental CNV detection. | 20140201 | 20210318 |
 | [coverageserver](CoverageServer.md) | Jetty Based http server serving Bam coverage. | 20200212 | 20200330 |
 | [cytoband2svg](CytobandToSvg.md) | Creates a svg karyotype . |  |  |
+| [dict2bed](DictToBed.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to bed. | 20240603 | 20240603 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
 | [fastqshuffle](FastqShuffle.md) | Shuffle Fastq files | 20140901 | 20240129 |
 | [gff2kg](Gff2KnownGene.md) | Convert GFF3 format to UCSC knownGene format. | 20160404 | 20220725 |

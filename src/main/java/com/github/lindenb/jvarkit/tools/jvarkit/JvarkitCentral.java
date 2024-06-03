@@ -111,6 +111,7 @@ import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
 import com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix;
 import com.github.lindenb.jvarkit.tools.coverageserver.CoverageServer;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
+import com.github.lindenb.jvarkit.tools.dict2bed.DictToBed;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
 import com.github.lindenb.jvarkit.tools.fastq.BamToFastq;
 import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
@@ -630,6 +631,7 @@ public class JvarkitCentral {
 		command(Biostar9501110.class);
 		command(Biostar9556602.class);
 		command(Biostar9566948.class);
+		command(DictToBed.class);
 		command(ConvertLiftOverChain.class);
 		command(CoverageMatrix.class);
 		command(CytobandToSvg.class);

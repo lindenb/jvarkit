@@ -180,8 +180,8 @@ public static SAMSequenceDictionary extractRequired(final VCFHeader h) {
 	return dict;
 	}
 
-/** extract required SAMSequenceDictionary */
-public static SAMSequenceDictionary extractRequired(final Path f) {
+/** extract SAMSequenceDictionary */
+public static Optional<SAMSequenceDictionary> extractDictionary(final Path f) {
 	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
 	final SAMSequenceDictionary dict;
 	if(StringUtils.endsWith(f.getFileName().toString(),FileExtensions.BCF))
@@ -199,6 +199,13 @@ public static SAMSequenceDictionary extractRequired(final Path f) {
 		{
 		dict= SAMSequenceDictionaryExtractor.extractDictionary(f);
 		}
+	return Optional.ofNullable(dict);
+	}
+
+/** extract required SAMSequenceDictionary */
+public static SAMSequenceDictionary extractRequired(final Path f) {
+	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
+	final SAMSequenceDictionary dict = extractDictionary(f).orElse(null);
 	
 	if(dict==null || dict.isEmpty()) 
 		{
