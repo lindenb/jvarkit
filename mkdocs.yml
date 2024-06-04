@@ -36,6 +36,7 @@ nav:
         - "bamwithoutbai" : BamWithoutBai.md
         - "barcodegenerator" : BarcodeGenerator.md
         - "basecoverage" : BaseCoverage.md
+        - "bcftoolsmergebest" : BCFToolsMergeBest.md
         - "bedcluster" : BedCluster.md
         - "bedliftover" : BedLiftOver.md
         - "bedmergecnv" : BedMergeCnv.md
@@ -101,6 +102,7 @@ nav:
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
+        - "findhtsfiledict" : FindHtsFileDictionary.md
         - "gff2kg" : Gff2KnownGene.md
         - "gff3upstreamorf" : Gff3UpstreamOrf.md
         - "goutils" : GoUtils.md

@@ -135,10 +135,20 @@ public class CasesControls {
 	public Set<String> getCases() {
 		return _cases;
 		}
-		
+	
+	public int getCasesCount() {
+		return getCases().size();
+		}
+
+	
 	public Set<String> getControls() {
 		return _controls;
 		}
+	
+	public int getControlsCount() {
+		return getControls().size();
+		}
+
 	
 	/**
 	 * return getCases() for side==0 && getControls() for side==1
