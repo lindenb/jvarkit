@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.tools.barcode.BarcodeGenerator;
 import com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage;
 import com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats;
 import com.github.lindenb.jvarkit.tools.bcftoolsmergebest.BCFToolsMergeBest;
+import com.github.lindenb.jvarkit.tools.bed2vcf.BedToVcf;
 import com.github.lindenb.jvarkit.tools.bedrenamechr.BedRenameChromosomes;
 import com.github.lindenb.jvarkit.tools.bedtools.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv;
@@ -589,6 +590,7 @@ public class JvarkitCentral {
 		command(BedNonOverlappingSet.class);
 		command(BedRemoveBed.class);
 		command(BedLiftOver.class);
+		command(BedToVcf.class);
 		command(BioAlcidaeJdk.class);
 		command(BigwigMerge.class);
 		command(BCFToolsMergeBest.class);

@@ -69,7 +69,6 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.LineReader;
 import htsjdk.tribble.readers.SynchronousLineReader;
-import htsjdk.variant.bcf2.BCF2Codec;
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.SAMException;
 import htsjdk.samtools.util.BlockCompressedInputStream;

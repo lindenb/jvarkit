@@ -37,6 +37,7 @@ nav:
         - "barcodegenerator" : BarcodeGenerator.md
         - "basecoverage" : BaseCoverage.md
         - "bcftoolsmergebest" : BCFToolsMergeBest.md
+        - "bed2vcf" : BedToVcf.md
         - "bedcluster" : BedCluster.md
         - "bedliftover" : BedLiftOver.md
         - "bedmergecnv" : BedMergeCnv.md
