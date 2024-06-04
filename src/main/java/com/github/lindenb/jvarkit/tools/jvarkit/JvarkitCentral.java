@@ -152,6 +152,7 @@ import com.github.lindenb.jvarkit.tools.misc.ConvertVcfChromosomes;
 import com.github.lindenb.jvarkit.tools.misc.CytobandToSvg;
 import com.github.lindenb.jvarkit.tools.misc.FastqGrep;
 import com.github.lindenb.jvarkit.tools.misc.FindAVariation;
+import com.github.lindenb.jvarkit.tools.misc.HowManyBamDict;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaDirectory;
 import com.github.lindenb.jvarkit.tools.misc.SamAddPI;
 import com.github.lindenb.jvarkit.tools.misc.SamToJson;
@@ -658,6 +659,7 @@ public class JvarkitCentral {
 		command(GroupByGene.class);
 		command(Gtf2Xml.class);
 		command(Gff2KnownGene.class);
+		command(HowManyBamDict.class);
 		command(HtsFreemarker.class);
 		command(IbdToVcf.class);
 		command(IlluminaDirectory.class);
