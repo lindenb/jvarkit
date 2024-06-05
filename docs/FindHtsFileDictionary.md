@@ -2,26 +2,35 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Scan a set of HTS files (VCF, BAM, CRAM), return a tab delimited file (path-of-file,path-to-fasta)
+Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path-to-fasta)
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar findhtsfiledict  [options] Files
+
 Usage: findhtsfiledict [options] Files
   Options:
   * -D, -R, --repository, --dictionaries
-      A repository is a set of record separated by a white space. Each record 
-      is a line of 'key : value' or 'key=value'. Two keys are required: name 
-      and fasta
+      A tab delimited file with a required header, and required columns: 
+      'name' (name of the reference) and 'fasta' (path to the indexed fasta 
+      ref). 
     -e, --errors
       What shall we do on error
-      Default: raise
-      Possible Values: [ignore, raise, empty]
+      Default: fatal
+      Possible Values: [ignore, fatal, empty]
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --no-header
+      Do not print header
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --version
@@ -38,23 +47,6 @@ Usage: findhtsfiledict [options] Files
  * vcf
  * dict
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew findhtsfiledict
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -90,19 +82,15 @@ The current reference is:
 ## Example
 
 
-
 ```
 $ cat references.txt
-
-name : rf
-fasta : /home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
-
-name : toy
-fasta : /home/lindenb/src/jvarkit-git/src/test/resources/toy.fa
+name	fasta
+rf	/home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
+toy	/home/lindenb/src/jvarkit-git/src/test/resources/toy.fa
 
 
 $ find . -name "*.bam" -o -name "*.vcf" -o -name "*.vcf.gz" -o -name "*.cram" |\
-	java -jar dist/findhtsfiledict.jar  -R references.txt
+	java -jar dist/jvarkit.jar findhtsfiledict  -R references.txt
 
 [SEVERE][FindHtsFileDictionary]No Reference found for ./e90235dca2ff2d151ef796ad0be98915/test01.vcf
 java.io.IOException: No Reference found for ./e90235dca2ff2d151ef796ad0be98915/test01.vcf
@@ -117,7 +105,7 @@ java.io.IOException: No Reference found for ./e90235dca2ff2d151ef796ad0be98915/t
 
 
 $ find ${PWD}/ -name "*.bam" -o -name "*.vcf" -o -name "*.vcf.gz" -o -name "*.cram" |\
-	java -jar dist/findhtsfiledict.jar  -R references.txt -e ignore
+	java -jar dist/jvarkit.jar findhtsfiledict  -R references.txt -e ignore
 
 #hts-file	dict.name	fasta
 /home/lindenb/src/jvarkit-git/b7/83f96c410c7cd75bc732d44a1522a7/Gene_32_1507.vcf.gz	rf	/home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
@@ -141,6 +129,7 @@ $ find ${PWD}/ -name "*.bam" -o -name "*.vcf" -o -name "*.vcf.gz" -o -name "*.cr
 /home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.vcf.gz	rf	/home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
 /home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.freebayes.vcf.gz	rf	/home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
 ```
+
 
 
 

@@ -101,7 +101,8 @@ END_DOC
 	keywords={"sam","bam","dict","vcf"},
 	biostars=468541,
 	creationDate="20131108",
-	modificationDate="20201021"
+	modificationDate="20201021",
+	jvarkit_amalgamion =  true
 	)
 public class HowManyBamDict extends Launcher {
 	private static final Logger LOG = Logger.build(HowManyBamDict.class).make();

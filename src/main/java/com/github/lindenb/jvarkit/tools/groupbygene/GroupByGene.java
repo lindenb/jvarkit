@@ -54,7 +54,7 @@ import htsjdk.samtools.util.SortingCollection;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
+import com.github.lindenb.jvarkit.math.stats.FisherCasesControls;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -393,7 +393,8 @@ public class GroupByGene
 			
 					
 				
-					try(final CloseableIterator<Call> iter=sortingCollection.iterator()) {
+					
+				try(final CloseableIterator<Call> iter=sortingCollection.iterator()) {
 					final EqualRangeIterator<Call> eqiter = new EqualRangeIterator<>(iter, (C1,C2)->C1.compareTo(C2));
 					while(eqiter.hasNext())
 						{
@@ -444,37 +445,23 @@ public class GroupByGene
 	
 							
 						if(!this.casesControls.isEmpty()) {
-							final int count_case_mut = (int)sample2count.entrySet().
+							final FisherCasesControls fcc = new FisherCasesControls(this.casesControls);
+							fcc.acceptAll(sample2count.entrySet().
 									stream().
-									filter(KV->this.casesControls.isCase(KV.getKey())).
 									filter(KV->KV.getValue()>0L).
-									count();
-							final int count_case_wild = this.casesControls.getCases().size() - count_case_mut;
+									map(KV->KV.getKey()).
+									collect(Collectors.toSet()));
 							
 							pw.print('\t');
-							pw.print(count_case_mut);
+							pw.print(fcc.getCasesAltCount());
 							pw.print('\t');
-							pw.print(count_case_wild);
-							
-						
-							final int count_ctrl_mut = (int)sample2count.entrySet().
-									stream().
-									filter(KV->this.casesControls.isControl(KV.getKey())).
-									filter(KV->KV.getValue()>0L).
-									count();
-							final int count_ctrl_wild = this.casesControls.getControls().size() - count_ctrl_mut;
-							
+							pw.print(fcc.getCasesRefCount());
 							pw.print('\t');
-							pw.print(count_ctrl_mut);
+							pw.print(fcc.getControlsAltCount());
 							pw.print('\t');
-							pw.print(count_ctrl_wild);
-							
-							final FisherExactTest fisher = FisherExactTest.compute(
-									count_case_mut,count_case_wild,
-									count_ctrl_mut,count_ctrl_wild
-									);
+							pw.print(fcc.getControlsRefCount());
 							pw.print('\t');
-							pw.print(fisher.getAsDouble());
+							pw.print(fcc.getAsDouble());
 							}
 			
 						

@@ -26,18 +26,17 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -49,7 +48,6 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 /**
 BEGIN_DOC
@@ -59,16 +57,13 @@ BEGIN_DOC
 
 ```
 $ cat references.txt
-
-name : rf
-fasta : /home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
-
-name : toy
-fasta : /home/lindenb/src/jvarkit-git/src/test/resources/toy.fa
+name	fasta
+rf	/home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
+toy	/home/lindenb/src/jvarkit-git/src/test/resources/toy.fa
 
 
 $ find . -name "*.bam" -o -name "*.vcf" -o -name "*.vcf.gz" -o -name "*.cram" |\
-	java -jar dist/findhtsfiledict.jar  -R references.txt
+	java -jar dist/jvarkit.jar findhtsfiledict  -R references.txt
 
 [SEVERE][FindHtsFileDictionary]No Reference found for ./e90235dca2ff2d151ef796ad0be98915/test01.vcf
 java.io.IOException: No Reference found for ./e90235dca2ff2d151ef796ad0be98915/test01.vcf
@@ -83,7 +78,7 @@ java.io.IOException: No Reference found for ./e90235dca2ff2d151ef796ad0be98915/t
 
 
 $ find ${PWD}/ -name "*.bam" -o -name "*.vcf" -o -name "*.vcf.gz" -o -name "*.cram" |\
-	java -jar dist/findhtsfiledict.jar  -R references.txt -e ignore
+	java -jar dist/jvarkit.jar findhtsfiledict  -R references.txt -e ignore
 
 #hts-file	dict.name	fasta
 /home/lindenb/src/jvarkit-git/b7/83f96c410c7cd75bc732d44a1522a7/Gene_32_1507.vcf.gz	rf	/home/lindenb/src/jvarkit-git/src/test/resources/rotavirus_rf.fa
@@ -115,24 +110,26 @@ END_DOC
 
 
 @Program(name="findhtsfiledict",
-	description="Scan a set of HTS files (VCF, BAM, CRAM), return a tab delimited file (path-of-file,path-to-fasta)",
+	description="Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path-to-fasta)",
 	keywords={"sam","bam","cram","vcf","dict"},
 	creationDate="20190912",
-	modificationDate="20190912"
+	modificationDate="20240604",
+	jvarkit_amalgamion = true
 	)
 public class FindHtsFileDictionary extends Launcher {
 	private static final Logger LOG = Logger.build(FindHtsFileDictionary.class).make();
 
-	private enum OnError { ignore,raise,empty};
+	private enum OnError { ignore,fatal,empty};
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-D","-R","--repository","--dictionaries"},description="A repository is a set of record separated by a white space. "
-			+ "Each record is a line of 'key : value' or 'key=value'. Two keys are required: name and fasta ",
+	@Parameter(names={"-D","-R","--repository","--dictionaries"},description="A tab delimited file with a required header, and required columns: 'name' (name of the reference) and 'fasta' (path to the indexed fasta ref).",
 			required = true)
 	private Path repositoryFile = null;
 	@Parameter(names={"-e","--errors"},description="What shall we do on error")
-	private OnError onError = OnError.raise;
+	private OnError onError = OnError.fatal;
+	@Parameter(names={"--no-header"},description="Do not print header")
+	private boolean disable_header=false;
 
 	private static class DictEntry
 		{
@@ -145,55 +142,40 @@ public class FindHtsFileDictionary extends Launcher {
  	
 	private  List<DictEntry> readDictionaryRepository(final Path path) throws IOException {
 		final List<DictEntry>  dictionaries = new ArrayList<>();
-		final Map<String,String> properties= new HashMap<>();
 		IOUtil.assertFileIsReadable(path);
+		FileHeader fileHeader;
 		try(BufferedReader br=IOUtils.openPathForBufferedReading(path)) {
-			String line;
-			for(;;) {
-				line= br.readLine();
-				if(StringUtils.isBlank(line)) {
-					if(!properties.isEmpty()) {
-						final DictEntry entry = new DictEntry();
-						entry.name = properties.get("name");
-						if(StringUtils.isBlank(entry.name)) {
-							throw new IOException(" key \"name\" missing or empry for "+properties);
-							}
-						if(dictionaries.stream().anyMatch(D->D.name.equalsIgnoreCase(entry.name))) {
-							throw new IOException("duplicate dictionary named "+entry.name);
-							}
-						
-						if(!properties.containsKey("fasta")) {
-							throw new IOException(" key \"fasta\" missing for "+properties);
-							}
-						entry.fasta = Paths.get(properties.get("fasta"));
-						if(dictionaries.stream().anyMatch(D->D.fasta.equals(entry.fasta))) {
-							throw new IOException("duplicate fasta "+entry.fasta);
-							}
-						
-						
-						IOUtil.assertFileIsReadable(entry.fasta);
-						
-						if(!entry.fasta.isAbsolute()) {
-							LOG.warn("path is not absolute "+entry.fasta);
-							}
-						// throw error if it's not supported fasta
-						ReferenceSequenceFileFactory.getFastaExtension(entry.fasta);
-						entry.dict =SequenceDictionaryUtils.extractRequired(entry.fasta);
-						dictionaries.add(entry);
-						}
-					if(line==null) break;
-					properties.clear();
-					continue;
+			String line= br.readLine();
+			if(line==null) throw new IOException("cannot read first line of "+path);
+			fileHeader=new FileHeader(line, S->CharSplitter.TAB.splitAsStringList(S));
+			fileHeader.assertColumnExists("name");
+			fileHeader.assertColumnExists("fasta");
+			while((line=br.readLine())!=null) {
+				final FileHeader.RowMap row = fileHeader.toMap(line);	
+				final DictEntry entry = new DictEntry();
+				entry.name = row.get("name");
+				if(StringUtils.isBlank(entry.name)) {
+					throw new IOException(" key \"name\" missing or empty for "+row);
 					}
-				int sep = line.indexOf(':');
-				if(sep==-1) sep=line.indexOf('=');
-				if(sep==-1) throw new IOException("cannot find separator ':' or '=' in "+line);
-				final String left = line.substring(0,sep).trim().toLowerCase();
-				final String right = line.substring(sep+1).trim();
-				if(properties.containsKey(left)) {
-					throw new IOException("duplicate key "+left+" for "+properties);
+				if(dictionaries.stream().anyMatch(D->D.name.equalsIgnoreCase(entry.name))) {
+					throw new IOException("duplicate dictionary named "+entry.name);
 					}
-				properties.put(left, right);
+						
+				entry.fasta = Paths.get(row.get("fasta"));
+				if(dictionaries.stream().anyMatch(D->D.fasta.equals(entry.fasta))) {
+					throw new IOException("duplicate fasta "+entry.fasta);
+					}
+						
+				
+				IOUtil.assertFileIsReadable(entry.fasta);
+				
+				if(!entry.fasta.isAbsolute()) {
+					LOG.warn("path is not absolute "+entry.fasta);
+					}
+				// throw error if it's not supported fasta
+				ReferenceSequenceFileFactory.getFastaExtension(entry.fasta);
+				entry.dict =SequenceDictionaryUtils.extractRequired(entry.fasta);
+				dictionaries.add(entry);
 				}
 			}
 		return dictionaries;
@@ -206,7 +188,7 @@ public class FindHtsFileDictionary extends Launcher {
  		
  		final SAMSequenceDictionary dict;
  		try {
- 			dict = SAMSequenceDictionaryExtractor.extractDictionary(f);
+ 			dict = SequenceDictionaryUtils.extractDictionary(f).orElse(null);
  			} 
  		catch (final Throwable e)
 			{
@@ -243,10 +225,10 @@ public class FindHtsFileDictionary extends Launcher {
 			{
 			final List<DictEntry> entries = readDictionaryRepository(this.repositoryFile);
 			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)){
-				out.println("#hts-file\tdict.name\tfasta");
+				if(!this.disable_header) out.println("#hts-file\tname\tfasta");
 				if(args.isEmpty())
 					{
-					try(final BufferedReader in=new BufferedReader(new InputStreamReader(stdin()))) {
+					try(final BufferedReader in= IOUtils.openStdinForBufferedReader()) {
 						in.lines().
 							filter(line->!(StringUtils.isBlank(line) || line.startsWith("#"))).
 							forEach(line->scan(out,line,entries));						
@@ -261,7 +243,7 @@ public class FindHtsFileDictionary extends Launcher {
 					}
 				out.flush();
 				}
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Throwable err)
 			{

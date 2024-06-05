@@ -36,6 +36,8 @@ nav:
         - "bamwithoutbai" : BamWithoutBai.md
         - "barcodegenerator" : BarcodeGenerator.md
         - "basecoverage" : BaseCoverage.md
+        - "bcftoolsmergebest" : BCFToolsMergeBest.md
+        - "bed2vcf" : BedToVcf.md
         - "bedcluster" : BedCluster.md
         - "bedliftover" : BedLiftOver.md
         - "bedmergecnv" : BedMergeCnv.md
@@ -101,6 +103,7 @@ nav:
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
+        - "findhtsfiledict" : FindHtsFileDictionary.md
         - "gff2kg" : Gff2KnownGene.md
         - "gff3upstreamorf" : Gff3UpstreamOrf.md
         - "goutils" : GoUtils.md
@@ -110,6 +113,7 @@ nav:
         - "gtf2xml" : Gtf2Xml.md
         - "gtfliftover" : GtfLiftOver.md
         - "gtfretrocopy" : GtfRetroCopy.md
+        - "howmanybamdict" : HowManyBamDict.md
         - "htsfreemarker" : HtsFreemarker.md
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md
