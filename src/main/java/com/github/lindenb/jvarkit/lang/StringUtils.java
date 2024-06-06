@@ -59,6 +59,14 @@ private static <T> boolean _is(final String s,Function<String,T> fun,final Predi
 		return false;
 		}
 	}
+/** count number of char 'c' in string 's' */
+public static int count(final CharSequence s, int c) {
+	int n=0;
+	for(int i=0;i< s.length();i++) {
+		if(s.charAt(i)==c) n++;
+		}
+	return n;
+	}
 	
 public static boolean isDouble(final String s) {
 	return parseDouble(s).isPresent();

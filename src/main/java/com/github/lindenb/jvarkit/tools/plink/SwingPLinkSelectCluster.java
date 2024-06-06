@@ -25,10 +25,13 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.plink;
+import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
@@ -46,17 +49,23 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.swing.AbstractAction;
 import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -74,8 +83,12 @@ import javax.swing.SwingUtilities;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 
+
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.pedigree.SampleToGroup;
 import com.github.lindenb.jvarkit.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -86,8 +99,39 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 BEGIN_DOC
 
 GUI selecting the samples of a MDS file generated with plink.
+At the end a file with fid/iid/keep-status is saved.
+
+
+
+## Input
+
+input can be generated with plink:
+
+```
 
 ## Example:
+
+```nextflow
+	plink --bcf '${genome_bcf}' \\
+		--double-id \\
+		--read-genome '${genome_plink}' \\
+		--mds-plot ${num_components} \\
+		--cluster \\
+		--out TMP/cluster
+
+```
+
+input file must have this header:
+
+```
+FID	IID	SOL	C1	C2	C3
+```
+
+## Usage
+
+```
+java -jar dist/jvarkit.jar swingplinkselectcluster file.mds  --samples-to-groups sample2group.tsv
+```
 
 END_DOC
  */
@@ -95,14 +139,17 @@ END_DOC
 description="Swing-based Plink/MDS sample selector",
 keywords={"plink","sample","swing"},
 creationDate = "20231123",
-modificationDate="20231123",
+modificationDate="20240606",
 jvarkit_amalgamion =  true
 )
 public class SwingPLinkSelectCluster extends Launcher {
 private static final Logger LOG = Logger.build(SwingPLinkSelectCluster.class).make();
 private static final String ACTION_XY_KEY= "plink.xy";
 private static final String ACTION_TOOL= "select.tool";
-private  enum ToolType {AND,NOT,XOR}
+private  enum ToolType {KEEP,EXCLUDE,INVERSE}
+
+@Parameter(names= {"--samples-to-groups","-m"},description=SampleToGroup.OPT_DESC)
+private Path sampleToGroupPath = null;
 
 private static class Column {
 	final int index;
@@ -140,13 +187,15 @@ private static class Sample {
 	//
 	boolean selectedInTable = false;
 	boolean selectForOutput = true;
+	String group="[:other:]";
+	Color color=Color.CYAN;
 	}
 
 @SuppressWarnings("serial")
 private static class SampleTableModel extends AbstractTableModel{
 	final List<Sample> rows;
 	final int countCcols;
-	 SampleTableModel(final List<Sample> rows,final int countCcols) {
+	SampleTableModel(final List<Sample> rows, int countCcols) {
 		this.rows= rows;
 		this.countCcols = countCcols;
 	 	}
@@ -155,7 +204,8 @@ private static class SampleTableModel extends AbstractTableModel{
 	public Class<?> getColumnClass(int columnIndex) {
 		 switch(columnIndex) {
 			case 0:
-			case 1: return String.class;
+			case 1:
+			case 2: return String.class;
 			default: return Double.class;
 			}
 	 	}
@@ -165,7 +215,7 @@ private static class SampleTableModel extends AbstractTableModel{
 		}
 	@Override
 	public int getColumnCount() {
-		return this.countCcols+2;
+		return this.countCcols+3;
 		}
 	@Override
 	public boolean isCellEditable(int rowIndex, int columnIndex) {
@@ -176,19 +226,28 @@ private static class SampleTableModel extends AbstractTableModel{
 		switch(columnIndex) {
 			case 0: return "FID";
 			case 1: return "IID";
-			default: return "C"+((columnIndex-2)+1);
+			case 2: return "GROUP";
+			default: return "C"+((columnIndex-3)+1);
 			}
 		}
 	@Override
 	public Object getValueAt(int rowIndex, int columnIndex) {
 		final Sample o = this.rows.get(rowIndex);
 		switch(columnIndex) {
-			case 0: return o.fid;
-			case 1: return o.iid;
-			default: return o.C[columnIndex-2];
+			case 0: return simpleName(o.fid);
+			case 1: return simpleName(o.iid);
+			case 2: return o.group;
+			default: return o.C[columnIndex-3];
 			}
 		}
 	}
+
+static String simpleName(String s) {
+	final List<String> tokens = CharSplitter.UNDERSCORE.splitAsStringList(s);
+	if(tokens.size()%4!=0) return s;
+	return String.join("_",tokens.subList(0, tokens.size()/4));
+	}
+
 
 @SuppressWarnings("serial")
 private static class XFrame extends JFrame {
@@ -197,10 +256,13 @@ private static class XFrame extends JFrame {
 	final ButtonGroup buttonGroupTool;
 	final JPanel drawingArea ;
 	final JTable XYTable;
+	final JCheckBoxMenuItem showLabelsJCheckbox;
+	private final Map<String,JCheckBoxMenuItem> group2visibleCheckbox = new HashMap<>();
 	private boolean dirtyFlag=false;
 	private File saveAsFile = null;
 	XFrame(final List<Column> columns,
-			final List<Sample> samples
+			final List<Sample> samples,
+			final SampleToGroup samplesToGroup
 			)
 		{
 		super(SwingPLinkSelectCluster.class.getSimpleName());
@@ -212,7 +274,11 @@ private static class XFrame extends JFrame {
 				columnsXY.add( new ColXY(columns.get(x),columns.get(y)));
 			}
 		}
+		
 		this.samples= samples;
+		
+		
+		
 		super.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 		this.addWindowListener(new WindowAdapter() {
 			@Override
@@ -228,7 +294,7 @@ private static class XFrame extends JFrame {
 		
 		final JMenuBar menuBar = new JMenuBar();
 		setJMenuBar(menuBar);
-		final JMenu menu=new JMenu("File");
+		JMenu menu=new JMenu("File");
 		menuBar.add(menu);
 		menu.add(new JMenuItem(new AbstractAction("Save...") {
 			@Override
@@ -253,6 +319,62 @@ private static class XFrame extends JFrame {
 				XFrame.this.dispose();
 				}
 			}));
+		
+		menu=new JMenu("Select");
+		menuBar.add(menu);
+		menu.add(this.showLabelsJCheckbox = new JCheckBoxMenuItem(new AbstractAction("Show Labels") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				XFrame.this.repaint();
+				}
+			}));
+		this.showLabelsJCheckbox.setSelected(false);
+		menu.add(new JMenuItem(new AbstractAction("Keep all") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				for(Sample sn:XFrame.this.samples) {
+					sn.selectForOutput=true;
+					}
+				XFrame.this.repaint();
+				}
+			}));
+		menu.add(new JMenuItem(new AbstractAction("Remove all") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				for(Sample sn:XFrame.this.samples) {
+					sn.selectForOutput=false;
+					}
+				XFrame.this.repaint();
+				}
+			}));
+		menu.add(new JMenuItem(new AbstractAction("Inverse") {
+			@Override
+			public void actionPerformed(ActionEvent arg0) {
+				for(Sample sn:XFrame.this.samples) {
+					sn.selectForOutput=!sn.selectForOutput;
+					}
+				XFrame.this.repaint();
+				}
+			}));
+		
+		
+		menu=new JMenu("Groups");
+		for(Sample sample:samples) {
+			if(group2visibleCheckbox.containsKey(sample.group)) continue;
+			final JCheckBoxMenuItem cbox = new JCheckBoxMenuItem(new AbstractAction(sample.group) {
+					@Override
+					public void actionPerformed(ActionEvent e) {
+						XFrame.this.repaint();
+					}
+				});
+			cbox.setSelected(true);
+			cbox.setForeground(sample.color);
+			this.group2visibleCheckbox.put(sample.group, cbox);
+			menu.add(cbox);
+			}
+		menuBar.add(menu);
+		
+		
 		final JPanel mainPanel=new JPanel(new BorderLayout());
 		this.setContentPane(mainPanel);
 		
@@ -275,7 +397,7 @@ private static class XFrame extends JFrame {
 					if(pt.distance(event.getX(), event.getY()) < 3) {
 						if(sb==null) sb=new StringBuilder();
 						else if(sb.length()>0) sb.append(" ");
-						sb.append(sn.iid);
+						sb.append(simpleName(sn.iid)+"/"+sn.group);
 						}
 					}
 				return sb==null?null:sb.toString();
@@ -299,7 +421,7 @@ private static class XFrame extends JFrame {
 				}
 			@Override
 			public void mouseDragged(MouseEvent e) {
-				Graphics2D g = (Graphics2D)drawingArea.getGraphics();
+				final Graphics2D g = (Graphics2D)drawingArea.getGraphics();
 				g.setColor(Color.MAGENTA);
 				g.draw(new Line2D.Double(prev.getX(),prev.getY(),e.getX(),e.getY()));
 				prev = new Point(e.getX(),e.getY());
@@ -312,12 +434,13 @@ private static class XFrame extends JFrame {
 				final ColXY cxy = getCurrentColXY();
 				for(int i=0;cxy!=null && i< samples.size();i++) {
 					final Sample sn = samples.get(i);
+					if(!isVisible(sn)) continue;
 					final Point2D pt = sampleToPixel(cxy, sn);
 					if(gpath.contains(pt.getX(),pt.getY())) {
 						switch(tt) {
-							case AND: sn.selectForOutput=true; break;
-							case NOT: sn.selectForOutput=false; break;
-							case XOR: sn.selectForOutput=!sn.selectForOutput; break;
+							case KEEP: sn.selectForOutput=true; break;
+							case EXCLUDE: sn.selectForOutput=false; break;
+							case INVERSE: sn.selectForOutput=!sn.selectForOutput; break;
 							}
 						}
 					}
@@ -372,7 +495,7 @@ private static class XFrame extends JFrame {
 		
 			JPanel pane2 = new JPanel(new BorderLayout());
 			
-			this.XYTable = new JTable(new SampleTableModel(samples,columns.size()));
+			this.XYTable = new JTable(new SampleTableModel(samples, columns.size()));
 			this.XYTable.getSelectionModel().addListSelectionListener(E->{
 				if(E.getValueIsAdjusting()) return;
 				for(Sample sample: samples) {
@@ -391,19 +514,19 @@ private static class XFrame extends JFrame {
 					java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 					if(!isSelected) {
 						c.setBackground(row%2==0?Color.WHITE:Color.LIGHT_GRAY);
-						if(column==0 || column==1) {
+						if(column==0 || column==1|| column==2) {
 							row = table.convertRowIndexToModel(row);
 							if(row==-1) return c;
 							final SampleTableModel tm = (SampleTableModel)XYTable.getModel();
-							c.setBackground(tm.rows.get(row).selectForOutput?Color.GREEN:Color.RED);
+							c.setBackground(tm.rows.get(row).selectForOutput?tm.rows.get(row).color:Color.RED);
 							}
 						}
 					return c;
 					}
 				};
-				this.XYTable.setDefaultRenderer(Object.class, renderer);
-				this.XYTable.setDefaultRenderer(String.class, renderer);
-				this.XYTable.setDefaultRenderer(Double.class, renderer);
+			this.XYTable.setDefaultRenderer(Object.class, renderer);
+			this.XYTable.setDefaultRenderer(String.class, renderer);
+			this.XYTable.setDefaultRenderer(Double.class, renderer);
 			pane2.add(new JScrollPane(this.XYTable));
 			
 		
@@ -425,6 +548,8 @@ private static class XFrame extends JFrame {
 				pw.print(sn.fid);
 				pw.print("\t");
 				pw.print(sn.iid);
+				pw.print("\t");
+				pw.print(simpleName(sn.iid));
 				pw.print("\t");
 				pw.print(sn.selectForOutput?".":"EXCLUDED");
 				pw.println();
@@ -466,7 +591,7 @@ private static class XFrame extends JFrame {
 		x = ((x-col.min)/(col.max-col.min))*width;
 		col =columnXY.get(1);
 		double y = sn.C[col.index];
-		y = ((y-col.min)/(col.max-col.min))*height;
+		y = height-((y-col.min)/(col.max-col.min))*height;
 		return new Point2D.Double(x,y);
 		}
 	
@@ -491,13 +616,19 @@ private static class XFrame extends JFrame {
 	                return ToolType.class.cast(AbstractAction.class.cast(button.getAction()).getValue(ACTION_TOOL));
 	            }
 	        }
-		 return ToolType.XOR;
+		 return ToolType.KEEP;
 		}
 	
+	private boolean isVisible(Sample sn) {
+		final JCheckBoxMenuItem cbox = this.group2visibleCheckbox.get(sn.group);
+		if(cbox==null) return true;
+		return cbox.isSelected();
+		}
 
 	private void paintDrawingArea(Graphics2D g) {
 		final int width = this.drawingArea.getWidth();
 		final int height = this.drawingArea.getHeight();
+		final boolean plotLabel = showLabelsJCheckbox.isSelected();
 		g.setColor(Color.LIGHT_GRAY);
 		g.fillRect(0, 0,width,height);
 		g.setColor(Color.DARK_GRAY);
@@ -506,11 +637,40 @@ private static class XFrame extends JFrame {
 		if(columnXY==null) return;
 		final int radius =5;
 		
+		g.setFont(new Font(Font.MONOSPACED, Font.PLAIN,10));
+		g.setColor(Color.WHITE);
+		// X axis
+		for(double z=columnXY.get(0).min;z<=columnXY.get(0).max;z+=0.02) {
+			int v = (int)(((z-columnXY.get(0).min)/(columnXY.get(0).max-columnXY.get(0).min))*width);
+			g.drawLine(v,0,v,height);
+			g.drawString(String.format("%.2f",z), v, height-10);
+			}
+		// Y axis
+		for(double z=columnXY.get(1).min;z<=columnXY.get(1).max;z+=0.02) {
+			int v = height-(int)(((z-columnXY.get(1).min)/(columnXY.get(1).max-columnXY.get(1).min))*height);
+			g.drawLine(0,v,width,v);
+			g.drawString(String.format("%.2f",z), 2, v);
+			}
+		
+		
+		final int fontSize=12;
+		g.setFont(new Font(Font.MONOSPACED, Font.PLAIN,fontSize));
+		int y=fontSize+1;
+		for(String group:this.group2visibleCheckbox.keySet()) {
+			final JCheckBoxMenuItem cbox = this.group2visibleCheckbox.get(group);
+			g.setColor(cbox.getForeground());
+			g.drawString(group, 1, y);
+			y+=fontSize+1;
+		}
+		
+		
+		final Composite oldComposite  = g.getComposite();
+		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f));
 		for(int side=0;side<2;++side) {
 			for(int i=0;i< this.samples.size();i++) {
 				final Sample sn = this.samples.get(i);
+				if(!isVisible(sn)) continue;
 				final Point2D pt = sampleToPixel(columnXY, sn);
-				
 				
 				if(side==1) {
 					if(sn.selectedInTable) {
@@ -521,27 +681,35 @@ private static class XFrame extends JFrame {
 								(radius+1)*2,
 								(radius+1)*2)
 								);
+						
 						}
+					
 					}
 				else
 					{
-					
 					if(!sn.selectForOutput) {
-						g.setColor(Color.RED);
+						g.setColor(sn.color);
 						g.draw(new Line2D.Double(pt.getX()-radius, pt.getY(), pt.getX()+radius, pt.getY()));
 						g.draw(new Line2D.Double(pt.getX(), pt.getY()-radius, pt.getX(), pt.getY()+radius));
+						g.setColor(Color.red);
+						g.fill(new Ellipse2D.Double(pt.getX()-1, pt.getY()-1, 2,2));
 						}
 					else
 						{
-						g.setColor(Color.GREEN);
+						g.setColor(sn.color);
 						g.fill(new Ellipse2D.Double(pt.getX()-radius, pt.getY()-radius, radius*2,radius*2));
 						g.setColor(Color.GRAY);
 						g.draw(new Ellipse2D.Double(pt.getX()-radius, pt.getY()-radius, radius*2,radius*2));
+						}
+					if(plotLabel) {
+						g.setColor(sn.color);
+						g.drawString(simpleName(sn.iid)+":"+sn.group,(int)(pt.getX()+radius+1),(int)( pt.getY()+fontSize/2));
 						}
 					}
 				}
 			if(this.XYTable.getSelectionModel().isSelectionEmpty()) break;
 			}
+		g.setComposite(oldComposite);
 		}
 
 }
@@ -596,10 +764,45 @@ public int doWork(List<String> args) {
 			diff= diff*0.05;
 			col.min-=diff;
 			col.max+=diff;
-		}
+			}
 
+		final SampleToGroup sampleToGroup=new SampleToGroup();
+		if(this.sampleToGroupPath!=null) {
+			sampleToGroup.load(sampleToGroupPath);
+			}
 		
-		final XFrame frame = new XFrame(columns,rows);
+		sampleToGroup.retainSamples(rows.stream().
+				map(R->R.iid).
+				flatMap(SN->Arrays.asList(SN,simpleName(SN)).stream()).
+				collect(Collectors.toSet()));
+		
+		sampleToGroup.complete(sampleToGroup.isEmpty()?"[all]":"[others]",
+				rows.stream().
+					map(SN->SN.iid).
+					flatMap(SN->Arrays.asList(SN,simpleName(SN)).stream()).
+					collect(Collectors.toSet())
+				);
+		
+		final List<String> groups= new ArrayList<>(sampleToGroup.getGroups());
+		final Map<String,Color> group2colors= new HashMap<>(groups.size());
+		for(int i=0;i< groups.size();i++) {
+			final Color groupRGB =  Color.getHSBColor((float) (i) / (float)groups.size(), 0.85f, 1.0f);
+			group2colors.put(groups.get(i), groupRGB);
+			}
+		
+		
+		for(int i=0;i< rows.size();i++) {
+			final Sample row=rows.get(i);
+			String sn = row.iid;
+			if(!sampleToGroup.hasSample(sn)) {
+				sn = simpleName(sn);
+				}
+			if(!sampleToGroup.hasSample(sn)) continue;
+			row.group = sampleToGroup.getGroupsForSample(sn).iterator().next();
+			row.color = group2colors.get(row.group);
+			}
+		
+		final XFrame frame = new XFrame(columns,rows,sampleToGroup);
 		final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
 		frame.setBounds(50, 50, screen.width-100, screen.height-100);
 

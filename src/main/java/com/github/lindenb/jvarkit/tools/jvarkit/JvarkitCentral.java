@@ -181,6 +181,7 @@ import com.github.lindenb.jvarkit.tools.phased.BamPhased01;
 import com.github.lindenb.jvarkit.tools.phased.BamToHaplotypes;
 import com.github.lindenb.jvarkit.tools.phased.BamToMNV;
 import com.github.lindenb.jvarkit.tools.phased.VcfPhased01;
+import com.github.lindenb.jvarkit.tools.plink.SwingPLinkSelectCluster;
 import com.github.lindenb.jvarkit.tools.pubmed.Pubmed404;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedAuthorGraph;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedCodingLanguages;
@@ -737,6 +738,7 @@ public class JvarkitCentral {
 		command(SamExtractClip.class);
 		command(SwingIndexCov.class);
 		command(SwingVcfJexlFilter.class);
+		command(SwingPLinkSelectCluster.class);
 		command(SvToSVG.class);
 		command(VCFSVAnnotator.class);
 		command(TextBam.class);

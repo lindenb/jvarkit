@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : e4d29cbc
-Compilation : 20240605173408
+Version     : 93bf189ea
+Compilation : 20240606163145
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -203,6 +203,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [scanlabguru](ScanLabGuru.md) | scan the files stored in labguru | 20240325 | 20240325 |
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
+| [swingplinkselectcluster](SwingPLinkSelectCluster.md) | Swing-based Plink/MDS sample selector | 20231123 | 20240606 |
 | [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240206 |
 | [variantsinwindow](VariantsInWindow.md) | Annotate Number of Variants overlaping a sliding window. |  |  |
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |

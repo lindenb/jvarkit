@@ -171,6 +171,7 @@ nav:
         - "swingbamcov" : SwingBamCov.md
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md
+        - "swingplinkselectcluster" : SwingPLinkSelectCluster.md
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
         - "texbam" : TextBam.md
