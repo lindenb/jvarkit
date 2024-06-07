@@ -9,6 +9,7 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tests.AlsoTest;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.tools.vcf2r.VcfToRScript;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 @AlsoTest(LauncherTest.class)
@@ -37,7 +38,7 @@ public class VcfBurdenRscriptVTest  {
 				}
 			final Path output = support.createTmpPath(".vcf");
 			
-			Assert.assertEquals(new VcfBurdenRscriptV().instanceMain(new String[] {
+			Assert.assertEquals(new VcfToRScript().instanceMain(new String[] {
 	        		"-o",output.toString(),
 	        		"--pedigree",ped.toString(),
 					}),0);

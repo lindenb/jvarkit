@@ -84,7 +84,8 @@ description="Convert BED file to VCF, finding REF allele at start and 'N' as ALT
 keywords={"bed","vcf"},
 creationDate="20240604",
 modificationDate="20240604",
-jvarkit_amalgamion = true
+jvarkit_amalgamion = true,
+menu="VCF Manipulation"
 )
 public class BedToVcf extends Launcher {
 	private static final Logger LOG = Logger.build(BedToVcf.class).make();

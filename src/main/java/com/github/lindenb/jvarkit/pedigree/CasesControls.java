@@ -62,6 +62,20 @@ public class CasesControls {
 	private Set<String> _cases = Collections.emptySet();
 	private Set<String> _controls = Collections.emptySet();
 	
+	
+	public CasesControls() {
+		}
+	
+	/** copy constructor */
+	public CasesControls(final CasesControls cp) {
+		this.sourceCases = cp.sourceCases;
+		this.sourceControls = cp.sourceControls;
+		this._cases=new HashSet<>(cp._cases);
+		this._controls=new HashSet<>(cp._controls);
+		}
+	
+	
+	
 	private Set<String> load(final String pathOrList) throws IOException {
 		if(StringUtils.isBlank(pathOrList) ) return Collections.emptySet();
 		final Path path = Paths.get(pathOrList);
@@ -226,6 +240,12 @@ public class CasesControls {
 		return getCases().isEmpty() && getControls().isEmpty();
 	}
 
+	@Override
+	public CasesControls clone() {
+		return new CasesControls(this);
+		}
+	
+	
 	@Override
 	public boolean equals(final Object obj) {
 		if(obj==this) return true;

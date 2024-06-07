@@ -65,7 +65,6 @@ import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFilterExac;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherV;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF;
-import com.github.lindenb.jvarkit.tools.burden.VcfBurdenRscriptV;
 import com.github.lindenb.jvarkit.tools.burden.VcfFilterNotInPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfInjectPedigree;
 import com.github.lindenb.jvarkit.tools.burden.VcfLoopOverGenes;
@@ -95,6 +94,7 @@ import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.trap.TrapIndexer;
 import com.github.lindenb.jvarkit.tools.trap.VcfTrap;
+import com.github.lindenb.jvarkit.tools.vcf2r.VcfToRScript;
 import com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf;
 import com.github.lindenb.jvarkit.tools.vcf2sql.VcfToSql;
 import com.github.lindenb.jvarkit.tools.vcf2svg.VcfToSvg;
@@ -625,7 +625,7 @@ class TestNg01 {
     public void testVcfBurdenRscriptV() throws IOException{    
 			final File input =new File(TEST_RESULTS_DIR,"tmp.multi2oneallele.vcf");
 			final File output =new File(TEST_RESULTS_DIR,"tmp.R");
-	    	Assert.assertEquals(0,new VcfBurdenRscriptV().instanceMain(new String[]{
+	    	Assert.assertEquals(0,new VcfToRScript().instanceMain(new String[]{
 	        		"-o",output.getPath(),
 	        		input.getPath()
 	        		}));

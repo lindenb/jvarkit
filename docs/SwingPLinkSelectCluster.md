@@ -36,6 +36,12 @@ Usage: swingplinkselectcluster [options] Files
 
 
 
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9594882](https://www.biostars.org/p/9594882)
+
+
+
 ## Creation Date
 
 20231123
@@ -69,17 +75,17 @@ The current reference is:
 GUI selecting the samples of a MDS file generated with plink.
 At the end a file with fid/iid/keep-status is saved.
 
+## Screenshot
 
+see https://genomic.social/@yokofakun/112570150370091891
 
 ## Input
 
 input can be generated with plink:
 
+Example:
+
 ```
-
-## Example:
-
-```nextflow
 	plink --bcf '${genome_bcf}' \\
 		--double-id \\
 		--read-genome '${genome_plink}' \\
