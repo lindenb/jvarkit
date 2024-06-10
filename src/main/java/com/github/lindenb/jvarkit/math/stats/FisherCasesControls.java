@@ -76,10 +76,10 @@ public class FisherCasesControls implements DoubleSupplier,Consumer<String> {
     	return (int)this.seen.stream().filter(sn->this.casesControls.isControl(sn)).count();
     	}
     public int getCasesRefCount() {
-    	return getCasesAltCount()-this.casesControls.getCasesCount();
+    	return this.casesControls.getCasesCount()-getCasesAltCount();
     	}
     public int getControlsRefCount() {
-    	return getControlsAltCount()-this.casesControls.getControlsCount();
+    	return this.casesControls.getControlsCount()- getControlsAltCount();
     	}
     
     public FisherExactTest getFisherExactTest() {
