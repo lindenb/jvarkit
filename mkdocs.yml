@@ -113,6 +113,7 @@ nav:
         - "gtf2xml" : Gtf2Xml.md
         - "gtfliftover" : GtfLiftOver.md
         - "gtfretrocopy" : GtfRetroCopy.md
+        - "haplogroupcasectrl" : HaploGroupCaseControl.md
         - "howmanybamdict" : HowManyBamDict.md
         - "htsfreemarker" : HtsFreemarker.md
         - "ibd2vcf" : IbdToVcf.md

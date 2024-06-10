@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 65c451ad6
-Compilation : 20240606165149
+Version     : 729368f8
+Compilation : 20240610173048
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -178,6 +178,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20240225 |
 | [gtfliftover](GtfLiftOver.md) | LiftOver GTF file. | 20190823 | 20190823 |
 | [gtfretrocopy](GtfRetroCopy.md) | Scan retrocopies by comparing the gtf/intron and the deletions in a VCF | 20190813 | 20191104 |
+| [haplogroupcasectrl](HaploGroupCaseControl.md) | Run Fisher test for Haplogroup input. | 20240610 | 20240610 |
 | [howmanybamdict](HowManyBamDict.md) | finds if there's are some differences in the sequence dictionaries. | 20131108 | 20201021 |
 | [htsfreemarker](HtsFreemarker.md) | Apply Freemarker to VCF/BAM/JSON files. | 20230616 | 20230616 |
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |

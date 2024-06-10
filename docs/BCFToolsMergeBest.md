@@ -54,6 +54,12 @@ Usage: bcftoolsmergebest [options] Files
 
 
 
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9594639](https://www.biostars.org/p/9594639)
+
+
+
 ## Creation Date
 
 20240604
