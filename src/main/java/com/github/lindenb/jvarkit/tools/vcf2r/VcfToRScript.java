@@ -65,7 +65,7 @@ END_DOC
 
 @Program(name="vcf2r",
 	description="Convert VCF to R so it can be used for burden testing",
-	keywords={"vcf","burden","fisher"},
+	keywords={"vcf","burden","fisher","R"},
 	modificationDate = "20240607",
 	jvarkit_amalgamion = true
 	)
@@ -77,18 +77,14 @@ public class VcfToRScript
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
-
-	@Parameter(names={"-f","--function"},description="User defined R function to be called after each VCF")
-	private String userDefinedFunName = "";
-
+	@Parameter(names={"--variants"},description="include a table with variants")
+	private boolean withVariants=false;
 	
-	@Parameter(names={"--info"},description="comma separated of extra INFO fields included in the variant dataframe")
+	@Parameter(names={"--info"},description="comma separated of extra INFO fields included in the variant dataframe. Only with --variants")
 	private String infoStr = "";
-
 
 	@ParametersDelegate
 	private CasesControls casesControls0 = new CasesControls();
-	
 	
 	
 	public VcfToRScript()
@@ -111,14 +107,12 @@ public class VcfToRScript
 		
 
 			
-			boolean first=true;
 			pw.println("# BEGIN  VCF ##########################################");
 			pw.println("# Title ");
 			
 			pw.println("if(!exists(\"vcf.title\")) {\n    vcf.title <- \""+StringUtils.escapeC(filename)+"\"\n    }");
 			
 			
-			first=true;
 			pw.println("# samples ( 0: unaffected 1:affected)");
 			
 			pw.print("population <- data.frame(family=c(");	
@@ -129,90 +123,86 @@ public class VcfToRScript
 			pw.print(all_samples.stream().map(S->casesControls.isControl(S)?"0":"1").collect(Collectors.joining(",")));
 			pw.println("))");
 						
-			
-			first=true;
+			int n_variants = 0;
 			pw.println();
 			pw.println("# genotypes as a list. Should be a multiple of length(samples).");
 			pw.println("# 0 is homref (0/0), 1 is het (0/1), 2 is homvar (1/1)");
 			pw.print("genotypes <- c(");
 			while(in.hasNext()) {
 				final VariantContext ctx =  in.next();
-				if(!first) pw.print(",");
+				if(n_variants>0) pw.print(",\n");
+				n_variants++;
 				pw.print(all_samples.stream().
 					map(S->ctx.getGenotype(S)).
 					map(genotype->{
-						if (!genotype.hasAltAllele()) {
-							return "0";
-						} else if (genotype.hasRefAllele()) {
-							return "1";
-						} else {
-							return "2";
-						}}).
+						final int n= (int)genotype.getAlleles().stream().filter(A->!(A.isReference() || A.isNoCall())).count();
+						switch(n) {
+							case 0: return "0";
+							case 1: return "1";
+							default: return "2";
+							}
+						}).
 					collect(Collectors.joining(","))
 					);
-				first=false;
-				variants.add(new VariantContextBuilder().noGenotypes().make());
+				if(this.withVariants) {
+					variants.add(new VariantContextBuilder().noGenotypes().make());
+					}
 				}// end reading vcf
 			in.close();
 			
 			pw.println(")");
-			first = true;
 			
-			pw.print("# variants.");
-			pw.println();
-			pw.print("variants <- data.frame(chrom=c(");
-			pw.print(variants.stream().map(vc->StringUtils.doubleQuote(vc.getContig())).collect(Collectors.joining(",")));
-			pw.print("),chromStart=c(");
-			pw.print(variants.stream().map(vc->String.valueOf(vc.getStart())).collect(Collectors.joining(",")));
-			pw.print("),chromEnd=c(");
-			pw.print(variants.stream().map(vc->String.valueOf(vc.getEnd())).collect(Collectors.joining(",")));
-			pw.print("),refAllele=c(");
-			pw.print(variants.stream().map(vc->StringUtils.doubleQuote(vc.getReference().getDisplayString())).collect(Collectors.joining(",")));
-			pw.print("),altAllele=c(");
-			pw.print(variants.stream().map( vc->StringUtils.doubleQuote(vc.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")))).collect(Collectors.joining(",")));
-			pw.print(")");
-			
-			for(String info: infoFields0) {
-				final VCFInfoHeaderLine hdr = header.getInfoHeaderLine(info);
-				if(hdr==null) continue;
-				if(variants.stream().noneMatch(vc->vc.hasAttribute(info))) continue;
-				pw.print(","+info+"=c(");
-				if(hdr.getType()==VCFHeaderLineType.String) {
-					pw.print(variants.stream().map( vc->StringUtils.doubleQuote(vc.getAttributeAsStringList(info,"").stream().collect(Collectors.joining(",")))).collect(Collectors.joining(",")));
-					}
-				else if(hdr.getType()==VCFHeaderLineType.Flag) {
-					pw.print(variants.stream().map( vc->vc.hasAttribute(info)?"1":"0").collect(Collectors.joining(",")));
-					}
-				else if(hdr.getType()==VCFHeaderLineType.Float) {
-					pw.print(variants.stream().map( vc->String.valueOf(vc.getAttributeAsDouble(info, 0.0))).collect(Collectors.joining(",")));
-					}
-				else if(hdr.getType()==VCFHeaderLineType.Integer) {
-					pw.print(variants.stream().map( vc->String.valueOf(vc.getAttributeAsInt(info, 1))).collect(Collectors.joining(",")));
-					}
-				else
-					{
-					throw new IllegalStateException(info);
-					}
+			if(this.withVariants) {
+				pw.print("# variants.");
+				pw.println();
+				pw.print("variants <- data.frame(chrom=c(");
+				pw.print(variants.stream().map(vc->StringUtils.doubleQuote(vc.getContig())).collect(Collectors.joining(",")));
+				pw.print("),chromStart=c(");
+				pw.print(variants.stream().map(vc->String.valueOf(vc.getStart())).collect(Collectors.joining(",")));
+				pw.print("),chromEnd=c(");
+				pw.print(variants.stream().map(vc->String.valueOf(vc.getEnd())).collect(Collectors.joining(",")));
+				pw.print("),refAllele=c(");
+				pw.print(variants.stream().map(vc->StringUtils.doubleQuote(vc.getReference().getDisplayString())).collect(Collectors.joining(",")));
+				pw.print("),altAllele=c(");
+				pw.print(variants.stream().map( vc->StringUtils.doubleQuote(vc.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")))).collect(Collectors.joining(",")));
 				pw.print(")");
+				
+				for(String info: infoFields0) {
+					final VCFInfoHeaderLine hdr = header.getInfoHeaderLine(info);
+					if(hdr==null) continue;
+					if(variants.stream().noneMatch(vc->vc.hasAttribute(info))) continue;
+					pw.print(","+info+"=c(");
+					if(hdr.getType()==VCFHeaderLineType.String) {
+						pw.print(variants.stream().map( vc->StringUtils.doubleQuote(vc.getAttributeAsStringList(info,"").stream().collect(Collectors.joining(",")))).collect(Collectors.joining(",")));
+						}
+					else if(hdr.getType()==VCFHeaderLineType.Flag) {
+						pw.print(variants.stream().map( vc->vc.hasAttribute(info)?"1":"0").collect(Collectors.joining(",")));
+						}
+					else if(hdr.getType()==VCFHeaderLineType.Float) {
+						pw.print(variants.stream().map( vc->String.valueOf(vc.getAttributeAsDouble(info, 0.0))).collect(Collectors.joining(",")));
+						}
+					else if(hdr.getType()==VCFHeaderLineType.Integer) {
+						pw.print(variants.stream().map( vc->String.valueOf(vc.getAttributeAsInt(info, 1))).collect(Collectors.joining(",")));
+						}
+					else
+						{
+						throw new IllegalStateException(info);
+						}
+					pw.print(")");
+					}
+				
+				
+				pw.println(")");
 				}
 			
-			
-			pw.println(")");
-			
-			if(!variants.isEmpty())
+			if(n_variants>0)
 				{
+				pw.println("# number of variants");
+				pw.println("count.variants <- "+n_variants);
 				pw.println("# assert sizes");
 				pw.println("stopifnot( length(genotypes) %% NROW(population) == 0 )");
-				pw.println("stopifnot(NROW(variants) * NROW(population) == length(genotypes) )");
-				
-				
-				if(this.userDefinedFunName==null || this.userDefinedFunName.trim().isEmpty()) {
-					pw.println("## WARNING not user-defined R function was defined");
-					}
-				else
-					{
-					pw.println("# consumme data with user-defined R function ");
-					pw.println(this.userDefinedFunName+"()");
+				if(this.withVariants) {
+					pw.println("stopifnot(NROW(variants) * NROW(population) == length(genotypes) )");
 					}
 				}
 			else
@@ -249,10 +239,6 @@ public class VcfToRScript
 				pw.println("# generated by "+ getProgramName());
 				pw.println("# version "+getGitHash());
 				
-				if(!StringUtils.isBlank(this.userDefinedFunName)) {
-					pw.println("# user defined function "+userDefinedFunName+" should have been inserted BEFORE this header. ");
-					pw.println("#  something like 'cat user_function.R this_file.R |  R --no-save > result.txt'");
-					}
 				if(paths.isEmpty()) {
 						try(VCFIterator r=VCFUtils.createVCFIteratorStdin()) {
 							process("<STDIN>",r,pw,infoFiels);

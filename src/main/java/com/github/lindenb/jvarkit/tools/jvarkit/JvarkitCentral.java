@@ -230,6 +230,7 @@ import com.github.lindenb.jvarkit.tools.upstreamorf.VcfScanUpstreamOrf;
 import com.github.lindenb.jvarkit.tools.validatorserver.CNVValidatorServer;
 import com.github.lindenb.jvarkit.tools.vcf2bam.VcfToBam;
 import com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervals;
+import com.github.lindenb.jvarkit.tools.vcf2r.VcfToRScript;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
@@ -711,6 +712,7 @@ public class JvarkitCentral {
 		command(VCFPolyX.class);
 		command(VcfSpliceAI.class);
 		command(VcfToTable.class);
+		command(VcfToRScript.class);
 		command(VcfStats.class);
 		command(VcfGnomad.class);
 		command(VcfSetSequenceDictionary.class);
