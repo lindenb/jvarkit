@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 729368f8
-Compilation : 20240610173048
+Version     : 168427e2a
+Compilation : 20240613170554
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -207,6 +207,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [variantsinwindow](VariantsInWindow.md) | Annotate Number of Variants overlaping a sliding window. |  |  |
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
 | [vcf2hilbert](VcfToHilbert.md) | Plot a Hilbert Curve from a VCF file as SVG | 20171201 | 20240517 |
+| [vcf2r](VcfToRScript.md) | Convert VCF to R so it can be used for burden testing |  | 20240607 |
 | [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
 | [vcfbraiding](VcfBraiding.md) | visualization for variants and attributes using https://visdunneright.github.io/sequence_braiding/docs/ . | 20201021 | 20201022 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |

@@ -183,6 +183,7 @@ nav:
         - "vcf2bam" : VcfToBam.md
         - "vcf2hilbert" : VcfToHilbert.md
         - "vcf2intervals" : VcfToIntervals.md
+        - "vcf2r" : VcfToRScript.md
         - "vcf2table" : VcfToTable.md
         - "vcf2xml" : Vcf2Xml.md
         - "vcfallelebalance" : VcfAlleleBalance.md
