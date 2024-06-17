@@ -8,6 +8,7 @@ Filters a BlastOutput with a javascript expression. The script injects each <Hit
 ## Usage
 
 ```
+Usage: java -jar dist/blastfilterjs.jar  [options] Files
 Usage: blastfilterjs [options] Files
   Options:
     -e, --expression

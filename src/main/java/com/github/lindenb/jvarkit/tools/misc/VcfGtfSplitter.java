@@ -454,9 +454,6 @@ public class VcfGtfSplitter
 		}
 	@Override
 	public int doWork(final List<String> args) {
-		ArchiveFactory archiveFactory = null;
-		PrintWriter manifest = null;
-		VCFReader vcfFileReader = null;
 		try {
 			this.attCleaner = AttributeCleaner.compile(this.xannotatePattern);
 			
@@ -485,98 +482,94 @@ public class VcfGtfSplitter
 			
 			
 			final Path tmpVcf = Files.createTempFile("tmp.",(use_bcf?FileExtensions.BCF:FileExtensions.COMPRESSED_VCF));
-			String input = oneAndOnlyOneFile(args);
-			vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input),true);
-			final VCFHeader header1 = vcfFileReader.getHeader();
-			final SAMSequenceDictionary dict = header1.getSequenceDictionary();
-			if(dict==null && this.use_bcf) {
-				throw new JvarkitException.VcfDictionaryMissing(input);
-			}
+			final String input = oneAndOnlyOneFile(args);
 			
-			if(dict!=null && !limitToContigs.isEmpty())
-				{
-				final ContigNameConverter ctgNameConverter = ContigNameConverter.fromOneDictionary(dict);
-				final Set<String> set2 = new HashSet<>(this.limitToContigs.size());
-				for(final String ctg:this.limitToContigs)  {
-					final String ctg2 = ctgNameConverter.apply(ctg);
-					if(StringUtils.isBlank(ctg2)) {
-						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(ctg, dict));
-						return -1;
-						}
-					set2.add(ctg2);
-					}
-				this.limitToContigs = set2;
-				}
-			
-			final List<Gene> all_genes;
-			try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
-				final Comparator<Gene> cmp;
-				if(dict!=null) {
-					gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-					cmp = new ContigDictComparator(dict).createLocatableComparator();
-					}
-				else
-					{
-					cmp = (A,B)->{
-						final int i= A.getContig().compareTo(B.getContig());
-						if(i!=0) return i;
-						return Integer.compare(A.getStart(), B.getStart());
-						};
-					}
-				all_genes = gtfReader.
-						getAllGenes().
-						stream().
-						filter(G->{
-							if(this.protein_coding_only && !"protein_coding".equals(G.getGeneBiotype())) return false;
-							if(this.limitToContigs.isEmpty()) return true;
-							return this.limitToContigs.contains(G.getContig());
-						}).
-						sorted(cmp).
-						collect(Collectors.toList());
-				}
-			
-			archiveFactory = ArchiveFactory.open(this.outputFile);
-			archiveFactory.setCompressionLevel(0);
-			
-			manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile));
-			manifest.println("#chrom\tstart\tend\tGene-Id\tGene-Name\tGene-Biotype\tTranscript-Id\tpath\tCount_Variants");
-
-			if(this.split_by_transcript) {
-				final Iterator<Transcript> triter = all_genes.
-						stream().
-						flatMap(G->G.getTranscripts().stream()).iterator();
-				while(triter.hasNext()) {
-					final Transcript tr=triter.next();
-					final AbstractSplitter splitter = new TranscriptSplitter(tr);
-					this.split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
+			/** open VCF reader */
+			try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(Paths.get(input),true)) {
+				final VCFHeader header1 = vcfFileReader.getHeader();
+				final SAMSequenceDictionary dict = header1.getSequenceDictionary();
+				if(dict==null && this.use_bcf) {
+					throw new JvarkitException.VcfDictionaryMissing(input);
 				}
 				
-			} else {
-				for(Gene gene: all_genes) {
-					final AbstractSplitter splitter = new GeneSplitter(gene);
-					this.split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
-				}
-			}
+				if(dict!=null && !limitToContigs.isEmpty())
+					{
+					final ContigNameConverter ctgNameConverter = ContigNameConverter.fromOneDictionary(dict);
+					final Set<String> set2 = new HashSet<>(this.limitToContigs.size());
+					for(final String ctg:this.limitToContigs)  {
+						final String ctg2 = ctgNameConverter.apply(ctg);
+						if(StringUtils.isBlank(ctg2)) {
+							LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(ctg, dict));
+							return -1;
+							}
+						set2.add(ctg2);
+						}
+					this.limitToContigs = set2;
+					}
+				
+				final List<Gene> all_genes;
+				try(GtfReader gtfReader=new GtfReader(this.gtfPath)) {
+					final Comparator<Gene> cmp;
+					if(dict!=null) {
+						gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+						cmp = new ContigDictComparator(dict).createLocatableComparator();
+						}
+					else
+						{
+						cmp = (A,B)->{
+							final int i= A.getContig().compareTo(B.getContig());
+							if(i!=0) return i;
+							return Integer.compare(A.getStart(), B.getStart());
+							};
+						}
+					all_genes = gtfReader.
+							getAllGenes().
+							stream().
+							filter(G->{
+								if(this.protein_coding_only && !"protein_coding".equals(G.getGeneBiotype())) return false;
+								if(this.limitToContigs.isEmpty()) return true;
+								return this.limitToContigs.contains(G.getContig());
+							}).
+							sorted(cmp).
+							collect(Collectors.toList());
+					}
+				
+				try(ArchiveFactory archiveFactory = ArchiveFactory.open(this.outputFile)) {
+					archiveFactory.setCompressionLevel(0);
+					try( PrintWriter manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile))) {
+						manifest.println("#chrom\tstart\tend\tGene-Id\tGene-Name\tGene-Biotype\tTranscript-Id\tpath\tCount_Variants");
 			
-			vcfFileReader.close();
-			vcfFileReader = null;
-			manifest.flush();
-			manifest.close();
-			manifest = null;
-			archiveFactory.close();
+						if(this.split_by_transcript) {
+							final Iterator<Transcript> triter = all_genes.
+									stream().
+									flatMap(G->G.getTranscripts().stream()).iterator();
+							while(triter.hasNext()) {
+								final Transcript tr=triter.next();
+								final AbstractSplitter splitter = new TranscriptSplitter(tr);
+								this.split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
+							}
+							
+						} else {
+							for(Gene gene: all_genes) {
+								final AbstractSplitter splitter = new GeneSplitter(gene);
+								this.split(splitter,vcfFileReader,header1,dict,archiveFactory,tmpVcf,manifest);
+								}
+							}
+						manifest.flush();
+						}
+					}
+				} /* END open vcf reader */
+			
 			Files.deleteIfExists(tmpVcf);
-			return RETURN_OK;
+			return 0;
 			}
-		catch(final Exception err) 
+		catch(final Throwable err) 
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(vcfFileReader);
-			CloserUtil.close(archiveFactory);
-			CloserUtil.close(manifest);
 			}
 		}
 	

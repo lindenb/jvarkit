@@ -8,6 +8,7 @@ Maps uniprot/genbank annotations on a blast result.
 ## Usage
 
 ```
+Usage: java -jar dist/blastmapannots.jar  [options] Files
 Usage: blastmapannots [options] Files
   Options:
     --exclude

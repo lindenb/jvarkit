@@ -238,124 +238,124 @@ public class VcfGeneSplitter
 				return -1;
 				}
 			try(ArchiveFactory archiveFactory = ArchiveFactory.open(this.outputFile)) {
-				try(PrintWriter manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile))) {
-					manifest.println("#chrom\tstart\tend\tsplitter\tgene\tkey\tpath\tCount_Variants");
-					manifest.flush();
-					String prevCtg = null;
-					for(;;)
-						{
-						final VariantContext ctx = iterator.hasNext()?order.apply(iterator.next()):null;
-						
-						if(this.ignoreFiltered && ctx!=null && ctx.isFiltered()) continue;
-		
-						if(ctx==null || !ctx.getContig().equals(prevCtg))
-							{
-							for(KeyGene kg: keyGenes) {
-								if(kg.pw!=null) {
-									kg.pw.flush();
-									kg.pw.close();
-									kg.pw=null;
-									}
-								if ( kg.count_variants < this.min_number_of_ctx )  {
-									LOG.info("skipping "+kg+" because there are not enough variants. N="+kg.count_variants+"<"+this.min_number_of_ctx);
-									continue;
-									}
-								if ( this.max_number_of_ctx!=-1 && kg.count_variants > this.max_number_of_ctx ) {
-									LOG.info("skipping "+kg+" because there are too many variants. N="+kg.count_variants+">"+this.max_number_of_ctx);
-									continue;
-									}
-		
-								final String md5 = StringUtils.md5(prevCtg+":"+kg.extractor+":"+kg.key);
-								final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
-								final String filename0 =
-										parentDir + File.separator+
-										kg.key.replaceAll("[/\\:]", "_") + ".vcf.gz";
+						try(PrintWriter manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile))) {
+							manifest.println("#chrom\tstart\tend\tsplitter\tgene\tkey\tpath\tCount_Variants");
+							manifest.flush();
+							String prevCtg = null;
+							for(;;)
+								{
+								final VariantContext ctx = iterator.hasNext()?order.apply(iterator.next()):null;
 								
-								
-								try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename0),(Path)null)) {
-									IOUtils.copyTo(kg.tmpVcfPath, os);
-									os.flush();
-									}
-								
-								manifest.print(prevCtg);
-								manifest.print('\t');
-								manifest.print(kg.minPos-1);
-								manifest.print('\t');
-								manifest.print(kg.maxPos);
-								manifest.print('\t');
-								manifest.print(kg.extractor);
-								manifest.print('\t');
-								manifest.print(kg.geneName);
-								manifest.print('\t');
-								manifest.print(kg.key);
-								manifest.print('\t');
-								manifest.print(
-									archiveFactory.isTarOrZipArchive()?
-									filename0:
-									this.outputFile.resolve(filename0).toAbsolutePath().toString()
-									);
-								manifest.print('\t');
-								manifest.println(kg.count_variants);
-								}
-								
-							for(KeyGene kg: keyGenes) {
-								Files.delete(kg.tmpVcfPath);
-								}
-							keyGenes.clear();
-							
-							if(ctx==null) break;
-							prevCtg = ctx.getContig();
-							}
+								if(this.ignoreFiltered && ctx!=null && ctx.isFiltered()) continue;
 				
-			
-						for(final GeneExtractorFactory.GeneExtractor ex: extractors)
-							{
-							final Map<GeneExtractorFactory.KeyAndGene,Set<String>> gene2values = ex.apply(ctx);
-							
-							if(gene2values.isEmpty()) continue;
-							
-							for(final GeneExtractorFactory.KeyAndGene keyAndGene :gene2values.keySet()) {
-								final Set<String> values = gene2values.get(keyAndGene);
-								if(values.isEmpty()) continue;
-		
-								KeyGene keyGene = keyGenes.stream().
-											filter(KG->KG.extractor.equals(keyAndGene.getMethod())&& KG.key.equals(keyAndGene.getKey())).
-											findFirst().orElse(null);
-								if(keyGene==null) {
-									keyGene = new KeyGene(keyAndGene.getMethod(),keyAndGene.getKey(),keyAndGene.getGene());
+								if(ctx==null || !ctx.getContig().equals(prevCtg))
+									{
+									for(KeyGene kg: keyGenes) {
+										if(kg.pw!=null) {
+											kg.pw.flush();
+											kg.pw.close();
+											kg.pw=null;
+											}
+										if ( kg.count_variants < this.min_number_of_ctx )  {
+											LOG.info("skipping "+kg+" because there are not enough variants. N="+kg.count_variants+"<"+this.min_number_of_ctx);
+											continue;
+											}
+										if ( this.max_number_of_ctx!=-1 && kg.count_variants > this.max_number_of_ctx ) {
+											LOG.info("skipping "+kg+" because there are too many variants. N="+kg.count_variants+">"+this.max_number_of_ctx);
+											continue;
+											}
+				
+										final String md5 = StringUtils.md5(prevCtg+":"+kg.extractor+":"+kg.key);
+										final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
+										final String filename0 =
+												parentDir + File.separator+
+												kg.key.replaceAll("[/\\:]", "_") + ".vcf.gz";
+										
+										
+										try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename0),(Path)null)) {
+											IOUtils.copyTo(kg.tmpVcfPath, os);
+											os.flush();
+											}
+										
+										manifest.print(prevCtg);
+										manifest.print('\t');
+										manifest.print(kg.minPos-1);
+										manifest.print('\t');
+										manifest.print(kg.maxPos);
+										manifest.print('\t');
+										manifest.print(kg.extractor);
+										manifest.print('\t');
+										manifest.print(kg.geneName);
+										manifest.print('\t');
+										manifest.print(kg.key);
+										manifest.print('\t');
+										manifest.print(
+											archiveFactory.isTarOrZipArchive()?
+											filename0:
+											this.outputFile.resolve(filename0).toAbsolutePath().toString()
+											);
+										manifest.print('\t');
+										manifest.println(kg.count_variants);
+										}
+										
+									for(KeyGene kg: keyGenes) {
+										Files.delete(kg.tmpVcfPath);
+										}
+									keyGenes.clear();
 									
-									keyGenes.add(keyGene);
+									if(ctx==null) break;
+									prevCtg = ctx.getContig();
 									}
-								final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-								vcb.rmAttribute(VepPredictionParser.getDefaultTag());
-								vcb.rmAttribute(AnnPredictionParser.getDefaultTag());
-								vcb.rmAttribute(BcfToolsPredictionParser.getDefaultTag());
-								
+						
+					
+								for(final GeneExtractorFactory.GeneExtractor ex: extractors)
+									{
+									final Map<GeneExtractorFactory.KeyAndGene,Set<String>> gene2values = ex.apply(ctx);
 									
-								vcb.attribute(ex.getInfoTag(), new ArrayList<>(values));
-		
-								keyGene.write(header,vcb.make());
-								
-								
-								final long num_files_opened = keyGenes.stream().filter(K->K.pw!=null).count();
-								if(num_files_opened > this.max_open_files) {
-									final KeyGene toClose = keyGenes.stream().
-										filter(K->K.pw!=null).
-										sorted((A,B)->Long.compare(A.lastModificationDate,B.lastModificationDate)).
-										findFirst().
-										orElse(null)
-										;
-									if(toClose!=null) {
-										toClose.pw.flush();
-										toClose.pw.close();
-										toClose.pw= null;
+									if(gene2values.isEmpty()) continue;
+									
+									for(final GeneExtractorFactory.KeyAndGene keyAndGene :gene2values.keySet()) {
+										final Set<String> values = gene2values.get(keyAndGene);
+										if(values.isEmpty()) continue;
+				
+										KeyGene keyGene = keyGenes.stream().
+													filter(KG->KG.extractor.equals(keyAndGene.getMethod())&& KG.key.equals(keyAndGene.getKey())).
+													findFirst().orElse(null);
+										if(keyGene==null) {
+											keyGene = new KeyGene(keyAndGene.getMethod(),keyAndGene.getKey(),keyAndGene.getGene());
+											
+											keyGenes.add(keyGene);
+											}
+										final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+										vcb.rmAttribute(VepPredictionParser.getDefaultTag());
+										vcb.rmAttribute(AnnPredictionParser.getDefaultTag());
+										vcb.rmAttribute(BcfToolsPredictionParser.getDefaultTag());
+										
+											
+										vcb.attribute(ex.getInfoTag(), new ArrayList<>(values));
+				
+										keyGene.write(header,vcb.make());
+										
+										
+										final long num_files_opened = keyGenes.stream().filter(K->K.pw!=null).count();
+										if(num_files_opened > this.max_open_files) {
+											final KeyGene toClose = keyGenes.stream().
+												filter(K->K.pw!=null).
+												sorted((A,B)->Long.compare(A.lastModificationDate,B.lastModificationDate)).
+												findFirst().
+												orElse(null)
+												;
+											if(toClose!=null) {
+												toClose.pw.flush();
+												toClose.pw.close();
+												toClose.pw= null;
+												}
+											}
 										}
 									}
-								}
-							}
-				}// end of for(;;)
-				
-				}//end of in
+						}// end of for(;;)
+						
+						}//end of in
 			
 
 					}// end of manifest
