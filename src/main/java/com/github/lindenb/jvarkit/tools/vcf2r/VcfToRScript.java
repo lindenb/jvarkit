@@ -168,7 +168,7 @@ public class VcfToRScript
 				pw.print("),refAllele=c(");
 				pw.print(variants.stream().map(vc->StringUtils.doubleQuote(vc.getReference().getDisplayString())).collect(Collectors.joining(",")));
 				pw.print("),altAllele=c(");
-				pw.print(variants.stream().map( vc->StringUtils.doubleQuote(vc.getAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")))).collect(Collectors.joining(",")));
+				pw.print(variants.stream().map( vc->StringUtils.doubleQuote(vc.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(",")))).collect(Collectors.joining(",")));
 				pw.print(")");
 				
 				for(String info: infoFields0) {
