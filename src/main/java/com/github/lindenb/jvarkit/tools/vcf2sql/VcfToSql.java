@@ -106,7 +106,8 @@ END_DOC
 */
 @Program(name="vcf2sql",
 		description="Generate the SQL code to insert a VCF into mysql",
-		keywords={"vcf","sql"}
+		keywords={"vcf","sql"},
+		menu="VCF Manipulation"
 		)
 public class VcfToSql extends Launcher
 	{

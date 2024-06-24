@@ -38,6 +38,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.stats.FisherCasesControls;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -67,7 +68,8 @@ END_DOC
 	description="Convert VCF to R so it can be used for burden testing",
 	keywords={"vcf","burden","fisher","R"},
 	modificationDate = "20240607",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VcfToRScript
 	extends Launcher
@@ -102,6 +104,7 @@ public class VcfToRScript
 			final CasesControls casesControls= this.casesControls0.clone();
 			casesControls.retain(header);
 			casesControls.checkHaveCasesControls();
+			final FisherCasesControls fisherCasesControls = new FisherCasesControls(casesControls);
 			final List<VariantContext> variants = new ArrayList<>();
 			final Set<String> all_samples = casesControls.getAll();
 		
@@ -135,6 +138,7 @@ public class VcfToRScript
 				pw.print(all_samples.stream().
 					map(S->ctx.getGenotype(S)).
 					map(genotype->{
+						fisherCasesControls.accept(genotype);
 						final int n= (int)genotype.getAlleles().stream().filter(A->!(A.isReference() || A.isNoCall())).count();
 						switch(n) {
 							case 0: return "0";
@@ -145,7 +149,7 @@ public class VcfToRScript
 					collect(Collectors.joining(","))
 					);
 				if(this.withVariants) {
-					variants.add(new VariantContextBuilder().noGenotypes().make());
+					variants.add(new VariantContextBuilder(ctx).noGenotypes().make());
 					}
 				}// end reading vcf
 			in.close();
@@ -204,6 +208,12 @@ public class VcfToRScript
 				if(this.withVariants) {
 					pw.println("stopifnot(NROW(variants) * NROW(population) == length(genotypes) )");
 					}
+				pw.println("# fisher");
+				pw.println("N_CASE_ALT <- " + fisherCasesControls.getCasesAltCount());
+				pw.println("N_CASE_REF <- " + fisherCasesControls.getCasesRefCount());
+				pw.println("N_CTRL_ALT <- " + fisherCasesControls.getControlsAltCount());
+				pw.println("N_CTRL_REF <- " + fisherCasesControls.getControlsRefCount());
+				pw.println("FISHER <- " + fisherCasesControls.getAsDouble());
 				}
 			else
 				{

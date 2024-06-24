@@ -102,7 +102,8 @@ END_DOC
 	description="write a vcf to svg , with gene context",
 	keywords={"vcf","svg","xml","visualization"},
 	modificationDate="20240120",
-	creationDate="20170411"
+	creationDate="20170411",
+	menu="VCF Manipulation"
 	)
 public class VcfToSvg extends Launcher {
 private static final Logger LOG=Logger.build(VcfToSvg.class).make();
