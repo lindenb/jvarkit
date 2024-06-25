@@ -47,13 +47,23 @@ import htsjdk.samtools.util.IOUtil;
 /**
 BEGIN_DOC
 
+## Example
+
+
+```
+cat in.bed | java -jar jvarkit.jar bedliftover --chain x.chain -R ref.fa
+```
+
+
 END_DOC
 */
 @Program(
 		name="bedliftover",
-		description="Lift-over a VCF file",
-		modificationDate="20190924",
-		keywords={"bed","liftover"}
+		description="LiftOver a BED file",
+		creationDate="20140311",
+		modificationDate="20240625",
+		keywords={"bed","liftover"},
+		jvarkit_amalgamion = true
 		)
 public class BedLiftOver extends Launcher
 	{
@@ -73,11 +83,11 @@ public class BedLiftOver extends Launcher
 	private Path faidx = null;
 	@Parameter(names={"--chainvalid"},description="Ignore LiftOver chain validation")
 	private boolean ignoreLiftOverValidation=false;
-	
-	private LiftOver liftOver=null;
+	@Parameter(names={"--original","--src"},description="Append original interval")
+	private boolean appendOriginal=false;
 
 	
-	private void scan(BufferedReader r,PrintWriter out,PrintWriter failed) throws IOException
+	private void scan(final LiftOver liftOver,BufferedReader r,PrintWriter out,PrintWriter failed) throws IOException
 		{
 		String line;
 		final BedLineCodec bedCodec=new BedLineCodec();
@@ -88,7 +98,7 @@ public class BedLiftOver extends Launcher
 			final BedLine bedLine = bedCodec.decode(line);
 			if(bedLine==null) continue;
 			final Interval srcInterval = bedLine.toInterval();
-			Interval dest=this.liftOver.liftOver(srcInterval);
+			Interval dest=liftOver.liftOver(srcInterval);
 			if(dest!=null)
 				{
 				out.print(dest.getContig());
@@ -99,6 +109,10 @@ public class BedLiftOver extends Launcher
 				for(int i=3;i< bedLine.getColumnCount();++i) { 
 					out.print('\t');
 					out.print(bedLine.get(i));
+					}
+				if(this.appendOriginal) {
+					out.print('\t');
+					out.print(bedLine.getContig()+":"+bedLine.getStart()+"-"+bedLine.getEnd());
 					}
 				out.println();
 				}
@@ -113,13 +127,13 @@ public class BedLiftOver extends Launcher
 	public int doWork(final List<String> args) {
 		IOUtil.assertFileIsReadable(liftOverFile);
 
-		this.liftOver=new LiftOver(liftOverFile);
-		this.liftOver.setLiftOverMinMatch(this.userMinMatch);
+		final LiftOver liftOver=new LiftOver(liftOverFile);
+		liftOver.setLiftOverMinMatch(this.userMinMatch);
 		
 		try
 			{
 			if(!this.ignoreLiftOverValidation) {
-				this.liftOver.validateToSequences(SequenceDictionaryUtils.extractRequired(faidx));
+				liftOver.validateToSequences(SequenceDictionaryUtils.extractRequired(faidx));
 				}
 			
 			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
@@ -127,7 +141,7 @@ public class BedLiftOver extends Launcher
 					if(args.isEmpty())
 						{
 						try(BufferedReader r= openBufferedReader(null)) {
-							scan(r,out,failed);
+							scan(liftOver, r,out,failed);
 							}
 						}
 					else
@@ -135,7 +149,7 @@ public class BedLiftOver extends Launcher
 						for(final String filename:args)
 							{
 							try(BufferedReader r=openBufferedReader(filename)) {
-								scan(r,out,failed);
+								scan(liftOver,r,out,failed);
 								}
 							}
 						}
@@ -151,9 +165,6 @@ public class BedLiftOver extends Launcher
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
 			}
 		}
 

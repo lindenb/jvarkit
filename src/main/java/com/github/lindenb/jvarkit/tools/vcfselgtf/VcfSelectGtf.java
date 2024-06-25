@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -95,26 +96,54 @@ END_DOC
 public class VcfSelectGtf extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.build(VcfSelectGtf.class).make();
-	private enum InfoType {GENE_ID,TRANSCRIPT_ID};
-	private enum Coding {all,protein_coding};
 	@Parameter(names={"-gtf","--gtf"},description="GTF file indexed with tabix",required = true)
 	private String gtfPath;
+	@Parameter(names={"-q","--query"},description="Query type",required = true)
+	private String query="";
 
 	private TabixReader tabixReader=null;
-	private Interval bufferInterval = null;
-	private List<GTFLine> buffer=new ArrayList<>();
+	private Validator validator = null;
 	
 	@Override
 	protected Logger getLogger() {
 		return LOG;
 		}
 	
-	private class GTFNode
+	private abstract class Validator
 		{
-		final GTFLine line;
-		final List<GTFNode> children=new ArrayList<>();
-		GTFNode(final GTFLine line) {
-			this.line = line;
+		final GTFCodec codec = new GTFCodec();
+		protected TabixReader.Iterator query( TabixReader tabix, Locatable loc) {
+			return tabix.query(loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
+			}
+		protected boolean hasTranscriptId(GTFLine gtf,final String id) {
+			String tr= gtf.getAttribute("transcript_id");
+			if(StringUtils.isBlank(tr)) return false;
+			return tr.equals(id);
+			}
+		
+		protected List<GTFLine> fetch( TabixReader.Iterator iter,final Predicate<GTFLine> predicate) throws IOException {
+			final List<GTFLine> L = new ArrayList<>();
+			for(;;) {
+				final String line= iter.next();
+				if(line==null) break;
+				final GTFLine gtf = this.codec.decode(line);
+				if(gtf==null || !predicate.test(gtf)) continue;
+				L.add(gtf);
+				}
+			return L;
+			}
+		abstract boolean test(final VariantContext ctx,final String transcriptId, final TabixReader tabix) throws IOException;
+		}
+	
+	private class UpstreamValidator extends Validator {
+		final int distance;
+		UpstreamValidator(final int distance) {
+			this.distance=distance;
+			}
+		@Override
+		boolean test(final VariantContext ctx,final String transcriptId, TabixReader tabix) throws IOException {
+			TabixReader.Iterator iter = query(tabix,ctx);
+			fetch(iter,GTF-> GTF.getType().equals("transcript") &&  hasTranscriptId(GTF, transcriptId)).stream().findFirst().or(null);
 			}
 		}
 	
@@ -127,7 +156,18 @@ public class VcfSelectGtf extends OnePassVcfLauncher
 			LOG.error(err);
 			return -1;
 			}
-		
+		final DistanceParser distanceParser = new DistanceParser();
+		String left =StringUtils.substringBefore(this.query, ":");
+		String right =StringUtils.substringAfter(this.query, ":");
+		if(left.equals("upstream")) {
+			int n = distanceParser.applyAsInt(right);
+			validator = new UpstreamValidator(n);
+			}
+		else
+			{
+			LOG.error("cannot understand query "+this.query);
+			return -1;
+			}
 		return super.beforeVcf();
 		}
 	

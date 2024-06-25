@@ -2,13 +2,18 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Lift-over a VCF file
+LiftOver a BED file
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/bedliftover.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar bedliftover  [options] Files
+
 Usage: bedliftover [options] Files
   Options:
   * -f, --chain
@@ -25,6 +30,9 @@ Usage: bedliftover [options] Files
     -m, --minmatch
       lift over min-match.
       Default: 0.95
+    --original, --src
+      Append original interval
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
   * -D, -R, -r, --reference
@@ -42,22 +50,10 @@ Usage: bedliftover [options] Files
  * liftover
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bedliftover
-```
-
-The java jar file will be installed in the `dist` directory.
+20140311
 
 ## Source code 
 
@@ -83,6 +79,14 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+
+```
+cat in.bed | java -jar jvarkit.jar bedliftover --chain x.chain -R ref.fa
+```
 
 
 
