@@ -408,7 +408,7 @@ public class VcfMultiToOne extends Launcher
 		@Override
 		public NamedVcfIterator next() throws IOException {
 				for(;;) {
-					final TarArchiveEntry entry = tarin.getNextTarEntry();
+					final TarArchiveEntry entry = tarin.getNextEntry();
 					if(entry==null) return null;
 					
 					if(!tarin.canReadEntryData(entry)) continue;

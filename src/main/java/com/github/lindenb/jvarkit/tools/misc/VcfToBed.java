@@ -456,7 +456,7 @@ public class VcfToBed  extends Launcher {
 					InputStream in2 = args.get(0).endsWith(".tar")?in:new GZIPInputStream(in);
 					final TarArchiveInputStream tarin = new TarArchiveInputStream(in2);
 					for(;;) {
-						final TarArchiveEntry entry = tarin.getNextTarEntry();
+						final TarArchiveEntry entry = tarin.getNextEntry();
 						if(entry==null) break;
 						
 						if(!tarin.canReadEntryData(entry)) continue;

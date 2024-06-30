@@ -16,7 +16,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "4.0.1"
+	htsjdkVersion = "4.1.1"
 	jettyVersion = "9.4.26.v20200117"
 	}
 
@@ -170,13 +170,13 @@ class Library
 
 libraries.put("htsjdk",new Library().
 	add("com.github.samtools:htsjdk:jar:" + ext.htsjdkVersion ).
-	add("commons-logging:commons-logging:jar:1.2").
+	add("commons-logging:commons-logging:jar:1.3.0").
 	add("org.apache.commons:commons-jexl:jar:2.1.1").
-	add("org.apache.commons:commons-compress:jar:1.22").
+	add("org.apache.commons:commons-compress:jar:1.25.0").
 	add("org.tukaani:xz:jar:1.9").
-	add("org.json:json:jar:20230618").
+	add("org.json:json:jar:20231013").
 	add("org.openjdk.nashorn:nashorn-core:jar:15.4").
-	add("org.xerial.snappy:snappy-java:jar:1.1.10.1")
+	add("org.xerial.snappy:snappy-java:jar:1.1.10.5")
 	);
 libraries.put("jcommander",new Library().
 	add("com.beust:jcommander:jar:1.82")
