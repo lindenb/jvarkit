@@ -67,6 +67,7 @@ nav:
         - "biostar332826" : Biostar332826.md
         - "biostar336589" : Biostar336589.md
         - "biostar352930" : Biostar352930.md
+        - "biostar3654" : Biostar3654.md
         - "biostar398854" : Biostar398854.md
         - "biostar404363" : Biostar404363.md
         - "biostar480685" : Biostar480685.md
@@ -89,6 +90,7 @@ nav:
         - "biostar9556602" : Biostar9556602.md
         - "biostar9566948" : Biostar9566948.md
         - "blast2sam" : BlastToSam.md
+        - "blastmapannots" : BlastMapAnnotations.md
         - "blastn2snp" : BlastNToSnp.md
         - "builddbsnp" : BuildDbsnp.md
         - "cnvtview" : CnvTView.md

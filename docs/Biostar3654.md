@@ -7,7 +7,13 @@ show blast alignment with annotations
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar3654  [options] Files
+
 Usage: biostar3654 [options] Files
   Options:
     -h, --help
@@ -42,23 +48,6 @@ Usage: biostar3654 [options] Files
 
  * [https://www.biostars.org/p/3654](https://www.biostars.org/p/3654)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar3654
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -110,7 +99,7 @@ $ cat ~/jeter.blastn.xml
 ```
 
 ```
-$ java -jar dist/biostar3654.jar ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
+$ java -jar dist/jvarkit.jar biostar3654 ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
 
 QUERY: No definition line
        ID:Query_186611 Len:980
@@ -157,7 +146,7 @@ $ cat ~/jeter.blastn.xml
 ```
 
 ```
-$ java -jar dist/biostar3654.jar ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
+$ java -jar dist/jvarkit.jar biostar3654 ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
 
 QUERY: No definition line
        ID:Query_186611 Len:980
@@ -181,4 +170,5 @@ HIT   000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
                 ################################################## CDS codon_sta
 (...)
 ```
+
 

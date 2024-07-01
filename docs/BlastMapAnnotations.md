@@ -7,8 +7,13 @@ Maps uniprot/genbank annotations on a blast result.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/blastmapannots.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar blastmapannots  [options] Files
+
 Usage: blastmapannots [options] Files
   Options:
     --exclude
@@ -39,23 +44,6 @@ Usage: blastmapannots [options] Files
  * genbank
  * uniprot
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew blastmapannots
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -129,7 +117,7 @@ $ curl -o P04514.fasta "http://www.uniprot.org/uniprot/P04514.fasta"
 Now produce a BED file with this blast result to map the features of P04514 to AY065842.
 
 ```bash
-$ java -jar dist/blastmapannots.jar I=P04514.xml B=blast.xml
+$ java -jar dist/jvarkit.jar blastmapannots I=P04514.xml B=blast.xml
 
 AY065842	25	961	Non-structural_protein_3	943	+	25961	255,255,255	1	936	25
 AY065842	34	469	RNA-binding	970	+	34	469	255,255,255	1	435	34
@@ -138,3 +126,4 @@ AY065842	532	724	Interaction_with_ZC3H7B	917	+	532	724	255,255,255	1	192	532
 AY065842	646	961	Interaction_with_EIF4G1	905	+	646	961	255,255,255	1	315	646
 AY065842	520	733	coiled-coil_region	916	+	520	733	255,255,255	1	213	520
 ```
+

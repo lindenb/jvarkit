@@ -28,7 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-/*
+/**
 BEGIN_DOC
 
 ## Example
@@ -51,7 +51,7 @@ $ cat ~/jeter.blastn.xml
 ```
 
 ```
-$ java -jar dist/biostar3654.jar ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
+$ java -jar dist/jvarkit.jar biostar3654 ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
 
 QUERY: No definition line
        ID:Query_186611 Len:980
@@ -79,27 +79,19 @@ HIT   000000051 AGATGGTAAGCTCTATTATTAATACTTCTTTTGAAGCTGCAGTCGTTGCT 000000100
 
 END_DOC
 */
-import gov.nih.nlm.ncbi.blast.Hit;
-import gov.nih.nlm.ncbi.blast.Hsp;
-import gov.nih.nlm.ncbi.blast.Iteration;
-import gov.nih.nlm.ncbi.insdseq.INSDFeature;
-import gov.nih.nlm.ncbi.insdseq.INSDFeatureIntervals;
-import gov.nih.nlm.ncbi.insdseq.INSDInterval;
-import gov.nih.nlm.ncbi.insdseq.INSDQualifier;
-import htsjdk.samtools.util.CloserUtil;
 
 import java.util.List;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
@@ -109,6 +101,13 @@ import javax.xml.stream.events.XMLEvent;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
+import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDFeature;
+import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDFeatureIntervals;
+import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDInterval;
+import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDQualifier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -137,7 +136,7 @@ $ cat ~/jeter.blastn.xml
 ```
 
 ```
-$ java -jar dist/biostar3654.jar ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
+$ java -jar dist/jvarkit.jar biostar3654 ~/jeter.blastn.xml 2> /dev/null  | cut -c-${COLUMNS} 
 
 QUERY: No definition line
        ID:Query_186611 Len:980
@@ -169,22 +168,22 @@ END_DOC
 @Program(name="biostar3654",
 description="show blast alignment with annotations",
 	biostars=3654,
-	keywords={"blast","xml","annotation"})
+	keywords={"blast","xml","annotation"},
+	jvarkit_amalgamion = true
+	)
 public class Biostar3654 extends Launcher
 	{
 	private static final Logger LOG=Logger.build(Biostar3654.class).make();
 	
 	@SuppressWarnings("unused")
-	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;
+	private static final com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory _fool_javac1=null;
 	@SuppressWarnings("unused")
-	private static final gov.nih.nlm.ncbi.insdseq.ObjectFactory _fool_javac2=null;
+	private static final com.github.lindenb.jvarkit.ncbi.schema.insdseq.ObjectFactory _fool_javac2=null;
 	
-	
-	private PrintWriter pw=null;
 	/** left margin */
 	private int margin=9;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 	/** length of a fasta line */
 	@Parameter(names={"-L","--length"},description="Fasta Line kength")
 	private int fastaLineLength=50;
@@ -256,7 +255,7 @@ public class Biostar3654 extends Launcher
 			}
 		
 		/** print the  line */
-		void print()
+		void print(final PrintWriter pw)
 			{
 			/* loop over the feature */
 			for(final INSDFeature feature:this.features)
@@ -302,7 +301,7 @@ public class Biostar3654 extends Launcher
 					
 					
 					//margin left
-					Biostar3654.this.pw.printf("      %"+margin+"s ","");
+					pw.printf("      %"+margin+"s ","");
 					//trim the positions
 					intervalFrom=Math.max(this.seqStart,intervalFrom);
 					intervalTo=Math.min(this.seqEnd,intervalTo);
@@ -318,11 +317,11 @@ public class Biostar3654 extends Launcher
 						//in the feature
 						if(intervalFrom<=genome && genome< intervalTo)
 							{
-							Biostar3654.this.pw.print(isSeq?(isGap?":":"#"):"-");
+							pw.print(isSeq?(isGap?":":"#"):"-");
 							}
 						else //not in the feature
 							{
-							Biostar3654.this.pw.print(" ");
+							pw.print(" ");
 							}
 						//extends the current position if current char is a base/aminoacid
 						if(Character.isLetter(getSequence().charAt(this.stringStart+i)))
@@ -330,22 +329,22 @@ public class Biostar3654 extends Launcher
 							genome+=this.sign;
 							}
 						}
-					Biostar3654.this.pw.print(" ");
-					Biostar3654.this.pw.print(feature.getINSDFeatureKey());
+					pw.print(" ");
+					pw.print(feature.getINSDFeatureKey());
 					//Biostar3654.this.pw.print(" ");
 					//Biostar3654.this.pw.print(feature.getINSDFeatureLocation());//no because using seq_start & seq_stop with efetch change this
 					//print the infos
 					if( feature.getINSDFeatureQuals()!=null && feature.getINSDFeatureQuals().getINSDQualifier()!=null ) {
 						for(final INSDQualifier qual:feature.getINSDFeatureQuals().getINSDQualifier())
 							{
-							Biostar3654.this.pw.print(" ");
-							Biostar3654.this.pw.print(qual.getINSDQualifierName());
-							Biostar3654.this.pw.print(":");
-							Biostar3654.this.pw.print(qual.getINSDQualifierValue());
+							pw.print(" ");
+							pw.print(qual.getINSDQualifierName());
+							pw.print(":");
+							pw.print(qual.getINSDQualifierValue());
 							}
 						}
 					
-					Biostar3654.this.pw.println();
+					pw.println();
 					}
 				}
 			}
@@ -410,8 +409,6 @@ public class Biostar3654 extends Launcher
 		final String acn,int start,int end)
 		throws Exception
 		{
-		InputStream in=null;
-		XMLEventReader r=null;
 		final List<INSDFeature> L=new ArrayList<INSDFeature>();
 		if(start>end) return fetchAnnotations(database,acn,end,start);
 		try 
@@ -426,57 +423,55 @@ public class Biostar3654 extends Launcher
 						this.ncbiApiKey.getAmpParamValue()
 						;
 				LOG.info(uri);
-				in = new URL(uri).openStream();
-				r=this.xif.createXMLEventReader(in);
-				while(r.hasNext())
-					{
-					XMLEvent  evt=r.peek();
-					if(evt.isStartElement() &&
-							evt.asStartElement().getName().getLocalPart().equals("INSDFeature"))
-							{
-							INSDFeature feature = this.unmarshaller.unmarshal(r,
-									INSDFeature.class).getValue();
-							INSDFeatureIntervals its = feature.getINSDFeatureIntervals();
-							if(its==null || its.getINSDInterval().isEmpty()) continue;
-							for(INSDInterval interval:its.getINSDInterval())
+					try(InputStream in = new URL(uri).openStream()) {
+						XMLEventReader r=this.xif.createXMLEventReader(in);
+					while(r.hasNext())
+						{
+						XMLEvent  evt=r.peek();
+						if(evt.isStartElement() &&
+								evt.asStartElement().getName().getLocalPart().equals("INSDFeature"))
 								{
-								//when using seq_start and seq_stop , the NCBI shifts the data...
-								if( interval.getINSDIntervalFrom()!=null &&
-									interval.getINSDIntervalTo()!=null)
+								INSDFeature feature = this.unmarshaller.unmarshal(r,
+										INSDFeature.class).getValue();
+								INSDFeatureIntervals its = feature.getINSDFeatureIntervals();
+								if(its==null || its.getINSDInterval().isEmpty()) continue;
+								for(INSDInterval interval:its.getINSDInterval())
 									{
-									interval.setINSDIntervalFrom(String.valueOf(Integer.parseInt(interval.getINSDIntervalFrom())+start-1));
-									interval.setINSDIntervalTo(String.valueOf(Integer.parseInt(interval.getINSDIntervalTo())+start-1));
+									//when using seq_start and seq_stop , the NCBI shifts the data...
+									if( interval.getINSDIntervalFrom()!=null &&
+										interval.getINSDIntervalTo()!=null)
+										{
+										interval.setINSDIntervalFrom(String.valueOf(Integer.parseInt(interval.getINSDIntervalFrom())+start-1));
+										interval.setINSDIntervalTo(String.valueOf(Integer.parseInt(interval.getINSDIntervalTo())+start-1));
+										}
+									else if( interval.getINSDIntervalPoint()!=null)
+										{
+										interval.setINSDIntervalPoint(String.valueOf(Integer.parseInt(interval.getINSDIntervalPoint())+start-1));
+										}
 									}
-								else if( interval.getINSDIntervalPoint()!=null)
-									{
-									interval.setINSDIntervalPoint(String.valueOf(Integer.parseInt(interval.getINSDIntervalPoint())+start-1));
-									}
+								L.add(feature);
 								}
-							L.add(feature);
-							}
-						else
-							{
-							r.next();//consumme
-							}			
+							else
+								{
+								r.next();//consumme
+								}			
+						}
 					}
-				
 				}
 			}
-		catch(Exception err) {
+		catch(Throwable err) {
 			LOG.error(err);
 			}
 		finally
 			{
-			CloserUtil.close(r);
-			CloserUtil.close(in);
 			}
-			LOG.info("N(INSDFeature)="+L.size());
-			//not found, return empty table
-			return L;
-			}
+		LOG.info("N(INSDFeature)="+L.size());
+		//not found, return empty table
+		return L;
+		}
 	
 	/** parses BLAST output */
-	private void parseBlast(XMLEventReader r)  throws Exception
+	private void parseBlast(PrintWriter pw,XMLEventReader r)  throws Exception
 		{
 		String database="nucleotide";
 		while(r.hasNext())
@@ -503,8 +498,8 @@ public class Biostar3654 extends Launcher
 			else if(evt.isStartElement() &&
 				evt.asStartElement().getName().getLocalPart().equals("Iteration"))
 				{
-				Iteration iteration= this.unmarshaller.unmarshal(r, Iteration.class).getValue();
-				parseIteration(database,iteration);
+				final Iteration iteration= this.unmarshaller.unmarshal(r, Iteration.class).getValue();
+				parseIteration(pw,database,iteration);
 				}
 			else
 				{
@@ -513,17 +508,17 @@ public class Biostar3654 extends Launcher
 			}
 		}
 	
-	private void parseIteration(String database,Iteration iteration) throws Exception
+	private void parseIteration(PrintWriter pw,String database,Iteration iteration) throws Exception
 		{
-		this.pw.println("QUERY: "+iteration.getIterationQueryDef());
-		this.pw.println("       ID:"+iteration.getIterationQueryID()+" Len:"+iteration.getIterationQueryLen());
+		pw.println("QUERY: "+iteration.getIterationQueryDef());
+		pw.println("       ID:"+iteration.getIterationQueryID()+" Len:"+iteration.getIterationQueryLen());
 		
 		for(Hit hit:iteration.getIterationHits().getHit())
 			{
 			
-			this.pw.println(">"+hit.getHitDef());
-			this.pw.println(" "+hit.getHitAccession());
-			this.pw.println(" id:"+hit.getHitId()+" len:"+hit.getHitLen());
+			pw.println(">"+hit.getHitDef());
+			pw.println(" "+hit.getHitAccession());
+			pw.println(" id:"+hit.getHitId()+" len:"+hit.getHitLen());
 			for(Hsp hsp :hit.getHitHsps().getHsp())
 				{
 				List<INSDFeature> qFeatures= fetchAnnotations(
@@ -539,9 +534,9 @@ public class Biostar3654 extends Launcher
 						Integer.parseInt(hsp.getHspHitTo())
 						);
 
-				this.pw.println();
-				this.pw.println("   e-value:"+hsp.getHspEvalue()+" gap:"+hsp.getHspGaps()+" bitScore:"+hsp.getHspBitScore());
-				this.pw.println();
+				pw.println();
+				pw.println("   e-value:"+hsp.getHspEvalue()+" gap:"+hsp.getHspGaps()+" bitScore:"+hsp.getHspBitScore());
+				pw.println();
 				//create the Printer for the Query and the Hit
 				QPrinter qPrinter=new QPrinter(hsp,qFeatures);
 				HPrinter hPrinter=new HPrinter(hsp,hFeatures);
@@ -549,22 +544,22 @@ public class Biostar3654 extends Launcher
 				//loop over the lines
 				while(qPrinter.next() && hPrinter.next())
 					{
-					qPrinter.print();
-					this.pw.printf("QUERY %0"+margin+"d ",qPrinter.seqStart);
-					this.pw.print(hsp.getHspQseq().substring(qPrinter.stringStart,qPrinter.stringEnd));
-					this.pw.printf(" %0"+margin+"d",qPrinter.seqEnd-(qPrinter.sign));
-					this.pw.println();
-					this.pw.printf("      %"+margin+"s ","");
-					this.pw.print(hsp.getHspMidline().substring(qPrinter.stringStart,qPrinter.stringEnd));
-					this.pw.println();
-					this.pw.printf("HIT   %0"+margin+"d ",hPrinter.seqStart);
-					this.pw.print(hsp.getHspHseq().substring(hPrinter.stringStart,hPrinter.stringEnd));
-					this.pw.printf(" %0"+margin+"d",hPrinter.seqEnd-(hPrinter.sign));
-					this.pw.println();
-					hPrinter.print();
-					this.pw.println();
+					qPrinter.print(pw);
+					pw.printf("QUERY %0"+margin+"d ",qPrinter.seqStart);
+					pw.print(hsp.getHspQseq().substring(qPrinter.stringStart,qPrinter.stringEnd));
+					pw.printf(" %0"+margin+"d",qPrinter.seqEnd-(qPrinter.sign));
+					pw.println();
+					pw.printf("      %"+margin+"s ","");
+					pw.print(hsp.getHspMidline().substring(qPrinter.stringStart,qPrinter.stringEnd));
+					pw.println();
+					pw.printf("HIT   %0"+margin+"d ",hPrinter.seqStart);
+					pw.print(hsp.getHspHseq().substring(hPrinter.stringStart,hPrinter.stringEnd));
+					pw.printf(" %0"+margin+"d",hPrinter.seqEnd-(hPrinter.sign));
+					pw.println();
+					hPrinter.print(pw);
+					pw.println();
 					}
-				this.pw.flush();
+				pw.flush();
 				}
 			
 			
@@ -587,7 +582,7 @@ public class Biostar3654 extends Launcher
 			
 			//create a Unmarshaller for genbank
 			JAXBContext jc = JAXBContext.newInstance(
-					"gov.nih.nlm.ncbi.insdseq:gov.nih.nlm.ncbi.blast");
+					"com.github.lindenb.jvarkit.ncbi.schema.insdseq:com.github.lindenb.jvarkit.ncbi.schema.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 	
 			this.xif=XMLInputFactory.newFactory();
@@ -600,29 +595,30 @@ public class Biostar3654 extends Launcher
 							return new ByteArrayInputStream(new byte[0]);
 						}
 				});
-			this.pw = super.openFileOrStdoutAsPrintWriter(this.outputFile);
+			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 			
-			//read from stdin
-			if(args.isEmpty())
-				{
-				XMLEventReader r=this.xif.createXMLEventReader(stdin(), "UTF-8");
-				this.parseBlast(r);
-				r.close();
-				}
-			else
-				{
-				//loop over the files
-				for(String inputName:args)
+				//read from stdin
+				if(args.isEmpty())
 					{
-					LOG.info("Reading "+inputName);
-					FileReader fr=new java.io.FileReader(inputName);
-					XMLEventReader r=this.xif.createXMLEventReader(fr);
-					this.parseBlast(r);
+					XMLEventReader r=this.xif.createXMLEventReader(stdin(), "UTF-8");
+					this.parseBlast(pw,r);
 					r.close();
-					fr.close();
 					}
+				else
+					{
+					//loop over the files
+					for(String inputName:args)
+						{
+						LOG.info("Reading "+inputName);
+						try(FileReader fr=new java.io.FileReader(inputName)) {
+							XMLEventReader r=this.xif.createXMLEventReader(fr);
+							this.parseBlast(pw,r);
+							r.close();
+							}
+						}
+					}
+				pw.flush();
 				}
-			pw.flush();
 			return 0;
 			}
 		catch(Throwable err)
@@ -632,7 +628,6 @@ public class Biostar3654 extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(this.pw);
 			}
 		}
 	

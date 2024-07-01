@@ -11,17 +11,7 @@ package com.github.lindenb.jvarkit.tools.blastmapannots;
  * 		prints the results as a BED file.
  * 
  */
-import gov.nih.nlm.ncbi.blast.BlastOutput;
-import gov.nih.nlm.ncbi.blast.BlastOutputIterations;
-import gov.nih.nlm.ncbi.blast.Hit;
-import gov.nih.nlm.ncbi.blast.Hsp;
 
-import gov.nih.nlm.ncbi.blast.Iteration;
-import gov.nih.nlm.ncbi.gb.GBFeature;
-import gov.nih.nlm.ncbi.gb.GBInterval;
-import gov.nih.nlm.ncbi.gb.GBQualifier;
-import gov.nih.nlm.ncbi.gb.GBSeq;
-import gov.nih.nlm.ncbi.gb.GBSet;
 
 
 import java.awt.Color;
@@ -33,21 +23,33 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-import org.uniprot.Entry;
-import org.uniprot.FeatureType;
-import org.uniprot.LocationType;
-import org.uniprot.Uniprot;
+
 import org.w3c.dom.Document;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.BlastOutput;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.BlastOutputIterations;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
+import com.github.lindenb.jvarkit.ncbi.schema.gb.GBFeature;
+import com.github.lindenb.jvarkit.ncbi.schema.gb.GBInterval;
+import com.github.lindenb.jvarkit.ncbi.schema.gb.GBQualifier;
+import com.github.lindenb.jvarkit.ncbi.schema.gb.GBSeq;
+import com.github.lindenb.jvarkit.ncbi.schema.gb.GBSet;
+import com.github.lindenb.jvarkit.uniprot.schema.Entry;
+import com.github.lindenb.jvarkit.uniprot.schema.FeatureType;
+import com.github.lindenb.jvarkit.uniprot.schema.LocationType;
+import com.github.lindenb.jvarkit.uniprot.schema.Uniprot;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -100,7 +102,7 @@ $ curl -o P04514.fasta "http://www.uniprot.org/uniprot/P04514.fasta"
 Now produce a BED file with this blast result to map the features of P04514 to AY065842.
 
 ```bash
-$ java -jar dist/blastmapannots.jar I=P04514.xml B=blast.xml
+$ java -jar dist/jvarkit.jar blastmapannots I=P04514.xml B=blast.xml
 
 AY065842	25	961	Non-structural_protein_3	943	+	25961	255,255,255	1	936	25
 AY065842	34	469	RNA-binding	970	+	34	469	255,255,255	1	435	34
@@ -114,8 +116,9 @@ END_DOC
 */
 @Program(name="blastmapannots",
 	description="Maps uniprot/genbank annotations on a blast result.",
-	keywords={"blast","annotation","genbank","uniprot"}
-		)
+	keywords={"blast","annotation","genbank","uniprot"},
+	jvarkit_amalgamion = true
+	)
 public class BlastMapAnnotations
 	extends Launcher
 	{
@@ -790,7 +793,8 @@ public class BlastMapAnnotations
 					}
 				});
 			//create a Unmarshaller for NCBI
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.gb:gov.nih.nlm.ncbi.blast:org.uniprot");
+			JAXBContext jc = JAXBContext.newInstance(
+					" com.github.lindenb.jvarkit.ncbi.schema.gb:com.github.lindenb.jvarkit.ncbi.schema.blast:com.github.lindenb.jvarkit.uniprot.schema");
 			unmarshaller=jc.createUnmarshaller();
 	
 			
@@ -868,11 +872,11 @@ public class BlastMapAnnotations
 		{
 		/* force javac to compile those */
 		@SuppressWarnings("unused")
-		gov.nih.nlm.ncbi.blast.ObjectFactory of1=null;
+		ObjectFactory of1=null;
 		@SuppressWarnings("unused")
-		gov.nih.nlm.ncbi.gb.ObjectFactory of2=null;
+		com.github.lindenb.jvarkit.ncbi.schema.gb.ObjectFactory of2=null;
 		@SuppressWarnings("unused")
-		org.uniprot.ObjectFactory of3=null;
+		 com.github.lindenb.jvarkit.uniprot.schema.ObjectFactory of3=null;
 		new BlastMapAnnotations().instanceMainWithExit(args);
 		}
 	}
