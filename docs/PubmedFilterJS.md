@@ -8,6 +8,7 @@ Filters Pubmed XML with a javascript  (java rhino) expression. Context contain '
 ## Usage
 
 ```
+Usage: java -jar dist/pubmedfilterjs.jar  [options] Files
 Usage: pubmedfilterjs [options] Files
   Options:
     -e, --expression

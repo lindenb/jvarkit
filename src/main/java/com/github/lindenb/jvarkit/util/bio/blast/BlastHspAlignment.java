@@ -2,7 +2,7 @@ package com.github.lindenb.jvarkit.util.bio.blast;
 
 import java.util.Iterator;
 
-import gov.nih.nlm.ncbi.blast.Hsp;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
 
 public class BlastHspAlignment
 	implements Iterable<BlastHspAlignment.Align>

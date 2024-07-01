@@ -7,8 +7,13 @@ print indel/mismatch in a blastn stream
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/blastn2snp.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar blastn2snp  [options] Files
+
 Usage: blastn2snp [options] Files
   Options:
     -n, --gapsize
@@ -38,23 +43,6 @@ Usage: blastn2snp [options] Files
  * [https://www.biostars.org/p/89151](https://www.biostars.org/p/89151)
  * [https://www.biostars.org/p/455765](https://www.biostars.org/p/455765)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew blastn2snp
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -94,7 +82,7 @@ The current reference is:
 ### Example
 
 ```
-$  java -jar dist/blastn2snp.jar < blast.xml | column -t
+$  java -jar dist/jvarkit.jar blastn2snp < blast.xml | column -t
 ```
 
 ```
@@ -126,4 +114,5 @@ No definition line  Homo sapiens chromosome 19, alternate assembly HuRef        
 ## Cited in:
 
   * Guo, Y., Betzen, B., Salcedo, A. et al. Population genomics of Puccinia graminis f.sp. tritici highlights the role of admixture in the origin of virulent wheat rust races. Nat Commun 13, 6287 (2022). https://doi.org/10.1038/s41467-022-34050-w
+
 

@@ -52,6 +52,7 @@ nav:
         - "biostar139647" : Biostar139647.md
         - "biostar145820" : Biostar145820.md
         - "biostar154220" : Biostar154220.md
+        - "biostar160470" : Biostar160470.md
         - "biostar165777" : Biostar165777.md
         - "biostar170742" : Biostar170742.md
         - "biostar172515" : Biostar172515.md
@@ -87,6 +88,8 @@ nav:
         - "biostar9501110" : Biostar9501110.md
         - "biostar9556602" : Biostar9556602.md
         - "biostar9566948" : Biostar9566948.md
+        - "blast2sam" : BlastToSam.md
+        - "blastn2snp" : BlastNToSnp.md
         - "builddbsnp" : BuildDbsnp.md
         - "cnvtview" : CnvTView.md
         - "cnvvalidatorserver" : CNVValidatorServer.md
@@ -146,6 +149,7 @@ nav:
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "pubmedmap" : PubmedMap.md
+        - "reduceblast" : ReduceBlast.md
         - "ref2html" : ReferenceToHtml.md
         - "repairfastq" : RepairFastq.md
         - "sam2json" : SamToJson.md

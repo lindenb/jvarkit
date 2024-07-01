@@ -28,15 +28,13 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.List;
 
-import gov.nih.nlm.ncbi.blast.Hit;
-import gov.nih.nlm.ncbi.blast.Hsp;
-import gov.nih.nlm.ncbi.blast.Iteration;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
@@ -47,6 +45,10 @@ import javax.xml.stream.events.XMLEvent;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 import com.beust.jcommander.Parameter;
@@ -61,7 +63,7 @@ BEGIN_DOC
 ### Example
 
 ```
-$  java -jar dist/blastn2snp.jar < blast.xml | column -t
+$  java -jar dist/jvarkit.jar blastn2snp < blast.xml | column -t
 ```
 
 ```
@@ -100,8 +102,9 @@ END_DOC
 	keywords={"blast","snp"},
 	description="print indel/mismatch in a blastn stream",
 	biostars={89151,455765},
-	modificationDate="20200831",
-	creationDate="20131126"
+	modificationDate="20240701",
+	creationDate="20131126",
+	jvarkit_amalgamion = true
 	)
 public class BlastNToSnp extends Launcher
 {
@@ -119,7 +122,7 @@ public class BlastNToSnp extends Launcher
 	private Marshaller marshaller;
 	/* force javac to compile */
 	@SuppressWarnings("unused")
-	private gov.nih.nlm.ncbi.blast.ObjectFactory _ignore_for_javac=null;
+	private ObjectFactory _ignore_for_javac=null;
 	
 	
 	private Iteration peekIteration(final XMLEventReader r) throws XMLStreamException,JAXBException
@@ -362,7 +365,7 @@ private void run(
 		try
 			{
 			
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+			JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			this.marshaller=jc.createMarshaller();
 			this.marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT,true);

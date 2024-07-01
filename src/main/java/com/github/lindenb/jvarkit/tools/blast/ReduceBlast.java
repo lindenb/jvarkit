@@ -32,13 +32,13 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.List;
 
-import gov.nih.nlm.ncbi.blast.Iteration;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventFactory;
 import javax.xml.stream.XMLEventReader;
@@ -52,8 +52,8 @@ import javax.xml.stream.events.XMLEvent;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-
-
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -67,7 +67,8 @@ END_DOC
  */
 @Program(name="reduceblast",
 	description="Reduce the size of XML blast, by removing iterations that have no Hit",
-	keywords={"blast","xml"}
+	keywords={"blast","xml"},
+	jvarkit_amalgamion = true
 	)
 public class ReduceBlast extends Launcher
 {
@@ -88,7 +89,7 @@ public class ReduceBlast extends Launcher
 	private Marshaller marshaller;
 	/* force javac to compile */
 	@SuppressWarnings("unused")
-	private gov.nih.nlm.ncbi.blast.ObjectFactory _ignore_for_javac=null;
+	private ObjectFactory _ignore_for_javac=null;
 	
 		
 	
@@ -146,7 +147,7 @@ public class ReduceBlast extends Launcher
 		try
 			{
 			final String inputName = oneFileOrNull(args);
-			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+			final JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			this.marshaller=jc.createMarshaller();
 			this.marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT,true);

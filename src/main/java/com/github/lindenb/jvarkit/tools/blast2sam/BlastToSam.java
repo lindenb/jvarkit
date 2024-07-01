@@ -25,18 +25,15 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.blast2sam;
 
-import gov.nih.nlm.ncbi.blast.Hit;
-import gov.nih.nlm.ncbi.blast.Hsp;
-import gov.nih.nlm.ncbi.blast.Iteration;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
@@ -63,6 +60,10 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
 import com.github.lindenb.jvarkit.samtools.SAMReadGroupParser;
 import com.github.lindenb.jvarkit.util.bio.blast.BlastHspAlignment;
 
@@ -197,7 +198,7 @@ out.sam: ref.fa ref.fa.fai out.read1.fq out.read2.fq
 	tr "\t" "\n" |\
 	sed 's/^@/>/' |\
 	${BLASTN} -subject ref.fa -dust no -outfmt 5 | \
-	java -jar ${JVARKIT}/blast2sam.jar -r ref.fa -p 500  |\
+	java -jar ${JVARKIT}/jvarkit.jar blast2sam -r ref.fa -p 500  |\
 	${SAMTOOLS}/samtools view -Sh -f 2 - > $@
 	
 reads: out.read1.fq out.read2.fq
@@ -260,7 +261,8 @@ END_DOC
 */
 @Program(name="blast2sam",
 description="Convert a **BLASTN-XML** input to SAM",
-keywords={"sam","blast"})
+keywords={"sam","blast"},
+jvarkit_amalgamion = true)
 public class BlastToSam extends Launcher
 	{
 	private static final Logger LOG = Logger.build(BlastToSam.class).make();
@@ -282,7 +284,7 @@ public class BlastToSam extends Launcher
 	private Unmarshaller unmarshaller;
 	//fool javac
 	@SuppressWarnings("unused")
-	private final static gov.nih.nlm.ncbi.blast.ObjectFactory _foolJavac=null;
+	private final static ObjectFactory _foolJavac=null;
 	
 	private static class SequenceIteration
 		{
@@ -845,12 +847,12 @@ public class BlastToSam extends Launcher
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		
 		final boolean interleaved_input=this.EXPECTED_SIZE>0;
 		final int maxRecordsInRam=5000;
-		SAMFileWriter sfw=null;
+		
 		XMLEventReader rx=null;
 		final SAMFileWriterFactory sfwf=new SAMFileWriterFactory();
 		sfwf.setCreateIndex(false);
@@ -865,7 +867,7 @@ public class BlastToSam extends Launcher
 			header.setSequenceDictionary(this.dictionary);
 			
 			
-			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+			final JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			final XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
 			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
@@ -920,26 +922,25 @@ public class BlastToSam extends Launcher
 				}
 			this.readGroupId = rg1.getId();
 			
-			sfw = this.writingBamArgs.openSAMFileWriter(outputFile,header, true);
-			
-			if(interleaved_input)
-				{
-				run_paired(sfw,rx,header);
+			try(SAMFileWriter sfw = this.writingBamArgs.openSAMFileWriter(outputFile,header, true) ){
+				if(interleaved_input)
+					{
+					run_paired(sfw,rx,header);
+					}
+				else
+					{
+					run_single(sfw,rx,header);
+					}
 				}
-			else
-				{
-				run_single(sfw,rx,header);
-				}
-			return RETURN_OK;
+			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}	
 		finally
 			{
-			CloserUtil.close(sfw);
 			CloserUtil.close(rx);
 			}
 		}

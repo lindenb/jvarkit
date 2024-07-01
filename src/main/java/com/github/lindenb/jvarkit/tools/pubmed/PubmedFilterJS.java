@@ -29,16 +29,13 @@ History:
 package com.github.lindenb.jvarkit.tools.pubmed;
 
 
-import gov.nih.nlm.ncbi.pubmed.ObjectFactory;
-import gov.nih.nlm.ncbi.pubmed.PubmedArticle;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
 import java.util.List;
 
-import javax.script.CompiledScript;
-import javax.script.SimpleBindings;
 import javax.xml.stream.XMLEventFactory;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
@@ -49,15 +46,24 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
 
+import org.apache.commons.jexl2.Expression;
+import org.apache.commons.jexl2.JexlContext;
+import org.apache.commons.jexl2.JexlEngine;
+import org.apache.commons.jexl2.MapContext;
+
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ncbi.schema.pubmed.ObjectFactory;
+import com.github.lindenb.jvarkit.ncbi.schema.pubmed.PubmedArticle;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import  jakarta.xml.bind.JAXBContext;
+import  jakarta.xml.bind.JAXBElement;
+import  jakarta.xml.bind.Marshaller;
+import  jakarta.xml.bind.Unmarshaller;
 
 
 /**
@@ -140,10 +146,10 @@ public class PubmedFilterJS
 	{
 	private static final Logger LOG = Logger.build(PubmedFilterJS.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outFile=null;
+	private Path outFile=null;
 
 	@Parameter(names={"-f","--scriptfile"},description="Javascript file")
-	private File javascriptFile=null;
+	private Path javascriptFile=null;
 	@Parameter(names={"-e","--expression"},description="Javascript expression")
 	private String javascriptExpr=null;
 
@@ -162,17 +168,32 @@ public class PubmedFilterJS
 	@Override
 	public int doWork(List<String> args) {
 		final String inputName= oneFileOrNull(args);
-		CompiledScript compiledScript=null;
 		Unmarshaller unmarshaller;
 		Marshaller marshaller;
 		try
 			{
-			compiledScript =  this.compileJavascript(
-					this.javascriptExpr,
-					this.javascriptFile
-					);
+			if(javascriptFile==null && StringUtils.isBlank(javascriptExpr)) {
+				LOG.error("-e or -f must be defined");
+				return -1;
+				}
+			if(javascriptFile!=null && !StringUtils.isBlank(javascriptExpr)) {
+				LOG.error("-e or -f are bot be defined");
+				return -1;
+				}
+			
+			final JexlEngine jexl = new JexlEngine();
+	        jexl.setSilent(false); // will throw errors now for selects that don't evaluate properly
+	        jexl.setLenient(false);
+	        jexl.setDebug(false);
+			final Expression expression= jexl.createExpression(
+						this.javascriptFile!=null?IOUtils.slurpPath(this.javascriptFile):
+						this.javascriptExpr
+						);
+
+			
+		
 						
-			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.pubmed");
+			JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.pubmed");
 			unmarshaller =jc.createUnmarshaller();
 			marshaller =jc.createMarshaller();
 
@@ -194,94 +215,91 @@ public class PubmedFilterJS
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
 
 			
-			PrintWriter pw= openFileOrStdoutAsPrintWriter(this.outFile);
-			XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			XMLEventWriter w=xof.createXMLEventWriter(pw);
-			
-			
-			StreamSource src=null;
-			if(inputName==null)
-				{
-				LOG.info("Reading stdin");
-				src=new StreamSource(System.in);
-				}
-			else 
-				{
-				LOG.info("Reading file");
-				src=new StreamSource(new File(inputName));
-				}
-			
-			XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
-			
-			XMLEventFactory eventFactory=XMLEventFactory.newFactory();
-			
-			SimpleBindings bindings=new SimpleBindings();
-			long nArticles=0L;
-			while(r.hasNext())
-				{
-				XMLEvent evt=r.peek();
-				switch(evt.getEventType())
+			try(PrintWriter pw= openPathOrStdoutAsPrintWriter(this.outFile)) {
+				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				final  XMLEventWriter w=xof.createXMLEventWriter(pw);
+				
+				
+				StreamSource src=null;
+				if(inputName==null)
 					{
-					case XMLEvent.START_ELEMENT:
+					LOG.info("Reading stdin");
+					src=new StreamSource(System.in);
+					}
+				else 
+					{
+					LOG.info("Reading file");
+					src=new StreamSource(new File(inputName));
+					}
+				
+				final XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
+				
+				final  XMLEventFactory eventFactory=XMLEventFactory.newFactory();
+				
+				
+				long nArticles=0L;
+				while(r.hasNext())
+					{
+					XMLEvent evt=r.peek();
+					switch(evt.getEventType())
 						{
-						String localName= evt.asStartElement().getName().getLocalPart();
-						Object article=null;
-						JAXBElement<?> jaxbElement=null;
-						if(localName.equals("PubmedArticle"))
+						case XMLEvent.START_ELEMENT:
 							{
-							jaxbElement= unmarshaller.unmarshal(r,PubmedArticle.class);
-							article=jaxbElement.getValue();
+							String localName= evt.asStartElement().getName().getLocalPart();
+							Object article=null;
+							JAXBElement<?> jaxbElement=null;
+							if(localName.equals("PubmedArticle"))
+								{
+								jaxbElement= unmarshaller.unmarshal(r,PubmedArticle.class);
+								article=jaxbElement.getValue();
+								}
+							/* no more in the latest dtd else if(localName.equals("PubmedBookArticle"))
+								{
+								jaxbElement= unmarshaller.unmarshal(r,PubmedBookArticle.class);
+								article=jaxbElement.getValue();
+								} */
+							else
+								{
+								w.add(r.nextEvent());
+								break;
+								}
+							
+							if(article!=null)
+								{
+								final JexlContext context = new MapContext();
+								context.set("article", article);
+								context.set("index", nArticles++);
+								
+								if(!(boolean)expression.evaluate(context))
+									{
+									break;
+									}
+								marshaller.marshal(jaxbElement, w);
+								w.add(eventFactory.createCharacters("\n"));
+								}
+							
+							break;
 							}
-						/* no more in the latest dtd else if(localName.equals("PubmedBookArticle"))
-							{
-							jaxbElement= unmarshaller.unmarshal(r,PubmedBookArticle.class);
-							article=jaxbElement.getValue();
-							} */
-						else
+						default:
 							{
 							w.add(r.nextEvent());
 							break;
 							}
-						
-						if(article!=null)
-							{
-							
-							bindings.put("article", article);
-							bindings.put("index", nArticles++);
-							
-							if(!this.evalJavaScriptBoolean(compiledScript, bindings))
-								{
-								break;
-								}
-							marshaller.marshal(jaxbElement, w);
-							w.add(eventFactory.createCharacters("\n"));
-							}
-						
-						break;
 						}
-					default:
-						{
-						w.add(r.nextEvent());
-						break;
-						}
+					r.close();
 					}
-				r.close();
+				w.flush();
+				w.close();
+				pw.flush();
 				}
-			w.flush();
-			w.close();
-			pw.flush();
-			pw.close();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			
-			}
+	
 		}
 	
 	public static void main(String[] args) {

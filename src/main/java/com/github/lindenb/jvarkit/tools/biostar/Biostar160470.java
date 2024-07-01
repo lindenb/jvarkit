@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import gov.nih.nlm.ncbi.blast.Hit;
 import htsjdk.samtools.util.IOUtil;
 
 import java.io.PrintStream;
@@ -39,9 +38,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.stream.XMLEventReader;
@@ -62,6 +61,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
+import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -78,7 +79,7 @@ Makefile:
 bin.dir=/commun/data/packages/ncbi/ncbi-blast-2.2.28+/bin
 
 all: blastdb.nin
-	cat roxan.fa | ${bin.dir}/tblastn -db blastdb -outfmt 5 | java -jar biostar160470.jar -p ${bin.dir} -d blastdb| xmllint --format - 
+	cat roxan.fa | ${bin.dir}/tblastn -db blastdb -outfmt 5 | java -jar jvarkit.jar biostar160470 -p ${bin.dir} -d blastdb| xmllint --format - 
 
 blastdb.nin: mysequences.fa
 	${bin.dir}/makeblastdb -dbtype nucl -in $< -out blastdb
@@ -133,14 +134,16 @@ END_DOC
 @Program(name="biostar160470",
 	description="Getting untranslated nucleotide sequences on tblastn standalone ",
 	keywords= {"blasn","blast","translation","protein"},
-	biostars=160470
+	modificationDate = "20240701",
+	biostars=160470,
+	jvarkit_amalgamion = true
 	)
 public class Biostar160470 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar160470.class).make();
 
 	@SuppressWarnings("unused")
-	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;
+	private static final ObjectFactory _fool_javac1=null;
 	
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -311,7 +314,7 @@ public class Biostar160470 extends Launcher
 		XMLEventReader r=null;
 		try {
 			//create a Unmarshaller for genbank
-			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
+			final JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			this.marshaller=jc.createMarshaller();
 			this.marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);

@@ -7,7 +7,13 @@ Getting untranslated nucleotide sequences on tblastn standalone
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar biostar160470  [options] Files
+
 Usage: biostar160470 [options] Files
   Options:
     -p, --bindir
@@ -39,23 +45,6 @@ Usage: biostar160470 [options] Files
 
  * [https://www.biostars.org/p/160470](https://www.biostars.org/p/160470)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew biostar160470
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -91,7 +80,7 @@ Makefile:
 bin.dir=/commun/data/packages/ncbi/ncbi-blast-2.2.28+/bin
 
 all: blastdb.nin
-	cat roxan.fa | ${bin.dir}/tblastn -db blastdb -outfmt 5 | java -jar biostar160470.jar -p ${bin.dir} -d blastdb| xmllint --format - 
+	cat roxan.fa | ${bin.dir}/tblastn -db blastdb -outfmt 5 | java -jar jvarkit.jar biostar160470 -p ${bin.dir} -d blastdb| xmllint --format - 
 
 blastdb.nin: mysequences.fa
 	${bin.dir}/makeblastdb -dbtype nucl -in $< -out blastdb
@@ -140,3 +129,4 @@ ouput:
                 <Hsp_hit-DNA>CATCAGGCAGCCCCCAGCCCCCTGAGGCCCTGTCCATCTTCTCCCCACCACCGCCCCGGTGTGCGTACCCAGGCGCACGTGCTGCAGCCCCCG---GCCCCGCTGAAACCTGGGCTGCCC</Hsp_hit-DNA>
               </Hsp>
 ```
+
