@@ -44,8 +44,8 @@ import java.util.List;
 import java.util.Map;
 
 import javax.xml.XMLConstants;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
@@ -91,7 +91,9 @@ END_DOC
 @Program(name="biostar95652",
 	keywords={"genbank","svg","tree","evolution"},
 	description="Drawing a schematic genomic context tree.",
-	biostars=95652)
+	biostars=95652,
+	jvarkit_amalgamion = true
+	)
 public class Biostar95652 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar95652.class).make();
@@ -359,7 +361,7 @@ public class Biostar95652 extends Launcher
 				return -1;
 				}
 			
-			JAXBContext context = JAXBContext.newInstance("gov.nih.nlm.ncbi.gb");
+			final JAXBContext context = JAXBContext.newInstance("gov.nih.nlm.ncbi.gb");
 			final Unmarshaller unmarshaller=context.createUnmarshaller();
 			//  https://stackoverflow.com/questions/31293624
 			try {

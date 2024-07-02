@@ -44,10 +44,10 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -158,7 +158,8 @@ END_DOC
  */
 @Program(name="blastfilterjs",
 	description="Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit.",
-	keywords={"blast","js","javascript","filter"}
+	keywords={"blast","js","javascript","filter"},
+	jvarkit_amalgamion = true
 	)
 public class BlastFilterJS
 	extends Launcher

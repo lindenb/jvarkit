@@ -354,24 +354,7 @@ public class CompileJVarkit extends DefaultTask {
 		for(def src : this.xsdFiles)
 			{
 			project.logger.info("compiling xjc :" +src);
-			if(src.equals("evs"))
-				{
-				ant.java(
-					classname : "com.sun.tools.xjc.XJCFacade",
-					fork: true,
-					failonerror: true,
-					classpath : xjcjars.collect{it->it.toFile(project).path}.join(":")
-					) {
-					jvmarg(value:"-DenableExternalEntityProcessing=true")
-					arg(value: "-d")
-					arg(value: this.tmpDir)
-					arg(value: "-p")
-					arg(value:"edu.washington.gs.evs")
-					arg(value:"-wsdl")
-					arg(value:"http://evs.gs.washington.edu/wsEVS/EVSDataQueryService?wsdl")
-					}
-				}
-			else if(src.equals("gb"))
+			if(src.equals("gb"))
 				{
 				ant.java(
 					classname : "com.sun.tools.xjc.XJCFacade",
@@ -1492,16 +1475,6 @@ all.add( task("commbams", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.cmpbams.CommBams"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all2.add( task("evs2vcf", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.evs2bed.EvsToVcf"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["evs"]
-	});
-all2.add( task("evs2xml", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.evs2bed.EvsDumpXml"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["evs"]
-	});
 
 all.add( task("fastqrecordtreepack", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.treepack.FastqRecordTreePack"
@@ -1516,12 +1489,6 @@ all.add( task("concatsam", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
-
-all.add( task("mergesplittedblast", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.blast.MergeSplittedBlast"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["blast"]
-	});
 
 
 all.add( task("pubmedfilterjs", type: CompileJVarkit) {
@@ -1659,10 +1626,6 @@ all.add( task("vcfstripannot", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcfstripannot.VCFStripAnnotations"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all2.add( task("vcftabixml", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.vcftabixml.VCFTabixml"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	});
 
 all.add( task("vcffamilies", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.vcftrios.VCFFamilies"
@@ -1672,11 +1635,6 @@ all2.add( task("uniprotfilterjs", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.UniprotFilterJS"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 	xsdFiles = ["uniprot"]
-	});
-all.add( task("blastfilterjs", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.blast.BlastFilterJS"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["blast"]
 	});
 all.add( task("vcfensemblvep", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.ensembl.VcfEnsemblVepRest"
@@ -1782,12 +1740,6 @@ all.add( task("vcfskat", type: CompileJVarkit) {
 all.add( task("biostar78400", type: CompileJVarkit) {
 	mainClass = biostar2java(78400)
 	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	endMsg = "written for biostar. never used."
-	});
-all.add( task("biostar95652", type: CompileJVarkit) {
-	mainClass = biostar2java(95652)
-	jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
-	xsdFiles = ["gb"]
 	endMsg = "written for biostar. never used."
 	});
 all.add( task("biostar140111", type: CompileJVarkit) {
@@ -1963,7 +1915,7 @@ RDFCombine.java"
 
 all2.add(task("jvarkit", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.jvarkit.JvarkitCentral"
-	otherJavaFiles  = [ "**/AlleleFrequencyCalculator.java", "**/AlmostSortedVcf.java", "**/TSSEnrichment.java", "**/AddLinearIndexToBed.java", "**/BarcodeGenerator.java", "**/BlastToSam.java", "**/BlastNToSnp.java","**/BlastMapAnnotations.java", "**/BamLiftOver.java", "**/BamToHaplotypes.java","**/BamCmpCoverage.java", "**/BamToSql.java", "**/BedMergeCnv.java", "**/BedToVcf.java", "**/BackLocate.java", "**/BamToFastq.java", "**/Bam2Raster.java","**/BamToMNV.java", "**/BamClipToInsertion.java", "**/BamMatrix.java", "**/Bam2Wig.java", "**/BamPhased01.java", "**/Bam2Xml.java", "**/BamStats04.java", "**/BamStats05.java", "**/BamToSVG.java", "**/BaseCoverage.java", "**/BamWithoutBai.java", "**/BamSliceBed.java", "**/BamTile.java", "**/BCFToolsMergeBest.java", "**/BedCluster.java", "**/BedNonOverlappingSet.java", "**/BedLiftOver.java", "**/BedRemoveBed.java", "**/BioAlcidaeJdk.java","**/BigwigMerge.java",  "**/Biostar3654.java", "**/Biostar103303.java", "**/Biostar105754.java", "**/Biostar130456.java", "**/Biostar160470.java", "**/Biostar139647.java", "**/Biostar145820.java", "**/Biostar154220.java", "**/Biostar165777.java", "**/Biostar170742.java", "**/Biostar172515.java", "**/Biostar173114.java", "**/Biostar175929.java", "**/Biostar178713.java", "**/Biostar9556602.java", "**/Biostar214299.java", "**/Biostar234081.java", "**/Biostar234230.java", "**/Biostar251649.java", "**/Biostar322664.java", "**/Biostar332826.java", "**/Biostar336589.java", "**/Biostar352930.java", "**/Biostar398854.java", "**/Biostar404363.java", "**/Biostar480685.java", "**/Biostar489074.java", "**/Biostar497922.java", "**/Biostar59647.java", "**/Biostar76892.java", "**/Biostar77288.java", "**/Biostar77828.java", "**/Biostar78285.java", "**/Biostar81455.java", "**/Biostar84452.java", "**/Biostar84786.java", "**/Biostar86363.java", "**/Biostar86480.java", "**/Biostar90204.java", "**/Biostar9462889.java", "**/Biostar9469733.java", "**/Biostar9501110.java", "**/Biostar9566948.java", "**/BuildDbsnp.java", "**/DictToBed.java",  "**/CoverageMatrix.java", "**/CoverageServer.java", "**/CnvTView.java", "**/BedRenameChromosomes.java", "**/CopyNumber01.java", "**/ConvertBamChromosomes.java", "**/ConvertVcfChromosomes.java", "**/CoveragePlotter.java","**/ConvertLiftOverChain.java", "**/CytobandToSvg.java", "**/EVADumpFiles.java",  "**/HowManyBamDict.java", "**/HaploGroupCaseControl.java", "**/HtsFreemarker.java",  "**/IbdToVcf.java","**/.IndexCovToVcf.java", "**/IlluminaDirectory.java","**/FastqGrep.java", "**/FastqShuffle.java","**/FindNewSpliceSites.java", "**/FindAVariation.java", "**/FindAllCoverageAtPosition.java", "**/FindGVCFsBlocks.java", "**/FindHtsFileDictionary.java", "**/Gff2KnownGene.java", "**/GtfLiftOver.java", "**/GtfRetroCopy.java", "**/Gff3UpstreamOrf.java","**/Gff3UpstreamOrf.java", "**/GtexRsToQTL.java","**/GoUtils.java", "**/GroupByGene.java", "**/GtfToBed.java", "**/Gtf2Xml.java","**/KnownRetroCopy.java", "**/KnownDeletion.java", "**/KnownGeneToFasta.java","**/KgToGff.java","**/KnownGenesToBed.java", "**/LiftOverToSVG.java", "**/LowResBam2Raster.java","**/OptimizeFisher.java","**/Manhattan.java", "**/MiniCaller.java",  "**/MakeMiniBam.java", "**/MantaMerger.java", "**/MsaToVcf.java", "**/NcbiTaxonomyToXml.java", "**/NgsFilesSummary.java", "**/OboUtils.java", "**/PlotSashimi.java", "**/PlotBcftoolsStats.java", "**/PrettySam.java", "**/Pubmed404.java", "**/PcrClipReads.java", "**/PubmedCodingLanguages.java", "**/PubmedGender.java", "**/PubmedDump.java","**/PubmedAuthorGraph.java", "**/PubmedGraph.java", "**/ReduceBlast.java", "**/RepairFastq.java", "**/ReferenceToHtml.java", "**/SamExtractClip.java", "**/SamAddPI.java", "**/Sam2Tsv.java", "**/SamViewWithMate.java", "**/SamGrep.java", "**/SamToPsl.java", "**/ScanRetroCopy.java", "**/ScanLabGuru.java", "**/SortSamRefName.java", "**/SamRemoveDuplicatedNames.java", "**/StarRetroCopy.java", "**/SplitVcf.java", "**/SetFileTools.java", "**/SamToJson.java", "**/SamFindClippedRegions.java", "**/SvToSVG.java", "**/SortVcfOnInfo.java", "**/SwingBamCov.java", "**/SwingBamView.java","**/SwingIndexCov.java", "**/SwingPLinkSelectCluster.java", "**/SwingVcfJexlFilter.java", "**/SwingVcfView.java", "**/SVCasesControls.java", "**/StructuralVariantToFasta.java", "**/TextBam.java", "**/TViewCmd.java", "**/VariantsInWindow.java", "**/VcfFilterByLiftOver.java", "**/Vcf2Xml.java", "**/VcfTbiToBed.java", "**/VcfToHilbert.java", "**/VcfToRScript.java", "**/VcfPeekVcf/java", "**/VcfFilterGtf.java", "**/VcfAncestralAllele.java", "**/VcfSpringFilter.java","**/VcfConcat.java", "**/VcfServer.java", "**/VCFFlatten.java", "**/VcfDistanceBetweenVariants.java", "**/VcfAlleleBalance.java", "**/VcfMultiToOne.java", "**/VcfMultiToOneInfo.java", "**/UniprotToSvg.java", "**/UKBiobankSelectSamples.java", "**/VcfBurdenSlidingWindow.java", "**/VCFSVAnnotator.java", "**/VcfSetSequenceDictionary.java", "**/VcfPeekAf.java", "**/VcfPseudoAutosomalRegion.java", "**/VCFBigWig.java", "**/VCFComposite.java", "**/VcfStrechToSvg.java", "**/VCFShuffle.java", "**/VcfBigBed.java", "**/VcfGatkEval.java", "**/VcfGrantham.java", "**/VcFilterGenes.java", "**/VcfFilterJdk.java", "**/VcfFilterSequenceOntology.java", "**/VCFTrios.java", "**/VcfGeneSplitter.java","**/VcfRegulomeDB.java", "**/VcfGnomad.java", "**/VcfGnomadSV.java", "**/VcfHead.java", "**/VCFPolyX.java", "**/VcfRebase.java", "**/VcfPhased01.java", "**/VcfSplitNVariants.java", "**/VCFCombineTwoSnvs.java", "**/VcfTail.java", "**/VcfToTable.java", "**/VcfCadd.java", "**/VcfSpliceAI.java", "**/VcfBurdenFisherH.java", "**/VcfStats.java", "**/VcfToIntervals.java", "**/VcfBurdenMAF.java", "**/VcfGroupByPopulation.java", "**/CNVValidatorServer.java","**/VcfToBam.java", "**/VcfScanUpstreamOrf.java","**/WibToBedGraph.java", "**/WesCnvSvg.java", "**/WGSCoveragePlotter.java", "**/XsltStream.java","**/XContaminations.java"]
+	otherJavaFiles  = [ "**/AlleleFrequencyCalculator.java", "**/AlmostSortedVcf.java", "**/TSSEnrichment.java", "**/AddLinearIndexToBed.java", "**/BarcodeGenerator.java", "**/BlastToSam.java", "**/BlastFilterJS.java", "**/BlastNToSnp.java","**/BlastMapAnnotations.java", "**/BamLiftOver.java", "**/BamToHaplotypes.java","**/BamCmpCoverage.java", "**/BamToSql.java", "**/BedMergeCnv.java", "**/BedToVcf.java", "**/BackLocate.java", "**/BamToFastq.java", "**/Bam2Raster.java","**/BamToMNV.java", "**/BamClipToInsertion.java", "**/BamMatrix.java", "**/Bam2Wig.java", "**/BamPhased01.java", "**/Bam2Xml.java", "**/BamStats04.java", "**/BamStats05.java", "**/BamToSVG.java", "**/BaseCoverage.java", "**/BamWithoutBai.java", "**/BamSliceBed.java", "**/BamTile.java", "**/BCFToolsMergeBest.java", "**/BedCluster.java", "**/BedNonOverlappingSet.java", "**/BedLiftOver.java", "**/BedRemoveBed.java", "**/BioAlcidaeJdk.java","**/BigwigMerge.java",  "**/Biostar3654.java", "**/Biostar103303.java", "**/Biostar105754.java", "**/Biostar130456.java", "**/Biostar160470.java", "**/Biostar139647.java", "**/Biostar145820.java", "**/Biostar154220.java", "**/Biostar165777.java", "**/Biostar170742.java", "**/Biostar172515.java", "**/Biostar173114.java", "**/Biostar175929.java", "**/Biostar178713.java", "**/Biostar9556602.java", "**/Biostar95652.java", "**/Biostar214299.java", "**/Biostar234081.java", "**/Biostar234230.java", "**/Biostar251649.java", "**/Biostar322664.java", "**/Biostar332826.java", "**/Biostar336589.java", "**/Biostar352930.java", "**/Biostar398854.java", "**/Biostar404363.java", "**/Biostar480685.java", "**/Biostar489074.java", "**/Biostar497922.java", "**/Biostar59647.java", "**/Biostar76892.java", "**/Biostar77288.java", "**/Biostar77828.java", "**/Biostar78285.java", "**/Biostar81455.java", "**/Biostar84452.java", "**/Biostar84786.java", "**/Biostar86363.java", "**/Biostar86480.java", "**/Biostar90204.java", "**/Biostar9462889.java", "**/Biostar9469733.java", "**/Biostar9501110.java", "**/Biostar9566948.java", "**/BuildDbsnp.java", "**/DictToBed.java",  "**/CoverageMatrix.java", "**/CoverageServer.java", "**/CnvTView.java", "**/BedRenameChromosomes.java", "**/CopyNumber01.java", "**/ConvertBamChromosomes.java", "**/ConvertVcfChromosomes.java", "**/CoveragePlotter.java","**/ConvertLiftOverChain.java", "**/CytobandToSvg.java", "**/EVADumpFiles.java",  "**/HowManyBamDict.java", "**/HaploGroupCaseControl.java", "**/HtsFreemarker.java",  "**/IbdToVcf.java","**/.IndexCovToVcf.java", "**/IlluminaDirectory.java","**/FastqGrep.java", "**/FastqShuffle.java","**/FindNewSpliceSites.java", "**/FindAVariation.java", "**/FindAllCoverageAtPosition.java", "**/FindGVCFsBlocks.java", "**/FindHtsFileDictionary.java", "**/Gff2KnownGene.java", "**/GtfLiftOver.java", "**/GtfRetroCopy.java", "**/Gff3UpstreamOrf.java","**/Gff3UpstreamOrf.java", "**/GtexRsToQTL.java","**/GoUtils.java", "**/GroupByGene.java", "**/GtfToBed.java", "**/Gtf2Xml.java","**/KnownRetroCopy.java", "**/KnownDeletion.java", "**/KnownGeneToFasta.java","**/KgToGff.java","**/KnownGenesToBed.java", "**/LiftOverToSVG.java", "**/LowResBam2Raster.java","**/OptimizeFisher.java","**/Manhattan.java", "**/MergeSplittedBlast.java", "**/MergeBlastXml.java", "**/MiniCaller.java",  "**/MakeMiniBam.java", "**/MantaMerger.java", "**/MsaToVcf.java", "**/NcbiTaxonomyToXml.java", "**/NgsFilesSummary.java", "**/OboUtils.java", "**/PlotSashimi.java", "**/PlotBcftoolsStats.java", "**/PrettySam.java", "**/Pubmed404.java", "**/PcrClipReads.java", "**/PubmedCodingLanguages.java", "**/PubmedGender.java", "**/PubmedDump.java","**/PubmedAuthorGraph.java", "**/PubmedGraph.java", "**/ReduceBlast.java", "**/RepairFastq.java", "**/ReferenceToHtml.java", "**/SamExtractClip.java", "**/SamAddPI.java", "**/Sam2Tsv.java", "**/SamViewWithMate.java", "**/SamGrep.java", "**/SamToPsl.java", "**/ScanRetroCopy.java", "**/ScanLabGuru.java", "**/SortSamRefName.java", "**/SamRemoveDuplicatedNames.java", "**/StarRetroCopy.java", "**/SplitVcf.java", "**/SetFileTools.java", "**/SamToJson.java", "**/SamFindClippedRegions.java", "**/SvToSVG.java", "**/SortVcfOnInfo.java", "**/SwingBamCov.java", "**/SwingBamView.java","**/SwingIndexCov.java", "**/SwingPLinkSelectCluster.java", "**/SwingVcfJexlFilter.java", "**/SwingVcfView.java", "**/SVCasesControls.java", "**/StructuralVariantToFasta.java", "**/TextBam.java", "**/TViewCmd.java", "**/VariantsInWindow.java", "**/VcfFilterByLiftOver.java", "**/Vcf2Xml.java","**/VCFTabixml.java", "**/VcfTbiToBed.java", "**/VcfToHilbert.java", "**/VcfToRScript.java", "**/VcfPeekVcf/java", "**/VcfFilterGtf.java", "**/VcfAncestralAllele.java", "**/VcfSpringFilter.java","**/VcfConcat.java", "**/VcfServer.java", "**/VCFFlatten.java", "**/VcfDistanceBetweenVariants.java", "**/VcfAlleleBalance.java", "**/VcfMultiToOne.java", "**/VcfMultiToOneInfo.java", "**/UniprotToSvg.java", "**/UKBiobankSelectSamples.java", "**/VcfBurdenSlidingWindow.java", "**/VCFSVAnnotator.java", "**/VcfSetSequenceDictionary.java", "**/VcfPeekAf.java", "**/VcfPseudoAutosomalRegion.java", "**/VCFBigWig.java", "**/VCFComposite.java", "**/VcfStrechToSvg.java", "**/VCFShuffle.java", "**/VcfBigBed.java", "**/VcfGatkEval.java", "**/VcfGrantham.java", "**/VcFilterGenes.java", "**/VcfFilterJdk.java", "**/VcfFilterSequenceOntology.java", "**/VCFTrios.java", "**/VcfGeneSplitter.java","**/VcfRegulomeDB.java", "**/VcfGnomad.java", "**/VcfGnomadSV.java", "**/VcfHead.java", "**/VCFPolyX.java", "**/VcfRebase.java", "**/VcfPhased01.java", "**/VcfSplitNVariants.java", "**/VCFCombineTwoSnvs.java", "**/VcfTail.java", "**/VcfToTable.java", "**/VcfCadd.java", "**/VcfSpliceAI.java", "**/VcfBurdenFisherH.java", "**/VcfStats.java", "**/VcfToIntervals.java", "**/VcfBurdenMAF.java", "**/VcfGroupByPopulation.java", "**/CNVValidatorServer.java","**/VcfToBam.java", "**/VcfScanUpstreamOrf.java","**/WibToBedGraph.java", "**/WesCnvSvg.java", "**/WGSCoveragePlotter.java", "**/XsltStream.java","**/XContaminations.java"]
         jarLibs = combineLibs("htsjdk","testng","jcommander","math","jetty","httpclient","gson", "springcontext","freemarker","jaxb")
         });
 

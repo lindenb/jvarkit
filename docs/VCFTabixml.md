@@ -5,9 +5,14 @@
  annotate a value from a vcf+xml file
 
 
+## DEPRECATED
+
+ugly tool, please don't use it
+
 ## Usage
 
 ```
+Usage: java -jar dist/vcftabixml.jar  [options] Files
 Usage: vcftabixml [options] Files
   Options:
     -h, --help
@@ -179,4 +184,5 @@ A	614986	.	G	C	188	.	AC1=2;AF1=1;DP=176;DP4=0,0,0,175;FQ=-282;MQ=46;VDB=0.000000
 A	615009	.	T	A	125	.	AC1=1;AF1=0.5;DP=103;DP4=45,0,56,0;FQ=120;MQ=45;PV4=1,0.14,2.8e-19,1;RPB=1.520268e+00;VDB=1.539079e-06	GT:PL:DP:GQ	0/1:155,0,148:101:99
 A	615037	.	C	T	161	.	AC1=1;AF1=0.5;DP=353;DP4=0,164,0,165;FQ=110;MQ=48;PV4=1,1,1.1e-23,1;RPB=5.549816e+00;VDB=1.486773e-11	GT:PL:DP:GQ	0/1:191,0,137:329:99
 ```
+
 

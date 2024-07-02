@@ -88,8 +88,10 @@ nav:
         - "biostar9469733" : Biostar9469733.md
         - "biostar9501110" : Biostar9501110.md
         - "biostar9556602" : Biostar9556602.md
+        - "biostar95652" : Biostar95652.md
         - "biostar9566948" : Biostar9566948.md
         - "blast2sam" : BlastToSam.md
+        - "blastfilterjs" : BlastFilterJS.md
         - "blastmapannots" : BlastMapAnnotations.md
         - "blastn2snp" : BlastNToSnp.md
         - "builddbsnp" : BuildDbsnp.md
@@ -133,6 +135,8 @@ nav:
         - "lowresbam2raster" : LowResBam2Raster.md
         - "manhattan" : Manhattan.md
         - "mantamerger" : MantaMerger.md
+        - "mergeblastxml" : MergeBlastXml.md
+        - "mergesplittedblast" : MergeSplittedBlast.md
         - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md
         - "msa2vcf" : MsaToVcf.md
@@ -238,6 +242,7 @@ nav:
         - "vcfstats" : VcfStats.md
         - "vcfstrech2svg" : VcfStrechToSvg.md
         - "vcfsvannotator" : VCFSVAnnotator.md
+        - "vcftabixml" : VCFTabixml.md
         - "vcftail" : VcfTail.md
         - "vcftbi2bed" : VcfTbiToBed.md
         - "vcftrio" : VCFTrios.md

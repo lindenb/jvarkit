@@ -11,10 +11,10 @@ import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
 import gov.nih.nlm.ncbi.blast.IterationHits;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLInputFactory;
@@ -193,7 +193,7 @@ The blast.xml produced is:
 ```
 ### Process the XML with MergeSplittedBlast:
 ```bash
-$ java -jar dist/mergesplittedblast.jar blast.xml |\
+$ java -jar dist/jvarkit.jar mergesplittedblast blast.xml |\
   xmllint --format - 
 ```
 ### Output:
@@ -263,7 +263,9 @@ END_DOC
 @Program(name="mergesplittedblast",
 	description="merge blast Hits from splitted BLAST database",
 		biostars=90186,
-		keywords={"blast"})
+		keywords={"blast"},
+		jvarkit_amalgamion = true
+		)
 public class MergeSplittedBlast extends Launcher {
 	private static final Logger LOG=Logger.build(MergeSplittedBlast.class).make();
 	

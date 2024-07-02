@@ -34,10 +34,10 @@ import java.io.StringWriter;
 import java.util.Comparator;
 import java.util.List;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLEventWriter;
 import javax.xml.stream.XMLInputFactory;
@@ -68,7 +68,7 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/mergeblastxml.jar input1.blastn.xml  input2.blastn.xml  input2.blastn.xml > out.xml
+$ java -jar dist/jvarkit.jar mergeblastxml input1.blastn.xml  input2.blastn.xml  input2.blastn.xml > out.xml
 ``` 
 
 
@@ -76,7 +76,8 @@ END_DOC
  */
 @Program(name="mergeblastxml",biostars=246958,
 description="merge XML blast results (same Iteration/Iteration_query-def in multiple xml files",
-keywords={"blast","xml"}
+keywords={"blast","xml"},
+jvarkit_amalgamion = true
 )
 public class MergeBlastXml extends Launcher {
 private static final Logger LOG=Logger.build(MergeBlastXml.class).make();

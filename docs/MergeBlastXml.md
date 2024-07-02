@@ -7,7 +7,13 @@ merge XML blast results (same Iteration/Iteration_query-def in multiple xml file
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar mergeblastxml  [options] Files
+
 Usage: mergeblastxml [options] Files
   Options:
     -h, --help
@@ -40,23 +46,6 @@ Usage: mergeblastxml [options] Files
  * [https://www.biostars.org/p/246958](https://www.biostars.org/p/246958)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew mergeblastxml
-```
-
-The java jar file will be installed in the `dist` directory.
-
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeBlastXml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/blast/MergeBlastXml.java)
@@ -82,11 +71,12 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- 
- ## Example
- 
- ```
- $ java -jar dist/mergeblastxml.jar input1.blastn.xml  input2.blastn.xml  input2.blastn.xml > out.xml
- ``` 
- 
- 
+
+## Example
+
+```
+$ java -jar dist/jvarkit.jar mergeblastxml input1.blastn.xml  input2.blastn.xml  input2.blastn.xml > out.xml
+``` 
+
+
+
