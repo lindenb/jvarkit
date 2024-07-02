@@ -155,11 +155,20 @@ public void setTitle(final String s) {
 public void setWidth(final double w) {
 	this.svgElement.setAttribute("width", format(w));
 	}
+public double getWidth() {
+	String s= this.svgElement.getAttribute("width");
+	return StringUtils.isBlank(s)?0:(int)Double.parseDouble(s);
+	}
+
 
 public void setHeight(final double h) {
 	this.svgElement.setAttribute("height", format(h));
 	}
 
+public double getHeight() {
+	String s= this.svgElement.getAttribute("height");
+	return StringUtils.isBlank(s)?0:(int)Double.parseDouble(s);
+	}
 
 public Document getDocument() {
 	return document;

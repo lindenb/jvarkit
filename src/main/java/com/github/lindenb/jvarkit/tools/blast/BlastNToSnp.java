@@ -45,10 +45,10 @@ import javax.xml.stream.events.XMLEvent;
 import htsjdk.samtools.util.CloserUtil;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
+import gov.nih.nlm.ncbi.blast.Hit;
+import gov.nih.nlm.ncbi.blast.Hsp;
+import gov.nih.nlm.ncbi.blast.Iteration;
+import gov.nih.nlm.ncbi.blast.ObjectFactory;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 import com.beust.jcommander.Parameter;
@@ -365,7 +365,7 @@ private void run(
 		try
 			{
 			
-			JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.blast");
+			JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			this.marshaller=jc.createMarshaller();
 			this.marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT,true);

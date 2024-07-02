@@ -54,8 +54,8 @@ import org.apache.commons.jexl2.MapContext;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.ncbi.schema.pubmed.ObjectFactory;
-import com.github.lindenb.jvarkit.ncbi.schema.pubmed.PubmedArticle;
+import gov.nih.nlm.ncbi.pubmed.ObjectFactory;
+import gov.nih.nlm.ncbi.pubmed.PubmedArticle;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -193,12 +193,12 @@ public class PubmedFilterJS
 			
 		
 						
-			JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.pubmed");
+			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.pubmed");
 			unmarshaller =jc.createUnmarshaller();
 			marshaller =jc.createMarshaller();
 
 			
-			XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
+			final XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
 			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_COALESCING, Boolean.TRUE);
 			xmlInputFactory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, Boolean.TRUE);

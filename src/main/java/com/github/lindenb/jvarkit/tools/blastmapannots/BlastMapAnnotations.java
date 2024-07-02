@@ -35,21 +35,22 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.BlastOutput;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.BlastOutputIterations;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
-import com.github.lindenb.jvarkit.ncbi.schema.gb.GBFeature;
-import com.github.lindenb.jvarkit.ncbi.schema.gb.GBInterval;
-import com.github.lindenb.jvarkit.ncbi.schema.gb.GBQualifier;
-import com.github.lindenb.jvarkit.ncbi.schema.gb.GBSeq;
-import com.github.lindenb.jvarkit.ncbi.schema.gb.GBSet;
-import com.github.lindenb.jvarkit.uniprot.schema.Entry;
-import com.github.lindenb.jvarkit.uniprot.schema.FeatureType;
-import com.github.lindenb.jvarkit.uniprot.schema.LocationType;
-import com.github.lindenb.jvarkit.uniprot.schema.Uniprot;
+
+import gov.nih.nlm.ncbi.blast.BlastOutput;
+import gov.nih.nlm.ncbi.blast.BlastOutputIterations;
+import gov.nih.nlm.ncbi.blast.Hit;
+import gov.nih.nlm.ncbi.blast.Hsp;
+import gov.nih.nlm.ncbi.blast.Iteration;
+import gov.nih.nlm.ncbi.blast.ObjectFactory;
+import gov.nih.nlm.ncbi.gb.GBFeature;
+import gov.nih.nlm.ncbi.gb.GBInterval;
+import gov.nih.nlm.ncbi.gb.GBQualifier;
+import gov.nih.nlm.ncbi.gb.GBSeq;
+import gov.nih.nlm.ncbi.gb.GBSet;
+import org.uniprot.Entry;
+import org.uniprot.FeatureType;
+import org.uniprot.LocationType;
+import org.uniprot.Uniprot;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -794,7 +795,7 @@ public class BlastMapAnnotations
 				});
 			//create a Unmarshaller for NCBI
 			JAXBContext jc = JAXBContext.newInstance(
-					" com.github.lindenb.jvarkit.ncbi.schema.gb:com.github.lindenb.jvarkit.ncbi.schema.blast:com.github.lindenb.jvarkit.uniprot.schema");
+					"gov.nih.nlm.ncbi.gb:gov.nih.nlm.ncbi.blast:org.uniprot");
 			unmarshaller=jc.createUnmarshaller();
 	
 			
@@ -868,15 +869,15 @@ public class BlastMapAnnotations
 		}
 	
 	
-	public static void main(String[] args)
+	public static void main(final String[] args)
 		{
 		/* force javac to compile those */
 		@SuppressWarnings("unused")
 		ObjectFactory of1=null;
 		@SuppressWarnings("unused")
-		com.github.lindenb.jvarkit.ncbi.schema.gb.ObjectFactory of2=null;
+		gov.nih.nlm.ncbi.gb.ObjectFactory of2=null;
 		@SuppressWarnings("unused")
-		 com.github.lindenb.jvarkit.uniprot.schema.ObjectFactory of3=null;
+		org.uniprot.ObjectFactory of3=null;
 		new BlastMapAnnotations().instanceMainWithExit(args);
 		}
 	}

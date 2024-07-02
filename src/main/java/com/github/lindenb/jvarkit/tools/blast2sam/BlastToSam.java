@@ -60,10 +60,10 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
+import gov.nih.nlm.ncbi.blast.Hit;
+import gov.nih.nlm.ncbi.blast.Hsp;
+import gov.nih.nlm.ncbi.blast.Iteration;
+import gov.nih.nlm.ncbi.blast.ObjectFactory;
 import com.github.lindenb.jvarkit.samtools.SAMReadGroupParser;
 import com.github.lindenb.jvarkit.util.bio.blast.BlastHspAlignment;
 
@@ -867,7 +867,7 @@ public class BlastToSam extends Launcher
 			header.setSequenceDictionary(this.dictionary);
 			
 			
-			final JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.blast");
+			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			final XMLInputFactory xmlInputFactory=XMLInputFactory.newFactory();
 			xmlInputFactory.setProperty(XMLInputFactory.IS_NAMESPACE_AWARE, Boolean.FALSE);

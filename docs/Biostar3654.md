@@ -21,7 +21,7 @@ Usage: biostar3654 [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -L, --length
-      Fasta Line kength
+      Fasta Line length
       Default: 50
     --ncbi-api-key
       NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ 

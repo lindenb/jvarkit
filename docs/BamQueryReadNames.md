@@ -8,10 +8,11 @@ Query a Bam file indexed with BamIndexReadNames
 ## Usage
 
 ```
+Usage: java -jar dist/.jar  [options] Files
 Usage:  [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -75,8 +76,8 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
- 
- 
+
+
 ## Example
 
 
@@ -108,4 +109,4 @@ ZZZZ:X
 ```
 
 
- 
+

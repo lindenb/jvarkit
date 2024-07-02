@@ -101,13 +101,13 @@ import javax.xml.stream.events.XMLEvent;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hsp;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Iteration;
-import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDFeature;
-import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDFeatureIntervals;
-import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDInterval;
-import com.github.lindenb.jvarkit.ncbi.schema.insdseq.INSDQualifier;
+import gov.nih.nlm.ncbi.blast.Hit;
+import gov.nih.nlm.ncbi.blast.Hsp;
+import gov.nih.nlm.ncbi.blast.Iteration;
+import gov.nih.nlm.ncbi.insdseq.INSDFeature;
+import gov.nih.nlm.ncbi.insdseq.INSDFeatureIntervals;
+import gov.nih.nlm.ncbi.insdseq.INSDInterval;
+import gov.nih.nlm.ncbi.insdseq.INSDQualifier;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -176,16 +176,16 @@ public class Biostar3654 extends Launcher
 	private static final Logger LOG=Logger.build(Biostar3654.class).make();
 	
 	@SuppressWarnings("unused")
-	private static final com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory _fool_javac1=null;
+	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;
 	@SuppressWarnings("unused")
-	private static final com.github.lindenb.jvarkit.ncbi.schema.insdseq.ObjectFactory _fool_javac2=null;
+	private static final gov.nih.nlm.ncbi.insdseq.ObjectFactory _fool_javac2=null;
 	
 	/** left margin */
 	private int margin=9;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	/** length of a fasta line */
-	@Parameter(names={"-L","--length"},description="Fasta Line kength")
+	@Parameter(names={"-L","--length"},description="Fasta Line length")
 	private int fastaLineLength=50;
 	@ParametersDelegate
 	private NcbiApiKey ncbiApiKey = new NcbiApiKey();
@@ -582,7 +582,7 @@ public class Biostar3654 extends Launcher
 			
 			//create a Unmarshaller for genbank
 			JAXBContext jc = JAXBContext.newInstance(
-					"com.github.lindenb.jvarkit.ncbi.schema.insdseq:com.github.lindenb.jvarkit.ncbi.schema.blast");
+					"gov.nih.nlm.ncbi.insdseq:gov.nih.nlm.ncbi.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 	
 			this.xif=XMLInputFactory.newFactory();

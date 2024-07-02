@@ -61,8 +61,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.Hit;
-import com.github.lindenb.jvarkit.ncbi.schema.blast.ObjectFactory;
+import gov.nih.nlm.ncbi.blast.Hit;
+import gov.nih.nlm.ncbi.blast.ObjectFactory;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -314,7 +314,7 @@ public class Biostar160470 extends Launcher
 		XMLEventReader r=null;
 		try {
 			//create a Unmarshaller for genbank
-			final JAXBContext jc = JAXBContext.newInstance("com.github.lindenb.jvarkit.ncbi.schema.blast");
+			final JAXBContext jc = JAXBContext.newInstance("gov.nih.nlm.ncbi.blast");
 			this.unmarshaller=jc.createUnmarshaller();
 			this.marshaller=jc.createMarshaller();
 			this.marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
