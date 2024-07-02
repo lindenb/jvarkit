@@ -66,8 +66,8 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/pubmeddump.jar 'bioinformatics 2001' 2> /dev/null |\
-	java -jar dist/pubmed404.jar  2> /dev/null 
+$ java -jar dist/jvarkit.jar pubmeddump 'bioinformatics 2001' 2> /dev/null |\
+	java -jar dist/jvarkit.jar pubmed404  2> /dev/null 
 
 #PMID	TITLE	YEAR	URL	Status
 29520589	Expression of Colocasia esculenta tuber agglutinin in Indian mustard provides resistance against Lipaphis erysimi and the expressed protein is non-allergenic.2018	http://www.fao.org/docrep/007/y0820e/y0820e00.HTM	200
