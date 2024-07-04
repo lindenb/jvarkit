@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 import org.broad.igv.bbfile.BBFileReader;
 import org.broad.igv.bbfile.BigWigIterator;
@@ -92,6 +93,10 @@ public class BigWigReader implements AutoCloseable {
 			}
 		this.contigNameConverter = ContigNameConverter.fromContigSet(new HashSet<>(this.bbFileReader.getChromosomeNames()));
 		}
+	
+	public Set<String> getChromosomeNames() {
+		return new HashSet<>(this.bbFileReader.getChromosomeNames());
+	}
 	
 	public CloseableIterator<WigItem> query(final Locatable locatable)
 		{

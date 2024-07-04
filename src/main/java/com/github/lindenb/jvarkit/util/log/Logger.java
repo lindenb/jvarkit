@@ -29,7 +29,6 @@ History:
 package com.github.lindenb.jvarkit.util.log;
 
 import java.io.PrintStream;
-import java.lang.reflect.Method;
 
 import com.github.lindenb.jvarkit.lang.Maker;
 
@@ -38,7 +37,6 @@ public abstract class Logger  {
 public enum Level {DEBUG,INFO,WARN,SEVERE,FATAL}
 protected PrintStream out=System.err;
 protected String prefix=null;
-private static boolean TRY_KNIME = true;
 
 public static class Builder implements Maker<Logger>
 	{
@@ -59,20 +57,6 @@ public static class Builder implements Maker<Logger>
 		}
 	@Override
 	public Logger make() {
-		if(this.clazz!=null && TRY_KNIME)
-			{
-			try
-				{
-				final KnimeLogger K=new KnimeLogger(this.clazz);
-				K.prefix = prefix;
-				return K;
-				}
-			catch(final Throwable err) {
-				TRY_KNIME=false;
-				}
-			}
-		
-		
 		final DefaultLogger L= new DefaultLogger();
 		L.out=this.out==null?System.err:this.out;
 		L.prefix=this.prefix;
@@ -190,76 +174,7 @@ private static class DefaultLogger
 		
 		return this;
 		}	
-
 	}
 
-private static class KnimeLogger
-	extends Logger
-	{
-	private final Object nodeLogger;
-	
-	private final Method info;
-	private final Method debug;
-	private final Method warn;
-	private final Method error;
-	private final Method fatal;
-	
-	
-	private final Method info_t;
-	private final Method debug_t;
-	private final Method warn_t;
-	private final Method error_t;
-	private final Method fatal_t;
-	
-	KnimeLogger(final Class<?> clazz) throws Exception {
-		final Class<?> org_knime_core_node_NodeLogger_clazz = Class.forName("org.knime.core.node.NodeLogger"); 
-	    final Method getLogger = org_knime_core_node_NodeLogger_clazz.getMethod("getLogger",Class.class);
-	    this.nodeLogger = getLogger.invoke(null, clazz);
-	    this.info = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
-	    this.debug = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
-	    this.warn = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
-	    this.error = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class);
-	    this.fatal = org_knime_core_node_NodeLogger_clazz.getMethod("fatal", Object.class);
-
-	    this.info_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
-	    this.debug_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
-	    this.warn_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
-	    this.error_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
-	    this.fatal_t = org_knime_core_node_NodeLogger_clazz.getMethod("warn", Object.class,Throwable.class);
-		}
-	@Override
-	public Logger log(final Level level,final Object msg,final Throwable err) {
-		try {
-			if(err!=null)
-				{
-				switch(level)
-					{
-					case SEVERE: this.error_t.invoke(this.nodeLogger,msg, err);break;
-					case FATAL: this.fatal_t.invoke(this.nodeLogger,msg, err);break;
-					case WARN : this.warn_t.invoke(this.nodeLogger,msg, err);break;
-					case DEBUG : this.debug_t.invoke(this.nodeLogger,msg, err);break;
-					default : this.info_t.invoke(this.nodeLogger,msg, err);break;	
-					}
-				} 
-			else
-				{
-				switch(level)
-					{
-					case SEVERE: this.error.invoke(this.nodeLogger,msg);break;
-					case FATAL: this.fatal.invoke(this.nodeLogger,msg);break;
-					case WARN : this.warn.invoke(this.nodeLogger,msg);break;
-					case DEBUG : this.debug.invoke(this.nodeLogger,msg);break;
-					default : this.info.invoke(this.nodeLogger,msg);break;	
-					}
-				}
-			andThen(level,err);
-		} catch(final Exception exc)
-			{
-			System.err.println("KNIME Logger broken "+exc.getMessage());
-			System.err.println(msg);
-			}
-		return this;
-		}
-	}
 
 }
