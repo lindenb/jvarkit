@@ -181,6 +181,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.misc.XsltStream;
 import com.github.lindenb.jvarkit.tools.msa2vcf.MsaToVcf;
+import com.github.lindenb.jvarkit.tools.multiqc.MultiqcPostProcessor;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.nobai.BamWithoutBai;
 import com.github.lindenb.jvarkit.tools.obo.OboUtils;
@@ -703,6 +704,7 @@ public class JvarkitCentral {
 		command(MiniCaller.class);
 		command(MsaToVcf.class);
 		command(Manhattan.class);
+		command(MultiqcPostProcessor.class);
 		command(MakeMiniBam.class);
 		command(MergeBlastXml.class);
 		command(MergeSplittedBlast.class);

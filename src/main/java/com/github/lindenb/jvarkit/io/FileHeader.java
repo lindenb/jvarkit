@@ -24,6 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.io;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.util.AbstractList;
 import java.util.AbstractMap;
 import java.util.Arrays;
@@ -35,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.commons.jexl2.JexlContext;
 
@@ -268,6 +271,10 @@ public class FileHeader extends AbstractList<String> {
 	/** split a line using the internal splitter  */
 	public List<String> split(final String line) {
 		return this.lineSplitter.apply(line);
+		}
+	
+	public List<RowMap> readAll(final BufferedReader br) throws IOException {
+		return br.lines().map(S->toMap(S)).collect(Collectors.toList());
 		}
 	
 	@Override

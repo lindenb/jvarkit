@@ -140,6 +140,7 @@ nav:
         - "minicaller" : MiniCaller.md
         - "mkminibam" : MakeMiniBam.md
         - "msa2vcf" : MsaToVcf.md
+        - "multiqcpostproc" : MultiqcPostProcessor.md
         - "ncbitaxonomy2xml" : NcbiTaxonomyToXml.md
         - "ngsfilessummary" : NgsFilesSummary.md
         - "oboutils" : OboUtils.md

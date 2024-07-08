@@ -121,6 +121,12 @@ public class IOUtils {
 			}
 		}*/
 	
+	/** check directory is readeable and return the directory */
+	public static Path assertDirectoryIsReadable(final Path dir) {
+		IOUtil.assertDirectoryIsReadable(dir==null?null:dir.toFile());
+		return dir;
+	}
+	
     /** Returns a default tmp directory. */
     public static File getDefaultTmpDir() {
     	return new File(System.getProperty("java.io.tmpdir","."));
