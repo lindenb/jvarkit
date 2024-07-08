@@ -45,6 +45,7 @@ nav:
         - "bedremovebed" : BedRemoveBed.md
         - "bedrenamechr" : BedRenameChromosomes.md
         - "bigwigmerge" : BigwigMerge.md
+        - "bigwigtview" : BigWigTView.md
         - "bioalcidaejdk" : BioAlcidaeJdk.md
         - "biostar103303" : Biostar103303.md
         - "biostar105754" : Biostar105754.md

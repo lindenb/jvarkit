@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 7d137fda
-Compilation : 20240708174252
+Version     : 92ca6464
+Compilation : 20240708175225
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -165,6 +165,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bedliftover](BedLiftOver.md) | LiftOver a BED file | 20140311 | 20240625 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
 | [bigwigmerge](BigwigMerge.md) | merge several Bigwig files using different descriptive statistics (mean, median, etc..) | 20240417 | 20240417 |
+| [bigwigtview](BigWigTView.md) | view bigwig file coverage in a terminal | 20240704 | 20240704 |
 | [biostar160470](Biostar160470.md) | Getting untranslated nucleotide sequences on tblastn standalone |  | 20240701 |
 | [biostar3654](Biostar3654.md) | show blast alignment with annotations |  |  |
 | [biostar95652](Biostar95652.md) | Drawing a schematic genomic context tree. |  |  |
