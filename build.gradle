@@ -1969,10 +1969,9 @@ all2.add(task("jeter10", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 all2.add(task("jeter11", type: CompileJVarkit) {
+        jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
         mainClass = "com.github.lindenb.jvarkit.tools.multiqc.MultiqcPostProcessor"
         jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
-        mainClass = "com.github.lindenb.jvarkit.tools.bigwigtview.BigWigTView"
-        jarLibs = combineLibs("htsjdk","testng","jcommander","jaxb")
 
         });
  

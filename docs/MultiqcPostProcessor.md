@@ -16,6 +16,9 @@ Usage: java -jar dist/jvarkit.jar multiqcpostproc  [options] Files
 
 Usage: multiqcpostproc [options] Files
   Options:
+    --beeswarm
+      use plot_type=beeswarm instead of boxplot.
+      Default: false
     --custom
       custom mapping file (undocumented
     -h, --help
@@ -87,5 +90,4 @@ find OUTDIR2 --type f -name "*.json" >> input.list
 # run second time
 multiqc --force --file-list input.list
 ```
-
 

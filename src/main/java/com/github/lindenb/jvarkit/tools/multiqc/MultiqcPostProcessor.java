@@ -95,8 +95,19 @@ public class MultiqcPostProcessor extends Launcher {
 	private Path sample2collectionPath=null;
 	@Parameter(names={"--custom"},description="custom mapping file (undocumented")
 	private Path customMapping=null;
+	@Parameter(names={"--beeswarm"},description="use plot_type=beeswarm instead of boxplot.")
+	private boolean use_beeswarm = false;
 
 	private final SamplePopulation sampleCollection = new SamplePopulation();
+	
+	private static class SampleValue {
+		final String sample;
+		final double value;
+		SampleValue(final String sample,double value) {
+			this.sample = sample;
+			this.value = value;
+		}
+	}
 	
 	private static class FileContent {
 		FileHeader fileHeader;
@@ -135,7 +146,9 @@ public class MultiqcPostProcessor extends Launcher {
 			private boolean isDouble(String s) {
 				if(StringUtils.isBlank(s)) return false;
 				try {
-					Double.parseDouble(s);
+					double v=Double.parseDouble(s);
+					if(Double.isNaN(v)) return false;
+					if(Double.isInfinite(v)) return false;
 					return true;
 				} catch(NumberFormatException f) {
 					return false;
@@ -166,17 +179,16 @@ public class MultiqcPostProcessor extends Launcher {
 						fc.fileHeader.assertColumnExists(dataCol);
 						/* is it worth plotting ?*/
 						boolean found_deviation=false;
-						final Map<String,double[]> pop2data=new TreeMap<>();
+						final Map<String,List<SampleValue>> pop2data=new TreeMap<>();
 						for(final SamplePopulation.Population pop:snpop.getPopulations()) {
-							final double[] values= fc.rows.stream().
-								filter(ROW->pop.containsKey(fixSampleName(ROW.get(getSampleColumn())))).
-								map(ROW->ROW.get(dataCol)).
-								filter(V->isDouble(V)).
-								mapToDouble(V->Double.parseDouble(V)*factor).
-								sorted().
-								toArray();
+							final List<SampleValue> values= fc.rows.stream().
+								filter(ROW->isDouble(ROW.get(dataCol))).
+								map(ROW->new SampleValue(fixSampleName(ROW.get(getSampleColumn())), Double.parseDouble(ROW.get(dataCol)))).
+								filter(SV->pop.containsKey(SV.sample)).
+								sorted((A,B)->Double.compare(A.value, B.value)).
+								collect(Collectors.toList());
 							/* is it worth plotting ?*/
-							if(values.length>1 && values[0] < values[values.length-1]) {
+							if(values.size()>1 && values.get(0).value < values.get(values.size()-1).value) {
 								found_deviation=true;
 								}
 							pop2data.put(pop.getName(), values);
@@ -208,7 +220,7 @@ public class MultiqcPostProcessor extends Launcher {
 								
 								
 								w.name("plot_type");
-								w.value("box");
+								w.value(use_beeswarm?"beeswarm":"box");
 								w.name("pconfig");
 								w.beginObject();
 								w.name("id");
@@ -219,18 +231,42 @@ public class MultiqcPostProcessor extends Launcher {
 								w.value(datColPlain);
 								w.name("ylab");
 								w.value("collection");
+								if(use_beeswarm) {
+									w.name("xmin");
+									w.value(pop2data.values().stream().flatMap(it->it.stream()).mapToDouble(X->X.value).min().orElse(0.0));
+									w.name("xmax");
+									w.value(pop2data.values().stream().flatMap(it->it.stream()).mapToDouble(X->X.value).max().orElse(1.0));
+								}
+								
 								w.endObject();
 								
 								w.name("data");
 								w.beginObject();
-								for(final String popName:pop2data.keySet()) {
-									final SamplePopulation.Population pop = snpop.getPopulationByName(popName);
-									w.name(pop.getName()+" (N="+pop.size()+")");
-									w.beginArray();
-									for(double v: pop2data.get(popName)) {
-										w.value(v);
+								if(use_beeswarm) {
+									for(final String sn:pop2data.values().stream().flatMap(L->L.stream()).map(K->K.sample).collect(Collectors.toSet())) {
+										w.name(sn);
+										w.beginObject();
+										for(final String popName:pop2data.keySet()) {
+											final SampleValue snv = pop2data.get(popName).stream().filter(it->it.sample.equals(sn)).findFirst().orElse(null);
+											if(snv==null) continue;
+											final SamplePopulation.Population pop = snpop.getPopulationByName(popName);
+											w.name(pop.getName()+" (N="+pop.size()+")");
+											w.value(snv.value);
+											}
+										w.endObject();
 										}
-									w.endArray();
+									}
+								else
+									{
+									for(final String popName:pop2data.keySet()) {
+										final SamplePopulation.Population pop = snpop.getPopulationByName(popName);
+										w.name(pop.getName()+" (N="+pop.size()+")");
+										w.beginArray();
+										for(SampleValue sv: pop2data.get(popName)) {
+											w.value(sv.value);
+											}
+										w.endArray();
+										}
 									}
 								w.endObject();
 								
