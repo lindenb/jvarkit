@@ -91,3 +91,4 @@ find OUTDIR2 --type f -name "*.json" >> input.list
 multiqc --force --file-list input.list
 ```
 
+
