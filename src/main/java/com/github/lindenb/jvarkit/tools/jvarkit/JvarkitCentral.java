@@ -205,6 +205,7 @@ import com.github.lindenb.jvarkit.tools.pubmed.PubmedMap;
 import com.github.lindenb.jvarkit.tools.redon.CopyNumber01;
 //import com.github.lindenb.jvarkit.tools.rdfcombine.RDFCombine;
 import com.github.lindenb.jvarkit.tools.ref2html.ReferenceToHtml;
+import com.github.lindenb.jvarkit.tools.ref2vcf.ReferenceToVCF;
 import com.github.lindenb.jvarkit.tools.retrocopy.GtfRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.KnownRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.ScanRetroCopy;
@@ -729,6 +730,7 @@ public class JvarkitCentral {
 		command(ReduceBlast.class);
 		//command(RDFCombine.class);
 		command(RepairFastq.class);
+		command(ReferenceToVCF.class);
 		command(VCFBigWig.class);
 		command(VcfBigBed.class);
 		command(VcfFilterGtf.class);

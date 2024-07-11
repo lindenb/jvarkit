@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : e538631d1
-Compilation : 20240711102806
+Version     : d0a35f6b1
+Compilation : 20240711152225
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -180,6 +180,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [cytoband2svg](CytobandToSvg.md) | Creates a svg karyotype . |  |  |
 | [dict2bed](DictToBed.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to bed. | 20240603 | 20240603 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
+| [fasta2vcf](ReferenceToVCF.md) | Creates a VCF containing all the possible substitutions from a Reference Genome. | 20140910 | 20240711 |
 | [fastqshuffle](FastqShuffle.md) | Shuffle Fastq files | 20140901 | 20240129 |
 | [findhtsfiledict](FindHtsFileDictionary.md) | Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path-to-fasta) | 20190912 | 20240604 |
 | [gff2kg](Gff2KnownGene.md) | Convert GFF3 format to UCSC knownGene format. | 20160404 | 20220725 |

@@ -106,6 +106,7 @@ nav:
         - "cytoband2svg" : CytobandToSvg.md
         - "dict2bed" : DictToBed.md
         - "evadumpfiles" : EVADumpFiles.md
+        - "fasta2vcf" : ReferenceToVCF.md
         - "fastqgrep" : FastqGrep.md
         - "fastqshuffle" : FastqShuffle.md
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
