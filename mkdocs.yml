@@ -96,6 +96,7 @@ nav:
         - "blastmapannots" : BlastMapAnnotations.md
         - "blastn2snp" : BlastNToSnp.md
         - "builddbsnp" : BuildDbsnp.md
+        - "cmpbamsandbuild" : CompareBamAndBuild.md
         - "cnvtview" : CnvTView.md
         - "cnvvalidatorserver" : CNVValidatorServer.md
         - "convertliftoverchain" : ConvertLiftOverChain.md
@@ -168,6 +169,7 @@ nav:
         - "samaddpi" : SamAddPI.md
         - "samextractclip" : SamExtractClip.md
         - "samfindclippedregions" : SamFindClippedRegions.md
+        - "samfixcigar" : SamFixCigar.md
         - "samgrep" : SamGrep.md
         - "samjdk" : SamJdk.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md

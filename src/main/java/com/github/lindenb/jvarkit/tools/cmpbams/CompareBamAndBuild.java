@@ -28,6 +28,8 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,15 +47,15 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 
@@ -73,7 +75,7 @@ SAMTOOLS=samtools
 all: file.diff
 
 file.diff.gz : hg19ToHg38.over.chain hg19.bam hg38.bam
-	java -jar jvarkit-git/dist/cmpbamsandbuild.jar -d 20 \
+	java -jar jvarkit-git/dist/jvarkit.jar cmpbamsandbuild -d 20 \
 	    -c hg19ToHg38.over.chain hg19.bam hg38.bam | gzip --best > $@
 
 hg38.bam:file1.fastq.gz file2.fastq.gz
@@ -129,13 +131,18 @@ END_DOC
 */
 @Program(
 		name="cmpbamsandbuild",
-		description="Compare two  BAM files mapped on two different builds. Requires a liftover chain file")
+		description="Compare two  BAM files mapped on two different builds. Requires a liftover chain file",
+		creationDate = "20140307",
+		modificationDate = "20240716",
+		keywords = {"bam","sam"},
+		jvarkit_amalgamion = true
+		)
 public class CompareBamAndBuild  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBamAndBuild.class).make();
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
-	private File outputFile = null;
+	private Path outputFile = null;
 
 
 	@Parameter(names={"-c","--chain"},description=") Lift Over file from bam1 to bam2. REQUIRED",required=true)
@@ -144,18 +151,24 @@ public class CompareBamAndBuild  extends Launcher
 	@Parameter(names={"-d","--distance"},description="distance tolerance between two alignments")
 	private int distance_tolerance = 10 ;
 
-	@Parameter(names={"-r","--region"},description="restrict to that region chr:start-end")
-	private String REGION = null;
-
+	@Parameter(names={"--region1"},description="restrict to that region chr:start-end for BAM1")
+	private String REGION1 = null;
+	@Parameter(names={"--region2"},description="restrict to that region chr:start-end for BAM2")
+	private String REGION2 = null;
 	
 	@Parameter(names={"-T","--tmpDir"},description="mp directory")
-	private File tmpDir = IOUtils.getDefaultTmpDir();
+	private Path tmpDir = IOUtils.getDefaultTempDir();
 
+	@Parameter(names={"-R1"},description="indexed fasta reference for BAM1")
+	private Path REF1 = null;
+	@Parameter(names={"-R2"},description="indexed fasta reference for BAM2")
+	private Path REF2 = null;
+	
 	@Parameter(names={"-maxRecordsInRam","--maxRecordsInRam"},description="Max records in RAM")
 	private int maxRecordsInRam =50000;
 
 	
-	private final File bamFiles[]=new File[2];
+	private final Path bamFiles[]=new Path[2];
 	private SAMSequenceDictionary sequenceDictionaries[]=new SAMSequenceDictionary[2];
 	private LiftOver liftOver=null;
 
@@ -167,7 +180,7 @@ public class CompareBamAndBuild  extends Launcher
 			{
 			int i=m0.readName.compareTo(m1.readName);
 			if(i!=0) return i;
-			i=(int)m0.indexInPair()-(int)m1.indexInPair();
+			i=m0.indexInPair()-m1.indexInPair();
 			if(i!=0) return i;
 			if(m0.firstBamFile!=m1.firstBamFile) throw new IllegalStateException();
 			i=m0.tid-m1.tid;
@@ -186,7 +199,7 @@ public class CompareBamAndBuild  extends Launcher
 			{
 			int i=m0.readName.compareTo(m1.readName);
 			if(i!=0) return i;
-			i=(int)m0.indexInPair()-(int)m1.indexInPair();
+			i= m0.indexInPair()-m1.indexInPair();
 			return i;
 			}
 		}
@@ -349,10 +362,10 @@ public class CompareBamAndBuild  extends Launcher
     		final Interval i0=m0.getLiftOver();
     		if(i0==null || i0.getContig()==null) continue;
     		for(final Match m1:set2)
-	    		{
+    		{
     			int i=m0.readName.compareTo(m1.readName);
     			if(i!=0) continue;
-    			i=(int)m0.indexInPair()-(int)m1.indexInPair();
+    			i=m0.indexInPair()-m1.indexInPair();
     			if(i!=0) continue;
     			//i= m0.bamIndex - m1.bamIndex;//NO ! (when comparing two Set<Match>)
     			//if(i!=0) return i;
@@ -371,7 +384,6 @@ public class CompareBamAndBuild  extends Launcher
    
     @Override
     public int doWork(final List<String> args) {
-    	PrintWriter out = null;
 		SortingCollection<Match> database = null;
 		if(this.chainFile==null) {
 			LOG.error("Chain file is not defined Option");
@@ -393,7 +405,7 @@ public class CompareBamAndBuild  extends Launcher
 						new MatchCodec(),
 						new MatchOrdererInSortingCollection(),
 						this.maxRecordsInRam,
-						this.tmpDir.toPath()
+						this.tmpDir
 						);
 				
 				database.setDestructiveIteration(true);
@@ -403,162 +415,158 @@ public class CompareBamAndBuild  extends Launcher
 						currentSamFileIndex<2;
 						currentSamFileIndex++ )
 					{
-					final File samFile=new File(args.get(currentSamFileIndex));
+					final Path samFile= Paths.get(args.get(currentSamFileIndex));
 					LOG.info("read "+samFile);
 					this.bamFiles[currentSamFileIndex]=samFile;
-					SamReader samFileReader= CompareBamAndBuild.this.openSamReader(samFile.getPath());
-					final SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
-					this.sequenceDictionaries[currentSamFileIndex]=dict;
-					if(dict.isEmpty())
-						{
-						samFileReader.close();
-						LOG.error("Empty Dict  in "+samFile);
-						return -1;
-						}
+					final SamReaderFactory srf = SamReaderFactory.make();
+					srf.validationStringency(ValidationStringency.LENIENT);
+					final Path ref = (currentSamFileIndex==0?CompareBamAndBuild.this.REF1:CompareBamAndBuild.this.REF2);
+					if(ref!=null) srf.referenceSequence(ref);
 					
-				
-					final SimpleInterval interval;
-					if(!StringUtils.isBlank(this.REGION))
-						{
-						final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
-						interval=intervalParser.apply(this.REGION).orElseThrow(IntervalParserFactory.exception(this.REGION));
-						}
-					else
-						{
-						interval = null;
-						}
-					
-					final SAMRecordIterator iter;
-					if(interval==null)
-						{
-						iter=samFileReader.iterator();
-						}
-					else
-						{
-						iter=samFileReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd());
-						}
-					final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
-					while(iter.hasNext() )
-						{
-						final SAMRecord rec=progress.watch(iter.next());
-						
-						if(rec.isSecondaryOrSupplementary()) continue;
-						
-						final Match m=new Match();
-						m.flag = rec.getFlags();
-						m.readName = rec.getReadName();
-						m.firstBamFile = currentSamFileIndex==0;
-						if(rec.getReadUnmappedFlag())
+					try(SamReader samFileReader= srf.open(samFile)) {
+						final SAMSequenceDictionary dict=samFileReader.getFileHeader().getSequenceDictionary();
+						this.sequenceDictionaries[currentSamFileIndex]=dict;
+						if(dict.isEmpty())
 							{
-							m.tid=-1;
-							m.pos=-1;
+							LOG.error("Empty Dict  in "+samFile);
+							return -1;
+							}
+						
+						final String REGION= (currentSamFileIndex==0?CompareBamAndBuild.this.REGION1:CompareBamAndBuild.this.REGION2);
+						final SimpleInterval interval;
+						if(!StringUtils.isBlank(REGION))
+							{
+							final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
+							interval=intervalParser.apply(REGION).orElseThrow(IntervalParserFactory.exception(REGION));
 							}
 						else
 							{
-							m.tid=rec.getReferenceIndex();
-							m.pos=rec.getAlignmentStart();
+							interval = null;
 							}
-						database.add(m);
+						
+						try(final SAMRecordIterator iter=interval==null?
+									samFileReader.iterator():
+									samFileReader.queryOverlapping(interval.getContig(), interval.getStart(), interval.getEnd())
+								) {
+						
+							while(iter.hasNext() )
+								{
+								final SAMRecord rec=iter.next();
+								
+								if(rec.isSecondaryOrSupplementary()) continue;
+								
+								final Match m=new Match();
+								m.flag = rec.getFlags();
+								m.readName = rec.getReadName();
+								m.firstBamFile = currentSamFileIndex==0;
+								if(rec.getReadUnmappedFlag())
+									{
+									m.tid=-1;
+									m.pos=-1;
+									}
+								else
+									{
+									m.tid=rec.getReferenceIndex();
+									m.pos=rec.getAlignmentStart();
+									}
+								database.add(m);
+								}
+							}
 						}
-					iter.close();
-					samFileReader.close();
-					samFileReader=null;
 					LOG.info("Close "+samFile);
 					}
 				database.doneAdding();
 				LOG.info("Writing results....");
 				
-				out = super.openFileOrStdoutAsPrintWriter(this.outputFile);
-				
-				//compute the differences for each read
-				out.print("#READ-Name\tCOMPARE");
-				for(final File f:this.bamFiles)
-					{
-					out.print("\t"+f);
-					}
-				out.println();
-				
-				/* create an array of set<Match> */
-				final MatchComparator match_comparator=new MatchComparator();
-				final List<Set<Match>> matches=new ArrayList<Set<CompareBamAndBuild.Match>>(2);
-				while(matches.size() < 2)
-					{
-					matches.add(new TreeSet<CompareBamAndBuild.Match>(match_comparator));
-					}
-				
-				CloseableIterator<Match> iter=database.iterator();
-				String currReadName=null;
-				int curr_num_in_pair=-1;
-				for(;;)
-					{
-					final Match nextMatch ;
-					if(iter.hasNext())
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile) ){	
+					//compute the differences for each read
+					out.print("#READ-Name\tCOMPARE");
+					for(final Path f:this.bamFiles)
 						{
-						nextMatch = iter.next();
+						out.print("\t"+f);
 						}
-					else
+					out.println();
+					
+					/* create an array of set<Match> */
+					final MatchComparator match_comparator=new MatchComparator();
+					final List<Set<Match>> matches=new ArrayList<Set<CompareBamAndBuild.Match>>(2);
+					while(matches.size() < 2)
 						{
-						nextMatch = null;
+						matches.add(new TreeSet<CompareBamAndBuild.Match>(match_comparator));
 						}
-					if(nextMatch==null ||
-						(currReadName!=null && !currReadName.equals(nextMatch.readName)) ||
-						(curr_num_in_pair!=-1 && curr_num_in_pair!=nextMatch.indexInPair()))
+					
+					CloseableIterator<Match> iter=database.iterator();
+					String currReadName=null;
+					int curr_num_in_pair=-1;
+					for(;;)
 						{
-						if(currReadName!=null)
+						final Match nextMatch ;
+						if(iter.hasNext())
 							{
-							out.print(currReadName);
-							if(curr_num_in_pair>0)
-								{
-								out.print("/");
-								out.print(curr_num_in_pair);
-								}
-							out.print("\t");
-							
-							if(same(matches.get(0),matches.get(1)))
-								{
-								out.print("EQ");
-								}
-							else
-								{
-								out.print("NE");
-								}
-							
-		
-							for(int x=0;x<2;++x)
-								{
-								out.print("\t");
-								print(out,matches.get(x));
-								}
-							
-							out.println();
+							nextMatch = iter.next();
 							}
-						if(nextMatch==null) break;
-						for(final Set<Match> set:matches) set.clear();
+						else
+							{
+							nextMatch = null;
+							}
+						if(nextMatch==null ||
+							(currReadName!=null && !currReadName.equals(nextMatch.readName)) ||
+							(curr_num_in_pair!=-1 && curr_num_in_pair!=nextMatch.indexInPair()))
+							{
+							if(currReadName!=null)
+								{
+								out.print(currReadName);
+								if(curr_num_in_pair>0)
+									{
+									out.print("/");
+									out.print(curr_num_in_pair);
+									}
+								out.print("\t");
+								
+								if(same(matches.get(0),matches.get(1)))
+									{
+									out.print("EQ");
+									}
+								else
+									{
+									out.print("NE");
+									}
+								
+			
+								for(int x=0;x<2;++x)
+									{
+									out.print("\t");
+									print(out,matches.get(x));
+									}
+								
+								out.println();
+								}
+							if(nextMatch==null) break;
+							for(final Set<Match> set:matches) set.clear();
+							}
+						currReadName=nextMatch.readName;
+						curr_num_in_pair=nextMatch.indexInPair();
+						matches.get(nextMatch.firstBamFile?0:1).add(nextMatch);
 						}
-					currReadName=nextMatch.readName;
-					curr_num_in_pair=nextMatch.indexInPair();
-					matches.get(nextMatch.firstBamFile?0:1).add(nextMatch);
+					
+					iter.close();
+					out.flush();
 					}
-				
-				iter.close();
-				out.flush();
-				out.close();
 				database.cleanup();
-				return RETURN_OK;
+				return 0;
 				}
-			catch(final Exception err)
+			catch(final Throwable err)
 				{
 				LOG.error(err);
 				return -1;
 				}
 			finally
 				{
-				CloserUtil.close(out);
 				this.liftOver=null;
 				}
 		}
 	
-	public static void main(String[] args) throws Exception
+	public static void main(final String[] args) throws Exception
 		{
 		new CompareBamAndBuild().instanceMainWithExit(args);
 		}

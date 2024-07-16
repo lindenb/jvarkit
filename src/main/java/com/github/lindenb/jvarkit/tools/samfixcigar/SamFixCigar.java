@@ -77,7 +77,7 @@ processing with samfixcigar
 
 
 ```
-$ java -jar dist/samfixcigar.jar \
+$ java -jar dist/jvarkit.jar samfixcigar \
      -r samtools-0.1.19/examples/toy.fa \
      samtools-0.1.19/examples/toy.sam
 @HD     VN:1.4  SO:unsorted
@@ -114,7 +114,8 @@ END_DOC
 	keywords={"sam","bam","cigar"},
 	creationDate="20131126",
 	modificationDate="20210223",
-	biostars= {312430,340479}
+	biostars= {312430,340479},
+	jvarkit_amalgamion = true
 	)
 public class SamFixCigar extends OnePassBamLauncher
 	{

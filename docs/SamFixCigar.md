@@ -7,11 +7,17 @@ Fix Cigar String in SAM replacing 'M' by 'X' or '='
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar samfixcigar  [options] Files
+
 Usage: samfixcigar [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -h, --help
       print help and exit
@@ -21,7 +27,7 @@ Usage: samfixcigar [options] Files
       Output file. Optional . Default: stdout
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --regions
       Limit analysis to this interval. A source of intervals. The following 
       suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
@@ -54,23 +60,6 @@ Usage: samfixcigar [options] Files
  * [https://www.biostars.org/p/312430](https://www.biostars.org/p/312430)
  * [https://www.biostars.org/p/340479](https://www.biostars.org/p/340479)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew samfixcigar
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -139,7 +128,7 @@ processing with samfixcigar
 
 
 ```
-$ java -jar dist/samfixcigar.jar \
+$ java -jar dist/jvarkit.jar samfixcigar \
      -r samtools-0.1.19/examples/toy.fa \
      samtools-0.1.19/examples/toy.sam
 @HD     VN:1.4  SO:unsorted
@@ -164,5 +153,7 @@ x6      0       ref2    14      30      1X22=   *       0       0       TAATTAAG
 This tool was cited in
 
   * Extensive sequencing of seven human genomes to characterize benchmark reference materials Sci Data. 2016; 3: 160025..
-  * Robust mapping of polyadenylated and non-polyadenylated RNA 3’-ends at nucleotide resolution by 3́end sequencing 23 May 2019. Roy & al. Methods.  https://doi.org/10.1016/j.ymeth.2019.05.016
+  * Robust mapping of polyadenylated and non-polyadenylated RNA 3'-ends at nucleotide resolution by 3' end sequencing 23 May 2019. Roy & al. Methods.  https://doi.org/10.1016/j.ymeth.2019.05.016
+  * Erik McShane, Mary Couvillion, Robert Ietswaart, Gyan Prakash, Brendan M. Smalec, Iliana Soto, Autum R. Baxter-Koenigs, Karine Choquet, L. Stirling Churchman, A kinetic dichotomy between mitochondrial and nuclear gene expression processes, Molecular Cell, 2024, , ISSN 1097-2765, https://doi.org/10.1016/j.molcel.2024.02.028. (https://www.sciencedirect.com/science/article/pii/S1097276524001709)
+
 

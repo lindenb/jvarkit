@@ -7,7 +7,13 @@ Compare two  BAM files mapped on two different builds. Requires a liftover chain
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar cmpbamsandbuild  [options] Files
+
 Usage: cmpbamsandbuild [options] Files
   Options:
   * -c, --chain
@@ -24,32 +30,33 @@ Usage: cmpbamsandbuild [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
-    -r, --region
-      restrict to that region chr:start-end
+    --region1
+      restrict to that region chr:start-end for BAM1
+    --region2
+      restrict to that region chr:start-end for BAM2
     -T, --tmpDir
       mp directory
       Default: /tmp
     --version
       print version and exit
+    -R1
+      indexed fasta reference for BAM1
+    -R2
+      indexed fasta reference for BAM2
 
 ```
 
-## Compilation
 
-### Requirements / Dependencies
+## Keywords
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+ * bam
+ * sam
 
 
-### Download and Compile
 
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew cmpbamsandbuild
-```
+## Creation Date
 
-The java jar file will be installed in the `dist` directory.
+20140307
 
 ## Source code 
 
@@ -90,7 +97,7 @@ SAMTOOLS=samtools
 all: file.diff
 
 file.diff.gz : hg19ToHg38.over.chain hg19.bam hg38.bam
-	java -jar jvarkit-git/dist/cmpbamsandbuild.jar -d 20 \
+	java -jar jvarkit-git/dist/jvarkit.jar cmpbamsandbuild -d 20 \
 	    -c hg19ToHg38.over.chain hg19.bam hg38.bam | gzip --best > $@
 
 hg38.bam:file1.fastq.gz file2.fastq.gz
@@ -143,12 +150,3 @@ HWI-1KL149:18:C0RNBACXX:3:1101:11560:69825/2	EQ	chrMasked:581319335->chrMasked:5
 ```
 
 
-## See also
-
-* CmpBams
-
-## History
-
-* 2014: Creation
- 
- 
