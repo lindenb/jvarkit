@@ -69,6 +69,7 @@ description="Plot Mosdepth output",
 creationDate="20210621",
 modificationDate="20210622",
 keywords={"mosdepth"},
+jvarkit_amalgamion = true,
 generate_doc=false
 )
 public class PlotMosdepth extends Launcher {

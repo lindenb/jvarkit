@@ -27,18 +27,19 @@ package com.github.lindenb.jvarkit.tools.multiqc;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-
+import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.FileHeader;
@@ -50,9 +51,14 @@ import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonWriter;
 
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.RuntimeIOException;
 
 /**
 BEGIN_DOC
@@ -115,173 +121,354 @@ public class MultiqcPostProcessor extends Launcher {
 	}
 	
 	private abstract class Handler {
-		public abstract boolean isHandlerForFile(final String filename);
+		final Map<String,String> properties=new HashMap<>();
+		Handler(final Map<String,String> prop) {
+			this.properties.putAll(prop);
+			}
+		public boolean isHandlerForFile(String fname) {
+			final String[] s=  CharSplitter.COMMA.split(this.properties.getOrDefault("filename", ""));
+			return Arrays.stream(s).anyMatch(S->S.equals(fname));
+			}
+		protected String fixSampleName(final String sn) {
+			final String idxstats=".idxstat";
+			if(sn.endsWith(idxstats)) {
+				return fixSampleName(sn.substring(0,sn.length()-idxstats.length()));
+				}
+			return sn;
+			}
+		protected String[] getDataColumns() {
+			String s = this.properties.getOrDefault("data", "");
+			return CharSplitter.COMMA.split(s);
+			}
+		protected String getSectionName(String title) {
+			return this.properties.getOrDefault("section_name", "${title} per population").replace("${title}",title);
+			}
+		protected String getSectionDescription(String title) {
+			return this.properties.getOrDefault("section_description",getSectionName(title)).replace("${title}",title);
+			}
+		
+		protected void saveAs(final Path inputFile,List<SampleValue> sample_values,final String titleRaw) throws IOException {
+			if(sample_values.isEmpty()) return;
+
+			//remove unicode
+			final String title = titleRaw.replaceAll(String.valueOf(GE_UNICODE),">=");
+
+			
+			// make a copy of SamplePopulation
+			final SamplePopulation snpop =new SamplePopulation(MultiqcPostProcessor.this.sampleCollection);
+			snpop.retainSamples(sample_values.stream().
+					map(ROW-> ROW.sample).
+					collect(Collectors.toSet())
+					);
+			
+			/* is it worth plotting ?*/
+			boolean found_deviation=false;
+			final Map<String,List<SampleValue>> pop2data=new TreeMap<>();
+			for(final SamplePopulation.Population pop:snpop.getPopulations()) {
+				final List<SampleValue> values= sample_values.stream().
+					filter(SV->pop.containsKey(SV.sample)).
+					sorted((A,B)->Double.compare(A.value, B.value)).
+					collect(Collectors.toList());
+				/* is it worth plotting ?*/
+				if(values.size()>1 && values.get(0).value < values.get(values.size()-1).value) {
+					found_deviation=true;
+					}
+				pop2data.put(pop.getName(), values);
+				}
+			if(pop2data.isEmpty() || !found_deviation) {
+				LOG.info("no data to plot for "+inputFile+"/"+title);
+				return;
+				}
+			
+
+			final Path outfile = outputDirectory.resolve(IOUtils.getFilenameWithoutCommonSuffixes(inputFile)+"_"+ title.replaceAll("[^A-Za-z0-9_]+", "_").toLowerCase()+"_mqc.json");
+			LOG.info("writing "+outfile);
+			try(PrintWriter pw = IOUtils.openPathForPrintWriter(outfile)) {
+				final String id = StringUtils.md5( inputFile.getFileName().toString()+title);
+				try(JsonWriter w = new JsonWriter(pw)) {
+					w.beginObject();
+					
+					w.name("parent_id");
+					w.value("p"+StringUtils.md5(MultiqcPostProcessor.class.getName()));
+					w.name("parent_name");
+					w.value("Per Population");
+					w.name("parent_description");
+					w.value("MULTIQC data grouped by population using jvarkit "+MultiqcPostProcessor.class.getSimpleName());
+					
+					w.name("id");
+					w.value("section_id"+id);
+					w.name("section_name");
+					w.value(getSectionName(title));
+					w.name("description");
+					w.value(getSectionDescription(title)+" from "+inputFile.getFileName());
+					
+					
+					w.name("plot_type");
+					w.value(use_beeswarm?"beeswarm":"box");
+					w.name("pconfig");
+					w.beginObject();
+					w.name("id");
+					w.value("plot__id"+id);
+					w.name("title");
+					w.value(title+ " per population");
+					w.name("xlab");
+					w.value(title);
+					w.name("ylab");
+					w.value("collection");
+					if(use_beeswarm) {
+						w.name("xmin");
+						w.value(pop2data.values().stream().flatMap(it->it.stream()).mapToDouble(X->X.value).min().orElse(0.0));
+						w.name("xmax");
+						w.value(pop2data.values().stream().flatMap(it->it.stream()).mapToDouble(X->X.value).max().orElse(1.0));
+					}
+					
+					w.endObject();
+					
+					w.name("data");
+					w.beginObject();
+					if(use_beeswarm) {
+						for(final String sn:pop2data.values().stream().flatMap(L->L.stream()).map(K->K.sample).collect(Collectors.toSet())) {
+							w.name(sn);
+							w.beginObject();
+							for(final String popName:pop2data.keySet()) {
+								final SampleValue snv = pop2data.get(popName).stream().filter(it->it.sample.equals(sn)).findFirst().orElse(null);
+								if(snv==null) continue;
+								final SamplePopulation.Population pop = snpop.getPopulationByName(popName);
+								w.name(pop.getName()+" (N="+pop.size()+")");
+								w.value(snv.value);
+								}
+							w.endObject();
+							}
+						}
+					else
+						{
+						for(final String popName:pop2data.keySet()) {
+							final SamplePopulation.Population pop = snpop.getPopulationByName(popName);
+							w.name(pop.getName()+" (N="+pop.size()+")");
+							w.beginArray();
+							for(SampleValue sv: pop2data.get(popName)) {
+								w.value(sv.value);
+								}
+							w.endArray();
+							}
+						}
+					w.endObject();
+					
+					w.endObject();
+					w.flush();
+					}
+				pw.flush();
+				}
+			}
+		
 		public abstract void apply(Path f);
 		};
 	
-		private class BoxPlotHandler extends Handler {
-			final Map<String,String> properties=new HashMap<>();
-			BoxPlotHandler(Map<String,String> prop) {
-				this.properties.putAll(prop);
-				}
-			@Override
-			public boolean isHandlerForFile(String fname) {
-				String[] s=  CharSplitter.COMMA.split(this.properties.getOrDefault("filename", ""));
-				return Arrays.stream(s).anyMatch(S->S.equals(fname));
-				}
-			protected String getSampleColumn() {
-				return this.properties.getOrDefault("sample", "Sample");
-				}
-			public String[] getDataColumns() {
-				String s = this.properties.getOrDefault("data", "");
-				return CharSplitter.COMMA.split(s);
-				}
-			protected String fixSampleName(final String sn) {
-				return sn;
-				}
-			/** for some tools multiqc normalize by x. Eg: samtools stats results is 'x' in MB (0.0001 ) */
-			protected double getFactor() {
-				return Double.parseDouble(this.properties.getOrDefault("factor", "1.0"));
-				}
-			private boolean isDouble(String s) {
-				if(StringUtils.isBlank(s)) return false;
-				try {
-					double v=Double.parseDouble(s);
-					if(Double.isNaN(v)) return false;
-					if(Double.isInfinite(v)) return false;
-					return true;
-				} catch(NumberFormatException f) {
-					return false;
-				}
+	private abstract class AbstractHandler extends Handler {
+		AbstractHandler(final Map<String,String> prop) {
+			super(prop);
 			}
-			@Override
-			public void apply(final Path f) {
-				try {
-					final FileContent fc = readFileContent(f);
-					fc.fileHeader.assertColumnExists(getSampleColumn());
-					final String[] dataColumns = getDataColumns();
-					final double factor = getFactor();
-					for(final String dataCol: dataColumns) {
-						if(StringUtils.isBlank(dataCol)) continue;
-						if(!fc.fileHeader.containsKey(dataCol)) {
-							LOG.warn("no column "+dataCol+" in "+f+" "+fc.fileHeader);
-							continue;
-							}
-						//remove unicode
-						final String datColPlain = dataCol.replaceAll(String.valueOf(GE_UNICODE),">=");
-						// make a copy of SamplePopulation
-						final SamplePopulation snpop =new SamplePopulation(MultiqcPostProcessor.this.sampleCollection);
-						snpop.retainSamples(fc.rows.stream().
-								map(ROW-> fixSampleName(ROW.get(getSampleColumn()))).
-								collect(Collectors.toSet())
-								);
-						
-						fc.fileHeader.assertColumnExists(dataCol);
-						/* is it worth plotting ?*/
-						boolean found_deviation=false;
-						final Map<String,List<SampleValue>> pop2data=new TreeMap<>();
-						for(final SamplePopulation.Population pop:snpop.getPopulations()) {
-							final List<SampleValue> values= fc.rows.stream().
-								filter(ROW->isDouble(ROW.get(dataCol))).
-								map(ROW->new SampleValue(fixSampleName(ROW.get(getSampleColumn())), Double.parseDouble(ROW.get(dataCol)))).
-								filter(SV->pop.containsKey(SV.sample)).
-								sorted((A,B)->Double.compare(A.value, B.value)).
-								collect(Collectors.toList());
-							/* is it worth plotting ?*/
-							if(values.size()>1 && values.get(0).value < values.get(values.size()-1).value) {
-								found_deviation=true;
-								}
-							pop2data.put(pop.getName(), values);
-							}
-						if(pop2data.isEmpty() || !found_deviation) {
-							LOG.info("no data to plot");
-							return;
+		
+		protected String getSampleColumn() {
+			return this.properties.getOrDefault("sample", "Sample");
+			}
+		
+	
+		
+		/** for some tools multiqc normalize by x. Eg: samtools stats results is 'x' in MB (0.0001 ) */
+		protected double getFactor() {
+			return Double.parseDouble(this.properties.getOrDefault("factor", "1.0"));
+			}
+		}
+	
+	private class JsonHandler extends Handler {
+		JsonHandler(final Map<String,String> prop) {
+			super(prop);
+			}
+		private void scan(JsonElement root,String dataCol,final Map<String,SampleValue> sample_values) {
+			if(root.isJsonArray()) {
+				JsonArray L= root.getAsJsonArray();
+				for(int i=0;i< L.size();++i) {
+					scan(L.get(i),dataCol,sample_values);
+					}
+				}
+			else if(root.isJsonObject()) {
+				final JsonObject hash = root.getAsJsonObject();
+				boolean found=false;
+				for(Map.Entry<String, JsonElement> kv:hash.entrySet()) {
+					final JsonElement jsE = hash.get(kv.getKey());
+					if(!jsE.isJsonObject()) continue;
+					final JsonObject hash2 = jsE.getAsJsonObject();
+					if(!hash2.has(dataCol)) continue;
+					final JsonElement jsV = hash2.get(dataCol);
+					if(!jsV.isJsonPrimitive()) continue;
+					if(!jsV.getAsJsonPrimitive().isNumber()) continue;
+					final double v;
+					try {
+						v= jsV.getAsJsonPrimitive().getAsDouble();
 						}
-						final Path outfile = outputDirectory.resolve(IOUtils.getFilenameWithoutCommonSuffixes(f)+"_"+datColPlain.replaceAll("[^A-Za-z0-9_]+", "_").toLowerCase()+"_mqc.json");
-						LOG.info("writing "+outfile);
-						try(PrintWriter pw = IOUtils.openPathForPrintWriter(outfile)) {
-							final String id = StringUtils.md5( f.getFileName().toString()+dataCol);
-							try(JsonWriter w = new JsonWriter(pw)) {
-								w.beginObject();
-								
-								w.name("parent_id");
-								w.value("p"+StringUtils.md5(MultiqcPostProcessor.class.getName()));
-								w.name("parent_name");
-								w.value("Per Population");
-								w.name("parent_description");
-								w.value("MULTIQC data grouped by population using jvarkit "+MultiqcPostProcessor.class.getSimpleName());
-								
-								w.name("id");
-								w.value("section_id"+id);
-								w.name("section_name");
-								w.value(datColPlain+ " per population");
-								w.name("description");
-								w.value(datColPlain+ " per population from "+f.getFileName());
-								
-								
-								w.name("plot_type");
-								w.value(use_beeswarm?"beeswarm":"box");
-								w.name("pconfig");
-								w.beginObject();
-								w.name("id");
-								w.value("plot__id"+id);
-								w.name("title");
-								w.value(datColPlain+ " per population");
-								w.name("xlab");
-								w.value(datColPlain);
-								w.name("ylab");
-								w.value("collection");
-								if(use_beeswarm) {
-									w.name("xmin");
-									w.value(pop2data.values().stream().flatMap(it->it.stream()).mapToDouble(X->X.value).min().orElse(0.0));
-									w.name("xmax");
-									w.value(pop2data.values().stream().flatMap(it->it.stream()).mapToDouble(X->X.value).max().orElse(1.0));
-								}
-								
-								w.endObject();
-								
-								w.name("data");
-								w.beginObject();
-								if(use_beeswarm) {
-									for(final String sn:pop2data.values().stream().flatMap(L->L.stream()).map(K->K.sample).collect(Collectors.toSet())) {
-										w.name(sn);
-										w.beginObject();
-										for(final String popName:pop2data.keySet()) {
-											final SampleValue snv = pop2data.get(popName).stream().filter(it->it.sample.equals(sn)).findFirst().orElse(null);
-											if(snv==null) continue;
-											final SamplePopulation.Population pop = snpop.getPopulationByName(popName);
-											w.name(pop.getName()+" (N="+pop.size()+")");
-											w.value(snv.value);
-											}
-										w.endObject();
-										}
-									}
-								else
-									{
-									for(final String popName:pop2data.keySet()) {
-										final SamplePopulation.Population pop = snpop.getPopulationByName(popName);
-										w.name(pop.getName()+" (N="+pop.size()+")");
-										w.beginArray();
-										for(SampleValue sv: pop2data.get(popName)) {
-											w.value(sv.value);
-											}
-										w.endArray();
-										}
-									}
-								w.endObject();
-								
-								w.endObject();
-								w.flush();
-								}
-							pw.flush();
-							}
-						} //end loop over data columns
+					catch(Throwable err) {
+						continue;
+						}
+					final String sn = fixSampleName(kv.getKey());
+					if(!MultiqcPostProcessor.this.sampleCollection.hasSample(sn)) continue;
+					sample_values.put(sn,new SampleValue(sn, v));
+					found=true;
 					}
-				catch(final IOException err) {
-					LOG.error(err);
+				if(!found) {
+					for(Map.Entry<String, JsonElement> kv:hash.entrySet()) {
+						scan(kv.getValue(),dataCol,sample_values);
+						}
 					}
+				
 				}
 			}
+		
+		private void scan(Path f,JsonElement root,String dataCol) throws IOException {
+			final Map<String,SampleValue> sample_values=new HashMap<>();
+			scan(root,dataCol,sample_values);
+			if(sample_values.isEmpty()) {
+				LOG.warn("no data "+dataCol+" in "+f);
+				return;
+				}
+			saveAs(f,new ArrayList<>(sample_values.values()),dataCol);
+			}
+		
+		@Override
+		public void apply(Path f) {
+			try {
+				final JsonElement root;
+				JsonParser parser=new JsonParser();
+				try(Reader r=Files.newBufferedReader(f)) {
+					root = parser.parse(r);
+					}
+				final String[] dataColumns = getDataColumns();
+				for(final String dataCol: dataColumns) {
+					scan(f,root,dataCol);
+					}
+				}
+			catch(Throwable err) {
+				LOG.error(err);
+				}
+			}
+		}
+	
+	private class DistributionHandler extends AbstractHandler {
+		DistributionHandler(final Map<String,String> prop) {
+			super(prop);
+			}
+		
+		private OptionalDouble parseKeyValue(String s,final String key) {
+			if(StringUtils.isBlank(s)) return OptionalDouble.empty();
+			
+			try {
+				if(!(s.startsWith("(") && s.endsWith(")") && s.contains(","))) return OptionalDouble.empty();
+				s=s.substring(1, s.length()-1);
+				final String[] tokens = CharSplitter.COMMA.split(s);
+				if(tokens.length!=2) return OptionalDouble.empty();
+				tokens[0]= tokens[0].trim();
+				if(StringUtils.isBlank(tokens[0])) return OptionalDouble.empty();
+				if(!tokens[0].equals(key)) return OptionalDouble.empty();
+				tokens[1]= tokens[1].trim();
+				if(StringUtils.isBlank(tokens[1])) return OptionalDouble.empty();
+				final double v= Double.parseDouble(tokens[1]);
+				if(Double.isNaN(v)) return OptionalDouble.empty();
+				if(Double.isInfinite(v)) return OptionalDouble.empty();
+				return OptionalDouble.of(v);
+			} catch(final NumberFormatException f) {
+				return OptionalDouble.empty();
+			}
+		}
+		@Override
+		public void apply(final Path f) {
+			try {
+				final FileContent fc = readFileContent(f);
+				final int sampleColumn =0;
+				fc.fileHeader.assertColumn(getSampleColumn(),sampleColumn);
+				final String[] dataColumns = getDataColumns();
+				final double factor = getFactor();
+				for(final String dataCol: dataColumns) {
+					final List<SampleValue> all_values= fc.rows.stream().
+							map(ROW->{
+								final List<String> L=ROW.asList();
+								final String sn= fixSampleName(L.get(sampleColumn));
+								final OptionalDouble v = L.subList(1,L.size()).
+										stream().
+										map(it->parseKeyValue(it,dataCol)).
+										filter(it->it.isPresent()).
+										mapToDouble(it->it.getAsDouble()).
+										findFirst();
+								if(!v.isPresent()) return null;
+										
+								return new SampleValue(sn,v.getAsDouble()*factor);
+								}
+							).
+							filter(SV->SV!=null).
+							filter(SV->MultiqcPostProcessor.this.sampleCollection.hasSample(SV.sample)).
+							sorted((A,B)->Double.compare(A.value, B.value)).
+							collect(Collectors.toList());
+					saveAs(f,all_values,dataCol);
+					} //end loop over data columns
+				}
+			catch(final IOException err) {
+				LOG.error(err);
+				}
+			}
+		
+	}
+	
+	private class BoxPlotHandler extends AbstractHandler {
+		BoxPlotHandler(Map<String,String> prop) {
+			super(prop);
+			}
+		
+		
+		
+		
+		
+		private OptionalDouble parseDouble(String s) {
+			if(StringUtils.isBlank(s)) return OptionalDouble.empty();
+			
+			try {
+				final double v= Double.parseDouble(s);
+				if(Double.isNaN(v)) return OptionalDouble.empty();
+				if(Double.isInfinite(v)) return OptionalDouble.empty();
+				return OptionalDouble.of(v);
+			} catch(final NumberFormatException f) {
+				return OptionalDouble.empty();
+			}
+		}
+		@Override
+		public void apply(final Path f) {
+			try {
+				final FileContent fc = readFileContent(f);
+				fc.fileHeader.assertColumnExists(getSampleColumn());
+				final String[] dataColumns = getDataColumns();
+				final double factor = getFactor();
+				for(final String dataCol: dataColumns) {
+					if(StringUtils.isBlank(dataCol)) continue;
+					if(!fc.fileHeader.containsKey(dataCol)) {
+						LOG.warn("no column "+dataCol+" in "+f+" "+fc.fileHeader);
+						continue;
+						}
+					fc.fileHeader.assertColumnExists(dataCol);
+
+					final List<SampleValue> values= fc.rows.stream().
+						filter(ROW->parseDouble(ROW.get(dataCol)).isPresent()).
+						map(ROW->new SampleValue(fixSampleName(ROW.get(getSampleColumn())), factor * parseDouble(ROW.get(dataCol)).getAsDouble())).
+						filter(SV->MultiqcPostProcessor.this.sampleCollection.hasSample(SV.sample)).
+						sorted((A,B)->Double.compare(A.value, B.value)).
+						collect(Collectors.toList());
+					
+					
+					saveAs(f,values,dataCol);
+					} //end loop over data columns
+				}
+			catch(final IOException err) {
+				LOG.error(err);
+				}
+			}
+		}
 		
 	
 	private FileContent readFileContent(final Path f) throws IOException {
@@ -343,6 +530,26 @@ public class MultiqcPostProcessor extends Launcher {
 					"filename","dragen-cov-metrics-own-section-wgs-table.txt"
 					)));
 			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "Duplicates","Singletons","Mate mapped to diff chr"),
+					"filename","samtools-flagstat-dp_Percentage_of_total.txt"
+					)));
+			
+			handlers.add(new JsonHandler(Maps.of(
+					"data",String.join(",", 
+							"10_x_pc","30_x_pc","50_x_pc",
+							"mean_coverage","median_coverage",
+							"reads_mapped_percent","reads_duplicated_percent","insert_size_average","error_rate","average_length","average_quality"),
+					"filename","multiqc_data.json"
+					)));
+			/*
+			handlers.add(new DistributionHandler(Maps.of(
+					"data",String.join(",","10,20,30"),
+					"section_name","Cumulative Coverage. % of bases mapped more than ${title}",
+					"filename","mosdepth-cumcoverage-dist-id.txt"
+					)));
+			*/
+			
 			if(customMapping!=null) {
 				try(BufferedReader br = IOUtils.openPathForBufferedReading(customMapping)) {
 					final List<Map.Entry<String, String>> rows= new ArrayList<>();
@@ -367,22 +574,30 @@ public class MultiqcPostProcessor extends Launcher {
 			}
 			
 			
-			final String input = super.oneAndOnlyOneFile(args);
-			final Path inputDirectory = Paths.get(input);
-			IOUtils.assertDirectoryIsReadable(inputDirectory);
+			final List<Path> filesForInput =  IOUtils.unrollPaths(args).
+					stream().flatMap(F->{
+				try {
+					if(Files.isDirectory(F)) {
+						IOUtils.assertDirectoryIsReadable(F);
+						return Files.list(F);
+						}
+					return Stream.of(F);
+					}
+				catch(IOException err) {
+					throw new RuntimeIOException(err);
+					}
+				}).collect(Collectors.toList());
 			
 			
-
-			final List<Path> fileInDir = Files.list(inputDirectory).
-					collect(Collectors.toList());
-			LOG.info(fileInDir);
+			
+			LOG.info(filesForInput);
 			IOUtil.assertDirectoryIsWritable(outputDirectory);
 			
 			if(sample2collectionPath!=null) {
 				this.sampleCollection.load(this.sample2collectionPath);
 				}
 			else {
-				final Path dragenPath = fileInDir.stream().filter(F->F.endsWith("dragen_ploidy.txt") || F.endsWith("dragen_ploidy_table.txt")).findFirst().orElse(null);
+				final Path dragenPath = filesForInput.stream().filter(F->F.endsWith("dragen_ploidy.txt") || F.endsWith("dragen_ploidy_table.txt")).findFirst().orElse(null);
 				if(dragenPath!=null) {
 					final FileContent fc=readFileContent(dragenPath);
 					final String dragenPloidy =fc.fileHeader.containsKey("Ploidy estimation")?"Ploidy estimation":"Sex";
@@ -399,7 +614,7 @@ public class MultiqcPostProcessor extends Launcher {
 					}
 				}
 			
-			for(Path f : fileInDir ) {
+			for(Path f : filesForInput ) {
 				LOG.info("test "+f);
 				final Handler handler = handlers.stream().
 					filter(H->H.isHandlerForFile(f.getFileName().toString())).

@@ -150,6 +150,7 @@ nav:
         - "optimizefisher" : OptimizeFisher.md
         - "pcrclipreads" : PcrClipReads.md
         - "plotbcftoolsstats" : PlotBcftoolsStats.md
+        - "plotmosdepth" : PlotMosdepth.md
         - "plotsashimi" : PlotSashimi.md
         - "prettysam" : PrettySam.md
         - "pubmed404" : Pubmed404.md

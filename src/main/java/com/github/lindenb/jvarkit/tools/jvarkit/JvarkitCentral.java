@@ -182,6 +182,7 @@ import com.github.lindenb.jvarkit.tools.misc.VcfHead;
 import com.github.lindenb.jvarkit.tools.misc.VcfSetSequenceDictionary;
 import com.github.lindenb.jvarkit.tools.misc.VcfTail;
 import com.github.lindenb.jvarkit.tools.misc.XsltStream;
+import com.github.lindenb.jvarkit.tools.mosdepth.PlotMosdepth;
 import com.github.lindenb.jvarkit.tools.msa2vcf.MsaToVcf;
 import com.github.lindenb.jvarkit.tools.multiqc.MultiqcPostProcessor;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
@@ -719,6 +720,7 @@ public class JvarkitCentral {
 		command(OptimizeFisher.class);
 		command(OboUtils.class);
 		command(PlotBcftoolsStats.class);
+		command(PlotMosdepth.class);
 		command(PubmedDump.class);
 		command(Pubmed404.class);
 		command(PubmedCodingLanguages.class);
