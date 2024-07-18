@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -136,9 +137,9 @@ public class MultiqcPostProcessor extends Launcher {
 				}
 			return sn;
 			}
-		protected String[] getDataColumns() {
-			String s = this.properties.getOrDefault("data", "");
-			return CharSplitter.COMMA.split(s);
+		protected Set<String> getDataColumns() {
+			final String s = this.properties.getOrDefault("data", "");
+			return Arrays.asList(CharSplitter.COMMA.split(s)).stream().filter(S->!StringUtils.isBlank(S)).collect(Collectors.toSet());
 			}
 		protected String getSectionName(String title) {
 			return this.properties.getOrDefault("section_name", "${title} per population").replace("${title}",title);
@@ -312,6 +313,10 @@ public class MultiqcPostProcessor extends Launcher {
 						}
 					final String sn = fixSampleName(kv.getKey());
 					if(!MultiqcPostProcessor.this.sampleCollection.hasSample(sn)) continue;
+					if(sample_values.containsKey(sn)) {
+						LOG.warn("duplicate key for sample "+sn+" "+dataCol);
+						continue;
+						}
 					sample_values.put(sn,new SampleValue(sn, v));
 					found=true;
 					}
@@ -342,7 +347,7 @@ public class MultiqcPostProcessor extends Launcher {
 				try(Reader r=Files.newBufferedReader(f)) {
 					root = parser.parse(r);
 					}
-				final String[] dataColumns = getDataColumns();
+				final Set<String> dataColumns = getDataColumns();
 				for(final String dataCol: dataColumns) {
 					scan(f,root,dataCol);
 					}
@@ -353,6 +358,7 @@ public class MultiqcPostProcessor extends Launcher {
 			}
 		}
 	
+	@SuppressWarnings("unused")
 	private class DistributionHandler extends AbstractHandler {
 		DistributionHandler(final Map<String,String> prop) {
 			super(prop);
@@ -385,7 +391,7 @@ public class MultiqcPostProcessor extends Launcher {
 				final FileContent fc = readFileContent(f);
 				final int sampleColumn =0;
 				fc.fileHeader.assertColumn(getSampleColumn(),sampleColumn);
-				final String[] dataColumns = getDataColumns();
+				final Set<String> dataColumns = getDataColumns();
 				final double factor = getFactor();
 				for(final String dataCol: dataColumns) {
 					final List<SampleValue> all_values= fc.rows.stream().
@@ -443,7 +449,7 @@ public class MultiqcPostProcessor extends Launcher {
 			try {
 				final FileContent fc = readFileContent(f);
 				fc.fileHeader.assertColumnExists(getSampleColumn());
-				final String[] dataColumns = getDataColumns();
+				final Set<String> dataColumns = getDataColumns();
 				final double factor = getFactor();
 				for(final String dataCol: dataColumns) {
 					if(StringUtils.isBlank(dataCol)) continue;
@@ -536,8 +542,36 @@ public class MultiqcPostProcessor extends Launcher {
 					)));
 			
 			handlers.add(new JsonHandler(Maps.of(
-					"data",String.join(",", 
+					"data",String.join(",",
+							"Unmapped reads pct",
+							"Median autosomal coverage over genome",
+			                "Average chr X coverage over genome",
+			                "Average chr Y coverage over genome",
+			                "Singleton reads (itself mapped; mate unmapped) pct",
+							"Biallelic pct",
+							"Multiallelic pct",
+			                "Deletions (Het) pct",
+			                "Deletions (Hom) pct",
+			                "Deletions pct",
+			                "Hard-clipped bases pct",
+			                "In dbSNP pct",
+			                "Indels pct",
+			                "Soft-clipped bases pct",
+			                "Soft-clipped bases R1 pct",
+			                "Soft-clipped bases R2 pct",
+			                "Hard-clipped bases R1 pct",
+			                "Hard-clipped bases R2 pct",
+							"Aligned bases in genome pct",
+			                "PCT of genome with coverage [  50x: inf)",
+			                "PCT of genome with coverage [  20x: inf)",
+			                "PCT of genome with coverage [  15x: inf)",
+			                "PCT of genome with coverage [  10x: inf)",
 							"10_x_pc","30_x_pc","50_x_pc",
+			                "Number of duplicate marked reads pct",
+			                "Mismatched bases R1 pct",
+			                "Mismatched bases R2 pct",
+			                "Paired reads mapped to different chromosomes pct",
+			                "Properly paired reads pct",
 							"mean_coverage","median_coverage",
 							"reads_mapped_percent","reads_duplicated_percent","insert_size_average","error_rate","average_length","average_quality"),
 					"filename","multiqc_data.json"
