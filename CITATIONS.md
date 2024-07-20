@@ -15,6 +15,7 @@
  * Baudic M, Murata H, Bosada FM, Melo US, Aizawa T, Lindenbaum P, van der Maarel LE, Guedon A, Baron E, Fremy E, Foucal A, Ishikawa T, Ushinohama H, Jurgens SJ, Choi SH, Kyndt F, Le Scouarnec S, Wakker V, Thollet A, Rajalu A, Takaki T, Ohno S, Shimizu W, Horie M, Kimura T, Ellinor PT, Petit F, Dulac Y, Bru P, Boland A, Deleuze JF, Redon R, Le Marec H, Le Tourneau T, Gourraud JB, Yoshida Y, Makita N, Vieyres C, Makiyama T, Mundlos S, Christoffels VM, Probst V, Schott JJ, Barc J. TAD boundary deletion causes PITX2-related cardiac electrical and structural defects. Nat Commun. 2024 Apr 20;15(1):3380. doi: 10.1038/s41467-024-47739-x. PMID: 38643172; PMCID: PMC11032321. **lowresbamtoraster**
  * Pauly, R., Johnson, L., Feltus, F.A. et al. Enrichment of a subset of Neanderthal polymorphisms in autistic probands and siblings. Mol Psychiatry (2024). https://doi.org/10.1038/s41380-024-02593-7
  * Marshall VA, Cornejo Castro EM, Goodman CA, Labo N, Liu I, Fisher NC, et al. (2024) Sequencing of Kaposi’s Sarcoma Herpesvirus (KSHV) genomes from persons of diverse ethnicities and provenances with KSHV-associated diseases demonstrate multiple infections, novel polymorphisms, and low intra-host variance. PLoS Pathog 20(7): e1012338. https://doi.org/10.1371/journal.ppat.1012338 **msa2vcf**
+ * Sigeman, H., Downing, P.A., Zhang, H. et al. The rate of W chromosome degeneration across multiple avian neo-sex chromosomes. Sci Rep 14, 16548 (2024). https://doi.org/10.1038/s41598-024-66470-7 **bamstats04**
 
 ## 2023
 
