@@ -29,8 +29,8 @@ History:
 package com.github.lindenb.jvarkit.tools.pcr;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -41,8 +41,10 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordIterator;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.SamReaderFactory;
+import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 
@@ -54,7 +56,6 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 /**
 BEGIN_DOC
@@ -178,7 +179,10 @@ END_DOC
 	name="pcrslicereads",
 	description="Mark PCR reads to their PCR amplicon",
 	keywords={"pcr","sam","bam","cigar"},
-	biostars=149687
+	biostars=149687,
+	creationDate = "20150707",
+	modificationDate = "20240722",
+	jvarkit_amalgamion = true
 	)
 public class PcrSliceReads extends Launcher
 	{
@@ -192,11 +196,12 @@ public class PcrSliceReads extends Launcher
 	private AmbiguityStrategy ambiguityStrategy= AmbiguityStrategy.closer; 
 	@Parameter(names="--random",description=" random seed")
 	private Random random=RandomConverter.now();//0L for reproductive calculations
-	
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path referencePath =null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 	@Parameter(names={"-B","--bed"},description="bed file containing non-overlapping PCR fragments. Column name is required.")
-	private File bedFile=null;
+	private Path bedFile=null;
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();
 	
@@ -211,9 +216,9 @@ public class PcrSliceReads extends Launcher
 	@SuppressWarnings("resource")
 	private int run(SamReader reader)
 		{
-		ReadClipper readClipper = new ReadClipper();
-		SAMFileHeader header1= reader.getFileHeader();
-		SAMFileHeader header2 = header1.clone();
+		final ReadClipper readClipper = new ReadClipper();
+		final SAMFileHeader header1= reader.getFileHeader();
+		final SAMFileHeader header2 = header1.clone();
 		header2.addComment(getProgramName()+" "+getVersion()+": Processed with "+getProgramCommandLine());
 		header2.setSortOrder(SortOrder.unsorted);
 		
@@ -223,176 +228,170 @@ public class PcrSliceReads extends Launcher
 			for(Interval i:this.bedIntervals.keySet())
 				{
 				//create new read group for this interval
-				SAMReadGroupRecord rg=new SAMReadGroupRecord(srg.getId()+"_"+this.bedIntervals.get(i).getName(), srg);
+				final SAMReadGroupRecord rg=new SAMReadGroupRecord(srg.getId()+"_"+this.bedIntervals.get(i).getName(), srg);
 				header2.addReadGroup(rg);
 				}
 			}
 		
-		SAMFileWriter sw=null;
-		SAMRecordIterator iter = null;
 		try
 			{
-			sw=writingBamArgs.openSAMFileWriter(outputFile, header2, false);
-			SAMSequenceDictionaryProgress progress =new SAMSequenceDictionaryProgress(header1);
-			iter =  reader.iterator();
-			while(iter.hasNext())
-				{
-				SAMRecord rec= progress.watch(iter.next());
-				if(rec.getReadUnmappedFlag())
-					{
-					sw.addAlignment(rec);
-					continue;
-					}
-				
-				if(!rec.getReadPairedFlag())
-					{
-					//@doc if the read is not a paired-end read ,  then the quality of the read is set to zero
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				
-				if(rec.getMateUnmappedFlag())
-					{
-					//@doc if the MATE is not mapped ,  then the quality of the current read is set to zero
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				if(!rec.getProperPairFlag())
-					{
-					//@doc if the properly-paired flag is not set,  then the quality of the current read is set to zero
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				
-				if(rec.getMateReferenceIndex()!=rec.getReferenceIndex())
-					{
-					//@doc if the read and the mate are not mapped on the same chromosome,  then the quality of the current read is set to zero
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				
-				if(rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag())
-					{
-					//@doc if the read and the mate are mapped on the same strand,  then the quality of the current read is set to zero
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				int chromStart;
-				int chromEnd;
-				if(rec.getAlignmentStart() < rec.getMateAlignmentStart())
-					{
-					if(rec.getReadNegativeStrandFlag())
+			try(SAMFileWriter sw=writingBamArgs.openSamWriter(outputFile, header2, false)) {
+				try(final SAMRecordIterator iter =  reader.iterator()) {
+					while(iter.hasNext())
 						{
-						//@doc if the read(POS) < mate(POS) and read is mapped on the negative strand, then the quality of the current read is set to zero
-						rec.setMappingQuality(0);
-						sw.addAlignment(rec);
-						continue;
-						}
-					else
-						{
-						chromStart = rec.getAlignmentStart();
-						chromEnd = rec.getMateAlignmentStart();
-						}
-					}
-				else 
-					{
-					if(!rec.getReadNegativeStrandFlag())
-						{
-						//@doc if the read(POS) > mate(POS) and read is mapped on the positive strand, then the quality of the current read is set to zero
-						rec.setMappingQuality(0);
-						sw.addAlignment(rec);
-						continue;
-						}
-					else
-						{
-						chromStart = rec.getMateAlignmentStart();
-						chromEnd = rec.getAlignmentStart();//don't use getAlignmentEnd, to be consistent with mate data
-						}
-					}
-				
-				
-				
-				
-				List<Interval> fragments = findIntervals(rec.getContig(),chromStart,chromEnd);
-				if(fragments.isEmpty())
-					{
-					//@doc if no BED fragment is found overlapping the read, then the quality of the read is set to zero
-					rec.setMappingQuality(0);
-					sw.addAlignment(rec);
-					continue;
-					}
-				Interval best=null;
-				if(fragments.size()==1)
-					{
-					best = fragments.get(0);
-					}
-				else switch(this.ambiguityStrategy)
-					{
-					case random:
-						{
-						best = fragments.get(this.random.nextInt(fragments.size()));
-						break;
-						}
-					case zero:
-						{
-						rec.setMappingQuality(0);
-						sw.addAlignment(rec);
-						continue;
-						}
-					case closer:
-						{
-						int best_distance=Integer.MAX_VALUE;
-						for(Interval frag : fragments)
+						SAMRecord rec= iter.next();
+						if(rec.getReadUnmappedFlag())
 							{
-							int distance= Math.abs(chromStart-frag.getStart()) + Math.abs(frag.getEnd() - chromEnd);
-							if(best==null || distance < best_distance)
+							sw.addAlignment(rec);
+							continue;
+							}
+						
+						if(!rec.getReadPairedFlag())
+							{
+							//@doc if the read is not a paired-end read ,  then the quality of the read is set to zero
+							rec.setMappingQuality(0);
+							sw.addAlignment(rec);
+							continue;
+							}
+						
+						if(rec.getMateUnmappedFlag())
+							{
+							//@doc if the MATE is not mapped ,  then the quality of the current read is set to zero
+							rec.setMappingQuality(0);
+							sw.addAlignment(rec);
+							continue;
+							}
+						if(!rec.getProperPairFlag())
+							{
+							//@doc if the properly-paired flag is not set,  then the quality of the current read is set to zero
+							rec.setMappingQuality(0);
+							sw.addAlignment(rec);
+							continue;
+							}
+						
+						if(rec.getMateReferenceIndex()!=rec.getReferenceIndex())
+							{
+							//@doc if the read and the mate are not mapped on the same chromosome,  then the quality of the current read is set to zero
+							rec.setMappingQuality(0);
+							sw.addAlignment(rec);
+							continue;
+							}
+						
+						if(rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag())
+							{
+							//@doc if the read and the mate are mapped on the same strand,  then the quality of the current read is set to zero
+							rec.setMappingQuality(0);
+							sw.addAlignment(rec);
+							continue;
+							}
+						int chromStart;
+						int chromEnd;
+						if(rec.getAlignmentStart() < rec.getMateAlignmentStart())
+							{
+							if(rec.getReadNegativeStrandFlag())
 								{
-								best = frag;
-								best_distance = distance;
+								//@doc if the read(POS) < mate(POS) and read is mapped on the negative strand, then the quality of the current read is set to zero
+								rec.setMappingQuality(0);
+								sw.addAlignment(rec);
+								continue;
+								}
+							else
+								{
+								chromStart = rec.getAlignmentStart();
+								chromEnd = rec.getMateAlignmentStart();
 								}
 							}
-						break;
-						}
-					default: throw new IllegalStateException();
-					}
-				
-				
-				
-				if(clip_reads)
-					{
-					rec = readClipper.clip(rec, best);
-					if(rec.getMappingQuality()==0)
-						{
+						else 
+							{
+							if(!rec.getReadNegativeStrandFlag())
+								{
+								//@doc if the read(POS) > mate(POS) and read is mapped on the positive strand, then the quality of the current read is set to zero
+								rec.setMappingQuality(0);
+								sw.addAlignment(rec);
+								continue;
+								}
+							else
+								{
+								chromStart = rec.getMateAlignmentStart();
+								chromEnd = rec.getAlignmentStart();//don't use getAlignmentEnd, to be consistent with mate data
+								}
+							}
+						
+						
+						
+						
+						List<Interval> fragments = findIntervals(rec.getContig(),chromStart,chromEnd);
+						if(fragments.isEmpty())
+							{
+							//@doc if no BED fragment is found overlapping the read, then the quality of the read is set to zero
+							rec.setMappingQuality(0);
+							sw.addAlignment(rec);
+							continue;
+							}
+						Interval best=null;
+						if(fragments.size()==1)
+							{
+							best = fragments.get(0);
+							}
+						else switch(this.ambiguityStrategy)
+							{
+							case random:
+								{
+								best = fragments.get(this.random.nextInt(fragments.size()));
+								break;
+								}
+							case zero:
+								{
+								rec.setMappingQuality(0);
+								sw.addAlignment(rec);
+								continue;
+								}
+							case closer:
+								{
+								int best_distance=Integer.MAX_VALUE;
+								for(Interval frag : fragments)
+									{
+									int distance= Math.abs(chromStart-frag.getStart()) + Math.abs(frag.getEnd() - chromEnd);
+									if(best==null || distance < best_distance)
+										{
+										best = frag;
+										best_distance = distance;
+										}
+									}
+								break;
+								}
+							default: throw new IllegalStateException();
+							}
+						
+						
+						
+						if(clip_reads)
+							{
+							rec = readClipper.clip(rec, best);
+							if(rec.getMappingQuality()==0)
+								{
+								sw.addAlignment(rec);
+								continue;
+								}
+							}
+						final SAMReadGroupRecord rg = rec.getReadGroup();
+						if(rg == null )
+							{
+							throw new IOException("Read "+rec+" is missing a Read-Group ID . See http://broadinstitute.github.io/picard/ http://broadinstitute.github.io/picard/command-line-overview.html#AddOrReplaceReadGroups");
+							}
+						rec.setAttribute("RG",rg.getId()+"_"+best.getName());
 						sw.addAlignment(rec);
-						continue;
 						}
 					}
-				SAMReadGroupRecord rg = rec.getReadGroup();
-				if(rg == null )
-					{
-					throw new IOException("Read "+rec+" is missing a Read-Group ID . See http://broadinstitute.github.io/picard/ http://broadinstitute.github.io/picard/command-line-overview.html#AddOrReplaceReadGroups");
-					}
-				rec.setAttribute("RG",rg.getId()+"_"+best.getName());
-				sw.addAlignment(rec);
 				}
-			progress.finish();
 			return 0;
 			}
-		catch(Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(iter);
-			CloserUtil.close(sw);
-			}
+	
 		}
 	
 	@Override
@@ -402,46 +401,45 @@ public class PcrSliceReads extends Launcher
 			LOG.error("undefined bed file");
 			return -1;
 			}
-		BufferedReader r=null;
-		SamReader samReader=null;
 		try {
-			samReader = super.openSamReader(oneFileOrNull(args));
-			
-			final BedLineCodec codec=new BedLineCodec();
-			 r= IOUtils.openFileForBufferedReading(bedFile);
-			String line;
-			while((line=r.readLine())!=null)
-				{
-				final BedLine bed=codec.decode(line);
-				if(bed==null) continue;
-				final String chrom =  bed.getContig();
-				int chromStart1 = bed.getStart();
-				int chromEnd1 =  bed.getEnd();
-				if(chromStart1<1 || chromStart1>chromEnd1)
-					{
-					LOG.error("Bad bed line "+line);
-					return -1;
+			final SamReaderFactory srf = SamReaderFactory.make();
+			srf.validationStringency(ValidationStringency.LENIENT);
+			if(this.referencePath!=null) srf.referenceSequence(this.referencePath);
+			final String input = oneFileOrNull(args);
+			try(SamReader samReader = srf.open(input==null?SamInputResource.of(stdin()):SamInputResource.of(input))) {
+				final BedLineCodec codec=new BedLineCodec();
+				try(BufferedReader r= IOUtils.openPathForBufferedReading(bedFile)) {
+					String line;
+					while((line=r.readLine())!=null)
+						{
+						final BedLine bed=codec.decode(line);
+						if(bed==null) continue;
+						final String chrom =  bed.getContig();
+						int chromStart1 = bed.getStart();
+						int chromEnd1 =  bed.getEnd();
+						if(chromStart1<1 || chromStart1>chromEnd1)
+							{
+							LOG.error("Bad bed line "+line);
+							return -1;
+							}
+						final String name = bed.get(3).trim();
+						if(name==null || name.isEmpty())
+							{
+							LOG.error("Bad bed line (name missing) in  "+line);
+							return -1;
+							}
+						final Interval i =new Interval(chrom, chromStart1, chromEnd1,false,name);
+						this.bedIntervals.put(i, i);
+						}
 					}
-				final String name = bed.get(3).trim();
-				if(name==null || name.isEmpty())
-					{
-					LOG.error("Bad bed line (name missing) in  "+line);
-					return -1;
-					}
-				final Interval i =new Interval(chrom, chromStart1, chromEnd1,false,name);
-				this.bedIntervals.put(i, i);
+				return run(samReader);
 				}
-			return run(samReader);
 			}
-		catch (Exception e) {
-			LOG.error(e);
+		catch (final Throwable err) {
+			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(r);
-			CloserUtil.close(samReader);
-			}
+
 		}
 
 	

@@ -192,6 +192,7 @@ import com.github.lindenb.jvarkit.tools.onekgenomes.VcfAncestralAllele;
 import com.github.lindenb.jvarkit.tools.onesamplevcf.VcfMultiToOne;
 import com.github.lindenb.jvarkit.tools.pcr.BamSliceBed;
 import com.github.lindenb.jvarkit.tools.pcr.PcrClipReads;
+import com.github.lindenb.jvarkit.tools.pcr.PcrSliceReads;
 import com.github.lindenb.jvarkit.tools.phased.BamPhased01;
 import com.github.lindenb.jvarkit.tools.phased.BamToHaplotypes;
 import com.github.lindenb.jvarkit.tools.phased.BamToMNV;
@@ -731,6 +732,7 @@ public class JvarkitCentral {
 		command(PlotSashimi.class);
 		command(PrettySam.class);
 		command(PcrClipReads.class);
+		command(PcrSliceReads.class);
 		command(ReferenceToHtml.class);
 		command(ReduceBlast.class);
 		//command(RDFCombine.class);
