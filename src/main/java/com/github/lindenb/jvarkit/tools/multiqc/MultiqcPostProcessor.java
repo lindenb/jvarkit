@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +90,7 @@ END_DOC
 description="Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population.",
 keywords={"multiqc"},
 creationDate="20240708",
-modificationDate="20240708",
+modificationDate="20240722",
 jvarkit_amalgamion = true,
 menu="Utilities"
 )
@@ -148,7 +149,7 @@ public class MultiqcPostProcessor extends Launcher {
 			return this.properties.getOrDefault("section_description",getSectionName(title)).replace("${title}",title);
 			}
 		
-		protected void saveAs(final Path inputFile,List<SampleValue> sample_values,final String titleRaw) throws IOException {
+		protected void saveAs(final Set<Path> filetSet,Collection<SampleValue> sample_values,final String titleRaw) throws IOException {
 			if(sample_values.isEmpty()) return;
 
 			//remove unicode
@@ -165,6 +166,7 @@ public class MultiqcPostProcessor extends Launcher {
 			/* is it worth plotting ?*/
 			boolean found_deviation=false;
 			final Map<String,List<SampleValue>> pop2data=new TreeMap<>();
+			
 			for(final SamplePopulation.Population pop:snpop.getPopulations()) {
 				final List<SampleValue> values= sample_values.stream().
 					filter(SV->pop.containsKey(SV.sample)).
@@ -177,11 +179,11 @@ public class MultiqcPostProcessor extends Launcher {
 				pop2data.put(pop.getName(), values);
 				}
 			if(pop2data.isEmpty() || !found_deviation) {
-				LOG.info("no data to plot for "+inputFile+"/"+title);
+				LOG.info("no data to plot for "+filetSet+"/"+title);
 				return;
 				}
 			
-
+			final Path inputFile = filetSet.iterator().next();
 			final Path outfile = outputDirectory.resolve(IOUtils.getFilenameWithoutCommonSuffixes(inputFile)+"_"+ title.replaceAll("[^A-Za-z0-9_]+", "_").toLowerCase()+"_mqc.json");
 			LOG.info("writing "+outfile);
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(outfile)) {
@@ -262,7 +264,7 @@ public class MultiqcPostProcessor extends Launcher {
 				}
 			}
 		
-		public abstract void apply(Path f);
+		public abstract void apply(final Set<Path> pathSet);
 		};
 	
 	private abstract class AbstractHandler extends Handler {
@@ -329,30 +331,29 @@ public class MultiqcPostProcessor extends Launcher {
 				}
 			}
 		
-		private void scan(Path f,JsonElement root,String dataCol) throws IOException {
-			final Map<String,SampleValue> sample_values=new HashMap<>();
-			scan(root,dataCol,sample_values);
-			if(sample_values.isEmpty()) {
-				LOG.warn("no data "+dataCol+" in "+f);
-				return;
-				}
-			saveAs(f,new ArrayList<>(sample_values.values()),dataCol);
-			}
 		
 		@Override
-		public void apply(Path f) {
+		public void apply(final Set<Path> pathSet) {
 			try {
-				final JsonElement root;
-				JsonParser parser=new JsonParser();
-				try(Reader r=Files.newBufferedReader(f)) {
-					root = parser.parse(r);
-					}
-				final Set<String> dataColumns = getDataColumns();
-				for(final String dataCol: dataColumns) {
-					scan(f,root,dataCol);
+				final JsonParser parser=new JsonParser();
+
+				for(final String dataCol: getDataColumns()) {
+					final Map<String,SampleValue> sample_values=new HashMap<>();
+					for(final Path f:pathSet) {
+						final JsonElement root;
+						try(Reader r=Files.newBufferedReader(f)) {
+							root = parser.parse(r);
+							}
+						scan(root,dataCol,sample_values);
+						}
+					if(sample_values.isEmpty()) {
+						LOG.warn("no data "+dataCol+" in "+pathSet);
+						continue;
+						}
+					saveAs(pathSet,sample_values.values(),dataCol);
 					}
 				}
-			catch(Throwable err) {
+			catch(final Throwable err) {
 				LOG.error(err);
 				}
 			}
@@ -386,15 +387,19 @@ public class MultiqcPostProcessor extends Launcher {
 			}
 		}
 		@Override
-		public void apply(final Path f) {
+		public void apply(final Set<Path> pathSet) {
 			try {
-				final FileContent fc = readFileContent(f);
+				
 				final int sampleColumn =0;
-				fc.fileHeader.assertColumn(getSampleColumn(),sampleColumn);
-				final Set<String> dataColumns = getDataColumns();
+				
 				final double factor = getFactor();
-				for(final String dataCol: dataColumns) {
-					final List<SampleValue> all_values= fc.rows.stream().
+				for(final String dataCol:  getDataColumns()) {
+					final Map<String,SampleValue> sample_values=new HashMap<>();
+					for(Path f: pathSet) {
+						final FileContent fc = readFileContent(f);
+						fc.fileHeader.assertColumn(getSampleColumn(),sampleColumn);
+						
+						fc.rows.stream().
 							map(ROW->{
 								final List<String> L=ROW.asList();
 								final String sn= fixSampleName(L.get(sampleColumn));
@@ -411,9 +416,9 @@ public class MultiqcPostProcessor extends Launcher {
 							).
 							filter(SV->SV!=null).
 							filter(SV->MultiqcPostProcessor.this.sampleCollection.hasSample(SV.sample)).
-							sorted((A,B)->Double.compare(A.value, B.value)).
-							collect(Collectors.toList());
-					saveAs(f,all_values,dataCol);
+							forEach(SV->sample_values.put(SV.sample, SV));
+						}
+					saveAs(pathSet,sample_values.values(),dataCol);
 					} //end loop over data columns
 				}
 			catch(final IOException err) {
@@ -429,10 +434,7 @@ public class MultiqcPostProcessor extends Launcher {
 			}
 		
 		
-		
-		
-		
-		private OptionalDouble parseDouble(String s) {
+		private OptionalDouble parseDouble(final String s) {
 			if(StringUtils.isBlank(s)) return OptionalDouble.empty();
 			
 			try {
@@ -445,29 +447,30 @@ public class MultiqcPostProcessor extends Launcher {
 			}
 		}
 		@Override
-		public void apply(final Path f) {
+		public void apply(final Set<Path> pathSet) {
 			try {
-				final FileContent fc = readFileContent(f);
-				fc.fileHeader.assertColumnExists(getSampleColumn());
-				final Set<String> dataColumns = getDataColumns();
 				final double factor = getFactor();
-				for(final String dataCol: dataColumns) {
+				for(final String dataCol: getDataColumns()) {
 					if(StringUtils.isBlank(dataCol)) continue;
-					if(!fc.fileHeader.containsKey(dataCol)) {
-						LOG.warn("no column "+dataCol+" in "+f+" "+fc.fileHeader);
-						continue;
+					final Map<String,SampleValue> sample_values=new HashMap<>();
+					
+					for(Path f: pathSet) {
+						final FileContent fc = readFileContent(f);
+						fc.fileHeader.assertColumnExists(getSampleColumn());
+						
+						if(!fc.fileHeader.containsKey(dataCol)) {
+							LOG.warn("no column "+dataCol+" in "+f+" "+fc.fileHeader);
+							continue;
+							}
+						fc.fileHeader.assertColumnExists(dataCol);
+	
+						fc.rows.stream().
+							filter(ROW->parseDouble(ROW.get(dataCol)).isPresent()).
+							map(ROW->new SampleValue(fixSampleName(ROW.get(getSampleColumn())), factor * parseDouble(ROW.get(dataCol)).getAsDouble())).
+							filter(SV->MultiqcPostProcessor.this.sampleCollection.hasSample(SV.sample)).
+							forEach(SV->sample_values.put(SV.sample, SV));
 						}
-					fc.fileHeader.assertColumnExists(dataCol);
-
-					final List<SampleValue> values= fc.rows.stream().
-						filter(ROW->parseDouble(ROW.get(dataCol)).isPresent()).
-						map(ROW->new SampleValue(fixSampleName(ROW.get(getSampleColumn())), factor * parseDouble(ROW.get(dataCol)).getAsDouble())).
-						filter(SV->MultiqcPostProcessor.this.sampleCollection.hasSample(SV.sample)).
-						sorted((A,B)->Double.compare(A.value, B.value)).
-						collect(Collectors.toList());
-					
-					
-					saveAs(f,values,dataCol);
+					saveAs(pathSet,sample_values.values(),dataCol);
 					} //end loop over data columns
 				}
 			catch(final IOException err) {
@@ -648,15 +651,18 @@ public class MultiqcPostProcessor extends Launcher {
 					}
 				}
 			
-			for(Path f : filesForInput ) {
-				LOG.info("test "+f);
-				final Handler handler = handlers.stream().
-					filter(H->H.isHandlerForFile(f.getFileName().toString())).
-					findFirst().
-					orElse(null);
-				if(handler==null) continue;
-				LOG.info("running "+f);
-				handler.apply(f);
+			if(this.sampleCollection.isEmpty()) {
+				LOG.error("no sample/collection defined");
+				return -1;
+				}
+			
+			for(final Handler handler : handlers) {
+				final Set<Path> pathSet = filesForInput.stream().
+					filter(PATH->handler.isHandlerForFile(PATH.getFileName().toString())).
+					collect(Collectors.toSet());
+				if(pathSet.isEmpty()) continue;
+				LOG.info("running "+pathSet);
+				handler.apply(pathSet);
 				}
 			return 0;
 		} catch (Throwable err) {

@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
+import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
 
@@ -81,7 +82,15 @@ public class FisherCasesControls implements DoubleSupplier,Consumer<String> {
     public int getControlsRefCount() {
     	return this.casesControls.getControlsCount()- getControlsAltCount();
     	}
-    
+    /** return name of case samples with alt */
+    public Set<String> getCasesAlt() {
+    	return this.seen.stream().filter(sn->this.casesControls.isCase(sn)).collect(Collectors.toSet());
+    	}
+    /** return name of ctrl samples with alt */
+    public Set<String> getControlsAlt() {
+    	return this.seen.stream().filter(sn->this.casesControls.isControl(sn)).collect(Collectors.toSet());
+    	}
+
     public FisherExactTest getFisherExactTest() {
     	final FisherExactTest fisher = FisherExactTest.compute(
     			getCasesAltCount(),getCasesRefCount(),

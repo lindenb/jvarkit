@@ -16,6 +16,7 @@
  * Pauly, R., Johnson, L., Feltus, F.A. et al. Enrichment of a subset of Neanderthal polymorphisms in autistic probands and siblings. Mol Psychiatry (2024). https://doi.org/10.1038/s41380-024-02593-7
  * Marshall VA, Cornejo Castro EM, Goodman CA, Labo N, Liu I, Fisher NC, et al. (2024) Sequencing of Kaposi’s Sarcoma Herpesvirus (KSHV) genomes from persons of diverse ethnicities and provenances with KSHV-associated diseases demonstrate multiple infections, novel polymorphisms, and low intra-host variance. PLoS Pathog 20(7): e1012338. https://doi.org/10.1371/journal.ppat.1012338 **msa2vcf**
  * Sigeman, H., Downing, P.A., Zhang, H. et al. The rate of W chromosome degeneration across multiple avian neo-sex chromosomes. Sci Rep 14, 16548 (2024). https://doi.org/10.1038/s41598-024-66470-7 **bamstats04**
+ * Heczko, L., Liška, V., Vyčítal, O. et al. Targeted panel sequencing of pharmacogenes and oncodrivers in colorectal cancer patients reveals genes with prognostic significance. Hum Genomics 18, 83 (2024). https://doi.org/10.1186/s40246-024-00644-2 **vcfpolyx**
 
 ## 2023
 
