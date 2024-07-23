@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 2a2aa7a39
-Compilation : 20240719171959
+Version     : 39dab54ad
+Compilation : 20240723173726
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -145,7 +145,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20240523 |
-| [multiqcpostproc](MultiqcPostProcessor.md) | Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population. | 20240708 | 20240708 |
+| [multiqcpostproc](MultiqcPostProcessor.md) | Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population. | 20240708 | 20240722 |
 | [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document or as a table | 20120320 | 20240320 |
 | [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
 | [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
@@ -204,6 +204,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [ngsfilessummary](NgsFilesSummary.md) | Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples. | 20140430 | 20240324 |
 | [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20240207 |
 | [pcrclipreads](PcrClipReads.md) | Soft clip bam files based on PCR target regions | 20150618 | 20210322 |
+| [pcrslicereads](PcrSliceReads.md) | Mark PCR reads to their PCR amplicon | 20150707 | 20240722 |
 | [plotbcftoolsstats](PlotBcftoolsStats.md) | Plot bcftools stats output | 20210622 | 20210622 |
 | [pubmedauthorgraph](PubmedAuthorGraph.md) | Creates a graph from Pubmed and Authors |  |  |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |

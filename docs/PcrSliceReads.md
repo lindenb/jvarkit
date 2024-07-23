@@ -7,7 +7,13 @@ Mark PCR reads to their PCR amplicon
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar pcrslicereads  [options] Files
+
 Usage: pcrslicereads [options] Files
   Options:
     --bamcompression
@@ -24,7 +30,11 @@ Usage: pcrslicereads [options] Files
       Output file. Optional . Default: stdout
     --random
        random seed
-      Default: java.util.Random@1764bce
+      Default: java.util.Random@58695725
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -57,22 +67,10 @@ Usage: pcrslicereads [options] Files
  * [https://www.biostars.org/p/149687](https://www.biostars.org/p/149687)
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew pcrslicereads
-```
-
-The java jar file will be installed in the `dist` directory.
+20150707
 
 ## Source code 
 
@@ -102,7 +100,7 @@ The current reference is:
 
 ## See also
 
-* (2021) `samtools ampliconclip` – clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
+* (2021) `samtools ampliconclip` - clip reads using a BED file  http://www.htslib.org/doc/samtools-ampliconclip.html
 
 ## Motivation
 
@@ -210,5 +208,6 @@ mysample_rg_myid_PCR5   1738    0.55    1       1       1       1.5
 mysample_rg_myid_PCR9   1260    0.40    1       1       1       0.8
 mysample_rg_myid_PCR8   1930    0.61    1       1       1       2.1
 ```
+
 
 

@@ -11,8 +11,14 @@ This tool can be replace with Bioalcidaejdk
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: Samclipindelfraction [options] Files
+Usage: java -jar dist/jvarkit.jar samclipindelfraction  [options] Files
+
+Usage: samclipindelfraction [options] Files
   Options:
     -h, --help
       print help and exit
@@ -20,12 +26,12 @@ Usage: Samclipindelfraction [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --version
       print version and exit
-    -t
-      type
-      Default: allclip
-      Possible Values: [leftclip, rightclip, allclip, insert, deletion]
 
 ```
 
@@ -37,22 +43,10 @@ Usage: Samclipindelfraction [options] Files
  * clip
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew Samclipindelfraction
-```
-
-The java jar file will be installed in the `dist` directory.
+20141118
 
 ## Source code 
 
@@ -74,7 +68,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **Samclipindelfraction** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **samclipindelfraction** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -87,7 +81,7 @@ The current reference is:
 ## Example
 
 ```bash
-$ samtools view -h -F3844 my.bam  | java -jar dist/samclipindelfraction.jar 
+$ samtools view -h -F3844 my.bam  | java -jar dist/jvarkit.jar samclipindelfraction
 
 ##UNMAPPED_READS=0
 ##MAPPED_READS=3028359
@@ -106,17 +100,5 @@ $ samtools view -h -F3844 my.bam  | java -jar dist/samclipindelfraction.jar
 6	471	1.275987752684857E-4
 7	447	1.210969268471616E-4
 (...)
-```
-
-plotting:
-```bash
-$ java -jar dist/samclipindelfraction.jar |\
-   grep -v "##" | cut -f1,2 | tr -d '#' > output.txt
-```
-
-then, in R:
-```R
-T<-read.table('output.txt',header=TRUE)
-plot(T[T$CLIP>0,])
 ```
 

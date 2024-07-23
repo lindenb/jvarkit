@@ -134,6 +134,6 @@ ref2    16     17   1       S1      6       6       6.0      6.0        0       
 ## Cited in:
 
   *  Han Ming Gan & al. , Genomic evidence of neo-sex chromosomes in the eastern yellow robin, GigaScience, Volume 8, Issue 9, September 2019, giz111, https://doi.org/10.1093/gigascience/giz111
-
+  * Sigeman, H., Downing, P.A., Zhang, H. et al. The rate of W chromosome degeneration across multiple avian neo-sex chromosomes. Sci Rep 14, 16548 (2024). https://doi.org/10.1038/s41598-024-66470-7
 
 

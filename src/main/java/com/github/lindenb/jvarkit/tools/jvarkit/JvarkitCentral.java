@@ -171,6 +171,7 @@ import com.github.lindenb.jvarkit.tools.misc.HowManyBamDict;
 import com.github.lindenb.jvarkit.tools.misc.FindHtsFileDictionary;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaDirectory;
 import com.github.lindenb.jvarkit.tools.misc.SamAddPI;
+import com.github.lindenb.jvarkit.tools.misc.SamClipIndelFraction;
 import com.github.lindenb.jvarkit.tools.misc.SamToJson;
 import com.github.lindenb.jvarkit.tools.misc.SamToPsl;
 import com.github.lindenb.jvarkit.tools.misc.SortSamRefName;
@@ -756,6 +757,7 @@ public class JvarkitCentral {
 		command(SamGrep.class);
 		command(SamViewWithMate.class);
 		command(SamJdk.class);
+		command(SamClipIndelFraction.class);
 		command(SamToJson.class);
 		command(SamRemoveDuplicatedNames.class);
 		command(ScanRetroCopy.class);

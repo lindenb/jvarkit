@@ -149,6 +149,7 @@ nav:
         - "oboutils" : OboUtils.md
         - "optimizefisher" : OptimizeFisher.md
         - "pcrclipreads" : PcrClipReads.md
+        - "pcrslicereads" : PcrSliceReads.md
         - "plotbcftoolsstats" : PlotBcftoolsStats.md
         - "plotmosdepth" : PlotMosdepth.md
         - "plotsashimi" : PlotSashimi.md
@@ -168,6 +169,7 @@ nav:
         - "sam2tsv" : Sam2Tsv.md
         - "sam4weblogo" : SAM4WebLogo.md
         - "samaddpi" : SamAddPI.md
+        - "samclipindelfraction" : SamClipIndelFraction.md
         - "samextractclip" : SamExtractClip.md
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samfixcigar" : SamFixCigar.md

@@ -1,7 +1,9 @@
+GATK4JAR=$(realpath ${HOME}/package/gatk/4/gatk-4.6.0.0/gatk-package-4.6.0.0-local.jar)
+
 SHELL=/bin/bash
 .PHONY: all docker
 all:
-	./gradlew jvarkit
+	./gradlew jvarkit $(addprefix -Dgatk4.local.jar=,$(GATK4JAR))
 
 docker: Dockerfile
 	# build
