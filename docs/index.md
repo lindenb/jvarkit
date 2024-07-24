@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : b0d78bae
-Compilation : 20240724135827
+Version     : 3222e3a1
+Compilation : 20240724152228
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -72,6 +72,9 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bedmergecnv](BedMergeCnv.md) | Merge continuous sorted bed records if they overlap a fraction of their lengths. | 20200330 | 20200603 |
 | [bednonoverlappingset](BedNonOverlappingSet.md) | Split a Bed file into non-overlapping data set. | 20180607 | 20200408 |
 | [bedrenamechr](BedRenameChromosomes.md) | Convert the names of the chromosomes in a Bed file | 20190503 | 20240515 |
+| [setfile2bed](SetFileToBed.md) | Convert setfile to bed | 20210125 | 20240724 |
+| [setfilecluster](SetFileCluster.md) | Cluster records of setfiles into files containing a sum to basepaires close to 'x' bp | 20210125 | 20240724 |
+| [setfilefrombed](SetFileFromBed.md) | Convert bed chrom/start/end/name sorted on 4th column to set file | 20210125 | 20240724 |
 | [setfiletools](SetFileTools.md) | Utilities for the setfile format | 20210125 | 20220426 |
 
 ### Biostars

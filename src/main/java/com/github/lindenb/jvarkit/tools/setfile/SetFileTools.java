@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.setfile;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -34,10 +33,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
@@ -46,7 +43,6 @@ import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
-import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
@@ -54,12 +50,10 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.setfile.SetFileReaderFactory;
 import com.github.lindenb.jvarkit.setfile.SetFileRecord;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -81,15 +75,6 @@ import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
-##  action = frombed
-```
-$ echo -e "RF01\t150\t200\tA\nRF01\t190\t300\tA\nRF01\t350\t400\tA\nRF01\t150\t200\tB" |\
-	java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa frombed
-
-A	RF01:151-300,RF01:351-400
-B	RF01:151-200
-
-```
 
 ## action = combine
 ```
@@ -149,10 +134,6 @@ public class SetFileTools extends Launcher {
 	protected List<String> intersectVcfPath = new ArrayList<>();
 	@Parameter(names={"--stringency"},description="Validation Stringency")
 	protected ValidationStringency validationStringency = ValidationStringency.LENIENT;
-	@Parameter(names={"-S","--size"},description="number of bases max per bin. (or specify --jobs). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
-	private long long_length_per_bin=-1L;
-	@Parameter(names={"-J","--jobs"},description="number of clusters. (or specify --size)")
-	private int number_of_jobs=-1;
 	@Parameter(names={"--min-variants-per-setfile"},description="when using vcf, only keep the setfile is there are at least 'x' overlapping variants.")
 	private int min_variant_per_setfile = 1;
 	@Parameter(names={"--extend"},description="Extends each interval. "+IntervalExtender.OPT_DESC)
@@ -165,8 +146,6 @@ public class SetFileTools extends Launcher {
 	private SAMSequenceDictionary theDict = null;
 	/** global sorter */
 	private Comparator<Locatable> theSorter;
-	/** global dict converter */
-	private UnaryOperator<String> theCtgConverter=null;
 	
 	/** check uniq names */
 	private class UniqNameIterator extends AbstractCloseableIterator<SetFileRecord> {
@@ -344,30 +323,13 @@ public class SetFileTools extends Launcher {
 			}
 		}
 	
-	private static class Cluster {
-		final List<SetFileRecord> records = new ArrayList<>();
-		long sum_length = 0L;
-		void add(SetFileRecord rec) {
-			this.records.add(rec);
-			this.sum_length += rec.getLongSumOfLengthOnReference();
-		}
-		long getSumLength(final SetFileRecord malus) {
-			return this.sum_length + (malus==null?0:malus.getLongSumOfLengthOnReference());
-		}
-
-	}
 
 	private enum Action {
-		tobed,
-		tobed12,
-		frombed,
 		view,
-		cluster,
 		combine,
 		bedbed,
 		intersectbed,
 		stats,
-		
 		};
 		
 	private String noChr(final String contig) {
@@ -444,85 +406,6 @@ public class SetFileTools extends Launcher {
 		pw.write("\n");
 	}
 	
-	private int makeClusters(final List<String> args) throws IOException {
-		if(this.number_of_jobs<1 && this.long_length_per_bin<1L) {
-			LOG.error("at least --jobs or --size must be specified.");
-			return -1;
-			}
-		if(this.number_of_jobs>0 &&  this.long_length_per_bin>0) {
-			LOG.error(" --jobs OR --size must be specified. Not both.");
-			return -1;
-			}
-		
-		final List<Cluster> clusters = new ArrayList<>();
-	
-		try(CloseableIterator<SetFileRecord> iter = openSetFileIterator(args)) {
-			final List<SetFileRecord> records = iter.stream().
-					filter(R->!R.isEmpty()).
-					sorted((A,B)->Long.compare(B.getLongSumOfLengthOnReference(), A.getLongSumOfLengthOnReference())).
-				collect(Collectors.toCollection(LinkedList::new));
-			while(!records.isEmpty()) {
-				final SetFileRecord first = records.remove(0);
-				if(number_of_jobs>0) {
-					if(clusters.size() < this.number_of_jobs) {
-						final Cluster c = new Cluster();
-						c.add(first);
-						}
-					else {
-						int best_idx=-1;
-						double best_length=-1;
-						for(int y=0;y< clusters.size();++y) {
-							final double total_length = clusters.get(y).getSumLength(first);
-							if(best_idx==-1 ||total_length<best_length ) {
-								best_idx=y;
-								best_length = total_length;
-								}
-							}
-						clusters.get(best_idx).add(first);
-						}
-					}
-				else {
-					int y=0;
-					while(y<clusters.size()) {
-							final Cluster cluster = clusters.get(y);
-							if(cluster.getSumLength(first)<=this.long_length_per_bin) {
-								cluster.add(first);
-								break;
-								}
-							y++;
-							}
-					if(y==clusters.size()) {
-						final Cluster cluster = new Cluster();
-						cluster.add(first);
-						clusters.add(cluster);
-						}
-					}
-				}// end wile !records.isEmpty
-			}// end open
-		int clusterid = 0;
-		try(final ArchiveFactory archive = ArchiveFactory.open(this.outputFile)) {
-			for(final Cluster cluster : clusters) {
-				Collections.sort(cluster.records,(A,B)->{
-					final Locatable s1  = A.get(0);
-					final Locatable s2  = B.get(0);
-					final int i = this.theSorter.compare(s1, s2);
-					if(i!=0) return i;
-					return A.getName().compareTo(B.getName());
-					});
-				
-				final String filename = String.format("cluster.%05d"+SetFileRecord.FILE_EXTENSION,clusterid);
-				try(PrintWriter pw = archive.openWriter(filename)) {
-					for(final SetFileRecord rec: cluster.records) {
-						print(pw,rec);
-						}
-					pw.flush();
-					}
-				LOG.info(filename+" "+cluster.getSumLength(null)+"bp");
-				++clusterid;
-				}
-			}
-		return 0;
-		}
 
 	
 	private int view(final List<String> args) throws IOException {
@@ -560,76 +443,9 @@ public class SetFileTools extends Launcher {
 	}
 	
 	
-	private int toBed(final List<String> args) throws IOException {
-		try(CloseableIterator<SetFileRecord> iter = openSetFileIterator(args)) {
-			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-				while(iter.hasNext()) {
-					final SetFileRecord rec = iter.next();
-					for(Locatable loc : rec) {
-						pw.print(noChr(loc.getContig()));
-						pw.print("\t");
-						pw.print(loc.getStart()-1);
-						pw.print("\t");
-						pw.print(loc.getEnd());
-						pw.print("\t");
-						pw.print(rec.getName());
-						pw.println();
-						}
-					}
-				pw.flush();
-				}
-			}
-		return 0;
-		}
 	
-	private int toBed12(final List<String> args) throws IOException {
-		int skipped=0;
-		try(CloseableIterator<SetFileRecord> iter = openSetFileIterator(args)) {
-			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-				while(iter.hasNext()) {
-					final SetFileRecord rec = iter.next();
-					final Set<String> chroms = rec.getChromosomes();
-					if(chroms.size()!=1) {
-						skipped++;
-						continue;
-						}
-					final List<Locatable> merged = sortAndMerge(rec);
-					final String contig = chroms.iterator().next();
-					final int chromStart;
-					final int chromEnd;
-					pw.print(noChr(contig));
-					pw.print("\t");
-					pw.print(chromStart = merged.stream().mapToInt(X->X.getStart()).min().getAsInt()-1);
-					pw.print("\t");
-					pw.print(chromEnd = merged.stream().mapToInt(X->X.getEnd()).max().getAsInt());
-					pw.print("\t");
-					pw.print(rec.getName());
-					pw.print("\t");
-					pw.print((int)((merged.stream().mapToInt(L->L.getLengthOnReference()).sum()/(double)(chromEnd-chromStart))*1000));
-					pw.print("\t");
-					pw.print(".");//no strand
-					pw.print("\t");
-					pw.print(chromStart);
-					pw.print("\t");
-					pw.print(chromEnd);
-					pw.print("\t");
-					pw.print("0,0,255");
-					pw.print("\t");
-					pw.print(rec.size());
-					pw.print("\t");
-					pw.print(merged.stream().map(T->String.valueOf(T.getLengthOnReference())).collect(Collectors.joining(",")));
-					pw.print("\t");
-					pw.print(merged.stream().map(T->String.valueOf((T.getStart()-1)-chromStart)).collect(Collectors.joining(",")));
-					pw.println();
-					}
-				pw.flush();
-				}
-			}
-		if(skipped>0) {
-			LOG.warn("skipped "+skipped+" records with multiple chromosomes.");
-			}
-		return 0;
-		}
+	
+	
 	
 	
 	/** print  whole setrecords overlapping bed file, there is to trimming */
@@ -783,41 +599,6 @@ public class SetFileTools extends Launcher {
 		return 0;
 	}
 	
-	private int fromBed(final List<String> args) throws IOException {
-		final String input = oneFileOrNull(args);
-		final Function<BedLine,String> bed2name = bed->{
-			if(bed.getColumnCount()<4) throw new IllegalArgumentException("Expected 4 columns but got "+bed);
-			return bed.get(3);
-			};
-		try(BufferedReader br = super.openBufferedReader(input)) {
-			try(BedLineReader blr = new BedLineReader(br, input)) {
-				blr.setValidationStringency(validationStringency);
-				blr.setContigNameConverter(this.theCtgConverter);
-
-				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-					final EqualIterator<BedLine> iter = new EqualIterator<BedLine>(blr.stream().iterator(),(A,B)->bed2name.apply(A).compareTo(bed2name.apply(B)));
-					while(iter.hasNext()) {
-						final List<BedLine> lines = iter.next();
-						final List<Locatable> L = sortAndMerge(lines);
-						pw.print(bed2name.apply(lines.get(0)));
-						for(int i=0;i< L.size();i++) {
-							pw.print(i==0?"\t":",");
-							final Locatable rec = L.get(i);
-							pw.print(noChr(rec.getContig()));
-							pw.print(":");
-							pw.print(rec.getStart());
-							pw.print("-");
-							pw.print(rec.getEnd());
-							}
-						pw.println();
-						}
-					iter.close();
-					pw.flush();
-					}
-				}
-			}
-		return 0;
-		}	
 	@Override
 	public int doWork(final List<String> args0) {
 		if(args0.isEmpty()) {
@@ -827,16 +608,11 @@ public class SetFileTools extends Launcher {
 		try {
 			this.theDict= SequenceDictionaryUtils.extractRequired(this.faidxRef);
 			this.theSorter = new ContigDictComparator(this.theDict).createLocatableComparator();
-			this.theCtgConverter = ContigNameConverter.fromOneDictionary(this.theDict);
 			
 			final Action action = Action.valueOf(args0.get(0));
 			final List<String> args = args0.subList(1, args0.size());
 			switch(action) {
-				case frombed: return fromBed(args);
-				case tobed: return toBed(args);
-				case tobed12: return toBed12(args);
 				case view: return view(args);
-				case cluster: return makeClusters(args);
 				case combine: return combine(args);
 				case bedbed: return doBedBed(args);
 				case intersectbed:  return doInterBed(args);

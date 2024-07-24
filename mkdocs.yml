@@ -181,6 +181,9 @@ nav:
         - "samviewwithmate" : SamViewWithMate.md
         - "scanlabguru" : ScanLabGuru.md
         - "scanretrocopy" : ScanRetroCopy.md
+        - "setfile2bed" : SetFileToBed.md
+        - "setfilecluster" : SetFileCluster.md
+        - "setfilefrombed" : SetFileFromBed.md
         - "setfiletools" : SetFileTools.md
         - "sortsamrefname" : SortSamRefName.md
         - "sortvcfoninfo" : SortVcfOnInfo.md

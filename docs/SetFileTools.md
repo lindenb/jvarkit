@@ -29,9 +29,6 @@ Usage: setfiletools [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -J, --jobs
-      number of clusters. (or specify --size)
-      Default: -1
     --min-variants-per-setfile
       when using vcf, only keep the setfile is there are at least 'x' 
       overlapping variants.
@@ -46,11 +43,6 @@ Usage: setfiletools [options] Files
     -U, --remove-unused-interval
       Remove
       Default: false
-    -S, --size
-      number of bases max per bin. (or specify --jobs). A distance specified 
-      as a positive integer.Commas are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb,g,gb
-      Default: -1
     --stringency
       Validation Stringency
       Default: LENIENT
@@ -105,15 +97,6 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-##  action = frombed
-```
-$ echo -e "RF01\t150\t200\tA\nRF01\t190\t300\tA\nRF01\t350\t400\tA\nRF01\t150\t200\tB" |\
-	java -jar dist/setfiletools.jar -R src/test/resources/rotavirus_rf.fa frombed
-
-A	RF01:151-300,RF01:351-400
-B	RF01:151-200
-
-```
 
 ## action = combine
 ```
