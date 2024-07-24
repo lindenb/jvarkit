@@ -17,6 +17,7 @@
  * Marshall VA, Cornejo Castro EM, Goodman CA, Labo N, Liu I, Fisher NC, et al. (2024) Sequencing of Kaposi’s Sarcoma Herpesvirus (KSHV) genomes from persons of diverse ethnicities and provenances with KSHV-associated diseases demonstrate multiple infections, novel polymorphisms, and low intra-host variance. PLoS Pathog 20(7): e1012338. https://doi.org/10.1371/journal.ppat.1012338 **msa2vcf**
  * Sigeman, H., Downing, P.A., Zhang, H. et al. The rate of W chromosome degeneration across multiple avian neo-sex chromosomes. Sci Rep 14, 16548 (2024). https://doi.org/10.1038/s41598-024-66470-7 **bamstats04**
  * Heczko, L., Liška, V., Vyčítal, O. et al. Targeted panel sequencing of pharmacogenes and oncodrivers in colorectal cancer patients reveals genes with prognostic significance. Hum Genomics 18, 83 (2024). https://doi.org/10.1186/s40246-024-00644-2 **vcfpolyx**
+ * Gilbert, Melissa A., Keefer, Jadhav, Tanaya, Antfolk, Daniel, Ming, Qianqian, Valente, Nicolette, Shaw, Grace Tzun, Sottolano, Christopher J., Matwijec, Grace, Luca, Vincent C., Loomes, Kathleen M., Rajagopalan, Ramakrishnan, Hayeck, Tristan J., Spinner, Nancy B. " Functional characterization of 2,832 JAG1 variants supports reclassification for Alagille syndrome and improves guidance for clinical variant interpretation" doi: 10.1016/j.ajhg.2024.06.011, 10.1016/j.ajhg.2024.06.011, The American Journal of Human Genetics, The American Journal of Human Genetics, Elsevier, 0002, doi: 10.1016/j.ajhg.2024.06.011, https://doi.org/10.1016/j.ajhg.2024.06.011 
 
 ## 2023
 

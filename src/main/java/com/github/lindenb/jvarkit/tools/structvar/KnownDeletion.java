@@ -129,7 +129,7 @@ public class KnownDeletion extends Launcher
 					referenceSequence(this.faidx).
 					validationStringency(ValidationStringency.LENIENT);
 			
-			final List<String> filenames=IOUtils.unrollStrings2018(args);
+			final List<String> filenames=IOUtils.unrollStrings(args);
 			if(this.bamOut!=null && !filenames.isEmpty()) {
 				SAMSequenceDictionary theDict = null;
 				final Set<String> samples = new TreeSet<>();
@@ -165,7 +165,7 @@ public class KnownDeletion extends Launcher
 				sfw = swf.makeSAMOrBAMWriter(header, true, this.bamOut);			
 				}
 			
-			for(final String filename: IOUtils.unrollStrings2018(args)) {
+			for(final String filename: IOUtils.unrollStrings(args)) {
 				final SamInputResource sri = SamInputResource.of(filename);
 				try(final SamReader samReader = srf.open(sri) ) {
 				final SAMFileHeader header  = samReader.getFileHeader();

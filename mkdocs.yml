@@ -39,6 +39,7 @@ nav:
         - "bcftoolsmergebest" : BCFToolsMergeBest.md
         - "bed2vcf" : BedToVcf.md
         - "bedcluster" : BedCluster.md
+        - "bedindextabix" : BedIndexTabix.md
         - "bedliftover" : BedLiftOver.md
         - "bedmergecnv" : BedMergeCnv.md
         - "bednonoverlappingset" : BedNonOverlappingSet.md
@@ -170,6 +171,7 @@ nav:
         - "sam4weblogo" : SAM4WebLogo.md
         - "samaddpi" : SamAddPI.md
         - "samclipindelfraction" : SamClipIndelFraction.md
+        - "samedict" : SameDict.md
         - "samextractclip" : SamExtractClip.md
         - "samfindclippedregions" : SamFindClippedRegions.md
         - "samfixcigar" : SamFixCigar.md

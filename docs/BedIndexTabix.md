@@ -2,12 +2,18 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Index and sort a Bed on the fly with Tabix.
+Index and sort a Bed on the fly with Tabix (deprecated).
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar bedindextabix  [options] Files
+
 Usage: bedindextabix [options] Files
   Options:
     -h, --help
@@ -40,22 +46,10 @@ Usage: bedindextabix [options] Files
  * tabix
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew bedindextabix
-```
-
-The java jar file will be installed in the `dist` directory.
+20150708
 
 ## Source code 
 
@@ -83,10 +77,15 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Deprecated
+
+just use htslib/tabix...
+
 ## Example
 
 ```bash
   java -jar dist/bedindextabix.jar -s -o out.bed.gz input.bed
 
 ```
+
 

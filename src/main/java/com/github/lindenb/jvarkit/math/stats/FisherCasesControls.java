@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.math.stats;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
@@ -36,12 +37,11 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
 
 import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
 
 
-/* http://lh3lh3.users.sourceforge.net/fisher.shtml 
- * https://github.com/molgenis/systemsgenetics/blob/master/genetica-libraries/src/main/java/umcg/genetica/math/stats/FisherExactTest.java
- * 
- * 
+/**
+ *  Wrapper for Fisher and Case+Controls
  * */
 
 public class FisherCasesControls implements DoubleSupplier,Consumer<String> {
@@ -50,11 +50,12 @@ public class FisherCasesControls implements DoubleSupplier,Consumer<String> {
     public FisherCasesControls(final CasesControls casesControls) {
     	this.casesControls=Objects.requireNonNull(casesControls);
     	}
+    /** reset count */
     public FisherCasesControls reset() {
     	this.seen.clear();
     	return this;
     	}
-    
+    /** did we see sample sn ? */
     public boolean isSeen(final String sn) {
     	return this.seen.contains(sn);
     	}
@@ -62,12 +63,32 @@ public class FisherCasesControls implements DoubleSupplier,Consumer<String> {
     	for(final String sn:samplesNames) accept(sn);
     	}
     @Override
-    public void accept(String sampleName) {
-    	this.seen.add(sampleName);
+    public void accept(final String sampleName) {
+    	this.seen.add(sampleName);	
     	}
-
-    public void accept(Genotype gt) {
+    
+    public void accept(final VariantContext vc) {
+    	for(final String sn:this.casesControls.getAll()) {
+    		if(isSeen(sn)) continue;
+    		final Genotype gt= vc.getGenotype(sn);
+    		if(gt==null) continue;
+    		this.accept(gt);
+    		}
+    	}
+    public void accept(final Genotype gt) {
     	if(gt.hasAltAllele()) this.accept(gt.getSampleName());
+    	}
+    
+    /** return odd ratio https://en.wikipedia.org/wiki/Odds_ratio */
+    public OptionalDouble getOddRatio() {
+    	final int nCases = this.casesControls.getCasesCount();
+    	if(nCases==0) return OptionalDouble.empty();
+    	final int nCtrls = this.casesControls.getControlsCount();
+    	if(nCtrls==0) return OptionalDouble.empty();
+    	final double f1 = getCasesAltCount()/(double)nCases;
+    	final double f2 = getControlsAltCount()/(double)nCtrls;
+    	if(f2==0) return OptionalDouble.empty();
+    	return OptionalDouble.of(f1/f2);
     	}
     
     public int getCasesAltCount() {

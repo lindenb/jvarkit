@@ -31,8 +31,9 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 
@@ -59,6 +60,10 @@ import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 BEGIN_DOC
 
+## Deprecated
+
+just use htslib/tabix...
+
 ## Example
 
 ```bash
@@ -71,8 +76,11 @@ END_DOC
  */
 @Program(
 	name="bedindextabix",
-	description="Index and sort a Bed on the fly with Tabix.",
-	keywords={"bed","tabix"}
+	description="Index and sort a Bed on the fly with Tabix (deprecated).",
+	keywords={"bed","tabix"},
+	creationDate = "20150708",
+	modificationDate = "20240724",
+	jvarkit_amalgamion = true
 	)
 public class BedIndexTabix
 	extends Launcher
@@ -81,7 +89,7 @@ public class BedIndexTabix
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT,required=true)
-	private File outputFile = null;
+	private Path outputFile = null;
 
 	@Parameter(names={"-s","--sort"},description="sort BED prior to saving")
 	private boolean sort=false;
@@ -127,9 +135,8 @@ public class BedIndexTabix
 		{
 		int bedLineCount=0;
 		
-		File tbi = new File(outputFile.getPath()+FileExtensions.TABIX_INDEX);
-		BlockCompressedOutputStream writer=null;
-		SortingCollection<String> sorter=null;
+		final Path tbi = outputFile.getParent().resolve(outputFile.getFileName().toString()+FileExtensions.TABIX_INDEX);
+		
 		final Comparator<String> comparator=new Comparator<String>	()
 			{
 			@Override
@@ -146,99 +153,94 @@ public class BedIndexTabix
 				return o1.compareTo(o2);
 				}
 			};
-		CloseableIterator<String> iter=null;
 
 		try {
-			TabixIndexCreator indexCreator=new TabixIndexCreator(TabixFormat.BED);
+			final TabixIndexCreator indexCreator=new TabixIndexCreator(TabixFormat.BED);
 			LOG.info("Opening"+outputFile);
-			writer = new BlockCompressedOutputStream(this.outputFile);
-			
-			StringBuilder header=new StringBuilder();
-			while(in.hasNext())
-				{
-				String h=in.peek();
-				if(!BedLine.isBedHeader(h)) break;
-				header.append(in.next()).append('\n');
-				}
-			//write header
-			if(header.length()>0)
-				{
-				LOG.info("Writing header");
-				writer.write(header.toString().getBytes());
-				}
-			
-			if(this.sort)
-				{
-				LOG.info("Sorting");
+			try(BlockCompressedOutputStream writer = new BlockCompressedOutputStream(this.outputFile,BlockCompressedOutputStream.getDefaultCompressionLevel(),BlockCompressedOutputStream.getDefaultDeflaterFactory())) {
+				final StringBuilder header=new StringBuilder();
+				while(in.hasNext())
+					{
+					String h=in.peek();
+					if(!BedLine.isBedHeader(h)) break;
+					header.append(in.next()).append('\n');
+					}
+				//write header
+				if(header.length()>0)
+					{
+					LOG.info("Writing header");
+					writer.write(header.toString().getBytes());
+					}
 				
-				sorter =  SortingCollection.newInstance(
-		                        String.class,
-		                        new BedDataCodec(),
-		                        comparator,
-		                        this.writingSortingCollection.getMaxRecordsInRam(),
-		                        this.writingSortingCollection.getTmpPaths()
-		                        );
-				while(in.hasNext())
+				if(this.sort)
 					{
-					String line = in.next();
-					BedLine bed = bedCodec.decode(line);
-					if(bed==null) continue;
-					sorter.add(line);
+					LOG.info("Sorting");
+					
+					SortingCollection<String>  sorter =  SortingCollection.newInstance(
+			                        String.class,
+			                        new BedDataCodec(),
+			                        comparator,
+			                        this.writingSortingCollection.getMaxRecordsInRam(),
+			                        this.writingSortingCollection.getTmpPaths()
+			                        );
+					while(in.hasNext())
+						{
+						String line = in.next();
+						BedLine bed = bedCodec.decode(line);
+						if(bed==null) continue;
+						sorter.add(line);
+						}
+					sorter.doneAdding();
+					sorter.setDestructiveIteration(true);
+					try(CloseableIterator<String> iter= sorter.iterator()) {
+						long filePosition= writer.getFilePointer();
+						while(iter.hasNext())
+							{
+							String line = iter.next();
+							BedLine bed = this.bedCodec.decode(line);
+							writer.write(line.getBytes());
+							writer.write('\n');
+							indexCreator.addFeature(bed, filePosition);
+							filePosition = writer.getFilePointer();
+							}
+						}
+					sorter.cleanup();
 					}
-				sorter.doneAdding();
-				sorter.setDestructiveIteration(true);
-				iter= sorter.iterator();
-				long filePosition= writer.getFilePointer();
-				while(iter.hasNext())
+				else
 					{
-					String line = iter.next();
-					BedLine bed = this.bedCodec.decode(line);
-					writer.write(line.getBytes());
-					writer.write('\n');
-					indexCreator.addFeature(bed, filePosition);
-					filePosition = writer.getFilePointer();
+					long filePosition= writer.getFilePointer();
+					while(in.hasNext())
+						{
+						String line = in.next();
+						BedLine bed = this.bedCodec.decode(line);
+						if(bed==null) continue;
+						writer.write(line.getBytes());
+						writer.write('\n');
+						indexCreator.addFeature(bed, filePosition);
+						filePosition = writer.getFilePointer();
+						}
 					}
-				sorter.cleanup();
+				writer.flush();
+				LOG.info("Creating index");
+				final Index index = indexCreator.finalizeIndex(writer.getFilePointer());
+				LOG.info("Writing index to "+tbi+ " using "+index.getClass());
+				index.writeBasedOnFeaturePath(this.outputFile);
 				}
-			else
-				{
-				long filePosition= writer.getFilePointer();
-				while(in.hasNext())
-					{
-					String line = in.next();
-					BedLine bed = this.bedCodec.decode(line);
-					if(bed==null) continue;
-					writer.write(line.getBytes());
-					writer.write('\n');
-					indexCreator.addFeature(bed, filePosition);
-					filePosition = writer.getFilePointer();
-					}
-				}
-			writer.flush();
-			LOG.info("Creating index");
-			Index index = indexCreator.finalizeIndex(writer.getFilePointer());
-			LOG.info("Writing index to "+tbi+ " using "+index.getClass());
-			index.writeBasedOnFeatureFile(this.outputFile);
-			writer.close();
-			writer=null;
 			LOG.info("Done  N="+bedLineCount);
 			} 
-		catch (Exception e)
+		catch (final Throwable e)
 			{
-			if(this.outputFile.exists() &&this.outputFile.isFile())
+			if(Files.exists(this.outputFile) && Files.isRegularFile(this.outputFile))
 				{
 				LOG.warning("Deleting "+this.outputFile);
-				this.outputFile.delete();
-				if(tbi.exists() && tbi.isFile()) tbi.delete();
+				Files.delete(this.outputFile);
+				if(Files.exists(tbi) && Files.isRegularFile(tbi)) {
+					Files.delete(tbi);
+					}
 				}
 			throw new IOException(e);
 			}
-		finally
-			{
-			CloserUtil.close(iter);
-			CloserUtil.close(sorter);
-			CloserUtil.close(writer);
-			}
+		
 		}
 	
 	
@@ -250,7 +252,7 @@ public class BedIndexTabix
 			LOG.error(getProgramName()+" output file undefined.");
 			return -1;
 			}
-		if(!this.outputFile.getName().endsWith(".bed.gz"))
+		if(!this.outputFile.getFileName().toString().endsWith(".bed.gz"))
 			{
 			LOG.error("output file should en with .bed.gz but got "+outputFile);
 			return -1;

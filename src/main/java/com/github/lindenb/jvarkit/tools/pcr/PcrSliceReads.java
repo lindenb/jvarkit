@@ -181,7 +181,7 @@ END_DOC
 	keywords={"pcr","sam","bam","cigar"},
 	biostars=149687,
 	creationDate = "20150707",
-	modificationDate = "20240722",
+	modificationDate = "20240724",
 	jvarkit_amalgamion = true
 	)
 public class PcrSliceReads extends Launcher
@@ -194,8 +194,8 @@ public class PcrSliceReads extends Launcher
 	private enum AmbiguityStrategy {zero,random,closer};
 	@Parameter(names="-a",description=" if a read is mapped on multiple PCR fragments, how to resolve ambiguity")
 	private AmbiguityStrategy ambiguityStrategy= AmbiguityStrategy.closer; 
-	@Parameter(names="--random",description=" random seed")
-	private Random random=RandomConverter.now();//0L for reproductive calculations
+	@Parameter(names="--random",description=" random seed (-1 == timestamp)")
+	private long randomSed = -1L;//0L for reproductive calculations
 	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
 	private Path referencePath =null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -216,6 +216,7 @@ public class PcrSliceReads extends Launcher
 	@SuppressWarnings("resource")
 	private int run(SamReader reader)
 		{
+		final Random random = new Random(this.randomSed==-1L?System.currentTimeMillis():this.randomSed);
 		final ReadClipper readClipper = new ReadClipper();
 		final SAMFileHeader header1= reader.getFileHeader();
 		final SAMFileHeader header2 = header1.clone();
@@ -337,7 +338,7 @@ public class PcrSliceReads extends Launcher
 							{
 							case random:
 								{
-								best = fragments.get(this.random.nextInt(fragments.size()));
+								best = fragments.get(random.nextInt(fragments.size()));
 								break;
 								}
 							case zero:

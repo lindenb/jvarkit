@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 39dab54ad
-Compilation : 20240723173726
+Version     : b0d78bae
+Compilation : 20240724135827
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -162,6 +162,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bamslicebed](BamSliceBed.md) | For @wouter_decoster : slice (long reads) overlapping the records of a BED file | 20191030 | 20210615 |
 | [bamtile](BamTile.md) | Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target. |  | 20191010 |
 | [barcodegenerator](BarcodeGenerator.md) | Barcode generator for EricCharp | 20230629 | 20230629 |
+| [bedindextabix](BedIndexTabix.md) | Index and sort a Bed on the fly with Tabix (deprecated). | 20150708 | 20240724 |
 | [bedliftover](BedLiftOver.md) | LiftOver a BED file | 20140311 | 20240625 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
 | [bigwigmerge](BigwigMerge.md) | merge several Bigwig files using different descriptive statistics (mean, median, etc..) | 20240417 | 20240417 |
@@ -204,7 +205,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [ngsfilessummary](NgsFilesSummary.md) | Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples. | 20140430 | 20240324 |
 | [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20240207 |
 | [pcrclipreads](PcrClipReads.md) | Soft clip bam files based on PCR target regions | 20150618 | 20210322 |
-| [pcrslicereads](PcrSliceReads.md) | Mark PCR reads to their PCR amplicon | 20150707 | 20240722 |
+| [pcrslicereads](PcrSliceReads.md) | Mark PCR reads to their PCR amplicon | 20150707 | 20240724 |
 | [plotbcftoolsstats](PlotBcftoolsStats.md) | Plot bcftools stats output | 20210622 | 20210622 |
 | [pubmedauthorgraph](PubmedAuthorGraph.md) | Creates a graph from Pubmed and Authors |  |  |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
@@ -213,6 +214,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
 | [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
 | [samaddpi](SamAddPI.md) | Add predicted median insert size 'PI' to SAM Read groups (RG). |  |  |
+| [samedict](SameDict.md) | check if all HTS files share the same dictionary | 20240724 | 20240724 |
 | [samfixcigar](SamFixCigar.md) | Fix Cigar String in SAM replacing 'M' by 'X' or '=' | 20131126 | 20210223 |
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
 | [scanlabguru](ScanLabGuru.md) | scan the files stored in labguru | 20240325 | 20240325 |

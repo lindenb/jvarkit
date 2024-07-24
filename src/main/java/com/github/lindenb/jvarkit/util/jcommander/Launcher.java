@@ -137,39 +137,6 @@ private List<String> files = new ArrayList<>();
 
 private String programName="";
 
-public static class CompressionArgs
-	{
-	@Parameter(names={"--compression"},description="Compression Level.",converter=CompressionConverter.class)
-	public IntSupplier compressionLevel=CompressionConverter.getDefault();
-	}
-public CompressionArgs compressionArgs=new CompressionArgs();
-
-public static class DirectoryExists implements IValueValidator<File> {
-	@Override
-	public void validate(String arg, final File dir) throws ParameterException {
-		if(dir==null || !dir.exists() || !dir.isDirectory()) {
-			throw new ParameterException("option :"+arg+": this is not a directory or it doesn't exists: "+dir);
-			}
-		}
-	}
-
-public static class TmpDirectoryArgs
-	{
-	@Parameter(names={"--tmpDir"},description="Temporary Directory.",validateValueWith=DirectoryExists.class)
-	public File tmpDir = IOUtils.getDefaultTmpDir();
-	}
-
-
-public static class SortingCollectionArgs
-	{
-	@ParametersDelegate
-	private TmpDirectoryArgs tmpDirArgs;
-	SortingCollectionArgs(TmpDirectoryArgs tmpDirArgs) {
-		this.tmpDirArgs=tmpDirArgs;
-		}
-	@Parameter(names={"--xxx"},description="Compression Level.",converter=CompressionConverter.class)
-	public int compressionLevel=5;
-	}
 
 public class WritingSortingCollection
 	{
@@ -334,34 +301,6 @@ public class WritingBamArgs
 	}
 
 
-public static class RandomConverter
-implements IStringConverter<Random>
-{
-public static Random now() {
-	return new Random(System.currentTimeMillis());
-}
-
-@Override
-public Random convert(final String v) {	
-	if(v==null || v.isEmpty() || v.equals("-1") || v.equals("now") || v.equals("timestamp"))
-		{
-		return now();
-		}
-	else
-		{
-		try {
-			final long t = Long.parseLong(v);
-			return new Random(t);
-			}
-		catch(NumberFormatException err)
-			{
-			throw new ParameterException(err);
-			}
-		}
-	
-	}
-}
-
 
 public static class VcfWriterOnDemand
 	implements VariantContextWriter
@@ -458,7 +397,6 @@ public Launcher()
 	@SuppressWarnings({"rawtypes","serial"})
 	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
 		    put(SamRecordFilter.class,SamRecordFilterFactory.class);
-		    put(Random.class,RandomConverter.class);
 		}};	
 
 	this.jcommander.addConverterFactory(new IStringConverterFactory() {

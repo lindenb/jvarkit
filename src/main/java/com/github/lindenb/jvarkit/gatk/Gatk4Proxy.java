@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface Gatk4Proxy {
+	public static final String MSG_COMPILATION="gatk4 engine is not available.";
 	public void execute(final List<String> argv) throws Exception;
 	public static Optional<Gatk4Proxy> getInstance() {
 			try {
@@ -11,7 +12,6 @@ public interface Gatk4Proxy {
 				return Optional.of(Gatk4Proxy.class.cast(clazz.getDeclaredConstructor().newInstance()));
 				}
 			catch(Throwable err) {
-				err.printStackTrace();
 				return Optional.empty();
 				}
 		}

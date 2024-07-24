@@ -722,7 +722,10 @@ public class IOUtils {
      */
 	public static List<String> unrollStrings(final java.util.List<String> args)
 		{
-		if(args.size()==1 && args.get(0).endsWith(".list"))
+		if(args.size()==1 && args.get(0).equals("-")) {
+			return new ArrayList<>();
+			}
+		else if(args.size()==1 && args.get(0).endsWith(".list"))
 			{
 			final Path listFile = Paths.get(args.get(0));
 			IOUtil.assertFileIsReadable(listFile);

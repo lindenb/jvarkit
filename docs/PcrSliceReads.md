@@ -29,8 +29,8 @@ Usage: pcrslicereads [options] Files
     -o, --out
       Output file. Optional . Default: stdout
     --random
-       random seed
-      Default: java.util.Random@58695725
+       random seed (-1 == timestamp)
+      Default: -1
     -R, --reference
       For reading/writing CRAM files. Indexed fasta Reference file. This file 
       must be indexed with samtools faidx and with picard/gatk 
