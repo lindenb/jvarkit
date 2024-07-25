@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 3222e3a1
-Compilation : 20240724152228
+Version     : d8011250c
+Compilation : 20240725160829
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -188,6 +188,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [fasta2vcf](ReferenceToVCF.md) | Creates a VCF containing all the possible substitutions from a Reference Genome. | 20140910 | 20240711 |
 | [fastqshuffle](FastqShuffle.md) | Shuffle Fastq files | 20140901 | 20240129 |
 | [findhtsfiledict](FindHtsFileDictionary.md) | Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path-to-fasta) | 20190912 | 20240604 |
+| [gatkhc](GatkHaplotypeCaller.md) | Wrapper for GATK HaplotypeCaller | 20240625 | 20240625 |
 | [gff2kg](Gff2KnownGene.md) | Convert GFF3 format to UCSC knownGene format. | 20160404 | 20220725 |
 | [gff3upstreamorf](Gff3UpstreamOrf.md) | Takes a ucsc genpred file, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20220724 | 20230820 |
 | [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20240225 |

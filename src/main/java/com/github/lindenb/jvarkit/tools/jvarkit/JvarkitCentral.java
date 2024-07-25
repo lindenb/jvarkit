@@ -131,6 +131,7 @@ import com.github.lindenb.jvarkit.tools.fastq.BamToFastq;
 import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
 import com.github.lindenb.jvarkit.tools.fastq.RepairFastq;
 import com.github.lindenb.jvarkit.tools.findallcov.FindAllCoverageAtPosition;
+import com.github.lindenb.jvarkit.tools.gatk.GatkHaplotypeCaller;
 import com.github.lindenb.jvarkit.tools.gff2kg.Gff2KnownGene;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadSV;
@@ -693,6 +694,7 @@ public class JvarkitCentral {
 		command(FindAVariation.class);
 		command(FindAllCoverageAtPosition.class);
 		command(FindHtsFileDictionary.class);
+		command(GatkHaplotypeCaller.class);
 		command(GtfToBed.class);
 		command(GtfLiftOver.class);
 		command(GtexRsToQTL.class);

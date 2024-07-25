@@ -35,7 +35,17 @@ public class Gatk4ProxyImpl  extends org.broadinstitute.hellbender.Main implemen
 				);
 	    final Object result = Main.runCommandLineProgram(program, args);
 		if(result==null) return;
+		/* gatk tools return a integer */
 		if(Boolean.TRUE.equals(result)) return;
+		/* picard tools return a integer */
+		if(result instanceof Integer) {
+			final int ret = Integer.class.cast(result);
+			if(ret==0) return;
+			}
+		if(result instanceof String) /* IndexFeatureFile */{
+			String ret = String.class.cast(result);
+			if(argv.get(0).equals("IndexFeatureFile")) return;
+			}
 		LOG.warn("Returned "+ result.getClass());
 		LOG.error("Result is "+ result);
 		final Throwable err= (result instanceof Throwable?Throwable.class.cast(result):null);

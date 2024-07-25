@@ -115,6 +115,7 @@ nav:
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
         - "findhtsfiledict" : FindHtsFileDictionary.md
+        - "gatkhc" : GatkHaplotypeCaller.md
         - "gff2kg" : Gff2KnownGene.md
         - "gff3upstreamorf" : Gff3UpstreamOrf.md
         - "goutils" : GoUtils.md
