@@ -21,6 +21,9 @@ Usage: multiqcpostproc [options] Files
       Default: false
     --custom
       custom mapping file (undocumented
+    --description
+      main section description
+      Default: <empty string>
     -h, --help
       print help and exit
     --helpFormat
@@ -30,6 +33,9 @@ Usage: multiqcpostproc [options] Files
     --sample2collection
       tab delimited file containing (sample-name)(TAB)(collection-name). Empty 
       lines or starting with '#' are skipped
+    --title
+      main section title
+      Default: <empty string>
     --version
       print version and exit
 
@@ -85,7 +91,7 @@ Doesn't work for now ? https://github.com/MultiQC/MultiQC/issues/2689
 ```
 # run first time
 multiqc --force --file-list input.list
-java -jar jeter.jar multiqc_data -o OUTDIR2
+java -jar jvarkit.jar multiqcpostproc --sample2collection sample2collection.tsv multiqc_data -o OUTDIR2
 find OUTDIR2 --type f -name "*.json" >> input.list
 # run second time
 multiqc --force --file-list input.list

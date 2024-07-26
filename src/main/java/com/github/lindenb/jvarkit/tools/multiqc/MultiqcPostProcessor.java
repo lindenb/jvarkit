@@ -78,7 +78,7 @@ Doesn't work for now ? https://github.com/MultiQC/MultiQC/issues/2689
 ```
 # run first time
 multiqc --force --file-list input.list
-java -jar jeter.jar multiqc_data -o OUTDIR2
+java -jar jvarkit.jar multiqcpostproc --sample2collection sample2collection.tsv multiqc_data -o OUTDIR2
 find OUTDIR2 --type f -name "*.json" >> input.list
 # run second time
 multiqc --force --file-list input.list
@@ -105,6 +105,11 @@ public class MultiqcPostProcessor extends Launcher {
 	private Path customMapping=null;
 	@Parameter(names={"--beeswarm"},description="use plot_type=beeswarm instead of boxplot.")
 	private boolean use_beeswarm = false;
+	@Parameter(names={"--title"},description="main section title")
+	private String main_section_title = "";
+	@Parameter(names={"--description"},description="main section description")
+	private String main_section_description = "";
+
 
 	private final SamplePopulation sampleCollection = new SamplePopulation();
 	
@@ -192,11 +197,11 @@ public class MultiqcPostProcessor extends Launcher {
 					w.beginObject();
 					
 					w.name("parent_id");
-					w.value("p"+StringUtils.md5(MultiqcPostProcessor.class.getName()));
+					w.value("p"+StringUtils.md5(StringUtils.ifBlank(MultiqcPostProcessor.this.main_section_title,MultiqcPostProcessor.class.getName())));
 					w.name("parent_name");
-					w.value("Per Population");
+					w.value(StringUtils.ifBlank(MultiqcPostProcessor.this.main_section_title,"Per Population"));
 					w.name("parent_description");
-					w.value("MULTIQC data grouped by population using jvarkit "+MultiqcPostProcessor.class.getSimpleName());
+					w.value(StringUtils.ifBlank(MultiqcPostProcessor.this.main_section_description,"MULTIQC data grouped by population using jvarkit "+MultiqcPostProcessor.class.getSimpleName()));
 					
 					w.name("id");
 					w.value("section_id"+id);

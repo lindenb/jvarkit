@@ -33,6 +33,11 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.FileExtensions;
 
+/**
+ * Base class for tools using the GATK wrapper
+ * @author lindenb
+ *
+ */
 public class AbstractGatkTool extends Launcher {
 	private static final Logger LOG = Logger.build(AbstractGatkTool.class).make();
 	private final Gatk4Proxy gatkEngine = Gatk4Proxy.getInstance().orElse(null);
@@ -45,7 +50,7 @@ public class AbstractGatkTool extends Launcher {
 		getGatkEngine().execute(argv);
 		}
 	/** retrieve path for index of given hts file (vcf.gz, bam, cram...) */
-	protected Path indexFor(Path base) {
+	protected Path indexFor(final Path base) {
 		final String fname = base.getFileName().toString();
 		if(fname.endsWith(FileExtensions.COMPRESSED_VCF)) {
 			return base.getParent().resolve(fname+FileExtensions.TABIX_INDEX);

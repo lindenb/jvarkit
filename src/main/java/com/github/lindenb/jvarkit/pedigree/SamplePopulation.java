@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -60,6 +61,9 @@ public class SamplePopulation {
 	private Path filePath = null;
 
 	public interface Population extends HasName,Map<String,Sample> {
+		public default Collection<Sample> getSamples() {
+			return Collections.unmodifiableCollection(this.values());
+			}
 		public default boolean contains(final Sample sn) {
 			return containsKey(sn.getName());
 			}
@@ -67,6 +71,9 @@ public class SamplePopulation {
 	public interface Sample extends HasName,Map<String,Population> {
 		public default boolean contains(final Population pop) {
 			return containsKey(pop.getName());
+			}
+		public default Collection<Population> getPopulations() {
+			return Collections.unmodifiableCollection(this.values());
 			}
 		public default Population getPopulation() {
 			switch(this.size()) {
@@ -193,6 +200,23 @@ public class SamplePopulation {
 		return this;
 		}
 	
+	/** check that one sample has only one collection */
+	public SamplePopulation assertOnePopulationPerSample() {
+		for(Sample sn:getSamples()) {
+			if(sn.getPopulations().size()!=1) {
+				throw new IllegalArgumentException(
+				"Expected one and only one population associated to sample "+
+					sn.getName()+" but got :"+
+					sn.getPopulations().stream().
+						map(it->it.getName()).
+						collect(Collectors.joining(" and ")
+						)
+					);
+				}
+			}
+		return this;
+		}
+	
 	public SamplePopulation load() {
 		if(this.filePath!=null) {
 			return this.load(this.filePath);
@@ -258,8 +282,9 @@ public class SamplePopulation {
 	public Sample getSampleByName(final String name) {
 		return this.id2sample.get(name);
 		}
+	/** shortcut to getSampleByName(g.getSampleName()) */
 	public Sample getSampleByGenotype(final Genotype g) {
-		return this.id2sample.get(g.getSampleName());
+		return getSampleByName(g.getSampleName());
 		}
 
 	/** get All population */
@@ -275,14 +300,9 @@ public class SamplePopulation {
 		return this.id2population.get(name);
 		}
 	
-	
+	/** alias of assertOnePopulationPerSample */
 	public SamplePopulation checkOnePopulationPerSample() {
-		for(SampleImpl sn:this.id2sample.values()) {
-			if(sn.items.size()>1) {
-				throw new IllegalArgumentException("sample "+sn.getName()+" is associated to two population "+sn.items.keySet());
-				}
-			}
-		return this;
+		return assertOnePopulationPerSample();
 		}
 
 	}
