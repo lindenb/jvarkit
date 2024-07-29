@@ -35,11 +35,23 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * inmmutable Map
+ * @author lindenb
+ *
+ * @param <K> key
+ * @param <V> value
+ */
 public class FunctionalMap<K,V> implements Iterable<Map.Entry<K, V>>{
 	private final Map<K,V> delegate;
 	public FunctionalMap() {
 		delegate = new HashMap<>();
 		}
+	
+	public static <K,V>  FunctionalMap<K,V> make() {
+		return new  FunctionalMap<K,V>();
+		}
+	
 	public FunctionalMap(final FunctionalMap<K,V> cp) {
 		this(cp.delegate);
 		}
@@ -47,17 +59,40 @@ public class FunctionalMap<K,V> implements Iterable<Map.Entry<K, V>>{
 		delegate = new HashMap<>(hash);
 		}
 	
+	public FunctionalMap(K k1,V v1) {
+		this();
+		delegate.put(k1, v1);
+		}
+	public FunctionalMap<K,V> plus(FunctionalMap<K,V> fm) {
+		return plus(fm.delegate);
+		}
+	public FunctionalMap<K,V> plus(final Map<K,V> hash) {
+		if(hash.isEmpty()) return this;
+		final FunctionalMap<K,V> cp = makeCopy();
+		for(final K k:hash.keySet()) {
+			cp.delegate.put(k, hash.get(k));
+			}
+		return cp;
+		}
 	public FunctionalMap<K,V> plus(K k1,V v1) {
 		final FunctionalMap<K,V> cp = makeCopy();
 		cp.delegate.put(k1, v1);
 		return cp;
 		}
 	
-	
 	public FunctionalMap<K,V> minus(K k1) {
 		if(!containsKey(k1)) return this;
 		final FunctionalMap<K,V> cp = makeCopy();
 		cp.delegate.remove(k1);
+		return cp;
+		}
+	
+	public FunctionalMap<K,V> minus(Set<K> set) {
+		if(set.stream().noneMatch(key->delegate.containsKey(key))) return this;
+		final FunctionalMap<K,V> cp = makeCopy();
+		for(final K k:set) {
+			cp.delegate.remove(k);
+			}
 		return cp;
 		}
 	
@@ -100,7 +135,7 @@ public class FunctionalMap<K,V> implements Iterable<Map.Entry<K, V>>{
 		return this.delegate.get(k);
 		}
 	
-	public V getOrDefaul(K k,V def) {
+	public V getOrDefault(K k,V def) {
 		return this.delegate.getOrDefault(k, def);
 		}
 	
@@ -115,6 +150,9 @@ public class FunctionalMap<K,V> implements Iterable<Map.Entry<K, V>>{
 	
 	public int size() {
 		return this.delegate.size();
+		}
+	public boolean isEmpty() {
+		return this.delegate.isEmpty();
 		}
 	
 	protected FunctionalMap<K,V> makeCopy() {

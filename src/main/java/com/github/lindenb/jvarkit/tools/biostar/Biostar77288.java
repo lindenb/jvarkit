@@ -28,7 +28,6 @@ package com.github.lindenb.jvarkit.tools.biostar;
 import java.awt.Insets;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -40,13 +39,11 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.util.CloserUtil;
 
 
 /**
@@ -69,6 +66,7 @@ END_DOC
 	description="Low resolution sequence alignment visualization",
 	biostars=77288,
 	keywords={"bam","sam","visualization","svg","alignment"},
+	modificationDate = "20240729",
 	jvarkit_amalgamion =  true,
 	menu="Biostars"
 	)
@@ -76,9 +74,9 @@ public class Biostar77288 extends Launcher
     {
 	private static final Logger LOG= Logger.build(Biostar77288.class).make();
 	
-	@Parameter(names="-S",description="Input is seqLogo")
+	@Parameter(names={"-S","--seqlogo"},description="Input is seqLogo")
     private boolean SEQLOGO=false;
-	@Parameter(names="-W",description="Alignment width")
+	@Parameter(names={"-W","--width"},description="Alignment width")
     private int ALN_WIDTH=1000;
 	@Parameter(names="-r",description="Use Rectangle.")
     private boolean use_rect=false;
@@ -148,37 +146,35 @@ public class Biostar77288 extends Launcher
 		{
 		LOG.info("reading SeqLogo");
 	    String line;
-	    BufferedReader in=(IN==null?
-	            new BufferedReader(new InputStreamReader(System.in)):
-	            IOUtils.openURIForBufferedReading(IN)
-	            );
-	    while((line=in.readLine())!=null)
-	        {
-	    	if( line.isEmpty() ||
-	    		!line.startsWith(">"))
-	    		{
-	    		continue;
-	    		}
-	    	
-	        
-	        Seq S=new Seq();
-	        S.name=line.substring(1).trim();
-	        line=in.readLine();
-	        if(line==null) break;
-	        
-	        S.sequence.append(line.trim());
-	       
-	        sequences.put(S.name, S);
-
-	        max_name=Math.max(S.name.length()+1,max_name);
-	        max_length=Math.max(S.sequence.length(),max_length);
-	        }
-	    in.close();    
+	    try( BufferedReader in=super.openBufferedReader(IN)) 
+			 {
+		    while((line=in.readLine())!=null)
+		        {
+		    	if( line.isEmpty() ||
+		    		!line.startsWith(">"))
+		    		{
+		    		continue;
+		    		}
+		    	
+		        
+		        Seq S=new Seq();
+		        S.name=line.substring(1).trim();
+		        line=in.readLine();
+		        if(line==null) break;
+		        
+		        S.sequence.append(line.trim());
+		       
+		        sequences.put(S.name, S);
+	
+		        max_name=Math.max(S.name.length()+1,max_name);
+		        max_length=Math.max(S.sequence.length(),max_length);
+		        }
+			}
 	    }
     
     @Override
     public int doWork(final List<String> args) {
-        PrintStream out=null;
+      
         try
             {
         	if(this.SEQLOGO)
@@ -196,7 +192,7 @@ public class Biostar77288 extends Launcher
 
             
             final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-            out = super.openPathOrStdoutAsPrintStream(outputFile);
+            try(PrintStream out = super.openPathOrStdoutAsPrintStream(outputFile)) {
             this.w= xmlfactory.createXMLStreamWriter(out,"UTF-8");
             w.writeStartDocument("UTF-8","1.0");
             w.writeStartElement("svg");
@@ -213,7 +209,7 @@ public class Biostar77288 extends Launcher
             w.writeEmptyElement("stop");attr("offset","0%");attr("stop-color","blue");
             w.writeEmptyElement("stop");attr("offset","50%");attr("stop-color","white");
             w.writeEmptyElement("stop");attr("offset","100%");attr("stop-color","blue");
-              w.writeEndElement();
+            w.writeEndElement();
             w.writeEndElement();
             
             w.writeCharacters("\n");
@@ -295,18 +291,23 @@ public class Biostar77288 extends Launcher
             w.writeEndDocument();
             w.close();
             out.flush();
-            out.close();
-            out=null;
+            }
             return 0;
             }
-        catch (final Exception err)
+        catch (final Throwable err)
             {
         	LOG.error(err);
             return -1;
             }
         finally {
-			CloserUtil.close(w);
-			CloserUtil.close(out);
+			if(w!=null) {
+				try {
+					w.close();
+					}
+				catch(Throwable err) {
+					
+					}
+				}
 			}
         }
     
