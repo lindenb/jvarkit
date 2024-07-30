@@ -64,7 +64,7 @@ Usage: mkminibam [options] Files
     -T, --tmp
       Tmp working directory
       Default: /tmp
-  * -B, --bed, -p, --pos, -V, --variant, --vcf
+  * -B, --bed, -p, --pos, -V, --variant, --vcf, --regions
       A source of intervals. The following suffixes are recognized: vcf, 
       vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
       empty string (no interval) or a list of plain interval separated by '[ 

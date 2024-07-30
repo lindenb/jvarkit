@@ -1965,10 +1965,8 @@ all2.add(task("jeter10", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 all2.add(task("jeter11", type: CompileJVarkit) {
+        mainClass = "com.github.lindenb.jvarkit.tools.vcfidx2bed.VcfIdxToBed"
         jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
-        mainClass = "com.github.lindenb.jvarkit.tools.gatk.GatkHaplotypeCaller"
-        jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
-
         });
  
 /** bottom task */

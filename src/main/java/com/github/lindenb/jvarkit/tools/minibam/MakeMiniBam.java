@@ -142,7 +142,7 @@ public class MakeMiniBam extends Launcher {
 	private Path tmpDir = IOUtils.getDefaultTempDir();
 	@Parameter(names={"--prefix"},description="File prefix in the archive. Special value 'now' or empty string will be replaced by the current date")
 	private String filePrefix="miniBam.";
-	@Parameter(names={"-B","--bed","-p","--pos","-V","--variant","--vcf"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class,required=true)
+	@Parameter(names={"-B","--bed","-p","--pos","-V","--variant","--vcf","--regions"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class,required=true)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();
 	@Parameter(names={"-R","--reference"},description="Optional Reference file for CRAM files. Multiple allowed. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private List<Path> referencePathList = new ArrayList<>();
