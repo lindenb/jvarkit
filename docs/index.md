@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : eedf9c032
-Compilation : 20240726163726
+Version     : ffd374c97
+Compilation : 20240730120703
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -104,7 +104,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar497922](Biostar497922.md) | Split VCF into separate VCFs by SNP count | 20210319 | 20210319 |
 | [biostar59647](Biostar59647.md) | SAM/BAM to XML | 20131112 | 20190926 |
 | [biostar76892](Biostar76892.md) | fix strand of two paired reads close but on the same strand. |  |  |
-| [biostar77288](Biostar77288.md) | Low resolution sequence alignment visualization |  |  |
+| [biostar77288](Biostar77288.md) | Low resolution sequence alignment visualization |  | 20240729 |
 | [biostar77828](Biostar77828.md) | Divide the human genome among X cores, taking into account gaps |  |  |
 | [biostar78285](Biostar78285.md) | Extract BAMs coverage as a VCF file. |  |  |
 | [biostar81455](Biostar81455.md) | Defining precisely the exonic genomic context based on a position . | 20130918 | 20200603 |
@@ -148,7 +148,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20240523 |
-| [multiqcpostproc](MultiqcPostProcessor.md) | Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population. | 20240708 | 20240722 |
+| [multiqcpostproc](MultiqcPostProcessor.md) | Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population. | 20240708 | 20240730 |
 | [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document or as a table | 20120320 | 20240320 |
 | [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
 | [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
@@ -165,6 +165,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bamslicebed](BamSliceBed.md) | For @wouter_decoster : slice (long reads) overlapping the records of a BED file | 20191030 | 20210615 |
 | [bamtile](BamTile.md) | Answer to @sjackman : Is there a bedtools command to determine a minimal tiling path? A minimal set of features that cover a maximum of the target. |  | 20191010 |
 | [barcodegenerator](BarcodeGenerator.md) | Barcode generator for EricCharp | 20230629 | 20230629 |
+| [batchigvpictures](BatchIGVPictures.md) | Takes IGV pictures in batch. Save as HTML+png image | 20140731 | 20220524 |
 | [bedindextabix](BedIndexTabix.md) | Index and sort a Bed on the fly with Tabix (deprecated). | 20150708 | 20240724 |
 | [bedliftover](BedLiftOver.md) | LiftOver a BED file | 20140311 | 20240625 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |

@@ -28,8 +28,11 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,6 +43,7 @@ import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -90,7 +94,7 @@ END_DOC
 description="Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population.",
 keywords={"multiqc"},
 creationDate="20240708",
-modificationDate="20240722",
+modificationDate="20240730",
 jvarkit_amalgamion = true,
 menu="Utilities"
 )
@@ -134,7 +138,30 @@ public class MultiqcPostProcessor extends Launcher {
 			}
 		public boolean isHandlerForFile(String fname) {
 			final String[] s=  CharSplitter.COMMA.split(this.properties.getOrDefault("filename", ""));
-			return Arrays.stream(s).anyMatch(S->S.equals(fname));
+			return Arrays.stream(s).
+					map(S->{
+						if(S.startsWith("glob:")) {
+							final PathMatcher pm = FileSystems.getDefault().getPathMatcher(S);
+							return new Predicate<String>() {
+								public boolean test(final String s) {
+									boolean b= pm.matches(Paths.get(s).getFileName());
+									LOG.debug("glob matcher for "+s+"/"+S+" is "+b);
+									return b;
+									}
+								};
+							}
+						else
+							{
+							final String x1=S;
+							return new Predicate<String>() {
+								public boolean test(final String s) {
+									return x1.equals(s);
+									}
+								};
+							}
+						}).
+						anyMatch(S->S.test(fname)
+						);
 			}
 		protected String fixSampleName(final String sn) {
 			final String idxstats=".idxstat";
@@ -506,19 +533,31 @@ public class MultiqcPostProcessor extends Launcher {
 			final List<Handler> handlers = new ArrayList<>();
 			handlers.add(new BoxPlotHandler(Maps.of(
 					"data","singletons",
-					"filename","bcftools-stats-singletons.txt"
+					"filename",String.join(",",
+							"bcftools-stats-singletons.txt",
+							"mqc_bcftools-stats-singletons__STDIN_.txt"
+							)
 					)));
 			handlers.add(new BoxPlotHandler(Maps.of(
 					"data","depth",
-					"filename","bcftools-stats-sequencing-depth.txt"
+					"filename",String.join(",",
+							"bcftools-stats-sequencing-depth.txt",
+							"glob:mqc_bcftools-stats-depth*.txt"
+							)
 					)));
 			handlers.add(new BoxPlotHandler(Maps.of(
 					"data","nSNPs,nIndels",
-					"filename","bcftools-stats-sites.txt"
+					"filename",String.join(",",
+							"bcftools-stats-sites.txt",
+							"glob:mqc_bcftools-stats-sites*.txt"
+							)
 					)));
 			handlers.add(new BoxPlotHandler(Maps.of(
 					"data","tstv",
-					"filename","bcftools-stats-tstv.txt"
+					"filename",String.join(",",
+							"bcftools-stats-tstv.txt",
+							"glob:mqc_bcftools-stats-tstv*.txt"
+							)
 					)));
 			handlers.add(new BoxPlotHandler(Maps.of(
 					"data","Total sequences,Mapped &amp; paired,Properly paired,Duplicated,QC Failed,Reads MQ0,Mapped bases (CIGAR),Bases Trimmed,Duplicated bases,Diff chromosomes,Other orientation,Inward pairs,Outward pairs",
@@ -547,6 +586,39 @@ public class MultiqcPostProcessor extends Launcher {
 			handlers.add(new BoxPlotHandler(Maps.of(
 					"data",String.join(",", "Duplicates","Singletons","Mate mapped to diff chr"),
 					"filename","samtools-flagstat-dp_Percentage_of_total.txt"
+					)));
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "MEDIAN_INSERT_SIZE"),
+					"filename","multiqc_picard_insertSize.txt"
+					)));
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "total_deduplicated_percentage","%GC","Sequence length"),
+					"filename","multiqc_fastqc.txt"
+					)));
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "raw_total_sequences","filtered_sequences","reads_mapped_and_paired","reads_unmapped"),
+					"filename","glob:multiqc_samtools_stats*.txt"
+					)));
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "total_passed","total_failed","reads_mapped_and_paired","reads_unmapped"),
+					"filename","glob:multiqc_samtools_flagstat*.txt"
+					)));
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "Mean Read Length"),
+					"filename","glob:mqc_picard_alignment_readlength_plot_*.txt"
+					)));
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "percent_trimmed"),
+					"filename","multiqc_cutadapt.txt"
+					)));
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data",String.join(",", "Intergenic","TTS","Unassigned","exon","intron","promoter-TSS"),
+					"filename","multiqc_mlib_peak_annotation-plot.txt"
 					)));
 			
 			handlers.add(new JsonHandler(Maps.of(
@@ -665,7 +737,9 @@ public class MultiqcPostProcessor extends Launcher {
 				final Set<Path> pathSet = filesForInput.stream().
 					filter(PATH->handler.isHandlerForFile(PATH.getFileName().toString())).
 					collect(Collectors.toSet());
-				if(pathSet.isEmpty()) continue;
+				if(pathSet.isEmpty()) {
+					continue;
+					}
 				LOG.info("running "+pathSet);
 				handler.apply(pathSet);
 				}

@@ -28,10 +28,10 @@ import java.awt.Color;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
-import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.Stack;
@@ -186,7 +186,7 @@ public abstract class Canvas implements Closeable {
 		return polygon(points,FunctionalMap.make());
 		}
 	
-	private Canvas polyX(List<Point2D> points,boolean closed,FunctionalMap<String, Object> fm) {
+	protected Canvas polyX(List<Point2D> points,boolean closed,FunctionalMap<String, Object> fm) {
 		if(points.isEmpty()) return this;
 		final GeneralPath gp=new GeneralPath();
 		for(int i=0;i< points.size();i++) {
@@ -224,7 +224,10 @@ public abstract class Canvas implements Closeable {
 		}
 	
 	public Canvas line(double x1, double y1, double x2,double y2,FunctionalMap<String, Object> fm) {
-		return shape(new Line2D.Double(x1, y1, x2, y2),fm);
+		return polyline(Arrays.asList(
+    			new Point2D.Double(x1,y1),
+    			new Point2D.Double(x2,y2)
+    			),fm);	
 		}
 	
 	public  final Canvas line(double x1, double y1, double x2,double y2) {

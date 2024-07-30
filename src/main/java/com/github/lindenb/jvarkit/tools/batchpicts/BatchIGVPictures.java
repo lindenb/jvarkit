@@ -110,7 +110,8 @@ END_DOC
 		description="Takes IGV pictures in batch. Save as HTML+png image",
 		keywords={"gui","igv","visualization"},
 		creationDate="20140731",
-		modificationDate="20220524"
+		modificationDate="20220524",
+		jvarkit_amalgamion = true
 		)
 public class BatchIGVPictures extends Launcher {
 	private static final Logger LOG=Logger.build(BatchIGVPictures.class).make();
@@ -240,75 +241,74 @@ public class BatchIGVPictures extends Launcher {
 				PrintWriter out =null;
 				BufferedReader in =null;
 				XMLStreamWriter w=null;
-				FileOutputStream fout=null;
 				IgvSocket igvSocket=null;
 				PrintWriter igvLog=null;
 				try {
-					XMLOutputFactory xof=XMLOutputFactory.newFactory();
+					final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 					igvLog=new PrintWriter(new NullOuputStream());
-					fout=new FileOutputStream(resultFileOut);
-					w=xof.createXMLStreamWriter(fout, "UTF-8");
-					w.writeStartElement("html");
-					w.writeStartElement("body");
-					pngFile=File.createTempFile("igv_", ".png");
-					igvSocket=createIgvSocket();
-					out=igvSocket.getWriter();
-					in=igvSocket.getReader();
-					
-					out.println("snapshotDirectory "+pngFile.getParentFile());				 
-					igvLog.println(in.readLine());
-					out.println("setSleepInterval "+(waitMiliSecs+1));				 
-					igvLog.println(in.readLine());
-	
-					int index=0;
-					for(Mutation m:this.mutations)
-						{
-						if(this!=XFrame.this.currentSlave) break;
-						log("Drawing "+(++index)+"/"+this.mutations.size()+" "+m);
-					
-						int chromStart= Math.max(1,m.position - extend);
-						int chromEnd =  m.position + extend;
-						out.println("goto "+m.chrom+":"+chromStart+"-"+chromEnd);
-						out.flush();
+					try(FileOutputStream fout=new FileOutputStream(resultFileOut)) {
+						w=xof.createXMLStreamWriter(fout, "UTF-8");
+						w.writeStartElement("html");
+						w.writeStartElement("body");
+						pngFile=File.createTempFile("igv_", ".png");
+						igvSocket=createIgvSocket();
+						out=igvSocket.getWriter();
+						in=igvSocket.getReader();
 						
-						igvLog.println(in.readLine()); 
-						out.println("snapshot "+pngFile.getName());
-						out.flush();
+						out.println("snapshotDirectory "+pngFile.getParentFile());				 
 						igvLog.println(in.readLine());
+						out.println("setSleepInterval "+(waitMiliSecs+1));				 
+						igvLog.println(in.readLine());
+		
+						int index=0;
+						for(Mutation m:this.mutations)
+							{
+							if(this!=XFrame.this.currentSlave) break;
+							log("Drawing "+(++index)+"/"+this.mutations.size()+" "+m);
 						
-						BufferedImage dest=scale(pngFile);
-						String imgName=baseFile.getName()+"_"+m.chrom+"_"+m.position+".png";
+							int chromStart= Math.max(1,m.position - extend);
+							int chromEnd =  m.position + extend;
+							out.println("goto "+m.chrom+":"+chromStart+"-"+chromEnd);
+							out.flush();
+							
+							igvLog.println(in.readLine()); 
+							out.println("snapshot "+pngFile.getName());
+							out.flush();
+							igvLog.println(in.readLine());
+							
+							BufferedImage dest=scale(pngFile);
+							String imgName=baseFile.getName()+"_"+m.chrom+"_"+m.position+".png";
+							
+							w.writeStartElement("h3");
+							w.writeCharacters(m.toString());
+							w.writeEndElement();
+							w.writeEmptyElement("img");
+							w.writeAttribute("src",imgName);
+							w.writeAttribute("alt",m.toString());
+							w.writeAttribute("width",String.valueOf(dest.getWidth()));
+							w.writeAttribute("height",String.valueOf(dest.getHeight()));
+							
+							
+							
+							File destScaledImage=new File(baseFile.getParentFile(),imgName);
+							ImageIO.write(dest, "png",destScaledImage);
+							
+							dest=null;
+							log("Sleep "+waitMiliSecs+" millisecs...");
+							Thread.sleep(waitMiliSecs);
+							}
+						log("Done.");
 						
-						w.writeStartElement("h3");
-						w.writeCharacters(m.toString());
-						w.writeEndElement();
-						w.writeEmptyElement("img");
-						w.writeAttribute("src",imgName);
-						w.writeAttribute("alt",m.toString());
-						w.writeAttribute("width",String.valueOf(dest.getWidth()));
-						w.writeAttribute("height",String.valueOf(dest.getHeight()));
+						w.writeEmptyElement("hr");
+						w.writeStartElement("div");
+						w.writeCharacters(about);
+						w.writeEndElement();//div
 						
-						
-						
-						File destScaledImage=new File(baseFile.getParentFile(),imgName);
-						ImageIO.write(dest, "png",destScaledImage);
-						
-						dest=null;
-						log("Sleep "+waitMiliSecs+" millisecs...");
-						Thread.sleep(waitMiliSecs);
+						w.writeEndElement();//body
+						w.writeEndElement();//html
+						w.flush();
+						fout.flush();
 						}
-					log("Done.");
-					
-					w.writeEmptyElement("hr");
-					w.writeStartElement("div");
-					w.writeCharacters(about);
-					w.writeEndElement();//div
-					
-					w.writeEndElement();//body
-					w.writeEndElement();//html
-					w.flush();
-					fout.flush();
-					
 					} 
 				catch (Exception e)
 					{
@@ -321,7 +321,6 @@ public class BatchIGVPictures extends Launcher {
 					CloserUtil.close(out);
 					CloserUtil.close(in);
 					CloserUtil.close(w);
-					CloserUtil.close(fout);
 					CloserUtil.close(igvLog);
 					pngFile.delete();
 					}
@@ -595,29 +594,26 @@ public class BatchIGVPictures extends Launcher {
 				{
 				return ;
 				}
-			BufferedReader r=null;
 			try
 				{
-				r=IOUtils.openFileForBufferedReading(fc.getSelectedFile());
-				Set<Mutation> mutations=this.loadMutations(r);
-				StringWriter sw=new StringWriter();
-				for(Mutation m:mutations)
-					{
-					sw.write(m.chrom+"\t"+m.position+"\n");
+				try(BufferedReader r=IOUtils.openFileForBufferedReading(fc.getSelectedFile())) {
+					final Set<Mutation> mutations=this.loadMutations(r);
+					final StringWriter sw=new StringWriter();
+					for(Mutation m:mutations)
+						{
+						sw.write(m.chrom+"\t"+m.position+"\n");
+						}
+					this.snpArea.setText(sw.toString());
+					this.snpArea.setCaretPosition(0);
+					this.preferences.put(PREF_LOAD_VCF_FILE, fc.getSelectedFile().getPath());
 					}
-				this.snpArea.setText(sw.toString());
-				this.snpArea.setCaretPosition(0);
-				this.preferences.put(PREF_LOAD_VCF_FILE, fc.getSelectedFile().getPath());
 				}
 			catch(Exception err)
 				{
 				JOptionPane.showMessageDialog(this,
 					"Cannot pars data in "+fc.getSelectedFile()+" "+err.getMessage());
 				}
-			finally
-				{
-				CloserUtil.close(r);
-				}
+			
 			}
 		
 		private Set<Mutation> loadMutations(Reader reader)

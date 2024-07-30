@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.tools.bamstats04.BamStats04;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats05;
 import com.github.lindenb.jvarkit.tools.barcode.BarcodeGenerator;
 import com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage;
+import com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures;
 import com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats;
 import com.github.lindenb.jvarkit.tools.bcftoolsmergebest.BCFToolsMergeBest;
 import com.github.lindenb.jvarkit.tools.bed2vcf.BedToVcf;
@@ -613,6 +614,7 @@ public class JvarkitCentral {
 		command(Bam2Raster.class);
 		command(BamStats04.class);
 		command(BamStats05.class);
+		command(BatchIGVPictures.class);
 		command(SortSamRefName.class);
 		command(BaseCoverage.class);
 		command(BlastToSam.class);

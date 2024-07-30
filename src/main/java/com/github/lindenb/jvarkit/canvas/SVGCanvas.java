@@ -47,12 +47,23 @@ public class SVGCanvas extends Canvas {
 			base = new GZIPOutputStream(base);
 			}
 		this.ostream=base;
-		w = XMLOutputFactory.newFactory().createXMLStreamWriter(ostream, "UTF-8");
+		w = XMLOutputFactory.newFactory().
+				createXMLStreamWriter(ostream, "UTF-8");
 		w.writeStartDocument("UTF-8", "1.0");
 		w.writeStartElement("svg");
 		w.writeDefaultNamespace(SVG.NS);
+		w.writeAttribute("version", "1.1");
 		w.writeAttribute("width", String.valueOf(width));
 		w.writeAttribute("height", String.valueOf(height));
+		
+		
+		w.writeStartElement("title");
+		w.writeCharacters(String.valueOf(params.getOrDefault(KEY_TITLE,"")));
+		w.writeEndElement();
+		
+		w.writeStartElement("meta");
+		w.writeEndElement();
+		
 		w.writeStartElement("g");
 		writeStyle();
 		}
@@ -259,6 +270,7 @@ public class SVGCanvas extends Canvas {
 		if(!StringUtils.isBlank(href)) {
 			w.writeStartElement( "a");
 			w.writeAttribute("href", href);
+			w.writeAttribute("target", "_blank");
 			}
 	}
 	private void endAnchor()  throws XMLStreamException {

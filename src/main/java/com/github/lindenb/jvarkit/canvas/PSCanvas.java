@@ -1,12 +1,37 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2024 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 package com.github.lindenb.jvarkit.canvas;
 
 import java.awt.Color;
 import java.awt.Shape;
 import java.awt.geom.PathIterator;
+import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.zip.GZIPOutputStream;
 
 
@@ -132,6 +157,35 @@ public class PSCanvas extends Canvas {
 			w.print(s);
 			w.println();
 			}
+		return this;
+		}
+	
+
+	@Override
+	public Canvas polyline(final List<Point2D> points,FunctionalMap<String, Object> fm) {
+		fm = this.states.push(this.states.peek().plus(fm));
+		double linewidth=getStrokeWidth();
+		if(linewidth>0) {
+			Color c= getStrokeColor();
+			if(c!=null) {
+				w.print(" ");
+				w.print(String.valueOf(linewidth));
+				w.print(" setlinewidth ");
+				w.print(setrgbcolor(c));
+
+				for(int i=0;i< points.size();++i) {
+					final Point2D pt= points.get(i);
+					w.append(" ");
+					w.append(coord(pt.getX(),pt.getY()));
+					w.append(" ");
+					w.append(i==0?"moveto":"lineto");
+					w.print(" stroke");
+					}
+				}
+			}
+		
+
+		this.states.pop();
 		return this;
 		}
 	

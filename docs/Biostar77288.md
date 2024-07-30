@@ -22,12 +22,12 @@ Usage: biostar77288 [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
-    --version
-      print version and exit
-    -S
+    -S, --seqlogo
       Input is seqLogo
       Default: false
-    -W
+    --version
+      print version and exit
+    -W, --width
       Alignment width
       Default: 1000
     -r
