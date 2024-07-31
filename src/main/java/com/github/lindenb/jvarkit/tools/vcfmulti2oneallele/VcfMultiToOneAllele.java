@@ -120,7 +120,7 @@ public class VcfMultiToOneAllele extends OnePassVcfLauncher
 					if(!keepSpanningDeletions && ctx.getAlleles().get(1).equals(Allele.SPAN_DEL)) continue;
 					}
 				
-				if(ctx.getNAlleles()!=ctx0.getNAlleles()  && !StringUtils.isDouble(flagTag)) {
+				if(ctx.getNAlleles()!=ctx0.getNAlleles()  && !StringUtils.isBlank(flagTag)) {
 					ctx = new VariantContextBuilder(ctx).attribute(this.flagTag, Boolean.TRUE).make();
 					}
 				
