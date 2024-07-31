@@ -272,6 +272,7 @@ import com.github.lindenb.jvarkit.tools.vcfgatkeval.VcfGatkEval;
 import com.github.lindenb.jvarkit.tools.vcfgrantham.VcfGrantham;
 import com.github.lindenb.jvarkit.tools.vcfgroupbypop.VcfGroupByPopulation;
 import com.github.lindenb.jvarkit.tools.vcfgtf.VcfFilterGtf;
+import com.github.lindenb.jvarkit.tools.vcfmulti2oneallele.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.vcfmulti2oneinfo.VcfMultiToOneInfo;
 import com.github.lindenb.jvarkit.tools.vcfpar.VcfPseudoAutosomalRegion;
 import com.github.lindenb.jvarkit.tools.vcfpolyx.VCFPolyX;
@@ -829,6 +830,7 @@ public class JvarkitCentral {
 		command(VcfPeekAf.class);
 		command(VcfGeneSplitter.class);
 		command(VcfMultiToOneInfo.class);
+		command(VcfMultiToOneAllele.class);
 		command(VcfTbiToBed.class);
 		command(VcfSplitNVariants.class);
 		command(VcfStrechToSvg.class);

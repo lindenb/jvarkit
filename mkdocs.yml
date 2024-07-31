@@ -238,6 +238,7 @@ nav:
         - "vcfgroupbypop" : VcfGroupByPopulation.md
         - "vcfhead" : VcfHead.md
         - "vcfmulti2one" : VcfMultiToOne.md
+        - "vcfmulti2oneallele" : VcfMultiToOneAllele.md
         - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md
         - "vcfpeekaf" : VcfPeekAf.md
