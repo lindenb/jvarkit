@@ -24,7 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 import java.io.BufferedReader;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,7 +40,6 @@ import com.github.lindenb.jvarkit.util.bio.structure.Transcript;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -116,9 +115,7 @@ public class Biostar81455 extends Launcher
     	}
     @Override
     public int doWork(final List<String> args) {
-		BufferedReader r=null;
 		String line;
-		PrintStream out=null;
 		final CharSplitter tab = CharSplitter.TAB;
 		
 		
@@ -135,98 +132,93 @@ public class Biostar81455 extends Launcher
 			LOG.error(err);
 			return -1;
     		}
-    	finally {
-			CloserUtil.close(r);
-			}
+    	
 		final ContigNameConverter contigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.geneMap);
 		try
     		{
-    		r = super.openBufferedReader(oneFileOrNull(args));
-			out = openPathOrStdoutAsPrintStream(this.outputFile);
-			while((line=r.readLine())!=null)
-				{
-				if(line.startsWith("#"))
-					{
-					out.println(line);
-					continue;
-					}
-				boolean found=false;
-				final String tokens[]=tab.split(line);
-				final int pos1=Integer.parseInt(tokens[1]) + (this.one_based?0:1);
-				final String convertCtg = contigNameConverter.apply(tokens[0]);
-				if(convertCtg==null) {
-					LOG.error("CANNOT FIND contig "+tokens[0]);
-					out.println("##UNKNOWN CONTIG "+line);
-					continue;
-					}
-				final SimplePosition position= new SimplePosition(convertCtg,pos1);
-				
-			    final List<Transcript> transcripts = this.geneMap.getOverlapping(position).
-			    		stream().
-			    		flatMap(G->G.getTranscripts().stream()).
-			    		filter(T->T.overlaps(position)).
-			    		collect(Collectors.toList())
-			    		;
-			    if(transcripts.isEmpty())
-			    	{
-			    	LOG.info("no gene found in chromosome "+tokens[0]+" (check chrom prefix?)");
-			    	}
-			    else
-					{						
-					for(final Transcript kg:transcripts)
+	    	try(BufferedReader r = super.openBufferedReader(oneFileOrNull(args))) {
+				try(PrintWriter out = openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					while((line=r.readLine())!=null)
 						{
-						Exon bestExon=null;
-						for(final Exon exon:kg.getExons())
+						if(line.startsWith("#"))
 							{
-							if(bestExon==null || Math.abs(distance(position.getPosition(), exon))< Math.abs(distance(position.getPosition(),bestExon)))
-								{
-								bestExon=exon;
-								}
+							out.println(line);
+							continue;
 							}
-						if(bestExon!=null)
-							{
-							out.print(line);
-							out.print("\t");
-							out.print(bestExon.getTranscript().getId());
-							out.print("\t");
-							out.print(kg.getStart()-1);
-							out.print("\t");
-							out.print(kg.getEnd());
-							out.print("\t");
-							out.print(kg.getStrand());
-							out.print("\t");
-							out.print(bestExon.getName());
-							out.print("\t");
-							out.print(bestExon.getStart()-1);
-							out.print("\t");
-							out.print(bestExon.getEnd());
-							out.print("\t");
-							out.print(distance(position.getPosition(),bestExon));
-							out.println();
-							found=true;
+						boolean found=false;
+						final String tokens[]=tab.split(line);
+						final int pos1=Integer.parseInt(tokens[1]) + (this.one_based?0:1);
+						final String convertCtg = contigNameConverter.apply(tokens[0]);
+						if(convertCtg==null) {
+							LOG.error("CANNOT FIND contig "+tokens[0]);
+							out.println("##UNKNOWN CONTIG "+line);
+							continue;
 							}
-						}
+						final SimplePosition position= new SimplePosition(convertCtg,pos1);
 						
-					
-					}
-				if(!found)
-					{
-					out.println(line+"\tNULL");
-					}
-				}
+					    final List<Transcript> transcripts = this.geneMap.getOverlapping(position).
+					    		stream().
+					    		flatMap(G->G.getTranscripts().stream()).
+					    		filter(T->T.overlaps(position)).
+					    		collect(Collectors.toList())
+					    		;
+					    if(transcripts.isEmpty())
+					    	{
+					    	LOG.info("no gene found in chromosome "+tokens[0]+" (check chrom prefix?)");
+					    	}
+					    else
+							{						
+							for(final Transcript kg:transcripts)
+								{
+								Exon bestExon=null;
+								for(final Exon exon:kg.getExons())
+									{
+									if(bestExon==null || Math.abs(distance(position.getPosition(), exon))< Math.abs(distance(position.getPosition(),bestExon)))
+										{
+										bestExon=exon;
+										}
+									}
+								if(bestExon!=null)
+									{
+									out.print(line);
+									out.print("\t");
+									out.print(bestExon.getTranscript().getId());
+									out.print("\t");
+									out.print(kg.getStart()-1);
+									out.print("\t");
+									out.print(kg.getEnd());
+									out.print("\t");
+									out.print(kg.getStrand());
+									out.print("\t");
+									out.print(bestExon.getName());
+									out.print("\t");
+									out.print(bestExon.getStart()-1);
+									out.print("\t");
+									out.print(bestExon.getEnd());
+									out.print("\t");
+									out.print(distance(position.getPosition(),bestExon));
+									out.println();
+									found=true;
+									}
+								}
+								
+							
+							}
+						if(!found)
+							{
+							out.println(line+"\tNULL");
+							}
+						}//end while
+					} //with printwrier
+	    		}//end reader
 			return RETURN_OK;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-    	finally
-    		{
-    		CloserUtil.close(r);
-    		CloserUtil.close(out);
-    		}
-		}
+    	}
 	
 	public static void main(final String[] args)throws Exception
 		{

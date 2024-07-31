@@ -68,13 +68,13 @@ $ cat input.vcf | grep -v "##"
 22	16057608	rs201535778	G	T	.	.	AAC=2;AAF=0.0005;BEACON=T|solvebio,T|bob,T|solvebio-133,T|altruist,T|prism,T|kaviar;NS=3690;RAC=3688;RAF=0.9995;VTYPE=SNV
 
 
-$ java -jar dist/vcfmovefilterstoinfo.jar input.vcf | grep -v "##"
+$ java -jar dist/jvarkit.jar vcfmovefilterstoinfo input.vcf | grep -v "##"
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 22	16057608	rs201535778	G	T	.	.	AAC=2;AAF=0.0005;NS=3690;PREVIOUSLY_FILTERED_AS=FT1;RAC=3688;RAF=0.9995;VTYPE=SNV
 22	16058492	.	G	A	.	.	AAC=2;AAF=0.0005;NS=3708;PREVIOUSLY_FILTERED_AS=FT2;RAC=3706;RAF=0.9995;VTYPE=SNV
 
 
-$ java -jar dist/vcfmovefilterstoinfo.jar -f OLDFILTER -t FT2 input.vcf | grep -v "##"
+$ java -jar dist/jvarkit.jar vcfmovefilterstoinfo -f OLDFILTER -t FT2 input.vcf | grep -v "##"
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 22	16057608	rs201535778	G	T	.	FT1	AAC=2;AAF=0.0005;NS=3690;RAC=3688;RAF=0.9995;VTYPE=SNV
 22	16058492	.	G	A	.	.	AAC=2;AAF=0.0005;NS=3708;OLDFILTER=FT2;RAC=3706;RAF=0.9995;VTYPE=SNV
@@ -88,7 +88,9 @@ END_DOC
 		description="Move any FILTER to the INFO column. reset FILTER to PASS",
 		keywords={"vcf","format","info"},
 		creationDate="20161025",
-		modificationDate="20220323"
+		modificationDate="20220323",
+		jvarkit_amalgamion =  true,
+		menu="VCF Manipulation"
 		)
 public class VcfMoveFiltersToInfo
 	extends OnePassVcfLauncher

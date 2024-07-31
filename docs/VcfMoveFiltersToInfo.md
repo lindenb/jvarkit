@@ -7,8 +7,13 @@ Move any FILTER to the INFO column. reset FILTER to PASS
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfmovefilterstoinfo.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfmovefilterstoinfo  [options] Files
+
 Usage: vcfmovefilterstoinfo [options] Files
   Options:
     --bcf-output
@@ -47,23 +52,6 @@ Usage: vcfmovefilterstoinfo [options] Files
  * format
  * info
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfmovefilterstoinfo
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -107,16 +95,17 @@ $ cat input.vcf | grep -v "##"
 22	16057608	rs201535778	G	T	.	.	AAC=2;AAF=0.0005;BEACON=T|solvebio,T|bob,T|solvebio-133,T|altruist,T|prism,T|kaviar;NS=3690;RAC=3688;RAF=0.9995;VTYPE=SNV
 
 
-$ java -jar dist/vcfmovefilterstoinfo.jar input.vcf | grep -v "##"
+$ java -jar dist/jvarkit.jar vcfmovefilterstoinfo input.vcf | grep -v "##"
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 22	16057608	rs201535778	G	T	.	.	AAC=2;AAF=0.0005;NS=3690;PREVIOUSLY_FILTERED_AS=FT1;RAC=3688;RAF=0.9995;VTYPE=SNV
 22	16058492	.	G	A	.	.	AAC=2;AAF=0.0005;NS=3708;PREVIOUSLY_FILTERED_AS=FT2;RAC=3706;RAF=0.9995;VTYPE=SNV
 
 
-$ java -jar dist/vcfmovefilterstoinfo.jar -f OLDFILTER -t FT2 input.vcf | grep -v "##"
+$ java -jar dist/jvarkit.jar vcfmovefilterstoinfo -f OLDFILTER -t FT2 input.vcf | grep -v "##"
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
 22	16057608	rs201535778	G	T	.	FT1	AAC=2;AAF=0.0005;NS=3690;RAC=3688;RAF=0.9995;VTYPE=SNV
 22	16058492	.	G	A	.	.	AAC=2;AAF=0.0005;NS=3708;OLDFILTER=FT2;RAC=3706;RAF=0.9995;VTYPE=SNV
 
 ```
+
 

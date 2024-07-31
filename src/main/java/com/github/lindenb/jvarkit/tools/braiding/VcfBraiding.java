@@ -79,7 +79,8 @@ END_DOC
 	keywords={"vcf","visualization"},
 	creationDate="20201021",
 	modificationDate="20201022",
-	jvarkit_amalgamion = true
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation"
 	)
 public class VcfBraiding extends Launcher {
 	private static final Logger LOG = Logger.build(VcfBraiding.class).make();

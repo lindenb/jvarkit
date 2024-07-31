@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 9cc58598
-Compilation : 20240731161719
+Version     : 97112175
+Compilation : 20240731180107
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -231,7 +231,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
 | [vcf2hilbert](VcfToHilbert.md) | Plot a Hilbert Curve from a VCF file as SVG | 20171201 | 20240517 |
 | [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
-| [vcfbraiding](VcfBraiding.md) | visualization for variants and attributes using https://visdunneright.github.io/sequence_braiding/docs/ . | 20201021 | 20201022 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |
 | [vcfburdenslidingwindow](VcfBurdenSlidingWindow.md) | apply fisher test on VCF using a sliding window | 20190920 | 20231213 |
 | [vcffilterbyliftover](VcfFilterByLiftOver.md) | Add FILTER(s) to a variant when it is known to map elsewhere after liftover. | 20190418 | 20210603 |
@@ -268,6 +267,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfancestralalleles](VcfAncestralAllele.md) | Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README | 20180418 | 20220126 |
 | [vcfbigbed](VcfBigBed.md) | Annotate a VCF with values from a bigbed file | 20220107 | 20220107 |
 | [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20230819 |
+| [vcfbraiding](VcfBraiding.md) | visualization for variants and attributes using https://visdunneright.github.io/sequence_braiding/docs/ . | 20201021 | 20201022 |
 | [vcfburdenmaf](VcfBurdenMAF.md) | MAF for Cases / Controls | 20160418 | 202000713 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20220119 | 20240524 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
@@ -284,6 +284,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgnomadsv](VcfGnomadSV.md) | Peek annotations from gnomad structural variants | 20190814 | 20211109 |
 | [vcfgrantham](VcfGrantham.md) | add grantham score from annotated VCF variant | 20230503 | 20230503 |
 | [vcfhead](VcfHead.md) | print the first variants of a vcf | 20131210 | 20200518 |
+| [vcfmovefilterstoinfo](VcfMoveFiltersToInfo.md) | Move any FILTER to the INFO column. reset FILTER to PASS | 20161025 | 20220323 |
 | [vcfmulti2oneinfo](VcfMultiToOneInfo.md) | 'one variant with INFO with N values' to 'N variants with one INFO' | 20260106 | 20230524 |
 | [vcfpar](VcfPseudoAutosomalRegion.md) | Flag human sexual regions excluding PAR. | 20200908 | 20200908 |
 | [vcfpeekaf](VcfPeekAf.md) | Peek the AF from another VCF | 20200624 | 20200904 |
