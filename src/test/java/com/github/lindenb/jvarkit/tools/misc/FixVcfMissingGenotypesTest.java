@@ -8,6 +8,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tests.AlsoTest;
+import com.github.lindenb.jvarkit.tools.fixvcfmissinggenotypes.FixVcfMissingGenotypes;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;

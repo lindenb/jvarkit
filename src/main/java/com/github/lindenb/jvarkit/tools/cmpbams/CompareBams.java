@@ -278,7 +278,8 @@ END_DOC
 	keywords={"sam","bam","compare"},
 	creationDate="20130506",
 	modificationDate="20200221",
-	biostars=9493549
+	biostars=9493549,
+	jvarkit_amalgamion = true
 	)
 public class CompareBams  extends Launcher
 	{

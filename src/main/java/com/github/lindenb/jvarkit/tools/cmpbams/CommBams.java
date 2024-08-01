@@ -60,7 +60,8 @@ END_DOC
 	description="Equivalent of unix 'comm' for bams sorted on queryname",
 	keywords={"sam","bam","comm","compare"},
 	creationDate="20170420",
-	biostars=9493549
+	biostars=9493549,
+	jvarkit_amalgamion = true
 	)
 public class CommBams extends Launcher {
 	
@@ -194,6 +195,7 @@ public class CommBams extends Launcher {
 	
 	
 	@Override
+	@SuppressWarnings({"unchecked","rawtypes"})
 	public int doWork(final List<String> args) {
 		if(args.size() !=2)
 			{
@@ -203,9 +205,7 @@ public class CommBams extends Launcher {
 		final Comparator<SAMRecord> comparator = this.sortMethod.get();
 
 		final SamReader samFileReaders[]={null,null};
-		@SuppressWarnings("unchecked")
 		final PeekableIterator<SAMRecord> iters[]=new PeekableIterator[]{null,null};
-		PrintWriter out=null;
 		Optional<SAMRecord> rec0  = Optional.empty();
 		Optional<SAMRecord> rec1  = Optional.empty();
 		
@@ -229,7 +229,7 @@ public class CommBams extends Launcher {
 				
 				iters[i] = new PeekableIterator<>(samFileReaders[i].iterator());
 				}
-			out= super.openFileOrStdoutAsPrintWriter(outputFile);
+			try(PrintWriter out= super.openFileOrStdoutAsPrintWriter(outputFile)) {
 			
 			for(;;) {
 				for(int i=0;i< 2;++i) {
@@ -297,10 +297,10 @@ public class CommBams extends Launcher {
 					}
 				}
 			out.flush();
-			out.close();out=null;
+			}
 			return 0;
 			}
-		catch(Exception err) {
+		catch(Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
@@ -310,8 +310,7 @@ public class CommBams extends Launcher {
 				CloserUtil.close(iters[i]);
 				CloserUtil.close(samFileReaders[i]);
 				}
-			CloserUtil.close(out);
-		}
+			}
 		}
 	
 	public static void main(final String[] args) {

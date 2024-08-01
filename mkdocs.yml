@@ -98,9 +98,12 @@ nav:
         - "blastmapannots" : BlastMapAnnotations.md
         - "blastn2snp" : BlastNToSnp.md
         - "builddbsnp" : BuildDbsnp.md
+        - "cmpbams" : CompareBams.md
+        - "cmpbams4" : CompareBams4.md
         - "cmpbamsandbuild" : CompareBamAndBuild.md
         - "cnvtview" : CnvTView.md
         - "cnvvalidatorserver" : CNVValidatorServer.md
+        - "commbams" : CommBams.md
         - "convertliftoverchain" : ConvertLiftOverChain.md
         - "copynumber01" : CopyNumber01.md
         - "coveragematrix" : CoverageMatrix.md
@@ -116,6 +119,7 @@ nav:
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
         - "findhtsfiledict" : FindHtsFileDictionary.md
+        - "fixvcfmissinggenotypes" : FixVcfMissingGenotypes.md
         - "gatkhc" : GatkHaplotypeCaller.md
         - "gff2kg" : Gff2KnownGene.md
         - "gff3upstreamorf" : Gff3UpstreamOrf.md

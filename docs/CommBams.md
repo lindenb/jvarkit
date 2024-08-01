@@ -7,7 +7,13 @@ Equivalent of unix 'comm' for bams sorted on queryname
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar commbams  [options] Files
+
 Usage: commbams [options] Files
   Options:
     -delim, --delimiter
@@ -60,23 +66,6 @@ Usage: commbams [options] Files
  * [https://www.biostars.org/p/9493549](https://www.biostars.org/p/9493549)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew commbams
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -110,38 +99,5 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
-
-
-## Example
-
-### Example 1
-
-```
- $ java -jar dist/commbams.jar  \
- 	 -f but_metadata -delim '\n' \
- 	B00GWFP_std.hg19.qname.bam B00GWFP_S1.hg19.qname.bam
-PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1	83	chr5	21564864	40	151M	=	21564540	-475	CTCCCAGAGAGAAGCATCAACAGCTTAGGGTGTAGTCTAAACAGAAATCTTGCACTCCTCCTGCAGTAGCGTCTCTATTTTTTATGCTGAACATTATTTGCTAATTCCAACTGGCTCTAAGCTAATGTGTTTCCCAGGTTTTCTCAATGAN	AFAA<,,,<,,,,,,,,7,,,,7,,,,A7KKF<,F,,7,7,A,A7F7,K<A,,,,7,,,7KKKFAFA,7,A7F7,7,,,KFF,,AKKFFFF<<K<<KAFAKA,A,,A7,AAAFKFA,A,FKKAA,AKKKKFFFKF<KKKKKKKFFAAAA<#
-PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1	77	*	0	0	*	*	0	0	NTCATTGAGAAAACCTGGGAAACACATTAGCTTAGAGCCAGTTGGAATTAGCAAATAATGTTCAGCATAAAAAATAGAGACGCTACTGCAGGAGGAGTGCAAGATTTCTGTTTAGACTACACCCTAAGCTGTTGATGCTTCTCTCTGGGA	!<AAAAFFKKKKKKK<FKFFFKKKKA,AAKKF,A,AFKFAAA,7A,,A,AKAFAK<<K<<FFFFKKA,,FFK,,,7,7F7A,7,AFAFKKK7,,,7,,,,A<K,7F7A,A,7,7,,F,<FKK7A,,,,7,,,,7,,,,,,,,<,,,<AAF
-PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	163	chr5	21564540	60	8S106M37S	=	21564864	475	NTAAGAATATTTCACACTTAAAACAAAATCTGATTAGACAAACACTTTGATTGTTATTATTCGCGTATATCATCTACCAGAAGCAAATAGACATCTACTACATCTTTCAAGAAAGTTTACCTATCAATATTACTCAACTGGACCCAATAAT	#<A,<,,A,,K<7FKFF,7,,AF,,7,7AAF,,7<<,,7,AF,,7,7A<,7FA,,7,,7F,,A7FKK7,7,,,,,7,,,,,<,<,,,,7,<,,,,,,7FF7AF<7,,<,,,,7,7,,,,,,,<,,,,,,,,,,,,,,,,,,<,,,,,,,,,
-PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2	141	*	0	0	*	*	0	0	NTAAGAATATTTCACACTTAAAACAAAATCTGATTAGACAAACACTTTGATTGTTATTATTCGCGTATATCATCTACCAGAAGCAAATAGACATCTACTACATCTTTCAAGAAAGTTTACCTATCAATATTACTCAACTGGACCCAATAA	!<A,<,,A,,K<7FKFF,7,,AF,,7,7AAF,,7<<,,7,AF,,7,7A<,7FA,,7,,7F,,A7FKK7,7,,,,,7,,,,,<,<,,,,7,<,,,,,,7FF7AF<7,,<,,,,7,7,,,,,,,<,,,,,,,,,,,,,,,,,,<,,,,,,,,
-```
-
-### Example 2
-
-```
- $ java -jar dist/commbams.jar --samtools \
- 	B00GWFP_std.hg19.qname.bam B00GWFP_S1.hg19.qname.bam
-
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/1
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:5388/2
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:6513/1
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:6513/2
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:7181/1
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:7181/2
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10205/1
-.	.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10205/2
-.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10380/1	.
-.	PANORAMIX:1:HJY2CCCXX:7:1101:1133:10380/2	.
-```
 
 

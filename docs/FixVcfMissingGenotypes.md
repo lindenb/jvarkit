@@ -7,7 +7,13 @@ After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing ge
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar fixvcfmissinggenotypes  [options] Files
+
 Usage: fixvcfmissinggenotypes [options] Files
   Options:
     -B, --bams
@@ -56,7 +62,8 @@ Usage: fixvcfmissinggenotypes [options] Files
       Possible Values: [readgroup, sample, library, platform, center, sample_by_platform, sample_by_center, sample_by_platform_by_center, any]
     --reference, -R
       For reading CRAM. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --stringency
       SAM Validation stringency
       Default: LENIENT
@@ -96,23 +103,6 @@ Usage: fixvcfmissinggenotypes [options] Files
  * [https://www.biostars.org/p/302581](https://www.biostars.org/p/302581)
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew fixvcfmissinggenotypes
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -120,11 +110,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypes.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypes.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypesTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/FixVcfMissingGenotypesTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fixvcfmissinggenotypes/FixVcfMissingGenotypes.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/fixvcfmissinggenotypes/FixVcfMissingGenotypes.java)
 
 
 ## Contribute
@@ -154,6 +140,9 @@ This tool remains slow because there is a random-access in the bam for each './.
 
 You can always try to speed-up things by breaking your VCF in multiple regions and process them in parallel.
 
+
+You'd better use GATK HaplotypeCaller in GVCF mode or use bcftools +setGT
+
 ## Examples
 
 
@@ -177,7 +166,7 @@ rotavirus	1064	.	G	A	21.56	.	AC1=2;AF1=0.25;BQB=0.683886;DP=72;DP4=0,219,0,31;FQ
 ```
 $ yourtool-mergingvcf 1.vcf 2.vcf 3.vcf > merged.vcf
 $ find ./ -name "*.bam" > bams.list
-$  java -jar dist/fixvcfmissinggenotypes.jar -B bams.list < merged.vcf > out.vcf
+$  java -jar dist/jvarkit.jar fixvcfmissinggenotypes -B bams.list < merged.vcf > out.vcf
 ```
 
 ```
@@ -201,5 +190,6 @@ gzip --best > out.vcf.gz
  * 2018-11-20 : adding features for structural variants
  * 2017-07-24 : rewrite whole program 
  * 2014: Creation
+
 
 

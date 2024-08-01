@@ -121,7 +121,8 @@ END_DOC
 	description="Compare two query-name sorted BAM files. Print a tab-delimited report",
 	keywords={"sam","bam","compare"},
 	creationDate="20161206",
-	modificationDate="20200327"
+	modificationDate="20200327",
+	jvarkit_amalgamion = true
 	)
 public class CompareBams4  extends Launcher
 	{
@@ -298,11 +299,11 @@ public class CompareBams4  extends Launcher
 	}
 	
 	@Override
+	@SuppressWarnings({"unchecked","rawtypes"})
 	public int doWork(final List<String> args) {
-		PrintWriter out=null;
 		final SamReader samFileReaders[]=new SamReader[]{null,null};
 		final SAMSequenceDictionary dicts[]=new SAMSequenceDictionary[]{null,null};
-		@SuppressWarnings("unchecked")
+		
 		final PeekableIterator<SAMRecord> iters[]=new PeekableIterator[]{null,null};
 		final List<List<SAMRecord>> recordLists = Arrays.asList(new ArrayList<SAMRecord>(),new ArrayList<SAMRecord>());
 		final Counter<Diff> diffs = new Counter<>();
@@ -527,15 +528,14 @@ public class CompareBams4  extends Launcher
 			str(sb,"diffChroms");
 			str(sb,"diffFlag");
 			sb.append("Count");
-			out = super.openPathOrStdoutAsPrintWriter(outputFile);
-			out.println(sb);
-			for(final Diff key:diffs.keySet()) {
-				out.print(key.toString());
-				out.println(diffs.count(key));
-			}
-			out.flush();
-			out.close();
-			
+			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(outputFile)){
+				out.println(sb);
+				for(final Diff key:diffs.keySet()) {
+					out.print(key.toString());
+					out.println(diffs.count(key));
+				}
+				out.flush();
+				}
 			return RETURN_OK;
 			}
 		catch(final Throwable err)
@@ -550,7 +550,6 @@ public class CompareBams4  extends Launcher
 				CloserUtil.close(iters[i]);
 				CloserUtil.close(samFileReaders[i]);
 				}
-			CloserUtil.close(out);
 			}
 		}
 		

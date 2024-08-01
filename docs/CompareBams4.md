@@ -2,12 +2,18 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Compare two BAM files. Print a tab-delimited report
+Compare two query-name sorted BAM files. Print a tab-delimited report
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar cmpbams4  [options] Files
+
 Usage: cmpbams4 [options] Files
   Options:
     -c, --chain
@@ -24,6 +30,14 @@ Usage: cmpbams4 [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For Reading CRAM. Reference for first BAMIndexed fasta Reference file. 
+      This file must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
+    -R2, --reference2
+      For Reading CRAM. Reference for second BAM, if different from 1st bam. 
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     -sortmethod, --sortmethod
       [20171110]Method used to sort the read on query name. (samtools != 
       picard) see https://github.com/samtools/hts-specs/issues/5
@@ -42,22 +56,10 @@ Usage: cmpbams4 [options] Files
  * compare
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew cmpbams4
-```
-
-The java jar file will be installed in the `dist` directory.
+20161206
 
 ## Source code 
 
@@ -142,5 +144,6 @@ BOTH	SameChrom	SameContig	Gt100	0	0	185/137	chr22/chr22	20
 BOTH	SameChrom	SameContig	Zero	0	0	177/177	chr22/chr22	1417
 (...)
 ```
+
 
 

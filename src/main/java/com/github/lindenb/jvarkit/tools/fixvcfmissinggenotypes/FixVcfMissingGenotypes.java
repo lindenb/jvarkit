@@ -23,7 +23,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.fixvcfmissinggenotypes;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -83,6 +83,9 @@ This tool remains slow because there is a random-access in the bam for each './.
 
 You can always try to speed-up things by breaking your VCF in multiple regions and process them in parallel.
 
+
+You'd better use GATK HaplotypeCaller in GVCF mode or use bcftools +setGT
+
 ## Examples
 
 
@@ -106,7 +109,7 @@ rotavirus	1064	.	G	A	21.56	.	AC1=2;AF1=0.25;BQB=0.683886;DP=72;DP4=0,219,0,31;FQ
 ```
 $ yourtool-mergingvcf 1.vcf 2.vcf 3.vcf > merged.vcf
 $ find ./ -name "*.bam" > bams.list
-$  java -jar dist/fixvcfmissinggenotypes.jar -B bams.list < merged.vcf > out.vcf
+$  java -jar dist/jvarkit.jar fixvcfmissinggenotypes -B bams.list < merged.vcf > out.vcf
 ```
 
 ```
@@ -141,7 +144,8 @@ description="After a VCF-merge, read a VCF, look back at some BAMS to tells if t
 biostars={119007,263309,276811,302581},
 keywords={"sam","bam","vcf","sv","genotype"},
 creationDate="20141109",
-modificationDate="20200525"
+modificationDate="20200525",
+jvarkit_amalgamion = true
 )
 public class FixVcfMissingGenotypes extends Launcher
 	{
