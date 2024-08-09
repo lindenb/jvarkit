@@ -67,6 +67,10 @@ public class SamplePopulation {
 		public default boolean contains(final Sample sn) {
 			return containsKey(sn.getName());
 			}
+		/** get All samples names in that collection, alias of keySet*/
+		public default Set<String> getSampleNames() {
+			return keySet();
+			}
 		}
 	public interface Sample extends HasName,Map<String,Population> {
 		public default boolean contains(final Population pop) {

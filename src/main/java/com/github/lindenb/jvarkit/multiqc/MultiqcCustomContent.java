@@ -24,14 +24,17 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.multiqc;
 
+import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.Maps;
 import com.google.gson.stream.JsonWriter;
 
 /** class to generate custom content json files for multiqc */
@@ -49,6 +52,14 @@ public class MultiqcCustomContent {
 	
 	public MultiqcCustomContent() {
 		
+		}
+	
+	private String getChartTitle() {
+		String s= this.attributes.getOrDefault(KEY_TITLE,"");
+		if(StringUtils.isBlank(s)) s=this.attributes.getOrDefault(KEY_SECTION_NAME,"");
+		if(StringUtils.isBlank(s)) s=this.attributes.getOrDefault(KEY_SECTION_ID,"");
+		if(StringUtils.isBlank(s)) s="title";
+		return s;
 		}
 	
 	/** set the attribute used for output. Key are defined as KEY** in the class */
@@ -97,12 +108,15 @@ public class MultiqcCustomContent {
 		}
 	public void writeBoxplot(Path jsonFile,Map<String,List<Number>> content) throws IOException {
 		try(JsonWriter w=new JsonWriter(Files.newBufferedWriter(validatePath(jsonFile)))) {
+			w.setIndent("    ");
+			w.setLenient(true);
 			writeBoxplot(w,content);
 			}
 		}
 
 	public void writeBoxplot(JsonWriter w,Map<String,List<Number>> content) throws IOException {
 		w.beginObject();
+		
 		String section_id = writeSectionBegin(w);
 		writeParentSection(w);
 		
@@ -113,7 +127,7 @@ public class MultiqcCustomContent {
 		w.name("id");
 		w.value("plot__id"+section_id);
 		w.name("title");
-		w.value(this.attributes.getOrDefault(KEY_TITLE, "title"));
+		w.value(getChartTitle());
 		writeXYLab(w);
 		
 		w.endObject();
@@ -131,6 +145,152 @@ public class MultiqcCustomContent {
 			}
 			
 		w.endObject();
+		w.endObject();
+		w.flush();
+		}
+	public void writeBarGraph(JsonWriter w,Map<String,Number> hash) throws IOException {
+		writeBarGraph(w,"Count",false,hash);
+		}
+	/**
+	packed: put everything in the same bar, otherwise, one bar for each key
+	*/
+	
+	public void writeBarGraph(JsonWriter w,final String countTitle,boolean packed, Map<String,Number> hash) throws IOException {
+		final Map<String,Map<String,Number>> hash2=new LinkedHashMap<>();
+		if(!packed) {
+			for(String key:hash.keySet()) {
+				hash2.put(key, Maps.of(countTitle, hash.get(key)));
+				}
+			}
+		else
+			{
+			hash2.put(countTitle, hash);
+			}
+		writeMultiBarGraph(w,hash2);
+		}
+	
+	public void writeMultiBarGraph(JsonWriter w,Map<String,Map<String,Number>> hash1) throws IOException {
+		w.beginObject();
+		final String section_id = writeSectionBegin(w);
+		writeParentSection(w);
+		
+		w.name("plot_type");
+		w.value("bargraph");
+		w.name("pconfig");
+		w.beginObject();
+			w.name("id");
+			w.value("plot__id"+section_id);
+			w.name("title");
+			w.value(getChartTitle());
+			writeXYLab(w);
+		w.endObject();
+		
+		w.name("data");
+		
+		w.beginObject();
+		for(final String key1:hash1.keySet()) {
+			final Map<String,Number> hash2 = hash1.get(key1);
+			w.name(key1);
+			
+			w.beginObject();
+			for(final String key2:hash2.keySet()) {
+				w.name(key2);
+				w.value(hash2.get(key2));
+				}
+			w.endObject();
+			}
+		w.endObject();
+		
+		
+		w.endObject();
+		w.flush();
+		}
+	
+	public void writeXY(JsonWriter w,List<Point2D> points) throws IOException {
+		int n=0;
+		final Map<String,Point2D> hash2point=new LinkedHashMap<>(points.size());
+		for(Point2D pt:points) {
+			hash2point.put(String.valueOf(n++), pt);
+			}
+		writeXY(w,hash2point);
+		}
+	
+	public void writeXY(JsonWriter w,Map<String,Point2D> hash2point) throws IOException {
+		w.beginObject();
+		final String section_id = writeSectionBegin(w);
+		writeParentSection(w);
+		
+		w.name("plot_type");
+		w.value("scatter");
+		w.name("pconfig");
+		w.beginObject();
+			w.name("id");
+			w.value("plot__id"+section_id);
+			w.name("title");
+			w.value(getChartTitle());
+			writeXYLab(w);
+		w.endObject();
+		
+		w.name("data");
+		
+		w.beginObject();
+		for(final String key1:hash2point.keySet()) {
+			final Point2D pt = hash2point.get(key1);
+			w.name(key1);
+			w.beginObject();
+			
+				w.name("x");
+				w.value(pt.getX());
+				w.name("y");
+				w.value(pt.getY());
+
+			w.endObject();
+			}
+		w.endObject();
+		
+		
+		w.endObject();
+		w.flush();
+		}
+	
+	public void writeLineGraph(JsonWriter w,List<Point2D> points) throws IOException {
+		writeLineGraph(w,"points",points);
+		}
+	
+	public void writeLineGraph(JsonWriter w,String name,List<Point2D> points) throws IOException {
+		writeLineGraph(w, Maps.of(name,points));
+		}
+	
+	public void writeLineGraph(JsonWriter w,Map<String,List<Point2D>> hash2point) throws IOException {
+		w.beginObject();
+		final String section_id = writeSectionBegin(w);
+		writeParentSection(w);
+		
+		w.name("plot_type");
+		w.value("linegraph");
+		w.name("pconfig");
+		w.beginObject();
+			w.name("id");
+			w.value("plot__id"+section_id);
+			w.name("title");
+			w.value(getChartTitle());
+			writeXYLab(w);
+		w.endObject();
+		
+		w.name("data");
+		
+		w.beginObject();
+		for(final String key1:hash2point.keySet()) {
+			w.name(key1);
+			w.beginObject();
+			for(final Point2D pt : hash2point.get(key1)) {
+				w.name(String.valueOf(pt.getX()));
+				w.value(pt.getY());
+				}
+			w.endObject();
+			}
+		w.endObject();
+		
 		
 		w.endObject();
 		w.flush();
@@ -154,7 +314,7 @@ public class MultiqcCustomContent {
 		w.name("id");
 		w.value("plot__id"+section_id);
 		w.name("title");
-		w.value(this.attributes.getOrDefault(KEY_TITLE, "title"));
+		w.value(getChartTitle());
 		writeXYLab(w);
 		
 		

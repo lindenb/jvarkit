@@ -89,7 +89,8 @@ END_DOC
 @Program(name="gcpercentanddepth",
 description="Extracts GC% and depth for multiple bam using a sliding window",
 keywords={"gc%","depth","coverage"},
-modificationDate="20210818"
+creationDate="20140315",
+modificationDate="20240808"
 )
 public class GcPercentAndDepth extends Launcher
 	{

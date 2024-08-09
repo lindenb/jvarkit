@@ -1397,7 +1397,7 @@ all2.add( task("vcfsimulator", type: CompileJVarkit) {
 	});
 
 all.add( task("vcfstatsjfx", type: CompileJVarkit) {
-			mainClass = "com.github.lindenb.jvarkit.tools.vc745stats.VcfStatsJfx"
+			mainClass = "com.github.lindenb.jvarkit.tools.vcstats.VcfStatsJfx"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 
@@ -1941,7 +1941,7 @@ all2.add(task("jeter10", type: CompileJVarkit) {
         jarLibs = combineLibs("htsjdk","testng","jcommander")
         });
 all2.add(task("jeter11", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.vcfidx2bed.VcfIdxToBed"
+        mainClass = "com.github.lindenb.jvarkit.tools.vcfstats.VcfStats2"
         jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
         });
  
