@@ -35,6 +35,8 @@ import java.util.Map;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Maps;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonWriter;
 
 /** class to generate custom content json files for multiqc */
@@ -74,12 +76,29 @@ public class MultiqcCustomContent {
 		return p;
 		}
 	
+	protected JsonObject putXYLab(JsonObject o) throws IOException {
+		o.addProperty("xlab",this.attributes.getOrDefault(KEY_XLAB, "xlab"));
+		o.addProperty("ylab",this.attributes.getOrDefault(KEY_YLAB, "ylab"));
+		return o;
+		}
+	
 	protected void writeXYLab(JsonWriter w) throws IOException {
 		w.name("xlab");
 		w.value(this.attributes.getOrDefault(KEY_XLAB, "xlab"));
 		w.name("ylab");
 		w.value(this.attributes.getOrDefault(KEY_YLAB, "ylab"));
 	}
+	
+	
+	protected JsonObject putSectionBegin(JsonObject o) throws IOException {
+		String section_id= this.attributes.getOrDefault(KEY_SECTION_ID,"n"+System.currentTimeMillis());
+		o.addProperty("id",section_id);
+		
+		String section_name = this.attributes.getOrDefault(KEY_SECTION_NAME, section_id);
+		o.addProperty("section_name",section_name);
+		o.addProperty("description",this.attributes.getOrDefault(KEY_SECTION_DESC, section_name));		
+		return o;
+		}
 	
 	protected String writeSectionBegin(JsonWriter w) throws IOException {
 		String section_id= this.attributes.getOrDefault(KEY_SECTION_ID,"n"+System.currentTimeMillis());
@@ -215,6 +234,32 @@ public class MultiqcCustomContent {
 		writeXY(w,hash2point);
 		}
 	
+	public JsonObject makeXY(final Map<String,Point2D> hash2point) throws IOException {
+	
+		final JsonObject pconfig = new JsonObject();
+		pconfig.addProperty("id", "plot_id"+"TODO");
+		pconfig.addProperty("title", getChartTitle());
+		
+		final JsonObject o1 = new JsonObject();
+		
+		o1.addProperty("plot_type", "scatter");
+		o1.add("pconfig", pconfig);
+		
+		
+		final JsonObject data = new JsonObject();
+		o1.add("data", data);
+		
+		for(final String key1:hash2point.keySet()) {
+			final Point2D pt = hash2point.get(key1);
+			final JsonObject pto = new JsonObject();
+			pto.addProperty("x", pt.getX());
+			pto.addProperty("y", pt.getY());
+			data.add(key1, pto);
+			}
+		
+		return o1;
+		}
+	
 	public void writeXY(JsonWriter w,Map<String,Point2D> hash2point) throws IOException {
 		w.beginObject();
 		final String section_id = writeSectionBegin(w);
@@ -261,6 +306,27 @@ public class MultiqcCustomContent {
 		writeLineGraph(w, Maps.of(name,points));
 		}
 	
+	public JsonObject toLineGraph(Map<String,List<Point2D>> hash2point) {
+		String section_id="";
+		JsonObject pconfig = new JsonObject();
+		pconfig.addProperty("id","plot__id"+section_id);
+		
+		JsonObject data = new JsonObject();
+		for(final String key1:hash2point.keySet()) {
+			JsonObject ptobj = new JsonObject();
+			for(final Point2D pt : hash2point.get(key1)) {
+				ptobj.addProperty(String.valueOf(pt.getX()), pt.getY());
+				}
+			data.add(key1,ptobj);
+			}
+		
+		final JsonObject o1 = new JsonObject();
+		o1.addProperty("plot_type", "linegraph");
+		o1.add("pconfig",pconfig);
+		o1.add("data",data);
+		return o1;
+		}
+	
 	public void writeLineGraph(JsonWriter w,Map<String,List<Point2D>> hash2point) throws IOException {
 		w.beginObject();
 		final String section_id = writeSectionBegin(w);
@@ -302,6 +368,26 @@ public class MultiqcCustomContent {
 			}
 		}
 
+	public JsonElement toBeeswarm(final Map<String,Map<String,Number>> content) {
+		final JsonObject data = new JsonObject();
+		for(final String sn:content.keySet()) {
+			final Map<String,Number> hash = content.get(sn);
+			final JsonObject h2=new JsonObject();
+			
+			for(final String key2:hash.keySet()) {
+				h2.addProperty(key2,hash.get(key2));
+				}
+		
+			data.add(sn,h2);
+			}
+		
+		final JsonObject chart = new JsonObject();
+		chart.add("data", data);
+		
+		
+		return chart;
+		}
+	
 	public void writeBeeswarm(JsonWriter w,Map<String,Map<String,Number>> content) throws IOException {
 		w.beginObject();
 		String section_id = writeSectionBegin(w);

@@ -27,8 +27,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,16 +39,14 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.DoubleConsumer;
-import java.util.function.DoublePredicate;
 import java.util.function.DoubleUnaryOperator;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.multiqc.MultiqcCustomContent;
 import com.github.lindenb.jvarkit.pedigree.SamplePopulation;
-import com.github.lindenb.jvarkit.tools.multiqc.MultiqcPostProcessor;
 import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -116,7 +116,40 @@ public class VcfStats2 extends Launcher {
 	
 	private final SamplePopulation samplePopulation=new SamplePopulation();
 	
-
+	/** manage x =  ((int)(x/factor))*factor   */
+	private class DoubleRounder implements DoubleUnaryOperator {
+		final DecimalFormat decimalFormat;
+		DoubleRounder(int n) {
+			String str="#.";
+			while(n>0) {
+				str+="#";
+				--n;
+				}
+			this.decimalFormat = new DecimalFormat(str);
+			this.decimalFormat.setRoundingMode(java.math.RoundingMode.CEILING);
+			}
+		@Override
+		public double applyAsDouble(double v) {
+			return Double.parseDouble(this.decimalFormat.format(v));
+			}
+		}
+	
+	private class BinRounder implements DoubleUnaryOperator {
+		final double[] bins;
+		BinRounder(double...values) {
+			bins = Arrays.copyOf(values, values.length);
+			Arrays.sort(bins);
+			if(bins.length==0) throw new IllegalArgumentException();
+			}
+		@Override
+		public double applyAsDouble(double v) {
+			for(int i=0;i< this.bins.length;i++) {
+				if(v <= this.bins[i]) return this.bins[i];
+				}
+			return this.bins[this.bins.length-1];
+			}
+		}
+	
 	private static class DataPoint implements DoubleConsumer {
 		private long count=0L;
 		private double sum = 0.0;
@@ -130,9 +163,7 @@ public class VcfStats2 extends Launcher {
 		public long getCount() {
 			return this.count;
 			}
-		public  OptionalDouble getSum() {
-			return isEmpty()?OptionalDouble.empty():OptionalDouble.of(this.sum);
-			}
+	
 		public  OptionalDouble getAverage() {
 			return isEmpty()?OptionalDouble.empty():OptionalDouble.of(this.sum/this.count);
 			}
@@ -156,7 +187,6 @@ public class VcfStats2 extends Launcher {
 	private abstract class AbstractAnalyzer implements Analyzer {
 		protected boolean enabled=true;
 		protected Map<String,String> attributes=new HashMap<>();
-		protected Predicate<Genotype> acceptGT = V->true;
 
 		@Override
 		public String getName() {
@@ -177,7 +207,7 @@ public class VcfStats2 extends Launcher {
 			this.attributes.put(key, value);
 			return this;
 			}
-		boolean acceptVariant(VariantContext ctx) {
+		boolean acceptVariant(final VariantContext ctx) {
 			return true;
 			}
 		boolean acceptGenotype(Genotype g) {
@@ -217,9 +247,17 @@ public class VcfStats2 extends Launcher {
 				writeBoxplot(w, content);
 			}
 		
+		protected <T extends Number> List<Point2D> toPoints(Counter<T> counter) {
+			return counter.entrySet().
+					stream().
+					map(KV->new Point2D.Double(KV.getKey().doubleValue(), KV.getValue())).
+					sorted((A,B)->Double.compare(A.getX(), B.getX())).
+					collect(Collectors.toList());
+			}
+		
 		protected abstract void saveAsMultiqcJson(JsonWriter w) throws IOException;
 		
-		Optional<Genotype> getSingleton(VariantContext ctx) {
+		protected Optional<Genotype> getSingleton(VariantContext ctx) {
 			Genotype single = null;
 			for(Genotype g:ctx.getGenotypes()) {
 				if(!acceptGenotype(g)) continue;
@@ -233,59 +271,81 @@ public class VcfStats2 extends Launcher {
 	
 	/** Abstract AbstractDensityPlot ******************************************************************************************/
 	private abstract class AbstractDensityPlot extends AbstractAnalyzer {
-		private final Counter<Double> counter=new Counter<>();
-		
-		
+		private final Map<String,Counter<Double>> pop2counter=new HashMap<>();
+		private final String all_names= "ALL";
+		@Override
+		public void init(VCFHeader h) {
+			if(!h.hasGenotypingData()) {
+				pop2counter.put(all_names, new Counter<>());
+				}
+			else
+				{
+				for(SamplePopulation.Population pop: VcfStats2.this.samplePopulation.getPopulations()) {
+					pop2counter.put(pop.getNameAndCount(), new Counter<>());
+					}
+				}
+			}
 		@Override
 		protected boolean hasAnyDataToSave() {
-			return !counter.isEmpty();
+			return pop2counter.entrySet().stream().anyMatch(KV->!KV.getValue().isEmpty());
 			}
 		protected abstract List<Double> toDouble(VariantContext ctx);
 		
-		protected abstract double toDiscreteValue(double v);
-
 		protected boolean acceptValue(double v) {
 			return true;
 			}
 		
 		@Override
-		public void visit(VariantContext ctx) {
+		public void visit(final VariantContext ctx) {
 			if(!acceptVariant(ctx)) return;
-			for(Double value:toDouble(ctx)) {
-				if(!acceptValue(value)) continue;
-				counter.incr(toDiscreteValue(value));
+			final List<Double> values = toDouble(ctx);
+			if(ctx.hasGenotypes()) {
+				for(SamplePopulation.Population pop: VcfStats2.this.samplePopulation.getPopulations()) {
+					if(pop.getSampleNames().stream().map(SN->ctx.getGenotype(SN)).filter(G->acceptGenotype(G)).anyMatch(G->G.hasAltAllele())) {
+						for(double v  : values) {
+							if(!acceptValue(v)) continue;
+							pop2counter.get(pop.getNameAndCount()).incr(v);
+							}
+						}
+					}
+				}
+			else
+				{
+				for(double v  : values) {
+					if(!acceptValue(v)) continue;
+					pop2counter.get(all_names).incr(v);
+					}
 				}
 			}
 		
 		@Override
 		protected void saveAsMultiqcJson(JsonWriter w) throws IOException {
-			makeMultiqcCustomContent().writeXY(w,
-					this.counter.entrySet().stream().
-						map(KV->new Point2D.Double(KV.getKey(),KV.getValue())).
-						collect(Collectors.toList())
-						);
+			final Map<String,List<Point2D>> hash=new HashMap<>(this.pop2counter.size());
+			for(String popName:this.pop2counter.keySet()) {
+				final List<Point2D> points = toPoints(this.pop2counter.get(popName));
+				if(points.isEmpty()) continue;
+ 				hash.put(popName, points);
+				}
+			makeMultiqcCustomContent().writeLineGraph(w,hash);
 			}
 		}
 	
 	private class QUALDensityPlot extends AbstractDensityPlot {
+		private final DoubleUnaryOperator converter = new BinRounder(0,1,10,20,30,40,50,60,70,80,90,100,200,300,400,500,1000,2000,3000,4000,5000,10_000);
 		@Override
 		public void init(VCFHeader h) {
-			
+			super.init(h);
 			}
-		
 		@Override
 		protected List<Double> toDouble(VariantContext ctx) {			
-			return Arrays.asList(toDiscreteValue(ctx.getPhredScaledQual()));
+			return Arrays.asList(converter.applyAsDouble(ctx.getPhredScaledQual()));
 			}
 		@Override
-		boolean acceptVariant(VariantContext ctx) {
+		boolean acceptVariant(final VariantContext ctx) {
 			if(!ctx.hasLog10PError()) return false;
 			return super.acceptVariant(ctx);
 			}
-		@Override
-		protected double toDiscreteValue(double v) {
-			return v;
-			}
+		
 		}
 	private abstract class AbstractFORMATPerSampleBoxPlot extends AbstractAnalyzer {
 		final Map<String,DataPoint> sn2data =new HashMap<>();
@@ -391,63 +451,42 @@ public class VcfStats2 extends Launcher {
 			}
 		}
 	
-	private abstract class AbstractINFODensityPlot extends AbstractDensityPlot {
+	private class INFODensityPlot extends AbstractDensityPlot {
 		private String infoKey="";
-		@Override
-		public void init(final VCFHeader h) {
-			this.infoKey = super.attributes.getOrDefault("info.key","");
-			if(StringUtils.isBlank(infoKey)) throw new IllegalStateException("undefined info.key");
-			this.enabled = h.hasGenotypingData() && h.getFormatHeaderLine(this.infoKey)!=null;
+		private final DoubleUnaryOperator normalizer;
+		protected INFODensityPlot(final String infoKey, final DoubleUnaryOperator normalizer) {
+			super();
+			this.infoKey = infoKey;
+			this.normalizer=normalizer;
 			}
 		@Override
-		boolean acceptVariant(VariantContext ctx) {
+		public void init(final VCFHeader h) {
+			super.init(h);
+			if(this.enabled) {
+				this.enabled = h.getFormatHeaderLine(this.infoKey)!=null;
+				}
+			}
+		@Override
+		boolean acceptVariant(final VariantContext ctx) {
 			if(!ctx.hasAttribute(this.infoKey)) return false;
 			return super.acceptVariant(ctx);
 			}
 		@Override
 		protected List<Double> toDouble(VariantContext ctx) {
-			return ctx.getAttributeAsDoubleList(this.infoKey, 0);
+			return ctx.getAttributeAsDoubleList(this.infoKey, 0).stream().
+					mapToDouble(V->normalizer.applyAsDouble(V)).
+					boxed().
+					collect(Collectors.toList());
 			}
 		}
-	private abstract class DensityPlot extends AbstractINFODensityPlot {
-		 DoubleUnaryOperator converter=DoubleUnaryOperator.identity();
-		final DoublePredicate acceptValue;
-		DensityPlot(final String key,final DoubleUnaryOperator converter, final DoublePredicate acceptValue) {
-			attribute("info.key",key);
-			attribute("name",key);
-			attribute("description","Density of INFO/"+key);
-			this.converter=converter;
-			this.acceptValue=acceptValue;
-			}
-		@Override
-		protected boolean acceptValue(double v) {
-			return this.acceptValue.test(v);
-			}
-		}
+	
 	
 	
 
 	/** Abstract BoxPlot ******************************************************************************************/
-	private abstract class AbstractBoxPlot extends AbstractAnalyzer {
-		private final Map<String, Counter<Integer>> cat2values= new HashMap<>();
-		protected void add(final String cat,int value) {
-			Counter<Integer> l = cat2values.get(cat);
-			if(l==null) {
-				l=new Counter<>();
-				cat2values.put(cat, l);
-				}	
-			l.incr(value);
-			}
 
-		@Override
-		protected boolean hasAnyDataToSave() {
-			return !cat2values.isEmpty();
-			}
-		
-		
-		}
 	
-	private abstract class AbstractFractionOfVariants extends AbstractBoxPlot {
+	private abstract class AbstractFractionOfVariants extends AbstractAnalyzer {
 		protected VCFHeader vcfHeader= null;
 		protected final Counter<String> counter = new Counter<>();
 		protected long n_variants = 0L;
@@ -496,12 +535,13 @@ public class VcfStats2 extends Launcher {
 			}
 		}
 	
+	
 	/** export number of variants per category */
-	private class VariantTypePerPop extends AbstractAnalyzer {
-		private final Map<SamplePopulation.Population,Counter<VariantContext.Type>> pop2data = new HashMap<>();
+	private class FiltersPerPop extends AbstractAnalyzer {
+		private final Map<SamplePopulation.Population,Counter<String>> pop2data = new HashMap<>();
 		@Override
 		public void init(final VCFHeader h) {
-			this.enabled = h.hasGenotypingData() && h.getFormatHeaderLine(VCFConstants.GENOTYPE_KEY)!=null;
+			this.enabled = h.hasGenotypingData() && !h.getFilterLines().isEmpty();
 			for(SamplePopulation.Population pop: VcfStats2.this.samplePopulation.getPopulations()) {
 				pop2data.put(pop, new Counter<>());
 				}
@@ -509,9 +549,21 @@ public class VcfStats2 extends Launcher {
 		@Override
 		public void visit(final VariantContext ctx) {
 			if(!acceptVariant(ctx)) return;
+			
+			final Set<String> filters;
+			if(ctx.isFiltered()) {
+				filters = ctx.getFilters();
+				}
+			else
+				{
+				filters = Collections.singleton(VCFConstants.PASSES_FILTERS_v4);
+				}
+			
 			for(SamplePopulation.Population pop: VcfStats2.this.samplePopulation.getPopulations()) {
 				if(pop.getSampleNames().stream().map(SN->ctx.getGenotype(SN)).filter(G->acceptGenotype(G)).anyMatch(G->G.hasAltAllele())) {
-					pop2data.get(pop).incr(ctx.getType());
+					for(final String ft:filters) {
+						pop2data.get(pop).incr(ft);
+						}
 					}
 				}
 			}
@@ -522,6 +574,62 @@ public class VcfStats2 extends Launcher {
 				hash.put(
 					pop+" (N="+pop.size()+")",
 					this.pop2data.get(pop).entrySet().stream().
+						collect(
+								Collectors.toMap(
+										KV->KV.getKey(),
+										KV->(long)KV.getValue()
+										)
+						));
+				}
+			
+			makeMultiqcCustomContent().writeMultiBarGraph(w,hash);
+			}
+		@Override
+		protected boolean hasAnyDataToSave() {
+			return pop2data.entrySet().stream().anyMatch(KV->!KV.getValue().isEmpty());
+			}
+		}
+	
+	/** export number of variants per category */
+	private class VariantTypePerPop extends AbstractAnalyzer {
+		private final Map<String,Counter<VariantContext.Type>> pop2data = new HashMap<>();
+		private final String allPopName="ALL";
+		@Override
+		public void init(final VCFHeader h) {
+			if(h.hasGenotypingData()) {
+				if(h.getFormatHeaderLine(VCFConstants.GENOTYPE_KEY)==null) this.enabled=false;
+				for(SamplePopulation.Population pop: VcfStats2.this.samplePopulation.getPopulations()) {
+					pop2data.put(pop.getNameAndCount(), new Counter<>());
+					}
+				}
+			else
+				{
+				pop2data.put(allPopName, new Counter<>());
+				}
+			}
+		@Override
+		public void visit(final VariantContext ctx) {
+			if(!acceptVariant(ctx)) return;
+			if(ctx.hasGenotypes()) {
+				for(SamplePopulation.Population pop: VcfStats2.this.samplePopulation.getPopulations()) {
+					if(pop.getSampleNames().stream().map(SN->ctx.getGenotype(SN)).filter(G->acceptGenotype(G)).anyMatch(G->G.hasAltAllele())) {
+						pop2data.get(pop.getNameAndCount()).incr(ctx.getType());
+						}
+					}
+				}
+			else
+				{
+				pop2data.get(allPopName).incr(ctx.getType());
+				}
+			}
+		@Override
+		protected void saveAsMultiqcJson(final JsonWriter w) throws IOException {
+			final Map<String,Map<String,Number>> hash=new HashMap<>();
+			for(final String popName:this.pop2data.keySet()) {
+				if(this.pop2data.get(popName).isEmpty()) continue;
+				hash.put(
+					popName,
+					this.pop2data.get(popName).entrySet().stream().
 						collect(
 								Collectors.toMap(
 										KV->KV.getKey().name(),
@@ -538,39 +646,6 @@ public class VcfStats2 extends Launcher {
 			}
 		}
 	
-	private abstract class AbstractFORMATValue extends AbstractBoxPlot {
-		private final Map<String,DataPoint> sample2data = new HashMap<>();
-		@Override
-		public void init(final VCFHeader h) {
-			this.enabled = h.hasGenotypingData() && h.getFormatHeaderLine(getFormatKey())!=null;
-			for(String sn:h.getGenotypeSamples()) {
-				sample2data.put(sn, new DataPoint());
-				}
-			}
-		protected abstract String getFormatKey();
-		
-		protected OptionalDouble objectToDouble(Object o) {
-			if(o==null) return OptionalDouble.empty();
-			if(o.equals(VCFConstants.MISSING_VALUE_v4)) return  OptionalDouble.empty();
-			if(o instanceof Number) return OptionalDouble.of(Number.class.cast(o).doubleValue());
-			LOG.warn("cannot convert "+o+" to numeric.");
-			return OptionalDouble.empty();
-			}
-		@Override
-		public void visit(final VariantContext ctx) {
-			if(!acceptVariant(ctx)) return;
-			for(Genotype g:ctx.getGenotypes()) {
-				if(!acceptGenotype(g)) continue;
-				final OptionalDouble opt= objectToDouble(g.getAnyAttribute(getFormatKey()));
-				if(!opt.isPresent()) continue;
-				sample2data.get(g.getSampleName()).accept(opt.getAsDouble());
-				}
-			}
-		@Override
-		protected void saveAsMultiqcJson(JsonWriter w) throws IOException {
-			
-			}
-		}
 	/***************************************************************************/
 	private class AFHistogram extends AbstractAnalyzer {
 		private final Map<SamplePopulation.Population,Counter<Double>> pop2data = new HashMap<>();
@@ -614,12 +689,7 @@ public class VcfStats2 extends Launcher {
 		protected void saveAsMultiqcJson(JsonWriter w) throws IOException {
 			final Map<String,List<Point2D>> hash=new HashMap<>();
 			for(final SamplePopulation.Population pop:this.pop2data.keySet()) {
-				final List<Point2D> L = this.pop2data.get(pop).
-						entrySet().
-						stream().
-						map(KV->new Point2D.Double(KV.getKey(),KV.getValue().doubleValue())).
-						sorted((A,B)->Double.compare(A.getX(),B.getX())).
-						collect(Collectors.toList());
+				final List<Point2D> L = toPoints(this.pop2data.get(pop));
 				if(L.isEmpty()) continue;
 				hash.put(pop+" (N="+pop.size()+")", L);
 				}
@@ -649,25 +719,23 @@ public class VcfStats2 extends Launcher {
 		}
 	
 	
-	private static boolean valueInRange(double v,double minV,double maxV) {
-		return minV<=v  && v<=maxV;
-		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		final List<Analyzer> modules =new ArrayList<>();
 		modules.add(new Singleton());
 		modules.add(new QUALDensityPlot());
-		/*modules.add(new DensityPlot(GATKConstants.FS_KEY,(V)->V,V->true));
-		modules.add(new DensityPlot(GATKConstants.MQ_KEY,(V)->V,V->true));
-		modules.add(new DensityPlot(GATKConstants.MQRankSum_KEY,(V)->V,V->true).attribute("precision", "10"));
-		modules.add(new DensityPlot(GATKConstants.QD_KEY,(V)->V,V->true));
-		modules.add(new DensityPlot(GATKConstants.ReadPosRankSum_KEY,(V)->V,V->true));
-		modules.add(new DensityPlot(GATKConstants.SOR_KEY,(V)->V,V->true).attribute("precision", "10"));
-		*/
+		modules.add(new INFODensityPlot(GATKConstants.FS_KEY,new DoubleRounder(1)));
+		modules.add(new INFODensityPlot(GATKConstants.MQ_KEY,new DoubleRounder(1)));
+		modules.add(new INFODensityPlot(GATKConstants.MQRankSum_KEY,new DoubleRounder(10)));
+		modules.add(new INFODensityPlot(GATKConstants.QD_KEY,new DoubleRounder(1)));
+		modules.add(new INFODensityPlot(GATKConstants.ReadPosRankSum_KEY,new DoubleRounder(1)));
+		modules.add(new INFODensityPlot(GATKConstants.SOR_KEY,new DoubleRounder(10)));
+		
 		modules.add(new DepthPerSampleBoxPlot());
 		modules.add(new GQPerSampleBoxPlot());
 		modules.add(new FILTERedPerSampleBoxPlot());
+		modules.add(new FiltersPerPop());
 		modules.add(new VariantTypePerPop());
 		modules.add(new HetAFPerSampleBoxPlot());
 		modules.add(new AFHistogram());

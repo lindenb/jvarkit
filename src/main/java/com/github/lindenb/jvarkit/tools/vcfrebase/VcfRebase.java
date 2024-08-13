@@ -107,6 +107,7 @@ END_DOC
 	creationDate="20131115",
 	modificationDate="20200624",
 	jvarkit_amalgamion =  true,
+	biostars = {9600689},
 	menu="VCF Manipulation"
 	)
 public class VcfRebase extends OnePassVcfLauncher {
@@ -118,27 +119,25 @@ public class VcfRebase extends OnePassVcfLauncher {
 	@Parameter(names={"-E","-enzyme","--enzyme"},description="restrict to that enzyme name. Default: use all enzymes")
 	private Set<String> selEnzymesStr = new HashSet<>();
 	@Parameter(names={"-w","-weight","--weight"},description="min enzyme weight 6 = 6 cutter like GAATTC, 2 = 2 cutter like ATNNNNNNAT  ")
-	private float weight= 5f;		
-	
-	
+	private float weight= 5f;
+
 	public VcfRebase() {
 		}
-	
+
 	@Override
 	protected Logger getLogger() {
 		return LOG;
 		}
-	
+
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator iter, VariantContextWriter out) {
 		 ReferenceSequenceFile indexedFastaSequenceFile=null;
-		 GenomicSequence genomicSequence=null;			
+		 GenomicSequence genomicSequence=null;
 
 		try
 			{
 			Rebase rebase = Rebase.createDefaultRebase();
 
-			
 			if(!this.selEnzymesStr.isEmpty())
 				{
 				final Rebase rebase2=new Rebase();
