@@ -117,6 +117,7 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 	if( columnName.equalsIgnoreCase("genename") ||
 		columnName.equalsIgnoreCase("gene_name") ||
 		columnName.equalsIgnoreCase("symbol")) {
+		urls.add(new LabelledUrlImpl("Pharos",id,"https://pharos.nih.gov/diseases?associatedTarget="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("NCBI gene",id,"https://www.ncbi.nlm.nih.gov/gene/?term="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("OMIM",id,"https://www.omim.org/search?search="+StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("hugeamp",id,"https://cvd.hugeamp.org/gene.html?gene="+StringUtils.escapeHttp(id)));
