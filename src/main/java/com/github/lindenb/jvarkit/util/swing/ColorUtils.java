@@ -38,7 +38,9 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 
 import htsjdk.samtools.SAMRecord;
 
-
+/**
+ * functions converting java.awt.Color
+ */
 public class ColorUtils
 	{
 
@@ -436,6 +438,9 @@ public class ColorUtils
         if(c.equals("none")) return null;
         else if(c.startsWith("#"))
             {
+			if(c.length()==4) {/* short hand notation */
+				c="#"+c.charAt(1)+c.charAt(1)+c.charAt(2)+c.charAt(2)+c.charAt(3)+c.charAt(3);
+				}
             return new Color( Integer.valueOf(c.substring(1),16).intValue());
             }
         else if((c.startsWith("rgb(") || c.startsWith("rgba(")) && c.endsWith(")"))
