@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.findhtsfiledict;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,17 +34,16 @@ import java.util.List;
 import java.util.Optional;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
 import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
@@ -110,10 +109,10 @@ END_DOC
 
 
 @Program(name="findhtsfiledict",
-	description="Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path-to-fasta)",
+	description="Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path/url-to-fasta)",
 	keywords={"sam","bam","cram","vcf","dict"},
 	creationDate="20190912",
-	modificationDate="20240604",
+	modificationDate="20240824",
 	jvarkit_amalgamion = true
 	)
 public class FindHtsFileDictionary extends Launcher {
@@ -123,7 +122,7 @@ public class FindHtsFileDictionary extends Launcher {
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-D","-R","--repository","--dictionaries"},description="A tab delimited file with a required header, and required columns: 'name' (name of the reference) and 'fasta' (path to the indexed fasta ref).",
+	@Parameter(names={"-D","-R","--references","--dictionaries"},description="A tab delimited file with a required header, and required columns: 'name' (name of the reference) and 'fasta' (path/url to the indexed fasta ref). An Optional column 'dict' for the path/url to the dict file",
 			required = true)
 	private Path repositoryFile = null;
 	@Parameter(names={"-e","--errors"},description="What shall we do on error")
@@ -131,11 +130,15 @@ public class FindHtsFileDictionary extends Launcher {
 	@Parameter(names={"--no-header"},description="Do not print header")
 	private boolean disable_header=false;
 
+	private final SequenceDictionaryExtractor dictExtractor=new SequenceDictionaryExtractor();
+
+	
 	private static class DictEntry
 		{
 		String name;
 		SAMSequenceDictionary dict;
-		Path fasta;
+		String pathOrUrl;
+		String dictPathOrUrl;
 		}
 
 	
@@ -161,20 +164,43 @@ public class FindHtsFileDictionary extends Launcher {
 					throw new IOException("duplicate dictionary named "+entry.name);
 					}
 						
-				entry.fasta = Paths.get(row.get("fasta"));
-				if(dictionaries.stream().anyMatch(D->D.fasta.equals(entry.fasta))) {
-					throw new IOException("duplicate fasta "+entry.fasta);
+				entry.pathOrUrl = row.get("fasta");
+				if(dictionaries.stream().anyMatch(D->D.pathOrUrl.equals(entry.pathOrUrl))) {
+					throw new IOException("duplicate fasta "+entry.pathOrUrl);
 					}
+				
 						
-				
-				IOUtil.assertFileIsReadable(entry.fasta);
-				
-				if(!entry.fasta.isAbsolute()) {
-					LOG.warn("path is not absolute "+entry.fasta);
+				if(!IOUtil.isUrl(entry.pathOrUrl)) {
+					final Path fasta=Paths.get(entry.pathOrUrl);
+					IOUtil.assertFileIsReadable(fasta);
+					
+					if(!fasta.isAbsolute()) {
+						LOG.warn("path is not absolute "+fasta);
+						}
 					}
-				// throw error if it's not supported fasta
-				ReferenceSequenceFileFactory.getFastaExtension(entry.fasta);
-				entry.dict =SequenceDictionaryUtils.extractRequired(entry.fasta);
+				
+				entry.dictPathOrUrl = row.getOrDefault("dict","");
+				if(!StringUtils.isBlank(entry.dictPathOrUrl)) {
+					if(dictionaries.stream().anyMatch(D->D.dictPathOrUrl.equals(entry.dictPathOrUrl))) {
+						throw new IOException("duplicate dict "+entry.dictPathOrUrl);
+						}
+					
+							
+					if(!IOUtil.isUrl(entry.dictPathOrUrl)) {
+						final Path dict =Paths.get(entry.dictPathOrUrl);
+						IOUtil.assertFileIsReadable(dict);
+						
+						if(!dict.isAbsolute()) {
+							LOG.warn("path is not absolute "+dict);
+							}
+						}
+					entry.dict =dictExtractor.extractRequiredDictionary(entry.dictPathOrUrl);
+					}
+				else
+					{
+					// throw error if it's not supported fasta
+					entry.dict =dictExtractor.extractRequiredDictionary(entry.pathOrUrl);
+					}
 				dictionaries.add(entry);
 				}
 			}
@@ -183,18 +209,16 @@ public class FindHtsFileDictionary extends Launcher {
 	
 	
  	private void scan(final PrintWriter out,final String filename,final List<DictEntry> entries)
- 		{ 		
- 		final Path f=Paths.get(filename);
- 		
+ 		{ 		 		
  		final SAMSequenceDictionary dict;
  		try {
- 			dict = SequenceDictionaryUtils.extractDictionary(f).orElse(null);
+ 			dict = this.dictExtractor.extractRequiredDictionary(filename);
  			} 
  		catch (final Throwable e)
 			{
  			switch(onError)
  				{
- 				case empty: out.println(String.join("\t", f.toAbsolutePath().toString(),".","."));break;
+ 				case empty: out.println(String.join("\t", filename,".","."));break;
  				case ignore: break;
  				default: throw new RuntimeIOException(e);
  				}
@@ -206,15 +230,15 @@ public class FindHtsFileDictionary extends Launcher {
  				findFirst(); 
  		
  		if(entry.isPresent()) {
- 			out.println(String.join("\t", f.toAbsolutePath().toString(),entry.get().name,entry.get().fasta.toAbsolutePath().toString()));
+ 			out.println(String.join("\t", filename ,entry.get().name,entry.get().pathOrUrl));
  			}
  		else
  			{
  			switch(onError)
 				{
-				case empty: out.println(String.join("\t", f.toAbsolutePath().toString(),".","."));break;
+				case empty: out.println(String.join("\t", filename ,".","."));break;
 				case ignore: break;
-				default: throw new RuntimeIOException("No Reference found for "+f);
+				default: throw new RuntimeIOException("No Reference found for "+filename);
 				}
  			}
  		}
@@ -256,5 +280,4 @@ public class FindHtsFileDictionary extends Launcher {
 		{
 		new FindHtsFileDictionary().instanceMainWithExit(args);
 		}
-
 }
