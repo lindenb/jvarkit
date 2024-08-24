@@ -70,6 +70,9 @@ public static class DictionaryMissing extends Error
 	}
 public static class FastaDictionaryMissing extends DictionaryMissing
 	{
+	public FastaDictionaryMissing(final Path file) {
+		this(file.toString());
+		}
 	public FastaDictionaryMissing(final File file) {
 		this(file.getPath());
 		}

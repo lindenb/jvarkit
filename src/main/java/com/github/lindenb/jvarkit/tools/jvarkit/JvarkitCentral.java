@@ -131,6 +131,7 @@ import com.github.lindenb.jvarkit.tools.cmpbams.CompareBams4;
 import com.github.lindenb.jvarkit.tools.coverageserver.CoverageServer;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
 import com.github.lindenb.jvarkit.tools.dict2bed.DictToBed;
+import com.github.lindenb.jvarkit.tools.dict2xml.DictToXml;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
 import com.github.lindenb.jvarkit.tools.fastq.BamToFastq;
 import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
@@ -683,6 +684,7 @@ public class JvarkitCentral {
 		command(BlastMapAnnotations.class);
 		command(BlastFilterJS.class);
 		command(DictToBed.class);
+		command(DictToXml.class);
 		command(CompareBamAndBuild.class);
 		command(ConvertLiftOverChain.class);
 		command(CommBams.class);

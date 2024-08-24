@@ -202,6 +202,8 @@ public static Optional<SAMSequenceDictionary> extractDictionary(final Path f) {
 	return Optional.ofNullable(dict);
 	}
 
+
+
 /** extract required SAMSequenceDictionary */
 public static SAMSequenceDictionary extractRequired(final Path f) {
 	if(f==null) throw new IllegalArgumentException("Cannot extract dictionary because file was not provided.");
