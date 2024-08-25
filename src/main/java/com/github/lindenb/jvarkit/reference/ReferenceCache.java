@@ -24,14 +24,17 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.reference;
 
+import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Writer;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -39,7 +42,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -49,6 +54,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.reference.FastaSequenceIndexCreator;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SequenceUtil;
@@ -78,6 +84,7 @@ private static abstract class AbstractInfo {
 private static class PathInfo extends AbstractInfo {
 	PathInfo(final Path p) {
 		super.path=p;
+		IOUtil.assertFileIsReadable(p);
 		}
 	@Override
 	boolean isLocal() {
@@ -125,16 +132,20 @@ private class URLInfo extends AbstractInfo {
 		final String md5= StringUtils.md5(this.url.toString());
 		try {
 			final Path fasta= new File(cacheDir,md5+".fa").toPath();
-			
+			if(Files.exists(fasta)) throw new IllegalStateException("file exists "+fasta);
 			LOG.info("download "+this.url+" to "+fasta);
 
 			try(InputStream in=IOUtils.mayBeGzippedInputStream(ParsingUtils.getURLHelper(url).openInputStream())) {
 				IOUtils.copyTo(in, fasta);
 				}
+			catch(IOException err) {
+				Files.deleteIfExists(fasta);
+				throw err;
+				}
 			
 			LOG.info("create fai for "+fasta);
 			FastaSequenceIndexCreator.buildFromFasta(fasta);
-			
+				
 			
 			final Path dictf = ReferenceSequenceFileFactory.getDefaultDictionaryForReferenceSequence(fasta);
 			LOG.info("write dict for "+this.url+" to "+dictf);
@@ -143,9 +154,23 @@ private class URLInfo extends AbstractInfo {
 		        w.flush();
 	        	}
 			catch(IOException err) {
-				throw new RuntimeIOException(err);
+				Files.deleteIfExists(ReferenceSequenceFileFactory.getDefaultDictionaryForReferenceSequence(fasta));
+				Files.deleteIfExists(fasta);
+				Files.deleteIfExists(dictf);
+				throw err;
 				}
+	        
+	        try(Writer w=Files.newBufferedWriter(new File(cacheDir,md5+".readme").toPath())) {
+	        	w.write(fasta.toString()+" downloaded from "+this.url+"\n");
+	        	w.flush();
+	        	}
+	        
+	        
 	        this.path=fasta;
+	        PathInfo pi=new PathInfo(this.path);
+	        pi.dict=this.dict;
+	        references.add(pi);
+	        references.remove(this);
 			return this.path;
 			}
 		catch(IOException err) {
@@ -163,17 +188,39 @@ public ReferenceCache() {
 public ReferenceCache(final File dir) {
 	this.cacheDir= dir;
 	this.deleteOnClose=false;
+	for(File fa: dir.listFiles(new FileFilter() {
+		@Override
+		public boolean accept(File f) {
+			return FileExtensions.FASTA.stream().anyMatch(ext->f.exists() && f.isFile() && f.getName().endsWith(ext));
+			}
+		}))
+		{
+		this.references.add(new PathInfo(fa.toPath()));
+		}
+	
 	}
 
-public ReferenceCache addRemoteReference(URL url) {
-	this.references.add(new URLInfo(url));
+public ReferenceCache loadTable(Path p) throws IOException {
+	try(BufferedReader br=IOUtils.openPathForBufferedReading(p)) {
+		String line=br.readLine();
+		if(line==null) throw new IOException("cannot read first line of "+p);
+		final FileHeader fh=new FileHeader(line, CharSplitter.TAB);
+		fh.assertColumnExists("fasta");
+		while((line=br.readLine())!=null) {
+			final FileHeader.RowMap row= fh.toMap(line);
+			final String fasta=row.get("fasta");
+			if(IOUtil.isUrl(fasta)) {
+				this.references.add(new URLInfo(new URL(fasta)));
+				}
+			else
+				{
+				this.references.add(new PathInfo(Paths.get(fasta)));
+				}
+			}
+		}
 	return this;
 	}
 
-public ReferenceCache addLocalReference(Path path) {
-	this.references.add(new PathInfo(path));
-	return this;
-	}
 
 protected List<AbstractInfo> getReferences() {
 	return this.references;

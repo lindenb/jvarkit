@@ -32,7 +32,7 @@ import java.util.function.ToDoubleFunction;
 
 
 public class MinMaxFilterDouble implements DoublePredicate {
-public static final String OPT_DESC="A range of doubkes. Syntax (!)min-inclusive:max-inclusive. Use '!' to invert the logic: number must be outside the range. ";
+public static final String OPT_DESC="A range of doubles. Syntax (!)min-inclusive:max-inclusive. Use '!' to invert the logic: number must be outside the range. ";
 private final OptionalDouble minIncl;
 private final OptionalDouble maxIncl;
 private final boolean invert;
