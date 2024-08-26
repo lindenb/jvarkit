@@ -59,7 +59,7 @@ public class Median implements Supplier<OptionalDouble>,DoubleConsumer,Comparabl
 		this.sorted = true;
 		}
 	/** copy constructor */
-	public Median(Median cp) {
+	public Median(final Median cp) {
 		this.count = cp.count;
 		this.array =  Arrays.copyOf(cp.array, cp.count);
 		this.sorted = cp.sorted;
@@ -208,7 +208,7 @@ public class Median implements Supplier<OptionalDouble>,DoubleConsumer,Comparabl
 		}
 	@Override
 	public String toString() {
-		OptionalDouble v = get();
+		final OptionalDouble v = get();
 		return v.isPresent()?String.valueOf(v.getAsDouble()):"N/A";
 		}
 	}

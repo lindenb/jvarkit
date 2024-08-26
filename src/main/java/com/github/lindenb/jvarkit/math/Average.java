@@ -37,7 +37,7 @@ public class Average implements Supplier<OptionalDouble>,DoubleConsumer,Comparab
 	public Average() {
 		}
 	/** copy constructor */
-	public Average(Average cp) {
+	public Average(final Average cp) {
 		this.count = cp.count;
 		this.sum = cp.sum;
 		}
@@ -55,7 +55,7 @@ public class Average implements Supplier<OptionalDouble>,DoubleConsumer,Comparab
 		}
 	
 	@Override
-	public int compareTo(Average o) {
+	public int compareTo(final Average o) {
 		final OptionalDouble a =  get();
 		final OptionalDouble b= o.get();
 		if(a.isPresent() && !b.isPresent()) return -1;
@@ -82,7 +82,7 @@ public class Average implements Supplier<OptionalDouble>,DoubleConsumer,Comparab
 		}
 	
 	@Override
-	public void accept(double value) {
+	public void accept(final double value) {
 		sum+=value;
 		count++;
 		}
@@ -93,6 +93,12 @@ public class Average implements Supplier<OptionalDouble>,DoubleConsumer,Comparab
 			OptionalDouble.of(sum/count)
 			;
 		}
+	
+	@Override
+	protected Average clone() {
+		return new Average(this);
+		}
+	
 	@Override
 	public String toString() {
 		OptionalDouble v = get();

@@ -137,7 +137,7 @@ import com.github.lindenb.jvarkit.tools.fastq.BamToFastq;
 import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
 import com.github.lindenb.jvarkit.tools.fastq.RepairFastq;
 import com.github.lindenb.jvarkit.tools.findallcov.FindAllCoverageAtPosition;
-import com.github.lindenb.jvarkit.tools.fixhtsfiledict.FindHtsFileDictionary;
+import com.github.lindenb.jvarkit.tools.findhtsfiledict.FindHtsFileDictionary;
 import com.github.lindenb.jvarkit.tools.fixvcfmissinggenotypes.FixVcfMissingGenotypes;
 import com.github.lindenb.jvarkit.tools.gatk.GatkHaplotypeCaller;
 import com.github.lindenb.jvarkit.tools.gff2kg.Gff2KnownGene;

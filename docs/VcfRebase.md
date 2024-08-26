@@ -58,6 +58,12 @@ Usage: vcfrebase [options] Files
 
 
 
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9600689](https://www.biostars.org/p/9600689)
+
+
+
 ## Creation Date
 
 20131115

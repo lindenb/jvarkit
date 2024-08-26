@@ -111,6 +111,7 @@ nav:
         - "coverageserver" : CoverageServer.md
         - "cytoband2svg" : CytobandToSvg.md
         - "dict2bed" : DictToBed.md
+        - "dict2xml" : DictToXml.md
         - "evadumpfiles" : EVADumpFiles.md
         - "fasta2vcf" : ReferenceToVCF.md
         - "fastqgrep" : FastqGrep.md

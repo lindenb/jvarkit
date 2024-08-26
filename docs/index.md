@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : d7e61cd3b
-Compilation : 20240801101510
+Version     : dcff112ec
+Compilation : 20240825222722
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -188,10 +188,11 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [coverageserver](CoverageServer.md) | Jetty Based http server serving Bam coverage. | 20200212 | 20200330 |
 | [cytoband2svg](CytobandToSvg.md) | Creates a svg karyotype . |  |  |
 | [dict2bed](DictToBed.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to bed. | 20240603 | 20240603 |
+| [dict2xml](DictToXml.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to XML. | 20240824 | 20240824 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
 | [fasta2vcf](ReferenceToVCF.md) | Creates a VCF containing all the possible substitutions from a Reference Genome. | 20140910 | 20240711 |
 | [fastqshuffle](FastqShuffle.md) | Shuffle Fastq files | 20140901 | 20240129 |
-| [findhtsfiledict](FindHtsFileDictionary.md) | Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path-to-fasta) | 20190912 | 20240604 |
+| [findhtsfiledict](FindHtsFileDictionary.md) | Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path/url-to-fasta) | 20190912 | 20240824 |
 | [fixvcfmissinggenotypes](FixVcfMissingGenotypes.md) | After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref. | 20141109 | 20200525 |
 | [gatkhc](GatkHaplotypeCaller.md) | Wrapper for GATK HaplotypeCaller | 20240625 | 20240625 |
 | [gff2kg](Gff2KnownGene.md) | Convert GFF3 format to UCSC knownGene format. | 20160404 | 20220725 |

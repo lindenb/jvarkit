@@ -29,7 +29,6 @@ History:
 */
 package com.github.lindenb.jvarkit.util.picard;
 
-import java.io.IOException;
 
 
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -41,7 +40,6 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.AbstractVCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 
 public class SAMSequenceDictionaryProgress

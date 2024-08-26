@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path-to-fasta)
+Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path/url-to-fasta)
 
 
 ## Usage
@@ -16,10 +16,10 @@ Usage: java -jar dist/jvarkit.jar findhtsfiledict  [options] Files
 
 Usage: findhtsfiledict [options] Files
   Options:
-  * -D, -R, --repository, --dictionaries
+  * -D, -R, --references, --dictionaries
       A tab delimited file with a required header, and required columns: 
-      'name' (name of the reference) and 'fasta' (path to the indexed fasta 
-      ref). 
+      'name' (name of the reference) and 'fasta' (path/url to the indexed 
+      fasta ref). An Optional column 'dict' for the path/url to the dict file
     -e, --errors
       What shall we do on error
       Default: fatal
@@ -55,7 +55,7 @@ Usage: findhtsfiledict [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindHtsFileDictionary.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindHtsFileDictionary.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/findhtsfiledict/FindHtsFileDictionary.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/findhtsfiledict/FindHtsFileDictionary.java)
 
 
 ## Contribute
