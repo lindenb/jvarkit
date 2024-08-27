@@ -153,7 +153,7 @@ import com.github.lindenb.jvarkit.tools.gtf.KgToGff;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
 import com.github.lindenb.jvarkit.tools.haplogroupcasectrl.HaploGroupCaseControl;
 import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
-import com.github.lindenb.jvarkit.tools.htsfreemarker.HtsFreemarker;
+import com.github.lindenb.jvarkit.tools.htsvelocity.HtsVelocity;
 import com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf;
 import com.github.lindenb.jvarkit.tools.kg2bed.KnownGenesToBed;
 import com.github.lindenb.jvarkit.tools.kg2fa.KnownGeneToFasta;
@@ -720,7 +720,7 @@ public class JvarkitCentral {
 		command(Gff2KnownGene.class);
 		command(HaploGroupCaseControl.class);
 		command(HowManyBamDict.class);
-		command(HtsFreemarker.class);
+		command(HtsVelocity.class);
 		command(IbdToVcf.class);
 		command(IlluminaDirectory.class);
 		command(IndexCovToVcf.class);

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : dcff112ec
-Compilation : 20240825222722
+Version     : 00d509230
+Compilation : 20240827163354
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -202,7 +202,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [gtfretrocopy](GtfRetroCopy.md) | Scan retrocopies by comparing the gtf/intron and the deletions in a VCF | 20190813 | 20191104 |
 | [haplogroupcasectrl](HaploGroupCaseControl.md) | Run Fisher test for Haplogroup input. | 20240610 | 20240610 |
 | [howmanybamdict](HowManyBamDict.md) | finds if there's are some differences in the sequence dictionaries. | 20131108 | 20201021 |
-| [htsfreemarker](HtsFreemarker.md) | Apply Freemarker to VCF/BAM/JSON files. | 20230616 | 20230616 |
+| [htsfreemarker](HtsVelocity.md) | Apply apache velocity to VCF/BAM/JSON files. | 20230616 | 20230616 |
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
 | [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20230815 |
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |

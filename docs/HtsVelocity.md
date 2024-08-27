@@ -1,8 +1,8 @@
-# HtsFreemarker
+# HtsVelocity
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Apply Freemarker to VCF/BAM/JSON files.
+Apply apache velocity to VCF/BAM/JSON files.
 
 
 ## Usage
@@ -20,9 +20,6 @@ Usage: htsfreemarker [options] Files
       <name> <bam-file>. Add this Bam to the freemarker context. Object 
       created is [header:object,reads:list]
       Default: []
-    --freemarker-version
-      FreeMarker version.
-      Default: 2.3.32
     -h, --help
       print help and exit
     --helpFormat
@@ -44,9 +41,6 @@ Usage: htsfreemarker [options] Files
     --string
       <name> <string>. Add this pair to the freemarker context.
       Default: []
-    --templates-dir, -T
-      Templates base directory
-      Default: .
     --vcf
       <name> <vcf-file>. Add this VCF to the freemarker context. Object 
       created is [header:object,variants:list]
@@ -60,7 +54,7 @@ Usage: htsfreemarker [options] Files
 ## Keywords
 
  * template
- * freemarker
+ * velocuty
  * vcf
  * bam
 
@@ -72,7 +66,7 @@ Usage: htsfreemarker [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/htsfreemarker/HtsFreemarker.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/htsfreemarker/HtsFreemarker.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/htsvelocity/HtsVelocity.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/htsvelocity/HtsVelocity.java)
 
 
 ## Contribute

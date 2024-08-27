@@ -71,21 +71,12 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
 /**
-BEGIN_DOC
 
-todo
+deprecated replaced by htsvelocity
 
-END_DOC
-*/
+**/
 
-@Program(
-	name="htsfreemarker",
-	description="Apply Freemarker to VCF/BAM/JSON files.",
-	keywords={"template","freemarker","vcf","bam"},
-	creationDate = "20230616",
-	modificationDate = "20230616",
-	jvarkit_amalgamion = true
-	)
+
 public class HtsFreemarker extends Launcher {
 	private static final Logger LOG = Logger.build(HtsFreemarker.class).make();
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)

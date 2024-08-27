@@ -133,7 +133,7 @@ nav:
         - "gtfretrocopy" : GtfRetroCopy.md
         - "haplogroupcasectrl" : HaploGroupCaseControl.md
         - "howmanybamdict" : HowManyBamDict.md
-        - "htsfreemarker" : HtsFreemarker.md
+        - "htsfreemarker" : HtsVelocity.md
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md
         - "indexcov2vcf" : IndexCovToVcf.md
