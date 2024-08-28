@@ -69,11 +69,41 @@ public class SequenceDictionaryExtractor  {
 	
 
 	
-    
     protected InputStream openStream(final URL url) throws IOException {
     	return ParsingUtils.getURLHelper(url).openInputStream();
     	}
    
+    /** original implementation in htsjdk.IntervalList reads the whole file
+     * and check for the BED lines....
+     */
+    protected Optional<SAMSequenceDictionary> fromIntervalList(final BufferedReader br)  {
+    	try {
+    		// Setup a reader and parse the header
+    		final StringBuilder builder = new StringBuilder(4096);
+    		String line = null;
+
+    		while ((line = br.readLine()) != null) {
+    			if (line.startsWith("@")) {
+    				builder.append(line).append('\n');
+    			} else {
+    				break;
+    			}
+    		}
+    		if (builder.length() == 0) {
+    			return Optional.empty();
+    		}
+
+    		try(BufferedLineReader headerReader = BufferedLineReader.fromString(builder.toString())) {
+    			final SAMTextHeaderCodec codec = new SAMTextHeaderCodec();
+    			final IntervalList list = new IntervalList(codec.decode(headerReader, "BufferedReader"));
+    			return Optional.ofNullable(list.getHeader().getSequenceDictionary());
+    		}
+    	}
+    	catch(IOException err) {
+    		return Optional.empty();
+    	}
+    }
+    
     
     private Optional<SAMSequenceDictionary> extractDictionary(final HtsFileType type,InputStream in,String source) {
     	try { 
@@ -98,9 +128,8 @@ public class SequenceDictionaryExtractor  {
 	    		case INTERVAL_LIST:
 	    		case COMPRESSED_INTERVAL_LIST:
 	    			{
-	    			try(BufferedReader br= new BufferedReader(new InputStreamReader(in))) {
-	    				final SAMFileHeader h= IntervalList.fromReader(br).getHeader();
-	    				return h==null?Optional.empty():Optional.ofNullable(h.getSequenceDictionary());
+	    			try(BufferedReader br= new BufferedReader(new InputStreamReader(IOUtils.mayBeGzippedInputStream(in)))) {
+	    				return fromIntervalList(br);
 	    				}
 	    			}
 	    		case CRAM:
@@ -182,8 +211,6 @@ public class SequenceDictionaryExtractor  {
 		    	case SAM:
 		    	case CRAM:
 		    	case BAM:
-	    		case INTERVAL_LIST:
-	    		case COMPRESSED_INTERVAL_LIST:
 	    		case DICT:
 	    		case FASTA: {
 	    			return Optional.of(SAMSequenceDictionaryExtractor.extractDictionary(path));
@@ -194,6 +221,13 @@ public class SequenceDictionaryExtractor  {
 	    		case BCF:
 	    			{
 	    			try(InputStream in= Files.newInputStream(path)) {
+	    				return extractDictionary(ot.get(),in, path.toString());
+	    				}
+	    			}
+	    		case INTERVAL_LIST:
+	    		case COMPRESSED_INTERVAL_LIST:
+	    			{
+    				try(InputStream in= Files.newInputStream(path)) {
 	    				return extractDictionary(ot.get(),in, path.toString());
 	    				}
 	    			}

@@ -195,7 +195,7 @@ public class CommBams extends Launcher {
 	
 	
 	@Override
-	@SuppressWarnings({"unchecked"})
+	@SuppressWarnings({"unchecked","rawtypes"})
 	public int doWork(final List<String> args) {
 		if(args.size() !=2)
 			{
