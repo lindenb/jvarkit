@@ -129,6 +129,8 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("IRAVs",id,"https://iravdb.io/gene/"+ StringUtils.escapeHttp(id)));
 		//finngen
 		urls.add(new LabelledUrlImpl("Finngen",id,"https://public-metaresults-fg-ukbb.finngen.fi/gene/"+ StringUtils.escapeHttp(id)));
+		
+		urls.add(new LabelledUrlImpl("hugeamp",id,"https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=AoU_250k&file=600Traits.csv&gene="+ StringUtils.escapeHttp(id) +"&pageid=600_traits_app&phenotype=phecode_425.0"));
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();

@@ -42,3 +42,8 @@ test.wescnvsvg:
 
 test.wgscoverageplotter:
 	$(EXEC) wgscoverageplotter -R $(RSRC)/rotavirus_rf.fa $(RSRC)/S1.bam
+
+test.basecoverage:
+	$(EXEC) basecoverage -R $(RSRC)/rotavirus_rf.fa $(RSRC)/S*.bam
+
+
