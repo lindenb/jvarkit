@@ -36,3 +36,9 @@ test.vcfhead:
 
 test.vcfrebase:
 	$(EXEC) vcfrebase -R $(RSRC)/rotavirus_rf.fa $(RSRC)/rotavirus_rf.vcf.gz
+
+test.wescnvsvg:
+	$(EXEC) wescnvsvg -R $(RSRC)/rotavirus_rf.fa  -r 'RF01:1-1000'  $(RSRC)/S1.bam $(RSRC)/S2.bam $(RSRC)/S3.bam
+
+test.wgscoverageplotter:
+	$(EXEC) wgscoverageplotter -R $(RSRC)/rotavirus_rf.fa $(RSRC)/S1.bam
