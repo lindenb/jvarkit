@@ -46,4 +46,5 @@ test.wgscoverageplotter:
 test.basecoverage:
 	$(EXEC) basecoverage -R $(RSRC)/rotavirus_rf.fa $(RSRC)/S*.bam
 
-
+test.vcffiltergenes:
+	$(EXEC) vcffiltergenes -a Gene_41_568 $(RSRC)/rotavirus_rf.ann.vcf.gz | grep Gene_41_568

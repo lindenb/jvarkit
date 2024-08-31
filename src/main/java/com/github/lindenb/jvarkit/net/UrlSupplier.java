@@ -131,6 +131,10 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Finngen",id,"https://public-metaresults-fg-ukbb.finngen.fi/gene/"+ StringUtils.escapeHttp(id)));
 		
 		urls.add(new LabelledUrlImpl("hugeamp",id,"https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=AoU_250k&file=600Traits.csv&gene="+ StringUtils.escapeHttp(id) +"&pageid=600_traits_app&phenotype=phecode_425.0"));
+		
+		 if(isGrch38()) {
+			urls.add(new LabelledUrlImpl("TogoVar",id,"https://grch38.togovar.org/?mode=simple&term="+ StringUtils.escapeHttp(id) ));
+			}
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
@@ -178,6 +182,9 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		if(hasDict() && SequenceDictionaryUtils.isHuman(this.dict)) {
 			urls.add(new LabelledUrlImpl("clinvar",str,"https://www.ncbi.nlm.nih.gov/clinvar?term="+str.toLowerCase()+"%5BVariant%20ID%5D"));
 			}
+		if(isGrch38()) {
+			urls.add(new LabelledUrlImpl("TogoVar",str,"https://grch38.togovar.org/?mode=simple&term="+ str ));
+			}
 		}
 	else if(this.ensemblPattern.matcher(str).matches())
 		{
@@ -203,6 +210,11 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 			}
 		else if(isGrch38()) {
 			urls.add(new LabelledUrlImpl("DGV",str,"http://dgv.tcag.ca/gb2/gbrowse/dgv2_hg38?name="+str+"&search=Search"));
+			}
+		}
+	else if(str.matches("tgv[0-9]+")) {
+		if(isGrch38()) {
+			urls.add(new LabelledUrlImpl("TogoVar",str,"https://grch38.togovar.org/variant/"+ str ));
 			}
 		}
 	else if(IOUtil.isUrl(str))
@@ -445,6 +457,8 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		
 		
 		
+		urls.add(new LabelledUrlImpl("TogoVar",locid,"https://grch38.togovar.org/?mode=simple&term="+ StringUtils.escapeHttp(ensemblCtg)+":"+loc.getStart()+"-"+loc.getEnd() ));
+			
 		}
 	
 	final String ucscCtg =  toUcsc.apply(loc.getContig());
