@@ -24,6 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.telseq;
 
+import java.io.IOError;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -44,9 +46,14 @@ import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SamFileHeaderMerger;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.IntervalTree;
+import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
 
 /**
 BEGIN_DOC 
@@ -59,12 +66,13 @@ END_DOC
 description="Java implementation of https://github.com/zd1/telseq/ (Ding Z & al.).",
 keywords={"depth","bam","sam","telomere"},
 creationDate="20200907",
-modificationDate="20200907",
+modificationDate="20240907",
 generate_doc=false
 )
 public class TelSeq extends Launcher {
 	private static final Logger LOG = Logger.build( TelSeq.class).make();
 	
+	Path exomebedfile = null;
 	/** default We defined reads as telomeric if they contained k or more TTAGGG repeats, with a default threshold value of k = 7  */
 	private static final int TEL_MOTIF_CUTOFF = 7;
 	private static final float GC_LOWERBOUND = 0.4f;
@@ -78,17 +86,74 @@ public class TelSeq extends Launcher {
 
 	/** convert to Kilobases */
 	private final int LENGTH_UNIT = 1_000;
+	private int READ_LENGTH = 100;
+	
 	/** number of telomeres in the human genome 23 chromosomes *2 */
 	private static final int TELOMERE_ENDS = 46;
 	/** estimation of human telomere length */
 	private static final long GENOME_LENGTH_AT_TEL_GC =  332_720_800;
+	private static final String PATTERN="TTAGGG";
+	private static final String PATTERN_REVCOMP="CCCTAA";
 	
-	private static class Result {
+	private static final String LABEL_RG="ReadGroup";
+	private static final String LABEL_LB="Library";
+	private static final String LABEL_SAMPLE="Sample";
+	private static final String LABEL_BAM="BAM";
+	private static final String LABEL_TOTAL="Total";
+	private static final String LABEL_MAPPED="Mapped";
+	private static final String LABEL_DUP="Duplicates";
+	private static final String LABEL_TEL="TEL";
+	private static final String LABEL_GC="GC";
+	private static final String LABEL_LEN="LENGTH_ESTIMATE";
+
+	private static final String SCAN_FILE_SUFFIX = "bamscan";
+	
+	int TEL_MOTIF_N = READ_LENGTH/PATTERN.length() +1;
+	final int GC_BIN_N = (int) ((GC_UPPERBOUND-GC_LOWERBOUND)/GC_BINSIZE+0.5);
+	
+	private  class Headers {
+		private final List<String> headers = new ArrayList<>();
+		Headers() {
+		headers.add(LABEL_RG);
+		headers.add(LABEL_LB);
+		headers.add(LABEL_SAMPLE);
+		headers.add(LABEL_TOTAL);
+		headers.add(LABEL_MAPPED);
+		headers.add(LABEL_DUP);
+		headers.add(LABEL_LEN);
+
+		for(int i=0;i < TEL_MOTIF_N;i++){
+			String h = LABEL_TEL + ""+i;
+			headers.add(h);
+		}
+		for(int i=0;i< GC_BIN_N;i++){
+			String h =LABEL_GC + ""+i;
+			headers.add(h);
+		}
+		}
+
+	}
+	
+	private static class ScanResults {
+		String sample;
+		String lib;
+		String bam;
+		long numMapped=0;
+		long numDuplicates=0;
+		long n_totalunfiltered = 0;
+		long n_exreadsExcluded = 0;
+		long n_exreadsChrUnmatched=0;
 		//long numMapped = 0L;
 		//long duplicate = 0L;
 		long numTotal = 0L;
 		final List<Long> telcounts = new ArrayList<>();
 		final List<Long> gccounts = new ArrayList<>();
+		
+		
+		double telLenEstimate=0;
+		
+		ScanResults() {
+			}
 		
 		void visitKmerTimes(int times) {
 			while(telcounts.size()<=times) telcounts.add(0L);
@@ -113,10 +178,12 @@ public class TelSeq extends Launcher {
 	@Parameter(names={"--mapped"},description="By default, we query only the unmapped reads. This option uses all the reads.")
 	private boolean query_mapped_and_unmapped  = false;
 
+	boolean mergerg=false;
+	String unknown = "UNKNOWN";
+	boolean writerheader=true;
 	
 	
-	
-	private double calcGC(final byte[] seq)
+	private static double calcGC(final byte[] seq)
 	{
 	    double num_gc = 0.0;
 	    for(int i = 0; i < seq.length; ++i)
@@ -131,7 +198,7 @@ public class TelSeq extends Launcher {
 	    return num_gc / (double)seq.length;
 	}
 	
-	int countMotif(final byte[] read,final byte[] pattern){
+	private static int countMotif(final byte[] read,final byte[] pattern){
 
 		int motifcount1 = 0;
 		int p=0;
@@ -167,7 +234,7 @@ public class TelSeq extends Launcher {
 	 * @param results
 	 * @return
 	 */
-	private OptionalDouble calcTelLength(final Result results){
+	private double calcTelLength(final ScanResults results){
 
 		double acc = 0;
 		for(int i = this.tel_k ; i < results.telcounts.size(); ++i){
@@ -184,22 +251,195 @@ public class TelSeq extends Launcher {
 		}
 
 		if(gc_tel == 0f){
-			return OptionalDouble.empty();
+			return-1;
 		}
 
 		/** This fraction is then converted to a mean telomere length estimate in kilobases by multiplying by the cumulative length of genomic regions with the same GC composition c. */
 		
-		return OptionalDouble.of((acc/gc_tel)*(float)(GENOME_LENGTH_AT_TEL_GC)/LENGTH_UNIT/TELOMERE_ENDS);
+		return ((acc/gc_tel)*(float)(GENOME_LENGTH_AT_TEL_GC)/LENGTH_UNIT/TELOMERE_ENDS);
 	}
+	
+	
+	private static final String FIELD_SEP="\t";	
+
+	
+private void merge_results_by_readgroup ( List<Map<String,ScanResults>>  resultlist){
+	    final List<Map<String,ScanResults>> mergedresultslist=new ArrayList<>();
+	    final Map<String,ScanResults> mergedresults=new HashMap<>();
+
+	    for(Map<String,ScanResults> rmap:resultlist){
+	        for(String rg: rmap.keySet()) {
+	            ScanResults result = rmap.get(rg);
+
+	            if(!mergedresults.containsKey(rg)){
+	                mergedresults.put(rg, result);
+	            }else{
+	                add_results(mergedresults.get(rg), result);
+	            }
+	        }
+	    }
+	    mergedresultslist.add(mergedresults);
+	    resultlist.clear();
+	    resultlist.addAll( mergedresultslist);
+		}
+
+//combine counts in two ScanResults objects
+private void add_results(ScanResults x, ScanResults y){
+	
+	 x.numTotal += y.numTotal;
+	 x.numMapped += y.numMapped;
+	 x.numDuplicates += y.numMapped;
+	 x.n_exreadsExcluded += y.n_exreadsExcluded;
+	 x.n_exreadsChrUnmatched += y.n_exreadsChrUnmatched;
+	 x.n_totalunfiltered += y.n_totalunfiltered;
+	
+	 for (int j = 0, max = x.telcounts.size(); j != max; ++j){
+		 x.telcounts.set(j, x.telcounts.get(j) +y.telcounts.get(j));
+	 }
+	 for (int k = 0, max = x.gccounts.size(); k != max; ++k){
+		 x.gccounts.set(k, x.gccounts.get(k) + y.gccounts.get(k));
+	 }
+	
+	}
+
+void printlog(List<Map<String, ScanResults> > resultlist){
+
+	for(int i =0; i< resultlist.size(); i++){
+		Map<String, ScanResults>  rmap = resultlist.get(i);
+		for(String rg: rmap.keySet()){
+			ScanResults result = rmap.get(rg);
+			System.err.println( "BAM:" + rg ); 
+			System.err.println(  "	chr ID unmatched reads: " + result.n_exreadsChrUnmatched );
+			System.err.println( "	exome reads excluded: " + result.n_exreadsExcluded);
+		}
+	}
+
+}
+
+
+private void printout(String rg, ScanResults result, PrintWriter pWriter){
+
+	pWriter.print( rg + "\t" + FIELD_SEP);
+	pWriter.print( result.lib + "\t" + FIELD_SEP);
+	pWriter.print( result.sample + "\t" + FIELD_SEP);
+	pWriter.print( result.numTotal + "\t" + FIELD_SEP);
+	pWriter.print( result.numMapped + "\t" + FIELD_SEP);
+	pWriter.print( result.numDuplicates + "\t" + FIELD_SEP);
+
+	result.telLenEstimate = calcTelLength(result);
+	if(result.telLenEstimate==-1){
+		System.err.println("Telomere length estimate unknown. No read was found with telomeric GC composition.");
+		pWriter.print( this.unknown + "\t" + FIELD_SEP);
+	}else if(result.telLenEstimate>1_000_000){
+		System.err.println("Telomere length estimate unknown. Possibly due to not enough representation of genome.");
+		pWriter.print( this.unknown + "\t" + FIELD_SEP);
+	}else if(result.telLenEstimate==0){
+		System.err.println("Telomere length estimate unknown. No read contains more than " + this.tel_k + " telomere repeats.");
+		pWriter.print( this.unknown + "\t" + FIELD_SEP);
+	}
+	else{
+		pWriter.print( result.telLenEstimate + "\t" + FIELD_SEP);
+	}
+
+	for (int j = 0, max = result.telcounts.size(); j != max; ++j){
+		pWriter.print( result.telcounts.get(j) + "\t" + FIELD_SEP);
+	}
+	for (int k = 0, max = result.gccounts.size(); k != max; ++k){
+		pWriter.print( result.gccounts.get(k) + "\t" + FIELD_SEP);
+	}
+	pWriter.println();
+}
+
+
+
+
+private int outputresults(List<Map<String,ScanResults> > resultlist){
+	try(PrintWriter pWriter = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+		
+	
+		if(this.writerheader){
+			Headers hd=new Headers();
+			for(int h=0; h<hd.headers.size();h++){
+				pWriter.print( hd.headers.get(h) + "\t" + FIELD_SEP);
+			}
+			pWriter.println();
+			}
+	
+		ScanResults mergedrs=new ScanResults();
+		String grpnames = "";
+	
+		for(int i=0; i < resultlist.size();++i){
+	
+			Map<String,ScanResults>  resultmap = resultlist.get(i);
+	
+			// if merge read groups, take weighted average for all measures
+			boolean domg =  mergerg && resultmap.size() > 1? true:false;
+	
+			for(String rg : resultmap.keySet()){
+	
+				ScanResults result = resultmap.get(rg);
+	
+				if(domg){
+					if(grpnames.length()==0){
+						grpnames += rg;
+					}else{
+						grpnames += "|"+rg;
+					}
+	
+					mergedrs.sample = result.sample;
+					mergedrs.numTotal += result.numTotal;
+					mergedrs.numMapped += result.numMapped * result.numTotal;
+					mergedrs.numDuplicates += result.numDuplicates * result.numTotal;
+					mergedrs.telLenEstimate += calcTelLength(result) * result.numTotal;
+	
+					for (int j = 0, max = result.telcounts.size(); j != max; ++j){
+						mergedrs.telcounts.set(j,mergedrs.telcounts.get(j) + result.telcounts.get(j)* result.numTotal);
+					}
+					for (int k = 0, max = result.gccounts.size(); k != max; ++k){
+						mergedrs.gccounts.set(k, mergedrs.gccounts.get(k) + result.gccounts.get(k)* result.numTotal);
+					}
+					continue;
+				}else{
+					printout(rg, result, pWriter);
+				}
+			}
+	
+			//in this case calculate weighted average
+			if(domg){
+	
+				mergedrs.numMapped /= mergedrs.numTotal;
+				mergedrs.numDuplicates /= mergedrs.numTotal;
+				mergedrs.telLenEstimate /= mergedrs.numTotal;
+	
+				for (int j = 0, max = mergedrs.telcounts.size(); j != max; ++j){
+					mergedrs.telcounts.set(j, mergedrs.telcounts.get(j) / mergedrs.numTotal);
+				}
+				for (int k = 0, max = mergedrs.gccounts.size(); k != max; ++k){
+					mergedrs.gccounts.set(k, mergedrs.gccounts.get(k) / mergedrs.numTotal);
+				}
+	
+				mergedrs.numTotal  /= resultmap.size();
+	
+				printout(grpnames, mergedrs, pWriter);
+			};
+		}
+	
+		pWriter.flush();
+		}
+	catch(IOException err) {
+		throw new RuntimeIOException(err);
+		}
+	return 0;
+}
 	
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
+			final IntervalTreeMap<Locatable> exomeTreeMap=null;
+			
 			final byte[] PATTERN=this.pattern.toUpperCase().getBytes();
 			final byte[] PATTERN_REVCOMP=AcidNucleics.reverseComplement(this.pattern.toUpperCase()).getBytes();
-
-			
 			
 			final List<Path> bamPaths = IOUtils.unrollPaths(args);
 			if(bamPaths.isEmpty()) {
@@ -213,14 +453,14 @@ public class TelSeq extends Launcher {
 			try(PrintWriter w = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 				w.println("#bam\t"+this.groupBy.name()+"\tcount-reads\ttelomere_size_kb");
 				
-
 			
 				for(final Path bamPath: bamPaths) {
+					
 					try(SamReader r=srf.open(bamPath)) {
-						final Map<String, Result> rgid2result = new HashMap<>();
+						final Map<String, ScanResults> rgid2result = new HashMap<>();
 						final SAMFileHeader hdr = r.getFileHeader();
 						this.groupBy.getPartitions(hdr.getReadGroups()).forEach(R->{
-							rgid2result.putIfAbsent(R, new Result());
+							rgid2result.putIfAbsent(R, new ScanResults());
 						});
 						
 						try(CloseableIterator<SAMRecord> iter = (this.query_mapped_and_unmapped?r.iterator():r.queryUnmapped())) {
@@ -232,11 +472,18 @@ public class TelSeq extends Launcher {
 								final String rgid = this.groupBy.apply(rg,null);
 								if(StringUtils.isBlank(rgid)) continue;
 								
-								final Result result = rgid2result.get(rgid);
+								
+								
+								final ScanResults result = rgid2result.get(rgid);
 								if(result==null) {
 									LOG.error("groupid "+rg.getId() +" is not defined in the header ? " +String.join(", ", rgid2result.keySet()));
 									continue;
 								}
+								if(exomeTreeMap!=null && exomeTreeMap.containsOverlapping(rec)) {
+									result.n_exreadsExcluded +=1;
+									continue;
+									}
+								
 								result.numTotal++ ;
 								//if(rec.getReadUnmappedFlag()) result.numMapped++;
 								//if(rec.getDuplicateReadFlag()) result.duplicate++;
@@ -257,16 +504,16 @@ public class TelSeq extends Launcher {
 						}
 			
 					for(final String rgid: rgid2result.keySet()) {
-						final Result result = rgid2result.get(rgid);
+						final ScanResults result = rgid2result.get(rgid);
 						w.print(bamPath);
 						w.print("\t");
 						w.print(rgid);
 						w.print("\t");
 						w.print(result.numTotal);
 						w.print("\t");
-						final OptionalDouble size = this.calcTelLength(result);
-						if(size.isPresent()) {
-							w.print(size.getAsDouble());
+						final double size = this.calcTelLength(result);
+						if(size!=-1) {
+							w.print(size);
 							}
 						else
 							{

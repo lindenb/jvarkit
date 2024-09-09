@@ -20,6 +20,7 @@
  * Gilbert, Melissa A., Keefer, Jadhav, Tanaya, Antfolk, Daniel, Ming, Qianqian, Valente, Nicolette, Shaw, Grace Tzun, Sottolano, Christopher J., Matwijec, Grace, Luca, Vincent C., Loomes, Kathleen M., Rajagopalan, Ramakrishnan, Hayeck, Tristan J., Spinner, Nancy B. " Functional characterization of 2,832 JAG1 variants supports reclassification for Alagille syndrome and improves guidance for clinical variant interpretation" doi: 10.1016/j.ajhg.2024.06.011, 10.1016/j.ajhg.2024.06.011, The American Journal of Human Genetics, The American Journal of Human Genetics, Elsevier, 0002, doi: 10.1016/j.ajhg.2024.06.011, https://doi.org/10.1016/j.ajhg.2024.06.011 
  * Agnieszka Kuffel a, Christian Cole b, Benjamin Mallinder c, Niamh Nic Daeid a, Alexander Gray a. The potential of human leukocyte antigen alleles to assist with multiple-contributor DNA mixtures: Proof of concept study. Science & Justice. 2024. https://doi.org/10.1016/j.scijus.2024.08.001
  * Critical roles of Dpb3-Dpb4 sub-complex of DNA polymerase epsilon in DNA replication, genome stability, and pathogenesis of Candida albicans. Bhabasha Gyanadeep Utkalaja, Shraddheya Kumar Patel, Satya Ranjan Sahu, Abinash Dutta, Narottam Acharya.  DOI: 10.1128/mbio.01227-24 . mBio. 2024 Aug 29:e0122724. **vcfpolyx**
+ * Jo, J., Park, JS., Won, H. et al. The first Chromosomal-level genome assembly of Sageretia thea using Nanopore long reads and Pore-C technology. Sci Data 11, 959 (2024). https://doi.org/10.1038/s41597-024-03798-9 **wgscoverageplotter**
 
 ## 2023
 
