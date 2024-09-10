@@ -7,6 +7,10 @@ Java utilities for Bioinformatics
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
+![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
+
+![in conda](https://img.shields.io/badge/in-conda-blue) ![in nf-core](https://img.shields.io/badge/in-nfcore-green)
+
 ## Documentation
 
 Documentation is available at: [https://jvarkit.readthedocs.io/](https://jvarkit.readthedocs.io/)
@@ -25,10 +29,10 @@ See the documentation at [https://jvarkit.readthedocs.io/](https://jvarkit.readt
 
 A conda package created by [DrYak](https://github.com/DrYak)  is available at [https://bioconda.github.io/recipes/jvarkit/README.html](https://bioconda.github.io/recipes/jvarkit/README.html)
 
-
 ## Containers
 
-jvarkit is available as a **Docker** container at [https://hub.docker.com/r/lindenb/jvarkit](https://hub.docker.com/r/lindenb/jvarkit) . The jar is compiled under `/opt/jvarkit/dist/jvarkit.jar` so a command should be  `docker run java -jar /opt/jvarkit/dist/jvarkit.jar` . Nevertheless GUI/Swing applications don't work. 
+jvarkit is available as a **Singularity** container under [https://depot.galaxyproject.org/singularity/](https://depot.galaxyproject.org/singularity/) .
+GUI/Swing applications might not work. 
 
 ## Author
 
