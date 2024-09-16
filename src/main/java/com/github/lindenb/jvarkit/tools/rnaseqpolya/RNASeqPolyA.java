@@ -131,7 +131,8 @@ END_DOC
 	description="find poly-A tail in RNASeq data",
 	keywords={"bam","sam","rnaseq","polya"},
 	creationDate="20210913",
-	modificationDate="20210914"
+	modificationDate="20210914",
+	jvarkit_amalgamion = true
 	)
 public class RNASeqPolyA extends Launcher {
 	private static final Logger LOG = Logger.build(RNASeqPolyA.class).make();

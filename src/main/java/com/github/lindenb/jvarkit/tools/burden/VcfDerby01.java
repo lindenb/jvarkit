@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -55,6 +56,7 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
@@ -681,7 +683,7 @@ public class VcfDerby01
 	extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfDerby01.class).make();
-	private StringToMd5 toMd5 = new StringToMd5();
+	private Function<String,String> toMd5 = S->StringUtils.md5(S);
 	
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;

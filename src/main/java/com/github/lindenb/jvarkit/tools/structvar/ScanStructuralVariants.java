@@ -24,7 +24,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -47,15 +46,14 @@ import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -92,7 +90,8 @@ END_DOC
 description="Scan structural variants for case/controls data",
 keywords= {"cnv","indel","sv","pedigree"},
 creationDate="20190815",
-modificationDate="20200524"
+modificationDate="20240916",
+jvarkit_amalgamion = true
 )
 public class ScanStructuralVariants extends Launcher{
 	private static final Logger LOG = Logger.build(ScanStructuralVariants.class).make();
@@ -100,7 +99,7 @@ public class ScanStructuralVariants extends Launcher{
 	private static final String ATT_CLUSTER="CLUSTER";
 	private static final String ATT_CONTROL="FOUND_IN_CONTROL";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile=null;
+	private Path outputFile=null;
 
 	@Parameter(names={"--bed"},description=IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class)
 	private IntervalListProvider intervalListProvider = null;
@@ -119,6 +118,9 @@ public class ScanStructuralVariants extends Launcher{
 	@ParametersDelegate
 	private StructuralVariantComparator svComparator = new StructuralVariantComparator();
 
+	@ParametersDelegate
+	private WritingVariantsDelegate variantWriter = new WritingVariantsDelegate();
+	
 	private int ID_GENERATOR=0;
 
 
@@ -280,7 +282,6 @@ public class ScanStructuralVariants extends Launcher{
 			LOG.error("bad max_distance :" +this.svComparator.getBndDistance());
 			return -1;
 			}
-		VariantContextWriter out = null;
 		try {
 			final List<Path> casesPaths=(IOUtils.unrollPaths(args));
 			if(casesPaths.isEmpty()) {
@@ -426,47 +427,41 @@ public class ScanStructuralVariants extends Launcher{
 				controlShadowReaders.add(new ShadowedVcfReader(this.controlsPath.get(i), large_flag));
 				}
 			
-			out =  super.openVariantContextWriter(this.outputFile);
-			out.writeHeader(header);
-			final CloseableIterator<VariantContext> iter = casesFiles.get(0).iterator();
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
-			final Decoy decoy = Decoy.getDefaultInstance();
-			VariantContext prevCtx = null;
-			while(iter.hasNext()) {
-				final VariantContext ctx= progress.apply(iter.next());
-				if(decoy.isDecoy(ctx.getContig())) continue;
-				
-				if(Breakend.parse(ctx).stream().anyMatch(B->decoy.isDecoy(B.getContig()))) continue;
-				
-				if(intervalTreeMap!=null && !intervalTreeMap.containsOverlapping(ctx)) continue;
-				
-				// in manta, I see the same variant multiple times in the same vcf
-				if(prevCtx!=null &&
-					ctx.getContig().equals(prevCtx.getContig()) &&
-					ctx.getStart() == prevCtx.getStart() &&
-					ctx.getEnd() == prevCtx.getEnd()) continue;
+				try(VariantContextWriter out =  this.variantWriter.dictionary(dict).open(this.outputFile)) {
+				out.writeHeader(header);
+				final CloseableIterator<VariantContext> iter = casesFiles.get(0).iterator();
+				final Decoy decoy = Decoy.getDefaultInstance();
+				VariantContext prevCtx = null;
+				while(iter.hasNext()) {
+					final VariantContext ctx= iter.next();
+					if(decoy.isDecoy(ctx.getContig())) continue;
 					
-				prevCtx=ctx;
-				
-				
-				final List<VariantContext> candidate = new ArrayList<>(casesFiles.size());
-				candidate.add(ctx);
-				recursive(ctx,candidate,casesFiles,controlShadowReaders,out);
+					if(Breakend.parse(ctx).stream().anyMatch(B->decoy.isDecoy(B.getContig()))) continue;
+					
+					if(intervalTreeMap!=null && !intervalTreeMap.containsOverlapping(ctx)) continue;
+					
+					// in manta, I see the same variant multiple times in the same vcf
+					if(prevCtx!=null &&
+						ctx.getContig().equals(prevCtx.getContig()) &&
+						ctx.getStart() == prevCtx.getStart() &&
+						ctx.getEnd() == prevCtx.getEnd()) continue;
+						
+					prevCtx=ctx;
+					
+					
+					final List<VariantContext> candidate = new ArrayList<>(casesFiles.size());
+					candidate.add(ctx);
+					recursive(ctx,candidate,casesFiles,controlShadowReaders,out);
+					}
+				iter.close();
 				}
-			iter.close();
-			progress.close();		
-			
-			out.close();
-			out=null;
 			casesFiles.stream().forEach(F->{try{F.close();}catch(Exception err) {} });
 			controlShadowReaders.stream().forEach(F->F.realClose());
 			return 0;
 		} catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-		} finally {
-			CloserUtil.close(out);
-		}
+			} 
 		}
 	
 	

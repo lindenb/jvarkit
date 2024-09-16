@@ -46,6 +46,7 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.illumina.FastQName;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -346,7 +347,7 @@ public class IlluminaDirectory
 	@Parameter(names={"-F","--format"},description="output format")
 	private OutFormat outFormat = OutFormat.XML;
 	
-	private final Function<String, String> str2md5 = new StringToMd5();
+	private final Function<String, String> str2md5 = S->StringUtils.md5(S);
 	
 	private int ID_GENERATOR=0;
 	private PrintWriter invalidWriter = null;

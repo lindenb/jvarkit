@@ -26,12 +26,12 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.List;
 
 import htsjdk.samtools.fastq.FastqConstants;
 import htsjdk.samtools.fastq.FastqRecord;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
@@ -40,7 +40,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
-/*
+/**
 
 BEGIN_DOC
  
@@ -78,29 +78,19 @@ END_DOC
  */
 @Program(name="fastqrevcomp",
 	description="produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 )",
-	keywords={"fastq"}
+	keywords={"fastq"},
+	jvarkit_amalgamion = true
 	)
 public class FastqRevComp extends Launcher
 	{
 	private static final Logger LOG = Logger.build(FastqRevComp.class).make();
-
-
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
-	
+	private Path outputFile = null;
 	@Parameter(names="-1",description=" interleaced input : only reverse complement R1")
 	private boolean only_R1=false;
 	@Parameter(names="-2",description=" interleaced input : only reverse complement R2")
-
 	private boolean only_R2=false;
 
-	private FastqRevComp()
-		{
-		}
-	
-
-	
 	
 	
 	private void run(FastqReader r,PrintStream out)
@@ -167,37 +157,28 @@ public class FastqRevComp extends Launcher
 			LOG.error("Both options -1 && -2 used.");
 			return -1;
 			}
-		PrintStream out=null;
 		try
 			{
-			out= super.openFileOrStdoutAsPrintStream(outputFile);
-			
-			
-			if(args.isEmpty())
-				{
-				LOG.info("Reading from stdin");
-				FastqReader fqR=new FourLinesFastqReader(stdin());
-				run(fqR,out);
-				fqR.close();
+			try (PrintStream out= super.openPathOrStdoutAsPrintStream(outputFile)) {
+				if(args.isEmpty())
+					{
+					try(FastqReader fqR=new FourLinesFastqReader(stdin())) {
+						run(fqR,out);
+						}
+					}
+				else for(final String fn : args)
+					{
+					try(FastqReader fqR=new FourLinesFastqReader(new File(fn))) {
+						run(fqR,out);
+						}
+					}
+				out.flush();
 				}
-			else for(final String fn : args)
-				{
-				File f=new File(fn);
-				LOG.info("Reading from "+f);
-				FastqReader fqR=new FourLinesFastqReader(f);
-				run(fqR,out);
-				fqR.close();
-				}
-			out.flush();
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(out);
 			}
 		return 0;
 		}

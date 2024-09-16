@@ -445,7 +445,7 @@ public  class CmdUsageBuilder
 		
 		public String getVersion()
 			{
-			return getGitHash();
+			return JVarkitVersion.getInstance().getVersion();
 			}
 		
 		private void updateDoc(final JCommander jc) {

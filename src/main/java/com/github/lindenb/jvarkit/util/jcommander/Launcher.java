@@ -40,19 +40,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Random;
-import java.util.function.Function;
-import java.util.function.IntSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.IStringConverterFactory;
-import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -852,29 +847,7 @@ protected htsjdk.samtools.SamReader openSamReader(final String inputName)
 	}
 
 
-protected static class StringToMd5 implements Function<String, String>
-	{
-	private final java.security.MessageDigest _md5;
 
-	public StringToMd5() {
-		try {
-			_md5 = java.security.MessageDigest.getInstance("MD5");
-		} catch (java.security.NoSuchAlgorithmException e) {
-			throw new RuntimeException("MD5 algorithm not found", e);
-		}}
-		
-	@Override
-	public String apply(String in) {
-		_md5.reset();
-		_md5.update(in.getBytes());
-		String s = new java.math.BigInteger(1, _md5.digest()).toString(16);
-		if (s.length() != 32) {
-			final String zeros = "00000000000000000000000000000000";
-			s = zeros.substring(0, 32 - s.length()) + s;
-		}
-		return s;
-		}
-	}
 /** extract case controls in VCF header injected with VcfInjectPedigree */
 protected java.util.Set<com.github.lindenb.jvarkit.util.Pedigree.Person> getCasesControlsInPedigree(final htsjdk.variant.vcf.VCFHeader header) {
 	return new com.github.lindenb.jvarkit.util.Pedigree.CaseControlExtractor().extract(header);

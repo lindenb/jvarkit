@@ -89,7 +89,8 @@ END_DOC
 	description="Extending ends of sequences with the help of reads",
 	biostars=148089,
 	keywords={"read","fastq","reference","sam","bam"},
-	modificationDate="20190926"
+	modificationDate="20190926",
+	jvarkit_amalgamion = true
 	)
 public class ExtendReferenceWithReads extends Launcher
 	{

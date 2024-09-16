@@ -49,6 +49,7 @@ private static JVarkitVersion INSTANCE=null;
 private String compilationDate = null;
 private String gitHash = null;
 private String htsjdkVersion = null;
+private String release;
 
 private JVarkitVersion() {
 	Enumeration<URL> resources = null;
@@ -88,6 +89,14 @@ private JVarkitVersion() {
 		        	htsjdkVersion = cp;
 		        	}
 	        	}
+	        if(StringUtil.isBlank(this.release))
+	        	{
+	        	final String cp=attr.getValue("Release");
+		        if(!StringUtil.isBlank(cp))
+		        	{
+		        	release = cp;
+		        	}
+	        	}
 	    	} 
 	    catch (final Exception err) {
 	    	//
@@ -106,6 +115,9 @@ private JVarkitVersion() {
 	if(StringUtil.isBlank(this.htsjdkVersion)) {
 		htsjdkVersion = "(undefined)";
 		}
+	if(StringUtil.isBlank(this.release)) {
+		release = "(undefined)";
+		}
 	}
 
 /** return compilation date, never null */
@@ -120,6 +132,15 @@ public String getGitHash() {
 /** return htsjdk version , never null */
 public String getHtsjdkVersion() {
 	return htsjdkVersion;
+	}
+
+/** return git release , never null */
+public String getRelease() {
+	return release;
+	}
+
+public String getVersion() {
+	return getRelease()+(getGitHash().equals("(undefined)")?"":"-"+getGitHash()); 
 	}
 
 public static JVarkitVersion getInstance() {
@@ -141,7 +162,7 @@ public Set<VCFHeaderLine> getMetaData(String prefix) {
 	return metaData;
 	}
 
-public VCFHeader addMetaData(String prefix,final VCFHeader header) {
+public VCFHeader addMetaData(final String prefix,final VCFHeader header) {
 	getMetaData(prefix).stream().forEach(H->header.addMetaDataLine(H));
 	return header;
 	}
@@ -169,6 +190,7 @@ public String getLabel() {
 			"compilation:"+ getCompilationDate(),
 			"githash:"+ getGitHash(),
 			"htsjdk:"+ getHtsjdkVersion(),
+			"release:"+ getRelease(),
 			"date:" + new SimpleDateFormat("yyyyMMddHHmmss").format(new Date())
 			);
 	
