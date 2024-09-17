@@ -1,7 +1,29 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2024 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.jbrowse2;
 
-import java.awt.Image;
-import java.awt.geom.Path2D;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,11 +62,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import htsjdk.samtools.BAMFileReader;
-import htsjdk.samtools.BamFileIoUtils;
-import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamFiles;
-import htsjdk.samtools.SamIndexes;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
@@ -52,6 +70,12 @@ import htsjdk.samtools.util.FileExtensions;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
+/**
+BEGIN_DOC
+
+
+END_DOC
+*/
 public class JBrowse2Server  extends Launcher {
 	private static final Logger LOG = Logger.build(JBrowse2Server.class).make();
 	@Parameter(names="--zip",description="JBrowse2 archive source")
@@ -231,10 +255,14 @@ public class JBrowse2Server  extends Launcher {
 					for(ZipEntry ze=zipin.getNextEntry();ze!=null;ze=zipin.getNextEntry()) {
 						if(ze.isDirectory()) continue;
 						final String fname=ze.getName();
+						if(fname.endsWith(FileExtensions.BAM)) continue;
+						if(fname.endsWith(FileExtensions.BAI_INDEX)) continue;
+						if(fname.endsWith(FileExtensions.TABIX_INDEX)) continue;
+						if(fname.endsWith(FileExtensions.COMPRESSED_VCF)) continue;
 						LOG.info(fname);
 						try(ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 							IOUtils.copyTo(zipin, baos);
-							byte[] data= baos.toByteArray();
+							final byte[] data= baos.toByteArray();
 							page2content.put("/"+fname, new FileInZip("/"+fname,data));
 							}
 						}
