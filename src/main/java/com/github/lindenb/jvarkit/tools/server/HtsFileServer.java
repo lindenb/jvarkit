@@ -59,6 +59,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.ContentType;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -503,7 +504,7 @@ public  class HtsFileServer extends Launcher {
 			else
 				{
 				final String fname = prefix+HtsFileServer.class.getSimpleName()+".zip";
-				response.addHeader("Content-Type","application/zip");
+				response.addHeader("Content-Type",ContentType.APPLICATION_ZIP.getMimeType());
 				response.addHeader("Content-Disposition","attachment; name=\""+ fname +"\"; filename=\""+ fname +"\"");
 
 				response.setContentType("data/binary; charset="+charset.toLowerCase());

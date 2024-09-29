@@ -300,7 +300,7 @@ public class PubmedCodingLanguages
 		this.languages.add(new ProgLanguageImpl("macro excel","excel macros","excel macro","spreadsheet excel","microsoft excel").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("microsoft access").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("visual basic").flagHasNotCommon());
-		this.languages.add(new ProgLanguageImpl("nextflow").flagHasNotCommon());
+		this.languages.add(new ProgLanguageImpl("nextflow","nf-core","nfcore").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("snakemake","snakefile").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("wdl","cromwell").flagHasNotCommon());
 		this.languages.add(new ProgLanguageImpl("cwl").flagHasNotCommon());

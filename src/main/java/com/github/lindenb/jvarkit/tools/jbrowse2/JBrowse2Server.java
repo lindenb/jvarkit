@@ -47,7 +47,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -56,6 +55,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.net.ContentType;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.google.gson.Gson;
@@ -67,6 +67,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -97,7 +98,7 @@ public class JBrowse2Server  extends Launcher {
 		@Override
 		protected void write(HttpServletRequest request, HttpServletResponse response)
 				throws ServletException, IOException {
-			response.setContentType("application/json");
+			response.setContentType(ContentType.APPLICATION_JSON.getMimeType());
 			final Writer w=response.getWriter();
 			new Gson().toJson(this.config, w);
 			w.flush();
@@ -114,7 +115,7 @@ public class JBrowse2Server  extends Launcher {
 		@Override
 		protected void write(HttpServletRequest request, HttpServletResponse response)
 				throws ServletException, IOException {
-			
+			response.setContentType(ContentType.APPLICATION_OCTECT_STREAM.getMimeType());
 			String range=request.getHeader("Range");
 			if(!StringUtils.isBlank(range) ) {
 				if(!range.startsWith("bytes="))throw new IOException("range ?"+range);
@@ -160,17 +161,9 @@ public class JBrowse2Server  extends Launcher {
 			}
 		protected void write(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 			final OutputStream out = response.getOutputStream();
-			if(name.endsWith(".json"))
-				{
-				response.setContentType("application/json");
-				}
-			else if(name.endsWith(".js"))
-				{
-				response.setContentType("text/javascript");
-				}
-			else if(name.endsWith(".css"))
-				{
-				response.setContentType("text/css");
+			final ContentType contentType = ContentType.fromSuffix(name).orElse(null);
+			if(contentType!=null) {
+				response.setContentType(contentType.getMimeType());
 				}
 			else
 				{
@@ -233,8 +226,99 @@ public class JBrowse2Server  extends Launcher {
 			}
 		}
 
-	
+	private abstract class FileTypeHandler {
+		protected String getBuildName() {
+			return IOUtils.getFilenameWithoutCommonSuffixes(JBrowse2Server.this.reference); 
+			}
+		protected JsonObject createUriLocation(String path) {
+			final JsonObject idm7 = new JsonObject();
+			idm7.addProperty("uri",path);
+			idm7.addProperty("locationType","UriLocation");
+			return idm7;
+			}
+		
+		abstract boolean handle(final String filename,final Map<String,AbstractContent> page2content,JsonArray tracks) throws IOException;
+		}
 
+	private  class BamTypeHandler extends FileTypeHandler {
+		@Override
+		boolean handle(String filename,final Map<String,AbstractContent> page2content,JsonArray tracks)  throws IOException {
+			if(!filename.endsWith(FileExtensions.BAM)) return false;
+			final SamReaderFactory srf = SamReaderFactory.makeDefault();
+			srf.referenceSequence(JBrowse2Server.this.reference);
+			try {
+				final Path bamPath =Paths.get(filename);
+				IOUtil.assertFileIsReadable(bamPath);
+				try(SamReader sr=srf.open(bamPath)) {
+					if(!sr.hasIndex()) {
+						throw new IOException("index missing for "+bamPath);
+						}
+					String name0 = sr.getFileHeader().getReadGroups().stream().
+							map(RG->RG.getSample()).
+							filter(S->!StringUtils.isBlank(S)).
+							findFirst().
+							orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamPath));
+					String bam_name=name0+FileExtensions.BAM;
+					String bai_name=name0+FileExtensions.BAM+FileExtensions.BAI_INDEX;
+					int n=1;
+					for(;;) {
+						if(!page2content.containsKey(bam_name) && !page2content.containsKey( bai_name)) break;
+						n++;
+						bam_name=name0+"."+n+FileExtensions.BAM;
+						bai_name=name0+"."+n+FileExtensions.BAM+FileExtensions.BAI_INDEX;
+						}
+					VirtualFile virtBam = new VirtualFile(bamPath);
+					page2content.put("/"+bam_name, virtBam);
+					
+					Path baiPath= SamFiles.findIndex(bamPath);
+					VirtualFile virtBai = new VirtualFile(baiPath);
+					page2content.put("/"+bai_name, virtBai);
+					
+					final JsonObject idm1 = new JsonObject();
+					tracks.add(idm1);
+					
+					idm1.addProperty("type","AlignmentsTrack");
+					idm1.addProperty("trackId",name0+"."+n);
+					idm1.addProperty("name",name0);
+
+					final JsonObject idm5 = new JsonObject();
+					idm1.add("adapter",idm5);
+					idm5.addProperty("type","BamAdapter");
+
+					idm5.add("bamLocation",createUriLocation(bam_name));
+
+					final JsonObject idm10 = new JsonObject();
+					idm5.add("index",idm10);
+
+					idm10.add("location",createUriLocation(bai_name));
+					idm10.addProperty("indexType","BAI");
+
+					final JsonObject idm15 = new JsonObject();
+					idm5.add("sequenceAdapter",idm15);
+					idm15.addProperty("type","IndexedFastaAdapter");
+
+					final JsonObject idm17b = new JsonObject();
+					idm15.add("fastaLocation",idm17b);
+					idm17b.addProperty("uri","rotavirus_rf.fa");
+					idm17b.addProperty("locationType","UriLocation");
+
+					final JsonObject idm20b = new JsonObject();
+					idm15.add("faiLocation",idm20b);
+					idm20b.addProperty("uri","rotavirus_rf.fa.fai");
+					idm20b.addProperty("locationType","UriLocation");
+
+					final JsonArray idm23 = new JsonArray();
+					idm1.add("assemblyNames",idm23);
+					idm23.add(getBuildName());
+					}
+				return true;
+				}
+			catch(Exception err) {
+				throw err;
+				}
+			}
+		}
+	
 	
 	@Override
 	public int doWork(final List<String> args) {

@@ -131,7 +131,8 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("Finngen",id,"https://public-metaresults-fg-ukbb.finngen.fi/gene/"+ StringUtils.escapeHttp(id)));
 		
 		urls.add(new LabelledUrlImpl("hugeamp",id,"https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=AoU_250k&file=600Traits.csv&gene="+ StringUtils.escapeHttp(id) +"&pageid=600_traits_app&phenotype=phecode_425.0"));
-		
+		urls.add(new LabelledUrlImpl("intogen",id,"https://www.intogen.org/search?gene="+ StringUtils.escapeHttp(id)));
+
 		 if(isGrch38()) {
 			urls.add(new LabelledUrlImpl("TogoVar",id,"https://grch38.togovar.org/?mode=simple&term="+ StringUtils.escapeHttp(id) ));
 			}

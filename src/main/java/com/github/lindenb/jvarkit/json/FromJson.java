@@ -41,7 +41,7 @@ import com.google.gson.stream.JsonToken;
 import htsjdk.samtools.util.IOUtil;
 
 /**
- * utility to convert stream of JsonReader to simple java object
+ * utility to convert stream of JsonReader to simple java object (velocity... )
  *
  */
 public class FromJson {
