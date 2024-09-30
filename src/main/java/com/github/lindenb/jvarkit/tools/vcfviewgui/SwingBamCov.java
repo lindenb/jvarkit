@@ -152,8 +152,15 @@ BEGIN_DOC
 ## Example
 
 ```
-java -jar dist/swingbamcov.jar -R ref.fa *.bam
+java -jar dist/jvarkit.jar swingbamcov -R ref.fa *.bam
 ```
+
+
+```
+find dir -type f -name "*.bam" > all.list
+java -jar dist/jvarkit.jar swingbamcov -R ref.fa all.list
+```
+
 
 ## Screenshot
 
@@ -168,6 +175,7 @@ description="Bam coverage viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate="20210420",
 modificationDate="20220513",
+biostars=[9603151],
 jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
 )
@@ -196,10 +204,7 @@ public class SwingBamCov extends Launcher
 			this.bamPath = bamPath;
 			}
 		}
-	
-	
 
-	
 	@SuppressWarnings("serial")
 	private static class XFrame extends JFrame {
 		final int smallRegionLength;
@@ -218,7 +223,6 @@ public class SwingBamCov extends Launcher
 		private final JMenu jmenuHyperlinks;
 		private final SwingGff3TableModel gff3TableModel;
 
-		
 		private abstract class ChangeViewAction extends AbstractAction {
 			final double factor;
 			ChangeViewAction(String title,double factor) {
@@ -256,8 +260,7 @@ public class SwingBamCov extends Launcher
 				return String.valueOf(getValue(AbstractAction.NAME));
 				}
 			}
-		
-		
+
 		private class ZoomAction extends ChangeViewAction {
 			ZoomAction(double factor) {
 				super("x"+factor,factor);
@@ -277,7 +280,7 @@ public class SwingBamCov extends Launcher
 				return "Scale by "+factor;
 				}
 			}
-		
+
 		private class ShiftAction extends ChangeViewAction {
 			ShiftAction(String title,double factor) {
 				super(title,factor);
