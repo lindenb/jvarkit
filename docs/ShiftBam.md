@@ -19,8 +19,11 @@ Usage: shiftbam [options] Files
     --bamcompression
       Compression Level. 0: no compression. 9: max compression;
       Default: 5
-  * -R2, --destination-reference
-      Original fasta reference. We shift the bam back to this reference.
+    --bed
+      Bed Path. Extract Reads overlaping this BED. Or use -R2.
+    -R2, --destination-reference
+      Original fasta reference. We shift the bam back to this reference. 
+      Required without --bed
     -h, --help
       print help and exit
     --helpFormat
@@ -82,7 +85,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+
+
 shift coordinates of a BAM.
+
+## Usage 1
 
 Say the bam has been mapped on a sub-fasta.
 
@@ -96,7 +103,7 @@ samtools faidx ref.fa "chr21:12345-16789" >>  ref2.fa
 
 (...)
 bwa mem ref2.fa read1.fq read2.fq |\
-	java -jar dist/jvarkit.jar shiftbam -R ref.Fa
+	java -jar dist/jvarkit.jar shiftbam -R2 ref.Fa
 
 ````
 
@@ -105,6 +112,17 @@ In this sub-fasta all the chromosomes NAMES **MUST** look like 'chr1:123-456'.
 This tool takes as input the original REF and the bam and it's coordinates in the new ref
 and shit the coordinates to the new reference, including the SA:Z attributes.
 Ouput BAM is not sorted on coordinate.
+
+
+## Usage 2
+
+we're creating a mini-genome containing the gene of interest using ROI.bed
+
+```
+java -jar dist/jvarkit.jar shiftbam --bed ROI.bed in.bam
+```
+
+
 
 
 

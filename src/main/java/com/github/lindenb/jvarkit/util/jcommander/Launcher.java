@@ -66,6 +66,7 @@ import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.AbstractProgressLogger;
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.ProgressLoggerInterface;
@@ -247,11 +248,11 @@ public class WritingBamArgs
 	
 	/** get File extension for creating output file , including the dot */
 	public String getFileExtension() {
-			if(this.samoutputformat==null) return ".sam";
+			if(this.samoutputformat==null) return FileExtensions.SAM;
 			switch(this.samoutputformat) {
-				case BAM: return ".bam";
-				case CRAM: return ".cram";
-				default: return ".sam";
+				case BAM: return FileExtensions.BAM;// ".bam";
+				case CRAM: return FileExtensions.CRAM;
+				default: return FileExtensions.SAM;
 			}
 		}
 	

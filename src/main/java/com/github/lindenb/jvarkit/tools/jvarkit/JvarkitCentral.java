@@ -36,6 +36,8 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import org.apache.commons.codec.language.Soundex;
+
 import com.github.lindenb.jvarkit.tools.allelebalance.VcfAlleleBalance;
 import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
@@ -924,8 +926,15 @@ public class JvarkitCentral {
 			}
 		else
 			{
+			final Soundex soundex = new Soundex();
+			final Set<String> sounds = this.commands.keySet().
+				stream().
+				filter(S->{try { return soundex.difference(S, userCmd)>=4/* 4: high score */;} catch(Exception err) {return false;}} ).
+				collect(Collectors.toSet());
 			LOG.error("jvarkit command \""+userCmd+"\" not found.\n"
-					+ "Available commands are: " + String.join(", ",this.commands.keySet()));
+					+ "Available commands are: " + String.join(", ",this.commands.keySet())+"\n"+
+					(sounds.isEmpty()?"":"\nDo you mean "+String.join(", ", sounds)+" ?\n")
+					);
 			System.exit(-1);
 			}
 		}
