@@ -7,7 +7,13 @@ produces a reverse-complement fastq (for mate pair alignment see http://seqanswe
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar fastqrevcomp  [options] Files
+
 Usage: fastqrevcomp [options] Files
   Options:
     -h, --help
@@ -32,23 +38,6 @@ Usage: fastqrevcomp [options] Files
 
  * fastq
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew fastqrevcomp
-```
-
-The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
@@ -105,4 +94,5 @@ GATACATCGGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCTCTATGGCCAGGAGAGGCCAACACTCAGGTGCAGAATG
 +
 BFFFF@?FFFFFFFFFFFFFFFFEF?FFFGGGEGEBBGGGGFFGFGGGGFGGGGGGGGHEAHHHGHHHHHHHHHHHHHHGCGGHHGHGHGHHHHHHHHHHGHGHHHGHGGGGGHC0/0GFFHFFHHGGGHGFFBGFFFHHHEHHEA0BGEGHFFFHFF1F2F2EFHHHFHFGFGBGFEGFHGHGFCBFHFGBFEGHFHFHHHFHGHFB1FGGGGCFGFHFC0CA//EC?ECEF1BB1BFD@@AAFB11>11
 ```
+
 

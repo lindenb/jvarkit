@@ -55,6 +55,12 @@ Usage: swingbamcov [options] Files
 
 
 
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9603151](https://www.biostars.org/p/9603151)
+
+
+
 ## Creation Date
 
 20210420
@@ -88,8 +94,15 @@ The current reference is:
 ## Example
 
 ```
-java -jar dist/swingbamcov.jar -R ref.fa *.bam
+java -jar dist/jvarkit.jar swingbamcov -R ref.fa *.bam
 ```
+
+
+```
+find dir -type f -name "*.bam" > all.list
+java -jar dist/jvarkit.jar swingbamcov -R ref.fa all.list
+```
+
 
 ## Screenshot
 

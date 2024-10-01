@@ -113,8 +113,10 @@ nav:
         - "dict2bed" : DictToBed.md
         - "dict2xml" : DictToXml.md
         - "evadumpfiles" : EVADumpFiles.md
+        - "extendrefwithreads" : ExtendReferenceWithReads.md
         - "fasta2vcf" : ReferenceToVCF.md
         - "fastqgrep" : FastqGrep.md
+        - "fastqrevcomp" : FastqRevComp.md
         - "fastqshuffle" : FastqShuffle.md
         - "findallcoverageatposition" : FindAllCoverageAtPosition.md
         - "findavariation" : FindAVariation.md
@@ -172,6 +174,7 @@ nav:
         - "reduceblast" : ReduceBlast.md
         - "ref2html" : ReferenceToHtml.md
         - "repairfastq" : RepairFastq.md
+        - "rnaseqpolya" : RNASeqPolyA.md
         - "sam2json" : SamToJson.md
         - "sam2psl" : SamToPsl.md
         - "sam2tsv" : Sam2Tsv.md
@@ -188,10 +191,12 @@ nav:
         - "samviewwithmate" : SamViewWithMate.md
         - "scanlabguru" : ScanLabGuru.md
         - "scanretrocopy" : ScanRetroCopy.md
+        - "scansv" : ScanStructuralVariants.md
         - "setfile2bed" : SetFileToBed.md
         - "setfilecluster" : SetFileCluster.md
         - "setfilefrombed" : SetFileFromBed.md
         - "setfiletools" : SetFileTools.md
+        - "shiftbam" : ShiftBam.md
         - "sortsamrefname" : SortSamRefName.md
         - "sortvcfoninfo" : SortVcfOnInfo.md
         - "splitvcf" : SplitVcf.md

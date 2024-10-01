@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : d57e7af62
-Compilation : 20240910090031
+Version     : 86f9c9e60
+Compilation : 20241001173550
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -190,7 +190,9 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [dict2bed](DictToBed.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to bed. | 20240603 | 20240603 |
 | [dict2xml](DictToXml.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to XML. | 20240824 | 20240824 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
+| [extendrefwithreads](ExtendReferenceWithReads.md) | Extending ends of sequences with the help of reads |  | 20190926 |
 | [fasta2vcf](ReferenceToVCF.md) | Creates a VCF containing all the possible substitutions from a Reference Genome. | 20140910 | 20240711 |
+| [fastqrevcomp](FastqRevComp.md) | produces a reverse-complement fastq (for mate pair alignment see http://seqanswers.com/forums/showthread.php?t=5085 ) |  |  |
 | [fastqshuffle](FastqShuffle.md) | Shuffle Fastq files | 20140901 | 20240129 |
 | [findhtsfiledict](FindHtsFileDictionary.md) | Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path/url-to-fasta) | 20190912 | 20240824 |
 | [fixvcfmissinggenotypes](FixVcfMissingGenotypes.md) | After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref. | 20141109 | 20200525 |
@@ -221,6 +223,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
+| [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
 | [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
 | [samaddpi](SamAddPI.md) | Add predicted median insert size 'PI' to SAM Read groups (RG). |  |  |
@@ -228,6 +231,8 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samfixcigar](SamFixCigar.md) | Fix Cigar String in SAM replacing 'M' by 'X' or '=' | 20131126 | 20210223 |
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
 | [scanlabguru](ScanLabGuru.md) | scan the files stored in labguru | 20240325 | 20240325 |
+| [scansv](ScanStructuralVariants.md) | Scan structural variants for case/controls data | 20190815 | 20240916 |
+| [shiftbam](ShiftBam.md) | shit all coordinates of a bam | 20241001 | 20241001 |
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
 | [swingplinkselectcluster](SwingPLinkSelectCluster.md) | Swing-based Plink/MDS sample selector | 20231123 | 20240606 |

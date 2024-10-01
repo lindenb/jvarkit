@@ -167,6 +167,22 @@ public class SequenceDictionaryExtractor  {
     	}
     }
     
+    
+    public Optional<SAMSequenceDictionary> extractDictionary(final SAMFileHeader header) {
+    	if(header==null) return Optional.empty();
+    	final SAMSequenceDictionary dict=header.getSequenceDictionary();
+    	if(dict==null || dict.isEmpty()) return Optional.empty();
+    	return Optional.of(dict);
+    	}
+    
+    public Optional<SAMSequenceDictionary> extractDictionary(final VCFHeader header) {
+    	if(header==null) return Optional.empty();
+    	final SAMSequenceDictionary dict=header.getSequenceDictionary();
+    	if(dict==null || dict.isEmpty()) return Optional.empty();
+    	return Optional.of(dict);
+    	}
+
+    
     public SAMSequenceDictionary extractRequiredDictionary(final String pathOrUrl) {
     	final Optional<SAMSequenceDictionary>  opt= extractDictionary(pathOrUrl);
     	if(!opt.isPresent()) notFound(pathOrUrl);

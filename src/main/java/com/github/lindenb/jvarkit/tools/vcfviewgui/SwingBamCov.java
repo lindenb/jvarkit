@@ -175,7 +175,7 @@ description="Bam coverage viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate="20210420",
 modificationDate="20220513",
-biostars=[9603151],
+biostars= {9603151},
 jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
 )
