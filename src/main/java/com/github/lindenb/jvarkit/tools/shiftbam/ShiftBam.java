@@ -116,8 +116,8 @@ public class ShiftBam extends Launcher {
 	private static Locatable name2interval(final String s) {
 		final int colon=s.lastIndexOf(':');
 		if(colon==-1) throw new IllegalArgumentException("cannot find ':' in "+s);
-		int hyphen=s.lastIndexOf('-',colon+1);
-		if(hyphen==-1) throw new IllegalArgumentException("cannot find '-' in "+s);
+		int hyphen=s.lastIndexOf('-');
+		if(hyphen==-1 || hyphen < colon) throw new IllegalArgumentException("cannot find '-' in "+s);
 		final String contig = s.substring(0,colon);
 		final int start = Integer.parseInt(s.substring(colon+1,hyphen));
 		final int end = Integer.parseInt(s.substring(hyphen+1));

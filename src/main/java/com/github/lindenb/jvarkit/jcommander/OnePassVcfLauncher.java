@@ -109,8 +109,6 @@ protected void afterVcf() {
 
 @Override
 public int doWork(final List<String> args) {
-	VCFIterator in = null;
-	VariantContextWriter vcw = null;
 	final String input = super.oneFileOrNull(args);
 	if(input!=null &&
 		this.outputFile!=null &&
@@ -131,28 +129,19 @@ public int doWork(final List<String> args) {
 		}
 	
 	try {
+		final int err;
 		final BcfIteratorBuilder bcb = new BcfIteratorBuilder();
-		if(input==null) {
-			in = bcb.open(stdin());
+		try(VCFIterator in = (input==null? bcb.open(stdin()):bcb.open(input))) {
+			final VCFIterator in2=getLogger()!=null?new VCFIter(in, getLogger()):in;
+			try(VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(in2.getHeader()).open(this.outputFile)) {
+				err = doVcfToVcf(input==null?"<stdin>":input, in2,vcw);
+				}
 			}
-		else {
-			in = bcb.open(input);
-			}
-		if(getLogger()!=null) {
-			in = new VCFIter(in, getLogger());
-			}
-		vcw = this.writingVariantsDelegate.dictionary(in.getHeader()).open(this.outputFile); 
-		final int err = doVcfToVcf(input==null?"<stdin>":input, in,vcw);
-		vcw.close();
-		vcw=null;
-		in.close();
-		in = null;
 		if(err!=0) deleteOutputOnError();
 		return err;
 		}
 	catch (final Throwable err) {
 		LOG.error(err);
-		if(vcw!=null) vcw.close();
 		deleteOutputOnError();
 		return -1;
 		}
@@ -164,8 +153,6 @@ public int doWork(final List<String> args) {
 		catch (final Throwable err) {
 			LOG.error(err);
 			}	
-		if(in!=null) in.close();
-		if(vcw!=null) vcw.close();
 		}
 	}
 }

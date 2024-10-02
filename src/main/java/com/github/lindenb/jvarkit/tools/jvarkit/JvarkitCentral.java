@@ -243,6 +243,7 @@ import com.github.lindenb.jvarkit.tools.setfile.SetFileFromBed;
 import com.github.lindenb.jvarkit.tools.setfile.SetFileToBed;
 import com.github.lindenb.jvarkit.tools.setfile.SetFileTools;
 import com.github.lindenb.jvarkit.tools.shiftbam.ShiftBam;
+import com.github.lindenb.jvarkit.tools.shiftvcf.ShiftVcf;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.AlmostSortedVcf;
 import com.github.lindenb.jvarkit.tools.sortvcfonref.SortVcfOnInfo;
 import com.github.lindenb.jvarkit.tools.spliceai.VcfSpliceAI;
@@ -771,7 +772,6 @@ public class JvarkitCentral {
 		command(RepairFastq.class);
 		command(ReferenceToVCF.class);
 		command(RNASeqPolyA.class);
-		command(ShiftBam.class);
 		command(VCFBigWig.class);
 		command(VcfBigBed.class);
 		command(VcfFilterGtf.class);
@@ -802,6 +802,8 @@ public class JvarkitCentral {
 		command(SetFileFromBed.class);
 		command(SetFileToBed.class);
 		command(SetFileCluster.class);
+		command(ShiftBam.class);
+		command(ShiftVcf.class);
 		command(SplitVcf.class);
 		command(StructuralVariantToFasta.class);
 		command(SVCasesControls.class);

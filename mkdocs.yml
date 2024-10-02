@@ -197,6 +197,7 @@ nav:
         - "setfilefrombed" : SetFileFromBed.md
         - "setfiletools" : SetFileTools.md
         - "shiftbam" : ShiftBam.md
+        - "shiftvcf" : ShiftVcf.md
         - "sortsamrefname" : SortSamRefName.md
         - "sortvcfoninfo" : SortVcfOnInfo.md
         - "splitvcf" : SplitVcf.md
