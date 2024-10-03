@@ -342,15 +342,15 @@ public class Biostar160470 extends Launcher
 				}
 			else
 				{
-				final FileReader fr=new java.io.FileReader(filename);
-				r=this.xif.createXMLEventReader(fr);
-				this.parseBlast(r);
-				r.close();
-				fr.close();
-				r=null;
+				try(final FileReader fr=new java.io.FileReader(filename)) {
+					r=this.xif.createXMLEventReader(fr);
+					this.parseBlast(r);
+					r.close();
+					r=null;
+					}
 				}
-			return RETURN_OK;
-		} catch (final Exception e) {
+			return 0;
+		} catch (final Throwable e) {
 			LOG.error(e);
 			return -1;
 		}
