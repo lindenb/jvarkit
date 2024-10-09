@@ -72,6 +72,7 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -251,13 +252,35 @@ public class CoverageGrid extends Launcher {
 		}
 		
 		private  class MiniRead implements Locatable {
-			int start;
-			int end;
-			Cigar cigar;
+			final int start;
+			final int end;
+			final Cigar cigar;
+			final int flags;
+			final int mate_start;
+			final int mate_end;
 			MiniRead(SAMRecord rec) {
 				this.start=rec.getAlignmentStart();
 				this.end = rec.getAlignmentEnd();
 				this.cigar=rec.getCigar();
+				this.flags = rec.getFlags();
+				if(rec.getReadPairedFlag() &&
+					!rec.getMateUnmappedFlag() &&
+					rec.getReferenceName().equals(rec.getMateReferenceName())
+					) {
+					this.mate_start = rec.getMateAlignmentStart();
+					if(rec.hasAttribute(SAMTag.MC)) {
+						this.mate_end  = SAMUtils.getMateAlignmentEnd(rec);
+						}
+					else
+						{
+						this.mate_end = this.mate_start;
+						}
+					}
+				else
+					{
+					this.mate_start=-1;
+					this.mate_end=-1;
+					}
 				}
 			public String getContig() {
 				return PileupTask.this.extendedInterval.getContig();
