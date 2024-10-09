@@ -71,7 +71,7 @@ public class PSCanvas extends Canvas {
 	@Override
 	public void close() throws IOException {
 		this.w.println(" showpage");
-		this.w.println("# generated with jvarkit. Author: Pierre Lindenbaum PhD.");
+		this.w.println("% generated with jvarkit. Author: Pierre Lindenbaum PhD.");
 		this.w.println("%EOF");
 		this.w.flush();
 		this.w.close();
@@ -111,13 +111,13 @@ public class PSCanvas extends Canvas {
 			w.print(" fill");
 			}
 		
-		double linewidth=getStrokeWidth();
+		final double linewidth=getStrokeWidth();
 		if(linewidth>0) {
 			c= getStrokeColor();
 			if(c!=null) {
 				pathIterator(shape);
 				w.print(" ");
-				w.print(String.valueOf(linewidth));
+				w.print(round(linewidth));
 				w.print(" setlinewidth ");
 				w.print(setrgbcolor(c));
 				w.print(" stroke");
@@ -172,12 +172,12 @@ public class PSCanvas extends Canvas {
 	@Override
 	public Canvas polyline(final List<Point2D> points,FunctionalMap<String, Object> fm) {
 		fm = this.states.push(this.states.peek().plus(fm));
-		double linewidth=getStrokeWidth();
+		final double linewidth=getStrokeWidth();
 		if(linewidth>0 && points.size()>1) {
-			Color c= getStrokeColor();
+			final Color c= getStrokeColor();
 			if(c!=null) {
 				w.print(" ");
-				w.print(String.valueOf(linewidth));
+				w.print(round(linewidth));
 				w.print(" setlinewidth ");
 				w.print(setrgbcolor(c));
 
@@ -246,7 +246,6 @@ public class PSCanvas extends Canvas {
 	
 	@Override
 	public Canvas shape(Shape shape, FunctionalMap<String, Object> fm) {
-		
 		fm = this.states.push(this.states.peek().plus(fm));
 		fillAndStroke(shape);
 		this.states.pop();

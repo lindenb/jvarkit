@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
@@ -29,7 +30,7 @@ public class SVGCanvas extends Canvas {
 	private final int height;
 	private final OutputStream ostream;
 	private final XMLStreamWriter w;
-	public SVGCanvas(Path out,int width,int height,boolean compressed,FunctionalMap<String,Object> params) throws IOException,XMLStreamException {
+	public SVGCanvas(Path out,int width,int height,boolean compressed,final FunctionalMap<String,Object> params) throws IOException,XMLStreamException {
 		super();
 		this.width=width;
 		this.height=height;
@@ -61,12 +62,22 @@ public class SVGCanvas extends Canvas {
 		w.writeCharacters(String.valueOf(params.getOrDefault(KEY_TITLE,"")));
 		w.writeEndElement();
 		
-		w.writeStartElement("meta");
-		w.writeEndElement();
+		
+		
+		final Object meta= params.get(KEY_SVG_META);
+		if(meta!=null && meta instanceof Consumer) {
+			w.writeStartElement("meta");
+			@SuppressWarnings("unchecked")
+			Consumer<XMLStreamWriter> cons=(Consumer<XMLStreamWriter>)meta;
+			cons.accept(this.w);
+			w.writeEndElement();
+			}
+		
+		
 		
 		w.writeStartElement("g");
 		writeStyle();
-		w.flush();
+		begin(params.minus(KEY_SVG_META).minus(KEY_TITLE));
 		}
 	
 	private String toString(Object v) {
@@ -284,7 +295,10 @@ public class SVGCanvas extends Canvas {
 		final FunctionalMap<String, Object> fm = whatsNew();
 		final String css= fm.
 			stream().
-			filter(KV->!(KV.getKey().equals(KEY_HREF) || KV.getKey().equals(KEY_TITLE))).
+			filter(KV->!(
+					KV.getKey().equals(KEY_HREF) ||
+					KV.getKey().equals(KEY_TITLE) || 
+					KV.getKey().equals(KEY_SVG_META))).
 			map(KV->toString(KV)).
 			map(KV->KV.getKey()+":"+toString(KV.getValue())).
 			collect(Collectors.joining(";"));
@@ -324,6 +338,7 @@ public class SVGCanvas extends Canvas {
 	public void close() throws IOException {
 		try {
 			this.w.writeComment("Generated with jvarkit. Author: Pierre Lindenbaum Phd.");
+			end();
 			this.w.writeEndElement();//g
 			this.w.writeEndElement();//svg
 			this.w.writeEndDocument();

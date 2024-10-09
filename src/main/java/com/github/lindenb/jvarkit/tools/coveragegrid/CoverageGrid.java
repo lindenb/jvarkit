@@ -28,15 +28,22 @@ package com.github.lindenb.jvarkit.tools.coveragegrid;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToDoubleFunction;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.canvas.Canvas;
@@ -46,8 +53,10 @@ import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.Average;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -57,9 +66,13 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.AlignmentBlock;
+import htsjdk.samtools.Cigar;
+import htsjdk.samtools.CigarElement;
+import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -95,6 +108,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class CoverageGrid extends Launcher {
+	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR};
 	private static final Logger LOG = Logger.build( CoverageGrid.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -114,48 +128,384 @@ public class CoverageGrid extends Launcher {
 	private int nThreads = 1;
 	@Parameter(names= {"--format"},description=CanvasFactory.OPT_FORMAT_DESC)
 	private CanvasFactory.Format canvas_format=CanvasFactory.Format.SVG;
+	@Parameter(names= {"--title"},description="Title")
+	private String title="";
+	@Parameter(names= {"--type"},description="Plot type")
+	private PlotType plotType = PlotType.MEDIAN_COVERAGE;
 
-
-	
-
-	
-
-	private class CoverageTask implements Runnable {
+	private abstract class BamTask implements Runnable {
 		String sampleName="";
 		Path bamPath;
 		Path referencePath;
 		Locatable userInterval;
 		Locatable extendedInterval;
 		Rectangle boundaries;
-		double[] coverage = null;
 		int status = -1;
-		Average mean_depth= new Average();
-		
-		void extractCoverage() {
+
+		protected SamReader openSamReader() throws IOException {
 			final SamReaderFactory samReaderFactory = SamReaderFactory.
 					makeDefault().
 					disable(SamReaderFactory.Option.CACHE_FILE_BASED_INDEXES).
 					referenceSequence(this.referencePath).
 					validationStringency(ValidationStringency.LENIENT);
+			final SamReader sr= samReaderFactory.open(this.bamPath);
+			if(!sr.hasIndex()) {
+				this.status=-1;
+				throw new IOException("index missng for "+bamPath);
+				}
+			final SAMFileHeader hdr = sr.getFileHeader();
+			this.sampleName = hdr.getReadGroups().
+					stream().
+					map(RG->RG.getSample()).
+					filter(S->!StringUtils.isBlank(S)).
+					findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(this.bamPath))
+					;
+			return sr;
+			}
+		protected double trimX(double coordX) {
+			return Math.min(this.boundaries.getMaxX(), Math.max(this.boundaries.getX(),coordX));
+			}
+		
+		protected double position2pixel(int pos) {
+			return this.boundaries.getX() +
+					((pos-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.boundaries.getWidth();
+			}
+		
+		protected CloseableIterator<SAMRecord> query(final SamReader sr) {
+			return sr.query(
+					this.extendedInterval.getContig(),
+					this.extendedInterval.getStart(),
+					this.extendedInterval.getEnd(), 
+					false
+					);
+			}
+		
+		protected boolean acceptRead(SAMRecord rec) {
+			return SAMRecordDefaultFilter.accept(rec, CoverageGrid.this.min_mapq);
+			}
+		
+		protected void plotVerticalGuides(Canvas canvas) {
+			// draw original region vertical bounds 
+			if(!this.userInterval.equals(this.extendedInterval)) {
+				for( int i=0;i<2;i++) {
+					final int p = (i==0?userInterval.getStart():userInterval.getEnd());
+					final double x = position2pixel(p);
+					canvas.line(
+							x,
+							boundaries.getY(),
+							x,
+							this.boundaries.getMaxY(),
+							FunctionalMap.of(
+								Canvas.KEY_STROKE,Color.GREEN,
+								Canvas.KEY_TITLE, StringUtils.niceInt(p),
+								Canvas.KEY_STROKE_WIDTH,0.5
+								)
+							);
+					}
+				}
+			}
+		
+		protected void plotFrame(Canvas canvas) {
+			// draw frame
+			canvas.rect(
+				boundaries.getX(),
+				boundaries.getY(),
+				boundaries.getWidth(),
+				boundaries.getHeight(),
+				FunctionalMap.of(
+						Canvas.KEY_FILL,null,
+						Canvas.KEY_STROKE,Color.DARK_GRAY,
+						Canvas.KEY_STROKE_WIDTH,0.5
+						)
+				);
+			}
+		
+		protected void plotBackgroundFrame(Canvas canvas) {
+			Color c=new Color(230,230,230);
+			for(int i=0;i< 2;i++) {
+				double x1 = trimX(position2pixel(i==0?this.extendedInterval.getStart():this.userInterval.getEnd()));
+				double x2 = trimX(position2pixel(i==0?this.userInterval.getStart():this.extendedInterval.getEnd()));
+				if(x1>=x2) continue;
+				// draw frame
+				canvas.rect(
+					x1,
+					boundaries.getY(),
+					(x2-x1),
+					boundaries.getHeight(),
+					FunctionalMap.of(
+						Canvas.KEY_FILL,c,
+						Canvas.KEY_STROKE,null
+						)
+					);
+				}
+			}
+		
+		abstract void plot(Canvas canvas);
+		}	
+
+	
+	private class PileupTask extends BamTask {
+		final boolean by_pair;
+		PileupTask(boolean by_pair) {
+			this.by_pair  = by_pair;
+		}
+		
+		private  class MiniRead implements Locatable {
+			int start;
+			int end;
+			Cigar cigar;
+			MiniRead(SAMRecord rec) {
+				this.start=rec.getAlignmentStart();
+				this.end = rec.getAlignmentEnd();
+				this.cigar=rec.getCigar();
+				}
+			public String getContig() {
+				return PileupTask.this.extendedInterval.getContig();
+				}
+			public int getStart() {
+				return start;
+				}
+			public int getEnd() {
+				return end;
+				}
+			public Cigar getCigar() {
+				return cigar;
+				}
+			public int getUnclippedStart() {
+				return SAMUtils.getUnclippedStart(getStart(), cigar);
+				}
+			public int getUnclippedEnd() {
+				return SAMUtils.getUnclippedEnd(getEnd(), cigar);
+				}
+			}
+		
+		private class MiniReadPair implements Locatable,Comparable<MiniReadPair>,Iterable<MiniRead> {
+			private final MiniRead R1 ;
+			private MiniRead R2 = null;
+			
+			public MiniReadPair(final MiniRead rec)
+				{
+				this.R1 = rec;
+				}
+			
+			@Override
+			public int compareTo(final MiniReadPair o) {
+				int i= Integer.compare(this.getStart(),o.getStart());
+				if(i!=0) return i;
+				i= Integer.compare(this.getEnd(),o.getEnd());
+				if(i!=0) return i;
+				return 0;
+				}
+			
+			@Override
+			public String getContig() {
+				return R1.getContig();
+				}
+			@Override
+			public int getStart() {
+				return R2==null?
+					R1.getUnclippedStart():
+					Math.min(R1.getUnclippedStart(), R2.getUnclippedStart())
+					;
+				}
+			@Override
+			public int getEnd() {
+				return R2==null?
+						R1.getUnclippedEnd():
+						Math.max(R1.getUnclippedEnd(), R2.getUnclippedEnd())
+						;
+				}
+			@Override
+			public Iterator<MiniRead> iterator() {
+				return (R2==null?Arrays.asList(R1):Arrays.asList(R1,R2)).iterator();
+				}
+			
+			}
+
+		
+		final List<List<MiniReadPair>> rows = new ArrayList<>();
+		
+		void extractPileup() {
+			final Map<String,MiniReadPair> readName2pairs = new HashMap<>();
+			try(SamReader sr=openSamReader()) {
+				 try(CloseableIterator<SAMRecord> iter=this.query(sr)) {
+					 while(iter.hasNext()) {
+						 final SAMRecord rec0=iter.next();
+						 if(!acceptRead(rec0)) continue;
+						 final Cigar cigar = rec0.getCigar();
+						 if(cigar==null || cigar.isEmpty()) continue;
+						 
+						 final MiniRead rec = new MiniRead(rec0);
+						 final String pair_name = this.by_pair ? rec0.getReadName(): rec0.getPairedReadName();
+						 MiniReadPair pair=readName2pairs.get(pair_name);
+						 if(pair==null) {
+							pair =new MiniReadPair(rec);
+							readName2pairs.put(pair_name,pair);
+						 	}
+						 else if(pair.R2==null ) {
+							if(!rec0.getReadPairedFlag()) LOG.error("reads not paired with same name "+pair_name);
+							pair.R2=rec; 
+						 	}
+					 	 }
+					 }//end iterator
+				 
+				 final Pileup<MiniReadPair> pileup = new Pileup<>((L,R)->position2pixel(L.getEnd()+1) +1  < position2pixel(R.getStart()));
+				 for(MiniReadPair pair: readName2pairs.values().stream().sorted().collect(Collectors.toList())) {
+					 if(!pair.overlaps(extendedInterval)) continue;
+					 pileup.add(pair);
+				 	}
+				
+				 this.rows.addAll(pileup.getRows());
+				 this.status=0;
+				}//end samreader
+			catch(IOException err) {
+				 this.status=-1;
+				LOG.error(err);
+				}
+			}
+		@Override
+		void plot(Canvas canvas) {
+			 if(this.status!=0) return;
+		     final double featureHeight= Math.min(20,(this.boundaries.getHeight())/Math.max(1.0,(double)this.rows.size()));
+		     
+		     double y= boundaries.getMaxY()-featureHeight;
+		     
+		     
+		     plotBackgroundFrame(canvas);
+		     for(final List<MiniReadPair> row:this.rows) {
+		    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
+
+		    	for(final MiniReadPair pair: row) {		    
+		    		final List<Integer> insertions = new ArrayList<>();
+		    		/* draw rec itself */
+		    		final double midy=y+h2/2.0;
+		    		canvas.line(
+		    				trimX(position2pixel(pair.getStart())),
+		    				midy,
+		    				trimX(position2pixel(pair.getEnd())),
+		    				midy,
+		    				FunctionalMap.of(
+	    						Canvas.KEY_STROKE, Color.DARK_GRAY,
+	    						Canvas.KEY_STROKE_WIDTH, 0.1
+	    						)
+		    				);
+		    		
+			    	for(MiniRead rec:pair) {
+			    		final int unclipped_start = rec.getUnclippedStart();
+			    		int ref1 = unclipped_start;
+			    		for(final CigarElement ce: rec.getCigar().getCigarElements()) {
+			    			if(ref1> this.extendedInterval.getEnd()) break;
+			    			final CigarOperator op=ce.getOperator();
+			    			Shape shape = null;
+			    			Color fill=null;
+			    			Color stroke=Color.DARK_GRAY;
+			    			switch(op) {
+			    				case P: break;
+			    				case M://through
+			    				case X://through
+			    				case EQ://through
+			    				case S: //through
+			    				case H: 
+			    						final double x1= trimX(position2pixel(ref1));
+			    						final double x2 =trimX(position2pixel(ref1+ce.getLength()+1));
+			    						if(x1 < x2) {
+				    						shape = new Rectangle2D.Double(
+					    						x1,
+					    						y,
+					    						(x2-x1),
+					    						h2
+					    						);
+				    						}
+			    						
+			    						ref1+=ce.getLength();
+			    						switch(op) {
+			    							case H: case S: fill=Color.YELLOW;break;
+			    							case X: fill=Color.RED;break;
+			    							case EQ: case M: fill=Color.LIGHT_GRAY;break;
+			    							default:break;
+			    							}
+			    						break;
+			    				case N://through
+			    				case D: shape=null;fill=null;stroke=null;ref1+=ce.getLength();break;
+			    				case I: shape=null;fill=null;stroke=null;insertions.add(ref1);break;
+			    				default: throw new IllegalStateException(""+op);
+			    				}
+			    			if(ref1 < this.extendedInterval.getStart()) continue;
+			    			
+			    			if(shape!=null) {
+			    				
+			    				
+			    				
+			    				canvas.shape(shape,
+		    						FunctionalMap.of(
+	    	    						Canvas.KEY_FILL,fill,
+	    	    						Canvas.KEY_STROKE,(h2>4?stroke:null),
+	    	    						Canvas.KEY_STROKE_WIDTH, 1
+	    	    						)
+		    						);
+			    				}
+			    			} // end loop cigar
+			    		
+			    		
+			    		
+			    		
+			    		for(int px:insertions) {
+			    			canvas.line(
+				    				position2pixel(px),
+				    				y-0.5,
+				    				position2pixel(px),
+				    				y+h2+0.5,
+				    				FunctionalMap.of(
+			    						Canvas.KEY_STROKE, Color.RED,
+			    						Canvas.KEY_STROKE_WIDTH, 0.5
+			    						)
+				    				);
+			    			}
+			    		}
+		    		}
+		    	y-=featureHeight;
+		     	}
+		    plotVerticalGuides(canvas);
+			final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
+		 	canvas.text(
+					this.sampleName,
+					this.boundaries.getX()+1,
+					this.boundaries.getY()+fontSize+3,
+					FunctionalMap.of(
+						Canvas.KEY_FONT_SIZE, fontSize,
+						Canvas.KEY_STROKE, null,
+						Canvas.KEY_FILL, Color.DARK_GRAY,
+						Canvas.KEY_TITLE,this.sampleName+" "+this.bamPath
+						)
+					); 
+		 	plotFrame(canvas);
+			}
+		
+		@Override
+		public void run() {
+			this.extractPileup();
+		}
+	}
+	
+	
+	private class CoverageTask extends BamTask {
+		double[] coverage = null;
+		final Average mean_depth= new Average();
+		final boolean normalize_median;
+		CoverageTask(boolean normalize_median) {
+			this.normalize_median=normalize_median;
+		}
+		
+		
+		void extractCoverage() {
+			
 			final float[] array = new float[this.extendedInterval.getLengthOnReference()];
 			Arrays.fill(array, 0);
-			try(SamReader sr=samReaderFactory.open(this.bamPath)) {
-				if(!sr.hasIndex()) {
-					LOG.error("index missng for "+bamPath);
-					this.status=-1;
-					return;
-					}
-				final SAMFileHeader hdr = sr.getFileHeader();
-				this.sampleName = hdr.getReadGroups().
-						stream().
-						map(RG->RG.getSample()).
-						filter(S->!StringUtils.isBlank(S)).
-						findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(this.bamPath))
-						;
-				try(CloseableIterator<SAMRecord> iter=sr.query(this.extendedInterval.getContig(), this.extendedInterval.getStart(), this.extendedInterval.getEnd(), false)) {
+			try(SamReader sr= openSamReader()) {
+				try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
 					while(iter.hasNext()) {
 						final SAMRecord rec = iter.next();
-						if(!SAMRecordDefaultFilter.accept(rec, CoverageGrid.this.min_mapq)) continue;
+						 if(!acceptRead(rec)) continue;
 						for(AlignmentBlock ab: rec.getAlignmentBlocks()) {
 							for(int x=0;x< ab.getLength();++x) {
 								final int refpos1 = ab.getReferenceStart()+x;
@@ -168,20 +518,28 @@ public class CoverageGrid extends Launcher {
 					}
 				this.coverage = new double[boundaries.width];
 				
-				final DiscreteMedian<Integer> discreteMedian= new DiscreteMedian<>();
-				for(int i=0;i< array.length;i++) {
-					this.mean_depth.accept(array[i]);
-					final int refpos1 = this.extendedInterval.getStart()+i;
-					if(this.userInterval.getStart()>=refpos1 && refpos1<=this.userInterval.getEnd()) {
-						continue;
+				if(normalize_median) {
+					final DiscreteMedian<Integer> discreteMedian= new DiscreteMedian<>();
+					for(int i=0;i< array.length;i++) {
+						this.mean_depth.accept(array[i]);
+						final int refpos1 = this.extendedInterval.getStart()+i;
+						if(this.userInterval.getStart()>=refpos1 && refpos1<=this.userInterval.getEnd()) {
+							continue;
+							}
+						discreteMedian.add((int)array[i]);
 						}
-					discreteMedian.add((int)array[i]);
+					
+					
+					final double median = Math.max(1.0,discreteMedian.getMedian().orElse(0.0));
+					for(int i=0;i< array.length;i++) {
+						array[i]=(float)(array[i]/median);
+						}
 					}
-				
-				
-				final double median = Math.max(1.0,discreteMedian.getMedian().orElse(0.0));
-				for(int i=0;i< array.length;i++) {
-					array[i]=(float)(array[i]/median);
+				else
+					{
+					for(int i=0;i< array.length;i++) {
+						this.mean_depth.accept(array[i]);
+						}
 					}
 				for(int i=0;i< this.coverage.length;i++) {
 					int x1 = (int)(((i+0)/(double) this.coverage.length)*array.length);
@@ -205,15 +563,20 @@ public class CoverageGrid extends Launcher {
 		public void run() {
 			this.extractCoverage();
 			}
+		@Override
 		void plot(Canvas canvas) {
 			if(status!=0) return;
 			final double bottom_y = this.boundaries.getMaxY();
-			ToDoubleFunction<Double> cov2y = COV-> bottom_y - (COV/max_normalized_y)*this.boundaries.getHeight();
-			ToDoubleFunction<Integer> pos2pixel = POS-> this.boundaries.getX() + ((POS-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.boundaries.getWidth();
+			final double max_y_value = 
+					this.normalize_median ?
+						CoverageGrid.this.max_normalized_y:
+						Math.max(1, this.mean_depth.get().orElse(1.0)*2.0)
+						;
+			final ToDoubleFunction<Double> cov2y = COV-> bottom_y - (COV/max_y_value)*this.boundaries.getHeight();
 			final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
 
 			canvas.comment(this.sampleName);
-			
+			plotBackgroundFrame(canvas);
 			
 			canvas.text(
 					this.sampleName+" avgDP:"+(int)this.mean_depth.getAsDouble(),
@@ -227,7 +590,7 @@ public class CoverageGrid extends Launcher {
 						)
 					);
 			// draw horizonal lines
-			for(double v=0.5;v<=1.5;v+=0.5) {
+			for(double v=0.5;v<=1.5 && this.normalize_median ;v+=0.5) {
 				
 				double y = cov2y.applyAsDouble(v);
 				if(y< this.boundaries.getY()) continue;
@@ -238,7 +601,8 @@ public class CoverageGrid extends Launcher {
 						y,
 						FunctionalMap.of(
 							Canvas.KEY_STROKE,(v==1.0?Color.BLUE:Color.ORANGE),
-							Canvas.KEY_TITLE, String.valueOf(v)
+							Canvas.KEY_TITLE, String.valueOf(v),
+							Canvas.KEY_STROKE_WIDTH,0.5
 							)
 						);
 				}
@@ -269,38 +633,14 @@ public class CoverageGrid extends Launcher {
 			canvas.polygon(
 					points,
 					FunctionalMap.of(
-							Canvas.KEY_STROKE, Color.ORANGE,
+							Canvas.KEY_STROKE, null,
 							Canvas.KEY_FILL,Color.DARK_GRAY
 							))
 					;
 
-			// draw original region vertical bounds 
-			if(!this.userInterval.equals(this.extendedInterval)) {
-				for( i=0;i<2;i++) {
-					final int p = (i==0?userInterval.getStart():userInterval.getEnd());
-					final double x = pos2pixel.applyAsDouble(p);
-					canvas.line(
-							x,
-							boundaries.getY(),
-							x,
-							bottom_y,
-							FunctionalMap.of(
-								Canvas.KEY_STROKE,Color.GREEN,
-								Canvas.KEY_TITLE, StringUtils.niceInt(p)
-								)
-							);
-					}
-				}
-			// draw frame
-			canvas.rect(
-					boundaries.getX(),
-					boundaries.getY(),
-					boundaries.getWidth(),
-					boundaries.getHeight(),
-					FunctionalMap.of(
-							Canvas.KEY_FILL,null,
-							Canvas.KEY_STROKE,Color.DARK_GRAY)
-					);
+			plotVerticalGuides(canvas);
+			plotFrame(canvas);
+			
 			}
 		}
 	
@@ -340,7 +680,7 @@ public int doWork(final List<String> args) {
 		int new_end = Math.min(dict.getSequence(user_interval.getContig()).getEnd(), mid_position+new_len/2);
 		final SimpleInterval extended_interval = new SimpleInterval(user_interval.getContig(),new_start,new_end);
 
-		final List<CoverageTask> tasks = new ArrayList<>(inputBams.size());
+		final List<BamTask> tasks = new ArrayList<>(inputBams.size());
 		
 		int marginTop=50;
 
@@ -348,11 +688,26 @@ public int doWork(final List<String> args) {
 		final int nrows = (int)Math.max(1, Math.ceil(inputBams.size()/(double)ncols));
 		final double wi  = this.dimension.getWidth()/ncols;
 		final double hi  = (this.dimension.getHeight()-marginTop)/nrows;
+		
+		LOG.info("tile:"+ncols+"x"+nrows+" w:"+wi+" h:"+hi);
+		
+		if(wi < 10 || hi < 10) {
+			LOG.error("dimension is too small");
+			return -1;
+			}
+		
 		int nr=0;
 		int nc=0;
 		
 		for(final Path bamPath: inputBams) {
-			final CoverageTask task = new CoverageTask();
+			final BamTask task ;
+				switch(this.plotType) {
+				case PILEUP: task= new PileupTask(false); break;
+				case PILEUP_PAIR: task= new PileupTask(true); break;
+				case COVERAGE:  task = new CoverageTask(false); break;
+				default: task = new CoverageTask(true); break;
+				}
+			
 			task.bamPath = bamPath;
 			task.referencePath = this.refPath;
 			task.userInterval = user_interval;
@@ -372,17 +727,19 @@ public int doWork(final List<String> args) {
 			}
 	    final ExecutorService executorService = Executors.newFixedThreadPool(this.nThreads);
 		for(int i=0; i < tasks.size();i+=this.nThreads) {
-			final List<CoverageTask> batch = tasks.subList(i, Math.min(i + this.nThreads, tasks.size()));
+			final List<BamTask> batch = tasks.subList(i, Math.min(i + this.nThreads, tasks.size()));
 			batch.forEach(executorService::execute);
 			}
 		executorService.shutdown();
 		executorService.awaitTermination(365, TimeUnit.DAYS);
 		
 		final String title= SequenceDictionaryUtils.getBuildName(dict).orElse("") + " "+ 
-		user_interval.toNiceString()+
+				user_interval.toNiceString()+
 			" length:"+ StringUtils.niceInt(user_interval.getLengthOnReference())+
 			" extended to "+extended_interval.toNiceString()+
-			" length:"+StringUtils.niceInt(extended_interval.getLengthOnReference());
+			" length:"+StringUtils.niceInt(extended_interval.getLengthOnReference())+" "+
+			this.title
+			;
 		try(Canvas canvas = new CanvasFactory().
 				setWidth(this.dimension.width).
 				setHeight(this.dimension.height).
@@ -394,21 +751,24 @@ public int doWork(final List<String> args) {
 					) )
 				)
 			{
-			System.err.println(canvas.getClass());
 			final int fontSize=Math.min(14,marginTop);
-
+			final String url =Hyperlink.compile(dict).apply(extended_interval).orElse(null);
+			
+			
 			canvas.text(
 					title,
 					10,
 					fontSize,
 					FunctionalMap.of(
 						Canvas.KEY_FONT_SIZE, fontSize,
-						Canvas.KEY_FILL, Color.DARK_GRAY
+						Canvas.KEY_FILL, Color.DARK_GRAY,
+						Canvas.KEY_HREF, url,
+						Canvas.KEY_TITLE, title
 						)
 					);
 		
 			
-			for(CoverageTask task: tasks) {
+			for(BamTask task: tasks) {
 				canvas.begin(FunctionalMap.make());
 				task.plot(canvas);
 				canvas.end();
