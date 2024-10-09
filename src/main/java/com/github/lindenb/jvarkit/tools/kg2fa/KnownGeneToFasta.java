@@ -160,7 +160,7 @@ public class KnownGeneToFasta extends Launcher
 					/* now, we can change genomicSequence */
 					genomicSequence = new GenomicSequence(indexedFastaSequenceFile, kg.getContig());
 					}
-				Map<String,String> props = new LinkedHashMap<>();
+				final Map<String,String> props = new LinkedHashMap<>();
 				props.put("id",kg.getTranscriptId());
 				props.put("contig",kg.getContig());
 				if(!StringUtils.isBlank(kg.getName2())) props.put("gene",kg.getName2());

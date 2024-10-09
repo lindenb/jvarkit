@@ -262,6 +262,7 @@ import com.github.lindenb.jvarkit.tools.sv2fasta.StructuralVariantToFasta;
 import com.github.lindenb.jvarkit.tools.taxonomy.NcbiTaxonomyToXml;
 import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
 import com.github.lindenb.jvarkit.tools.textbam.TextBam;
+import com.github.lindenb.jvarkit.tools.translategff3.TranslateGff3;
 import com.github.lindenb.jvarkit.tools.tss.TSSEnrichment;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
@@ -825,6 +826,7 @@ public class JvarkitCentral {
 		command(SvToSVG.class);
 		command(VCFSVAnnotator.class);
 		command(TextBam.class);
+		command(TranslateGff3.class);
 		command(UniprotToSvg.class);
 		command(UKBiobankSelectSamples.class);
 		command(VariantsInWindow.class);
