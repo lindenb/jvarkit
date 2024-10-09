@@ -130,6 +130,7 @@ import com.github.lindenb.jvarkit.tools.cmpbams.CommBams;
 import com.github.lindenb.jvarkit.tools.cmpbams.CompareBamAndBuild;
 import com.github.lindenb.jvarkit.tools.cmpbams.CompareBams;
 import com.github.lindenb.jvarkit.tools.cmpbams.CompareBams4;
+import com.github.lindenb.jvarkit.tools.coveragegrid.CoverageGrid;
 import com.github.lindenb.jvarkit.tools.coverageserver.CoverageServer;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
 import com.github.lindenb.jvarkit.tools.dict2bed.DictToBed;
@@ -708,6 +709,7 @@ public class JvarkitCentral {
 		command(ConvertVcfChromosomes.class);
 		command(CoveragePlotter.class);
 		command(CoverageServer.class);
+		command(CoverageGrid.class);
 		command(EVADumpFiles.class);
 		command(ExtendReferenceWithReads.class);
 		command(FastqShuffle.class);

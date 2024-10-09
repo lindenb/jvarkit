@@ -152,7 +152,7 @@ public abstract class Canvas implements Closeable {
 		}
 	public abstract int getWidth();
 	public abstract int getHeight();
-	public Canvas begin(FunctionalMap<String, Object> fm) {
+	public Canvas begin(final FunctionalMap<String, Object> fm) {
 		this.states.push(this.states.peek().plus(fm));
 		return this;
 		}
@@ -178,7 +178,7 @@ public abstract class Canvas implements Closeable {
 		return polyline(points,FunctionalMap.make());
 		}
 	
-	public Canvas polygon(List<Point2D> points,FunctionalMap<String, Object> fm) {
+	public Canvas polygon(final List<Point2D> points,final FunctionalMap<String, Object> fm) {
 		return polyX(points,true,fm);
 		}
 	
@@ -190,7 +190,7 @@ public abstract class Canvas implements Closeable {
 		if(points.isEmpty()) return this;
 		final GeneralPath gp=new GeneralPath();
 		for(int i=0;i< points.size();i++) {
-			final Point2D p = points.get(0);
+			final Point2D p = points.get(i);
 			if(i==0) {
 				gp.moveTo(p.getX(),p.getY());
 				}

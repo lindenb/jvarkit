@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.AbstractMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
@@ -31,9 +33,7 @@ public class SVGCanvas extends Canvas {
 		super();
 		this.width=width;
 		this.height=height;
-		
-
-		
+				
 		OutputStream base;
 		
 		if(out==null) {
@@ -66,12 +66,28 @@ public class SVGCanvas extends Canvas {
 		
 		w.writeStartElement("g");
 		writeStyle();
+		w.flush();
 		}
 	
 	private String toString(Object v) {
 		if(v ==null) throw new IllegalArgumentException();
 		if(v instanceof Color) return ColorUtils.toRGB(Color.class.cast(v));
 		return String.valueOf(v);
+		}
+	
+	private Map.Entry<String,String> toString(Map.Entry<String,Object> h) {
+		String v;
+		if((h.getKey().equals(KEY_FILL) || h.getKey().equals(KEY_STROKE)) && h.getValue()==null) {
+			v = "none";
+			}
+		else if((h.getKey().equals(KEY_FONT_SIZE)  && (h.getValue() instanceof Number))) {
+			v = toString(h.getValue())+"px";
+			}
+		else
+			{
+			v = toString(h.getValue());
+			}
+		return new AbstractMap.SimpleEntry<String,String>(h.getKey(),v);
 		}
 	
 	private FunctionalMap<String, Object> whatsNew() {
@@ -94,7 +110,7 @@ public class SVGCanvas extends Canvas {
 		
 	
 	@Override
-	public Canvas begin(FunctionalMap<String, Object> fm) {
+	public Canvas begin(final FunctionalMap<String, Object> fm) {
 		super.begin(fm);
 		try {
 			this.w.writeStartElement("g");
@@ -108,7 +124,7 @@ public class SVGCanvas extends Canvas {
 	@Override
 	public Canvas end() {
 		try {
-			this.w.writeEndElement();
+			this.w.writeEndElement();//g
 			}
 		catch(final XMLStreamException err) {
 			throw new RuntimeIOException(err);
@@ -122,9 +138,9 @@ public class SVGCanvas extends Canvas {
 		try {
 			beginAnchor();
 			this.w.writeStartElement("circle");
-			this.w.writeAttribute("cx", toString(cx));
-			this.w.writeAttribute("cy", toString(cy));
-			this.w.writeAttribute("r", toString(r));
+			this.w.writeAttribute("cx", round(cx));
+			this.w.writeAttribute("cy", round(cy));
+			this.w.writeAttribute("r", round(r));
 			writeStyle();
 			inner();
 			this.w.writeEndElement();
@@ -143,10 +159,10 @@ public class SVGCanvas extends Canvas {
 		try {
 			beginAnchor();
 			this.w.writeStartElement("rect");
-			this.w.writeAttribute("x", toString(x));
-			this.w.writeAttribute("y", toString(y));
-			this.w.writeAttribute("width", toString(width));
-			this.w.writeAttribute("height", toString(height));
+			this.w.writeAttribute("x", round(x));
+			this.w.writeAttribute("y", round(y));
+			this.w.writeAttribute("width", round(width));
+			this.w.writeAttribute("height", round(height));
 			writeStyle();
 			inner();
 			this.w.writeEndElement();
@@ -165,13 +181,15 @@ public class SVGCanvas extends Canvas {
 		try {
 			beginAnchor();
 			this.w.writeStartElement("text");
-			this.w.writeAttribute("x",toString(x));
-			this.w.writeAttribute("y",toString(y));
+			this.w.writeAttribute("x",round(x));
+			this.w.writeAttribute("y",round(y));
 			writeStyle();
 			w.writeCharacters(s);
 			inner();
 			this.w.writeEndElement();
 			endAnchor();
+			
+			this.w.flush();
 			}
 		catch(final XMLStreamException err) {
 			throw new RuntimeIOException(err);
@@ -180,8 +198,15 @@ public class SVGCanvas extends Canvas {
 		return this;
 		}
 	
+	
+	private String round(double x) {
+		String s= String.format("%.2f",x);
+		if(s.endsWith(".00")) s=s.substring(0,s.length()-3);
+		return s;
+	}
+	
 	@Override
-	public Canvas shape(Shape shape, FunctionalMap<String, Object> fm) {
+	public Canvas shape(Shape shape, final FunctionalMap<String, Object> fm) {
 		this.states.push(this.states.peek().plus(fm));
 
 		final StringBuilder path = new StringBuilder();
@@ -193,11 +218,11 @@ public class SVGCanvas extends Canvas {
 				int currSegmentType= pathiterator.currentSegment(tab);
 				switch(currSegmentType) {
 				case PathIterator.SEG_MOVETO: {
-					path.append( "M " + (tab[0]) + " " + (tab[1]) + " ");
+					path.append( "M " + round(tab[0]) + " " + round(tab[1]) + " ");
 					break;
 				}
 				case PathIterator.SEG_LINETO: {
-					path.append( "L " + (tab[0]) + " " + (tab[1]) + " ");
+					path.append( "L " + round(tab[0]) + " " + round(tab[1]) + " ");
 					break;
 				}
 				case PathIterator.SEG_CLOSE: {
@@ -205,15 +230,15 @@ public class SVGCanvas extends Canvas {
 					break;
 				}
 				case PathIterator.SEG_QUADTO: {
-					path.append( "Q " + (tab[0]) + " " + (tab[1]));
-					path.append( " "  + (tab[2]) + " " + (tab[3]));
+					path.append( "Q " + round(tab[0]) + " " + round(tab[1]));
+					path.append( " "  + round(tab[2]) + " " + round(tab[3]));
 					path.append( " ");
 					break;
 				}
 				case PathIterator.SEG_CUBICTO: {
-					path.append( "C " + (tab[0]) + " " + (tab[1]));
-					path.append( " "  + (tab[2]) + " " + (tab[3]));
-					path.append( " "  + (tab[4]) + " " + (tab[5]));
+					path.append( "C " + round(tab[0]) + " " + round(tab[1]));
+					path.append( " "  + round(tab[2]) + " " + round(tab[3]));
+					path.append( " "  + round(tab[4]) + " " + round(tab[5]));
 					path.append( " ");
 					break;
 				}
@@ -233,6 +258,7 @@ public class SVGCanvas extends Canvas {
 			inner();
 			this.w.writeEndElement();
 			endAnchor();
+			this.w.flush();
 			}
 		catch(final XMLStreamException err) {
 			throw new RuntimeIOException(err);
@@ -255,10 +281,11 @@ public class SVGCanvas extends Canvas {
 		}
 		
 	private void writeStyle() throws XMLStreamException {
-		FunctionalMap<String, Object> fm = whatsNew();
+		final FunctionalMap<String, Object> fm = whatsNew();
 		final String css= fm.
 			stream().
 			filter(KV->!(KV.getKey().equals(KEY_HREF) || KV.getKey().equals(KEY_TITLE))).
+			map(KV->toString(KV)).
 			map(KV->KV.getKey()+":"+toString(KV.getValue())).
 			collect(Collectors.joining(";"));
 		if(css.isEmpty()) return;
@@ -296,8 +323,8 @@ public class SVGCanvas extends Canvas {
 	@Override
 	public void close() throws IOException {
 		try {
-			
-			this.w.writeEndDocument();//g
+			this.w.writeComment("Generated with jvarkit. Author: Pierre Lindenbaum Phd.");
+			this.w.writeEndElement();//g
 			this.w.writeEndElement();//svg
 			this.w.writeEndDocument();
 			this.w.close();

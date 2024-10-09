@@ -19,13 +19,13 @@ public class Graphics2DCanvas extends Canvas {
 	private final int height;
 	private final Path outputFile;
 	private final BufferedImage image;
-	private final String outputFormat;
+	private final CanvasFactory.Format outputFormat;
 	private Graphics2D g2d;
-	public Graphics2DCanvas(Path out,int width,int height,String format,FunctionalMap<String,Object> params) {
+	public Graphics2DCanvas(Path out,int width,int height,CanvasFactory.Format format,FunctionalMap<String,Object> params) {
 		this.width=width;
 		this.height=height;
 		this.outputFormat=format;
-		this.image= new BufferedImage(width, height,format.equalsIgnoreCase("png")?BufferedImage.TYPE_INT_ARGB:BufferedImage.TYPE_INT_RGB);
+		this.image= new BufferedImage(width, height,CanvasFactory.Format.PNG.equals(format)?BufferedImage.TYPE_INT_ARGB:BufferedImage.TYPE_INT_RGB);
 		this.g2d = this.image.createGraphics();
 		this.g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
 		this.outputFile = out;
@@ -93,12 +93,13 @@ public class Graphics2DCanvas extends Canvas {
 	
 	@Override
 	public void close() throws IOException {
+		System.err.println("writing to "+this.outputFile+" "+this.outputFormat);
 		if(this.outputFile==null)  {
-			ImageIO.write(image,this.outputFormat, System.out);
+			ImageIO.write(image,this.outputFormat.name(), System.out);
 			}
 		else
 			{
-			ImageIO.write(image,this.outputFormat, this.outputFile.toFile());
+			ImageIO.write(image,this.outputFormat.name(), this.outputFile.toFile());
 			}
 		}
 	@Override

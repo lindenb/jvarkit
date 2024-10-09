@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.jcommander.converter;
 import java.awt.Dimension;
+import java.awt.Toolkit;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -52,7 +53,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 public class DimensionConverter
 	implements Function<String,Dimension>
 	{
-	public static final String OPT_DESC="a dimension can be specified as '[integer]x[integer]' or it can be the path to an existing png,jpg,xcf,svg file. ";
+	public static final String OPT_DESC="a dimension can be specified as '[integer]x[integer]' or the word 'screen' or it can be the path to an existing png,jpg,xcf,svg file. ";
 	
 	public static class StringConverter implements IStringConverter<Dimension> {
 		@Override
@@ -65,6 +66,14 @@ public class DimensionConverter
 	@Override
 	public Dimension apply(final String dimStr) {
 		if(StringUtils.isBlank(dimStr)) throw new IllegalArgumentException("empty string");
+		if(dimStr.equalsIgnoreCase("screen")) {
+			final Toolkit t=Toolkit.getDefaultToolkit();
+			if(t==null) throw new IllegalArgumentException("cannot get Toolkit.getDefaultToolkit()");
+			final Dimension d = t.getScreenSize();
+			if(d==null || d.width<1 || d.height<1) throw new IllegalArgumentException("cannot get screen size");
+			return d;
+			}
+		
 		if(dimStr.toLowerCase().matches("\\d+x\\d+")) {
 			final int x_symbol = dimStr.toLowerCase().indexOf("x");
 			return new Dimension(

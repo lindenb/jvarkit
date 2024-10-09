@@ -71,12 +71,20 @@ public class PSCanvas extends Canvas {
 	@Override
 	public void close() throws IOException {
 		this.w.println(" showpage");
+		this.w.println("# generated with jvarkit. Author: Pierre Lindenbaum PhD.");
 		this.w.println("%EOF");
 		this.w.flush();
 		this.w.close();
 		}
-	String coord(double x,double y) {
-		return String.valueOf(x)+" "+String.valueOf(getHeight()-y);
+	
+	private String round(double x) {
+		String s= String.format("%.2f",x);
+		if(s.endsWith(".00")) s=s.substring(0,s.length()-3);
+		return s;
+	}
+	
+	private String coord(double x,double y) {
+		return round(x)+" "+round(getHeight()-y);
 		}
 	
 	private String setrgbcolor(Color c) {
@@ -93,20 +101,21 @@ public class PSCanvas extends Canvas {
 				);
 		}
 	
-	private Canvas fillAndStroke() {
+	private Canvas fillAndStroke(Shape shape) {
 		Color c= getFillColor();
-		if(c!=null) {
-			w.print(" gsave");
+		if(c!=null ) {
+			w.print(" ");
+			pathIterator(shape);
 			w.print(" ");
 			w.print(setrgbcolor(c));
 			w.print(" fill");
-			w.print(" grestore");
 			}
 		
 		double linewidth=getStrokeWidth();
 		if(linewidth>0) {
 			c= getStrokeColor();
 			if(c!=null) {
+				pathIterator(shape);
 				w.print(" ");
 				w.print(String.valueOf(linewidth));
 				w.print(" setlinewidth ");
@@ -114,7 +123,6 @@ public class PSCanvas extends Canvas {
 				w.print(" stroke");
 				}
 			}
-		
 		return this;
 		}
 	
@@ -165,7 +173,7 @@ public class PSCanvas extends Canvas {
 	public Canvas polyline(final List<Point2D> points,FunctionalMap<String, Object> fm) {
 		fm = this.states.push(this.states.peek().plus(fm));
 		double linewidth=getStrokeWidth();
-		if(linewidth>0) {
+		if(linewidth>0 && points.size()>1) {
 			Color c= getStrokeColor();
 			if(c!=null) {
 				w.print(" ");
@@ -179,22 +187,19 @@ public class PSCanvas extends Canvas {
 					w.append(coord(pt.getX(),pt.getY()));
 					w.append(" ");
 					w.append(i==0?"moveto":"lineto");
-					w.print(" stroke");
 					}
+				w.print(" stroke");
 				}
 			}
-		
 
 		this.states.pop();
 		return this;
 		}
 	
-	@Override
-	public Canvas shape(Shape shape, FunctionalMap<String, Object> fm) {
-		fm = this.states.push(this.states.peek().plus(fm));
+	private void pathIterator(final Shape shape) {
 		float coords[]=new float[6];
+		final PathIterator iter = shape.getPathIterator(null);
 		w.append(" newpath");
-		PathIterator iter = shape.getPathIterator(null);
 		while(!iter.isDone()) {
 			switch(iter.currentSegment(coords))
 			{
@@ -237,7 +242,13 @@ public class PSCanvas extends Canvas {
 		
 		iter.next();
 		}
-		fillAndStroke();
+	}
+	
+	@Override
+	public Canvas shape(Shape shape, FunctionalMap<String, Object> fm) {
+		
+		fm = this.states.push(this.states.peek().plus(fm));
+		fillAndStroke(shape);
 		this.states.pop();
 		return this;
 		}

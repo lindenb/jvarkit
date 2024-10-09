@@ -127,7 +127,8 @@ output is a HTML+SVG file
 ## example:
 
 ```
-java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" src/test/resources/*.bam 
+find dir -type f -name "*bam" > in.list 
+java -jar dist/jvarkit.jar coverageplotter -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" in.list
 ```
 
 ## Screenshot
@@ -142,7 +143,7 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams",
 	keywords={"cnv","bam","depth","coverage","svg"},
 	creationDate="20200605",
-	modificationDate="20221125",
+	modificationDate="20241009",
 	biostars = 9536274,
 	jvarkit_amalgamion =  true,
 	menu="CNV/SV"
@@ -153,7 +154,7 @@ public class CoveragePlotter extends Launcher {
 	private File outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path refPath = null;
-	@Parameter(names={"--region","--interval"},description = "Interval region",required=true)
+	@Parameter(names={"--regions","--region","--interval"},description = "Interval region",required=true)
 	private String intervalStr=null;
 	@Parameter(names={"--mapq"},description = "min mapping quality")
 	private int min_mapq=1;
