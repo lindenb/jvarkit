@@ -38,7 +38,7 @@ Usage: coveragegrid [options] Files
       min mapping quality
       Default: 1
     --max-y
-      Max normalized Y
+      Max normalized Y, when using --type MEDIAN_COVERAGE
       Default: 3.0
     -o, --output
       Output file. Optional . Default: stdout
@@ -49,14 +49,21 @@ Usage: coveragegrid [options] Files
       number of threads
       Default: 1
     --title
-      Title
+      Set Title for graphics
       Default: <empty string>
     --type
-      Plot type
+      Plot type. COVERAGE: DEPTH coverage, MEDIAN_COVERAGE: coverage normalize 
+      by external boundaries,  PILEUP: show reads, PILEUP_PAIR: show paired 
+      fragments, GRID: matrix of read name co-occurence
       Default: MEDIAN_COVERAGE
-      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR]
+      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID]
     --version
       print version and exit
+    -D
+      other parameters '-Dkey=value'. -Dhide_insertions=true 
+      -Dinversion_mode=true -Doverlap_boundaries=true
+      Syntax: -Dkey=value
+      Default: {}
 
 ```
 

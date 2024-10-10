@@ -132,6 +132,12 @@ public class MinMaxInteger implements IntConsumer, IntUnaryOperator {
 		return maxV;
 		}
 	
+	/** return a value between 0 and 1 */
+	public double normalize(int value) {
+		if(isEmpty()) throw new IllegalStateException("no data was found");
+		return (value-this.minV)/(double)(this.maxV-this.minV); 
+		}
+	
 	@Override
 	public int hashCode() {
 		if(this.count==0L)return 0;

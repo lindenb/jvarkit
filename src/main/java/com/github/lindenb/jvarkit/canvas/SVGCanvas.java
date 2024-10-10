@@ -307,7 +307,8 @@ public class SVGCanvas extends Canvas {
 		}
 	
 	private void beginAnchor() throws XMLStreamException {
-		final String href = whatsNew().getOrDefault(KEY_HREF,"").toString();
+		final Object o=whatsNew().getOrDefault(KEY_HREF,"");
+		final String href = o==null?"":o.toString();
 		if(!StringUtils.isBlank(href)) {
 			w.writeStartElement( "a");
 			w.writeAttribute("href", href);
@@ -315,7 +316,8 @@ public class SVGCanvas extends Canvas {
 			}
 	}
 	private void endAnchor()  throws XMLStreamException {
-		final String href = whatsNew().getOrDefault(KEY_HREF,"").toString();
+		final Object o=whatsNew().getOrDefault(KEY_HREF,"");
+		final String href = o==null?"":o.toString();
 		if(!StringUtils.isBlank(href)) {
 			w.writeEndElement();
 			}

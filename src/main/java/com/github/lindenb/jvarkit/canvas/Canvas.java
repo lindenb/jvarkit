@@ -35,9 +35,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.Stack;
-import java.util.function.Consumer;
-
-import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
@@ -62,7 +59,7 @@ public abstract class Canvas implements Closeable {
 	public static final String KEY_FILL_OPACITY="fill-opacity";
 	public static final String KEY_STROKE_OPACITY="stroke-opacity";
 	public static final String KEY_OPACITY="opacity";
-	public static final String KEY_SVG_META = "-svg-meta";// Consummer of Consumer<XMLStreamWriter> 
+	public static final String KEY_SVG_META = "-svg-meta";// instance of Consumer<XMLStreamWriter> 
 
 	protected Stack<FunctionalMap<String, Object>> states = new Stack<>();
 	protected Hershey hershey = new Hershey();

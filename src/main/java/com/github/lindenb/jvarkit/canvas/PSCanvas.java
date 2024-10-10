@@ -45,7 +45,17 @@ public class PSCanvas extends Canvas {
 	private final int width;
 	private final int height;
 	private final PrintWriter w;
-	public PSCanvas(Path out,int width,int height,boolean compressed,FunctionalMap<String,Object> params) throws IOException {
+	
+	private static double inch(double pixel) {
+		return pixel;
+		}
+	
+	public PSCanvas(
+		final Path out,
+		final int width,
+		final int height,
+		final boolean compressed,
+		final FunctionalMap<String,Object> params) throws IOException {
 		super();
 		this.width=width;
 		this.height=height;
@@ -65,8 +75,15 @@ public class PSCanvas extends Canvas {
 					;
 			}
 		this.w.println("%PS");
-		this.w.println("%%BoundingBox: 0 0 "+width+" "+height);
+		this.w.println("%%Creator: jvarkit");
+		this.w.println("%%BoundingBox: 0 0 "+(int)inch(width)+" "+(int)inch(height));
+		final String title = params.getOrDefault(KEY_TITLE, "").toString();
+		if(!StringUtils.isBlank(title)) {
+			this.w.println("%%Title: "+title);
+			}
 		}
+	
+
 	
 	@Override
 	public void close() throws IOException {
@@ -78,82 +95,82 @@ public class PSCanvas extends Canvas {
 		}
 	
 	private String round(double x) {
-		String s= String.format("%.2f",x);
-		if(s.endsWith(".00")) s=s.substring(0,s.length()-3);
+		String s= String.format("%.3f",x);
+		while(s.contains(".") && s.endsWith("0")) s=s.substring(0,s.length()-1);
+		if(s.endsWith("."))  s=s.substring(0,s.length()-1);
 		return s;
 	}
 	
 	private String coord(double x,double y) {
-		return round(x)+" "+round(getHeight()-y);
+		return round(inch(x))+" "+round(inch(getHeight()-y));
 		}
 	
-	private String setrgbcolor(Color c) {
+	private String setrgbcolor(final Color c) {
 		if(c==null) return "";
 		if(c.getRed()==c.getGreen() && c.getGreen()==c.getBlue()) {
-			return String.valueOf(c.getRed()/255f)+" setgray";
+			return round(c.getRed()/255f)+" setgray";
 			}
 		
 		return String.join(" ",
-				String.valueOf(c.getRed()/255f),
-				String.valueOf(c.getGreen()/255f),
-				String.valueOf(c.getBlue()/255f),
+				round(c.getRed()/255f),
+				round(c.getGreen()/255f),
+				round(c.getBlue()/255f),
 				"setrgbcolor"
 				);
 		}
 	
 	private Canvas fillAndStroke(Shape shape) {
+		boolean gsave_set=false;
 		Color c= getFillColor();
 		if(c!=null ) {
-			w.print(" ");
+			w.print(" gsave ");
 			pathIterator(shape);
 			w.print(" ");
 			w.print(setrgbcolor(c));
 			w.print(" fill");
+			gsave_set = true;
 			}
 		
 		final double linewidth=getStrokeWidth();
 		if(linewidth>0) {
 			c= getStrokeColor();
 			if(c!=null) {
-				pathIterator(shape);
+				if(!gsave_set) {
+					w.print(" gsave ");
+					pathIterator(shape);
+					gsave_set = true;
+					}
 				w.print(" ");
-				w.print(round(linewidth));
+				w.print(round(inch(linewidth)));
 				w.print(" setlinewidth ");
 				w.print(setrgbcolor(c));
 				w.print(" stroke");
 				}
 			}
+		if(gsave_set) {
+			w.print(" grestore");
+			}
 		return this;
 		}
 	
 	private String escape(final CharSequence s) {
-		final StringBuilder sb = new StringBuilder(s.length());
-		for(int i=0;i< s.length();i++)
-			{
-			final char c = s.charAt(i);
-			switch(c) {
-				case '\n' : sb.append("\\n");break;
-				case '\r' : sb.append("\\r");break;
-				case '\t' : sb.append("\\t");break;
-				case '\\' : sb.append("\\\\");break;
-				case '\'' : sb.append("\\\'");break;
-				case '\"' : sb.append("\\\"");break;
-				case '(' : sb.append("\\(");break;
-				case ')' : sb.append("\\)");break;
-				default:sb.append(c);break;
-				}
-			}
-		return sb.toString();
+		return StringUtils.escapePostscript(s);
 		}
 	@Override
 	public Canvas text(String text, double x, double y, FunctionalMap<String, Object> fm) {
 		if(StringUtils.isBlank(text)) return this;
 		fm = this.states.push(this.states.peek().plus(fm));
-		w.print(" /"+ fm.getOrDefault(KEY_FONT_FAMILY, "Times-Roman")+" findfont");
-		w.print(" "+ fm.getOrDefault(KEY_FONT_SIZE, "12")+" scalefont");
-		w.print(" setfont newpath ");
-		w.print(coord(x,y)+" moveto");
-		w.print(" ("+escape(text)+") show");
+		final Color c = getFillColor();
+		if(c!=null) {
+			w.print(" gsave ");
+			w.print(setrgbcolor(c));
+			w.print(" /"+ fm.getOrDefault(KEY_FONT_FAMILY, "Times-Roman")+" findfont");
+			w.print(" "+ fm.getOrDefault(KEY_FONT_SIZE, "12")+" scalefont");
+			w.print(" setfont newpath ");
+			w.print(coord(x,y)+" moveto");
+			w.print(" ("+escape(text)+") show");
+			w.print(" grestore ");
+			}
 		this.states.pop();
 		return this;
 		}
@@ -176,8 +193,8 @@ public class PSCanvas extends Canvas {
 		if(linewidth>0 && points.size()>1) {
 			final Color c= getStrokeColor();
 			if(c!=null) {
-				w.print(" ");
-				w.print(round(linewidth));
+				w.print(" gsave ");
+				w.print(round(inch(linewidth)));
 				w.print(" setlinewidth ");
 				w.print(setrgbcolor(c));
 
@@ -188,7 +205,7 @@ public class PSCanvas extends Canvas {
 					w.append(" ");
 					w.append(i==0?"moveto":"lineto");
 					}
-				w.print(" stroke");
+				w.print(" stroke grestore ");
 				}
 			}
 
@@ -245,15 +262,12 @@ public class PSCanvas extends Canvas {
 	}
 	
 	@Override
-	public Canvas shape(Shape shape, FunctionalMap<String, Object> fm) {
+	public Canvas shape(final Shape shape, FunctionalMap<String, Object> fm) {
 		fm = this.states.push(this.states.peek().plus(fm));
 		fillAndStroke(shape);
 		this.states.pop();
 		return this;
 		}
-	
-	
-
 	
 	@Override
 	public int getWidth() {

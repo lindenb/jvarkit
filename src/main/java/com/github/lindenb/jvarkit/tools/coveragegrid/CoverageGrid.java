@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
+import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.canvas.Canvas;
 import com.github.lindenb.jvarkit.canvas.CanvasFactory;
@@ -53,6 +55,7 @@ import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.Average;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.math.MinMaxInteger;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
@@ -70,6 +73,7 @@ import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFlag;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTag;
@@ -78,6 +82,8 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 /**
 BEGIN_DOC
@@ -109,7 +115,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class CoverageGrid extends Launcher {
-	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR};
+	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID};
 	private static final Logger LOG = Logger.build( CoverageGrid.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -123,17 +129,27 @@ public class CoverageGrid extends Launcher {
 	private Dimension dimension = new Dimension(1000,300);
 	@Parameter(names={"--extend","-x"},description = "extends the interval x times")
 	private double extendFactor= 3.0;
-	@Parameter(names= {"--max-y"},description="Max normalized Y")
+	@Parameter(names= {"--max-y"},description="Max normalized Y, when using --type MEDIAN_COVERAGE")
 	private double max_normalized_y = 3.0;
 	@Parameter(names={"--threads"},description="number of threads")
 	private int nThreads = 1;
 	@Parameter(names= {"--format"},description=CanvasFactory.OPT_FORMAT_DESC)
 	private CanvasFactory.Format canvas_format=CanvasFactory.Format.SVG;
-	@Parameter(names= {"--title"},description="Title")
+	@Parameter(names= {"--title"},description="Set Title for graphics")
 	private String title="";
-	@Parameter(names= {"--type"},description="Plot type")
+	@Parameter(names= {"--type"},description="Plot type. COVERAGE: DEPTH coverage, MEDIAN_COVERAGE: coverage normalize by external boundaries,  PILEUP: show reads, PILEUP_PAIR: show paired fragments, GRID: matrix of read name co-occurence")
 	private PlotType plotType = PlotType.MEDIAN_COVERAGE;
+	@DynamicParameter(names = "-D", description = "other parameters '-Dkey=value'. "+
+			"-Dhide_insertions=true "+
+			"-Dinversion_mode=true "+
+			"-Doverlap_boundaries=true "
+			)
+	private Map<String, String> dynaParams = new HashMap<>();
 
+	
+	private final Color EXTERNAL_AREA_COLOR =new Color(230,230,230);
+
+	
 	private abstract class BamTask implements Runnable {
 		String sampleName="";
 		Path bamPath;
@@ -142,7 +158,14 @@ public class CoverageGrid extends Launcher {
 		Locatable extendedInterval;
 		Rectangle boundaries;
 		int status = -1;
-
+		final boolean inversion_mode;
+		final boolean overlap_boundaries;
+		
+		protected BamTask() {
+			inversion_mode= CoverageGrid.this.dynaParams.getOrDefault("inversion_mode", "false").equals("true");
+			overlap_boundaries= CoverageGrid.this.dynaParams.getOrDefault("overlap_boundaries", "false").equals("true");
+			}
+		
 		protected SamReader openSamReader() throws IOException {
 			final SamReaderFactory samReaderFactory = SamReaderFactory.
 					makeDefault().
@@ -173,16 +196,40 @@ public class CoverageGrid extends Launcher {
 			}
 		
 		protected CloseableIterator<SAMRecord> query(final SamReader sr) {
+			final int extend = 100;//give a chance to get clipping
 			return sr.query(
 					this.extendedInterval.getContig(),
-					this.extendedInterval.getStart(),
-					this.extendedInterval.getEnd(), 
+					Math.max(1,this.extendedInterval.getStart() - extend),
+					this.extendedInterval.getEnd() + extend, 
 					false
 					);
 			}
 		
-		protected boolean acceptRead(SAMRecord rec) {
-			return SAMRecordDefaultFilter.accept(rec, CoverageGrid.this.min_mapq);
+		protected boolean acceptRead(final SAMRecord rec) {
+			if(!SAMRecordDefaultFilter.accept(rec, CoverageGrid.this.min_mapq)) return false;
+			if(inversion_mode) {
+				boolean clip = rec.getCigar().isClipped();
+				boolean bad_pair = rec.getReadPairedFlag() && !rec.getProperPairFlag();
+				if(!(clip || bad_pair)) return false;
+				}
+			if(overlap_boundaries) {
+				int start = rec.getUnclippedStart();
+				int end = rec.getUnclippedEnd();
+				if(rec.getReadPairedFlag() && 
+				  !rec.getMateUnmappedFlag() && 
+				  rec.getReferenceName().equals(rec.getMateReferenceName())) {
+					start = Math.min(rec.getMateAlignmentStart(), start);
+					end = Math.max(getMateEnd(rec), end);
+					}
+				if(!(
+						(start <= userInterval.getStart() && userInterval.getStart()<=end ) ||
+						(start <= userInterval.getEnd() && userInterval.getEnd()<=end ) 
+					))
+					{
+					return false;
+					}
+				}
+			return true;
 			}
 		
 		protected void plotVerticalGuides(Canvas canvas) {
@@ -220,9 +267,8 @@ public class CoverageGrid extends Launcher {
 						)
 				);
 			}
-		
 		protected void plotBackgroundFrame(Canvas canvas) {
-			Color c=new Color(230,230,230);
+			
 			for(int i=0;i< 2;i++) {
 				double x1 = trimX(position2pixel(i==0?this.extendedInterval.getStart():this.userInterval.getEnd()));
 				double x2 = trimX(position2pixel(i==0?this.userInterval.getStart():this.extendedInterval.getEnd()));
@@ -234,7 +280,7 @@ public class CoverageGrid extends Launcher {
 					(x2-x1),
 					boundaries.getHeight(),
 					FunctionalMap.of(
-						Canvas.KEY_FILL,c,
+						Canvas.KEY_FILL,EXTERNAL_AREA_COLOR,
 						Canvas.KEY_STROKE,null
 						)
 					);
@@ -251,36 +297,20 @@ public class CoverageGrid extends Launcher {
 			this.by_pair  = by_pair;
 		}
 		
+		/** simplified read */
 		private  class MiniRead implements Locatable {
 			final int start;
 			final int end;
 			final Cigar cigar;
 			final int flags;
-			final int mate_start;
-			final int mate_end;
+			MiniRead(int start,int end,Cigar cigar,int flags) {
+				this.start= start;
+				this.end = end;
+				this.cigar= cigar;
+				this.flags = flags;
+				}
 			MiniRead(SAMRecord rec) {
-				this.start=rec.getAlignmentStart();
-				this.end = rec.getAlignmentEnd();
-				this.cigar=rec.getCigar();
-				this.flags = rec.getFlags();
-				if(rec.getReadPairedFlag() &&
-					!rec.getMateUnmappedFlag() &&
-					rec.getReferenceName().equals(rec.getMateReferenceName())
-					) {
-					this.mate_start = rec.getMateAlignmentStart();
-					if(rec.hasAttribute(SAMTag.MC)) {
-						this.mate_end  = SAMUtils.getMateAlignmentEnd(rec);
-						}
-					else
-						{
-						this.mate_end = this.mate_start;
-						}
-					}
-				else
-					{
-					this.mate_start=-1;
-					this.mate_end=-1;
-					}
+				this(rec.getAlignmentStart(),rec.getAlignmentEnd(),rec.getCigar(),rec.getFlags());
 				}
 			public String getContig() {
 				return PileupTask.this.extendedInterval.getContig();
@@ -300,6 +330,12 @@ public class CoverageGrid extends Launcher {
 			public int getUnclippedEnd() {
 				return SAMUtils.getUnclippedEnd(getEnd(), cigar);
 				}
+			private boolean testFlag(SAMFlag flg) {
+				return (this.flags & flg.intValue()) != 0;
+				}
+			public boolean isReadPaired() {
+		        return testFlag(SAMFlag.READ_PAIRED);
+				}
 			}
 		
 		private class MiniReadPair implements Locatable,Comparable<MiniReadPair>,Iterable<MiniRead> {
@@ -310,6 +346,7 @@ public class CoverageGrid extends Launcher {
 				{
 				this.R1 = rec;
 				}
+			
 			
 			@Override
 			public int compareTo(final MiniReadPair o) {
@@ -342,7 +379,12 @@ public class CoverageGrid extends Launcher {
 			public Iterator<MiniRead> iterator() {
 				return (R2==null?Arrays.asList(R1):Arrays.asList(R1,R2)).iterator();
 				}
-			
+			boolean isStrangelyPaired() {
+				if(!R1.isReadPaired()) return false;
+				if(!R1.testFlag(SAMFlag.PROPER_PAIR)) return true;
+				if(R1.testFlag(SAMFlag.READ_REVERSE_STRAND)==R1.testFlag(SAMFlag.MATE_REVERSE_STRAND)) return true;
+				return false;
+				}
 			}
 
 		
@@ -363,11 +405,31 @@ public class CoverageGrid extends Launcher {
 						 MiniReadPair pair=readName2pairs.get(pair_name);
 						 if(pair==null) {
 							pair =new MiniReadPair(rec);
+							if( this.by_pair &&
+								rec0.getReadPairedFlag() &&
+								!rec0.getMateUnmappedFlag() && 
+								rec0.getReferenceName().equals(rec0.getMateReferenceName())) {
+								final int mate_start = rec0.getMateAlignmentStart();
+								final int mate_end = getMateEnd(rec0);
+								final int mate_flags = SAMFlag.READ_PAIRED.intValue()+
+										(rec0.getFirstOfPairFlag()?SAMFlag.SECOND_OF_PAIR.intValue():SAMFlag.FIRST_OF_PAIR.intValue())+
+										(rec0.getReadNegativeStrandFlag()?0:SAMFlag.READ_REVERSE_STRAND.intValue()) +
+										(rec0.getReadNegativeStrandFlag()?SAMFlag.MATE_REVERSE_STRAND.intValue():0)  +
+										(rec0.getProperPairFlag()?SAMFlag.PROPER_PAIR.intValue():0) 
+										;
+								final MiniRead mate = new MiniRead(
+										mate_start,
+										mate_end,
+										new Cigar(Arrays.asList(new CigarElement(1+mate_end-mate_start, CigarOperator.M))),
+										mate_flags
+										);
+								pair.R2 = mate;
+								}
 							readName2pairs.put(pair_name,pair);
 						 	}
-						 else if(pair.R2==null ) {
+						 else {
 							if(!rec0.getReadPairedFlag()) LOG.error("reads not paired with same name "+pair_name);
-							pair.R2=rec; 
+							pair.R2 = rec;
 						 	}
 					 	 }
 					 }//end iterator
@@ -389,15 +451,17 @@ public class CoverageGrid extends Launcher {
 		@Override
 		void plot(Canvas canvas) {
 			 if(this.status!=0) return;
-		     final double featureHeight= Math.min(20,(this.boundaries.getHeight())/Math.max(1.0,(double)this.rows.size()));
-		     
+		     final double featureHeight= Math.min(20,(this.boundaries.getHeight()/Math.max(1.0,(double)this.rows.size())));
+			 final boolean hide_insertions=  CoverageGrid.this.dynaParams.getOrDefault("hide_insertions", "false").equals("true");
+
 		     double y= boundaries.getMaxY()-featureHeight;
 		     
 		     
 		     plotBackgroundFrame(canvas);
-		     for(final List<MiniReadPair> row:this.rows) {
-		    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
+			 plotVerticalGuides(canvas);
 
+		     for(final List<MiniReadPair> row:this.rows) {
+		    	final double h2= Math.max(featureHeight*0.9,featureHeight-2);
 		    	for(final MiniReadPair pair: row) {		    
 		    		final List<Integer> insertions = new ArrayList<>();
 		    		/* draw rec itself */
@@ -408,7 +472,7 @@ public class CoverageGrid extends Launcher {
 		    				trimX(position2pixel(pair.getEnd())),
 		    				midy,
 		    				FunctionalMap.of(
-	    						Canvas.KEY_STROKE, Color.DARK_GRAY,
+	    						Canvas.KEY_STROKE, pair.isStrangelyPaired()? Color.RED:Color.GRAY,
 	    						Canvas.KEY_STROKE_WIDTH, 0.1
 	    						)
 		    				);
@@ -444,21 +508,18 @@ public class CoverageGrid extends Launcher {
 			    						switch(op) {
 			    							case H: case S: fill=Color.YELLOW;break;
 			    							case X: fill=Color.RED;break;
-			    							case EQ: case M: fill=Color.LIGHT_GRAY;break;
+			    							case EQ: case M: fill=(pair.isStrangelyPaired()?Color.PINK:Color.LIGHT_GRAY);break;
 			    							default:break;
 			    							}
 			    						break;
 			    				case N://through
 			    				case D: shape=null;fill=null;stroke=null;ref1+=ce.getLength();break;
-			    				case I: shape=null;fill=null;stroke=null;insertions.add(ref1);break;
+			    				case I: shape=null;fill=null;stroke=null;if(!hide_insertions) insertions.add(ref1);break;
 			    				default: throw new IllegalStateException(""+op);
 			    				}
 			    			if(ref1 < this.extendedInterval.getStart()) continue;
 			    			
-			    			if(shape!=null) {
-			    				
-			    				
-			    				
+			    			if(shape!=null && fill!=null) {
 			    				canvas.shape(shape,
 		    						FunctionalMap.of(
 	    	    						Canvas.KEY_FILL,fill,
@@ -488,7 +549,6 @@ public class CoverageGrid extends Launcher {
 		    		}
 		    	y-=featureHeight;
 		     	}
-		    plotVerticalGuides(canvas);
 			final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
 		 	canvas.text(
 					this.sampleName,
@@ -642,9 +702,9 @@ public class CoverageGrid extends Launcher {
 			int i=1;
 			while(i+2 < points.size())
 				{
-				Point2D p1 = points.get(i+0);
-				Point2D p2 = points.get(i+1);
-				Point2D p3 = points.get(i+2);
+				final Point2D p1 = points.get(i+0);
+				final Point2D p2 = points.get(i+1);
+				final Point2D p3 = points.get(i+2);
 				if(p1.getY()==p2.getY() && p2.getY()==p3.getY() && p1.getX() < p3.getX()) {
 					points.remove(i+1);
 					}
@@ -666,6 +726,165 @@ public class CoverageGrid extends Launcher {
 			
 			}
 		}
+
+	
+	/**************************************************************************
+	 * 
+	 * GridTask : Co-Occurence of read names in memory
+	 *
+	 */
+	private class GridTask extends BamTask {
+		private int square_size=1;
+		private int[] counts;
+		private int px2pos(int m) {
+			return this.extendedInterval.getStart()+(int)((m/(double)this.square_size)*this.extendedInterval.getLengthOnReference());
+			}
+		private double pos2px(int p) {
+			return ((p-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.square_size;
+			}
+		private int getCount(final Collection<List<Interval>> colx,final Collection<List<Interval>> coly) {
+			int n=0;
+			Iterator<Interval> ix = colx.stream().flatMap(L->L.stream()).iterator();
+			while(ix.hasNext()) {
+				final Interval interval = ix.next();
+				if(coly.stream().flatMap(L->L.stream()).anyMatch(RY->RY!=interval /* NOT equals() , same read in memory */ && RY.getName().equals(interval.getName()))) {
+					n++;
+					}
+				}
+			return n;
+			}
+		@Override
+		public void run() {
+			try {
+				final IntervalTreeMap<List<Interval>> treemap=new IntervalTreeMap<>();
+				try(SamReader sr= openSamReader()) {
+					try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
+						while(iter.hasNext()) {
+							final SAMRecord rec = iter.next();
+							 if(!acceptRead(rec)) continue;
+							 final Interval r= new Interval(rec.getContig(), rec.getUnclippedStart(), rec.getUnclippedEnd(),rec.getReadNegativeStrandFlag(),rec.getReadName());
+							 if(!this.extendedInterval.overlaps(r)) continue;
+							 List<Interval> L = treemap.get(r);
+							 if(L==null) {
+								L=new ArrayList<>();
+								treemap.put(r, L); 
+							 	}
+							 L.add(r);
+						     }
+						}
+					}
+				this.square_size = Math.max(Math.min(this.boundaries.width, this.boundaries.height),1);
+				this.counts=new int[this.square_size*this.square_size];
+				for(int x=0;x<this.square_size;x++) {
+					final Interval rx = new Interval(this.extendedInterval.getContig(),px2pos(x),px2pos(x+1));
+					final Collection<List<Interval>> colx = treemap.getOverlapping(rx);
+					if(colx.isEmpty()) continue;
+					for(int y=0;y<this.square_size;y++) {
+						final Interval ry = new Interval(this.extendedInterval.getContig(),px2pos(y),px2pos(y+1));
+						final Collection<List<Interval>> coly = treemap.getOverlapping(ry);
+						if(coly.isEmpty()) continue;
+						this.counts[y*this.square_size+x] = getCount(colx,coly);
+					}
+				}
+				this.status=0;
+				}
+			catch(Throwable err) {
+				this.status=-1;
+				LOG.error(err);
+			}
+			
+		}
+
+		@Override
+		void plot(final Canvas canvas) {
+			if(status!=0) return;
+			final int margin_top = this.boundaries.y +  (this.boundaries.height - this.square_size)/2;
+			final int margin_left =  this.boundaries.x +   (this.boundaries.width - this.square_size)/2;
+
+			final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
+
+			canvas.comment(this.sampleName);
+			
+			canvas.text(
+					this.sampleName,
+					this.boundaries.getX()+1,
+					this.boundaries.getY()+fontSize+3,
+					FunctionalMap.of(
+						Canvas.KEY_FONT_SIZE, fontSize,
+						Canvas.KEY_STROKE, null,
+						Canvas.KEY_FILL, Color.DARK_GRAY,
+						Canvas.KEY_TITLE,this.sampleName+" "+this.bamPath
+						)
+					);
+			// area frames
+			for(int side=0;side<2;++side) {
+				final int p1 = side==0?this.extendedInterval.getStart():this.userInterval.getEnd();
+				final int p2 = side==0?this.userInterval.getStart():this.extendedInterval.getEnd();
+				final double v1 = pos2px(p1);
+				final double v2 = pos2px(p2);
+				if(v1>=v2) continue;
+				canvas.rect(
+						margin_left+v1,
+						margin_top, 
+						(v2-v1),
+						this.square_size,
+						FunctionalMap.of(
+							Canvas.KEY_STROKE,null,
+							Canvas.KEY_FILL,EXTERNAL_AREA_COLOR
+							)
+						);
+				canvas.rect(
+						margin_left,
+						margin_top+v1, 
+						this.square_size,
+						(v2-v1),
+						FunctionalMap.of(
+							Canvas.KEY_STROKE,null,
+							Canvas.KEY_FILL,EXTERNAL_AREA_COLOR
+							)
+						);
+				}
+						
+			final MinMaxInteger mM = MinMaxInteger.of(Arrays.stream(this.counts));
+			if(!mM.isEmpty()) {
+				for(int x=0;x<this.square_size;x++) {
+					for(int y=0;y<this.square_size;y++) {
+						if(this.counts[y*this.square_size+x]==0) continue;
+						final float f = (float) mM.normalize(this.counts[y*this.square_size+x]);
+						final Color c =  Color.getHSBColor(f, 0.85f, 1.0f);
+						canvas.rect(
+								margin_left+x,
+								margin_top+(this.square_size-(1.0/square_size))-y, /* inverse y coordinate so origin is at bottom*/
+								1,
+								1,
+								FunctionalMap.of(
+									Canvas.KEY_FILL, c,
+									Canvas.KEY_STROKE,null
+									)
+								);
+						}	
+					}
+				}
+			
+			// frame
+			canvas.rect(
+					margin_left,
+					margin_top, 
+					this.square_size,
+					this.square_size,
+					FunctionalMap.of(
+						Canvas.KEY_FILL, null,
+						Canvas.KEY_STROKE,Color.DARK_GRAY
+						)
+					);
+			}
+		}
+	/********************************************************************************************************************/
+	
+/** get mate end position or mate-start */
+private static int getMateEnd(final SAMRecord rec0) {
+	return rec0.hasAttribute(SAMTag.MC)?SAMUtils.getMateAlignmentEnd(rec0):rec0.getMateAlignmentStart();
+	}
 	
 @Override
 public int doWork(final List<String> args) {
@@ -725,6 +944,7 @@ public int doWork(final List<String> args) {
 		for(final Path bamPath: inputBams) {
 			final BamTask task ;
 				switch(this.plotType) {
+				case GRID: task= new GridTask(); break;
 				case PILEUP: task= new PileupTask(false); break;
 				case PILEUP_PAIR: task= new PileupTask(true); break;
 				case COVERAGE:  task = new CoverageTask(false); break;
