@@ -30,7 +30,8 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * C++ like <algorithm>
+ * C++ like <algorithm>.
+ * <code>List&lt;T&gt</code> using an element of type <code>List&lt;V&gt</code>
  *
  */
 public class Algorithm<T,V> {

@@ -64,6 +64,7 @@ import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.Algorithm;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -744,40 +745,6 @@ public class CoverageGrid extends Launcher {
 	 * GridTask : Co-Occurence of read names in memory
 	 *
 	 */
-	private static class ReadName {
-		final String name;
-		final byte side;
-		ReadName(final SAMRecord rec) {
-			this.name= rec.getReadName();
-			if(!rec.getReadPairedFlag()) {
-				side=0;
-				}
-			else if(rec.getFirstOfPairFlag())
-				{
-				side=1;
-				}
-			else if(rec.getSecondOfPairFlag())
-				{
-				side=2;
-				}
-			else
-				{
-				throw new IllegalArgumentException();
-				}
-			}
-		@Override
-		public int hashCode() {
-			return Objects.hash(name,side);
-			}
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj) return true;
-			if (obj == null || !(obj instanceof ReadName)) return false;
-			final ReadName other = (ReadName) obj;
-			return side == other.side && this.name.equals(other.name);
-			}
-		
-		}
 	private class GridTask extends BamTask {
 		private int square_size=1;
 		private int[] counts;
@@ -789,21 +756,31 @@ public class CoverageGrid extends Launcher {
 		private double pos2px(int p) {
 			return ((p-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.square_size;
 			}
-		private int getCount(final Collection<Set<ReadName>> colx,final Collection<Set<ReadName>> coly) {
-			int n=0;
-			Iterator<ReadName> ix = colx.stream().flatMap(L->L.stream()).iterator();
-			while(ix.hasNext()) {
-				final ReadName rdName = ix.next();
-				if(coly.stream().flatMap(L->L.stream()).anyMatch(NY->NY!=rdName /* NOT equals() , same read in memory */ && NY.name.equals(rdName.name))) {
-					n++;
+		
+		
+		private Set<String> getReadNames(final Algorithm<Interval,Integer> algorithm,final List<Interval> intervals,final Interval rgn) {
+			final Set<String> names= new HashSet<>();
+			final int pos = rgn.getStart();
+			int index = algorithm.lower_bound(intervals, pos);
+			while(index < intervals.size()) {
+				final Interval r = intervals.get(index);
+				if(r.getEnd() < rgn.getStart()) {
+					index++;
+					continue;
 					}
+				if(r.getStart()> rgn.getEnd()) break;
+				names.add(r.getName());
+				++index;
 				}
-			return n;
+			return names;
 			}
+		
 		@Override
 		public void run() {
 			try {
-				final IntervalTreeMap<Set<ReadName>> treemap=new IntervalTreeMap<>();
+				/* do not use IntervalTreeMap, it's too slow */
+				final List<Interval> intervals = new ArrayList<>(100_000);
+				final Algorithm<Interval,Integer> algorithm = new Algorithm<>(RGN->RGN.getStart(),(A,B)->A.compareTo(B));
 				try(SamReader sr= openSamReader()) {
 					try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
 						while(iter.hasNext()) {
@@ -811,29 +788,25 @@ public class CoverageGrid extends Launcher {
 							 if(!acceptRead(rec)) continue;
 							 final Interval r= new Interval(rec.getContig(), rec.getUnclippedStart(), rec.getUnclippedEnd(),rec.getReadNegativeStrandFlag(),rec.getReadName());
 							 if(!this.extendedInterval.overlaps(r)) continue;
-							
-							 Set<ReadName> L = treemap.get(r);
-							 if(L==null) {
-								L=new HashSet<>();
-								treemap.put(r, L); 
-							 	}
-							 L.add(new ReadName(rec));
+							 intervals.add(r);
 						     }
 						}
 					}
+				algorithm.sort(intervals);
 				this.square_size = Math.max(Math.min(this.boundaries.width, this.boundaries.height),1);
 				this.counts=new int[this.square_size*this.square_size];
 				for(int x=0;x<this.square_size;x++) {
 					final Interval rx = new Interval(this.extendedInterval.getContig(),px2pos(x),px2pos(x+1));
-					final Collection<Set<ReadName>> colx = treemap.getOverlapping(rx);
-					if(colx.isEmpty()) continue;
+					final Set<String> setx =  getReadNames(algorithm,intervals,rx);
+					if(setx.isEmpty()) continue;
 					for(int y=0;y<this.square_size;y++) {
 						final Interval ry = new Interval(this.extendedInterval.getContig(),px2pos(y),px2pos(y+1));
-						final Collection<Set<ReadName>> coly = treemap.getOverlapping(ry);
-						if(coly.isEmpty()) continue;
-						this.counts[y*this.square_size+x] = getCount(colx,coly);
+						final Set<String> sety =  getReadNames(algorithm,intervals,ry);
+						if(sety.isEmpty()) continue;
+						sety.retainAll(setx);
+						this.counts[y*this.square_size+x] = sety.size();
+						}
 					}
-				}
 				this.status=0;
 				}
 			catch(Throwable err) {
@@ -908,7 +881,7 @@ public class CoverageGrid extends Launcher {
 							++x;
 							}
 						
-						final float f = (float) mM.normalize(this.counts[y*this.square_size+x]);
+						final float f = (float) mM.normalize(this.counts[y*this.square_size+x0]);
 						final Color c =  Color.getHSBColor(f, 0.85f, 1.0f);
 						canvas.rect(
 								margin_left+x0,
