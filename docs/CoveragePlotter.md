@@ -21,7 +21,8 @@ Usage: coverageplotter [options] Files
       stroke:red; 
     --dimension, --dim
       Image Dimension. a dimension can be specified as '[integer]x[integer]' 
-      or it can be the path to an existing png,jpg,xcf,svg file.
+      or the word 'screen' or it can be the path to an existing 
+      png,jpg,xcf,svg file.
       Default: java.awt.Dimension[width=1000,height=300]
     --extend, -x
       Extending interval. The following syntaxes are supported: 1000; 1kb; 
@@ -42,7 +43,7 @@ Usage: coverageplotter [options] Files
       When calculating the median depth, also consider the original user's 
       region, not only the extended interval.
       Default: false
-  * --region, --interval
+  * --regions, --region, --interval
       Interval region
     --known
       Optional Tabix indexed Bed or VCF file containing known CNV. Both types 
@@ -143,7 +144,8 @@ output is a HTML+SVG file
 ## example:
 
 ```
-java -jar dist/coverageplotter.jar -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" src/test/resources/*.bam 
+find dir -type f -name "*bam" > in.list 
+java -jar dist/jvarkit.jar coverageplotter -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" in.list
 ```
 
 ## Screenshot

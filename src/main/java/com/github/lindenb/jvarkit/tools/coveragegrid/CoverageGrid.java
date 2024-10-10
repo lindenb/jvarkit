@@ -37,9 +37,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -82,6 +85,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -108,7 +112,7 @@ END_DOC
 @Program(
 	name="coveragegrid",
 	description="Display an image of depth to display any anomaly an intervals+bams as a grid image",
-	keywords={"cnv","bam","depth","coverage","svg","postscrip"},
+	keywords={"cnv","bam","depth","coverage","svg","postscript"},
 	creationDate="20241009",
 	modificationDate="20241009",
 	jvarkit_amalgamion =  true,
@@ -137,7 +141,13 @@ public class CoverageGrid extends Launcher {
 	private CanvasFactory.Format canvas_format=CanvasFactory.Format.SVG;
 	@Parameter(names= {"--title"},description="Set Title for graphics")
 	private String title="";
-	@Parameter(names= {"--type"},description="Plot type. COVERAGE: DEPTH coverage, MEDIAN_COVERAGE: coverage normalize by external boundaries,  PILEUP: show reads, PILEUP_PAIR: show paired fragments, GRID: matrix of read name co-occurence")
+	@Parameter(names= {"--type"},description="Plot type. "
+			+ "COVERAGE: DEPTH coverage, "
+			+ "MEDIAN_COVERAGE: coverage normalize by external boundaries, "
+			+ "PILEUP: show reads, "
+			+ "PILEUP_PAIR: show paired fragments, "
+			+ "GRID: matrix of read name co-occurence. Slow and memory consuming."
+			)
 	private PlotType plotType = PlotType.MEDIAN_COVERAGE;
 	@DynamicParameter(names = "-D", description = "other parameters '-Dkey=value'. "+
 			"-Dhide_insertions=true "+
@@ -588,7 +598,7 @@ public class CoverageGrid extends Launcher {
 				try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
 					while(iter.hasNext()) {
 						final SAMRecord rec = iter.next();
-						 if(!acceptRead(rec)) continue;
+						if(!acceptRead(rec)) continue;
 						for(AlignmentBlock ab: rec.getAlignmentBlocks()) {
 							for(int x=0;x< ab.getLength();++x) {
 								final int refpos1 = ab.getReferenceStart()+x;
@@ -605,14 +615,15 @@ public class CoverageGrid extends Launcher {
 					final DiscreteMedian<Integer> discreteMedian= new DiscreteMedian<>();
 					for(int i=0;i< array.length;i++) {
 						this.mean_depth.accept(array[i]);
-						final int refpos1 = this.extendedInterval.getStart()+i;
-						if(this.userInterval.getStart()>=refpos1 && refpos1<=this.userInterval.getEnd()) {
+						final int refpos1 = this.extendedInterval.getStart() + i;
+						if(CoordMath.overlaps(
+								refpos1, refpos1,
+								this.userInterval.getStart(),this.userInterval.getEnd()
+								)) {
 							continue;
 							}
 						discreteMedian.add((int)array[i]);
-						}
-					
-					
+						}					
 					final double median = Math.max(1.0,discreteMedian.getMedian().orElse(0.0));
 					for(int i=0;i< array.length;i++) {
 						array[i]=(float)(array[i]/median);
@@ -625,7 +636,7 @@ public class CoverageGrid extends Launcher {
 						}
 					}
 				for(int i=0;i< this.coverage.length;i++) {
-					int x1 = (int)(((i+0)/(double) this.coverage.length)*array.length);
+					      int x1 = (int)(((i+0)/(double) this.coverage.length)*array.length);
 					final int x2 = (int)(((i+1)/(double) this.coverage.length)*array.length);
 					final Average avg=new Average();
 					while(x1<x2 && x1 < array.length) {
@@ -733,21 +744,57 @@ public class CoverageGrid extends Launcher {
 	 * GridTask : Co-Occurence of read names in memory
 	 *
 	 */
+	private static class ReadName {
+		final String name;
+		final byte side;
+		ReadName(final SAMRecord rec) {
+			this.name= rec.getReadName();
+			if(!rec.getReadPairedFlag()) {
+				side=0;
+				}
+			else if(rec.getFirstOfPairFlag())
+				{
+				side=1;
+				}
+			else if(rec.getSecondOfPairFlag())
+				{
+				side=2;
+				}
+			else
+				{
+				throw new IllegalArgumentException();
+				}
+			}
+		@Override
+		public int hashCode() {
+			return Objects.hash(name,side);
+			}
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) return true;
+			if (obj == null || !(obj instanceof ReadName)) return false;
+			final ReadName other = (ReadName) obj;
+			return side == other.side && this.name.equals(other.name);
+			}
+		
+		}
 	private class GridTask extends BamTask {
 		private int square_size=1;
 		private int[] counts;
+		
+		
 		private int px2pos(int m) {
 			return this.extendedInterval.getStart()+(int)((m/(double)this.square_size)*this.extendedInterval.getLengthOnReference());
 			}
 		private double pos2px(int p) {
 			return ((p-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.square_size;
 			}
-		private int getCount(final Collection<List<Interval>> colx,final Collection<List<Interval>> coly) {
+		private int getCount(final Collection<Set<ReadName>> colx,final Collection<Set<ReadName>> coly) {
 			int n=0;
-			Iterator<Interval> ix = colx.stream().flatMap(L->L.stream()).iterator();
+			Iterator<ReadName> ix = colx.stream().flatMap(L->L.stream()).iterator();
 			while(ix.hasNext()) {
-				final Interval interval = ix.next();
-				if(coly.stream().flatMap(L->L.stream()).anyMatch(RY->RY!=interval /* NOT equals() , same read in memory */ && RY.getName().equals(interval.getName()))) {
+				final ReadName rdName = ix.next();
+				if(coly.stream().flatMap(L->L.stream()).anyMatch(NY->NY!=rdName /* NOT equals() , same read in memory */ && NY.name.equals(rdName.name))) {
 					n++;
 					}
 				}
@@ -756,7 +803,7 @@ public class CoverageGrid extends Launcher {
 		@Override
 		public void run() {
 			try {
-				final IntervalTreeMap<List<Interval>> treemap=new IntervalTreeMap<>();
+				final IntervalTreeMap<Set<ReadName>> treemap=new IntervalTreeMap<>();
 				try(SamReader sr= openSamReader()) {
 					try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
 						while(iter.hasNext()) {
@@ -764,12 +811,13 @@ public class CoverageGrid extends Launcher {
 							 if(!acceptRead(rec)) continue;
 							 final Interval r= new Interval(rec.getContig(), rec.getUnclippedStart(), rec.getUnclippedEnd(),rec.getReadNegativeStrandFlag(),rec.getReadName());
 							 if(!this.extendedInterval.overlaps(r)) continue;
-							 List<Interval> L = treemap.get(r);
+							
+							 Set<ReadName> L = treemap.get(r);
 							 if(L==null) {
-								L=new ArrayList<>();
+								L=new HashSet<>();
 								treemap.put(r, L); 
 							 	}
-							 L.add(r);
+							 L.add(new ReadName(rec));
 						     }
 						}
 					}
@@ -777,11 +825,11 @@ public class CoverageGrid extends Launcher {
 				this.counts=new int[this.square_size*this.square_size];
 				for(int x=0;x<this.square_size;x++) {
 					final Interval rx = new Interval(this.extendedInterval.getContig(),px2pos(x),px2pos(x+1));
-					final Collection<List<Interval>> colx = treemap.getOverlapping(rx);
+					final Collection<Set<ReadName>> colx = treemap.getOverlapping(rx);
 					if(colx.isEmpty()) continue;
 					for(int y=0;y<this.square_size;y++) {
 						final Interval ry = new Interval(this.extendedInterval.getContig(),px2pos(y),px2pos(y+1));
-						final Collection<List<Interval>> coly = treemap.getOverlapping(ry);
+						final Collection<Set<ReadName>> coly = treemap.getOverlapping(ry);
 						if(coly.isEmpty()) continue;
 						this.counts[y*this.square_size+x] = getCount(colx,coly);
 					}
@@ -847,15 +895,25 @@ public class CoverageGrid extends Launcher {
 						
 			final MinMaxInteger mM = MinMaxInteger.of(Arrays.stream(this.counts));
 			if(!mM.isEmpty()) {
-				for(int x=0;x<this.square_size;x++) {
-					for(int y=0;y<this.square_size;y++) {
-						if(this.counts[y*this.square_size+x]==0) continue;
+				for(int y=0;y<this.square_size;y++) {
+					int x=0;
+					while(x<this.square_size) {
+						if(this.counts[y*this.square_size+x]==0) {
+							++x;
+							continue;
+							}
+						final int x0=x;
+						while(x<this.square_size && 
+							counts[y*this.square_size+x]==counts[y*this.square_size+(x0)] ) {
+							++x;
+							}
+						
 						final float f = (float) mM.normalize(this.counts[y*this.square_size+x]);
 						final Color c =  Color.getHSBColor(f, 0.85f, 1.0f);
 						canvas.rect(
-								margin_left+x,
+								margin_left+x0,
 								margin_top+(this.square_size-(1.0/square_size))-y, /* inverse y coordinate so origin is at bottom*/
-								1,
+								(x-x0),
 								1,
 								FunctionalMap.of(
 									Canvas.KEY_FILL, c,
@@ -916,7 +974,7 @@ public int doWork(final List<String> args) {
 				apply(this.intervalStr).
 				orElseThrow(()->new IllegalArgumentException("Cannot parse interval:\""+this.intervalStr+"\""));
 		
-		int mid_position = user_interval.getStart() + user_interval.getLengthOnReference()/2;
+		final int mid_position = user_interval.getStart() + user_interval.getLengthOnReference()/2;
 		int new_len = (int)(user_interval.getLengthOnReference()* this.extendFactor);
 		int new_start = Math.max(1, mid_position-new_len/2);
 		int new_end = Math.min(dict.getSequence(user_interval.getContig()).getEnd(), mid_position+new_len/2);
@@ -931,7 +989,7 @@ public int doWork(final List<String> args) {
 		final double wi  = this.dimension.getWidth()/ncols;
 		final double hi  = (this.dimension.getHeight()-marginTop)/nrows;
 		
-		LOG.info("tile:"+ncols+"x"+nrows+" w:"+wi+" h:"+hi);
+		LOG.info("tile:"+ncols+"x"+nrows+" w:"+(int)wi+" h:"+(int)hi);
 		
 		if(wi < 10 || hi < 10) {
 			LOG.error("dimension is too small");
@@ -980,7 +1038,8 @@ public int doWork(final List<String> args) {
 				user_interval.toNiceString()+
 			" length:"+ StringUtils.niceInt(user_interval.getLengthOnReference())+
 			" extended to "+extended_interval.toNiceString()+
-			" length:"+StringUtils.niceInt(extended_interval.getLengthOnReference())+" "+
+			" length:"+StringUtils.niceInt(extended_interval.getLengthOnReference())+
+			" model:"+this.plotType.name()+" "+
 			this.title
 			;
 		try(Canvas canvas = new CanvasFactory().

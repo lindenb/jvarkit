@@ -53,8 +53,9 @@ Usage: coveragegrid [options] Files
       Default: <empty string>
     --type
       Plot type. COVERAGE: DEPTH coverage, MEDIAN_COVERAGE: coverage normalize 
-      by external boundaries,  PILEUP: show reads, PILEUP_PAIR: show paired 
-      fragments, GRID: matrix of read name co-occurence
+      by external boundaries, PILEUP: show reads, PILEUP_PAIR: show paired 
+      fragments, GRID: matrix of read name co-occurence. Slow and memory 
+      consuming. 
       Default: MEDIAN_COVERAGE
       Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID]
     --version
@@ -75,7 +76,7 @@ Usage: coveragegrid [options] Files
  * depth
  * coverage
  * svg
- * postscrip
+ * postscript
 
 
 
@@ -122,5 +123,6 @@ output is a HTML+SVG file
 find dir -type f -name "*bam" > in.list 
 java -jar dist/jvarkit.jar coveragegrid -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" in.list
 ```
+
 
 

@@ -106,6 +106,7 @@ nav:
         - "commbams" : CommBams.md
         - "convertliftoverchain" : ConvertLiftOverChain.md
         - "copynumber01" : CopyNumber01.md
+        - "coveragegrid" : CoverageGrid.md
         - "coveragematrix" : CoverageMatrix.md
         - "coverageplotter" : CoveragePlotter.md
         - "coverageserver" : CoverageServer.md
@@ -212,6 +213,7 @@ nav:
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
         - "texbam" : TextBam.md
+        - "translategff3" : TranslateGff3.md
         - "tssenrich" : TSSEnrichment.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md

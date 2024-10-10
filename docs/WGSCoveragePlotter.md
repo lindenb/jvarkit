@@ -21,7 +21,8 @@ Usage: wgscoverageplotter [options] Files
       Default: false
     --dimension
       Image Dimension. a dimension can be specified as '[integer]x[integer]' 
-      or it can be the path to an existing png,jpg,xcf,svg file.
+      or the word 'screen' or it can be the path to an existing 
+      png,jpg,xcf,svg file.
       Default: java.awt.Dimension[width=1000,height=500]
     --disable-paired-overlap
       Count overlapping bases with mate for paired-end

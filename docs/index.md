@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 24f0e3407
-Compilation : 20241003112451
+Version     : b1f9bac34
+Compilation : 20241010180245
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -50,7 +50,8 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | ---: | :---------- | :------: | :----: |
 | [bammatrix](BamMatrix.md) | Bam matrix, inspired from 10x/loupe | 20190620 | 20211206 |
 | [cnvtview](CnvTView.md) | Text visualization of bam DEPTH for multiple regions in a terminal | 20181018 | 20210412 |
-| [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20221125 |
+| [coveragegrid](CoverageGrid.md) | Display an image of depth to display any anomaly an intervals+bams as a grid image | 20241009 | 20241009 |
+| [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20241009 |
 | [indexcov2vcf](IndexCovToVcf.md) | convert indexcov data to vcf | 20200528 | 20400313 |
 | [samfindclippedregions](SamFindClippedRegions.md) | Fins clipped position in one or more bam. | 20140228 | 20220329 |
 | [swingindexcov](SwingIndexCov.md) | indexcov visualization | 2020511 | 2020512 |
@@ -237,6 +238,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
 | [swingplinkselectcluster](SwingPLinkSelectCluster.md) | Swing-based Plink/MDS sample selector | 20231123 | 20240606 |
+| [translategff3](TranslateGff3.md) | translates the output of bcftools consensus | 20241003 | 20241003 |
 | [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240206 |
 | [variantsinwindow](VariantsInWindow.md) | Annotate Number of Variants overlaping a sliding window. |  |  |
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
