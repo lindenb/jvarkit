@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -65,6 +66,8 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Algorithm;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -87,6 +90,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -146,6 +150,8 @@ public class CoverageGrid extends Launcher {
 	private String title="";
 	@Parameter(names= {"--vcf"},description="indexed VCF file to show variants")
 	private Path vcfFile=null;
+	@Parameter(names= {"--gtf"},description="indexed GTF file to show genes")
+	private String gtfFile=null;
 	
 	@Parameter(names= {"--type"},description="Plot type. "
 			+ "COVERAGE: DEPTH coverage, "
@@ -176,6 +182,7 @@ public class CoverageGrid extends Launcher {
 		final boolean inversion_mode;
 		final boolean overlap_boundaries;
 		Path vcfPath;
+		String gtfPath;
 		Canvas canvas;
 		
 		protected BamTask() {
@@ -206,9 +213,77 @@ public class CoverageGrid extends Launcher {
 			return Math.min(this.boundaries.getMaxX(), Math.max(this.boundaries.getX(),coordX));
 			}
 		
-		protected double position2pixel(int pos) {
+		protected double position2pixel(final int pos) {
 			return this.boundaries.getX() +
 					((pos-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.boundaries.getWidth();
+			}
+		
+		protected void plotGenes(final Canvas canvas) {
+			if(this.gtfPath==null) return;
+			final float midy=(float)Math.max(this.boundaries.getY(),this.boundaries.getMaxY()-4);
+			final GTFCodec codec=new GTFCodec();
+			try(TabixReader tabix = new TabixReader(this.gtfPath)) {
+				for(int step=0;step< 3;++step) {
+					String expect;
+					float featHeight;
+					Color color;
+					switch(step) {
+						case 0: expect="gene";featHeight=1;color=Color.MAGENTA;break;
+						case 1: expect="exon";featHeight=2;color=Color.MAGENTA;break;
+						case 2: expect="CDS";featHeight=3;color=Color.MAGENTA;break;
+						default: expect=null;featHeight=0;color=Color.MAGENTA;break;
+						}
+			
+					final List<Rectangle2D> rects = new ArrayList<>();
+					TabixReader.Iterator iter= tabix.query(this.extendedInterval.getStart(), this.extendedInterval.getStart(), this.extendedInterval.getEnd());
+					for(;;) {
+						final String line = iter.next();
+						if(line==null) break;
+						final GTFLine feat=codec.decode(line);
+						if(feat==null) continue;
+						if(feat.getType().equals(expect)) continue;
+						final double x1= trimX(position2pixel(feat.getStart()));
+						final double x2= trimX(position2pixel(feat.getEnd()+1));
+						if(x1>=x2) continue;
+						if(step>0 /* not a gene */ && (x2-x1)<2 /* too small to be displayed */) continue;
+						rects.add(new Rectangle2D.Float((float)x1, midy-featHeight/2f, (float)(x2-x1), featHeight));
+						}
+					Collections.sort(rects,(A,B)->Double.compare(A.getX(),B.getX()));
+					int k=0;
+					while(k+1< rects.size()) {
+						final Rectangle2D r1 = rects.get(k+0);
+						final Rectangle2D r2 = rects.get(k+1);
+						if(r2.getX() - r1.getMaxX() < 0.1) {
+							final float x1 = (float)Math.min(r1.getX(), r2.getX());
+							final float x2 = (float)Math.max(r1.getMaxX(), r2.getMaxX());
+							rects.set(k,new Rectangle2D.Float(
+								x1,
+								(x2-x1),
+								(float)r1.getY(),
+								(float)r1.getHeight()
+								));
+							rects.remove(k+1);
+							}
+						else
+							{
+							k++;
+							}
+						}
+					for(Rectangle2D rect:rects) {
+						// draw feature
+						canvas.shape(
+							rect,
+							FunctionalMap.of(
+									Canvas.KEY_FILL, color,
+									Canvas.KEY_STROKE,null
+									)
+							);
+						}
+					}
+				}
+			catch(Exception err) {
+				LOG.error(err);
+				}
 			}
 		
 		protected void plotVariants(final Canvas canvas) {
@@ -400,7 +475,7 @@ public class CoverageGrid extends Launcher {
 				this.cigar= cigar;
 				this.flags = flags;
 				}
-			MiniRead(SAMRecord rec) {
+			MiniRead(final SAMRecord rec) {
 				this(rec.getAlignmentStart(),rec.getAlignmentEnd(),rec.getCigar(),rec.getFlags());
 				}
 			public String getContig() {
@@ -551,6 +626,7 @@ public class CoverageGrid extends Launcher {
 		     
 		     plotBackgroundFrame(canvas);
 		     plotVariants(canvas);
+		     plotGenes(canvas);
 			 plotVerticalGuides(canvas);
 
 		     for(final List<MiniReadPair> row:this.rows) {
@@ -752,6 +828,7 @@ public class CoverageGrid extends Launcher {
 			canvas.comment(this.sampleName);
 			plotBackgroundFrame(canvas);
 			plotVariants(canvas);
+			plotGenes(canvas);
 			
 			canvas.text(
 					this.sampleName+" avgDP:"+(int)this.mean_depth.getAsDouble(),
@@ -1068,6 +1145,7 @@ public int doWork(final List<String> args) {
 			
 			task.bamPath = bamPath;
 			task.vcfPath = this.vcfFile;
+			task.gtfPath = this.gtfFile;
 			task.referencePath = this.refPath;
 			task.userInterval = user_interval;
 			task.extendedInterval = extended_interval;

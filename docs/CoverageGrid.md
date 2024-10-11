@@ -28,6 +28,8 @@ Usage: coveragegrid [options] Files
       output format
       Default: SVG
       Possible Values: [SVG, SVG_GZ, PNG, JPG, PS, PS_GZ]
+    --gtf
+      indexed GTF file to show genes
     -h, --help
       print help and exit
     --helpFormat
@@ -125,5 +127,6 @@ output is a HTML+SVG file
 find dir -type f -name "*bam" > in.list 
 java -jar dist/jvarkit.jar coveragegrid -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" in.list
 ```
+
 
 
