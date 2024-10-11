@@ -58,6 +58,8 @@ Usage: coveragegrid [options] Files
       consuming. 
       Default: MEDIAN_COVERAGE
       Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID]
+    --vcf
+      indexed VCF file to show variants
     --version
       print version and exit
     -D

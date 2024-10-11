@@ -25,6 +25,7 @@ package com.github.lindenb.jvarkit.canvas;
 
 import java.awt.Color;
 import java.awt.Shape;
+import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
@@ -42,7 +43,10 @@ import com.github.lindenb.jvarkit.util.FunctionalMap;
 
 
 
-
+/**
+ * Implementation of Canvas for POSTSCRIPT
+ *
+ */
 public class PSCanvas extends Canvas {
 	private final int width;
 	private final int height;
@@ -83,13 +87,15 @@ public class PSCanvas extends Canvas {
 		if(!StringUtils.isBlank(title)) {
 			this.w.println("%%Title: "+title);
 			}
+		this.w.println("/rd { rlineto } def ");
+		
 		this.w.println("/rect { 4 dict begin /h exch def /w exch def /y exch def /x exch def "+
 			"newpath "+
 			"x y moveto " +
-			"w 0 rlineto " +
-			"0 h neg rlineto " +
-			"w neg 0 rlineto " +
-			"0 h rlineto " +
+			"w 0 rd " +
+			"0 h neg rd " +
+			"w neg 0 rd " +
+			"0 h rd " +
 			"closepath " +
 			"end } def"
 			);
@@ -104,6 +110,31 @@ public class PSCanvas extends Canvas {
 			"closepath " +
 			"end } def"
 			);
+		this.w.println("/circle { 3 dict begin /r exch def /y exch def /x exch def "+
+				"newpath "+
+				"x y r 0 360 arc " +
+				"closepath " +
+				"end } def"
+				);
+		this.w.println("/hl { 1 dict begin  /dx exch def "+
+				"dx 0 rlineto " +
+				"end } def"
+				);
+		this.w.println("/vl { 1 dict begin  /dy exch def "+
+				"0 dy neg rd " +
+				"end } def"
+				);
+		this.w.println("/irgb { 3 dict begin /b exch def /g exch def /r exch def "+
+				"r 255.0 div " +
+				"g 255.0 div " +
+				"b 255.0 div " +
+				" setrgbcolor " +
+				"end } def"
+				);
+		this.w.println("/igray { 1 dict begin /g exch def  "+
+				" g g g irgb " +
+				"end } def"
+				);
 		}
 	
 
@@ -117,28 +148,28 @@ public class PSCanvas extends Canvas {
 		this.w.close();
 		}
 	
-	private String round(double x) {
+	private String round(final double x) {
 		String s= String.format("%.3f",x);
 		while(s.contains(".") && s.endsWith("0")) s=s.substring(0,s.length()-1);
 		if(s.endsWith("."))  s=s.substring(0,s.length()-1);
 		return s;
 	}
 	
-	private String coord(double x,double y) {
+	private String coord(final double x,final double y) {
 		return round(inch(x))+" "+round(inch(getHeight()-y));
 		}
 	
 	private String setrgbcolor(final Color c) {
 		if(c==null) return "";
 		if(c.getRed()==c.getGreen() && c.getGreen()==c.getBlue()) {
-			return round(c.getRed()/255f)+" setgray";
+			return String.valueOf(c.getRed())+" igray";
 			}
 		
 		return String.join(" ",
-				round(c.getRed()/255f),
-				round(c.getGreen()/255f),
-				round(c.getBlue()/255f),
-				"setrgbcolor"
+				String.valueOf(c.getRed()),
+				String.valueOf(c.getGreen()),
+				String.valueOf(c.getBlue()),
+				"irgb"
 				);
 		}
 	
@@ -176,7 +207,7 @@ public class PSCanvas extends Canvas {
 		return this;
 		}
 	
-	private String escape(final CharSequence s) {
+	private static String escape(final CharSequence s) {
 		return StringUtils.escapePostscript(s);
 		}
 	@Override
@@ -254,7 +285,7 @@ public class PSCanvas extends Canvas {
 				}
 			return;
 			}
-		if(shape instanceof Line2D) {
+		else if(shape instanceof Line2D) {
 			final Line2D line = Line2D.class.cast(shape);
 			w.append(coord(line.getX1(),line.getY1()));
 			w.append(" ");
@@ -262,8 +293,19 @@ public class PSCanvas extends Canvas {
 			w.append(" ll ");
 			return;
 			}
-		
-		float coords[]=new float[6];
+		else if(shape instanceof Ellipse2D) {
+			final Ellipse2D ellipse = Ellipse2D.class.cast(shape);
+			if(ellipse.getWidth()==ellipse.getHeight()) {
+				w.append(coord(ellipse.getCenterX(),ellipse.getCenterY()));
+				w.append(" ");
+				w.append(round(inch(ellipse.getHeight()/2.0)));
+				w.append(" circle ");
+				return;
+				}
+			}
+		float prev_x=0;
+		float prev_y=0;
+		final float coords[]=new float[6];
 		final PathIterator iter = shape.getPathIterator(null);
 		w.append(" newpath");
 		while(!iter.isDone()) {
@@ -274,13 +316,32 @@ public class PSCanvas extends Canvas {
 				w.append(" ");
 				w.append(coord(coords[0],coords[1]));
 				w.append(" moveto");
+				prev_x = coords[0];
+				prev_y = coords[1];
 				break;
 				}
 			case PathIterator.SEG_LINETO:
 				{
-				w.append(" ");
-				w.append(coord(coords[0],coords[1]));
-				w.append(" lineto");
+				if(prev_y==coords[1]) {
+					w.append(" ");
+					w.append(round(inch(coords[0]-prev_x)));
+					w.append(" hl");//horizontal line
+					}
+				else if(prev_x==coords[0]) {
+					w.append(" ");
+					w.append(round(inch(coords[1]-prev_y)));
+					w.append(" vl");//vertical line
+					}
+				else
+					{
+					w.append(" ");
+					w.append(round(inch(coords[0]-prev_x)));
+					w.append(" ");
+					w.append(round(inch(-(coords[1]-prev_y))));
+					w.append(" rd");//rlineto
+					}
+				prev_x = coords[0];
+				prev_y = coords[1];
 				break;
 				}
 			case PathIterator.SEG_QUADTO:
@@ -297,6 +358,8 @@ public class PSCanvas extends Canvas {
 				w.append(" ");
 				w.append(coord(coords[4],coords[5]));
 				w.append(" curveto");
+				prev_x = coords[4];
+				prev_y = coords[5];
 				break;
 				}
 			case PathIterator.SEG_CLOSE:

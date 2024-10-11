@@ -87,6 +87,11 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 /**
 BEGIN_DOC
 ## input
@@ -139,6 +144,9 @@ public class CoverageGrid extends Launcher {
 	private CanvasFactory.Format canvas_format=CanvasFactory.Format.SVG;
 	@Parameter(names= {"--title"},description="Set Title for graphics")
 	private String title="";
+	@Parameter(names= {"--vcf"},description="indexed VCF file to show variants")
+	private Path vcfFile=null;
+	
 	@Parameter(names= {"--type"},description="Plot type. "
 			+ "COVERAGE: DEPTH coverage, "
 			+ "MEDIAN_COVERAGE: coverage normalize by external boundaries, "
@@ -167,6 +175,7 @@ public class CoverageGrid extends Launcher {
 		Rectangle boundaries;
 		final boolean inversion_mode;
 		final boolean overlap_boundaries;
+		Path vcfPath;
 		Canvas canvas;
 		
 		protected BamTask() {
@@ -202,6 +211,63 @@ public class CoverageGrid extends Launcher {
 					((pos-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.boundaries.getWidth();
 			}
 		
+		protected void plotVariants(final Canvas canvas) {
+			if(this.vcfPath==null) return;
+			double prev_x=-10000;
+			try(VCFReader reader = new VCFFileReader(this.vcfPath, true)) {
+				try(CloseableIterator<VariantContext> iter = reader.query(this.extendedInterval)) {
+					final VCFHeader header= reader.getHeader();
+					final Hyperlink hlink =Hyperlink.compile(header.getSequenceDictionary());
+					while(iter.hasNext()) {
+						final VariantContext ctx = iter.next();
+						if(!ctx.isVariant()) continue;
+						if(CoordMath.encloses(
+							ctx.getStart(), ctx.getEnd(),
+							this.extendedInterval.getStart(), this.extendedInterval.getEnd()
+							)) {
+							continue;
+							}
+						if(ctx.hasGenotypes() && !StringUtils.isBlank(this.sampleName)) {
+							final Genotype g = ctx.getGenotype(this.sampleName);
+							if(g==null) continue;//no read group in bam header
+							if(!g.hasAltAllele()) continue;
+							}
+						final double x1 = trimX(position2pixel(ctx.getStart()));
+						final double x2 = trimX(position2pixel(ctx.getEnd()+1));
+						
+						
+						if(x1>=x2 || (x2-x1) < 0.01) {
+							continue;
+							}
+						
+						if((int)prev_x==(int)x1) {
+							continue;
+							}
+						
+						prev_x=x1;
+						// draw variant
+						canvas.rect(
+							x1,
+							boundaries.getY(),
+							(x2-x1),
+							boundaries.getHeight(),
+							FunctionalMap.of(
+									Canvas.KEY_FILL,Color.MAGENTA,
+									Canvas.KEY_STROKE,null,
+									Canvas.KEY_HREF, hlink.apply(ctx).orElse(null),
+									Canvas.KEY_TITLE, ctx.getContig()+":"+ctx.getStart()+":"+ctx.getReference().getDisplayString()
+									)
+							);
+						
+						}
+					}
+				}
+			catch(Throwable err) {
+				LOG.error(err);
+				}
+			}
+		
+		
 		protected CloseableIterator<SAMRecord> query(final SamReader sr) {
 			final int extend = 100;//give a chance to get clipping
 			return sr.query(
@@ -229,8 +295,8 @@ public class CoverageGrid extends Launcher {
 					end = Math.max(getMateEnd(rec), end);
 					}
 				if(!(
-						(start <= userInterval.getStart() && userInterval.getStart()<=end ) ||
-						(start <= userInterval.getEnd() && userInterval.getEnd()<=end ) 
+						CoordMath.overlaps(start, end,userInterval.getStart(), userInterval.getStart() ) ||
+						CoordMath.overlaps(start, end,userInterval.getEnd(), userInterval.getEnd() )
 					))
 					{
 					return false;
@@ -239,19 +305,19 @@ public class CoverageGrid extends Launcher {
 			return true;
 			}
 		
-		protected void plotVerticalGuides(Canvas canvas) {
+		protected void plotVerticalGuides(final Canvas canvas) {
 			// draw original region vertical bounds 
 			if(!this.userInterval.equals(this.extendedInterval)) {
 				for( int i=0;i<2;i++) {
 					final int p = (i==0?userInterval.getStart():userInterval.getEnd());
-					final double x = position2pixel(p);
+					final double x = trimX(position2pixel(p));
 					canvas.line(
 							x,
-							boundaries.getY(),
+							this.boundaries.getY(),
 							x,
 							this.boundaries.getMaxY(),
 							FunctionalMap.of(
-								Canvas.KEY_STROKE,Color.GREEN,
+								Canvas.KEY_STROKE,Color.CYAN,
 								Canvas.KEY_TITLE, StringUtils.niceInt(p),
 								Canvas.KEY_STROKE_WIDTH,0.5
 								)
@@ -260,7 +326,7 @@ public class CoverageGrid extends Launcher {
 				}
 			}
 		
-		protected void plotFrame(Canvas canvas) {
+		protected void plotFrame(final Canvas canvas) {
 			// draw frame
 			canvas.rect(
 				boundaries.getX(),
@@ -293,6 +359,7 @@ public class CoverageGrid extends Launcher {
 					);
 				}
 			}
+		
 		abstract boolean loadData();
 		abstract void disposeData();
 		abstract void plot(Canvas canvas);
@@ -306,8 +373,10 @@ public class CoverageGrid extends Launcher {
 					}
 				}
 			catch(Throwable err) {
-				disposeData();
 				LOG.error(err);
+				}
+			finally {
+				disposeData();
 				}
 			}
 		}	
@@ -481,6 +550,7 @@ public class CoverageGrid extends Launcher {
 		     
 		     
 		     plotBackgroundFrame(canvas);
+		     plotVariants(canvas);
 			 plotVerticalGuides(canvas);
 
 		     for(final List<MiniReadPair> row:this.rows) {
@@ -681,6 +751,7 @@ public class CoverageGrid extends Launcher {
 
 			canvas.comment(this.sampleName);
 			plotBackgroundFrame(canvas);
+			plotVariants(canvas);
 			
 			canvas.text(
 					this.sampleName+" avgDP:"+(int)this.mean_depth.getAsDouble(),
@@ -958,14 +1029,17 @@ public int doWork(final List<String> args) {
 				orElseThrow(()->new IllegalArgumentException("Cannot parse interval:\""+this.intervalStr+"\""));
 		
 		final int mid_position = user_interval.getStart() + user_interval.getLengthOnReference()/2;
-		int new_len = (int)(user_interval.getLengthOnReference()* this.extendFactor);
-		int new_start = Math.max(1, mid_position-new_len/2);
-		int new_end = Math.min(dict.getSequence(user_interval.getContig()).getEnd(), mid_position+new_len/2);
+		final int new_len = (int)Math.max(
+				user_interval.getLengthOnReference()+2,
+				Math.ceil(user_interval.getLengthOnReference()* this.extendFactor)
+				);
+		final int new_start = Math.max(1, mid_position-new_len/2);
+		final int new_end = Math.min(dict.getSequence(user_interval.getContig()).getEnd(), mid_position+new_len/2);
 		final SimpleInterval extended_interval = new SimpleInterval(user_interval.getContig(),new_start,new_end);
 
 		final List<BamTask> tasks = new ArrayList<>(inputBams.size());
 		
-		int marginTop=50;
+		final int marginTop=50;
 
 		final int ncols = (int)Math.max(1,Math.floor(Math.sqrt(inputBams.size())));
 		final int nrows = (int)Math.max(1, Math.ceil(inputBams.size()/(double)ncols));
@@ -993,6 +1067,7 @@ public int doWork(final List<String> args) {
 				}
 			
 			task.bamPath = bamPath;
+			task.vcfPath = this.vcfFile;
 			task.referencePath = this.refPath;
 			task.userInterval = user_interval;
 			task.extendedInterval = extended_interval;

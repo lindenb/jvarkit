@@ -32,7 +32,6 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Closeable;
-import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalDouble;
 import java.util.Stack;
