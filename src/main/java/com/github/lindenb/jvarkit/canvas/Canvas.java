@@ -28,6 +28,7 @@ import java.awt.Color;
 import java.awt.Shape;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Closeable;
@@ -225,10 +226,7 @@ public abstract class Canvas implements Closeable {
 		}
 	
 	public Canvas line(double x1, double y1, double x2,double y2,FunctionalMap<String, Object> fm) {
-		return polyline(Arrays.asList(
-    			new Point2D.Double(x1,y1),
-    			new Point2D.Double(x2,y2)
-    			),fm);	
+		return shape(new Line2D.Double(x1, y1, x2, y2),fm.plus(KEY_FILL,null));	
 		}
 	
 	public  final Canvas line(double x1, double y1, double x2,double y2) {

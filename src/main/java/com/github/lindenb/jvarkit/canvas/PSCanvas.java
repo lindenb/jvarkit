@@ -25,8 +25,10 @@ package com.github.lindenb.jvarkit.canvas;
 
 import java.awt.Color;
 import java.awt.Shape;
+import java.awt.geom.Line2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
@@ -81,13 +83,34 @@ public class PSCanvas extends Canvas {
 		if(!StringUtils.isBlank(title)) {
 			this.w.println("%%Title: "+title);
 			}
+		this.w.println("/rect { 4 dict begin /h exch def /w exch def /y exch def /x exch def "+
+			"newpath "+
+			"x y moveto " +
+			"w 0 rlineto " +
+			"0 h neg rlineto " +
+			"w neg 0 rlineto " +
+			"0 h rlineto " +
+			"closepath " +
+			"end } def"
+			);
+		this.w.println("/square { 3 dict begin /w exch def /y exch def /x exch def "+
+			"x y w w rect " +
+			"end } def"
+			);
+		this.w.println("/ll { 4 dict begin /y2 exch def /x2 exch def /y1 exch def /x1 exch def "+
+			"newpath "+
+			"x1 y1 moveto " +
+			"x2 y2 lineto " +
+			"closepath " +
+			"end } def"
+			);
 		}
 	
 
 	
 	@Override
 	public void close() throws IOException {
-		this.w.println(" showpage");
+		this.w.println("\nshowpage");
 		this.w.println("% generated with jvarkit. Author: Pierre Lindenbaum PhD.");
 		this.w.println("%EOF");
 		this.w.flush();
@@ -214,6 +237,32 @@ public class PSCanvas extends Canvas {
 		}
 	
 	private void pathIterator(final Shape shape) {
+		if(shape instanceof Rectangle2D) {
+			final Rectangle2D rect = Rectangle2D.class.cast(shape);
+			w.append(coord(rect.getX(),rect.getY()));
+			w.append(" ");
+			if(rect.getWidth()==rect.getHeight()) {
+				w.append(round(inch(rect.getWidth())));
+				w.append(" square ");
+				}
+			else
+				{
+				w.append(round(inch(rect.getWidth())));
+				w.append(" ");
+				w.append(round(inch(rect.getHeight())));
+				w.append(" rect ");
+				}
+			return;
+			}
+		if(shape instanceof Line2D) {
+			final Line2D line = Line2D.class.cast(shape);
+			w.append(coord(line.getX1(),line.getY1()));
+			w.append(" ");
+			w.append(coord(line.getX2(),line.getY2()));
+			w.append(" ll ");
+			return;
+			}
+		
 		float coords[]=new float[6];
 		final PathIterator iter = shape.getPathIterator(null);
 		w.append(" newpath");
@@ -260,6 +309,12 @@ public class PSCanvas extends Canvas {
 		iter.next();
 		}
 	}
+	
+	
+	@Override
+	public Canvas line(double x1, double y1, double x2, double y2, FunctionalMap<String, Object> fm) {
+		return super.line(x1, y1, x2, y2, fm);
+		}
 	
 	@Override
 	public Canvas shape(final Shape shape, FunctionalMap<String, Object> fm) {

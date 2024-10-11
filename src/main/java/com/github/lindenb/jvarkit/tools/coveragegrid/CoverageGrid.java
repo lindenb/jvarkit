@@ -35,13 +35,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -88,7 +86,6 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 /**
 BEGIN_DOC
@@ -168,9 +165,9 @@ public class CoverageGrid extends Launcher {
 		Locatable userInterval;
 		Locatable extendedInterval;
 		Rectangle boundaries;
-		int status = -1;
 		final boolean inversion_mode;
 		final boolean overlap_boundaries;
+		Canvas canvas;
 		
 		protected BamTask() {
 			inversion_mode= CoverageGrid.this.dynaParams.getOrDefault("inversion_mode", "false").equals("true");
@@ -185,7 +182,6 @@ public class CoverageGrid extends Launcher {
 					validationStringency(ValidationStringency.LENIENT);
 			final SamReader sr= samReaderFactory.open(this.bamPath);
 			if(!sr.hasIndex()) {
-				this.status=-1;
 				throw new IOException("index missng for "+bamPath);
 				}
 			final SAMFileHeader hdr = sr.getFileHeader();
@@ -297,8 +293,23 @@ public class CoverageGrid extends Launcher {
 					);
 				}
 			}
-		
+		abstract boolean loadData();
+		abstract void disposeData();
 		abstract void plot(Canvas canvas);
+		@Override
+		public final void run() {
+			try {
+				if(loadData()) {
+					synchronized (this.canvas) {
+						plot(this.canvas);
+						}
+					}
+				}
+			catch(Throwable err) {
+				disposeData();
+				LOG.error(err);
+				}
+			}
 		}	
 
 	
@@ -306,7 +317,7 @@ public class CoverageGrid extends Launcher {
 		final boolean by_pair;
 		PileupTask(boolean by_pair) {
 			this.by_pair  = by_pair;
-		}
+			}
 		
 		/** simplified read */
 		private  class MiniRead implements Locatable {
@@ -401,7 +412,8 @@ public class CoverageGrid extends Launcher {
 		
 		final List<List<MiniReadPair>> rows = new ArrayList<>();
 		
-		void extractPileup() {
+		@Override
+		public boolean loadData() {
 			final Map<String,MiniReadPair> readName2pairs = new HashMap<>();
 			try(SamReader sr=openSamReader()) {
 				 try(CloseableIterator<SAMRecord> iter=this.query(sr)) {
@@ -452,16 +464,16 @@ public class CoverageGrid extends Launcher {
 				 	}
 				
 				 this.rows.addAll(pileup.getRows());
-				 this.status=0;
+				return true;
 				}//end samreader
 			catch(IOException err) {
-				 this.status=-1;
 				LOG.error(err);
+				return false;
 				}
 			}
+		
 		@Override
-		void plot(Canvas canvas) {
-			 if(this.status!=0) return;
+		void plot(final Canvas canvas) {
 		     final double featureHeight= Math.min(20,(this.boundaries.getHeight()/Math.max(1.0,(double)this.rows.size())));
 			 final boolean hide_insertions=  CoverageGrid.this.dynaParams.getOrDefault("hide_insertions", "false").equals("true");
 
@@ -574,12 +586,11 @@ public class CoverageGrid extends Launcher {
 					); 
 		 	plotFrame(canvas);
 			}
-		
 		@Override
-		public void run() {
-			this.extractPileup();
+		void disposeData() {
+			this.rows.clear();
+			}
 		}
-	}
 	
 	
 	private class CoverageTask extends BamTask {
@@ -590,9 +601,8 @@ public class CoverageGrid extends Launcher {
 			this.normalize_median=normalize_median;
 		}
 		
-		
-		void extractCoverage() {
-			
+		@Override
+		boolean loadData() {
 			final float[] array = new float[this.extendedInterval.getLengthOnReference()];
 			Arrays.fill(array, 0);
 			try(SamReader sr= openSamReader()) {
@@ -646,21 +656,20 @@ public class CoverageGrid extends Launcher {
 						}
 					this.coverage[i]=avg.getAsDouble();
 					}
-				this.status=0;
+				return true;
 				}
 			catch(Throwable err) {
 				LOG.error(err);
-				this.status=-1;
 				this.coverage=null;
+				return false;
 				}
 			}
 		@Override
-		public void run() {
-			this.extractCoverage();
+		void disposeData() {
+			this.coverage = null;
 			}
 		@Override
 		void plot(Canvas canvas) {
-			if(status!=0) return;
 			final double bottom_y = this.boundaries.getMaxY();
 			final double max_y_value = 
 					this.normalize_median ?
@@ -774,9 +783,8 @@ public class CoverageGrid extends Launcher {
 				}
 			return names;
 			}
-		
 		@Override
-		public void run() {
+		boolean loadData() {
 			try {
 				/* do not use IntervalTreeMap, it's too slow */
 				final List<Interval> intervals = new ArrayList<>(100_000);
@@ -792,7 +800,7 @@ public class CoverageGrid extends Launcher {
 						     }
 						}
 					}
-				algorithm.sort(intervals);
+				algorithm.sortIfNeeded(intervals);
 				this.square_size = Math.max(Math.min(this.boundaries.width, this.boundaries.height),1);
 				this.counts=new int[this.square_size*this.square_size];
 				for(int x=0;x<this.square_size;x++) {
@@ -807,18 +815,16 @@ public class CoverageGrid extends Launcher {
 						this.counts[y*this.square_size+x] = sety.size();
 						}
 					}
-				this.status=0;
+				return true;
 				}
 			catch(Throwable err) {
-				this.status=-1;
 				LOG.error(err);
+				return false;
+				}
 			}
-			
-		}
 
 		@Override
 		void plot(final Canvas canvas) {
-			if(status!=0) return;
 			final int margin_top = this.boundaries.y +  (this.boundaries.height - this.square_size)/2;
 			final int margin_left =  this.boundaries.x +   (this.boundaries.width - this.square_size)/2;
 
@@ -908,6 +914,10 @@ public class CoverageGrid extends Launcher {
 						Canvas.KEY_STROKE,Color.DARK_GRAY
 						)
 					);
+			}
+		@Override
+		void disposeData() {
+			this.counts=null;
 			}
 		}
 	/********************************************************************************************************************/
@@ -999,13 +1009,7 @@ public int doWork(final List<String> args) {
 				nr++;
 				}
 			}
-	    final ExecutorService executorService = Executors.newFixedThreadPool(this.nThreads);
-		for(int i=0; i < tasks.size();i+=this.nThreads) {
-			final List<BamTask> batch = tasks.subList(i, Math.min(i + this.nThreads, tasks.size()));
-			batch.forEach(executorService::execute);
-			}
-		executorService.shutdown();
-		executorService.awaitTermination(365, TimeUnit.DAYS);
+	   
 		
 		final String title= SequenceDictionaryUtils.getBuildName(dict).orElse("") + " "+ 
 				user_interval.toNiceString()+
@@ -1028,7 +1032,10 @@ public int doWork(final List<String> args) {
 			{
 			final int fontSize=Math.min(14,marginTop);
 			final String url =Hyperlink.compile(dict).apply(extended_interval).orElse(null);
-			
+
+			for(BamTask task: tasks) {
+				task.canvas = canvas;
+				}
 			
 			canvas.text(
 					title,
@@ -1043,13 +1050,15 @@ public int doWork(final List<String> args) {
 					);
 		
 			
-			for(BamTask task: tasks) {
-				canvas.begin(FunctionalMap.make());
-				task.plot(canvas);
-				canvas.end();
+			 final ExecutorService executorService = Executors.newFixedThreadPool(this.nThreads);
+				for(int i=0; i < tasks.size();i+=this.nThreads) {
+					final List<BamTask> batch = tasks.subList(i, Math.min(i + this.nThreads, tasks.size()));
+					LOG.info("submit "+batch.stream().map(F->F.bamPath.getFileName().toString()).collect(Collectors.joining(" ")));
+					batch.forEach(executorService::execute);
+					}
+				executorService.shutdown();
+				executorService.awaitTermination(365, TimeUnit.DAYS);
 				}
-			
-			}
 			
 	
 		return 0;
