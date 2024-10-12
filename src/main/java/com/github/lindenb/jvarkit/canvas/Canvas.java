@@ -151,6 +151,7 @@ public abstract class Canvas implements Closeable {
 	protected double getStrokeWidth() {
 		return toDouble(this.states.peek().getOrDefault(KEY_STROKE_WIDTH, null)).orElse(0.0);
 		}
+		
 	public abstract int getWidth();
 	public abstract int getHeight();
 	public Canvas begin(final FunctionalMap<String, Object> fm) {

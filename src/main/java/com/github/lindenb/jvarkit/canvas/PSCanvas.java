@@ -25,6 +25,8 @@ package com.github.lindenb.jvarkit.canvas;
 
 import java.awt.Color;
 import java.awt.Shape;
+import java.awt.geom.Arc2D;
+import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.PathIterator;
@@ -88,6 +90,9 @@ public class PSCanvas extends Canvas {
 			this.w.println("%%Title: "+title);
 			}
 		this.w.println("/rd { rlineto } def ");
+		for(int i=1;i<=10;i++) {
+			this.w.println("/slw"+i+" { "+i+" setlinewidth } def");
+		}
 		
 		this.w.println("/rect { 4 dict begin /h exch def /w exch def /y exch def /x exch def "+
 			"newpath "+
@@ -173,6 +178,14 @@ public class PSCanvas extends Canvas {
 				);
 		}
 	
+	
+	private String setLineWidth(double linewidth) {
+		for(int i=1;i<=10;i++) {
+			if(i==linewidth) return "slw"+(int)linewidth;
+			}
+		return round(inch(linewidth))+" setlinewidth";
+		}
+	
 	private Canvas fillAndStroke(Shape shape) {
 		boolean gsave_set=false;
 		Color c= getFillColor();
@@ -195,8 +208,8 @@ public class PSCanvas extends Canvas {
 					gsave_set = true;
 					}
 				w.print(" ");
-				w.print(round(inch(linewidth)));
-				w.print(" setlinewidth ");
+				w.print(setLineWidth(linewidth));
+				w.print(" ");
 				w.print(setrgbcolor(c));
 				w.print(" stroke");
 				}
@@ -248,8 +261,8 @@ public class PSCanvas extends Canvas {
 			final Color c= getStrokeColor();
 			if(c!=null) {
 				w.print(" gsave ");
-				w.print(round(inch(linewidth)));
-				w.print(" setlinewidth ");
+				w.print(setLineWidth(linewidth));
+				w.print("  ");
 				w.print(setrgbcolor(c));
 
 				for(int i=0;i< points.size();++i) {
@@ -303,11 +316,22 @@ public class PSCanvas extends Canvas {
 				return;
 				}
 			}
+		
 		float prev_x=0;
 		float prev_y=0;
 		final float coords[]=new float[6];
-		final PathIterator iter = shape.getPathIterator(null);
-		w.append(" newpath");
+		PathIterator iter = shape.getPathIterator(null);
+		boolean has_close_path=false;
+		while(!iter.isDone()) {
+			if(iter.currentSegment(coords)== PathIterator.SEG_CLOSE)
+				{
+				has_close_path=true;
+				break;
+				}
+			iter.next();
+			}
+		iter = shape.getPathIterator(null);
+		if(has_close_path) w.append(" newpath");
 		while(!iter.isDone()) {
 			switch(iter.currentSegment(coords))
 			{
@@ -346,8 +370,7 @@ public class PSCanvas extends Canvas {
 				}
 			case PathIterator.SEG_QUADTO:
 				{
-				//TODO
-				break;
+				throw new IllegalArgumentException("Quad curves are not supported in postscript canvas");
 				}
 			case PathIterator.SEG_CUBICTO:
 				{

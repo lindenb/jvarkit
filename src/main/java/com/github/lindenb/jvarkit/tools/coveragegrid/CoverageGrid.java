@@ -29,6 +29,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.geom.Arc2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
@@ -86,6 +87,8 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
+import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
@@ -126,7 +129,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class CoverageGrid extends Launcher {
-	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID};
+	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT};
 	private static final Logger LOG = Logger.build( CoverageGrid.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -153,12 +156,13 @@ public class CoverageGrid extends Launcher {
 	@Parameter(names= {"--gtf"},description="indexed GTF file to show genes")
 	private String gtfFile=null;
 	
-	@Parameter(names= {"--type"},description="Plot type. "
+	@Parameter(names= {"--type","--what","--plot"},description="Plot type. "
 			+ "COVERAGE: DEPTH coverage, "
 			+ "MEDIAN_COVERAGE: coverage normalize by external boundaries, "
 			+ "PILEUP: show reads, "
 			+ "PILEUP_PAIR: show paired fragments, "
-			+ "GRID: matrix of read name co-occurence. Slow and memory consuming."
+			+ "GRID: matrix of read name co-occurence. Slow and memory consuming.,"
+			+ "DISCORDANT: plot discordant reads as arcs overlaping edges of interval"
 			)
 	private PlotType plotType = PlotType.MEDIAN_COVERAGE;
 	@DynamicParameter(names = "-D", description = "other parameters '-Dkey=value'. "+
@@ -183,6 +187,7 @@ public class CoverageGrid extends Launcher {
 		final boolean overlap_boundaries;
 		Path vcfPath;
 		String gtfPath;
+		byte[] reference_bases;
 		Canvas canvas;
 		
 		protected BamTask() {
@@ -218,9 +223,13 @@ public class CoverageGrid extends Launcher {
 					((pos-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference())*this.boundaries.getWidth();
 			}
 		
+		protected double getGeneMidY() {
+			return (float)Math.max(this.boundaries.getY(),this.boundaries.getMaxY()-4);
+		}
+		
 		protected void plotGenes(final Canvas canvas) {
 			if(this.gtfPath==null) return;
-			final float midy=(float)Math.max(this.boundaries.getY(),this.boundaries.getMaxY()-4);
+			final float midy=(float)getGeneMidY();
 			final GTFCodec codec=new GTFCodec();
 			try(TabixReader tabix = new TabixReader(this.gtfPath)) {
 				for(int step=0;step< 3;++step) {
@@ -241,7 +250,7 @@ public class CoverageGrid extends Launcher {
 						if(line==null) break;
 						final GTFLine feat=codec.decode(line);
 						if(feat==null) continue;
-						if(feat.getType().equals(expect)) continue;
+						if(!feat.getType().equals(expect)) continue;
 						final double x1= trimX(position2pixel(feat.getStart()));
 						final double x2= trimX(position2pixel(feat.getEnd()+1));
 						if(x1>=x2) continue;
@@ -290,12 +299,14 @@ public class CoverageGrid extends Launcher {
 			if(this.vcfPath==null) return;
 			double prev_x=-10000;
 			try(VCFReader reader = new VCFFileReader(this.vcfPath, true)) {
+				final VCFHeader header= reader.getHeader();
+				final Hyperlink hlink =Hyperlink.compile(header.getSequenceDictionary());
 				try(CloseableIterator<VariantContext> iter = reader.query(this.extendedInterval)) {
-					final VCFHeader header= reader.getHeader();
-					final Hyperlink hlink =Hyperlink.compile(header.getSequenceDictionary());
 					while(iter.hasNext()) {
 						final VariantContext ctx = iter.next();
+
 						if(!ctx.isVariant()) continue;
+
 						if(CoordMath.encloses(
 							ctx.getStart(), ctx.getEnd(),
 							this.extendedInterval.getStart(), this.extendedInterval.getEnd()
@@ -384,7 +395,7 @@ public class CoverageGrid extends Launcher {
 			// draw original region vertical bounds 
 			if(!this.userInterval.equals(this.extendedInterval)) {
 				for( int i=0;i<2;i++) {
-					final int p = (i==0?userInterval.getStart():userInterval.getEnd());
+					final int p = (i==0?userInterval.getStart():userInterval.getEnd()+1);
 					final double x = trimX(position2pixel(p));
 					canvas.line(
 							x,
@@ -418,8 +429,8 @@ public class CoverageGrid extends Launcher {
 		protected void plotBackgroundFrame(Canvas canvas) {
 			
 			for(int i=0;i< 2;i++) {
-				double x1 = trimX(position2pixel(i==0?this.extendedInterval.getStart():this.userInterval.getEnd()));
-				double x2 = trimX(position2pixel(i==0?this.userInterval.getStart():this.extendedInterval.getEnd()));
+				double x1 = trimX(position2pixel(i==0?this.extendedInterval.getStart():this.userInterval.getEnd()+1));
+				double x2 = trimX(position2pixel(i==0?this.userInterval.getStart():this.extendedInterval.getEnd()+1));
 				if(x1>=x2) continue;
 				// draw frame
 				canvas.rect(
@@ -440,6 +451,7 @@ public class CoverageGrid extends Launcher {
 		abstract void plot(Canvas canvas);
 		@Override
 		public final void run() {
+			System.err.println("submit "+this.bamPath.getFileName().toString());
 			try {
 				if(loadData()) {
 					synchronized (this.canvas) {
@@ -456,7 +468,10 @@ public class CoverageGrid extends Launcher {
 			}
 		}	
 
-	
+	/***************************************************************************************************************************/
+	/***************************************************************************************************************************/
+	/***************************************************************************************************************************/
+
 	private class PileupTask extends BamTask {
 		final boolean by_pair;
 		PileupTask(boolean by_pair) {
@@ -469,6 +484,7 @@ public class CoverageGrid extends Launcher {
 			final int end;
 			final Cigar cigar;
 			final int flags;
+			Set<Integer> mistmatches = null;
 			MiniRead(int start,int end,Cigar cigar,int flags) {
 				this.start= start;
 				this.end = end;
@@ -478,12 +494,15 @@ public class CoverageGrid extends Launcher {
 			MiniRead(final SAMRecord rec) {
 				this(rec.getAlignmentStart(),rec.getAlignmentEnd(),rec.getCigar(),rec.getFlags());
 				}
+			@Override
 			public String getContig() {
 				return PileupTask.this.extendedInterval.getContig();
 				}
+			@Override
 			public int getStart() {
 				return start;
 				}
+			@Override
 			public int getEnd() {
 				return end;
 				}
@@ -491,10 +510,10 @@ public class CoverageGrid extends Launcher {
 				return cigar;
 				}
 			public int getUnclippedStart() {
-				return SAMUtils.getUnclippedStart(getStart(), cigar);
+				return SAMUtils.getUnclippedStart(getStart(), getCigar());
 				}
 			public int getUnclippedEnd() {
-				return SAMUtils.getUnclippedEnd(getEnd(), cigar);
+				return SAMUtils.getUnclippedEnd(getEnd(), getCigar());
 				}
 			private boolean testFlag(SAMFlag flg) {
 				return (this.flags & flg.intValue()) != 0;
@@ -554,7 +573,7 @@ public class CoverageGrid extends Launcher {
 			}
 
 		
-		final List<List<MiniReadPair>> rows = new ArrayList<>();
+		private final List<List<MiniReadPair>> rows = new ArrayList<>();
 		
 		@Override
 		public boolean loadData() {
@@ -568,6 +587,64 @@ public class CoverageGrid extends Launcher {
 						 if(cigar==null || cigar.isEmpty()) continue;
 						 
 						 final MiniRead rec = new MiniRead(rec0);
+						 
+						 /** record mismatch ? */
+						 if((this.boundaries.getWidth()/(double)this.extendedInterval.getLengthOnReference())>=3 &&
+								 rec0.getReadBases()!=null &&
+								 rec0.getReadBases()!=SAMRecord.NULL_SEQUENCE) {
+							 	int read0=0;
+				   	     		int ref1 = rec0.getAlignmentStart();
+				   	     		
+							 	final byte bases[]=rec0.getReadBases();
+					   	     	for(CigarElement ce: cigar.getCigarElements()) {
+					    			if(ref1> this.extendedInterval.getEnd()) {
+					    				break;
+					    				}
+					   	     		
+
+					    			final CigarOperator op=ce.getOperator();
+					    			switch(op) {
+					    			case P:break;
+					    			case H:break;
+					    			case D: case N: ref1+=ce.getLength(); break;
+					    			case S: case I: read0+=ce.getLength(); break;
+					    			case EQ:case M: case X:
+					    				{
+					    				for(int j=0;j< ce.getLength();j++) {
+					    					if(ref1+ j <  this.extendedInterval.getStart()) {
+					    						continue;
+					    						}
+					    					if(ref1+ j > this.extendedInterval.getEnd()) {
+					    						break;
+					    						}
+					    					final int ref_base_idx = ref1-this.extendedInterval.getStart()+j;
+					    					final char ctgBase =(char)(ref_base_idx<0 || ref_base_idx>= this.reference_bases.length?'N':Character.toUpperCase(this.reference_bases[ref_base_idx]));
+					    					
+					    					if(ctgBase=='N') {
+					    						continue;
+					    						}
+					    					final char readBase = (char)(read0<0 || read0>= bases.length?'N':Character.toUpperCase(bases[read0+j]));
+					    					if(readBase=='N') {
+					    						continue;
+					    						}
+
+					    					
+					    					if(readBase==ctgBase) {
+					    						continue;
+					    						}
+					    					if(rec.mistmatches==null) rec.mistmatches = new HashSet<>();
+					    					rec.mistmatches.add(ref1+j);
+					    					}
+					    				read0+=ce.getLength();
+					    				ref1+=ce.getLength();
+					    			
+					    				break;
+					    				}
+					    			default:break;
+				    				}
+				   	     		}
+						 	}
+						 
 						 final String pair_name = this.by_pair ? rec0.getReadName(): rec0.getPairedReadName();
 						 MiniReadPair pair=readName2pairs.get(pair_name);
 						 if(pair==null) {
@@ -580,7 +657,7 @@ public class CoverageGrid extends Launcher {
 								final int mate_end = getMateEnd(rec0);
 								final int mate_flags = SAMFlag.READ_PAIRED.intValue()+
 										(rec0.getFirstOfPairFlag()?SAMFlag.SECOND_OF_PAIR.intValue():SAMFlag.FIRST_OF_PAIR.intValue())+
-										(rec0.getReadNegativeStrandFlag()?0:SAMFlag.READ_REVERSE_STRAND.intValue()) +
+										(rec0.getMateNegativeStrandFlag()?SAMFlag.READ_REVERSE_STRAND.intValue():0) +
 										(rec0.getReadNegativeStrandFlag()?SAMFlag.MATE_REVERSE_STRAND.intValue():0)  +
 										(rec0.getProperPairFlag()?SAMFlag.PROPER_PAIR.intValue():0) 
 										;
@@ -630,25 +707,31 @@ public class CoverageGrid extends Launcher {
 			 plotVerticalGuides(canvas);
 
 		     for(final List<MiniReadPair> row:this.rows) {
-		    	final double h2= Math.max(featureHeight*0.9,featureHeight-2);
+		    	final double h2= Math.max(featureHeight*0.8,featureHeight-2);
 		    	for(final MiniReadPair pair: row) {		    
 		    		final List<Integer> insertions = new ArrayList<>();
 		    		/* draw rec itself */
 		    		final double midy=y+h2/2.0;
-		    		canvas.line(
+		    		if(pair.R2!=null || 
+		    				/* is there a deletion */ pair.R1.getCigar().getCigarElements().
+		    				stream().
+		    				map(CE->CE.getOperator()).
+		    				anyMatch(O->O.equals(CigarOperator.N) || O.equals(CigarOperator.D))
+		    				) {
+		    			canvas.line(
 		    				trimX(position2pixel(pair.getStart())),
 		    				midy,
-		    				trimX(position2pixel(pair.getEnd())),
+		    				trimX(position2pixel(pair.getEnd()+1)),
 		    				midy,
 		    				FunctionalMap.of(
 	    						Canvas.KEY_STROKE, pair.isStrangelyPaired()? Color.RED:Color.GRAY,
 	    						Canvas.KEY_STROKE_WIDTH, 0.1
 	    						)
 		    				);
+			    		}
 		    		
 			    	for(MiniRead rec:pair) {
-			    		final int unclipped_start = rec.getUnclippedStart();
-			    		int ref1 = unclipped_start;
+			    		int ref1 = rec.getUnclippedStart();
 			    		for(final CigarElement ce: rec.getCigar().getCigarElements()) {
 			    			if(ref1> this.extendedInterval.getEnd()) break;
 			    			final CigarOperator op=ce.getOperator();
@@ -663,7 +746,7 @@ public class CoverageGrid extends Launcher {
 			    				case S: //through
 			    				case H: 
 			    						final double x1= trimX(position2pixel(ref1));
-			    						final double x2 =trimX(position2pixel(ref1+ce.getLength()+1));
+			    						final double x2 =trimX(position2pixel(ref1+ce.getLength()));
 			    						if(x1 < x2) {
 				    						shape = new Rectangle2D.Double(
 					    						x1,
@@ -693,14 +776,29 @@ public class CoverageGrid extends Launcher {
 		    						FunctionalMap.of(
 	    	    						Canvas.KEY_FILL,fill,
 	    	    						Canvas.KEY_STROKE,(h2>4?stroke:null),
-	    	    						Canvas.KEY_STROKE_WIDTH, 1
+	    	    						Canvas.KEY_STROKE_WIDTH, 0.1
 	    	    						)
 		    						);
 			    				}
 			    			} // end loop cigar
 			    		
-			    		
-			    		
+			    		if(rec.mistmatches!=null) {
+			    			for(int pos:rec.mistmatches) {
+			    				final double x1 = trimX(position2pixel(pos));
+			    				final double x2 = trimX(position2pixel(pos+1));
+			    				if(x1>=x2) continue;
+				    			canvas.rect(
+					    				x1,
+					    				y,
+					    				(x2-x1),
+					    				h2,
+					    				FunctionalMap.of(
+				    						Canvas.KEY_STROKE, null,
+				    						Canvas.KEY_FILL,Color.ORANGE
+				    						)
+					    				);
+				    			}
+			    			}
 			    		
 			    		for(int px:insertions) {
 			    			canvas.line(
@@ -737,7 +835,10 @@ public class CoverageGrid extends Launcher {
 			this.rows.clear();
 			}
 		}
-	
+	/***************************************************************************************************************************/
+	/***************************************************************************************************************************/
+	/***************************************************************************************************************************/
+
 	
 	private class CoverageTask extends BamTask {
 		double[] coverage = null;
@@ -794,13 +895,13 @@ public class CoverageGrid extends Launcher {
 					}
 				for(int i=0;i< this.coverage.length;i++) {
 					      int x1 = (int)(((i+0)/(double) this.coverage.length)*array.length);
-					final int x2 = (int)(((i+1)/(double) this.coverage.length)*array.length);
+					final int x2 = Math.max((int)(((i+1)/(double) this.coverage.length)*array.length),x1+1);
 					final Average avg=new Average();
 					while(x1<x2 && x1 < array.length) {
 						avg.accept(array[x1]);
 						x1++;
 						}
-					this.coverage[i]=avg.getAsDouble();
+					this.coverage[i]=avg.get().orElse(0);
 					}
 				return true;
 				}
@@ -1068,7 +1169,142 @@ public class CoverageGrid extends Launcher {
 			this.counts=null;
 			}
 		}
-	/********************************************************************************************************************/
+	
+	/**************************************************************************
+	 * 
+	 * DiscordantReadsTask : plot arcs of paired reads
+	 *
+	 */
+	private class DiscordantReadsTask extends BamTask {
+		private  class Arc  {
+			int p1;
+			int p2;
+			String name;
+			boolean discordant;
+			public double getX1() {
+				return position2pixel(p1);
+				}
+			public double getX2() {
+				return position2pixel(p2);
+				}
+			}
+		
+		final List<Arc> arcs =new ArrayList<>();
+		@Override
+		boolean loadData() {
+			
+			try(SamReader sr=openSamReader()) {
+				try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
+					while(iter.hasNext()) {
+						final SAMRecord rec = iter.next();
+						if(!rec.getReadPairedFlag()) continue;
+						if(rec.getMateUnmappedFlag()) continue;
+						if(!rec.getMateReferenceName().equals(this.extendedInterval.getContig())) continue;
+						if(!acceptRead(rec)) continue;
+						final Arc arc = new Arc();
+						arc.name = rec.getReadName();
+						arc.p1 = Math.min(rec.getAlignmentStart(), rec.getMateAlignmentStart());
+						arc.p2 = Math.max(rec.getAlignmentEnd(), getMateEnd(rec));
+						if(!CoordMath.encloses(this.extendedInterval.getStart(), this.extendedInterval.getEnd(), arc.p1, arc.p2)) continue;
+						arc.discordant = !rec.getProperPairFlag() || rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag();
+						if(!(
+							CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getStart(), this.userInterval.getStart()) ||
+							CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getEnd(), this.userInterval.getEnd())
+							)) continue;
+						final Arc other=this.arcs.stream().
+								filter(A->A.name.equals(arc.name)).
+								findAny().
+								orElse(null);
+						if(other!=null) {
+							other.p1 = Math.min(other.p1,arc.p1);
+							other.p2 = Math.max(other.p2,arc.p2);
+							}
+						else
+							{
+							arcs.add(arc);
+							}
+						}
+					}
+				return true;
+				}
+			catch(Throwable err) {
+				LOG.error(err);
+				return false;
+				}
+			}
+		protected double getGeneMidY() {
+			return this.boundaries.getCenterY();
+			}
+		@Override
+		void plot(final Canvas canvas) {
+			 canvas.comment(this.sampleName);
+		     final double midy=getGeneMidY();
+		     plotBackgroundFrame(canvas);
+		     plotVariants(canvas);
+		     plotVerticalGuides(canvas);
+		     final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
+		     canvas.text(
+						this.sampleName+" "+
+							this.arcs.stream().filter(A->A.discordant).count()+
+							" / "+
+							this.arcs.stream().filter(A->!A.discordant).count(),
+						this.boundaries.getX()+1,
+						this.boundaries.getY()+fontSize+3,
+						FunctionalMap.of(
+							Canvas.KEY_FONT_SIZE, fontSize,
+							Canvas.KEY_STROKE, null,
+							Canvas.KEY_FILL, Color.DARK_GRAY,
+							Canvas.KEY_TITLE,this.sampleName+" "+this.bamPath
+							)
+						);
+		     
+		     // horizontal line
+		     canvas.line(
+		    		 this.boundaries.getX(),
+		    		 midy,
+		    		 this.boundaries.getMaxX(),
+		    		 midy,
+	    			FunctionalMap.of(
+    					Canvas.KEY_STROKE,Color.DARK_GRAY,
+    					Canvas.KEY_STROKE_WIDTH,0.1
+    					)
+	    			);
+		     
+		     plotGenes(canvas);
+		     Collections.shuffle(arcs);//shuffle for random colors below
+		     for(int i=0;i< arcs.size();++i) {
+		    	final Arc arc= this.arcs.get(i);
+		    	final double len = arc.getX2()-arc.getX1();
+		    	final double height = Math.min(((this.boundaries.getHeight()*0.9)/1.0),len) ;
+		    			    	
+		    	final Arc2D path =new Arc2D.Double(
+		    			new Rectangle2D.Double(
+			    			arc.getX1(),
+			    			midy - height/2,
+			    			(arc.getX2()-arc.getX1()),
+			    			height
+			    			),
+		    			(arc.discordant?0:180),
+		    			180,
+		    			Arc2D.OPEN
+		    			);
+		    	canvas.shape(path,
+	    			FunctionalMap.of(
+    					Canvas.KEY_FILL, null,
+    					Canvas.KEY_STROKE,	Color.getHSBColor( (arc.discordant?0.f:0.3f)+0.1f*(i/(float)arcs.size()), 0.5f, 0.75f),
+    					Canvas.KEY_STROKE_WIDTH,0.1
+    					)
+	    			);
+		     	}
+			
+			plotFrame(canvas);
+			}
+		@Override
+		void disposeData() {
+			arcs.clear();
+			}
+	}
+/********************************************************************************************************************/
 	
 /** get mate end position or mate-start */
 private static int getMateEnd(final SAMRecord rec0) {
@@ -1089,8 +1325,6 @@ public int doWork(final List<String> args) {
 			}
 		
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
-		
-		
 		
 		
 		final List<Path> inputBams =  IOUtils.unrollPaths(args);
@@ -1130,8 +1364,16 @@ public int doWork(final List<String> args) {
 			return -1;
 			}
 		
+		final byte[] bases;
 		int nr=0;
 		int nc=0;
+		try(ReferenceSequenceFile refseq = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.refPath) ) {
+			bases = refseq.getSubsequenceAt(
+					extended_interval.getContig(),
+					extended_interval.getStart(),
+					extended_interval.getEnd()
+					).getBases();
+			}
 		
 		for(final Path bamPath: inputBams) {
 			final BamTask task ;
@@ -1140,9 +1382,14 @@ public int doWork(final List<String> args) {
 				case PILEUP: task= new PileupTask(false); break;
 				case PILEUP_PAIR: task= new PileupTask(true); break;
 				case COVERAGE:  task = new CoverageTask(false); break;
-				default: task = new CoverageTask(true); break;
+				case DISCORDANT: task = new DiscordantReadsTask();break;
+				case MEDIAN_COVERAGE: task= new CoverageTask(true);break;
+				default: {
+					LOG.error("unedefine "+this.plotType);
+					return -1;
+					}
 				}
-			
+			task.reference_bases = bases;
 			task.bamPath = bamPath;
 			task.vcfPath = this.vcfFile;
 			task.gtfPath = this.gtfFile;
@@ -1206,7 +1453,6 @@ public int doWork(final List<String> args) {
 			 final ExecutorService executorService = Executors.newFixedThreadPool(this.nThreads);
 				for(int i=0; i < tasks.size();i+=this.nThreads) {
 					final List<BamTask> batch = tasks.subList(i, Math.min(i + this.nThreads, tasks.size()));
-					LOG.info("submit "+batch.stream().map(F->F.bamPath.getFileName().toString()).collect(Collectors.joining(" ")));
 					batch.forEach(executorService::execute);
 					}
 				executorService.shutdown();

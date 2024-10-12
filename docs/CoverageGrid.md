@@ -53,13 +53,14 @@ Usage: coveragegrid [options] Files
     --title
       Set Title for graphics
       Default: <empty string>
-    --type
+    --type, --what, --plot
       Plot type. COVERAGE: DEPTH coverage, MEDIAN_COVERAGE: coverage normalize 
       by external boundaries, PILEUP: show reads, PILEUP_PAIR: show paired 
       fragments, GRID: matrix of read name co-occurence. Slow and memory 
-      consuming. 
+      consuming.,DISCORDANT: plot discordant reads as arcs overlaping edges of 
+      interval 
       Default: MEDIAN_COVERAGE
-      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID]
+      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID, DISCORDANT]
     --vcf
       indexed VCF file to show variants
     --version
@@ -127,6 +128,5 @@ output is a HTML+SVG file
 find dir -type f -name "*bam" > in.list 
 java -jar dist/jvarkit.jar coveragegrid -R src/test/resources/rotavirus_rf.fa --region "RF01:100-200" in.list
 ```
-
 
 
