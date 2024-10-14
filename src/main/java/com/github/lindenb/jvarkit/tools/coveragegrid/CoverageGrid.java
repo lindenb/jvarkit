@@ -204,6 +204,7 @@ public class CoverageGrid extends Launcher {
 		String gtfPath;
 		byte[] reference_bases;
 		Canvas canvas;
+		SAMSequenceDictionary bamSequenceDictionary = null;
 		
 		protected BamTask() {
 			inversion_mode= CoverageGrid.this.dynaParams.getOrDefault("inversion_mode", "false").equals("true");
@@ -221,6 +222,7 @@ public class CoverageGrid extends Launcher {
 				throw new IOException("index missng for "+bamPath);
 				}
 			final SAMFileHeader hdr = sr.getFileHeader();
+			this.bamSequenceDictionary  = hdr.getSequenceDictionary();
 			this.bamSampleName = hdr.getReadGroups().
 					stream().
 					map(RG->RG.getSample()).
@@ -854,6 +856,7 @@ public class CoverageGrid extends Launcher {
 		@Override
 		void disposeData() {
 			this.rows.clear();
+			this.bamSequenceDictionary = null;
 			}
 		}
 	/***************************************************************************************************************************/
@@ -935,6 +938,7 @@ public class CoverageGrid extends Launcher {
 		@Override
 		void disposeData() {
 			this.coverage = null;
+			this.bamSequenceDictionary = null;
 			}
 		@Override
 		void plot(Canvas canvas) {
@@ -1188,6 +1192,7 @@ public class CoverageGrid extends Launcher {
 		@Override
 		void disposeData() {
 			this.counts=null;
+			this.bamSequenceDictionary = null;
 			}
 		}
 	
@@ -1304,6 +1309,7 @@ public class CoverageGrid extends Launcher {
 		     
 		     
 		     final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
+		     final Hyperlink hyperlink = Hyperlink.compile(this.bamSequenceDictionary);
 		     canvas.text(
 						this.sampleName+" "+
 							pileup.stream().flatMap(T->T.stream()).filter(A->A.discordant).count()+
@@ -1315,7 +1321,8 @@ public class CoverageGrid extends Launcher {
 							Canvas.KEY_FONT_SIZE, fontSize,
 							Canvas.KEY_STROKE, null,
 							Canvas.KEY_FILL, Color.DARK_GRAY,
-							Canvas.KEY_TITLE,this.sampleName+" "+this.bamPath
+							Canvas.KEY_TITLE,this.sampleName+" "+this.bamPath,
+							Canvas.KEY_HREF,hyperlink.apply(this.extendedInterval).orElse(null)
 							)
 						);
 		     
@@ -1371,6 +1378,7 @@ public class CoverageGrid extends Launcher {
 		@Override
 		void disposeData() {
 			arcs.clear();
+			this.bamSequenceDictionary = null;
 			}
 	}
 /********************************************************************************************************************/

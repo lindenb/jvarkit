@@ -92,6 +92,14 @@ public static boolean isGRCh38(final SAMSequenceDictionary dict) {
 	return hasChrom1(dict,248_956_422);
 	}
 
+
+/** test if dict looks like rotavirus RF (for testing purpose)  */
+public static boolean isRotavirusRF(final SAMSequenceDictionary dict) {
+	final SAMSequenceRecord ssr=dict.getSequence("RF01");
+	return dict.size()==11 && ssr!=null && ssr.getLengthOnReference()==3302;
+	}
+
+
 /** test if dict looks like T2T CHM13 v2  */
 public static boolean isCHM13v2(final SAMSequenceDictionary dict) {
 	return hasChrom1(dict,248_387_328);

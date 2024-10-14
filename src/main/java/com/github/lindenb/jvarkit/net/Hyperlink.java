@@ -124,6 +124,10 @@ public interface Hyperlink extends Function<Locatable,Optional<String>> {
 		else if(s.equals("igv")) {
 			s="http://"+IgvConstants.DEFAULT_HOST+":"+IgvConstants.DEFAULT_PORT+"/goto?locus=__CHROM__%3A__START__-__END__";
 			}
+		/* for testing purpose only */
+		else if(s.equals("rotavirus_rf")) {
+			s="https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=10933&locus=__CHROM__%3A__START__-__END__";
+			}
 		final HyperkinkImpl h= new HyperkinkImpl(s);
 		h.convertContig = convert;
 		return h;
@@ -134,6 +138,7 @@ public interface Hyperlink extends Function<Locatable,Optional<String>> {
 		if(dict==null || dict.isEmpty()) return empty();
 		if(SequenceDictionaryUtils.isGRCh37(dict)) return compile("hg19");
 		if(SequenceDictionaryUtils.isGRCh38(dict)) return compile("hg38");
+		if(SequenceDictionaryUtils.isRotavirusRF(dict)) return compile("rotavirus_rf");
 		return empty();
 		}
 

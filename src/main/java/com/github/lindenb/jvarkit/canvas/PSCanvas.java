@@ -25,8 +25,6 @@ package com.github.lindenb.jvarkit.canvas;
 
 import java.awt.Color;
 import java.awt.Shape;
-import java.awt.geom.Arc2D;
-import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
 import java.awt.geom.PathIterator;
@@ -89,6 +87,38 @@ public class PSCanvas extends Canvas {
 		if(!StringUtils.isBlank(title)) {
 			this.w.println("%%Title: "+title);
 			}
+		
+		// https://opensource.adobe.com/dc-acrobat-sdk-docs/library/pdfmark/pdfmark_Syntax.html
+		this.w.println("%%BeginProlog");
+		this.w.println("  /pdfmark where");
+		this.w.println("% Is pdfmark already available?");
+		this.w.println("");
+		this.w.println("      { pop }");
+		this.w.println("% Yes: do nothing (use that definition)");
+		this.w.println("");
+		this.w.println("      {");
+		this.w.println("% No: define pdfmark as follows:");
+		this.w.println("");
+		this.w.println("      /globaldict where");
+		this.w.println("% globaldict is preferred because");
+		this.w.println("");
+		this.w.println("          { pop globaldict }");
+		this.w.println("% globaldict is always visible; else,");
+		this.w.println("");
+		this.w.println("          { userdict }");
+		this.w.println("% use userdict otherwise.");
+		this.w.println("");
+		this.w.println("      ifelse");
+		this.w.println("      /pdfmark /cleartomark load put");
+		this.w.println("      }");
+		this.w.println("% Define pdfmark to remove all objects");
+		this.w.println("");
+		this.w.println("  ifelse");
+		this.w.println("% up to and including the mark object.");
+		this.w.println("%%EndProlog");
+
+		
+		
 		this.w.println("/rd { rlineto } def ");
 		for(int i=1;i<=10;i++) {
 			this.w.println("/slw"+i+" { "+i+" setlinewidth } def");
@@ -224,19 +254,22 @@ public class PSCanvas extends Canvas {
 		return StringUtils.escapePostscript(s);
 		}
 	@Override
-	public Canvas text(String text, double x, double y, FunctionalMap<String, Object> fm) {
+	public Canvas text(final String text, double x, double y, FunctionalMap<String, Object> fm) {
 		if(StringUtils.isBlank(text)) return this;
 		fm = this.states.push(this.states.peek().plus(fm));
 		final Color c = getFillColor();
 		if(c!=null) {
+			final int fontSize = Integer.parseInt(String.valueOf(fm.getOrDefault(KEY_FONT_SIZE, "12")));
 			w.print(" gsave ");
 			w.print(setrgbcolor(c));
 			w.print(" /"+ fm.getOrDefault(KEY_FONT_FAMILY, "Times-Roman")+" findfont");
-			w.print(" "+ fm.getOrDefault(KEY_FONT_SIZE, "12")+" scalefont");
+			w.print(" "+ fontSize +" scalefont");
 			w.print(" setfont newpath ");
 			w.print(coord(x,y)+" moveto");
 			w.print(" ("+escape(text)+") show");
 			w.print(" grestore ");
+			
+			hyperlink(new Rectangle2D.Double(x,y-fontSize,text.length()*fontSize,fontSize));
 			}
 		this.states.pop();
 		return this;
@@ -406,9 +439,27 @@ public class PSCanvas extends Canvas {
 	public Canvas shape(final Shape shape, FunctionalMap<String, Object> fm) {
 		fm = this.states.push(this.states.peek().plus(fm));
 		fillAndStroke(shape);
+		hyperlink(shape);
 		this.states.pop();
 		return this;
 		}
+	
+	private void hyperlink(final Shape shape) {
+		final Object o= this.states.peek().getOrDefault(KEY_HREF,"");
+		final String href = o==null?"":o.toString();
+		if(!StringUtils.isBlank(href)) {
+			final Rectangle2D r=shape.getBounds2D();
+			final Point2D.Double p1=new  Point2D.Double(r.getX(),r.getY());
+			final Point2D.Double p2=new  Point2D.Double(r.getMaxX(),r.getMaxY());
+			this.w.println(" [ /Rect ["+coord(p1.getX(),p1.getY()) +" "+coord(p2.getX(),p2.getY())+"]");
+			this.w.println("/Action << /Subtype /URI /URI ("+ escape(href) +") >>");
+			this.w.println("/Border [ 0 0 0 ]");
+			this.w.println("/Subtype /Link");
+			this.w.println("/ANN pdfmark");
+		}
+
+	}
+	
 	
 	@Override
 	public int getWidth() {
