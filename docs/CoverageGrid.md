@@ -54,13 +54,14 @@ Usage: coveragegrid [options] Files
       Set Title for graphics
       Default: <empty string>
     --type, --what, --plot
-      Plot type. COVERAGE: DEPTH coverage, MEDIAN_COVERAGE: coverage normalize 
-      by external boundaries, PILEUP: show reads, PILEUP_PAIR: show paired 
-      fragments, GRID: matrix of read name co-occurence. Slow and memory 
-      consuming.,DISCORDANT: plot discordant reads as arcs overlaping edges of 
-      interval 
+      Plot type. COVERAGE: DEPTH of coverage, MEDIAN_COVERAGE: coverage 
+      normalize by external boundaries, PILEUP: show reads, PILEUP_PAIR: show 
+      paired-end fragments, GRID: matrix of read name co-occurence. Slow and 
+      memory consuming.,DISCORDANT: plot discordant reads as arcs overlaping 
+      edges, INV: same as DISCORDANT but arcs starts outside interval and ends 
+      inside 
       Default: MEDIAN_COVERAGE
-      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID, DISCORDANT]
+      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID, DISCORDANT, INV]
     --vcf
       indexed VCF file to show variants
     --version
@@ -116,11 +117,15 @@ The current reference is:
 
 ## input
 
-input a set of bam/cram files or one file with the suffix '.list' containing the path to the bams
+input is a tab-delimited samplesheet with the following columns:
 
-## output
+| column | required ? | description |
+|--------|------------|-------------|
+| bam | required | /path/to/indexed/bam+or+cram |
+| color | optional | color used for frame (could be a hint to spot cases/controls). Can be empty. Otherwise, use default color |
+| sample | optional | sample name. If empty the sample will be extracted from the bam. If it starts with '+=' , the name will appended to the original bam name  |
 
-output is a HTML+SVG file
+
 
 ## example:
 

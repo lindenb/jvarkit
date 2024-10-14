@@ -34,6 +34,7 @@ import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,8 +54,12 @@ import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.canvas.Canvas;
 import com.github.lindenb.jvarkit.canvas.CanvasFactory;
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.io.SampleSheet;
+import com.github.lindenb.jvarkit.io.SampleSheetFactory;
 import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.Average;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
@@ -73,6 +78,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
@@ -103,11 +109,15 @@ import htsjdk.variant.vcf.VCFReader;
 BEGIN_DOC
 ## input
 
-input a set of bam/cram files or one file with the suffix '.list' containing the path to the bams
+input is a tab-delimited samplesheet with the following columns:
 
-## output
+| column | required ? | description |
+|--------|------------|-------------|
+| bam | required | /path/to/indexed/bam+or+cram |
+| color | optional | color used for frame (could be a hint to spot cases/controls). Can be empty. Otherwise, use default color |
+| sample | optional | sample name. If empty the sample will be extracted from the bam. If it starts with '+=' , the name will appended to the original bam name  |
 
-output is a HTML+SVG file
+
 
 ## example:
 
@@ -129,7 +139,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class CoverageGrid extends Launcher {
-	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT};
+	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT,INV};
 	private static final Logger LOG = Logger.build( CoverageGrid.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -157,12 +167,13 @@ public class CoverageGrid extends Launcher {
 	private String gtfFile=null;
 	
 	@Parameter(names= {"--type","--what","--plot"},description="Plot type. "
-			+ "COVERAGE: DEPTH coverage, "
+			+ "COVERAGE: DEPTH of coverage, "
 			+ "MEDIAN_COVERAGE: coverage normalize by external boundaries, "
 			+ "PILEUP: show reads, "
-			+ "PILEUP_PAIR: show paired fragments, "
+			+ "PILEUP_PAIR: show paired-end fragments, "
 			+ "GRID: matrix of read name co-occurence. Slow and memory consuming.,"
-			+ "DISCORDANT: plot discordant reads as arcs overlaping edges of interval"
+			+ "DISCORDANT: plot discordant reads as arcs overlaping edges, "
+			+ "INV: same as DISCORDANT but arcs starts outside interval and ends inside"
 			)
 	private PlotType plotType = PlotType.MEDIAN_COVERAGE;
 	@DynamicParameter(names = "-D", description = "other parameters '-Dkey=value'. "+
@@ -177,7 +188,11 @@ public class CoverageGrid extends Launcher {
 
 	
 	private abstract class BamTask implements Runnable {
+		/** name in BAM */
+		String bamSampleName="";
+		/** use provided sample name */
 		String sampleName="";
+		Color sampleColor = null;
 		Path bamPath;
 		Path referencePath;
 		Locatable userInterval;
@@ -206,12 +221,18 @@ public class CoverageGrid extends Launcher {
 				throw new IOException("index missng for "+bamPath);
 				}
 			final SAMFileHeader hdr = sr.getFileHeader();
-			this.sampleName = hdr.getReadGroups().
+			this.bamSampleName = hdr.getReadGroups().
 					stream().
 					map(RG->RG.getSample()).
 					filter(S->!StringUtils.isBlank(S)).
 					findFirst().orElse(IOUtils.getFilenameWithoutCommonSuffixes(this.bamPath))
 					;
+			if(StringUtils.isBlank(this.sampleName)) {
+				this.sampleName = this.bamSampleName ;
+				}
+			else if(this.sampleName.startsWith("+=")) {
+				this.sampleName = this.bamSampleName  + " "+this.sampleName.substring(2).trim();
+				}
 			return sr;
 			}
 		protected double trimX(double coordX) {
@@ -421,7 +442,7 @@ public class CoverageGrid extends Launcher {
 				boundaries.getHeight(),
 				FunctionalMap.of(
 						Canvas.KEY_FILL,null,
-						Canvas.KEY_STROKE,Color.DARK_GRAY,
+						Canvas.KEY_STROKE,(sampleColor==null?Color.DARK_GRAY:sampleColor),
 						Canvas.KEY_STROKE_WIDTH,0.5
 						)
 				);
@@ -1179,6 +1200,7 @@ public class CoverageGrid extends Launcher {
 		private  class Arc  {
 			int p1;
 			int p2;
+			int readLen;
 			String name;
 			boolean discordant;
 			public double getX1() {
@@ -1187,13 +1209,22 @@ public class CoverageGrid extends Launcher {
 			public double getX2() {
 				return position2pixel(p2);
 				}
+			boolean sameXY(final Arc arc) {
+				return this.discordant==arc.discordant && Math.abs(this.getX1() - arc.getX1())<0.1 && Math.abs(this.getX2() - arc.getX2()) < 0.1;
+				}
 			}
 		
-		final List<Arc> arcs =new ArrayList<>();
+		private final List<Arc> arcs =new ArrayList<>();
+		private final boolean mode_inversion;
+		DiscordantReadsTask(final boolean mode_inversion) {
+			this.mode_inversion = mode_inversion;
+			}
+		
 		@Override
 		boolean loadData() {
 			
 			try(SamReader sr=openSamReader()) {
+				final Map<String,Arc> name2arc = new HashMap<>();
 				try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
 					while(iter.hasNext()) {
 						final SAMRecord rec = iter.next();
@@ -1203,27 +1234,27 @@ public class CoverageGrid extends Launcher {
 						if(!acceptRead(rec)) continue;
 						final Arc arc = new Arc();
 						arc.name = rec.getReadName();
-						arc.p1 = Math.min(rec.getAlignmentStart(), rec.getMateAlignmentStart());
-						arc.p2 = Math.max(rec.getAlignmentEnd(), getMateEnd(rec));
-						if(!CoordMath.encloses(this.extendedInterval.getStart(), this.extendedInterval.getEnd(), arc.p1, arc.p2)) continue;
+						arc.p1 = Math.min(rec.getUnclippedStart(), rec.getMateAlignmentStart());
+						arc.p2 = Math.max(rec.getUnclippedEnd(), getMateEnd(rec));
+						/* use length on reference rather than real read length */
+						arc.readLen = Math.max(
+								CoordMath.getLength(rec.getUnclippedStart(),rec.getUnclippedEnd()),
+								CoordMath.getLength(rec.getMateAlignmentStart(),  getMateEnd(rec))
+								);
 						arc.discordant = !rec.getProperPairFlag() || rec.getReadNegativeStrandFlag()==rec.getMateNegativeStrandFlag();
-						if(!(
-							CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getStart(), this.userInterval.getStart()) ||
-							CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getEnd(), this.userInterval.getEnd())
-							)) continue;
-						final Arc other=this.arcs.stream().
-								filter(A->A.name.equals(arc.name)).
-								findAny().
-								orElse(null);
+						
+						final Arc other= name2arc.getOrDefault(arc.name,null);
 						if(other!=null) {
 							other.p1 = Math.min(other.p1,arc.p1);
 							other.p2 = Math.max(other.p2,arc.p2);
+							other.readLen = Math.max(other.readLen, arc.readLen);
 							}
 						else
 							{
-							arcs.add(arc);
+							name2arc.put(arc.name,arc);
 							}
 						}
+					this.arcs.addAll(name2arc.values());
 					}
 				return true;
 				}
@@ -1242,12 +1273,42 @@ public class CoverageGrid extends Launcher {
 		     plotBackgroundFrame(canvas);
 		     plotVariants(canvas);
 		     plotVerticalGuides(canvas);
+		     
+		     //pileup Arcs so arcs at the same X1-X2 are displayed with a small shift
+		     final List<List<Arc>> pileup = new ArrayList<>();
+		     while(!arcs.isEmpty()) {
+		    	final Arc arc = arcs.remove(arcs.size()-1);
+				if(!CoordMath.encloses(
+					this.extendedInterval.getStart(), this.extendedInterval.getEnd(),
+					arc.p1, arc.p2)) continue;
+				if(!(
+						CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getStart(), this.userInterval.getStart()) ||
+						CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getEnd(), this.userInterval.getEnd())
+						)) continue;
+		    	 
+		    	 int y=0;
+		    	 for(y=0;y<pileup.size();++y) {
+		    		final List<Arc> row =pileup.get(y);
+		    		if(row.get(0).sameXY(arc)) {
+		    			row.add(arc);
+		    			break;
+		    			}
+		    	 	}
+		    	 if(y==pileup.size()) {
+		    		 final List<Arc> row= new ArrayList<>();
+		    		 row.add(arc);
+		    		 pileup.add(row);
+		    	 	}
+		     }
+		     
+		     
+		     
 		     final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
 		     canvas.text(
 						this.sampleName+" "+
-							this.arcs.stream().filter(A->A.discordant).count()+
+							pileup.stream().flatMap(T->T.stream()).filter(A->A.discordant).count()+
 							" / "+
-							this.arcs.stream().filter(A->!A.discordant).count(),
+							pileup.stream().flatMap(T->T.stream()).filter(A->!A.discordant).count(),
 						this.boundaries.getX()+1,
 						this.boundaries.getY()+fontSize+3,
 						FunctionalMap.of(
@@ -1271,32 +1332,40 @@ public class CoverageGrid extends Launcher {
 	    			);
 		     
 		     plotGenes(canvas);
-		     Collections.shuffle(arcs);//shuffle for random colors below
-		     for(int i=0;i< arcs.size();++i) {
-		    	final Arc arc= this.arcs.get(i);
-		    	final double len = arc.getX2()-arc.getX1();
-		    	final double height = Math.min(((this.boundaries.getHeight()*0.9)/1.0),len) ;
-		    			    	
-		    	final Arc2D path =new Arc2D.Double(
-		    			new Rectangle2D.Double(
-			    			arc.getX1(),
-			    			midy - height/2,
-			    			(arc.getX2()-arc.getX1()),
-			    			height
-			    			),
-		    			(arc.discordant?0:180),
-		    			180,
-		    			Arc2D.OPEN
+		     
+		   
+			for(List<Arc> row: pileup) {
+				final Arc first = row.get(0);
+		    	final double len = first.getX2()-first.getX1();
+		    	final double max_height = Math.min(((this.boundaries.getHeight()*0.9)/1.0),len) ;
+		    	final double half_height = max_height/2;
+				
+			     for(int i=0;i< row.size();++i) {
+			    	final Arc arc= row.get(i);
+			    	// INV is outside user boundaries
+			    	if(this.mode_inversion  &&  arc.p1 + arc.readLen < this.userInterval.getStart() && this.userInterval.getEnd()+arc.readLen < arc.p2) continue;
+			    	final double height = max_height - ((max_height-half_height)/(double)row.size())*i;
+			    			    	
+			    	final Arc2D path =new Arc2D.Double(
+			    			new Rectangle2D.Double(
+				    			arc.getX1(),
+				    			midy - height/2,
+				    			(arc.getX2()-arc.getX1()),
+				    			height
+				    			),
+			    			(arc.discordant?0:180),
+			    			180,
+			    			Arc2D.OPEN
+			    			);
+			    	canvas.shape(path,
+		    			FunctionalMap.of(
+	    					Canvas.KEY_FILL, null,
+	    					Canvas.KEY_STROKE,	Color.getHSBColor( (arc.discordant?0.f:0.3f)+0.1f*(i/(float)row.size()), 0.5f, 0.75f),
+	    					Canvas.KEY_STROKE_WIDTH,0.1
+	    					)
 		    			);
-		    	canvas.shape(path,
-	    			FunctionalMap.of(
-    					Canvas.KEY_FILL, null,
-    					Canvas.KEY_STROKE,	Color.getHSBColor( (arc.discordant?0.f:0.3f)+0.1f*(i/(float)arcs.size()), 0.5f, 0.75f),
-    					Canvas.KEY_STROKE_WIDTH,0.1
-    					)
-	    			);
-		     	}
-			
+			     	}
+			     }
 			plotFrame(canvas);
 			}
 		@Override
@@ -1327,10 +1396,12 @@ public int doWork(final List<String> args) {
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.refPath);
 		
 		
-		final List<Path> inputBams =  IOUtils.unrollPaths(args);
+		final Path input =  Paths.get(this.oneAndOnlyOneFile(args));
+		final SampleSheet sampleSheet = new SampleSheetFactory().splitter(CharSplitter.TAB).of(input);
+		sampleSheet.getHeader().assertColumnExists("bam");
 		
-		if(inputBams.isEmpty()) {
-			LOG.error("input bam file missing.");
+		if(sampleSheet.isEmpty()) {
+			LOG.error("empty samplesheet "+input);
 			return -1;
 			}
 		
@@ -1348,12 +1419,12 @@ public int doWork(final List<String> args) {
 		final int new_end = Math.min(dict.getSequence(user_interval.getContig()).getEnd(), mid_position+new_len/2);
 		final SimpleInterval extended_interval = new SimpleInterval(user_interval.getContig(),new_start,new_end);
 
-		final List<BamTask> tasks = new ArrayList<>(inputBams.size());
+		final List<BamTask> tasks = new ArrayList<>(sampleSheet.size());
 		
 		final int marginTop=50;
 
-		final int ncols = (int)Math.max(1,Math.floor(Math.sqrt(inputBams.size())));
-		final int nrows = (int)Math.max(1, Math.ceil(inputBams.size()/(double)ncols));
+		final int ncols = (int)Math.max(1,Math.floor(Math.sqrt(sampleSheet.size())));
+		final int nrows = (int)Math.max(1, Math.ceil(sampleSheet.size()/(double)ncols));
 		final double wi  = this.dimension.getWidth()/ncols;
 		final double hi  = (this.dimension.getHeight()-marginTop)/nrows;
 		
@@ -1375,14 +1446,15 @@ public int doWork(final List<String> args) {
 					).getBases();
 			}
 		
-		for(final Path bamPath: inputBams) {
+		for(final FileHeader.RowMap rowMap: sampleSheet) {
 			final BamTask task ;
 				switch(this.plotType) {
 				case GRID: task= new GridTask(); break;
 				case PILEUP: task= new PileupTask(false); break;
 				case PILEUP_PAIR: task= new PileupTask(true); break;
 				case COVERAGE:  task = new CoverageTask(false); break;
-				case DISCORDANT: task = new DiscordantReadsTask();break;
+				case INV: task = new DiscordantReadsTask(true);break;
+				case DISCORDANT: task = new DiscordantReadsTask(false);break;
 				case MEDIAN_COVERAGE: task= new CoverageTask(true);break;
 				default: {
 					LOG.error("unedefine "+this.plotType);
@@ -1390,7 +1462,9 @@ public int doWork(final List<String> args) {
 					}
 				}
 			task.reference_bases = bases;
-			task.bamPath = bamPath;
+			task.bamPath = Paths.get(rowMap.get("bam"));
+			task.sampleName = rowMap.getOrDefault("sample","");
+			task.sampleColor  = rowMap.containsKey("color")?new ColorUtils().parse(rowMap.get("color")):null;
 			task.vcfPath = this.vcfFile;
 			task.gtfPath = this.gtfFile;
 			task.referencePath = this.refPath;
