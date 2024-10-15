@@ -172,8 +172,6 @@ public class PSCanvas extends Canvas {
 				);
 		}
 	
-
-	
 	@Override
 	public void close() throws IOException {
 		this.w.println("\nshowpage");
@@ -208,7 +206,6 @@ public class PSCanvas extends Canvas {
 				);
 		}
 	
-	
 	private String setLineWidth(double linewidth) {
 		for(int i=1;i<=10;i++) {
 			if(i==linewidth) return "slw"+(int)linewidth;
@@ -216,7 +213,7 @@ public class PSCanvas extends Canvas {
 		return round(inch(linewidth))+" setlinewidth";
 		}
 	
-	private Canvas fillAndStroke(Shape shape) {
+	private Canvas fillAndStroke(final Shape shape) {
 		boolean gsave_set=false;
 		Color c= getFillColor();
 		if(c!=null ) {
@@ -276,7 +273,7 @@ public class PSCanvas extends Canvas {
 		}
 	
 	@Override
-	public Canvas comment(String s) {
+	public Canvas comment(final String s) {
 		if(!StringUtils.isBlank(s)) {
 			w.print("\n% ");
 			w.print(s);
@@ -284,7 +281,6 @@ public class PSCanvas extends Canvas {
 			}
 		return this;
 		}
-	
 
 	@Override
 	public Canvas polyline(final List<Point2D> points,FunctionalMap<String, Object> fm) {
@@ -424,16 +420,9 @@ public class PSCanvas extends Canvas {
 				break;
 				}
 			}
-		
 		iter.next();
 		}
 	}
-	
-	
-	@Override
-	public Canvas line(double x1, double y1, double x2, double y2, FunctionalMap<String, Object> fm) {
-		return super.line(x1, y1, x2, y2, fm);
-		}
 	
 	@Override
 	public Canvas shape(final Shape shape, FunctionalMap<String, Object> fm) {
@@ -449,17 +438,17 @@ public class PSCanvas extends Canvas {
 		final String href = o==null?"":o.toString();
 		if(!StringUtils.isBlank(href)) {
 			final Rectangle2D r=shape.getBounds2D();
-			final Point2D.Double p1=new  Point2D.Double(r.getX(),r.getY());
-			final Point2D.Double p2=new  Point2D.Double(r.getMaxX(),r.getMaxY());
-			this.w.println(" [ /Rect ["+coord(p1.getX(),p1.getY()) +" "+coord(p2.getX(),p2.getY())+"]");
-			this.w.println("/Action << /Subtype /URI /URI ("+ escape(href) +") >>");
-			this.w.println("/Border [ 0 0 0 ]");
-			this.w.println("/Subtype /Link");
-			this.w.println("/ANN pdfmark");
+			if(r.getWidth()>=1 && r.getHeight()>=1) {
+				final Point2D.Double p1=new  Point2D.Double(r.getX(),r.getY());
+				final Point2D.Double p2=new  Point2D.Double(r.getMaxX(),r.getMaxY());
+				this.w.println(" [ /Rect ["+coord(p1.getX(),p1.getY()) +" "+coord(p2.getX(),p2.getY())+"]");
+				this.w.println("/Action << /Subtype /URI /URI ("+ escape(href) +") >>");
+				this.w.println("/Border [ 0 0 0 ]");
+				this.w.println("/Subtype /Link");
+				this.w.println("/ANN pdfmark ");
+				}
+			}
 		}
-
-	}
-	
 	
 	@Override
 	public int getWidth() {

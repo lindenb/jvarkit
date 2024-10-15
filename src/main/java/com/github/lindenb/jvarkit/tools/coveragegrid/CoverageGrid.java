@@ -44,6 +44,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -139,7 +140,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class CoverageGrid extends Launcher {
-	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT,INV};
+	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT};
 	private static final Logger LOG = Logger.build( CoverageGrid.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -165,6 +166,10 @@ public class CoverageGrid extends Launcher {
 	private Path vcfFile=null;
 	@Parameter(names= {"--gtf"},description="indexed GTF file to show genes")
 	private String gtfFile=null;
+	@Parameter(names= {"--inversion-flag"},description="for DISCORDANT : arcs as a edge outside interval and the other inside the interval")
+	private boolean inversion_flag=false;
+
+	
 	
 	@Parameter(names= {"--type","--what","--plot"},description="Plot type. "
 			+ "COVERAGE: DEPTH of coverage, "
@@ -172,8 +177,7 @@ public class CoverageGrid extends Launcher {
 			+ "PILEUP: show reads, "
 			+ "PILEUP_PAIR: show paired-end fragments, "
 			+ "GRID: matrix of read name co-occurence. Slow and memory consuming.,"
-			+ "DISCORDANT: plot discordant reads as arcs overlaping edges, "
-			+ "INV: same as DISCORDANT but arcs starts outside interval and ends inside"
+			+ "DISCORDANT: plot discordant reads as arcs overlaping edges"
 			)
 	private PlotType plotType = PlotType.MEDIAN_COVERAGE;
 	@DynamicParameter(names = "-D", description = "other parameters '-Dkey=value'. "+
@@ -198,8 +202,6 @@ public class CoverageGrid extends Launcher {
 		Locatable userInterval;
 		Locatable extendedInterval;
 		Rectangle boundaries;
-		final boolean inversion_mode;
-		final boolean overlap_boundaries;
 		Path vcfPath;
 		String gtfPath;
 		byte[] reference_bases;
@@ -207,8 +209,6 @@ public class CoverageGrid extends Launcher {
 		SAMSequenceDictionary bamSequenceDictionary = null;
 		
 		protected BamTask() {
-			inversion_mode= CoverageGrid.this.dynaParams.getOrDefault("inversion_mode", "false").equals("true");
-			overlap_boundaries= CoverageGrid.this.dynaParams.getOrDefault("overlap_boundaries", "false").equals("true");
 			}
 		
 		protected SamReader openSamReader() throws IOException {
@@ -260,14 +260,17 @@ public class CoverageGrid extends Launcher {
 					float featHeight;
 					Color color;
 					switch(step) {
-						case 0: expect="gene";featHeight=1;color=Color.MAGENTA;break;
-						case 1: expect="exon";featHeight=2;color=Color.MAGENTA;break;
-						case 2: expect="CDS";featHeight=3;color=Color.MAGENTA;break;
-						default: expect=null;featHeight=0;color=Color.MAGENTA;break;
+						case 0: expect="gene";featHeight=0.1f;color=Color.MAGENTA;break;
+						case 1: expect="exon";featHeight=0.4f;color=Color.MAGENTA;break;
+						case 2: expect="CDS";featHeight=0.6f;color=Color.MAGENTA;break;
+						default: expect=null;featHeight=0f;color=Color.MAGENTA;break;
 						}
 			
 					final List<Rectangle2D> rects = new ArrayList<>();
-					TabixReader.Iterator iter= tabix.query(this.extendedInterval.getStart(), this.extendedInterval.getStart(), this.extendedInterval.getEnd());
+					TabixReader.Iterator iter= tabix.query(
+							this.extendedInterval.getContig(),
+							this.extendedInterval.getStart(),
+							this.extendedInterval.getEnd());
 					for(;;) {
 						final String line = iter.next();
 						if(line==null) break;
@@ -290,8 +293,8 @@ public class CoverageGrid extends Launcher {
 							final float x2 = (float)Math.max(r1.getMaxX(), r2.getMaxX());
 							rects.set(k,new Rectangle2D.Float(
 								x1,
-								(x2-x1),
 								(float)r1.getY(),
+								(x2-x1),
 								(float)r1.getHeight()
 								));
 							rects.remove(k+1);
@@ -389,28 +392,7 @@ public class CoverageGrid extends Launcher {
 		
 		protected boolean acceptRead(final SAMRecord rec) {
 			if(!SAMRecordDefaultFilter.accept(rec, CoverageGrid.this.min_mapq)) return false;
-			if(inversion_mode) {
-				boolean clip = rec.getCigar().isClipped();
-				boolean bad_pair = rec.getReadPairedFlag() && !rec.getProperPairFlag();
-				if(!(clip || bad_pair)) return false;
-				}
-			if(overlap_boundaries) {
-				int start = rec.getUnclippedStart();
-				int end = rec.getUnclippedEnd();
-				if(rec.getReadPairedFlag() && 
-				  !rec.getMateUnmappedFlag() && 
-				  rec.getReferenceName().equals(rec.getMateReferenceName())) {
-					start = Math.min(rec.getMateAlignmentStart(), start);
-					end = Math.max(getMateEnd(rec), end);
-					}
-				if(!(
-						CoordMath.overlaps(start, end,userInterval.getStart(), userInterval.getStart() ) ||
-						CoordMath.overlaps(start, end,userInterval.getEnd(), userInterval.getEnd() )
-					))
-					{
-					return false;
-					}
-				}
+			
 			return true;
 			}
 		
@@ -1220,9 +1202,7 @@ public class CoverageGrid extends Launcher {
 			}
 		
 		private final List<Arc> arcs =new ArrayList<>();
-		private final boolean mode_inversion;
-		DiscordantReadsTask(final boolean mode_inversion) {
-			this.mode_inversion = mode_inversion;
+		DiscordantReadsTask() {
 			}
 		
 		@Override
@@ -1286,11 +1266,27 @@ public class CoverageGrid extends Launcher {
 				if(!CoordMath.encloses(
 					this.extendedInterval.getStart(), this.extendedInterval.getEnd(),
 					arc.p1, arc.p2)) continue;
+				
+				
 				if(!(
 						CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getStart(), this.userInterval.getStart()) ||
 						CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getEnd(), this.userInterval.getEnd())
 						)) continue;
 		    	 
+				
+				if(CoverageGrid.this.inversion_flag) {
+					// ARC ALL OUTSIDE INV
+			    	if(arc.p1 + arc.readLen < this.userInterval.getStart() && 
+			    			this.userInterval.getEnd()+ arc.readLen < arc.p2) {
+			    		continue;
+			    		}
+			    	// ARC ALL INSIDE INV
+			    	if(this.userInterval.getStart() + arc.readLen < arc.p1 && 
+			    		arc.p2 + arc.readLen < this.userInterval.getEnd()) {
+			    		continue;
+			    		}
+		    		}
+				
 		    	 int y=0;
 		    	 for(y=0;y<pileup.size();++y) {
 		    		final List<Arc> row =pileup.get(y);
@@ -1349,8 +1345,8 @@ public class CoverageGrid extends Launcher {
 				
 			     for(int i=0;i< row.size();++i) {
 			    	final Arc arc= row.get(i);
+			    	
 			    	// INV is outside user boundaries
-			    	if(this.mode_inversion  &&  arc.p1 + arc.readLen < this.userInterval.getStart() && this.userInterval.getEnd()+arc.readLen < arc.p2) continue;
 			    	final double height = max_height - ((max_height-half_height)/(double)row.size())*i;
 			    			    	
 			    	final Arc2D path =new Arc2D.Double(
@@ -1387,7 +1383,34 @@ public class CoverageGrid extends Launcher {
 private static int getMateEnd(final SAMRecord rec0) {
 	return rec0.hasAttribute(SAMTag.MC)?SAMUtils.getMateAlignmentEnd(rec0):rec0.getMateAlignmentStart();
 	}
-	
+
+private Set<String> getGeneNames(final Locatable loc) {
+	if(this.gtfFile==null) return Collections.emptySet();
+	final GTFCodec codec=new GTFCodec();
+	try(TabixReader tabix = new TabixReader(this.gtfFile)) {
+		final Set<String> set = new TreeSet<>();
+		TabixReader.Iterator iter= tabix.query(loc.getContig(), loc.getStart(), loc.getEnd());
+		for(;;) {
+			final String line = iter.next();
+			if(line==null) break;
+			final GTFLine feat=codec.decode(line);
+			if(feat==null) continue;
+			if(feat.hasAttribute("gene_name")) {
+				set.add(feat.getAttribute("gene_name"));
+				continue;
+				}
+			if(feat.hasAttribute("gene_id")) {
+				set.add(feat.getAttribute("gene_id"));
+				continue;
+				}
+			}
+		return set;
+		}
+	catch(Exception err) {
+		return Collections.emptySet();
+		}
+	}
+
 @Override
 public int doWork(final List<String> args) {
 	try
@@ -1461,8 +1484,7 @@ public int doWork(final List<String> args) {
 				case PILEUP: task= new PileupTask(false); break;
 				case PILEUP_PAIR: task= new PileupTask(true); break;
 				case COVERAGE:  task = new CoverageTask(false); break;
-				case INV: task = new DiscordantReadsTask(true);break;
-				case DISCORDANT: task = new DiscordantReadsTask(false);break;
+				case DISCORDANT: task = new DiscordantReadsTask();break;
 				case MEDIAN_COVERAGE: task= new CoverageTask(true);break;
 				default: {
 					LOG.error("unedefine "+this.plotType);
@@ -1530,7 +1552,21 @@ public int doWork(final List<String> args) {
 						Canvas.KEY_TITLE, title
 						)
 					);
-		
+
+			final Set<String> genes = getGeneNames(user_interval);
+			if(!genes.isEmpty()) {
+				canvas.text(
+						(genes.size()>10?
+								StringUtils.niceInt(genes.size())+" genes":
+									String.join(" ",genes)),
+						10,
+						fontSize*2,
+						FunctionalMap.of(
+							Canvas.KEY_FONT_SIZE, fontSize,
+							Canvas.KEY_FILL, Color.GRAY
+							)
+						);
+				}
 			
 			 final ExecutorService executorService = Executors.newFixedThreadPool(this.nThreads);
 				for(int i=0; i < tasks.size();i+=this.nThreads) {
