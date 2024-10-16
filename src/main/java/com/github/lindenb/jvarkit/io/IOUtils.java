@@ -308,6 +308,7 @@ public class IOUtils {
 	/** open URL for reading, decompressed if url ends with gz of bz2 */
 	public static InputStream openURIForReading(String uri) throws IOException
 		{
+		if(uri.equals("-")) return System.in;
 		if(isRemoteURI(uri))
 			{
 			URL url=new URL(uri);

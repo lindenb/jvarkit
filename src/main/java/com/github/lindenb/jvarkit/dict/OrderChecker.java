@@ -63,7 +63,7 @@ public OrderChecker(final SAMSequenceDictionary dict) {
  * @param strictDictOrder if true, chromosomes should appear in the very same order than in dict
  */
 public OrderChecker(final SAMSequenceDictionary dict,boolean strictDictOrder) {
-	this.dict = (dict.isEmpty()?null:dict);
+	this.dict = (dict==null || dict.isEmpty()?null:dict);
 	this.strictDictOrder = strictDictOrder;
 	if(this.strictDictOrder) {
 		if (this.dict==null) throw new IllegalArgumentException("strict ordering but dict is null or empty.");

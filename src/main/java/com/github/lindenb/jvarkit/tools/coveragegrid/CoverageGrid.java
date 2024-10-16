@@ -67,6 +67,7 @@ import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.MinMaxInteger;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -140,7 +141,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class CoverageGrid extends Launcher {
-	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT};
+	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT,SUPPL};
 	private static final Logger LOG = Logger.build( CoverageGrid.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -166,7 +167,7 @@ public class CoverageGrid extends Launcher {
 	private Path vcfFile=null;
 	@Parameter(names= {"--gtf"},description="indexed GTF file to show genes")
 	private String gtfFile=null;
-	@Parameter(names= {"--inversion-flag"},description="for DISCORDANT : arcs as a edge outside interval and the other inside the interval")
+	@Parameter(names= {"--inversion-flag"},description="for DISCORDANT or SUPPL : arcs as a edge outside interval and the other inside the interval")
 	private boolean inversion_flag=false;
 
 	
@@ -177,7 +178,8 @@ public class CoverageGrid extends Launcher {
 			+ "PILEUP: show reads, "
 			+ "PILEUP_PAIR: show paired-end fragments, "
 			+ "GRID: matrix of read name co-occurence. Slow and memory consuming.,"
-			+ "DISCORDANT: plot discordant reads as arcs overlaping edges"
+			+ "DISCORDANT: plot discordant reads as arcs overlaping edges, "
+			+ "SUPPL: plot sipplementary read pairs as arcs overlaping edges"
 			)
 	private PlotType plotType = PlotType.MEDIAN_COVERAGE;
 	@DynamicParameter(names = "-D", description = "other parameters '-Dkey=value'. "+
@@ -1167,7 +1169,8 @@ public class CoverageGrid extends Launcher {
 					this.square_size,
 					FunctionalMap.of(
 						Canvas.KEY_FILL, null,
-						Canvas.KEY_STROKE,Color.DARK_GRAY
+						Canvas.KEY_STROKE,(sampleColor==null?Color.DARK_GRAY:sampleColor),
+						Canvas.KEY_STROKE_WIDTH,0.1
 						)
 					);
 			}
@@ -1377,6 +1380,206 @@ public class CoverageGrid extends Launcher {
 			this.bamSequenceDictionary = null;
 			}
 	}
+	
+	
+
+	/**************************************************************************
+	 * 
+	 * SupplementaryReadTask : plot arcs of supplementary reads
+	 *
+	 */
+	private class SupplementaryReadTask extends BamTask {
+		private  class ClipArc extends AbstractLocatable {
+			final SAMRecord R1;
+			final SAMRecord R2;
+			ClipArc(SAMRecord rec,SAMRecord suppl) {
+				if(rec.getStart()< suppl.getStart()) {
+					this.R1=rec;
+					this.R2=suppl;
+					}
+				else
+					{
+					this.R1=suppl;
+					this.R2=rec;
+					}
+				}
+			@Override
+			public String getContig() { return R1.getContig();}
+			@Override
+			public int getStart() {
+				return Math.min(R1.getStart(), R2.getStart());
+			}
+			@Override
+			public int getEnd() {
+				return Math.max(R1.getEnd(), R2.getEnd());
+			}
+			boolean sameXY(final ClipArc arc) {
+				return Math.abs(this.getX1() - arc.getX1())<0.1 && Math.abs(this.getX2() - arc.getX2()) < 0.1;
+				}
+			public int getUnclippedStart() { return  Math.min(R1.getUnclippedStart(), R2.getUnclippedStart());}
+			public int getUnclippedEnd() { return  Math.max(R1.getUnclippedEnd(), R2.getUnclippedEnd());}
+			public double getX1() {
+				return position2pixel(getStart());
+				}
+			public double getX2() {
+				return position2pixel(getEnd()+1);
+				}
+			}
+		
+		private final List<ClipArc> arcs =new ArrayList<>();
+	
+		
+		@Override
+		boolean loadData() {
+			try(SamReader sr=openSamReader()) {
+				try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
+					while(iter.hasNext()) {
+						final SAMRecord rec = iter.next();
+						if(!acceptRead(rec)) continue;
+						for(SAMRecord suppl:SAMUtils.getOtherCanonicalAlignments(rec)) {
+							if(!suppl.getContig().equals(this.extendedInterval.getContig())) continue;
+							final ClipArc arc = new ClipArc(rec,suppl);
+							
+							if(!CoordMath.encloses(
+									this.extendedInterval.getStart(), this.extendedInterval.getEnd(),
+									arc.getStart(), arc.getEnd())) continue;
+							
+							if(!(
+									CoordMath.overlaps(arc.getUnclippedStart(),arc.getUnclippedEnd(), this.userInterval.getStart(), this.userInterval.getStart()) ||
+									CoordMath.overlaps(arc.getUnclippedStart(),arc.getUnclippedEnd(), this.userInterval.getEnd(), this.userInterval.getEnd())
+									)) continue;
+							
+							if(CoverageGrid.this.inversion_flag) {
+								// ARC ALL OUTSIDE INV
+						    	if(arc.R1.getUnclippedEnd() < this.userInterval.getStart() && 
+						    			this.userInterval.getEnd()< arc.R2.getUnclippedStart()) {
+						    		continue;
+						    		}
+						    	// ARC ALL INSIDE INV
+						    	if(this.userInterval.getStart() < arc.getUnclippedStart() && 
+						    		arc.getUnclippedEnd() < this.userInterval.getEnd()) {
+						    		continue;
+						    		}
+					    		}
+							
+							this.arcs.add(arc);
+							}
+						}
+					}
+				return true;
+				}
+			catch(Throwable err) {
+				LOG.error(err);
+				return false;
+				}
+			}
+		protected double getGeneMidY() {
+			return this.boundaries.getCenterY();
+			}
+		@Override
+		void plot(final Canvas canvas) {
+			 canvas.comment(this.sampleName);
+		     final double midy=getGeneMidY();
+		     plotBackgroundFrame(canvas);
+		     plotVariants(canvas);
+		     plotVerticalGuides(canvas);
+		     
+		     //pileup Arcs so arcs at the same X1-X2 are displayed with a small shift
+		     final List<List<ClipArc>> pileup = new ArrayList<>();
+		     while(!arcs.isEmpty()) {
+		    	final ClipArc arc = arcs.remove(arcs.size()-1);
+				
+		    	 int y=0;
+		    	 for(y=0;y<pileup.size();++y) {
+		    		final List<ClipArc> row =pileup.get(y);
+		    		if(row.get(0).sameXY(arc)) {
+		    			row.add(arc);
+		    			break;
+		    			}
+		    	 	}
+		    	 if(y==pileup.size()) {
+		    		 final List<ClipArc> row= new ArrayList<>();
+		    		 row.add(arc);
+		    		 pileup.add(row);
+		    	 	}
+		     }
+		     
+		     
+		     
+		     final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
+		     final Hyperlink hyperlink = Hyperlink.compile(this.bamSequenceDictionary);
+		     canvas.text(
+						this.sampleName+" ("+
+							pileup.stream().flatMap(T->T.stream()).count()+
+							")"
+							,
+						this.boundaries.getX()+1,
+						this.boundaries.getY()+fontSize+3,
+						FunctionalMap.of(
+							Canvas.KEY_FONT_SIZE, fontSize,
+							Canvas.KEY_STROKE, null,
+							Canvas.KEY_FILL, Color.DARK_GRAY,
+							Canvas.KEY_TITLE,this.sampleName+" "+this.bamPath,
+							Canvas.KEY_HREF,hyperlink.apply(this.extendedInterval).orElse(null)
+							)
+						);
+		     
+		     // horizontal line
+		     canvas.line(
+		    		 this.boundaries.getX(),
+		    		 midy,
+		    		 this.boundaries.getMaxX(),
+		    		 midy,
+	    			FunctionalMap.of(
+    					Canvas.KEY_STROKE,Color.DARK_GRAY,
+    					Canvas.KEY_STROKE_WIDTH,0.1
+    					)
+	    			);
+		     
+		     plotGenes(canvas);
+		     
+		     
+			for(List<ClipArc> row : pileup) {
+				final ClipArc first = row.get(0);
+		    	final double len = first.getX2()-first.getX1();
+		    	final double max_height = Math.min(((this.boundaries.getHeight()*0.9)/1.0),len) ;
+		    	final double half_height = max_height/2;
+				
+			     for(int i=0;i< row.size();++i) {
+			    	final ClipArc arc= row.get(i);
+			    	
+			    	// INV is outside user boundaries
+			    	final double height = max_height - ((max_height-half_height)/(double)row.size())*i;
+			    	final boolean same_strand = arc.R1.getReadNegativeStrandFlag()!=arc.R2.getReadNegativeStrandFlag();
+			    	final Arc2D path =new Arc2D.Double(
+			    			new Rectangle2D.Double(
+				    			arc.getX1(),
+				    			midy - height/2,
+				    			(arc.getX2()-arc.getX1()),
+				    			height
+				    			),
+			    			(same_strand ?0:180),
+			    			180,
+			    			Arc2D.OPEN
+			    			);
+			    	canvas.shape(path,
+		    			FunctionalMap.of(
+	    					Canvas.KEY_FILL, null,
+	    					Canvas.KEY_STROKE,	Color.getHSBColor((same_strand?0.f:0.4f)+0.1f*(i/(float)row.size()), 0.5f, 0.75f),
+	    					Canvas.KEY_STROKE_WIDTH,0.1
+	    					)
+		    			);
+			     	}
+			     }
+			plotFrame(canvas);
+			}
+		@Override
+		void disposeData() {
+			arcs.clear();
+			this.bamSequenceDictionary = null;
+			}
+	}	
+	
 /********************************************************************************************************************/
 	
 /** get mate end position or mate-start */
@@ -1486,6 +1689,7 @@ public int doWork(final List<String> args) {
 				case COVERAGE:  task = new CoverageTask(false); break;
 				case DISCORDANT: task = new DiscordantReadsTask();break;
 				case MEDIAN_COVERAGE: task= new CoverageTask(true);break;
+				case SUPPL: task = new SupplementaryReadTask();break;
 				default: {
 					LOG.error("unedefine "+this.plotType);
 					return -1;

@@ -37,8 +37,8 @@ Usage: coveragegrid [options] Files
   * --regions, --region, --interval
       Interval region
     --inversion-flag
-      for DISCORDANT : arcs as a edge outside interval and the other inside 
-      the interval
+      for DISCORDANT or SUPPL : arcs as a edge outside interval and the other 
+      inside the interval
       Default: false
     --mapq
       min mapping quality
@@ -62,9 +62,9 @@ Usage: coveragegrid [options] Files
       normalize by external boundaries, PILEUP: show reads, PILEUP_PAIR: show 
       paired-end fragments, GRID: matrix of read name co-occurence. Slow and 
       memory consuming.,DISCORDANT: plot discordant reads as arcs overlaping 
-      edges 
+      edges, SUPPL: plot sipplementary read pairs as arcs overlaping edges
       Default: MEDIAN_COVERAGE
-      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID, DISCORDANT]
+      Possible Values: [COVERAGE, MEDIAN_COVERAGE, PILEUP, PILEUP_PAIR, GRID, DISCORDANT, SUPPL]
     --vcf
       indexed VCF file to show variants
     --version

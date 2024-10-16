@@ -135,6 +135,7 @@ import com.github.lindenb.jvarkit.tools.coverageserver.CoverageServer;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
 import com.github.lindenb.jvarkit.tools.dict2bed.DictToBed;
 import com.github.lindenb.jvarkit.tools.dict2xml.DictToXml;
+import com.github.lindenb.jvarkit.tools.drageninv.DragenBndToInversion;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
 import com.github.lindenb.jvarkit.tools.extendref.ExtendReferenceWithReads;
 import com.github.lindenb.jvarkit.tools.fastq.BamToFastq;
@@ -695,6 +696,7 @@ public class JvarkitCentral {
 		command(BlastFilterJS.class);
 		command(DictToBed.class);
 		command(DictToXml.class);
+		command(DragenBndToInversion.class);
 		command(CompareBamAndBuild.class);
 		command(ConvertLiftOverChain.class);
 		command(CommBams.class);
