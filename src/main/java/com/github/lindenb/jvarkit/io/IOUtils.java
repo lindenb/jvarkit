@@ -305,13 +305,13 @@ public class IOUtils {
 		return new GZIPInputStream(push_back);
 		}
 	
-	/** open URL for reading, decompressed if url ends with gz of bz2 */
+	/** open URL for reading, decompressed if url ends with gz of bz2 . if uri is null or '-' , open stdin */
 	public static InputStream openURIForReading(String uri) throws IOException
 		{
-		if(uri.equals("-")) return System.in;
+		if(uri==null || uri.equals("-")) return System.in;
 		if(isRemoteURI(uri))
 			{
-			URL url=new URL(uri);
+			final URL url=new URL(uri);
 			InputStream in=url.openStream();
 			//do we have .... azdazpdoazkd.vcf.gz?param=1&param=2
 			int question=uri.indexOf('?');

@@ -113,6 +113,7 @@ nav:
         - "cytoband2svg" : CytobandToSvg.md
         - "dict2bed" : DictToBed.md
         - "dict2xml" : DictToXml.md
+        - "dragenbnd2inv" : DragenBndToInversion.md
         - "evadumpfiles" : EVADumpFiles.md
         - "extendrefwithreads" : ExtendReferenceWithReads.md
         - "fasta2vcf" : ReferenceToVCF.md
@@ -125,6 +126,7 @@ nav:
         - "findhtsfiledict" : FindHtsFileDictionary.md
         - "fixvcfmissinggenotypes" : FixVcfMissingGenotypes.md
         - "gatkhc" : GatkHaplotypeCaller.md
+        - "gff2fasta" : Gff3ToFasta.md
         - "gff2kg" : Gff2KnownGene.md
         - "gff3upstreamorf" : Gff3UpstreamOrf.md
         - "goutils" : GoUtils.md

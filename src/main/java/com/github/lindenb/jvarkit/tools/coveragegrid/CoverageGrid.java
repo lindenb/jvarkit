@@ -433,11 +433,11 @@ public class CoverageGrid extends Launcher {
 						)
 				);
 			}
-		protected void plotBackgroundFrame(Canvas canvas) {
+		protected void plotBackgroundFrame(final Canvas canvas) {
 			
 			for(int i=0;i< 2;i++) {
-				double x1 = trimX(position2pixel(i==0?this.extendedInterval.getStart():this.userInterval.getEnd()+1));
-				double x2 = trimX(position2pixel(i==0?this.userInterval.getStart():this.extendedInterval.getEnd()+1));
+				final double x1 = trimX(position2pixel(i==0?this.extendedInterval.getStart():this.userInterval.getEnd()+1));
+				final double x2 = trimX(position2pixel(i==0?this.userInterval.getStart():this.extendedInterval.getEnd()+1));
 				if(x1>=x2) continue;
 				// draw frame
 				canvas.rect(
@@ -1427,15 +1427,36 @@ public class CoverageGrid extends Launcher {
 			}
 		
 		private final List<ClipArc> arcs =new ArrayList<>();
-	
+		private int[] clip_count=null;
 		
 		@Override
 		boolean loadData() {
+			this.clip_count = new int[(int)this.boundaries.getWidth()];
+			
 			try(SamReader sr=openSamReader()) {
 				try(CloseableIterator<SAMRecord> iter= this.query(sr)) {
 					while(iter.hasNext()) {
 						final SAMRecord rec = iter.next();
 						if(!acceptRead(rec)) continue;
+						
+						// fill clip histogram
+						for(int side=0;side<2;++side) {
+							final Cigar cigar = rec.getCigar();
+							if(cigar.numCigarElements()<2 || !cigar.isClipped()) break;
+							int p1 = (side==0?rec.getUnclippedStart():rec.getEnd()+1);
+							final int p2 = (side==0?rec.getAlignmentStart():rec.getUnclippedEnd()+1);
+							while(p1<p2) {
+								int x1 = (int)position2pixel(p1);
+								final int x2 = Math.max(x1+1,(int)position2pixel(p1+1));
+								while(x1 < x2 && x1 < this.clip_count.length) {
+									if(x1>=0)  this.clip_count[x1]++;
+									++x1;
+									}
+								p1++;
+								}
+							}
+						
+						
 						for(SAMRecord suppl:SAMUtils.getOtherCanonicalAlignments(rec)) {
 							if(!suppl.getContig().equals(this.extendedInterval.getContig())) continue;
 							final ClipArc arc = new ClipArc(rec,suppl);
@@ -1502,7 +1523,7 @@ public class CoverageGrid extends Launcher {
 		    		 row.add(arc);
 		    		 pileup.add(row);
 		    	 	}
-		     }
+		     	}
 		     
 		     
 		     
@@ -1523,6 +1544,41 @@ public class CoverageGrid extends Launcher {
 							Canvas.KEY_HREF,hyperlink.apply(this.extendedInterval).orElse(null)
 							)
 						);
+
+		     //plot histo clipping
+		     final int max_clip = Arrays.stream(this.clip_count).max().orElse(30);
+		     if(max_clip>0) {
+		    	final double clip_height=this.boundaries.getHeight()/4.0;
+		    	final List<Point2D> points=new ArrayList<>(this.clip_count.length+2);
+		    	points.add(new Point2D.Double(this.boundaries.getX(), midy));
+				for(int i=0;i< this.clip_count.length;i++) {
+					final double y = midy + (this.clip_count[i]/(double)max_clip)*clip_height;
+					points.add(new Point2D.Double(this.boundaries.getX()+i, y));
+					}
+				points.add(new Point2D.Double(this.boundaries.getMaxX(), midy));
+				int i=1;
+				while(i+2 < points.size())
+					{
+					final Point2D p1 = points.get(i+0);
+					final Point2D p2 = points.get(i+1);
+					final Point2D p3 = points.get(i+2);
+					if(p1.getY()==p2.getY() && p2.getY()==p3.getY() && p1.getX() < p3.getX()) {
+						points.remove(i+1);
+						}
+					else
+						{
+						i++;
+						}
+					}
+		    	
+		    	canvas.polygon(points,
+		    			FunctionalMap.of(
+		    					Canvas.KEY_FILL,Color.YELLOW,
+		    					Canvas.KEY_STROKE,Color.ORANGE,
+		    					Canvas.KEY_STROKE_WIDTH,0.1
+		    					)
+		    			);
+		     	}
 		     
 		     // horizontal line
 		     canvas.line(
@@ -1535,8 +1591,11 @@ public class CoverageGrid extends Launcher {
     					Canvas.KEY_STROKE_WIDTH,0.1
     					)
 	    			);
+		    
 		     
-		     plotGenes(canvas);
+		     
+		     
+		    plotGenes(canvas);
 		     
 		     
 			for(List<ClipArc> row : pileup) {
@@ -1575,7 +1634,8 @@ public class CoverageGrid extends Launcher {
 			}
 		@Override
 		void disposeData() {
-			arcs.clear();
+			this.arcs.clear();
+			this.clip_count = null;
 			this.bamSequenceDictionary = null;
 			}
 	}	

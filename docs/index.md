@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 02ce6c9dd
-Compilation : 20241011174055
+Version     : 014c4dd2f
+Compilation : 20241017152316
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -190,6 +190,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [cytoband2svg](CytobandToSvg.md) | Creates a svg karyotype . |  |  |
 | [dict2bed](DictToBed.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to bed. | 20240603 | 20240603 |
 | [dict2xml](DictToXml.md) | convert a SAM dictionary from vcf,sam,bam,dict, etc.. to XML. | 20240824 | 20240824 |
+| [dragenbnd2inv](DragenBndToInversion.md) | Converts Dragen BND to inversions | 20241016 | 20241016 |
 | [evadumpfiles](EVADumpFiles.md) | Dump files locations from European Variation Archive | 20230314 | 20230314 |
 | [extendrefwithreads](ExtendReferenceWithReads.md) | Extending ends of sequences with the help of reads |  | 20190926 |
 | [fasta2vcf](ReferenceToVCF.md) | Creates a VCF containing all the possible substitutions from a Reference Genome. | 20140910 | 20240711 |
@@ -198,6 +199,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [findhtsfiledict](FindHtsFileDictionary.md) | Scan a set of HTS files (VCF, BAM, CRAM, BCF, etc...), return a tab delimited file (path-of-file,path/url-to-fasta) | 20190912 | 20240824 |
 | [fixvcfmissinggenotypes](FixVcfMissingGenotypes.md) | After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref. | 20141109 | 20200525 |
 | [gatkhc](GatkHaplotypeCaller.md) | Wrapper for GATK HaplotypeCaller | 20240625 | 20240625 |
+| [gff2fasta](Gff3ToFasta.md) | extract fasta from gtf | 20241016 | 20241017 |
 | [gff2kg](Gff2KnownGene.md) | Convert GFF3 format to UCSC knownGene format. | 20160404 | 20220725 |
 | [gff3upstreamorf](Gff3UpstreamOrf.md) | Takes a ucsc genpred file, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20220724 | 20230820 |
 | [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20240225 |

@@ -93,7 +93,7 @@ public interface GeneticCode
 	
 	/** translate cDNA to aminoacid */
 	public char translate(char b1,char b2,char b3);
-	
+		
 	/** get the standard genetic code */
 	public static GeneticCode getStandard()
 		{

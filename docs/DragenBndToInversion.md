@@ -103,3 +103,4 @@ Dragen has no VCF with SVTYPE=INV
 
 > Inversions are reported as a set of breakends. For example, given a simple reciprocal inversion, four breakends are reported, sharing the same EVENT INFO tag. The following is an example breakend records representing a simple reciprocal inversion:
 
+

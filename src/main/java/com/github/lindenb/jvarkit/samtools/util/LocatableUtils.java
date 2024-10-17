@@ -29,13 +29,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiPredicate;
-import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.stream.DefaultCollector;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -45,6 +43,28 @@ import htsjdk.samtools.util.Locatable;
 public class LocatableUtils extends CoordMath {
 	public static final Comparator<Locatable> DEFAULT_COMPARATOR = (A,B)->LocatableUtils.compareTo(A,B);
 	
+	
+	public static Locatable parse(final String s) {
+		final int col = s.lastIndexOf(":");
+		if(col<=0) throw new IllegalArgumentException("no colon in "+s);
+		final String contig = s.substring(0, col);
+		final int hyphen = s.indexOf("-",col+1);
+		int start;
+		int end;
+		if(hyphen<0)
+			{
+			start = Integer.parseInt(s.substring(col+1));
+			end = start;
+			}
+		else
+			{
+			start= Integer.parseInt(s.substring(col+1, hyphen));
+			end= Integer.parseInt(s.substring(hyphen+1));
+			}
+		if(start<0)  throw new IllegalArgumentException("start <0 in "+s);
+		if(start>end)  throw new IllegalArgumentException("start>end in "+s);
+		return new SimpleInterval(contig,start,end);
+		}
 	
 	/** return the shared interval between two loc */
 	public static Locatable sharedInterval(final Locatable loc1, final Locatable loc2) {

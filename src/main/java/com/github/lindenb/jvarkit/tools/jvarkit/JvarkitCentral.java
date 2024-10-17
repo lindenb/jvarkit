@@ -145,6 +145,7 @@ import com.github.lindenb.jvarkit.tools.findallcov.FindAllCoverageAtPosition;
 import com.github.lindenb.jvarkit.tools.findhtsfiledict.FindHtsFileDictionary;
 import com.github.lindenb.jvarkit.tools.fixvcfmissinggenotypes.FixVcfMissingGenotypes;
 import com.github.lindenb.jvarkit.tools.gatk.GatkHaplotypeCaller;
+import com.github.lindenb.jvarkit.tools.gff2fa.Gff3ToFasta;
 import com.github.lindenb.jvarkit.tools.gff2kg.Gff2KnownGene;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomad;
 import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadSV;
@@ -729,6 +730,7 @@ public class JvarkitCentral {
 		command(GtexRsToQTL.class);
 		command(GtfRetroCopy.class);
 		command(Gff3UpstreamOrf.class);
+		command(Gff3ToFasta.class);
 		command(GoUtils.class);
 		command(GroupByGene.class);
 		command(Gtf2Xml.class);
