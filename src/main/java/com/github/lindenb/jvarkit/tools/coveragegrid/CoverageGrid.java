@@ -48,6 +48,8 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 import java.util.function.ToDoubleFunction;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -240,6 +242,26 @@ public class CoverageGrid extends Launcher {
 				}
 			return sr;
 			}
+		
+		/* remove continuous points at the same Y */
+		protected void simplifyPolygon(final List<Point2D> points) {
+			int i=1;
+			while(i+2 < points.size())
+				{
+				final Point2D p1 = points.get(i+0);
+				final Point2D p2 = points.get(i+1);
+				final Point2D p3 = points.get(i+2);
+				if(p1.getY()==p2.getY() && p2.getY()==p3.getY() && p1.getX() < p3.getX()) {
+					points.remove(i+1);
+					}
+				else
+					{
+					i++;
+					}
+				}
+			}
+		
+		
 		protected double trimX(double coordX) {
 			return Math.min(this.boundaries.getMaxX(), Math.max(this.boundaries.getX(),coordX));
 			}
@@ -382,6 +404,28 @@ public class CoverageGrid extends Launcher {
 				}
 			}
 		
+		protected <X> List<List<X>> pileup(final List<X> arcs,final Predicate<X> predicateKeep,final BiPredicate<X,X> same) {
+			   //pileup Arcs so arcs at the same X1-X2 are displayed with a small shift
+		     final List<List<X>> pileup = new ArrayList<>();
+		     while(!arcs.isEmpty()) {
+		    	final X arc = arcs.remove(arcs.size()-1);
+				if(!predicateKeep.test(arc)) continue;
+		    	 int y=0;
+		    	 for(y=0;y<pileup.size();++y) {
+		    		final List<X> row =pileup.get(y);
+		    		if(same.test(row.get(0),arc)) {
+		    			row.add(arc);
+		    			break;
+		    			}
+		    	 	}
+		    	 if(y==pileup.size()) {
+		    		 final List<X> row= new ArrayList<>();
+		    		 row.add(arc);
+		    		 pileup.add(row);
+		    	 	}
+		     	}
+		    return pileup;
+			}
 		
 		protected CloseableIterator<SAMRecord> query(final SamReader sr) {
 			final int extend = 100;//give a chance to get clipping
@@ -979,20 +1023,8 @@ public class CoverageGrid extends Launcher {
 				points.add(new Point2D.Double(this.boundaries.getX()+i, y));
 				}
 			points.add(new Point2D.Double(this.boundaries.getMaxX(), bottom_y));
-			int i=1;
-			while(i+2 < points.size())
-				{
-				final Point2D p1 = points.get(i+0);
-				final Point2D p2 = points.get(i+1);
-				final Point2D p3 = points.get(i+2);
-				if(p1.getY()==p2.getY() && p2.getY()==p3.getY() && p1.getX() < p3.getX()) {
-					points.remove(i+1);
-					}
-				else
-					{
-					i++;
-					}
-				}
+			simplifyPolygon(points);
+			
 			canvas.polygon(
 					points,
 					FunctionalMap.of(
@@ -1255,6 +1287,33 @@ public class CoverageGrid extends Launcher {
 		protected double getGeneMidY() {
 			return this.boundaries.getCenterY();
 			}
+		
+		private boolean keepArc(final Arc arc) {
+	    	 if(!CoordMath.encloses(
+				this.extendedInterval.getStart(), this.extendedInterval.getEnd(),
+				arc.p1, arc.p2)) return false;
+					
+
+			 if(!(
+				CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getStart(), this.userInterval.getStart()) ||
+				CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getEnd(), this.userInterval.getEnd())
+				)) return false;
+			 
+			 if(CoverageGrid.this.inversion_flag) {
+				// ARC ALL OUTSIDE INV
+		    	if(arc.p1 + arc.readLen < this.userInterval.getStart() && 
+		    			this.userInterval.getEnd()+ arc.readLen < arc.p2) {
+		    		return false;
+		    		}
+		    	// ARC ALL INSIDE INV
+		    	if(this.userInterval.getStart() + arc.readLen < arc.p1 && 
+		    		arc.p2 + arc.readLen < this.userInterval.getEnd()) {
+		    		return false;
+		    		}
+	    		}
+			return true;
+			}
+		
 		@Override
 		void plot(final Canvas canvas) {
 			 canvas.comment(this.sampleName);
@@ -1264,49 +1323,7 @@ public class CoverageGrid extends Launcher {
 		     plotVerticalGuides(canvas);
 		     
 		     //pileup Arcs so arcs at the same X1-X2 are displayed with a small shift
-		     final List<List<Arc>> pileup = new ArrayList<>();
-		     while(!arcs.isEmpty()) {
-		    	final Arc arc = arcs.remove(arcs.size()-1);
-				if(!CoordMath.encloses(
-					this.extendedInterval.getStart(), this.extendedInterval.getEnd(),
-					arc.p1, arc.p2)) continue;
-				
-				
-				if(!(
-						CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getStart(), this.userInterval.getStart()) ||
-						CoordMath.overlaps(arc.p1,arc.p2, this.userInterval.getEnd(), this.userInterval.getEnd())
-						)) continue;
-		    	 
-				
-				if(CoverageGrid.this.inversion_flag) {
-					// ARC ALL OUTSIDE INV
-			    	if(arc.p1 + arc.readLen < this.userInterval.getStart() && 
-			    			this.userInterval.getEnd()+ arc.readLen < arc.p2) {
-			    		continue;
-			    		}
-			    	// ARC ALL INSIDE INV
-			    	if(this.userInterval.getStart() + arc.readLen < arc.p1 && 
-			    		arc.p2 + arc.readLen < this.userInterval.getEnd()) {
-			    		continue;
-			    		}
-		    		}
-				
-		    	 int y=0;
-		    	 for(y=0;y<pileup.size();++y) {
-		    		final List<Arc> row =pileup.get(y);
-		    		if(row.get(0).sameXY(arc)) {
-		    			row.add(arc);
-		    			break;
-		    			}
-		    	 	}
-		    	 if(y==pileup.size()) {
-		    		 final List<Arc> row= new ArrayList<>();
-		    		 row.add(arc);
-		    		 pileup.add(row);
-		    	 	}
-		     }
-		     
-		     
+		     final List<List<Arc>> pileup = pileup(this.arcs,A->keepArc(A), (A,B)->A.sameXY(B));
 		     
 		     final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
 		     final Hyperlink hyperlink = Hyperlink.compile(this.bamSequenceDictionary);
@@ -1338,7 +1355,7 @@ public class CoverageGrid extends Launcher {
     					)
 	    			);
 		     
-		     plotGenes(canvas);
+		    plotGenes(canvas);
 		     
 		   
 			for(List<Arc> row: pileup) {
@@ -1350,7 +1367,6 @@ public class CoverageGrid extends Launcher {
 			     for(int i=0;i< row.size();++i) {
 			    	final Arc arc= row.get(i);
 			    	
-			    	// INV is outside user boundaries
 			    	final double height = max_height - ((max_height-half_height)/(double)row.size())*i;
 			    			    	
 			    	final Arc2D path =new Arc2D.Double(
@@ -1441,6 +1457,7 @@ public class CoverageGrid extends Launcher {
 						if(!acceptRead(rec)) continue;
 						
 						// fill clip histogram
+						int max_clip_x=-1;//avoid  increasing count twice for same pixel
 						for(int side=0;side<2;++side) {
 							final ToIntFunction<Integer> pos2x = POS->(int)(clip_count.length*((POS-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference()));
 							final Cigar cigar = rec.getCigar();
@@ -1451,7 +1468,8 @@ public class CoverageGrid extends Launcher {
 								int x1 = pos2x.applyAsInt(p1);
 								final int x2 =  Math.max(x1+1,pos2x.applyAsInt(p1+1));
 								while(x1 < x2 && x1 < this.clip_count.length) {
-									if(x1>=0)  this.clip_count[x1]++;
+									if(x1>=0 && x1>max_clip_x)  this.clip_count[x1]++;
+									max_clip_x = Math.max(max_clip_x,x1);
 									++x1;
 									}
 								p1++;
@@ -1508,26 +1526,7 @@ public class CoverageGrid extends Launcher {
 		     plotVerticalGuides(canvas);
 		     
 		     //pileup Arcs so arcs at the same X1-X2 are displayed with a small shift
-		     final List<List<ClipArc>> pileup = new ArrayList<>();
-		     while(!arcs.isEmpty()) {
-		    	final ClipArc arc = arcs.remove(arcs.size()-1);
-				
-		    	 int y=0;
-		    	 for(y=0;y<pileup.size();++y) {
-		    		final List<ClipArc> row =pileup.get(y);
-		    		if(row.get(0).sameXY(arc)) {
-		    			row.add(arc);
-		    			break;
-		    			}
-		    	 	}
-		    	 if(y==pileup.size()) {
-		    		 final List<ClipArc> row= new ArrayList<>();
-		    		 row.add(arc);
-		    		 pileup.add(row);
-		    	 	}
-		     	}
-		     
-		     
+		     final List<List<ClipArc>> pileup = pileup(this.arcs,A->true,(A,B)->A.sameXY(B));
 		     
 		     final int fontSize=Math.min(12,(int)(this.boundaries.getHeight()/10.0));
 		     final Hyperlink hyperlink = Hyperlink.compile(this.bamSequenceDictionary);
@@ -1558,20 +1557,7 @@ public class CoverageGrid extends Launcher {
 					points.add(new Point2D.Double(this.boundaries.getX()+i, y));
 					}
 				points.add(new Point2D.Double(this.boundaries.getMaxX(), midy));
-				int i=1;
-				while(i+2 < points.size())
-					{
-					final Point2D p1 = points.get(i+0);
-					final Point2D p2 = points.get(i+1);
-					final Point2D p3 = points.get(i+2);
-					if(p1.getY()==p2.getY() && p2.getY()==p3.getY() && p1.getX() < p3.getX()) {
-						points.remove(i+1);
-						}
-					else
-						{
-						i++;
-						}
-					}
+				simplifyPolygon(points);
 		    	
 		    	canvas.polygon(points,
 		    			FunctionalMap.of(
@@ -1593,12 +1579,8 @@ public class CoverageGrid extends Launcher {
     					Canvas.KEY_STROKE_WIDTH,0.1
     					)
 	    			);
-		    
-		     
-		     
-		     
+
 		    plotGenes(canvas);
-		     
 		     
 			for(List<ClipArc> row : pileup) {
 				final ClipArc first = row.get(0);
@@ -1634,6 +1616,7 @@ public class CoverageGrid extends Launcher {
 			     }
 			plotFrame(canvas);
 			}
+		
 		@Override
 		void disposeData() {
 			this.arcs.clear();

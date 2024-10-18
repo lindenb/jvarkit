@@ -928,7 +928,7 @@ public class IOUtils {
     	}
     /** return default user agent for http connnection */
     public static String getDefaultUserAgent() {
-    	return "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:71.0) Gecko/20100101 Firefox/71.0";
+    	return "User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0";
     	}
     
     /** Reads len bytes in a loop.

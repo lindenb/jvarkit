@@ -43,6 +43,25 @@ import htsjdk.samtools.util.Locatable;
 public class LocatableUtils extends CoordMath {
 	public static final Comparator<Locatable> DEFAULT_COMPARATOR = (A,B)->LocatableUtils.compareTo(A,B);
 	
+	public static Locatable parse(final String s,final SAMSequenceDictionary dictOrNull) {
+		final Locatable loc0 = parse(s);
+		if(dictOrNull==null) return loc0;
+		String contig= loc0.getContig();
+		SAMSequenceRecord ssr=dictOrNull.getSequence(contig);
+		if(ssr==null) {
+			if(contig.startsWith("chr")) {
+				contig = contig.substring(3);
+				}
+			else
+				{
+				contig = "chr"+contig;
+				}
+			ssr=dictOrNull.getSequence(contig);
+			if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(loc0.getContig(), dictOrNull);
+			}
+		if(loc0.getStart()>ssr.getEnd()) throw new IllegalArgumentException("interval "+s+" is output chromosome "+ssr);
+		return new SimpleInterval(contig,loc0.getStart(),loc0.getEnd());
+		}
 	
 	public static Locatable parse(final String s) {
 		final int col = s.lastIndexOf(":");
