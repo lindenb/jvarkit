@@ -1552,7 +1552,7 @@ public class CoverageGrid extends Launcher {
 		    	final List<Point2D> points=new ArrayList<>(this.clip_count.length+2);
 		    	points.add(new Point2D.Double(this.boundaries.getX(), midy));
 				for(int i=0;i< this.clip_count.length;i++) {
-					final double y = midy + (this.clip_count[i]/(double)max_clip)*clip_height;
+					final double y = midy - (this.clip_count[i]/(double)max_clip)*clip_height;
 					points.add(new Point2D.Double(this.boundaries.getX()+i, y));
 					}
 				points.add(new Point2D.Double(this.boundaries.getMaxX(), midy));
