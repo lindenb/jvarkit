@@ -49,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.DynamicParameter;
@@ -1441,13 +1442,14 @@ public class CoverageGrid extends Launcher {
 						
 						// fill clip histogram
 						for(int side=0;side<2;++side) {
+							final ToIntFunction<Integer> pos2x = POS->(int)(clip_count.length*((POS-this.extendedInterval.getStart())/(double)this.extendedInterval.getLengthOnReference()));
 							final Cigar cigar = rec.getCigar();
 							if(cigar.numCigarElements()<2 || !cigar.isClipped()) break;
 							int p1 = (side==0?rec.getUnclippedStart():rec.getEnd()+1);
 							final int p2 = (side==0?rec.getAlignmentStart():rec.getUnclippedEnd()+1);
 							while(p1<p2) {
-								int x1 = (int)position2pixel(p1);
-								final int x2 = Math.max(x1+1,(int)position2pixel(p1+1));
+								int x1 = pos2x.applyAsInt(p1);
+								final int x2 =  Math.max(x1+1,pos2x.applyAsInt(p1+1));
 								while(x1 < x2 && x1 < this.clip_count.length) {
 									if(x1>=0)  this.clip_count[x1]++;
 									++x1;
