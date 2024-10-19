@@ -59,6 +59,10 @@ public class LocatableUtils extends CoordMath {
 			ssr=dictOrNull.getSequence(contig);
 			if(ssr==null) throw new JvarkitException.ContigNotFoundInDictionary(loc0.getContig(), dictOrNull);
 			}
+		else if(!ssr.getContig().equals(loc0.getContig()) /* alias */)
+			{
+			contig = ssr.getContig();
+			}
 		if(loc0.getStart()>ssr.getEnd()) throw new IllegalArgumentException("interval "+s+" is output chromosome "+ssr);
 		return new SimpleInterval(contig,loc0.getStart(),loc0.getEnd());
 		}
