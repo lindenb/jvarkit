@@ -40,6 +40,8 @@ Usage: coveragegrid [options] Files
       for DISCORDANT or SUPPL : arcs as a edge outside interval and the other 
       inside the interval
       Default: false
+    --known
+      Known CNV: can be an indexed vcf.gz file or a tabix bed.gz file.
     --mapq
       min mapping quality
       Default: 1

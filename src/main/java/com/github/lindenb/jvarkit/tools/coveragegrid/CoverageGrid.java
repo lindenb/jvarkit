@@ -72,11 +72,14 @@ import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Algorithm;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -84,6 +87,7 @@ import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
@@ -102,11 +106,13 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
@@ -139,7 +145,7 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams as a grid image",
 	keywords={"cnv","bam","depth","coverage","svg","postscript"},
 	creationDate="20241009",
-	modificationDate="20241009",
+	modificationDate="20241021",
 	jvarkit_amalgamion =  true,
 	menu="CNV/SV"
 	)
@@ -172,6 +178,8 @@ public class CoverageGrid extends Launcher {
 	private String gtfFile=null;
 	@Parameter(names= {"--inversion-flag"},description="for DISCORDANT or SUPPL : arcs as a edge outside interval and the other inside the interval")
 	private boolean inversion_flag=false;
+	@Parameter(names= {"--known"},description="Known CNV: can be an indexed vcf.gz file or a tabix bed.gz file.")
+	private Path knownVcfOrBed = null;
 
 	
 	
@@ -212,6 +220,8 @@ public class CoverageGrid extends Launcher {
 		byte[] reference_bases;
 		Canvas canvas;
 		SAMSequenceDictionary bamSequenceDictionary = null;
+		Path knownVcfOrBed = null;
+
 		
 		protected BamTask() {
 			}
@@ -274,6 +284,68 @@ public class CoverageGrid extends Launcher {
 		protected double getGeneMidY() {
 			return (float)Math.max(this.boundaries.getY(),this.boundaries.getMaxY()-4);
 		}
+		
+		protected void plotKnownCNVs(final Canvas canvas,double y1,double y2) {
+			if(this.knownVcfOrBed==null) return;
+			final List<Locatable> cnvs = new ArrayList<>();
+			if(this.knownVcfOrBed.getFileName().toString().endsWith(FileExtensions.COMPRESSED_VCF)) {
+				try(VCFReader r=VCFReaderFactory.makeDefault().open(this.knownVcfOrBed, true)) {
+					try(CloseableIterator<VariantContext> iter = r.query(this.extendedInterval)) {
+						while(iter.hasNext()) {
+							final VariantContext ctx=iter.next();
+							if(!ctx.hasAttribute(VCFConstants.SVTYPE)) continue;
+							cnvs.add(new SimpleInterval(ctx));
+							}
+						}
+					}
+				catch(IOException err) {
+					LOG.error(err);
+					}
+				}
+			else
+				{
+				try(TabixReader r= new TabixReader(this.knownVcfOrBed.toString())) {
+					final BedLineCodec codec = new BedLineCodec();
+					final TabixReader.Iterator iter = r.query(this.extendedInterval.getContig(),this.extendedInterval.getStart(),this.extendedInterval.getEnd());
+					for(;;) {
+						String line = iter.next();
+						if(line==null) break;
+						if(BedLine.isBedHeader(line)) continue;
+						final BedLine b = codec.decode(line);
+						if(b==null) continue;
+						cnvs.add(new SimpleInterval(b));
+						}
+						
+					}
+				catch(IOException err) {
+					LOG.error(err);
+					}
+				}
+			cnvs.removeIf(B->!CoordMath.encloses(
+					this.extendedInterval.getStart(), this.extendedInterval.getEnd(),
+					B.getStart(), B.getEnd())
+					);
+			if(cnvs.isEmpty()) return;
+			cnvs.sort(LocatableUtils::compareTo);
+			final Pileup<Locatable> pileup=new Pileup<>((A,B)->position2pixel(A.getEnd()+1)+0.1 < position2pixel(A.getStart()));
+			final List<List<Locatable>> rows = pileup.getRows();
+			for(int i=0;i< rows.size();++i) {
+				final double y = y1 + ((y2-y1)/(double)rows.size())*i;
+				for(Locatable cnv:rows.get(i)) {
+					canvas.line(
+						trimX(position2pixel(cnv.getStart())),
+						y,
+						trimX(position2pixel(cnv.getEnd()+1)),
+						y,
+						FunctionalMap.of(
+							Canvas.KEY_STROKE,Color.BLUE,
+							Canvas.KEY_STROKE_WIDTH,0.1
+							)
+						);
+					}
+				}
+			}
+		
 		
 		protected void plotGenes(final Canvas canvas) {
 			if(this.gtfPath==null) return;
@@ -1033,6 +1105,12 @@ public class CoverageGrid extends Launcher {
 							))
 					;
 
+			
+			plotKnownCNVs(canvas,
+				this.boundaries.getY()+this.boundaries.getHeight()*0.90,
+				this.boundaries.getY()+this.boundaries.getHeight()*0.95
+				);
+			
 			plotVerticalGuides(canvas);
 			plotFrame(canvas);
 			
@@ -1389,6 +1467,10 @@ public class CoverageGrid extends Launcher {
 		    			);
 			     	}
 			     }
+			plotKnownCNVs(canvas,
+					this.boundaries.getY()+this.boundaries.getHeight()*0.90,
+					this.boundaries.getY()+this.boundaries.getHeight()*0.95
+					);
 			plotFrame(canvas);
 			}
 		@Override
@@ -1614,6 +1696,10 @@ public class CoverageGrid extends Launcher {
 		    			);
 			     	}
 			     }
+			plotKnownCNVs(canvas,
+					this.boundaries.getY()+this.boundaries.getHeight()*0.90,
+					this.boundaries.getY()+this.boundaries.getHeight()*0.95
+					);
 			plotFrame(canvas);
 			}
 		
@@ -1748,6 +1834,7 @@ public int doWork(final List<String> args) {
 			task.gtfPath = this.gtfFile;
 			task.referencePath = this.refPath;
 			task.userInterval = user_interval;
+			task.knownVcfOrBed = knownVcfOrBed;
 			task.extendedInterval = extended_interval;
 			task.boundaries = new Rectangle(
 					(int)(nc*wi), 
