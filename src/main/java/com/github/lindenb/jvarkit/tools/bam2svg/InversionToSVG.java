@@ -56,7 +56,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.SVG;
@@ -366,8 +366,8 @@ public class InversionToSVG extends Launcher
 				try(final SamReader sr = srf.open(bamFile)) {
 					final SAMFileHeader header = sr.getFileHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-					final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
-					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
+					final Function<String,Optional<SimpleInterval>> intervalParser = new IntervalParser(dict);
+					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParser.exception(intervalStr));
 
 					final SimpleInterval leftInterval = new SimpleInterval(
 							interval.getContig(),

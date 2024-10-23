@@ -91,7 +91,7 @@ import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
@@ -562,9 +562,7 @@ public class SwingVcfView extends Launcher
 			Optional<SimpleInterval> ret;
 
 			try {
-				ret = IntervalParserFactory.newInstance().
-					dictionary(this.dict).
-					make().
+				ret = new IntervalParser(this.dict).
 					apply(s);
 				}
 			catch(Throwable err) {

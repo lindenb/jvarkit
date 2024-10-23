@@ -78,7 +78,7 @@ import javax.swing.filechooser.FileFilter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
@@ -610,9 +610,7 @@ public class SwingVcfJexlFilter extends Launcher {
 		} else {
 			Optional<SimpleInterval> ret;
 			try {
-				ret = IntervalParserFactory.newInstance().
-					dictionary(this.dict).
-					make().
+				ret = new IntervalParser(this.dict).
 					apply(s);
 				}
 			catch(final Throwable err) {

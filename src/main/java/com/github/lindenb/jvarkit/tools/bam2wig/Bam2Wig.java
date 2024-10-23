@@ -63,7 +63,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.Pedigree;
@@ -179,7 +179,7 @@ public class Bam2Wig extends Launcher
 	private SAMRecordPartition partition= SAMRecordPartition.sample;
 	@Parameter(names={"--mindepth","--mindp"},description="When using display READ_GROUPS, What is the minimal read depth that should be considered ?")
 	private int min_depth=0;
-	@Parameter(names={"--region","--interval"},description="Limit analysis to this interval. "+IntervalParserFactory.OPT_DESC)
+	@Parameter(names={"--region","--interval"},description="Limit analysis to this interval. "+IntervalParser.OPT_DESC)
 	private String region_str=null;
 	@Parameter(names={"--pedigree","-ped"},description="Pedigree file for CASE_CTRL. " + Pedigree.OPT_DESCRIPTION )
 	private File pedigreeFile=null;
@@ -674,13 +674,13 @@ public class Bam2Wig extends Launcher
 						}
 					else
 						{
-						interval = IntervalParserFactory.
+						interval = IntervalParser.
 							newInstance().
 							dictionary(samReaders.get(0).getFileHeader().getSequenceDictionary()).
 							enableWholeContig().
 							make().
 							apply(region_str).
-							orElseThrow(IntervalParserFactory.exception(this.region_str))
+							orElseThrow(IntervalParser.exception(this.region_str))
 							;
 
 						samRecordIterator = samReaders.get(0).query(
@@ -728,13 +728,13 @@ public class Bam2Wig extends Launcher
 						}
 					else
 						{
-						interval = IntervalParserFactory.
+						interval = IntervalParser.
 							newInstance().
 							dictionary(dict0).
 							enableWholeContig().
 							make().
 							apply(region_str).
-							orElseThrow(IntervalParserFactory.exception(region_str))
+							orElseThrow(IntervalParser.exception(region_str))
 							;
 						
 						LOG.info("interval :"+interval);

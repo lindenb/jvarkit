@@ -34,7 +34,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.ansi.AnsiUtils;
 import com.github.lindenb.jvarkit.ansi.AnsiUtils.AnsiColor;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -129,8 +129,7 @@ public class BigWigTView extends Launcher {
 				height=5;
 				}
 			
-			final Locatable location = IntervalParserFactory.newInstance().
-					make().
+			final Locatable location = new IntervalParser().
 					apply(this.interval).
 					orElse(null);
 			if(location==null) {

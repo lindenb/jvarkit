@@ -71,7 +71,7 @@ import com.github.lindenb.jvarkit.math.MinMaxInteger;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -1770,10 +1770,9 @@ public int doWork(final List<String> args) {
 			return -1;
 			}
 		
-		final SimpleInterval user_interval = IntervalParserFactory.newInstance(dict).
-				make().
+		final SimpleInterval user_interval = new IntervalParser(dict).
 				apply(this.intervalStr).
-				orElseThrow(()->new IllegalArgumentException("Cannot parse interval:\""+this.intervalStr+"\""));
+				orElseThrow(IntervalParser.exception("Cannot parse interval:\""+this.intervalStr+"\""));
 		
 		final int mid_position = user_interval.getStart() + user_interval.getLengthOnReference()/2;
 		final int new_len = (int)Math.max(

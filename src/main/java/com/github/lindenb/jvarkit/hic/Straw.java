@@ -48,7 +48,7 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.zip.InflaterInputStream;
 
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 
 import htsjdk.samtools.QueryInterval;
@@ -162,12 +162,10 @@ public class Straw {
 			) throws IOException {
 		
 	  final long master = readHeader(fin);	
-	  Function<String, Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().
-			  dictionary(this.dictionary).
-			  make();
+	  Function<String, Optional<SimpleInterval>> intervalParser = new IntervalParser(this.dictionary);
 	  
-	  final SimpleInterval interval1 = intervalParser.apply(intervalStr1).orElseThrow(IntervalParserFactory.exception(intervalStr1));
-	  final SimpleInterval interval2 = intervalParser.apply(intervalStr2).orElseThrow(IntervalParserFactory.exception(intervalStr2));
+	  final SimpleInterval interval1 = intervalParser.apply(intervalStr1).orElseThrow(IntervalParser.exception(intervalStr1));
+	  final SimpleInterval interval2 = intervalParser.apply(intervalStr2).orElseThrow(IntervalParser.exception(intervalStr2));
 
 	  
 	  queryIntervals[0] = new QueryInterval(this.dictionary.getSequenceIndex(interval1.getContig()),interval1.getStart(),interval1.getEnd());

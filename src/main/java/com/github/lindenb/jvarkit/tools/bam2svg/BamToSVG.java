@@ -59,7 +59,7 @@ import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.SVG;
@@ -153,7 +153,7 @@ public class BamToSVG extends Launcher {
 
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)
 	private File outputFile = null;
-	@Parameter(names={"-i","--interval","--region"},description=IntervalParserFactory.OPT_DESC,required=true)
+	@Parameter(names={"-i","--interval","--region"},description=IntervalParser.OPT_DESC,required=true)
 	private String intervalStr = null;
 	@Parameter(names={"-w","--width"},description="Page width")
 	private int drawinAreaWidth = 1000 ;
@@ -1130,11 +1130,11 @@ public class BamToSVG extends Launcher {
 				{
 				this.indexedFastaSequenceFile =  Objects.requireNonNull(ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile));
 				this.referenceDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
-				this.interval  =  IntervalParserFactory.
+				this.interval  =  IntervalParser.
 					newInstance(referenceDict).
 					make().
 					apply(this.intervalStr).
-					orElseThrow(IntervalParserFactory.exception(this.intervalStr))
+					orElseThrow(IntervalParser.exception(this.intervalStr))
 					;
 				
 				final GenomicSequence gSequence=new GenomicSequence(this.indexedFastaSequenceFile, this.interval.getContig());

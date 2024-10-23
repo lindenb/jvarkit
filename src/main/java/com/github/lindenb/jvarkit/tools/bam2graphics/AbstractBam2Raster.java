@@ -49,7 +49,7 @@ import javax.imageio.ImageIO;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
@@ -84,7 +84,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 	protected File outputFile = null;
 	@Parameter(names={"--groupby"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)
 	protected SAMRecordPartition groupBy=SAMRecordPartition.sample;
-	@Parameter(names={"-r","--region"},description="Restrict to that region. "+IntervalParserFactory.OPT_DESC,required=true)
+	@Parameter(names={"-r","--region"},description="Restrict to that region. "+IntervalParser.OPT_DESC,required=true)
 	protected String regionStr = null;
 	@Parameter(names={"-w","--width"},description="Image width")
 	protected int WIDTH = 1000 ;

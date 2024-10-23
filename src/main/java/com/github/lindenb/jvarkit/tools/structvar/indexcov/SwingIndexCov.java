@@ -101,7 +101,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
@@ -1209,10 +1209,8 @@ public class SwingIndexCov extends Launcher {
 			final String s = this.jtextFieldLocation.getText().trim();
 			if(StringUtil.isBlank(s)) return Optional.empty();			
 			try {
-				return IntervalParserFactory.newInstance().
-					dictionary(this.srcDict).
+				return new IntervalParser(this.srcDict).
 					enableWholeContig().
-					make().
 					apply(s);
 				}
 			catch(final Throwable err) {

@@ -84,7 +84,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.swing.SAMRecordPanel;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.swing.PropertyChangeObserver;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
@@ -437,9 +437,7 @@ public class SwingBamView extends Launcher {
 						}
 					try {
 						XFrame.this.interval.setValue(
-							IntervalParserFactory.newInstance().
-							dictionary(XFrame.this.dict).
-							make().
+							new IntervalParser(XFrame.this.dict).
 							apply(s).
 							orElse(null)
 							);
@@ -1138,9 +1136,7 @@ public class SwingBamView extends Launcher {
 			Optional<SimpleInterval> ret;
 
 			try {
-				ret = IntervalParserFactory.newInstance().
-					dictionary(this.dict).
-					make().
+				ret = new IntervalParser(this.dict).
 					apply(s);
 				}
 			catch(Throwable err) {

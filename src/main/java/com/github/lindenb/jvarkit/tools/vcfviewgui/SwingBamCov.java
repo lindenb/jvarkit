@@ -105,7 +105,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.swing.PreferredDirectory;
@@ -1119,9 +1119,7 @@ public class SwingBamCov extends Launcher
 		final Optional<SimpleInterval> getUserInterval() {
 			final String s = this.jtextFieldLocation.getText(); 
 			if(StringUtil.isBlank(s)) return Optional.empty();
-			return IntervalParserFactory.newInstance().
-					dictionary(this.dict).
-					make().
+			return new IntervalParser(this.dict).
 					apply(s.trim());
 			}
 		

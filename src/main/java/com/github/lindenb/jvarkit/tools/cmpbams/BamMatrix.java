@@ -55,7 +55,7 @@ import javax.imageio.ImageIO;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -135,9 +135,9 @@ public class BamMatrix  extends Launcher
 	private Path faidx = null;
 	@Parameter(names={"-s","--size"},description="matrix size in pixel")
 	private int matrix_size = 1_000;
-	@Parameter(names={"-r","-r1","--region"},description="first region." + IntervalParserFactory.OPT_DESC,required=true)
+	@Parameter(names={"-r","-r1","--region"},description="first region." + IntervalParser.OPT_DESC,required=true)
 	private String region1Str=null;
-	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParserFactory.OPT_DESC)
+	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParser.OPT_DESC)
 	private String region2Str=null;
 	@Parameter(names={"--name","-name"},description="user read name or use 'BX:Z:'/'MI:i:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
 	private NameExtractor nameExtractor = NameExtractor.READ_NAME;
@@ -372,12 +372,10 @@ public class BamMatrix  extends Launcher
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
 			
 			final Function<String,Optional<SimpleInterval>> intervalParser = 
-					IntervalParserFactory.newInstance().
-					dictionary(dict).
-					enableWholeContig().
-					make();
-			this.userIntervalX = intervalParser.apply(this.region1Str).orElseThrow(IntervalParserFactory.exception(this.region1Str));
-			this.userIntervalY = intervalParser.apply(this.region2Str).orElseThrow(IntervalParserFactory.exception(this.region2Str));
+					new IntervalParser(dict).
+					enableWholeContig();
+			this.userIntervalX = intervalParser.apply(this.region1Str).orElseThrow(IntervalParser.exception(this.region1Str));
+			this.userIntervalY = intervalParser.apply(this.region2Str).orElseThrow(IntervalParser.exception(this.region2Str));
 			
 			
 			// adjust intervals so they have the same length

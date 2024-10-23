@@ -22,7 +22,7 @@ public class IntervalParserFactoryTest {
 	private final TestSupport support = new TestSupport();
 	@Test
 	public void withoutDict() {
-		Function<String,Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().make();
+		Function<String,Optional<SimpleInterval>> parser =new  IntervalParser();
 		final Optional<SimpleInterval> r=parser.apply("chr1:1-100");
 		Assert.assertTrue(r.isPresent());
 		Assert.assertEquals(r.get().getContig(),"chr1");
@@ -32,7 +32,7 @@ public class IntervalParserFactoryTest {
 
 	@Test
 	public void withComma() {
-		Function<String,Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().make();
+		Function<String,Optional<SimpleInterval>> parser = new IntervalParser();
 		final Optional<SimpleInterval> r=parser.apply("chr1:1-1,000");
 		Assert.assertTrue(r.isPresent());
 		Assert.assertEquals(r.get().getContig(),"chr1");
@@ -44,8 +44,7 @@ public class IntervalParserFactoryTest {
 	public void withDict() {
 		SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(support.resource("human_b37.dict")));
 		Assert.assertNotNull(dict);
-		Function<String,Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().
-				dictionary(dict).make();
+		Function<String,Optional<SimpleInterval>> parser = new IntervalParser(dict);
 		final Optional<SimpleInterval> r=parser.apply("chr1:1-100");
 		Assert.assertTrue(r.isPresent());
 		Assert.assertEquals(r.get().getContig(),"1");
@@ -58,10 +57,9 @@ public class IntervalParserFactoryTest {
 		SAMSequenceDictionary dict = SAMSequenceDictionaryExtractor.extractDictionary(Paths.get(support.resource("human_b37.dict")));
 		Assert.assertNotNull(dict);
 		SAMSequenceRecord ssr=dict.getSequence(0);
-		Function<String,Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().
-				dictionary(dict).
-				enableWholeContig().
-				make();
+		Function<String,Optional<SimpleInterval>> parser = new IntervalParser(dict).
+				enableWholeContig()
+				;
 		final Optional<SimpleInterval> r=parser.apply(ssr.getSequenceName());
 		Assert.assertTrue(r.isPresent());
 		Assert.assertEquals(r.get().getContig(),ssr.getSequenceName());

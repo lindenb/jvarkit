@@ -12,7 +12,7 @@ import org.apache.commons.math3.stat.descriptive.rank.Median;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -270,8 +270,8 @@ public class BigwigMerge extends Launcher {
 		try {
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(referenceFile);
 			final Locatable loc = intervalStr==null?null:
-				IntervalParserFactory.newInstance(dict).make().apply(this.intervalStr).
-				orElseThrow(()->new IllegalArgumentException("Cannot parse "+intervalStr));
+				new IntervalParser(dict).apply(this.intervalStr).
+				orElseThrow(IntervalParser.exception("Cannot parse "+intervalStr));
 
 			
 			for(String wiggleURI: IOUtils.unrollStrings(args)) {

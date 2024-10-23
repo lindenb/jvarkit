@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StaticCodeExtractor;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.SVG;
@@ -1158,11 +1158,11 @@ public class SvToSVG extends Launcher
 				{
 				this.indexedFastaSequenceFile =ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidxFile);
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
-				final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
+				final Function<String,Optional<SimpleInterval>> intervalParser = new IntervalParser(dict);
 				final List<SimpleInterval> all_intervals = new ArrayList<>(this.intervalStrList.size());
 				
 				for(final String intervalStr:this.intervalStrList) {
-					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParserFactory.exception(intervalStr));
+					final SimpleInterval interval = intervalParser.apply(intervalStr).orElseThrow(IntervalParser.exception(intervalStr));
 					if(interval==null) {
 						LOG.error("Cannot parse interval "+intervalStr);
 						return  -1;

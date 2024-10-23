@@ -249,10 +249,9 @@ public abstract class IntervalListProvider {
 			}
 		@Override
 		public Stream<? extends Locatable> stream() {
-			final Function<String, Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().
-					throwOnError().
-					enableSinglePoint(this.enable_single_point).
-					make();
+			final Function<String, Optional<SimpleInterval>> parser = new IntervalParser().
+					enableSinglePoint(this.enable_single_point);
+			
 			return Arrays.
 					stream(getRequiredPath().split("[ ;,\t\n]+")).
 					filter(S->!StringUtils.isBlank(S)).

@@ -43,7 +43,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -123,7 +123,7 @@ public class VCFMerge
 	private Path outputFile = null;
 	@Parameter(names={"-homref","--homref","-hr"},description="Use HomRef 0/0 for unknown variant")
 	private boolean useHomRefForUnknown = false;
-	@Parameter(names={"-region","--region","-r"},description="Merge in that region: " + IntervalParserFactory.OPT_DESC )
+	@Parameter(names={"-region","--region","-r"},description="Merge in that region: " + IntervalParser.OPT_DESC )
 	private String regionStr = "";
 	@Parameter(names={"--ploidy"},description="Ploidy")
 	private int ploidy=2;
@@ -224,12 +224,10 @@ public class VCFMerge
 			final Predicate<VariantContext> accept;
 
 			if(!StringUtil.isBlank(VCFMerge.this.regionStr)) {
-				rgn = IntervalParserFactory.newInstance().
-						dictionary(dict).
+				rgn = new IntervalParser(dict).
 						enableWholeContig().
-						make().
 						apply(VCFMerge.this.regionStr).
-						orElseThrow(IntervalParserFactory.exception(VCFMerge.this.regionStr));
+						orElseThrow(IntervalParser.exception(VCFMerge.this.regionStr));
 				accept = (CTX)->{
 					return rgn.overlaps(CTX);
 					};

@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.json.FromJson;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -117,7 +117,7 @@ public class HtsFreemarker extends Launcher {
 					}
 			else
 					{
-					final Locatable loc =IntervalParserFactory.newInstance(header.getSequenceDictionary()).make().apply(this.interval_str).get();
+					final Locatable loc = new IntervalParser(header.getSequenceDictionary()).apply(this.interval_str).get();
 					iter = reader.query(loc.getContig(), loc.getStart(), loc.getEnd(), false);
 					}
 			hash.put("reads", iter.stream().collect(Collectors.toList()));
@@ -137,7 +137,7 @@ public class HtsFreemarker extends Launcher {
 			hash.put("header", header);
 			try(CloseableIterator<VariantContext> iter=StringUtils.isBlank(this.interval_str)?
 					reader.iterator():
-					reader.query(IntervalParserFactory.newInstance(header.getSequenceDictionary()).make().apply(this.interval_str).orElseThrow(()-> new IllegalArgumentException("Cannot open VCF for this interval "+ this.interval_str)))) {
+					reader.query(new IntervalParser(header.getSequenceDictionary()).apply(this.interval_str).orElseThrow(()-> new IllegalArgumentException("Cannot open VCF for this interval "+ this.interval_str)))) {
 				hash.put("variants", iter.stream().collect(Collectors.toList()));
 				}
 			}

@@ -53,7 +53,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -407,12 +407,12 @@ public class VcfPhased01 extends Launcher {
 				}
 			if(this.theInterval==null) 
 				{
-				this.theInterval = IntervalParserFactory.
+				this.theInterval = IntervalParser.
 						newInstance().
 						dictionary(dict).
 						make().
 						apply(this.intervalStr).
-						orElseThrow(IntervalParserFactory.exception(this.intervalStr));
+						orElseThrow(IntervalParser.exception(this.intervalStr));
 				}
 			final List<VariantContext> variants = vcfFileReader.query(this.theInterval).
 				stream().

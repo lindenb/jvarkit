@@ -80,7 +80,7 @@ import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -364,9 +364,8 @@ public  class CoverageServer extends Launcher {
 			}
 		
 		
-		return IntervalParserFactory.newInstance(this.dictionary).
+		return new IntervalParser(this.dictionary).
 			enableSinglePoint().
-			make().
 			apply(s.trim()).
 			orElse(null);
 	}

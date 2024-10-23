@@ -36,7 +36,7 @@ import java.util.function.Function;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -175,8 +175,8 @@ public class KnownDeletion extends Launcher
 							filter(S->!StringUtil.isBlank(S)).
 							findFirst().
 							orElse(filename);
-				final Function<String,Optional<SimpleInterval>> parser = IntervalParserFactory.newInstance().dictionary(dict).make();
-				final SimpleInterval interval =  parser.apply(this.regionStr).orElseThrow(IntervalParserFactory.exception(this.regionStr));
+				final Function<String,Optional<SimpleInterval>> parser = new IntervalParser(dict);
+				final SimpleInterval interval =  parser.apply(this.regionStr).orElseThrow(IntervalParser.exception(this.regionStr));
 				final SAMSequenceRecord ssr = Objects.requireNonNull(dict.getSequence(interval.getContig()));
 				final int tid= ssr.getSequenceIndex();
 				final QueryInterval qi1 = new QueryInterval(

@@ -53,7 +53,7 @@ import org.eclipse.jetty.server.handler.HandlerList;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -626,9 +626,8 @@ private class ViewVcfHandler extends AbstractHandler
 				
 				if(!StringUtil.isBlank(rgn_str)) 
 					{
-					interval = IntervalParserFactory.newInstance().
+					interval = new IntervalParser().
 							enableWholeContig().
-							make().
 							apply(rgn_str).
 							orElse(null);	
 					}

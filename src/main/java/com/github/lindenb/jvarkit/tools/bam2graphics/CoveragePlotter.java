@@ -73,7 +73,7 @@ import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.SVG;
@@ -438,8 +438,8 @@ public int doWork(final List<String> args) {
 			return -1;
 			}
 		final List<SampleInfo> samples = new ArrayList<>(inputBams.size());
-		final Locatable the_locatable = IntervalParserFactory.newInstance(dict).make().
-			apply(this.intervalStr).orElseThrow(()->new IllegalArgumentException("Cannot parse interval:\""+this.intervalStr+"\""));
+		final Locatable the_locatable = new IntervalParser(dict).
+			apply(this.intervalStr).orElseThrow(IntervalParser.exception("Cannot parse interval:\""+this.intervalStr+"\""));
 		
 		final SimpleInterval rawRegion = new SimpleInterval(the_locatable);
 		final SimpleInterval extendedRegion = IntervalExtender.of(dict, this.extendStr).apply(rawRegion);

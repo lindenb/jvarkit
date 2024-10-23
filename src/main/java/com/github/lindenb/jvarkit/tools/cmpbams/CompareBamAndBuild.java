@@ -41,7 +41,7 @@ import java.util.function.Function;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -436,8 +436,8 @@ public class CompareBamAndBuild  extends Launcher
 						final SimpleInterval interval;
 						if(!StringUtils.isBlank(REGION))
 							{
-							final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
-							interval=intervalParser.apply(REGION).orElseThrow(IntervalParserFactory.exception(REGION));
+							final Function<String,Optional<SimpleInterval>> intervalParser = new IntervalParser(dict);
+							interval=intervalParser.apply(REGION).orElseThrow(IntervalParser.exception(REGION));
 							}
 						else
 							{

@@ -46,7 +46,7 @@ import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Exon;
@@ -1098,11 +1098,9 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					final SamReaderFactory srf = super.createSamReaderFactory();
 					srf.referenceSequence(this.referenceFile);
 					
-					this.interval = IntervalParserFactory.newInstance().
-							dictionary(this.refDict).
-							make().
+					this.interval = new IntervalParser(this.refDict).
 							apply(this.regionStr).
-							orElseThrow(IntervalParserFactory.exception(this.regionStr));
+							orElseThrow(IntervalParser.exception(this.regionStr));
 					
 					
 					loadVCFs();

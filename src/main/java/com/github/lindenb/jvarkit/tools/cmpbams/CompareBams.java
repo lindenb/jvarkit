@@ -40,7 +40,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -303,7 +303,7 @@ public class CompareBams  extends Launcher
 	@Parameter(names={"-c","--cigar"},description="use cigar String for comparaison")
 	private boolean useCigar = false;
 	
-	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
+	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
 	private String REGION = "";
 
 	@Parameter(names={"-R","--reference"},description="For CRAM. "+INDEXED_FASTA_REFERENCE_DESCRIPTION)
@@ -563,7 +563,7 @@ public class CompareBams  extends Launcher
 				final Optional<SimpleInterval> interval;
 				if(!StringUtils.isBlank(this.REGION))
 					{
-					interval =  IntervalParserFactory.newInstance().dictionary(dict).make().apply(this.REGION);
+					interval =  new IntervalParser(dict).apply(this.REGION);
 					
 					if(!interval.isPresent())
 						{

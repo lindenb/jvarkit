@@ -93,7 +93,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -868,10 +868,10 @@ public class Bam2Raster extends AbstractBam2Raster
 					this.refDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
 					//this.contigNameConverter = ContigNameConverter.fromOneDictionary(this.refDict);
 					}
-				final Function<String, Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(this.refDict).make();
+				final Function<String, Optional<SimpleInterval>> intervalParser = new IntervalParser(this.refDict);
 						
 
-				this.interval = intervalParser.apply(this.regionStr).orElseThrow(IntervalParserFactory.exception(this.regionStr));
+				this.interval = intervalParser.apply(this.regionStr).orElseThrow(IntervalParser.exception(this.regionStr));
 				if(this.interval==null)
 					{
 					LOG.error("Cannot parse interval "+regionStr+" or chrom doesn't exists in sam dictionary.");

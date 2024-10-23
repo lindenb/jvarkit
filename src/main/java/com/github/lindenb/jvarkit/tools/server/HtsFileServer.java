@@ -60,7 +60,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.ContentType;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -438,9 +438,7 @@ public  class HtsFileServer extends Launcher {
 		/* parse user interval */
 		final String intervalstr = request.getParameter(KEY_INTERVAL);
 		if(!StringUtils.isBlank(intervalstr)) {
-			loc = IntervalParserFactory.newInstance().
-					dictionary(this.dictionary).
-					make().
+			loc = new IntervalParser(this.dictionary).
 					apply(intervalstr).
 					orElse(null);
 			if(loc==null && this.gtfFile!=null) {

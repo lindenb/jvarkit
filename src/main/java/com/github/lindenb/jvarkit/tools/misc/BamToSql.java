@@ -53,7 +53,7 @@ import htsjdk.samtools.util.CloserUtil;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -285,7 +285,7 @@ public class BamToSql
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	
-	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
+	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
 	private String regionStr = "";
 
 	@Parameter(names={"-c","--cigar"},description="print cigar data")
@@ -419,7 +419,7 @@ public class BamToSql
 				if(dict==null)  {
 					throw new JvarkitException.DictionaryMissing("No Dictionary in input");
 					}
-				final Function<String,Optional<SimpleInterval>> intervalParser = IntervalParserFactory.newInstance().dictionary(dict).make();
+				final Function<String,Optional<SimpleInterval>> intervalParser = new IntervalParser(dict);
 				
 				final SimpleInterval userInterval;
 				iter= null;
@@ -430,7 +430,7 @@ public class BamToSql
 					}
 				else
 					{
-					userInterval = intervalParser.apply(this.regionStr).orElseThrow(IntervalParserFactory.exception(this.regionStr));
+					userInterval = intervalParser.apply(this.regionStr).orElseThrow(IntervalParser.exception(this.regionStr));
 					
 					iter = sfr.query(
 							userInterval.getContig(),

@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -85,7 +85,7 @@ public class WibToBedGraph extends Launcher {
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputPath = null;
-	@Parameter(names={"-r","--regions"},description=IntervalParserFactory.OPT_DESC,required=true)
+	@Parameter(names={"-r","--regions"},description=IntervalParser.OPT_DESC,required=true)
 	private String region="";
 	@Parameter(names={"--tabix"},description=WibReader.TABIX_DESC,required=true)
 	private String tabixURI="";
@@ -102,7 +102,7 @@ public class WibToBedGraph extends Launcher {
 			}
 	
 		try(WibReader reader=new  WibReader(this.tabixURI, this.wibURI)) {
-			final Locatable loc = IntervalParserFactory.newInstance().make().apply(this.region).orElseThrow(IntervalParserFactory.exception());
+			final Locatable loc =new  IntervalParser().apply(this.region).orElseThrow(IntervalParser.exception(this.region));
 			try(CloseableIterator<WibReader.WigItem> iter = reader.query(loc)) {
 				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(outputPath)) {
 					if(output_wig) {

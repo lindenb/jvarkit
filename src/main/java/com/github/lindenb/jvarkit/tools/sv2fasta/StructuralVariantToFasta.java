@@ -35,7 +35,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -102,7 +102,7 @@ public class StructuralVariantToFasta extends Launcher {
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
-	@Parameter(names={"-r","--region","--interval"},description="interval. "+ IntervalParserFactory.OPT_DESC,required=true)
+	@Parameter(names={"-r","--region","--interval"},description="interval. "+ IntervalParser.OPT_DESC,required=true)
 	private String intervalStr = null;
 	@Parameter(names={"--exclude-filtered"},description="Exclude FILTER-ed variants.")
 	private boolean exclude_filtered = false;
@@ -350,7 +350,7 @@ public class StructuralVariantToFasta extends Launcher {
 				}
 			try(ReferenceSequenceFile reference = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(reference);
-				final Locatable loc = IntervalParserFactory.newInstance(dict).make().apply(this.intervalStr).orElse(null);
+				final Locatable loc = new IntervalParser(dict).apply(this.intervalStr).orElse(null);
 				if(loc==null) {
 					LOG.error("Cannot parse interval "+loc);
 					return -1;

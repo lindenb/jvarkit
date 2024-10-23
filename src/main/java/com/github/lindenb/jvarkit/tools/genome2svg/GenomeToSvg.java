@@ -38,7 +38,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.BamCoverageTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.BasesTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.GffTrack;
@@ -61,7 +61,7 @@ public class GenomeToSvg extends Launcher {
 	private static final Logger LOG=Logger.build(GenomeToSvg.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputPath=null;
-	@Parameter(names={"-r","--interval","--region"},description=IntervalParserFactory.OPT_DESC,required = true)
+	@Parameter(names={"-r","--interval","--region"},description=IntervalParser.OPT_DESC,required = true)
 	private String intervalStr = null;
 	@Parameter(names={"-w","--width"},description="Image width")
 	private double image_width = 1000;
@@ -100,8 +100,7 @@ public class GenomeToSvg extends Launcher {
 			environment.setConversionService(service);
 			configuration.setEnvironment(environment);
 			*/
-			svgContext.loc = IntervalParserFactory.newInstance().
-					make().
+			svgContext.loc = new IntervalParser().
 					apply(this.intervalStr).
 					get();
 

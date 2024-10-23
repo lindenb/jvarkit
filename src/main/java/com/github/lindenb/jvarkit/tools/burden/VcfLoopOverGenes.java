@@ -57,7 +57,7 @@ import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -196,7 +196,7 @@ public class VcfLoopOverGenes extends Launcher {
 	private boolean deleteAfterCommand = false;
 	@Parameter(names={"-j","--jobs"},description="When -exec is specified, use <n> jobs. A value lower than 1 means use all procs available. ")
 	private int nJobs = 1;
-	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC)
+	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC)
 	private String regionStr="";
 	@Parameter(names={"--splitMethod"},description="[20170711] How to split primary vcf")
 	private SplitMethod splitMethod = SplitMethod.Annotations;
@@ -370,13 +370,13 @@ public class VcfLoopOverGenes extends Launcher {
 					}
 				else
 					{
-					final SimpleInterval interval = IntervalParserFactory.
+					final SimpleInterval interval = IntervalParser.
 							newInstance().
 							dictionary(this.dictionary).
 							enableWholeContig().
 							make().
 							apply(this.regionStr).
-							orElseThrow(IntervalParserFactory.exception(this.regionStr));
+							orElseThrow(IntervalParser.exception(this.regionStr));
 					
 					iter = vcfFileReader.query(interval.getContig(), interval.getStart(), interval.getEnd());
 					}

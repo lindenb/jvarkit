@@ -40,7 +40,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.CustomSeekableStreamFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.samtools.BamRecordGuesser;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -167,7 +167,7 @@ public class BamWithoutBai extends Launcher{
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-r","--region","--interval"},description=IntervalParserFactory.OPT_DESC,required=true)
+	@Parameter(names={"-r","--region","--interval"},description=IntervalParser.OPT_DESC,required=true)
 	private String intervalStr ="";
 	@Parameter(names={"--repeat"},description="Max dichotomy repeat to perform during binary search.",hidden=true)
 	private int dichotomy_repeat=50;
@@ -469,7 +469,7 @@ public class BamWithoutBai extends Launcher{
 			/* extract the SAM dictionary */
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samFileHeader);
 			/* parse the user's interval*/
-			final Locatable userInterval = IntervalParserFactory.newInstance(dict).make().apply(this.intervalStr).orElse(null);
+			final Locatable userInterval = new IntervalParser(dict).apply(this.intervalStr).orElse(null);
 			if(userInterval==null) {
 				LOG.error("cannot parse interval "+this.intervalStr+" for "+urlStr);
 				return -1;

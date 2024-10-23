@@ -49,7 +49,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactory;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -141,7 +141,7 @@ public class MiniCaller extends Launcher   {
 	private Path faidxPath = null;
 	@Parameter(names={"--other-reference"},description="Other fasta references if you mix bam mapped on different fasta (will try to convert chromosomes names). " + INDEXED_FASTA_REFERENCE_DESCRIPTION,required=false)
 	private List<String> otherReferences = new ArrayList<>();
-	@Parameter(names={"-r","--region"},description=IntervalParserFactory.OPT_DESC,required=true)
+	@Parameter(names={"-r","--region"},description=IntervalParser.OPT_DESC,required=true)
 	private String rgnStr  = null;
 	@Parameter(names={"-mapq","--mapq"},description="min mapping quality")
 	private int mapq  = 1;
@@ -312,10 +312,9 @@ public class MiniCaller extends Launcher   {
         	final SAMSequenceDictionary dictionary = SequenceDictionaryUtils.extractRequired(this.faidxPath);
 			all_dictionaries.add(new SAMSequenceDictionaryPath(this.faidxPath,dictionary));
 
-			final SimpleInterval interval = IntervalParserFactory.newInstance(dictionary).
-					make().
+			final SimpleInterval interval = new IntervalParser(dictionary).
 					apply(this.rgnStr).
-					orElseThrow(()->new IllegalArgumentException("Cannot parse region "+this.rgnStr));
+					orElseThrow(IntervalParser.exception("Cannot parse region "+this.rgnStr));
     			
 	    		final SortingCollection<Call> sorter = SortingCollection.newInstance(Call.class, new CallCodec(),
 	    				(A,B)->A.compare1(B),
