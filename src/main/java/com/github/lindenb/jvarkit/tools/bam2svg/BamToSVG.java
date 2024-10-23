@@ -1130,9 +1130,7 @@ public class BamToSVG extends Launcher {
 				{
 				this.indexedFastaSequenceFile =  Objects.requireNonNull(ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFile));
 				this.referenceDict = SequenceDictionaryUtils.extractRequired(indexedFastaSequenceFile);
-				this.interval  =  IntervalParser.
-					newInstance(referenceDict).
-					make().
+				this.interval  =  new IntervalParser(referenceDict).
 					apply(this.intervalStr).
 					orElseThrow(IntervalParser.exception(this.intervalStr))
 					;

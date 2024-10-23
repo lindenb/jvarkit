@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 014c4dd2f
-Compilation : 20241017152316
+Version     : 4bfb746d0
+Compilation : 20241023170737
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -50,7 +50,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | ---: | :---------- | :------: | :----: |
 | [bammatrix](BamMatrix.md) | Bam matrix, inspired from 10x/loupe | 20190620 | 20211206 |
 | [cnvtview](CnvTView.md) | Text visualization of bam DEPTH for multiple regions in a terminal | 20181018 | 20210412 |
-| [coveragegrid](CoverageGrid.md) | Display an image of depth to display any anomaly an intervals+bams as a grid image | 20241009 | 20241009 |
+| [coveragegrid](CoverageGrid.md) | Display an image of depth to display any anomaly an intervals+bams as a grid image | 20241009 | 20241021 |
 | [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20241009 |
 | [indexcov2vcf](IndexCovToVcf.md) | convert indexcov data to vcf | 20200528 | 20400313 |
 | [samfindclippedregions](SamFindClippedRegions.md) | Fins clipped position in one or more bam. | 20140228 | 20220329 |
@@ -160,6 +160,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
+| [applyvelocity](ApplyVelocity.md) | Execute apache velocity macros | 20241023 | 20241023 |
 | [bamclip2insertion](BamClipToInsertion.md) | Convert SOFT clip to Insertion if other read confirm it |  |  |
 | [bamcmpcoverage](BamCmpCoverage.md) | Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2 |  |  |
 | [bamliftover](BamLiftOver.md) | Lift-over a BAM file. |  |  |

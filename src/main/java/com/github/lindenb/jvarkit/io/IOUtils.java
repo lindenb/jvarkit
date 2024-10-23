@@ -885,6 +885,27 @@ public class IOUtils {
 			}
 		}
 	
+	/** read all input stream into String*/
+	public static String slurpInputStream(final InputStream in) {
+		try {
+			try(Reader r=new InputStreamReader(in)) {
+				return slurpReader(r);
+			}
+		} catch (final IOException e) {
+			throw new RuntimeIOException("Cannot read content of inputStream", e);
+			}
+		}
+	
+	/** read all input stream into String*/
+	public static String slurpReader(final Reader r) {
+		try {
+			return copyToString(r);
+		} catch (final IOException e) {
+			throw new RuntimeIOException("Cannot read content of Reader", e);
+			}
+		}
+
+	
 	 /** Returns the name of the file minus the common suffixes */
     public static String getFilenameWithoutCommonSuffixes(final Path f) {
         String s = f.getFileName().toString();

@@ -14,6 +14,7 @@ nav:
         - "addlinearindextobed" : AddLinearIndexToBed.md
         - "allelefreqcalc" : AlleleFrequencyCalculator.md
         - "almostsortedvcf" : AlmostSortedVcf.md
+        - "applyvelocity" : ApplyVelocity.md
         - "backlocate" : BackLocate.md
         - "bam2fastq" : BamToFastq.md
         - "bam2haplotypes" : BamToHaplotypes.md

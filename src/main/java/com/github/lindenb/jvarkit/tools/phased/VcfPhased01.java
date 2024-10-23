@@ -407,10 +407,7 @@ public class VcfPhased01 extends Launcher {
 				}
 			if(this.theInterval==null) 
 				{
-				this.theInterval = IntervalParser.
-						newInstance().
-						dictionary(dict).
-						make().
+				this.theInterval = new IntervalParser(dict).
 						apply(this.intervalStr).
 						orElseThrow(IntervalParser.exception(this.intervalStr));
 				}

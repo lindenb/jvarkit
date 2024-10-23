@@ -309,6 +309,7 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamCov;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamView;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfJexlFilter;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingVcfView;
+import com.github.lindenb.jvarkit.tools.velocity.ApplyVelocity;
 import com.github.lindenb.jvarkit.tools.viewmate.SamViewWithMate;
 import com.github.lindenb.jvarkit.tools.wib.WibToBedGraph;
 import com.github.lindenb.jvarkit.tools.xcontamination.XContaminations;
@@ -610,6 +611,7 @@ public class JvarkitCentral {
 	private void run(final String[] args) {
 		command(AlleleFrequencyCalculator.class);
 		command(AlmostSortedVcf.class);
+		command(ApplyVelocity.class);
 		command(AddLinearIndexToBed.class);
 		command(TSSEnrichment.class);
 		command(BedMergeCnv.class);

@@ -120,19 +120,26 @@ $ java -jar dist/jvarkit.jar gff2fasta -R ref.fasta in.gff3 --output-format xml 
   </entry>
 </gff2fasta>
 
- java -jar dist/jvarkit.jar gff2fasta -R  ref.fasta in.gff3 --output-format bed | head | cut -c1-100 | column -t
 chrom  start     end       strand    location                gene_id             gene_name  gff_type    length  transcript_id  transcript_name  tran
-chr3   38589548  38674839  negative  chr3:38589548-38674840  ENSG00000183873.11  SCN5A      transcript  8303    ENST                            
-chr3   38591812  38674797  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  5997    ENST                            
-chr3   38591812  38674797  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  1999    ENST                            
-chr3   38589548  38591810  negative  chr3:38589548-38591811  ENSG00000183873.11  SCN5A      transcript  2264    ENST                            
-chr3   38674799  38674839  negative  chr3:38674799-38674840  ENSG00000183873.11  SCN5A      transcript  42      ENST00                          
-chr3   38589553  38674852  negative  chr3:38589553-38674853  ENSG00000183873.11  SCN5A      transcript  8362    ENST                            
-chr3   38591812  38674797  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  6048    ENST                            
-chr3   38591812  38674797  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  2016    ENST                            
-chr3   38589553  38591810  negative  chr3:38589553-38591811  ENSG00000183873.11  SCN5A      transcript  2259    ENST                            
+chr3   38589547  38674840  negative  chr3:38589548-38674840  ENSG00000183873.11  SCN5A      transcript  8303    ENST                            
+chr3   38591811  38674798  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  5997    ENST                            
+chr3   38591811  38674798  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  1999    ENST                            
+chr3   38589547  38591811  negative  chr3:38589548-38591811  ENSG00000183873.11  SCN5A      transcript  2264    ENST                            
+chr3   38674798  38674840  negative  chr3:38674799-38674840  ENSG00000183873.11  SCN5A      transcript  42      ENST00                          
+chr3   38589552  38674853  negative  chr3:38589553-38674853  ENSG00000183873.11  SCN5A      transcript  8362    ENST                            
+chr3   38591811  38674798  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  6048    ENST                            
+chr3   38591811  38674798  negative  chr3:38591812-38674798  ENSG00000183873.11  SCN5A      transcript  2016    ENST                            
+chr3   38589552  38591811  negative  chr3:38589553-38591811  ENSG00000183873.11  SCN5A      transcript  2259    ENST                            
 
+$ java -jar dist/jvarkit.jar gff2fasta -R  in.fasta in.gff3 --hide-mrna --hide-peptide --hide-cdna
 
+(...)
+>build:GRCh37|chrom:chr3|end:38674807|gene_id:ENSG00000183873.11|gene_name:SCN5A|gff_type:transcript|length:9|location:chr3:38674799-38674807|protein_id:ENSP00000413996.2|start:38674799|strand:negative|transcript_id:ENST00000449557.2|transcript_type:protein_coding|type:UTR5
+GATGAGAAG
+>build:GRCh37|chrom:chr3|end:38687267|gene_id:ENSG00000183873.11|gene_name:SCN5A|gff_type:transcript|length:138|location:chr3:38674799-38687267|protein_id:ENSP00000333674.6|start:38674799|strand:negative|transcript_id:ENST00000327956.6|transcript_type:protein_coding|type:UTR5
+AGTGGACACTGTGGGCATGCGTGTCCGTGCAGCACATCGCCATGCAGGAGCCTGGGGGAA
+GGCCTTTCCCTCAGTGAGGGCTGCAGCTTCCCCACAGGCAACGTGAGGAGAGCCTGTGCC
+CAGAAGCAGGATGAGAAG
 
 ```
 

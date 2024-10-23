@@ -674,11 +674,8 @@ public class Bam2Wig extends Launcher
 						}
 					else
 						{
-						interval = IntervalParser.
-							newInstance().
-							dictionary(samReaders.get(0).getFileHeader().getSequenceDictionary()).
+						interval = new IntervalParser(samReaders.get(0).getFileHeader().getSequenceDictionary()).
 							enableWholeContig().
-							make().
 							apply(region_str).
 							orElseThrow(IntervalParser.exception(this.region_str))
 							;
@@ -728,11 +725,8 @@ public class Bam2Wig extends Launcher
 						}
 					else
 						{
-						interval = IntervalParser.
-							newInstance().
-							dictionary(dict0).
+						interval = new IntervalParser(dict0).
 							enableWholeContig().
-							make().
 							apply(region_str).
 							orElseThrow(IntervalParser.exception(region_str))
 							;
