@@ -59,15 +59,17 @@ Usage: bammatrix [options] Files
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
   * -r, -r1, --region
-      first region.An interval as the following syntax : "chrom:start-end" or 
+      first region.An interval as the following syntax : "chrom:start-end". 
+      Some jvarkit programs also allow the following syntax : 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 
       "chrom:start-end+extend-percent%".A program might use a Reference 
       sequence to fix the chromosome name (e.g: 1->chr1)
     -r2, --region2
       2nd region. Default: use first region. An interval as the following 
-      syntax : "chrom:start-end" or "chrom:middle+extend"  or 
-      "chrom:start-end+extend" or "chrom:start-end+extend-percent%".A program 
-      might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)
+      syntax : "chrom:start-end". Some jvarkit programs also allow the 
+      following syntax : "chrom:middle+extend"  or "chrom:start-end+extend" or 
+      "chrom:start-end+extend-percent%".A program might use a Reference 
+      sequence to fix the chromosome name (e.g: 1->chr1)
     -sa, --sa
       Use other canonical alignements from the 'SA:Z:*' attribute
       Default: false

@@ -47,8 +47,9 @@ Usage: bam2wig [options] Files
       What kind of help. One of [usage,markdown,xml].
     --region, --interval
       Limit analysis to this interval. An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or "chrom:start-end+extend" 
-      or "chrom:start-end+extend-percent%".A program might use a Reference 
+      "chrom:start-end". Some jvarkit programs also allow the following syntax 
+      : "chrom:middle+extend"  or "chrom:start-end+extend" or 
+      "chrom:start-end+extend-percent%".A program might use a Reference 
       sequence to fix the chromosome name (e.g: 1->chr1)
     --mindepth, --mindp
       When using display READ_GROUPS, What is the minimal read depth that 

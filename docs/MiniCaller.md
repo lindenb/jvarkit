@@ -69,10 +69,10 @@ Usage: minicaller [options] Files
       indexed with samtools faidx and with picard/gatk 
       CreateSequenceDictionary or samtools dict
   * -r, --region
-      An interval as the following syntax : "chrom:start-end" or 
-      "chrom:middle+extend"  or "chrom:start-end+extend" or 
-      "chrom:start-end+extend-percent%".A program might use a Reference 
-      sequence to fix the chromosome name (e.g: 1->chr1)
+      An interval as the following syntax : "chrom:start-end". Some jvarkit 
+      programs also allow the following syntax : "chrom:middle+extend"  or 
+      "chrom:start-end+extend" or "chrom:start-end+extend-percent%".A program 
+      might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []

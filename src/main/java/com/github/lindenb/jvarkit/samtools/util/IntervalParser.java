@@ -49,13 +49,15 @@ public class IntervalParser implements Function<String,Optional<SimpleInterval>>
 static final Logger LOG = Logger.build(IntervalParser.class).make();
 
 public static final String OPT_DESC= 
-			"An interval as the following syntax : \"chrom:start-end\" or \"chrom:middle+extend\"  or \"chrom:start-end+extend\" or \"chrom:start-end+extend-percent%\"."
+			"An interval as the following syntax : \"chrom:start-end\". Some jvarkit programs also allow the following syntax : \"chrom:middle+extend\"  or \"chrom:start-end+extend\" or \"chrom:start-end+extend-percent%\"."
 			+ "A program might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)" ;
 private final int MAX_CONTIG_LENGTH = Integer.MAX_VALUE - 1000;
 private final SAMSequenceDictionary _dict;
 private boolean enableWholeContig=false;
 private boolean trimToContigLength = false;
 private boolean enable_single_point = false;
+private boolean enable_extend = false;
+private boolean enable_size_suffix = false;
 private final DistanceParser distanceParser=new DistanceParser();
 private boolean thow_on_error=false;
 private UnaryOperator<String> ctgNameConverter;
@@ -70,7 +72,8 @@ public IntervalParser(final SAMSequenceDictionary dict) {
 
 
 private BigInteger parseBigInteger(final String s) {
-	return this.distanceParser.parseAsBigInteger(s);
+	if(enable_size_suffix) return this.distanceParser.parseAsBigInteger(s);
+	return new BigInteger(s);
 	}
 
 public IntervalParser enableWholeContig(boolean b) {
@@ -101,6 +104,24 @@ public IntervalParser enableWholeContig() {
 	return enableWholeContig(true);
 	}
 
+public IntervalParser enableExtend(boolean b) {
+	this.enable_extend = b;
+	return this;
+	}
+
+public IntervalParser enableExtend() {
+	return enableExtend(true);
+	}
+
+
+public IntervalParser enableSizeSuffix(boolean b) {
+	this.enable_size_suffix = b;
+	return this;
+	}
+
+public IntervalParser enableSizeSuffix() {
+	return enableSizeSuffix(true);
+	}
 
 public boolean hasDictionary() {
 	return getDictionary()!=null;
@@ -161,7 +182,7 @@ public Optional<SimpleInterval> apply(final String s)
 			}
 		}
 	final int hyphen = s.indexOf('-',colon+1);
-	final int plus = s.indexOf('+',colon+1);
+	final int plus = this.enable_extend ? s.indexOf('+',colon+1) : -1;
 	if(hyphen==-1 && plus==-1) {
 		if(!this.enable_single_point) return returnErrorOrNullInterval("Cannot find hyphen or plus in "+s+". Single point position like 'chr1:234' are not allowed");
 		/** single point mutation */

@@ -17,7 +17,7 @@ Usage: java -jar dist/jvarkit.jar applyvelocity  [options] Files
 Usage: applyvelocity [options] Files
   Options:
     -R, --dict-file
-      Load DICT file. Syntax -J KEY file.dict.
+      Load DICT file. Syntax -R KEY file.dict.
       Default: []
     -h, --help
       print help and exit
@@ -31,7 +31,7 @@ Usage: applyvelocity [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -V, --vcf-file
-      Load VCF file. Syntax -J KEY file.vcf.
+      Load VCF file. Syntax -V KEY file.vcf.
       Default: []
     --version
       print version and exit
@@ -99,7 +99,14 @@ TSV file with 3 columns
 
 ##Example
 
+```
+$ cat jeter.json
+{
+"message":"world"
+}
 
-
+$ echo 'hello ${j.message}' | java -jar dist/jvarkit.jar applyvelocity -J j jeter.json
+hello world
+```
 
 

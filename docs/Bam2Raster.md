@@ -64,8 +64,9 @@ Usage: bam2raster [options] Files
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
   * -r, --region
       Restrict to that region. An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or "chrom:start-end+extend" 
-      or "chrom:start-end+extend-percent%".A program might use a Reference 
+      "chrom:start-end". Some jvarkit programs also allow the following syntax 
+      : "chrom:middle+extend"  or "chrom:start-end+extend" or 
+      "chrom:start-end+extend-percent%".A program might use a Reference 
       sequence to fix the chromosome name (e.g: 1->chr1)
     -srf, --samRecordFilter
       A filter expression. Reads matching the expression will be filtered-out. 

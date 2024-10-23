@@ -117,16 +117,15 @@ public class ApplyVelocity extends Launcher{
 	private static final Logger LOG = Logger.build(ApplyVelocity.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	Path outputFile = null;
-
     @Parameter(names={"-m","--manifest"},description="TSV file with the following required header: key/value/type")
     private Path manifestPath=null;
     @Parameter(names={"--no-flatten"},description="don't convert google json to standard java types.",hidden = true)
     private boolean no_flatten=false;
     @Parameter(names={"-J","--json-file"},description="Load JSON file. Syntax -J KEY file.json.",arity = 2)
     private List<String> kvJsonFile = new ArrayList<>();
-    @Parameter(names={"-V","--vcf-file"},description="Load VCF file. Syntax -J KEY file.vcf.",arity = 2)
+    @Parameter(names={"-V","--vcf-file"},description="Load VCF file. Syntax -V KEY file.vcf.",arity = 2)
     private List<String> kvVcfFile = new ArrayList<>();
-    @Parameter(names={"-R","--dict-file"},description="Load DICT file. Syntax -J KEY file.dict.",arity = 2)
+    @Parameter(names={"-R","--dict-file"},description="Load DICT file. Syntax -R KEY file.dict.",arity = 2)
     private List<String> kvDictFile = new ArrayList<>();
 
 
