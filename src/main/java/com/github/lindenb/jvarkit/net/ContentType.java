@@ -37,6 +37,7 @@ public static final ContentType IMAGE_SVG = of("image/svg+xml");
 public static final ContentType APPLICATION_JSON = of("application/json");
 public static final ContentType APPLICATION_OCTECT_STREAM = of("application/octet-stream");
 public static final ContentType APPLICATION_ZIP = of("application/zip");
+public static final ContentType APPLICATION_PDF = of("application/pdf");
 
 public static Optional<ContentType> fromSuffix(String filename) {
 	filename = filename.toLowerCase();
@@ -48,6 +49,7 @@ public static Optional<ContentType> fromSuffix(String filename) {
 	if(filename.endsWith(".css")) return Optional.of(TEXT_CSS);
 	if(filename.endsWith(".svg")) return Optional.of(IMAGE_SVG);
 	if(filename.endsWith(".zip")) return Optional.of(APPLICATION_ZIP);
+	if(filename.endsWith(".pdf")) return Optional.of(APPLICATION_PDF);
 	return Optional.empty();
 	}
 private final String mimeType;

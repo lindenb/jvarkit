@@ -532,6 +532,12 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 				"https://decaf.decode.com/region/"+
 				StringUtils.escapeHttp(ucscCtg) +":"+loc.getStart()+"-"+loc.getEnd()
 				));
+		
+		urls.add(new LabelledUrlImpl("VISTA",
+				locid,
+				"https://enhancer.lbl.gov/vista/browse?filter="+
+				StringUtils.escapeHttp(ucscCtg) +"%3A"+loc.getStart()+"-"+loc.getEnd()
+				));
 		}
 	
 	

@@ -23,6 +23,7 @@
  * Jo, J., Park, JS., Won, H. et al. The first Chromosomal-level genome assembly of Sageretia thea using Nanopore long reads and Pore-C technology. Sci Data 11, 959 (2024). https://doi.org/10.1038/s41597-024-03798-9 **wgscoverageplotter**
  * Hoffman, J.I., Vendrami, D.L.J., Hench, K. et al. Genomic and fitness consequences of a near-extinction event in the northern elephant seal. Nat Ecol Evol (2024). https://doi.org/10.1038/s41559-024-02533-2
  * Feyza Yilmaz et al. , Reconstruction of the human amylase locus reveals ancient duplications seeding modern-day variation.Science0,eadn0609DOI:10.1126/science.adn0609 **MSA2VCF**
+ * Tim P. Bean, Hannah Farley, Jennifer Nascimento-Schulze, Tim Regan,Scottish oyster mortality event and association with Vibrio aestuarianus, Aquaculture Reports, Volume 39, 2024, 102480, ISSN 2352-5134, https://doi.org/10.1016/j.aqrep.2024.102480. **WGSCoveragePlotter**
 
 ## 2023
 

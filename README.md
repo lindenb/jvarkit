@@ -3,11 +3,9 @@ JVARKIT
 
 Java utilities for Bioinformatics
 
-[![Build Status](https://travis-ci.org/lindenb/jvarkit.svg)](https://travis-ci.org/lindenb/jvarkit)
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
 ![in conda](https://img.shields.io/badge/in-conda-blue) ![in nf-core](https://img.shields.io/badge/in-nfcore-green)
 
@@ -38,6 +36,6 @@ GUI/Swing applications might not work.
 
 Pierre Lindenbaum PhD
 
-[@yokofakun](https://twitter.com/yokofakun)
+[@yokofakun](https://genomic.social/@yokofakun)
 
 
