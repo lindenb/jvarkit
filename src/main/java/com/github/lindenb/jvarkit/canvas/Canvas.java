@@ -188,6 +188,8 @@ public abstract class Canvas implements Closeable {
 		return polygon(points,FunctionalMap.make());
 		}
 	
+	
+	
 	protected Canvas polyX(List<Point2D> points,boolean closed,FunctionalMap<String, Object> fm) {
 		if(points.isEmpty()) return this;
 		final GeneralPath gp=new GeneralPath();

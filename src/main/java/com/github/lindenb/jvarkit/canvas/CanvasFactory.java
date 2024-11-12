@@ -34,7 +34,13 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 
 public class CanvasFactory {
-	public enum Format {SVG,SVG_GZ,PNG,JPG,PS,PS_GZ};
+	public enum Format {
+		SVG,SVG_GZ,PNG,JPG,PS,PS_GZ;
+		/** return file suffix, WITHOUT the first dot */
+		public String getSuffix() {
+			return this.name().toLowerCase().replace('_', '.');
+			}
+		};
 	public static final String OPT_FORMAT_DESC="output format";
 	private int width=700;
 	private int height=400;
