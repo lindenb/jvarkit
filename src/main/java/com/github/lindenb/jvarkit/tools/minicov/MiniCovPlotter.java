@@ -2,9 +2,13 @@ package com.github.lindenb.jvarkit.tools.minicov;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +22,7 @@ import java.util.zip.GZIPInputStream;
 
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.canvas.Canvas;
 import com.github.lindenb.jvarkit.canvas.CanvasFactory;
 import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
@@ -28,8 +33,10 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
+import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BinaryCodec;
@@ -38,6 +45,7 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.samtools.util.SortingCollection;
 import htsjdk.tribble.readers.TabixReader;
 
 public class MiniCovPlotter extends Launcher {
@@ -59,7 +67,8 @@ public class MiniCovPlotter extends Launcher {
 	private CanvasFactory.Format outputFormat =CanvasFactory.Format.PNG;
 	@Parameter(names= {"--gtf"},description="indexed GTF file to show genes")
 	private String gtfPath=null;
-
+	@ParametersDelegate
+	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();
 	
 	public MiniCovPlotter() {
 		}
@@ -123,17 +132,197 @@ public class MiniCovPlotter extends Launcher {
 			}
 		}
 	
+	private static class PosDepth implements Comparable<PosDepth> {
+		int x;
+		float y;
+		int sample_idx;
+		@Override
+		public int compareTo(PosDepth o) {
+			return Integer.compare(this.x, o.x);
+			}
+		}
+	
+	private static class PosDepthCodec extends AbstractDataCodec<PosDepth> {
+		@Override
+		public PosDepth decode(DataInputStream dis) throws IOException {
+			PosDepth pd=new PosDepth();
+			try {
+				pd.x=dis.readInt();
+				}
+			catch(EOFException err) {
+				return null;
+				}
+			pd.y=dis.readFloat();
+			pd.sample_idx=dis.readInt();
+			return pd;
+			}
+		@Override
+		public void encode(DataOutputStream dos, PosDepth o) throws IOException {
+			dos.writeInt(o.x);
+			dos.writeFloat(o.y);
+			dos.writeInt(o.sample_idx);
+			}
+		@Override
+		public AbstractDataCodec<PosDepth> clone() {
+			return new PosDepthCodec();
+			}
+		}
+	
+	private static class BoxPlot {
+		int x;
+		double mean;
+		double median;
+		double upperQuartile;
+		double lowerQuartile;
+		double upperWhisker;
+		double lowerWhisker;
+		List<Double> outliers;
+		
+		double calculateQuantile(final double[] values, final double p) {
+
+	        double quantile = 0;
+
+	        /* here are small symbols better to read than long ones */
+	        final int s = values.length;
+
+	        if (s > 1) {
+
+	            /* Epsilon */
+	            final double e = 0.000001;
+	            final int k = (int) (p * (s));
+
+	            if ((((s * p) % 1) < e) && (((s * p) % 1) > (-e))) {
+
+	                /* s * p is element of N */
+	                quantile = (((double) values[k - 1]) + ((double) values[k])) / 2;
+	            } else {
+
+	                /* s * p is not an element of N */
+	                quantile = values[k];
+	            }
+	        } else if (s == 1) {
+	            quantile = values[0];
+	        }
+	        return quantile;
+	    }
+		
+		
+
+	    private double calculateUpperWhisker(final double[] values) {
+
+	        final double interQuartileRange = Math.abs(upperQuartile - lowerQuartile);
+
+	        /* searching for the upperWhisker, starting at the upperQuartile and searching upwards */
+	        double upperWhiskerCandidate = upperQuartile;
+	        double upperWhisker = upperQuartile;
+
+	        int i = (int) (values.length * 0.75);
+
+	        while ((upperWhiskerCandidate <= (upperQuartile + (1.5d * interQuartileRange))) && (i <= values.length)) {
+	            upperWhisker = upperWhiskerCandidate;
+	            ++i;
+	            if (i < values.length) {
+	                upperWhiskerCandidate = values[i];
+	            }
+	        }
+	        return upperWhisker;
+	    }
+
+		
+	    private double calculateLowerWhisker(final double[] values) {
+	        double lowerWhisker = 0d;
+
+	        if (values.length > 0) {
+	            final double interQuartileRange = Math.abs(upperQuartile - lowerQuartile);
+
+	            /* searching for the lowerWhisker, starting at the lowerQuartile and searching downwards */
+	            double lowerWhiskerCandidate = lowerQuartile;
+	            lowerWhisker = lowerQuartile;
+
+	            int i = (int) (values.length * 0.25);
+
+	            while ((lowerWhiskerCandidate >= (lowerQuartile - (1.5d * interQuartileRange))) && (i >= 0)) {
+	                lowerWhisker = lowerWhiskerCandidate;
+	                --i;
+	                if (i >= 0) {
+	                    lowerWhiskerCandidate = values[i];
+	                }
+	            }
+	        }
+	        return lowerWhisker;
+	    }
+	    
+	    private List<Double> calculateOutlier(final double[] values) {
+
+	        final List<Double> outlier = new ArrayList<Double>();
+
+	        if (values.length > 1) {
+
+	            /* calculate upper outlier */
+	            final int lastElement = values.length - 1;
+
+	            if (upperWhisker < values[lastElement]) {
+
+	                /* there are outlier */
+	                int i = lastElement;
+
+	                while (upperWhisker < values[i]) {
+	                    outlier.add(values[i]);
+	                    --i;
+	                }
+	            }
+
+	            /* calculate lower outlier */
+	            final double lowerWhisker = this.calculateLowerWhisker(values);
+	            final int firstElement = 0;
+
+	            if (lowerWhisker > values[firstElement]) {
+
+	                /* there are outlier */
+	                int i = firstElement;
+
+	                while (lowerWhisker > values[i]) {
+	                    outlier.add(values[i]);
+	                    ++i;
+	                }
+	            }
+	        }
+	        return outlier;
+	    }
+
+	    
+		void addAll(List<PosDepth> pds) {
+			double[] values = pds.stream().mapToDouble(X->X.y).toArray();
+			Arrays.sort(values);
+			this.mean = Arrays.stream(values).average().orElse(0.0);
+	        this.median = this.calculateQuantile(values,0.5);
+	        this.upperQuartile =  this.calculateQuantile(values,0.75);
+	        this.lowerQuartile = this.calculateQuantile(values,0.25);
+	        this.upperWhisker = this.calculateUpperWhisker(values);
+	        this.lowerWhisker = this.calculateLowerWhisker(values);
+	        this.outliers = this.calculateOutlier(values);
+
+		}
+	}
+	
 	private  class Batch implements Closeable {
 		int painted_count=0;
-		Canvas canvas;
+		final Canvas canvas;
 		final Locatable userLoc;
 		final double max_value=2.0;
+		final int index_start;
+		SortingCollection<PosDepth> sorter;
 		Batch(final Locatable userLoc,int index) throws IOException {
 			this.userLoc=userLoc;
-			final String path= MiniCovPlotter.this.outputPrefix+ userLoc.getContig()+"_"+userLoc.getStart()+"_"+userLoc.getEnd()+"."+index+"."+ MiniCovPlotter.this.outputFormat.getSuffix();
+			this.index_start=index;
+			
+			final String path= MiniCovPlotter.this.outputPrefix+ userLoc.getContig()+"_"+userLoc.getStart()+"_"+userLoc.getEnd()+"."+this.index_start+"."+ MiniCovPlotter.this.outputFormat.getSuffix();
 			Path p = Paths.get(path);
 			CanvasFactory cf = new CanvasFactory().setDimension(dimension.width+1, dimension.height+1);
 			canvas = cf.open(p, FunctionalMap.make());
+	
+			
+			
 			//draw frame
 			canvas.rect(0, 0,dimension.width+1,dimension.height+1,
 					FunctionalMap.of(
@@ -141,6 +330,14 @@ public class MiniCovPlotter extends Launcher {
 						Canvas.KEY_STROKE,Color.DARK_GRAY
 					));
 			
+			this.sorter = SortingCollection.newInstance(
+					PosDepth.class,
+					new PosDepthCodec(),
+					(A,B)->Integer.compare(A.x,B.x),
+					writingSortingCollection.getMaxRecordsInRam(),
+					writingSortingCollection.getTmpPaths()
+					);
+			this.sorter.setDestructiveIteration(true);
 			}
 		
 		
@@ -242,23 +439,9 @@ public class MiniCovPlotter extends Launcher {
 			return points;
 			}
 
-		int[] runMedian(int[] array) {
-			int w=(int)Math.min(10.0,array.length*0.01);
-			if(w<=1) return array;
-			if(w>0) return array;//TODO fix me, below is slow
-			int[] array2= new int[array.length];
-			for(int i=0;i< array2.length;i++) {
-				int x0=Math.max(0, i-w);
-				int x1=Math.min(array2.length, i+w+1);
-				array2[i]=(int)Arrays.stream(array,x0,x1).average().orElse(0);
-				}
-			return array2;
-		}
+	
 		
-		
-		
-		
-		void paint(final Record rec) {
+		void add(final Record rec) {
 			if(!this.userLoc.overlaps(rec.loc)) return;
 			final Locatable loc = LocatableUtils.sharedInterval(this.userLoc, rec.loc);
 			
@@ -268,11 +451,11 @@ public class MiniCovPlotter extends Launcher {
 			final DiscreteMedian<Integer> discreteMedian=new DiscreteMedian<>();
 			Arrays.stream(rec.array).forEach(V->discreteMedian.add(V));
 			final double median = Math.max(0, discreteMedian.getMedian().orElse(1.0));
-			final int[] coverage = runMedian(Arrays.copyOfRange(
+			final int[] coverage = Arrays.copyOfRange(
 					rec.array,
 					loc.getStart()-rec.loc.getStart(),
 					1+loc.getEnd()-rec.loc.getStart()
-					));
+					);
 			
 			double[] y_array=new double[dimension.width];
 			for(int i=0;i< y_array.length;++i) {
@@ -287,10 +470,14 @@ public class MiniCovPlotter extends Launcher {
 			for(int x=0;x < y_array.length;++x) {
 				double v = y_array[x];
 				if(median>0) v/=median;
-				if(v>max_value) v=max_value;
-				double y=(v/max_value)*dimension.height;
-				y= dimension.height-y;
-				points.add(new Point2D.Double(x,y));
+				PosDepth pd=new PosDepth();
+				pd.x=x;
+				pd.y=(float)(dimension.height - ((float)v/this.max_value)*dimension.height);
+				
+				sorter.add(pd);
+				
+				
+				points.add(new Point2D.Double(x,Math.min(dimension.height,pd.y)));
 				}
 			points.add(new Point2D.Double(y_array.length-1, dimension.height));
 			
@@ -312,6 +499,45 @@ public class MiniCovPlotter extends Launcher {
 		
 		@Override
 		public void close() throws IOException {
+			List<BoxPlot> boxPlots=new ArrayList<>(dimension.width);
+			for(int i=0;i< dimension.width;i++) {
+				BoxPlot bp=new  BoxPlot();
+				bp.x=i;
+				boxPlots.add(bp);
+			}
+			sorter.doneAdding();
+			try(CloseableIterator<PosDepth> iter0  = sorter.iterator()) {
+				
+				try(EqualRangeIterator<PosDepth> iter1 = new EqualRangeIterator<>(iter0,(A,B)->Integer.compare(A.x, B.x))) {
+					while(iter1.hasNext()) {
+						List<PosDepth> row = iter1.next();
+						PosDepth pd=row.get(0);
+						BoxPlot boxplot= boxPlots.get(pd.x);
+						boxplot.addAll(row);
+						}
+					}
+				}
+			
+			
+			
+			
+			
+			
+			
+			
+			for(int x=0;x<boxPlots.size();x++) {
+				BoxPlot bp=boxPlots.get(x);
+				for(double y:bp.outliers) {
+					canvas.circle(
+							x,y,2,
+							FunctionalMap.of(
+								Canvas.KEY_FILL,Color.RED,
+								Canvas.KEY_STROKE,Color.BLACK
+							));
+					}
+			}
+			
+			
 			int fontSize=12;
 			String title=this.userLoc.toString();
 			canvas.text(
@@ -373,7 +599,7 @@ public class MiniCovPlotter extends Launcher {
 							batch=null;
 							}
 						if(batch==null) batch=new Batch(userLoc==null?record.loc:userLoc,idx);
-						batch.paint(record);
+						batch.add(record);
 						}
 					idx++;
 					if(this.to_index>=0 && idx> this.to_index ) break;
