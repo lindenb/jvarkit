@@ -153,6 +153,7 @@ java -jar dist/jvarkit.jar wgscoverageplotter --dimension 1500x500 -C -1 --clip 
  * Rhys T. White. A discovery down under: decoding the draft genome sequence of Pantoea stewartii from Australia's Critically Endangered western ground parrot/kyloring (Pezoporus flaviventris). https://doi.org/10.1099/mgen.0.001101 . Microbial Genomics Vol9 Issue 9
  * genomic and transcriptomic insight into the evolution and breeding of turfgrass species, poa annua and bouteloua dactyloides. Thesis. Christopher W. Benson. https://etda.libraries.psu.edu/files/final_submissions/29057 **WGSCoveragePlotter**
  * Jo, J., Park, JS., Won, H. et al. The first Chromosomal-level genome assembly of Sageretia thea using Nanopore long reads and Pore-C technology. Sci Data 11, 959 (2024). https://doi.org/10.1038/s41597-024-03798-9
+ * Tim P. Bean, Hannah Farley, Jennifer Nascimento-Schulze, Tim Regan,Scottish oyster mortality event and association with Vibrio aestuarianus, Aquaculture Reports, Volume 39, 2024, 102480, ISSN 2352-5134, https://doi.org/10.1016/j.aqrep.2024.102480. **WGSCoveragePlotter**
 
 ## Screenshot
 
