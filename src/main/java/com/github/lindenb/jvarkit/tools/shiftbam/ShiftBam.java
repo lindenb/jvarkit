@@ -35,6 +35,7 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -257,7 +258,8 @@ public class ShiftBam extends Launcher {
 		}
 	
 	private static int convert2pos(Locatable region,int pos) {
-		if(pos< region.getStart() || pos > region.getEnd()) throw new IllegalArgumentException(region.toString()+" "+pos);
+		if(pos< region.getStart() ) throw new IllegalArgumentException("pos < interval.start interval is "+region.toString()+" pos="+pos);
+		if(pos> region.getEnd()) throw new IllegalArgumentException("pos > interval.end interval is "+region.toString()+" pos="+pos);
 		return 1 + pos - region.getStart();
 		}
 	
@@ -298,11 +300,11 @@ public class ShiftBam extends Launcher {
 						collect(Collectors.toList())
 					);
 				
-				if(sourceRefPath!=null) {
+				if(this.sourceRefPath!=null) {
 					final SAMSequenceDictionary sourceDict = new SequenceDictionaryExtractor().
 							extractRequiredDictionary(this.sourceRefPath);
 					
-					throw new JvarkitException.DictionariesAreNotTheSame(dict0, sourceDict);
+					SequenceUtil.assertSequenceDictionariesEqual(dict0, sourceDict);
 					}
 				
 				final SAMFileHeader headerOut = headerIn.clone();
@@ -311,50 +313,60 @@ public class ShiftBam extends Launcher {
 				JVarkitVersion.getInstance().addMetaData(this, headerOut);
 								
 				try(CloseableIterator<SAMRecord> iter = sr.iterator()) {
-					try(SAMFileWriter w= writingBamArgs.setReferencePath(this.destinationRefPath).openSamWriter(this.outputFile, headerOut, true)) {
+					try(SAMFileWriter w= writingBamArgs.
+								setReferencePath(this.destinationRefPath).
+								openSamWriter(this.outputFile, headerOut, true))
+						{
 						while(iter.hasNext()) {
 							final SAMRecord rec0 = iter.next();
 							if(rec0.getReadUnmappedFlag()) continue;
 							
 							final Interval loc0 = intervalTreeMap.getOverlapping(rec0).
 									stream().
-									filter(RGN->RGN.contains(rec0)).
+									filter(RGN->CoordMath.encloses(RGN.getStart(), RGN.getEnd(), rec0.getStart(), rec0.getEnd())).
 									findFirst().
 									orElse(null);
 							if(loc0==null) {
 							    continue;
-							}
+								}
 							
 							
-							
+								
 							final SAMRecord rec1 = rec0.deepCopy();
+							
+							
+							
 							rec1.setHeader(headerOut);
+			            	rec1.setReferenceIndex(destDict.getSequenceIndex(loc0.getName()));
 							rec1.setReferenceName(loc0.getName());
 							rec1.setAlignmentStart(convert2pos(loc0,rec0.getAlignmentStart()));
 							
 							if(rec0.getReadPairedFlag()) {
-								if(!rec0.getMateUnmappedFlag()) {
+								if(rec0.getMateReferenceIndex()!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX/* no !rec0.getMateUnmappedFlag() */) {
 									final int mateStart = rec0.getMateAlignmentStart();
 									final int mateEnd= rec0.hasAttribute(SAMTag.MC)?SAMUtils.getMateAlignmentEnd(rec0):mateStart;
 									final Locatable mateRgn = new SimpleInterval(rec0.getMateReferenceName(),mateStart,mateEnd);
 									final Interval loc1= intervalTreeMap.getOverlapping(mateRgn).
 											stream().
-											filter(RGN->RGN.contains(rec0)).
+											filter(RGN->CoordMath.encloses(RGN.getStart(), RGN.getEnd(), mateRgn.getStart(), mateRgn.getEnd())).
 											findFirst().
 											orElse(null);
 									if(loc1==null) {
 										rec1.setMateReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX);
+										rec1.setMateReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME);
 										rec1.setMateAlignmentStart(SAMRecord.NO_ALIGNMENT_START);
 										}
 									else
 										{
 						            	rec1.setMateReferenceName(loc1.getName());
+						            	rec1.setMateReferenceIndex(destDict.getSequenceIndex(loc1.getName()));
 						            	rec1.setMateAlignmentStart(convert2pos(loc1,rec0.getMateAlignmentStart()));
 										}
 									if(loc1==null || !loc1.equals(loc0)) {
 										rec1.setProperPairFlag(false);
 										rec1.setInferredInsertSize(0);
 										}
+									
 									}
 								}
 			            	// suppl alignments
@@ -373,7 +385,7 @@ public class ShiftBam extends Launcher {
 			                        final Locatable saLoc = new SimplePosition(commaStrs[0],saStart);
 			                        final Interval loc3= intervalTreeMap.getOverlapping(saLoc).
 			                        		stream().
-			                        		filter(RGN->RGN.contains(rec0)).
+			                        		filter(RGN->CoordMath.encloses(RGN.getStart(), RGN.getEnd(), saLoc.getStart(), saLoc.getEnd())).
 			                        		findFirst().
 			                        		orElse(null);
 			                        if(loc3==null) continue;
@@ -402,8 +414,6 @@ public class ShiftBam extends Launcher {
 			}
 		}
 
-	
-	
 	public static void main(final String[] args) {
 		new ShiftBam().instanceMainWithExit(args);
 	}
