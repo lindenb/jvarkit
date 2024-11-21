@@ -81,6 +81,49 @@ we're creating a mini-genome containing the gene of interest using ROI.bed
 java -jar dist/jvarkit.jar shiftbam --bed ROI.bed in.bam
 ```
 
+## Example:
+
+the following Makefile extract a BAM to a sub-region, call delly on a smaller REF, convert back the vcf to the original ref
+
+```makefile
+OUTDIR=work
+PREFIX=myexperiment.
+REF=ref.fa
+BAM=${HOME}/jeter.bam
+INTERVAL=chr1:123-456
+
+$(OUTDIR)/$(PREFIX).shift.vcf: $(OUTDIR)/$(PREFIX).call.bcf
+	bcftools view $< | java -jar $${JVARKIT_DIST}/jvarkit.jar shiftvcf -R2 $(REF) > $@
+
+$(OUTDIR)/$(PREFIX).call.bcf : $(OUTDIR)/shift.01.bam $(OUTDIR)/shift.01.bam $(OUTDIR)/shift.ref.fa $(OUTDIR)/shift.ref.fa.fai $(OUTDIR)/delly
+	$(OUTDIR)/delly call -g $(OUTDIR)/shift.ref.fa -o $@ $(OUTDIR)/shift.01.bam
+	
+
+$(OUTDIR)/delly :
+	mkdir -p $(dir $@)
+	wget -O "$@" "https://github.com/dellytools/delly/releases/download/v1.3.1/delly_v1.3.1_linux_x86_64bit"
+	chmod +x $@
+
+$(OUTDIR)/shift.01.bam: $(BAM) $(OUTDIR)/locus.bed
+	samtools view -M -L  $(OUTDIR)/locus.bed -O BAM $(BAM)  |\
+	java -jar $${JVARKIT_DIST}/jvarkit.jar shiftbam  --bed  $(OUTDIR)/locus.bed |\
+	samtools sort -T $(OUTDIR)/tmp --write-index -O BAM -o $@
+
+$(OUTDIR)/shift.ref.dict: $(OUTDIR)/shift.ref.fa
+	samtools dict $< > $@
+
+$(OUTDIR)/shift.ref.fa.fai: $(OUTDIR)/shift.ref.fa
+	samtools faidx $<
+
+$(OUTDIR)/shift.ref.fa : $(REF)
+	mkdir -p $(dir $@)
+	samtools faidx $< $(INTERVAL) > $@
+
+$(OUTDIR)/locus.bed:
+	mkdir -p $(dir $@)
+	echo '$(INTERVAL)' | awk -F '[:-]' '{printf("%s\t%d\t%s\n",$$1,int($$2)-1,$$3);}' > $@
+
+```
 
 
 
