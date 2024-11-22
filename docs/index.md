@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 3df0757b5
-Compilation : 20241121131558
+Version     : 8235cf88e
+Compilation : 20241122230214
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -334,7 +334,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bamstats04](BamStats04.md) | Coverage statistics for a BED file. | 20130513 | 20191003 |
 | [bamstats05](BamStats05.md) | Coverage statistics for a BED file, group by gene | 20151012 | 20210317 |
 | [bamwithoutbai](BamWithoutBai.md) | Query a Remote BAM without bai | 20191213 | 20191217 |
-| [basecoverage](BaseCoverage.md) | 'Depth of Coverage' per base. | 20220420 | 20220420 |
+| [basecoverage](BaseCoverage.md) | 'Depth of Coverage' per base. | 20220420 | 20241122 |
 | [bioalcidaejdk](BioAlcidaeJdk.md) | java-based version of awk for bioinformatics | 20170712 | 20210412 |
 | [biostar154220](Biostar154220.md) | Cap BAM to a given coverage | 20150812 | 20210312 |
 | [biostar9566948](Biostar9566948.md) | Trim Reads So Only First Base Remains | 20230621 | 20230621 |
