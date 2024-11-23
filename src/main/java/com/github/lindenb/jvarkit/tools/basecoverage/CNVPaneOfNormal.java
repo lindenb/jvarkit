@@ -121,6 +121,11 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 		double median = 1.0;
 		/** 3rd quartile */
 		double Q3 = 1.0;
+		/** min/max */
+		double min = 1.0;
+		double max = 1.0;
+		
+		
 		/** Interquartile Range */
 		private double IQR() { return Q3-Q1;}
 	}	
@@ -129,11 +134,15 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 		}
 	
 	private boolean isDel(final BoxPlot bx,float v) {
-		return v <= (1.0 - this.treshold) &&   v <= (bx.Q1 - bx.IQR()*iqr_factor);
+		if(v < (bx.min - (bx.max-bx.min)*0.1)) return true;
+		return false;
+		//return v <= (1.0 - this.treshold) &&   v <= (bx.Q1 - bx.IQR()*iqr_factor);
 		}
 	
 	private boolean isDup(final BoxPlot bx,float v) {
-		return v >= (1.0 + this.treshold) &&   v >= (bx.Q3 + bx.IQR()*iqr_factor);
+		if(v > (bx.max + (bx.max-bx.min)*0.1)) return true;
+		return false;
+		//return v >= (1.0 + this.treshold) &&   v >= (bx.Q3 + bx.IQR()*iqr_factor);
 		}
 	
 	@Override
@@ -183,7 +192,8 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 					bx.Q1 =  percentile.evaluate(array_d,25);
 					bx.median =  percentile.evaluate(array_d,50);
 					bx.Q3 =  percentile.evaluate(array_d,75);
-					
+					bx.min = Arrays.stream(array_d).min().orElse(1.0);
+					bx.max = Arrays.stream(array_d).max().orElse(1.0);
 					boxplots.add(bx);
 					
 					}
