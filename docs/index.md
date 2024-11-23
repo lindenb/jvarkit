@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 8235cf88e
-Compilation : 20241122230214
+Version     : 0b5e96fdb
+Compilation : 20241123184651
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -49,6 +49,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [bammatrix](BamMatrix.md) | Bam matrix, inspired from 10x/loupe | 20190620 | 20211206 |
+| [cnvpanelofnormal](CNVPaneOfNormal.md) | Call CNV from panel of normal computed with 'basecoverage' | 20241123 | 20241123 |
 | [cnvtview](CnvTView.md) | Text visualization of bam DEPTH for multiple regions in a terminal | 20181018 | 20210412 |
 | [coveragegrid](CoverageGrid.md) | Display an image of depth to display any anomaly an intervals+bams as a grid image | 20241009 | 20241021 |
 | [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20241009 |

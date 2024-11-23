@@ -38,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 
@@ -45,21 +47,15 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.math.DiscreteMedian;
-import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
@@ -80,7 +76,9 @@ import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFSampleHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /**
@@ -137,26 +135,28 @@ END_DOC
 	jvarkit_amalgamion =  true,
 	menu="BAM Manipulation"
 	)
-public class BaseCoverage extends Launcher
+public class BaseCoverage extends AbstractBaseCov
 	{
 	private static Logger LOG=Logger.build(BaseCoverage.class).make();
 
-	
+	@Parameter(names={"-Z","--disable-normalization"},description="disable depth normalization _on median")
+	protected boolean disable_normalization  = false;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
 	private Path faidx = null;
 	@Parameter(names={"-r","--region","--interval"},description=IntervalParser.OPT_DESC,required=true)
 	private String intervalStr=null;
-	@Parameter(names={"--mapq"},description=" min mapping quality.")
-	private int mapping_quality=1;
-	@Parameter(names={"-Z","--disable-normalization"},description="disable depth normalization _on median")
-	private boolean disable_normalization  = false;
-	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile=null;
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
+	private static class SampleInfo {
+		String sampleName = null;
+		int columnIndex = -1;
+		Double medianCoverage = null;
+		Double meanCoverage = null;
+		final Map<Integer,Integer> coverage2count=new TreeMap<>();
+		int count_unmapped=0;
+	}
 	
 	private static class Base {
 		int pos;
@@ -227,8 +227,8 @@ public class BaseCoverage extends Launcher
 			final SamReaderFactory srf = super.createSamReaderFactory().
 					referenceSequence(this.faidx);
 			
-			final List<String> samples = new ArrayList<>(bamsIn.size());
-			final Map<String, Integer> sample2idx = new HashMap<>();
+			final List<SampleInfo> samples = new ArrayList<>(bamsIn.size());
+			final Map<String, SampleInfo> sample2info = new HashMap<>();
 			
 			sorting = SortingCollection.newInstance(
 					Base.class,
@@ -250,53 +250,42 @@ public class BaseCoverage extends Launcher
 					if(!sr.hasIndex()) {
 						throw new IllegalArgumentException("bam "+bamPath+" is not indexed");
 						}
+					final SampleInfo sampleInfo = new SampleInfo();
 					final SAMFileHeader header = sr.getFileHeader();
-					final String sn = header.getReadGroups().stream().
+					sampleInfo.sampleName = header.getReadGroups().stream().
 							map(S->S.getSample()).
 							filter(S->!StringUtils.isBlank(S)).
 							findFirst().
 							orElse(IOUtils.getFilenameWithoutCommonSuffixes(bamPath));
-					if(sample2idx.containsKey(sn)) {
-						LOG.error("duplicate sample "+sn+" in bamPath");
+					if(sample2info.containsKey(sampleInfo.sampleName)) {
+						LOG.error("duplicate sample "+sampleInfo.sampleName+" in bamPath");
 						return -1;
 						}
-					final int sample_idx = samples.size();
-					sample2idx.put(sn, sample_idx);
-					samples.add(sn);
-					System.gc();
-					final int[] coverage_int = new int[queryInterval.getLengthOnReference()];
-					Arrays.fill(coverage_int,0);
-		
-
-					try(CloseableIterator<SAMRecord> it= sr.queryOverlapping(queryInterval.getContig(), queryInterval.getStart(), queryInterval.getEnd())) {
-						while(it.hasNext()) {
-							final SAMRecord rec =it.next();
-							if(!SAMRecordDefaultFilter.accept(rec, this.mapping_quality)) continue;
-							for(AlignmentBlock ab : rec.getAlignmentBlocks()) {
-								for(int x=0;x < ab.getLength();++x) {
-									final int array_index = (ab.getReferenceStart()+x) - queryInterval.getStart();
-									if(array_index<0 ) continue;
-									if(array_index>=coverage_int.length) break;
-									coverage_int[array_index]++;
-									}
-								}
-							}
+					
+					sampleInfo.columnIndex = samples.size();
+					
+					sample2info.put(sampleInfo.sampleName, sampleInfo);
+					samples.add(sampleInfo);
+				
+					final int[] coverage_int = super.getCoverage(sr, queryInterval);
+							
+					
+					sampleInfo.meanCoverage= Arrays.stream(coverage_int).average().orElse(-1);
+					sampleInfo.count_unmapped = (int) Arrays.stream(coverage_int).filter(X->X==0).count();
+					
+					for(final int covx :new int[]{1,5,10,15,20,30,50,100}) {
+						sampleInfo.coverage2count.put(covx,  (int) Arrays.stream(coverage_int).filter(X->X>=covx).count());
 						}
+					
 					
 					final float[] coverage_norm;
 					
 					if(!this.disable_normalization) {
-						final DiscreteMedian<Integer> dm = new DiscreteMedian<>();
-						for(int array_index=0;array_index< coverage_int.length;++array_index) {
-							dm.add(coverage_int[array_index]);
-							}
-						final OptionalDouble od = dm.getMedian();
+						final OptionalDouble od =super.getMedian(coverage_int);
 						if(od.isPresent() && od.getAsDouble()>0.0) {
 							final double median_cov = od.getAsDouble();
-							coverage_norm = new float[coverage_int.length];	
-							for(int array_index=0;array_index< coverage_int.length;++array_index) {
-								coverage_norm[array_index]=(float)(coverage_int[array_index]/median_cov);
-								}
+							sampleInfo.medianCoverage = median_cov;
+							coverage_norm = super.normalizeOnMedian(coverage_int,median_cov);
 							}
 						else
 							{
@@ -309,7 +298,7 @@ public class BaseCoverage extends Launcher
 						}
 				for(int array_index=0;array_index< coverage_int.length;++array_index) {
 					final Base b = new Base();
-            		b.sample_idx = sample_idx;
+            		b.sample_idx = sampleInfo.columnIndex;
             		b.pos = array_index + queryInterval.getStart();
             		b.raw_depth = coverage_int[array_index];
             		b.norm_depth = (coverage_norm==null?-1f:coverage_norm[array_index]);
@@ -326,15 +315,34 @@ public class BaseCoverage extends Launcher
 			} // end for each bam
 			sorting.doneAdding();
 			
-			try(VariantContextWriter w = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
+			try(VariantContextWriter w = this.writingVariantsDelegate.dictionary(dict).open(super.outputFile);
 				ReferenceSequenceFile fasta = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
 				final Set<VCFHeaderLine> metaData = new HashSet<>();
 				final VCFInfoHeaderLine infoMeanDP = new VCFInfoHeaderLine("AVG_DP",1,VCFHeaderLineType.Float,"average DP");
 				final VCFInfoHeaderLine infoMinDP = new VCFInfoHeaderLine("MIN_DP",1,VCFHeaderLineType.Integer,"min DP");
 				final VCFInfoHeaderLine infoMaxDP = new VCFInfoHeaderLine("MAX_DP",1,VCFHeaderLineType.Integer,"max DP");
-				final VCFFormatHeaderLine formatMedianDP = new VCFFormatHeaderLine("MD",1,VCFHeaderLineType.Float,"Depth normalized on median");
+				final VCFFormatHeaderLine formatMedianDP = new VCFFormatHeaderLine(FORMAT_NORM_DEPH,1,VCFHeaderLineType.Float,"Depth normalized on median");
 				final VCFInfoHeaderLine infoMAD = new VCFInfoHeaderLine("MAD",1,VCFHeaderLineType.Float,"median absolute deviation ( https://en.wikipedia.org/wiki/Median_absolute_deviation )");
 
+				for(SampleInfo si: samples) {
+					final StringBuilder sb=new StringBuilder("<");
+					sb.append("ID=").append(si.sampleName);
+					if(si.meanCoverage!=null && si.meanCoverage>=0) sb.append(",MEAN_COV=").append(si.meanCoverage);
+					if(si.medianCoverage!=null && si.medianCoverage>=0) sb.append(",MEDIAN_COV=").append(si.medianCoverage);
+					sb.append(",UNMAPPED=").append(si.count_unmapped);
+					sb.append(",UNMAPPED_PCT=").append((int)(100.0*si.count_unmapped/(double)queryInterval.getLengthOnReference()));
+					for(Integer covx: si.coverage2count.keySet()) {
+						sb.append(",COV_GE_"+covx+"=").append(si.coverage2count.get(covx));
+						sb.append(",COV_GE_"+covx+"_PCT=").append((int)(100.0*si.coverage2count.get(covx)/(double)queryInterval.getLengthOnReference()));
+						}
+					
+					sb.append(">");
+					
+					final VCFSampleHeaderLine snH = new VCFSampleHeaderLine(sb.toString(), VCFHeaderVersion.VCF4_3);
+					metaData.add(snH);
+				}
+				
+				
 				metaData.add(infoMeanDP);
 				metaData.add(infoMinDP);
 				metaData.add(infoMaxDP);
@@ -342,7 +350,7 @@ public class BaseCoverage extends Launcher
 				metaData.add(infoMAD);
 				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.DEPTH_KEY);
 				VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.DEPTH_KEY);
-				final VCFHeader header = new VCFHeader(metaData,samples);
+				final VCFHeader header = new VCFHeader(metaData,samples.stream().map(SN->SN.sampleName).collect(Collectors.toList()));
 				header.setSequenceDictionary(dict);
 				JVarkitVersion.getInstance().addMetaData(this, header);
 				w.writeHeader(header);
@@ -352,12 +360,12 @@ public class BaseCoverage extends Launcher
 						final List<Base> array = iter1.next();
 						final Base first = array.get(0);
 						final Map<String, Integer> sample2depth = new HashMap<>(samples.size());
-						array.stream().forEach(B->sample2depth.put(samples.get(B.sample_idx), B.raw_depth));
+						array.stream().forEach(B->sample2depth.put(samples.get(B.sample_idx).sampleName, B.raw_depth));
 						final Map<String, Float> sample2medp;
 						
 						if(!this.disable_normalization) {
 							sample2medp = new HashMap<>(samples.size());
-							array.stream().filter(B->B.norm_depth>=0f).forEach(B->sample2medp.put(samples.get(B.sample_idx), B.norm_depth));
+							array.stream().filter(B->B.norm_depth>=0f).forEach(B->sample2medp.put(samples.get(B.sample_idx).sampleName, B.norm_depth));
 							}
 						else
 							{
@@ -365,10 +373,10 @@ public class BaseCoverage extends Launcher
 							}
 						
 						final List<Genotype> genotypes = new ArrayList<>(samples.size());
-						for(final String sn:samples) {
-							final GenotypeBuilder gb=new GenotypeBuilder(sn);
-							gb.DP(sample2depth.getOrDefault(sn, 0));
-							final Float mDP = sample2medp.getOrDefault(sn, null);
+						for(final SampleInfo sn:samples) {
+							final GenotypeBuilder gb=new GenotypeBuilder(sn.sampleName);
+							gb.DP(sample2depth.getOrDefault(sn.sampleName, 0));
+							final Float mDP = sample2medp.getOrDefault(sn.sampleName, null);
 							if(mDP!=null) gb.attribute(formatMedianDP.getID(),mDP);
 							genotypes.add(gb.make());
 							}
@@ -396,10 +404,10 @@ public class BaseCoverage extends Launcher
 							}
 						
 						
-						vcb.attribute(VCFConstants.DEPTH_KEY, samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).sum());
-						vcb.attribute(infoMeanDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).average().orElse(0.0));
-						vcb.attribute(infoMinDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).min().orElse(0));
-						vcb.attribute(infoMaxDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S, 0)).max().orElse(0));
+						vcb.attribute(VCFConstants.DEPTH_KEY, samples.stream().mapToInt(S->sample2depth.getOrDefault(S.sampleName, 0)).sum());
+						vcb.attribute(infoMeanDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S.sampleName, 0)).average().orElse(0.0));
+						vcb.attribute(infoMinDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S.sampleName, 0)).min().orElse(0));
+						vcb.attribute(infoMaxDP.getID(), samples.stream().mapToInt(S->sample2depth.getOrDefault(S.sampleName, 0)).max().orElse(0));
 						w.add(vcb.make());
 						}//end iter0
 					iter1.close();
