@@ -24,14 +24,25 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.basecoverage;
 
+import java.awt.Color;
+import java.awt.geom.Point2D;
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.OptionalDouble;
+import java.util.function.Function;
+
+import org.apache.commons.math3.stat.descriptive.rank.Median;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.math.DiscreteMedian;
+import com.github.lindenb.jvarkit.canvas.Canvas;
+import com.github.lindenb.jvarkit.canvas.CanvasFactory;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
@@ -46,15 +57,17 @@ public abstract class AbstractBaseCov extends Launcher {
 	
 	@Parameter(names={"--mapq"},description=" min mapping quality.")
 	private int mapping_quality=1;
+	@Parameter(names={"--runmed"},description=" moving median size")
+	private int moving_median_length = 31;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile=null;
 	@ParametersDelegate
 	protected WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
 	
-	protected int[] getCoverage(final SamReader sr,final Locatable queryInterval) {
+	protected double[] getCoverage(final SamReader sr,final Locatable queryInterval) {
 		System.gc();
-		final int[] coverage_int = new int[queryInterval.getLengthOnReference()];
-		Arrays.fill(coverage_int,0);
+		final double[] coverage_d = new double[queryInterval.getLengthOnReference()];
+		Arrays.fill(coverage_d,0);
 		try(CloseableIterator<SAMRecord> it= sr.queryOverlapping(queryInterval.getContig(), queryInterval.getStart(), queryInterval.getEnd())) {
 			while(it.hasNext()) {
 				final SAMRecord rec =it.next();
@@ -63,29 +76,87 @@ public abstract class AbstractBaseCov extends Launcher {
 					for(int x=0;x < ab.getLength();++x) {
 						final int array_index = (ab.getReferenceStart()+x) - queryInterval.getStart();
 						if(array_index<0 ) continue;
-						if(array_index>=coverage_int.length) break;
-						coverage_int[array_index]++;
+						if(array_index>=coverage_d.length) break;
+						coverage_d[array_index]++;
 						}
 					}
 				}
 			}
-		return coverage_int;
+		return applyMovingMedian(coverage_d);
 		}
 	
-	protected OptionalDouble getMedian(final int[] coverage_int) {
-		final DiscreteMedian<Integer> dm = new DiscreteMedian<>();
-		for(int array_index=0;array_index< coverage_int.length;++array_index) {
-			dm.add(coverage_int[array_index]);
+	private double[] applyMovingMedian(final double[] source) {
+		if(moving_median_length<=0) return source;
+		final Median med = new Median();
+		int half_size = this.moving_median_length/2;
+		double[] coverage_f = new double[source.length];	
+		for(int i=0;i< source.length;++i) {
+			if(i-half_size>=0 && i-half_size+ this.moving_median_length <= source.length ) {
+				coverage_f[i]=  med.evaluate(source, i-half_size,  this.moving_median_length);
+			} else {
+				coverage_f[i]=  source[i];
 			}
-		return dm.getMedian();
+			}
+		return coverage_f;
 		}
 	
-	protected float[] normalizeOnMedian(final int[] coverage_int,double median_cov) {
-		float[] coverage_norm = new float[coverage_int.length];	
-		for(int array_index=0;array_index< coverage_int.length;++array_index) {
-			coverage_norm[array_index]=(float)(coverage_int[array_index]/median_cov);
+	
+	protected OptionalDouble getMedian(final double[] coverage_int) {
+		if(coverage_int.length==0) return OptionalDouble.empty();
+		final Median med = new Median();
+		return OptionalDouble.of(med.evaluate(coverage_int));
+		}
+	
+	protected double[] normalizeOnMedian(final double[] coverage_d,double median_cov) {
+		double[] coverage_norm = new double[coverage_d.length];	
+		for(int array_index=0;array_index< coverage_d.length;++array_index) {
+			coverage_norm[array_index]= (coverage_d[array_index]/median_cov);
 			}
 		return coverage_norm;
+		}
+	
+	
+	protected class Plot implements Closeable {
+		final Canvas canvas;
+		private final double max_y=2.5;
+		private final int array_size;
+		Plot(Path p,int length_on_ref) throws IOException {
+			final CanvasFactory cf = new CanvasFactory();
+			cf.setDimension(1000, 300);
+			canvas = cf.open(p,FunctionalMap.make());
+			canvas.rect(0, 0, canvas.getWidth()-1, canvas.getHeight()-1,FunctionalMap.of(Canvas.KEY_STROKE,Color.BLACK,Canvas.KEY_FILL,Color.WHITE));
+			this.array_size=length_on_ref;
+			}
+		double coordX(double x) {
+			return (x/(double)array_size)*canvas.getWidth();
+			}
+		double coordY(double v) {
+			return canvas.getHeight() - (v/max_y)*canvas.getHeight();
+			}
+		Point2D toPoint(int i,double v) {
+			return new Point2D.Double(coordX(i),coordY(v));
+			}
+		void simplify(List<Point2D> points, Function<List<Double>, Double> fun) {
+			int i=0;
+			while(i< points.size()) {
+				List<Double> ys=new ArrayList<>();
+				ys.add(points.get(i).getY());
+				while(i+1 < points.size() && (int)points.get(i).getX()==(int)points.get(i+1).getX()) {
+					ys.add(points.get(i+1).getY());
+					points.remove(i+1);
+					}
+				points.set(i, new Point2D.Double(points.get(i).getX(),fun.apply(ys)));
+				i++;
+				}
+			}
+		@Override
+		public void close() throws IOException {
+			canvas.line(0, coordY(0.5), array_size, coordY(0.5), FunctionalMap.of(Canvas.KEY_STROKE,Color.ORANGE));
+			canvas.line(0, coordY(1.5), array_size, coordY(1.5), FunctionalMap.of(Canvas.KEY_STROKE,Color.ORANGE));
+			canvas.line(0, coordY(1.0), array_size, coordY(1.0), FunctionalMap.of(Canvas.KEY_STROKE,Color.BLUE));
+			canvas.rect(0, 0, canvas.getWidth()-1, canvas.getHeight()-1,FunctionalMap.of(Canvas.KEY_STROKE,Color.BLACK,Canvas.KEY_FILL,null));
+			canvas.close();
+			}
 		}
 	
 	protected AbstractBaseCov() {

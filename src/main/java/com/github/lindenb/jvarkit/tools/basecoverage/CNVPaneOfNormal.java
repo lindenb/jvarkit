@@ -24,6 +24,9 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.basecoverage;
 
+import java.awt.Color;
+import java.awt.geom.GeneralPath;
+import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,8 +39,10 @@ import java.util.Set;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.canvas.Canvas;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -101,6 +106,10 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 	@Parameter(names={"-f","--iqr"},description="IQR factor to detect outliers")
 	private double iqr_factor = 1.5;
 
+	@Parameter(names={"--canvas"},description="Canvas output")
+	private Path canvasOutput=null;
+
+	
 	private static class CNV {
 		int start;
 		int end;
@@ -128,28 +137,33 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 		
 		/** Interquartile Range */
 		private double IQR() { return Q3-Q1;}
+		private double upper() { return Q1 - IQR()*1.5;}
+		private double lower() { return Q3 + IQR()*1.5;}
 	}	
 	
 	public CNVPaneOfNormal() {
 		}
 	
-	private boolean isDel(final BoxPlot bx,float v) {
-		if(v < (bx.min - (bx.max-bx.min)*0.1)) return true;
-		return false;
-		//return v <= (1.0 - this.treshold) &&   v <= (bx.Q1 - bx.IQR()*iqr_factor);
+	private boolean isDel(final BoxPlot bx,double v) {
+		//if(v < (bx.min - (bx.max-bx.min)*0.1)) return true;
+		//return false;
+		return v <= (1.0 - this.treshold) &&  ( v <= (bx.Q1 - bx.IQR()*iqr_factor)  || v < bx.min);
 		}
 	
-	private boolean isDup(final BoxPlot bx,float v) {
-		if(v > (bx.max + (bx.max-bx.min)*0.1)) return true;
-		return false;
-		//return v >= (1.0 + this.treshold) &&   v >= (bx.Q3 + bx.IQR()*iqr_factor);
+	private boolean isDup(final BoxPlot bx,double v) {
+		//if(v > (bx.max + (bx.max-bx.min)*0.1)) return true;
+		//return false;
+		return v >= (1.0 + this.treshold) &&  ( v >= (bx.Q3 + bx.IQR()*iqr_factor) || v > bx.max);
 		}
 	
 	@Override
 	public int doWork(final List<String> args)
 		{
+		Plot plotter=null;
 		try {
 			final String input = oneAndOnlyOneFile(args);
+			
+			
 			
 			final List<BoxPlot> boxplots = new ArrayList<>();
 			String rgn_contig = null;
@@ -201,9 +215,54 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 			if(boxplots.isEmpty()) throw new IllegalArgumentException("no variant was found in "+this.vcf_panel_of_normal);
 			final Locatable queryInterval = new SimpleInterval(rgn_contig,rgn_start,rgn_end);
 			
+			
+			if(this.canvasOutput!=null) {
+				plotter= new Plot(this.canvasOutput, queryInterval.getLengthOnReference());
+				final List<Point2D> points = new ArrayList<>(queryInterval.getLengthOnReference());
+				for(int i=0;i< boxplots.size();++i) {
+					points.add(plotter.toPoint(i, boxplots.get(i).max));
+					}
+				plotter.simplify(points, L->L.stream().mapToDouble(V->V).max().getAsDouble());
+				plotter.canvas.polyline(points,FunctionalMap.of(Canvas.KEY_STROKE,Color.RED,Canvas.KEY_STROKE_WIDTH,0.5));
+				
+				
+				
+				
+				points.clear();
+				for(int i=0;i< boxplots.size();++i) {
+					points.add(plotter.toPoint(i, boxplots.get(i).min));
+					}
+				plotter.simplify(points, L->L.stream().mapToDouble(V->V).min().getAsDouble());
+				plotter.canvas.polyline(points,FunctionalMap.of(Canvas.KEY_STROKE,Color.RED,Canvas.KEY_STROKE_WIDTH,0.5));
+				
+				
+				
+				points.clear();
+				for(int i=0;i< boxplots.size();++i) {
+					points.add(plotter.toPoint(i, boxplots.get(i).lower()));
+					}
+				plotter.simplify(points, L->L.stream().mapToDouble(V->V).min().getAsDouble());
+				plotter.canvas.polyline(points,FunctionalMap.of(Canvas.KEY_STROKE,Color.CYAN,Canvas.KEY_STROKE_WIDTH,0.5));
+				
+				points.clear();
+				for(int i=0;i< boxplots.size();++i) {
+					points.add(plotter.toPoint(i, boxplots.get(i).upper()));
+					}
+				plotter.simplify(points, L->L.stream().mapToDouble(V->V).max().getAsDouble());
+				plotter.canvas.polyline(points,FunctionalMap.of(Canvas.KEY_STROKE,Color.CYAN,Canvas.KEY_STROKE_WIDTH,0.5));
+				
+				
+				points.clear();
+				for(int i=0;i< boxplots.size();++i) {
+					points.add(plotter.toPoint(i, boxplots.get(i).median));
+					}
+				plotter.simplify(points, L->L.stream().mapToDouble(V->V).average().getAsDouble());
+				plotter.canvas.polyline(points,FunctionalMap.of(Canvas.KEY_STROKE,Color.ORANGE,Canvas.KEY_STROKE_WIDTH,0.5));
+			}
+			
 			final String sampleName;
 			final SAMSequenceDictionary dict;
-			final float[] coverage_norm;
+			final double[] coverage_norm;
 			final SamReaderFactory srf = super.createSamReaderFactory();
 			if(this.faidx!=null) srf.referenceSequence(this.faidx);
 			try(SamReader sr =srf.open(SamInputResource.of(input))) {
@@ -217,13 +276,20 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 						filter(S->!StringUtils.isBlank(S)).
 						findFirst().
 						orElse(input);
-				final int[] coverage_int = super.getCoverage(sr, queryInterval);
-				final OptionalDouble od = super.getMedian(coverage_int);
+				final double[] coverage_f = super.getCoverage(sr, queryInterval);
+				final OptionalDouble od = super.getMedian(coverage_f);
 				if(!od.isPresent() || od.getAsDouble()<=0.0) {
 					LOG.error("median cov is 0 in "+input);
 					return -1;
 					}
-				coverage_norm  = super.normalizeOnMedian(coverage_int, od.getAsDouble());
+				coverage_norm  = super.normalizeOnMedian(coverage_f, od.getAsDouble());
+				}
+			
+			if(plotter!=null) {
+				for(int i=0;i< boxplots.size();++i) {
+					plotter.canvas.circle( plotter.coordX(i),plotter.coordY(coverage_norm[i]),0.5,FunctionalMap.of(Canvas.KEY_FILL,Color.BLACK,Canvas.KEY_STROKE_WIDTH,0.5));
+					}
+				
 				}
 			
 			
@@ -284,6 +350,21 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 			
 			
 			cnvs.removeIf(C->C.length() < this.min_cnv_size);
+			
+			
+			if(plotter!=null) {
+				for(CNV cnv: cnvs) {
+					plotter.canvas.rect(
+						plotter.coordX(cnv.start - queryInterval.getStart()) ,
+						plotter.coordY(cnv.status==-1? 0.05:1.95),
+						plotter.coordX(cnv.end -  queryInterval.getStart() )-plotter.coordX(cnv.start -  queryInterval.getStart()),
+						5,
+						FunctionalMap.of(Canvas.KEY_FILL,Color.MAGENTA)
+						);
+					}
+				plotter.close();
+				plotter=null;
+				}
 			
 			try(VariantContextWriter w = this.writingVariantsDelegate.dictionary(dict).open(super.outputFile)) {
 					final Set<VCFHeaderLine> metaData = new HashSet<>();

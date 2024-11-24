@@ -162,7 +162,7 @@ public class BaseCoverage extends AbstractBaseCov
 		int pos;
 		int sample_idx;
 		int raw_depth;
-		float norm_depth;
+		double norm_depth;
 		int compare2(final Base o) {
 			return Integer.compare(this.pos, o.pos);
 		}	
@@ -186,7 +186,7 @@ public class BaseCoverage extends AbstractBaseCov
 				}
 			b.sample_idx = dis.readInt();
 			b.raw_depth = dis.readInt();
-			b.norm_depth = dis.readFloat();
+			b.norm_depth = dis.readDouble();
 			return b;
 			}
 		@Override
@@ -194,7 +194,7 @@ public class BaseCoverage extends AbstractBaseCov
 			o.writeInt(b.pos);
 			o.writeInt(b.sample_idx);
 			o.writeInt(b.raw_depth);
-			o.writeFloat(b.norm_depth);
+			o.writeDouble(b.norm_depth);
 			}
 		@Override
 		public BaseCodec clone() {
@@ -267,25 +267,24 @@ public class BaseCoverage extends AbstractBaseCov
 					sample2info.put(sampleInfo.sampleName, sampleInfo);
 					samples.add(sampleInfo);
 				
-					final int[] coverage_int = super.getCoverage(sr, queryInterval);
-							
+					final double[] coverage_d = super.getCoverage(sr, queryInterval) ;
 					
-					sampleInfo.meanCoverage= Arrays.stream(coverage_int).average().orElse(-1);
-					sampleInfo.count_unmapped = (int) Arrays.stream(coverage_int).filter(X->X==0).count();
+					sampleInfo.meanCoverage= Arrays.stream(coverage_d).average().orElse(-1);
+					sampleInfo.count_unmapped = (int) Arrays.stream(coverage_d).filter(X->X==0).count();
 					
 					for(final int covx :new int[]{1,5,10,15,20,30,50,100}) {
-						sampleInfo.coverage2count.put(covx,  (int) Arrays.stream(coverage_int).filter(X->X>=covx).count());
+						sampleInfo.coverage2count.put(covx,  (int) Arrays.stream(coverage_d).filter(X->X>=covx).count());
 						}
 					
 					
-					final float[] coverage_norm;
+					final double[] coverage_norm;
 					
 					if(!this.disable_normalization) {
-						final OptionalDouble od =super.getMedian(coverage_int);
+						final OptionalDouble od =super.getMedian(coverage_d);
 						if(od.isPresent() && od.getAsDouble()>0.0) {
 							final double median_cov = od.getAsDouble();
 							sampleInfo.medianCoverage = median_cov;
-							coverage_norm = super.normalizeOnMedian(coverage_int,median_cov);
+							coverage_norm = super.normalizeOnMedian(coverage_d,median_cov);
 							}
 						else
 							{
@@ -296,11 +295,11 @@ public class BaseCoverage extends AbstractBaseCov
 						{
 						coverage_norm  =null;
 						}
-				for(int array_index=0;array_index< coverage_int.length;++array_index) {
+				for(int array_index=0;array_index< coverage_d.length;++array_index) {
 					final Base b = new Base();
             		b.sample_idx = sampleInfo.columnIndex;
             		b.pos = array_index + queryInterval.getStart();
-            		b.raw_depth = coverage_int[array_index];
+            		b.raw_depth = (int)coverage_d[array_index];
             		b.norm_depth = (coverage_norm==null?-1f:coverage_norm[array_index]);
             		sorting.add(b);
 					}						
@@ -361,11 +360,11 @@ public class BaseCoverage extends AbstractBaseCov
 						final Base first = array.get(0);
 						final Map<String, Integer> sample2depth = new HashMap<>(samples.size());
 						array.stream().forEach(B->sample2depth.put(samples.get(B.sample_idx).sampleName, B.raw_depth));
-						final Map<String, Float> sample2medp;
+						final Map<String, Double> sample2medp;
 						
 						if(!this.disable_normalization) {
 							sample2medp = new HashMap<>(samples.size());
-							array.stream().filter(B->B.norm_depth>=0f).forEach(B->sample2medp.put(samples.get(B.sample_idx).sampleName, B.norm_depth));
+							array.stream().filter(B->B.norm_depth>=0.0).forEach(B->sample2medp.put(samples.get(B.sample_idx).sampleName, B.norm_depth));
 							}
 						else
 							{
@@ -376,7 +375,7 @@ public class BaseCoverage extends AbstractBaseCov
 						for(final SampleInfo sn:samples) {
 							final GenotypeBuilder gb=new GenotypeBuilder(sn.sampleName);
 							gb.DP(sample2depth.getOrDefault(sn.sampleName, 0));
-							final Float mDP = sample2medp.getOrDefault(sn.sampleName, null);
+							final Double mDP = sample2medp.getOrDefault(sn.sampleName, null);
 							if(mDP!=null) gb.attribute(formatMedianDP.getID(),mDP);
 							genotypes.add(gb.make());
 							}

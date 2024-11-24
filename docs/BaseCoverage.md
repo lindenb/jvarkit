@@ -51,6 +51,9 @@ Usage: basecoverage [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+    --runmed
+       moving median size
+      Default: 31
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
