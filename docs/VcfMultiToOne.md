@@ -5,10 +5,6 @@
 Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used.
 
 
-## DEPRECATED
-
-I don't use this anymore. See vcfconcat
-
 ## Usage
 
 
@@ -46,6 +42,9 @@ Usage: vcfmulti2one [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --no-origin
+      do not include origin of variant
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --regions

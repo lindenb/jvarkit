@@ -264,9 +264,8 @@ END_DOC
 	biostars=130456,
 	description="Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used.",
 	keywords={"vcf","sample"},
-	deprecatedMsg = "I don't use this anymore. See vcfconcat",
 	creationDate="20150312",
-	modificationDate="20200224",
+	modificationDate="20241125",
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)
@@ -274,11 +273,15 @@ public class VcfMultiToOne extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfMultiToOne.class).make();
 
-	@Parameter(names={"-c","-nc","--discard_no_call"},description="discard if variant is no-call")
+	
+	@Parameter(names={"--no-origin"},description="do not include origin of variant")
+	private boolean discard_ctx_origin = false;
+
+	@Parameter(names={"-c","--nc","-nc","--discard_no_call"},description="discard if variant is no-call")
 	private boolean discard_no_call = false;
-	@Parameter(names={"-r","-hr","--discard_hom_ref"},description="discard if variant is hom-ref")
+	@Parameter(names={"-r","--hr","-hr","--discard_hom_ref"},description="discard if variant is hom-ref")
 	private boolean discard_hom_ref = false;
-	@Parameter(names={"-a","--discard_non_available"},description="discard if variant is not available")
+	@Parameter(names={"-a","--discard_non_available"},description="discard if variant is not available (see htsjdk definition 'available if the type of this genotype is set')")
 	private boolean discard_non_available = false;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -291,7 +294,7 @@ public class VcfMultiToOne extends Launcher
 
 	public static final String DEFAULT_VCF_SAMPLE_NAME="SAMPLE";
 	public static final String DEFAULT_SAMPLE_TAGID="SAMPLENAME";
-	public static final String DEFAULT_SAMPLE_FILETAGID="SAMPLESOURCE";
+	public static final String DEFAULT_SAMPLE_FILETAGID ="SAMPLESOURCE";
 	public static final String SAMPLE_HEADER_DECLARATION="VcfMultiToOne.Sample";
 	
 	
@@ -532,17 +535,21 @@ public class VcfMultiToOne extends Launcher
 					DEFAULT_SAMPLE_TAGID,1,VCFHeaderLineType.String,
 					"Sample Name from multi-sample vcf"
 					));
-			metaData.add(new VCFInfoHeaderLine(
-					DEFAULT_SAMPLE_FILETAGID,1,VCFHeaderLineType.String,
-					"Origin of sample"
-					));
 			
-			for(final String sample:sampleNames)
-				{
-				metaData.add(
-					new VCFHeaderLine(
-					SAMPLE_HEADER_DECLARATION,
-					sample));
+			if(!discard_ctx_origin) {
+				metaData.add(new VCFInfoHeaderLine(
+						DEFAULT_SAMPLE_FILETAGID,1,VCFHeaderLineType.String,
+						"Origin of sample"
+						));
+				
+				
+				for(final String sample:sampleNames)
+					{
+					metaData.add(
+						new VCFHeaderLine(
+						SAMPLE_HEADER_DECLARATION,
+						sample));
+					}
 				}
 			
 			final VCFHeader h2 = new VCFHeader(
@@ -586,7 +593,9 @@ public class VcfMultiToOne extends Launcher
 							if(!this.discard_no_call)
 								{
 								final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-								vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
+								if(!discard_ctx_origin) {
+									vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
+									}
 								vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
 								out.add(this.recalculator.apply(vcb.make()));
 								}
@@ -598,9 +607,9 @@ public class VcfMultiToOne extends Launcher
 							final Genotype g= ctx.getGenotype(i);
 							final String sample = g.getSampleName();
 							
-							if(!g.isCalled() && this.discard_no_call) continue;
+							if(this.discard_no_call && g.getAlleles().stream().allMatch(A->A.isNoCall())) continue;
 							if(!g.isAvailable() && this.discard_non_available) continue;
-							if(g.isHomRef() && this.discard_hom_ref) continue;
+							if(this.discard_hom_ref && g.getAlleles().stream().allMatch(A->A.isReference())) continue;
 							
 							
 							final GenotypeBuilder gb=new GenotypeBuilder(g);
@@ -609,8 +618,9 @@ public class VcfMultiToOne extends Launcher
 							
 							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 							vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
-							vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
-							
+							if(!discard_ctx_origin) {
+								vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
+								}
 							
 							vcb.genotypes(gb.make());
 							out.add(this.recalculator.apply(vcb.make()));
