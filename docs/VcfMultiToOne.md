@@ -26,14 +26,15 @@ Usage: vcfmulti2one [options] Files
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
       Default: false
-    -r, -hr, --discard_hom_ref
+    -r, --hr, -hr, --discard_hom_ref
       discard if variant is hom-ref
       Default: false
-    -c, -nc, --discard_no_call
+    -c, --nc, -nc, --discard_no_call
       discard if variant is no-call
       Default: false
     -a, --discard_non_available
-      discard if variant is not available
+      discard if variant is not available (see htsjdk definition 'available if 
+      the type of this genotype is set')
       Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.

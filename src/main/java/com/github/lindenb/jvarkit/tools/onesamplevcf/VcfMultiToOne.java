@@ -50,7 +50,6 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -469,10 +468,7 @@ public class VcfMultiToOne extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		VariantContextWriter  out=null;
-		
-		
-		
+
 		try
 			{
 			final List<String> paths = IOUtils.unrollStrings(args);
@@ -497,7 +493,7 @@ public class VcfMultiToOne extends Launcher
 
 			
 			SAMSequenceDictionary dict=null;
-			final Set<String> sampleNames=new HashSet<String>();
+			final Set<String> sampleNames= (discard_ctx_origin?Collections.emptySet():new HashSet<String>());
 
 			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
 			
@@ -524,7 +520,9 @@ public class VcfMultiToOne extends Launcher
 						return -1;
 						}
 					metaData.addAll(in.getHeader().getMetaDataInInputOrder());
-					sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
+					if(!discard_ctx_origin) {
+						sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
+						}
 					in.close();
 					}
 				source.close();
@@ -573,63 +571,63 @@ public class VcfMultiToOne extends Launcher
 				pedicateVariantOverlapUserInterval = VC->true;
 			}
 			
-			out= this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
-			out.writeHeader(h2);
-			
-			for(final VCFIteratorSource source:inputFiles) {
-				source.open();
-				 for(;;)
-					{
-					if(out.checkError()) break;
-					final	NamedVcfIterator nvi = source.next();
-					if(nvi==null) break;
-					final VCFIterator in = nvi.delegate;
-					while(in.hasNext()) {
-						final VariantContext ctx = in.next();
-						if(!pedicateVariantOverlapUserInterval.test(ctx)) continue;
-						// no genotype
-						if(ctx.getNSamples()==0)
-							{
-							if(!this.discard_no_call)
+			try(VariantContextWriter out= this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
+				out.writeHeader(h2);
+				for(final VCFIteratorSource source:inputFiles) {
+					source.open();
+					 for(;;)
+						{
+						if(out.checkError()) break;
+						final	NamedVcfIterator nvi = source.next();
+						if(nvi==null) break;
+						final VCFIterator in = nvi.delegate;
+						while(in.hasNext()) {
+							final VariantContext ctx = in.next();
+							if(!pedicateVariantOverlapUserInterval.test(ctx)) continue;
+							// no genotype
+							if(ctx.getNSamples()==0)
 								{
-								final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+								if(!this.discard_no_call)
+									{
+									final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+									if(!discard_ctx_origin) {
+										vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
+										}
+									vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
+									out.add(this.recalculator.apply(vcb.make()));
+									}
+								continue;
+								}
+							//loop over samples
+							for(int i=0;i< ctx.getNSamples();++i)
+								{
+								final Genotype g= ctx.getGenotype(i);
+								final String sample = g.getSampleName();
+								
+								if(this.discard_no_call && g.getAlleles().stream().allMatch(A->A.isNoCall())) continue;
+								if(!g.isAvailable() && this.discard_non_available) continue;
+								if(this.discard_hom_ref && g.getAlleles().stream().allMatch(A->A.isReference())) continue;
+								
+								
+								final GenotypeBuilder gb=new GenotypeBuilder(g);
+								gb.name(DEFAULT_VCF_SAMPLE_NAME);
+								
+								
+								final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+								vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
 								if(!discard_ctx_origin) {
 									vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
 									}
-								vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
+								
+								vcb.genotypes(gb.make());
 								out.add(this.recalculator.apply(vcb.make()));
 								}
-							continue;
-							}
-						//loop over samples
-						for(int i=0;i< ctx.getNSamples();++i)
-							{
-							final Genotype g= ctx.getGenotype(i);
-							final String sample = g.getSampleName();
-							
-							if(this.discard_no_call && g.getAlleles().stream().allMatch(A->A.isNoCall())) continue;
-							if(!g.isAvailable() && this.discard_non_available) continue;
-							if(this.discard_hom_ref && g.getAlleles().stream().allMatch(A->A.isReference())) continue;
-							
-							
-							final GenotypeBuilder gb=new GenotypeBuilder(g);
-							gb.name(DEFAULT_VCF_SAMPLE_NAME);
-							
-							
-							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-							vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
-							if(!discard_ctx_origin) {
-								vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
-								}
-							
-							vcb.genotypes(gb.make());
-							out.add(this.recalculator.apply(vcb.make()));
-							}
-						} //end while vcfiterator
-					//in.close();
+							} //end while vcfiterator
+						//in.close();
+						}
+					source.close();
 					}
-				source.close();
-				}
+				} //close out
 			
 			return 0;
 			}
@@ -638,10 +636,7 @@ public class VcfMultiToOne extends Launcher
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(out);
-			}
+		
 		}
 	
 	
