@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.basecoverage;
 
 import java.awt.Color;
-import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -218,14 +217,14 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 			
 			if(this.canvasOutput!=null) {
 				plotter= new Plot(this.canvasOutput, queryInterval.getLengthOnReference());
+				
+				
 				final List<Point2D> points = new ArrayList<>(queryInterval.getLengthOnReference());
 				for(int i=0;i< boxplots.size();++i) {
 					points.add(plotter.toPoint(i, boxplots.get(i).max));
 					}
 				plotter.simplify(points, L->L.stream().mapToDouble(V->V).max().getAsDouble());
 				plotter.canvas.polyline(points,FunctionalMap.of(Canvas.KEY_STROKE,Color.RED,Canvas.KEY_STROKE_WIDTH,0.5));
-				
-				
 				
 				
 				points.clear();
@@ -258,7 +257,7 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 					}
 				plotter.simplify(points, L->L.stream().mapToDouble(V->V).average().getAsDouble());
 				plotter.canvas.polyline(points,FunctionalMap.of(Canvas.KEY_STROKE,Color.ORANGE,Canvas.KEY_STROKE_WIDTH,0.5));
-			}
+				}
 			
 			final String sampleName;
 			final SAMSequenceDictionary dict;
@@ -286,12 +285,14 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 				}
 			
 			if(plotter!=null) {
+				
+				plotter.canvas.text(sampleName+" "+ queryInterval +" length:"+ StringUtils.niceInt(queryInterval.getLengthOnReference()) +" "+ input, 2, 12,FunctionalMap.of(Canvas.KEY_FILL,Color.BLACK,Canvas.KEY_STROKE,null,Canvas.KEY_FONT_SIZE,10));
+
+				
 				for(int i=0;i< boxplots.size();++i) {
 					plotter.canvas.circle( plotter.coordX(i),plotter.coordY(coverage_norm[i]),0.5,FunctionalMap.of(Canvas.KEY_FILL,Color.BLACK,Canvas.KEY_STROKE_WIDTH,0.5));
 					}
-				
 				}
-			
 			
 			final List<CNV> cnvs = new ArrayList<>();
 			int i=0;
@@ -335,7 +336,7 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 						cnv0.start-this.merge_adjacent, cnv0.end+this.merge_adjacent,
 						cnv1.start, cnv1.end
 						)) {
-					System.err.println("Merge "+cnv0+" "+cnv1);
+					LOG.debug("Merge "+cnv0+" "+cnv1);
 					cnv0.start= Math.min(cnv0.start, cnv1.start);
 					cnv0.end= Math.max(cnv0.end, cnv1.end);
 					cnv0.sum += cnv1.sum;

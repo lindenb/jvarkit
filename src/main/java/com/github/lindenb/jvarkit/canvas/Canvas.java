@@ -25,10 +25,13 @@ package com.github.lindenb.jvarkit.canvas;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Rectangle;
 import java.awt.Shape;
+import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.io.Closeable;
@@ -61,6 +64,73 @@ public abstract class Canvas implements Closeable {
 	public static final String KEY_OPACITY="opacity";
 	public static final String KEY_SVG_META = "-svg-meta";// instance of Consumer<XMLStreamWriter> 
 
+	protected abstract class AbstractShape implements Shape {
+		protected final GeneralPath gp = new GeneralPath();
+		AbstractShape() {
+			}
+		@Override
+		public Rectangle getBounds() {
+			return gp.getBounds();
+		}
+
+		@Override
+		public Rectangle2D getBounds2D() {
+			return gp.getBounds2D();
+		}
+
+		@Override
+		public boolean contains(double x, double y) {
+			return gp.contains(x,y);
+		}
+
+		@Override
+		public boolean contains(Point2D p) {
+			return gp.contains(p);
+		}
+
+		@Override
+		public boolean intersects(double x, double y, double w, double h) {
+			return gp.intersects(x,y,w,h);
+		}
+
+		@Override
+		public boolean intersects(Rectangle2D r) {
+			return gp.intersects(r);		
+			}
+
+		@Override
+		public boolean contains(double x, double y, double w, double h) {
+			return gp.contains(x,y,w,h);
+		}
+
+		@Override
+		public boolean contains(Rectangle2D r) {
+			return gp.contains(r);
+		}
+
+		@Override
+		public PathIterator getPathIterator(AffineTransform at) {
+			return gp.getPathIterator(at);
+		}
+
+		@Override
+		public PathIterator getPathIterator(AffineTransform at, double flatness) {
+			return gp.getPathIterator(at,flatness);
+		}
+		
+	}
+
+	
+	protected class CrossShape extends AbstractShape {
+		CrossShape(double x,double y, double r) {
+			gp.moveTo(x-r, y);
+			gp.lineTo(x+r, y);
+			gp.moveTo(x, y-r);
+			gp.lineTo(x, y+r);
+			}
+	}
+	
+	
 	protected Stack<FunctionalMap<String, Object>> states = new Stack<>();
 	protected Hershey hershey = new Hershey();
 	protected final ColorUtils colorUtils = new ColorUtils();
@@ -248,5 +318,10 @@ public abstract class Canvas implements Closeable {
 	
 	public final Canvas shape(Shape shape) {
 		return shape(shape,FunctionalMap.make());
+		}
+	
+	
+	public Canvas cross(double x, double y, double r,FunctionalMap<String, Object> fm) {
+		return shape(new CrossShape(x, y, r),fm.plus(KEY_FILL,null));	
 		}
 	}
