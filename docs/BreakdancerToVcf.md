@@ -7,7 +7,13 @@ Convert output of breakdancer to VCF
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar breakdancer2vcf  [options] Files
+
 Usage: breakdancer2vcf [options] Files
   Options:
     --bcf-output
@@ -29,7 +35,7 @@ Usage: breakdancer2vcf [options] Files
       print version and exit
     -R, -reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
 
 ```
 
@@ -41,23 +47,6 @@ Usage: breakdancer2vcf [options] Files
  * breakdancer
  * vcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew breakdancer2vcf
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -135,6 +124,7 @@ $ wget -O - -q "https://raw.githubusercontent.com/genome/breakdancer/master/test
 21	34807694	.	N	<INS>	99	.	DP=3;END=34808852;SVLEN=304;SVTYPE=INS	GT:DP:GQ	0/1:1:99	0/1:2:99
 21	34808937	.	N	<INV>	99	.	DP=2;END=34809799;SVLEN=-737;SVTYPE=INV	GT:AF:DP:GQ	0/1:847.39:.:99	0/1:878.83:2:99
 ```
+
 
 
 

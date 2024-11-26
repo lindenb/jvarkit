@@ -32,7 +32,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
@@ -48,14 +47,12 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -115,8 +112,10 @@ END_DOC
 @Program(name="breakdancer2vcf",
 description="Convert output of breakdancer to VCF",
 keywords= {"cnv","sv","breakdancer","vcf"},
+jvarkit_amalgamion = true,
 creationDate="20200511",
-modificationDate="20200511"
+modificationDate="20241122",
+menu="VCF Manipulation"
 )
 public class BreakdancerToVcf extends Launcher {
 	private static final Logger LOG = Logger.build(BreakdancerToVcf.class).make();
@@ -128,9 +127,7 @@ public class BreakdancerToVcf extends Launcher {
 	private WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
 
 	@Override
-	public int doWork(final List<String> args) {
-		
-		VariantContextWriter out = null;
+	public int doWork(final List<String> args) {		
 		try {
 			final SAMSequenceDictionary dict = (this.dictRefFile==null?null: SequenceDictionaryUtils.extractRequired(this.dictRefFile));
 			
@@ -225,85 +222,82 @@ public class BreakdancerToVcf extends Launcher {
 			if(dict!=null) header.setSequenceDictionary(dict);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			
-			out =  this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
-			out.writeHeader(header);
-			while((line=br.readLine())!=null) {
-				if(line.startsWith("#")) {
-					LOG.error("Bad body "+line);
-					return -1;
-					}
-				final String tokens[]= CharSplitter.TAB.split(line);
-				if(tokens.length < 11) {
-					LOG.error("Expected 12 columns in "+line.replaceAll("[\t]","<TAB>")+" but got "+tokens.length+". Skipping");
-					continue;
-					}
-				if(dict!=null && dict.getSequence(tokens[0])==null) throw new JvarkitException.ContigNotFoundInDictionary(tokens[0], dict);
-				if(dict!=null && dict.getSequence(tokens[3])==null) throw new JvarkitException.ContigNotFoundInDictionary(tokens[3], dict);
-				
-				final VariantContextBuilder vcb= new VariantContextBuilder();
-				vcb.chr(tokens[0]);
-				final int start = Integer.parseInt(tokens[1]);
-				final int stop = Integer.parseInt(tokens[4]);
-				vcb.start(start);
-				vcb.attribute(VCFConstants.SVTYPE,tokens[6]);
-				
-				final Allele REF_ALLELE = Allele.create("N", true);
-				final Allele ALT_ALLELE = Allele.create("<" + tokens[6]+">", false);
-				vcb.alleles(Arrays.asList(REF_ALLELE,ALT_ALLELE));
-				
-				
-				if(!tokens[0].equals(tokens[3])) {
-					vcb.attribute("CHROM2", tokens[3]);
-					vcb.attribute("POS2", stop);
-					vcb.stop(start);
-					}
-				else
-					{
-					vcb.stop(stop);
-					vcb.attribute(VCFConstants.END_KEY,stop);
-					vcb.attribute("SVLEN", Integer.parseInt(tokens[7])*-1 /* inversed logic */);
-					}
-				
-				vcb.attribute(VCFConstants.DEPTH_KEY, Integer.parseInt(tokens[9]));
-				vcb.log10PError(Integer.parseInt(tokens[8])/-10.0);
-
-				
-				final List<Genotype> genotypes = new ArrayList<>(bam2sample.size());
-				
-				for(String bamStr:  CharSplitter.COLON.splitAsStringList(tokens[10]) ) {
-						
-					final int pipe = bamStr.indexOf('|');
-					if(pipe==-1) {
-						LOG.error("Pipe missing in "+tokens[10]);
+			try(VariantContextWriter out =  this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
+				out.writeHeader(header);
+				while((line=br.readLine())!=null) {
+					if(line.startsWith("#")) {
+						LOG.error("Bad body "+line);
 						return -1;
 						}
-					final String bam = bamStr.substring(0,pipe);
-					final int dp = Integer.parseInt(bamStr.substring(pipe+1));
-
-					final String sampleName = bam2sample.get(bam);
-					if(StringUtils.isBlank(sampleName)) {
-						LOG.error("Cannot get sample associated to bam:"+bam);
-						return -1;
+					final String tokens[]= CharSplitter.TAB.split(line);
+					if(tokens.length < 11) {
+						LOG.error("Expected 12 columns in "+line.replaceAll("[\t]","<TAB>")+" but got "+tokens.length+". Skipping");
+						continue;
+						}
+					if(dict!=null && dict.getSequence(tokens[0])==null) throw new JvarkitException.ContigNotFoundInDictionary(tokens[0], dict);
+					if(dict!=null && dict.getSequence(tokens[3])==null) throw new JvarkitException.ContigNotFoundInDictionary(tokens[3], dict);
+					
+					final VariantContextBuilder vcb= new VariantContextBuilder();
+					vcb.chr(tokens[0]);
+					final int start = Integer.parseInt(tokens[1]);
+					final int stop = Integer.parseInt(tokens[4]);
+					vcb.start(start);
+					vcb.attribute(VCFConstants.SVTYPE,tokens[6]);
+					
+					final Allele REF_ALLELE = Allele.create("N", true);
+					final Allele ALT_ALLELE = Allele.create("<" + tokens[6]+">", false);
+					vcb.alleles(Arrays.asList(REF_ALLELE,ALT_ALLELE));
+					
+					
+					if(!tokens[0].equals(tokens[3])) {
+						vcb.attribute("CHROM2", tokens[3]);
+						vcb.attribute("POS2", stop);
+						vcb.stop(start);
+						}
+					else
+						{
+						vcb.stop(stop);
+						vcb.attribute(VCFConstants.END_KEY,stop);
+						vcb.attribute("SVLEN", Integer.parseInt(tokens[7])*-1 /* inversed logic */);
 						}
 					
-					final GenotypeBuilder gbuilder = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,ALT_ALLELE));
-					gbuilder.DP(dp);
-					gbuilder.GQ(Integer.parseInt(tokens[8]));
-					genotypes.add(gbuilder.make());
+					vcb.attribute(VCFConstants.DEPTH_KEY, Integer.parseInt(tokens[9]));
+					vcb.log10PError(Integer.parseInt(tokens[8])/-10.0);
+	
+					
+					final List<Genotype> genotypes = new ArrayList<>(bam2sample.size());
+					
+					for(String bamStr:  CharSplitter.COLON.splitAsStringList(tokens[10]) ) {
+							
+						final int pipe = bamStr.indexOf('|');
+						if(pipe==-1) {
+							LOG.error("Pipe missing in "+tokens[10]);
+							return -1;
+							}
+						final String bam = bamStr.substring(0,pipe);
+						final int dp = Integer.parseInt(bamStr.substring(pipe+1));
+	
+						final String sampleName = bam2sample.get(bam);
+						if(StringUtils.isBlank(sampleName)) {
+							LOG.error("Cannot get sample associated to bam:"+bam);
+							return -1;
+							}
+						
+						final GenotypeBuilder gbuilder = new GenotypeBuilder(sampleName,Arrays.asList(REF_ALLELE,ALT_ALLELE));
+						gbuilder.DP(dp);
+						gbuilder.GQ(Integer.parseInt(tokens[8]));
+						genotypes.add(gbuilder.make());
+						}
+					vcb.genotypes(genotypes);
+					out.add(vcb.make());
 					}
-				vcb.genotypes(genotypes);
-				out.add(vcb.make());
-				}
 			}
 			
-			out.close();
-			out=null;
+		}
 			return 0;
 		} catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-		} finally {
-			CloserUtil.close(out);
 		}
 	}
 

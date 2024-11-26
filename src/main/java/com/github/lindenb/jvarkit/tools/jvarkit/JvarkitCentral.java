@@ -257,6 +257,7 @@ import com.github.lindenb.jvarkit.tools.structvar.SamExtractClip;
 import com.github.lindenb.jvarkit.tools.structvar.SamFindClippedRegions;
 import com.github.lindenb.jvarkit.tools.structvar.ScanStructuralVariants;
 import com.github.lindenb.jvarkit.tools.structvar.VcfStrechToSvg;
+import com.github.lindenb.jvarkit.tools.structvar.breakdancer.BreakdancerToVcf;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.IndexCovToVcf;
 import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
 import com.github.lindenb.jvarkit.tools.structvar.manta.MantaMerger;
@@ -697,6 +698,7 @@ public class JvarkitCentral {
 		command(Biostar9566948.class);
 		command(BlastMapAnnotations.class);
 		command(BlastFilterJS.class);
+		command(BreakdancerToVcf.class);
 		command(DictToBed.class);
 		command(DictToXml.class);
 		command(DragenBndToInversion.class);

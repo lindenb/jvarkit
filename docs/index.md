@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 3df0757b5
-Compilation : 20241121131558
+Version     : 8235cf88e
+Compilation : 20241122092553
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -268,6 +268,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bed2vcf](BedToVcf.md) | Convert BED file to VCF, finding REF allele at start and 'N' as ALT allele | 20240604 | 20240604 |
 | [bioalcidaejdk](BioAlcidaeJdk.md) | java-based version of awk for bioinformatics | 20170712 | 20210412 |
 | [biostar130456](Biostar130456.md) | Split individual VCF files from multisamples VCF file | 20150210 | 20200603 |
+| [breakdancer2vcf](BreakdancerToVcf.md) | Convert output of breakdancer to VCF | 20200511 | 20241122 |
 | [builddbsnp](BuildDbsnp.md) | Build a DBSNP file from different sources for GATK | 20200904 | 2021070726 |
 | [findavariation](FindAVariation.md) | Finds a specific mutation in a list of VCF files | 20140623 | 20200217 |
 | [findgvcfsblocks](FindGVCFsBlocks.md) | Find common blocks of calleable regions from a set of gvcfs | 20210806 | 20220401 |

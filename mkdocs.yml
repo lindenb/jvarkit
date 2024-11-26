@@ -98,6 +98,7 @@ nav:
         - "blastfilterjs" : BlastFilterJS.md
         - "blastmapannots" : BlastMapAnnotations.md
         - "blastn2snp" : BlastNToSnp.md
+        - "breakdancer2vcf" : BreakdancerToVcf.md
         - "builddbsnp" : BuildDbsnp.md
         - "cmpbams" : CompareBams.md
         - "cmpbams4" : CompareBams4.md
