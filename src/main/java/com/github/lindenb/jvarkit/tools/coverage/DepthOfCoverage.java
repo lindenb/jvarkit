@@ -191,7 +191,7 @@ public class DepthOfCoverage extends Launcher
 					if(!sr.hasIndex()) {
 						LOG.error("File "+path+" is not indexed.");
 						return -1;
-					}
+						}
 					final SAMFileHeader header = sr.getFileHeader();
 					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 					final Set<String> rejectContigSet = dict.getSequences()

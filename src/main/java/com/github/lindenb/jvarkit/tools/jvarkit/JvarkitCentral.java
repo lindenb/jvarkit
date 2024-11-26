@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.tools.bamstats04.BamStats04;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats05;
 import com.github.lindenb.jvarkit.tools.barcode.BarcodeGenerator;
 import com.github.lindenb.jvarkit.tools.basecoverage.BaseCoverage;
+import com.github.lindenb.jvarkit.tools.basecoverage.CNVPaneOfNormal;
 import com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures;
 import com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats;
 import com.github.lindenb.jvarkit.tools.bcftoolsmergebest.BCFToolsMergeBest;
@@ -707,6 +708,7 @@ public class JvarkitCentral {
 		command(CommBams.class);
 		command(CompareBams.class);
 		command(CompareBams4.class);
+		command(CNVPaneOfNormal.class);
 		command(CoverageMatrix.class);
 		command(CytobandToSvg.class);
 		command(BuildDbsnp.class);

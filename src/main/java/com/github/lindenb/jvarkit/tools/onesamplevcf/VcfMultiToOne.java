@@ -50,7 +50,6 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -264,9 +263,8 @@ END_DOC
 	biostars=130456,
 	description="Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used.",
 	keywords={"vcf","sample"},
-	deprecatedMsg = "I don't use this anymore. See vcfconcat",
 	creationDate="20150312",
-	modificationDate="20200224",
+	modificationDate="20241125",
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)
@@ -274,11 +272,15 @@ public class VcfMultiToOne extends Launcher
 	{
 	private static final Logger LOG = Logger.build(VcfMultiToOne.class).make();
 
-	@Parameter(names={"-c","-nc","--discard_no_call"},description="discard if variant is no-call")
+	
+	@Parameter(names={"--no-origin"},description="do not include origin of variant")
+	private boolean discard_ctx_origin = false;
+
+	@Parameter(names={"-c","--nc","-nc","--discard_no_call"},description="discard if variant is no-call")
 	private boolean discard_no_call = false;
-	@Parameter(names={"-r","-hr","--discard_hom_ref"},description="discard if variant is hom-ref")
+	@Parameter(names={"-r","--hr","-hr","--discard_hom_ref"},description="discard if variant is hom-ref")
 	private boolean discard_hom_ref = false;
-	@Parameter(names={"-a","--discard_non_available"},description="discard if variant is not available")
+	@Parameter(names={"-a","--discard_non_available"},description="discard if variant is not available (see htsjdk definition 'available if the type of this genotype is set')")
 	private boolean discard_non_available = false;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
@@ -291,7 +293,7 @@ public class VcfMultiToOne extends Launcher
 
 	public static final String DEFAULT_VCF_SAMPLE_NAME="SAMPLE";
 	public static final String DEFAULT_SAMPLE_TAGID="SAMPLENAME";
-	public static final String DEFAULT_SAMPLE_FILETAGID="SAMPLESOURCE";
+	public static final String DEFAULT_SAMPLE_FILETAGID ="SAMPLESOURCE";
 	public static final String SAMPLE_HEADER_DECLARATION="VcfMultiToOne.Sample";
 	
 	
@@ -466,10 +468,7 @@ public class VcfMultiToOne extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		VariantContextWriter  out=null;
-		
-		
-		
+
 		try
 			{
 			final List<String> paths = IOUtils.unrollStrings(args);
@@ -494,7 +493,7 @@ public class VcfMultiToOne extends Launcher
 
 			
 			SAMSequenceDictionary dict=null;
-			final Set<String> sampleNames=new HashSet<String>();
+			final Set<String> sampleNames= (discard_ctx_origin?Collections.emptySet():new HashSet<String>());
 
 			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
 			
@@ -521,7 +520,9 @@ public class VcfMultiToOne extends Launcher
 						return -1;
 						}
 					metaData.addAll(in.getHeader().getMetaDataInInputOrder());
-					sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
+					if(!discard_ctx_origin) {
+						sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
+						}
 					in.close();
 					}
 				source.close();
@@ -532,17 +533,21 @@ public class VcfMultiToOne extends Launcher
 					DEFAULT_SAMPLE_TAGID,1,VCFHeaderLineType.String,
 					"Sample Name from multi-sample vcf"
 					));
-			metaData.add(new VCFInfoHeaderLine(
-					DEFAULT_SAMPLE_FILETAGID,1,VCFHeaderLineType.String,
-					"Origin of sample"
-					));
 			
-			for(final String sample:sampleNames)
-				{
-				metaData.add(
-					new VCFHeaderLine(
-					SAMPLE_HEADER_DECLARATION,
-					sample));
+			if(!discard_ctx_origin) {
+				metaData.add(new VCFInfoHeaderLine(
+						DEFAULT_SAMPLE_FILETAGID,1,VCFHeaderLineType.String,
+						"Origin of sample"
+						));
+				
+				
+				for(final String sample:sampleNames)
+					{
+					metaData.add(
+						new VCFHeaderLine(
+						SAMPLE_HEADER_DECLARATION,
+						sample));
+					}
 				}
 			
 			final VCFHeader h2 = new VCFHeader(
@@ -566,60 +571,63 @@ public class VcfMultiToOne extends Launcher
 				pedicateVariantOverlapUserInterval = VC->true;
 			}
 			
-			out= this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
-			out.writeHeader(h2);
-			
-			for(final VCFIteratorSource source:inputFiles) {
-				source.open();
-				 for(;;)
-					{
-					if(out.checkError()) break;
-					final	NamedVcfIterator nvi = source.next();
-					if(nvi==null) break;
-					final VCFIterator in = nvi.delegate;
-					while(in.hasNext()) {
-						final VariantContext ctx = in.next();
-						if(!pedicateVariantOverlapUserInterval.test(ctx)) continue;
-						// no genotype
-						if(ctx.getNSamples()==0)
-							{
-							if(!this.discard_no_call)
+			try(VariantContextWriter out= this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
+				out.writeHeader(h2);
+				for(final VCFIteratorSource source:inputFiles) {
+					source.open();
+					 for(;;)
+						{
+						if(out.checkError()) break;
+						final	NamedVcfIterator nvi = source.next();
+						if(nvi==null) break;
+						final VCFIterator in = nvi.delegate;
+						while(in.hasNext()) {
+							final VariantContext ctx = in.next();
+							if(!pedicateVariantOverlapUserInterval.test(ctx)) continue;
+							// no genotype
+							if(ctx.getNSamples()==0)
 								{
-								final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-								vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
-								vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
+								if(!this.discard_no_call)
+									{
+									final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+									if(!discard_ctx_origin) {
+										vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
+										}
+									vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
+									out.add(this.recalculator.apply(vcb.make()));
+									}
+								continue;
+								}
+							//loop over samples
+							for(int i=0;i< ctx.getNSamples();++i)
+								{
+								final Genotype g= ctx.getGenotype(i);
+								final String sample = g.getSampleName();
+								
+								if(this.discard_no_call && g.getAlleles().stream().allMatch(A->A.isNoCall())) continue;
+								if(!g.isAvailable() && this.discard_non_available) continue;
+								if(this.discard_hom_ref && g.getAlleles().stream().allMatch(A->A.isReference())) continue;
+								
+								
+								final GenotypeBuilder gb=new GenotypeBuilder(g);
+								gb.name(DEFAULT_VCF_SAMPLE_NAME);
+								
+								
+								final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+								vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
+								if(!discard_ctx_origin) {
+									vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
+									}
+								
+								vcb.genotypes(gb.make());
 								out.add(this.recalculator.apply(vcb.make()));
 								}
-							continue;
-							}
-						//loop over samples
-						for(int i=0;i< ctx.getNSamples();++i)
-							{
-							final Genotype g= ctx.getGenotype(i);
-							final String sample = g.getSampleName();
-							
-							if(!g.isCalled() && this.discard_no_call) continue;
-							if(!g.isAvailable() && this.discard_non_available) continue;
-							if(g.isHomRef() && this.discard_hom_ref) continue;
-							
-							
-							final GenotypeBuilder gb=new GenotypeBuilder(g);
-							gb.name(DEFAULT_VCF_SAMPLE_NAME);
-							
-							
-							final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-							vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
-							vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
-							
-							
-							vcb.genotypes(gb.make());
-							out.add(this.recalculator.apply(vcb.make()));
-							}
-						} //end while vcfiterator
-					//in.close();
+							} //end while vcfiterator
+						//in.close();
+						}
+					source.close();
 					}
-				source.close();
-				}
+				} //close out
 			
 			return 0;
 			}
@@ -628,10 +636,7 @@ public class VcfMultiToOne extends Launcher
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(out);
-			}
+		
 		}
 	
 	

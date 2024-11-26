@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 8235cf88e
-Compilation : 20241122092553
+Version     : a315d26a0
+Compilation : 20241126093956
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -49,6 +49,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [bammatrix](BamMatrix.md) | Bam matrix, inspired from 10x/loupe | 20190620 | 20211206 |
+| [cnvpanelofnormal](CNVPaneOfNormal.md) | Call CNV from panel of normal computed with 'basecoverage' | 20241123 | 20241123 |
 | [cnvtview](CnvTView.md) | Text visualization of bam DEPTH for multiple regions in a terminal | 20181018 | 20210412 |
 | [coveragegrid](CoverageGrid.md) | Display an image of depth to display any anomaly an intervals+bams as a grid image | 20241009 | 20241021 |
 | [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20241009 |
@@ -302,6 +303,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgrantham](VcfGrantham.md) | add grantham score from annotated VCF variant | 20230503 | 20230503 |
 | [vcfhead](VcfHead.md) | print the first variants of a vcf | 20131210 | 20200518 |
 | [vcfmovefilterstoinfo](VcfMoveFiltersToInfo.md) | Move any FILTER to the INFO column. reset FILTER to PASS | 20161025 | 20220323 |
+| [vcfmulti2one](VcfMultiToOne.md) | Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used. | 20150312 | 20241125 |
 | [vcfmulti2oneinfo](VcfMultiToOneInfo.md) | 'one variant with INFO with N values' to 'N variants with one INFO' | 20260106 | 20230524 |
 | [vcfpar](VcfPseudoAutosomalRegion.md) | Flag human sexual regions excluding PAR. | 20200908 | 20200908 |
 | [vcfpeekaf](VcfPeekAf.md) | Peek the AF from another VCF | 20200624 | 20200904 |
@@ -335,7 +337,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bamstats04](BamStats04.md) | Coverage statistics for a BED file. | 20130513 | 20191003 |
 | [bamstats05](BamStats05.md) | Coverage statistics for a BED file, group by gene | 20151012 | 20210317 |
 | [bamwithoutbai](BamWithoutBai.md) | Query a Remote BAM without bai | 20191213 | 20191217 |
-| [basecoverage](BaseCoverage.md) | 'Depth of Coverage' per base. | 20220420 | 20220420 |
+| [basecoverage](BaseCoverage.md) | 'Depth of Coverage' per base. | 20220420 | 20241122 |
 | [bioalcidaejdk](BioAlcidaeJdk.md) | java-based version of awk for bioinformatics | 20170712 | 20210412 |
 | [biostar154220](Biostar154220.md) | Cap BAM to a given coverage | 20150812 | 20210312 |
 | [biostar9566948](Biostar9566948.md) | Trim Reads So Only First Base Remains | 20230621 | 20230621 |

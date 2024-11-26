@@ -5,10 +5,6 @@
 Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used.
 
 
-## DEPRECATED
-
-I don't use this anymore. See vcfconcat
-
 ## Usage
 
 
@@ -30,14 +26,15 @@ Usage: vcfmulti2one [options] Files
       When genotypes are removed/changed, Dd not recalculate variant 
       attributes like DP, AF, AC, AN...
       Default: false
-    -r, -hr, --discard_hom_ref
+    -r, --hr, -hr, --discard_hom_ref
       discard if variant is hom-ref
       Default: false
-    -c, -nc, --discard_no_call
+    -c, --nc, -nc, --discard_no_call
       discard if variant is no-call
       Default: false
     -a, --discard_non_available
-      discard if variant is not available
+      discard if variant is not available (see htsjdk definition 'available if 
+      the type of this genotype is set')
       Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
@@ -46,6 +43,9 @@ Usage: vcfmulti2one [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --no-origin
+      do not include origin of variant
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --regions

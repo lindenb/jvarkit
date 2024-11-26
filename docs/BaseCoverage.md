@@ -22,8 +22,9 @@ Usage: basecoverage [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    -B, --bed
-      optional bed containing regions to be SCANNED)
+    -Z, --disable-normalization
+      disable depth normalization _on median
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -31,6 +32,11 @@ Usage: basecoverage [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+  * -r, --region, --interval
+      An interval as the following syntax : "chrom:start-end". Some jvarkit 
+      programs also allow the following syntax : "chrom:middle+extend"  or 
+      "chrom:start-end+extend" or "chrom:start-end+extend-percent%".A program 
+      might use a Reference sequence to fix the chromosome name (e.g: 1->chr1)
     --mapq
        min mapping quality.
       Default: 1
@@ -45,6 +51,9 @@ Usage: basecoverage [options] Files
   * -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+    --runmed
+       moving median size
+      Default: 31
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -101,7 +110,7 @@ input is a set of bam files or one file with the '.list' suffix containing the p
 ## Example:
 
 ```
-$ java -jar dist/basecoverage.jar --bed jeter.bed -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam 
+$ java -jar dist/basecoverage.jar --region "RF03:491-500" -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam 
 
 lindenb@asimov:~/src/jvarkit$ java -jar dist/basecoverage.jar --bed jeter.bed -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam 
 

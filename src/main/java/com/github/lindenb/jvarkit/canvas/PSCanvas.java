@@ -151,6 +151,17 @@ public class PSCanvas extends Canvas {
 				"closepath " +
 				"end } def"
 				);
+		
+		this.w.println("/cross { 3 dict begin /r exch def /y exch def /r exch def "+
+				"newpath "+
+				"x r 2.0 div add y moveto " +
+				"x r 2.0 div sub y lineto " +
+				"x y r 2.0 div add moveto " +
+				"x y r 2.0 div sub lineto " +
+				"closepath " +
+				"end } def"
+				);
+		
 		this.w.println("/hl { 1 dict begin  /dx exch def "+
 				"dx 0 rlineto " +
 				"end } def"
@@ -342,6 +353,16 @@ public class PSCanvas extends Canvas {
 				w.append(" ");
 				w.append(round(inch(ellipse.getHeight()/2.0)));
 				w.append(" circle ");
+				return;
+				}
+			}
+		else if(shape instanceof Canvas.CrossShape) {
+			final Ellipse2D ellipse = Ellipse2D.class.cast(shape);
+			if(ellipse.getWidth()==ellipse.getHeight()) {
+				w.append(coord(ellipse.getCenterX(),ellipse.getCenterY()));
+				w.append(" ");
+				w.append(round(inch(ellipse.getHeight()/2.0)));
+				w.append(" cross ");
 				return;
 				}
 			}
