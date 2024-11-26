@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
+import com.github.lindenb.jvarkit.delly.DellyVariantAnnotator;
 import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -118,9 +119,11 @@ public class ShiftVcf extends OnePassVcfLauncher {
 			final SAMSequenceDictionary destDict = new SequenceDictionaryExtractor().
 					extractRequiredDictionary(this.destinationRefPath);
 			
-			
+			@SuppressWarnings("resource")
+			final DellyVariantAnnotator svLenHelper = new DellyVariantAnnotator();
 			final VCFHeader headerOut = new VCFHeader(headerIn);
 			headerOut.setSequenceDictionary(destDict);
+			svLenHelper.fillHeader(headerOut);
 			JVarkitVersion.getInstance().addMetaData(this, headerOut);
 			out.writeHeader(headerOut);
 			while(iterin.hasNext()) {
@@ -138,6 +141,8 @@ public class ShiftVcf extends OnePassVcfLauncher {
 				if(ctx0.hasAttribute(VCFConstants.END_KEY)) {
 					vcb.attribute(VCFConstants.END_KEY,chromEnd);
 					}
+				svLenHelper.fill(vcb,ctx0);
+
 				out.add(vcb.make());
 				}
 			return 0;

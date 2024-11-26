@@ -66,6 +66,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.delly.DellyVariantAnnotator;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NoCloseInputStream;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
@@ -571,6 +572,9 @@ public class VcfMultiToOne extends Launcher
 				pedicateVariantOverlapUserInterval = VC->true;
 			}
 			
+			@SuppressWarnings("resource")
+			final DellyVariantAnnotator svLenHelper = new DellyVariantAnnotator();
+			svLenHelper.fillHeader(h2);
 			try(VariantContextWriter out= this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
 				out.writeHeader(h2);
 				for(final VCFIteratorSource source:inputFiles) {
@@ -614,6 +618,7 @@ public class VcfMultiToOne extends Launcher
 								
 								
 								final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+								svLenHelper.fill(vcb, ctx);
 								vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
 								if(!discard_ctx_origin) {
 									vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
