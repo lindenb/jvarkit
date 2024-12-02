@@ -35,6 +35,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
@@ -45,25 +46,15 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
  *
  */
 public class DellyVariantAnnotator implements VariantAnnotator {
-	private boolean need_svlen;
 	@Override
 	public void fillHeader(final VCFHeader header) {
-		need_svlen=header.getInfoHeaderLine("SVLEN")==null &&
-				header.getInfoHeaderLine("CIPOS")!=null &&
-				header.getInfoHeaderLine("CIEND")!=null &&
-				header.getInfoHeaderLine("CT")!=null &&
-				header.getInfoHeaderLine("IMPRECISE")!=null &&
-				header.getInfoHeaderLine(VCFConstants.END_KEY)!=null &&
-				header.getInfoHeaderLine("MAPQ")!=null &&
-				header.getInfoHeaderLine("SVMETHOD")!=null;
-		if(need_svlen) {
+		if(header.getInfoHeaderLine("SVLEN")==null && header.getInfoHeaderLine("SVTYPE")!=null) {
 			header.addMetaDataLine(new VCFInfoHeaderLine("SVLEN", 1, VCFHeaderLineType.Integer	,"SV Length"));
 			}
-		
 		}
 	
 	public VariantContextBuilder fill(final VariantContextBuilder vcb,VariantContext src) throws IOException {
-		if(need_svlen && src.hasAttribute(VCFConstants.END_KEY)) {
+		if(src.hasAttribute(VCFConstants.END_KEY) && !src.hasAttribute("SVLEN")) {
 			final String svtype=src.getAttributeAsString("SVTYPE", "");
 			if(svtype.equals("INV") || svtype.equals("DEL") || svtype.equals("DUP")) {
 				final int svlen = src.getLengthOnReference() * (svtype.equals("DEL")?-1:1);

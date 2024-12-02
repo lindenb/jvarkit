@@ -467,6 +467,12 @@ public class VcfMultiToOne extends Launcher
 		return samples;
 		}
 	
+	private boolean keepHeader( final VCFHeaderLine hdr) {
+		// remove bcftools command, takes to much memory for large number of files.
+		if(hdr.getKey().equals("bcftools_viewCommand")) return false;
+		return true;
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 
@@ -520,7 +526,13 @@ public class VcfMultiToOne extends Launcher
 						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(dict, dict2));
 						return -1;
 						}
-					metaData.addAll(in.getHeader().getMetaDataInInputOrder());
+					metaData.addAll(in.
+							getHeader().
+							getMetaDataInInputOrder().
+							stream().
+							filter(H->keepHeader(H)).
+							collect(Collectors.toList())
+							);
 					if(!discard_ctx_origin) {
 						sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
 						}
