@@ -65,7 +65,6 @@ public class DellyVariantAnnotator implements VariantAnnotator {
 		}
 	
 	public VariantContext fill(final VariantContext ctx) throws IOException {
-		if(!need_svlen) return ctx;
 		return fill(new VariantContextBuilder(ctx),ctx).make();
 		}
 
