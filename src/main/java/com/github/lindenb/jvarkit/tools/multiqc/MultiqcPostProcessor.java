@@ -136,6 +136,7 @@ public class MultiqcPostProcessor extends Launcher {
 		Handler(final Map<String,String> prop) {
 			this.properties.putAll(prop);
 			}
+		
 		public boolean isHandlerForFile(String fname) {
 			final String[] s=  CharSplitter.COMMA.split(this.properties.getOrDefault("filename", ""));
 			return Arrays.stream(s).
@@ -234,7 +235,7 @@ public class MultiqcPostProcessor extends Launcher {
 					w.value("section_id"+id);
 					w.name("section_name");
 					w.value(getSectionName(title));
-					w.name("description");
+					w.name("section_description");
 					w.value(getSectionDescription(title)+" from "+inputFile.getFileName());
 					
 					
@@ -579,9 +580,48 @@ public class MultiqcPostProcessor extends Launcher {
 					)));
 			
 			handlers.add(new BoxPlotHandler(Maps.of(
+					"data","Total input reads,Total input reads pct,Number of duplicate marked reads,Number of duplicate marked reads pct,Number of unique reads (excl. duplicate marked reads) pct,Reads with mate sequenced,Reads with mate sequenced pct,Reads without mate sequenced,Reads without mate sequenced pct,QC-failed reads,QC-failed reads pct,Mapped reads,Mapped reads pct,Mapped reads adjusted for filtered mapping,Mapped reads adjusted for filtered mapping pct,Mapped reads R1,Mapped reads R1 pct,Mapped reads R2,Mapped reads R2 pct,Number of unique & mapped reads (excl. duplicate marked reads),Number of unique & mapped reads (excl. duplicate marked reads) pct,Unmapped reads,Unmapped reads pct,Unmapped reads adjusted for filtered mapping,Unmapped reads adjusted for filtered mapping pct,Adjustment of reads matching non-reference decoys,Adjustment of reads matching non-reference decoys pct,Singleton reads (itself mapped; mate unmapped),Singleton reads (itself mapped; mate unmapped) pct,Paired reads (itself & mate mapped),Paired reads (itself & mate mapped) pct,Properly paired reads,Properly paired reads pct,Not properly paired reads (discordant),Not properly paired reads (discordant) pct,Paired reads mapped to different chromosomes,Paired reads mapped to different chromosomes pct,Paired reads mapped to different chromosomes (MAPQ>=10),Paired reads mapped to different chromosomes (MAPQ>=10) pct,Reads with MAPQ [40:inf),Reads with MAPQ [40:inf) pct,Reads with MAPQ [30:40),Reads with MAPQ [30:40) pct,Reads with MAPQ [20:30),Reads with MAPQ [20:30) pct,Reads with MAPQ [10:20),Reads with MAPQ [10:20) pct,Reads with MAPQ [ 0:10),Reads with MAPQ [ 0:10) pct,Reads with MAPQ NA (Unmapped reads),Reads with MAPQ NA (Unmapped reads) pct,Reads with indel R1,Reads with indel R1 pct,Reads with indel R2,Reads with indel R2 pct,Total bases,Total bases R1,Total bases R2,Mapped bases,Mapped bases R1,Mapped bases R2,Soft-clipped bases,Soft-clipped bases pct,Soft-clipped bases R1,Soft-clipped bases R1 pct,Soft-clipped bases R2 pct,Hard-clipped bases,Hard-clipped bases pct,Hard-clipped bases R1,Hard-clipped bases R1 pct,Hard-clipped bases R2,Hard-clipped bases R2 pct,Mismatched bases R1,Mismatched bases R1 pct,Mismatched bases R2 pct,Mismatched bases R1 (excl. indels),Mismatched bases R1 (excl. indels) pct,Mismatched bases R2 (excl. indels) pct,Q30 bases,Q30 bases pct,Q30 bases R1,Q30 bases R1 pct,Q30 bases R2,Q30 bases R2 pct,Q30 bases (excl. dups & clipped bases),Total alignments,Secondary alignments,Supplementary (chimeric) alignments,Estimated read length,Bases in reference genome,Insert length: mean,Insert length: median,Insert length: standard deviation,DRAGEN mapping rate [mil. reads/second],Secondary alignments pct,Q30 bases (excl. dups & clipped bases) pct,Mapped bases R1 pct,Mapped bases R2 pct",
+					"filename","dragen_map_metrics.txt"
+					)));
+			
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data","Total input reads,Total input bases,Total input bases R1,Total input bases R2,Average input read length,Total trimmed reads,Total trimmed bases,Average bases trimmed per read,Average bases trimmed per trimmed read,Remaining poly-G K-mers R1 3prime,Remaining poly-G K-mers R2 3prime,Poly-G soft trimmed reads unfiltered R1 3prime,Poly-G soft trimmed reads unfiltered R2 3prime,Poly-G soft trimmed reads filtered R1 3prime,Poly-G soft trimmed reads filtered R2 3prime,Poly-G soft trimmed bases unfiltered R1 3prime,Poly-G soft trimmed bases unfiltered R2 3prime,Poly-G soft trimmed bases filtered R1 3prime,Poly-G soft trimmed bases filtered R2 3prime,Total filtered reads,Reads filtered for minimum read length R1,Reads filtered for minimum read length R2",
+					"filename","dragen-trimmer-metrics-table.txt"
+					)));
+			
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data","Aligned bases,Aligned bases in genome,Aligned bases in genome pct,Average alignment coverage over genome,Uniformity of coverage (PCT > 0.2*mean) over genome,Uniformity of coverage (PCT > 0.4*mean) over genome,PCT of genome with coverage [1500x:inf),PCT of genome with coverage [1000x:inf),PCT of genome with coverage [500x:inf),PCT of genome with coverage [100x:inf),PCT of genome with coverage [50x:inf),PCT of genome with coverage [20x:inf),PCT of genome with coverage [15x:inf),PCT of genome with coverage [10x:inf),PCT of genome with coverage [3x:inf),PCT of genome with coverage [1x:inf),PCT of genome with coverage [0x:inf),PCT of genome with coverage [1000x:1500x),PCT of genome with coverage [500x:1000x),PCT of genome with coverage [100x:500x),PCT of genome with coverage [50x:100x),PCT of genome with coverage [20x:50x),PCT of genome with coverage [15x:20x),PCT of genome with coverage [10x:15x),PCT of genome with coverage [3x:10x),PCT of genome with coverage [1x:3x),PCT of genome with coverage [0x:1x),Average chr X coverage over genome,Average chr Y coverage over genome,Average mitochondrial coverage over genome,Average autosomal coverage over genome,Median autosomal coverage over genome,Mean/Median autosomal coverage ratio over genome,Aligned reads,Aligned reads in genome,Aligned reads in genome pct",
+					"filename","dragen_wgs_cov_metrics.txt"
+					)));
+			
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data","Variants,Biallelic,Multiallelic,SNP,Indel,Ins,Del,Hom ins,Het ins,Hom del,Het del,Het indel,X/Y SNP ratio,Ti/Tv,Het,Hom,Het/Hom,Callability,Autosome callability",
+					"filename","dragen-gvcf-metrics-table.txt"
+					)));
+			
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data","Total,Total pct,Biallelic,Biallelic pct,Multiallelic,Multiallelic pct,SNPs,SNPs pct,Insertions (Hom),Insertions (Hom) pct,Insertions (Het),Insertions (Het) pct,Deletions (Hom),Deletions (Hom) pct,Deletions (Het),Deletions (Het) pct,Indels (Het),Indels (Het) pct,Chr X number of SNPs over genome,Chr Y number of SNPs over genome,(Chr X SNPs)/(chr Y SNPs) ratio over genome,SNP Transitions,SNP Transversions,Ti/Tv ratio,Heterozygous,Homozygous,Het/Hom ratio,In dbSNP,In dbSNP pct,Not in dbSNP,Not in dbSNP pct,Percent Callability,Percent Autosome Callability,Insertions,Deletions,Indels,Insertions pct,Deletions pct,Indels pct",
+					"filename","dragen_gvcf_metrics.txt"
+					)));
+			
+			
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
+					"data","Unique,Duplicated,Unmapped",
+					"filename","mapping_dup_percentage_plot_Unique_vs_duplicated_vs_unmapped.txt"
+					)));
+			
+			
+			
+			handlers.add(new BoxPlotHandler(Maps.of(
 					"data",String.join(",", "Aln reads","Depth","Med aut cov",String.valueOf(GE_UNICODE)+"20x",String.valueOf(GE_UNICODE)+"50x"),
 					"filename","dragen-cov-metrics-own-section-wgs-table.txt"
 					)));
+			
 			
 			handlers.add(new BoxPlotHandler(Maps.of(
 					"data",String.join(",", "Duplicates","Singletons","Mate mapped to diff chr"),
