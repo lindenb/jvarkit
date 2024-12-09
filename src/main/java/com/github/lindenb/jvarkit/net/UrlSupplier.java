@@ -385,6 +385,21 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		}
 
 	
+	//opencravat https://www.opencravat.org/
+	if(AcidNucleics.isATGC(ctx.getReference()) && (isGrch37() || isGrch38())) {
+		for(final Allele alt: ctx.getAlternateAlleles()) {
+			if(!AcidNucleics.isATGC(alt)) continue;
+			urls.add(new LabelledUrlImpl("OpenCravat",
+					variantid+"/"+alt.getDisplayString(),
+					"https://run.opencravat.org/webapps/variantreport/index.html?chrom="+
+					StringUtils.escapeHttp(ucscCtg) + "&pos=" +
+					ctx.getStart() +
+					"&ref_base=" + ctx.getReference().getDisplayString() +
+					"&alt_base=" + alt.getDisplayString()
+					+"&assembly="+(isGrch38()?"hg38":"hg19")
+					));
+			}	}
+	
 	
 	//beacon , varsome
 	for(int side=0;side<2 && !StringUtils.isBlank(ensemblCtg);++side)
