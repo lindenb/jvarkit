@@ -268,6 +268,7 @@ import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
 import com.github.lindenb.jvarkit.tools.textbam.TextBam;
 import com.github.lindenb.jvarkit.tools.translategff3.TranslateGff3;
 import com.github.lindenb.jvarkit.tools.tss.TSSEnrichment;
+import com.github.lindenb.jvarkit.tools.tview.TViewCmd;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
 import com.github.lindenb.jvarkit.tools.upstreamorf.Gff3UpstreamOrf;
@@ -836,6 +837,7 @@ public class JvarkitCentral {
 		command(SvToSVG.class);
 		command(VCFSVAnnotator.class);
 		command(TextBam.class);
+		command(TViewCmd.class);
 		command(TranslateGff3.class);
 		command(UniprotToSvg.class);
 		command(UKBiobankSelectSamples.class);

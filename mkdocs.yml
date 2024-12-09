@@ -220,6 +220,7 @@ nav:
         - "texbam" : TextBam.md
         - "translategff3" : TranslateGff3.md
         - "tssenrich" : TSSEnrichment.md
+        - "tview" : TViewCmd.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
         - "variantsinwindow" : VariantsInWindow.md

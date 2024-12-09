@@ -46,7 +46,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 /*
 BEGIN_DOC
@@ -82,7 +81,7 @@ END_DOC
 @Program(name="tview",
 	description="equivalent of samtools tview",
 	keywords={"sam","bam","visualization","terminal"},
-	modificationDate = "20230707",
+	modificationDate = "20241209",
 	creationDate = "20130613",
 	jvarkit_amalgamion = true,
 	menu="BAM Manipulation"
@@ -92,6 +91,8 @@ public class TViewCmd extends Launcher
 	private static final Logger LOG = Logger.build(TViewCmd.class).make();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path faidx = null;
 	@Parameter(names={"-r","--region"},description="Interval list")
 	private Set<String> intervalStr = new HashSet<>();
 	@Parameter(names={"-width","--width"},description="default screen width")
@@ -178,7 +179,9 @@ public class TViewCmd extends Launcher
 			final List<Interval> intervals= this.intervalStr.stream().map(S->parseInterval(S) ).collect(Collectors.toList());
 			if(!nodefaultinterval && intervals.isEmpty() && !args.isEmpty())
 				{
-				final SamReader samReader = super.createSamReaderFactory().open(SamInputResource.of(args.get(0)));
+				final SamReader samReader = super.createSamReaderFactory().
+						referenceSequence(this.faidx).
+						open(SamInputResource.of(args.get(0)));
 					final SAMSequenceDictionary dict=  samReader.getFileHeader()!=null && 
 							samReader.getFileHeader().getSequenceDictionary()!=null ? 
 							samReader.getFileHeader().getSequenceDictionary() : null
@@ -205,7 +208,14 @@ public class TViewCmd extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(tview);
+			if(tview!=null) {
+				try {
+					tview.close();
+					}
+				catch(Throwable err) {
+					
+					}
+				}
 			}
 		
 		}

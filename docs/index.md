@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 11c49f43b
-Compilation : 20241209180931
+Version     : e746be9d5
+Compilation : 20241209205319
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -351,5 +351,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
 | [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230427 |
 | [texbam](TextBam.md) | Write text in a bam. Mostly for fun... | 20220708 | 20220708 |
+| [tview](TViewCmd.md) | equivalent of samtools tview | 20130613 | 20241209 |
 
 
