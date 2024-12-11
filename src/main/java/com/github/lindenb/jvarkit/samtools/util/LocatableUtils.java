@@ -184,6 +184,18 @@ public class LocatableUtils extends CoordMath {
 		}
 	
 	
+	/** merge two overlapping intervals. Do NOT check if they overlap, just check if they are on the same contig
+	 * (allow merge is intervals are distant of 'x' bases */
+	public static Locatable mergeIntervals(final Locatable loc1,final Locatable loc2) {
+		if(!loc1.contigsMatch(loc2)) throw new IllegalArgumentException("intervals are not one the same contig "+toString(loc1)+" "+toString(loc2));
+		return new SimpleInterval(
+			loc1.getContig(),
+			Math.min(loc1.getStart(), loc2.getStart()),
+			Math.max(loc1.getEnd(),   loc2.getEnd())
+			);
+		}
+	
+	
 	/** generic comparator on chrom/start/end */
 	public static int compareTo(final Locatable A, Locatable B) {
 		int i= A.getContig().compareTo(B.getContig());

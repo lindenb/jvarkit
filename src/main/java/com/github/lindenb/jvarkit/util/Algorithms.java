@@ -27,6 +27,8 @@ package com.github.lindenb.jvarkit.util;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -279,5 +281,23 @@ public class Algorithms {
 	    return first;
 	    }
 
+	
+	/** if test pass, reduce item[i] and item[i+1] using the merge function**/
+	public static  <T>   List<T> reduce(final List<T> data,final BiPredicate<T,T> testForMerge, BiFunction<T, T, T> merger) {
+		int i=0;
+		while(i +1 <data.size()) {
+			final T o1 = data.get(i  );
+			final T o2 = data.get(i+1);
+			if(testForMerge.test(o1,o2)) {
+				data.set(i, merger.apply(o1,o2));
+				data.remove(i+1);
+				}
+			else
+				{
+				i++;
+				}
+			}
+		return data;
+		}
 	
 }
