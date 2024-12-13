@@ -268,6 +268,7 @@ END_DOC
 		creationDate="20170511",
 		modificationDate="20220507",
 		jvarkit_amalgamion =  true,
+		nfcore = "https://nf-co.re/modules/jvarkit_vcf2table.html",
 		menu="VCF Manipulation"
 		)
 public class VcfToTable extends Launcher {

@@ -125,6 +125,7 @@ END_DOC
 	modificationDate="20230505",
 	biostars={104063,475162,9536274},
 	jvarkit_amalgamion =  true,
+	nfcore = "https://nf-co.re/modules/jvarkit_wgscoverageplotter.html",
 	menu="BAM Visualization"
 	)
 public class WGSCoveragePlotter extends Launcher {

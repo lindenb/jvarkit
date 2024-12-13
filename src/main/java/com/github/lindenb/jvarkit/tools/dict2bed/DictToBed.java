@@ -88,6 +88,7 @@ END_DOC
 	keywords={"dict","bed","sam","bam","vcf"},
 	creationDate="20240603",
 	modificationDate="20240603",
+	nfcore = "https://nf-co.re/modules/jvarkit_dict2bed.html",
 	jvarkit_amalgamion =  true
 	)
 public class DictToBed extends Launcher {

@@ -63,6 +63,11 @@ Usage: sam2tsv [options] Files
 
 
 
+## NF-CORE
+
+![nfcorelogo](https://avatars.githubusercontent.com/u/35520196?s=32&v=4) This program is available in nf-core at [https://nf-co.re/modules/jvarkit_sam2tsv.html](https://nf-co.re/modules/jvarkit_sam2tsv.html)
+
+
 ## Creation Date
 
 20170712

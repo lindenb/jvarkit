@@ -141,6 +141,7 @@ END_DOC
 	modificationDate="20210304",
 	creationDate="20170712",
 	jvarkit_amalgamion =  true,
+	nfcore="https://nf-co.re/modules/jvarkit_sam2tsv.html",
 	menu="BAM Manipulation"
 	)
 public class Sam2Tsv

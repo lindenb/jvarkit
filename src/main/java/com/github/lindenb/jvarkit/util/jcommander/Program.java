@@ -51,4 +51,6 @@ public @interface Program {
 	public boolean jvarkit_hidden() default false;
 	/** menu for jvarkit documentation */
 	public String menu() default "Unclassfied";
+	/**URL for nfcore */
+	public String nfcore() default "";
 }

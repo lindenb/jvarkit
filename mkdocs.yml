@@ -115,6 +115,7 @@ nav:
         - "coverageserver" : CoverageServer.md
         - "cytoband2svg" : CytobandToSvg.md
         - "dict2bed" : DictToBed.md
+        - "dict2r" : DictToR.md
         - "dict2xml" : DictToXml.md
         - "dragenbnd2inv" : DragenBndToInversion.md
         - "evadumpfiles" : EVADumpFiles.md

@@ -57,6 +57,11 @@ Usage: vcfpolyx [options] Files
 
 
 
+## NF-CORE
+
+![nfcorelogo](https://avatars.githubusercontent.com/u/35520196?s=32&v=4) This program is available in nf-core at [https://nf-co.re/modules/jvarkit_vcfpolyx.html](https://nf-co.re/modules/jvarkit_vcfpolyx.html)
+
+
 ## Creation Date
 
 20200930

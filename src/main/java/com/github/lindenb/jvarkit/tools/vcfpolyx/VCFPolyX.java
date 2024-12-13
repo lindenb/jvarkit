@@ -71,6 +71,7 @@ END_DOC
 	creationDate="20200930",
 	modificationDate="20230526",
 	jvarkit_amalgamion =  true,
+	nfcore = "https://nf-co.re/modules/jvarkit_vcfpolyx.html",
 	menu="VCF Manipulation"
 	)
 public class VCFPolyX extends AbstractOnePassVcfAnnotator

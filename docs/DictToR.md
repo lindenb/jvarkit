@@ -1,8 +1,8 @@
-# DictToBed
+# DictToR
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-convert a SAM dictionary from vcf,sam,bam,dict, etc.. to bed.
+convert a SAM dictionary from vcf,sam,bam,dict, etc.. to R code functions.
 
 
 ## Usage
@@ -12,25 +12,22 @@ This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentra
 
 
 ```
-Usage: java -jar dist/jvarkit.jar dict2bed  [options] Files
+Usage: java -jar dist/jvarkit.jar dict2r  [options] Files
 
-Usage: dict2bed [options] Files
+Usage: dict2r [options] Files
   Options:
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --ignore-errors
-      ignore errors, skip files that don't have a dictionary
-      Default: false
-    --no-header
-      disable print header
-      Default: false
     -o, --out
       Output file. Optional . Default: stdout
-    --skip-attributes
-      skip attributes output
-      Default: false
+    --prefix
+      prefix name. If empty try to use build name, if it is available
+      Default: <empty string>
+    --regex
+      keep chromosomes matching that regular expression
+      Default: (chr)?[0-9XY]+
     --version
       print version and exit
 
@@ -44,21 +41,17 @@ Usage: dict2bed [options] Files
  * sam
  * bam
  * vcf
+ * R
 
-
-
-## NF-CORE
-
-![nfcorelogo](https://avatars.githubusercontent.com/u/35520196?s=32&v=4) This program is available in nf-core at [https://nf-co.re/modules/jvarkit_dict2bed.html](https://nf-co.re/modules/jvarkit_dict2bed.html)
 
 
 ## Creation Date
 
-20240603
+20241212
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/dict2bed/DictToBed.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/dict2bed/DictToBed.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/dict2R/DictToR.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/dict2R/DictToR.java)
 
 
 ## Contribute
@@ -72,7 +65,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **dict2bed** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **dict2r** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 

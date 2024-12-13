@@ -327,7 +327,13 @@ public  class CmdUsageBuilder
 					sb.append("\n## See also in Biostars\n\n");
 					for(final int postid:getProgram().biostars()) sb.append(" * "+hyperlink("https://www.biostars.org/p/"+postid)+"\n");
 					sb.append("\n\n");
-				}	
+				}
+				
+				if(!getProgram().nfcore().isEmpty()) {
+					sb.append("\n## NF-CORE\n\n");
+					sb.append("![nfcorelogo](https://avatars.githubusercontent.com/u/35520196?s=32&v=4) This program is available in nf-core at "+hyperlink(getProgram().nfcore()));
+					sb.append("\n\n");
+				}
 			}
 			
 			

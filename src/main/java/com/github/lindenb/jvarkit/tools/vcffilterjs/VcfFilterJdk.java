@@ -424,6 +424,7 @@ END_DOC
 		creationDate="20170705",
 		modificationDate="20220830",
 		jvarkit_amalgamion =  true,
+		nfcore = "https://nf-co.re/modules/jvarkit_vcffilterjdk.html",
 		menu="VCF Manipulation"
 		)
 public class VcfFilterJdk
@@ -628,6 +629,7 @@ public class VcfFilterJdk
 			
 			if(this.recalcAttributes && header.hasGenotypingData())
 				{
+				@SuppressWarnings("resource")
 				final VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
 				recalculator.setHeader(h2);
 				recalcAndAdd = V->out.add(recalculator.apply(V));
