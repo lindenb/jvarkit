@@ -277,6 +277,7 @@ nav:
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfspringfilter" : VcfSpringFilter.md
         - "vcfstats" : VcfStats.md
+        - "vcfstats2" : VcfStats2.md
         - "vcfstrech2svg" : VcfStrechToSvg.md
         - "vcfsvannotator" : VCFSVAnnotator.md
         - "vcftabixml" : VCFTabixml.md
