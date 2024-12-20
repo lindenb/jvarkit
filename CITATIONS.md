@@ -25,6 +25,7 @@
  * Feyza Yilmaz et al. , Reconstruction of the human amylase locus reveals ancient duplications seeding modern-day variation.Science0,eadn0609DOI:10.1126/science.adn0609 **MSA2VCF**
  * Tim P. Bean, Hannah Farley, Jennifer Nascimento-Schulze, Tim Regan,Scottish oyster mortality event and association with Vibrio aestuarianus, Aquaculture Reports, Volume 39, 2024, 102480, ISSN 2352-5134, https://doi.org/10.1016/j.aqrep.2024.102480. **WGSCoveragePlotter**
  * Yin, K., Xu, Y., Guo, Y. et al. Dyna-vivo-seq unveils cellular RNA dynamics during acute kidney injury via in vivo metabolic RNA labeling-based scRNA-seq. Nat Commun 15, 9866 (2024). https://doi.org/10.1038/s41467-024-54202-4 **sam2tsv**
+ * Rebecca Chen & al. Predicted deleterious mutations reveal the genomic mechanisms underlying fitness variation in a lekking bird. Preprint. https://doi.org/10.21203/rs.3.rs-5579350/v1
 
 ## 2023
 

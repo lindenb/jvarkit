@@ -87,7 +87,7 @@ class ApacheSeekableHTTPStream extends SeekableStream {
        
         
         if(new_offset >= this.buffer_offset && new_offset < this.buffer_offset + this.buffer_size) {
-    		this.buffer_index = (int)(new_offset-this.buffer_offset);
+    		this.buffer_index = Math.toIntExact(new_offset-this.buffer_offset);
     		}
     	else {
 	        this.buffer_offset = new_offset;
@@ -106,7 +106,7 @@ class ApacheSeekableHTTPStream extends SeekableStream {
     @Override
     public void seek(final long position) {
     	if(position >= this.buffer_offset && position < this.buffer_offset + this.buffer_size) {
-    		this.buffer_index = (int)(position-this.buffer_offset);
+    		this.buffer_index = Math.toIntExact(position-this.buffer_offset);
     		}
     	else {
 	        this.buffer_offset = position;
@@ -128,7 +128,7 @@ class ApacheSeekableHTTPStream extends SeekableStream {
     	this.buffer_index = 0;
     	this.buffer_size = 0;
     	
-    	final int max_n_bytes_to_reads = (int)Math.min((long)this.buffer.length,this.contentLength - this.buffer_offset);
+    	final int max_n_bytes_to_reads = Math.toIntExact(Math.min((long)this.buffer.length,this.contentLength - this.buffer_offset));
     	
         if (max_n_bytes_to_reads == 0 ) return -1;
         if (this.buffer_offset == this.contentLength) return -1;

@@ -23,11 +23,15 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfstats;
 
 
+import java.text.DecimalFormat;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.pedigree.SamplePopulation;
 
@@ -50,6 +54,44 @@ public abstract class AbstractAnalyzer implements Analyzer {
 	private Predicate<VariantContext>  variantPredicate =V->true;
 	private Predicate<Genotype>  genotypePredicate = G->true;
 	protected SamplePopulation sample2population = null;
+	
+	
+	protected static class DoubleRounder implements DoubleUnaryOperator {
+		final DecimalFormat decimalFormat;
+		DoubleRounder(int n) {
+			this("#."+StringUtils.repeat(n, '#'));
+			}
+		DoubleRounder(final String decimalFormatStr) {
+			this.decimalFormat = new DecimalFormat(decimalFormatStr);
+			this.decimalFormat.setRoundingMode(java.math.RoundingMode.CEILING);
+			}
+		@Override
+		public double applyAsDouble(double v) {
+			return Double.parseDouble(this.decimalFormat.format(v));
+			}
+		}
+	
+	protected static class BinRounder implements DoubleUnaryOperator {
+		private final double[] bins;
+		
+		BinRounder(String commaStr) {
+			this(Arrays.stream(CharSplitter.COMMA.split(commaStr)).mapToDouble(S->Double.parseDouble(S)).toArray());
+			}
+		BinRounder(double...values) {
+			this.bins = Arrays.copyOf(values, values.length);
+			Arrays.sort(this.bins);
+			if(this.bins.length==0) throw new IllegalArgumentException();
+			}
+		@Override
+		public double applyAsDouble(double v) {
+			for(int i=0;i< this.bins.length;i++) {
+				if(v <= this.bins[i]) return this.bins[i];
+				}
+			return this.bins[this.bins.length-1];
+			}
+		}
+	
+	
 	protected AbstractAnalyzer() {
 		this.analyzerName = getClass().getSimpleName().replace("Analyzer", "");
 		this.analyzerDesc = analyzerName;

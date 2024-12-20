@@ -53,7 +53,7 @@ public class LimitInputStream extends InputStream {
 	public int read(final byte[] b, int off, int len) throws IOException {
 		long max_avail = this.max_size - this.nRead;
 		if(max_avail<=0L) return -1;
-		len = (int)Math.min((long)len, max_avail);
+		len = Math.toIntExact(Math.min((long)len, max_avail));
 		int nRead= this.delegate.read(b, off, len);
 		if(nRead==-1) return -1;
 		this.nRead+= nRead;

@@ -66,7 +66,7 @@ public abstract class BaseArray<T> implements Cloneable,Serializable,Iterable<T>
 		// min of L0x L1x
 		final long L2x = Math.max(L0x,L1x);
 		if(L2x>=(long)Integer.MAX_VALUE) throw new IllegalStateException("Array too large "+ L2x);
-		return (int)L2x;
+		return Math.toIntExact(L2x);
 		}
 	
 	
