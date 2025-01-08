@@ -19,44 +19,32 @@ Usage: bedcluster [options] Files
     -C, --contig, --chromosome
       group by chromosome.
       Default: false
-    --compress
-      Compress bed with bgz.
-      Default: false
     --consecutive
-      When using option --size only use consecutive ordered region. Default is 
-      to find the best region anywhere.
+      When using option --size only use consecutive ordered regions. Default 
+      is to find the best region anywhere.
       Default: false
+  * -F, --format
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
+      Default: BED
+      Possible Values: [BED, BED_GZ, INTERVAL_LIST, INTERVAL_LIST_GZ]
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --interval-list
-      Save as htsjdk interval list (https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/samtools/util/IntervalList.html) 
-      instead of bed.
-      Default: false
     -J, --jobs
       number of clusters. (or specify --size)
       Default: -1
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
-    --merge
-      Merge overlapping bed records before clustering
-      Default: false
-    --names
-      Print BED name (4th column of input bed)
-      Default: false
   * -o, --out
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.
     -R, --reference
-      For sorting, writing interval_list,A SAM Sequence dictionary source: it 
-      can be a *.dict file, a fasta file indexed with 'picard 
+      For sorting and /or writing interval_list,A SAM Sequence dictionary 
+      source: it can be a *.dict file, a fasta file indexed with 'picard 
       CreateSequenceDictionary' or 'samtools dict', or any hts file containing 
       a dictionary (VCF, BAM, CRAM, intervals...)
-    --sex, --par
-      Detects human dictionary ans splits pseudo-autosomal regions and group 
-      by sex.
-      Default: false
     -S, --size
       number of bases max per bin. (or specify --jobs). A distance specified 
       as a positive integer.Commas are removed. The following suffixes are 
@@ -88,11 +76,7 @@ Usage: bedcluster [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bedtools/BedCluster.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bedtools/BedCluster.java)
-
-### Unit Tests
-
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bedtools/BedClusterTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bedtools/BedClusterTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bedcluster/BedCluster.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bedcluster/BedCluster.java)
 
 
 ## Contribute

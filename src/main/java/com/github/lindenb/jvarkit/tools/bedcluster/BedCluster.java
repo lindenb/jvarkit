@@ -130,7 +130,7 @@ public class BedCluster
 	private enum FormatOut {BED,BED_GZ,INTERVAL_LIST,INTERVAL_LIST_GZ}
 	@Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile= null;
-	@Parameter(names={"-F","--format"},description=ArchiveFactory.OPT_DESC,required=true)
+	@Parameter(names={"-F","--format"},description=ArchiveFactory.OPT_DESC)
 	private FormatOut outputFormat = FormatOut.BED;
 	@Parameter(names={"-J","--jobs"},description="number of clusters. (or specify --size)")
 	private int number_of_jobs=-1;
