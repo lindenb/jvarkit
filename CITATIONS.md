@@ -1,5 +1,10 @@
 # Citations
 
+## 2025
+
+ * Heng, J. J. W. (2024). Development of sequencing methods to illuminate the epitranscriptome. Doctoral thesis, Nanyang Technological University, Singapore. https://hdl.handle.net/10356/182139 **Sam2Tsv**
+
+
 ## 2024
 
  * Jin Hee Kim & Jeongsik Kim (2024) Comprehensive analysis of the chloroplast genome and phylogenetic relationships of Sasa quelpaertensis Nakai, Mitochondrial DNA Part B, 9:1, 88-93, DOI: 10.1080/23802359.2023.2301017 
