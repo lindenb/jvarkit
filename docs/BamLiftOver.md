@@ -20,7 +20,8 @@ Usage: bamliftover [options] Files
       Compression Level. 0: no compression. 9: max compression;
       Default: 5
   * -f, --chain
-      LiftOver file.
+      LiftOver chain file. Can be a local chain file, a URL 'https://hgdownload.soe.ucsc.edu/goldenpath/hg19/liftOver/hg19ToCriGri1.over.chain.gz', 
+      or a chain identifier like 'hg19ToHg38'.
   * -R2, --destination-dict
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 

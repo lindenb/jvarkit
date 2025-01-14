@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -33,6 +32,7 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
@@ -42,7 +42,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IOUtil;
 
 /**
 BEGIN_DOC
@@ -73,8 +72,8 @@ public class BedLiftOver extends Launcher
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
-	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
-	private File liftOverFile = null;
+	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required=true)
+	private String liftOverFile = null;
 	@Parameter(names={"-x","--failed"},description="  write bed failing the liftOver here. Optional.")
 	private Path failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
@@ -125,13 +124,12 @@ public class BedLiftOver extends Launcher
 	
 	@Override
 	public int doWork(final List<String> args) {
-		IOUtil.assertFileIsReadable(liftOverFile);
-
-		final LiftOver liftOver=new LiftOver(liftOverFile);
-		liftOver.setLiftOverMinMatch(this.userMinMatch);
-		
 		try
 			{
+			final LiftOver liftOver= LiftOverChain.load(this.liftOverFile);
+			liftOver.setLiftOverMinMatch(this.userMinMatch);
+
+			
 			if(!this.ignoreLiftOverValidation) {
 				liftOver.validateToSequences(SequenceDictionaryUtils.extractRequired(faidx));
 				}

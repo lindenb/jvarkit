@@ -171,6 +171,7 @@ import com.github.lindenb.jvarkit.tools.liftover.BedLiftOver;
 import com.github.lindenb.jvarkit.tools.liftover.ConvertLiftOverChain;
 import com.github.lindenb.jvarkit.tools.liftover.LiftOverToSVG;
 import com.github.lindenb.jvarkit.tools.liftover.VcfFilterByLiftOver;
+import com.github.lindenb.jvarkit.tools.liftover.VcfLiftOver;
 import com.github.lindenb.jvarkit.tools.manhattan.Manhattan;
 import com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam;
 import com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed;
@@ -872,6 +873,7 @@ public class JvarkitCentral {
 		command(VcfScanUpstreamOrf.class);
 		command(VCFTrios.class);
 		command(VcfBurdenMAF.class);
+		command(VcfLiftOver.class);
 		command(VcfPeekAf.class);
 		command(VcfGeneSplitter.class);
 		command(VcfMultiToOneInfo.class);

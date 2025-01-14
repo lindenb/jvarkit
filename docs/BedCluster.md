@@ -23,7 +23,7 @@ Usage: bedcluster [options] Files
       When using option --size only use consecutive ordered regions. Default 
       is to find the best region anywhere.
       Default: false
-  * -F, --format
+    -F, --format
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.
       Default: BED

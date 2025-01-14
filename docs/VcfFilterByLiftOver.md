@@ -23,7 +23,8 @@ Usage: vcffilterbyliftover [options] Files
       checked 2019-11-15)
       Default: false
   * -f, --chain
-      LiftOver file.
+      LiftOver chain file. Can be a local chain file, a URL 'https://hgdownload.soe.ucsc.edu/goldenpath/hg19/liftOver/hg19ToCriGri1.over.chain.gz', 
+      or a chain identifier like 'hg19ToHg38'.
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false

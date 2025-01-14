@@ -28,7 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.liftover;
 
-import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
@@ -37,6 +37,7 @@ import java.util.function.Function;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -50,7 +51,6 @@ import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -81,8 +81,8 @@ public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfFilterByLiftOver.class).make();
 
 
-	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
-	private File liftOverFile = null;
+	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required=true)
+	private String liftOverFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = 1.0 ;
 	@Parameter(names={"-d"},description="initial distance. See option -D.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
@@ -144,7 +144,15 @@ public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 			anotherVcfCtgConverter = ContigNameConverter.getIdentity();
 			}
 		
-		final  LiftOver liftOver=new LiftOver(this.liftOverFile);
+		final  LiftOver liftOver;
+		
+		try {
+			liftOver = LiftOverChain.load(this.liftOverFile);
+			}
+		catch(IOException err) {
+			LOG.error(err);
+			return -1;
+			}
 		liftOver.setLiftOverMinMatch(this.userMinMatch);
 
 		
@@ -284,12 +292,11 @@ public class VcfFilterByLiftOver extends OnePassVcfLauncher {
 	
 	@Override
 	protected int beforeVcf() {
-		if(this.liftOverFile==null)
+		if(StringUtils.isBlank(liftOverFile))
 			{
 			LOG.error("LiftOver file is undefined.");
 			return -1;
 			}
-		IOUtil.assertFileIsReadable(this.liftOverFile);
 		if(this.anotherVcfFiltered!=null) {
 			this.anotherVcfReader = VCFReaderFactory.
 					makeDefault().

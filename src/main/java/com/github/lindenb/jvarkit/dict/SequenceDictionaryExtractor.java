@@ -51,6 +51,7 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.cram.build.CramIO;
 import htsjdk.samtools.cram.structure.Container;
 import htsjdk.samtools.cram.structure.CramHeader;
+import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.util.BufferedLineReader;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
@@ -181,7 +182,11 @@ public class SequenceDictionaryExtractor  {
     	if(dict==null || dict.isEmpty()) return Optional.empty();
     	return Optional.of(dict);
     	}
-
+    public SAMSequenceDictionary extractRequiredDictionary(final VCFHeader header) {
+    	final Optional<SAMSequenceDictionary>  opt= extractDictionary(header);
+    	if(!opt.isPresent()) notFound("VCF Header (lines in header starting with '##contig=')");
+    	return opt.get();
+    	}
     
     public SAMSequenceDictionary extractRequiredDictionary(final String pathOrUrl) {
     	final Optional<SAMSequenceDictionary>  opt= extractDictionary(pathOrUrl);
@@ -200,6 +205,21 @@ public class SequenceDictionaryExtractor  {
 	    if(!opt.isPresent()) notFound(url.getPath());
     	return opt.get();
 		}
+    
+    public Optional<SAMSequenceDictionary> extractDictionary(final ReferenceSequenceFile fasta) {
+    	if(fasta==null) return Optional.empty();
+    	final SAMSequenceDictionary dict=fasta.getSequenceDictionary();
+    	if(dict==null || dict.isEmpty()) return Optional.empty();
+    	return Optional.of(dict);
+    	}
+    
+    public SAMSequenceDictionary extractRequiredDictionary(final ReferenceSequenceFile fasta) throws IOException {
+		final Optional<SAMSequenceDictionary>  opt= extractDictionary(fasta);
+	    if(!opt.isPresent()) notFound("fasta sequence");
+    	return opt.get();
+		}
+
+    
     
     public Optional<SAMSequenceDictionary> extractDictionary(final String pathOrurl) {
     	if(IOUtil.isUrl(pathOrurl)) {

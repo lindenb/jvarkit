@@ -17,7 +17,8 @@ Usage: java -jar dist/jvarkit.jar bedliftover  [options] Files
 Usage: bedliftover [options] Files
   Options:
   * -f, --chain
-      LiftOver file.
+      LiftOver chain file. Can be a local chain file, a URL 'https://hgdownload.soe.ucsc.edu/goldenpath/hg19/liftOver/hg19ToCriGri1.over.chain.gz', 
+      or a chain identifier like 'hg19ToHg38'.
     --chainvalid
       Ignore LiftOver chain validation
       Default: false

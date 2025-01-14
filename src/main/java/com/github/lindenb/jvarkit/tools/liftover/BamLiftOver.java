@@ -24,6 +24,7 @@ SOFTWARE.
 
 */
 package com.github.lindenb.jvarkit.tools.liftover;
+import java.io.IOException;
 /**
 BEGIN_DOC
 
@@ -31,7 +32,6 @@ BEGIN_DOC
 
 END_DOC
  */
-import java.io.File;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
@@ -40,11 +40,14 @@ import java.util.function.Function;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.SAMException;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileHeader.SortOrder;
 import htsjdk.samtools.SAMRecord;
@@ -58,6 +61,7 @@ import htsjdk.samtools.util.Interval;
 @Program(name="bamliftover",
 	description="Lift-over a BAM file.",
 	keywords={"bam","liftover"},
+	modificationDate = "20250114",
 	generate_doc = true,
 	jvarkit_amalgamion = true
 	)
@@ -68,8 +72,8 @@ public class BamLiftOver extends OnePassBamLauncher
 	private Path destDictionaryPath = null;
 
 
-	@Parameter(names={"-f","--chain"},description="LiftOver file.",required = true)
-	private File liftOverFile = null;
+	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required = true)
+	private String liftOverFile = null;
 
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
@@ -94,15 +98,28 @@ public class BamLiftOver extends OnePassBamLauncher
 	
 	@Override
 	protected int beforeSam() {
-		final double minMatch=(this.userMinMatch<=0.0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:this.userMinMatch);
-		this.liftOver =new LiftOver(this.liftOverFile);
-		this.liftOver.setLiftOverMinMatch(minMatch);
 		this.newDict = SequenceDictionaryUtils.extractRequired(this.destDictionaryPath);
+		if(StringUtils.isBlank(this.liftOverFile)) {
+			LOG.error("chain is blank");
+			return -1;
+			}
 		return super.beforeSam();
 		}
 	
 	@Override
 	protected SAMFileHeader createOutputHeader(final SAMFileHeader headerIn) {
+		
+		try {
+			final SAMSequenceDictionary dictIn=SequenceDictionaryUtils.extractRequired(headerIn);
+			final double minMatch=(this.userMinMatch<=0.0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:this.userMinMatch);
+			this.liftOver = LiftOverChain.load(this.liftOverFile,dictIn,this.newDict);
+			this.liftOver.setLiftOverMinMatch(minMatch);
+			}
+		catch(IOException errr) {
+			throw new SAMException(errr);
+			}
+	
+
 		this.headerOut =  super.createOutputHeader(headerIn);
 		this.headerOut.setSequenceDictionary(this.newDict);
 		this.headerOut.setSortOrder(SortOrder.unsorted);

@@ -28,7 +28,6 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.liftover;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,7 +42,6 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SequenceUtil;
-import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -59,7 +57,10 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -69,6 +70,10 @@ import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
+
+## Warning
+
+you'd better have a look at gatk/picard LiftOverVcf
 
 
 ## Example
@@ -95,8 +100,8 @@ Running the liftover:
 
 ```bash
 $  curl -s "https://raw.github.com/arq5x/gemini/master/test/test5.vep.snpeff.vcf" |\
-  java -jar dist/vcfliftover.jar \
-      -f <( curl -s "http://hgdownload.soe.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz" | gunzip -c ) \
+  java -jar dist/jvarkit.jar vcfliftover \
+      -f hg19ToHg18 \
       -X failing.vcf |\
 grep -v "#"
 
@@ -112,10 +117,6 @@ chrX	17729298	.	T	C	7515.25	.	LIFTOVER=chrX|17819377	GT:AD:DP:GQ:PL1/1:0,125:126
 ```
 
 
-## See also
-
-picard LiftOverVcf (loads all the genome in memory...)
-
 
 
 END_DOC
@@ -125,20 +126,20 @@ END_DOC
 		description="Lift-over a VCF file",
 		keywords={"vcf","liftover"},
 		modificationDate="20210603",
-		creationDate="20131228",
-		deprecatedMsg="Use picard LiftOverVcf"
+		creationDate="20240114",
+		jvarkit_amalgamion = true
 		)
 public class VcfLiftOver extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.build(VcfLiftOver.class).make();
-	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
-	private File liftOverFile = null;
+	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required=true)
+	private String liftOverFile = null;
 	@Parameter(names={"-x","--failed"},description="(file.vcf) write variants failing the liftOver here. Optional.")
 	private Path failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
 	@Parameter(names={"--adaptivematch"},description="Use adapative liftover minmatch using the ratio between the min allele size and the longest allele size")
 	private boolean adaptivematch = false ;
-	@Parameter(names={"-D","-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	@Parameter(names={"-D","-R","-r","--reference"},description="Destination Reference. "+INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
 	@Parameter(names={"-T","--tag"},description="INFO tag")
 	private String infoTag = "LIFTOVER";
@@ -146,22 +147,39 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 	private String failedinfoTag = "LIFTOVER_FAILED";
 	@Parameter(names={"-check","--check"},description="Check variant allele sequence is the same on REF")
 	private boolean checkAlleleSequence = false;
-	@Parameter(names={"--chainvalid"},description="Ignore LiftOver chain validation")
+	@Parameter(names={"--ignore-chain-validation"},description="Ignore LiftOver chain validation")
 	private boolean ignoreLiftOverValidation=false;
 	@Parameter(names={"--indel","--indels"},description="do not LiftOver indels")
 	private boolean ignoreIndels=false;
 	@Parameter(names={"--info"},description="remove attribute from INFO on the fly")
 	private Set<String> removeInfo=new HashSet<>();
 	
-	private LiftOver liftOver=null;
-	private ReferenceSequenceFile indexedFastaSequenceFile=null;
+
 	
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
 		VariantContextWriter failed=null;
 		GenomicSequence genomicSequence = null;
-		try {
+		try (ReferenceSequenceFile indexedFastaSequenceFile =  ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx)) {
 			final VCFHeader inputHeader= in.getHeader();
+			
+			final LiftOver liftOver;
+			try {
+				liftOver = LiftOverChain.load(
+						this.liftOverFile,
+						new SequenceDictionaryExtractor().extractRequiredDictionary(inputHeader),
+						new SequenceDictionaryExtractor().extractRequiredDictionary(indexedFastaSequenceFile)
+						);
+				liftOver.setLiftOverMinMatch(this.userMinMatch);
+				if(!this.ignoreLiftOverValidation) {
+					liftOver.validateToSequences(indexedFastaSequenceFile.getSequenceDictionary());
+					}
+				}
+			catch(final Throwable err) {
+				LOG.error(err);
+				return -1;
+				}
+			
 			
 			final Set<VCFHeaderLine> headerLines=inputHeader.getMetaDataInInputOrder().
 					stream().filter(V->{
@@ -186,7 +204,7 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 				}
 			
 			final VCFHeader header3=new VCFHeader(headerLines,inputHeader.getSampleNamesInOrder());
-			header3.setSequenceDictionary(this.indexedFastaSequenceFile.getSequenceDictionary());
+			header3.setSequenceDictionary(indexedFastaSequenceFile.getSequenceDictionary());
 			JVarkitVersion.getInstance().addMetaData(this, header3);
 			header3.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY, true));
 			header3.addMetaDataLine(new VCFInfoHeaderLine(this.infoTag,1,VCFHeaderLineType.String,"Chromosome|Position before liftOver."));
@@ -211,9 +229,12 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 					{
 					double minAlleleLength = Math.min(0,ctx.getAlleles().stream().mapToInt(A->A.length()).min().orElse(0));
 					double maxAlleleLength =Math.max(1,ctx.getAlleles().stream().mapToInt(A->A.length()).max().orElse(1));
-					this.liftOver.setLiftOverMinMatch(minAlleleLength /maxAlleleLength);
+					liftOver.setLiftOverMinMatch(minAlleleLength /maxAlleleLength);
 					}
-				
+				else
+					{
+					liftOver.setLiftOverMinMatch(this.userMinMatch);
+					}
 				
 				final Interval lifted=liftOver.liftOver(
 						new Interval(ctx.getContig(),ctx.getStart(),ctx.getEnd(),
@@ -224,7 +245,7 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 					{
 					if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "LiftOverFailed").make());
 					}
-				else if(this.indexedFastaSequenceFile.getSequenceDictionary().getSequence(lifted.getContig())==null)
+				else if(indexedFastaSequenceFile.getSequenceDictionary().getSequence(lifted.getContig())==null)
 					{
 					if(failed!=null) failed.add(new VariantContextBuilder(ctx).attribute(this.failedinfoTag, "ContigMissingDictionary|"+lifted.getContig()).make());
 					}
@@ -254,7 +275,7 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 	                    
                         if(this.checkAlleleSequence) {
                         	if(genomicSequence==null || !genomicSequence.getChrom().equals(lifted.getContig())) {
-                        		genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile, lifted.getContig());
+                        		genomicSequence = new GenomicSequence(indexedFastaSequenceFile, lifted.getContig());
                         		}
                         	final String alleleStr = fixedAllele.getBaseString();
                         	int x=0;
@@ -326,6 +347,7 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 				failed.close();
 				failed=null;
 				}
+			LOG.warning("you'd better have a look at gatk/picard LiftOverVcf");
 			return 0;
 		}catch(final Throwable err)
 			{
@@ -334,7 +356,10 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 			}
 		finally
 			{
-			CloserUtil.close(failed);	
+			if(failed!=null) {
+				try {failed.close();}
+				catch(Throwable err)  {}
+				}
 			}
 		}
 	
@@ -345,28 +370,9 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 	
 	@Override
 	protected int beforeVcf() {
-		if(this.liftOverFile==null)
+		if(StringUtils.isBlank(this.liftOverFile))
 			{
 			LOG.error("LiftOver file is undefined.");
-			return -1;
-			}
-		
-		if(this.faidx==null)
-			{
-			LOG.error("reference file is undefined.");
-			return -1;
-			}
-		
-		try {
-			this.indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.faidx);
-			this.liftOver=new LiftOver(this.liftOverFile);
-			this.liftOver.setLiftOverMinMatch(this.userMinMatch);
-			if(!this.ignoreLiftOverValidation) {
-				this.liftOver.validateToSequences(this.indexedFastaSequenceFile.getSequenceDictionary());
-				}
-			}
-		catch(final Throwable err) {
-			LOG.error(err);
 			return -1;
 			}
 		return super.beforeVcf();
@@ -374,7 +380,6 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 	
 	@Override
 	protected void afterVcf() {
-		CloserUtil.close(this.indexedFastaSequenceFile);
 		super.afterVcf();
 		}
 
