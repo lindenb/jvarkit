@@ -26,12 +26,12 @@ package com.github.lindenb.jvarkit.tools.misc;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 
@@ -70,7 +70,7 @@ END_DOC
 		description="Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.",
 		keywords={"bed","reference"},
 		creationDate="20140201",
-		modificationDate="20230126",
+		modificationDate="20250115",
 		jvarkit_amalgamion = true,
 		menu="Deprecated/barely used"
 		)
@@ -82,14 +82,15 @@ public class AddLinearIndexToBed extends Launcher
 	private Path outputFile = null;
 	@Parameter(names = { "-R", "--reference","--dict"}, description = DICTIONARY_SOURCE, required = true)
 	private Path refFile = null;
+	@Parameter(names={"--regex"},description="keep chromosomes matching that regular expression. (use --ignore too prevent error the other chromosomes)")
+	private String contig_regex="(chr)?[0-9XY]+";	
+	@Parameter(names={"--ignore"},description="skip unknown chromosomes.")
+	private boolean ignore_unknown_chromosomes=false;
 
-	private SAMSequenceDictionary dictionary = null;
-	private long tid2offset[] = null;
 
-	protected int doWork(InputStream is, PrintStream out) throws IOException {
+	protected int doWork(BufferedReader in, PrintWriter out,final long tid2offset[],final SAMSequenceDictionary dictionary ) throws IOException {
 		final CharSplitter tab = CharSplitter.TAB;
-		final ContigNameConverter ctgNameConverter = ContigNameConverter.fromOneDictionary(this.dictionary);
-		BufferedReader in = new BufferedReader(new InputStreamReader(is));
+		final ContigNameConverter ctgNameConverter = ContigNameConverter.fromOneDictionary(dictionary);
 		String line = null;
 		while ((line = in.readLine()) != null) {
 			if (BedLine.isBedHeader(line)) {
@@ -105,19 +106,20 @@ public class AddLinearIndexToBed extends Launcher
 			}
 			final String ctg =  ctgNameConverter.apply(tokens[0]);
 			if(StringUtils.isBlank(ctg)) {
-				throw new JvarkitException.ContigNotFoundInDictionary(tokens[0],this.dictionary);
+				throw new JvarkitException.ContigNotFoundInDictionary(tokens[0],dictionary);
 				}
 			
-			final SAMSequenceRecord ssr = this.dictionary.getSequence(ctg);
+			final SAMSequenceRecord ssr = dictionary.getSequence(ctg);
 			if (ssr == null) {
-				throw new JvarkitException.ContigNotFoundInDictionary(tokens[0],this.dictionary);
+				if(this.ignore_unknown_chromosomes) continue;
+				throw new JvarkitException.ContigNotFoundInDictionary(tokens[0],dictionary);
 				}
 			int pos0 = Integer.parseInt(tokens[1]);
 			if (pos0 < 0 || pos0 >= ssr.getSequenceLength()) {
 				LOG.warn("position is out of range for : " + line + " length(" + tokens[0] + ")="
 						+ ssr.getSequenceLength());
 			}
-			out.print(this.tid2offset[ssr.getSequenceIndex()] + pos0);
+			out.print(tid2offset[ssr.getSequenceIndex()] + pos0);
 			out.print('\t');
 			out.print(line);
 			out.println();
@@ -132,34 +134,43 @@ public class AddLinearIndexToBed extends Launcher
 			return -1;
 		}
 		try {
-			this.dictionary = SequenceDictionaryUtils.extractRequired(this.refFile);
+			final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(this.refFile);
 
-			this.tid2offset = new long[this.dictionary.size()];
-			Arrays.fill(this.tid2offset, 0L);
-			for (int i = 1; i < this.dictionary.size(); ++i) {
-				this.tid2offset[i] = this.tid2offset[i - 1] + this.dictionary.getSequence(i - 1).getSequenceLength();
-			}
-			try(PrintStream out = openPathOrStdoutAsPrintStream(this.outputFile)) {
-
-			if (args.isEmpty()) {
-				doWork(stdin(), out);
-			} else {
-				for (final String arg : args) {
-					try( InputStream in = IOUtils.openURIForReading(arg)) {
-						doWork(in, out);
+			final SAMSequenceDictionary dictionary = new SAMSequenceDictionary(
+					dict0.getSequences().stream().
+					filter(SSR->SSR.getContig().matches(contig_regex)).
+					collect(Collectors.toList())
+					);
+			
+			if(dictionary.isEmpty()) {
+				LOG.error("empty dictionary");
+				return -1;
+				}
+			
+			final long[] tid2offset = new long[dictionary.size()];
+			Arrays.fill(tid2offset, 0L);
+			for (int i = 1; i < dictionary.size(); ++i) {
+				tid2offset[i] = tid2offset[i - 1] + dictionary.getSequence(i - 1).getSequenceLength();
+				}
+			try(PrintWriter out = openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				if (args.isEmpty()) {
+					try(BufferedReader br = IOUtils.openStreamForBufferedReader(stdin())) {
+						doWork(br, out,tid2offset,dictionary);
+					}
+				} else {
+					for (final String arg : args) {
+						try(BufferedReader br = IOUtils.openURIForBufferedReading(arg)) {
+							doWork(br, out,tid2offset,dictionary);
+						}
 					}
 				}
-			}
-			out.flush();
-			}
+				out.flush();
+				}
 
 			return 0;
 		} catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
-		} finally {
-			dictionary = null;
-			tid2offset = null;
 		}
 	}
 
