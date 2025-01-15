@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.gtf;
 
 import java.io.BufferedReader; 
-import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -39,6 +38,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
@@ -47,7 +47,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.liftover.LiftOver;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 
@@ -110,7 +109,7 @@ END_DOC
 		name="gtfliftover",
 		description="LiftOver GTF file.",
 		creationDate="20190823",
-		modificationDate="20190823",
+		modificationDate="20250115",
 		keywords= {"gtf","liftover"},
 		jvarkit_amalgamion = true
 		)
@@ -124,8 +123,8 @@ public class GtfLiftOver
 	
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"-f","--chain"},description="LiftOver file.",required=true)
-	private File liftOverFile = null;
+	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required=true)
+	private String liftOverStr = null;
 	@Parameter(names={"-x","--failed"},description="write  failing the liftOver here. Optional.")
 	private Path failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
@@ -153,98 +152,87 @@ public class GtfLiftOver
 	
 	@Override
 	public int doWork(final List<String> args)  {
-		BufferedReader in = null;
 		boolean got_gtf_record = false;
-		PrintWriter p = null;
-		PrintWriter fail = null;
 		try {
-			fail = this.failedFile==null?
+			try(PrintWriter fail = this.failedFile==null?
 					new PrintWriter(new NullOuputStream()):
 					super.openPathOrStdoutAsPrintWriter(this.failedFile)
-					;
-			p = super.openPathOrStdoutAsPrintWriter(this.outputFile);
-			
-			this.liftOver = new LiftOver(this.liftOverFile);
-			this.contigNameConverter =  ContigNameConverter.fromContigSet(this.liftOver.getContigMap().keySet());
-			
-			in = openBufferedReader(oneFileOrNull(args));
-			final Map<String,List<String>> gene2lines = new HashMap<>(50_000);
-			for(;;)
-				{
-				final String line = in.readLine();
-				if(line==null) break;
-				if(StringUtils.isBlank(line)) continue;
-				if(line.startsWith("#")) {
-					if(!got_gtf_record && include_header) {
-						fail.println(line);
-						p.println(line);
+					) {
+				final Map<String,List<String>> gene2lines = new HashMap<>(50_000);
+				try(PrintWriter p = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					
+				this.liftOver = LiftOverChain.load(this.liftOverStr);
+				this.contigNameConverter =  ContigNameConverter.fromContigSet(this.liftOver.getContigMap().keySet());
+					
+					try(BufferedReader in = openBufferedReader(oneFileOrNull(args))) {
+						for(;;)
+							{
+							final String line = in.readLine();
+							if(line==null) break;
+							if(StringUtils.isBlank(line)) continue;
+							if(line.startsWith("#")) {
+								if(!got_gtf_record && include_header) {
+									fail.println(line);
+									p.println(line);
+									}
+								continue;
+								}
+							final GTFLine gtfLine = this.gtfCodec.decode(line);
+							if(gtfLine==null) {
+								fail.println(line);
+								continue;
+								}
+							got_gtf_record = true;
+							
+							final String gene_key = gtfLine.getAttribute("gene_id");
+							if(StringUtils.isBlank(gene_key))
+								{
+								Optional<Interval> lifted = doliftOver(gtfLine);
+								if(lifted.isPresent()) {
+									p.println(applyLift(lifted.get(),line));
+									}
+								else
+									{
+									fail.println(line);
+									}
+								}
+							else
+								{
+								List<String> lines = gene2lines.get(gene_key);
+								if(lines==null) {
+									lines = new ArrayList<>();
+									gene2lines.put(gene_key,lines);
+									}
+								lines.add(line);
+								}
+							}
 						}
-					continue;
-					}
-				final GTFLine gtfLine = this.gtfCodec.decode(line);
-				if(gtfLine==null) {
-					fail.println(line);
-					continue;
-					}
-				got_gtf_record = true;
-				
-				final String gene_key = gtfLine.getAttribute("gene_id");
-				if(StringUtils.isBlank(gene_key))
-					{
-					Optional<Interval> lifted = doliftOver(gtfLine);
-					if(lifted.isPresent()) {
-						p.println(applyLift(lifted.get(),line));
+					
+					for(final List<String> lines:gene2lines.values()) {
+					final List<Optional<Interval>> intervals = lines.stream().map(L->doliftOver(gtfCodec.decode(L))).filter(R->R.isPresent()).collect(Collectors.toList());
+					/* all have been mapped */
+					if(intervals.size()!=lines.size() || 
+						/* all mapped to same contig */
+						intervals.stream().map(R->R.get().getContig()).collect(Collectors.toSet()).size()!=1) {
+						for(final String L: lines) {
+							fail.println(L);
+							}
 						}
 					else
 						{
-						fail.println(line);
+						for(int i=0;i< intervals.size();i++) {
+							p.println(applyLift(intervals.get(i).get(),lines.get(i)));
+							}
 						}
 					}
-				else
-					{
-					List<String> lines = gene2lines.get(gene_key);
-					if(lines==null) {
-						lines = new ArrayList<>();
-						gene2lines.put(gene_key,lines);
-						}
-					lines.add(line);
+					
 					}
 				}
-			
-			for(final List<String> lines:gene2lines.values()) {
-			final List<Optional<Interval>> intervals = lines.stream().map(L->doliftOver(gtfCodec.decode(L))).filter(R->R.isPresent()).collect(Collectors.toList());
-			/* all have been mapped */
-			if(intervals.size()!=lines.size() || 
-				/* all mapped to same contig */
-				intervals.stream().map(R->R.get().getContig()).collect(Collectors.toSet()).size()!=1) {
-				for(final String L: lines) {
-					fail.println(L);
-					}
-				}
-			else
-				{
-				for(int i=0;i< intervals.size();i++) {
-					p.println(applyLift(intervals.get(i).get(),lines.get(i)));
-					}
-				}
-			}
-			
-			fail.flush();
-			fail.close();
-			fail = null;
-			p.flush();
-			p.close();
-			p = null;
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(fail);
-			CloserUtil.close(p);
 			}
 		}
 	

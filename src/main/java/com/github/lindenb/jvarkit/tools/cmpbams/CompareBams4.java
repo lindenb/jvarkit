@@ -22,7 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.cmpbams;
-import java.io.File;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,6 +31,8 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
@@ -121,7 +122,7 @@ END_DOC
 	description="Compare two query-name sorted BAM files. Print a tab-delimited report",
 	keywords={"sam","bam","compare"},
 	creationDate="20161206",
-	modificationDate="20200327",
+	modificationDate="20250115",
 	jvarkit_amalgamion = true
 	)
 public class CompareBams4  extends Launcher
@@ -137,8 +138,8 @@ public class CompareBams4  extends Launcher
 	@Parameter(names={"-R2","--reference2"},description="For Reading CRAM. Reference for second BAM, if different from 1st bam. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refFaidx2 = null;
 
-	@Parameter(names={"-c","--chain"},description="Lift Over file from bam1 to bam2. Optional")
-	private File chainFile = null;
+	@Parameter(names={"-c","--chain"},description=LiftOverChain.OPT_DESC+ ". Lift Over file from bam1 to bam2. Optional")
+	private String chainStr = null;
 
 	@Parameter(names={"-m","--mismatch"},description="Default Lift Over mismatch. negative=use default")
 	private double liftOverMismatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
@@ -343,8 +344,8 @@ public class CompareBams4  extends Launcher
 				iters[i] = new PeekableIterator<>(samFileReaders[i].iterator());
 				}
 			
-			if(this.chainFile!=null) {
-				this.liftOver =new LiftOver(this.chainFile);
+			if(!StringUtils.isBlank(this.chainStr)) {
+				this.liftOver = LiftOverChain.load(this.chainStr);
 				this.liftOver.setLiftOverMinMatch(this.liftOverMismatch<=0?LiftOver.DEFAULT_LIFTOVER_MINMATCH:this.liftOverMismatch);
 
 				if(!this.disableChainValidation) {

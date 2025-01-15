@@ -76,6 +76,7 @@ The current reference is:
 # Warning
 
 ouput is escaped for UTF8, some characters like ':' might be converted to a hexadecimal encoding.
+Frame is missing/wrong for CDS. I need to fix this.
 
 # Example
 

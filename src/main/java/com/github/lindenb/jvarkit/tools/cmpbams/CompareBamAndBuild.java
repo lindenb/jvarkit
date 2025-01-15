@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.cmpbams;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
@@ -43,6 +42,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -133,7 +133,7 @@ END_DOC
 		name="cmpbamsandbuild",
 		description="Compare two  BAM files mapped on two different builds. Requires a liftover chain file",
 		creationDate = "20140307",
-		modificationDate = "20240716",
+		modificationDate = "20250115",
 		keywords = {"bam","sam"},
 		jvarkit_amalgamion = true
 		)
@@ -141,12 +141,12 @@ public class CompareBamAndBuild  extends Launcher
 	{
 	private static final Logger LOG = Logger.build(CompareBamAndBuild.class).make();
 
-	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 
 
-	@Parameter(names={"-c","--chain"},description=") Lift Over file from bam1 to bam2. REQUIRED",required=true)
-	private File chainFile = null;
+	@Parameter(names={"-c","--chain"},description=LiftOverChain.OPT_DESC+". Lift Over file from bam1 to bam2. REQUIRED",required=true)
+	private String chainStr = null;
 
 	@Parameter(names={"-d","--distance"},description="distance tolerance between two alignments")
 	private int distance_tolerance = 10 ;
@@ -385,7 +385,7 @@ public class CompareBamAndBuild  extends Launcher
     @Override
     public int doWork(final List<String> args) {
 		SortingCollection<Match> database = null;
-		if(this.chainFile==null) {
+		if(StringUtils.isBlank(this.chainStr)) {
 			LOG.error("Chain file is not defined Option");
 			return -1;
 			}
@@ -398,8 +398,7 @@ public class CompareBamAndBuild  extends Launcher
 			
 		try
 				{
-				LOG.info("load chain file");
-				this.liftOver=new LiftOver(this.chainFile);
+				this.liftOver= LiftOverChain.load(this.chainStr);
 				database = SortingCollection.newInstance(
 						Match.class,
 						new MatchCodec(),

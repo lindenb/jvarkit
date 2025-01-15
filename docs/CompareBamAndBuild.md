@@ -17,7 +17,9 @@ Usage: java -jar dist/jvarkit.jar cmpbamsandbuild  [options] Files
 Usage: cmpbamsandbuild [options] Files
   Options:
   * -c, --chain
-      ) Lift Over file from bam1 to bam2. REQUIRED
+      LiftOver chain file. Can be a local chain file, a URL 'https://hgdownload.soe.ucsc.edu/goldenpath/hg19/liftOver/hg19ToCriGri1.over.chain.gz', 
+      or a chain identifier like 'hg19ToHg38'.. Lift Over file from bam1 to 
+      bam2. REQUIRED
     -d, --distance
       distance tolerance between two alignments
       Default: 10

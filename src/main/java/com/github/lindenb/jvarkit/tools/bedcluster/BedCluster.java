@@ -211,7 +211,7 @@ public class BedCluster
 			
 			
 	
-	private void apply_cluster(
+	private long apply_cluster(
 			final PrintWriter manifest,
 			final ArchiveFactory archiveFactory,
 			final List<BedLine> src,
@@ -219,6 +219,7 @@ public class BedCluster
 			final SAMSequenceDictionary dict
 			) throws IOException
 		{
+		long length_out=0L;
 		final List<Cluster> clusters = new ArrayList<>(Math.max(this.number_of_jobs,100));
 		final LinkedList<BedLine> list = new LinkedList<>(src);
 		
@@ -371,6 +372,7 @@ public class BedCluster
 						pw.print(r.getOrDefault(c, "."));
 						}
 					pw.println();
+					length_out+= r.getLengthOnReference();
 					}
 					
 				pw.flush();
@@ -379,7 +381,7 @@ public class BedCluster
 				ps.flush();
 				}
 			}
-		
+		return length_out;
 		}
 	
 	@Override
@@ -454,7 +456,8 @@ public class BedCluster
 						br.setValidationStringency(ValidationStringency.LENIENT);
 						br.setContigNameConverter(converter);
 						List<List<BedLine>> list_of_intervals = Collections.singletonList(br.stream().collect(Collectors.toList()));
-							
+						final long length_in = list_of_intervals.stream().flatMap(it->it.stream()).mapToLong(L->L.getLengthOnReference()).sum();
+						
 						if(this.group_by_contig) {
 							final List<List<BedLine>> list2= new ArrayList<>();
 							for(List<BedLine> l1:list_of_intervals) {
@@ -467,9 +470,14 @@ public class BedCluster
 							list_of_intervals = list2;
 							}
 						
-						
+						long length_out = 0L;
 						for(final List<BedLine> l1:list_of_intervals) {
-							apply_cluster(manifest,archiveFactory,l1,intervalComparator,dict);
+							length_out += apply_cluster(manifest,archiveFactory,l1,intervalComparator,dict);
+							}
+						
+						// let me be paranoid
+						if(length_in!=length_out) {
+							throw new IllegalStateException("length-in!=length-out");
 							}
 						}
 					manifest.flush();
