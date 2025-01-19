@@ -3,7 +3,7 @@
 ## 2025
 
  * Heng, J. J. W. (2024). Development of sequencing methods to illuminate the epitranscriptome. Doctoral thesis, Nanyang Technological University, Singapore. https://hdl.handle.net/10356/182139 **Sam2Tsv**
-
+ * del Olmo V, Redondo-Río Á, García AB, Limtong S, Saus E, Gabaldón T (2025) Insights into the origin, hybridisation and adaptation of Candida metapsilosis hybrid pathogens. PLoS Pathog 21(1): e1012864. https://doi.org/10.1371/journal.ppat.1012864 https://journals.plos.org/plospathogens/article?id=10.1371/journal.ppat.1012864 **WGSCoveragePlotter**
 
 ## 2024
 
