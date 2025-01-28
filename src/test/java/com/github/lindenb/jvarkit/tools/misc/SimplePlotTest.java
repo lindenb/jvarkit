@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.testng.annotations.Test;
 import org.testng.Assert;
 
+import com.github.lindenb.jvarkit.tools.plot.SimplePlot;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 public class SimplePlotTest {

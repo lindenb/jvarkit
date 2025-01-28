@@ -25,15 +25,21 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.ucsc;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import com.github.lindenb.jvarkit.bed.BedCoordMath;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
@@ -601,6 +607,115 @@ class UcscTranscriptImpl implements UcscTranscript {
 				}
 			}
 		return L;
+		}
+	
+	
+	private class CodonImpl extends UcscTranscript.Codon {
+		private int start1;
+		private int end1;
+		private boolean is_start_codon;
+		CodonImpl(int start1,int end1,boolean is_start_codon) {
+			this.start1 = start1;
+			this.end1 = end1;
+			this.is_start_codon=is_start_codon;
+			}
+		
+		@Override
+		public int getStart() {
+			return start1;
+			}
+		@Override
+		public int getEnd() {
+			return end1;
+			}
+
+		@Override
+		public boolean isStartCodon() {
+			return is_start_codon;
+		}
+
+		@Override
+		public UcscTranscript getTranscript() {
+			return UcscTranscriptImpl.this;
+		}
+
+		@Override
+		public String getName() {
+			return isStartCodon()?"start_codon":"end_codon";
+			}
+		}
+	
+	/** get last 3 positions for a codon start/stop */
+	private static  List<Integer> last3(IntStream stream) {
+	    Deque<Integer> result = new ArrayDeque<>(3);
+	    stream.forEachOrdered(x -> {
+	        if (result.size() == 3) {
+	            result.pop();
+	        	}
+	        result.add(x);
+	    	});
+	    return new ArrayList<>(result);
+		}
+	
+	/** convert 3 successive position to codon */
+	private static  List<Locatable> position_to_codons(String contig,List<Integer> positions) {
+		if(positions.size()!=3) return Collections.emptyList();
+		List<Locatable> L=new ArrayList<>();
+		int p1 = positions.get(0);
+		int p2 = positions.get(1);
+		int p3 = positions.get(2);
+		if(p1+1==p2 && p2+1==p3) {
+			L.add(new SimpleInterval(contig,p1,p3));
+			}
+		else if(p1+1!=p2 && p2+1==p3) {
+			L.add(new SimpleInterval(contig,p1,p1));
+			L.add(new SimpleInterval(contig,p2,p3));
+			}
+		else if(p1+1==p2 && p2+1!=p3) {
+			L.add(new SimpleInterval(contig,p1,p2));
+			L.add(new SimpleInterval(contig,p3,p3));
+			}
+		else
+			{
+			L.add(new SimpleInterval(contig,p1,p1));
+			L.add(new SimpleInterval(contig,p2,p2));
+			L.add(new SimpleInterval(contig,p3,p3));
+			}
+		return L;
+		}
+	
+	
+	public List<Codon> getCodons() {
+		if(!isProteinCoding()) return Collections.emptyList();
+		if(this.txStart==this.cdsStart && this.txEnd==this.cdsEnd) return Collections.emptyList();
+		final List<CDS> cdss = getCDS();
+		if(cdss.isEmpty()) return Collections.emptyList();
+		
+		List<Locatable> list5 = position_to_codons(getContig(), cdss.stream().
+				flatMapToInt(CDS->IntStream.rangeClosed(CDS.getStart(), CDS.getEnd()).limit(3L)).
+				limit(3L).
+				boxed().
+				collect(Collectors.toList()));
+			
+		List<Locatable> list3 = position_to_codons(getContig(),last3(cdss.stream().
+					flatMapToInt(CDS->IntStream.rangeClosed(CDS.getStart(), CDS.getEnd()))
+					));
+		
+		if(isPositiveStrand()) {
+				
+			return Stream.concat(
+				list5.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),true)),
+				list3.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),false))
+				).collect(Collectors.toList());
+			
+			}
+		else
+			{
+			return Stream.concat(
+					list3.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),true)),
+					list5.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),false))
+					).collect(Collectors.toList());
+			}
 		}
 	
 	

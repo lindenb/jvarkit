@@ -21,7 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.plot;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -56,6 +56,7 @@ import com.github.lindenb.jvarkit.chart.StackedBarChart;
 import com.github.lindenb.jvarkit.chart.XYChart;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
+import com.github.lindenb.jvarkit.lang.primitive.DoubleArray;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -162,11 +163,32 @@ echo -e "A\tA\t1\nA\tB\t2\nB\tA\t3\nB\tB\t10" | java -jar dist/simpleplot.jar  -
 END_DOC
  */
 @Program(name="simpleplot",
-description="simple figure plotter output is a R script",
+description="simple figure",
 keywords={"char","figure"})
 
 public class SimplePlot extends Launcher {
 	private static final Logger LOG = Logger.build(SimplePlot.class).make();
+	
+	private static class NamedSeries {
+		private String name;
+		private DoubleArray values= new DoubleArray();
+		}
+	
+	private interface Handler {
+		
+	}
+	
+	
+	
+	private class BoxPlot1 implements Handler {
+		private int n;
+		private Map<String,DoubleArray> x;
+		private void read(final BufferedReader br) throws IOException {
+			
+		}
+		
+	}
+	
 	
 	
 	

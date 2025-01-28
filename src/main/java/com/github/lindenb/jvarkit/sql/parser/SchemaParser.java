@@ -193,8 +193,16 @@ public class SchemaParser implements SchemaParserConstants {
                                 c = name2column.get("chromStart");
                                 if(c!=null)  start_col = c.getIndex();
                                 }
+                        if(start_col<0) {
+                                c = name2column.get("cdsStart");
+                                if(c!=null)  start_col = c.getIndex();
+                                }
                         c = name2column.get("txEnd");
                         if(c!=null)  end_col = c.getIndex();
+                        if(end_col<0) {
+                                c = name2column.get("cdsEnd");
+                                if(c!=null)  end_col = c.getIndex();
+                                }
                         if(end_col<0) {
                                 c = name2column.get("chromEnd");
                                 if(c!=null)  end_col = c.getIndex();
@@ -250,7 +258,6 @@ public class SchemaParser implements SchemaParserConstants {
                 }
 
 
-
     public static Table parseTable(final String uri) throws IOException {
         try(InputStream in = IOUtils.openURIForReading(uri)) {
                 return parseTable(in);
@@ -282,328 +289,301 @@ public class SchemaParser implements SchemaParserConstants {
                                 }
                         }
 
-  final private void input() throws ParseException {
-    trace_call("input");
-    try {
-TableImpl t;
-      label_1:
-      while (true) {
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case DROP:
-        case CREATE:
-        case USE:
-        case SET:
-        case SEMICOLON:{
-          ;
-          break;
-          }
-        default:
-          jj_la1[0] = jj_gen;
-          break label_1;
+  final private void input() throws ParseException {TableImpl t;
+    label_1:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case DROP:
+      case CREATE:
+      case USE:
+      case SET:
+      case SEMICOLON:{
+        ;
+        break;
         }
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case DROP:{
-          drop();
-          break;
-          }
-        case SET:{
-          set();
-          break;
-          }
-        case CREATE:{
-          create();
-          break;
-          }
-        case USE:{
-          use();
-          break;
-          }
-        case SEMICOLON:{
-          jj_consume_token(SEMICOLON);
-          break;
-          }
-        default:
-          jj_la1[1] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
-        }
+      default:
+        jj_la1[0] = jj_gen;
+        break label_1;
       }
-      jj_consume_token(0);
-    } finally {
-      trace_return("input");
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case DROP:{
+        drop();
+        break;
+        }
+      case SET:{
+        set();
+        break;
+        }
+      case CREATE:{
+        create();
+        break;
+        }
+      case USE:{
+        use();
+        break;
+        }
+      case SEMICOLON:{
+        jj_consume_token(SEMICOLON);
+        break;
+        }
+      default:
+        jj_la1[1] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
     }
+    jj_consume_token(0);
 }
 
   final private void use() throws ParseException {
-    trace_call("use");
-    try {
-
-      jj_consume_token(USE);
-      identifier();
-      jj_consume_token(SEMICOLON);
-    } finally {
-      trace_return("use");
-    }
+    jj_consume_token(USE);
+    identifier();
+    jj_consume_token(SEMICOLON);
 }
 
   final private void create() throws ParseException {
-    trace_call("create");
-    try {
-
-      jj_consume_token(CREATE);
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case DATABASE:{
-        createDatabase();
-        break;
-        }
-      case TABLE:
-      case TEMPORARY:{
-        createTable();
-        break;
-        }
-      default:
-        jj_la1[2] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
+    jj_consume_token(CREATE);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case DATABASE:{
+      createDatabase();
+      break;
       }
-      jj_consume_token(SEMICOLON);
-    } finally {
-      trace_return("create");
+    case TABLE:
+    case TEMPORARY:{
+      createTable();
+      break;
+      }
+    default:
+      jj_la1[2] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
     }
+    jj_consume_token(SEMICOLON);
 }
 
   final private void drop() throws ParseException {
-    trace_call("drop");
-    try {
-
-      jj_consume_token(DROP);
-      jj_consume_token(TABLE);
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case IF:{
-        jj_consume_token(IF);
-        jj_consume_token(EXISTS);
-        break;
-        }
-      default:
-        jj_la1[3] = jj_gen;
-        ;
+    jj_consume_token(DROP);
+    jj_consume_token(TABLE);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case IF:{
+      jj_consume_token(IF);
+      jj_consume_token(EXISTS);
+      break;
       }
-      identifier();
-      jj_consume_token(SEMICOLON);
-    } finally {
-      trace_return("drop");
+    default:
+      jj_la1[3] = jj_gen;
+      ;
     }
+    identifier();
+    jj_consume_token(SEMICOLON);
 }
 
   final private void set() throws ParseException {
-    trace_call("set");
-    try {
-
-      jj_consume_token(SET);
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case IDENTIFIER1:
-      case IDENTIFIER2:{
-        identifier();
-        break;
-        }
-      case VARIABLE:{
-        jj_consume_token(VARIABLE);
-        break;
-        }
-      default:
-        jj_la1[4] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
+    jj_consume_token(SET);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case IDENTIFIER1:
+    case IDENTIFIER2:{
+      identifier();
+      break;
       }
-      jj_consume_token(EQ);
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case IDENTIFIER1:
-      case IDENTIFIER2:{
-        identifier();
-        break;
-        }
-      case VARIABLE:{
-        jj_consume_token(VARIABLE);
-        break;
-        }
-      default:
-        jj_la1[5] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
+    case VARIABLE:{
+      jj_consume_token(VARIABLE);
+      break;
       }
-      jj_consume_token(SEMICOLON);
-    } finally {
-      trace_return("set");
+    default:
+      jj_la1[4] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
     }
+    jj_consume_token(EQ);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case IDENTIFIER1:
+    case IDENTIFIER2:{
+      identifier();
+      break;
+      }
+    case VARIABLE:{
+      jj_consume_token(VARIABLE);
+      break;
+      }
+    default:
+      jj_la1[5] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
+    jj_consume_token(SEMICOLON);
 }
 
-  final private void createDatabase() throws ParseException {
-    trace_call("createDatabase");
-    try {
-String s;
-      jj_consume_token(DATABASE);
-      s = identifier();
+  final private void createDatabase() throws ParseException {String s;
+    jj_consume_token(DATABASE);
+    s = identifier();
 System.err.println("#############create database "+s);
-    } finally {
-      trace_return("createDatabase");
-    }
 }
 
-  final private void createTable() throws ParseException {
-    trace_call("createTable");
-    try {
-TableImpl table=new TableImpl(); String tableName; ColumnImpl col=null;
+  final private void createTable() throws ParseException {TableImpl table=new TableImpl(); String tableName; ColumnImpl col=null;
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case TEMPORARY:{
+      jj_consume_token(TEMPORARY);
+      break;
+      }
+    default:
+      jj_la1[6] = jj_gen;
+      ;
+    }
+    jj_consume_token(TABLE);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case IF:{
+      jj_consume_token(IF);
+      jj_consume_token(NOT);
+      jj_consume_token(EXISTS);
+      break;
+      }
+    default:
+      jj_la1[7] = jj_gen;
+      ;
+    }
+    tableName = identifier();
+    jj_consume_token(LPAR);
+    col = component();
+table.add(col);
+    label_2:
+    while (true) {
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case TEMPORARY:{
-        jj_consume_token(TEMPORARY);
+      case COMMA:{
+        ;
         break;
         }
       default:
-        jj_la1[6] = jj_gen;
-        ;
+        jj_la1[8] = jj_gen;
+        break label_2;
       }
-      jj_consume_token(TABLE);
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case IF:{
-        jj_consume_token(IF);
-        jj_consume_token(NOT);
-        jj_consume_token(EXISTS);
-        break;
-        }
-      default:
-        jj_la1[7] = jj_gen;
-        ;
-      }
-      tableName = identifier();
-      jj_consume_token(LPAR);
+      jj_consume_token(COMMA);
       col = component();
 table.add(col);
-      label_2:
-      while (true) {
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case COMMA:{
-          ;
-          break;
-          }
-        default:
-          jj_la1[8] = jj_gen;
-          break label_2;
+    }
+    jj_consume_token(RPAR);
+    label_3:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case DEFAULTVALUE:
+      case IDENTIFIER1:
+      case IDENTIFIER2:
+      case EQ:{
+        ;
+        break;
         }
-        jj_consume_token(COMMA);
-        col = component();
-table.add(col);
+      default:
+        jj_la1[9] = jj_gen;
+        break label_3;
       }
-      jj_consume_token(RPAR);
-      label_3:
-      while (true) {
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case DEFAULTVALUE:
-        case IDENTIFIER1:
-        case IDENTIFIER2:
-        case EQ:{
-          ;
-          break;
-          }
-        default:
-          jj_la1[9] = jj_gen;
-          break label_3;
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case IDENTIFIER1:
+      case IDENTIFIER2:{
+        identifier();
+        break;
         }
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case IDENTIFIER1:
-        case IDENTIFIER2:{
-          identifier();
-          break;
-          }
-        case EQ:{
-          jj_consume_token(EQ);
-          break;
-          }
-        case DEFAULTVALUE:{
-          jj_consume_token(DEFAULTVALUE);
-          break;
-          }
-        default:
-          jj_la1[10] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
+      case EQ:{
+        jj_consume_token(EQ);
+        break;
         }
+      case DEFAULTVALUE:{
+        jj_consume_token(DEFAULTVALUE);
+        break;
+        }
+      default:
+        jj_la1[10] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
       }
+    }
 table.tableName = tableName;
                 table.findLocatableColumns();
                 tables.add(table);
-    } finally {
-      trace_return("createTable");
-    }
 }
 
-  final private ColumnImpl component() throws ParseException {
-    trace_call("component");
-    try {
-ColumnImpl c=null;
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case KEY:
-      case UNIQUE:
-      case PRIMARY:{
-        key();
-        break;
-        }
-      case IDENTIFIER1:
-      case IDENTIFIER2:{
-        c = column();
-{if ("" != null) return c;}
-        break;
-        }
-      default:
-        jj_la1[11] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
+  final private ColumnImpl component() throws ParseException {ColumnImpl c=null;
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case KEY:
+    case UNIQUE:
+    case PRIMARY:{
+      key();
+      break;
       }
+    case IDENTIFIER1:
+    case IDENTIFIER2:{
+      c = column();
+{if ("" != null) return c;}
+      break;
+      }
+    default:
+      jj_la1[11] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
 {if ("" != null) return c;}
     throw new Error("Missing return statement in function");
-    } finally {
-      trace_return("component");
-    }
 }
 
   final private void key() throws ParseException {
-    trace_call("key");
-    try {
-
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case UNIQUE:
+    case PRIMARY:{
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case UNIQUE:
+      case UNIQUE:{
+        jj_consume_token(UNIQUE);
+        break;
+        }
       case PRIMARY:{
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case UNIQUE:{
-          jj_consume_token(UNIQUE);
-          break;
-          }
-        case PRIMARY:{
-          jj_consume_token(PRIMARY);
-          break;
-          }
-        default:
-          jj_la1[12] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
-        }
+        jj_consume_token(PRIMARY);
         break;
         }
       default:
-        jj_la1[13] = jj_gen;
-        ;
+        jj_la1[12] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
       }
-      jj_consume_token(KEY);
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case IDENTIFIER1:
-      case IDENTIFIER2:{
-        identifier();
-        break;
-        }
-      default:
-        jj_la1[14] = jj_gen;
-        ;
+      break;
       }
+    default:
+      jj_la1[13] = jj_gen;
+      ;
+    }
+    jj_consume_token(KEY);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case IDENTIFIER1:
+    case IDENTIFIER2:{
+      identifier();
+      break;
+      }
+    default:
+      jj_la1[14] = jj_gen;
+      ;
+    }
+    jj_consume_token(LPAR);
+    identifier();
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case LPAR:{
       jj_consume_token(LPAR);
+      integer();
+      jj_consume_token(RPAR);
+      break;
+      }
+    default:
+      jj_la1[15] = jj_gen;
+      ;
+    }
+    label_4:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case COMMA:{
+        ;
+        break;
+        }
+      default:
+        jj_la1[16] = jj_gen;
+        break label_4;
+      }
+      jj_consume_token(COMMA);
       identifier();
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
       case LPAR:{
@@ -613,345 +593,316 @@ ColumnImpl c=null;
         break;
         }
       default:
-        jj_la1[15] = jj_gen;
+        jj_la1[17] = jj_gen;
         ;
       }
-      label_4:
-      while (true) {
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case COMMA:{
-          ;
-          break;
-          }
-        default:
-          jj_la1[16] = jj_gen;
-          break label_4;
-        }
-        jj_consume_token(COMMA);
-        identifier();
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case LPAR:{
-          jj_consume_token(LPAR);
-          integer();
-          jj_consume_token(RPAR);
-          break;
-          }
-        default:
-          jj_la1[17] = jj_gen;
-          ;
-        }
-      }
-      jj_consume_token(RPAR);
-    } finally {
-      trace_return("key");
     }
+    jj_consume_token(RPAR);
 }
 
-  final private ColumnImpl column() throws ParseException {
-    trace_call("column");
-    try {
-ColumnImpl c=new ColumnImpl();String s; String javaType=null;boolean nil=true;
-      s = identifier();
-      javaType = colType();
+  final private ColumnImpl column() throws ParseException {ColumnImpl c=new ColumnImpl();String s; String javaType=null;boolean nil=true;
+    s = identifier();
+    javaType = colType();
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case NOT:
+    case NULL:{
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case NOT:
-      case NULL:{
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case NOT:{
-          jj_consume_token(NOT);
+      case NOT:{
+        jj_consume_token(NOT);
 nil=false;
-          break;
-          }
-        default:
-          jj_la1[18] = jj_gen;
-          ;
+        break;
         }
+      default:
+        jj_la1[18] = jj_gen;
+        ;
+      }
+      jj_consume_token(NULL);
+      break;
+      }
+    default:
+      jj_la1[19] = jj_gen;
+      ;
+    }
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case DEFAULTVALUE:{
+      jj_consume_token(DEFAULTVALUE);
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case NULL:{
         jj_consume_token(NULL);
         break;
         }
-      default:
-        jj_la1[19] = jj_gen;
-        ;
-      }
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case DEFAULTVALUE:{
-        jj_consume_token(DEFAULTVALUE);
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case NULL:{
-          jj_consume_token(NULL);
-          break;
-          }
-        case SIMPLE_QUOTE_LITERAL:
-        case DOUBLE_QUOTE_LITERAL:{
-          quoted();
-          break;
-          }
-        case INT:{
-          integer();
-          break;
-          }
-        default:
-          jj_la1[20] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
+      case SIMPLE_QUOTE_LITERAL:
+      case DOUBLE_QUOTE_LITERAL:{
+        quoted();
+        break;
         }
+      case INT:{
+        integer();
         break;
         }
       default:
-        jj_la1[21] = jj_gen;
-        ;
+        jj_la1[20] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
       }
+      break;
+      }
+    default:
+      jj_la1[21] = jj_gen;
+      ;
+    }
 c.colName=s;
           c.sqlType=javaType;
           {if ("" != null) return c;}
     throw new Error("Missing return statement in function");
-    } finally {
-      trace_return("column");
-    }
 }
 
-  final private String colType() throws ParseException {
-    trace_call("colType");
-    try {
-String s; Token t;Set<String> set;
+  final private String colType() throws ParseException {String s; Token t;Set<String> set;
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case VARCHAR:
+    case CHAR:{
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case VARCHAR:
+      case VARCHAR:{
+        t = jj_consume_token(VARCHAR);
+        break;
+        }
       case CHAR:{
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case VARCHAR:{
-          t = jj_consume_token(VARCHAR);
-          break;
-          }
-        case CHAR:{
-          t = jj_consume_token(CHAR);
-          break;
-          }
-        default:
-          jj_la1[22] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
-        }
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case LPAR:{
-          dimension();
-          break;
-          }
-        default:
-          jj_la1[23] = jj_gen;
-          ;
-        }
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case CHARACTER:{
-          charset();
-          break;
-          }
-        default:
-          jj_la1[24] = jj_gen;
-          ;
-        }
-{if ("" != null) return t.image;}
-        break;
-        }
-      case LONGBLOB:
-      case BLOB:
-      case MEDIUMBLOG:
-      case TEXT:{
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case LONGBLOB:{
-          t = jj_consume_token(LONGBLOB);
-          break;
-          }
-        case MEDIUMBLOG:{
-          t = jj_consume_token(MEDIUMBLOG);
-          break;
-          }
-        case BLOB:{
-          t = jj_consume_token(BLOB);
-          break;
-          }
-        case TEXT:{
-          t = jj_consume_token(TEXT);
-          break;
-          }
-        default:
-          jj_la1[25] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
-        }
-{if ("" != null) return t.image;}
-        break;
-        }
-      case INTEGER:{
-        t = jj_consume_token(INTEGER);
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case LPAR:{
-          dimension();
-          break;
-          }
-        default:
-          jj_la1[26] = jj_gen;
-          ;
-        }
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case UNSIGNED:
-        case SIGNED:{
-          switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-          case SIGNED:{
-            jj_consume_token(SIGNED);
-            break;
-            }
-          case UNSIGNED:{
-            jj_consume_token(UNSIGNED);
-            break;
-            }
-          default:
-            jj_la1[27] = jj_gen;
-            jj_consume_token(-1);
-            throw new ParseException();
-          }
-          break;
-          }
-        default:
-          jj_la1[28] = jj_gen;
-          ;
-        }
-{if ("" != null) return t.image;}
-        break;
-        }
-      case SMALLINT:
-      case TINYINT:{
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case SMALLINT:{
-          t = jj_consume_token(SMALLINT);
-          break;
-          }
-        case TINYINT:{
-          t = jj_consume_token(TINYINT);
-          break;
-          }
-        default:
-          jj_la1[29] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
-        }
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case LPAR:{
-          dimension();
-          break;
-          }
-        default:
-          jj_la1[30] = jj_gen;
-          ;
-        }
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case UNSIGNED:
-        case SIGNED:{
-          switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-          case SIGNED:{
-            jj_consume_token(SIGNED);
-            break;
-            }
-          case UNSIGNED:{
-            jj_consume_token(UNSIGNED);
-            break;
-            }
-          default:
-            jj_la1[31] = jj_gen;
-            jj_consume_token(-1);
-            throw new ParseException();
-          }
-          break;
-          }
-        default:
-          jj_la1[32] = jj_gen;
-          ;
-        }
-{if ("" != null) return t.image;}
-        break;
-        }
-      case DATETIME:{
-        t = jj_consume_token(DATETIME);
-{if ("" != null) return t.image;}
-        break;
-        }
-      case ENUM:{
-        jj_consume_token(ENUM);
-        set = stringset();
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case CHARACTER:{
-          charset();
-          break;
-          }
-        default:
-          jj_la1[33] = jj_gen;
-          ;
-        }
-{if ("" != null) return "ENUM("+String.join(",",set)+")";}
-        break;
-        }
-      case SET:{
-        jj_consume_token(SET);
-        set = stringset();
-{if ("" != null) return "ENUM("+String.join(",",set)+")";}
-        break;
-        }
-      case FLOAT:{
-        t = jj_consume_token(FLOAT);
-{if ("" != null) return t.image;}
-        break;
-        }
-      case DOUBLE:{
-        t = jj_consume_token(DOUBLE);
-{if ("" != null) return t.image;}
+        t = jj_consume_token(CHAR);
         break;
         }
       default:
-        jj_la1[34] = jj_gen;
+        jj_la1[22] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
-    throw new Error("Missing return statement in function");
-    } finally {
-      trace_return("colType");
-    }
-}
-
-  final private Set<String> stringset() throws ParseException {
-    trace_call("stringset");
-    try {
-Set<String> set=new HashSet<String>();String s;
-      jj_consume_token(LPAR);
-      s = quoted();
-set.add(s);
-      label_5:
-      while (true) {
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case LPAR:{
+        dimension();
+        break;
+        }
+      default:
+        jj_la1[23] = jj_gen;
+        ;
+      }
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case CHARACTER:{
+        charset();
+        break;
+        }
+      default:
+        jj_la1[24] = jj_gen;
+        ;
+      }
+{if ("" != null) return t.image;}
+      break;
+      }
+    case LONGBLOB:
+    case BLOB:
+    case MEDIUMBLOG:
+    case TEXT:{
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case LONGBLOB:{
+        t = jj_consume_token(LONGBLOB);
+        break;
+        }
+      case MEDIUMBLOG:{
+        t = jj_consume_token(MEDIUMBLOG);
+        break;
+        }
+      case BLOB:{
+        t = jj_consume_token(BLOB);
+        break;
+        }
+      case TEXT:{
+        t = jj_consume_token(TEXT);
+        break;
+        }
+      default:
+        jj_la1[25] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
+{if ("" != null) return t.image;}
+      break;
+      }
+    case INTEGER:{
+      t = jj_consume_token(INTEGER);
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case LPAR:{
+        dimension();
+        break;
+        }
+      default:
+        jj_la1[26] = jj_gen;
+        ;
+      }
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case UNSIGNED:
+      case SIGNED:{
         switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case COMMA:{
-          ;
+        case SIGNED:{
+          jj_consume_token(SIGNED);
+          break;
+          }
+        case UNSIGNED:{
+          jj_consume_token(UNSIGNED);
           break;
           }
         default:
-          jj_la1[35] = jj_gen;
-          break label_5;
+          jj_la1[27] = jj_gen;
+          jj_consume_token(-1);
+          throw new ParseException();
         }
-        jj_consume_token(COMMA);
-        s = quoted();
-set.add(s);
+        break;
+        }
+      default:
+        jj_la1[28] = jj_gen;
+        ;
       }
-      jj_consume_token(RPAR);
+{if ("" != null) return t.image;}
+      break;
+      }
+    case SMALLINT:
+    case TINYINT:{
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case SMALLINT:{
+        t = jj_consume_token(SMALLINT);
+        break;
+        }
+      case TINYINT:{
+        t = jj_consume_token(TINYINT);
+        break;
+        }
+      default:
+        jj_la1[29] = jj_gen;
+        jj_consume_token(-1);
+        throw new ParseException();
+      }
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case LPAR:{
+        dimension();
+        break;
+        }
+      default:
+        jj_la1[30] = jj_gen;
+        ;
+      }
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case UNSIGNED:
+      case SIGNED:{
+        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+        case SIGNED:{
+          jj_consume_token(SIGNED);
+          break;
+          }
+        case UNSIGNED:{
+          jj_consume_token(UNSIGNED);
+          break;
+          }
+        default:
+          jj_la1[31] = jj_gen;
+          jj_consume_token(-1);
+          throw new ParseException();
+        }
+        break;
+        }
+      default:
+        jj_la1[32] = jj_gen;
+        ;
+      }
+{if ("" != null) return t.image;}
+      break;
+      }
+    case DATETIME:{
+      t = jj_consume_token(DATETIME);
+{if ("" != null) return t.image;}
+      break;
+      }
+    case ENUM:{
+      jj_consume_token(ENUM);
+      set = stringset();
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case CHARACTER:{
+        charset();
+        break;
+        }
+      default:
+        jj_la1[33] = jj_gen;
+        ;
+      }
+{if ("" != null) return "ENUM("+String.join(",",set)+")";}
+      break;
+      }
+    case SET:{
+      jj_consume_token(SET);
+      set = stringset();
+{if ("" != null) return "ENUM("+String.join(",",set)+")";}
+      break;
+      }
+    case FLOAT:{
+      t = jj_consume_token(FLOAT);
+{if ("" != null) return t.image;}
+      break;
+      }
+    case DOUBLE:{
+      t = jj_consume_token(DOUBLE);
+{if ("" != null) return t.image;}
+      break;
+      }
+    default:
+      jj_la1[34] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
+    throw new Error("Missing return statement in function");
+}
+
+  final private Set<String> stringset() throws ParseException {Set<String> set=new HashSet<String>();String s;
+    jj_consume_token(LPAR);
+    s = quoted();
+set.add(s);
+    label_5:
+    while (true) {
+      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+      case COMMA:{
+        ;
+        break;
+        }
+      default:
+        jj_la1[35] = jj_gen;
+        break label_5;
+      }
+      jj_consume_token(COMMA);
+      s = quoted();
+set.add(s);
+    }
+    jj_consume_token(RPAR);
 {if ("" != null) return set;}
     throw new Error("Missing return statement in function");
-    } finally {
-      trace_return("stringset");
-    }
 }
 
   final private void charset() throws ParseException {
-    trace_call("charset");
-    try {
-
-      jj_consume_token(CHARACTER);
-      jj_consume_token(SET);
+    jj_consume_token(CHARACTER);
+    jj_consume_token(SET);
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case IDENTIFIER1:
+    case IDENTIFIER2:{
+      identifier();
+      break;
+      }
+    case SIMPLE_QUOTE_LITERAL:
+    case DOUBLE_QUOTE_LITERAL:{
+      quoted();
+      break;
+      }
+    default:
+      jj_la1[36] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case COLLATE:{
+      jj_consume_token(COLLATE);
       switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
       case IDENTIFIER1:
       case IDENTIFIER2:{
@@ -964,115 +915,69 @@ set.add(s);
         break;
         }
       default:
-        jj_la1[36] = jj_gen;
+        jj_la1[37] = jj_gen;
         jj_consume_token(-1);
         throw new ParseException();
       }
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case COLLATE:{
-        jj_consume_token(COLLATE);
-        switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-        case IDENTIFIER1:
-        case IDENTIFIER2:{
-          identifier();
-          break;
-          }
-        case SIMPLE_QUOTE_LITERAL:
-        case DOUBLE_QUOTE_LITERAL:{
-          quoted();
-          break;
-          }
-        default:
-          jj_la1[37] = jj_gen;
-          jj_consume_token(-1);
-          throw new ParseException();
-        }
-        break;
-        }
-      default:
-        jj_la1[38] = jj_gen;
-        ;
+      break;
       }
-    } finally {
-      trace_return("charset");
+    default:
+      jj_la1[38] = jj_gen;
+      ;
     }
 }
 
   final private void dimension() throws ParseException {
-    trace_call("dimension");
-    try {
-
-      jj_consume_token(LPAR);
-      integer();
-      jj_consume_token(RPAR);
-    } finally {
-      trace_return("dimension");
-    }
+    jj_consume_token(LPAR);
+    integer();
+    jj_consume_token(RPAR);
 }
 
-  final private String identifier() throws ParseException {
-    trace_call("identifier");
-    try {
-Token t;String s;
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case IDENTIFIER1:{
-        t = jj_consume_token(IDENTIFIER1);
+  final private String identifier() throws ParseException {Token t;String s;
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case IDENTIFIER1:{
+      t = jj_consume_token(IDENTIFIER1);
 s=t.image;
-        break;
-        }
-      case IDENTIFIER2:{
-        t = jj_consume_token(IDENTIFIER2);
-s=t.image.substring(1,t.image.length()-1);
-        break;
-        }
-      default:
-        jj_la1[39] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
+      break;
       }
+    case IDENTIFIER2:{
+      t = jj_consume_token(IDENTIFIER2);
+s=t.image.substring(1,t.image.length()-1);
+      break;
+      }
+    default:
+      jj_la1[39] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
+    }
 {if ("" != null) return s;}
     throw new Error("Missing return statement in function");
-    } finally {
-      trace_return("identifier");
-    }
 }
 
-  final private int integer() throws ParseException {
-    trace_call("integer");
-    try {
-Token t;
-      t = jj_consume_token(INT);
+  final private int integer() throws ParseException {Token t;
+    t = jj_consume_token(INT);
 {if ("" != null) return Integer.parseInt(t.image);}
     throw new Error("Missing return statement in function");
-    } finally {
-      trace_return("integer");
-    }
 }
 
-  final private String quoted() throws ParseException {
-    trace_call("quoted");
-    try {
-Token t;
-      switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
-      case SIMPLE_QUOTE_LITERAL:{
-        t = jj_consume_token(SIMPLE_QUOTE_LITERAL);
+  final private String quoted() throws ParseException {Token t;
+    switch ((jj_ntk==-1)?jj_ntk_f():jj_ntk) {
+    case SIMPLE_QUOTE_LITERAL:{
+      t = jj_consume_token(SIMPLE_QUOTE_LITERAL);
 {if ("" != null) return t.image;}
-        break;
-        }
-      case DOUBLE_QUOTE_LITERAL:{
-        t = jj_consume_token(DOUBLE_QUOTE_LITERAL);
-{if ("" != null) return t.image;}
-        break;
-        }
-      default:
-        jj_la1[40] = jj_gen;
-        jj_consume_token(-1);
-        throw new ParseException();
+      break;
       }
-    throw new Error("Missing return statement in function");
-    } finally {
-      trace_return("quoted");
+    case DOUBLE_QUOTE_LITERAL:{
+      t = jj_consume_token(DOUBLE_QUOTE_LITERAL);
+{if ("" != null) return t.image;}
+      break;
+      }
+    default:
+      jj_la1[40] = jj_gen;
+      jj_consume_token(-1);
+      throw new ParseException();
     }
+    throw new Error("Missing return statement in function");
 }
 
   /** Generated Token Manager. */
@@ -1098,9 +1003,6 @@ Token t;
 	   jj_la1_1 = new int[] {0x1000,0x1000,0x0,0x0,0x700,0x700,0x0,0x0,0x8000,0xb00,0xb00,0x306,0x6,0x6,0x300,0x2000,0x8000,0x2000,0x0,0x0,0x60080,0x0,0x0,0x2000,0x8,0x0,0x2000,0x1,0x1,0x0,0x2000,0x1,0x1,0x8,0x0,0x8000,0x60300,0x60300,0x10,0x300,0x60000,};
 	}
 
-  {
-      enable_tracing();
-  }
   /** Constructor with InputStream. */
   public SchemaParser(java.io.InputStream stream) {
 	  this(stream, null);
@@ -1182,7 +1084,6 @@ Token t;
 	 jj_ntk = -1;
 	 if (token.kind == kind) {
 	   jj_gen++;
-	   trace_token(token, "");
 	   return token;
 	 }
 	 token = oldToken;
@@ -1197,7 +1098,6 @@ Token t;
 	 else token = token.next = token_source.getNextToken();
 	 jj_ntk = -1;
 	 jj_gen++;
-	   trace_token(token, " (in getNextToken)");
 	 return token;
   }
 
@@ -1263,53 +1163,12 @@ Token t;
 	 return trace_enabled;
   }
 
-  private int trace_indent = 0;
-/** Enable tracing. */
+  /** Enable tracing. */
   final public void enable_tracing() {
-	 trace_enabled = true;
   }
 
-/** Disable tracing. */
+  /** Disable tracing. */
   final public void disable_tracing() {
-	 trace_enabled = false;
-  }
-
-  protected void trace_call(String s) {
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.println("Call:	" + s);
-	 }
-	 trace_indent = trace_indent + 2;
-  }
-
-  protected void trace_return(String s) {
-	 trace_indent = trace_indent - 2;
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.println("Return: " + s);
-	 }
-  }
-
-  protected void trace_token(Token t, String where) {
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.print("Consumed token: <" + tokenImage[t.kind]);
-	   if (t.kind != 0 && !tokenImage[t.kind].equals("\"" + t.image + "\"")) {
-		 System.out.print(": \"" + TokenMgrError.addEscapes(t.image) + "\"");
-	   }
-	   System.out.println(" at line " + t.beginLine + " column " + t.beginColumn + ">" + where);
-	 }
-  }
-
-  protected void trace_scan(Token t1, int t2) {
-	 if (trace_enabled) {
-	   for (int i = 0; i < trace_indent; i++) { System.out.print(" "); }
-	   System.out.print("Visited token: <" + tokenImage[t1.kind]);
-	   if (t1.kind != 0 && !tokenImage[t1.kind].equals("\"" + t1.image + "\"")) {
-		 System.out.print(": \"" + TokenMgrError.addEscapes(t1.image) + "\"");
-	   }
-	   System.out.println(" at line " + t1.beginLine + " column " + t1.beginColumn + ">; Expected token: <" + tokenImage[t2] + ">");
-	 }
   }
 
         }

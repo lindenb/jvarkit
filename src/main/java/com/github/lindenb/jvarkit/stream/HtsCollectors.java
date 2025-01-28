@@ -149,5 +149,4 @@ public static <I extends Locatable> Collector<I,IntervalTreeMap<List<I>>,Interva
 		);
 	}
 
-
 }

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : ab4d2fbb9
-Compilation : 20250115134601
+Version     : b9c69e15a
+Compilation : 20250128171804
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -124,7 +124,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
-| [addlinearindextobed](AddLinearIndexToBed.md) | Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart. | 20140201 | 20230126 |
+| [addlinearindextobed](AddLinearIndexToBed.md) | Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart. | 20140201 | 20250115 |
 | [bam2sql](BamToSql.md) | Convert a SAM/BAM to sqlite statements | 20160414 | 20160414 |
 | [bam2xml](Bam2Xml.md) | converts a BAM to XML | 20130506 | 20210315 |
 
@@ -213,7 +213,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
 | [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20230815 |
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
-| [kg2gff](KgToGff.md) | Convert UCSC genpred file to gff3 | 20210106 | 20230817 |
+| [kg2gff](KgToGff.md) | Convert UCSC genpred/knowngene file to gff3 or gtf | 20210106 | 20250128 |
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
 | [liftover2svg](LiftOverToSVG.md) | Convert LiftOver chain files to animated SVG |  |  |
 | [manhattan](Manhattan.md) | Manhattan plot SVG picture from different sources. | 20220525 | 20240525 |

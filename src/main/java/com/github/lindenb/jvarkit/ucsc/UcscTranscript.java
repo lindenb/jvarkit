@@ -451,57 +451,8 @@ public default boolean hasUTR3() {
 
 /** ===================================================================*/
 public abstract class Codon extends Component {
-	private final UcscTranscript owner;
-	private final int indexes[]=new int[3];
-	protected Codon(final UcscTranscript owner,int pos1) {
-		this.owner = owner;
-		if(!owner.isProteinCoding()) throw new IllegalArgumentException("Not a protein coding transcript");
-		if(isPositiveStrand()) {
-			for(int i=0;i< owner.getExonCount();i++) {
-				Exon ex = owner.getExon(i);
-				if(!ex.containsGenomicLoc1(pos1)) continue;
-				indexes[0] = pos1;
-				
-				}
-			}
-		else
-			{
-			
-			}
-		}
-	@Override
-	public UcscTranscript getTranscript() {
-		return owner;
-		}
-	@Override
-	public int getStart() {
-		return 0;
-		}
-	@Override
-	public int getEnd() {
-		return 0;
-		}
-	}
-/** ===================================================================*/
-public class StartCodon extends Codon {
-	private StartCodon(final UcscTranscript owner) {
-		super(owner,owner.getCdsStart());
-		}
-	@Override
-	public String getName() {
-		return getTranscript().getTranscriptId()+".start_codon";
-		}
-	}
-/** ===================================================================*/
-public class StopCodon extends Codon {
-	private StopCodon(final UcscTranscript owner) {
-		super(owner,owner.getCdsEnd());
-		}
-	
-	@Override
-	public String getName() {
-		return getTranscript().getTranscriptId()+".stop_codon";
-		}
+	public abstract boolean isStartCodon();
+	public final boolean isStopCodon() { return !isStartCodon();}
 	}
 
 public interface RNA extends CharSequence , Locatable, BedInterval {

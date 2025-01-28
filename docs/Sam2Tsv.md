@@ -187,5 +187,6 @@ Sam2tsv was cited in :
   * Braton & al (2023) HIVepsilon-seq-scalable characterization of intact persistent proviral HIV reservoirs in women. Virology. https://doi.org/10.1128/jvi.00705-23
   * Yin, K., Xu, Y., Guo, Y. et al. Dyna-vivo-seq unveils cellular RNA dynamics during acute kidney injury via in vivo metabolic RNA labeling-based scRNA-seq. Nat Commun 15, 9866 (2024). https://doi.org/10.1038/s41467-024-54202-4
   * Heng, J. J. W. (2024). Development of sequencing methods to illuminate the epitranscriptome. Doctoral thesis, Nanyang Technological University, Singapore. https://hdl.handle.net/10356/182139
+  * Liu, C., Liang, H., Wan, A.H. et al. Decoding the m6A epitranscriptomic landscape for biotechnological applications using a direct RNA sequencing approach. Nat Commun 16, 798 (2025). https://doi.org/10.1038/s41467-025-56173-6
 
 

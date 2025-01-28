@@ -204,12 +204,15 @@ public class BamLiftOver extends OnePassBamLauncher
 		
 		if(source.getReadPairedFlag())
 			{
-			if(!source.getMateUnmappedFlag()) {
+			if(source.getMateReferenceIndex()!=SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX) /* source.getMateUnmappedFlag() */{
 				if(sb!=null)sb.append("/");
 				final String chrom = source.getMateReferenceName();
+				if(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME.equals(chrom)) throw new SAMException("illegal state "+source.getReadName());
 				final int pos = source.getMateAlignmentStart();
 				Interval interval=liftOver.liftOver(new Interval(chrom, pos,pos,source.getMateNegativeStrandFlag(),null));
-				if(interval!=null && this.newDict.getSequence(interval.getContig())==null) interval=null;
+				if(interval!=null && this.newDict.getSequence(interval.getContig())==null) {
+					interval=null;
+					}
 				if(interval!=null)
 					{
 					if(sb!=null) sb.append(chrom+":"+pos+":"+(source.getMateNegativeStrandFlag()?"-":"+"));

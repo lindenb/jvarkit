@@ -20,12 +20,19 @@ Usage: addlinearindextobed [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore
+      skip unknown chromosomes.
+      Default: false
     -o, --out
       Output file. Optional . Default: stdout
   * -R, --reference, --dict
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
       any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
+    --regex
+      keep chromosomes matching that regular expression. (use --ignore too 
+      prevent error the other chromosomes)
+      Default: (chr)?[0-9XY]+
     --version
       print version and exit
 

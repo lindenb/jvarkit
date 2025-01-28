@@ -24,8 +24,8 @@ SOFTWARE.
 */
 options {
 	STATIC=false;
-	DEBUG_TOKEN_MANAGER=true;
-	DEBUG_PARSER=true;
+	DEBUG_TOKEN_MANAGER=false;
+	DEBUG_PARSER=false;
 	IGNORE_CASE=true;
 	}
 PARSER_BEGIN(SchemaParser)

@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Convert UCSC genpred file to gff3
+Convert UCSC genpred/knowngene file to gff3 or gtf
 
 
 ## Usage
@@ -19,14 +19,20 @@ Usage: kg2gff [options] Files
     --coding
       select coding transcript only.
       Default: false
+    --gtf
+      use the GTF writer instead of GFF3
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    --score
+      default score (-1: undefined)
+      Default: -1
     --source
-      gff source field
+      label for column 'source' in the output
       Default: ucsc
     --version
       print version and exit
@@ -49,7 +55,7 @@ Usage: kg2gff [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/KgToGff.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/KgToGff.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/kg2gff/KgToGff.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/kg2gff/KgToGff.java)
 
 
 ## Contribute
@@ -76,7 +82,6 @@ The current reference is:
 # Warning
 
 ouput is escaped for UTF8, some characters like ':' might be converted to a hexadecimal encoding.
-Frame is missing/wrong for CDS. I need to fix this.
 
 # Example
 
