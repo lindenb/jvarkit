@@ -166,5 +166,6 @@ TGCTTGA
  * Perlman syndrome nuclease DIS3L2 controls cytoplasmic non-coding RNAs and provides surveillance pathway for maturing snRNAs : http://nar.oxfordjournals.org/content/44/21/10437.full
  * Uncovering the biosynthetic potential of rare metagenomic DNA using co-occurrence network analysis of targeted sequences Nature Communicationsvolume 10, Article number: 3848 (2019)  https://doi.org/10.1038/s41467-019-11658-z
  * High-throughput Detection of T-DNA Insertion Sites for Multiple Transgenes in Complex Genomes. Edwards & al. Research Square. https://doi.org/10.21203/rs.3.rs-1325310/v1
+ * Dunker-Seidler F, Breunig K, Haubner M, Sonntag F, Horer M, Feiner RC,Recombinant adeno-associated virus batch profiling by nanopore sequencing elucidates product-relatedDNA impurities and vector genome length distribution at single molecule resolution, Molecular Therapy:Methods & Clinical Development (2025), doi: https://doi.org/10.1016/j.omtm.2025.101417
 
 

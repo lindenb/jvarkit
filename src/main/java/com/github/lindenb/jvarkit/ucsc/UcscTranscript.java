@@ -35,6 +35,7 @@ import org.apache.commons.jexl2.JexlContext;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript.Codon;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
@@ -450,10 +451,16 @@ public default boolean hasUTR3() {
 
 
 /** ===================================================================*/
-public abstract class Codon extends Component {
+public abstract class Codon extends ExonComponent {
+	protected Codon(final Exon exon) {
+		super(exon);
+		}
 	public abstract boolean isStartCodon();
 	public final boolean isStopCodon() { return !isStartCodon();}
 	}
+
+
+public List<Codon> getCodons();
 
 public interface RNA extends CharSequence , Locatable, BedInterval {
 	/** convert 0-based rna to 0-based genomic */

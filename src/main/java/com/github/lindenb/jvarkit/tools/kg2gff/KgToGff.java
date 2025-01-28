@@ -358,7 +358,22 @@ public class KgToGff extends Launcher {
 								convertMap(atts)
 								));
 						}
-				
+					for(UcscTranscript.Codon codon : kg.getCodons())  {
+						atts.put("ID",kg.getTranscriptId()+delim+"Cod"+codon.getStart());
+						out.addFeature(new Gff3FeatureImpl(
+								kg.getContig(),
+								this.source,
+								/** bcftools csq wants the 3|5_prime notation */
+								(codon.isStartCodon()?"start_codon":"stop_codon"),
+								codon.getStart(),
+								codon.getEnd(),
+								score,
+								strand,
+								UNDEFINED_PHASE,
+								convertMap(atts)
+								));
+						}
+					
 				}
 			}
 		} catch(final Throwable err) {

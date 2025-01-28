@@ -39,7 +39,6 @@ import java.util.stream.Stream;
 import com.github.lindenb.jvarkit.bed.BedCoordMath;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
@@ -614,7 +613,8 @@ class UcscTranscriptImpl implements UcscTranscript {
 		private int start1;
 		private int end1;
 		private boolean is_start_codon;
-		CodonImpl(int start1,int end1,boolean is_start_codon) {
+		CodonImpl(final Exon exon,int start1,int end1,boolean is_start_codon) {
+			super(exon);
 			this.start1 = start1;
 			this.end1 = end1;
 			this.is_start_codon=is_start_codon;
@@ -632,11 +632,6 @@ class UcscTranscriptImpl implements UcscTranscript {
 		@Override
 		public boolean isStartCodon() {
 			return is_start_codon;
-		}
-
-		@Override
-		public UcscTranscript getTranscript() {
-			return UcscTranscriptImpl.this;
 		}
 
 		@Override
@@ -684,38 +679,36 @@ class UcscTranscriptImpl implements UcscTranscript {
 		return L;
 		}
 	
-	
+	@Override
 	public List<Codon> getCodons() {
 		if(!isProteinCoding()) return Collections.emptyList();
 		if(this.txStart==this.cdsStart && this.txEnd==this.cdsEnd) return Collections.emptyList();
 		final List<CDS> cdss = getCDS();
 		if(cdss.isEmpty()) return Collections.emptyList();
 		
-		List<Locatable> list5 = position_to_codons(getContig(), cdss.stream().
+		final List<Codon> return_codon = new ArrayList<>();
+		
+		final List<Locatable> list5 = position_to_codons(getContig(), cdss.stream().
 				flatMapToInt(CDS->IntStream.rangeClosed(CDS.getStart(), CDS.getEnd()).limit(3L)).
 				limit(3L).
 				boxed().
-				collect(Collectors.toList()));
+				collect(Collectors.toList())
+				);
 			
-		List<Locatable> list3 = position_to_codons(getContig(),last3(cdss.stream().
+		final List<Locatable> list3 = position_to_codons(getContig(),last3(cdss.stream().
 					flatMapToInt(CDS->IntStream.rangeClosed(CDS.getStart(), CDS.getEnd()))
 					));
 		
-		if(isPositiveStrand()) {
-				
-			return Stream.concat(
-				list5.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),true)),
-				list3.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),false))
-				).collect(Collectors.toList());
-			
+		for(int side=0;side<2;++side) {
+			for(Locatable codonloc: (side==0?list5:list3)) {
+				final Exon exon = getExons().stream().filter(EX->EX.overlaps(codonloc)).findFirst().get();
+				final boolean is_start_codon = ((side==0&&this.isPositiveStrand()) || (side==1 && this.isNegativeStrand()));
+				final CodonImpl codon = new CodonImpl(exon, codonloc.getStart(), codonloc.getEnd(), is_start_codon);
+				return_codon.add(codon);
 			}
-		else
-			{
-			return Stream.concat(
-					list3.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),true)),
-					list5.stream().map(C->new CodonImpl(C.getStart(),C.getEnd(),false))
-					).collect(Collectors.toList());
-			}
+		}
+		
+		return return_codon;
 		}
 	
 	

@@ -86,52 +86,36 @@ ouput is escaped for UTF8, some characters like ':' might be converted to a hexa
 # Example
 
 ```
-$ head -n1  ~/jeter.kg | java -jar dist/kg2gff.jar   | sed 's/%3A/:/g'  
-
+headjeter.kg -n1 | java -jar dist/jvarkit.jar kg2gff 
 ##gff-version 3.1.25
-chr22	ucsc	gene	18317101	18507325	.	-	.	ID=gene:uc002znh.2.g1;Name=uc002znh.2.1;biotype=protein_coding;gene_id=uc002znh.2.g1
-chr22	ucsc	mRNA	18317101	18507325	.	-	.	ID=transcript:uc002znh.2.g1;Parent=gene:uc002znh.2.g1;Name=uc002znh.2.1;biotype=protein_coding;transcript_id=uc002znh.2.t1
-chr22	ucsc	exon	18317101	18317315	.	-	.	ID=uc002znh.2:E0;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E0
-chr22	ucsc	CDS	18317216	18317315	.	-	1	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS0;protein_id=uc002znh.2
-chr22	ucsc	exon	18324588	18324783	.	-	.	ID=uc002znh.2:E1;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E1
-chr22	ucsc	CDS	18324588	18324783	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS1;protein_id=uc002znh.2
-chr22	ucsc	exon	18347665	18347752	.	-	.	ID=uc002znh.2:E2;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E2
-chr22	ucsc	CDS	18347665	18347752	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS2;protein_id=uc002znh.2
-chr22	ucsc	exon	18348690	18348778	.	-	.	ID=uc002znh.2:E3;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E3
-chr22	ucsc	CDS	18348690	18348778	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS3;protein_id=uc002znh.2
-chr22	ucsc	exon	18354603	18354789	.	-	.	ID=uc002znh.2:E4;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E4
-chr22	ucsc	CDS	18354603	18354789	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS4;protein_id=uc002znh.2
-chr22	ucsc	exon	18368644	18368817	.	-	.	ID=uc002znh.2:E5;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E5
-chr22	ucsc	CDS	18368644	18368817	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS5;protein_id=uc002znh.2
-chr22	ucsc	exon	18369936	18369998	.	-	.	ID=uc002znh.2:E6;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E6
-chr22	ucsc	CDS	18369936	18369998	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS6;protein_id=uc002znh.2
-chr22	ucsc	exon	18370089	18370201	.	-	.	ID=uc002znh.2:E7;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E7
-chr22	ucsc	CDS	18370089	18370201	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS7;protein_id=uc002znh.2
-chr22	ucsc	exon	18371800	18371996	.	-	.	ID=uc002znh.2:E8;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E8
-chr22	ucsc	CDS	18371800	18371996	.	-	1	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS8;protein_id=uc002znh.2
-chr22	ucsc	exon	18374251	18374398	.	-	.	ID=uc002znh.2:E9;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E9
-chr22	ucsc	CDS	18374251	18374398	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS9;protein_id=uc002znh.2
-chr22	ucsc	exon	18376574	18376670	.	-	.	ID=uc002znh.2:E10;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E10
-chr22	ucsc	CDS	18376574	18376670	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS10;protein_id=uc002znh.2
-chr22	ucsc	exon	18378050	18378176	.	-	.	ID=uc002znh.2:E11;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E11
-chr22	ucsc	CDS	18378050	18378176	.	-	1	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS11;protein_id=uc002znh.2
-chr22	ucsc	exon	18379012	18379127	.	-	.	ID=uc002znh.2:E12;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E12
-chr22	ucsc	CDS	18379012	18379127	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS12;protein_id=uc002znh.2
-chr22	ucsc	exon	18379490	18379747	.	-	.	ID=uc002znh.2:E13;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E13
-chr22	ucsc	CDS	18379490	18379747	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS13;protein_id=uc002znh.2
-chr22	ucsc	exon	18382214	18382314	.	-	.	ID=uc002znh.2:E14;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E14
-chr22	ucsc	CDS	18382214	18382314	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS14;protein_id=uc002znh.2
-chr22	ucsc	exon	18383608	18383763	.	-	.	ID=uc002znh.2:E15;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E15
-chr22	ucsc	CDS	18383608	18383763	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS15;protein_id=uc002znh.2
-chr22	ucsc	exon	18384644	18384745	.	-	.	ID=uc002znh.2:E16;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E16
-chr22	ucsc	CDS	18384644	18384745	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS16;protein_id=uc002znh.2
-chr22	ucsc	exon	18385397	18385513	.	-	.	ID=uc002znh.2:E17;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E17
-chr22	ucsc	CDS	18385397	18385513	.	-	2	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS17;protein_id=uc002znh.2
-chr22	ucsc	exon	18387398	18387605	.	-	.	ID=uc002znh.2:E18;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E18
-chr22	ucsc	CDS	18387398	18387605	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS18;protein_id=uc002znh.2
-chr22	ucsc	exon	18389315	18389652	.	-	.	ID=uc002znh.2:E19;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E19
-chr22	ucsc	CDS	18389315	18389578	.	-	0	Parent=transcript:uc002znh.2.g1;ID=CDS:uc002znh.2:CDS19;protein_id=uc002znh.2
-chr22	ucsc	exon	18507047	18507325	.	-	.	ID=uc002znh.2:E20;Parent=transcript:uc002znh.2.g1;Name=uc002znh.2;biotype=protein_coding;exon_id=uc002znh.2:E20
+chr1	ucsc	gene	55039456	55064852	.	+	.	ID=gene%3APCSK9;Name=PCSK9;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;gene_type=protein_coding
+chr1	ucsc	mRNA	55039456	55064852	.	+	.	ID=ENST00000710286.1;Parent=gene%3APCSK9;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	exon	55039456	55040044	.	+	.	ID=ENST00000710286.1%3AE0;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE0
+chr1	ucsc	exon	55043843	55044034	.	+	.	ID=ENST00000710286.1%3AE1;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE1
+chr1	ucsc	exon	55046523	55046646	.	+	.	ID=ENST00000710286.1%3AE2;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE2
+chr1	ucsc	exon	55052278	55052411	.	+	.	ID=ENST00000710286.1%3AE3;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE3
+chr1	ucsc	exon	55052650	55052791	.	+	.	ID=ENST00000710286.1%3AE4;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE4
+chr1	ucsc	exon	55055993	55056189	.	+	.	ID=ENST00000710286.1%3AE5;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE5
+chr1	ucsc	exon	55057331	55057514	.	+	.	ID=ENST00000710286.1%3AE6;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE6
+chr1	ucsc	exon	55058036	55058209	.	+	.	ID=ENST00000710286.1%3AE7;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE7
+chr1	ucsc	exon	55058499	55058647	.	+	.	ID=ENST00000710286.1%3AE8;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE8
+chr1	ucsc	exon	55059486	55059663	.	+	.	ID=ENST00000710286.1%3AE9;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE9
+chr1	ucsc	exon	55061375	55061556	.	+	.	ID=ENST00000710286.1%3AE10;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE10
+chr1	ucsc	exon	55063369	55064852	.	+	.	ID=ENST00000710286.1%3AE11;Parent=ENST00000710286.1;Name=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1;exon_id=ENST00000710286.1%3AE11
+chr1	ucsc	CDS	55039481	55040044	.	+	0	ID=ENST00000710286.1%3AC1;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55043843	55044034	.	+	0	ID=ENST00000710286.1%3AC2;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55046523	55046646	.	+	0	ID=ENST00000710286.1%3AC3;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55052278	55052411	.	+	2	ID=ENST00000710286.1%3AC4;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55052650	55052791	.	+	0	ID=ENST00000710286.1%3AC5;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55055993	55056189	.	+	2	ID=ENST00000710286.1%3AC6;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55057331	55057514	.	+	0	ID=ENST00000710286.1%3AC7;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55058036	55058209	.	+	2	ID=ENST00000710286.1%3AC8;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55058499	55058647	.	+	2	ID=ENST00000710286.1%3AC9;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55059486	55059663	.	+	0	ID=ENST00000710286.1%3AC10;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55061375	55061556	.	+	2	ID=ENST00000710286.1%3AC11;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	CDS	55063369	55063584	.	+	0	ID=ENST00000710286.1%3AC12;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	5_prime_UTR	55039456	55039480	.	+	.	ID=ENST00000710286.1%3AU55039456;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
+chr1	ucsc	3_prime_UTR	55063585	55064852	.	+	.	ID=ENST00000710286.1%3AU55063585;Parent=ENST00000710286.1;biotype=protein_coding;gene_id=gene%3APCSK9;gene_name=PCSK9;transcript_id=ENST00000710286.1
 ```
 
 
