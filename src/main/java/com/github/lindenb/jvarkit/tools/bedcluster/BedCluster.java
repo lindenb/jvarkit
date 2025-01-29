@@ -60,6 +60,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
 
@@ -118,7 +119,7 @@ END_DOC
 		description="Clusters a BED file into a set of BED files.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
-		modificationDate="20241219",
+		modificationDate="2050129",
 		biostars= {424828},
 		jvarkit_amalgamion =  true,
 		menu="BED Manipulation"
@@ -132,9 +133,9 @@ public class BedCluster
 	private Path outputFile= null;
 	@Parameter(names={"-F","--format"},description=ArchiveFactory.OPT_DESC)
 	private FormatOut outputFormat = FormatOut.BED;
-	@Parameter(names={"-J","--jobs"},description="number of clusters. (or specify --size)")
+	@Parameter(names={"-J","--jobs"},description="number of clusters. (or specify --size or --window-size/--window-shif)")
 	private int number_of_jobs=-1;
-	@Parameter(names={"-S","--size"},description="number of bases max per bin. (or specify --jobs). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"-S","--size"},description="number of bases max per bin. (or specify --jobs or --window-size/--window-shif). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
 	private long long_length_per_bin=-1L;
 	@Parameter(names={"-C","--contig","--chromosome"},description="group by chromosome.")
 	private boolean group_by_contig = false;
@@ -144,7 +145,10 @@ public class BedCluster
 	private Path manifestFile = null;
 	@Parameter(names={"--consecutive"},description="When using option --size only use consecutive ordered regions. Default is to find the best region anywhere.")
 	private boolean consecutive_flags = false;
-
+	@Parameter(names={"--window-size"},description="sliding window size (or use --size of --jobs)."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
+	private long sliding_window_size=-1L;
+	@Parameter(names={"--window-shift"},description="sliding  window shift (or use --size of --jobs)."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
+	private long sliding_window_shift=-1L;
 	
 	
 	private int id_generator =0;
@@ -192,11 +196,6 @@ public class BedCluster
 		}
 	}
 	
-
-	
-	
-
-	
 	
 	
 	private final Comparator<BedLine> defaultIntervalCmp=(B1,B2)->{
@@ -223,7 +222,7 @@ public class BedCluster
 		final List<Cluster> clusters = new ArrayList<>(Math.max(this.number_of_jobs,100));
 		final LinkedList<BedLine> list = new LinkedList<>(src);
 		
-		if( this.consecutive_flags) {
+		if( this.consecutive_flags || this.sliding_window_size>0) {
 			Collections.sort(list,sorter);
 			}
 		else
@@ -231,8 +230,25 @@ public class BedCluster
 			//sort by decreasing size
 			Collections.sort(list,(B1,B2)->Integer.compare(B2.getLengthOnReference(),B1.getLengthOnReference()));
 			}
-		
-		if(number_of_jobs>0) {
+		/** SLIDING WINDOW ALGORITHM *************************************/
+		if(this.sliding_window_size>0 || this.sliding_window_shift>0) {
+			int prev_start=-1;
+			for(int x=0;x< src.size();x++) {
+				final BedLine loca = src.get(x);
+				if(prev_start>-1 && prev_start+this.sliding_window_shift > loca.getStart()) continue;
+				final Cluster c=new Cluster();
+				clusters.add(c);
+				c.add(loca);
+				prev_start = loca.getStart();
+				for(int y=x+1;y< src.size();y++) {
+					final BedLine locb = src.get(y);
+					if(CoordMath.getLength(loca.getStart(), locb.getEnd())> this.sliding_window_size) break;
+					c.add(locb);
+					}
+				}
+			}
+		/** N-CLUSTER ALGORITHM *************************************/
+		else if(this.number_of_jobs>0) {
 			while(!list.isEmpty()) {
 				final BedLine first=list.pop();
 				if(clusters.size() < this.number_of_jobs) {
@@ -255,6 +271,7 @@ public class BedCluster
 					}
 				}
 			}
+		/** CONSECUTIVE LENGTH ALGORITHM *************************************/
 		else if( this.consecutive_flags) {// group by size using consecutive regions
 			while(!list.isEmpty()) {
 				final Cluster cluster = new Cluster();
@@ -267,6 +284,7 @@ public class BedCluster
 				clusters.add(cluster);
 				}
 			}
+		/** LENGTH ALGORITHM *************************************/
 		else // group by size
 			{
 			while(!list.isEmpty()) {
@@ -291,7 +309,7 @@ public class BedCluster
 		for(final Cluster cluster : clusters) {
 			Collections.sort(cluster.intervals,sorter);
 			final String prefix;
-			if(this.group_by_contig) {
+			if(this.group_by_contig || this.sliding_window_size>0) {
 				final int chromStart = cluster.stream().mapToInt(R->R.getStart()-1).min().orElse(0);
 				final int chromEnd = cluster.stream().mapToInt(R->R.getEnd()).max().orElse(0);
 				manifest.print(cluster.get(0).getContig());
@@ -390,19 +408,42 @@ public class BedCluster
 			LOG.error("REF must be specified when saving as interval list");
 			return -1;
 			}
-		if(this.number_of_jobs>0 && this.consecutive_flags) {
-			LOG.error("--consecutive cannot be set when --jobs is used.");
-			return -1;
-			}
-		if(this.number_of_jobs<1 && this.long_length_per_bin<1L) {
-			LOG.error("at least --jobs or --size must be specified.");
-			return -1;
-			}
-		if(this.number_of_jobs>0 &&  this.long_length_per_bin>0) {
-			LOG.error(" --jobs OR --size must be specified. Not both.");
+		if((this.number_of_jobs>0  || this.sliding_window_size>0 || this.sliding_window_shift>0) && this.consecutive_flags) {
+			LOG.error("--consecutive  must be set with --size.");
 			return -1;
 			}
 
+		if(this.sliding_window_size>0 || this.sliding_window_shift>0) {
+			if(this.sliding_window_size<1) { 
+				LOG.error("--window-size < 0");
+				return -1;
+				}
+			if(this.sliding_window_shift<1) { 
+				LOG.error("--window-shift < 0");
+				return -1;
+				}
+			/** muse be set for this method */
+			this.group_by_contig=true;
+			this.consecutive_flags=true;
+			}
+		
+		
+		final int n_args = (this.number_of_jobs>0?1:0)+
+				(this.long_length_per_bin>0?1:0)+
+				(this.sliding_window_size>0 || this.sliding_window_shift>0?1:0)
+				;
+		
+		if(n_args==0) {
+			LOG.error("at least --jobs or --size or --window-size/--window-shift must be specified.");
+			return -1;
+			}
+		if(n_args>1) {
+			LOG.error(" --jobs OR --size OR --window-size/--window-shift  must be specified. Not both.");
+			return -1;
+			}
+
+		
+		
 		try
 			{
 			final SAMSequenceDictionary dict;
@@ -428,11 +469,11 @@ public class BedCluster
 			try(ArchiveFactory archiveFactory = ArchiveFactory.open(this.outputFile)) {
 				if(this.outputFormat.name().endsWith("GZ") && archiveFactory.isTarOrZipArchive()) {
 					archiveFactory.setCompressionLevel(0);
-				}
+					}
 				
 				try(PrintWriter manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(this.manifestFile))) {
 					manifest.print("#");
-					if(this.group_by_contig) {
+					if(this.group_by_contig || this.sliding_window_size>0) {
 						manifest.print("chrom");
 						manifest.print("\t");
 						manifest.print("start");
@@ -458,7 +499,7 @@ public class BedCluster
 						List<List<BedLine>> list_of_intervals = Collections.singletonList(br.stream().collect(Collectors.toList()));
 						final long length_in = list_of_intervals.stream().flatMap(it->it.stream()).mapToLong(L->L.getLengthOnReference()).sum();
 						
-						if(this.group_by_contig) {
+						if(this.group_by_contig || this.sliding_window_size>0L) {
 							final List<List<BedLine>> list2= new ArrayList<>();
 							for(List<BedLine> l1:list_of_intervals) {
 								final Map<String,List<BedLine>> contig2lines = new TreeMap<>(contigComparator);
@@ -476,7 +517,7 @@ public class BedCluster
 							}
 						
 						// let me be paranoid
-						if(length_in!=length_out) {
+						if(length_in!=length_out && this.sliding_window_shift<1) {
 							throw new IllegalStateException("length-in!=length-out");
 							}
 						}

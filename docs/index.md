@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 4e0af026b
-Compilation : 20250129095553
+Version     : cccb30f99
+Compilation : 20250129210250
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -70,7 +70,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
-| [bedcluster](BedCluster.md) | Clusters a BED file into a set of BED files. | 20200130 | 20241219 |
+| [bedcluster](BedCluster.md) | Clusters a BED file into a set of BED files. | 20200130 | 2050129 |
 | [bedmergecnv](BedMergeCnv.md) | Merge continuous sorted bed records if they overlap a fraction of their lengths. | 20200330 | 20200603 |
 | [bednonoverlappingset](BedNonOverlappingSet.md) | Split a Bed file into non-overlapping data set. | 20180607 | 20200408 |
 | [bedrenamechr](BedRenameChromosomes.md) | Convert the names of the chromosomes in a Bed file | 20190503 | 20240515 |

@@ -33,7 +33,7 @@ Usage: bedcluster [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -J, --jobs
-      number of clusters. (or specify --size)
+      number of clusters. (or specify --size or --window-size/--window-shif)
       Default: -1
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
@@ -46,12 +46,23 @@ Usage: bedcluster [options] Files
       CreateSequenceDictionary' or 'samtools dict', or any hts file containing 
       a dictionary (VCF, BAM, CRAM, intervals...)
     -S, --size
-      number of bases max per bin. (or specify --jobs). A distance specified 
-      as a positive integer.Commas are removed. The following suffixes are 
-      interpreted : b,bp,k,kb,m,mb,g,gb
+      number of bases max per bin. (or specify --jobs or 
+      --window-size/--window-shif). A distance specified as a positive 
+      integer.Commas are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
       Default: -1
     --version
       print version and exit
+    --window-shift
+      sliding  window shift (or use --size of --jobs).A distance specified as 
+      a positive integer.Commas are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb,g,gb
+      Default: -1
+    --window-size
+      sliding window size (or use --size of --jobs).A distance specified as a 
+      positive integer.Commas are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb,g,gb
+      Default: -1
 
 ```
 
