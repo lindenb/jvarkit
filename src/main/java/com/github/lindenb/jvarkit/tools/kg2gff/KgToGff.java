@@ -109,7 +109,6 @@ END_DOC
 		)
 public class KgToGff extends Launcher {
 	private static final Logger LOG = Logger.build(KgToGff.class).make();
-
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"--source"},description= "label for column 'source' in the output")
@@ -120,7 +119,10 @@ public class KgToGff extends Launcher {
 	private boolean coding_only = false;
 	@Parameter(names={"--gtf"},description= "use the GTF writer instead of GFF3")
 	private boolean use_gtf_writer = false;
+	@Parameter(names={"--modulo3"},description= "discard transcripts where CDS length isn't a modulo 3 (eg. remove xeno-transcript mapped on another build) ")
+	private boolean check_cds_modulo_3 = false;
 
+	
 	private static int ID_GENERATOR=0;
 	
 	private static interface GXXWriter extends Closeable {
@@ -222,7 +224,7 @@ public class KgToGff extends Launcher {
 		
 		final String bioType = !first.isProteinCoding()?"misc_RNA":"protein_coding";
 		final String gene_name = StringUtils.ifBlank(first.getName2(),"G"+(++ID_GENERATOR));
-		final String gene_id = "gene"+delim+gene_name;
+		final String gene_id = "GENE"+(++ID_GENERATOR);
 		final Strand strand = Strand.decode(first.getStrand().encodeAsChar());
 		atts.put("ID", gene_id);
 		atts.put("Name",gene_name);
@@ -244,7 +246,7 @@ public class KgToGff extends Launcher {
 				));
 
 		for(UcscTranscript kg:kgs) {
-			final String transcriptId = kg.getTranscriptId();
+			final String transcriptId = kg.getTranscriptId()+"."+(++ID_GENERATOR);
 			atts.clear();
 			atts.put("ID", transcriptId);
 			atts.put("Parent", gene_id);
@@ -253,6 +255,7 @@ public class KgToGff extends Launcher {
 			atts.put("gene_id",gene_id);
 			atts.put("gene_name",gene_name);
 			atts.put("transcript_id", transcriptId);
+			atts.put("transcript_name", kg.getTranscriptId());
 			out.addFeature(new Gff3FeatureImpl(
 					kg.getContig(),
 					this.source,
@@ -293,6 +296,10 @@ public class KgToGff extends Launcher {
 				}
 			if(kg.isProteinCoding()) {
 				final List<UcscTranscript.CDS> cdsList = kg.getCDSs();
+				if(check_cds_modulo_3) {
+					if(cdsList.stream().mapToInt(CDS->CDS.getLengthOnReference()).sum()%3!=0) continue;
+					}
+				
 				
 				
 				for(int x=0;x< cdsList.size();x++) {
@@ -329,7 +336,7 @@ public class KgToGff extends Launcher {
 							phase++;
 							}
 
-						atts.put("ID",kg.getTranscriptId()+delim+"C"+(x+1));
+						atts.put("ID","CDS"+(++ID_GENERATOR));
 						out.addFeature(new Gff3FeatureImpl(
 								kg.getContig(),
 								this.source,
@@ -344,7 +351,7 @@ public class KgToGff extends Launcher {
 						}
 				
 					for(UcscTranscript.UTR utr : kg.getUTRs())  {
-						atts.put("ID",kg.getTranscriptId()+delim+"U"+utr.getStart());
+						atts.put("ID","UTR"+(++ID_GENERATOR));
 						out.addFeature(new Gff3FeatureImpl(
 								kg.getContig(),
 								this.source,
@@ -359,7 +366,7 @@ public class KgToGff extends Launcher {
 								));
 						}
 					for(UcscTranscript.Codon codon : kg.getCodons())  {
-						atts.put("ID",kg.getTranscriptId()+delim+"Cod"+codon.getStart());
+						atts.put("ID","codon"+(++ID_GENERATOR));
 						out.addFeature(new Gff3FeatureImpl(
 								kg.getContig(),
 								this.source,

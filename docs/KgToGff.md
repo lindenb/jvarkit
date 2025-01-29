@@ -26,6 +26,10 @@ Usage: kg2gff [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --modulo3
+      discard transcripts where CDS length isn't a modulo 3 (eg. remove 
+      xeno-transcript mapped on another build)
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     --score

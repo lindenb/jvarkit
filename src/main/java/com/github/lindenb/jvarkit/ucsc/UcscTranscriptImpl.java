@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import com.github.lindenb.jvarkit.bed.BedCoordMath;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
@@ -613,8 +612,8 @@ class UcscTranscriptImpl implements UcscTranscript {
 		private int start1;
 		private int end1;
 		private boolean is_start_codon;
-		CodonImpl(final Exon exon,int start1,int end1,boolean is_start_codon) {
-			super(exon);
+		CodonImpl(final CDS cds,int start1,int end1,boolean is_start_codon) {
+			super(cds);
 			this.start1 = start1;
 			this.end1 = end1;
 			this.is_start_codon=is_start_codon;
@@ -701,9 +700,9 @@ class UcscTranscriptImpl implements UcscTranscript {
 		
 		for(int side=0;side<2;++side) {
 			for(Locatable codonloc: (side==0?list5:list3)) {
-				final Exon exon = getExons().stream().filter(EX->EX.overlaps(codonloc)).findFirst().get();
+				final CDS overcds = cdss.stream().filter(EX->EX.overlaps(codonloc)).findFirst().get();
 				final boolean is_start_codon = ((side==0&&this.isPositiveStrand()) || (side==1 && this.isNegativeStrand()));
-				final CodonImpl codon = new CodonImpl(exon, codonloc.getStart(), codonloc.getEnd(), is_start_codon);
+				final CodonImpl codon = new CodonImpl(overcds, codonloc.getStart(), codonloc.getEnd(), is_start_codon);
 				return_codon.add(codon);
 			}
 		}

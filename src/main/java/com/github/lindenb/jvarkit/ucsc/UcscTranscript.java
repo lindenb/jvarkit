@@ -35,7 +35,6 @@ import org.apache.commons.jexl2.JexlContext;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.ucsc.UcscTranscript.Codon;
 import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
@@ -160,7 +159,7 @@ public default List<Intron> getIntrons() {
 			}
 		};
 	}
-/** alias for getCDSs() */
+/** alias for getCDSs() , in the genomic order */
 public default List<CDS> getCDS() {
 	return getCDSs();
 	}
@@ -451,10 +450,14 @@ public default boolean hasUTR3() {
 
 
 /** ===================================================================*/
-public abstract class Codon extends ExonComponent {
-	protected Codon(final Exon exon) {
-		super(exon);
+public abstract class Codon extends Component {
+	private final CDS cds;
+	protected Codon(final CDS cds) {
+		this.cds=cds;
 		}
+	public CDS getCDS() { return this.cds;}
+	public Exon getExon() { return this.getCDS().getExon();}
+	@Override public UcscTranscript getTranscript() { return getExon().getTranscript();}
 	public abstract boolean isStartCodon();
 	public final boolean isStopCodon() { return !isStartCodon();}
 	}
