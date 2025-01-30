@@ -25,6 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.bedcluster;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -44,6 +45,7 @@ import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
@@ -149,7 +151,8 @@ public class BedCluster
 	private long sliding_window_size=-1L;
 	@Parameter(names={"--window-shift"},description="sliding  window shift (or use --size of --jobs)."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
 	private long sliding_window_shift=-1L;
-	
+	@Parameter(names={"--md5-dir","--sub-dir"},description="prevent the creation of too many files in the same directory. Create some intermediate directories based on filename's md5.")
+	private boolean create_md5_dir_flag=false;
 	
 	private int id_generator =0;
 	
@@ -207,7 +210,11 @@ public class BedCluster
 			return i;
 			};
 
-			
+	private String md5dir(final String s) {
+		if(!this.create_md5_dir_flag) return s;
+		final String md5 = StringUtils.md5(s);
+		return String.join(File.separator, md5.substring(0,2),md5.substring(2,4),s);
+		}
 			
 	
 	private long apply_cluster(
@@ -344,7 +351,7 @@ public class BedCluster
 				default: throw new IllegalArgumentException("err");
 				}
 			
-			final String filename = String.format("%s.%09d%s",prefix, ++id_generator,suffix);
+			final String filename = md5dir(String.format("%s.%09d%s",prefix, ++id_generator,suffix));
 
 			manifest.print(archiveFactory.isTarOrZipArchive()?filename:this.outputFile.resolve(filename).toAbsolutePath());
 			manifest.print("\t");

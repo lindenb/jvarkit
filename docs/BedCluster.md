@@ -37,6 +37,10 @@ Usage: bedcluster [options] Files
       Default: -1
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
+    --md5-dir, --sub-dir
+      prevent the creation of too many files in the same directory. Create 
+      some intermediate directories based on filename's md5.
+      Default: false
   * -o, --out
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.

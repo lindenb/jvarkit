@@ -111,6 +111,7 @@ import com.github.lindenb.jvarkit.tools.biostar.Biostar9501110;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9556602;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar95652;
 import com.github.lindenb.jvarkit.tools.biostar.Biostar9566948;
+import com.github.lindenb.jvarkit.tools.biostar.Biostar9608448;
 import com.github.lindenb.jvarkit.tools.blast.BlastFilterJS;
 import com.github.lindenb.jvarkit.tools.blast.BlastNToSnp;
 import com.github.lindenb.jvarkit.tools.blast.MergeBlastXml;
@@ -701,6 +702,7 @@ public class JvarkitCentral {
 		command(Biostar9501110.class);
 		command(Biostar9556602.class);
 		command(Biostar9566948.class);
+		command(Biostar9608448.class);
 		command(BlastMapAnnotations.class);
 		command(BlastFilterJS.class);
 		command(BreakdancerToVcf.class);

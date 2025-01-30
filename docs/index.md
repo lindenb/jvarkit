@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 41dabe6c8
-Compilation : 20250130093931
+Version     : 6a4efb726
+Compilation : 20250130172143
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -177,6 +177,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar160470](Biostar160470.md) | Getting untranslated nucleotide sequences on tblastn standalone |  | 20240701 |
 | [biostar3654](Biostar3654.md) | show blast alignment with annotations |  |  |
 | [biostar95652](Biostar95652.md) | Drawing a schematic genomic context tree. |  |  |
+| [biostar9608448](Biostar9608448.md) | Convert long reads to short paired reads | 20250130 | 20250130 |
 | [blast2sam](BlastToSam.md) | Convert a **BLASTN-XML** input to SAM |  |  |
 | [blastfilterjs](BlastFilterJS.md) | Filters a BlastOutput with a javascript expression. The script injects each <Hit> as the variable 'blasthit'. The user script should return 'true' to keep the hit. |  |  |
 | [blastmapannots](BlastMapAnnotations.md) | Maps uniprot/genbank annotations on a blast result. |  |  |
