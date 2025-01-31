@@ -509,7 +509,7 @@ public interface CodingRNA extends RNA {
 
 public interface UntranslatedRNA extends RNA {
 	public MessengerRNA getMessengerRNA();
-	//find ORF starting in this UTR
+	/* find micro ORF starting in this UTR */
 	public List<CodingRNA> getORFs();
 	}
 

@@ -51,6 +51,12 @@ import htsjdk.samtools.util.CoordMath;
 /**
 BEGIN_DOC
 
+Motivation:
+
+convert single end long read to paired end reads.
+
+Note that short single read, paired reads, unmapped read, secondary & supplementary alignements are discarded
+
 Example:
 
 ```
@@ -162,6 +168,7 @@ public class Biostar9608448 extends OnePassBamLauncher
 				}
 			}
 		
+		// remove clipping/non-align in 5' en 3'
 		while(!array.isEmpty()) {
 			if(!array.get(array.size()-1).op.isAlignment())
 				{
@@ -259,7 +266,7 @@ public class Biostar9608448 extends OnePassBamLauncher
 		};
 	}
 	
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new Biostar9608448().instanceMainWithExit(args);
 	}
 }

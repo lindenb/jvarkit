@@ -47,7 +47,6 @@ import com.github.lindenb.jvarkit.sql.parser.SchemaParser;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.AsciiFeatureCodec;

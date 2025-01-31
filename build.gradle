@@ -1960,7 +1960,7 @@ all2.add( task("jeter15", type: CompileJVarkit) {
 	});
 
 all2.add( task("jeter16", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.biostar.Biostar9608448"
+	mainClass = "com.github.lindenb.jvarkit.tools.upstreamorf.Gff3UpstreamOrf"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 

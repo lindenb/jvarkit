@@ -16,10 +16,6 @@ Usage: java -jar dist/jvarkit.jar gff3upstreamorf  [options] Files
 
 Usage: gff3upstreamorf [options] Files
   Options:
-    --break-original-orf
-      if ATG(uORF) is in frame with original ORF , do not calculate the 
-      peptide beyond the original ATG.
-      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -87,12 +83,21 @@ Wikipedia:
 > An Upstream Open Reading Frame (uORF) is an open reading frame (ORF) within the 5' untranslated region (5'UTR) of an mRNA. uORFs can regulate eukaryotic gene expression.
 > Translation of the uORF typically inhibits downstream expression of the primary ORF. In bacteria, uORFs are called leader peptides, and were originally discovered on the basis of their impact on the regulation of genes involved in the synthesis or transport of amino acids. 
 
+
+Input is a UCSC "genpred/knowngene" file, but if you only have a gff/gff3 file, you can use `gff2kg` to create one.
+
 ## Examples
 
-### Example 1
 
 ```
- java -jar dist/gff3upstreamorfasta  -R GRCh38.fa Homo_sapiens.GRCh38.107.chr.gff3.gz > uorf.gff3
+wget -O - "https://hgdownload.soe.ucsc.edu/goldenPath/hg38//database/wgEncodeGencodeBasicV47.txt.gz" |\
+	gunzip -c |\
+	java -jar dist/jvarkit.jar gff3upstreamorf  -R GRCh38.fa  > uorf.gff3
+
+bcftools csq --ncsq 1000 -l -f GRCh38.fa -g uorf.gff3 in.bcf |\
+	bcftools annotate --rename-annots <(echo -e 'INFO/BCSQ\tUTR_BCSQ')
+
+	
 ```
 
 note to self: test ENSG00000141736 https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1003529
