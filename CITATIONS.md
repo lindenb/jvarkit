@@ -6,6 +6,7 @@
  * del Olmo V, Redondo-Río Á, García AB, Limtong S, Saus E, Gabaldón T (2025) Insights into the origin, hybridisation and adaptation of Candida metapsilosis hybrid pathogens. PLoS Pathog 21(1): e1012864. https://doi.org/10.1371/journal.ppat.1012864 https://journals.plos.org/plospathogens/article?id=10.1371/journal.ppat.1012864 **WGSCoveragePlotter**
  * Liu, C., Liang, H., Wan, A.H. et al. Decoding the m6A epitranscriptomic landscape for biotechnological applications using a direct RNA sequencing approach. Nat Commun 16, 798 (2025). https://doi.org/10.1038/s41467-025-56173-6 https://www.nature.com/articles/s41467-025-56173-6 **SAM2TSV**
  * Dunker-Seidler F, Breunig K, Haubner M, Sonntag F, Horer M, Feiner RC,Recombinant adeno-associated virus batch profiling by nanopore sequencing elucidates product-relatedDNA impurities and vector genome length distribution at single molecule resolution, Molecular Therapy:Methods & Clinical Development (2025), doi: https://doi.org/10.1016/j.omtm.2025.101417 **SAMCLIPREADS**
+ * Survival of the “unfittest”: clinical emergence of hyper-multidrug-resistant Nakaseomyces glabratus with rare nonfunctional Erg3 and Erg11 and severely impaired fitness Hans Carolus, Vladislav Biriukov, Jolien Vreys, Celia Lobo Romero, Juan Paulo Herrera Avila, Rudy Vergauwen, Dimitrios Sofras, Giel Vanreppelen, Lore Vinken, Basil Britto Xavier, Toni Gabaldón, Katrien Lagrou, Reinout Naesens, Patrick Van Dijck bioRxiv 2025.02.05.636719; doi: https://doi.org/10.1101/2025.02.05.636719  **WGSCOVERAGEPlotter**
 
 ## 2024
 
