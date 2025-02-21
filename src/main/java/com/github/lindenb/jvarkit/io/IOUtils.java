@@ -459,7 +459,7 @@ public class IOUtils {
 		{
 	    if (isCompressed(file))
 	    	{
-	        return new PrintWriter(openPathForWriting(file));
+	        return new PrintWriter( openPathForWriting(file));
 	    	}
 	    else
 	    	{

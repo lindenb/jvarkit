@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 6af03c163
-Compilation : 20250208111753
+Version     : 5af469556
+Compilation : 20250219172326
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -348,7 +348,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samextractclip](SamExtractClip.md) | Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ | 20140228 | 20240524 |
 | [samgrep](SamGrep.md) | grep read-names in a bam file | 20130506 | 20210726 |
 | [samrmdupnames](SamRemoveDuplicatedNames.md) | remove duplicated names in sorted BAM | 20221207 | 20221207 |
-| [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20191004 |
+| [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20250219 |
 | [sortsamrefname](SortSamRefName.md) | Sort a BAM on chromosome/contig and then on read/querty name | 20150812 | 20210312 |
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
 | [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230427 |

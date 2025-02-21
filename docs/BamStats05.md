@@ -122,6 +122,8 @@ If there is no argument, stdin is interpreted as a list of path to the bam like 
   * "Custom hereditary breast cancer gene panel selectively amplifies target genes for reliable variant calling" . BioRxiv https://doi.org/10.1101/322180
   * "Future MicrobiologyVol. 15, No. 15  Comparative genomics of Sporothrix species and identification of putative pathogenic-gene determinants.  Published Online:12 Nov 2020https://doi.org/10.2217/fmb-2019-0302"
   * "Key innovation triggers widespread radiation of the genus Medicago". Zhipeng Liu & al. https://doi.org/10.21203/rs.3.rs-3181566/v1
+  * Over-expression and increased copy numbers of a cytochrome P450 and two UDP-glucuronosyltransferase genes in macrocyclic lactone resistant Psoroptes ovis of cattle Jack Hearn, Wouter van Mol, Roel Meyermans, Kathryn Bartley, Tyler Alioto, Jessica Gomez-Garrido, Fernando Cruz, Francisco Camara Ferreira, Marta Gut, Ivo Gut, Nadine Buys, Steven Janssens, Karyn Adams, Sara Roose,  Thomas Van Leeuwen, Wannes Dermauw, John S. Gilleard, Russell Avramenko, Peter Geldhof, Edwin Claerebout, Stewart T.G. Burgess bioRxiv 2025.02.06.636820; doi: https://doi.org/10.1101/2025.02.06.636820 
+
 
 ## Example
 

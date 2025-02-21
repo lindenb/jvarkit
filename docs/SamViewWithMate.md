@@ -25,6 +25,10 @@ Usage: samviewwithmate [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
   * -b, --bed, -r, --region
       A source of intervals. The following suffixes are recognized: vcf, 
       vcf.gz bed, bed.gz, gtf, gff, gff.gz, gtf.gz.Otherwise it could be an 
@@ -99,6 +103,10 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Update 2025
+
+you should also have a look at `samtools view --fetch-pair`
 
 ## How it works
 
