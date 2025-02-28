@@ -45,6 +45,9 @@ Usage: samviewwithmate [options] Files
       contains the start position of the mate of which may be out of the 
       user's intervals, unless the MC (mate cigar) attribute is defined.
       Default: false
+    --supplementary
+      Look also in the supplementary data of the SA:Z attribute
+      Default: false
     -u, --unmapped
       Also search for the unmapped mates. Not available in streaming mode.
       Default: false
