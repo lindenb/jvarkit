@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 4548aa127
-Compilation : 20250228105947
+Version     : f2b118711
+Compilation : 20250306100942
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -231,7 +231,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
-| [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
+| [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20250326 |
 | [samaddpi](SamAddPI.md) | Add predicted median insert size 'PI' to SAM Read groups (RG). |  |  |
 | [samedict](SameDict.md) | check if all HTS files share the same dictionary | 20240724 | 20240724 |
 | [samfixcigar](SamFixCigar.md) | Fix Cigar String in SAM replacing 'M' by 'X' or '=' | 20131126 | 20210223 |
