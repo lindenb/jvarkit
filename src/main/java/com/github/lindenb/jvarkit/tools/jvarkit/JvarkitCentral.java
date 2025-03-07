@@ -226,6 +226,7 @@ import com.github.lindenb.jvarkit.tools.pubmed.PubmedDump;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedGender;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedGraph;
 import com.github.lindenb.jvarkit.tools.pubmed.PubmedMap;
+import com.github.lindenb.jvarkit.tools.pubmed.PubmedOrcidGraph;
 import com.github.lindenb.jvarkit.tools.redon.CopyNumber01;
 //import com.github.lindenb.jvarkit.tools.rdfcombine.RDFCombine;
 import com.github.lindenb.jvarkit.tools.ref2html.ReferenceToHtml;
@@ -781,6 +782,7 @@ public class JvarkitCentral {
 		command(PubmedGender.class);
 		command(PubmedGraph.class);
 		command(PubmedAuthorGraph.class);
+		command(PubmedOrcidGraph.class);
 		command(PubmedMap.class);
 		command(PlotSashimi.class);
 		command(PrettySam.class);

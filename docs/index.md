@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : f2b118711
-Compilation : 20250306100942
+Version     : 4f4f6bce1
+Compilation : 20250307113506
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -227,6 +227,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [plotbcftoolsstats](PlotBcftoolsStats.md) | Plot bcftools stats output | 20210622 | 20210622 |
 | [pubmedauthorgraph](PubmedAuthorGraph.md) | Creates a graph from Pubmed and Authors |  |  |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
+| [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |

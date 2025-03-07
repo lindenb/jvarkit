@@ -179,6 +179,7 @@ nav:
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "pubmedmap" : PubmedMap.md
+        - "pubmedorcidgraph" : PubmedOrcidGraph.md
         - "reduceblast" : ReduceBlast.md
         - "ref2html" : ReferenceToHtml.md
         - "repairfastq" : RepairFastq.md
