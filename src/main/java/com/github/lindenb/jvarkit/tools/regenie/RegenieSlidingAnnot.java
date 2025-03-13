@@ -11,12 +11,18 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.variant.variantcontext.VariantContext;
+/**
+BEGIN_DOC
 
+
+END_DOC
+**/
 @Program(name="regenieslidingannot",
 description="Create annotation files for regenie using sliding annotations",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="20250311"
+modificationDate="20250311",
+generate_doc = false
 )
 public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.build(RegenieSlidingAnnot.class).make();
@@ -29,13 +35,12 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 	protected Logger getLogger() {
 		return LOG;
 		}
-	
-	
+
+
 	private String getPredictionName() {
 		return "sliding_"+window_size;
 	}
-	
-		
+
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {
 		int  win_pos = 1 + (((int)(ctx.getStart()/(double)this.window_size)) * this.window_size);
@@ -53,10 +58,7 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 			} while(CoordMath.overlaps(win_pos, win_pos+this.window_size-1, ctx.getStart(), ctx.getEnd()));
 		}
 
-	
-
 	public static void main(String[] args) {
 		new RegenieSlidingAnnot().instanceMainWithExit(args);
 	}
-
 }

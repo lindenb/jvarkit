@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 0ab803973
-Compilation : 20250310172644
+Version     : f9a4636c5
+Compilation : 20250313170035
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -95,7 +95,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar234081](Biostar234081.md) | convert extended CIGAR to regular CIGAR ('X','=' -> 'M') | 20170130 | 20200409 |
 | [biostar234230](Biostar234230.md) | Sliding Window : discriminate partial and fully contained fragments (from a bam file) |  | 20190417 |
 | [biostar251649](Biostar251649.md) | Annotating the flanking bases of SNPs in a VCF file | 20170508 | 20200213 |
-| [biostar322664](Biostar322664.md) | Extract PE Reads (with their mates) supporting variants in vcf file |  |  |
+| [biostar322664](Biostar322664.md) | Extract PE Reads (with their mates) supporting variants in vcf file | 20180625 | 20250313 |
 | [biostar332826](Biostar332826.md) | Fast Extraction of Variants from a list of IDs | 20180817 | 20210412 |
 | [biostar336589](Biostar336589.md) | displays circular map as SVG from BED and REF file | 20180907 | 20210818 |
 | [biostar352930](Biostar352930.md) | Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the same name carrying this information. |  |  |
@@ -229,6 +229,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
+| [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250311 |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |

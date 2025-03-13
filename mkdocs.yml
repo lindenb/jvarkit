@@ -182,6 +182,10 @@ nav:
         - "pubmedorcidgraph" : PubmedOrcidGraph.md
         - "reduceblast" : ReduceBlast.md
         - "ref2html" : ReferenceToHtml.md
+        - "regeniebedannot" : RegenieBedAnnot.md
+        - "regeniefunctionalannot" : RegenieFunctionalAnnot.md
+        - "regeniemakeannot" : RegenieMakeAnnot.md
+        - "regenieslidingannot" : RegenieSlidingAnnot.md
         - "repairfastq" : RepairFastq.md
         - "rnaseqpolya" : RNASeqPolyA.md
         - "sam2json" : SamToJson.md

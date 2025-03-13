@@ -31,7 +31,8 @@ END_DOC
 description="Create annotation files for regenie using sliding annotations",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="20250311"
+modificationDate="20250311",
+generate_doc = false
 )
 public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.build(RegenieBedAnnot.class).make();
