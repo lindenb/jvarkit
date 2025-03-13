@@ -1,5 +1,8 @@
 package com.github.lindenb.jvarkit.tools.regenie;
 
+import java.io.PrintWriter;
+import java.util.OptionalDouble;
+
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
 import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
@@ -7,9 +10,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFHeader;
 
 @Program(name="regenieslidingannot",
 description="Create annotation files for regenie using sliding annotations",
@@ -34,16 +35,9 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 		return "sliding_"+window_size;
 	}
 	
-	@Override
-	protected VCFHeader initVcfHeader(VCFHeader h) {
-		String name = getPredictionName();
-		makeScore(name, 1.0,name);
-		h =  super.initVcfHeader(h);
-		return h;
-		}
 		
 	@Override
-	protected void dump(final SortingCollection<Variation> sorter,final VariantContext ctx) throws Exception {
+	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {
 		int  win_pos = 1 + (((int)(ctx.getStart()/(double)this.window_size)) * this.window_size);
 		do {
 			final Variation v = new Variation();
@@ -52,14 +46,13 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 			v.id = ctx.getID();
 			v.gene = ctx.getContig()+ "_" + (win_pos) + "_" + (win_pos - 1 + this.window_size) ;
 			v.prediction = getPredictionName();
-			v.score = 1.0;
+			v.score = OptionalDouble.empty();
 			v.cadd = getCaddScore(ctx);
-			sorter.add(v);
+			print(w,v);
 			win_pos+=this.window_shift;
 			} while(CoordMath.overlaps(win_pos, win_pos+this.window_size-1, ctx.getStart(), ctx.getEnd()));
 		}
 
-	
 	
 
 	public static void main(String[] args) {

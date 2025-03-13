@@ -2,7 +2,9 @@ package com.github.lindenb.jvarkit.tools.regenie;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.OptionalDouble;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -15,7 +17,6 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -36,8 +37,8 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.build(RegenieBedAnnot.class).make();
 	@Parameter(names = {"-B","--bed"}, description = "custom bed file chrom/start/end/name[/score]",required = true)
 	private Path userBed;
-	@Parameter(names = {"-t","--title"}, description = "mask name")
-	private String title="";
+	@Parameter(names = {"-A","--annotation"}, description = "value for annotation field")
+	private String annotation_value="";
 
 	
 	private final IntervalTreeMap<UserBed> interval2userbed = new IntervalTreeMap<>();
@@ -55,8 +56,8 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	
 	@Override
 	protected VCFHeader initVcfHeader(VCFHeader h) {
-		if(StringUtils.isBlank(this.title)) {
-			this.title=IOUtils.getFilenameWithoutCommonSuffixes(this.userBed).replaceAll("[^a-zA-Z0-9]+","_");
+		if(StringUtils.isBlank(this.annotation_value)) {
+			this.annotation_value=IOUtils.getFilenameWithoutCommonSuffixes(this.userBed).replaceAll("[^a-zA-Z0-9]+","_");
 			}
 		try(BufferedReader br=IOUtils.openPathForBufferedReading(this.userBed)) {
 			final BedLineCodec bc = new  BedLineCodec();
@@ -77,23 +78,21 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 		catch(IOException err) {
 			throw new RuntimeIOException(err);
 			}
-		makeScore(this.title, 1.0,this.title);
-		h =  super.initVcfHeader(h);
-		return h;
+		return super.initVcfHeader(h);
 		}
 		
 	@Override
-	protected void dump(final SortingCollection<Variation> sorter,final VariantContext ctx) throws Exception {	
+	protected void dump(PrintWriter w,final VariantContext ctx) throws Exception {	
 		for(UserBed ub: this.interval2userbed.getOverlapping(ctx) ) {
 			final Variation v = new Variation();
 			v.contig = fixContig(ctx.getContig());
 			v.pos = ctx.getStart();
 			v.id = ctx.getID();
 			v.gene = ub.name;
-			v.prediction = this.title;
-			v.score = ub.score;
+			v.prediction = this.annotation_value;
+			v.score = OptionalDouble.of(ub.score);
 			v.cadd = getCaddScore(ctx);
-			sorter.add(v);
+			print(w,v);
 			}
 		}
 
