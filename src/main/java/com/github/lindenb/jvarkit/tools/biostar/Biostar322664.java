@@ -25,9 +25,9 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -41,6 +41,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -55,10 +56,11 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.variant.variantcontext.Allele;
@@ -111,10 +113,12 @@ public class Biostar322664 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar322664.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
+	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
+	private Path fasta = null;
 	@Parameter(names={"-V","--variant"},description="Variant VCF file. This tool **doesn't work** with INDEL/SV.",required=true)
 	private Path vcfFile = null;
-	@Parameter(names={"-nm","--no-mate"},description="Disable the 'mate' function. BAM is not expected to be sorted with picard (bam can be sorted on coordinate), but mate will not be written.")
+	@Parameter(names={"-nm","--no-mate"},description="Disable the 'mate' function. BAM is not expected to be sorted with picard , the bam can be sorted on coordinate, but mate will not be found/written.")
 	private boolean input_is_not_sorted_on_queryname = false;
 	@Parameter(names={"-index","--index"},description="Use the VCF input to query the BAM using bai index. Faster for large bam + small VCF. Require option `--no-mate` and the bam file to be indexed. ")
 	private boolean use_bam_index = false;
@@ -161,206 +165,201 @@ public class Biostar322664 extends Launcher
 		}
 		
 		final IntervalTreeMap<VariantContext> variantMap=new IntervalTreeMap<>();
-		VCFReader vcfFileReader=null;
-		CloseableIterator<VariantContext> viter=null;
-		SamReader samReader = null;
-		SAMFileWriter samFileWriter = null;
 		try {
 			LOG.info("reading VCF "+this.vcfFile+" in memory...");
-			vcfFileReader = VCFReaderFactory.makeDefault().open(this.vcfFile, false);
-			viter= vcfFileReader.iterator();
-			viter.stream().
-				filter(V->V.isVariant() && V.getReference().length()==1 && V.getAlternateAlleles().stream().anyMatch(A->A.length()==1)).
-				map(V->new VariantContextBuilder(V).attributes(Collections.emptyMap()).noID().unfiltered().noGenotypes().make()).
-				forEach(V->variantMap.put(new Interval(V.getContig(), V.getStart(), V.getEnd()),V));
-			CloserUtil.close(viter);viter=null;
-			vcfFileReader.close();vcfFileReader=null;
-			LOG.info("Done Reading: "+this.vcfFile);
-			
-
-			samReader =super.openSamReader(oneFileOrNull(args));
-			final SAMFileHeader header = samReader.getFileHeader();
-			if(!this.input_is_not_sorted_on_queryname &&
-				header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
-				LOG.error("Expected SAM input to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder() +
-						" See the options to work without 'mate'.");
-				return -1;
-				}
-			samFileWriter = this.writingBamArgs.openSAMFileWriter(this.outputFile, header, true);
-			final CloseableIterator<SAMRecord> iter ;
-			if(!use_bam_index) {
-				iter = samReader.iterator();
-				}
-			else
-				{
-				final SAMSequenceDictionary dict = header.getSequenceDictionary();
-				if(dict==null) throw new JvarkitException.BamDictionaryMissing("input");
-				final List<QueryInterval> intervals = new ArrayList<>();
-				for(final VariantContext ctx:variantMap.values())
-					{
-					int tid = dict.getSequenceIndex(ctx.getContig());
-					if(tid<0)  throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), dict);
-					intervals.add(new QueryInterval(tid, ctx.getStart(), ctx.getEnd()));
+			try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(this.vcfFile, false)) {
+				try (CloseableIterator<VariantContext> viter= vcfFileReader.iterator()) {
+					viter.stream().
+						filter(V->V.isVariant() && V.getReference().length()==1 && V.getAlternateAlleles().stream().anyMatch(A->A.length()==1)).
+						map(V->new VariantContextBuilder(V).attributes(Collections.emptyMap()).noID().unfiltered().noGenotypes().make()).
+						forEach(V->variantMap.put(new Interval(V.getContig(), V.getStart(), V.getEnd()),V));
 					}
-				QueryInterval intervalArray[] = intervals.toArray(new QueryInterval[intervals.size()]);
-				intervalArray = QueryInterval.optimizeIntervals(intervalArray);
-				iter = samReader.query(intervalArray, false);
 				}
-			
-			
-			Iterator<List<SAMRecord>> eq_range = null;
-			if(this.input_is_not_sorted_on_queryname)
-				{
-				eq_range = new AbstractIterator<List<SAMRecord>>()
-					{
-					@Override
-					protected List<SAMRecord> advance()
-						{
-						return iter.hasNext()?Collections.singletonList(iter.next()):null;
+			final String input = oneFileOrNull(args);
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			if(this.fasta!=null) srf.referenceSequence(this.fasta);
+			try(SamReader samReader =srf.open(input==null?SamInputResource.of(stdin()):SamInputResource.of(Paths.get(input)))) {
+				final SAMFileHeader header = samReader.getFileHeader();
+				if(!this.input_is_not_sorted_on_queryname &&
+					header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
+					LOG.error("Expected SAM input to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder() +
+							" See the options to work without 'mate'.");
+					return -1;
+					}
+				try(SAMFileWriter samFileWriter = this.writingBamArgs.openSamWriter(this.outputFile, header, true) ) {
+					final CloseableIterator<SAMRecord> iter ;
+					if(!use_bam_index) {
+						iter = samReader.iterator();
 						}
-					};
-				}
-			else
-				{
-				eq_range = new EqualRangeIterator<>(iter,(R1,R2)->R1.getReadName().compareTo(R2.getReadName()));
-				}
-			while(eq_range.hasNext()) {
-				final List<SAMRecord> array = eq_range.next();
-				final boolean carry_variant[]=new boolean[array.size()];
-				Arrays.fill(carry_variant, false);
-				
-				for(int record_index=0;record_index < array.size();++record_index) {
-					final SAMRecord rec= array.get(record_index);
-					//final boolean debug = rec.getReadName().equals("SRR5229653.1238236");
-					//if(debug==true) LOG.info("got read! "+rec+" array.size="+array.size());
-					if(rec.getReadUnmappedFlag()) {
-						continue;
-					}
+					else
+						{
+						final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
+						final List<QueryInterval> intervals = new ArrayList<>();
+						for(final VariantContext ctx:variantMap.values())
+							{
+							final int tid = dict.getSequenceIndex(ctx.getContig());
+							if(tid<0)  throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), dict);
+							intervals.add(new QueryInterval(tid, ctx.getStart(), ctx.getEnd()));
+							}
+						QueryInterval intervalArray[] = intervals.toArray(new QueryInterval[intervals.size()]);
+						intervalArray = QueryInterval.optimizeIntervals(intervalArray);
+						iter = samReader.query(intervalArray, false);
+						}
 					
-					final Set<String> meta_attribute = (meta_char=='\0'?null:new HashSet<>());
-					final Collection<VariantContext> variants = variantMap.getOverlapping(rec);
-					if(variants.isEmpty()) {
-						continue;
-					}
 					
-					final Cigar cigar=rec.getCigar();
-					if(cigar==null || cigar.isEmpty()) continue;
-					
-					final byte bases[] = rec.getReadBases();
-					if(bases==null || bases.length==0 || bases==SAMRecord.NULL_SEQUENCE) continue;
-					
-					for(final VariantContext ctx:variants) {
-						if(ctx.getReference().length()!=1) continue;
-						for(final Allele alt:ctx.getAlternateAlleles()) {
-							if(alt.isNoCall() || alt.isSymbolic()) continue;
-							if(alt.length()!=1) continue;
-							final char altbase= (char)Character.toUpperCase(alt.getBases()[0]);
-							int ref1 =rec.getUnclippedStart();
-							int readpos = 0;
-							
-							for(final CigarElement ce:cigar) {
-								if(ref1> ctx.getEnd()) {
-									break;
+					Iterator<List<SAMRecord>> eq_range = null;
+					if(this.input_is_not_sorted_on_queryname)
+						{
+						eq_range = new AbstractIterator<List<SAMRecord>>()
+							{
+							@Override
+							protected List<SAMRecord> advance()
+								{
+								return iter.hasNext()?Collections.singletonList(iter.next()):null;
 								}
-								final CigarOperator op =ce.getOperator();
-								switch(op) {
-								case P:break;
-								case S: 
-									{
-									readpos+=ce.getLength();
-									ref1+=ce.getLength();
-									break;
-									}
-								case H:
-									{
-									ref1+=ce.getLength();
-									break;
-									}
-								case I: readpos+=ce.getLength();break;
-								case D:case N: ref1+=ce.getLength();break;
-								case M:case EQ: case X: 
-									{
-									for(int x=0;x< ce.getLength();++x)
-										{
-										final int rp2 = readpos+x;
-										if(rp2>=0 && rp2<bases.length && ref1+x==ctx.getStart())
-											{
-											final char readbase = Character.toUpperCase((char)bases[rp2]);
-											
-											if(readbase==altbase)
-												{
-												//if(debug) LOG.debug(rec.getReadName()+" read["+rp2+"]="+readbase+" ref["+ctx.getStart()+"]="+altbase);
-												carry_variant[record_index]=true;
-												if(meta_attribute!=null) {
-													meta_attribute.add(ctx.getContig()+"|"+ctx.getStart()+"|"+ctx.getReference().getDisplayString()+"|"+ctx.getAlternateAlleles().stream().filter(A->A.length()==1).map(A->A.getDisplayString()).collect(Collectors.joining(",")));
-													}
-												break;
-												}
-											}
+							};
+						}
+					else
+						{
+						eq_range = new EqualRangeIterator<>(iter,(R1,R2)->R1.getReadName().compareTo(R2.getReadName()));
+						}
+					while(eq_range.hasNext()) {
+						final List<SAMRecord> array = eq_range.next();
+						final boolean carry_variant[]=new boolean[array.size()];
+						Arrays.fill(carry_variant, false);
+						
+						for(int record_index=0;record_index < array.size();++record_index) {
+							final SAMRecord rec= array.get(record_index);
+							//final boolean debug = rec.getReadName().equals("SRR5229653.1238236");
+							//if(debug==true) LOG.info("got read! "+rec+" array.size="+array.size());
+							if(rec.getReadUnmappedFlag()) {
+								continue;
+							}
+							
+							final Set<String> meta_attribute = (meta_char=='\0'?null:new HashSet<>());
+							final Collection<VariantContext> variants = variantMap.getOverlapping(rec);
+							if(variants.isEmpty()) {
+								continue;
+							}
+							
+							final Cigar cigar=rec.getCigar();
+							if(cigar==null || cigar.isEmpty()) continue;
+							
+							final byte bases[] = rec.getReadBases();
+							if(bases==null || bases.length==0 || bases==SAMRecord.NULL_SEQUENCE) continue;
+							
+							for(final VariantContext ctx:variants) {
+								if(ctx.getReference().length()!=1) continue;
+								for(final Allele alt:ctx.getAlternateAlleles()) {
+									if(alt.isNoCall() || alt.isSymbolic()) continue;
+									if(alt.length()!=1) continue;
+									final char altbase= (char)Character.toUpperCase(alt.getBases()[0]);
+									int ref1 =rec.getUnclippedStart();
+									int readpos = 0;
+									
+									for(final CigarElement ce:cigar) {
+										if(ref1> ctx.getEnd()) {
+											break;
 										}
-									readpos+=ce.getLength();
-									ref1+=ce.getLength();
-									break;
+										final CigarOperator op =ce.getOperator();
+										switch(op) {
+										case P:break;
+										case S: 
+											{
+											readpos+=ce.getLength();
+											ref1+=ce.getLength();
+											break;
+											}
+										case H:
+											{
+											ref1+=ce.getLength();
+											break;
+											}
+										case I: readpos+=ce.getLength();break;
+										case D:case N: ref1+=ce.getLength();break;
+										case M:case EQ: case X: 
+											{
+											for(int x=0;x< ce.getLength();++x)
+												{
+												final int rp2 = readpos+x;
+												if(rp2>=0 && rp2<bases.length && ref1+x==ctx.getStart())
+													{
+													final char readbase = Character.toUpperCase((char)bases[rp2]);
+													
+													if(readbase==altbase)
+														{
+														//if(debug) LOG.debug(rec.getReadName()+" read["+rp2+"]="+readbase+" ref["+ctx.getStart()+"]="+altbase);
+														carry_variant[record_index]=true;
+														if(meta_attribute!=null) {
+															meta_attribute.add(ctx.getContig()+"|"+ctx.getStart()+"|"+ctx.getReference().getDisplayString()+"|"+ctx.getAlternateAlleles().stream().filter(A->A.length()==1).map(A->A.getDisplayString()).collect(Collectors.joining(",")));
+															}
+														break;
+														}
+													}
+												}
+											readpos+=ce.getLength();
+											ref1+=ce.getLength();
+											break;
+											}
+										default: throw new IllegalStateException("bad cigar operator "+op);
+										}
 									}
-								default: throw new IllegalStateException("bad cigar operator "+op);
+								}//end of cigar loop					
+							if(meta_attribute!=null && !meta_attribute.isEmpty()) {
+								rec.setAttribute("X"+meta_char, String.join(";",meta_attribute));
+								}
+							} // end of loop over variants
+						}// end of for(Samrecord in array)
+						
+						boolean any_match=false;
+						for(boolean m: carry_variant) {
+							if(m) {
+								any_match=true;
+								break;
+							}
+						}
+						
+						if(any_match && this.both_pair_mode)  {
+							any_match = false;//reset
+							for(int x=0;x+1< array.size() && !any_match;++x) {
+								if(!carry_variant[x]) continue;
+								final SAMRecord r1 = array.get(x);
+								if(!r1.getReadPairedFlag()) continue;
+								for(int y=x+1;y< array.size() && !any_match;++y) {
+									if(!carry_variant[y]) continue;
+									// check r2 is mate of r1
+									final SAMRecord r2 = array.get(x);
+									if(!r2.getReadPairedFlag()) continue;
+									if(r1.getFirstOfPairFlag()&& r2.getFirstOfPairFlag()) continue;
+									if(!r1.getFirstOfPairFlag()&& !r2.getFirstOfPairFlag()) continue;
+									if(r1.getAlignmentStart()!=r2.getMateAlignmentStart()) continue;
+									if(r2.getAlignmentStart()!=r1.getMateAlignmentStart()) continue;
+									if(!r1.getReferenceName().equals(r2.getMateReferenceName())) continue;
+									any_match = true;
 								}
 							}
-						}//end of cigar loop					
-					if(meta_attribute!=null && !meta_attribute.isEmpty()) {
-						rec.setAttribute("X"+meta_char, String.join(";",meta_attribute));
 						}
-					} // end of loop over variants
-				}// end of for(Samrecord in array)
-				
-				boolean any_match=false;
-				for(boolean m: carry_variant) {
-					if(m) {
-						any_match=true;
-						break;
-					}
-				}
-				
-				if(any_match && this.both_pair_mode)  {
-					any_match = false;//reset
-					for(int x=0;x+1< array.size() && !any_match;++x) {
-						if(!carry_variant[x]) continue;
-						final SAMRecord r1 = array.get(x);
-						if(!r1.getReadPairedFlag()) continue;
-						for(int y=x+1;y< array.size() && !any_match;++y) {
-							if(!carry_variant[y]) continue;
-							// check r2 is mate of r1
-							final SAMRecord r2 = array.get(x);
-							if(!r2.getReadPairedFlag()) continue;
-							if(r1.getFirstOfPairFlag()&& r2.getFirstOfPairFlag()) continue;
-							if(!r1.getFirstOfPairFlag()&& !r2.getFirstOfPairFlag()) continue;
-							if(r1.getAlignmentStart()!=r2.getMateAlignmentStart()) continue;
-							if(r2.getAlignmentStart()!=r1.getMateAlignmentStart()) continue;
-							if(!r1.getReferenceName().equals(r2.getMateReferenceName())) continue;
-							any_match = true;
+						
+						
+						
+						if(any_match || this.output_all) {
+							for(final SAMRecord rec:array) samFileWriter.addAlignment(rec);
+							}
 						}
+					
+					if(eq_range instanceof EqualRangeIterator) {
+						EqualRangeIterator.class.cast(eq_range).close();
+						}
+		 			iter.close();
 					}
 				}
-				
-				
-				
-				if(any_match || this.output_all) {
-					for(final SAMRecord rec:array) samFileWriter.addAlignment(rec);
-					}
-				}
-			CloserUtil.close(eq_range);
- 			iter.close();
-			samFileWriter.close();samFileWriter=null;
-			samReader.close();samReader=null;
 			return 0;
 			}
-		catch(final Exception err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 		} finally
 			{
-			CloserUtil.close(samReader);
-			CloserUtil.close(samFileWriter);
-			CloserUtil.close(vcfFileReader);
 			}
 	}
 		

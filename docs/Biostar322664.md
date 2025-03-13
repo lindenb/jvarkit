@@ -34,7 +34,8 @@ Usage: biostar322664 [options] Files
       Default: false
     -nm, --no-mate
       Disable the 'mate' function. BAM is not expected to be sorted with 
-      picard (bam can be sorted on coordinate), but mate will not be written.
+      picard , the bam can be sorted on coordinate, but mate will not be 
+      found/written. 
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
@@ -42,6 +43,10 @@ Usage: biostar322664 [options] Files
       pair mode: the paired read and it's pair muts BOTH carry at least one 
       variant 
       Default: false
+    -R, --reference
+      For reading/writing CRAM files. Indexed fasta Reference file. This file 
+      must be indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --samoutputformat
       Sam output format.
       Default: SAM

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 4f4f6bce1
-Compilation : 20250307113506
+Version     : f92b545b9
+Compilation : 20250313154016
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -229,6 +229,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
+| [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250311 |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |

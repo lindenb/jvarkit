@@ -119,7 +119,8 @@ todo
 description="Create annotation files for regenie from a TSV input file",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="20250311"
+modificationDate="20250311",
+generate_doc = false
 )
 public class RegenieMakeAnnot extends Launcher {
 	private static final Logger LOG = Logger.build(RegenieMakeAnnot.class).make();
