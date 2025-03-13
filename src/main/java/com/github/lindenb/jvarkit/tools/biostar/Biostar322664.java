@@ -40,9 +40,9 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -74,7 +74,7 @@ BEGIN_DOC
 
 ## Input
 
-  * BAM : MUST be sorted using Picard SortSam (see https://github.com/samtools/hts-specs/issues/5 )
+  * BAM : MUST be sorted using Picard SortSam (see https://github.com/samtools/hts-specs/issues/5 ). Update 20250313 : the output of 'samtools collate' should be ok too , as well as 'samtools sort -n '(not tested)
   * VCF : only SNP are considered. Genotypes are ignored (all ALT alleles are observed regardless of the sample/genotype )
 
 ##Example
@@ -104,9 +104,11 @@ END_DOC
 
 @Program(name="biostar322664",
 	description="Extract PE Reads (with their mates) supporting variants in vcf file",
-	keywords= {"sam","bam","vcf"},
+	keywords= {"sam","bam","cram","vcf"},
 	biostars=322664,
 	jvarkit_amalgamion =  true,
+	creationDate = "20180625",
+	modificationDate = "20250313",
 	menu="Biostars"
 	)
 public class Biostar322664 extends Launcher
@@ -126,7 +128,7 @@ public class Biostar322664 extends Launcher
 	private String meta_tag_str = null;
 	@Parameter(names={"-all","--all"},description="used in complement of option -X . Will output any SamRecord, but some reads will carrying the information about the variant in a 'Xx' attribute.")
 	private boolean output_all = false;
-	@Parameter(names={"-pair","--pair"},description="pair mode: the paired read and it's pair muts BOTH carry at least one variant")
+	@Parameter(names={"-pair","--pair","--both"},description="pair mode: the paired read and each read of the pair (R1 and R2) must  BOTH carry at least one variant")
 	private boolean both_pair_mode = false;
 
 	
@@ -181,7 +183,7 @@ public class Biostar322664 extends Launcher
 			try(SamReader samReader =srf.open(input==null?SamInputResource.of(stdin()):SamInputResource.of(Paths.get(input)))) {
 				final SAMFileHeader header = samReader.getFileHeader();
 				if(!this.input_is_not_sorted_on_queryname &&
-					header.getSortOrder()!=SAMFileHeader.SortOrder.queryname) {
+					header.getSortOrder()==SAMFileHeader.SortOrder.coordinate) {
 					LOG.error("Expected SAM input to be sorted on "+SAMFileHeader.SortOrder.queryname+" but got "+header.getSortOrder() +
 							" See the options to work without 'mate'.");
 					return -1;
@@ -221,7 +223,7 @@ public class Biostar322664 extends Launcher
 						}
 					else
 						{
-						eq_range = new EqualRangeIterator<>(iter,(R1,R2)->R1.getReadName().compareTo(R2.getReadName()));
+						eq_range = new EqualIterator<>(iter,(R1,R2)->R1.getReadName().compareTo(R2.getReadName()));
 						}
 					while(eq_range.hasNext()) {
 						final List<SAMRecord> array = eq_range.next();
@@ -347,8 +349,8 @@ public class Biostar322664 extends Launcher
 							}
 						}
 					
-					if(eq_range instanceof EqualRangeIterator) {
-						EqualRangeIterator.class.cast(eq_range).close();
+					if(eq_range instanceof EqualIterator) {
+						EqualIterator.class.cast(eq_range).close();
 						}
 		 			iter.close();
 					}

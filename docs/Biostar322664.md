@@ -39,9 +39,9 @@ Usage: biostar322664 [options] Files
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    -pair, --pair
-      pair mode: the paired read and it's pair muts BOTH carry at least one 
-      variant 
+    -pair, --pair, --both
+      pair mode: the paired read and each read of the pair (R1 and R2) must  
+      BOTH carry at least one variant
       Default: false
     -R, --reference
       For reading/writing CRAM files. Indexed fasta Reference file. This file 
@@ -66,6 +66,7 @@ Usage: biostar322664 [options] Files
 
  * sam
  * bam
+ * cram
  * vcf
 
 
@@ -74,6 +75,11 @@ Usage: biostar322664 [options] Files
 
  * [https://www.biostars.org/p/322664](https://www.biostars.org/p/322664)
 
+
+
+## Creation Date
+
+20180625
 
 ## Source code 
 
@@ -107,7 +113,7 @@ The current reference is:
 
 ## Input
 
-  * BAM : MUST be sorted using Picard SortSam (see https://github.com/samtools/hts-specs/issues/5 )
+  * BAM : MUST be sorted using Picard SortSam (see https://github.com/samtools/hts-specs/issues/5 ). Update 20250313 : the output of 'samtools collate' should be ok too , as well as 'samtools sort -n '(not tested)
   * VCF : only SNP are considered. Genotypes are ignored (all ALT alleles are observed regardless of the sample/genotype )
 
 ##Example

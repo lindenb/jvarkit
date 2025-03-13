@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : f92b545b9
-Compilation : 20250313154016
+Version     : f9a4636c5
+Compilation : 20250313170035
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -95,7 +95,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar234081](Biostar234081.md) | convert extended CIGAR to regular CIGAR ('X','=' -> 'M') | 20170130 | 20200409 |
 | [biostar234230](Biostar234230.md) | Sliding Window : discriminate partial and fully contained fragments (from a bam file) |  | 20190417 |
 | [biostar251649](Biostar251649.md) | Annotating the flanking bases of SNPs in a VCF file | 20170508 | 20200213 |
-| [biostar322664](Biostar322664.md) | Extract PE Reads (with their mates) supporting variants in vcf file |  |  |
+| [biostar322664](Biostar322664.md) | Extract PE Reads (with their mates) supporting variants in vcf file | 20180625 | 20250313 |
 | [biostar332826](Biostar332826.md) | Fast Extraction of Variants from a list of IDs | 20180817 | 20210412 |
 | [biostar336589](Biostar336589.md) | displays circular map as SVG from BED and REF file | 20180907 | 20210818 |
 | [biostar352930](Biostar352930.md) | Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the same name carrying this information. |  |  |
