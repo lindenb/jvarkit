@@ -126,13 +126,16 @@ public class RegenieMakeAnnot extends Launcher {
 	private static final Logger LOG = Logger.build(RegenieMakeAnnot.class).make();
 
 	@Parameter(names={"-o","--output"},description="output dir.",required = true)
-	private Path outputDir;
+	private Path outputDir=null;
 	@Parameter(names={"-m","--masks"},description="mask file. TSV file. no header. 3 columns prediction_name/score/comma-separated-mask_names. if undefined, will produce one mask per prediction")
 	private Path masksFile = null;
 	@Parameter(names={"-N"},description="max item per chunck. -1: no limit ")
 	private int max_items=10_000;
 	@Parameter(names={"--vcf"},description="keep variant id only if it's ID was found in this VCF file")
 	private Path externalVCFPath = null;
+	@Parameter(names={"--gzip","-Z"},description="compress output files")
+	private boolean gzip_files=false;
+
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 
@@ -160,9 +163,10 @@ public class RegenieMakeAnnot extends Launcher {
 				}
 			if(count_written==0) {
 				final String prefix = String.format("chunk%03d_%03d.",index,batch_size);
-				final Path p1 = outputDir.resolve(prefix+"annot.txt");
-				final Path p2 = outputDir.resolve(prefix+"setfile.txt");
-				final Path p3 = outputDir.resolve(prefix+"mask.txt");
+				final String suffix = ".txt"+(gzip_files?".gz":"");
+				final Path p1 = outputDir.resolve(prefix+"annot"+suffix);
+				final Path p2 = outputDir.resolve(prefix+"setfile"+suffix);
+				final Path p3 = outputDir.resolve(prefix+"mask"+suffix);
 				this.annot = IOUtils.openPathForPrintWriter(p1);
 				this.setfile = IOUtils.openPathForPrintWriter(p2);
 				this.mask = IOUtils.openPathForPrintWriter(p3);
@@ -549,7 +553,6 @@ public class RegenieMakeAnnot extends Launcher {
 		}
 	}
 
-	
 	public static void main(final String[] args) {
 		new RegenieMakeAnnot().instanceMainWithExit(args);
 	}
