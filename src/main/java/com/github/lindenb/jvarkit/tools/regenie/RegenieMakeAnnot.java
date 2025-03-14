@@ -549,4 +549,8 @@ public class RegenieMakeAnnot extends Launcher {
 		}
 	}
 
+	
+	public static void main(final String[] args) {
+		new RegenieMakeAnnot().instanceMainWithExit(args);
+	}
 }
