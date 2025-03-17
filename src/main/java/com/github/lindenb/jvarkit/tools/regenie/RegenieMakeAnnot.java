@@ -339,11 +339,12 @@ public class RegenieMakeAnnot extends Launcher {
 							pred.score = OptionalDouble.of(Double.parseDouble(tokens[1]));
 							}
 						pred.masks.addAll(Arrays.asList(CharSplitter.COMMA.split(tokens[2])));
-						pred.masks.remove("");
-						pred.masks.remove(".");
 						if(pred.masks.isEmpty()) {
 							throw new IllegalArgumentException("no mask in "+line+" in "+masksFile);
 							}
+
+						pred.masks.remove("");
+						pred.masks.remove(".");
 						
 						predictions_hash.put(pred.name, pred);
 					}

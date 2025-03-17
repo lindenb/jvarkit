@@ -155,6 +155,6 @@ $ java -jar dist/jvarkit.jar vcfancestralalleles \
 ** Cited in
 
  * "Inferences of Local Genetic Adaptation from Palaeolithic Hunter Gatherers" Dean James Cornish . Thesis. https://discovery.ucl.ac.uk/id/eprint/10170497/1/Cornish_Thesis_MPhil.pdf **VcfAncestralAllele**
-
+ * F Miron-Toruno, E Morett, I Aguilar-Ordonez, A W Reynolds, Genome-wide selection scans in Mexican Indigenous populations reveal recent signatures of pathogen and diet adaptation, Genome Biology and Evolution, 2025;, evaf043, https://doi.org/10.1093/gbe/evaf043 
 
 
