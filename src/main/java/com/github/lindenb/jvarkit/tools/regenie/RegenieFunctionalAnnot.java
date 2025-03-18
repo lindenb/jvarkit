@@ -128,6 +128,8 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 					v.prediction = best_pred;
 					v.score = OptionalDouble.of( best_score);
 					v.cadd = getCaddScore(ctx);
+					v.is_singleton = isSingleton(ctx);
+					v.frequency = getFrequency(ctx);
 					print(w,v);
 					}
 				}

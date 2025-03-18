@@ -127,6 +127,8 @@ public class RegenieMakeAnnot extends Launcher {
 
 	@Parameter(names={"-o","--output"},description="output dir.",required = true)
 	private Path outputDir=null;
+	@Parameter(names={"--prefix"},description="prefix for output files")
+	private String filePrefix = "chunk";
 	@Parameter(names={"-m","--masks"},description="mask file. TSV file. no header. 3 columns prediction_name/score/comma-separated-mask_names. if undefined, will produce one mask per prediction")
 	private Path masksFile = null;
 	@Parameter(names={"-N"},description="max item per chunck. -1: no limit ")
@@ -145,36 +147,41 @@ public class RegenieMakeAnnot extends Launcher {
 	 
 	
 	private class Output implements Closeable{
-		final int index;
-		int count_written=0;
-		int batch_size=0;
+		private final int index;
+		private int count_written=0;
+		private int batch_size=0;
 		PrintWriter annot;
 		PrintWriter setfile;
 		PrintWriter mask;
+		PrintWriter aaf;
 		final Set<String> seen_predictions = new HashSet<>();
 		Output(int index) {
 			this.index=index;
 			}
-		void prepare(PrintWriter manifest) throws IOException {
+		void prepare(final PrintWriter manifest) throws IOException {
 			if(RegenieMakeAnnot.this.max_items>0 && count_written>=RegenieMakeAnnot.this.max_items ) {
 				close();
 				count_written=0;
 				batch_size++;
 				}
 			if(count_written==0) {
-				final String prefix = String.format("chunk%03d_%03d.",index,batch_size);
+				final String prefix = String.format("%s%03d_%03d.",filePrefix,index,batch_size);
 				final String suffix = ".txt"+(gzip_files?".gz":"");
 				final Path p1 = outputDir.resolve(prefix+"annot"+suffix);
 				final Path p2 = outputDir.resolve(prefix+"setfile"+suffix);
 				final Path p3 = outputDir.resolve(prefix+"mask"+suffix);
+				final Path p4 = outputDir.resolve(prefix+"aaf"+suffix);
 				this.annot = IOUtils.openPathForPrintWriter(p1);
 				this.setfile = IOUtils.openPathForPrintWriter(p2);
 				this.mask = IOUtils.openPathForPrintWriter(p3);
+				this.aaf = IOUtils.openPathForPrintWriter(p4);
 				manifest.print(p1.toString());
 				manifest.print("\t");
 				manifest.print(p2.toString());
 				manifest.print("\t");
 				manifest.print(p3.toString());
+				manifest.print("\t");
+				manifest.print(p4.toString());
 				manifest.println();
 				}
 			count_written++;
@@ -203,10 +210,13 @@ public class RegenieMakeAnnot extends Launcher {
 			this.annot.flush();
 			this.setfile.flush();
 			this.mask.flush();
+			this.aaf.flush();
 			this.annot.close();
 			this.setfile.close();
 			this.mask.close();
+			this.aaf.close();
 			this.seen_predictions.clear();
+			
 			}
 		}
 	
@@ -228,6 +238,8 @@ public class RegenieMakeAnnot extends Launcher {
 		String prediction;
 		double score;
 		double cadd;
+		double frequency;
+		byte is_singleton;
 		}
 
 	
@@ -244,7 +256,7 @@ public class RegenieMakeAnnot extends Launcher {
 
 	private static class RowCodec extends AbstractDataCodec<Variation> {
 		@Override
-		public void encode(DataOutputStream dos, Variation variant) throws IOException {
+		public void encode(DataOutputStream dos, final Variation variant) throws IOException {
 			dos.writeUTF(variant.contig);
 			dos.writeInt(variant.pos);
 			dos.writeUTF(variant.id);
@@ -252,6 +264,8 @@ public class RegenieMakeAnnot extends Launcher {
 			dos.writeUTF(variant.prediction);
 			dos.writeDouble(variant.score);
 			dos.writeDouble(variant.cadd);
+			dos.writeDouble(variant.frequency);
+			dos.writeByte(variant.is_singleton);
 		}
 
 		@Override
@@ -268,6 +282,8 @@ public class RegenieMakeAnnot extends Launcher {
 			v.prediction = dis.readUTF();
 			v.score = dis.readDouble();
 			v.cadd = dis.readDouble();
+			v.frequency = dis.readDouble();
+			v.is_singleton = dis.readByte();
 			return v;
 			}
 
@@ -368,6 +384,8 @@ public class RegenieMakeAnnot extends Launcher {
 				int col_prediction = fileHeader.getColumnIndex("ANNOTATION");
 				int col_score = fileHeader.containsKey("SCORE")?fileHeader.getColumnIndex("SCORE"):-1;
 				int col_cadd = fileHeader.containsKey("CADD")?fileHeader.getColumnIndex("CADD"):-1;
+				int col_singleton = fileHeader.getColumnIndex("SINGLETON");
+				int col_freq = fileHeader.getColumnIndex("FREQ");
 
 					
 				while((line=br.readLine())!=null) {
@@ -412,6 +430,10 @@ public class RegenieMakeAnnot extends Launcher {
 						{
 						v.cadd = Double.parseDouble(caddStr);
 						}
+					
+					v.is_singleton = Byte.parseByte(row.at(col_singleton));
+					v.frequency = Double.parseDouble(row.at(col_freq));
+
 					
 					/* check this ID is present in the VCF file */
 					if(bufferedVCFReader!=null) {
@@ -507,6 +529,14 @@ public class RegenieMakeAnnot extends Launcher {
 								output.annot.println();
 								
 								output.seen_predictions.add(v.prediction);
+								
+								
+								output.aaf.print(v.id);
+								output.aaf.print(" ");
+								output.aaf.print(v.frequency);
+								output.aaf.print(" ");
+								output.aaf.print(v.is_singleton);
+								output.aaf.println();
 								}
 							output.setfile.print(first.gene);// gene
 							output.setfile.print("\t");

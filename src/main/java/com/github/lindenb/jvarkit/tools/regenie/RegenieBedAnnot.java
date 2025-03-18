@@ -14,6 +14,7 @@ import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -40,7 +41,8 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	private Path userBed;
 	@Parameter(names = {"-A","--annotation"}, description = "value for annotation field")
 	private String annotation_value="";
-
+	@Parameter(names = {"-m","--min-length"}, description = "slop each BED records in 5' and 3' so the minimal LENGTH is 'm' ")
+	private int min_len=0;
 	
 	private final IntervalTreeMap<UserBed> interval2userbed = new IntervalTreeMap<>();
 
@@ -56,7 +58,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	}
 	
 	@Override
-	protected VCFHeader initVcfHeader(VCFHeader h) {
+	protected VCFHeader initVcfHeader(final VCFHeader h) {
 		if(StringUtils.isBlank(this.annotation_value)) {
 			this.annotation_value=IOUtils.getFilenameWithoutCommonSuffixes(this.userBed).replaceAll("[^a-zA-Z0-9]+","_");
 			}
@@ -68,11 +70,27 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 				final BedLine rec = bc.decode(line);
 				if(rec==null) continue;
 				final String ctg = fixContig(rec.getContig());
-				if(StringUtils.isBlank(rec.get(3))) throw new IOException("empty title in bed line "+line);
-				final Interval r= new Interval(ctg, rec.getStart(), rec.getEnd(), false, rec.get(3));
+				final String title= rec.get(3);
+				if(StringUtils.isBlank(title) || title.equals(".")) throw new IOException("empty title in bed line "+line);
+				int chromStart=rec.getStart();
+				int chromEnd=rec.getEnd();
+				if(this.min_len>0 && CoordMath.getLength(chromStart, chromEnd)< this.min_len) {
+					final int x2 = Math.max((this.min_len - CoordMath.getLength(chromStart, chromEnd))/2,1);
+					chromStart = Math.max(chromStart-x2, 1);
+					chromEnd += x2;
+					}
+				final Interval r= new Interval(ctg, chromStart, chromEnd, false,title);
 				final UserBed ub=new UserBed();
 				ub.name = r.getName();
-				ub.score = Double.parseDouble(rec.getOrDefault(4,"1.0"));
+				
+				final String scoreStr=rec.getOrDefault(4,"");
+				if(StringUtils.isBlank(scoreStr) || scoreStr.equals(".")) {
+					ub.score = 1.0;
+					}
+				else
+					{
+					ub.score = Double.parseDouble(scoreStr);
+					}
 				this.interval2userbed.put(r, ub);
 				}
 			}
@@ -83,7 +101,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 		}
 		
 	@Override
-	protected void dump(PrintWriter w,final VariantContext ctx) throws Exception {	
+	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {	
 		for(UserBed ub: this.interval2userbed.getOverlapping(ctx) ) {
 			final Variation v = new Variation();
 			v.contig = fixContig(ctx.getContig());
@@ -93,14 +111,14 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 			v.prediction = this.annotation_value;
 			v.score = OptionalDouble.of(ub.score);
 			v.cadd = getCaddScore(ctx);
+			v.is_singleton = isSingleton(ctx);
+			v.frequency = getFrequency(ctx);
 			print(w,v);
 			}
 		}
-
-	
 	
 
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new RegenieBedAnnot().instanceMainWithExit(args);
 	}
 

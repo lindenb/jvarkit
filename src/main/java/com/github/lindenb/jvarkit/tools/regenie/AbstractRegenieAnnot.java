@@ -37,6 +37,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
@@ -59,9 +60,29 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		String prediction;
 		OptionalDouble score=OptionalDouble.empty();
 		OptionalDouble cadd=OptionalDouble.empty();
+		int is_singleton=0;
+		double frequency=0.0;
 	}
 	
 
+	protected byte isSingleton(final VariantContext ctx) {
+		Genotype single=null;
+		for(Genotype g:ctx.getGenotypes()) {
+			if(!g.hasAltAllele()) continue;
+			if(single!=null) return 0;
+			single =g;
+		}
+		return (byte)(single==null?0:1);
+		}
+	
+	protected double getFrequency(final VariantContext ctx) {
+		double freq = ctx.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY,0.0);
+		if(ctx.hasAttribute(GNOMAD_AF)) {
+			freq = Math.max(ctx.getAttributeAsDouble(GNOMAD_AF, 0.0), freq);
+			}
+		return freq;
+		}
+	
 	protected abstract void dump(final PrintWriter w,final VariantContext ctx) throws Exception;
 		
 	
@@ -79,6 +100,10 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		w.print(ctx.score.orElse(1.0));
 		w.print("\t");
 		w.print(ctx.cadd.orElse(0.0));
+		w.print("\t");
+		w.print(ctx.frequency);
+		w.print("\t");
+		w.print(ctx.is_singleton);
 		w.println();
 	}
 	
@@ -100,9 +125,7 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		}
 
 	private boolean keepVariant(final double max_freq,final VariantContext ctx) {
-		if(ctx.hasAttribute(GNOMAD_AF) && ctx.getAttributeAsDouble(GNOMAD_AF, 0.0) > max_freq) return false;
-		if(ctx.hasAttribute(VCFConstants.ALLELE_FREQUENCY_KEY) && ctx.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY, 0.0) > max_freq) return false;
-		return true;
+		return getFrequency(ctx) <= max_freq;
 		}
 
 	protected OptionalDouble getCaddScore(final VariantContext ctx) {
@@ -115,14 +138,14 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		return OptionalDouble.empty();
 		}
 	
-	protected VCFHeader initVcfHeader(VCFHeader h) {
+	protected VCFHeader initVcfHeader(final VCFHeader h) {
 		return h;
 	}
 	
 	protected abstract Logger getLogger();
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try {
 			final double freq = Arrays.stream(CharSplitter.COMMA.split(this.freqStr.trim())).mapToDouble(S->Double.parseDouble(S)).max().orElse(0.01);
 			final String input = oneFileOrNull(args);
@@ -130,7 +153,7 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 			try (VCFIterator iter = VCFUtils.createVCFIterator(input)) {
 				initVcfHeader(iter.getHeader());
 				try (PrintWriter w = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-					final String[] header_line=new String[]{"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD"};
+					final String[] header_line=new String[]{"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"};
 					w.println(String.join("\t", header_line));
 					
 					

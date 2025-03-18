@@ -11,6 +11,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
@@ -36,6 +37,11 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 		return LOG;
 		}
 
+	@Override
+	protected VCFHeader initVcfHeader(VCFHeader h) {
+		if(window_shift<1 || window_shift>window_size) throw new IllegalArgumentException("shift>size");
+		return super.initVcfHeader(h);
+		}
 
 	private String getPredictionName() {
 		return "sliding_"+window_size;
@@ -43,6 +49,8 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {
+		final byte is_singleton = isSingleton(ctx);
+		final double freq = getFrequency(ctx);
 		int  win_pos = 1 + (((int)(ctx.getStart()/(double)this.window_size)) * this.window_size);
 		do {
 			final Variation v = new Variation();
@@ -53,6 +61,8 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 			v.prediction = getPredictionName();
 			v.score = OptionalDouble.empty();
 			v.cadd = getCaddScore(ctx);
+			v.is_singleton = is_singleton;
+			v.frequency = freq;
 			print(w,v);
 			win_pos+=this.window_shift;
 			} while(CoordMath.overlaps(win_pos, win_pos+this.window_size-1, ctx.getStart(), ctx.getEnd()));
