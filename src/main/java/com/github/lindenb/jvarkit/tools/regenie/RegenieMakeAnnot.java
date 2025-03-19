@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.Random;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -64,6 +65,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -111,15 +113,38 @@ upstream_gene_variant	 0.1	upstream,updownstream
 
 ## Example
 
+```
+bcftools view -O v 'chr4.bcf' |\
+	java -Djava.io.tmpdir=TMP -jar "jvarkit.jar" regenieslidingannot \
+		--window-size "3000" \
+		--window-shift "1500" \
+		-f 0.01,0.001 |\
+	java -Djava.io.tmpdir=TMP -jar "jvarkit.jar" regeniemakeannot \
+		--prefix "chr4_3000_1500_chunk" \
+		-o ${PWD}/OUT \
+		--gzip \
+		-N 5000
 
-todo
+$ find OUT/ | sort | cut -d '/' -f 14- | tail
+OUT/chr4_3000_1500_chunk097_000.setfile.txt.gz
+OUT/chr4_3000_1500_chunk098_000.aaf.txt.gz
+OUT/chr4_3000_1500_chunk098_000.annot.txt.gz
+OUT/chr4_3000_1500_chunk098_000.mask.txt.gz
+OUT/chr4_3000_1500_chunk098_000.setfile.txt.gz
+OUT/chr4_3000_1500_chunk099_000.aaf.txt.gz
+OUT/chr4_3000_1500_chunk099_000.annot.txt.gz
+OUT/chr4_3000_1500_chunk099_000.mask.txt.gz
+OUT/chr4_3000_1500_chunk099_000.setfile.txt.gz
+OUT/manifest.tsv
+
+```
 
  */
 @Program(name="regeniemakeannot",
 description="Create annotation files for regenie from a TSV input file",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="20250311",
+modificationDate="20250319",
 generate_doc = false
 )
 public class RegenieMakeAnnot extends Launcher {
@@ -137,7 +162,9 @@ public class RegenieMakeAnnot extends Launcher {
 	private Path externalVCFPath = null;
 	@Parameter(names={"--gzip","-Z"},description="compress output files")
 	private boolean gzip_files=false;
-
+	@Parameter(names={"--reserve"},description="reserve 'n' output files of non-overlaping gene/target")
+	private int reserve_output = 20;
+	
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 
@@ -150,11 +177,12 @@ public class RegenieMakeAnnot extends Launcher {
 		private final int index;
 		private int count_written=0;
 		private int batch_size=0;
-		PrintWriter annot;
-		PrintWriter setfile;
-		PrintWriter mask;
-		PrintWriter aaf;
+		PrintWriter annot = null;
+		PrintWriter setfile = null;
+		PrintWriter mask = null;
+		PrintWriter aaf = null;
 		final Set<String> seen_predictions = new HashSet<>();
+		final IntervalTreeMap<Target> treeMap = new IntervalTreeMap<>();
 		Output(int index) {
 			this.index=index;
 			}
@@ -188,35 +216,36 @@ public class RegenieMakeAnnot extends Launcher {
 			}
 		@Override
 		public void close() {
-			
-			final Set<String> distinct_masks = RegenieMakeAnnot.this.predictions_hash.values().
-					stream().
-					flatMap(SET->SET.masks.stream()).
-					collect(Collectors.toSet());
-			
-			for (final String mask_name : distinct_masks) {
-				final Set<String> predset = this.seen_predictions.
+			if(count_written>0) 
+				{
+				final Set<String> distinct_masks = RegenieMakeAnnot.this.predictions_hash.values().
 						stream().
-						filter(P->RegenieMakeAnnot.this.predictions_hash.get(P).masks.contains(mask_name)).
-						collect(Collectors.toSet())
-						;
-				if(predset.isEmpty()) continue;
-				this.mask.print(mask_name);
-				this.mask.print("\t");
-				this.mask.print(String.join(",",predset));
-				this.mask.println();
+						flatMap(SET->SET.masks.stream()).
+						collect(Collectors.toSet());
+				
+				for (final String mask_name : distinct_masks) {
+					final Set<String> predset = this.seen_predictions.
+							stream().
+							filter(P->RegenieMakeAnnot.this.predictions_hash.get(P).masks.contains(mask_name)).
+							collect(Collectors.toSet())
+							;
+					if(predset.isEmpty()) continue;
+					this.mask.print(mask_name);
+					this.mask.print("\t");
+					this.mask.print(String.join(",",predset));
+					this.mask.println();
+					}
+				
+				this.annot.flush();
+				this.setfile.flush();
+				this.mask.flush();
+				this.aaf.flush();
+				this.annot.close();
+				this.setfile.close();
+				this.mask.close();
+				this.aaf.close();
+				this.seen_predictions.clear();
 				}
-			
-			this.annot.flush();
-			this.setfile.flush();
-			this.mask.flush();
-			this.aaf.flush();
-			this.annot.close();
-			this.setfile.close();
-			this.mask.close();
-			this.aaf.close();
-			this.seen_predictions.clear();
-			
 			}
 		}
 	
@@ -225,12 +254,11 @@ public class RegenieMakeAnnot extends Launcher {
 		String contig;
 		int start;
 		int end;
-		/* in witch file we should write data */
-		int output_index=-1;
+		Output output=null;
 		}
 
 	
-	private static class Variation {
+	private static class Variation implements Locatable {
 		String contig;
 		int pos;
 		String id;
@@ -240,6 +268,13 @@ public class RegenieMakeAnnot extends Launcher {
 		double cadd;
 		double frequency;
 		byte is_singleton;
+		@Override public String getContig() { return contig; }
+		@Override public int getStart() { return pos; }
+		@Override public int getEnd() { return pos; }
+		@Override
+		public String toString() {
+			return contig+":"+pos+":"+id+":"+gene;
+			}
 		}
 
 	
@@ -248,7 +283,7 @@ public class RegenieMakeAnnot extends Launcher {
 		OptionalDouble score=OptionalDouble.empty();
 		final Set<String> masks = new HashSet<>();
 
-		Prediction(String name) {
+		Prediction(final String name) {
 			this.name  = name;
 			}
 		}
@@ -321,12 +356,12 @@ public class RegenieMakeAnnot extends Launcher {
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		//Path tmpFile=null;
-		final Map<Integer,Output> id2output = new HashMap<>();
 		BufferedVCFReader bufferedVCFReader = null;
 		VCFReader vcfReader = null;
 		ContigNameConverter vcfCtgConverter=null;
+		final List<Output>  outputs = new ArrayList<>();
 		try {
 			final String input = oneFileOrNull(args);
 			final Pattern spaces_regex = Pattern.compile("[ \t]");
@@ -460,97 +495,99 @@ public class RegenieMakeAnnot extends Launcher {
 				}
 			sorter.doneAdding();
 			
-			int max_index=-1;
-			final IntervalTreeMap<List<Target>> treeMap = new IntervalTreeMap<>();
+			final Random choose_any_output =  new Random(0L);
+			while(outputs.size()<Math.max(2, reserve_output)) {
+				outputs.add(new Output(outputs.size()));
+				}
 			for(Target t:target_hash.values()) {
 				final Interval loc = new Interval(t.contig, t.start, t.end);
-				final Set<Integer> indexes= treeMap.getOverlapping(loc).stream().
-						flatMap(L->L.stream()).
-						map(T->T.output_index).
-						collect(Collectors.toSet());
-				t.output_index = 0;
-				while(indexes.contains(t.output_index)) {
-					t.output_index++;
+				
+				final List<Output> available_output = outputs.stream().
+						filter(O->!O.treeMap.containsOverlapping(loc)).
+						collect(Collectors.toList());
+				Output output = null;
+				if(available_output.isEmpty()) {
+					output = new Output(outputs.size());
+					outputs.add(output);
 					}
-				id2output.put(t.output_index,new Output(t.output_index));
-				max_index=Math.max(max_index, t.output_index);
-				List<Target> L = treeMap.get(loc);
-				if(L==null) {
-					L = new ArrayList<>();
-					treeMap.put(loc, L);
-					}	
-				L.add(t);
+				else
+					{
+					output = available_output.get(choose_any_output.nextInt(available_output.size()));
+					}
+				if(output.treeMap.containsOverlapping(loc) ) {
+					throw new IllegalStateException("found overlap ?");
+					}
+				output.treeMap.put(loc, t);
+				t.output = output;
 				}
-			treeMap.clear();
 
-				try(PrintWriter manifestW = IOUtils.openPathForPrintWriter(this.outputDir.resolve("manifest.tsv"))) {
-				try (CloseableIterator<Variation> iter0 = sorter.iterator()) {
-					try (EqualRangeIterator<Variation> iter = new EqualRangeIterator<>(iter0, (A, B) -> compareVariant(A, B, 1))) {
-						while (iter.hasNext()) {
-							final List<Variation> gene_variants = iter.next();
-							// sort and remove duplicates, if any
-							Collections.sort(gene_variants,(A,B)->{
-								int i = A.contig.compareTo(B.contig);
-								if(i!=0) return i;
-								i = Integer.compare(A.pos, B.pos);
-								if(i!=0) return i;
-								i = A.id.compareTo(B.id);
-								return i;
-								});
-							int x=0;
-							while(x+1< gene_variants.size()) {
-								final Variation v1 = gene_variants.get(x  );
-								final Variation v2 = gene_variants.get(x+1);
-								if(v1.id.equals(v2.id)) {
-									gene_variants.remove(x+1);
-								} else {
-									x++;
-									}
+			try(PrintWriter manifestW = IOUtils.openPathForPrintWriter(this.outputDir.resolve("manifest.tsv"))) {
+			try (CloseableIterator<Variation> iter0 = sorter.iterator()) {
+				try (EqualRangeIterator<Variation> iter = new EqualRangeIterator<>(iter0, (A, B) -> compareVariant(A, B, 1))) {
+					while (iter.hasNext()) {
+						final List<Variation> gene_variants = iter.next();
+						// sort and remove duplicates, if any
+						Collections.sort(gene_variants,(A,B)->{
+							int i = A.contig.compareTo(B.contig);
+							if(i!=0) return i;
+							i = Integer.compare(A.pos, B.pos);
+							if(i!=0) return i;
+							i = A.id.compareTo(B.id);
+							return i;
+							});
+						int x=0;
+						while(x+1< gene_variants.size()) {
+							final Variation v1 = gene_variants.get(x  );
+							final Variation v2 = gene_variants.get(x+1);
+							if(v1.id.equals(v2.id)) {
+								gene_variants.remove(x+1);
+							} else {
+								x++;
 								}
-							final Variation first = gene_variants.get(0);
-							final String gene_id = first.contig+"~"+first.gene;
-							final Target target = target_hash.get(gene_id);
-							if(target==null) throw new IllegalStateException(gene_id);
-							final Output output = id2output.get(target.output_index);
-							if(output==null) throw new IllegalStateException(gene_id+" "+target.output_index);
-							output.prepare(manifestW);
-							
-							
-							for (Variation v : gene_variants) {
-								output.annot.print(v.id);
-								output.annot.print(" ");
-								output.annot.print(v.gene);
-								output.annot.print(" ");
-								output.annot.print(v.prediction);
-								output.annot.print(" ");
-								output.annot.print(v.score);
-								output.annot.print(" ");
-								output.annot.print(v.cadd);
-								output.annot.println();
-								
-								output.seen_predictions.add(v.prediction);
-								
-								
-								output.aaf.print(v.id);
-								output.aaf.print(" ");
-								output.aaf.print(v.frequency);
-								output.aaf.print(" ");
-								output.aaf.print(v.is_singleton);
-								output.aaf.println();
-								}
-							output.setfile.print(first.gene);// gene
-							output.setfile.print("\t");
-							output.setfile.print(first.contig);// contig
-							output.setfile.print("\t");
-							output.setfile.print((int) gene_variants.stream().mapToInt(it -> it.pos).average().getAsDouble());
-							output.setfile.print("\t");
-							output.setfile.print(gene_variants.stream().map(it -> it.id).collect(Collectors.joining(",")));
-							output.setfile.println();
 							}
+						final Variation first = gene_variants.get(0);
+						final String gene_id = first.contig+"~"+first.gene;
+						final Target target = target_hash.get(gene_id);
+						if(target==null) throw new IllegalStateException(gene_id);
+						final Output output =  target.output;
+						output.prepare(manifestW);
+						
+						
+						for (Variation v : gene_variants) {
+							output.annot.print(v.id);
+							output.annot.print(" ");
+							output.annot.print(v.gene);
+							output.annot.print(" ");
+							output.annot.print(v.prediction);
+							output.annot.print(" ");
+							output.annot.print(v.score);
+							output.annot.print(" ");
+							output.annot.print(v.cadd);
+							output.annot.println();
+							
+							output.seen_predictions.add(v.prediction);
+							
+							
+							output.aaf.print(v.id);
+							output.aaf.print(" ");
+							output.aaf.print(v.frequency);
+							output.aaf.print(" ");
+							output.aaf.print(v.is_singleton);
+							output.aaf.println();
+							}
+						output.setfile.print(first.gene);// gene
+						output.setfile.print("\t");
+						output.setfile.print(first.contig);// contig
+						output.setfile.print("\t");
+						output.setfile.print((int) gene_variants.stream().mapToInt(it -> it.pos).average().getAsDouble());
+						output.setfile.print("\t");
+						output.setfile.print(gene_variants.stream().map(it -> it.id).collect(Collectors.joining(",")));
+						output.setfile.println();
 						}
 					}
-				manifestW.flush();
 				}
+			manifestW.flush();
+			}
 			sorter.cleanup();
 			
 			if(vcfReader!=null) {
@@ -562,10 +599,9 @@ public class RegenieMakeAnnot extends Launcher {
 				bufferedVCFReader=null;
 				}		
 			
-			for(Output o: id2output.values()) {
+			for(Output o: outputs) {
 				o.close();
 				}
-			id2output.clear();
 			return 0;
 		} catch (Throwable err) {
 			LOG.error(err);
@@ -578,7 +614,7 @@ public class RegenieMakeAnnot extends Launcher {
 				try { bufferedVCFReader.close(); } catch(IOException err) {}
 				}			
 			//if(tmpFile!=null) Files.deleteIfExists(tmpFile);
-			for(Output o: id2output.values()) {
+			for(Output o: outputs) {
 				o.close();
 			}
 		}

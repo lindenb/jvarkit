@@ -37,12 +37,16 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
+import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
+/**
+ * Base class for Regenie** Generator
+ *
+ */
 public abstract class AbstractRegenieAnnot extends Launcher {
 	private static final String CADD_PHRED = "CADD_PHRED";
 	private static final String GNOMAD_AF = "gnomad_genome_AF_NFE";
@@ -66,6 +70,7 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 	
 
 	protected byte isSingleton(final VariantContext ctx) {
+		if(!ctx.hasGenotypes()) throw new IllegalArgumentException("GT missing");
 		Genotype single=null;
 		for(Genotype g:ctx.getGenotypes()) {
 			if(!g.hasAltAllele()) continue;
@@ -76,7 +81,19 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		}
 	
 	protected double getFrequency(final VariantContext ctx) {
-		double freq = ctx.getAttributeAsDouble(VCFConstants.ALLELE_FREQUENCY_KEY,0.0);
+		if(!ctx.hasGenotypes()) throw new IllegalArgumentException("GT missing");
+		int AC=0;
+		double AN=0;
+		final Allele the_alt = ctx.getAlternateAllele(0);
+		for(Genotype gt: ctx.getGenotypes()) {
+			for(Allele alt: gt.getAlleles()) {
+				if(the_alt.equals(alt)) {
+					AC++;
+					}
+				AN++;//consider NO_CALL=REF
+				}
+			}
+		double freq = AC/AN;
 		if(ctx.hasAttribute(GNOMAD_AF)) {
 			freq = Math.max(ctx.getAttributeAsDouble(GNOMAD_AF, 0.0), freq);
 			}
@@ -169,7 +186,7 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 			}
 
 			return 0;
-		} catch (Throwable err) {
+		} catch (final Throwable err) {
 			getLogger().error(err);
 			return -1;
 		}

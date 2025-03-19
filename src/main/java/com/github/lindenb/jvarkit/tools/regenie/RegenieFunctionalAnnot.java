@@ -29,6 +29,11 @@ import htsjdk.variant.vcf.VCFHeader;
 /** 
 BEGIN_DOC
 
+## Example
+
+snpeff.cadd.in.vcf.gz |\
+	java -jar dist/jvarkit.jar regeniefunctionalannot -A anot.tsv |\
+	java -jar dist/jvarkit.jar regeniemakeannot -o OUT
 
 
 END_DOC
@@ -82,7 +87,15 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 		
 		return h;
 		}
-		
+	
+	private String removeVersionFromEnst(final String id) {
+		if(id.startsWith("ENST") ) {
+			int dot = id.lastIndexOf(".");
+			if(dot>0) return id.substring(0,dot);
+		}
+		return id;
+		}
+	
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {
 		final String altstr = ctx.getAlternateAllele(0).getDisplayString();
@@ -93,7 +106,7 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 		for(int side=0;side< 2;++side) {
 			final Function<AnnPredictionParser.AnnPrediction, String> extract_gene = side==0?
 					PRED->PRED.getGeneName():
-					PRED->PRED.getFeatureId()
+					PRED->removeVersionFromEnst(PRED.getFeatureId())
 					;
 			
 			final Set<String> gene_names=predictions.stream().

@@ -12,6 +12,7 @@
  * Kinnby, A., Robert, C., Havenhand, J.N., Brostrom, G., Bussiere, L. and De Wit, P. (2025), The Roles of Plasticity and Selection in Rapid Phenotypic Changes at the Pacific Oyster Invasion Front in Europe. Mol Ecol e17684. https://doi.org/10.1111/mec.17684  **WGSCOVERAGEPlotter**
  * Dunker-Seidler F, Breunig K, Haubner M, Sonntag F, Hörer M, Feiner RC. Recombinant AAV batch profiling by nanopore sequencing elucidates product-related DNA impurities and vector genome length distribution. Mol Ther Methods Clin Dev. 2025 Jan 22;33(1):101417. doi: 10.1016/j.omtm.2025.101417. PMID: 40008087; PMCID: PMC11850753. **samextractclip**
  * F Miron-Toruno, E Morett, I Aguilar-Ordonez, A W Reynolds, Genome-wide selection scans in Mexican Indigenous populations reveal recent signatures of pathogen and diet adaptation, Genome Biology and Evolution, 2025;, evaf043, https://doi.org/10.1093/gbe/evaf043 **vcfancestralallele**
+ * Milhaven, M., Garg, A., Versoza, C.J. et al. Quantifying the effects of computational filter criteria on the accurate identification of de novo mutations at varying levels of sequencing coverage. Heredity (2025). https://doi.org/10.1038/s41437-025-00754-0
 
 ## 2024
 
