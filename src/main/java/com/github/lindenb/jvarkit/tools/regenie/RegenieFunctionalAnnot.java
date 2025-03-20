@@ -26,7 +26,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
-/** 
+/**
 BEGIN_DOC
 
 ## Example
@@ -42,7 +42,7 @@ END_DOC
 	description="Create annotation files for regenie using snpEff annotations",
 	keywords={"vcf","regenie","burden"},
 	creationDate="20250311",
-	modificationDate="20250311"
+	modificationDate="20250320"
 	)
 public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.build(RegenieFunctionalAnnot.class).make();

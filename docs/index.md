@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : b7e6eed0e
-Compilation : 20250319153427
+Version     : e7693ed22
+Compilation : 20250320104641
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -229,7 +229,10 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
-| [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250311 |
+| [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |
+| [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250320 |
+| [regeniemakeannot](RegenieMakeAnnot.md) | Create annotation files for regenie from a TSV input file | 20250311 | 20250320 |
+| [regenieslidingannot](RegenieSlidingAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
