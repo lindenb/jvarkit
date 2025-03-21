@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : e7693ed22
-Compilation : 20250320104641
+Version     : cb3b329b0
+Compilation : 20250321134558
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -261,6 +261,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgroupbypop](VcfGroupByPopulation.md) | create INFO data by population | 20190319 | 20230712 |
 | [vcfliftover](VcfLiftOver.md) | Lift-over a VCF file | 20240114 | 20210603 |
 | [vcfpeekvcf](VcfPeekVcf.md) | Get the INFO from a VCF and use it for another VCF | 20150521 | 20240405 |
+| [vcfsamplesprs](VcfSamplesPRS.md) | another program for @AntoineRimbert | 20220915 | 20220915 |
 | [vcfscanupstreamorf](VcfScanUpstreamOrf.md) | Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20190218 | 20200804 |
 | [vcfserver](VcfServer.md) | Web Server displaying VCF file. A web interface for vcf2table | 20171027 | 20220517 |
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |

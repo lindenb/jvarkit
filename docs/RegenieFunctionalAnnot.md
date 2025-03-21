@@ -7,8 +7,13 @@ Create annotation files for regenie using snpEff annotations
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/regeniefunctionalannot.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar regeniefunctionalannot  [options] Files
+
 Usage: regeniefunctionalannot [options] Files
   Options:
   * -A, --annotations
@@ -36,23 +41,6 @@ Usage: regeniefunctionalannot [options] Files
  * regenie
  * burden
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew regeniefunctionalannot
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -83,5 +71,13 @@ The current reference is:
 
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
+
+
+## Example
+
+snpeff.cadd.in.vcf.gz |\
+	java -jar dist/jvarkit.jar regeniefunctionalannot -A anot.tsv |\
+	java -jar dist/jvarkit.jar regeniemakeannot -o OUT
+
 
 

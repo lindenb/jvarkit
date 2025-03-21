@@ -79,7 +79,8 @@ END_DOC
 		keywords={"vcf","indel"},
 		creationDate = "20220915",
 		modificationDate = "20220915",
-		generate_doc = true
+		generate_doc = true,
+		jvarkit_amalgamion = true
 		)
 public class VcfSamplesPRS extends Launcher {
 	private static final Logger LOG = Logger.build(VcfSamplesPRS.class).make();

@@ -276,6 +276,7 @@ nav:
         - "vcfrebase" : VcfRebase.md
         - "vcfregulomedb" : VcfRegulomeDB.md
         - "vcfrenamechr" : ConvertVcfChromosomes.md
+        - "vcfsamplesprs" : VcfSamplesPRS.md
         - "vcfscanupstreamorf" : VcfScanUpstreamOrf.md
         - "vcfserver" : VcfServer.md
         - "vcfsetdict" : VcfSetSequenceDictionary.md

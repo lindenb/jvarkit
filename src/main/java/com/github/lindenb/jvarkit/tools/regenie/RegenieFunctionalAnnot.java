@@ -42,7 +42,9 @@ END_DOC
 	description="Create annotation files for regenie using snpEff annotations",
 	keywords={"vcf","regenie","burden"},
 	creationDate="20250311",
-	modificationDate="20250320"
+	modificationDate="20250320",
+	jvarkit_amalgamion = true,
+	generate_doc = true
 	)
 public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.build(RegenieFunctionalAnnot.class).make();
