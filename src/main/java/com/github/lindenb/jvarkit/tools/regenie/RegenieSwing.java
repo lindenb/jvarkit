@@ -45,6 +45,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -222,7 +223,7 @@ public class RegenieSwing extends Launcher {
 			return getPosition();
 			}
 		}
-	private class NamedFilter implements Predicate<Record> {
+	private static class NamedFilter implements Predicate<Record> {
 		final String name;
 		final Predicate<Record> pred;
 		NamedFilter(final String name,final Predicate<Record> pred) {
@@ -238,6 +239,24 @@ public class RegenieSwing extends Launcher {
 			return name;
 			}
 		}
+	
+	private static class NamedComparator implements Comparator<Record> {
+		final String name;
+		final Comparator<Record> cmp;
+		NamedComparator(final String name,final Comparator<Record> cmp) {
+			this.name = name;
+			this.cmp = cmp;
+			}
+		@Override
+		public int compare(Record a,Record b) {
+			return cmp.compare(a,b);
+			}
+		@Override
+		public String toString() {
+			return name;
+			}
+		}
+	
 	private class RecordIterator extends AbstractCloseableIterator<Record> {
 		final BufferedReader br;
 		private final FileHeader fileHeader;
@@ -317,6 +336,7 @@ public class RegenieSwing extends Launcher {
 			final FloatArray x_array = new FloatArray(SwingFrame.this.number_of_records);
 			final FloatArray y_array = new FloatArray(SwingFrame.this.number_of_records);
 			boolean hide_xy=false;
+			boolean show_qqplot=false;
 			final List<Record> best_records = new ArrayList<>();
 			List<Predicate<Record>> predicates = new ArrayList<>();
 			final Map<String,ChromInfo> dictionary = new LinkedHashMap<>(RegenieSwing.this.main_dictionary.size());
@@ -381,7 +401,9 @@ public class RegenieSwing extends Launcher {
 							}
 						updateGUI();
 						SwingUtilities.invokeLater(()->{
-							progressBar.setIndeterminate(false);
+							if(!stop_flag && ScanThread.this.equals(SwingFrame.this.thread)) {
+								progressBar.setIndeterminate(false);
+								}
 						});
 						}
 					catch(final Throwable err) {
@@ -454,27 +476,30 @@ public class RegenieSwing extends Launcher {
 						g=(Graphics2D)img.createGraphics();
 						g.setColor(Color.WHITE);
 						g.fillRect(0, 0,QQPLOT_SIZE,QQPLOT_SIZE);
-						g.setColor(Color.GREEN);
-						g.drawLine(0,QQPLOT_SIZE,  QQPLOT_SIZE,0);
-						final float[] x2_array = this.y_array.toArray();
-						if(x2_array.length>0 && !stop_flag) {
-							Arrays.sort(x2_array);
-							double[] y2_array = MathUtils.ppoints(x2_array.length);
-							
-							for(int i=0;i<x2_array.length && !stop_flag;++i ) {
-								y2_array[i] = -Math.log10(y2_array[i]);
-								}
-							Arrays.sort(y2_array);
-							final double min_y2=y2_array[0];
-							final double max_y2=y2_array[y2_array.length-1];
-							
-							
-							for(int i=0;i<x2_array.length && !stop_flag;++i ) {
-								double cx = (x2_array[i]/max_y)*QQPLOT_SIZE;
-								double cy = QQPLOT_SIZE - ((y2_array[i]-min_y2)/(max_y2-min_y2))*QQPLOT_SIZE;
-								g.setColor(Color.BLUE);
-								int r=3;
-								g.fillOval((int)(cx-r/2.0),(int)(cy-r/2.0),r, r);
+						
+						if(this.show_qqplot) {
+							g.setColor(Color.GREEN);
+							g.drawLine(0,QQPLOT_SIZE,  QQPLOT_SIZE,0);
+							final float[] x2_array = this.y_array.toArray();
+							if(x2_array.length>0 && !stop_flag) {
+								Arrays.sort(x2_array);
+								double[] y2_array = MathUtils.ppoints(x2_array.length);
+								
+								for(int i=0;i<x2_array.length && !stop_flag;++i ) {
+									y2_array[i] = -Math.log10(y2_array[i]);
+									}
+								Arrays.sort(y2_array);
+								final double min_y2=y2_array[0];
+								final double max_y2=y2_array[y2_array.length-1];
+								
+								
+								for(int i=0;i<x2_array.length && !stop_flag;++i ) {
+									double cx = (x2_array[i]/max_y)*QQPLOT_SIZE;
+									double cy = QQPLOT_SIZE - ((y2_array[i]-min_y2)/(max_y2-min_y2))*QQPLOT_SIZE;
+									g.setColor(Color.BLUE);
+									int r=3;
+									g.fillOval((int)(cx-r/2.0),(int)(cy-r/2.0),r, r);
+									}
 								}
 							}
 						g.dispose();
@@ -515,7 +540,9 @@ public class RegenieSwing extends Launcher {
 		private JComboBox<NamedFilter> jcomboFreq;
 		private JComboBox<NamedFilter> jcomboTest;
 		private JComboBox<NamedFilter> jcomboMask;
+		private JComboBox<NamedComparator> jcomboSortRecord;
 		private final JCheckBox jCheckhideSexualChrom;
+		private final JCheckBox jCheckShowQQPlot;
 		private final JComboBox<BrowseURL> jcomboURLS;
 		private int number_of_records = 0;
 		public SwingFrame() {
@@ -567,6 +594,9 @@ public class RegenieSwing extends Launcher {
 			this.jCheckhideSexualChrom.setSelected(true);
 			this.jCheckhideSexualChrom.addActionListener(AE->reloadData());
 			
+			top.add(this.jCheckShowQQPlot =new JCheckBox("Show QQPlot"));
+			this.jCheckShowQQPlot.setSelected(false);
+			this.jCheckShowQQPlot.addActionListener(AE->reloadData());
 			
 			Vector<NamedFilter> filters = new Vector<>();
 			
@@ -618,6 +648,19 @@ public class RegenieSwing extends Launcher {
 			final JPanel tablePane = new JPanel(new BorderLayout(5, 5));
 			final JPanel top2= new JPanel(new FlowLayout());
 			tablePane.add(top2,BorderLayout.NORTH);
+			
+			top2.add(new JLabel("Sort:"));
+			Vector<NamedComparator> recordSorters=new Vector<>(Arrays.asList(
+					new NamedComparator("Log10", (A,B)->Double.compare(B.getLog10P(),A.getLog10P())),
+					new NamedComparator("Gene", (A,B)->A.getGene().compareTo(B.getGene())),
+					new NamedComparator("Position", (A,B)->{
+						int i = Integer.compare(A.ssr.getSequenceIndex(),B.ssr.getSequenceIndex());
+						if(i!=0) return i;
+						return Integer.compare(A.pos,B.pos);
+						})));
+			top2.add(jcomboSortRecord=new  JComboBox<>(recordSorters));
+			
+			
 			top2.add(new JLabel("URL:"));
 			top2.add(jcomboURLS = new JComboBox<>(new DefaultComboBoxModel<BrowseURL>()));
 			jcomboURLS.addActionListener(AE->{
@@ -659,6 +702,15 @@ public class RegenieSwing extends Launcher {
 				model.addAll(unique_urls.stream().map(X->new BrowseURL(X)).collect(Collectors.toList()));	
 				});
 			
+			
+			jcomboSortRecord.addActionListener(AE->{
+				NamedComparator cmp = (NamedComparator)jcomboSortRecord.getSelectedItem();
+				if(cmp==null) return;
+				final List<Record> rows = new ArrayList<>(this.recordTableModel.getRows());
+				Collections.sort(rows,cmp);
+				this.recordTableModel.setRows(rows);
+				});
+			
 			this.addWindowListener(new WindowAdapter() {
 				@Override
 				public void windowOpened(WindowEvent e) {
@@ -681,6 +733,7 @@ public class RegenieSwing extends Launcher {
 			flt = (NamedFilter)this.jcomboTest.getSelectedItem();
 			if(flt!=null) this.thread.predicates.add(flt);
 			this.thread.hide_xy = this.jCheckhideSexualChrom.isSelected();
+			this.thread.show_qqplot = this.jCheckShowQQPlot.isSelected();
 			this.progressBar.setIndeterminate(true);
 			this.thread.start();
 			}
