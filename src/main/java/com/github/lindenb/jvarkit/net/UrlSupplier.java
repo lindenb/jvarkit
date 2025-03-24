@@ -58,7 +58,7 @@ private final SAMSequenceDictionary dict;
 private final ContigNameConverter toUcsc = ContigNameConverter.createConvertToUcsc();
 private final ContigNameConverter toEnsembl = ContigNameConverter.createConvertToEnsembl();
 private final Pattern rsIdPattern = Pattern.compile("[rR][sS][0-9]+");
-private final Pattern ensemblPattern = Pattern.compile("ENS(EST[TGP]|[TPGR])[0-9]+");
+private final Pattern ensemblPattern = Pattern.compile("ENS[TGP][0-9]+(\\.[0-9]+)?");
 private final Pattern ccdsPattern = Pattern.compile("CCDS[0-9\\.]+");
 private final Pattern ncbiNucPattern = Pattern.compile("[XN][MR]_[0-9\\.]+");
 private final Pattern ncbiProtPattern = Pattern.compile("[NX]P_[0-9\\.]+");
