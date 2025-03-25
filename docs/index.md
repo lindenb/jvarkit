@@ -95,7 +95,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar234081](Biostar234081.md) | convert extended CIGAR to regular CIGAR ('X','=' -> 'M') | 20170130 | 20200409 |
 | [biostar234230](Biostar234230.md) | Sliding Window : discriminate partial and fully contained fragments (from a bam file) |  | 20190417 |
 | [biostar251649](Biostar251649.md) | Annotating the flanking bases of SNPs in a VCF file | 20170508 | 20200213 |
-| [biostar322664](Biostar322664.md) | Extract PE Reads (with their mates) supporting variants in vcf file |  |  |
+| [biostar322664](Biostar322664.md) | Extract PE Reads (with their mates) supporting variants in vcf file | 20180625 | 20250313 |
 | [biostar332826](Biostar332826.md) | Fast Extraction of Variants from a list of IDs | 20180817 | 20210412 |
 | [biostar336589](Biostar336589.md) | displays circular map as SVG from BED and REF file | 20180907 | 20210818 |
 | [biostar352930](Biostar352930.md) | Fills the empty SEQ(*) and QUAL(*) in a bam file using the the reads with the same name carrying this information. |  |  |
@@ -227,11 +227,17 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [plotbcftoolsstats](PlotBcftoolsStats.md) | Plot bcftools stats output | 20210622 | 20210622 |
 | [pubmedauthorgraph](PubmedAuthorGraph.md) | Creates a graph from Pubmed and Authors |  |  |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
+| [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
+| [qqplotter](QQPlotter.md) | plot QQplot | 20250324 | 20250324 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
+| [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |
+| [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250320 |
+| [regeniemakeannot](RegenieMakeAnnot.md) | Create annotation files for regenie from a TSV input file | 20250311 | 20250320 |
+| [regenieslidingannot](RegenieSlidingAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |
 | [sam2json](SamToJson.md) | Convert a SAM input to JSON | 20210402 | 20210315 |
-| [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20191014 |
+| [sam4weblogo](SAM4WebLogo.md) | Sequence logo for different alleles or generated from SAM/BAM | 20130524 | 20250326 |
 | [samaddpi](SamAddPI.md) | Add predicted median insert size 'PI' to SAM Read groups (RG). |  |  |
 | [samedict](SameDict.md) | check if all HTS files share the same dictionary | 20240724 | 20240724 |
 | [samfixcigar](SamFixCigar.md) | Fix Cigar String in SAM replacing 'M' by 'X' or '=' | 20131126 | 20210223 |
@@ -243,6 +249,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
 | [swingplinkselectcluster](SwingPLinkSelectCluster.md) | Swing-based Plink/MDS sample selector | 20231123 | 20240606 |
+| [swingregenie](RegenieSwing.md) | view regenie output | 20250324 | 20250324 |
 | [translategff3](TranslateGff3.md) | translates the output of bcftools consensus | 20241003 | 20241003 |
 | [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240206 |
 | [variantsinwindow](VariantsInWindow.md) | Annotate Number of Variants overlaping a sliding window. |  |  |
@@ -256,6 +263,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgroupbypop](VcfGroupByPopulation.md) | create INFO data by population | 20190319 | 20230712 |
 | [vcfliftover](VcfLiftOver.md) | Lift-over a VCF file | 20240114 | 20210603 |
 | [vcfpeekvcf](VcfPeekVcf.md) | Get the INFO from a VCF and use it for another VCF | 20150521 | 20240405 |
+| [vcfsamplesprs](VcfSamplesPRS.md) | another program for @AntoineRimbert | 20220915 | 20220915 |
 | [vcfscanupstreamorf](VcfScanUpstreamOrf.md) | Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20190218 | 20200804 |
 | [vcfserver](VcfServer.md) | Web Server displaying VCF file. A web interface for vcf2table | 20171027 | 20220517 |
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |
@@ -348,7 +356,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samextractclip](SamExtractClip.md) | Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ | 20140228 | 20240524 |
 | [samgrep](SamGrep.md) | grep read-names in a bam file | 20130506 | 20210726 |
 | [samrmdupnames](SamRemoveDuplicatedNames.md) | remove duplicated names in sorted BAM | 20221207 | 20221207 |
-| [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20191004 |
+| [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20250219 |
 | [sortsamrefname](SortSamRefName.md) | Sort a BAM on chromosome/contig and then on read/querty name | 20150812 | 20210312 |
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
 | [swingbamview](SwingBamView.md) | Read viewer using Java Swing UI | 20220503 | 20230427 |

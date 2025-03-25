@@ -49,13 +49,12 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
@@ -161,7 +160,7 @@ TATTCTTCCAATAGTGAATTAGAGAATAGAT
 ## tabular output
 
 ```
-$ java -jar /home/lindenb/src/jvarkit-git/dist/sam4weblogo.jar  -r 'chr4:15648762-15648862'    src/test/resources/retrocopy01.bwa.bam --format tabular -c
+$ java -jar jvarkit.jar sam4weblogo  -r 'chr4:15648762-15648862'    src/test/resources/retrocopy01.bwa.bam --format tabular -c
 CTTGAACCCAGGAGGGGGAGGTGCCAGGGAGCCGAGATCATGCCACTGCACCCCAGCCTGGGCAACAAACCAAACCTCCATCC-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1111:24870:51570/1
 CTTGAACCCAGGAGGCAGAGGTGGCAGTGAGCAGAAAACAAGCCACTGCACCCCAGCCGGGGAAAAAAAACAAGACCCCATCTaA-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:1107:19532:10468/1
 CTTGAACCCAGGAGGCAGAGGTTGCAGTGAGCCGAGATCATGCCACTGCACTCCAGCCTGGGCAACAAAGCAAGACTCCATCT-C-AAAAAAAAAAAAAAAAA X2:1:H7T57CCXY:8:2121:23043:26536/2
@@ -201,10 +200,6 @@ tacgaaccagggaggctcgggctgaggaagccgaacttcattcctcccaccgcaagactggcaaataaatcaagtcccaa
 --------------------------------------------------------------------------------------------------AAAAA X2:1:H7T57CCXY:8:1124:18223:49162/1
 ```
 
-## See also
-
-* https://www.biostars.org/p/103052/
-
 ## Cited in
 
 * Yi-Jyun Luo, Noriyuki Satoh, Kazuyoshi Endo, Mitochondrial gene order variation in the brachiopod Lingula anatina and its implications for mitochondrial evolution in lophotrochozoans, Marine Genomics, Volume 24, Part 1, 2015, Pages 31-40, ISSN 1874-7787, https://doi.org/10.1016/j.margen.2015.08.005
@@ -216,9 +211,9 @@ END_DOC
  */
 @Program(name="sam4weblogo",
 	description="Sequence logo for different alleles or generated from SAM/BAM ",
-	biostars= {73021,368200,9505463},
+	biostars= {73021,368200,9505463,9609826,103052},
 	creationDate="20130524",
-	modificationDate="20191014",
+	modificationDate="20250326",
 	jvarkit_amalgamion = true,
 	keywords={"sam","bam","visualization","logo"}
 	)
@@ -267,9 +262,6 @@ public class SAM4WebLogo extends Launcher
 			return -1;
 		}
 		
-		PrintWriter out=null;
-		SamReader samReader=null;
-		SAMRecordIterator iter=null;
 		try {
 			
 
@@ -288,308 +280,296 @@ public class SAM4WebLogo extends Launcher
 			}
 			
 	    	final List<Path> inputPath = IOUtils.unrollPaths(args);
-			out = super.openPathOrStdoutAsPrintWriter(outputFile);
-
-			
-			
-
-			
-			for(int locatable_idx=0; locatable_idx < intervals.size();++locatable_idx) {
-				if(locatable_idx>0) out.println();
-				final Locatable interval  = intervals.get(locatable_idx);
-				final List<SAMRecord> buffer = new ArrayList<>();
-				final SortedMap<Integer,Integer> genomicpos2insertlen = new TreeMap<>();
-					
-				
-				for(final Path samPath: inputPath) {
-					samReader = srf.open(SamInputResource.of(samPath));
-					
-					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samReader.getFileHeader());
-					final ContigNameConverter ctgNameConverter =  ContigNameConverter.fromOneDictionary(dict);
-					
-					final SimpleInterval segment = ctgNameConverter.convertToSimpleInterval(interval).orElseThrow(()->new JvarkitException.ContigNotFoundInDictionary(interval.getContig(), dict));
-					
-					
-					final int extend = useClip?1000:0;
-					
-					iter=samReader.query(
-							segment.getContig(),
-							Math.max(1,segment.getStart()-extend),
-							segment.getEnd()+extend,
-							false);
-					while(iter.hasNext())
-		                {
-		                final SAMRecord rec=iter.next();
-		                if(rec.getReadUnmappedFlag()) continue;
-		                if(this.SamRecordFilter.filterOut(rec)) continue;
-		                final Cigar cigar =rec.getCigar();
-		                if(cigar==null || cigar.isEmpty()) continue;
-		               
-		                if(!rec.getReferenceName().equals(segment.getContig())) continue;
-		               
-		                if(useClip) 
-		                	{
-		                	if(rec.getUnclippedEnd() < segment.getStart() ) continue;
-			                if(rec.getUnclippedStart() > segment.getEnd() ) continue;
-		                	}
-		                else
-		                	{
-		                	if(rec.getEnd() < segment.getStart() ) continue;
-			                if(rec.getStart() > segment.getEnd() ) continue;
-		                	}
-		                
-		                // free memory
-		               if(!this.output_format.equals(Format.fastq)) {
-		            	rec.setBaseQualities(SAMRecord.NULL_QUALS);   
-		               	}
-		               final List<SAMTagAndValue> atts = rec.getAttributes();
-		               for(final SAMTagAndValue stv:atts) {
-		            	   if(stv.tag.equals("RG")) continue;
-		            	   rec.setAttribute(stv.tag, null);
-		               }
-		               
-		               
-	                    int refPos = rec.getStart();
-	                    for(final CigarElement ce: cigar) {
-	                    	final CigarOperator op = ce.getOperator();
-	                    	if(op.equals(CigarOperator.I)) {
-	                    		genomicpos2insertlen.put(refPos, Math.max(ce.getLength(), genomicpos2insertlen.getOrDefault(refPos, 0)));
-	                    		}
-	                    	if(op.consumesReferenceBases()) refPos+=ce.getLength();
-	                    	if(refPos > interval.getEnd()) break;
-	                    	}
-	                    buffer.add(rec);
-		                }
-					iter.close();
-					iter=null;
-					samReader.close();
-					samReader=null;
-					}
-				
-				
-				
-				
-				/* compute columns */
-				if(interval!=null) {
-				/** test if genomic position is in interval */
-				final IntPredicate testInInterval = pos-> interval.getStart() <= pos && pos <= interval.getEnd();
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(outputFile)) {
 	
-					
-				final ArrayList<Integer> column2genomic = new ArrayList<>(interval.getLengthOnReference());
-				for(int x=interval.getStart();x<=interval.getEnd();++x)
-					{
-					column2genomic.add(x);
-					}
-				
-				// insert insertions in reverse order
-				for(int pos: genomicpos2insertlen.keySet().stream().
-						sorted(Collections.reverseOrder()).
-						collect(Collectors.toList()))
-					{
-					if(!testInInterval.test(pos)) continue;
-					
-					final int insert_len = genomicpos2insertlen.get(pos);
-					for(int x=0;x<insert_len;++x)
-						{
-						column2genomic.add(pos-interval.getStart(),NO_POS);
-						}
-					}
-					
-				
-				// ruler
-				if(this.output_format.equals(Format.tabular))
-				{
-					int x=0;
-					while(x< column2genomic.size()) {
-						if(column2genomic.get(x)==NO_POS || column2genomic.get(x)%10!=0) {
-							out.print(' ');
-							++x;
-							} 
-						else
-							{
-							final String s = String.valueOf(column2genomic.get(x));
-							if(s.length()<10 && x+s.length()<  column2genomic.size())
-								{
-								out.print(s);
-								x+=s.length();
-								}
-							else
-								{
-								out.print(' ');
-								++x;
+					for(int locatable_idx=0; locatable_idx < intervals.size();++locatable_idx) {
+						if(locatable_idx>0) out.println();
+						final Locatable interval  = intervals.get(locatable_idx);
+						final List<SAMRecord> buffer = new ArrayList<>();
+						final SortedMap<Integer,Integer> genomicpos2insertlen = new TreeMap<>();
+							
+						
+						for(final Path samPath: inputPath) {
+							try(SamReader samReader = srf.open(SamInputResource.of(samPath))) {
+								
+								final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(samReader.getFileHeader());
+								final ContigNameConverter ctgNameConverter =  ContigNameConverter.fromOneDictionary(dict);
+								
+								final SimpleInterval segment = ctgNameConverter.convertToSimpleInterval(interval).orElseThrow(()->new JvarkitException.ContigNotFoundInDictionary(interval.getContig(), dict));
+								
+								
+								final int extend = useClip?1000:0;
+								
+								try(CloseableIterator<SAMRecord> iter=samReader.query(
+										segment.getContig(),
+										Math.max(1,segment.getStart()-extend),
+										segment.getEnd()+extend,
+										false)) {
+								while(iter.hasNext())
+					                {
+					                final SAMRecord rec=iter.next();
+					                if(rec.getReadUnmappedFlag()) continue;
+					                if(this.SamRecordFilter.filterOut(rec)) continue;
+					                final Cigar cigar =rec.getCigar();
+					                if(cigar==null || cigar.isEmpty()) continue;
+					               
+					                if(!rec.getReferenceName().equals(segment.getContig())) continue;
+					               
+					                if(useClip) 
+					                	{
+					                	if(rec.getUnclippedEnd() < segment.getStart() ) continue;
+						                if(rec.getUnclippedStart() > segment.getEnd() ) continue;
+					                	}
+					                else
+					                	{
+					                	if(rec.getEnd() < segment.getStart() ) continue;
+						                if(rec.getStart() > segment.getEnd() ) continue;
+					                	}
+					                
+					                // free memory
+					               if(!this.output_format.equals(Format.fastq)) {
+					            	rec.setBaseQualities(SAMRecord.NULL_QUALS);   
+					               	}
+					               final List<SAMTagAndValue> atts = rec.getAttributes();
+					               for(final SAMTagAndValue stv:atts) {
+					            	   if(stv.tag.equals("RG")) continue;
+					            	   rec.setAttribute(stv.tag, null);
+					               }
+					               
+					               
+				                    int refPos = rec.getStart();
+				                    for(final CigarElement ce: cigar) {
+				                    	final CigarOperator op = ce.getOperator();
+				                    	if(op.equals(CigarOperator.I)) {
+				                    		genomicpos2insertlen.put(refPos, Math.max(ce.getLength(), genomicpos2insertlen.getOrDefault(refPos, 0)));
+				                    		}
+				                    	if(op.consumesReferenceBases()) refPos+=ce.getLength();
+				                    	if(refPos > interval.getEnd()) break;
+				                    	}
+				                    buffer.add(rec);
+					                }
 								}
 							}
-					}
-					out.println(" "+interval.toString());
-				}
-				
-					
-				for(final SAMRecord rec:buffer) {
-			        final String recQualString = rec.getBaseQualityString();
-				        final Function<Integer,Character> read2qual;
-				        if(recQualString==null || SAMRecord.NULL_QUALS_STRING.equals(recQualString)) {
-				        	read2qual = IDX -> '~';
-				        	}
-				        else
-				        	{
-				        	read2qual = IDX -> {
-					        	if(IDX<0 || IDX>=recQualString.length()) return '~';
-					        	return recQualString.charAt(IDX);
-					        	};
-				        	}
-				        final byte rec_bases[] = rec.getReadBases();
-				        final Function<Integer,Character> read2base;
-				        if(SAMRecord.NULL_SEQUENCE.equals(rec_bases)) {
-				        	read2base = IDX-> '?'; 
-				        	}
-				        else
-				        	{
-				        	read2base = 
-						        IDX -> {
-							        	if(IDX<0 || IDX>=rec_bases.length) return '?';
-							        	return (char)rec_bases[IDX];
-							        	};
-				        	}    
-	
+						}
 						
-						final StringBuilder seqBuilder = new StringBuilder(column2genomic.size());
-						final StringBuilder qualBuilder = new StringBuilder(column2genomic.size());
-						int x = 0;
-						int readRef = rec.getUnclippedStart();
-						int readpos = 0;
 						
-						final Cigar cigar  = rec.getCigar();
-						for(final CigarElement ce:cigar)
+						
+						
+						/* compute columns */
+						if(interval!=null) {
+						/** test if genomic position is in interval */
+						final IntPredicate testInInterval = pos-> interval.getStart() <= pos && pos <= interval.getEnd();
+			
+							
+						final ArrayList<Integer> column2genomic = new ArrayList<>(interval.getLengthOnReference());
+						for(int x=interval.getStart();x<=interval.getEnd();++x)
 							{
-							final CigarOperator op = ce.getOperator();
-							if(op.equals(CigarOperator.PADDING)) continue;
-							/* IN INSERTION, only print if showInsertions is true */
+							column2genomic.add(x);
+							}
+						
+						// insert insertions in reverse order
+						for(int pos: genomicpos2insertlen.keySet().stream().
+								sorted(Collections.reverseOrder()).
+								collect(Collectors.toList()))
+							{
+							if(!testInInterval.test(pos)) continue;
 							
-							
-							for(int cigarIdx =0; cigarIdx < ce.getLength();++cigarIdx)
+							final int insert_len = genomicpos2insertlen.get(pos);
+							for(int x=0;x<insert_len;++x)
 								{
-								//pad before base
-								while( !op.equals(CigarOperator.INSERTION) &&
-									x < column2genomic.size() &&
-									(column2genomic.get(x)==NO_POS || column2genomic.get(x) < readRef))
+								column2genomic.add(pos-interval.getStart(),NO_POS);
+								}
+							}
+							
+						
+						// ruler
+						if(this.output_format.equals(Format.tabular))
+						{
+							int x=0;
+							while(x< column2genomic.size()) {
+								if(column2genomic.get(x)==NO_POS || column2genomic.get(x)%10!=0) {
+									out.print(' ');
+									++x;
+									} 
+								else
+									{
+									final String s = String.valueOf(column2genomic.get(x));
+									if(s.length()<10 && x+s.length()<  column2genomic.size())
+										{
+										out.print(s);
+										x+=s.length();
+										}
+									else
+										{
+										out.print(' ');
+										++x;
+										}
+									}
+							}
+							out.println(" "+interval.toString());
+						}
+						
+							
+						for(final SAMRecord rec:buffer) {
+					        final String recQualString = rec.getBaseQualityString();
+						        final Function<Integer,Character> read2qual;
+						        if(recQualString==null || SAMRecord.NULL_QUALS_STRING.equals(recQualString)) {
+						        	read2qual = IDX -> '~';
+						        	}
+						        else
+						        	{
+						        	read2qual = IDX -> {
+							        	if(IDX<0 || IDX>=recQualString.length()) return '~';
+							        	return recQualString.charAt(IDX);
+							        	};
+						        	}
+						        final byte rec_bases[] = rec.getReadBases();
+						        final Function<Integer,Character> read2base;
+						        if(SAMRecord.NULL_SEQUENCE.equals(rec_bases)) {
+						        	read2base = IDX-> '?'; 
+						        	}
+						        else
+						        	{
+						        	read2base = 
+								        IDX -> {
+									        	if(IDX<0 || IDX>=rec_bases.length) return '?';
+									        	return (char)rec_bases[IDX];
+									        	};
+						        	}    
+			
+								
+								final StringBuilder seqBuilder = new StringBuilder(column2genomic.size());
+								final StringBuilder qualBuilder = new StringBuilder(column2genomic.size());
+								int x = 0;
+								int readRef = rec.getUnclippedStart();
+								int readpos = 0;
+								
+								final Cigar cigar  = rec.getCigar();
+								for(final CigarElement ce:cigar)
+									{
+									final CigarOperator op = ce.getOperator();
+									if(op.equals(CigarOperator.PADDING)) continue;
+									/* IN INSERTION, only print if showInsertions is true */
+									
+									
+									for(int cigarIdx =0; cigarIdx < ce.getLength();++cigarIdx)
+										{
+										//pad before base
+										while( !op.equals(CigarOperator.INSERTION) &&
+											x < column2genomic.size() &&
+											(column2genomic.get(x)==NO_POS || column2genomic.get(x) < readRef))
+											{
+											seqBuilder.append('-');
+											qualBuilder.append('-');
+											++x;
+											}
+										switch(op) {
+											case I:
+												{
+												if(!this.hide_insertions) {
+													if(testInInterval.test(readRef)) {
+														seqBuilder.append(Character.toLowerCase(read2base.apply(readpos)));
+														qualBuilder.append(read2qual.apply(readpos));
+														++x;
+														}
+													}
+												++cigarIdx;
+												++readpos;
+													
+												break;
+												}
+											case P: break;
+											case H:
+												{
+												if(testInInterval.test(readRef)) {
+													seqBuilder.append(this.useClip?'n':'-');
+													qualBuilder.append(this.useClip?this.fastq_quality_unknown_str:"-");
+													++x;
+													}
+												++readRef;
+												break;
+												}
+											case S:
+												{
+												if(testInInterval.test(readRef)) {
+													seqBuilder.append(this.useClip?Character.toLowerCase((read2base.apply(readpos))):'-');
+													qualBuilder.append(this.useClip?(char)read2qual.apply(readpos):'-');
+													++x;
+													}
+												++readpos;
+												++readRef;
+												break;
+												}
+											case D: case N:
+												{
+												if(testInInterval.test(readRef)) {
+													seqBuilder.append('>');
+													qualBuilder.append('>');
+													++x;
+													}
+												++readRef;
+												break;
+												}
+											case X: case EQ: case M:
+												{
+												if(testInInterval.test(readRef)) {
+													seqBuilder.append(read2base.apply(readpos));
+													qualBuilder.append(read2qual.apply(readpos));
+													++x;
+													}
+												++readpos;
+												++readRef;
+												break;
+												}
+											default : throw new IllegalArgumentException(op.name());
+											}
+										} // end cigarIdx
+									}// end while cigar
+									
+								/* right pad */
+								while(x < column2genomic.size())
 									{
 									seqBuilder.append('-');
 									qualBuilder.append('-');
 									++x;
 									}
-								switch(op) {
-									case I:
-										{
-										if(!this.hide_insertions) {
-											if(testInInterval.test(readRef)) {
-												seqBuilder.append(Character.toLowerCase(read2base.apply(readpos)));
-												qualBuilder.append(read2qual.apply(readpos));
-												++x;
-												}
-											}
-										++cigarIdx;
-										++readpos;
-											
+								
+								final String readName= this.samRecordNaming.apply(rec);
+								switch(this.output_format)
+									{
+									case fastq:
+										out.print(FastqConstants.SEQUENCE_HEADER);
+								    	out.print(readName);
+								    	out.println();
+								    	out.print(seqBuilder);
+								    	out.println();
+								    	out.println(FastqConstants.QUALITY_HEADER);
+								    	out.println(qualBuilder);
 										break;
-										}
-									case P: break;
-									case H:
-										{
-										if(testInInterval.test(readRef)) {
-											seqBuilder.append(this.useClip?'n':'-');
-											qualBuilder.append(this.useClip?this.fastq_quality_unknown_str:"-");
-											++x;
-											}
-										++readRef;
+									case tabular:
+								    	out.print(seqBuilder);
+								    	out.print(' ');
+								    	out.println(readName);
 										break;
-										}
-									case S:
-										{
-										if(testInInterval.test(readRef)) {
-											seqBuilder.append(this.useClip?Character.toLowerCase((read2base.apply(readpos))):'-');
-											qualBuilder.append(this.useClip?(char)read2qual.apply(readpos):'-');
-											++x;
-											}
-										++readpos;
-										++readRef;
+									default:
+										out.print('>');
+								    	out.print(readName);
+								    	out.println();
+								    	out.print(seqBuilder);
+								    	out.println();
 										break;
-										}
-									case D: case N:
-										{
-										if(testInInterval.test(readRef)) {
-											seqBuilder.append('>');
-											qualBuilder.append('>');
-											++x;
-											}
-										++readRef;
-										break;
-										}
-									case X: case EQ: case M:
-										{
-										if(testInInterval.test(readRef)) {
-											seqBuilder.append(read2base.apply(readpos));
-											qualBuilder.append(read2qual.apply(readpos));
-											++x;
-											}
-										++readpos;
-										++readRef;
-										break;
-										}
-									default : throw new IllegalArgumentException(op.name());
 									}
-								} // end cigarIdx
-							}// end while cigar
-							
-						/* right pad */
-						while(x < column2genomic.size())
-							{
-							seqBuilder.append('-');
-							qualBuilder.append('-');
-							++x;
-							}
-						
-						final String readName= this.samRecordNaming.apply(rec);
-						switch(this.output_format)
-							{
-							case fastq:
-								out.print(FastqConstants.SEQUENCE_HEADER);
-						    	out.print(readName);
-						    	out.println();
-						    	out.print(seqBuilder);
-						    	out.println();
-						    	out.println(FastqConstants.QUALITY_HEADER);
-						    	out.println(qualBuilder);
-								break;
-							case tabular:
-						    	out.print(seqBuilder);
-						    	out.print(' ');
-						    	out.println(readName);
-								break;
-							default:
-								out.print('>');
-						    	out.print(readName);
-						    	out.println();
-						    	out.print(seqBuilder);
-						    	out.println();
-								break;
-							}
-						
-						}	 //end loop over SAMRec
-					} // end if interval !=null
+								
+								}	 //end loop over SAMRec
+							} // end if interval !=null
+						}
+				out.flush();
 				}
-			out.flush();
-	        out.close();out=null;
 	        return 0;
 			} 
 		catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(iter);
-			CloserUtil.close(samReader);
-			CloserUtil.close(out);
 			}
 		}
 

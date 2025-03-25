@@ -48,4 +48,15 @@ public class MathUtils {
 		if(n-k<=0) throw new IllegalArgumentException("n-k<=0");
 		return factorial(n).divide(factorial(k).multiply(factorial(n-k)));
 		}
+	
+	/** see R code for ppoints */
+	public static  double[] ppoints(int n) {
+		double a = n <= 10? 3.0/8 : 1.0/2;
+		
+		final double[] array=new double[n];
+		for(int i=1;i<=n;i++) {
+			array[i-1] = (i - a)/(n + 1.0 - 2*a);
+			}				        
+	    return array;
+		}	
 }

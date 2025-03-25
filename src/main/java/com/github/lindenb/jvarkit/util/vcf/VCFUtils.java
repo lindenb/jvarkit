@@ -305,7 +305,7 @@ public class VCFUtils
 	 * */
 	public static  VCFIterator createVCFIterator(final String IN) throws IOException
 		{
-		if(IN==null)
+		if(IN==null || IN.equals("-"))
 			{
 			return createVCFIteratorStdin();
 			}

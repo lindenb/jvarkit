@@ -35,7 +35,7 @@ import com.github.lindenb.jvarkit.util.FunctionalMap;
 
 public class CanvasFactory {
 	public enum Format {
-		SVG,SVG_GZ,PNG,JPG,PS,PS_GZ;
+		SVG,SVG_GZ,PNG,JPG,PS,PS_GZ,TXT;
 		/** return file suffix, WITHOUT the first dot */
 		public String getSuffix() {
 			return this.name().toLowerCase().replace('_', '.');
@@ -66,10 +66,11 @@ public class CanvasFactory {
 	public CanvasFactory setDimension(int width,int height) {
 		return setWidth(width).setHeight(height);
 		}
-	
-	private Optional<Format> formatFromSuffix( String fname) {
+	private static  Optional<Format> _formatFromSuffix(String fname) {
 		if(StringUtils.isBlank(fname)) return Optional.empty();
 		fname=fname.toLowerCase();
+		if(fname.endsWith(".txt")) return Optional.of(Format.TXT);
+		if(fname.endsWith(".text")) return Optional.of(Format.TXT);
 		if(fname.endsWith(".png")) return Optional.of(Format.PNG);
 		if(fname.endsWith(".jpg")) return Optional.of(Format.JPG);
 		if(fname.endsWith(".jpeg")) return  Optional.of(Format.JPG);
@@ -78,6 +79,16 @@ public class CanvasFactory {
 		if(fname.endsWith(".ps") || fname.endsWith(".eps")) return Optional.of(Format.PS);
 		if(fname.endsWith(".ps.gz") || fname.endsWith(".eps.gz")) return Optional.of(Format.PS_GZ);
 		return Optional.empty();
+	}
+		
+	public static Optional<Format> formatFromPath( Path pathOrNull) {
+		if(pathOrNull==null) return  Optional.empty();
+		String fname = pathOrNull.getFileName().toString();
+		if(StringUtils.isBlank(fname) || !fname.contains(".")) return Optional.empty();
+		return _formatFromSuffix(fname);
+		}
+	private Optional<Format> formatFromSuffix( String fname) {
+		return _formatFromSuffix(fname);
 		}
 	
 	public Canvas open(final Path outputOrNull,final FunctionalMap<String,Object> fmap) throws IOException {
@@ -99,6 +110,8 @@ public class CanvasFactory {
 			case PS:
 			case PS_GZ:
 				return new PSCanvas(outputOrNull, width, height,fmt.equals(Format.PS_GZ),FunctionalMap.make());
+			case TXT:
+				return new TextCanvas(outputOrNull, width, height,FunctionalMap.make());
 			default:
 				throw new IllegalArgumentException("Cannot find output format for "+outputOrNull+ " / "+fmt);
 			}

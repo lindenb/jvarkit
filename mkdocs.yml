@@ -179,8 +179,14 @@ nav:
         - "pubmedgender" : PubmedGender.md
         - "pubmedgraph" : PubmedGraph.md
         - "pubmedmap" : PubmedMap.md
+        - "pubmedorcidgraph" : PubmedOrcidGraph.md
+        - "qqplotter" : QQPlotter.md
         - "reduceblast" : ReduceBlast.md
         - "ref2html" : ReferenceToHtml.md
+        - "regeniebedannot" : RegenieBedAnnot.md
+        - "regeniefunctionalannot" : RegenieFunctionalAnnot.md
+        - "regeniemakeannot" : RegenieMakeAnnot.md
+        - "regenieslidingannot" : RegenieSlidingAnnot.md
         - "repairfastq" : RepairFastq.md
         - "rnaseqpolya" : RNASeqPolyA.md
         - "sam2json" : SamToJson.md
@@ -217,6 +223,7 @@ nav:
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md
         - "swingplinkselectcluster" : SwingPLinkSelectCluster.md
+        - "swingregenie" : RegenieSwing.md
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
         - "texbam" : TextBam.md
@@ -271,6 +278,7 @@ nav:
         - "vcfrebase" : VcfRebase.md
         - "vcfregulomedb" : VcfRegulomeDB.md
         - "vcfrenamechr" : ConvertVcfChromosomes.md
+        - "vcfsamplesprs" : VcfSamplesPRS.md
         - "vcfscanupstreamorf" : VcfScanUpstreamOrf.md
         - "vcfserver" : VcfServer.md
         - "vcfsetdict" : VcfSetSequenceDictionary.md

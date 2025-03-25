@@ -107,12 +107,12 @@ public class SVGCanvas extends Canvas {
 		FunctionalMap<String, Object> ret = FunctionalMap.make();
 		final FunctionalMap<String, Object> fm0 = super.states.get(super.states.size()-2);
 		for(final String key:fm1.keySet()) {
-			Object v1= fm1.get(key);
+			final Object v1= fm1.get(key);
 			if(!fm0.containsKey(key)) {
 				ret=ret.plus(key,v1);
 				continue;
 				}
-			Object v0 = fm0.get(key);
+			final Object v0 = fm0.get(key);
 			if(Objects.equals(v1, v0)) continue;
 			ret=ret.plus(key,v1);
 			}
@@ -145,6 +145,7 @@ public class SVGCanvas extends Canvas {
 	
 	@Override
 	public Canvas circle(double cx, double cy, double r, FunctionalMap<String, Object> fm) {
+		if(r<=0) return this;
 		this.states.push(this.states.peek().plus(fm));
 		try {
 			beginAnchor();
@@ -164,9 +165,34 @@ public class SVGCanvas extends Canvas {
 		return this;
 		}
 	
+	
+	
+	@Override
+	public Canvas line(double x1, double y1, double x2, double y2, final FunctionalMap<String, Object> fm) {
+		this.states.push(this.states.peek().plus(fm));
+		try {
+			beginAnchor();
+			this.w.writeStartElement("line");
+			this.w.writeAttribute("x1", round(x1));
+			this.w.writeAttribute("y1", round(y1));
+			this.w.writeAttribute("x2", round(x2));
+			this.w.writeAttribute("y2", round(y2));
+			writeStyle();
+			inner();
+			this.w.writeEndElement();
+			endAnchor();
+			}
+		catch(final XMLStreamException err) {
+			throw new RuntimeIOException(err);
+			}
+		this.states.pop();
+		return this;
+		}
+	
 	@Override
 	public Canvas rect(double x, double y, double width, double height, FunctionalMap<String, Object> fm) {
 		this.states.push(this.states.peek().plus(fm));
+		
 		try {
 			beginAnchor();
 			this.w.writeStartElement("rect");
@@ -217,7 +243,7 @@ public class SVGCanvas extends Canvas {
 	}
 	
 	@Override
-	public Canvas shape(Shape shape, final FunctionalMap<String, Object> fm) {
+	public Canvas shape(final Shape shape, final FunctionalMap<String, Object> fm) {
 		this.states.push(this.states.peek().plus(fm));
 
 		final StringBuilder path = new StringBuilder();

@@ -27,7 +27,7 @@ Usage: coveragegrid [options] Files
     --format
       output format
       Default: SVG
-      Possible Values: [SVG, SVG_GZ, PNG, JPG, PS, PS_GZ]
+      Possible Values: [SVG, SVG_GZ, PNG, JPG, PS, PS_GZ, TXT]
     --gtf
       indexed GTF file to show genes
     -h, --help

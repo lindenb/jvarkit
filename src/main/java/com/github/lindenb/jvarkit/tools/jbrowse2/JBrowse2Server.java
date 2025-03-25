@@ -80,7 +80,7 @@ END_DOC
 public class JBrowse2Server  extends Launcher {
 	private static final Logger LOG = Logger.build(JBrowse2Server.class).make();
 	@Parameter(names="--zip",description="JBrowse2 archive source")
-	private String jbrowse2url = "https://github.com/GMOD/jbrowse-components/releases/download/v2.15.1/jbrowse-web-v2.15.1.zip";
+	private String jbrowse2url = "https://github.com/GMOD/jbrowse-components/releases/download/v3.0.3/jbrowse-web-v3.0.3.zip";
 	@Parameter(names="--port",description="server port.")
 	private int serverPort = 8080;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)

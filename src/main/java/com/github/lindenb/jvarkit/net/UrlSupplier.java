@@ -58,12 +58,11 @@ private final SAMSequenceDictionary dict;
 private final ContigNameConverter toUcsc = ContigNameConverter.createConvertToUcsc();
 private final ContigNameConverter toEnsembl = ContigNameConverter.createConvertToEnsembl();
 private final Pattern rsIdPattern = Pattern.compile("[rR][sS][0-9]+");
-private final Pattern ensemblPattern = Pattern.compile("ENS(EST[TGP]|[TPGR])[0-9]+");
+private final Pattern ensemblPattern = Pattern.compile("ENS[TGP][0-9]+(\\.[0-9]+)?");
 private final Pattern ccdsPattern = Pattern.compile("CCDS[0-9\\.]+");
 private final Pattern ncbiNucPattern = Pattern.compile("[XN][MR]_[0-9\\.]+");
 private final Pattern ncbiProtPattern = Pattern.compile("[NX]P_[0-9\\.]+");
 private final Pattern hgncPattern = Pattern.compile("[hH][gG][nN][cC]:[0-9]+");
-
 public static interface LabelledUrl extends Comparable<LabelledUrl>
 	{
 	/** short name for this url : database... */
@@ -159,6 +158,10 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 				}
 			}
 		}
+	else if(columnName.equalsIgnoreCase("UniProtKB")) {
+		urls.add(new LabelledUrlImpl("functionome",id,"https://functionome.geneontology.org/gene/UniProtKB:"+id));
+		urls.add(new LabelledUrlImpl("amigo",id,"https://amigo.geneontology.org/amigo/gene_product/UniProtKB:"+id));
+		}
 	return urls;
 	}
 
@@ -172,6 +175,9 @@ private void _gff3(final Gff3Feature feat,final Set<LabelledUrl> urls) {
 	}
 private void _string(final String str,final Set<LabelledUrl> urls) {
 	if(StringUtils.isBlank(str)) return;
+	else if(str.startsWith("UniProtKB:")) {
+		urls.addAll(of("UniProtKB",str.substring(10)));
+		}
 	else if(this.hgncPattern.matcher(str).matches()) {
 		urls.addAll(of("hgnc",str));
 		}

@@ -82,6 +82,8 @@ Usage: sam4weblogo [options] Files
  * [https://www.biostars.org/p/73021](https://www.biostars.org/p/73021)
  * [https://www.biostars.org/p/368200](https://www.biostars.org/p/368200)
  * [https://www.biostars.org/p/9505463](https://www.biostars.org/p/9505463)
+ * [https://www.biostars.org/p/9609826](https://www.biostars.org/p/9609826)
+ * [https://www.biostars.org/p/103052](https://www.biostars.org/p/103052)
 
 
 
