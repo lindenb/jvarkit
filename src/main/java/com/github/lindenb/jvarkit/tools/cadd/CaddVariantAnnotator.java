@@ -118,6 +118,7 @@ public class CaddVariantAnnotator extends AbstractTabixVariantAnnotator {
 		for(;;)
 			{
 			final String head = super.tabixReader.readLine();
+			if(head==null) throw new IOException("cannot read first line of "+uri);
 			if(!head.startsWith("#")) break;
 			if(head.startsWith("#Chrom\tPos\tRef") ||
 			   head.startsWith("#Chr\tPos\tRef"))

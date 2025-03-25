@@ -16,6 +16,9 @@ Usage: java -jar dist/jvarkit.jar swingplinkselectcluster  [options] Files
 
 Usage: swingplinkselectcluster [options] Files
   Options:
+    --double-id
+      'plink --double-id' was used (convert sample names).
+      Default: false
     -h, --help
       print help and exit
     --helpFormat

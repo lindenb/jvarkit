@@ -17,6 +17,7 @@ public class TextCanvas extends Canvas {
 	private final int height;
 	private final PrintWriter w;
 	private final char[][] drawingarea;
+	private static final char[] ASCII_PALETTE= new char[] {' ','.',',',':',';','o','0','@','#'};
 
 	public TextCanvas(final Path out,
 			final int width,
@@ -89,8 +90,12 @@ public class TextCanvas extends Canvas {
 
 	private char colorToChar(Color c)  {
 		if(c.equals(Color.WHITE)) return ' ';
-		return '#';
-	}
+		double r_norm = c.getRed() / 255.0;
+		double g_norm = c.getGreen() / 255.0;
+		double b_norm = c.getBlue() / 255.0;
+		int idx = (int)((r_norm+g_norm+b_norm)/3.0 * ASCII_PALETTE.length);
+		return ASCII_PALETTE[idx];
+		}
 	
 	@Override
 	public Canvas line(double x1, double y1, double x2, double y2, FunctionalMap<String, Object> fm) {
@@ -103,6 +108,33 @@ public class TextCanvas extends Canvas {
 		this.states.pop();
 		return this;
 		}
+	@Override
+	public Canvas rect(double x, double y, double width, double height, FunctionalMap<String, Object> fm) {
+		fm = this.states.push(this.states.peek().plus(fm));
+		Color col= toColor(fm.get(KEY_FILL));
+		if(col!=null) {
+			char c = colorToChar(col);
+			for(int w=0;w<width;++w) {
+				for(int h=0;h<height;++h) {
+					set((int)(x+w),(int)(y+h), c);
+					}
+				}
+			
+			}
+		
+		col= toColor(fm.get(KEY_STROKE));
+		if(col!=null) {
+			char c = colorToChar(col);
+			bresenham((int)x, (int)y, (int)(x+width), (int)y, c);
+			bresenham((int)(x+width), (int)y, (int)(x+width), (int)(y+height), c);
+			bresenham((int)(x+width), (int)(y+height),(int)(x),  (int)(y+height), c);
+			bresenham((int)(x),  (int)(y+height),(int)(x),  (int)(y), c);
+			}
+		this.states.pop();
+		return this;
+		}
+	
+	
 	
 	@Override
 	public Canvas text(String s, double x, double y, FunctionalMap<String, Object> fm) {

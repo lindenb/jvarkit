@@ -284,7 +284,7 @@ public class RegenieSwing extends Launcher {
 				
 				this.br = IOUtils.openPathForBufferedReading(RegenieSwing.this.regeniePath);
 				for(;;) {
-					String line = br.readLine();
+					final String line = br.readLine();
 					if(line!=null && line.startsWith("#")) continue;
 					if(line==null) throw new IOException("cannot read first line of "+regeniePath);
 					final Pattern ws  = Pattern.compile("[ \t]");
@@ -304,17 +304,17 @@ public class RegenieSwing extends Launcher {
 				for(;;) {
 					final String line = br.readLine();
 					if(line==null) return null;
+					if(line.startsWith("#")|| line.startsWith(COLUMN_HEADER[0])) continue;
 					final Record rec= new Record(this.fileHeader.toMap(line));
 					rec.pos = Integer.parseInt(rec.row.at(this.column_pos));
-					final SAMSequenceRecord ssr = this.aliases.get(rec.row.at(this.column_chrom));
-					if(ssr==null) {
+					rec.ssr = this.aliases.get(rec.row.at(this.column_chrom));
+					if(rec.ssr==null) {
 						continue;
 						}
-					rec.ssr = ssr;
 					return rec;
 					}
 				}
-			catch(IOException err) {
+			catch(final IOException err) {
 				throw new RuntimeIOException(err);
 				}
 			}
@@ -504,19 +504,7 @@ public class RegenieSwing extends Launcher {
 							}
 						g.dispose();
 						qqplot_label.setIcon(new ImageIcon(img));
-						/*
-						 g=(Graphics2D)img.createGraphics();
-						// QQ PLOT
-						y_array.stream().sorted().toArray();
-						double pppoints_distance= 1.0/y_array.size();
-						double cx=0,r=0,cy=0;
-						g.drawOval(cx-r/2,cy-r/2,r, r);
-						
-						
-						manhattan_label.setIcon(new ImageIcon(img));
-						
-						 */
-						System.err.println("Update GUI Done "+x_array.size());
+						//System.err.println("Update GUI Done "+x_array.size());
 						}
 					});
 					} catch(Throwable err ) {
@@ -691,15 +679,17 @@ public class RegenieSwing extends Launcher {
 				
 				if(rec==null) return;
 				int extend=500;
-				Locatable loc = new SimpleInterval(rec.getContig(),Math.max(1, rec.getStart()-extend),rec.getEnd()+extend);
+				final Locatable loc = new SimpleInterval(rec.getContig(),Math.max(1, rec.getStart()-extend),rec.getEnd()+extend);
 				final UrlSupplier urlSupplier = new UrlSupplier(main_dictionary);
 				final Set<UrlSupplier.LabelledUrl> unique_urls = new HashSet<>();
 				unique_urls.addAll(urlSupplier.of(loc));
-				if(rec.getGene().matches("ENS[TG][0-9\\.]+")) {
+				if(rec.getGene().matches("ENS[TG][0-9\\.]+") || rec.getGene().matches("[A-Z][A-Z0-9\\.]*")) {
 					unique_urls.addAll(urlSupplier.of(rec.getGene()));
 					}
 				
-				model.addAll(unique_urls.stream().map(X->new BrowseURL(X)).collect(Collectors.toList()));	
+				for(BrowseURL bu:unique_urls.stream().map(X->new BrowseURL(X)).collect(Collectors.toList())) {
+					model.addElement(bu);
+					}
 				});
 			
 			
@@ -754,7 +744,6 @@ public class RegenieSwing extends Launcher {
 			});
 		return 0;
 		}
-	
 	public static void main(final String[] args) {
 		new RegenieSwing().instanceMain(args);
 		}
