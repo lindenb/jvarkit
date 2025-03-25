@@ -103,8 +103,9 @@ END_DOC
 		name="kg2gff",
 		description="Convert UCSC genpred/knowngene file to gff3 or gtf",
 		creationDate="20210106",
-		modificationDate="20250128",
+		modificationDate="20250324",
 		keywords= {"gff","gff3","ucsc","genpred"},
+		biostars = {9610527},
 		jvarkit_amalgamion = true
 		)
 public class KgToGff extends Launcher {
@@ -164,7 +165,7 @@ public class KgToGff extends Launcher {
 			out.write('\t');
 			write(feature.getScore() < 0 ? Gff3Constants.UNDEFINED_FIELD_VALUE : Double.toString(feature.getScore()));
 			out.write('\t');
-			write(feature.getStrand().toString());
+			out.write(feature.getStrand().toString().getBytes());
 			out.write('\t');
 			write(feature.getPhase() < 0 ? Gff3Constants.UNDEFINED_FIELD_VALUE : Integer.toString(feature.getPhase()));
 			out.write('\t');

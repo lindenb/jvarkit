@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : cb3b329b0
-Compilation : 20250321134558
+Version     : cbd9594b4
+Compilation : 20250324203914
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -214,7 +214,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
 | [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20230815 |
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
-| [kg2gff](KgToGff.md) | Convert UCSC genpred/knowngene file to gff3 or gtf | 20210106 | 20250128 |
+| [kg2gff](KgToGff.md) | Convert UCSC genpred/knowngene file to gff3 or gtf | 20210106 | 20250324 |
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
 | [liftover2svg](LiftOverToSVG.md) | Convert LiftOver chain files to animated SVG |  |  |
 | [manhattan](Manhattan.md) | Manhattan plot SVG picture from different sources. | 20220525 | 20240525 |
@@ -228,6 +228,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pubmedauthorgraph](PubmedAuthorGraph.md) | Creates a graph from Pubmed and Authors |  |  |
 | [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
 | [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
+| [qqplotter](QQPlotter.md) | plot QQplot | 20250324 | 20250324 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
 | [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |
 | [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250320 |
@@ -248,6 +249,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
 | [sv2fasta](StructuralVariantToFasta.md) | convert VCF of structural variant(s) to fasta for pggb | 20230403 | 20230403 |
 | [swingplinkselectcluster](SwingPLinkSelectCluster.md) | Swing-based Plink/MDS sample selector | 20231123 | 20240606 |
+| [swingregenie](RegenieSwing.md) | view regenie output | 20250324 | 20250324 |
 | [translategff3](TranslateGff3.md) | translates the output of bcftools consensus | 20241003 | 20241003 |
 | [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240206 |
 | [variantsinwindow](VariantsInWindow.md) | Annotate Number of Variants overlaping a sliding window. |  |  |

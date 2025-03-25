@@ -53,6 +53,12 @@ Usage: kg2gff [options] Files
 
 
 
+## See also in Biostars
+
+ * [https://www.biostars.org/p/9610527](https://www.biostars.org/p/9610527)
+
+
+
 ## Creation Date
 
 20210106

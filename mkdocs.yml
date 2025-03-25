@@ -180,6 +180,7 @@ nav:
         - "pubmedgraph" : PubmedGraph.md
         - "pubmedmap" : PubmedMap.md
         - "pubmedorcidgraph" : PubmedOrcidGraph.md
+        - "qqplotter" : QQPlotter.md
         - "reduceblast" : ReduceBlast.md
         - "ref2html" : ReferenceToHtml.md
         - "regeniebedannot" : RegenieBedAnnot.md
@@ -222,6 +223,7 @@ nav:
         - "swingbamview" : SwingBamView.md
         - "swingindexcov" : SwingIndexCov.md
         - "swingplinkselectcluster" : SwingPLinkSelectCluster.md
+        - "swingregenie" : RegenieSwing.md
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
         - "texbam" : TextBam.md
