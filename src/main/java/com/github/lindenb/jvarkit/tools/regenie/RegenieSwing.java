@@ -432,7 +432,7 @@ public class RegenieSwing extends Launcher {
 						if(!stop_flag && ScanThread.this.equals(SwingFrame.this.thread) && !y_array.isEmpty() ) {
 						BufferedImage img = new BufferedImage(MANHATTAN_WIDTH, MANHATTAN_HEIGHT, BufferedImage.TYPE_INT_ARGB);
 						
-						Graphics2D g=(Graphics2D)img.createGraphics();
+						Graphics2D g=img.createGraphics();
 						
 						g.setColor(Color.WHITE);
 						g.fillRect(0, 0,MANHATTAN_WIDTH,MANHATTAN_HEIGHT);
@@ -473,7 +473,7 @@ public class RegenieSwing extends Launcher {
 
 						
 						img = new BufferedImage(QQPLOT_SIZE, QQPLOT_SIZE, BufferedImage.TYPE_INT_ARGB);
-						g=(Graphics2D)img.createGraphics();
+						g=img.createGraphics();
 						g.setColor(Color.WHITE);
 						g.fillRect(0, 0,QQPLOT_SIZE,QQPLOT_SIZE);
 						
@@ -759,8 +759,6 @@ public class RegenieSwing extends Launcher {
 	
 	public static void main(String[] args) {
 		System.err.println("Startup");
-		args=new String[]{"-R","/home/lindenb/src/jvarkit-git/src/test/resources/human_b37.dict",
-				"/home/lindenb/TMP/20250321.regenie.genmed.chopin.hs37d5.functional.results.tsv.gz"};
 		new RegenieSwing().instanceMain(args);
 		}
 

@@ -148,6 +148,8 @@ private static final Logger LOG = Logger.build(SwingPLinkSelectCluster.class).ma
 private static final String ACTION_XY_KEY= "plink.xy";
 private static final String ACTION_TOOL= "select.tool";
 private  enum ToolType {KEEP,EXCLUDE,INVERSE}
+@Parameter(names= {"--double-id"},description="'plink --double-id' was used (convert sample names).")
+private boolean double_id_flag = false;
 
 @Parameter(names= {"--samples-to-groups","-m"},description=SampleToGroup.OPT_DESC)
 private Path sampleToGroupPath = null;
@@ -193,7 +195,7 @@ private static class Sample {
 	}
 
 @SuppressWarnings("serial")
-private static class SampleTableModel extends AbstractTableModel{
+private class SampleTableModel extends AbstractTableModel{
 	final List<Sample> rows;
 	final int countCcols;
 	SampleTableModel(final List<Sample> rows, int countCcols) {
@@ -216,7 +218,7 @@ private static class SampleTableModel extends AbstractTableModel{
 		}
 	@Override
 	public int getColumnCount() {
-		return this.countCcols+3;
+		return this.countCcols + 3;
 		}
 	@Override
 	public boolean isCellEditable(int rowIndex, int columnIndex) {
@@ -243,7 +245,8 @@ private static class SampleTableModel extends AbstractTableModel{
 		}
 	}
 
-static String simpleName(String s) {
+private String simpleName(final String s) {
+	if(!double_id_flag) return s;
 	final List<String> tokens = CharSplitter.UNDERSCORE.splitAsStringList(s);
 	if(tokens.size()%4!=0) return s;
 	return String.join("_",tokens.subList(0, tokens.size()/4));
@@ -251,7 +254,7 @@ static String simpleName(String s) {
 
 
 @SuppressWarnings("serial")
-private static class XFrame extends JFrame {
+private class XFrame extends JFrame {
 	final List<Sample> samples;
 	final ButtonGroup buttonGroupXY;
 	final ButtonGroup buttonGroupTool;
