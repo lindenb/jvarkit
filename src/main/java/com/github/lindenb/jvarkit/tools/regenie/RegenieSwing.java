@@ -120,7 +120,7 @@ public class RegenieSwing extends Launcher {
 	private static final int MANHATTAN_WIDTH = 900;
 	private static final int MANHATTAN_HEIGHT = 200;
 	private static final int QQPLOT_SIZE = MANHATTAN_HEIGHT;
-	@Parameter(names={"-R","--reference"},description= DICTIONARY_SOURCE)
+	@Parameter(names={"-R","--reference"},description= DICTIONARY_SOURCE,required = true)
 	private Path dictPath = null;
 
 	private Path regeniePath;
@@ -260,8 +260,10 @@ public class RegenieSwing extends Launcher {
 	private class RecordIterator extends AbstractCloseableIterator<Record> {
 		final BufferedReader br;
 		private final FileHeader fileHeader;
-		int column_chrom;
-		int column_pos;
+		final int column_chrom;
+		final int column_pos;
+		final int column_extra;
+		final int column_log10P;
 		private final Map<String,SAMSequenceRecord> aliases=new HashMap<>();
 		RecordIterator() {
 			try {
@@ -291,6 +293,8 @@ public class RegenieSwing extends Launcher {
 					this.fileHeader = new FileHeader(line, S->Arrays.asList(ws.split(S)));
 					this.column_chrom = this.fileHeader.getColumnIndex("CHROM");
 					this.column_pos = this.fileHeader.getColumnIndex("GENPOS");
+					this.column_extra = this.fileHeader.getColumnIndex("EXTRA");
+					this.column_log10P =  this.fileHeader.getColumnIndex("LOG10P");
 					break;
 					}
 				}
@@ -306,6 +310,8 @@ public class RegenieSwing extends Launcher {
 					if(line==null) return null;
 					if(line.startsWith("#")|| line.startsWith(COLUMN_HEADER[0])) continue;
 					final Record rec= new Record(this.fileHeader.toMap(line));
+					if(rec.row.at(this.column_extra).equals("TEST_FAIL")) continue;
+					if(rec.row.at(this.column_log10P).equals("NA")) continue;
 					rec.pos = Integer.parseInt(rec.row.at(this.column_pos));
 					rec.ssr = this.aliases.get(rec.row.at(this.column_chrom));
 					if(rec.ssr==null) {
@@ -478,6 +484,7 @@ public class RegenieSwing extends Launcher {
 						g.fillRect(0, 0,QQPLOT_SIZE,QQPLOT_SIZE);
 						
 						if(this.show_qqplot) {
+							max_y = y_array.stream().mapToDouble(f->f).max().orElse(1.0);
 							g.setColor(Color.GREEN);
 							g.drawLine(0,QQPLOT_SIZE,  QQPLOT_SIZE,0);
 							final float[] x2_array = this.y_array.toArray();
@@ -485,7 +492,7 @@ public class RegenieSwing extends Launcher {
 								Arrays.sort(x2_array);
 								double[] y2_array = MathUtils.ppoints(x2_array.length);
 								
-								for(int i=0;i<x2_array.length && !stop_flag;++i ) {
+								for(int i=0;i<y2_array.length && !stop_flag;++i ) {
 									y2_array[i] = -Math.log10(y2_array[i]);
 									}
 								Arrays.sort(y2_array);
