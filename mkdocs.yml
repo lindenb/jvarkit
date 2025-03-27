@@ -26,6 +26,7 @@ nav:
         - "bam2xml" : Bam2Xml.md
         - "bamclip2insertion" : BamClipToInsertion.md
         - "bamcmpcoverage" : BamCmpCoverage.md
+        - "bamleftalign" : BamLeftAlign.md
         - "bamliftover" : BamLiftOver.md
         - "bammatrix" : BamMatrix.md
         - "bamphased01" : BamPhased01.md

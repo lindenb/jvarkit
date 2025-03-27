@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 290e32656
-Compilation : 20250326184117
+Version     : 8a1a575f6
+Compilation : 20250327175221
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -342,6 +342,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
 | [bam2haplotypes](BamToHaplotypes.md) | Reconstruct SNP haplotypes from reads | 20211015 | 20211020 |
+| [bamleftalign](BamLeftAlign.md) | Left Align Reads around deletions | 20250327 | 20250327 |
 | [bamphased01](BamPhased01.md) | Extract Reads from a SAM/BAM file supporting at least two variants in a VCF file. | 20210218 | 20210218 |
 | [bamrenamechr](ConvertBamChromosomes.md) | Convert the names of the chromosomes in a BAM file | 20131217 | 20191210 |
 | [bamstats04](BamStats04.md) | Coverage statistics for a BED file. | 20130513 | 20191003 |
@@ -351,8 +352,8 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bioalcidaejdk](BioAlcidaeJdk.md) | java-based version of awk for bioinformatics | 20170712 | 20210412 |
 | [biostar154220](Biostar154220.md) | Cap BAM to a given coverage | 20150812 | 20210312 |
 | [biostar9566948](Biostar9566948.md) | Trim Reads So Only First Base Remains | 20230621 | 20230621 |
-| [findallcoverageatposition](FindAllCoverageAtPosition.md) | Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ? | 20141128 | 20210818 |
-| [sam2tsv](Sam2Tsv.md) | Prints the SAM alignments as a TAB delimited file. | 20170712 | 20210304 |
+| [findallcoverageatposition](FindAllCoverageAtPosition.md) | Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ? | 20141128 | 20250327 |
+| [sam2tsv](Sam2Tsv.md) | Prints the SAM alignments as a TAB delimited file. | 20170712 | 20250327 |
 | [samextractclip](SamExtractClip.md) | Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ | 20140228 | 20240524 |
 | [samgrep](SamGrep.md) | grep read-names in a bam file | 20130506 | 20210726 |
 | [samrmdupnames](SamRemoveDuplicatedNames.md) | remove duplicated names in sorted BAM | 20221207 | 20221207 |

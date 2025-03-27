@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.UnaryOperator;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -61,6 +62,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.samtools.SAMRecordLeftAligner;
 import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.bio.DistanceParser;
@@ -115,7 +117,7 @@ END_DOC
 	keywords={"bam","coverage","search","depth"},
 	description="Find depth at specific position in a list of BAM files. My colleague Estelle asked: in all the BAM we sequenced, can you give me the depth at a given position ?",
 	biostars= {259223,250099,409942,9566474},
-	modificationDate="20210818",
+	modificationDate="20250327",
 	creationDate="20141128",
 	jvarkit_amalgamion = true,
 	menu="BAM Manipulation"
@@ -137,20 +139,27 @@ public class FindAllCoverageAtPosition extends Launcher
 	private SAMRecordPartition groupBy=SAMRecordPartition.sample;
 	@Parameter(names={"-filter","--filter"},description="[20171201](moved to jexl). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter = SamRecordJEXLFilter.buildDefault();
-	@Parameter(names={"-r","-R","--reference"},description="[20171201]"+Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-r","-R","--reference"},description=Launcher.INDEXED_FASTA_REFERENCE_DESCRIPTION+" Required for CRAM file or left-align")
 	private Path referenceFileFile=null;
-	@Parameter(names={"-x","--extend"},description="[20190218]extend by 'x' base to try to catch close with clipped reads. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"-x","--extend"},description="extend by 'x' base to try to catch close with clipped reads. " + DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int extend=500;
 	@Parameter(names={"-Q","--mapq"},description="Min mapping quality. Dicard reads having MAPQ < 'x'")
 	private int mapq=1;
-	@Parameter(names={"-clip","--clip"},description="use clipped bases.")
+	@Parameter(names={"-clip","--clip"},description="use clipped bases (see also --extend).")
 	private boolean use_clipped_bases = false;
-
+	@Parameter(names={"--left-align"},description= SAMRecordLeftAligner.OPT_DESC)
+	private boolean enable_left_align = false;
+	@Parameter(names={"--hide-cigar"},description="Hide Cigar operators")
+	private boolean hide_cigar_operators = false;
+	
+	
 	
 	
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
 	private SAMSequenceDictionary fastaDict = null;
+	private UnaryOperator<SAMRecord> leftAlignOrIdentity;
+
 	
 	private static class CigarAndBases
 		{
@@ -255,7 +264,6 @@ public class FindAllCoverageAtPosition extends Launcher
 							}
 	
 						
-						
 						final SimplePosition m = convertFromSamHeader(f,header,src);
 						if(m==null) continue;
 						try(CloseableIterator<SAMRecord> iter = samReader.query(m.getContig(),
@@ -265,7 +273,7 @@ public class FindAllCoverageAtPosition extends Launcher
 								)) {
 							while(iter.hasNext())
 								{
-								final SAMRecord rec=iter.next();
+								final SAMRecord rec= this.leftAlignOrIdentity.apply(iter.next());
 								if(rec.getReadUnmappedFlag()) continue;
 								if(rec.getMappingQuality() < this.mapq) continue;
 								if(this.filter.filterOut(rec)) continue;
@@ -344,7 +352,7 @@ public class FindAllCoverageAtPosition extends Launcher
 										}
 									}
 								}
-						}
+							}
 							
 						
 						for(final String sample:sample2count.keySet())
@@ -366,16 +374,20 @@ public class FindAllCoverageAtPosition extends Launcher
 							out.print(sample);
 							out.print('\t');
 							out.print(
-									counter.operators.count(CigarOperator.M)+
-									counter.operators.count(CigarOperator.EQ)+
-									counter.operators.count(CigarOperator.X)+
+									counter.operators.count(CigarOperator.M) +
+									counter.operators.count(CigarOperator.EQ) +
+									counter.operators.count(CigarOperator.X) +
 									(use_clipped_bases?counter.operators.count(CigarOperator.H)+counter.operators.count(CigarOperator.S):0)
 									);
-							for(final CigarOperator op:CigarOperator.values())
-								{
-								out.print('\t');
-								out.print(counter.operators.count(op));
+							
+							if(!hide_cigar_operators) {
+								for(final CigarOperator op:CigarOperator.values())
+									{
+									out.print('\t');
+									out.print(counter.operators.count(op));
+									}
 								}
+							
 							for(char c:BASES_To_PRINT)
 								{
 								out.print('\t');
@@ -417,6 +429,18 @@ public class FindAllCoverageAtPosition extends Launcher
 				this.indexedFastaSequenceFile = htsjdk.samtools.reference.ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFileFile);
 				this.samReaderFactory.referenceSequence(this.referenceFileFile);
 				this.fastaDict = SequenceDictionaryUtils.extractRequired(this.indexedFastaSequenceFile);
+				}
+			
+			if(this.enable_left_align) {
+				if(this.referenceFileFile==null) {
+					LOG.error("Reference fasta file is required when --left-align option is on");
+					return -1;
+					}
+				this.leftAlignOrIdentity = new SAMRecordLeftAligner(this.indexedFastaSequenceFile);
+				}
+			else
+				{
+				this.leftAlignOrIdentity = R->R;
 				}
 			
 			this.positionStrs.
@@ -481,10 +505,12 @@ public class FindAllCoverageAtPosition extends Launcher
 			out.print(this.groupBy.name().toUpperCase());
 			out.print('\t');
 			out.print("DEPTH");
-			for(final CigarOperator op:CigarOperator.values())
-				{
-				out.print('\t');
-				out.print(op.name());
+			if(!hide_cigar_operators) {
+				for(final CigarOperator op:CigarOperator.values())
+					{
+					out.print('\t');
+					out.print(op.name());
+					}
 				}
 			for(char c:BASES_To_PRINT)
 				{

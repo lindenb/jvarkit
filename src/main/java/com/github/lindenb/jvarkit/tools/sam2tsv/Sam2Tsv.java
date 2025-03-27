@@ -26,9 +26,11 @@ package com.github.lindenb.jvarkit.tools.sam2tsv;
 
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.function.UnaryOperator;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
+import com.github.lindenb.jvarkit.samtools.SAMRecordLeftAligner;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -42,7 +44,6 @@ import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 /**
 
 BEGIN_DOC
@@ -140,7 +141,7 @@ END_DOC
 	description="Prints the SAM alignments as a TAB delimited file.",
 	keywords={"sam","bam","table","cram","tsv"},
 	biostars={157232,59647,253828,264875,277493},
-	modificationDate="20210304",
+	modificationDate="20250327",
 	creationDate="20170712",
 	jvarkit_amalgamion =  true,
 	nfcore="https://nf-co.re/modules/jvarkit_sam2tsv.html",
@@ -150,99 +151,103 @@ public class Sam2Tsv
 	extends MultiBamLauncher
 	{
 	private static final Logger LOG = Logger.build(Sam2Tsv.class).make();
-
+	private static final int NO_POSITION=-1;
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-N","--skip-N"},description="Skip 'N' operator")
 	private boolean skip_N=false;
+	@Parameter(names={"--left-align"},description=SAMRecordLeftAligner.OPT_DESC)
+	private boolean enable_left_alin=false;
 
 
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;
-	private PrintWriter out = null;
+	private UnaryOperator<SAMRecord> leftAligner= R->R;
 	
-	// current row members
-	private SAMRecord rec;
-	private byte readbases[];
-	private byte readQuals[];
-	private int readPos;
-	private int refPos;
-	private	CigarOperator op;
-	
-	private char getRefBase()
+	private char getRefBase(final int refPos)
 		{
 		if(this.genomicSequence==null)
 			{
 			return 'N';
 			}
-		else if(this.refPos>=1 && this.refPos<= this.genomicSequence.length())
+		else if(refPos>=1 &&  refPos<= this.genomicSequence.length())
 			{
-			return this.genomicSequence.charAt(this.refPos-1);
+			return this.genomicSequence.charAt(refPos-1);
 			}
 		return '.';
 		}
 	
-	private char getReadBase()
+	private char getReadBase(final SAMRecord rec,int readPos,byte[] readbases)
 		{
-		return this.readPos<0 || this.readbases==null  ||  this.readPos>=this.readbases.length?'.':(char)this.readbases[this.readPos];
+		if(readbases==null  || readbases==SAMRecord.NULL_SEQUENCE ) return '.';
+		if( readPos<0 || readPos>=readbases.length) {
+			System.err.println("Error with getReadBase "+rec.getPairedReadName()+" readpos="+readPos+" and readbases.length="+readbases.length);
+			return '.';
+			}
+		return (char)readbases[readPos];
 		}
-	private char getReadQual()
+	private char getReadQual(int readPos,byte[] readQuals)
 		{
-		if(this.readPos<0 || this.readQuals==null || this.readQuals== SAMRecord.NULL_QUALS || this.readPos>=this.readQuals.length) return '.';
-		return SAMUtils.phredToFastq(this.readQuals[this.readPos]);
+		if(readPos<0 || readQuals==null ||readQuals== SAMRecord.NULL_QUALS || readPos>=readQuals.length) return '.';
+		return SAMUtils.phredToFastq(readQuals[readPos]);
 		}
 		
-	private void writeAln()
+	private void writeAln(
+			final PrintWriter pw,
+			final SAMRecord rec, 
+			final CigarOperator op,
+			final byte[] readbases,
+			final byte[] readQuals,
+			final int readPos,
+			final int refPos
+			)
 		{
-		this.out.print(this.rec.getReadName());
-		this.out.print("\t");
-		this.out.print(this.rec.getFlags());
-		this.out.print("\t");
-		this.out.print(this.rec.getMappingQuality());
-		this.out.print("\t");
-		this.out.print(this.rec.getReadUnmappedFlag()?SAMRecord.NO_ALIGNMENT_REFERENCE_NAME:this.rec.getReferenceName());
-		this.out.print("\t");
-		if(this.readPos!=-1)
+		pw.print(rec.getReadName());
+		pw.print("\t");
+		pw.print(rec.getFlags());
+		pw.print("\t");
+		pw.print(rec.getMappingQuality());
+		pw.print("\t");
+		pw.print(rec.getReadUnmappedFlag()?SAMRecord.NO_ALIGNMENT_REFERENCE_NAME:rec.getReferenceName());
+		pw.print("\t");
+		if(readPos!= NO_POSITION )
 			{
-			final char c1 =this.getReadBase();
-			this.out.print(this.readPos);
-			this.out.print("\t");
-			this.out.print(c1);
-			this.out.print("\t");
-			this.out.print(this.getReadQual());
-			this.out.print("\t");
+			final char c1 =this.getReadBase(rec,readPos,readbases);
+			pw.print(readPos);
+			pw.print("\t");
+			pw.print(c1);
+			pw.print("\t");
+			pw.print(this.getReadQual(readPos,readQuals));
+			pw.print("\t");
 			}
 		else
 			{
-			this.out.print(".\t.\t.\t");
+			pw.print(".\t.\t.\t");
 			}
 		
-		if(this.refPos != -1)
+		if(refPos != NO_POSITION)
 			{
-			char c3 = this.getRefBase();
-			this.out.print(this.refPos);
-			this.out.print("\t");
-			this.out.print(c3);
-			this.out.print("\t");
+			char c3 = this.getRefBase(refPos);
+			pw.print(refPos);
+			pw.print("\t");
+			pw.print(c3);
+			pw.print("\t");
 			}
 		else
 			{
-			this.out.print(".\t.\t");
+			pw.print(".\t.\t");
 			}
-		this.out.print(this.op==null?".":this.op.name());
-		this.out.println();
+		pw.print(op==null?".":op.name());
+		pw.println();
 		}
 	
-	private void printAln()
+	private void printAln(final PrintWriter pw,final SAMRecord rec)
 		{
-		if(this.rec==null) return;
+		if(rec==null) return;
 		
 		
-		this.readbases = rec.getReadBases();
-		this.readQuals = rec.getBaseQualities();
-		
-		
-		
+		final byte[] readbases = rec.getReadBases();
+		final byte[] readQuals = rec.getBaseQualities();
 		
 		
 		final Cigar cigar=rec.getCigar();
@@ -251,7 +256,7 @@ public class Sam2Tsv
 
 		if(this.indexedFastaSequenceFile!=null)
 			{
-			if(this.genomicSequence==null || !this.genomicSequence.getChrom().equals(rec.getContig()))
+			if(this.genomicSequence==null || !this.genomicSequence.hasName(rec.getContig()))
 				{
 				this.genomicSequence = new GenomicSequence(this.indexedFastaSequenceFile,rec.getContig());
 				}
@@ -260,188 +265,172 @@ public class Sam2Tsv
 
 		int readIndex = 0;
 		int refIndex = rec.getUnclippedStart();
-		 for (final CigarElement e : cigar.getCigarElements())
+		for (final CigarElement e : cigar.getCigarElements())
+		 {
+		final  CigarOperator op = e.getOperator();
+		 
+		 switch (op)
 			 {
-			 this.op = e.getOperator();
-			 
-			 switch (e.getOperator())
-				 {
-				 case S :
-				 		{
-				 		for(int i=0;i<e.getLength();++i)
-				 			{
-				 			this.readPos=  readIndex;
-				 			this.refPos  = refIndex;
-			 				writeAln();
-				 			readIndex++;
-				 			refIndex++;
-				 			}
-				 		break;
-				 		}
-				 case H :
-					 	{
-				 		for(int i=0;i<e.getLength();++i)
-				 			{
-				 			this.readPos=  -1;
-				 			this.refPos  = refIndex;
-			 				writeAln();
-				 			refIndex++;
-				 			}
-						break; 
-					 	}
-				 case P : 
-					 	{
-					 	this.refPos  = -1;
-					 	this.readPos = -1;
-				 		for(int i=0;i<e.getLength();++i)
-				 			{
-				 			writeAln();
-				 			}
-						break; 
-					 	}
-				 case I :
-				 		{
-				 		this.refPos  = -1;
-				 		for(int i=0;i<e.getLength();++i)
-				 			{
-				 			this.readPos=readIndex;
-				 			writeAln();
-				 			readIndex++;
-				 			}
-				 		break;
-				 		}
-				 case N :{
-					 	if(this.skip_N) {
-					 		refIndex += e.getLength();
-					 		break;
-					 		}
-					 	else
-					 		{
-					 		this.readPos  = -1;
-					 		for(int i=0;i<e.getLength();++i)
-					 			{
-					 			this.refPos = refIndex;
-					 			writeAln();
-					 			refIndex++;
-					 			}
-					 		}
-					 	break;
-				 		}
-				 case D :
-				 		{
-				 		this.readPos  = -1;
-				 		for(int i=0;i<e.getLength();++i)
-				 			{
-				 			this.refPos = refIndex;
-				 			writeAln();
-				 			refIndex++;
-				 			}
-				 		break;
-				 		}
-				 case M :
-				 case EQ :
-				 case X :
+			 case H :
+				 	{
+			 		for(int i=0;i<e.getLength();++i)
 			 			{
-				 		for(int i=0;i< e.getLength();++i)
-				 			{
-				 			this.refPos = refIndex;
-				 			this.readPos = readIndex;
-				 			writeAln();
-				 			refIndex++;
-				 			readIndex++;
-				 			}
-				 		break;
+		 				writeAln(pw,rec,op,readbases,readQuals,NO_POSITION,refIndex);
+			 			refIndex++;
 			 			}
-				 default : throw new IllegalStateException("Case statement didn't deal with cigar op: " + e.getOperator());
-				 }
+					break; 
+				 	}
+			 case P : 
+				 	{
+			 		for(int i=0;i<e.getLength();++i)
+			 			{
+			 			writeAln(pw,rec,op,readbases,readQuals,NO_POSITION,NO_POSITION);
+			 			}
+					break; 
+				 	}
+			 case I :
+			 		{
+			 		for(int i=0;i<e.getLength();++i)
+			 			{
+			 			writeAln(pw,rec,op,readbases,readQuals,readIndex,NO_POSITION);
+			 			readIndex++;
+			 			}
+			 		break;
+			 		}
+			 case N :
+			 case D :
+			 		{
+		 			if(this.skip_N && op.equals(CigarOperator.N)) {
+				 		refIndex += e.getLength();
+				 		}
+		 			else
+			 			{
+				 		for(int i=0;i<e.getLength();++i)
+				 			{
+				 			writeAln(pw,rec,op,readbases,readQuals,NO_POSITION,refIndex);
+				 			refIndex++;
+				 			}
+			 			}
+			 		break;
+			 		}
+			 case S:
+			 case M :
+			 case EQ :
+			 case X :
+		 			{
+			 		for(int i=0;i< e.getLength();++i)
+			 			{
+			 			writeAln(pw,rec,op,readbases,readQuals,readIndex,refIndex);
+			 			refIndex++;
+			 			readIndex++;
+			 			}
+			 		break;
+		 			}
+			 default : throw new IllegalStateException("Case statement didn't deal with cigar op: " + e.getOperator());
 			 }
-		}
-	
-	
-	
-	private void scan(final SAMFileHeader header,final CloseableIterator<SAMRecord> iter) 
-		{
-		long n_total=0L;
-		long n_null_sequence  = 0L;
-		long n_unmapped  = 0L;
-		try{
-			while(iter.hasNext())
-				{
-				this.rec = iter.next();
-				
-				if(this.rec.getReadUnmappedFlag()) {
-					++n_unmapped;
-					continue;
-					}
-				
-				if(this.rec.getReadBases()==SAMRecord.NULL_SEQUENCE) {
-					++n_null_sequence;
-					continue;
-					}
-				
-				printAln();
-				++n_total;
-				if(n_total%10_000==0 && this.out.checkError()) break;
-				}
-			if(n_null_sequence>0) LOG.warn("Ignored "+ n_null_sequence +" reads without sequence");
-			if(n_unmapped>0) LOG.warn("Ignored "+ n_unmapped +" unmapped reads");
-			}
-		catch(final Exception err)
-			{
-			LOG.error("scan error:",err);
-			throw new RuntimeException(String.valueOf(err.getMessage()),err);
-			}
-		finally
-			{
-			CloserUtil.close(iter);
-			}
+		 }
 		}
 	
 	@Override
-	protected int processInput(SAMFileHeader samHeader, CloseableIterator<SAMRecord> iter) {
-		try
-			{
+	protected int beforeSam() {
+		try {
 			if(super.faidxPath!=null)
 				{
 				this.indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(super.faidxPath);
 				}
-			
-			
-			this.out  =  openPathOrStdoutAsPrintWriter(this.outputFile);
-			out.print("#Read-Name");
-			out.print("\t");
-			out.print("Flag");
-			out.print("\t");
-			out.print("MAPQ");
-			out.print("\t");
-			out.print("CHROM");
-			out.print("\t");
-			out.print("READ-POS0");
-			out.print("\t");
-			out.print("READ-BASE");
-			out.print("\t");
-			out.print("READ-QUAL");
-			out.print("\t");
-			out.print("REF-POS1");
-			out.print("\t");
-			out.print("REF-BASE");
-			out.print("\t");
-			out.print("CIGAR-OP");
-			out.println();
-
-			scan(samHeader,iter);			
-			this.out.flush();this.out.close();this.out=null;
+			}
+		catch(Throwable err) {
+			getLogger().error(err);
+			return -1;
+			}
+		if(this.enable_left_alin) {
+			if(this.indexedFastaSequenceFile==null) {
+				getLogger().error("Reference is required with using --left-align");
+				return -1;
+				}
+			this.leftAligner = new SAMRecordLeftAligner(indexedFastaSequenceFile);
+			}
+		else
+			{
+			this.leftAligner =  R->R;
+			}
+		return super.beforeSam();
+		}
+	
+	
+	@Override
+	protected void afterSam() {
+		if(leftAligner!=null) {
+			leftAligner=null;
+			}
+		if(this.indexedFastaSequenceFile!=null) {
+			try { this.indexedFastaSequenceFile.close();}
+			catch(Throwable err) {}
+			this.indexedFastaSequenceFile=null;
+			}
+		super.afterSam();
+		}
+	
+	@Override
+	protected int processInput(final SAMFileHeader samHeader, final CloseableIterator<SAMRecord> iter) {
+		try
+			{
+			try(PrintWriter out  =  openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				out.print("#Read-Name");
+				out.print("\t");
+				out.print("Flag");
+				out.print("\t");
+				out.print("MAPQ");
+				out.print("\t");
+				out.print("CHROM");
+				out.print("\t");
+				out.print("READ-POS0");
+				out.print("\t");
+				out.print("READ-BASE");
+				out.print("\t");
+				out.print("READ-QUAL");
+				out.print("\t");
+				out.print("REF-POS1");
+				out.print("\t");
+				out.print("REF-BASE");
+				out.print("\t");
+				out.print("CIGAR-OP");
+				out.println();
+				
+				
+				
+				long n_total=0L;
+				long n_null_sequence  = 0L;
+				long n_unmapped  = 0L;
+				while(iter.hasNext())
+					{
+					final SAMRecord rec = this.leftAligner.apply(iter.next());
+					
+					if(rec.getReadUnmappedFlag()) {
+						++n_unmapped;
+						continue;
+						}
+					
+					if(rec.getReadBases()==SAMRecord.NULL_SEQUENCE) {
+						++n_null_sequence;
+						continue;
+						}
+					
+					printAln(out,rec);
+					++n_total;
+					if(n_total%10_000==0 && out.checkError()) break;
+					}
+				if(n_null_sequence>0) LOG.warn("Ignored "+ n_null_sequence +" reads without sequence");
+				if(n_unmapped>0) LOG.warn("Ignored "+ n_unmapped +" unmapped reads");
+				
+				out.flush();
+				}
 			return 0;
 			}
 		catch (final Throwable e)
 			{
 			LOG.error(e);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(this.indexedFastaSequenceFile);
-			CloserUtil.close(out);
 			}
 		}
 	

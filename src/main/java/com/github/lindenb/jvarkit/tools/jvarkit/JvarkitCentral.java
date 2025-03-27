@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.tools.bam2svg.SvToSVG;
 import com.github.lindenb.jvarkit.tools.bam2svg.WesCnvSvg;
 import com.github.lindenb.jvarkit.tools.bam2wig.Bam2Wig;
 import com.github.lindenb.jvarkit.tools.bam2xml.Bam2Xml;
+import com.github.lindenb.jvarkit.tools.bamleftalign.BamLeftAlign;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats04;
 import com.github.lindenb.jvarkit.tools.bamstats04.BamStats05;
 import com.github.lindenb.jvarkit.tools.barcode.BarcodeGenerator;
@@ -653,6 +654,7 @@ public class JvarkitCentral {
 		command(BatchIGVPictures.class);
 		command(SortSamRefName.class);
 		command(BaseCoverage.class);
+		command(BamLeftAlign.class);
 		command(BlastToSam.class);
 		command(BlastNToSnp.class);
 		command(BedCluster.class);

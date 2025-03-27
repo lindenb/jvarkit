@@ -20,6 +20,12 @@ Usage: sam2tsv [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --left-align
+      Left-aligns any indels in the read data contained in a BAM or CRAM file. 
+      The same indel can often be placed at multiple positions and still 
+      represent the same haplotype. While it is a commonly used convention to 
+      place an indel at the left-most position
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference

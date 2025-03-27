@@ -17,12 +17,12 @@ Usage: java -jar dist/jvarkit.jar findallcoverageatposition  [options] Files
 Usage: findallcoverageatposition [options] Files
   Options:
     -clip, --clip
-      use clipped bases.
+      use clipped bases (see also --extend).
       Default: false
     -x, --extend
-      [20190218]extend by 'x' base to try to catch close with clipped reads. A 
-      distance specified as a positive integer.Commas are removed. The 
-      following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
+      extend by 'x' base to try to catch close with clipped reads. A distance 
+      specified as a positive integer.Commas are removed. The following 
+      suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 500
     -filter, --filter
       [20171201](moved to jexl). A JEXL Expression that will be used to filter 
@@ -36,6 +36,15 @@ Usage: findallcoverageatposition [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --hide-cigar
+      Hide Cigar operators
+      Default: false
+    --left-align
+      Left-aligns any indels in the read data contained in a BAM or CRAM file. 
+      The same indel can often be placed at multiple positions and still 
+      represent the same haplotype. While it is a commonly used convention to 
+      place an indel at the left-most position
+      Default: false
     -Q, --mapq
       Min mapping quality. Dicard reads having MAPQ < 'x'
       Default: 1
@@ -55,9 +64,9 @@ Usage: findallcoverageatposition [options] Files
       Required 
       Default: []
     -r, -R, --reference
-      [20171201]Indexed fasta Reference file. This file must be indexed with 
-      samtools faidx and with picard/gatk CreateSequenceDictionary or samtools 
-      dict 
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict 
+      Required for CRAM file or left-align
     --version
       print version and exit
 
