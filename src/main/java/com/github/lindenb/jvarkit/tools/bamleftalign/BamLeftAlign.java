@@ -40,6 +40,8 @@ public class BamLeftAlign extends OnePassBamLauncher {
 	private enum What {none,only,discard};
 	@Parameter(names={"--filter"},description="none: keep any read (realigned or not); only: only keep realigned reads; discard: discard realigned reads.")
 	protected  What what_to_do = What.none;
+	@Parameter(names={"--debug"},description="debug")
+	protected  boolean debug = false;
 
 	
 	private ReferenceSequenceFile reference = null;
@@ -59,6 +61,7 @@ public class BamLeftAlign extends OnePassBamLauncher {
 			return -1;
 			}
 		this.leftAligner = new SAMRecordLeftAligner(reference);
+		this.leftAligner.setDebug(this.debug);
 		return super.beforeSam();
 		}
 	

@@ -49,6 +49,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.samtools.SAMRecordLeftAligner;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -125,7 +126,7 @@ END_DOC
 @Program(name="minicaller",
 	description="Simple and Stupid Variant Caller designed for @AdrienLeger2",
 	keywords={"bam","sam","calling","vcf"},
-	modificationDate="20220705",
+	modificationDate="20250327",
 	creationDate="201500306",
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
@@ -332,6 +333,7 @@ public class MiniCaller extends Launcher   {
 	        				map(SDP->SDP.path).
 	        				findFirst().orElseThrow(()->new FileNotFoundException("Cannot find fasta Reference for "+bamPath));
 	            	try(ReferenceSequenceFile bamReferenceSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(bamFastaPath)) {
+	            		final SAMRecordLeftAligner leftAligner=new SAMRecordLeftAligner(bamReferenceSequenceFile);
 	            		final SamReaderFactory srf=createSamReaderFactory().referenceSequence(bamFastaPath);
 		        		try(SamReader sr = srf.open(bamPath)) {
 		        			final SAMFileHeader header = sr.getFileHeader();
@@ -367,7 +369,7 @@ public class MiniCaller extends Launcher   {
 		        				final SimpleInterval bamInterval = interval.renameContig(bamCtg);
 			        			try(CloseableIterator<SAMRecord> iter = sr.query(bamInterval.getContig(),bamInterval.getStart(),bamInterval.getEnd(), false)) {
 			        				while(iter.hasNext()) {
-			        					final SAMRecord rec = iter.next();
+			        					final SAMRecord rec = leftAligner.apply(iter.next());
 			        					if(!SAMRecordDefaultFilter.accept(rec, this.mapq)) continue;
 			        					if(rec.getReadLength() < minSeqLength) continue;
 			                            final Cigar cigar= rec.getCigar();
@@ -477,6 +479,7 @@ public class MiniCaller extends Launcher   {
 			        				}/* end of iterator */
 			        			} // end if contig is not blank
 		        			} /* end of open current SAM */
+		        		leftAligner.dispose();
 		            	}/* end of REF sequence */
 	        		}/* end of loop over BAM */
 	        	

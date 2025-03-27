@@ -40,6 +40,7 @@ public class SAMRecordLeftAligner implements UnaryOperator<SAMRecord> {
 	public static final String OPT_DESC="Left-aligns any indels in the read data contained in a BAM or CRAM file. The same indel can often be placed at multiple positions and still represent the same haplotype. While it is a commonly used convention to place an indel at the left-most position";
 	private GenomicSequence genomicSeq=null;
 	private final ReferenceSequenceFile referenceSequenceFile;
+	private boolean debug;
 	private boolean previous_was_realigned=false;
 	public SAMRecordLeftAligner(final ReferenceSequenceFile referenceSequenceFile) {
 		this.referenceSequenceFile=referenceSequenceFile;
@@ -50,9 +51,22 @@ public class SAMRecordLeftAligner implements UnaryOperator<SAMRecord> {
 		return this.previous_was_realigned;
 		}
 	
+	private boolean isMatch(final CigarOperator op) {
+		return op.equals(CigarOperator.M) || op.equals(CigarOperator.EQ);
+		}
+	
 	private boolean isDel(final CigarOperator op) {
 		return op.equals(CigarOperator.D) || op.equals(CigarOperator.N);
 		}
+	
+	public void setDebug(boolean debug) {
+		this.debug = debug;
+		}
+	
+	public boolean isDebugging() {
+		return debug;
+		}
+	
 	@Override
 	public SAMRecord apply(final SAMRecord rec) {
 		previous_was_realigned=false;
@@ -90,26 +104,54 @@ public class SAMRecordLeftAligner implements UnaryOperator<SAMRecord> {
 						final CigarElement next = L.get(i+1);
 						final int next_length = next.getLength();
 						final int next_readpos0 = readpos0;//no change
-						if(prev.getOperator().isAlignment() && next.getOperator().isAlignment())
+						if(isMatch(prev.getOperator()) && isMatch(next.getOperator()))
 							{
 							if(genomicSeq==null || !genomicSeq.hasName(rec.getReferenceName())) {
 								genomicSeq = new GenomicSequence(this.referenceSequenceFile, rec.getReferenceName());
 								}
+							/* find bases in deletions where bases are the same than in ref */
 							int extend=0;
-							for(int x=0;x < cigar_length && x< next_length -1 /* -1 to avoid to have and empty CigarElement */;x++) {
-								char base_in_del = Character.toUpperCase(genomicSeq.charAt(refpos1 + x- 1));
-								char base_in_next_read = (char)Character.toUpperCase(bases[next_readpos0 + x]);
-								
-								
+							for(int x=0;
+								x < cigar_length &&
+								x< next_length -1 && /* -1 to avoid to have and empty CigarElement */
+								next_readpos0 + x + 1 < bases.length ; /* we want one more base to test for mismatch after the correction see below*/
+								x++) {
+								final char base_in_del = Character.toUpperCase(genomicSeq.charAt(refpos1 + x- 1));
+								final char base_in_next_read = (char)Character.toUpperCase(bases[next_readpos0 + x]);
 								if(base_in_del!=base_in_next_read) break;
-								
-								//System.err.println("REF["+(refpos1+x)+"]="+base_in_del);
-								//System.err.println("READ["+(next_readpos0+x)+"]="+base_in_next_read);
+								if(isDebugging() ) {
+									System.err.println(
+											"extend\t"+
+											rec.getPairedReadName()+
+												"\tCONTIG:"+rec.getContig()+
+												"\tREF["+(refpos1+x)+"]="+base_in_del+
+												"\tBASE["+(next_readpos0 + x)+"]="+base_in_next_read+
+												"\textend:"+extend
+												);
+									}
 								extend++;
 								}
+							
+							/* ok, to the other side, because we do not want the next Cigar element starting with a mismatch */
+							while(extend>0) {
+								final char base_in_del = Character.toUpperCase(genomicSeq.charAt((next_refpos1 + extend- 1) + 1));
+								final char base_in_next_read = (char)Character.toUpperCase(bases[next_readpos0 + extend + 1]);
+								/* it's ok, it's a match we can break here */
+								if(base_in_del==base_in_next_read) break;
+								if(isDebugging() ) {
+									System.err.println(
+											"shrink\t"+
+											rec.getPairedReadName()+
+												"\tCONTIG:"+rec.getContig()+
+												"\tREF["+(refpos1+extend)+"]="+base_in_del+
+												"\tBASE["+(next_readpos0 + extend)+"]="+base_in_next_read+
+												"\textend:"+extend
+												);
+									}
+								extend--;
+								}
+							
 							if(extend>0) {
-								//System.err.println("extend:"+extend);
-
 								dirty=true;
 								L.set(i-1, new CigarElement(prev.getLength()+extend, prev.getOperator()));
 								L.set(i+1, new CigarElement(next.getLength()-extend, next.getOperator()));

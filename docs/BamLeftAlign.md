@@ -19,6 +19,9 @@ Usage: bamleftalign [options] Files
     --bamcompression
       Compression Level. 0: no compression. 9: max compression;
       Default: 5
+    --debug
+      debug
+      Default: false
     --filter
       none: keep any read (realigned or not); only: only keep realigned reads; 
       discard: discard realigned reads.
