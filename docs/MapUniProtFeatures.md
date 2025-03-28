@@ -2,13 +2,18 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-map uniprot features on reference genome
+map uniprot features on reference genome (this program is broken).
 
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/mapuniprot.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar mapuniprot  [options] Files
+
 Usage: mapuniprot [options] Files
   Options:
     --format
@@ -24,8 +29,7 @@ Usage: mapuniprot [options] Files
       https://genome.ucsc.edu/FAQ/FAQformat.html#format9  . The genePred 
       format is a compact alternative to GFF/GTF because one transcript is 
       described using only one line.	Beware chromosome names are formatted the 
-      same as your REFERENCE. A typical KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
+      same as your REFERENCE. A typical KnownGene file is http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV47.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
     --version
@@ -48,26 +52,9 @@ Usage: mapuniprot [options] Files
  * xml
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew mapuniprot
-```
-
-The java jar file will be installed in the `dist` directory.
-
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/MapUniProtFeatures.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/MapUniProtFeatures.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/uniprot/MapUniProtFeatures.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/uniprot/MapUniProtFeatures.java)
 
 
 ## Contribute
@@ -91,13 +78,22 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Warning
+
+this program is broken.
+
 ##Example
 
 ```bash
-$ java  -jar dist/mapuniprot.jar \
-	-R /path/to/human_g1k_v37.fasta \
+
+wget -O knownGene.txt.gz http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV47.txt.gz
+wget -O knownGene.sql http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV47.sql
+
+
+$ java  -jar dist/jvarkit mapuniprot \
+	-R /path/to/hg38.fasta \
 	-u /path/uri/uniprot.org/uniprot_sprot.xml.gz  \
-	-k <(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '        ' '{if($2 ~ ".*_.*") next; OFS="       "; gsub(/chr/,"",$2);print;}'   ) |\
+	-k knownGene.txt.gz | gunzip -c | awk -F '        ' '{if($2 ~ ".*_.*") next; OFS="       "; gsub(/chr/,"",$2);print;}'   ) |\
 	LC_ALL=C sort -t '	' -k1,1 -k2,2n -k3,3n  | uniq | head
 
 
@@ -112,3 +108,4 @@ $ java  -jar dist/mapuniprot.jar \
 1	69486	69543	transmembrane_region	1000	+	69486	69543	255,0,0	1	57	0
 1	69543	69654	topological_domain	1000	+	69543	69654	255,0,0	1	111	0
 ```
+

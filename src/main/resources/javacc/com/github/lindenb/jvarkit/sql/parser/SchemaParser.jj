@@ -362,6 +362,7 @@ TOKEN:
 | <PRIMARY:"PRIMARY">
 | <CHARACTER:"character">
 | <COLLATE:"collate">
+| <CHARSET: "CHARSET" >
 }
 
 TOKEN:
@@ -428,7 +429,7 @@ private void createTable():{TableImpl table=new TableImpl(); String tableName; C
 	(tableName=identifier() <LPAR>
 	(col=component() { table.add(col);}
 	(<COMMA> col=component() { table.add(col); } )* )
-	<RPAR> ( identifier() | <EQ> | <DEFAULTVALUE> )* )
+	<RPAR> ( identifier() | <EQ> | <CHARSET> | <COLLATE> | <DEFAULTVALUE> )* )
 		{
 		table.tableName = tableName;
 		table.findLocatableColumns();
@@ -490,7 +491,7 @@ private Set<String> stringset():{Set<String> set=new HashSet<String>();String s;
 
 private void charset():{}
 	{
-	<CHARACTER> <SET> (identifier()|quoted()) (<COLLATE> (identifier()|quoted()) )?
+	(<CHARACTER> <SET>|<CHARSET>) (identifier()|quoted()) (<COLLATE> (identifier()|quoted()) )?
 	}
 
 private void dimension():{}

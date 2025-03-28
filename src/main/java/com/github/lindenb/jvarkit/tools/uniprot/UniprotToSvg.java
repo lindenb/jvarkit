@@ -67,6 +67,7 @@ import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.SVG;
+import com.github.lindenb.jvarkit.uniprot.Uniprot;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -103,7 +104,6 @@ menu="Utilities"
 )
 public class UniprotToSvg extends Launcher {
 	private static final Logger LOG = Logger.build(UniprotToSvg.class).make();
-	private static final String UNIPROT_NS = "http://uniprot.org/uniprot";
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required = true)
 	private Path outputFile = null;
 	@Parameter(names = "--vcf", description = "annotated VCF. Whole file is loaded in memory, so you'd better use a small vcf restricted to your proteins.")
@@ -121,7 +121,6 @@ public class UniprotToSvg extends Launcher {
 	@DynamicParameter(names = "-D", description = "extra parameters. Undocumented.",hidden=true)
 	private Map<String, String> __dynaParams = new HashMap<>();
 
-	private XPath xpath = null;
 	private Document svgDoc =null;
 	private final Set<String> casesSamples = new HashSet<>();
 	private final Set<String> ctrlsSamples = new HashSet<>();
@@ -134,18 +133,22 @@ public class UniprotToSvg extends Launcher {
 	
 	
 	private static class UniprotNsContext implements NamespaceContext {	 
+		final String ns;
+		UniprotNsContext(final String ns) {
+			this.ns = ns;
+			}
 	    //The lookup for the namespace uris is delegated to the stored document.
 	    public String getNamespaceURI(String prefix) {
-	    	return prefix.equals("u") || prefix.equals("uniprot") ? UNIPROT_NS:null;
+	    	return prefix.equals("u") || prefix.equals("uniprot") ? this.ns:null;
 	    }
 	 
 	    public String getPrefix(String namespaceURI) {
-	        if(UNIPROT_NS.equals(namespaceURI)) return "u";
+	        if(Uniprot.isNamespace(namespaceURI)) return "u";
 	        return "";
 	    }
 	 
 	    public Iterator<String> getPrefixes(String namespaceURI) {
-	    	 if(UNIPROT_NS.equals(namespaceURI)) return Arrays.asList("u","uniprot").iterator();
+	    	 if(Uniprot.isNamespace(namespaceURI)) return Arrays.asList("u","uniprot").iterator();
 	    	return Collections.emptyIterator();
 	    	}
 	}
@@ -326,29 +329,29 @@ public class UniprotToSvg extends Launcher {
 		return OptionalInt.of(Integer.parseInt(E.getAttribute("position")));
 		}
 	
-	private void toSVG(final ArchiveFactory archive, final Element uEntry) {
+	private void toSVG(final ArchiveFactory archive, final Element uEntry,final XPath xpath) {
 			try {
-			final int length = Integer.parseInt(Objects.requireNonNull((String)this.xpath.evaluate("u:sequence/@length", uEntry, XPathConstants.STRING)));
-			final String accession = (String)this.xpath.evaluate("u:accession[1]/text()", uEntry, XPathConstants.STRING);
-			final String entryName = (String)this.xpath.evaluate("u:name/text()", uEntry, XPathConstants.STRING);
-			final NodeList enstList = (NodeList)this.xpath.evaluate("u:dbReference",uEntry,XPathConstants.NODESET);
+			final int length = Integer.parseInt(Objects.requireNonNull((String)xpath.evaluate("u:sequence/@length", uEntry, XPathConstants.STRING)));
+			final String accession = (String)xpath.evaluate("u:accession[1]/text()", uEntry, XPathConstants.STRING);
+			final String entryName = (String)xpath.evaluate("u:name/text()", uEntry, XPathConstants.STRING);
+			final NodeList enstList = (NodeList)xpath.evaluate("u:dbReference",uEntry,XPathConstants.NODESET);
 			for(int i=0;i< enstList.getLength();i++) {
 				LOG.info("u:dbReference/@"+ Element.class.cast(enstList.item(i)).getAttribute("type")+"="+enstList.item(i).getTextContent());
 				}
 			
-			final String enst = (String)this.xpath.evaluate("u:dbReference[@type='Ensembl']/@id", uEntry, XPathConstants.STRING);
+			final String enst = (String)xpath.evaluate("u:dbReference[@type='Ensembl']/@id", uEntry, XPathConstants.STRING);
 			LOG.info("Using Ensembl:"+enst);
-			final NodeList uFeatures = (NodeList)this.xpath.evaluate("u:feature", uEntry, XPathConstants.NODESET);
+			final NodeList uFeatures = (NodeList)xpath.evaluate("u:feature", uEntry, XPathConstants.NODESET);
 			final List<Feature>  features = new ArrayList<>();
 			for(int i=0;i< uFeatures.getLength();i++) {
 				final Element uFeature = (Element)uFeatures.item(i);
-				final Element uLocation = (Element)this.xpath.evaluate("u:location", uFeature, XPathConstants.NODE);
+				final Element uLocation = (Element)xpath.evaluate("u:location", uFeature, XPathConstants.NODE);
 				if(uLocation==null) {
 					LOG.info("missing location");
 					continue;
 					}
 				final Feature feat = new Feature();
-				final Element positionE = (Element)this.xpath.evaluate("u:position", uLocation, XPathConstants.NODE);
+				final Element positionE = (Element)xpath.evaluate("u:position", uLocation, XPathConstants.NODE);
 				if(positionE!=null) {
 					final OptionalInt p = parsePosition(positionE);
 					if(!p.isPresent()) continue;
@@ -357,9 +360,9 @@ public class UniprotToSvg extends Launcher {
 					}
 				else
 					{
-					final OptionalInt p1 = parsePosition((Element)this.xpath.evaluate("u:begin", uLocation, XPathConstants.NODE));
+					final OptionalInt p1 = parsePosition((Element)xpath.evaluate("u:begin", uLocation, XPathConstants.NODE));
 					if(!p1.isPresent()) continue;
-					final OptionalInt p2 = parsePosition((Element)this.xpath.evaluate("u:end", uLocation, XPathConstants.NODE));
+					final OptionalInt p2 = parsePosition((Element)xpath.evaluate("u:end", uLocation, XPathConstants.NODE));
 					if(!p2.isPresent()) continue;
 
 					feat.start = p1.getAsInt();
@@ -922,9 +925,7 @@ public class UniprotToSvg extends Launcher {
 				this.optDict =  Optional.ofNullable(SAMSequenceDictionaryExtractor.extractDictionary(this.vcfPath));
 				}
 			
-			final XPathFactory xpathFactory = XPathFactory.newInstance();
-			this.xpath = xpathFactory.newXPath();
-			this.xpath.setNamespaceContext(new UniprotNsContext());
+			
 
 			final DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 			dbf.setIgnoringComments(true);
@@ -946,14 +947,18 @@ public class UniprotToSvg extends Launcher {
 						dom = db.parse(inputs.get(i).toFile());
 						}
 					final Element root = dom.getDocumentElement();
-					if(root==null || !UNIPROT_NS.equals(root.getNamespaceURI()) || !"uniprot".equals(root.getLocalName())) {
+					if(root==null || !Uniprot.isNamespace(root.getNamespaceURI()) || !"uniprot".equals(root.getLocalName())) {
 						LOG.error("not a u:uniprot root "+root);
 						return -1;
-						}				
+						}		
 					
-					final NodeList nodeList=(NodeList)this.xpath.evaluate("/u:uniprot/u:entry",dom,XPathConstants.NODESET);
+					final XPathFactory xpathFactory = XPathFactory.newInstance();
+					final XPath xpath = xpathFactory.newXPath();
+					xpath.setNamespaceContext(new UniprotNsContext(root.getNamespaceURI()));
+					
+					final NodeList nodeList=(NodeList)xpath.evaluate("/u:uniprot/u:entry",dom,XPathConstants.NODESET);
 					for(int x=0;x< nodeList.getLength();x++) {
-						toSVG(archive,Element.class.cast(nodeList.item(x)));
+						toSVG(archive,Element.class.cast(nodeList.item(x)),xpath);
 						}
 					i++;
 					if(inputs.isEmpty() || i>=inputs.size()) break;

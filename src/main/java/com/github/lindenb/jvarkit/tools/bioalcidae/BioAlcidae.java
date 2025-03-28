@@ -37,7 +37,6 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.LineIterator;
 
@@ -48,14 +47,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.script.Bindings;
 import javax.script.CompiledScript;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLResolver;
@@ -78,7 +76,6 @@ import com.google.gson.JsonNull;
 import com.google.gson.JsonParser;
 
 import gov.nih.nlm.ncbi.blast.Hit;
-import gov.nih.nlm.ncbi.dbsnp.Rs;
 import gov.nih.nlm.ncbi.insdseq.INSDSeq;
 
 /**
@@ -192,12 +189,6 @@ interface BlastIteration {
 
 
 
-#### XML
-
-
- *  iter a java.util.Iterator<gov.nih.nlm.ncbi.dbsnp.Rs> . gov.nih.nlm.ncbi.dbsnp.Rs is defined by the XSD schema http://ftp.ncbi.nlm.nih.gov/snp/specs/docsum_current.xsd
-
-
 
 
 
@@ -261,7 +252,7 @@ for(var i in L) {
 ```
 
 $ echo -e ">A_2795\nTCAGAAAGAACCTC\n>B_10\nTCAGAAAGCACCTC\n>C_3\nTCTGAAAGCACTTC" |\
-java -jar ~/src/jvarkit-git/dist/bioalcidae.jar -F fasta -e 'var consensus=[];while(iter.hasNext()) { var seq=iter.next();out.printlnseq.name+"\t"+seq.sequence);for(var i=0;i< seq.length();++i) {while(consensus.length <= i) consensus.push({}); var b = seq.charAt(i);if(b in consensus[i]) {consensus[i][b]++;} else {consensus[i][b]=1;} } } out.print("Cons.\t"); for(var i=0;i< consensus.length;i++) {var best=0,base="N"; for(var b in consensus[i]) {if(consensus[i][b]>best) { best= consensus[i][b];base=b;}} out.print(base);} out.println();' 
+java -jar ~/src/jvarkit-git/dist/jvarkit.jar bioalcidae -F fasta -e 'var consensus=[];while(iter.hasNext()) { var seq=iter.next();out.printlnseq.name+"\t"+seq.sequence);for(var i=0;i< seq.length();++i) {while(consensus.length <= i) consensus.push({}); var b = seq.charAt(i);if(b in consensus[i]) {consensus[i][b]++;} else {consensus[i][b]=1;} } } out.print("Cons.\t"); for(var i=0;i< consensus.length;i++) {var best=0,base="N"; for(var b in consensus[i]) {if(consensus[i][b]>best) { best= consensus[i][b];base=b;}} out.print(base);} out.println();' 
 
 
 A_2795      TCAGAAAGAACCTC
@@ -343,7 +334,7 @@ while(iter.hasNext())
 ```
 
 $ curl -s  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" | \
-gunzip -c | java -jar ./dist/bioalcidae.jar -f jeter.js -F vcf | head -n 5 | cut -f 1-10
+gunzip -c | java -jar ./dist/jvarkit.jar bioalcidae -f jeter.js -F vcf | head -n 5 | cut -f 1-10
 
 CHROM	POS	REF	ALT	HG00096	HG00097	HG00099	HG00100	HG00101	HG00102
 22	16050075	A	G	0	0	0	0	0	0
@@ -363,7 +354,7 @@ for 1000 genome data, print CHROM/POS/REF/ALT/AF(europe):
 ```
 
 $ curl  "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.wgs.phase3_shapeit2_mvncall_integrated_v5a.20130502.sites.vcf.gz" |  gunzip -c |\
-java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.next(); if(!ctx.hasAttribute("EUR_AF") || ctx.alternateAlleles.size()!=1) continue; out.println(ctx.getContig()+"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString+"\t"+ctx.getAttribute("EUR_AF"));}' 
+java -jar dist/jvarkit.jar bioalcidae  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.next(); if(!ctx.hasAttribute("EUR_AF") || ctx.alternateAlleles.size()!=1) continue; out.println(ctx.getContig()+"\t"+ctx.start+"\t"+ctx.reference.displayString+"\t"+ctx.alternateAlleles.get(0).displayString+"\t"+ctx.getAttribute("EUR_AF"));}' 
 
 1	10177	A	AC	0.4056
 1	10235	T	TA	0
@@ -386,7 +377,7 @@ java -jar dist/bioalcidae.jar  -F VCF -e 'while(iter.hasNext()) {var ctx=iter.ne
 #### Blast
 
 ```
-$ cat ~/input.blastn.xml | java -jar dist/bioalcidae.jar -F blast -e 'while(iter.hasNext())
+$ cat ~/input.blastn.xml | java -jar dist/jvarkit.jar bioalcidae -F blast -e 'while(iter.hasNext())
  	{
  	var query  = iter.getIteration();
  	var hit = iter.next();
@@ -423,7 +414,7 @@ Enterobacteria phage phiX174 sensu lato, complete genome Hit: Escherichia coli g
 
 ```
 $  curl "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nucleotide&id=25,26,27&rettype=gbc" |\
-java -jar dist/bioalcidae.jar  -F INSDSEQ -e 'while(iter.hasNext()) {var seq= iter.next(); out.println(seq.getINSDSeqDefinition()+" LENGTH="+seq.getINSDSeqLength());}'
+java -jar dist/jvarkit.jar bioalcidae  -F INSDSEQ -e 'while(iter.hasNext()) {var seq= iter.next(); out.println(seq.getINSDSeqDefinition()+" LENGTH="+seq.getINSDSeqLength());}'
 ```
 
 
@@ -436,32 +427,6 @@ B.physalus gene for large subunit rRNA LENGTH=518
 ```
 
 
-#### NCBI DBSNP
-
-
-
-```
-$  curl -s "ftp://ftp.ncbi.nih.gov/snp/organisms/human_9606/XML/ds_chMT.xml.gz" | gunzip -c |\
- java -jar dist/bioalcidae.jar  -F dbsnp -e 'while(iter.hasNext())
- 	{ var rs= iter.next();
- 	out.println("rs"+rs.getRsId()+" "+rs.getSnpClass()+" "+rs.getMolType());
- 	}'
-
-rs8936 snp genomic
-rs9743 snp genomic
-rs1015433 snp genomic
-rs1029272 snp genomic
-rs1029293 snp genomic
-rs1029294 snp genomic
-rs1041840 snp genomic
-rs1041870 snp genomic
-rs1064597 snp cDNA
-rs1116904 snp genomic
-(...)
-
-```
-
-
 
 END_DOC
 */
@@ -471,7 +436,9 @@ END_DOC
 	description="javascript version of awk for bioinformatics",
 	keywords={"sam","bam","vcf","javascript","js","nashorn"},
 	biostars={276219,257346,183197,185162,153060,152016,152720,152820,218444,224402,241751,240452,248385,186610,242127,167389,187494,183197,152820,178004,156250,202400,183982,173201},
-	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734)."
+	references="\"bioalcidae, samjs and vcffilterjs: object-oriented formatters and filters for bioinformatics files\" . Bioinformatics, 2017. Pierre Lindenbaum & Richard Redon  [https://doi.org/10.1093/bioinformatics/btx734](https://doi.org/10.1093/bioinformatics/btx734).",
+	modificationDate = "20250328",
+	jvarkit_amalgamion = true
 	)
 public class BioAlcidae
 	extends Launcher
@@ -483,7 +450,7 @@ public class BioAlcidae
 	private File outputFile = null;
 
 
-	@Parameter(names={"-F","--format"},description="force format: one of VCF BAM SAM FASTQ FASTA BLAST DBSNP. BLAST is BLAST XML version 1. DBSNP is XML output of NCBI dbsnp. INSDSEQ is XML output of NCBI EFetch rettype=gbc.")
+	@Parameter(names={"-F","--format"},description="force format: one of VCF BAM SAM FASTQ FASTA BLAST . BLAST is BLAST XML version 1. INSDSEQ is XML output of NCBI EFetch rettype=gbc.")
 	private String formatString = null;
 
 	@Parameter(names={"-J","--json"},description="Optional. Reads a JSON File using google gson (https://google-gson.googlecode.com/svn/trunk/gson/docs/javadocs/index.html ) and injects it as 'userData' in the javascript context.")
@@ -499,8 +466,6 @@ public class BioAlcidae
 	private static gov.nih.nlm.ncbi.blast.ObjectFactory _fooljavac1 = null;
 	@SuppressWarnings("unused")
 	private static gov.nih.nlm.ncbi.insdseq.ObjectFactory _fooljavac2 = null;
-	@SuppressWarnings("unused")
-	private static gov.nih.nlm.ncbi.dbsnp.ObjectFactory _fooljavac3 = null;
 
 	private enum FORMAT {
 		VCF{
@@ -545,12 +510,6 @@ public class BioAlcidae
 				boolean canAs(String src) {
 					return src!=null && (src.endsWith(".insdseq.xml")  );
 				}
-				},
-		DBSNP {
-					@Override
-					boolean canAs(String src) {
-						return src!=null && (src.endsWith(".dbsnp.xml")  );
-					}
 				}
 			;
 		abstract boolean canAs(String src);
@@ -993,38 +952,6 @@ public class BioAlcidae
 		}
 
 	
-	private  int execute_dbsnp(String source) throws IOException
-		{
-		AbstractXMLIterator<Rs> iter=null;
-		try {
-			iter =new AbstractXMLIterator<Rs>(
-					source==null?stdin():IOUtils.openURIForReading(source),
-					"gov.nih.nlm.ncbi.dbsnp",
-					Boolean.TRUE)
-				{
-				@Override
-				protected Rs advance() {
-					return super.simpleAdvance(Rs.class, "Rs");
-					}
-				};
-			bindings.put("iter",iter);
-			bindings.put("format","dbsnp");
-			this.script.eval(bindings);
-			this.writer.flush();
-			return RETURN_OK;
-			} 
-		catch (Exception e)
-			{
-			LOG.error(e);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(iter);
-			bindings.remove("iter");
-			bindings.remove("format");
-			}
-		}
 
 	
 	
@@ -1038,7 +965,6 @@ public class BioAlcidae
 			case FASTA: return execute_fasta(source);
 			case BLAST: return execute_blast(source);
 			case INSDSEQ: return execute_insdseq(source);
-			case DBSNP: return execute_dbsnp(source);
 			default: throw new IllegalStateException("Bad file format "+fmt);
 			}
 		}

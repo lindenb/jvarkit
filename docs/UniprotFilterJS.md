@@ -8,6 +8,7 @@ Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. Context co
 ## Usage
 
 ```
+Usage: java -jar dist/uniprotfilterjs.jar  [options] Files
 Usage: uniprotfilterjs [options] Files
   Options:
     -h, --help
@@ -53,7 +54,7 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/UniprotFilterJS.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/UniprotFilterJS.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/uniprot/UniprotFilterJS.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/uniprot/UniprotFilterJS.java)
 
 
 ## Contribute
@@ -110,6 +111,7 @@ accept(entry);
 $   curl -skL "ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.xml.gz" | gunzip -c |\
 java -jar dist/uniprotfilterjs.jar  -f filter.js > output.xml
 ```
+
 
 
 

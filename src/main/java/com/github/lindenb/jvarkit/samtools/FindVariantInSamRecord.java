@@ -41,7 +41,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 
-/** utility to find a variant in a sam recor
+/** utility to find a variant in a sam record
  * works best for indel if VCF was normalized
  * 
  * */

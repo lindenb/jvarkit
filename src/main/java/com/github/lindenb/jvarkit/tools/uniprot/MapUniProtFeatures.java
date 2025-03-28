@@ -43,7 +43,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.stream.XMLEventReader;
@@ -81,19 +80,29 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
+import com.github.lindenb.jvarkit.uniprot.Uniprot;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
 /**
 
 BEGIN_DOC
 
+## Warning
+
+this program is broken.
+
 ##Example
 
 ```bash
-$ java  -jar dist/mapuniprot.jar \
-	-R /path/to/human_g1k_v37.fasta \
+
+wget -O knownGene.txt.gz http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV47.txt.gz
+wget -O knownGene.sql http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV47.sql
+
+
+$ java  -jar dist/jvarkit mapuniprot \
+	-R /path/to/hg38.fasta \
 	-u /path/uri/uniprot.org/uniprot_sprot.xml.gz  \
-	-k <(curl -s "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz" | gunzip -c | awk -F '        ' '{if($2 ~ ".*_.*") next; OFS="       "; gsub(/chr/,"",$2);print;}'   ) |\
+	-k knownGene.txt.gz | gunzip -c | awk -F '        ' '{if($2 ~ ".*_.*") next; OFS="       "; gsub(/chr/,"",$2);print;}'   ) |\
 	LC_ALL=C sort -t '	' -k1,1 -k2,2n -k3,3n  | uniq | head
 
 
@@ -113,12 +122,13 @@ END_DOC
  */
 @Program(
 	name="mapuniprot",
-	description="map uniprot features on reference genome",
-	keywords={"uniprot","bed","fasta","reference","xml"}
+	description="map uniprot features on reference genome (this program is broken).",
+	keywords={"uniprot","bed","fasta","reference","xml"},
+	modificationDate = "20250320",
+	jvarkit_amalgamion = true
 	)
 public class MapUniProtFeatures extends Launcher
 	{
-	private static final String UNIPROT_NS="http://uniprot.org/uniprot";
 	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
     private static class Range
     	{
@@ -238,14 +248,23 @@ public class MapUniProtFeatures extends Launcher
 	@Parameter(names="--format",description="output format 'annotate' is suitable for bcftools annotate")
 	private FormatOut formatOut =FormatOut.bed12;
 
+	@Parameter(names="--debug",description="debug",hidden = true)
+	private boolean debug=false;
+
+	private UcscTranscript.Peptide getPeptide(final UcscTranscript kg,final GenomicSequence genomic) {
+		UcscTranscript.MessengerRNA mRNA= kg.getMessengerRNA(genomic);
+		UcscTranscript.CodingRNA cDNA= mRNA.getCodingRNA();
+		return cDNA.getPeptide();
+		}
 	
-	private void recursiveBuildXml(final XMLEventReader xr,Document dom,Node root, boolean append) throws XMLStreamException{
+	private void recursiveBuildXml(final XMLEventReader xr,final Document dom,final Node root, boolean append,int depth) throws XMLStreamException{
 		while(xr.hasNext()) {
 			XMLEvent evt = xr.nextEvent();
 			switch(evt.getEventType()) {
 				case XMLEvent.START_ELEMENT:
 					final StartElement E = evt.asStartElement();
 					final String lclName = E.getName().getLocalPart();
+					
 					final Element n;
 					boolean appen_child = append;
 					if(append) {
@@ -269,7 +288,7 @@ public class MapUniProtFeatures extends Launcher
 						{
 						n = null;
 						}
-					recursiveBuildXml(xr,dom,n, appen_child);
+					recursiveBuildXml(xr,dom,n, appen_child,depth+1);
 					break;
 				case XMLEvent.END_ELEMENT:
 					return;
@@ -355,29 +374,49 @@ public class MapUniProtFeatures extends Launcher
 				
 				final XPath xpath = XPathFactory.newInstance().newXPath();
 				
-				final QName uEntry=new QName(UNIPROT_NS,"entry");
 				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 					GenomicSequence genomic=null;
 					while(rx.hasNext())
 						{
-						final XMLEvent evt=rx.peek();
-						if(!(evt.isStartElement() && evt.asStartElement().getName().equals(uEntry)))
+						final XMLEvent evt=rx.nextEvent();
+						if(!(evt.isStartElement() && Uniprot.isNamespace(evt.asStartElement().getName().getNamespaceURI()) && evt.asStartElement().getName().getLocalPart().equals("entry")))
 							{
-							rx.next();
+							if(debug && evt.isStartElement()) {
+								LOG.debug("skipping "+evt.asStartElement().getName());
+								}
 							continue;
 							}
+						
+						if(debug) {
+							LOG.debug("got "+evt.asStartElement().getName());
+						}
+						
 						final Document dom = db.newDocument();
-						Element uniprotNode = dom.createElement("uniprot");
+						final Element uniprotNode = dom.createElement("uniprot");
 						dom.appendChild(uniprotNode);
-						recursiveBuildXml(rx, dom, uniprotNode,true);
+						final Element entryNode = dom.createElement("entry");
+						uniprotNode.appendChild(entryNode);
+						recursiveBuildXml(rx, dom, entryNode,true,0);
+						
+						
+						if(debug) {
+							LOG.info("DONE scanning");
+							}
 						
 						if(!((Boolean)xpath.evaluate("/uniprot/entry/feature",dom,XPathConstants.BOOLEAN))) {
-							LOG.info("no /uniprot/entry/feature found for "+ toString(dom));
+							if(debug) {
+								LOG.info("no /uniprot/entry/feature found for "+ xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING)+ " "+toString(dom));
+								}
 							continue;
 							}
 						
 						final Set<String> transcriptIdSet = new HashSet<>();
-						NodeList nodeList= (NodeList)xpath.evaluate("/uniprot/entry/accession|/uniprot/entry/name|/uniprot/entry/gene/name",dom,XPathConstants.NODESET);
+						NodeList nodeList= (NodeList)xpath.evaluate(
+								"/uniprot/entry/accession|"
+								+ "/uniprot/entry/name|"
+								+ "/uniprot/entry/gene/name|"
+								+ "/uniprot/entry/dbReference[type=\"Ensembl\"]/@Id",
+								dom,XPathConstants.NODESET);
 						for(int i=0;i< nodeList.getLength();i++)
 							{
 							final String acn = nodeList.item(i).getTextContent();
@@ -390,12 +429,19 @@ public class MapUniProtFeatures extends Launcher
 								collect(Collectors.toList());
 						
 						if(genes.isEmpty()) {
-							LOG.info("no gene found for "+ xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING));
+							if(debug && !transcriptIdSet.isEmpty()) {
+								LOG.info("no gene found for "+ String.join(",", transcriptIdSet));
+								}
 							continue;
 							}
 						LOG.info("got "+genes+" for "+ xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING));
 						final String entrySequence = (String)xpath.evaluate("/uniprot/entry/sequence",dom,XPathConstants.STRING);
-						if(StringUtils.isBlank(entrySequence)) continue;
+						if(StringUtils.isBlank(entrySequence)) {
+							if(debug) {
+								LOG.info("no sequence found found for "+ xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING));
+								}
+							continue;
+						}
 						
 						for(UcscTranscript kg:genes)
 							{
@@ -404,8 +450,10 @@ public class MapUniProtFeatures extends Launcher
 								genomic=new GenomicSequence(indexedFastaSequenceFile, kg.getContig());
 								}
 							
-							
-							UcscTranscript.Peptide pep=kg.getCodingRNA(genomic).getPeptide();
+							if(debug) {
+								LOG.debug("testing "+kg.getTranscriptId());
+								}
+							UcscTranscript.Peptide pep=getPeptide(kg,genomic);
 							
 							
 							int sameSequenceLength=0;
@@ -477,7 +525,7 @@ public class MapUniProtFeatures extends Launcher
 										System.err.println("P:"+pep.toString()+" "+pep.length()+" "+kg.getStrand());
 										System.err.println("Q:"+entrySequence+" "+ entrySequence.length());
 										}
-									final int codon[]=pep.convertToGenomicCoordinates(pepStart);
+									final int codon[]=pep.convertToGenomic0Coordinates(pepStart);
 									pepStart++;
 									for(int gP:codon)
 										{
@@ -522,20 +570,9 @@ public class MapUniProtFeatures extends Launcher
 				rx.close();
 				} // end file reader
 			LOG.info("End scan uniprot");
-/*
-			mappedFeatures.doneAdding();
-			
-			
-			CloseableIterator<UBed> iter=mappedFeatures.iterator();
-			while(iter.hasNext())
-				{
-				UBed ubed=iter.next();
-				ubed.print();
-				}
-			mappedFeatures.cleanup();
-			*/
+			LOG.warn("THIS PROGRAM IS BROKEN");
 			}
-		catch(Throwable err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 91d8b8afd
-Compilation : 20250327202526
+Version     : 1e29384a2
+Compilation : 20250328175052
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -174,6 +174,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
 | [bigwigmerge](BigwigMerge.md) | merge several Bigwig files using different descriptive statistics (mean, median, etc..) | 20240417 | 20240417 |
 | [bigwigtview](BigWigTView.md) | view bigwig file coverage in a terminal | 20240704 | 20240704 |
+| [bioalcidae](BioAlcidae.md) | javascript version of awk for bioinformatics |  | 20250328 |
 | [biostar160470](Biostar160470.md) | Getting untranslated nucleotide sequences on tblastn standalone |  | 20240701 |
 | [biostar3654](Biostar3654.md) | show blast alignment with annotations |  |  |
 | [biostar95652](Biostar95652.md) | Drawing a schematic genomic context tree. |  |  |
@@ -218,6 +219,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
 | [liftover2svg](LiftOverToSVG.md) | Convert LiftOver chain files to animated SVG |  |  |
 | [manhattan](Manhattan.md) | Manhattan plot SVG picture from different sources. | 20220525 | 20240525 |
+| [mapuniprot](MapUniProtFeatures.md) | map uniprot features on reference genome (this program is broken). |  | 20250320 |
 | [mergeblastxml](MergeBlastXml.md) | merge XML blast results (same Iteration/Iteration_query-def in multiple xml files |  |  |
 | [mergesplittedblast](MergeSplittedBlast.md) | merge blast Hits from splitted BLAST database |  |  |
 | [ngsfilessummary](NgsFilesSummary.md) | Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples. | 20140430 | 20240324 |
@@ -252,6 +254,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [swingregenie](RegenieSwing.md) | view regenie output | 20250324 | 20250324 |
 | [translategff3](TranslateGff3.md) | translates the output of bcftools consensus | 20241003 | 20241003 |
 | [tssenrich](TSSEnrichment.md) | Transcription Start Site (TSS) Enrichment Score calculation | 20240130 | 20240206 |
+| [uniprotfilterjs](UniprotFilterJS.md) | Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. Context contain 'entry' an uniprot entry and 'index', the index in the XML file. |  | 20250328 |
 | [variantsinwindow](VariantsInWindow.md) | Annotate Number of Variants overlaping a sliding window. |  |  |
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
 | [vcf2hilbert](VcfToHilbert.md) | Plot a Hilbert Curve from a VCF file as SVG | 20171201 | 20240517 |

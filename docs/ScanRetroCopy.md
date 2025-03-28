@@ -36,8 +36,7 @@ Usage: scanretrocopy [options] Files
       https://genome.ucsc.edu/FAQ/FAQformat.html#format9  . The genePred 
       format is a compact alternative to GFF/GTF because one transcript is 
       described using only one line.	Beware chromosome names are formatted the 
-      same as your REFERENCE. A typical KnownGene file is 
-      http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.txt.gz 
+      same as your REFERENCE. A typical KnownGene file is http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV47.txt.gz 
       .If you only have a gff file, you can try to generate a knownGene file 
       with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
     --mapq, -mapq

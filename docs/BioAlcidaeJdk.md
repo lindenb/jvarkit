@@ -387,7 +387,7 @@ script will contains some instances of **Gff3Feature** : https://github.com/samt
 count the SNP having a ID in a VCF file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(V->V.isSNP()).filter(V->V.hasID()).count());' input.vcf.gz
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'println(stream().filter(V->V.isSNP()).filter(V->V.hasID()).count());' input.vcf.gz
 
 953
 ```
@@ -397,7 +397,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(V->V.isSNP()).fil
 count the mapped SAM Reads in a BAM file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'println(stream().filter(R->!R.getReadUnmappedFlag()).count());' input.bam
 5518 
 ```
 
@@ -406,7 +406,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(R->!R.getReadUnma
 count the  Reads starting with "A' in a FASTQ file:
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'println(stream().filter(R->R.getReadString().startsWith("A")).count());' in.fastq.gz
 218 
 ```
 
@@ -415,7 +415,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'println(stream().filter(R->R.getReadStrin
 generate a matrix: first row is sample names, one row per variant, genotypes (0=HOM_REF,1=HET,2=HOM_VAR,other=-9)
 
 ```
-java -jar dist/bioalcidaejdk.jar -e 'println(String.join(",",header.getSampleNamesInOrder())); stream().forEach(V->println(V.getGenotypes().stream().map(G->{if(G.isHomRef()) return "0";if(G.isHet()) return "1"; if(G.isHomVar()) return "2"; return "-9";}).collect(Collectors.joining(","))));' input.vcf
+java -jar dist/jvarkit.jar bioalcidaejdk -e 'println(String.join(",",header.getSampleNamesInOrder())); stream().forEach(V->println(V.getGenotypes().stream().map(G->{if(G.isHomRef()) return "0";if(G.isHet()) return "1"; if(G.isHomVar()) return "2"; return "-9";}).collect(Collectors.joining(","))));' input.vcf
 ```
 
 ## Example
@@ -423,7 +423,7 @@ java -jar dist/bioalcidaejdk.jar -e 'println(String.join(",",header.getSampleNam
 longest fasta  length
 
 ```
-/java -jar dist/bioalcidaejdk.jar -e 'println(stream().mapToInt(S->S.length()).max().getAsInt());' input.fasta
+/java -jar dist/jvarkit.jar bioalcidaejdk -e 'println(stream().mapToInt(S->S.length()).max().getAsInt());' input.fasta
 ```
 
 ## Example
@@ -431,7 +431,7 @@ longest fasta  length
 Which tool to calculate per site stats on vcf file?
 
 ```
-java -jar dist/bioalcidaejdk.jar -e 'print("POS\t");for(GenotypeType GT : GenotypeType.values()) print("\t"+GT); println(); stream().forEach(V->{print(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString());for(GenotypeType GT : GenotypeType.values()) print("\t"+V.getGenotypes().stream().filter(G->G.getType()==GT).count()); println();});' in.vcf | column -t
+java -jar dist/jvarkit.jar bioalcidaejdk -e 'print("POS\t");for(GenotypeType GT : GenotypeType.values()) print("\t"+GT); println(); stream().forEach(V->{print(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString());for(GenotypeType GT : GenotypeType.values()) print("\t"+V.getGenotypes().stream().filter(G->G.getType()==GT).count()); println();});' in.vcf | column -t
 
 POS               NO_CALL  HOM_REF  HET  HOM_VAR  UNAVAILABLE  MIXED
 rotavirus:51:A    0        3        0    1        0            0
@@ -507,14 +507,14 @@ print information about reads overlaping the base 'rotavirus:200' and the tag 'X
 
 
 ```
-$ samtools view -h ~/src/gatk-ui/testdata/S1.bam "rotavirus:200-200" | java -jar dist/bioalcidaejdk.jar -F SAM -e 'stream().forEach(record->{final String contig= "rotavirus"; final int mutpos = 200; if(record.getReadUnmappedFlag()) return ;if(!record.getContig().equals(contig)) return ;if(record.getEnd() < mutpos) return ;if(record.getStart() > mutpos) return ; int readpos = record.getReadPositionAtReferencePosition(mutpos); if(readpos<1) return ; readpos--; final byte[] bases= record.getReadBases();println(record.getReadName()+" "+record.getContig()+" "+record.getStart()+" "+record.getEnd()+" base["+mutpos+"]="+(char)bases[readpos]+" XS="+record.getAttribute("XS"));});'
+$ samtools view -h ~/src/gatk-ui/testdata/S1.bam "rotavirus:200-200" | java -jar dist/jvarkit.jar bioalcidaejdk -F SAM -e 'stream().forEach(record->{final String contig= "rotavirus"; final int mutpos = 200; if(record.getReadUnmappedFlag()) return ;if(!record.getContig().equals(contig)) return ;if(record.getEnd() < mutpos) return ;if(record.getStart() > mutpos) return ; int readpos = record.getReadPositionAtReferencePosition(mutpos); if(readpos<1) return ; readpos--; final byte[] bases= record.getReadBases();println(record.getReadName()+" "+record.getContig()+" "+record.getStart()+" "+record.getEnd()+" base["+mutpos+"]="+(char)bases[readpos]+" XS="+record.getAttribute("XS"));});'
 ```
 
 ## Example
 
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig()+"\t"+V.getStart()+"\t"+V.getReference().getDisplayString()+"\t"+V.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))+"\t"+V.getGenotypes().stream().map(G->G.getSampleName()+"="+G.getAlleles().stream().filter(A->A.isCalled()).map(A->A.getDisplayString()).collect(Collectors.joining("/"))).collect(Collectors.joining("\t")));});' src/test/resources/test_vcf01.vcf
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().forEach(V->{println(V.getContig()+"\t"+V.getStart()+"\t"+V.getReference().getDisplayString()+"\t"+V.getAlternateAlleles().stream().map(A->A.getDisplayString()).collect(Collectors.joining(","))+"\t"+V.getGenotypes().stream().map(G->G.getSampleName()+"="+G.getAlleles().stream().filter(A->A.isCalled()).map(A->A.getDisplayString()).collect(Collectors.joining("/"))).collect(Collectors.joining("\t")));});' src/test/resources/test_vcf01.vcf
 
 1   956852  C   T   S1= S2=T/T  S3=C/T  S4=C/T  S5=T/T  S6=C/T
 1   959155  G   A   S1= S2=G/A  S3=G/A  S4=G/A  S5=A/A  S6=G/A
@@ -575,7 +575,7 @@ stream().
 > Print Minimum Depth from a VCF
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString()+"\t"+V.getGenotypes().stream().filter(G->G.hasDP()).mapToInt(G->G.getDP()).min().orElse(-1));});' input.vcf
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().forEach(V->{println(V.getContig()+":"+V.getStart()+":"+V.getReference().getDisplayString()+"\t"+V.getGenotypes().stream().filter(G->G.hasDP()).mapToInt(G->G.getDP()).min().orElse(-1));});' input.vcf
 ```
 
 ## Example
@@ -584,7 +584,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().forEach(V->{println(V.getContig(
 >  remove sequences with non-canonical nucleotides from fasta file
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(F->java.util.regex.Pattern.matches("^[ATGCatgc]+$",F)).forEach(S->println(">"+S.getName()+"\n"+S));' input.fa
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().filter(F->java.util.regex.Pattern.matches("^[ATGCatgc]+$",F)).forEach(S->println(">"+S.getName()+"\n"+S));' input.fa
 ```
 
 ## Example
@@ -594,7 +594,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(F->java.util.regex.Patter
 https://bioinformatics.stackexchange.com/questions/3492/parse-bam-by-insertion-size-and-get-genomic-coordinates
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>100 && (C.getOperator().equals(CigarOperator.N) || C.getOperator().equals(CigarOperator.D)))).forEach(R->println(R.getContig()+"\t"+R.getStart()+"\t"+R.getEnd()));' input.bam
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.getCigar().getCigarElements().stream().anyMatch(C->C.getLength()>100 && (C.getOperator().equals(CigarOperator.N) || C.getOperator().equals(CigarOperator.D)))).forEach(R->println(R.getContig()+"\t"+R.getStart()+"\t"+R.getEnd()));' input.bam
 ```
 
 ## Example
@@ -602,7 +602,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag
 Print BED file with NM attributes
 
 ```
-java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.hasAttribute("NM")).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getIntegerAttribute("NM")));'
+java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().filter(R->!R.getReadUnmappedFlag() && R.hasAttribute("NM")).forEach(R->println(R.getContig()+"\t"+(R.getStart()-1)+"\t"+R.getEnd()+"\t"+R.getIntegerAttribute("NM")));'
 ```
 
 ## Example
@@ -612,7 +612,7 @@ java -jar dist/bioalcidaejdk.jar -e 'stream().filter(R->!R.getReadUnmappedFlag()
 ```
 $ wget -q -O - "http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr22.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf.gz" |\
 gunzip -c |\
-java -jar dist/bioalcidaejdk.jar -F VCF -e 'stream().forEach(V->println(V.getContig()+" "+V.getStart()+" " +V.getReference().getDisplayString()+" "+V.getGenotypes().stream().map(G->G.getAlleles().stream().map(A->String.valueOf(V.getAlleleIndex(A))).collect(Collectors.joining(G.isPhased()?"|":"/"))).collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))));'
+java -jar dist/jvarkit.jar bioalcidaejdk -F VCF -e 'stream().forEach(V->println(V.getContig()+" "+V.getStart()+" " +V.getReference().getDisplayString()+" "+V.getGenotypes().stream().map(G->G.getAlleles().stream().map(A->String.valueOf(V.getAlleleIndex(A))).collect(Collectors.joining(G.isPhased()?"|":"/"))).collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))));'
 
 22 16050075 A {0|0=2503, 0|1=1}
 22 16050115 G {0|0=2472, 1|0=16, 0|1=16}
@@ -643,7 +643,7 @@ java -jar dist/bioalcidaejdk.jar -F VCF -e 'stream().forEach(V->println(V.getCon
 using the edit distance 'NM' 
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'stream().map(R->R.getReadUnmappedFlag()?0:(int)(100.0*(R.getReadLength()-R.getIntegerAttribute("NM"))/(double)R.getReadLength())).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->{println(K+"\t"+V);});' input.bam
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().map(R->R.getReadUnmappedFlag()?0:(int)(100.0*(R.getReadLength()-R.getIntegerAttribute("NM"))/(double)R.getReadLength())).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->{println(K+"\t"+V);});' input.bam
 ```
 
 
@@ -652,13 +652,13 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().map(R->R.getReadUnmappedFlag()?0
 sliding windows of 1000 variant, shift by 500 variants
 
 ```
-java -jar bioalcidaejdk.jar -e 'String prevContig=null; Consumer<List<VariantContext>> dump = (L)->{if(L.isEmpty()) return;System.out.println(L.get(0).getContig()+"\t"+(L.get(0).getStart()-1)+"\t"+L.get(L.size()-1).getEnd());}; final List<VariantContext> buffer=new ArrayList<>();while(iter.hasNext()) {VariantContext vc=iter.next();if(!vc.getContig().equals(prevContig)) {dump.accept(buffer);buffer.clear();prevContig=vc.getContig();} buffer.add(vc);if(buffer.size()>=1000) {dump.accept(buffer);buffer.subList(0,500).clear();}} dump.accept(buffer);' in.vcf
+java -jar jvarkit.jar bioalcidaejdk -e 'String prevContig=null; Consumer<List<VariantContext>> dump = (L)->{if(L.isEmpty()) return;System.out.println(L.get(0).getContig()+"\t"+(L.get(0).getStart()-1)+"\t"+L.get(L.size()-1).getEnd());}; final List<VariantContext> buffer=new ArrayList<>();while(iter.hasNext()) {VariantContext vc=iter.next();if(!vc.getContig().equals(prevContig)) {dump.accept(buffer);buffer.clear();prevContig=vc.getContig();} buffer.add(vc);if(buffer.size()>=1000) {dump.accept(buffer);buffer.subList(0,500).clear();}} dump.accept(buffer);' in.vcf
 ```
 
 ## number of homozygous and heterozygous non-reference from a multi sample VCF file?
 
 ```
-java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(V->V.getGenotypes().stream()).filter(G->!G.isHomRef()).map(G->G.getSampleName()+"\t"+G.getType().name()).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->println(K+"\t"+V));' src/test/resources/rotavirus_rf.vcf.gz
+java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().flatMap(V->V.getGenotypes().stream()).filter(G->!G.isHomRef()).map(G->G.getSampleName()+"\t"+G.getType().name()).collect(Collectors.groupingBy(Function.identity(), Collectors.counting())).forEach((K,V)->println(K+"\t"+V));' src/test/resources/rotavirus_rf.vcf.gz
 ```
 
 ## Counting soft clipped bases and reads
@@ -689,7 +689,7 @@ println("SUM-CLIPPING:"+counts[3]);
 ## print the first exon as BED of each transcript in a gtf file
 
 ```
-$ java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(G->G.getTranscripts().stream().filter(T->T.hasStrand() && T.hasExon())).map(T->T.isPositiveStrand()?T.getExon(0):T.getExon(T.getExonCount()-1)).forEach(E->println(E.getContig()+"\t"+(E.getStart()-1)+"\t"+E.getEnd()+"\t"+E.getName()));' src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz
+$ java -jar dist/jvarkit.jar bioalcidaejdk -e 'stream().flatMap(G->G.getTranscripts().stream().filter(T->T.hasStrand() && T.hasExon())).map(T->T.isPositiveStrand()?T.getExon(0):T.getExon(T.getExonCount()-1)).forEach(E->println(E.getContig()+"\t"+(E.getStart()-1)+"\t"+E.getEnd()+"\t"+E.getName()));' src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz
 
 
 1	120611947	120612240	ENST00000256646.Exon1
@@ -724,7 +724,7 @@ $ java -jar dist/bioalcidaejdk.jar -e 'stream().flatMap(G->G.getTranscripts().st
 ```
 $ wget -q  -O - "ftp://ftp.ensemblgenomes.org/pub/release-44/plants/gtf/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.44.gtf.gz" |\
 gunzip -c |\
-java -jar dist/bioalcidaejdk.jar -F GTF -e 'stream().flatMap(G->G.getTranscripts().stream()).flatMap(T->T.getIntrons().stream()).forEach(I->println(I.getContig()+"\t"+(I.getStart()-1)+"\t"+I.getEnd()+"\t"+I.getTranscript().getGene().getGeneName()));' |\
+java -jar dist/jvarkit.jar bioalcidaejdk -F GTF -e 'stream().flatMap(G->G.getTranscripts().stream()).flatMap(T->T.getIntrons().stream()).forEach(I->println(I.getContig()+"\t"+(I.getStart()-1)+"\t"+I.getEnd()+"\t"+I.getTranscript().getGene().getGeneName()));' |\
 sort -t $'\t' -k1,1 -k2,2n | uniq > introns.bed
 
 $ head introns.bed
@@ -745,7 +745,7 @@ $ head introns.bed
 https://www.biostars.org/p/397168/
 
 `````
-$ wget -O - -q "http://ftp.ensembl.org/pub/release-97/gtf/mus_musculus/Mus_musculus.GRCm38.97.gtf.gz" | gunzip -c | java -jar dist/bioalcidaejdk.jar -F GTF -e 'stream().forEach(G->println(G.getId()+"\t"+G.getGeneName()+"\t"+G.getTranscripts().stream().flatMap(T->T.getIntrons().stream()).mapToInt(I->I.getLengthOnReference()).average().orElse(-99) ));'
+$ wget -O - -q "http://ftp.ensembl.org/pub/release-97/gtf/mus_musculus/Mus_musculus.GRCm38.97.gtf.gz" | gunzip -c | java -jar dist/jvarkit.jar bioalcidaejdk -F GTF -e 'stream().forEach(G->println(G.getId()+"\t"+G.getGeneName()+"\t"+G.getTranscripts().stream().flatMap(T->T.getIntrons().stream()).mapToInt(I->I.getLengthOnReference()).average().orElse(-99) ));'
 `````
 
 # introns, exons and cds in a gtf

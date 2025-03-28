@@ -75,33 +75,35 @@ public interface SchemaParserConstants {
   /** RegularExpression Id. */
   int COLLATE = 36;
   /** RegularExpression Id. */
-  int LETTER = 37;
+  int CHARSET = 37;
   /** RegularExpression Id. */
-  int DIGIT = 38;
+  int LETTER = 38;
   /** RegularExpression Id. */
-  int INT = 39;
+  int DIGIT = 39;
   /** RegularExpression Id. */
-  int IDENTIFIER1 = 40;
+  int INT = 40;
   /** RegularExpression Id. */
-  int IDENTIFIER2 = 41;
+  int IDENTIFIER1 = 41;
   /** RegularExpression Id. */
-  int VARIABLE = 42;
+  int IDENTIFIER2 = 42;
   /** RegularExpression Id. */
-  int EQ = 43;
+  int VARIABLE = 43;
   /** RegularExpression Id. */
-  int SEMICOLON = 44;
+  int EQ = 44;
   /** RegularExpression Id. */
-  int LPAR = 45;
+  int SEMICOLON = 45;
   /** RegularExpression Id. */
-  int RPAR = 46;
+  int LPAR = 46;
   /** RegularExpression Id. */
-  int COMMA = 47;
+  int RPAR = 47;
   /** RegularExpression Id. */
-  int ESCAPE_CHAR = 48;
+  int COMMA = 48;
   /** RegularExpression Id. */
-  int SIMPLE_QUOTE_LITERAL = 49;
+  int ESCAPE_CHAR = 49;
   /** RegularExpression Id. */
-  int DOUBLE_QUOTE_LITERAL = 50;
+  int SIMPLE_QUOTE_LITERAL = 50;
+  /** RegularExpression Id. */
+  int DOUBLE_QUOTE_LITERAL = 51;
 
   /** Lexical state. */
   int DEFAULT = 0;
@@ -145,6 +147,7 @@ public interface SchemaParserConstants {
     "\"PRIMARY\"",
     "\"character\"",
     "\"collate\"",
+    "\"CHARSET\"",
     "<LETTER>",
     "<DIGIT>",
     "<INT>",

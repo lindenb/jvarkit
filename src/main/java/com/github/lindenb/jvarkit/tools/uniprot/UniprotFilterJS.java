@@ -26,7 +26,7 @@ History:
 * 2014 creation
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.uniprot;
 
 
 import org.uniprot.*;
@@ -47,12 +47,13 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 import javax.xml.transform.stream.StreamSource;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.uniprot.Uniprot;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -104,7 +105,9 @@ END_DOC
 	description= "Filters Uniprot DUMP+ XML with a javascript  (java rhino) expression. "
 		+ "Context contain 'entry' an uniprot entry "
 		+ "and 'index', the index in the XML file.",
-		keywords={"unitprot","javascript","xjc","xml"})
+		keywords={"unitprot","javascript","xjc","xml"},
+		modificationDate = "20250328"
+		)
 public class UniprotFilterJS
 	extends Launcher
 	{
@@ -120,12 +123,7 @@ public class UniprotFilterJS
 	@Parameter(names="-f",description=" (js file). Optional.")
 	private File scriptFile=null;
 
-	
-	private UniprotFilterJS()
-		{
-		
-		}
-	
+
 	@Override
 	public int doWork(final List<String> args)
 		{
@@ -157,112 +155,110 @@ public class UniprotFilterJS
 			xmlInputFactory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, Boolean.FALSE);
 			marshaller.setProperty(Marshaller.JAXB_FRAGMENT, true);
 			marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
-			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, "http://uniprot.org/uniprot http://www.uniprot.org/support/docs/uniprot.xsd");
+			marshaller.setProperty(Marshaller.JAXB_SCHEMA_LOCATION, Uniprot.NS + " http://www.uniprot.org/support/docs/uniprot.xsd");
 			
-			final PrintWriter pw= super.openFileOrStdoutAsPrintWriter(this.outputFile);
-			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.FALSE);
-			final XMLEventWriter w=xof.createXMLEventWriter(pw);
-			
-			
-			
-			final StreamSource src;
-			if(args.isEmpty())
-				{
-				src=new StreamSource(stdin());
-				}
-			else if(args.size()==1)
-				{
-				src=new StreamSource(new File(args.get(0)));
-				}
-			else
-				{
-				LOG.error("Illegal number of arguments");
-				return -1;
-				}
-			final XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
-			
-			final XMLEventFactory eventFactory=XMLEventFactory.newFactory();
-			
-			final SimpleBindings bindings=new SimpleBindings();
-			long nArticles=0L;
-			while(r.hasNext())
-				{
-				XMLEvent evt=r.peek();
-				switch(evt.getEventType())
+			try(final PrintWriter pw= super.openFileOrStdoutAsPrintWriter(this.outputFile)) {
+				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				xof.setProperty(XMLOutputFactory.IS_REPAIRING_NAMESPACES, Boolean.FALSE);
+				final XMLEventWriter w=xof.createXMLEventWriter(pw);
+				
+				final StreamSource src;
+				if(args.isEmpty())
 					{
-					case XMLEvent.START_ELEMENT:
+					src=new StreamSource(stdin());
+					}
+				else if(args.size()==1)
+					{
+					src=new StreamSource(new File(args.get(0)));
+					}
+				else
+					{
+					LOG.error("Illegal number of arguments");
+					return -1;
+					}
+				final XMLEventReader r=xmlInputFactory.createXMLEventReader(src);
+				
+				final XMLEventFactory eventFactory=XMLEventFactory.newFactory();
+				
+				final SimpleBindings bindings=new SimpleBindings();
+				long nArticles=0L;
+				while(r.hasNext())
+					{
+					XMLEvent evt=r.peek();
+					switch(evt.getEventType())
 						{
-						StartElement sE= evt.asStartElement();
-						Entry entry=null;
-						JAXBElement<Entry> jaxbElement=null;
-						if(sE.getName().getLocalPart().equals("entry") )
+						case XMLEvent.START_ELEMENT:
 							{
-							jaxbElement= unmarshaller.unmarshal(r,Entry.class);
-							entry= jaxbElement.getValue();
+							StartElement sE= evt.asStartElement();
+							Entry entry=null;
+							JAXBElement<Entry> jaxbElement=null;
+							if(sE.getName().getLocalPart().equals("entry") )
+								{
+								jaxbElement= unmarshaller.unmarshal(r,Entry.class);
+								entry= jaxbElement.getValue();
+								}
+							else
+								{
+								w.add(r.nextEvent());
+								break;
+								}
+							
+							if(entry!=null)
+								{
+								
+								bindings.put("entry", entry);
+								bindings.put("index", nArticles++);
+								final Object result=compiledScript.eval(bindings);
+								
+								String entryName="undefined";
+								if(!entry.getAccession().isEmpty()) entryName=entry.getAccession().get(0);
+								
+								if(result==null) break;
+								if(result instanceof Boolean)
+									{
+									if(Boolean.FALSE.equals(result))
+										{
+										w.add(eventFactory.createComment(" "+entryName+" "));
+										w.add(eventFactory.createCharacters("\n"));
+										break;
+										}
+									}
+								else if(result instanceof Number)
+									{
+									if(((Number)result).intValue()!=1) 
+										{
+										w.add(eventFactory.createComment(" "+entryName+" "));
+										w.add(eventFactory.createCharacters("\n"));
+										break;
+										}
+									}
+								else
+									{
+									LOG.warning("Script returned something that is not a boolean or a number:"+result.getClass());
+									break;
+									}
+								
+								marshaller.marshal(
+										jaxbElement,
+										w);
+								w.add(eventFactory.createCharacters("\n"));
+								}
+							
+							break;
 							}
-						else
+						case XMLEvent.SPACE:break;
+						default:
 							{
 							w.add(r.nextEvent());
 							break;
 							}
-						
-						if(entry!=null)
-							{
-							
-							bindings.put("entry", entry);
-							bindings.put("index", nArticles++);
-							final Object result=compiledScript.eval(bindings);
-							
-							String entryName="undefined";
-							if(!entry.getAccession().isEmpty()) entryName=entry.getAccession().get(0);
-							
-							if(result==null) break;
-							if(result instanceof Boolean)
-								{
-								if(Boolean.FALSE.equals(result))
-									{
-									w.add(eventFactory.createComment(" "+entryName+" "));
-									w.add(eventFactory.createCharacters("\n"));
-									break;
-									}
-								}
-							else if(result instanceof Number)
-								{
-								if(((Number)result).intValue()!=1) 
-									{
-									w.add(eventFactory.createComment(" "+entryName+" "));
-									w.add(eventFactory.createCharacters("\n"));
-									break;
-									}
-								}
-							else
-								{
-								LOG.warning("Script returned something that is not a boolean or a number:"+result.getClass());
-								break;
-								}
-							
-							marshaller.marshal(
-									jaxbElement,
-									w);
-							w.add(eventFactory.createCharacters("\n"));
-							}
-						
-						break;
 						}
-					case XMLEvent.SPACE:break;
-					default:
-						{
-						w.add(r.nextEvent());
-						break;
-						}
+					r.close();
 					}
-				r.close();
+				w.flush();
+				w.close();
+				pw.flush();
 				}
-			w.flush();
-			w.close();
-			pw.flush();
-			pw.close();
 			return 0;
 			}
 		catch(final Exception err)

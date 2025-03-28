@@ -50,6 +50,7 @@ nav:
         - "bedrenamechr" : BedRenameChromosomes.md
         - "bigwigmerge" : BigwigMerge.md
         - "bigwigtview" : BigWigTView.md
+        - "bioalcidae" : BioAlcidae.md
         - "bioalcidaejdk" : BioAlcidaeJdk.md
         - "biostar103303" : Biostar103303.md
         - "biostar105754" : Biostar105754.md
@@ -157,6 +158,7 @@ nav:
         - "lowresbam2raster" : LowResBam2Raster.md
         - "manhattan" : Manhattan.md
         - "mantamerger" : MantaMerger.md
+        - "mapuniprot" : MapUniProtFeatures.md
         - "mergeblastxml" : MergeBlastXml.md
         - "mergesplittedblast" : MergeSplittedBlast.md
         - "minicaller" : MiniCaller.md
@@ -233,6 +235,7 @@ nav:
         - "tview" : TViewCmd.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
+        - "uniprotfilterjs" : UniprotFilterJS.md
         - "variantsinwindow" : VariantsInWindow.md
         - "vcf2bam" : VcfToBam.md
         - "vcf2hilbert" : VcfToHilbert.md
