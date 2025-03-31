@@ -160,6 +160,7 @@ import com.github.lindenb.jvarkit.tools.gtex.GtexRsToQTL;
 import com.github.lindenb.jvarkit.tools.gtf.Gtf2Xml;
 import com.github.lindenb.jvarkit.tools.gtf.GtfLiftOver;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
+import com.github.lindenb.jvarkit.tools.gtf.GtfToGff;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
 import com.github.lindenb.jvarkit.tools.haplogroupcasectrl.HaploGroupCaseControl;
 import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
@@ -753,6 +754,7 @@ public class JvarkitCentral {
 		command(FindHtsFileDictionary.class);
 		command(GatkHaplotypeCaller.class);
 		command(GtfToBed.class);
+		command(GtfToGff.class);
 		command(GtfLiftOver.class);
 		command(GtexRsToQTL.class);
 		command(GtfRetroCopy.class);

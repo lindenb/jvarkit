@@ -918,6 +918,7 @@ public class IOUtils {
         		".tar",".gz",
         		".pdf",".xml",
         		".interval_list",
+        		".sql",//UCSC
         		".sortedByCoord.out"//STAR
         		};
        boolean changed=true;

@@ -44,7 +44,8 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	private String annotation_value="";
 	@Parameter(names = {"-m","--min-length"}, description = "slop each BED records in 5' and 3' so the minimal LENGTH is 'm' ")
 	private int min_len=0;
-	
+	@Parameter(names = {"--noXY"}, description = "skip X/Y chromosome")
+	private boolean skipXY=false;	
 	private final IntervalTreeMap<UserBed> interval2userbed = new IntervalTreeMap<>();
 
 	
@@ -71,6 +72,10 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 				final BedLine rec = bc.decode(line);
 				if(rec==null) continue;
 				final String ctg = fixContig(rec.getContig());
+				if(this.skipXY) {
+					if(ctg.equals("X") || ctg.equals("Y")) continue;
+					if(ctg.equals("chrX") || ctg.equals("chrY")) continue;
+					}
 				final String title= rec.get(3);
 				if(StringUtils.isBlank(title) || title.equals(".")) throw new IOException("empty title in bed line "+line);
 				int chromStart=rec.getStart();

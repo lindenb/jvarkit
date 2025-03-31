@@ -140,6 +140,7 @@ nav:
         - "groupbygene" : GroupByGene.md
         - "gtexrs2qtl" : GtexRsToQTL.md
         - "gtf2bed" : GtfToBed.md
+        - "gtf2gff" : GtfToGff.md
         - "gtf2xml" : Gtf2Xml.md
         - "gtfliftover" : GtfLiftOver.md
         - "gtfretrocopy" : GtfRetroCopy.md

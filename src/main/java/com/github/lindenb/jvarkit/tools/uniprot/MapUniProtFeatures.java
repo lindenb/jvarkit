@@ -89,7 +89,7 @@ BEGIN_DOC
 
 ## Warning
 
-this program is broken.
+this program is not fully tested. Please check the results
 
 ##Example
 
@@ -122,9 +122,9 @@ END_DOC
  */
 @Program(
 	name="mapuniprot",
-	description="map uniprot features on reference genome (this program is broken).",
+	description="map uniprot features on reference genome.",
 	keywords={"uniprot","bed","fasta","reference","xml"},
-	modificationDate = "20250320",
+	modificationDate = "20250331",
 	jvarkit_amalgamion = true
 	)
 public class MapUniProtFeatures extends Launcher
@@ -132,7 +132,7 @@ public class MapUniProtFeatures extends Launcher
 	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
     private static class Range
     	{
-    	Range(int start,int end)
+    	Range(final int start,final int end)
     		{
     		this.start=start;
     		this.end=end;
@@ -330,7 +330,7 @@ public class MapUniProtFeatures extends Launcher
 				while((line=r.readLine())!=null)
 					{
 					final UcscTranscript kg = codec.decode(line);
-					if(kg==null) continue;
+					if(kg==null || !kg.isProteinCoding()) continue;
 					if(dict.getSequence(kg.getContig())==null || StringUtils.isBlank(kg.getName2())) continue;
 					
 					List<UcscTranscript> L=protid2transcripts.get(kg.getName2());
@@ -389,7 +389,7 @@ public class MapUniProtFeatures extends Launcher
 						
 						if(debug) {
 							LOG.debug("got "+evt.asStartElement().getName());
-						}
+							}
 						
 						final Document dom = db.newDocument();
 						final Element uniprotNode = dom.createElement("uniprot");
@@ -441,7 +441,7 @@ public class MapUniProtFeatures extends Launcher
 								LOG.info("no sequence found found for "+ xpath.evaluate("/uniprot/entry/name",dom,XPathConstants.STRING));
 								}
 							continue;
-						}
+							}
 						
 						for(UcscTranscript kg:genes)
 							{
@@ -453,9 +453,12 @@ public class MapUniProtFeatures extends Launcher
 							if(debug) {
 								LOG.debug("testing "+kg.getTranscriptId());
 								}
-							UcscTranscript.Peptide pep=getPeptide(kg,genomic);
+							final UcscTranscript.Peptide pep=getPeptide(kg,genomic);
+							if(debug) {
+								System.err.println(kg.getTranscriptId()+" peptide: "+pep);
+							}
 							
-							
+							/* scan both sequence while they are the same */
 							int sameSequenceLength=0;
 							while(  sameSequenceLength < entrySequence.length() &&
 									sameSequenceLength < pep.length() 
@@ -486,9 +489,18 @@ public class MapUniProtFeatures extends Launcher
 								{
 								final Element feat = (Element)nodeList.item(i);
 								final String featureType = feat.getAttribute("type");
+								
 								if(StringUtils.isBlank(featureType) || feat.equals("chain")) continue;
+								if(debug) {
+									LOG.debug("featureType:"+featureType);
+									}
 								final  Element location =(Element)xpath.evaluate("location",feat,XPathConstants.NODE);
-								if(location==null) continue;
+								if(location==null) {
+									if(debug) {
+										LOG.debug("no location ");
+										}
+									continue;
+									}
 								int pepStart,pepEnd;
 								final Element position = (Element)xpath.evaluate("position",location,XPathConstants.NODE);
 								if(position!=null && !StringUtils.isBlank(position.getAttribute("position")))
@@ -510,29 +522,46 @@ public class MapUniProtFeatures extends Launcher
 										}
 									else
 										{
+										if(debug) {
+											LOG.debug("cannot find begin/end");
+											}
 										continue;
 										}
 									}
 								
-								if(pepEnd>=sameSequenceLength) continue;
+								if(pepEnd>=sameSequenceLength) {
+									if(debug) {
+										LOG.debug("pepEnd ("+pepEnd+")>=sameSequenceLength("+sameSequenceLength+")");
+										}
+									continue;
+									}
+								
+								if(debug) {
+									LOG.debug(featureType+" pepStart:"+pepStart+" pepEnd:"+pepEnd+" "+kg.getTranscriptId());
+									}
 								
 								final List<Integer> genomicPos=new ArrayList<Integer>();
 								while(pepStart< pepEnd)
 									{
 									if(pepStart>=pep.length())
 										{
-										System.err.println("pepStart > pep.length()");
-										System.err.println("P:"+pep.toString()+" "+pep.length()+" "+kg.getStrand());
-										System.err.println("Q:"+entrySequence+" "+ entrySequence.length());
+										if(debug) {
+											System.err.println("pepStart > pep.length()");
+											System.err.println("P:"+pep.toString()+" "+pep.length()+" "+kg.getStrand());
+											System.err.println("Q:"+entrySequence+" "+ entrySequence.length());
+											}
 										}
 									final int codon[]=pep.convertToGenomic0Coordinates(pepStart);
 									pepStart++;
-									for(int gP:codon)
-										{
+									for(int codon_idx=0;codon_idx<codon.length ;++codon_idx) {
+										final int gP = codon[codon_idx];
 										if(gP==-1)
 											{
-											LOG.error("error in genimoc for ("+pepStart+"/"+pepEnd+"):");
+											LOG.error("error in genomic for ("+pepStart+"/"+pepEnd+"):");
 											System.exit(-1);
+											}
+										if(debug) {
+											System.err.println(kg.getTranscriptId()+" pepStart="+pepStart+" codon["+codon_idx+"] genomic="+gP);
 											}
 										genomicPos.add(gP);
 										}
@@ -547,8 +576,8 @@ public class MapUniProtFeatures extends Launcher
 									Range range=new Range(genomicPos.get(k0), genomicPos.get(k0)+1);
 									k0++;
 									while(
-										k0< genomicPos.size() && 
-										range.end==genomicPos.get(k0)
+										k0 < genomicPos.size() && 
+										range.end == genomicPos.get(k0)
 										)
 										{
 										range=new Range(range.start,range.end+1);
@@ -570,7 +599,6 @@ public class MapUniProtFeatures extends Launcher
 				rx.close();
 				} // end file reader
 			LOG.info("End scan uniprot");
-			LOG.warn("THIS PROGRAM IS BROKEN");
 			}
 		catch(final Throwable err)
 			{

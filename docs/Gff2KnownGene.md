@@ -28,6 +28,8 @@ Usage: gff2kg [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
+    -sql, --sql
+      write SQL definition in that file
     --version
       print version and exit
 

@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-map uniprot features on reference genome (this program is broken).
+map uniprot features on reference genome.
 
 
 ## Usage
@@ -80,7 +80,7 @@ The current reference is:
 
 ## Warning
 
-this program is broken.
+this program is not fully tested. Please check the results
 
 ##Example
 

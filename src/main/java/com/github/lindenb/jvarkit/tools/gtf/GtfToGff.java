@@ -1,7 +1,7 @@
 /*
 The MIT License (MIT)
 
-Copyright (c) 2022 Pierre Lindenbaum
+Copyright (c) 2025 Pierre Lindenbaum
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,27 +25,30 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.gtf;
 
 import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.nio.file.Files;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.TribbleException;
+import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.gff.Gff3Constants;
+import htsjdk.tribble.gff.Gff3Feature;
+import htsjdk.tribble.gff.Gff3FeatureImpl;
+import htsjdk.tribble.gff.Gff3Writer;
 
 /**
 
@@ -67,147 +70,139 @@ public class GtfToGff
 	extends Launcher {
 	private static final Logger LOG = Logger.build(GtfToGff.class).make();
 	
-	
-	 
-	private class Record  implements Locatable {
-		final List<String> tokens=new ArrayList<>(8);
-		final Map<String,List<String>> attributes = new LinkedHashMap<>();
-		
-		Record(final String[] tokens) {
-			for(int i=0;i< 8;i++) this.tokens.add(tokens[i]);
-			
-			final String s= tokens[8];
-			int i=0;
-		
-			while(i< s.length()) {
-				/* skip ws */
-				while(i< s.length() && Character.isWhitespace(s.charAt(i))) i++;
-				final StringBuilder key=new StringBuilder();
-				while(i< s.length()) {
-					if(Character.isWhitespace(s.charAt(i))) {
-						i++;
-						break;
-						}
-					key.append(s.charAt(i));
-					i++;
-					}
-				/* skip ws */
-				while(i< s.length() && Character.isWhitespace(s.charAt(i))) i++;
-				if(i>=s.length()) throw new IllegalArgumentException("END of string after "+s.substring(0,i));
-				boolean got_quote=false;
-				if(s.charAt(i)=='\"') {
-					got_quote=true;
-					i++;
-					}
-				
-				final StringBuilder value=new StringBuilder();
-				while(i< s.length() ) {
-					if(got_quote && s.charAt(i)=='\"') break;
-					else if(!got_quote && s.charAt(i)==';') break;
-					else if(!got_quote && Character.isWhitespace(s.charAt(i))) break;
-					
-					if(s.charAt(i)=='\\') {
-						if(i+1>=s.length()) throw new IllegalArgumentException("unknown escape sequence after "+s.substring(0,i));
-						i++;
-						switch(s.charAt(i)) {
-							case '"': value.append("\"");break;
-							case '\'': value.append("\'");break;
-							case '\\': value.append("\\");break;
-							case 't': value.append("\t");break;
-							case 'n': value.append("\n");break;
-							default: throw new IllegalArgumentException("unknown escape sequence after "+s.substring(0,i));
-							}
-						}
-					else
-						{
-						value.append(s.charAt(i));
-						}
-					i++;
-					}
-				if(got_quote) {
-					if(i>=s.length()) throw new IllegalArgumentException("expected quote after "+s.substring(0,i));
-					if(s.charAt(i)!='\"')  throw new IllegalArgumentException("expected quote after "+s.substring(0,i));
-					i++;
-					}
-				final String keyStr= key.toString();
-				List<String> L = this.attributes.get(keyStr);
-				if(L==null) {
-					L=new ArrayList<>(2);
-					this.attributes.put(keyStr,L);
-					}
-				L.add(value.toString());
-				
-				/* skip ws */
-				while(i< s.length() && Character.isWhitespace(s.charAt(i))) i++;
-				if(i<s.length()) {
-					if(s.charAt(i)!=';')  throw new IllegalArgumentException("expected semicolon after "+s.substring(0,i));
-					i++;
-					}
-				/* skip ws */
-				while(i< s.length() && Character.isWhitespace(s.charAt(i))) i++;
-				}
-			}
-		
-		@Override
-		public String getContig()
-			{
-			return tokens.get(0);
-			}
-		@Override
-		public int getStart()
-			{
-			return Integer.parseInt(tokens.get(3));
-			}
-		@Override
-		public int getEnd()
-			{
-			return Integer.parseInt(tokens.get(4));
-			}
-		private String escape(String value) {
-			return value;
-			}
-		void print(PrintWriter pw) {
-			for(int i=0;i< tokens.size();i++) {
-				if(i>0) pw.print(Gff3Constants.FIELD_DELIMITER);
-				pw.print(tokens.get(i));
-				}
-			for(String key:this.attributes.keySet()) {
-				for(String value:this.attributes.get(key)) {
-					pw.print(key);
-					pw.print(Gff3Constants.KEY_VALUE_SEPARATOR);
-					pw.print(escape(value));
-					}
-				}
-			pw.print(Gff3Constants.END_OF_LINE_CHARACTER);
-			}
-		}
-	
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
+	@Parameter(names={"--biotype"},description= "Default biotype (empty:no default)")
+	private String default_biotype=null;
+	@Parameter(names={"--make-gene"},description= "When 'gene' is missing, create a gene for each 'transcript/mrna'")
+	private boolean make_gene = false;
+	@Parameter(names={"--escape-UTF8"},description= "escape UTF-8")
+	private boolean escape_UTF8 = false;
 
+
+	private String escape(final String s) {
+		if(!escape_UTF8) return s;
+		 try {
+	            return URLEncoder.encode(s, "UTF-8").replace("+", " ");
+	        } catch (final UnsupportedEncodingException ex) {
+	            throw new TribbleException("Encoding failure", ex);
+	        }
+	}
 
 	@Override
 	public int doWork(final List<String> args)  {
 		try {
-
+			final Predicate<String> isTranscript =  S-> 
+				S.equalsIgnoreCase("transcript") ||
+				S.equalsIgnoreCase("mrna")
+				;
+			final Predicate<String> isChildOfTranscript =  S-> 
+				S.equalsIgnoreCase("exon") ||
+				S.equalsIgnoreCase("CDS") ||
+				S.equalsIgnoreCase("three_prime_UTR") || 
+				S.equalsIgnoreCase("five_prime_UTR") || 
+				S.equalsIgnoreCase("3_prime_UTR") || 
+				S.equalsIgnoreCase("5_prime_UTR") || 
+				S.equalsIgnoreCase("UTR") || 
+				S.equalsIgnoreCase("start_codon") ||
+				S.equalsIgnoreCase("stop_codon")
+				;
 			final String input = oneFileOrNull(args);
-			try(InputStream in1 = input==null?System.in:Files.newInputStream(Paths.get(input))) {
-				final InputStream in = IOUtils.uncompress(in1);
-				final BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+				try(final BufferedReader br = super.openBufferedReader(input)) {
+				try(Gff3Writer out = this.outputFile==null?
+							new Gff3Writer(stdout()) {
+								protected String escapeString(String s) { return GtfToGff.this.escape(s);}
+								}:
+							new Gff3Writer(this.outputFile) {
+								protected String escapeString(String s) { return GtfToGff.this.escape(s);}
+								}
+							) {
 					String line;
+					final GTFCodec codec = new GTFCodec();
 					while((line=br.readLine())!=null) {
-						if(line.startsWith("#") || StringUtils.isBlank(line)) continue;
+						if(StringUtils.isBlank(line)) continue;
+						if(line.startsWith("#")) {
+							out.addComment(line.substring(1));
+							continue;
+							}
 						final String[] tokens = CharSplitter.TAB.split(line);
-						if(tokens.length!=9) throw new IllegalArgumentException("expected 9 tokens in "+String.join("<\\t>", tokens));
-						final Record record=  new Record(tokens);
-						record.print(out);
+						for(int side=0;side< (make_gene?2:1);++side) {
+							if(side==2) {
+								if(isTranscript.test(tokens[2])) {
+									tokens[2]="gene";
+									}
+								else {
+									break;
+									}
+								}
+							
+							final GTFLine rec = codec.decode(tokens);
+							if(rec==null) continue;
+							final  Map<String, String> hash = rec.getAttributes();
+							final  Map<String, List<String>> attributes = new LinkedHashMap<>(hash.size());
+							
+							for(String key: hash.keySet()) {
+								final List<String> value =Collections.singletonList(hash.get(key));
+								attributes.put(key, value);
+								}
+							
+							if(rec.getType().equals("gene")  && rec.hasAttribute("gene_id")) {
+								attributes.put(Gff3Constants.ID_ATTRIBUTE_KEY, Collections.singletonList("gene:"+rec.getAttribute("gene_id")));
+								if(!attributes.containsKey(Gff3Constants.NAME_ATTRIBUTE_KEY)) {
+									attributes.put(Gff3Constants.NAME_ATTRIBUTE_KEY, Collections.singletonList(rec.getAttribute("gene_id")));
+									if(rec.hasAttribute("gene_name")) {
+										attributes.put(Gff3Constants.NAME_ATTRIBUTE_KEY, Collections.singletonList(rec.getAttribute("gene_name")));
+										}
+									}
+								attributes.remove("transcript_id");
+								attributes.remove("transcript_name");
+								}
+							else if(isTranscript.test(rec.getType())) {
+								if(!StringUtils.isBlank(this.default_biotype)) {
+									if(!(attributes.containsKey("biotype")||  attributes.containsKey("transcript_biotype") )) {
+										attributes.put("transcript_biotype", Collections.singletonList(this.default_biotype));
+										attributes.put("biotype", Collections.singletonList(this.default_biotype));
+										}
+									}
+								if(rec.hasAttribute("transcript_id")) {
+									attributes.put(Gff3Constants.ID_ATTRIBUTE_KEY, Collections.singletonList("transcript:"+rec.getAttribute("transcript_id")));
+									}
+								if(rec.hasAttribute("gene_id")) {
+									attributes.put(Gff3Constants.PARENT_ATTRIBUTE_KEY, Collections.singletonList("gene:"+rec.getAttribute("gene_id")));
+									}
+								if(!attributes.containsKey(Gff3Constants.NAME_ATTRIBUTE_KEY)) {
+									attributes.put(Gff3Constants.NAME_ATTRIBUTE_KEY, Collections.singletonList(rec.getAttribute("transcript_id")));
+									if(rec.hasAttribute("transcript_name")) {
+										attributes.put(Gff3Constants.NAME_ATTRIBUTE_KEY, Collections.singletonList(rec.getAttribute("transcript_name")));
+										}
+									}
+								}
+							else if(isChildOfTranscript.test(rec.getTranscriptId()) || rec.hasAttribute("transcript_id")) {
+								attributes.put(Gff3Constants.ID_ATTRIBUTE_KEY,Collections.singletonList(StringUtils.md5(line).substring(0, 9)));
+								if(rec.hasAttribute("transcript_id")) {
+									attributes.put(Gff3Constants.PARENT_ATTRIBUTE_KEY, Collections.singletonList("transcript:"+rec.getAttribute("transcript_id")));
+									}
+								}
+							
+							final Gff3Feature feat = new Gff3FeatureImpl(
+									rec.getContig(),
+									rec.getSource(),
+									rec.getType(),
+									rec.getStart(),
+									rec.getEnd(),
+									(rec.getScore()==null?-1:rec.getScore()),
+									Strand.decode(rec.getStrand()),
+									rec.getPhase(),
+									attributes
+									);
+							
+							
+							out.addFeature(feat);
+							}
 						}
-					out.flush();
 					}
-				br.close();
-				in.close();
 				}
+			
 		
 			return 0;
 			}

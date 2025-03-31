@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 1e29384a2
-Compilation : 20250328175052
+Version     : ca1729238
+Compilation : 20250331152210
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -204,9 +204,10 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [fixvcfmissinggenotypes](FixVcfMissingGenotypes.md) | After a VCF-merge, read a VCF, look back at some BAMS to tells if the missing genotypes were homozygotes-ref or not-called. If the number of reads is greater than min.depth, then a missing genotype is said hom-ref. | 20141109 | 20200525 |
 | [gatkhc](GatkHaplotypeCaller.md) | Wrapper for GATK HaplotypeCaller | 20240625 | 20240625 |
 | [gff2fasta](Gff3ToFasta.md) | extract fasta from gtf | 20241016 | 20241017 |
-| [gff2kg](Gff2KnownGene.md) | Convert GFF3 format to UCSC knownGene format. | 20160404 | 20220725 |
+| [gff2kg](Gff2KnownGene.md) | Convert GFF3 format to UCSC knownGene format. | 20160404 | 20250328 |
 | [gff3upstreamorf](Gff3UpstreamOrf.md) | Takes a ucsc genpred file, scan the 5' UTRs and generate a GFF3 containing upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20220724 | 20250131 |
 | [gtexrs2qtl](GtexRsToQTL.md) | extract gtex eqtl data from a list of RS | 20230215 | 20240225 |
+| [gtf2gff](GtfToGff.md) | Convert GTF to gff | 20220703 | 20250328 |
 | [gtfliftover](GtfLiftOver.md) | LiftOver GTF file. | 20190823 | 20250115 |
 | [gtfretrocopy](GtfRetroCopy.md) | Scan retrocopies by comparing the gtf/intron and the deletions in a VCF | 20190813 | 20191104 |
 | [haplogroupcasectrl](HaploGroupCaseControl.md) | Run Fisher test for Haplogroup input. | 20240610 | 20240610 |
@@ -219,7 +220,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [knownretrocopy](KnownRetroCopy.md) | Annotate VCF structural variants that could be intron from retrocopies. | 20190815 | 20230817 |
 | [liftover2svg](LiftOverToSVG.md) | Convert LiftOver chain files to animated SVG |  |  |
 | [manhattan](Manhattan.md) | Manhattan plot SVG picture from different sources. | 20220525 | 20240525 |
-| [mapuniprot](MapUniProtFeatures.md) | map uniprot features on reference genome (this program is broken). |  | 20250320 |
+| [mapuniprot](MapUniProtFeatures.md) | map uniprot features on reference genome. |  | 20250331 |
 | [mergeblastxml](MergeBlastXml.md) | merge XML blast results (same Iteration/Iteration_query-def in multiple xml files |  |  |
 | [mergesplittedblast](MergeSplittedBlast.md) | merge blast Hits from splitted BLAST database |  |  |
 | [ngsfilessummary](NgsFilesSummary.md) | Scan folders and generate a summary of the files (SAMPLE/BAM SAMPLE/VCF etc..). Useful to get a summary of your samples. | 20140430 | 20240324 |

@@ -71,7 +71,6 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StopWatch;
 
 /**

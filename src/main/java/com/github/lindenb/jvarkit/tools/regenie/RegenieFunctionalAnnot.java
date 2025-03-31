@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
@@ -17,11 +18,16 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
+import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -47,10 +53,14 @@ END_DOC
 	generate_doc = true
 	)
 public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
+	static final String FIRST_INTRON="first_intron";
 	private static final Logger LOG = Logger.build(RegenieFunctionalAnnot.class).make();
 	@Parameter(names={"-A","--annotations"},description="seq_ontology <-> score file. TSV file. no header. at least 2 columns prediction_name/score",required = true)
 	private Path masksFile = null;
+	@Parameter(names={"--kg","--known"},description="known gene data for first intron/intergenic. " + UcscTranscriptReader.OPT_DESC)
+	private Path knownGene = null;
 
+	
 	@Override
 	protected Logger getLogger() {
 		return LOG;
@@ -58,19 +68,20 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 	
 	private AnnPredictionParser annParser;
 	private final Map<String,Double> prediction2score= new HashMap<>();
+	private IntervalTreeMap<Set<String>> firstIntronToTranscript=null;
 	@Override
 	protected VCFHeader initVcfHeader(VCFHeader h) {
 		h =  super.initVcfHeader(h);
 		this.annParser = new AnnPredictionParserFactory(h).get();
 		if(!this.annParser.isValid()) throw new IllegalArgumentException("cannot create ANN parser");
 		
-		
-
 		try(BufferedReader br= IOUtils.openPathForBufferedReading(masksFile)) {
 			final Pattern spaces_regex = Pattern.compile("[ \t]");
 				for(;;) {
 					String line = br.readLine();
 					if(line==null) break;
+					if(line.startsWith("#")) continue;
+					
 					final String[] tokens = spaces_regex.split(line);
 					if(tokens.length<2) throw new JvarkitException.TokenErrors(2, tokens);
 					final String pred = tokens[0];
@@ -87,6 +98,42 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 			throw new RuntimeIOException(err);
 			}
 		
+		if(knownGene!=null && !prediction2score.containsKey(FIRST_INTRON)) {
+			LOG.warning("No "+FIRST_INTRON+" defined in "+masksFile);
+		}
+		
+		if(knownGene!=null && prediction2score.containsKey(FIRST_INTRON)) {
+			this.firstIntronToTranscript = new IntervalTreeMap<>();
+			try(UcscTranscriptReader rd=new UcscTranscriptReader(this.knownGene)) {
+				try(CloseableIterator<UcscTranscript> iter= rd.iterator()) {
+					while(iter.hasNext()) {
+						final UcscTranscript kg = iter.next();
+						if(kg.getIntronCount()<=0) continue;
+						final String ctg = fixContig(kg.getContig());
+						if(StringUtils.isBlank(ctg)) continue;
+						final	UcscTranscript.Intron intron;
+						if(kg.isPositiveStrand()) {
+							intron = kg.getIntron(0);
+							}
+						else
+							{
+							intron = kg.getIntron(kg.getIntronCount()-1);
+							}
+						final Interval r = new Interval(ctg,intron.getStart(),intron.getEnd());
+						Set<String> transcriptids = firstIntronToTranscript.get(r);
+						if(transcriptids==null) {
+							transcriptids=new HashSet<>();
+							firstIntronToTranscript.put(r, transcriptids);
+							}
+						transcriptids.add(kg.getTranscriptId());
+						}
+					}
+				catch(IOException err) {
+					throw new RuntimeIOException(err);
+					}
+				}
+			}
+		
 		return h;
 		}
 	
@@ -100,9 +147,10 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 	
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {
+		final String contig = fixContig(ctx.getContig());
 		final String altstr = ctx.getAlternateAllele(0).getDisplayString();
 		final List<AnnPredictionParser.AnnPrediction> predictions = this.annParser.getPredictions(ctx);
-			
+		
 		
 		
 		for(int side=0;side< 2;++side) {
@@ -136,7 +184,7 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 				
 				if (best_score != null) {
 					final Variation v = new Variation();
-					v.contig = fixContig(ctx.getContig());
+					v.contig = contig;
 					v.pos = ctx.getStart();
 					v.id = makeID(ctx);
 					v.gene = gene_name;
@@ -148,7 +196,27 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 					print(w,v);
 					}
 				}
-			}		
+			}
+		
+		if(this.firstIntronToTranscript!=null) {
+			final Double score = this.prediction2score.getOrDefault(FIRST_INTRON, null);
+			for(String transcriptId : this.firstIntronToTranscript.
+					getOverlapping(new Interval(contig,ctx.getStart(),ctx.getEnd())).stream().
+					flatMap(SET->SET.stream()).
+					collect(Collectors.toSet())) {
+					final Variation v = new Variation();
+					v.contig = contig;
+					v.pos = ctx.getStart();
+					v.id = makeID(ctx);
+					v.gene = transcriptId;
+					v.prediction = FIRST_INTRON;
+					v.score = OptionalDouble.of( score);
+					v.cadd = getCaddScore(ctx);
+					v.is_singleton = isSingleton(ctx);
+					v.frequency = getFrequency(ctx);
+					print(w,v);
+					}
+				}
 		}
 
 	

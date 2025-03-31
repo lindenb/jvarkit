@@ -95,11 +95,13 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		String sqluri;
 		if(uri.endsWith(".sql")) {
 			sqluri = uri;
-		} else if(uri.endsWith(FILE_SUFFIX)) {
+		} else if(uri.endsWith(".txt") || uri.endsWith(".tsv")) {
+			sqluri = uri.substring(0, uri.length() - 4) + ".sql";
+		} else if(uri.endsWith(FILE_SUFFIX) || uri.endsWith(".tsv.gz")) {
 			sqluri = uri.substring(0, uri.length() - FILE_SUFFIX.length()) + ".sql";
 		} else
 		{
-			throw new IllegalArgumentException("uri must end with .sql or "+FILE_SUFFIX);
+			throw new IllegalArgumentException("uri must end with .sql or .txt or .tsv or .tsv.gz or "+FILE_SUFFIX);
 			
 		}
 		try(InputStream in=IOUtils.openURIForReading(sqluri)) {
@@ -290,7 +292,11 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
         } else {
             toDecode = path;
         }
-        return toDecode.endsWith(FILE_SUFFIX);
+        return toDecode.endsWith(FILE_SUFFIX) || 
+        		toDecode.endsWith(".txt") || 
+        		toDecode.endsWith(".tsv") || 
+        		toDecode.endsWith(".tsv.gz")
+        		;
     }
     
     public static CloseableIterator<UcscTranscript> makeIterator(final InputStream in) throws IOException {

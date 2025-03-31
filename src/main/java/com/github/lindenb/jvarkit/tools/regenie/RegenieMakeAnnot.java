@@ -381,6 +381,7 @@ public class RegenieMakeAnnot extends Launcher {
 					for(;;) {
 						String line = br.readLine();
 						if(line==null) break;
+						if(line.startsWith("#")) continue;
 						final String[] tokens = spaces_regex.split(line);
 						if(tokens.length!=3) throw new JvarkitException.TokenErrors(3, tokens);
 						if(predictions_hash.containsKey(tokens[0])) {
@@ -390,14 +391,20 @@ public class RegenieMakeAnnot extends Launcher {
 						if(!isEmpty(tokens[1])) {
 							pred.score = OptionalDouble.of(Double.parseDouble(tokens[1]));
 							}
-						pred.masks.addAll(Arrays.asList(CharSplitter.COMMA.split(tokens[2])));
-						if(pred.masks.isEmpty()) {
-							throw new IllegalArgumentException("no mask in "+line+" in "+masksFile);
+						if(pred.name.equals(RegenieFunctionalAnnot.FIRST_INTRON)) {
+							pred.masks.add(RegenieFunctionalAnnot.FIRST_INTRON);
 							}
+						else
+							{
+							pred.masks.addAll(Arrays.asList(CharSplitter.COMMA.split(tokens[2])));
+							}
+						
 
 						pred.masks.remove("");
 						pred.masks.remove(".");
-						
+						if(pred.masks.isEmpty()) {
+							throw new IllegalArgumentException("no mask in "+line+" in "+masksFile);
+							}
 						predictions_hash.put(pred.name, pred);
 					}
 				}

@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -88,7 +89,7 @@ END_DOC
 		description="Convert GFF3 format to UCSC knownGene format.",
 		keywords={"gff",",gtf","knownGene","ucsc","convert"},
 		creationDate="20160404",
-		modificationDate="20220725",
+		modificationDate="20250328",
 		biostars=276099,
 		jvarkit_amalgamion = true
 		)
@@ -96,6 +97,8 @@ public class Gff2KnownGene extends Launcher {
 	private static final Logger LOG = Logger.build(Gff2KnownGene.class).make();
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
+	@Parameter(names={"-sql","--sql"},description="write SQL definition in that file")
+	private Path sqlOutputFile = null;
 	@Parameter(names={"-bin","--bin"},description="Insert  UCSC 'bin' column as the first column.")
 	private boolean writeBin = false;
 	@Parameter(names={"-bed12","--bed12"},description="Ouput bed.")
@@ -189,17 +192,19 @@ public class Gff2KnownGene extends Launcher {
 					pw.print("\t");
 					pw.print(exons.stream().map(F->String.valueOf(F.getEnd())).collect(Collectors.joining(",")));
 					pw.print("\t");
+					pw.print("0");
+					pw.print("\t");
 					
-					
+					final Set<String> set = new LinkedHashSet<>();
 					for(String key : gene_keys)  {
 						final List<String> values = transcript.getAttribute(key);
 						if(values==null || values.size()!=1) continue;	
-						pw.print(values.get(0));
-						pw.print(";");
+						set.add(values.get(0));
 						}
 					
-					pw.print("\t");
-					pw.print(firstTranscriptName);
+					
+					pw.print(set.isEmpty()?firstTranscriptName:String.join(";", set));
+					
 					pw.println();
 					} /* end not bed12 */
     			}
@@ -230,6 +235,28 @@ public class Gff2KnownGene extends Launcher {
 					}
 				pw.flush();
 				gff3codec.close(in);
+				}
+			if(this.sqlOutputFile!=null) {
+				final String tableName= IOUtils.getFilenameWithoutCommonSuffixes(this.sqlOutputFile);
+				try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.sqlOutputFile)) {
+					pw.print("CREATE TABLE `"+tableName+"` (\n" +
+							(writeBin?"   `bin` smallint(5) unsigned NOT NULL,\n":"") +
+							"  `name` varchar(255) NOT NULL,\n" + 
+							"  `chrom` varchar(255) NOT NULL,\n" + 
+							"  `strand` char(1) NOT NULL,\n" + 
+							"  `txStart` int(10) unsigned NOT NULL,\n" + 
+							"  `txEnd` int(10) unsigned NOT NULL,\n" + 
+							"  `cdsStart` int(10) unsigned NOT NULL,\n" + 
+							"  `cdsEnd` int(10) unsigned NOT NULL,\n" + 
+							"  `exonCount` int(10) unsigned NOT NULL,\n" + 
+							"  `exonStarts` longblob NOT NULL,\n" + 
+							"  `exonEnds` longblob NOT NULL,\n" + 
+							"  `score` int(11) DEFAULT NULL,\n" + 
+							"  `name2` varchar(255) NOT NULL\n" + 
+							" ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;\n"
+							);
+					pw.flush();
+					}
 				}
 			return 0;
 		} catch (final Throwable err) {

@@ -506,14 +506,14 @@ protected VariantContextWriter openVariantContextWriter(final File outorNull) th
 
 
 protected InputStream openInputStream(final String inOrNull) throws IOException {
-	return(inOrNull==null?
+	return(inOrNull==null || inOrNull.equals("-")?
 			stdin():
 			IOUtils.openURIForReading(inOrNull)
 			);
 }
 
 protected BufferedReader openBufferedReader(final String inOrNull) throws IOException {
-	return(inOrNull==null?
+	return(inOrNull==null || inOrNull.equals("-")?
 			new BufferedReader(new InputStreamReader(stdin())):
 			IOUtils.openURIForBufferedReading(inOrNull)
 			);

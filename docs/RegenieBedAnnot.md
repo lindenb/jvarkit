@@ -28,6 +28,9 @@ Usage: regeniebedannot [options] Files
     -m, --min-length
       slop each BED records in 5' and 3' so the minimal LENGTH is 'm'
       Default: 0
+    --noXY
+      skip X/Y chromosome
+      Default: false
     --version
       print version and exit
     -f
