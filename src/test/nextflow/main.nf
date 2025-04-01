@@ -1,5 +1,5 @@
 String jvarkit(name) {
-	return "java -jar ${params.jvarkit} ${name} ";
+	return "java  -Djava.io.tmpdir=TMP -jar ${params.jvarkit} ${name} ";
 	}
 workflow {
 	rotavirus_bams = Channel.of(
@@ -16,8 +16,11 @@ workflow {
 
 	TEST_BAMLEFTALIGN("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("--filter none","--filter only ","--filter discard","--regions RF02:1-10")))
 	TEST_DICT2BED(rotavirus_bams.combine(Channel.of("")))
+	TEST_FINDALLCOVERAGEATPOS("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.collect(),Channel.of("-p 'RF01:100'"))
+	TEST_GTF2BED(Channel.fromPath("${params.testDir}/Homo_sapiens.GRCh37.87.gtf.gz").combine(Channel.of("-c 'return gene_id' ")))
 	TEST_SAMJDK("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("-e 'return record.getStart()<100;' ")))
 	TEST_SAM2TSV("${params.testDir}/rotavirus_rf.fa",rotavirus_bams)
+	TEST_VCFFILTERSO(Channel.fromPath("${params.testDir}/rotavirus_rf.ann.vcf.gz").combine(Channel.of("-A 'SO:0001818,SO:0001629'  ")))
 	TEST_VCFPOLYX("${params.testDir}/rotavirus_rf.fa",rotavirus_vcfs)
 	TEST_VCF2TABLE(rotavirus_vcfs.combine(Channel.of("--hide 'HOM_REF' ")))
 	}
@@ -61,6 +64,34 @@ process TEST_DICT2BED {
 	"""
 	}
 
+process TEST_FINDALLCOVERAGEATPOS {
+	input:
+		val(genome)
+		val(L)
+		val(args)
+	script:
+	"""
+	mkdir -p TMP
+cat << EOF > TMP/jeter.list
+${L.join("\n")}
+EOF
+	cat TMP/jeter.list |\\
+		 ${jvarkit("findallcoverageatposition")} -R ${genome} ${args} > TMP/jeter.tsv
+	"""
+	}
+
+process TEST_GTF2BED {
+        tag "${gtf}"
+        afterScript "rm -rf TMP"
+        input:
+                tuple path(gtf),val(args)
+        script:
+        """
+        mkdir -p TMP
+        ${jvarkit("gtf2bed")} ${args} "${gtf}" > TMP/jeter.bed
+        """
+        }
+
 
 process TEST_SAM2TSV {
 	tag "${bam}"
@@ -75,6 +106,19 @@ process TEST_SAM2TSV {
 	"""
 	}
 
+
+process TEST_VCFFILTERSO {
+	tag "${vcf}"
+	afterScript "rm -rf TMP"
+	input:
+		tuple path(vcf),val(args)
+	script:
+	"""
+	mkdir -p TMP
+	${jvarkit("vcffilterso")} ${args} "${vcf}" > TMP/jeter.vcf
+	"""
+	}
+
 process TEST_VCFPOLYX {
 	tag "${vcf}"
 	afterScript "rm -rf TMP"
@@ -84,7 +128,7 @@ process TEST_VCFPOLYX {
 	script:
 	"""
 	mkdir -p TMP
-	${jvarkit("vcfpolyx")} -n 2 -R '${fasta}' "${vcf}" > TMP/jeter.bed
+	${jvarkit("vcfpolyx")} -n 2 -R '${fasta}' "${vcf}" > TMP/jeter.vcf
 	"""
 	}
 

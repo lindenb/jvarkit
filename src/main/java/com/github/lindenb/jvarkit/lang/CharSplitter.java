@@ -24,9 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.lang;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
@@ -166,7 +168,23 @@ public default String[] split(final CharSequence seq,final int maxTokens) {
 	return L.toArray(new String[L.size()]);
 	}
 
-
+/** split a string using the first delimiter and return a java.util.Map entry
+ * throw an error if the delimiter is not found  */
+public default Map.Entry<String, String> keyValue(final CharSequence seq) {
+	final char delim = getDelimiter();
+	final int seqLen = seq.length();
+	for(int i=0;i< seqLen ;i++)
+		{
+		if(seq.charAt(i)==delim)
+			{
+			return new AbstractMap.SimpleEntry<>(
+					seq.subSequence(0, i).toString(),
+					seq.subSequence(i+1,seq.length()
+					).toString());
+			}
+		}
+	throw new IllegalArgumentException("cannot find delimiter "+pattern()+" in input sequence.");
+	}
 
 /** get an iterator over all the tokens in the input */
 public default Iterator<CharSequence> charSequenceIterator(final CharSequence seq) {
@@ -258,6 +276,7 @@ public static final CharSplitter DOT = of('.');
 public static final CharSplitter NEWLINE = of('\n');
 public static final CharSplitter UNDERSCORE = of('_');
 public static final CharSplitter AMP = of('&');
+public static final CharSplitter EQ = of('=');
 public static final CharSplitter HYPHEN = of('-');
 
 }

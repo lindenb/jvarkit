@@ -26,7 +26,8 @@ Usage: regeniebedannot [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -m, --min-length
-      slop each BED records in 5' and 3' so the minimal LENGTH is 'm'
+      slop each BED records in 5' and 3' so the minimal LENGTH is 'm'. 
+      Multiple are comma separated
       Default: 0
     --noXY
       skip X/Y chromosome
