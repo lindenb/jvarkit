@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2025 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.regenie;
 
 import java.io.BufferedReader;
@@ -8,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -50,8 +75,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	private String min_len_str="0";
 	@Parameter(names = {"--noXY"}, description = "skip X/Y chromosome")
 	private boolean skipXY=false;	
-	private final IntervalTreeMap<UserBed> interval2userbed = new IntervalTreeMap<>();
-
+	private final IntervalTreeMap<List<UserBed>> interval2userbed = new IntervalTreeMap<>();
 	
 	private int[] min_length_array = null;
 	
@@ -127,8 +151,14 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 						ub.score = Double.parseDouble(scoreStr);
 						}
 					
-					
-					this.interval2userbed.put(r, ub);
+					List<UserBed> L = 	this.interval2userbed.get(r);
+					if(L==null) {
+						L = new ArrayList<>();
+						this.interval2userbed.put(r, L);
+						}
+					if(L.stream().noneMatch(B->B.name.equals(ub.name))) {
+						L.add(ub);
+						}
 					}
 				}
 			}
@@ -140,7 +170,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 		
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {	
-		for(UserBed ub: this.interval2userbed.getOverlapping(ctx) ) {
+		for(UserBed ub: this.interval2userbed.getOverlapping(ctx).stream().toArray(N->new UserBed[N]) ) {
 			final Variation v = new Variation();
 			v.contig = fixContig(ctx.getContig());
 			v.pos = ctx.getStart();
