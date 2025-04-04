@@ -21,6 +21,8 @@ Usage: regeniebedannot [options] Files
       Default: <empty string>
   * -B, --bed
       custom bed file chrom/start/end/name[/score]
+    --chrom
+      process only that chromosome
     -h, --help
       print help and exit
     --helpFormat

@@ -150,6 +150,7 @@ nav:
         - "ibd2vcf" : IbdToVcf.md
         - "illuminadir" : IlluminaDirectory.md
         - "indexcov2vcf" : IndexCovToVcf.md
+        - "jbrowse2" : JBrowse2Server.md
         - "kg2bed" : KnownGenesToBed.md
         - "kg2fa" : KnownGeneToFasta.md
         - "kg2gff" : KgToGff.md

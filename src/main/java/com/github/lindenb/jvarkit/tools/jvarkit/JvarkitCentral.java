@@ -166,6 +166,7 @@ import com.github.lindenb.jvarkit.tools.haplogroupcasectrl.HaploGroupCaseControl
 import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.htsvelocity.HtsVelocity;
 import com.github.lindenb.jvarkit.tools.ibddb.IbdToVcf;
+import com.github.lindenb.jvarkit.tools.jbrowse2.JBrowse2Server;
 import com.github.lindenb.jvarkit.tools.kg2bed.KnownGenesToBed;
 import com.github.lindenb.jvarkit.tools.kg2fa.KnownGeneToFasta;
 import com.github.lindenb.jvarkit.tools.kg2gff.KgToGff;
@@ -770,6 +771,7 @@ public class JvarkitCentral {
 		command(IbdToVcf.class);
 		command(IlluminaDirectory.class);
 		command(IndexCovToVcf.class);
+		command(JBrowse2Server.class);
 		command(KgToGff.class);
 		command(KnownRetroCopy.class);
 		command(KnownGenesToBed.class);

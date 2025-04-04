@@ -20,8 +20,10 @@ workflow {
 	TEST_GTF2BED(Channel.fromPath("${params.testDir}/Homo_sapiens.GRCh37.87.gtf.gz").combine(Channel.of("-c 'return gene_id' ")))
 	TEST_SAMJDK("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("-e 'return record.getStart()<100;' ")))
 	TEST_SAM2TSV("${params.testDir}/rotavirus_rf.fa",rotavirus_bams)
+	TEST_VCFHEAD(rotavirus_vcfs.combine(Channel.of("-n 0","-n 10")))
 	TEST_VCFFILTERSO(Channel.fromPath("${params.testDir}/rotavirus_rf.ann.vcf.gz").combine(Channel.of("-A 'SO:0001818,SO:0001629'  ")))
 	TEST_VCFPOLYX("${params.testDir}/rotavirus_rf.fa",rotavirus_vcfs)
+	TEST_VCFTAIL(rotavirus_vcfs.combine(Channel.of("-n 0","-n 10")))
 	TEST_VCF2TABLE(rotavirus_vcfs.combine(Channel.of("--hide 'HOM_REF' ")))
 	}
 
@@ -103,6 +105,31 @@ process TEST_SAM2TSV {
 	"""
 	mkdir -p TMP
 	${jvarkit("sam2tsv")} -R '${fasta}' "${bam}" > TMP/jeter.bed
+	"""
+	}
+
+
+process TEST_VCFHEAD {
+	tag "${vcf}"
+	afterScript "rm -rf TMP"
+	input:
+		tuple path(vcf),val(args)
+	script:
+	"""
+	mkdir -p TMP
+	${jvarkit("vcfhead")} ${args} "${vcf}" > TMP/jeter.vcf
+	"""
+	}
+
+process TEST_VCFTAIL {
+	tag "${vcf}"
+	afterScript "rm -rf TMP"
+	input:
+		tuple path(vcf),val(args)
+	script:
+	"""
+	mkdir -p TMP
+	${jvarkit("vcftail")} ${args} "${vcf}" > TMP/jeter.vcf
 	"""
 	}
 

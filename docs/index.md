@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 86b61f75c
-Compilation : 20250401155207
+Version     : cf8c169db
+Compilation : 20250404154304
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -214,6 +214,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [howmanybamdict](HowManyBamDict.md) | finds if there's are some differences in the sequence dictionaries. | 20131108 | 20201021 |
 | [htsfreemarker](HtsVelocity.md) | Apply apache velocity to VCF/BAM/JSON files. | 20230616 | 20230616 |
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
+| [jbrowse2](JBrowse2Server.md) | create a run a local instance of jbrowse2 | 20250404 | 20250404 |
 | [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20230815 |
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
 | [kg2gff](KgToGff.md) | Convert UCSC genpred/knowngene file to gff3 or gtf | 20210106 | 20250324 |
@@ -233,7 +234,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 | [qqplotter](QQPlotter.md) | plot QQplot | 20250324 | 20250324 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
-| [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250401 |
+| [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250403 |
 | [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250320 |
 | [regeniemakeannot](RegenieMakeAnnot.md) | Create annotation files for regenie from a TSV input file | 20250311 | 20250320 |
 | [regenieslidingannot](RegenieSlidingAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |

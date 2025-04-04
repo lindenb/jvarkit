@@ -57,6 +57,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.net.ContentType;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -75,12 +76,26 @@ import htsjdk.variant.vcf.VCFHeader;
 BEGIN_DOC
 
 
+## Example
+
+```
+java -jar dist/jeter12.jar -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam
+```
+
 END_DOC
 */
+@Program(name="jbrowse2",
+description="create a run a local instance of jbrowse2",
+keywords={"jbrowse","browser","genome"},
+creationDate="20250404",
+modificationDate="20250404",
+jvarkit_amalgamion = true,
+generate_doc = true
+)
 public class JBrowse2Server  extends Launcher {
 	private static final Logger LOG = Logger.build(JBrowse2Server.class).make();
 	@Parameter(names="--zip",description="JBrowse2 archive source")
-	private String jbrowse2url = "https://github.com/GMOD/jbrowse-components/releases/download/v3.0.3/jbrowse-web-v3.0.3.zip";
+	private String jbrowse2url = "https://github.com/GMOD/jbrowse-components/releases/download/v3.2.0/jbrowse-web-v3.2.0.zip";
 	@Parameter(names="--port",description="server port.")
 	private int serverPort = 8080;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
@@ -320,6 +335,7 @@ public class JBrowse2Server  extends Launcher {
 		}
 	
 	
+	@SuppressWarnings("serial")
 	@Override
 	public int doWork(final List<String> args) {
 
@@ -339,6 +355,7 @@ public class JBrowse2Server  extends Launcher {
 					for(ZipEntry ze=zipin.getNextEntry();ze!=null;ze=zipin.getNextEntry()) {
 						if(ze.isDirectory()) continue;
 						final String fname=ze.getName();
+						if(fname.startsWith("test_data")) continue;
 						if(fname.endsWith(FileExtensions.BAM)) continue;
 						if(fname.endsWith(FileExtensions.BAI_INDEX)) continue;
 						if(fname.endsWith(FileExtensions.TABIX_INDEX)) continue;
@@ -596,7 +613,7 @@ public class JBrowse2Server  extends Launcher {
 		    LOG.info("Starting server "+getProgramName()+" on port "+this.serverPort);
 		    server.start();
 		    LOG.info("Server started. Press Ctrl-C to stop. Check your proxy settings ."
-		    		+ " Open a web browser at http://localhost:"+this.serverPort+"/jbrowse2 .");
+		    		+ " Open a web browser at http://localhost:"+this.serverPort+"/ .");
 		    server.join();
 		    stop.run();
 		    return 0;
