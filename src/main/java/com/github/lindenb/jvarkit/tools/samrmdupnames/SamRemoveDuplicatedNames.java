@@ -116,9 +116,9 @@ END_DOC
 	description="remove duplicated names in sorted BAM",
 		keywords={"sam","bam"},
 		modificationDate="20221207",
-		creationDate="20221207",
+		creationDate="20240405",
 		jvarkit_amalgamion = true,
-		biostars = {9558284},
+		biostars = {9558284,9610986},
 		menu="BAM Manipulation"
 		)
 public class SamRemoveDuplicatedNames extends Launcher {
@@ -190,16 +190,22 @@ public class SamRemoveDuplicatedNames extends Launcher {
 					}
 				}
 			}
-			else
+			
+		else
 			{
 			int x=0;
 			while(x +1 < buffer.size()) {
-				final SAMRecord rec1 = buffer.get(x);
+				SAMRecord best_mapq = buffer.get(x);
 				int y = x+1;
 				while(y < buffer.size()) {
 					final SAMRecord rec2 = buffer.get(y);
-					final boolean same_name = sameRead(rec1,rec2);
+					final boolean same_name = sameRead(best_mapq,rec2);
 					if(same_name) {
+						//update 20250405, read at[y] as better	MAPQ than read[x], just keep that read[y]
+						if(best_mapq.getMappingQuality() < rec2.getMappingQuality()) {
+							best_mapq  = rec2;
+							buffer.set(x, best_mapq);
+							}
 						buffer.remove(y);
 						n_removed++;
 						}
