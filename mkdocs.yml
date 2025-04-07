@@ -250,6 +250,7 @@ nav:
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
         - "vcfbraiding" : VcfBraiding.md
+        - "vcfburdencnv" : VcfBurdenCNV.md
         - "vcfburdenfisherh" : VcfBurdenFisherH.md
         - "vcfburdenmaf" : VcfBurdenMAF.md
         - "vcfburdenslidingwindow" : VcfBurdenSlidingWindow.md

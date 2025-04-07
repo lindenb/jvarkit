@@ -55,12 +55,13 @@ Usage: samrmdupnames [options] Files
 ## See also in Biostars
 
  * [https://www.biostars.org/p/9558284](https://www.biostars.org/p/9558284)
+ * [https://www.biostars.org/p/9610986](https://www.biostars.org/p/9610986)
 
 
 
 ## Creation Date
 
-20221207
+20240405
 
 ## Source code 
 

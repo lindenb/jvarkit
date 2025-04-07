@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Burden
+Burden on C?V 
 
 
 ## Usage
@@ -47,7 +47,7 @@ Usage: vcfburdencnv [options] Files
       do not display BED line if fisher > 'treshold'
       Default: 1.0E-5
     --vcfs
-      path to vcfs. VCF must be indexed, one sample per vcf.
+      path to vcfs. VCF must be indexed, one sample per vcf (e.g MANTA).
     --version
       print version and exit
 

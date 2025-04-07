@@ -127,6 +127,7 @@ import com.github.lindenb.jvarkit.tools.burden.VcfBurdenFisherH;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenMAF;
 import com.github.lindenb.jvarkit.tools.burden.VcfBurdenSlidingWindow;
 import com.github.lindenb.jvarkit.tools.burden.VcfMoveFiltersToInfo;
+import com.github.lindenb.jvarkit.tools.burdencnv.VcfBurdenCNV;
 import com.github.lindenb.jvarkit.tools.cadd.VcfCadd;
 import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
 import com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix;
@@ -878,6 +879,7 @@ public class JvarkitCentral {
 		command(VariantsInWindow.class);
 		command(VcfAncestralAllele.class);
 		command(VcfMultiToOne.class);
+		command(VcfBurdenCNV.class);
 		command(VcFilterGenes.class);
 		command(VcfBurdenSlidingWindow.class);
 		command(Vcf2Xml.class);

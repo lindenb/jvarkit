@@ -84,7 +84,7 @@ Still in beta. Do not use.
 END_DOC
 */
 @Program(name="vcfburdencnv",
-		description="Burden",
+		description="Burden on C?V ",
 		keywords={"vcf","burden","cnv"},
 		creationDate = "20250404",
 		modificationDate = "20250407",
@@ -97,7 +97,7 @@ public class VcfBurdenCNV
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"--vcfs"},description="path to vcfs. VCF must be indexed, one sample per vcf.")
+	@Parameter(names={"--vcfs"},description="path to vcfs. VCF must be indexed, one sample per vcf (e.g MANTA).")
 	private Path vcfList = null;
 	@ParametersDelegate
 	private CasesControls caseControls = new CasesControls();

@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : cf8c169db
-Compilation : 20250404154304
+Version     : 91b1292c1
+Compilation : 20250407153101
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -261,6 +261,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
 | [vcf2hilbert](VcfToHilbert.md) | Plot a Hilbert Curve from a VCF file as SVG | 20171201 | 20240517 |
 | [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
+| [vcfburdencnv](VcfBurdenCNV.md) | Burden on C?V | 20250404 | 20250407 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |
 | [vcfburdenslidingwindow](VcfBurdenSlidingWindow.md) | apply fisher test on VCF using a sliding window | 20190920 | 20231213 |
 | [vcffilterbyliftover](VcfFilterByLiftOver.md) | Add FILTER(s) to a variant when it is known to map elsewhere after liftover. | 20190418 | 20210603 |
@@ -361,7 +362,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [sam2tsv](Sam2Tsv.md) | Prints the SAM alignments as a TAB delimited file. | 20170712 | 20250327 |
 | [samextractclip](SamExtractClip.md) | Extract Soft Clipped Sequences from a SAM. Ouput is a FASTQ | 20140228 | 20240524 |
 | [samgrep](SamGrep.md) | grep read-names in a bam file | 20130506 | 20210726 |
-| [samrmdupnames](SamRemoveDuplicatedNames.md) | remove duplicated names in sorted BAM | 20221207 | 20221207 |
+| [samrmdupnames](SamRemoveDuplicatedNames.md) | remove duplicated names in sorted BAM | 20240405 | 20221207 |
 | [samviewwithmate](SamViewWithMate.md) | Extract reads within given region(s), and their mates | 20190207 | 20250219 |
 | [sortsamrefname](SortSamRefName.md) | Sort a BAM on chromosome/contig and then on read/querty name | 20150812 | 20210312 |
 | [swingbamcov](SwingBamCov.md) | Bam coverage viewer using Java Swing UI | 20210420 | 20220513 |
