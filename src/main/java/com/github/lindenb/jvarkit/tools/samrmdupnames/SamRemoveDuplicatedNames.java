@@ -36,42 +36,9 @@ import java.util.List;
 BEGIN_DOC
 
 
-### Examples
+## Warning
 
-
-#### Example 1
-
-
-```
-
-java -jar  dist/samgrep.jar -R r001  -- samtools-0.1.18/examples/toy.sam 
-
-@HD     VN:1.4  SO:unsorted
-@SQ     SN:ref  LN:45
-@SQ     SN:ref2 LN:40
-@PG     ID:0    PN:com.github.lindenb.jvarkit.tools.samgrep.SamGrep     VN:dac03b80e9fd88a15648b22550e57d10c9bed725     CL:-R r001 samtools-0.1.18/examples/toy.sam
-r001    163     ref     7       30      8M4I4M1D3M      =       37      39      TTAGATAAAGAGGATACTG     *       XX:B:S,12561,2,20,112
-r001    83      ref     37      30      9M      =       7       -39     CAGCGCCAT       *
-
-```
-
-
-#### Example 4
-
-
-```
-
-java -jar  dist/samgrep.jar -R r001 -- -n 1 samtools-0.1.18/examples/toy.sam 
-
-@HD     VN:1.4  SO:unsorted
-@SQ     SN:ref  LN:45
-@SQ     SN:ref2 LN:40
-@PG     ID:0    PN:com.github.lindenb.jvarkit.tools.samgrep.SamGrep     VN:dac03b80e9fd88a15648b22550e57d10c9bed725     CL:-R r001 -n 1 samtools-0.1.18/examples/toy.sam
-r001    163     ref     7       30      8M4I4M1D3M      =       37      39      TTAGATAAAGAGGATACTG     *       XX:B:S,12561,2,20,112
-
-```
-
-
+this tool might break the valid pairs of the bam
 
 
 

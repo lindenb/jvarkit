@@ -15,6 +15,7 @@ workflow {
 		).mix(rotavirus_bams.map{it.replaceAll("\\.bam",".vcf.gz")})
 
 	TEST_BAMLEFTALIGN("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("--filter none","--filter only ","--filter discard","--regions RF02:1-10")))
+	TEST_BIOSTAR84452("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("-t X2")))
 	TEST_DICT2BED(rotavirus_bams.combine(Channel.of("")))
 	TEST_FINDALLCOVERAGEATPOS("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.collect(),Channel.of("-p 'RF01:100'"))
 	TEST_GTF2BED(Channel.fromPath("${params.testDir}/Homo_sapiens.GRCh37.87.gtf.gz").combine(Channel.of("-c 'return gene_id' ")))
@@ -40,6 +41,21 @@ process TEST_BAMLEFTALIGN {
 	${jvarkit("bamleftalign")} ${args} -R '${fasta}' "${bam}" > TMP/jeter.sam
 	"""
 	}
+
+
+process TEST_BIOSTAR84452 {
+        tag "${bam}"
+        afterScript "rm -rf TMP"
+        input:
+                val(fasta)
+                tuple val(bam),val(args)
+        script:
+        """
+        mkdir -p TMP
+        ${jvarkit("biostar84452")} ${args} -R '${fasta}' "${bam}" > TMP/jeter.sam
+        """
+        }
+
 
 process TEST_SAMJDK {
 	tag "${bam}"

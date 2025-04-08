@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 91b1292c1
-Compilation : 20250407153101
+Version     : 39e892728
+Compilation : 20250408174502
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -110,11 +110,11 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar77828](Biostar77828.md) | Divide the human genome among X cores, taking into account gaps |  |  |
 | [biostar78285](Biostar78285.md) | Extract BAMs coverage as a VCF file. |  |  |
 | [biostar81455](Biostar81455.md) | Defining precisely the exonic genomic context based on a position . | 20130918 | 20200603 |
-| [biostar84452](Biostar84452.md) | remove clipped bases from a BAM file |  |  |
-| [biostar84786](Biostar84786.md) | Matrix transposition |  |  |
+| [biostar84452](Biostar84452.md) | remove clipped bases from a BAM file |  | 20250408 |
+| [biostar84786](Biostar84786.md) | Matrix transposition |  | 20250408 |
 | [biostar86363](Biostar86363.md) | Set genotype of specific sample/genotype comb to unknown in multisample vcf file. See http://www.biostars.org/p/86363/ |  |  |
 | [biostar86480](Biostar86480.md) | Genomic restriction finder | 20131114 | 20220426 |
-| [biostar90204](Biostar90204.md) | Bam version of linux split. |  |  |
+| [biostar90204](Biostar90204.md) | Bam version of linux split. |  | 20250408 |
 | [biostar9462889](Biostar9462889.md) | Extracting reads from a regular expression in a bam file | 20210402 | 20210402 |
 | [biostar9469733](Biostar9469733.md) | Extract reads mapped within chosen intronic region from BAM file | 20210511 | 20210511 |
 | [biostar9501110](Biostar9501110.md) | Keep reads including/excluding variants from VCF | 20211210 | 20211213 |
@@ -261,7 +261,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcf2bam](VcfToBam.md) | vcf to bam | 20150612 | 20211022 |
 | [vcf2hilbert](VcfToHilbert.md) | Plot a Hilbert Curve from a VCF file as SVG | 20171201 | 20240517 |
 | [vcf2xml](Vcf2Xml.md) | Convert VCF to XML |  | 20230822 |
-| [vcfburdencnv](VcfBurdenCNV.md) | Burden on C?V | 20250404 | 20250407 |
+| [vcfburdencnv](VcfBurdenCNV.md) | Burden on CNV (experimental) | 20250404 | 20250408 |
 | [vcfburdenfisherh](VcfBurdenFisherH.md) | Fisher Case /Controls per Variant | 20160418 | 20200713 |
 | [vcfburdenslidingwindow](VcfBurdenSlidingWindow.md) | apply fisher test on VCF using a sliding window | 20190920 | 20231213 |
 | [vcffilterbyliftover](VcfFilterByLiftOver.md) | Add FILTER(s) to a variant when it is known to map elsewhere after liftover. | 20190418 | 20210603 |

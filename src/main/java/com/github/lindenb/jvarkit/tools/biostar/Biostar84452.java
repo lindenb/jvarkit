@@ -25,28 +25,21 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.function.Function;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
+import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.SAMException;
-import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 
 /**
 BEGIN_DOC
@@ -91,23 +84,25 @@ END_DOC
 	biostars=84452,
 	description="remove clipped bases from a BAM file",
 	keywords={"sam","bam","clip"},
+	modificationDate = "20250408",
 	jvarkit_amalgamion =  true,
 	menu="Biostars"
 	)
-public class Biostar84452 extends Launcher
+public class Biostar84452 extends OnePassBamLauncher
 	{
 	private static final Logger LOG = Logger.build(Biostar84452.class).make();
 	
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-	
-	@ParametersDelegate
-	private WritingBamArgs WritingBamArgs=new WritingBamArgs();
 	@Parameter(names={"-t","--tag"},description="tag to flag samrecord as processed")
 	private String customTag=null;
 	
+	
 	@Override
-	public int doWork(final List<String> args) {
+	protected Logger getLogger() {
+		return LOG;
+		}
+	
+	@Override
+	protected int beforeSam() {
 		if(!StringUtil.isBlank(this.customTag))
 			{
 			if(customTag.length()!=2 || !customTag.startsWith("X"))
@@ -116,113 +111,84 @@ public class Biostar84452 extends Launcher
 				return -1;
 				}
 			}
-		SAMFileWriter sfw=null;
-		SamReader sfr=null;
-		try
-			{
-			sfr = super.openSamReader(oneFileOrNull(args));
-			SAMFileHeader header=sfr.getFileHeader();
-
-			sfw = this.WritingBamArgs.openSAMFileWriter(outputFile, header, true);
-			
-			
-			long nChanged=0L;
-			final SAMSequenceDictionaryProgress progress = new SAMSequenceDictionaryProgress(header).logger(LOG);
-			SAMRecordIterator iter=sfr.iterator();
-			while(iter.hasNext())
-				{
-				final SAMRecord rec=progress.watch(iter.next());
-				if(rec.getReadUnmappedFlag())
-					{
-					sfw.addAlignment(rec);
-					continue;
-					}
-				
-				final Cigar cigar=rec.getCigar();
-				if(cigar==null)
-					{
-					sfw.addAlignment(rec);
-					continue;
-					}
-				final String originalCigarSting = rec.getCigarString();
-				final byte bases[]= rec.getReadBases();
-				if(bases==null)
-					{
-					sfw.addAlignment(rec);
-					continue;
-					}
-				
-				final ArrayList<CigarElement> L=new ArrayList<CigarElement>();
-				final ByteArrayOutputStream nseq=new ByteArrayOutputStream();
-				final ByteArrayOutputStream nqual=new ByteArrayOutputStream();
-				
-				final byte quals[]= rec.getBaseQualities();
-				int indexBases=0;
-				for(final CigarElement ce:cigar.getCigarElements())
-					{
-					switch(ce.getOperator())
-						{
-						case S: indexBases+=ce.getLength(); break;
-						case H: //cont
-						case P: //cont
-						case N: //cont
-						case D:
-							{
-							L.add(ce);
-							break;
-							}
-							
-						case I:
-						case EQ:
-						case X:
-						case M:
-							{
-							L.add(ce);
-							nseq.write(bases,indexBases,ce.getLength());
-							if(quals.length!=0) nqual.write(quals,indexBases,ce.getLength());
-							indexBases+=ce.getLength(); 
-							break;
-							}
-						default:
-							{
-							throw new SAMException("Unsupported Cigar opertator:"+ce.getOperator());
-							}
-						}
-					
-					}
-				if(indexBases!=bases.length)
-					{
-					throw new SAMException("ERRROR "+rec.getCigarString());
-					}
-				if(L.size()==cigar.numCigarElements())
-					{
-					sfw.addAlignment(rec);
-					continue;
-					}
-				++nChanged;
-				if(!StringUtil.isBlank(this.customTag)) rec.setAttribute(this.customTag,originalCigarSting);
-				rec.setCigar(new Cigar(L));
-				rec.setReadBases(nseq.toByteArray());
-				if(quals.length!=0)  rec.setBaseQualities(nqual.toByteArray());
-				sfw.addAlignment(rec);
-				}
-			progress.finish();
-			iter.close();
-			LOG.info("Num records changed:"+nChanged);
-			}
-		catch(final Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(sfw);
-			CloserUtil.close(sfr);
-			}
-		return 0;
+		return super.beforeSam();
 		}
 	
+	
+	@Override
+	protected Function<SAMRecord, List<SAMRecord>> createSAMRecordFunction() {
+		return rec->{
+			if(rec.getReadUnmappedFlag())
+				{
+				return Collections.singletonList(rec);
+				}
+			
+			final Cigar cigar=rec.getCigar();
+			if(cigar==null)
+				{
+				return Collections.singletonList(rec);
+				}
+			final String originalCigarSting = rec.getCigarString();
+			final byte bases[]= rec.getReadBases();
+			if(bases==null || SAMRecord.NULL_SEQUENCE.equals(bases))
+				{
+				return Collections.singletonList(rec);
+				}
+			
+			final ArrayList<CigarElement> L=new ArrayList<CigarElement>();
+			final ByteArrayOutputStream nseq=new ByteArrayOutputStream();
+			final ByteArrayOutputStream nqual=new ByteArrayOutputStream();
+			
+			final byte quals[]= rec.getBaseQualities();
+			int indexBases=0;
+			for(final CigarElement ce:cigar.getCigarElements())
+				{
+				switch(ce.getOperator())
+					{
+					case S: indexBases+=ce.getLength(); break;
+					case H: //cont
+					case P: //cont
+					case N: //cont
+					case D:
+						{
+						L.add(ce);
+						break;
+						}
+					case I:
+					case EQ:
+					case X:
+					case M:
+						{
+						L.add(ce);
+						nseq.write(bases,indexBases,ce.getLength());
+						if(quals.length!=0) nqual.write(quals,indexBases,ce.getLength());
+						indexBases+=ce.getLength(); 
+						break;
+						}
+					default:
+						{
+						throw new SAMException("Unsupported Cigar opertator:"+ce.getOperator());
+						}
+					}
+				
+				}
+			if(indexBases!=bases.length)
+				{
+				throw new SAMException("ERRROR "+rec.getCigarString());
+				}
+			if(L.size()==cigar.numCigarElements())
+				{
+				return Collections.singletonList(rec);
+				}
+			if(!StringUtil.isBlank(this.customTag)) rec.setAttribute(this.customTag,originalCigarSting);
+			rec.setCigar(new Cigar(L));
+			rec.setReadBases(nseq.toByteArray());
+			if(quals.length!=0)  rec.setBaseQualities(nqual.toByteArray());
+			
+			return Collections.singletonList(rec);
+			};
+		}
+		
 	public static void main(final String[] args)
 		{
 		new Biostar84452().instanceMainWithExit(args);

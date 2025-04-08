@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Burden on C?V 
+Burden on CNV (experimental)
 
 
 ## Usage
@@ -46,8 +46,6 @@ Usage: vcfburdencnv [options] Files
     --treshold
       do not display BED line if fisher > 'treshold'
       Default: 1.0E-5
-    --vcfs
-      path to vcfs. VCF must be indexed, one sample per vcf (e.g MANTA).
     --version
       print version and exit
 
@@ -93,6 +91,27 @@ The current reference is:
 
 
 Still in beta. Do not use.
+
+## INPUT
+
+input is the set of vcf.gz indexed files or
+one file with the suffix '.list' containing the path to the vcfs
+
+## Example
+
+```
+wget -O - "https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/genome_sv/gnomad.v4.1.sv.sites.bed.gz" | gunzip -c |\
+	awk -F '\t' '(NR>1 && $45="DEL" && $177>0.01 && $177!="NA") {L=int($3)-int($2);printf("%s\t%s\t%s\t%s\n",$1,$2,$3,(L>100?0.7:0.1));}' |\
+	gzip > work/known.bed.gz
+
+
+find MANTADIR -name "*.diploidSV.vcf.gz" > work/vcfs.list
+java -jar jvarkit.jar vcfburdencnv \
+ 	--cases work/cases.txt \
+ 	--controls work/controls.txt \
+ 	--known work/known.bed.gz \
+ 	work/vcfs.list
+```
 
 
 

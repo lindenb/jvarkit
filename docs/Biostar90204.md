@@ -47,6 +47,9 @@ Usage: biostar90204 [options] Files
       Possible Values: [BAM, SAM, CRAM]
     --version
       print version and exit
+    -R
+      Indexed fasta Reference file. This file must be indexed with samtools 
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
 
 ```
 
@@ -98,7 +101,7 @@ The current reference is:
 ##Example
 
 ```bash
-$ java -jar dist/biostar90204.jar -m bam.manifest -n 3 -a 5 samtools-0.1.18/examples/toy.sam
+$ java -jar dist/jvarkit.jar biostar90204 -m bam.manifest -n 3 -a 5 samtools-0.1.18/examples/toy.sam
 
 $ cat bam.manifest
 _splitbam.00001.bam	1	3

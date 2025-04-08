@@ -26,10 +26,11 @@ package com.github.lindenb.jvarkit.tools.biostar;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.io.Reader;
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 
@@ -38,7 +39,6 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 
 import com.beust.jcommander.Parameter;
@@ -62,6 +62,7 @@ END_DOC
 	description="Matrix transposition",
 	keywords={"matrix","util"},
 	jvarkit_amalgamion =  true,
+	modificationDate = "20250408",
 	menu="Biostars"
 	)
 public class Biostar84786 extends Launcher
@@ -69,7 +70,7 @@ public class Biostar84786 extends Launcher
 	private static final Logger LOG = Logger.build(Biostar84786.class).make();
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names="-d",description="column delimiter")
 	private char delim='\t';
 	
@@ -125,13 +126,12 @@ public class Biostar84786 extends Launcher
 		}
 
 	
-	private int doWork(String filename,final String DELIM,PrintWriter pw) {
+	private int doWork(String filename,final String DELIM,final PrintWriter pw) {
 		if(DELIM.length()!=1)
 			{
 			LOG.error("DELIM must have length==1 . Got "+DELIM.length());
 			return -1;
 			}
-		InputStream in=null;
 		SortingCollection<Cell> sorter=null;
 		final  Comparator<Cell> comparator=new Comparator<Biostar84786.Cell>() {
 			@Override
@@ -151,71 +151,62 @@ public class Biostar84786 extends Launcher
 				Cell.class, new CellCodec(), comparator,10000
 				);
 			sorter.setDestructiveIteration(true);
-			if(filename!=null)
-				{
-				LOG.info("opening "+filename);
-				in=IOUtils.openURIForReading(filename);
-				}
-			else
-				{
-				in = stdin();
-				}
-			long row=0L;
-			long col=0L;
-			StringBuilder b=new StringBuilder();
-			for(;;)
-				{
-				int c=in.read();
-				if(c=='\n' || c==-1)
+			try(Reader in= (filename==null?new InputStreamReader(stdin()):IOUtils.openURIForBufferedReading(filename))) {
+				long row=0L;
+				long col=0L;
+				StringBuilder b=new StringBuilder();
+				for(;;)
 					{
-					sorter.add(new Cell(row,col,b));
-					row++;
-					col=0;
-					b.setLength(0);
-					if(c==-1) break;
-					if(row%10000==0) LOG.info("row:"+row);
+					int c=in.read();
+					if(c=='\n' || c==-1)
+						{
+						sorter.add(new Cell(row,col,b));
+						row++;
+						col=0;
+						b.setLength(0);
+						if(c==-1) break;
+						if(row%10000==0) LOG.info("row:"+row);
+						}
+					else if(c==delimiter)
+						{
+						sorter.add(new Cell(row,col,b));
+						b.setLength(0);
+						col++;
+						}
+					else
+						{
+						b.append((char)c);
+						}
 					}
-				else if(c==delimiter)
-					{
-					sorter.add(new Cell(row,col,b));
-					b.setLength(0);
-					col++;
-					}
-				else
-					{
-					b.append((char)c);
-					}
-				}
-			sorter.doneAdding();
-			if(filename!=null) in.close();
-			in=null;
-			CloseableIterator<Cell> iter=sorter.iterator();
-			long curr_col=-1L;
-			long x=0L;
-			for(;;)
-				{
+				sorter.doneAdding();
 				
-				if(!iter.hasNext())
-					{
-					pw.println();
-					break;
+				try(CloseableIterator<Cell> iter=sorter.iterator()) {
+					long curr_col=-1L;
+					long x=0L;
+					for(;;)
+						{
+						
+						if(!iter.hasNext())
+							{
+							pw.println();
+							break;
+							}
+						Cell c=iter.next();
+						if(c.col!=curr_col)
+							{
+							if(curr_col!=-1L) pw.println();
+							x=0L;
+							curr_col=c.col;
+							}
+						if(x>0L) pw.print(DELIM);
+						pw.print(c.content);
+						x++;
+						}
 					}
-				Cell c=iter.next();
-				if(c.col!=curr_col)
-					{
-					if(curr_col!=-1L) pw.println();
-					x=0L;
-					curr_col=c.col;
-					}
-				if(x>0L) pw.print(DELIM);
-				pw.print(c.content);
-				x++;
+				pw.flush();
 				}
-			iter.close();
-			pw.flush();
-			LOG.info("Done.");
 			} 
-		catch (Exception e)
+		catch (Throwable e)
 			{
 			LOG.error(e);
 			return -1;
@@ -223,14 +214,11 @@ public class Biostar84786 extends Launcher
 		finally
 			{
 			if(sorter!=null) sorter.cleanup();
-			if(in!=null) CloserUtil.close(in);
 			}
 		return 0;
 	}
 
-	/**
-	 * @param args
-	 */
+	
 	public static void main(String[] args) {
 		new Biostar84786().instanceMainWithExit(args);
 
@@ -239,23 +227,18 @@ public class Biostar84786 extends Launcher
 	@Override
 	public int doWork(List<String> args) {
 		String delim="\t";
-		PrintWriter pw=null;
 		try
 			{
-			pw= openFileOrStdoutAsPrintWriter(outputFile);
-			int ret= doWork(oneFileOrNull(args),delim,pw);
-			pw.flush();
-			pw.close();pw=null;
-					return ret;
+			try(PrintWriter pw= openPathOrStdoutAsPrintWriter(outputFile)) {
+				int ret= doWork(oneFileOrNull(args),delim,pw);
+				pw.flush();
+				return ret;
+				}
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(pw);	
 			}
 		}
 	

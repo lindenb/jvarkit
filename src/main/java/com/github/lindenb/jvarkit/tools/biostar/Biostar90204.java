@@ -28,12 +28,14 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.biostar;
 
-import java.io.File;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
@@ -42,11 +44,12 @@ import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SamReader;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SAMRecordIterator;
-import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.SamInputResource;
+import htsjdk.samtools.util.CloseableIterator;
 
 
 /**
@@ -55,7 +58,7 @@ BEGIN_DOC
 ##Example
 
 ```bash
-$ java -jar dist/biostar90204.jar -m bam.manifest -n 3 -a 5 samtools-0.1.18/examples/toy.sam
+$ java -jar dist/jvarkit.jar biostar90204 -m bam.manifest -n 3 -a 5 samtools-0.1.18/examples/toy.sam
 
 $ cat bam.manifest
 _splitbam.00001.bam	1	3
@@ -81,6 +84,7 @@ END_DOC
 @Program(name="biostar90204",
 	keywords={"sam","bam","split","util"},
 	description="Bam version of linux split.",
+	modificationDate = "20250408",
 	biostars=90204,
 	jvarkit_amalgamion =  true,
 	menu="Biostars"
@@ -88,13 +92,14 @@ END_DOC
 public class Biostar90204 extends Launcher
 	{
 	private static final Logger LOG = Logger.build(Biostar90204.class).make();
-
+	@Parameter(names= {"-R"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	private Path referencePath =null;
 	@Parameter(names= {"-p","--prefix"},description="(prefix) output file prefix.")
 	private String prefix="_splitbam";
 	@Parameter(names= {"-a","--padding"},description="'0' padding length")
 	private int suffix_length=2;
 	@Parameter(names= {"-M","--manifest","-o"},description="Manifest file. Optional")
-	private File manifestFile=null;
+	private Path manifestFile=null;
 	@Parameter(names={"--filter"},description=SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter samRecordFilter = SamRecordJEXLFilter.buildAcceptAll();
 	@Parameter(names= {"-n","--count"},description="Number of records per file.")
@@ -120,72 +125,64 @@ public class Biostar90204 extends Launcher
 		
 		
 		SAMFileWriter sfw=null;
-		SAMRecordIterator iter=null;
-		SamReader samFileReader=null;
-		PrintWriter manifest=new PrintWriter(new NullOuputStream());
+		
 		try
 			{
-			samFileReader = super.openSamReader(oneFileOrNull(args));
-			final SAMFileHeader header=samFileReader.getFileHeader();
-			
-			
-			int split_file_number=0;
-			long nReads=0L;
-			iter=samFileReader.iterator();
-			
-			if(this.manifestFile!=null)
-				{
-				manifest.close();
-				manifest=new PrintWriter(manifestFile);
-				}
-			
-			while(iter.hasNext())
-				{
-				final SAMRecord rec=iter.next();
-				if(this.samRecordFilter.filterOut(rec)) continue;
-				++nReads;
-				if(sfw==null)
-					{
-					split_file_number++;
-					final String pathname=(this.prefix.isEmpty()?"":this.prefix+".")+String.format("%0"+suffix_length+"d", split_file_number)+".bam";
-					final File out=new File(pathname);
-					manifest.write(pathname);
-					manifest.write("\t"+(nReads)+"\t");
-					
-					final SAMFileHeader header2=header.clone();
-					header2.addComment("SPLIT:"+split_file_number);
-					header2.addComment("SPLIT:Starting from Read"+nReads);
-					
-					sfw=this.writingBamArgs.openSAMFileWriter(out,header2, true);
+			final SamReaderFactory srf = super.createSamReaderFactory();
+			srf.referenceSequence(this.referencePath);
+			final String input = oneFileOrNull(args);
+			try(SamReader samFileReader = srf.open(input==null?SamInputResource.of(stdin()):SamInputResource.of(Paths.get(input)))) {
+				final SAMFileHeader header=samFileReader.getFileHeader();
+				int split_file_number=0;
+				long nReads=0L;
+				try(PrintWriter manifest=(this.manifestFile==null? new PrintWriter(new NullOuputStream()):IOUtils.openPathForPrintWriter(manifestFile))) {
+					try(CloseableIterator<SAMRecord> iter=samFileReader.iterator()) {
+						while(iter.hasNext())
+							{
+							final SAMRecord rec=iter.next();
+							if(this.samRecordFilter.filterOut(rec)) continue;
+							++nReads;
+							if(sfw==null)
+								{
+								split_file_number++;
+								final String pathname=(this.prefix.isEmpty()?"":this.prefix+".")+String.format("%0"+suffix_length+"d", split_file_number)+".bam";
+								final Path out= Paths.get(pathname);
+								manifest.write(pathname);
+								manifest.write("\t"+(nReads)+"\t");
+								
+								final SAMFileHeader header2=header.clone();
+								header2.addComment("SPLIT:"+split_file_number);
+								header2.addComment("SPLIT:Starting from Read"+nReads);
+								
+								sfw = this.writingBamArgs.openSamWriter(out,header2, true);
+								}
+							sfw.addAlignment(rec);
+							
+							if(nReads%record_per_file==0)
+								{
+								sfw.close();
+								manifest.write((nReads)+"\n");
+								sfw=null;
+								}
+							}
+						}
+					if(sfw!=null)
+						{
+						sfw.close();
+						manifest.write((nReads)+"\n");
+						}
+					manifest.flush();
 					}
-				sfw.addAlignment(rec);
-				
-				if(nReads%record_per_file==0)
-					{
-					sfw.close();
-					manifest.write((nReads)+"\n");
-					sfw=null;
-					}
-				
 				}
-			if(sfw!=null)
-				{
-				sfw.close();
-				manifest.write((nReads)+"\n");
-				}
-			manifest.flush();
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(manifest);
-			CloserUtil.close(sfw);
-			CloserUtil.close(iter);
-			CloserUtil.close(samFileReader);
+			if(sfw!=null) try {sfw.close();}catch(Throwable err) {}
 			}
 		return 0;
 		}
