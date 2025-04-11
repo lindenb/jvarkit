@@ -173,6 +173,7 @@ libraries.put("htsjdk",new Library().
 	add("commons-logging:commons-logging:jar:1.3.0").
 	add("org.apache.commons:commons-jexl:jar:2.1.1").
 	add("org.apache.commons:commons-compress:jar:1.25.0").
+	add("com.github.luben:zstd-jni:jar:1.5.5-10").// for ZSTD compression used by BGEN format
 	add("org.tukaani:xz:jar:1.9").
 	add("org.json:json:jar:20231013").
 	add("org.openjdk.nashorn:nashorn-core:jar:15.4").
