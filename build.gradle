@@ -1927,7 +1927,7 @@ all2.add( task("jeter14", type: CompileJVarkit) {
 	});
 
 all2.add( task("jeter15", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.gnomad.coocurence.VcfGnomadCoOccurence"
+	mainClass = "com.github.lindenb.jvarkit.tools.vcfukbb.VcfUkbiobank"
 	jarLibs = combineLibs("htsjdk","testng","jcommander","gson","httpclient")
 	});
 
