@@ -301,6 +301,7 @@ nav:
         - "vcftail" : VcfTail.md
         - "vcftbi2bed" : VcfTbiToBed.md
         - "vcftrio" : VCFTrios.md
+        - "vcfukbb" : VcfUkbiobank.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
         - "wib2bedgraph" : WibToBedGraph.md

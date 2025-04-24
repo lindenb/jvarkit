@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : a5ae46555
-Compilation : 20250411151917
+Version     : a0424e9f5
+Compilation : 20250424102006
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -274,6 +274,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfserver](VcfServer.md) | Web Server displaying VCF file. A web interface for vcf2table | 20171027 | 20220517 |
 | [vcfspliceai](VcfSpliceAI.md) | Annotate VCF with spiceai web service | 20201107 | 20201107 |
 | [vcftbi2bed](VcfTbiToBed.md) | extracts BED for each contig in a tabix-indexed VCF peeking first of last variant for each chromosome. | 20230214 | 20230214 |
+| [vcfukbb](VcfUkbiobank.md) | annotates an VCF with the https://afb.ukbiobank.ac.uk/ ukbiobank server. The server might not like too many requests. Use a your own risk. Doesn't work with jdk17 (?!) | 20250424 | 20250424 |
 | [wib2bedgraph](WibToBedGraph.md) | Extract Wib files to bedgraph or wig | 20230819 | 20230819 |
 | [xcontaminations](XContaminations.md) | For @AdrienLeger2 : cross contamination between samples by looking at the homozygous genotypes. |  |  |
 

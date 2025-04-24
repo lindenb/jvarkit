@@ -325,6 +325,7 @@ import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats;
 import com.github.lindenb.jvarkit.tools.vcfstats.VcfStats2;
 import com.github.lindenb.jvarkit.tools.vcftabixml.VCFTabixml;
 import com.github.lindenb.jvarkit.tools.vcftrios.VCFTrios;
+import com.github.lindenb.jvarkit.tools.vcfukbb.VcfUkbiobank;
 import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekAf;
 import com.github.lindenb.jvarkit.tools.vcfvcf.VcfPeekVcf;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.SwingBamCov;
@@ -921,6 +922,7 @@ public class JvarkitCentral {
 		command(VcfGroupByPopulation.class);
 		command(VcfBraiding.class);
 		command(VcfSamplesPRS.class);
+		command(VcfUkbiobank.class);
 		command(VCFTabixml.class);
 		command(CNVValidatorServer.class);
 		command(VcfBurdenFisherH.class);

@@ -114,5 +114,6 @@ No definition line  Homo sapiens chromosome 19, alternate assembly HuRef        
 ## Cited in:
 
   * Guo, Y., Betzen, B., Salcedo, A. et al. Population genomics of Puccinia graminis f.sp. tritici highlights the role of admixture in the origin of virulent wheat rust races. Nat Commun 13, 6287 (2022). https://doi.org/10.1038/s41467-022-34050-w
+  * Yang, H., Ni, Y., Li, J. et al. Unveiling the mitochondrial genome of Salvia splendens insights into the evolutionary traits within the genus Salvia. Sci Rep 15, 13344 (2025). https://doi.org/10.1038/s41598-025-96637-9
 
 
