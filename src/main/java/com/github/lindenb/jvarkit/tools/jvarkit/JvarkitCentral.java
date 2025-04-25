@@ -286,6 +286,7 @@ import com.github.lindenb.jvarkit.tools.translategff3.TranslateGff3;
 import com.github.lindenb.jvarkit.tools.tss.TSSEnrichment;
 import com.github.lindenb.jvarkit.tools.tview.TViewCmd;
 import com.github.lindenb.jvarkit.tools.ukbiobank.UKBiobankSelectSamples;
+import com.github.lindenb.jvarkit.tools.ukbiobank.UkbiobankDump;
 import com.github.lindenb.jvarkit.tools.uniprot.MapUniProtFeatures;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotFilterJS;
 import com.github.lindenb.jvarkit.tools.uniprot.UniprotToSvg;
@@ -877,6 +878,7 @@ public class JvarkitCentral {
 		command(UniprotToSvg.class);
 		command(UniprotFilterJS.class);
 		command(UKBiobankSelectSamples.class);
+		command(UkbiobankDump.class);
 		command(VariantsInWindow.class);
 		command(VcfAncestralAllele.class);
 		command(VcfMultiToOne.class);

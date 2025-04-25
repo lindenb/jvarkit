@@ -235,6 +235,7 @@ nav:
         - "translategff3" : TranslateGff3.md
         - "tssenrich" : TSSEnrichment.md
         - "tview" : TViewCmd.md
+        - "ukbbdump" : UkbiobankDump.md
         - "ukbiobanksamples" : UKBiobankSelectSamples.md
         - "uniprot2svg" : UniprotToSvg.md
         - "uniprotfilterjs" : UniprotFilterJS.md
