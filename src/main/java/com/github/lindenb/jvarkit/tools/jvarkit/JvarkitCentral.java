@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats;
 import com.github.lindenb.jvarkit.tools.bcftoolsmergebest.BCFToolsMergeBest;
 import com.github.lindenb.jvarkit.tools.bed2vcf.BedToVcf;
 import com.github.lindenb.jvarkit.tools.bedcluster.BedCluster;
+import com.github.lindenb.jvarkit.tools.bedclustername.BedClusterName;
 import com.github.lindenb.jvarkit.tools.bedrenamechr.BedRenameChromosomes;
 import com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv;
 import com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet;
@@ -666,6 +667,7 @@ public class JvarkitCentral {
 		command(BlastToSam.class);
 		command(BlastNToSnp.class);
 		command(BedCluster.class);
+		command(BedClusterName.class);
 		command(BedIndexTabix.class);
 		command(BedNonOverlappingSet.class);
 		command(BedRemoveBed.class);

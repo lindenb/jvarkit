@@ -142,6 +142,11 @@ public class BedLine
 		return Arrays.hashCode(this.tokens);
 		}
 	
+	/** return a copy of the internal String array */
+	public String[] toStringArray() {
+		return Arrays.copyOf(this.tokens, this.tokens.length);
+	}
+	
 	@Override
 	public boolean equals(final Object obj) {
 		if(obj==this) return true;

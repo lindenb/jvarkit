@@ -42,6 +42,7 @@ nav:
         - "bcftoolsmergebest" : BCFToolsMergeBest.md
         - "bed2vcf" : BedToVcf.md
         - "bedcluster" : BedCluster.md
+        - "bedclustername" : BedClusterName.md
         - "bedindextabix" : BedIndexTabix.md
         - "bedliftover" : BedLiftOver.md
         - "bedmergecnv" : BedMergeCnv.md

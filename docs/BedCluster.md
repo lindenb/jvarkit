@@ -118,7 +118,7 @@ The current reference is:
 ## Example
 
 ```
-$ java -jar dist/bedcluster.jar -j 10 -m jeter.mf -o jeter.zip --compress --contig test.bed
+$ java -jar dist/jvarkit.jar bedcluster -j 10 -m jeter.mf -o jeter.zip --compress --contig test.bed
 
 $ head jeter.mf
 

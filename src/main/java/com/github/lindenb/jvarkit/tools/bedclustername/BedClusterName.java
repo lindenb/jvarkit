@@ -23,7 +23,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.bedcluster;
+package com.github.lindenb.jvarkit.tools.bedclustername;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,10 +34,13 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
@@ -62,9 +65,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
-import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.Locatable;
 
 /**
 BEGIN_DOC
@@ -72,44 +73,35 @@ BEGIN_DOC
 ## Example
 
 ```
-$ java -jar dist/jvarkit.jar bedcluster -j 10 -m jeter.mf -o jeter.zip --compress --contig test.bed
+$ gunzip -c src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | awk -F '\t' '$3=="exon"' | \
+	java -jar dist/jvarkit.jar gtf2bed -c 'gene_name' |\
+	java -jar dist/jvarkit.jar bedclustername -o jeter.zip  --size 100 --merge 1
 
-$ head jeter.mf
-
-#chrom	start	end	filename	number_of_records	sum-length	avg-length	stddev-size
-1	57460450	59012406	1_57460451_59012406.000000001.bed.gz	1	1551956	1551956	0
-1	48998526	50489585	1_48998527_50489585.000000002.bed.gz	1	1491059	1491059	0
-1	901876	248790491	1_901877_248790491.000000003.bed.gz	49	1393594	28440	41317
-1	1567473	248154506	1_1567474_248154506.000000004.bed.gz	50	1393602	27872	39042
-1	470970	229841608	1_470971_229841608.000000005.bed.gz	51	1393594	27325	37502
-1	160445	248041507	1_160446_248041507.000000006.bed.gz	51	1393602	27325	37487
-1	5647427	246685894	1_5647428_246685894.000000007.bed.gz	51	1393601	27325	37433
-1	34553	245778447	1_34554_245778447.000000008.bed.gz	51	1393601	27325	37186
-1	696290	247495148	1_696291_247495148.000000009.bed.gz	52	1393594	26799	35931
-
-$ unzip -l jeter.zip | head
+lindenb@okazaki:~/src/jvarkit-git$ unzip -l jeter.zip 
 Archive:  jeter.zip
   Length      Date    Time    Name
 ---------  ---------- -----   ----
-       76  2020-01-31 12:45   1_57460451_59012406.000000001.bed.gz
-       74  2020-01-31 12:45   1_48998527_50489585.000000002.bed.gz
-      487  2020-01-31 12:45   1_901877_248790491.000000003.bed.gz
-      494  2020-01-31 12:45   1_1567474_248154506.000000004.bed.gz
-      494  2020-01-31 12:45   1_470971_229841608.000000005.bed.gz
-      511  2020-01-31 12:45   1_160446_248041507.000000006.bed.gz
-      511  2020-01-31 12:45   1_5647428_246685894.000000007.bed.gz
+     7332  2025-04-28 14:37   cluster.000000001.bed
+     1740  2025-04-28 14:37   cluster.000000002.bed
+     1456  2025-04-28 14:37   cluster.000000003.bed
+---------                     -------
+    10528                     3 files
 
- unzip -p jeter.zip 1_5647428_246685894.000000007.bed.gz | gunzip  -c  |head
-1	5647427	5728355
-1	8921060	8939308
-1	11128527	11133154
-1	13216355	13219581
-1	16787442	16794976
-1	20465818	20476879
-1	21737952	21739786
-1	26145130	26159432
-1	37627163	37627235
-1	38021842	38022108
+
+$ unzip -p jeter.zip cluster.000000002.bed | head
+22	41697718	41697776	ZC3H7B
+22	41716664	41716717	ZC3H7B
+22	41721567	41721601	ZC3H7B
+22	41721724	41721922	ZC3H7B
+22	41723209	41723368	ZC3H7B
+22	41726026	41726107	ZC3H7B
+22	41728174	41732847	ZC3H7B
+22	41734316	41734359	ZC3H7B
+22	41735004	41735195	ZC3H7B
+22	41735819	41736141	ZC3H7B
+
+
+
 ```
 
 
@@ -117,19 +109,18 @@ END_DOC
 
  */
 @Program(
-		name="bedcluster",
-		description="Clusters a BED file into a set of BED files.",
+		name="bedclustername",
+		description="Clusters a BED file into a set of BED files using the 4th column of the bed name.",
 		keywords={"bed","chromosome","contig"},
-		creationDate="20200130",
-		modificationDate="2050129",
-		biostars= {424828},
+		creationDate="2050428",
+		modificationDate="2050428",
 		jvarkit_amalgamion =  true,
 		menu="BED Manipulation"
 		)
-public class BedCluster
+public class BedClusterName
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BedCluster.class).make();
+	private static final Logger LOG = Logger.build(BedClusterName.class).make();
 	private enum FormatOut {BED,BED_GZ,INTERVAL_LIST,INTERVAL_LIST_GZ}
 	@Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile= null;
@@ -145,30 +136,72 @@ public class BedCluster
 	private Path refFaidx = null;
 	@Parameter(names={"-m","--manifest"},description="Manifest Bed file output containing chrom/start/end of each gene")
 	private Path manifestFile = null;
-	@Parameter(names={"--consecutive"},description="When using option --size only use consecutive ordered regions. Default is to find the best region anywhere.")
-	private boolean consecutive_flags = false;
-	@Parameter(names={"--window-size"},description="sliding window size (or use --size of --jobs)."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
-	private long sliding_window_size=-1L;
-	@Parameter(names={"--window-shift"},description="sliding  window shift (or use --size of --jobs)."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
-	private long sliding_window_shift=-1L;
 	@Parameter(names={"--md5-dir","--sub-dir"},description="prevent the creation of too many files in the same directory. Create some intermediate directories based on filename's md5.")
 	private boolean create_md5_dir_flag=false;
+	@Parameter(names={"--merge-distance","--merge"},description="if greater than -1 Merge overlapping record for the same name within a distance of 'x'. " + DistanceParser.OPT_DESCRIPTION, converter = DistanceParser.StringConverter.class)
+	private int merge_distance=-1;
+
 	
 	private int id_generator =0;
 	
-	private static class Cluster extends AbstractList<BedLine>{
-		private long sum_length=0L;
-		private final List<BedLine> intervals = new ArrayList<>();
+	private static class Batch {
+		final String name;
+		private final List<BedLine> beds = new ArrayList<>();
+		Batch(final String name) {
+			this.name=name;
+			}
+		long getLengthOnReference() {
+			return beds.stream().mapToLong(B->B.getLengthOnReference()).sum();
+		}
+		
+		void merge(final int distance) {
+			Collections.sort(beds,(A,B)->Integer.compare(A.getStart(), B.getEnd()));
+			int i=0;
+			while(i+1 < beds.size()) {
+				final BedLine bed0= beds.get(i+0);
+				final BedLine bed1= beds.get(i+1);
+				if(bed0.withinDistanceOf(bed1, distance)) {
+					final String[] tokens = bed0.toStringArray();
+					tokens[1]=String.valueOf(Math.min(bed0.getStart(), bed1.getStart()));
+					tokens[2]=String.valueOf(Math.max(bed0.getEnd(), bed1.getEnd()));
+					beds.set(i,new BedLine(tokens));
+					beds.remove(i+1);
+					}
+				else
+					{
+					i++;
+					}
+				}
+			}
+		
+		public String getUniqContig() {
+			final Set<String> contigs = this.beds.stream().map(B->B.getContig()).collect(Collectors.toSet());
+			if(contigs.size()!=1) {
+				throw new IllegalArgumentException("Cannot group by contig when there is more than one contig per batch "+this.beds);
+				}
+			return contigs.iterator().next();
+			}
 		
 		@Override
-		public boolean add(final BedLine si) {
+		public String toString() {
+			return beds.toString();
+			}
+	}
+	
+	
+	private static class Cluster extends AbstractList<Batch>{
+		private long sum_length=0L;
+		private final List<Batch> intervals = new ArrayList<>();
+		
+		@Override
+		public boolean add(final Batch si) {
 			this.intervals.add(si);
 			this.sum_length+=si.getLengthOnReference();
 			return true;
 		}
 		
 		/** get sum of lengths */
-		long getSumLength(final Locatable malus) {
+		long getSumLength(final Batch malus) {
 			return this.sum_length + (malus==null?0:malus.getLengthOnReference());
 		}
 		/** get average length in cluster */
@@ -189,7 +222,7 @@ public class BedCluster
 			}
 		
 		@Override
-		public BedLine get(int index) {
+		public Batch get(int index) {
 			return this.intervals.get(index);
 			}
 		
@@ -220,44 +253,24 @@ public class BedCluster
 	private long apply_cluster(
 			final PrintWriter manifest,
 			final ArchiveFactory archiveFactory,
-			final List<BedLine> src,
+			final List<Batch> src,
 			final Comparator<BedLine> sorter,
 			final SAMSequenceDictionary dict
 			) throws IOException
 		{
 		long length_out=0L;
 		final List<Cluster> clusters = new ArrayList<>(Math.max(this.number_of_jobs,100));
-		final LinkedList<BedLine> list = new LinkedList<>(src);
+		final LinkedList<Batch> list = new LinkedList<>(src);
 		
-		if( this.consecutive_flags || this.sliding_window_size>0) {
-			Collections.sort(list,sorter);
-			}
-		else
-			{
-			//sort by decreasing size
-			Collections.sort(list,(B1,B2)->Integer.compare(B2.getLengthOnReference(),B1.getLengthOnReference()));
-			}
-		/** SLIDING WINDOW ALGORITHM *************************************/
-		if(this.sliding_window_size>0 || this.sliding_window_shift>0) {
-			int prev_start=-1;
-			for(int x=0;x< src.size();x++) {
-				final BedLine loca = src.get(x);
-				if(prev_start>-1 && prev_start+this.sliding_window_shift > loca.getStart()) continue;
-				final Cluster c=new Cluster();
-				clusters.add(c);
-				c.add(loca);
-				prev_start = loca.getStart();
-				for(int y=x+1;y< src.size();y++) {
-					final BedLine locb = src.get(y);
-					if(CoordMath.getLength(loca.getStart(), locb.getEnd())> this.sliding_window_size) break;
-					c.add(locb);
-					}
-				}
-			}
+	
+		//sort by decreasing size
+		Collections.sort(list,(B1,B2)->Long.compare(B2.getLengthOnReference(),B1.getLengthOnReference()));
+			
+		
 		/** N-CLUSTER ALGORITHM *************************************/
-		else if(this.number_of_jobs>0) {
+		if(this.number_of_jobs>0) {
 			while(!list.isEmpty()) {
-				final BedLine first=list.pop();
+				final Batch first=list.pop();
 				if(clusters.size() < this.number_of_jobs) {
 					final Cluster c = new Cluster();
 					c.add(first);
@@ -278,24 +291,11 @@ public class BedCluster
 					}
 				}
 			}
-		/** CONSECUTIVE LENGTH ALGORITHM *************************************/
-		else if( this.consecutive_flags) {// group by size using consecutive regions
-			while(!list.isEmpty()) {
-				final Cluster cluster = new Cluster();
-				cluster.add(list.pop());
-				while(!list.isEmpty()) {
-					final BedLine si = list.peek();
-					if(cluster.getSumLength(si) > this.long_length_per_bin) break;
-					cluster.add(list.pop());
-					}
-				clusters.add(cluster);
-				}
-			}
 		/** LENGTH ALGORITHM *************************************/
 		else // group by size
 			{
 			while(!list.isEmpty()) {
-				final BedLine first=list.pop();
+				final Batch first=list.pop();
 				int y=0;
 				while(y<clusters.size()) {
 					final Cluster cluster = clusters.get(y);
@@ -314,17 +314,23 @@ public class BedCluster
 			}
 				
 		for(final Cluster cluster : clusters) {
-			Collections.sort(cluster.intervals,sorter);
+			final List<BedLine> all_beds = cluster.intervals.stream().
+					flatMap(C->C.beds.stream()).
+					sorted(sorter).
+					collect(Collectors.toList());
 			final String prefix;
-			if(this.group_by_contig || this.sliding_window_size>0) {
-				final int chromStart = cluster.stream().mapToInt(R->R.getStart()-1).min().orElse(0);
-				final int chromEnd = cluster.stream().mapToInt(R->R.getEnd()).max().orElse(0);
-				manifest.print(cluster.get(0).getContig());
+			if(this.group_by_contig) {
+				final int chromStart = all_beds.stream().mapToInt(R->R.getStart()-1).min().orElse(0);
+				final int chromEnd = all_beds.stream().mapToInt(R->R.getEnd()).max().orElse(0);
+				manifest.print(all_beds.get(0).getContig());
 				manifest.print("\t");
 				manifest.print(chromStart);
 				manifest.print("\t");
 				manifest.print(chromEnd);
-				prefix= cluster.get(0).getContig()+"_"+(chromStart+1)+"_"+chromEnd;
+				prefix= all_beds.get(0).getContig()+"_"+(chromStart+1)+"_"+chromEnd;
+				}
+			else if(cluster.intervals.size()==1) {
+				prefix="cluster."+cluster.intervals.get(0).name.replaceAll("[^A-Z_a-z0-9]","_");
 				}
 			else
 				{
@@ -362,6 +368,8 @@ public class BedCluster
 			manifest.print((int)cluster.getAvgLength());
 			manifest.print("\t");
 			manifest.print((int)cluster.getStdDev());
+			manifest.print("\t");
+			manifest.print(String.join("|", cluster.intervals.stream().map(B->B.name).collect(Collectors.toCollection(TreeSet::new))));
 			manifest.println();
 			
 			try(final OutputStream ps = archiveFactory.openOuputStream(filename)) {
@@ -386,7 +394,7 @@ public class BedCluster
 				
 					
 					
-				for(final BedLine r: cluster) {
+				for(final BedLine r: all_beds) {
 					pw.print(r.getContig());
 					pw.print("\t");
 					pw.print(r.getStart()-(save_as_interval_list?0:1));//convert to bed if needed
@@ -415,37 +423,18 @@ public class BedCluster
 			LOG.error("REF must be specified when saving as interval list");
 			return -1;
 			}
-		if((this.number_of_jobs>0  || this.sliding_window_size>0 || this.sliding_window_shift>0) && this.consecutive_flags) {
-			LOG.error("--consecutive  must be set with --size.");
-			return -1;
-			}
-
-		if(this.sliding_window_size>0 || this.sliding_window_shift>0) {
-			if(this.sliding_window_size<1) { 
-				LOG.error("--window-size < 0");
-				return -1;
-				}
-			if(this.sliding_window_shift<1) { 
-				LOG.error("--window-shift < 0");
-				return -1;
-				}
-			/** muse be set for this method */
-			this.group_by_contig=true;
-			this.consecutive_flags=true;
-			}
 		
 		
 		final int n_args = (this.number_of_jobs>0?1:0)+
-				(this.long_length_per_bin>0?1:0)+
-				(this.sliding_window_size>0 || this.sliding_window_shift>0?1:0)
+				(this.long_length_per_bin>0?1:0)
 				;
 		
 		if(n_args==0) {
-			LOG.error("at least --jobs or --size or --window-size/--window-shift must be specified.");
+			LOG.error("at least --jobs or --size  must be specified.");
 			return -1;
 			}
 		if(n_args>1) {
-			LOG.error(" --jobs OR --size OR --window-size/--window-shift  must be specified. Not both.");
+			LOG.error(" --jobs OR --size must be specified. Not both.");
 			return -1;
 			}
 
@@ -480,7 +469,7 @@ public class BedCluster
 				
 				try(PrintWriter manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(this.manifestFile))) {
 					manifest.print("#");
-					if(this.group_by_contig || this.sliding_window_size>0) {
+					if(this.group_by_contig) {
 						manifest.print("chrom");
 						manifest.print("\t");
 						manifest.print("start");
@@ -497,34 +486,61 @@ public class BedCluster
 					manifest.print("avg-length");
 					manifest.print("\t");
 					manifest.print("stddev-size");
+					manifest.print("\t");
+					manifest.print("names");
 					manifest.println();
 					
 					final String input = oneFileOrNull(args);
 					try(BedLineReader br = new BedLineReader(super.openBufferedReader(input),input)) {
 						br.setValidationStringency(ValidationStringency.LENIENT);
 						br.setContigNameConverter(converter);
-						List<List<BedLine>> list_of_intervals = Collections.singletonList(br.stream().collect(Collectors.toList()));
-						final long length_in = list_of_intervals.stream().flatMap(it->it.stream()).mapToLong(L->L.getLengthOnReference()).sum();
+						final Map<String,Batch> name2batch = new HashMap<>();
 						
-						if(this.group_by_contig || this.sliding_window_size>0L) {
-							final List<List<BedLine>> list2= new ArrayList<>();
-							for(List<BedLine> l1:list_of_intervals) {
-								final Map<String,List<BedLine>> contig2lines = new TreeMap<>(contigComparator);
-								contig2lines.putAll(l1.stream().collect(Collectors.groupingBy(B->B.getContig())));
+						while(br.hasNext()) {
+							final BedLine bed = br.next();
+							final String name = bed.getOrDefault(3, "");
+							if(StringUtils.isBlank(name)) {
+								LOG.error("empty 4th column in "+bed);
+								return -1;
+								}
+							Batch batch  = name2batch.get(name);
+							if(batch==null) {
+								batch=new Batch(name);
+								name2batch.put(name, batch);
+								}
+							batch.beds.add(bed);
+							}
+						
+						if(this.merge_distance>=0) {
+							for(Batch batch:name2batch.values()) {
+								batch.merge(this.merge_distance);
+								}
+							}
+						
+						List<List<Batch>> list_of_batches = Collections.singletonList(new ArrayList<>(name2batch.values()));
+						
+						
+						final long length_in = name2batch.values().stream().flatMap(it->it.beds.stream()).mapToLong(L->L.getLengthOnReference()).sum();
+						
+						if(this.group_by_contig) {
+							final List<List<Batch>> list2= new ArrayList<>();
+							for(List<Batch> l1:list_of_batches) {
+								final Map<String,List<Batch>> contig2lines = new TreeMap<>(contigComparator);
+								contig2lines.putAll(l1.stream().collect(Collectors.groupingBy(B->B.getUniqContig())));
 								for(final String ctg:contig2lines.keySet()) {
 									list2.add(new ArrayList<>(contig2lines.get(ctg)));
 									}
 								}
-							list_of_intervals = list2;
+							list_of_batches = list2;
 							}
 						
 						long length_out = 0L;
-						for(final List<BedLine> l1:list_of_intervals) {
+						for(final List<Batch> l1:list_of_batches) {
 							length_out += apply_cluster(manifest,archiveFactory,l1,intervalComparator,dict);
 							}
 						
 						// let me be paranoid
-						if(length_in!=length_out && this.sliding_window_shift<1) {
+						if(length_in!=length_out) {
 							throw new IllegalStateException("length-in!=length-out");
 							}
 						}
@@ -544,6 +560,6 @@ public class BedCluster
 
 	public static void main(final String[] args)
 		{
-		new BedCluster().instanceMainWithExit(args);
+		new BedClusterName().instanceMainWithExit(args);
 		}
 	}
