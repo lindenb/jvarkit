@@ -77,7 +77,7 @@ $ gunzip -c src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | awk -F '\t' '$3==
 	java -jar dist/jvarkit.jar gtf2bed -c 'gene_name' |\
 	java -jar dist/jvarkit.jar bedclustername -o jeter.zip  --size 100 --merge 1
 
-lindenb@okazaki:~/src/jvarkit-git$ unzip -l jeter.zip 
+$ unzip -l jeter.zip 
 Archive:  jeter.zip
   Length      Date    Time    Name
 ---------  ---------- -----   ----
@@ -99,8 +99,6 @@ $ unzip -p jeter.zip cluster.000000002.bed | head
 22	41734316	41734359	ZC3H7B
 22	41735004	41735195	ZC3H7B
 22	41735819	41736141	ZC3H7B
-
-
 
 ```
 
@@ -140,7 +138,6 @@ public class BedClusterName
 	private boolean create_md5_dir_flag=false;
 	@Parameter(names={"--merge-distance","--merge"},description="if greater than -1 Merge overlapping record for the same name within a distance of 'x'. " + DistanceParser.OPT_DESCRIPTION, converter = DistanceParser.StringConverter.class)
 	private int merge_distance=-1;
-
 	
 	private int id_generator =0;
 	
@@ -153,7 +150,7 @@ public class BedClusterName
 		long getLengthOnReference() {
 			return beds.stream().mapToLong(B->B.getLengthOnReference()).sum();
 		}
-		
+
 		void merge(final int distance) {
 			Collections.sort(beds,(A,B)->Integer.compare(A.getStart(), B.getEnd()));
 			int i=0;
@@ -173,7 +170,7 @@ public class BedClusterName
 					}
 				}
 			}
-		
+
 		public String getUniqContig() {
 			final Set<String> contigs = this.beds.stream().map(B->B.getContig()).collect(Collectors.toSet());
 			if(contigs.size()!=1) {
@@ -181,14 +178,13 @@ public class BedClusterName
 				}
 			return contigs.iterator().next();
 			}
-		
+
 		@Override
 		public String toString() {
 			return beds.toString();
 			}
 	}
-	
-	
+
 	private static class Cluster extends AbstractList<Batch>{
 		private long sum_length=0L;
 		private final List<Batch> intervals = new ArrayList<>();
@@ -336,7 +332,7 @@ public class BedClusterName
 				{
 				prefix="cluster";
 				}
-			
+
 			boolean save_as_interval_list;
 			final String suffix;
 			switch(this.outputFormat) {
@@ -369,9 +365,9 @@ public class BedClusterName
 			manifest.print("\t");
 			manifest.print((int)cluster.getStdDev());
 			manifest.print("\t");
-			manifest.print(String.join("|", cluster.intervals.stream().map(B->B.name).collect(Collectors.toCollection(TreeSet::new))));
+			manifest.print(String.join(",", cluster.intervals.stream().map(B->B.name).collect(Collectors.toCollection(TreeSet::new))));
 			manifest.println();
-			
+
 			try(final OutputStream ps = archiveFactory.openOuputStream(filename)) {
 				final PrintWriter pw;
 				final BlockCompressedOutputStream bcos;
@@ -489,7 +485,7 @@ public class BedClusterName
 					manifest.print("\t");
 					manifest.print("names");
 					manifest.println();
-					
+
 					final String input = oneFileOrNull(args);
 					try(BedLineReader br = new BedLineReader(super.openBufferedReader(input),input)) {
 						br.setValidationStringency(ValidationStringency.LENIENT);
@@ -510,13 +506,13 @@ public class BedClusterName
 								}
 							batch.beds.add(bed);
 							}
-						
+
 						if(this.merge_distance>=0) {
 							for(Batch batch:name2batch.values()) {
 								batch.merge(this.merge_distance);
 								}
 							}
-						
+
 						List<List<Batch>> list_of_batches = Collections.singletonList(new ArrayList<>(name2batch.values()));
 						
 						

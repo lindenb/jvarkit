@@ -107,7 +107,7 @@ $ gunzip -c src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | awk -F '\t' '$3==
 	java -jar dist/jvarkit.jar gtf2bed -c 'gene_name' |\
 	java -jar dist/jvarkit.jar bedclustername -o jeter.zip  --size 100 --merge 1
 
-lindenb@okazaki:~/src/jvarkit-git$ unzip -l jeter.zip 
+$ unzip -l jeter.zip 
 Archive:  jeter.zip
   Length      Date    Time    Name
 ---------  ---------- -----   ----
@@ -129,8 +129,6 @@ $ unzip -p jeter.zip cluster.000000002.bed | head
 22	41734316	41734359	ZC3H7B
 22	41735004	41735195	ZC3H7B
 22	41735819	41736141	ZC3H7B
-
-
 
 ```
 
