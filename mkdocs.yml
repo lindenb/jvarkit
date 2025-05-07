@@ -49,6 +49,7 @@ nav:
         - "bednonoverlappingset" : BedNonOverlappingSet.md
         - "bedremovebed" : BedRemoveBed.md
         - "bedrenamechr" : BedRenameChromosomes.md
+        - "bgensummary" : BGenSummary.md
         - "bigwigmerge" : BigwigMerge.md
         - "bigwigtview" : BigWigTView.md
         - "bioalcidae" : BioAlcidae.md

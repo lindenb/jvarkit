@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 96788a1f9
-Compilation : 20250428205852
+Version     : 84358f466
+Compilation : 20250507174951
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -173,6 +173,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bedindextabix](BedIndexTabix.md) | Index and sort a Bed on the fly with Tabix (deprecated). | 20150708 | 20240724 |
 | [bedliftover](BedLiftOver.md) | LiftOver a BED file | 20140311 | 20240625 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
+| [bgensummary](BGenSummary.md) | bgen file summary | 20250507 | 20250507 |
 | [bigwigmerge](BigwigMerge.md) | merge several Bigwig files using different descriptive statistics (mean, median, etc..) | 20240417 | 20240417 |
 | [bigwigtview](BigWigTView.md) | view bigwig file coverage in a terminal | 20240704 | 20240704 |
 | [bioalcidae](BioAlcidae.md) | javascript version of awk for bioinformatics |  | 20250328 |

@@ -65,6 +65,7 @@ import com.github.lindenb.jvarkit.tools.bedrenamechr.BedRenameChromosomes;
 import com.github.lindenb.jvarkit.tools.bedtools.BedMergeCnv;
 import com.github.lindenb.jvarkit.tools.bedtools.BedNonOverlappingSet;
 import com.github.lindenb.jvarkit.tools.bedtools.BedRemoveBed;
+import com.github.lindenb.jvarkit.tools.bgen.summary.BGenSummary;
 import com.github.lindenb.jvarkit.tools.bigwigmerge.BigwigMerge;
 import com.github.lindenb.jvarkit.tools.bigwigtview.BigWigTView;
 import com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidae;
@@ -673,6 +674,7 @@ public class JvarkitCentral {
 		command(BedRemoveBed.class);
 		command(BedLiftOver.class);
 		command(BedToVcf.class);
+		command(BGenSummary.class);
 		command(BioAlcidae.class);
 		command(BioAlcidaeJdk.class);
 		command(BigwigMerge.class);
