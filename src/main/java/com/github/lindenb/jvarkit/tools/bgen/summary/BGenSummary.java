@@ -23,12 +23,32 @@ import htsjdk.samtools.util.BinaryCodec;
 /**
 BEGIN_DOC
 
+## Example
+
 ```
-$ java -jar dist/jvarkit.jar bgensummary ~/jeter.bgen | xmllint --format -
+$ java -jar dist/jvarkit.jar bgensummary *.bgen | xmllint --format -
+$ java -jar dist/jvarkit.jar bgensummary ~/src/jbgen/src/test/resources/htsjdk/tribble/bgen/*bgen | xmllint --format -
 <?xml version="1.0" encoding="UTF-8"?>
 <bgen-summary>
-  <bgen-file filename="/home/lindenb/jeter.bgen" compression="e_ZstdCompression" n-variants="109745123" n-samples="490541" layout="e_Layout2" snps-offset="8339225" anonymous="true"/>
+  <bgen-file filename=complex.bgen" compression="e_ZlibCompression" n-variants="10" n-samples="4" layout="e_Layout2" snps-offset="68" anonymous="false">
+    <samples n-samples="4">
+      <samples idx="0">sample_0</samples>
+      <samples idx="1">sample_1</samples>
+      <samples idx="2">sample_2</samples>
+      <samples idx="3">sample_3</samples>
+    </samples>
+  </bgen-file>
+  <bgen-file filename="example.v11.bgen" compression="e_ZlibCompression" n-variants="199" n-samples="500" layout="e_Layout1" snps-offset="5920" anonymous="true"/>
+  <bgen-file filename="haplotypes.bgen" compression="e_ZlibCompression" n-variants="4" n-samples="4" layout="e_Layout2" snps-offset="68" anonymous="false">
+    <samples n-samples="4">
+      <samples idx="0">sample_0</samples>
+      <samples idx="1">sample_1</samples>
+      <samples idx="2">sample_2</samples>
+      <samples idx="3">sample_3</samples>
+    </samples>
+  </bgen-file>
 </bgen-summary>
+
 ```
 
 END_DOC
