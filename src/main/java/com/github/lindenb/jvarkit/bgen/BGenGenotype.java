@@ -20,44 +20,37 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-
 */
-package com.github.lindenb.jvarkit.math;
+package com.github.lindenb.jvarkit.bgen;
 
-import java.math.BigInteger;
+import java.util.function.ToIntFunction;
 
-/**
- * 
- * utilities for Math
- *
- */
-public class MathUtils {
-	public static BigInteger factorial(long n) 
-		{
-		if(n<0L) throw new IllegalArgumentException("n<0");
-	    BigInteger f = BigInteger.valueOf(1L);
-	    for (long i = n; i > 0; i--) {
-	          f = f.multiply(BigInteger.valueOf(i));
-	    	}
-	    return f;
-		}
-
-	/** https://en.wikipedia.org/wiki/Combination */
-	public static BigInteger combination(long n,long k)
-		{
-		if(n-k<=0) throw new IllegalArgumentException("n-k<=0 with n="+n+" and k="+k);
-		return factorial(n).divide(factorial(k).multiply(factorial(n-k)));
-		}
-	
-	/** see R code for ppoints */
-	public static  double[] ppoints(int n) {
-		double a = n <= 10? 3.0/8 : 1.0/2;
-		
-		final double[] array=new double[n];
-		for(int i=1;i<=n;i++) {
-			array[i-1] = (i - a)/(n + 1.0 - 2*a);
-			}				        
-	    return array;
-		}	
+public interface BGenGenotype {
+	public String getSample();
+	public boolean isMissing();
+	public boolean isPhased();
+	public double[] getProbs();
+	public int getPloidy();
+	public default boolean isDiploid() {
+		return getPloidy()==2;
+	}
+	/** return the allele indexes for this genotype 
+	 * 
+	 * @param fun select the index of the best GT in all the probabilities (getProbs())
+	 * @return the alleles indexes, an array whith length==ploidy
+	 */
+	public int[] getAllelesIndexes(ToIntFunction<double[]> fun);
+	/** return the allele indexes for this genotype 
+	 * 
+	 * @param treshold return the GT for the first probability having a proba >= treshold
+	 */
+	public default int[] getAllelesIndexes(double treshold) {
+		return getAllelesIndexes(ARRAY->{
+			final double[] p_array = getProbs();
+			for(int i=0;i< p_array.length;i++) {
+				if(p_array[i]>=treshold) return i;
+				}
+			return -1;
+			});
+	}
 }

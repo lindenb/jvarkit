@@ -1,3 +1,26 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2025 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
 package com.github.lindenb.jvarkit.bgen;
 
 import java.io.FilterInputStream;
@@ -11,6 +34,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.seekablestream.SeekableStream;
@@ -73,49 +98,9 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		}
 	
 	
-	public interface Genotype {
-		public String getSample();
-		public boolean isMissing();
-		public boolean isPhased();
-		public double[] getProbs();
-		public int getPloidy();
-		}
 	
-	
-	
-	public static abstract class Variant implements Locatable {
-		protected Variant() {}
-		
-		public final int getNAlleles() {
-			return this.getAlleles().size();
-			}
-		public final String getAllele(int idx) {
-			return this.getAlleles().get(idx);
-			}
-		
-		
-		public abstract int getPosition();
-		@Override
-		public final int getStart() {
-			return getPosition();
-			}
-		@Override
-		public final int getEnd() {
-			return getPosition()+ getAlleles().stream().mapToInt(A->A.length()-1).max().orElse(0);
-			}
-		public abstract List<String> getAlleles();
-		public abstract String getId();
-		public abstract String getRsId();
-		public abstract long getOffset();
-		public abstract boolean hasGenotypes();
-		public abstract List<? extends Genotype> getGenotypes();
-		public Genotype getGenotype(int i) {
-			return getGenotypes().get(i);
-			}
-		public int getNGenotypes() {
-			return getGenotypes().size();
-			}
-		public abstract Genotype getGenotype(String sn);
+	private static abstract class AbstractBenVariant implements BGenVariant {
+		protected AbstractBenVariant() {}
 		
 		@Override
 		public int hashCode() {
@@ -128,9 +113,9 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				return true;
 			if (obj == null)
 				return false;
-			if (!(obj instanceof Variant))
+			if (!(obj instanceof BGenVariant))
 				return false;
-			final Variant other = (Variant) obj;
+			final BGenVariant other = (BGenVariant) obj;
 			return contigsMatch(other) &&
 					getPosition() == other.getPosition() &&
 					Objects.equals(getAlleles(), other.getAlleles());
@@ -151,7 +136,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		
 		}	
 	
-	private class VariantImpl extends Variant {
+	private class VariantImpl extends AbstractBenVariant {
 		String contig;
 		int position;
 		String variantId;
@@ -188,11 +173,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			return false;
 			}
 		@Override
-		public final List<Genotype> getGenotypes() {
+		public final List<BGenGenotype> getGenotypes() {
 			throw new IllegalStateException("this variant was read without genotype");
 			}
 		@Override
-		public final Genotype getGenotype(final String sn) {
+		public final BGenGenotype getGenotype(final String sn) {
 			throw new IllegalStateException("this variant was read without genotype");
 			}
 		@Override
@@ -203,12 +188,14 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			builder.append("]");
 			return builder.toString();
 			}
+		
+		
 		}
 	
-	private abstract class AbstractVariantAndGenotypes extends Variant {
+	private abstract class AbstractVariantAndGenotypes extends AbstractBenVariant {
 		private final VariantImpl delegate;
 		
-		protected abstract class AbstractGenotypelayoutXX implements Genotype {
+		protected abstract class AbstractGenotypelayoutXX implements BGenGenotype {
 			final int sample_index;
 			protected AbstractGenotypelayoutXX(int sample_index) {
 				this.sample_index=sample_index;
@@ -216,6 +203,25 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			@Override
 			public String getSample() {
 				return BGenReader.this.getHeader().getSamples().get(this.sample_index);
+				}
+			
+			protected int[] getAlleleIndexesForMissingGT() {
+				final int[] array = new int[getPloidy()];
+				Arrays.fill(array, -1);
+				return array;
+				}
+			
+			@Override
+			public String toString() {
+				final StringBuilder sb=new  StringBuilder("Genotype(");
+				sb.append("layout=").append(BGenReader.this.getHeader().getLayout().name()).append(",");
+				sb.append("phased=").append(isPhased()).append(",");
+				sb.append("ploidy=").append(getPloidy()).append(",");
+				sb.append("n-alleles=").append(AbstractVariantAndGenotypes.this.getNAlleles()).append(",");
+				sb.append("freq=").append(Arrays.toString(getProbs())).append(",");
+				sb.append("sample").append(getSample());
+				sb.append(")");
+				return sb.toString();
 				}
 		}
 		
@@ -251,12 +257,12 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			return true;
 			}
 		@Override
-		public Genotype getGenotype(int i) {
+		public BGenGenotype getGenotype(int i) {
 			return getGenotypes().get(i);
 			}
 		@Override
-		public final Genotype getGenotype(final String sn) {
-			int i = BGenReader.this.getHeader().getSampleIndex(sn);
+		public final BGenGenotype getGenotype(final String sn) {
+			final int i = BGenReader.this.getHeader().getSampleIndex(sn);
 			if(i==-1) throw new IllegalArgumentException("no such sample "+sn);
 			return getGenotype(i);
 			}
@@ -265,7 +271,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		}
 	
 	private final class VariantAndGenotypesLayout1 extends AbstractVariantAndGenotypes {
-		private final List<Genotype> genotypes;
+		private final List<BGenGenotype> genotypes;
 		private final double[] probs;
 		private class GenotypeLayout1 extends  AbstractGenotypelayoutXX {
 			GenotypeLayout1(int sample_index){
@@ -290,25 +296,37 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			public double[] getProbs() {
 				return new double[] {get(0),get(1),get(2)};
 				}
+			@Override
+			public int[] getAllelesIndexes(ToIntFunction<double[]> fun) {
+				if(isMissing()) return getAlleleIndexesForMissingGT();
+				final int i = fun.applyAsInt(getProbs());
+				if(i<0)  return getAlleleIndexesForMissingGT();
+				switch(i) {
+					case 0: return new int[] {0,0};
+					case 1: return new int[] {0,1};
+					case 2: return new int[] {1,1};
+					default: throw new IllegalArgumentException("invalid index "+i);
+					}
+				}
 			}
 		
 		VariantAndGenotypesLayout1(final VariantImpl delegate,final double[] probs) {
 			super(delegate);
 			this.probs = probs;
-			this.genotypes = new AbstractList<Genotype>() {
+			this.genotypes = new AbstractList<BGenGenotype>() {
 				@Override
 				public int size() {
 					return probs.length;
 					}
 				@Override
-				public Genotype get(int index) {
+				public BGenGenotype get(int index) {
 					return new GenotypeLayout1(index);
 					}
 				};
 			}
 		
 		@Override
-		public final List<? extends Genotype> getGenotypes() {
+		public final List<BGenGenotype> getGenotypes() {
 			return this.genotypes;
 			}
 
@@ -323,7 +341,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		}
 	
 	private final class VariantAndGenotypesLayout2 extends AbstractVariantAndGenotypes {
-		private final List<GenotypeLayout2> genotypes;
+		private final List<BGenGenotype> genotypes;
 		private short phased;
 		private class GenotypeLayout2 extends AbstractGenotypelayoutXX {
 			byte metaByte;
@@ -357,6 +375,31 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			public double[] getProbs() {
 				return this.probs;
 				}
+			
+			@Override
+			public int[] getAllelesIndexes(ToIntFunction<double[]> fun) {
+				if(isMissing()) return getAlleleIndexesForMissingGT();
+				final int i = fun.applyAsInt(getProbs());
+				if(i<0)  return getAlleleIndexesForMissingGT();
+				//simple case
+				if(!isPhased() && isDiploid() && VariantAndGenotypesLayout2.this.getNAlleles()==2) {
+					switch(i) {
+						case 0: return new int[] {0,0};
+						case 1: return new int[] {0,1};
+						case 2: return new int[] {1,1};
+						default: throw new IllegalArgumentException("invalid index "+i+"/"+getProbs());
+						}
+					}
+				if(isPhased()) {
+					
+					}
+				return null;
+				}
+			private int[] findAlleleIndexesPhased(int wanted_index) {
+				AlleleCombinations ac= new AlleleCombinations(VariantAndGenotypesLayout2.this.getNAlleles(), getPloidy(), isPhased());
+				return ac.findAlleleIndexesByIndex(wanted_index);
+				}
+			
 			}
 		
 		VariantAndGenotypesLayout2(final VariantImpl delegate,final int n_samples) {
@@ -366,11 +409,16 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				this.genotypes.add(new GenotypeLayout2(i));
 				}
 			}
+		private GenotypeLayout2 at(int idx) {
+			return GenotypeLayout2.class.cast(this.genotypes.get(idx));
+		}
 		
 		@Override
-		public List<? extends Genotype> getGenotypes() {
+		public List<BGenGenotype> getGenotypes() {
 			return genotypes;
 			}
+		
+		
 		
 		@Override
 		public String toString() {
@@ -420,16 +468,16 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		return -1L;
 		}
 	
-	private class Iter extends AbstractIterator<Variant> {
+	private class Iter extends AbstractIterator<BGenVariant> {
 		private final boolean skipGenotypes;
 		Iter(boolean skipGenotypes) {
 			this.skipGenotypes=skipGenotypes;
 			}
 		
 		@Override
-		protected Variant advance() {
+		protected BGenVariant advance() {
 			try {
-				final Variant v= BGenReader.this.readVariant();
+				final BGenVariant v= BGenReader.this.readVariant();
 				if(v==null) {
 					return null;
 					}
@@ -448,11 +496,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			}
 		};
 	
-	public AbstractIterator<Variant> iterator(boolean skipGenotypes) {
+	public AbstractIterator<BGenVariant> iterator(boolean skipGenotypes) {
 		return new Iter(skipGenotypes);
 		}
 	
-	public Iterator<Variant> iterator() {
+	public Iterator<BGenVariant> iterator() {
 		return iterator(false);
 		}
 	
@@ -465,21 +513,25 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	      } 
 	
 	/** read the next variant or returns null if end of file */
-	public Variant readVariant() throws IOException {
+	public BGenVariant readVariant() throws IOException {
 		assertState(State.expect_variant_def);
 		
 		final VariantImpl ctx = new VariantImpl();
 		ctx.offset = ftell();
 		
-		if(header.getLayout().equals(BGenHeader.Layout.e_Layout1)) {
+		if(header.getLayout().equals(Layout.e_Layout1)) {
 			try {
 				this.layout1_expect_n_samples = longToUnsignedInt(this.binaryCodec.readUInt());
 				}
 			catch(Throwable eof) {
 				if(isDebugging()) {
-					LOG.debug("not more variant "+eof.getClass());
+					LOG.debug("not more variant layout 1 "+eof.getClass());
+					eof.printStackTrace();
 					}
-				if(eof instanceof RuntimeEOFException) return null;
+				if(eof instanceof RuntimeEOFException) {
+					
+					return null;
+					}
 				//cannot read the n-samples it's EOF for layout 1?
 				throw eof;
 				}
@@ -489,9 +541,10 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			}
 		catch(Throwable eof) {
 			if(isDebugging()) {
-				LOG.debug("not more variant "+eof.getClass());
+				LOG.debug("not more variant "+header.getLayout()+" "+eof.getClass());
+				eof.printStackTrace();
 				}
-			if(!header.getLayout().equals(BGenHeader.Layout.e_Layout1)) {
+			if(!header.getLayout().equals(Layout.e_Layout1)) {
 				if(eof instanceof RuntimeEOFException) return null;
 				}
 			throw eof;
@@ -517,22 +570,44 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	public void skipGenotypes() throws IOException{
 		assertState(State.expect_genotypes);
 		final long skip_n =  this.binaryCodec.readUInt();
+		if(isDebugging()) {
+			LOG.debug("skipping "+skip_n+" bytes");
+			}
 		this.binaryCodec.getInputStream().skipNBytes(skip_n);
 	    this.state = State.expect_variant_def;
 		}
 	
 	@SuppressWarnings("resource")
-	public Variant readGenotypes()  throws IOException{
+	public BGenVariant readGenotypes()  throws IOException{
 		assertState(State.expect_genotypes);
-		final int compressed_data_size_C =  longToUnsignedInt( this.binaryCodec.readUInt());
+		
+		if(isDebugging()) {
+			LOG.debug("reading genotypes. offset= "+ftell());
+			}
+		
+		int genotype_block_size =  longToUnsignedInt( this.binaryCodec.readUInt());
+		if(isDebugging()) {
+			LOG.debug("expect compressed size "+genotype_block_size);
+			}
+		
 		/* The total length D of the probability data after uncompression.
 		 * If CompressedSNPBlocks = 0, this field is omitted and the total length of the probability data */
-		if(!getHeader().getCompression().equals(BGenHeader.Compression.e_NoCompression)) {
-			/* uncompressed_data_size_D */ longToUnsignedInt( this.binaryCodec.readUInt());
+		if(!getHeader().getCompression().equals(Compression.e_NoCompression)) {
+			final int uncompressed_data_size_D =longToUnsignedInt( this.binaryCodec.readUInt());
+			if(isDebugging()) {
+				LOG.debug("expect uncompressed size "+uncompressed_data_size_D+" now offset="+ftell());
+				}
+			genotype_block_size-= Integer.BYTES;
 			}
 		
 		this.buffer1.reset();
-		this.buffer1.copyTo(this.in,compressed_data_size_C);
+		this.buffer1.copyTo(this.in,genotype_block_size);
+		if(this.buffer1.getCount()!=genotype_block_size) {
+			throw new IllegalStateException("bad size");
+			}
+		if(isDebugging()) {
+			LOG.debug("after reading genotypes. offset is now = "+ftell());
+			}
 		InputStream uncompressedStream;
 		
 		
@@ -552,6 +627,10 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			}
 		uncompressedStream.close();
 		codec2.close();
+		
+		if(isDebugging()) {
+			LOG.debug("End reading genotypes. offset= "+ftell());
+			}
 		
 		this.state = State.expect_variant_def;
 		return vcg;
@@ -608,7 +687,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         /* A list of N bytes, where the nth byte is an unsigned integer representing the ploidy and
          *  missingness of the nth sample. */
         for(int x=0;x < n_samples ;x++) {
-        	vcg.genotypes.get(x).metaByte =  codec2.readByte();
+        	vcg.at(x).metaByte =  codec2.readByte();
         	}
         /* Flag, denoted Phased indicating what is stored in the row. */
         vcg.phased = codec2.readUByte();
@@ -630,7 +709,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
     	   /* read haplotypes */
        		for(int i=0;i< n_samples;++i) {
        			values.clear();
-       			VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.genotypes.get(i);
+       			VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
        			if(isDebugging()) {
            			LOG.debug("read phased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
            			}
@@ -667,7 +746,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
        		for(int i=0;i< n_samples;++i) {
        			values.clear();
        			
-       			final VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.genotypes.get(i);
+       			final VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
        			if(isDebugging()) {
            			LOG.debug("read unphased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
            			}
@@ -676,6 +755,9 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
            			LOG.debug("combination="+bi);
            			}
        			final int n_combinaison_as_int= bi.intValueExact();
+       			if(n_combinaison_as_int!=new AlleleCombinations(this.lastVariant.getNAlleles(),gt.getPloidy(),false).calculateTotalCombinations()) {
+       				throw new IllegalStateException();
+       				}
        			double sum = 0;
        			for(int j=0;j < n_combinaison_as_int -1 ;++j) {
    					double v = numReader.next();
@@ -705,6 +787,145 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         return vcg;
 		}
 	
+	private static class AlleleCombinations {
+		private final int n_alleles;
+		private final int m_ploidy;
+		private final boolean phased;
+		
+		private static class FindByIndex implements Consumer<int[]> {
+			final int wanted_index;
+			int curr=0;
+			int[] indexes = null;
+			FindByIndex(final int wanted_index) {
+				this.wanted_index = wanted_index;
+				}
+			@Override
+			public void accept(int[] t) {
+				if(curr==this.wanted_index) {
+					this.indexes=Arrays.copyOf(t, t.length);
+					}
+				curr++;
+				}
+			}
+		
+		AlleleCombinations(int n_alleles,int m_ploidy,boolean phased) {
+			this.n_alleles=n_alleles;
+			this.m_ploidy=m_ploidy;
+			this.phased = phased;
+			}
+		
+		 private int calculateTotalCombinations() {
+			int n = n_alleles;
+		    int k = m_ploidy;
+			final BigInteger bi;
+			if(phased) {
+				bi = BigInteger.valueOf(n_alleles).pow(m_ploidy);
+				}
+			else
+				{
+				bi = MathUtils.factorial(n + k - 1).divide(MathUtils.factorial(k).multiply(MathUtils.factorial(n - 1)));
+				}
+			return bi.intValueExact();
+			}
+		
+		  int[] findAlleleIndexesByIndex(int i) {
+			  final int[] buffer=new int[this.m_ploidy];
+			  FindByIndex andThen = new FindByIndex(i);
+			  if(phased) {
+		        	visitPhased(andThen, buffer, 0);
+		        	}
+		        else
+		        	{
+		        	visitUnphased(andThen, buffer, 0, 0);
+		        	}
+			  return andThen.indexes;
+		  	}
+		
+		 
+		  public List<int[]> getAllGenotypesPhased() {
+	        final List<int[]> container = new ArrayList<>(calculateTotalCombinations());
+        	final int[] buffer=new int[this.m_ploidy];
+        	final Consumer<int[]> anThen =A->container.add(Arrays.copyOf(A, A.length));
+	        if(phased) {
+	        	visitPhased(anThen, buffer, 0);
+	        	}
+	        else
+	        	{
+	        	visitUnphased(anThen, buffer, 0, 0);
+	        	}
+	        return container;
+		  	}
+		  /*
+		     alleles: 0,1,2
+		     list:
+		             0/0
+		             0/1
+		             0/2
+		             1/1
+		             1/2
+		             2/2
+		     */
+	    private void visitUnphased(Consumer<int[]> anThen, int[] current, int start,int array_index) {	    	
+	        if (array_index == m_ploidy) {
+	        	anThen.accept(current);
+	        	}
+	        else
+		        {
+		        for (int i = start; i < n_alleles; i++) {
+		            current[array_index]=i;
+		            visitUnphased(anThen, current, i,array_index+1); // Allow repetition by not incrementing 'i'
+		        	}
+		        }
+		    }
+		  /*
+	     alleles: 0,1,2
+	     list:
+	             0|0
+	             0|1
+	             0|2
+	             1|0
+	             1|1
+	             1|2
+	             2|0
+	             2|1
+	             2|2
+	     */
+	    private void visitPhased(Consumer<int[]> anThen, int[] current, int array_index) {
+	        if (array_index == m_ploidy) {
+	        	anThen.accept(current);
+	        }
+	        else {
+	        for (int i = 0; i < n_alleles; i++) {
+		            current[array_index] = i;
+		            visitPhased(anThen, current, array_index + 1); // Move to the next depth
+		        	}
+		        }
+	    	}
+		}
+	
+	private static List<int[]> buildPhasedIndexes(int n_alleles,int n_ploidy) {
+		final List<int[]> container = new ArrayList<>(n_alleles*n_ploidy);
+		buildPhasedIndexes(n_alleles,container,new int[n_ploidy],0);
+		return container;
+		}
+	private static void buildPhasedIndexes(
+			int n_alleles,
+			List<int[]> container,
+			int[] buffer,
+			int ploidy_index
+			) {
+			if(ploidy_index==buffer.length) {
+				container.add(Arrays.copyOf(buffer, buffer.length));
+				}
+			else
+				{
+				for(int a=0;a<n_alleles;++a) {
+					int[] buffer2 =Arrays.copyOf(buffer, buffer.length);
+					buffer2[ploidy_index]=a;
+					buildPhasedIndexes(n_alleles,container,buffer2,ploidy_index+1);
+					}
+				}
+			}
 	
 	@Override
 	public void close()  {

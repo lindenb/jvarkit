@@ -231,10 +231,11 @@ public class IOUtils {
 	/** copy nbytes content of stream `in` to `out'. Error if cannot write all nbytes */
 	public static void copyTo(InputStream in,OutputStream output ,long nbytes) throws IOException {
 		long remains = nbytes;
+		if(nbytes<0) throw new IllegalArgumentException("negative nbytes "+nbytes);
         final byte[] buffer = new byte[Defaults.NON_ZERO_BUFFER_SIZE];
         while(remains>0 ) {
-        	int toRead= (int)Math.min((long)buffer.length, remains);
-        	int nRead = in.read(buffer, 0, toRead);
+        	final int toRead= (int)Math.min((long)buffer.length, remains);
+        	final int nRead = in.read(buffer, 0, toRead);
         	if(nRead==-1) throw new IOException("Got "+nRead+" bytes while I expected "+toRead+" bytes");
             output.write(buffer, 0, nRead);
             remains-=nRead;
