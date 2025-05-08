@@ -29,6 +29,8 @@ import java.util.List;
 import htsjdk.samtools.util.Locatable;
 
 public interface BGenVariant extends Locatable {
+	/** number of bits used for storage, or -1 if not available */
+	public int getBitsPerProb();
 
 	public default int getNAlleles() {
 		return this.getAlleles().size();

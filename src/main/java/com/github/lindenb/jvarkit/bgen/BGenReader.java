@@ -42,7 +42,6 @@ import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BinaryCodec;
-import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -143,6 +142,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		String rsId;
 		List<String> alleles;
 		long offset;
+		
+		@Override
+		public int getBitsPerProb() {
+			return -1;
+			}
 		
 		@Override
 		public String getContig() {
@@ -281,6 +285,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			public final int getPloidy() {
 				return 2;
 				}
+			
 			@Override
 			public boolean isPhased() {
 				return false;
@@ -324,7 +329,10 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 					}
 				};
 			}
-		
+		@Override
+		public final int getBitsPerProb() {
+			return 16;
+			}
 		@Override
 		public final List<BGenGenotype> getGenotypes() {
 			return this.genotypes;
@@ -343,13 +351,15 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	private final class VariantAndGenotypesLayout2 extends AbstractVariantAndGenotypes {
 		private final List<BGenGenotype> genotypes;
 		private short phased;
+		private int nbits;
 		private class GenotypeLayout2 extends AbstractGenotypelayoutXX {
 			byte metaByte;
 			double[] probs;
 			GenotypeLayout2(int sample_index){
 				super(sample_index);
 				}
-
+			
+			
 			void setProbs(List<Double> v) {
 				this.probs = new double[v.size()];
 				for(int i=0;i< v.size();i++) {
@@ -409,6 +419,12 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				this.genotypes.add(new GenotypeLayout2(i));
 				}
 			}
+		
+		@Override
+		public int getBitsPerProb() {
+			return this.nbits;
+			}
+		
 		private GenotypeLayout2 at(int idx) {
 			return GenotypeLayout2.class.cast(this.genotypes.get(idx));
 		}
@@ -693,14 +709,14 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         vcg.phased = codec2.readUByte();
 	      
         /* Unsigned integer B representing the number of bits used to store each probability in this row. This must be between 1 and 32 inclusive. */
-       	final int nbits=  (int) codec2.readUByte();
-        if(nbits  <0 || nbits > 32) throw new IOException("bad nbits  ("+ nbits +")");
+       	vcg.nbits=  (int) codec2.readUByte();
+        if(vcg.nbits  <0 || vcg.nbits > 32) throw new IOException("bad nbits  ("+ vcg.nbits +")");
         if(isDebugging()) {
-   			LOG.debug("nbits="+nbits);
+   			LOG.debug("nbits="+vcg.nbits);
    			}
         
         final BitReader bitReader = new BitReader(codec2.getInputStream());
-        final BitNumReader numReader = new BitNumReader(bitReader, nbits);
+        final BitNumReader numReader = new BitNumReader(bitReader, vcg.nbits);
         final List<Double> values= new ArrayList<>();
         if(vcg.phased==1) {
         	if(isDebugging()) {

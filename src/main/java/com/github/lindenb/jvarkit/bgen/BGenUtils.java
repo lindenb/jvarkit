@@ -64,6 +64,20 @@ public class BGenUtils {
 	static final String FILE_SUFFIX = ".bgen";
 	static final int USHRT_MAX= 65_635;
 
+	/** write 'N' bytes */
+	static void writeNBytes(BinaryCodec binaryCodec,long n,byte value) {
+		while(n>0) {
+			binaryCodec.writeByte(value);
+			n--;
+			}
+		}
+	
+	/** write 'N' null bytes */
+	static void writeNBytes(BinaryCodec binaryCodec,long n) {
+		writeNBytes(binaryCodec,n,(byte)0);
+		}
+
+	
     /** convert a long to int, throws a tribble exception if the number is greater than Integer.MAX_VALUE */
     static int longToUnsignedInt(final long n) {
         if(n>Integer.MAX_VALUE || n<0L) throw new TribbleException("Cannot convert "+n+"L to int");
@@ -73,6 +87,19 @@ public class BGenUtils {
     static String readStringUInt16(final BinaryCodec binaryCodec) throws IOException {
     	return readString(binaryCodec, binaryCodec.readUShort());
     	}
+    
+    static void writeStringUInt16(final BinaryCodec codec,final String s) throws IOException {
+    	final byte[] b=s.getBytes(ENCODING);
+    	codec.writeUShort(b.length);
+    	codec.writeBytes(b);
+    	}
+    
+    static void writeStringUInt32(final BinaryCodec codec,final String s) throws IOException {
+    	final byte[] b=s.getBytes(ENCODING);
+    	codec.writeUInt(b.length);
+    	codec.writeBytes(b);
+    	}
+    
     /** read the length of a string as unsigned short and read the string */
     public static String readStringUInt32(final BinaryCodec binaryCodec) throws IOException {
     	return readString(binaryCodec, longToUnsignedInt(binaryCodec.readUInt()));

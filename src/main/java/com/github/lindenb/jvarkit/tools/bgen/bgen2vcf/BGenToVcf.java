@@ -33,8 +33,12 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 
@@ -124,8 +128,13 @@ public class BGenToVcf extends Launcher {
 				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
 				VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY);
 
+				final VCFInfoHeaderLine BITS_format_header_line = new VCFInfoHeaderLine(
+						"BITS",1,VCFHeaderLineType.Integer,"Number of bits used for storage in the bgen file");
+
+				
 				metaData.add(BGenUtils.GP_format_header_line);
 				metaData.add(BGenUtils.HP_format_header_line);
+				metaData.add(BITS_format_header_line);
 				
 				metaData.add(new VCFHeaderLine("bgen.compression", r.getHeader().getCompression().name()));
 				metaData.add(new VCFHeaderLine("bgen.n-variants", String.valueOf( r.getHeader().getNVariants())));
@@ -187,6 +196,8 @@ public class BGenToVcf extends Launcher {
 						else
 							{
 							ctx = r.readGenotypes();
+							vcb.attribute(BITS_format_header_line.getID(), ctx.getBitsPerProb());
+							
 							final List<Genotype> genotypes = new ArrayList<>(ctx.getNGenotypes());
 							for(int i=0;i< ctx.getNGenotypes();i++) {
 								final BGenGenotype gt  =ctx.getGenotype(i);
