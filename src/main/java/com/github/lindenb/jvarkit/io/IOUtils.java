@@ -228,6 +228,20 @@ public class IOUtils {
 		out.flush();
 		}
 
+	/** copy nbytes content of stream `in` to `out'. Error if cannot write all nbytes */
+	public static void copyTo(InputStream in,OutputStream output ,long nbytes) throws IOException {
+		long remains = nbytes;
+        final byte[] buffer = new byte[Defaults.NON_ZERO_BUFFER_SIZE];
+        while(remains>0 ) {
+        	int toRead= (int)Math.min((long)buffer.length, remains);
+        	int nRead = in.read(buffer, 0, toRead);
+        	if(nRead==-1) throw new IOException("Got "+nRead+" bytes while I expected "+toRead+" bytes");
+            output.write(buffer, 0, nRead);
+            remains-=nRead;
+        	}
+		}
+
+	
 	public static void copyTo(final Reader in,final Writer out) throws IOException
 		{
 		final char buffer[]=new char[2048];

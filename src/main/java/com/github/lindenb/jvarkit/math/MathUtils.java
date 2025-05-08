@@ -42,10 +42,20 @@ public class MathUtils {
 	    	}
 	    return f;
 		}
+	
+	/** https://en.wikipedia.org/wiki/Partial_permutation
+	 * ARRANGEMENT
+	 * 
+	public static BigInteger permutation(long n,long k)
+		{
+		if(n-k<=0) throw new IllegalArgumentException("n-k<=0 with n="+n+" and k="+k);
+		return factorial(n).divide(factorial(n-k));
+		} */
+
 	/** https://en.wikipedia.org/wiki/Combination */
 	public static BigInteger combination(long n,long k)
 		{
-		if(n-k<=0) throw new IllegalArgumentException("n-k<=0");
+		if(n-k<=0) throw new IllegalArgumentException("n-k<=0 with n="+n+" and k="+k);
 		return factorial(n).divide(factorial(k).multiply(factorial(n-k)));
 		}
 	

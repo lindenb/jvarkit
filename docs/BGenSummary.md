@@ -24,6 +24,12 @@ Usage: bgensummary [options] Files
       Output file. Optional . Default: stdout
     --version
       print version and exit
+    -g
+      print the genotypes for 'g' genotypes
+      Default: 3
+    -n
+      print the summary for 'n' variants
+      Default: 10
 
 ```
 
