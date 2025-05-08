@@ -16,6 +16,7 @@ import com.github.lindenb.jvarkit.bgen.BGenReader;
 import com.github.lindenb.jvarkit.bgen.BGenUtils;
 import com.github.lindenb.jvarkit.bgen.BGenVariant;
 import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -150,7 +151,7 @@ public class BGenToVcf extends Launcher {
 					w.writeHeader(header);
 					
 					for(;;) {
-						if(limit_n_variants>=0 && n_variants>limit_n_variants) break;
+						if(limit_n_variants>=0 && n_variants>=limit_n_variants) break;
 						
 						BGenVariant ctx = r.readVariant();
 						if(ctx==null) break;
@@ -158,7 +159,9 @@ public class BGenToVcf extends Launcher {
 							r.skipGenotypes();
 							continue;
 							}
-						
+						if(dict!=null && dict.getSequence(ctx.getContig())==null) {
+							throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), dict);
+							}
 						n_variants++;
 						
 						final List<Allele> alleles = new ArrayList<>(ctx.getNAlleles());
@@ -184,13 +187,19 @@ public class BGenToVcf extends Launcher {
 						else
 							{
 							ctx = r.readGenotypes();
-							List<Genotype> genotypes = new ArrayList<>(ctx.getNGenotypes());
+							final List<Genotype> genotypes = new ArrayList<>(ctx.getNGenotypes());
 							for(int i=0;i< ctx.getNGenotypes();i++) {
 								final BGenGenotype gt  =ctx.getGenotype(i);
-								GenotypeBuilder gb=new GenotypeBuilder(gt.getSample());
-								gb.phased(gt.isPhased());
-								gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
-								genotypes.add(gb.make());
+								if(gt.isMissing()) {
+									genotypes.add(GenotypeBuilder.createMissing(gt.getSample(), gt.getPloidy()));
+									}
+								else
+									{
+									final GenotypeBuilder gb=new GenotypeBuilder(gt.getSample());
+									gb.phased(gt.isPhased());
+									gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
+									genotypes.add(gb.make());
+									}
 								}
 							vcb.genotypes(genotypes);
 							}
