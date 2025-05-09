@@ -1,7 +1,6 @@
 package com.github.lindenb.jvarkit.tools.bgen.bgen2vcf;
 
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -10,33 +9,31 @@ import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bgen.BGenGenotype;
 import com.github.lindenb.jvarkit.bgen.BGenReader;
 import com.github.lindenb.jvarkit.bgen.BGenUtils;
 import com.github.lindenb.jvarkit.bgen.BGenVariant;
 import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
+import com.github.lindenb.jvarkit.interval.TargetsParameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.tools.bgen.bgenview.BGenView;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -54,11 +51,12 @@ BEGIN_DOC
 END_DOC
  */
 @Program(name="bgen2vcf",
-description="convert bgen to VCF",
+description="convert bgen to vcf",
 keywords={"bgen","vcf"},
 creationDate="20250508",
-modificationDate="20250508",
-jvarkit_amalgamion =  true
+modificationDate="20250509",
+jvarkit_amalgamion =  true,
+generate_doc = false
 )
 public class BGenToVcf extends Launcher {
 
@@ -68,8 +66,8 @@ public class BGenToVcf extends Launcher {
 	private Path dictPath=null;
 	@Parameter(names={"-G","--no-genotype"},description="skip genotypes")
 	private boolean skip_genotypes=false;
-	@Parameter(names={"--regions-file"},description="limit to that BED file. ")
-	private String bed=null;
+	@ParametersDelegate
+	TargetsParameter regionFilesParameter = new TargetsParameter();
 	@Parameter(names={"-N","--head"},description="limit to 'N' variant; negative==show all ")
 	private long limit_n_variants=-1L;
 
@@ -77,46 +75,19 @@ public class BGenToVcf extends Launcher {
 	private WritingVariantsDelegate writingVariantsDelegate=new WritingVariantsDelegate();
 
 	
-	private static final Logger LOG = Logger.build(BGenToVcf.class).make();
+	private static final Logger LOG = Logger.build(BGenView.class).make();
 	
 	
 	@Override
 	public int doWork(List<String> args) {
 		try {
-			final Predicate<BGenVariant> accept;
 			SAMSequenceDictionary dict = null;
 			if(this.dictPath!=null) {
 				dict = new SequenceDictionaryExtractor().extractRequiredDictionary(this.dictPath);
 				}
-			if(bed!=null) {
-				final boolean negate;
-				final Path bedFile;
-				if(bed.startsWith("^")) {
-					bedFile = Paths.get(bed.substring(1));
-					negate=true;
-					}
-				else
-					{
-					bedFile = Paths.get(bed);
-					negate=false;
-					}
-				final IntervalTreeMap<Boolean> treeMap;
-				try(BedLineReader br=new BedLineReader(bedFile)) {
-					if(dict!=null) br.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-					treeMap = br.toIntervalTreeMap(B->true);
-					}
-				if(negate) {
-					accept = V->!treeMap.containsOverlapping(V);
-					}
-				else
-					{
-					accept = V->treeMap.containsOverlapping(V);
-					}
-				}
-			else
-				{
-				accept = V -> true;
-				}
+			final Predicate<Locatable> accept = regionFilesParameter.
+					setDictionary(dict).
+					makePredicate();
 			
 			
 			final String input = oneFileOrNull(args);
@@ -128,13 +99,18 @@ public class BGenToVcf extends Launcher {
 				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
 				VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY);
 
-				final VCFInfoHeaderLine BITS_format_header_line = new VCFInfoHeaderLine(
+				final VCFInfoHeaderLine BITS_info_header_line = new VCFInfoHeaderLine(
 						"BITS",1,VCFHeaderLineType.Integer,"Number of bits used for storage in the bgen file");
+				final VCFInfoHeaderLine OFFSET_info_header_line = new VCFInfoHeaderLine(
+						"OFFSET",1,VCFHeaderLineType.Integer,"physical offset of the variant in the original bgen file");
+				final VCFInfoHeaderLine ID_info_header_line = new VCFInfoHeaderLine(
+						"ID2",1,VCFHeaderLineType.String,"bgen variant id");
 
 				
 				metaData.add(BGenUtils.GP_format_header_line);
 				metaData.add(BGenUtils.HP_format_header_line);
-				metaData.add(BITS_format_header_line);
+				metaData.add(BITS_info_header_line);
+				metaData.add(OFFSET_info_header_line);
 				
 				metaData.add(new VCFHeaderLine("bgen.compression", r.getHeader().getCompression().name()));
 				metaData.add(new VCFHeaderLine("bgen.n-variants", String.valueOf( r.getHeader().getNVariants())));
@@ -184,6 +160,16 @@ public class BGenToVcf extends Launcher {
 								endPos, 
 								alleles
 								);
+						
+						final long offset = ctx.getOffset();
+						if(offset>0L) {
+							vcb.attribute(OFFSET_info_header_line.getID(), offset);
+							}
+						
+						final String id = ctx.getId();
+						if(!StringUtils.isBlank(id) && !id.equals(".")) {
+							vcb.attribute(ID_info_header_line.getID(),id);
+							}
 						if(!StringUtils.isBlank(ctx.getRsId())) {
 							vcb.id(ctx.getRsId());
 							}
@@ -196,7 +182,7 @@ public class BGenToVcf extends Launcher {
 						else
 							{
 							ctx = r.readGenotypes();
-							vcb.attribute(BITS_format_header_line.getID(), ctx.getBitsPerProb());
+							vcb.attribute(BITS_info_header_line.getID(), ctx.getBitsPerProb());
 							
 							final List<Genotype> genotypes = new ArrayList<>(ctx.getNGenotypes());
 							for(int i=0;i< ctx.getNGenotypes();i++) {
