@@ -50,6 +50,7 @@ nav:
         - "bedremovebed" : BedRemoveBed.md
         - "bedrenamechr" : BedRenameChromosomes.md
         - "bgen2vcf" : BGenToVcf.md
+        - "bgenview" : BGenView.md
         - "bigwigmerge" : BigwigMerge.md
         - "bigwigtview" : BigWigTView.md
         - "bioalcidae" : BioAlcidae.md

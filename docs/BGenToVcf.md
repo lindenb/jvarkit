@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-convert bgen to VCF
+convert bgen to vcf
 
 
 ## Usage
@@ -41,8 +41,12 @@ Usage: bgen2vcf [options] Files
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
       any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
-    --regions-file
-      limit to that BED file.
+    --targets
+      Restrict to comma-separated list of regions. Can be prefixed with "^" to 
+      request logical complement
+    --targets-file
+      Restrict to regions listed in BED 'FILE'. Can be prefixed with "^" to 
+      request logical complement.
     --version
       print version and exit
 
