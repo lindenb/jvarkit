@@ -46,7 +46,9 @@ import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -55,6 +57,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -82,6 +85,65 @@ END_DOC
 @Program(name="vcfburdensplitter2",description="new version",keywords={"vcf","burden","gene","vep","snpeff","prediction"})
 public class VcfBurdenSplitter2 
 	{
+	
+
+	
+	private static class VcfWriterOnDemand
+		implements VariantContextWriter
+		{
+		private VariantContextWriter delegate=null;
+		private final VariantContextWriterBuilder vcb=new VariantContextWriterBuilder().
+					clearIndexCreator().
+					clearOptions()
+					;
+		private List<VCFHeaderLine> extraHeaderLines=new ArrayList<>();
+		public VcfWriterOnDemand() {
+			vcb.setOutputVCFStream(System.out);
+			}
+		
+		
+		@Override
+		public void setHeader(final VCFHeader header) {
+			throw new IllegalStateException("setHeader shouldn't be called.");
+		}
+		
+		@Override
+		public void writeHeader(final VCFHeader header) {
+			if(this.delegate==null) {
+				this.delegate =vcb.build(); 
+				}
+			VCFHeader header2 = header;
+			if(!this.extraHeaderLines.isEmpty()) {
+				header2= new VCFHeader(header);
+				for(final VCFHeaderLine hl:this.extraHeaderLines)
+					{
+					header2.addMetaDataLine(hl);
+					}
+			}
+			this.delegate.writeHeader(header2);
+			}
+		
+		
+		@Override
+		public void add(final VariantContext ctx) {
+			if(this.delegate==null) throw new JvarkitException.ProgrammingError("null delegate");
+			this.delegate.add(ctx);
+			}
+		@Override
+		public boolean checkError() {
+			return (this.delegate==null?false:delegate.checkError());
+			}
+		@Override
+		public void close() {
+			CloserUtil.close(this.delegate);
+			}
+		@Override
+		public String toString() {
+			return "Default VCF writer (stdout)";
+			}
+		}
+
+	
 	//public for knime
 	public static final String DEFAULT_VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
 
@@ -360,7 +422,7 @@ public class VcfBurdenSplitter2
 		@ParametersDelegate
 		private VcfBurdenSplitter2 instance=new VcfBurdenSplitter2();
 		@Parameter(names={"-o","--out"},description="Vcf output.")
-		private VariantContextWriter output=new com.github.lindenb.jvarkit.util.jcommander.Launcher.VcfWriterOnDemand();
+		private VariantContextWriter output=new VcfWriterOnDemand();
 		
 		Launcher() {
 			

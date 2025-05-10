@@ -338,6 +338,8 @@ public class CompileJVarkit extends DefaultTask {
 	def otherJavaFiles = [];
 	@Input
 	boolean with_jaxb=false;
+	@Input
+	boolean includeTestsDir=false;
 
 	CompileJVarkit() {
 		def baseDir = this.getProject().projectDir.getPath();
@@ -698,7 +700,7 @@ public class CompileJVarkit extends DefaultTask {
 
 		ant.javac(
 			destdir: this.tmpDir,
-			srcdir: this.srcDir+":"+this.tmpDir,
+			srcdir: this.srcDir+":"+this.tmpDir + (this.includeTestsDir?":"+this.testDir:""),
 			includeantruntime:false,
 			failonerror: true,
 			fork: true,

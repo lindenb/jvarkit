@@ -23,12 +23,10 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcfhead;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
-import com.github.lindenb.jvarkit.tests.TestIt;
-import com.github.lindenb.jvarkit.tests.TestRunner;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -67,7 +65,7 @@ END_DOC
 		description="print the first variants of a vcf",
 		keywords={"vcf"},
 		modificationDate="20200518",
-		creationDate="20131210",
+		creationDate="202050510",
 		jvarkit_amalgamion = true,
 		menu="VCF Manipulation"
 		)
@@ -90,7 +88,7 @@ public class VcfHead extends OnePassVcfLauncher
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter w) {
+	protected int doVcfToVcf(final String inputName, final VCFIterator in, final VariantContextWriter w) {
 		if(count<0) {
 			LOG.error("count < 0");
 			return -1;
@@ -129,10 +127,6 @@ public class VcfHead extends OnePassVcfLauncher
 			} 
 		}
 	
-	@TestIt
-	private static void test01(final TestRunner tr) {
-		
-	}
 	
 	public static void main(final String[] args)
 		{

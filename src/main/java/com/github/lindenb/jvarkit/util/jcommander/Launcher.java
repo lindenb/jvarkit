@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,8 +51,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.tests.TestRunner;
-import com.github.lindenb.jvarkit.tests.TestRunnerImpl;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.samfilter.SamRecordFilterFactory;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -65,17 +62,13 @@ import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.filter.SamRecordFilter;
 import htsjdk.samtools.util.AbstractProgressLogger;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.ProgressLoggerInterface;
 import htsjdk.samtools.util.StringUtil;
-import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 
 
@@ -95,7 +88,7 @@ public static final String USER_CUSTOM_INTERVAL_URL_DESC="A custom URL for a web
 		+ "For example for IGV that would be: 'http://localhost:60151/goto?locus=${CHROM}%3A${START}-${END}' (see http://software.broadinstitute.org/software/igv/book/export/html/189)";
 
 protected static final int RETURN_OK=0;
-public enum Status { OK, PRINT_HELP,PRINT_VERSION,RUN_TESTS,EXIT_SUCCESS,EXIT_FAILURE};
+public enum Status { OK, PRINT_HELP,PRINT_VERSION,EXIT_SUCCESS,EXIT_FAILURE};
 
 
 
@@ -137,7 +130,7 @@ private String programName="";
 public class WritingSortingCollection
 	{
 	@Parameter(names={"--maxRecordsInRam"},description="When writing  files that need to be sorted, this will specify the number of records stored in RAM before spilling to disk. Increasing this number reduces the number of file  handles needed to sort a file, and increases the amount of RAM needed")
-	public int maxRecordsInRam=50000;
+	public int maxRecordsInRam=50_000;
 	
 	@Parameter(names={"--tmpDir"},description= "tmp working directory. Default: java.io.tmpDir")
 	private List<File> tmpDirs=new ArrayList<>();
@@ -297,65 +290,6 @@ public class WritingBamArgs
 	}
 
 
-
-public static class VcfWriterOnDemand
-	implements VariantContextWriter
-	{
-	private VariantContextWriter delegate=null;
-	private final VariantContextWriterBuilder vcb=new VariantContextWriterBuilder().
-				clearIndexCreator().
-				clearOptions()
-				;
-	private List<VCFHeaderLine> extraHeaderLines=new ArrayList<>();
-	public VcfWriterOnDemand() {
-		vcb.setOutputVCFStream(System.out);
-		}
-	VcfWriterOnDemand(final File file)
-		{
-		vcb.setOutputFile(file);
-		}
-	
-	@Override
-	public void setHeader(final VCFHeader header) {
-		throw new IllegalStateException("setHeader shouldn't be called.");
-	}
-	
-	@Override
-	public void writeHeader(final VCFHeader header) {
-		if(this.delegate==null) {
-			this.delegate =vcb.build(); 
-			}
-		VCFHeader header2 = header;
-		if(!this.extraHeaderLines.isEmpty()) {
-			header2= new VCFHeader(header);
-			for(final VCFHeaderLine hl:this.extraHeaderLines)
-				{
-				header2.addMetaDataLine(hl);
-				}
-		}
-		this.delegate.writeHeader(header2);
-		}
-	
-	
-	@Override
-	public void add(final VariantContext ctx) {
-		if(this.delegate==null) throw new JvarkitException.ProgrammingError("null delegate");
-		this.delegate.add(ctx);
-		}
-	@Override
-	public boolean checkError() {
-		return (this.delegate==null?false:delegate.checkError());
-		}
-	@Override
-	public void close() {
-		CloserUtil.close(this.delegate);
-		}
-	@Override
-	public String toString() {
-		return "Default VCF writer (stdout)";
-		}
-	}
-
 @SuppressWarnings("unchecked")
 public Launcher()
 	{
@@ -381,7 +315,7 @@ public Launcher()
 		System.setProperty("file.encoding", "UTF-8");
 		}
 	catch(final Throwable /*java.security.AccessControlException deprecated*/ err) {
-		System.err.println("Cannot set file.encoding to UTF-8 for security reasons"+err.getMessage());
+		System.err.println("Cannot set file.encoding to UTF-8 for security reasons : "+err.getMessage());
 		}
 	try {
 	/* https://bugs.openjdk.java.net/browse/JDK-8028111 */
@@ -431,21 +365,6 @@ protected JCommander getJCommander()
 	{
 	return this.jcommander;
 	}
-protected TestRunner createTestRunner() {
-	return new TestRunnerImpl();
-}
-private int runInternalTests() {
-	try {
-		final TestRunner r= createTestRunner();
-		r.register(this.getClass());
-		final Path path = Paths.get(getProgramName()+".tests.txt");
-		return r.run(path);
-		}
-	catch(final Throwable err) {
-		err.printStackTrace();
-		return -1;
-		}
-	}
 
 /** called AFTER argc/argv has been initialized */
 protected int initialize() {
@@ -481,7 +400,6 @@ protected Status parseArgs(final String args[])
 	 	}
 	
 	 if (this.usageBuilder.shouldPrintUsage()) return Status.PRINT_HELP;
-	 if (this.usageBuilder.shouldRunTests()) return Status.RUN_TESTS;
 	 if (this.usageBuilder.print_version) return Status.PRINT_VERSION;
 	 return Status.OK;
 	}
@@ -712,7 +630,6 @@ public int instanceMain(final String args[]) {
 			case EXIT_SUCCESS: return 0;
 			case PRINT_HELP: this.usageBuilder.usage(getJCommander()); return 0;
 			case PRINT_VERSION: System.out.println(getVersion());return 0;
-			case RUN_TESTS: return this.runInternalTests();
 			case OK:break;
 			}
 		
