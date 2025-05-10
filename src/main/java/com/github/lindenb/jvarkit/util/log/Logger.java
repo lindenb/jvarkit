@@ -33,22 +33,16 @@ import java.io.PrintStream;
 import com.github.lindenb.jvarkit.lang.Maker;
 
 /** Generic & simple Logging class */
-public abstract class Logger  {
+public interface Logger  {
 public enum Level {DEBUG,INFO,WARN,SEVERE,FATAL}
-protected PrintStream out=System.err;
-protected String prefix=null;
 
 public static class Builder implements Maker<Logger>
 	{
 	private Class<?> clazz=null;
-	private PrintStream out=System.err;
-	private String prefix="[LOG]";
 	public Builder output(final PrintStream out) {
-		this.out = out;
 		return this;
 		}
 	public Builder prefix(final String prefix) {
-		this.prefix = prefix;
 		return this;
 		}
 	public Builder setClass(final Class<?> clazz) {
@@ -57,64 +51,58 @@ public static class Builder implements Maker<Logger>
 		}
 	@Override
 	public Logger make() {
-		final DefaultLogger L= new DefaultLogger();
-		L.out=this.out==null?System.err:this.out;
-		L.prefix=this.prefix;
-
-		if(this.clazz!=null) {
-			final String s= this.clazz.getSimpleName();
-			if(!(s==null || s.isEmpty() || s.contains("[")))
-				{
-				L.prefix = s;
-				}
-			}
-		
+		final DefaultLogger L= new DefaultLogger(this.clazz);
 		return L;
+
 		}
 	}
-private Logger() {
-}
 
-public Logger fine(Object s) {
+
+public static Logger of(Class<?> clazz) {
+	final DefaultLogger logger = new DefaultLogger(clazz);
+	return logger;
+	}
+
+public default Logger fine(Object s) {
 	return info(s);
 	}
 
 
-public Logger info(Object s) {
+public default Logger info(Object s) {
 	return log(Level.INFO,s);
 	}
-public Logger debug(Object s) {
+public default Logger debug(Object s) {
 	return log(Level.DEBUG,s);
 	}
-public Logger severe(final Object err) {
+public default Logger severe(final Object err) {
 	return log(Level.SEVERE,err);
 	}
 
-public Logger severe(final Object err,Throwable t) {
+public default Logger severe(final Object err,Throwable t) {
 	return log(Level.SEVERE,err,t);
 	}
 
 
-public Logger error(final Object err) {
+public default Logger error(final Object err) {
 	return severe(err);
 	}
-public Logger error(final Object err,Throwable t) {
+public default Logger error(final Object err,Throwable t) {
 	return severe(err,t);
 	}
 
 
-public Logger warning(final Object err) {
+public default Logger warning(final Object err) {
 	return warn(err);
 	}
 
-public Logger warn(final Object err) {
+public default Logger warn(final Object err) {
 	return log(Level.WARN,err);
 	}
 
-public Logger fatal(final Object err) {
+public default Logger fatal(final Object err) {
 	return log(Level.FATAL,err);
 	}
-public Logger log(Logger.Level level,final Object o) {
+public default Logger log(Logger.Level level,final Object o) {
 	if(o==null)
 		{
 		return this.log(level, "null",null);
@@ -140,19 +128,16 @@ public static Builder build(final Class<?> c) {
 	return b;
 	}
 
-protected void andThen(final Logger.Level level,Throwable err) {
-	if(err==null) return;
-	if( err instanceof java.net.ConnectException) {
-		this.log(level,"It could be a proxy error. Did you set the java proxy ? See http://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html. "+
-				"Something like `java -Dhttp.proxyHost=myproxyhost  -Dhttp.proxyPort=myproxyport -Dhttps.proxyHost=myproxyhost  -Dhttps.proxyPort=myproxyport  `",
-				null);
-		}
-}
 
-
-private static class DefaultLogger
-	extends Logger
+static class DefaultLogger implements Logger
 	{
+	private PrintStream out=System.err;
+	private final String prefix;
+	private final Class<?> clazz;
+	DefaultLogger(Class<?> clazz) {
+		this.clazz = clazz;
+		this.prefix = "[LOG]";
+		}
 	@Override
 	public Logger log(final Logger.Level level,final Object msg,final Throwable err) {
 		this.out.print("[");
@@ -174,6 +159,17 @@ private static class DefaultLogger
 		
 		return this;
 		}	
+	
+	protected void andThen(final Logger.Level level,Throwable err) {
+		if(err==null) return;
+		if( err instanceof java.net.ConnectException) {
+			this.log(level,"It could be a proxy error. Did you set the java proxy ? See http://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html. "+
+					"Something like `java -Dhttp.proxyHost=myproxyhost  -Dhttp.proxyPort=myproxyport -Dhttps.proxyHost=myproxyhost  -Dhttps.proxyPort=myproxyport  `",
+					null);
+			}
+	}
+
+
 	}
 
 

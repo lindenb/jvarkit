@@ -101,8 +101,7 @@ public class BGenToVcf extends Launcher {
 
 				final VCFInfoHeaderLine BITS_info_header_line = new VCFInfoHeaderLine(
 						"BITS",1,VCFHeaderLineType.Integer,"Number of bits used for storage in the bgen file");
-				final VCFInfoHeaderLine OFFSET_info_header_line = new VCFInfoHeaderLine(
-						"OFFSET",1,VCFHeaderLineType.Integer,"physical offset of the variant in the original bgen file");
+				
 				final VCFInfoHeaderLine ID_info_header_line = new VCFInfoHeaderLine(
 						"ID2",1,VCFHeaderLineType.String,"bgen variant id");
 
@@ -110,7 +109,7 @@ public class BGenToVcf extends Launcher {
 				metaData.add(BGenUtils.GP_format_header_line);
 				metaData.add(BGenUtils.HP_format_header_line);
 				metaData.add(BITS_info_header_line);
-				metaData.add(OFFSET_info_header_line);
+				metaData.add(BGenUtils.OFFSET_format_header_line);
 				
 				metaData.add(new VCFHeaderLine("bgen.compression", r.getHeader().getCompression().name()));
 				metaData.add(new VCFHeaderLine("bgen.n-variants", String.valueOf( r.getHeader().getNVariants())));
@@ -163,7 +162,9 @@ public class BGenToVcf extends Launcher {
 						
 						final long offset = ctx.getOffset();
 						if(offset>0L) {
-							vcb.attribute(OFFSET_info_header_line.getID(), offset);
+							vcb.attribute(BGenUtils.OFFSET_format_header_line.getID(),
+								String.valueOf(offset)/* as a String because it can be a int63 number, not an int32 */
+								);
 							}
 						
 						final String id = ctx.getId();
@@ -192,7 +193,8 @@ public class BGenToVcf extends Launcher {
 									}
 								else
 									{
-									final GenotypeBuilder gb=new GenotypeBuilder(gt.getSample());
+									// build from missing otherwise "java.lang.IllegalStateException: GTs cannot be missing for some samples if they are available for others in the record"
+									final GenotypeBuilder gb=new GenotypeBuilder(GenotypeBuilder.createMissing(gt.getSample(), gt.getPloidy()));
 									gb.phased(gt.isPhased());
 									gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
 									genotypes.add(gb.make());

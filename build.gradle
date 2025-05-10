@@ -252,7 +252,7 @@ libraries.put("jena",new Library().
 	add("org.apache.jena:jena-iri:jar:3.10.0").
 	add("org.apache.jena:jena-base:jar:3.10.0").
 	add("org.apache.jena:jena-core:jar:3.10.0").
-	add("org.slf4j:slf4j-api:jar:1.7.25").
+	add("org.slf4j:slf4j-api:jar:1.7.30").
 	add("org.apache.jena:jena-shaded-guava:jar:3.7.0")
 	);
 libraries.put("arq",new Library().
@@ -293,6 +293,8 @@ libraries.put("freemarker",new Library().
 
 libraries.put("velocity",new Library().
 	add("org.slf4j:slf4j-api:jar:1.7.30").
+	//add("org.slf4j:slf4j-log4j12:jar:1.7.30"). //simple bindings for slf4j
+	//add("log4j:log4j:jar:1.2.17"). //log4j itself
 	add("org.apache.commons:commons-lang3:jar:3.16.0").
 	add("org.apache.velocity:velocity-engine-core:jar:2.3")
 	);
@@ -726,7 +728,7 @@ public class CompileJVarkit extends DefaultTask {
 			file: this.getMainJavaSource(),
 			todir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/')
 			)
-
+		
 		
 		
 		
@@ -753,6 +755,7 @@ public class CompileJVarkit extends DefaultTask {
 				)
 			}
         /* copy resources  ? */
+
 		ant.mkdir(dir:"${this.tmpDir}/META-INF/spring")
 		ant.copy(
 				file: new File( this.getProject().projectDir.getPath()+"/src/main/resources/spring/default-vcfstats-analyzers.xml") ,

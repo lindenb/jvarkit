@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : c002fbeb3
-Compilation : 20250509163024
+Version     : c76f01dd6
+Compilation : 20250510230804
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -320,7 +320,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgnomad](VcfGnomad.md) | Peek annotations from gnomad | 20170407 | 20231103 |
 | [vcfgnomadsv](VcfGnomadSV.md) | Peek annotations from gnomad structural variants | 20190814 | 20211109 |
 | [vcfgrantham](VcfGrantham.md) | add grantham score from annotated VCF variant | 20230503 | 20230503 |
-| [vcfhead](VcfHead.md) | print the first variants of a vcf | 20131210 | 20200518 |
+| [vcfhead](VcfHead.md) | print the first variants of a vcf | 202050510 | 20200518 |
 | [vcfmovefilterstoinfo](VcfMoveFiltersToInfo.md) | Move any FILTER to the INFO column. reset FILTER to PASS | 20161025 | 20220323 |
 | [vcfmulti2one](VcfMultiToOne.md) | Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used. | 20150312 | 20241125 |
 | [vcfmulti2oneinfo](VcfMultiToOneInfo.md) | 'one variant with INFO with N values' to 'N variants with one INFO' | 20260106 | 20230524 |

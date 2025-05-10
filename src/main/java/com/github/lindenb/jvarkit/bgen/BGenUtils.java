@@ -28,21 +28,28 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.util.BitSet;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.math.MathUtils;
 
 import htsjdk.samtools.util.BinaryCodec;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.tribble.TribbleException;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 public class BGenUtils {
 	public static final VCFFormatHeaderLine GP_format_header_line = new VCFFormatHeaderLine(
 			"GP",VCFHeaderLineCount.G,VCFHeaderLineType.Float,"Genotype call probabilities");
 	public static final VCFFormatHeaderLine HP_format_header_line = new VCFFormatHeaderLine(
 			"HP",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.Float,"Haplotype call probabilities");
+	public static final VCFInfoHeaderLine OFFSET_format_header_line = new VCFInfoHeaderLine(
+			"OFFSET",1,VCFHeaderLineType.String,"Physical offset in BGEN file; Encoded as String because it can be a long/int64.");
 
 	
 	public enum Compression {
@@ -63,7 +70,7 @@ public class BGenUtils {
 	static final Charset ENCODING=Charset.forName("UTF-8");
 	static final byte[] BGEN_MAGIC = "bgen".getBytes(ENCODING);
 	static final String FILE_SUFFIX = ".bgen";
-	static final int USHRT_MAX= 65_635;
+	static final String VCF_INDEX_SUFFIX = ".bgenix"+FileExtensions.COMPRESSED_VCF;
 
 	/** write 'N' bytes */
 	static void writeNBytes(BinaryCodec binaryCodec,long n,byte value) {
@@ -102,10 +109,21 @@ public class BGenUtils {
     	}
     
     /** read the length of a string as unsigned short and read the string */
-    public static String readStringUInt32(final BinaryCodec binaryCodec) throws IOException {
+    static String readStringUInt32(final BinaryCodec binaryCodec) throws IOException {
     	return readString(binaryCodec, longToUnsignedInt(binaryCodec.readUInt()));
     	}
-    	
+    
+    /** problem with bitSet, when using toByteArray, it goes to the last SET bit, this function use padding */
+    static byte[] toByteArray(final BitSet bitSet,final int n) {
+    	if(bitSet.size()>n) throw new IllegalStateException();
+    	final byte[] raw = bitSet.toByteArray();
+    	if(raw.length>n) throw new IllegalStateException();
+		if(raw.length==n) return raw;
+		final byte[] padding = new byte[n];
+		System.arraycopy(raw, 0, padding, 0,raw.length);
+		return padding;
+    }
+    
     /**
      * read a string of length 'len'
      */
@@ -121,15 +139,29 @@ public class BGenUtils {
         return bytes;
     	}
 
+   
+   static int calculateTotalCombinationsForLayout2(boolean phased,final int n_alleles,final int m_ploidy) {
+		final BigInteger bi;
+		if(phased) {
+			bi = BigInteger.valueOf(n_alleles).pow(m_ploidy);
+			}
+		else
+			{
+			int n = n_alleles;
+		    int k = m_ploidy;
+			bi = MathUtils.factorial(n + k - 1).divide(MathUtils.factorial(k).multiply(MathUtils.factorial(n - 1)));
+			}
+		return bi.intValueExact();
+		}
+   
    	/** ByteArrayOutputStream but we expose the internal buffer */
     protected static class ByteBuffer extends ByteArrayOutputStream {
 		byte[] getBuffer() { return super.buf;}
-		int getCount() { return super.count;}
 		public void copyTo(InputStream in,int nbytes) throws IOException {
 			IOUtils.copyTo(in,this,nbytes);
 			}
 		ByteArrayInputStream toByteArrayInputStream() {
-			return new ByteArrayInputStream(getBuffer(), 0, getCount());
+			return new ByteArrayInputStream(getBuffer(), 0, size());
 			}
 		}
     

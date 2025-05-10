@@ -23,10 +23,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bgen;
 
+import java.io.Closeable;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -37,18 +39,28 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 
+import htsjdk.io.HtsPath;
 import htsjdk.samtools.Defaults;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.BinaryCodec;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.util.ParsingUtils;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
 
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.math.MathUtils;
+import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 
@@ -65,6 +77,9 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	private int layout1_expect_n_samples=-1;
 	private final ByteBuffer buffer1 = new ByteBuffer();
 	private boolean debug_flag=true;
+	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
+	private Path filenameOrNull = null;
+	private VCFFileReader vcfIndexFile = null;
 
 	/** class counting the number of bytes read. Useful to skip bytes after the header */
 	private static class ByteCountInputStream extends FilterInputStream {
@@ -184,6 +199,12 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		public final BGenGenotype getGenotype(final String sn) {
 			throw new IllegalStateException("this variant was read without genotype");
 			}
+		
+		@Override
+		public boolean isPhased() {
+			throw new IllegalStateException("this variant was read without genotype");
+			}
+		
 		@Override
 		public String toString() {
 			final StringBuilder builder = new StringBuilder();
@@ -301,6 +322,8 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			public double[] getProbs() {
 				return new double[] {get(0),get(1),get(2)};
 				}
+			
+			
 			@Override
 			public int[] getAllelesIndexes(ToIntFunction<double[]> fun) {
 				if(isMissing()) return getAlleleIndexesForMissingGT();
@@ -328,6 +351,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 					return new GenotypeLayout1(index);
 					}
 				};
+			}
+		
+		@Override
+		public final boolean isPhased() {
+			return false;
 			}
 		@Override
 		public final int getBitsPerProb() {
@@ -419,7 +447,10 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				this.genotypes.add(new GenotypeLayout2(i));
 				}
 			}
-		
+		@Override
+		public final boolean isPhased() {
+			return this.phased==1;
+			}
 		@Override
 		public int getBitsPerProb() {
 			return this.nbits;
@@ -463,10 +494,20 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 	public BGenReader(final String path) throws IOException {
 		this(SeekableStreamFactory.getInstance().getBufferedStream(SeekableStreamFactory.getInstance().getStreamFor(Objects.requireNonNull(path,"null input")),Defaults.NON_ZERO_BUFFER_SIZE));
+		if(this.in instanceof SeekableStream) {
+			String src=SeekableStream.class.cast(this.in).getSource();
+			if(!StringUtils.isBlank(src)) {
+				final HtsPath source = new HtsPath(src);
+				if(source.isPath()) {
+					this.filenameOrNull = source.toPath();
+					}
+				}
+			}
 		}
 	
 	public BGenReader(final Path path) throws IOException {
 		this(Objects.requireNonNull(path,"null input").toString());
+		this.filenameOrNull = path;
 		}
 	
 	public BGenHeader getHeader() {
@@ -475,6 +516,20 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 	public long getSnpsOffset() {
 		return snps_offset;
+		}
+	
+	/** change the reading pointer offset
+	 * 
+	 * @param position the physical offset
+	 * @throws IOException the inutstream is not an instance of SeekableStream
+	 */
+	public void fseek(long position)  throws IOException {
+		assertState(State.expect_variant_def);;
+		if(position<=0) throw new IllegalArgumentException("seek.pos<=0: "+position);
+		if(!(this.in instanceof SeekableStream)) {
+			throw new IOException("cannot do random-access with this king of input "+this.in.getClass());
+			}
+		SeekableStream.class.cast(this.in).seek(position);
 		}
 	
 	private long ftell() throws IOException {
@@ -518,6 +573,95 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 	public Iterator<BGenVariant> iterator() {
 		return iterator(false);
+		}
+	
+	private class QueryIterator extends AbstractIterator<BGenVariant> implements CloseableIterator<BGenVariant> {
+		private Locatable query;
+		private CloseableIterator<VariantContext> delegate;
+		private boolean skipGenotypes;
+		@Override
+		protected BGenVariant advance() {
+			try {
+				for(;;) {
+					if(delegate==null) return null;
+					if(!delegate.hasNext()) {
+						close();
+						return null;
+						}
+					final VariantContext ctx = this.delegate.next();
+					if(!ctx.overlaps(this.query)) continue;
+					if(!ctx.hasAttribute(OFFSET_format_header_line.getID())) continue;
+					final long offset= Long.parseLong(ctx.getAttributeAsString(OFFSET_format_header_line.getID(), "-1"));
+					if(offset<=0L) throw new IllegalArgumentException("bad offset in "+ctx);
+					BGenReader.this.fseek(offset);
+					BGenVariant bv = BGenReader.this.readVariant();
+					if(skipGenotypes) {
+						BGenReader.this.skipGenotypes();
+						}
+					else
+						{
+						bv = BGenReader.this.readGenotypes();
+						}
+					return bv;
+					}
+				}
+			catch(IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		@Override
+		public void close()  {
+			if(this.delegate!=null) this.delegate.close();
+			this.delegate=null;
+			}
+		}
+	
+	public CloseableIterator<BGenVariant> query(final Locatable loc, boolean skipGenotypes) {
+		loadVcfIndex();
+		final QueryIterator iter=new QueryIterator();
+		iter.query=new SimpleInterval(loc);
+		iter.delegate = Objects.requireNonNull(this.vcfIndexFile).query(loc);
+		iter.skipGenotypes = skipGenotypes;
+		return iter;
+		}
+	
+	public boolean hasIndex() {
+		if(this.vcfIndexFile!=null) return true;
+		if(this.filenameOrNull==null)return false;
+		final Path vcfPath = getVcfIndexName(this.filenameOrNull);
+		if(!Files.exists(vcfPath)) return false;
+		final String vcffilename = vcfPath.toAbsolutePath().toString();
+		final  Path tbi = vcfPath.getFileSystem().getPath(ParsingUtils.appendToPath(vcffilename, FileExtensions.TABIX_INDEX));
+		if(!Files.exists(tbi)) return false;
+		try(VCFFileReader r=new VCFFileReader(vcfPath,false)) {
+			final VCFHeader hder = r.getHeader();
+			if(!hder.hasInfoLine(OFFSET_format_header_line.getID())) return false;
+			}
+		catch(Throwable err) {
+			return false;
+			}
+		return true;
+		}
+	
+	private void loadVcfIndex() {
+		if(this.vcfIndexFile!=null) return;
+		if(this.filenameOrNull==null) throw new RuntimeIOException("Cannot load a VCF index as the bgen is not a file (but probably a stream) ");
+		final Path vcfPath = getVcfIndexName(this.filenameOrNull);
+		if(!Files.exists(vcfPath))  throw new RuntimeIOException("cannot find associated VCF file "+vcfPath);
+		this.vcfIndexFile=new VCFFileReader(vcfPath,true);
+		final VCFHeader hder = this.vcfIndexFile.getHeader();
+		if(!hder.hasInfoLine(OFFSET_format_header_line.getID())) {
+			this.vcfIndexFile.close();
+			this.vcfIndexFile=null;
+			throw new RuntimeIOException("cannot use "+vcfPath+" as index because the header is missing ##INFO/"+OFFSET_format_header_line.getID());
+			}
+		}
+	
+	/** get the name of the VCF index for the bgen without checking it exists */
+	public static Path getVcfIndexName(Path bgenPath) {
+		final String filename = Objects.requireNonNull(bgenPath).toAbsolutePath().toString();
+		final  String vcf = ParsingUtils.appendToPath(filename, VCF_INDEX_SUFFIX);
+		return bgenPath.getFileSystem().getPath(vcf);
 		}
 	
 	private List<String> readNAlleles(final int num_alleles) throws IOException {
@@ -618,7 +762,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		
 		this.buffer1.reset();
 		this.buffer1.copyTo(this.in,genotype_block_size);
-		if(this.buffer1.getCount()!=genotype_block_size) {
+		if(this.buffer1.size()!=genotype_block_size) {
 			throw new IllegalStateException("bad size");
 			}
 		if(isDebugging()) {
@@ -671,7 +815,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		final double[] genotypes =new double[ this.layout1_expect_n_samples*3];
 		for(int i=0;i< this.layout1_expect_n_samples;++i) {
 			for(int k=0;k< 3 ;++k) {
-				genotypes[i*3+k] = (float)bc.readUShort() / BGenUtils.USHRT_MAX;
+				genotypes[i*3+k] = (float)bc.readUShort() / BinaryCodec.MAX_USHORT;
 				}
 			}
 		return new VariantAndGenotypesLayout1(this.lastVariant,genotypes);
@@ -945,6 +1089,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 	@Override
 	public void close()  {
+		if(this.vcfIndexFile!=null) {
+			vcfIndexFile.close();
+			vcfIndexFile=null;
+			}
+		
 		try {this.in.close();}
 		catch(IOException err) {}
 		this.binaryCodec.close();

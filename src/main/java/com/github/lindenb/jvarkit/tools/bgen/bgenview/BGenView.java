@@ -103,12 +103,12 @@ public class BGenView extends Launcher {
 					final List<String> input_samples= r.getHeader().getSamples();
 					final List<String> output_samples= new ArrayList<>(input_samples.size());
 
-					final int[] sample_index = new int[input_samples.size()];
+					final int[] sample_new_index = new int[input_samples.size()];
 					
 					int j=0;
 					for(int i=0;i< input_samples.size();i++) {
 						//TODO add here sample filtering
-						sample_index[i]=j;
+						sample_new_index[i]=j;
 						output_samples.add(input_samples.get(i));
 						j++;
 						}
@@ -133,16 +133,14 @@ public class BGenView extends Launcher {
 						ctx = r.readGenotypes();
 						
 						w.setNBits(this.nbits<=0?ctx.getBitsPerProb():this.nbits);
-							
 						
 						w.writeVariant(ctx);
-						
+						w.setPhased(ctx.isPhased());
 						for(int x=0;x < ctx.getNGenotypes();++x)  {
-							if(sample_index[x]==-1) continue;//this sample is removed
+							if(sample_new_index[x]==-1) continue;//this sample is removed
 							final BGenGenotype gt = ctx.getGenotype(x);
 							w.setGenotype(
-									sample_index[x],
-									gt.isPhased(),
+									sample_new_index[x],
 									gt.getPloidy(),
 									gt.isMissing(),
 									gt.getProbs()

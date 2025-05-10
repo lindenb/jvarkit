@@ -26,9 +26,11 @@ package com.github.lindenb.jvarkit.bgen;
 import java.io.FileOutputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -72,11 +74,18 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	private boolean set_anonymous_flag=false;
 	/** number of bits for layout2 */
 	private int nbits=8;
+	/** number phased status for layout2 */
+	private boolean variant_is_phased;
+	/** last variant set when writing */
+	private LastVariant lastVariant = null;
+	
+	private static class LastVariant {
+		int n_alleles;
+		}
 	
 	/** class holding a genotype data for each sample */
 	private static class ExportGenotype {
 		boolean missing;
-		boolean phased;
 		int ploidy;
 		double[] probs;
 		
@@ -123,6 +132,9 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	
 	public void setNBits(int nbits) {
 		this.nbits = nbits;
+		}
+	public void setPhased(boolean variant_is_phased) {
+		this.variant_is_phased = variant_is_phased;
 		}
 	
 	public void setCompression(final Compression compression) {
@@ -188,11 +200,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		     if(!(samplesOrNull==null || this.set_anonymous_flag)) {
 		    	 bitSet.set(31);
 		     	} 
-		    // to byteArray doesn't work, as it ignores the non-set bits, so we need padding
-		     final byte[] raw = bitSet.toByteArray();
-		     final byte[] flags = new byte[Integer.BYTES];
-		     System.arraycopy(raw, 0, flags, 0,raw.length);
-		     bc2.writeBytes(flags);
+		     bc2.writeBytes(toByteArray(bitSet,Integer.BYTES));
 		     
 		     
 		     /* samples */
@@ -243,7 +251,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		this.binaryCodec.writeUInt(pos);
 		
 		if(layout.equals(Layout.e_Layout1)) {
-			if(alleles.size()!=2) throw new IllegalArgumentException("expected 2 alleles");
+			if(alleles.size()!=2) throw new IllegalArgumentException("expected 2 alleles for layout 1 but got "+String.join(",", alleles));
 			}
 		else
 			{
@@ -253,18 +261,30 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			writeStringUInt32(this.binaryCodec, a);
 			}
 		this.state=State.expect_genotypes;
+		this.lastVariant = new LastVariant();
+		this.lastVariant.n_alleles=alleles.size();
 		}
 	
-	public void setGenotype(int sample_index,boolean phased, int ploidy,boolean missing,double[] probs) {
+	public void setGenotype(int sample_index,int ploidy,boolean missing,double[] probs) {
 		assertState(State.expect_genotypes);
+		if(isDebugging()) {
+			LOG.debug("setting genotype["+sample_index+"]");
+			}
+		if(sample_index<0 || sample_index>=export_genotypes.length) {
+			throw new ArrayIndexOutOfBoundsException("0<="+sample_index+"<"+export_genotypes.length);
+			}
 		if(export_genotypes[sample_index]!=null) {
 			throw new IllegalStateException("Variant index["+sample_index+"] was already set");
 			}
+		if(!missing) {
+			final double sum = Arrays.stream(probs).sum();
+			if(sum<0 || sum>1) throw new ArrayIndexOutOfBoundsException("sample["+sample_index+"] got sum of probs 0<="+sum+"<=1.0 : "+Arrays.toString(probs));
+			}
 		final ExportGenotype gt = new ExportGenotype();
-		gt.phased = phased;
 		gt.ploidy= ploidy;
 		gt.missing=missing;
 		gt.probs = Arrays.copyOf(probs, probs.length);
+		export_genotypes[sample_index]=gt;
 		}
 	
 	public void writeGenotypes() throws IOException {
@@ -274,46 +294,54 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 				throw new IllegalStateException("Variant index["+i+"] was not set");
 			}
 		}
-		byte[] uncompressed_genotypes;
+		buffer1.reset();
+		buffer2.reset();
 		switch(this.layout)
 			{
-			case e_Layout1: uncompressed_genotypes = writeGenotypeLayout1(); break;
-			case e_Layout2:uncompressed_genotypes = writeGenotypeLayout2(); break;
+			case e_Layout1: writeGenotypeLayout1(); break;
+			case e_Layout2: writeGenotypeLayout2(); break;
 			default: throw new IllegalStateException();
 			}
 				
 		
-		byte[] compressed;
+		ByteBuffer compressed;
 		switch(this.compression) {
-			case e_NoCompression : compressed = uncompressed_genotypes; break;
+			case e_NoCompression : compressed = buffer1; break;
 			case e_ZlibCompression:
 				try(java.util.zip.DeflaterOutputStream compressor=new DeflaterOutputStream(this.buffer2)) {
-					compressor.write(uncompressed_genotypes);
+					try(InputStream raw_in=buffer1.toByteArrayInputStream()) {
+						IOUtils.copy(raw_in, compressor);
+						}
 					compressor.finish();
 					compressor.flush();
 					}
-				compressed = buffer2.toByteArray();
+				compressed = buffer2;
 				break;
 			case e_ZstdCompression:
 				try(ZstdCompressorOutputStream compressor=new ZstdCompressorOutputStream(this.buffer2)) {
-					compressor.write(uncompressed_genotypes);
+					try(InputStream raw_in=buffer1.toByteArrayInputStream()) {
+						IOUtils.copy(raw_in, compressor);
+						}
 					compressor.flush();
 					}
-				compressed = buffer2.toByteArray();
+				compressed = buffer2;
 				break;
 			default: throw new IllegalStateException();
 			}
+		
 		// The total length C of the compressed genotype probability data for this variant. S
-		binaryCodec.writeUInt(compressed.length);
+		binaryCodec.writeUInt(compressed.size());
 		// Genotype probability data for the SNP for each of the N individuals in the cohort 
-		binaryCodec.writeBytes(compressed);
+		try(InputStream compressed_in=compressed.toByteArrayInputStream()) {
+			IOUtils.copy(compressed_in, binaryCodec.getOutputStream());
+			}
 		
 		//reset genotypes
 		Arrays.fill(this.export_genotypes, null);
 		this.state=State.expect_variant;
 		}
 	
-	private byte[] writeGenotypeLayout1() {
+	private void writeGenotypeLayout1() {
 		this.buffer1.reset();
 		try(BinaryCodec bc2= new BinaryCodec(this.buffer1)) {
 			for(int i=0;i< export_genotypes.length;++i) {
@@ -333,30 +361,85 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 						double f=gt.probs[x];
 						sum+=f;
 						if(f<0 || f>1)  throw new IllegalArgumentException("0<=probs["+x+"]="+f+"<1  in("+Arrays.toString(gt.probs) +") for sample["+i+"]");
-						int val=(int)(f*USHRT_MAX);
+						int val=(int)(f*BinaryCodec.MAX_USHORT);
 						bc2.writeUShort(val);
 						}
 					if(sum>1)  throw new IllegalArgumentException("sum of probs>1  in("+Arrays.toString(gt.probs) +") for sample["+i+"] ");
 					}
 				}
 			}
-		return buffer1.toByteArray();
 		}
 	
-	private byte[] writeGenotypeLayout2() {
+	private ByteBuffer writeGenotypeLayout2() throws IOException {
 		this.buffer1.reset();
-		int min_ploidy = Arrays.stream(export_genotypes).mapToInt(E->E.ploidy).min().orElse(0);
-		int max_ploidy = Arrays.stream(export_genotypes).mapToInt(E->E.ploidy).max().orElse(0);
-		
-		byte[] meta_bits = new byte[export_genotypes.length];
-		for(int i=0;i< export_genotypes.length;++i) {
+		try(BinaryCodec bc2= new BinaryCodec(this.buffer1)) {
+			/* The number of individuals for which probability data is stored. */
+			bc2.writeUInt(export_genotypes.length);
+			/* The number of alleles, encoded as an unsigned 16-bit integer. This must equal K as defined in the variant identifying data block. */
+			bc2.writeUShort(this.lastVariant.n_alleles);
 			
-			}
-		for(int i=0;i< export_genotypes.length;++i) {
+			/* The minimum ploidy Pmin of samples in the row */
+			final int min_ploidy = Arrays.stream(export_genotypes).mapToInt(E->E.ploidy).min().orElse(0);
+			if(min_ploidy<0 || min_ploidy>63) throw new IllegalArgumentException("min_ploidy 0<="+min_ploidy+"<=63");
+			bc2.writeByte((byte)min_ploidy);
+			/* The maximum ploidy Pmax of samples in the row */
+			final  int max_ploidy = Arrays.stream(export_genotypes).mapToInt(E->E.ploidy).max().orElse(0);
+			if(max_ploidy<0 || max_ploidy>63) throw new IllegalArgumentException("v 0<="+max_ploidy+"<=63");
+			bc2.writeByte((byte)max_ploidy);
 			
+			/* A list of N bytes, where the nth byte is an unsigned integer representing the ploidy and missingness of the nth sample.  */
+			byte[] meta_bits = new byte[export_genotypes.length];
+			for(int i=0;i< export_genotypes.length;++i) {
+				final ExportGenotype gt=export_genotypes[i];
+				if(gt.ploidy<1 || gt.ploidy>63) throw new IllegalArgumentException("bad ploidy in gt["+i+"]="+gt.ploidy);
+				byte meta=0;
+				meta |= (byte) (gt.ploidy & 0b111111); 
+				if(gt.missing) meta |=  0b10000000; 
+				meta_bits[i]=meta;
+				}
+			bc2.writeBytes(meta_bits);
+			
+			/* Flag, denoted Phased indicating what is stored in the row */
+			bc2.writeByte(variant_is_phased?1:0);
+			
+			/* Unsigned integer B representing the number of bits used to store each probabilit */
+			if(this.nbits<0 || this.nbits>32) throw new IllegalArgumentException("nbits 0<="+this.nbits+"<=32");
+			bc2.writeByte(this.nbits);
+			
+			
+			
+			BitWriter bitWriter = new BitWriter(bc2.getOutputStream());
+			BitNumWriter numWriter=new BitNumWriter(bitWriter, this.nbits);
+			for(int i=0;i< export_genotypes.length;++i) {
+				final ExportGenotype gt=export_genotypes[i];
+				final int n_expected_probs = calculateTotalCombinationsForLayout2(
+						this.variant_is_phased,
+						this.lastVariant.n_alleles,
+						gt.ploidy
+						);
+				if(n_expected_probs!=gt.probs.length) {
+					throw new IllegalArgumentException("for ploidy="+gt.ploidy+" phased:"+this.variant_is_phased+" n-alleles:"+this.lastVariant.n_alleles+
+							" it was expected "+n_expected_probs+" but got "+
+							gt.probs.length + "("+Arrays.toString(gt.probs)+")");
+					}
+				
+				for(int j=0;j +1 /* do not store last allele */<n_expected_probs;++j) {
+					
+					
+					
+					if(gt.missing) {
+						numWriter.write(0);
+						}
+					else
+						{
+						numWriter.write(gt.probs[i]);
+						}
+					}
+				}
+			bitWriter.flush();
 			}
-		throw new UnsupportedOperationException();
-	}
+		return buffer1;
+		}
 	
 	@Override
 	public void close()  {

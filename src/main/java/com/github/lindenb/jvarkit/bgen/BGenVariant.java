@@ -68,4 +68,6 @@ public interface BGenVariant extends Locatable {
 		}
 	/** get genotype by sample name */
 	public BGenGenotype getGenotype(String sampleName);
+	/** answer if the variant was read as phased. The information is only available if genotypes were read */
+	public boolean isPhased();
 }
