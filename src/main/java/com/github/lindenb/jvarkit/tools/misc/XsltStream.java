@@ -419,7 +419,7 @@ END_DOC
 	menu="Utilities"
 	)
 public class XsltStream extends Launcher {
-	private static final Logger LOG = Logger.build(XsltStream.class).make();
+	private static final Logger LOG = Logger.of(XsltStream.class);
 
 	private static class QNameConverter implements IStringConverter<QName>
 		{

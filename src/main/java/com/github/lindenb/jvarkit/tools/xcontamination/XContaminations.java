@@ -216,7 +216,7 @@ END_DOC
 	)
 public class XContaminations extends Launcher
 	{
-	private static final Logger LOG=Logger.build(XContaminations.class).make();
+	private static final Logger LOG=Logger.of(XContaminations.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-filter","--filter"},description="[20171201](moved to jexl). "+SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)

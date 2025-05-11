@@ -70,7 +70,7 @@ jvarkit_amalgamion = true,
 generate_doc = true
 )
 public class RegenieBedAnnot extends AbstractRegenieAnnot {
-	private static final Logger LOG = Logger.build(RegenieBedAnnot.class).make();
+	private static final Logger LOG = Logger.of(RegenieBedAnnot.class);
 	@Parameter(names = {"-B","--bed"}, description = "custom bed file chrom/start/end/name[/score]",required = true)
 	private Path userBed;
 	@Parameter(names = {"-A","--annotation"}, description = "value for annotation field")

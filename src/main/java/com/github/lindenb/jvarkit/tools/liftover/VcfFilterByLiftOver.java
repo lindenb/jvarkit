@@ -78,7 +78,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class VcfFilterByLiftOver extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfFilterByLiftOver.class).make();
+	private static final Logger LOG = Logger.of(VcfFilterByLiftOver.class);
 
 
 	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required=true)

@@ -101,7 +101,7 @@ END_DOC
 public class VcFilterGenes
 	extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcFilterGenes.class).make();
+	private static final Logger LOG = Logger.of(VcFilterGenes.class);
 
 
 	@Parameter(names={"-g","--genes"},description="Gene/transcript file: one name per line")

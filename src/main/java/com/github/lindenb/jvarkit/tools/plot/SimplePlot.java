@@ -167,7 +167,7 @@ description="simple figure",
 keywords={"char","figure"})
 
 public class SimplePlot extends Launcher {
-	private static final Logger LOG = Logger.build(SimplePlot.class).make();
+	private static final Logger LOG = Logger.of(SimplePlot.class);
 	
 	private static class NamedSeries {
 		private String name;

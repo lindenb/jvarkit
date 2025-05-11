@@ -55,7 +55,7 @@ import htsjdk.variant.vcf.VCFHeader;
  * A class parsing sample associated to population
  */
 public class SamplePopulation {
-	private static final Logger LOG = Logger.build(SamplePopulation.class).make();
+	private static final Logger LOG = Logger.of(SamplePopulation.class);
 	public static final String OPT_DESC="tab delimited file containing (sample-name)(TAB)(collection-name). Empty lines or starting with '#' are skipped";
 	@Parameter(names={"--sample2collection"},description=OPT_DESC)
 	private Path filePath = null;

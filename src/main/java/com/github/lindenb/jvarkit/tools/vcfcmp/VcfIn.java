@@ -188,7 +188,7 @@ END_DOC
 	)
 public class VcfIn extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfIn.class).make();
+	private static final Logger LOG = Logger.of(VcfIn.class);
 
 	@Parameter(names={"-i","--inverse"},description="Print variants that are not part of the VCF-database.")
 	private boolean inverse = false;

@@ -91,7 +91,7 @@ creationDate="2019-01-29",
 generate_doc=false
 )
 public class OneThousandBam extends Launcher{
-	private static final Logger LOG = Logger.build(OneThousandBam.class).make();
+	private static final Logger LOG = Logger.of(OneThousandBam.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-cache","-C"},description="bai cache directory.",required=true)

@@ -84,7 +84,7 @@ creationDate="20210210",
 modificationDate="20210210"
 )
 public class ExpansionHunterMerge extends Launcher {
-	private static final Logger LOG = Logger.build( ExpansionHunterMerge.class).make();
+	private static final Logger LOG = Logger.of( ExpansionHunterMerge.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@ParametersDelegate

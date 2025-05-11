@@ -54,7 +54,7 @@ public class NcbiApiKey {
 	public static final String PARAM="api_key";
 	public static final String ENV_NAME="NCBI_API_KEY";
 	public static final String JVM_PARAM="ncbi.api.key";
-	private static final Logger LOG=Logger.build(NcbiApiKey.class).make();
+	private static final Logger LOG=Logger.of(NcbiApiKey.class);
 	@Parameter(names="--ncbi-api-key",description=
 			"NCBI API Key see https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/ ."
 			+ 	"If undefined, it will try to get in that order: "

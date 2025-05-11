@@ -137,7 +137,7 @@ END_DOC
 	)
 public class BaseCoverage extends AbstractBaseCov
 	{
-	private static Logger LOG=Logger.build(BaseCoverage.class).make();
+	private static Logger LOG=Logger.of(BaseCoverage.class);
 
 	@Parameter(names={"-Z","--disable-normalization"},description="disable depth normalization _on median")
 	protected boolean disable_normalization  = false;

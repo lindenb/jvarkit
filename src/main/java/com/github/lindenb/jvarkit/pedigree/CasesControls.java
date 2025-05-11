@@ -52,7 +52,7 @@ import htsjdk.variant.vcf.VCFHeader;
  * A class parsing cases an controls
  */
 public class CasesControls {
-	private static final Logger LOG = Logger.build(CasesControls.class).make();
+	private static final Logger LOG = Logger.of(CasesControls.class);
 
 	@Parameter(names={"--cases"},description="File or comma-separated list of control samples")
 	private String sourceCases = null;

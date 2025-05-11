@@ -68,7 +68,7 @@ END_DOC
 		)
 public class GtfToGff
 	extends Launcher {
-	private static final Logger LOG = Logger.build(GtfToGff.class).make();
+	private static final Logger LOG = Logger.of(GtfToGff.class);
 	
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

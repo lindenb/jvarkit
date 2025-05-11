@@ -87,7 +87,7 @@ import htsjdk.samtools.filter.SamRecordFilter;
 public class TView implements Closeable
 	{
 	private static final String BLACK_SQUARE="\u25A0";
-	private static final Logger LOG = Logger.build(TView.class).make();
+	private static final Logger LOG = Logger.of(TView.class);
 	private enum LayoutReads {pileup,name};
 	public enum Formatout {tty,plain,html};
 	

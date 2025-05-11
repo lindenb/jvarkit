@@ -183,7 +183,7 @@ public class SwingBamCov extends Launcher
 	{
 	private static final int MAX_GFF3_ROWS = 10_000;
 
-	private static final Logger LOG = Logger.build(SwingBamCov.class).make();
+	private static final Logger LOG = Logger.of(SwingBamCov.class);
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
 	@Parameter(names={"-r","--regions","--interval"},description="default interval region on opening")

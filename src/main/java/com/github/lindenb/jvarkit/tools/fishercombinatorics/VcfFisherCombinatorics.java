@@ -75,7 +75,7 @@ END_DOC
 		)
 public class VcfFisherCombinatorics extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfFisherCombinatorics.class).make();
+	private static final Logger LOG = Logger.of(VcfFisherCombinatorics.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-ped","--pedigree"},description=PedigreeParser.OPT_DESC,required=true)

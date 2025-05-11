@@ -105,7 +105,7 @@ END_DOC
 	generate_doc=false
 	)
 public class CnvSlidingWindow extends Launcher {
-	private static final Logger LOG = Logger.build( CnvSlidingWindow.class).make();
+	private static final Logger LOG = Logger.of( CnvSlidingWindow.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

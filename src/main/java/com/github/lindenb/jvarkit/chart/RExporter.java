@@ -13,7 +13,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 public class RExporter extends ChartExporter {
-	private static final Logger LOG=Logger.build(RExporter.class).make();
+	private static final Logger LOG=Logger.of(RExporter.class);
 
 		
 	private static Function<String, String> quoteR = (S)->{

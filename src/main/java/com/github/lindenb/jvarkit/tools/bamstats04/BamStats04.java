@@ -115,7 +115,7 @@ END_DOC
 	)
 public class BamStats04 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BamStats04.class).make();
+	private static final Logger LOG = Logger.of(BamStats04.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

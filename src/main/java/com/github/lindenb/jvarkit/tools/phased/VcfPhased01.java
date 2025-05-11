@@ -115,7 +115,7 @@ jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
 public class VcfPhased01 extends Launcher {
-	private static final Logger LOG=Logger.build(VcfPhased01.class).make();
+	private static final Logger LOG=Logger.of(VcfPhased01.class);
 	private static final String X10_FORMAT_PS="PS";
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

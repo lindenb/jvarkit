@@ -67,7 +67,7 @@ import htsjdk.samtools.util.SortingCollection;
 		)
 
 public class IBDReformater01 extends Launcher{
-	private static final Logger LOG = Logger.build(IBDReformater01.class).make();
+	private static final Logger LOG = Logger.of(IBDReformater01.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;

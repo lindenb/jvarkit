@@ -87,7 +87,7 @@ END_DOC
 
 public class VcfCadd extends AbstractOnePassVcfAnnotator
 	{
-	private static final Logger LOG = Logger.build(VcfCadd.class).make();
+	private static final Logger LOG = Logger.of(VcfCadd.class);
 	@Parameter(names={"-u","--uri","--tabix","--cadd"},description="Combined Annotation Dependent Depletion (CADD) Tabix file URI ",required = true)
 	private String ccaduri="";
 	@Parameter(names={"-d","--buffer-size"},description="Buffer size / processing window size. " + DistanceParser.OPT_DESCRIPTION , converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)

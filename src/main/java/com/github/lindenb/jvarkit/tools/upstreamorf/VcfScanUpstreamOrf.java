@@ -156,7 +156,7 @@ jvarkit_amalgamion = true
 )
 public class VcfScanUpstreamOrf extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfScanUpstreamOrf.class).make();
+	private static final Logger LOG = Logger.of(VcfScanUpstreamOrf.class);
 	private static final Paranoid PARANOID = Paranoid.createThrowingInstance();
 	
 	@Parameter(names={"--archive"},description="Export an archive containing the fasta+bed of the uORF is created and the program exits. "+ArchiveFactory.OPT_DESC)

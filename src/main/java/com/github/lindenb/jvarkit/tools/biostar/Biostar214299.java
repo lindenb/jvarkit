@@ -126,7 +126,7 @@ END_DOC
 	menu="Biostars"
 	)
 public class Biostar214299 extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(Biostar214299.class).make();
+	private static final Logger LOG = Logger.of(Biostar214299.class);
 
 	@Parameter(names={"-p","--positions"},description="Position file. A Tab delimited file containing the following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample name.",required=true)
 	private Path positionFile = null;

@@ -81,7 +81,7 @@ generate_doc=false
 public class VcfBurdenGtf
 extends AbstractVcfBurden
 {
-	private static final Logger LOG = Logger.build(VcfBurdenGtf.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenGtf.class);
 	@Parameter(names={"-g","-gtf","--gtf"},description="GTF file",required=true)
 	private Path gtfFile = null;
 	@Parameter(names={"-f","--filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)

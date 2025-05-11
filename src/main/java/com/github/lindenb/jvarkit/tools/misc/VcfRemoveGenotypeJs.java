@@ -106,7 +106,7 @@ rotavirus	130	.	T	C	4.12	.	AC1=1;AF1=0.124933;BQB=1;DP=1349;DP4=1139,0,204,0;FQ=
  */
 @Program(name="vcfremovegenotypejs",description="Reset Genotype in VCF using a javascript expression")
 public class VcfRemoveGenotypeJs extends Launcher {
-	private static final Logger LOG = Logger.build(VcfRemoveGenotypeJs.class).make();
+	private static final Logger LOG = Logger.of(VcfRemoveGenotypeJs.class);
 
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")

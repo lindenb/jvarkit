@@ -56,7 +56,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 public class CaddVariantAnnotator extends AbstractTabixVariantAnnotator {
-	private static final Logger LOG = Logger.build(CaddVariantAnnotator.class).make();
+	private static final Logger LOG = Logger.of(CaddVariantAnnotator.class);
 
 	/** global can be used by vcf2r for Matilde */
 	public static final String DEFAULT_CADD_FLAG_SCORE = "CADD_SCORE";

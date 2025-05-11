@@ -60,7 +60,7 @@ END_DOC
 @Program(name="bwamemdigest",description="")
 public class BWAMemDigest extends Launcher
 	{
-    private static final Logger LOG = Logger.build(BWAMemDigest.class).make();
+    private static final Logger LOG = Logger.of(BWAMemDigest.class);
 
 
     @Parameter(names={"-B"}, description="BED of Regions to ignore.")

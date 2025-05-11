@@ -125,7 +125,7 @@ END_DOC
 	creationDate="20131105"
 	)
 public class VCFCompareGT extends Launcher {
-	private static final Logger LOG = Logger.build(VCFCompareGT.class).make();
+	private static final Logger LOG = Logger.of(VCFCompareGT.class);
 	@Parameter(names="-m",description="only print modified samples")
 	private boolean only_print_modified=false;
 

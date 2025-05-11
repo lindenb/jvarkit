@@ -58,7 +58,7 @@ END_DOC
 	)
 public class NoEmptyVCF extends Launcher
 	{
-	private static final Logger LOG=Logger.build(NoEmptyVCF.class).make();
+	private static final Logger LOG=Logger.of(NoEmptyVCF.class);
     
 	@Parameter(names={"-s","--sample"},description="Add this genotyped samples")
     private List<String> SAMPLES=new ArrayList<String>();

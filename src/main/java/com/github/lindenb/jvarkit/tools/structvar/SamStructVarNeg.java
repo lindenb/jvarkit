@@ -118,7 +118,7 @@ END_DOC
 	modificationDate="20190826"
 	)
 public class SamStructVarNeg extends Launcher {
-	private static final Logger LOG = Logger.build(SamStructVarNeg.class).make();
+	private static final Logger LOG = Logger.of(SamStructVarNeg.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

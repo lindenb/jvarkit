@@ -356,7 +356,7 @@ END_DOC
 public class VCFFilterJS
 	extends Launcher
 	{	
-	private static final Logger LOG = Logger.build(VCFFilterJS.class).make();
+	private static final Logger LOG = Logger.of(VCFFilterJS.class);
 
 	private CompiledScript compiledScript = null;
 	

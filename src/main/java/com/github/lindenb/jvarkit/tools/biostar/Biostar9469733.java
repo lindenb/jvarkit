@@ -63,7 +63,7 @@ menu="Biostars"
 )
 public class Biostar9469733 extends OnePassBamLauncher
 	{
-	private static final Logger LOG = Logger.build(Biostar9469733.class).make();
+	private static final Logger LOG = Logger.of(Biostar9469733.class);
 	private IntervalTreeMap<Locatable> intervalTreeMap = null;
 	@Override
 	protected int beforeSam()

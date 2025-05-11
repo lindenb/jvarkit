@@ -20,7 +20,7 @@ import htsjdk.samtools.SAMUtils;
 @Program(name="splitread",
 	description="TODO",keywords={"sam","bam"},generate_doc=false)
 public class SplitRead extends Launcher{
-	private static final Logger LOG=Logger.build(SplitRead.class).make();
+	private static final Logger LOG=Logger.of(SplitRead.class);
     @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
     private File outputFile = null;
 

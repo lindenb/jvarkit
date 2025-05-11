@@ -55,7 +55,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class VcfGrantham extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfGrantham.class).make();
+	private static final Logger LOG = Logger.of(VcfGrantham.class);
 	
 	
 	private abstract class Handler implements ToIntFunction<VariantContext>{

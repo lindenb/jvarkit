@@ -83,7 +83,7 @@ END_DOC
 	)
 public class CaseControlJfx extends Launcher {
 	
-	private static final Logger LOG = Logger.build(CaseControlJfx.class).make();
+	private static final Logger LOG = Logger.of(CaseControlJfx.class);
 
 	private enum VariantPartitionType{
 		chromosome,

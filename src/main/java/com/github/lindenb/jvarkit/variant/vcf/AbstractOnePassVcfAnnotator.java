@@ -42,7 +42,7 @@ import htsjdk.variant.vcf.VCFIterator;
 
 /** a VCF filtering variant using a set of VariantAnnotator */
 public abstract class AbstractOnePassVcfAnnotator extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(AbstractOnePassVcfAnnotator.class).make();
+	private static final Logger LOG = Logger.of(AbstractOnePassVcfAnnotator.class);
 
 	private final List<VariantAnnotator> annotators =  new ArrayList<>();
 	

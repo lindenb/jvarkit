@@ -83,7 +83,7 @@ END_DOC
 		)
 public class VcfSkat extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfSkat.class).make();
+	private static final Logger LOG = Logger.of(VcfSkat.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-p","--print"},description="Don't print the VCF on output,Just print the score on ouput, don't print the VCF itself")

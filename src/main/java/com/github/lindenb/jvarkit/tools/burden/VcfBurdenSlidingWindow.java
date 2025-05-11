@@ -93,7 +93,7 @@ modificationDate="20231213",
 jvarkit_amalgamion = true
 )
 public class VcfBurdenSlidingWindow extends Launcher {
-	private static final Logger LOG = Logger.build(VcfBurdenSlidingWindow.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenSlidingWindow.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

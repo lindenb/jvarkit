@@ -210,7 +210,7 @@ END_DOC
 	menu="Deprecated/barely used"
 	)
 public class Bam2Xml extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(Bam2Xml.class).make();
+	private static final Logger LOG = Logger.of(Bam2Xml.class);
 	
 	public static class SAMXMLWriter implements SAMFileWriter
 		{

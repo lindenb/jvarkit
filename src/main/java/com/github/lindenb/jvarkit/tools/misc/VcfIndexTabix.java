@@ -75,7 +75,7 @@ END_DOC
 public class VcfIndexTabix
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfIndexTabix.class).make();
+	private static final Logger LOG = Logger.of(VcfIndexTabix.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

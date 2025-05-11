@@ -128,7 +128,7 @@ END_DOC
 public class PubmedOrcidGraph
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedOrcidGraph.class).make();
+	private static final Logger LOG = Logger.of(PubmedOrcidGraph.class);
 	private static final String NAME_NOT_FOUND="<NOT FOUND IN PUBMED>";
 	
 	@Parameter(names={"-o","--output"},description="Gexf+xml output." + OPT_OUPUT_FILE_OR_STDOUT)

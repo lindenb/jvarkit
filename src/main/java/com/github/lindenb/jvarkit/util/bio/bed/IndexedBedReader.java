@@ -62,7 +62,7 @@ import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
 public class IndexedBedReader
 	implements Closeable
 	{
-	private static final Logger LOG=Logger.build(IndexedBedReader.class).make();
+	private static final Logger LOG=Logger.of(IndexedBedReader.class);
 
 		
 	private Object source;

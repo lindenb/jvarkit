@@ -95,7 +95,7 @@ creationDate="20160922"
 )
 public class SamReadLengthDistribution extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamReadLengthDistribution.class).make();
+	private static final Logger LOG = Logger.of(SamReadLengthDistribution.class);
 	
 	private enum Method {
 		SEQ_LENGTH,

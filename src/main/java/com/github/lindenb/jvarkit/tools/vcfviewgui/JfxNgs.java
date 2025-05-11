@@ -198,7 +198,7 @@ import javafx.util.Callback;
  */
 @SuppressWarnings("unused")
 public class JfxNgs extends Application {
-    private static final Logger LOG= Logger.build(JfxNgs.class).make();
+    private static final Logger LOG= Logger.of(JfxNgs.class);
     final Preferences preferences ;
     final Optional<Compilable> javascriptCompiler;
     private static final String LAST_USED_DIR_KEY="last.used.dir";

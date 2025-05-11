@@ -30,7 +30,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
@@ -42,6 +41,7 @@ import java.util.zip.DeflaterOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.apache.commons.compress.utils.IOUtils;
 
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.BinaryCodec;
@@ -49,13 +49,12 @@ import htsjdk.samtools.util.RuntimeIOException;
 
 
 public class BGenWriter extends BGenUtils implements AutoCloseable {
-	private static final Logger LOG = Logger.build(BGenWriter.class).make();
+	private static final Logger LOG = Logger.of(BGenWriter.class).setDebug();
 
 	private enum State {expect_write_header,expect_variant,expect_genotypes};
 	private final BinaryCodec binaryCodec;
 	private final OutputStream out;
 	private State state= State.expect_write_header;
-	private boolean debug_flag=true;
 	/** output compression */
 	private Compression compression=Compression.e_ZlibCompression;
 	/** output layout */
@@ -121,14 +120,12 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	public BGenWriter(final OutputStream out) {
 		this.out = Objects.requireNonNull(out);
 		this.binaryCodec = new BinaryCodec(this.out);
-		if(isDebugging()) {
+		if(LOG.isDebug()) {
 			LOG.debug("the classe of outputstream is "+out.getClass());
 			}
 		}
 	
-	private boolean isDebugging() {
-		return this.debug_flag;
-	}
+	
 	
 	public void setNBits(int nbits) {
 		this.nbits = nbits;
@@ -162,7 +159,20 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	public void writeHeader(final int n_samples) throws IOException{
 		_writeHeader(null,n_samples);
 		}
+	
+	long ftell() throws IOException {
+		if(isWritingToFile()) {
+			final FileOutputStream fos=FileOutputStream.class.cast(this.out);
+			return fos.getChannel().position();
+		}
+		return -1L;
+	}
+	
 	private void _writeHeader(final List<String> samplesOrNull,final int n_samples) throws IOException {
+		if(LOG.isDebug()) {
+      	    LOG.debug("Writing BGEN writer");
+            }
+		
 		assertState(State.expect_write_header);
 		if(samplesOrNull!=null && samplesOrNull.size()!=n_samples) {
 			throw new IllegalArgumentException();
@@ -174,7 +184,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		
 		
 		try(final BinaryCodec bc2 = new BinaryCodec(this.buffer1)) {	
-			/* size of the header, no free area, so it's 5 bytes */
+			/* header block size */
 			bc2.writeUInt(5*Integer.BYTES);
 			/* num variants  */
 			bc2.writeUInt(this.theoritical_num_variants);
@@ -184,7 +194,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			bc2.writeBytes(BGEN_MAGIC);
 		      
 		      
-		     final BitSet bitSet=new BitSet(Integer.BYTES*8);
+		     final BitSet bitSet=new BitSet(Integer.BYTES*8 /* number of bits=32 */);
 		     // bit 0 and 1 are compression flags
 		     switch(this.compression) {
 		     	case e_NoCompression:break;
@@ -201,31 +211,52 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		    	 bitSet.set(31);
 		     	} 
 		     bc2.writeBytes(toByteArray(bitSet,Integer.BYTES));
-		     
+		     if(LOG.isDebug()) {
+	      	    LOG.debug("bitSet :"+bitSet);
+	            }
 		     
 		     /* samples */
 		     if(!(samplesOrNull==null || this.set_anonymous_flag)) {
-		    	 final Set<String> seen = new HashSet<>(n_samples);
-		    	 bc2.writeUInt(n_samples);
-		    	 for(int i=0;i< n_samples;++i) {
-		    		 final String sn = samplesOrNull.get(i);
-		    		 if(seen.contains(sn)) {
-		    			throw new IllegalArgumentException("duplicate sample in header : "+sn); 
-		    		 	}
-		    		 seen.add(sn);
-		      	     writeStringUInt16(bc2,sn);
-		             }      
+		    	 final ByteBuffer samplesBuffer=new ByteBuffer();
+		    	 try(BinaryCodec bc3=new BinaryCodec(samplesBuffer)) {
+		    		 final Set<String> seen = new HashSet<>(n_samples);
+		    		 // number of samples
+			    	 bc3.writeUInt(n_samples);
+			    	 for(int i=0;i< n_samples;++i) {
+			    		 final String sn = samplesOrNull.get(i);
+			    		 if(seen.contains(sn)) {
+			    			throw new IllegalArgumentException("duplicate sample in header : "+sn); 
+			    		 	}
+			    		 seen.add(sn);
+			      	     writeStringUInt16(bc3,sn);
+			             }
+			    	 }
+		    	 /* An unsigned integer LSI indicating the length in bytes of the sample identifier block. */
+		    	 if(LOG.isDebug()) {
+		      	    LOG.debug("sample_block_size :"+samplesBuffer.size());
+		            }
+		    	 bc2.writeUInt(samplesBuffer.size()+Integer.BYTES/* count itself */ );
+		    	 /* the sample block itself */
+		    	 samplesBuffer.writeTo(bc2.getOutputStream());
+		     	}
+		     else
+		     	{
+		    	 if(LOG.isDebug()) {
+		    		 LOG.debug("anonymous samples");
+		    		}
 		     	}
 		     
 		    final byte[] full_header = this.buffer1.toByteArray();
-		    
-		    //write the OFFSET value
-		    this.binaryCodec.writeUInt(full_header.length);
+		    //write the  offset
+		    this.binaryCodec.writeUInt(full_header.length+Integer.BYTES);
 		    //write the header + samples data
 		    this.binaryCodec.writeBytes(full_header);
 			}
 	     
-	    this.binaryCodec.writeUInt(this.buffer1.size()+Integer.BYTES);
+	    //this.binaryCodec.writeUInt(this.buffer1.size()+Integer.BYTES);
+	    if(LOG.isDebug() && isWritingToFile()) {
+	    	LOG.debug("end writing header. Now file offset is "+ftell());
+	    	}
 	    this.state=State.expect_variant;
 		}
 	private void assertState(State st) {
@@ -245,8 +276,11 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		if(layout.equals(Layout.e_Layout1)) {
 			this.binaryCodec.writeUInt(export_genotypes.length);//number of samples
 			}
-		writeStringUInt16(this.binaryCodec, variantId);
-		writeStringUInt16(this.binaryCodec, rsId);
+		if(StringUtils.isBlank(contig)) throw new IllegalArgumentException("blank chromosome");
+		if(pos<1) throw new IllegalArgumentException("bad position:"+pos);
+		
+		writeStringUInt16(this.binaryCodec, StringUtils.ifBlank(variantId,""));
+		writeStringUInt16(this.binaryCodec, StringUtils.ifBlank(rsId,""));
 		writeStringUInt16(this.binaryCodec, contig);
 		this.binaryCodec.writeUInt(pos);
 		
@@ -267,7 +301,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	
 	public void setGenotype(int sample_index,int ploidy,boolean missing,double[] probs) {
 		assertState(State.expect_genotypes);
-		if(isDebugging()) {
+		if(LOG.isDebug()) {
 			LOG.debug("setting genotype["+sample_index+"]");
 			}
 		if(sample_index<0 || sample_index>=export_genotypes.length) {
@@ -445,7 +479,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	public void close()  {
 		if(isWritingToFile()) {
 			try {
-				if(isDebugging()) {
+				if(LOG.isDebug()) {
 					LOG.debug("rewind to write n_variants:"+n_variants);
 					}
 				final FileOutputStream fos=FileOutputStream.class.cast(this.out);

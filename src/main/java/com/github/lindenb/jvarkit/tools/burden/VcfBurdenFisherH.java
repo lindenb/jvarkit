@@ -89,7 +89,7 @@ END_DOC
 public class VcfBurdenFisherH
 	extends OnePassVcfLauncher
 	{	
-	private static final Logger LOG = Logger.build(VcfBurdenFisherH.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenFisherH.class);
 
 	@Parameter(names={"-m","--min-fisher"},description="min inclusive value of fisher test. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)
 	private double min_fisher = 0.0 ;

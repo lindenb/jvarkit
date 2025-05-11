@@ -105,7 +105,7 @@ END_DOC
 	)
 public class VcfGnomadPext extends OnePassVcfLauncher {
 	
-	private static final Logger LOG = Logger.build(VcfGnomadPext.class).make();
+	private static final Logger LOG = Logger.of(VcfGnomadPext.class);
 	
 	@Parameter(names={"-d","--database","--pext"},description="Pext file. tab delimited :(chrom\\tpos\\tref\\talt\\ttx_annotation). Bgziped and indexed with tabix.",required=true)
 	private String pextDatabasePath=null;

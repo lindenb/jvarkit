@@ -54,7 +54,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 /** bean to be injected in various contexts like javascript context, etc... */
 @IncludeSourceInJar
 public class VcfTools {
-public static final Logger LOG = Logger.build(VcfTools.class).make();
+public static final Logger LOG = Logger.of(VcfTools.class);
 
 private VCFHeader header=null;
 private SnpEffPredictionParser snpEffPredictionParser=null;

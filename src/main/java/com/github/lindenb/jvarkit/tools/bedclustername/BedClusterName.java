@@ -118,7 +118,7 @@ END_DOC
 public class BedClusterName
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BedClusterName.class).make();
+	private static final Logger LOG = Logger.of(BedClusterName.class);
 	private enum FormatOut {BED,BED_GZ,INTERVAL_LIST,INTERVAL_LIST_GZ}
 	@Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile= null;

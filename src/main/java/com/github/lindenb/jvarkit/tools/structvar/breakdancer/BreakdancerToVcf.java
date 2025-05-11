@@ -118,7 +118,7 @@ modificationDate="20241122",
 menu="VCF Manipulation"
 )
 public class BreakdancerToVcf extends Launcher {
-	private static final Logger LOG = Logger.build(BreakdancerToVcf.class).make();
+	private static final Logger LOG = Logger.of(BreakdancerToVcf.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)

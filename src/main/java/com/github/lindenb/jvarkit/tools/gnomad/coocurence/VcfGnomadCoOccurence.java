@@ -148,7 +148,7 @@ END_DOC
 	menu="VCF Manipulation"
 )
 public class VcfGnomadCoOccurence extends Launcher {
-	private static final Logger LOG = Logger.build(VcfGnomadCoOccurence.class).make();
+	private static final Logger LOG = Logger.of(VcfGnomadCoOccurence.class);
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile=null;

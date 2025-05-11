@@ -95,7 +95,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class UkbiobankDump extends Launcher {
-	private static final Logger LOG = Logger.build(UkbiobankDump.class).make();
+	private static final Logger LOG = Logger.of(UkbiobankDump.class);
 	
 	private final JsonParser jsonparser = new JsonParser();
 	@Parameter(names = { "-o" }, description = OPT_OUPUT_FILE_OR_STDOUT)

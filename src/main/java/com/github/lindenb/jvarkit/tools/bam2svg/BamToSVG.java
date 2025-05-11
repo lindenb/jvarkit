@@ -149,7 +149,7 @@ public class BamToSVG extends Launcher {
 	private static final int HEIGHT_SAMPLE_NAME=20;
 	
 	
-	private static final Logger LOG = Logger.build(BamToSVG.class).make();
+	private static final Logger LOG = Logger.of(BamToSVG.class);
 
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)
 	private File outputFile = null;

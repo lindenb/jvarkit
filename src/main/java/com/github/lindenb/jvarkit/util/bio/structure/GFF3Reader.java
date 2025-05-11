@@ -44,7 +44,7 @@ import htsjdk.tribble.gff.Gff3Codec.DecodeDepth;
 import htsjdk.tribble.readers.LineIterator;
 
 public class GFF3Reader extends AbstractGxxReader {
-	private static final Logger LOG = Logger.build(GFF3Reader.class).make();
+	private static final Logger LOG = Logger.of(GFF3Reader.class);
 
 	private final Path path;
 	

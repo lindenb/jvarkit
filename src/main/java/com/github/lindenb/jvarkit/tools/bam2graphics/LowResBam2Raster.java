@@ -124,7 +124,7 @@ END_DOC
 		menu="BAM Visualization"
 		)
 public class LowResBam2Raster extends AbstractBam2Raster {
-	private static final Logger LOG = Logger.build(LowResBam2Raster.class).make();
+	private static final Logger LOG = Logger.of(LowResBam2Raster.class);
 	@Parameter(names={"-gtf","--gtf"},description=GtfReader.OPT_DESC)
 	private Path gtfPath =null;
 	private final List<Transcript> transcripts = new ArrayList<>();

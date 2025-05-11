@@ -115,7 +115,7 @@ public class VcfBurdenMAF
 	extends OnePassVcfLauncher
 	{
 	
-	private static final Logger LOG = Logger.build(VcfBurdenMAF.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenMAF.class);
 
 
 	@Parameter(names={"-m","--min-maf","--min-af"},description="select variants where MAF of cases OR MAF of control is greater or equals than min-maf. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)

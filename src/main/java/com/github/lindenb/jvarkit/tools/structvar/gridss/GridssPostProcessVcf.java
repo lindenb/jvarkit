@@ -114,7 +114,7 @@ modificationDate="20200518"
 )
 public class GridssPostProcessVcf extends OnePassVcfLauncher {
 	private static final String EVENT_KEY="EVENT";
-	private static final Logger LOG = Logger.build(GridssPostProcessVcf.class).make();
+	private static final Logger LOG = Logger.of(GridssPostProcessVcf.class);
 	@Parameter(names={"-D","--debug-file"},description="Debug File.",hidden=true)
 	private Path debugFile=null;
 	@ParametersDelegate

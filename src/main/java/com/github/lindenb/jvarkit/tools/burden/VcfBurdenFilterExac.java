@@ -103,7 +103,7 @@ END_DOC
 public class VcfBurdenFilterExac
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfBurdenFilterExac.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenFilterExac.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

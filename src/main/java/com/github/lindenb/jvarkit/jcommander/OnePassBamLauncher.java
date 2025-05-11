@@ -47,7 +47,7 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.ProgressLoggerInterface;
 
 public abstract class OnePassBamLauncher extends MultiBamLauncher {
-private static final Logger LOG = Logger.build(OnePassBamLauncher.class).make();
+private static final Logger LOG = Logger.of(OnePassBamLauncher.class);
 @Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 protected Path outputFile=null;
 @ParametersDelegate

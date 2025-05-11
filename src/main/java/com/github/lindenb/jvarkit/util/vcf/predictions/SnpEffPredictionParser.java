@@ -56,7 +56,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class SnpEffPredictionParser implements PredictionParser
 	{
-	private static final Logger LOG=Logger.build(SnpEffPredictionParser.class).make();
+	private static final Logger LOG=Logger.of(SnpEffPredictionParser.class);
 	private static final Map<String,String> EFF2SO= new HashMap<>() ;
 	{{{
 		// https://github.com/pcingola/SnpEff/blob/master/src/main/java/org/snpeff/snpEffect/EffectType.java

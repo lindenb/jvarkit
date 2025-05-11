@@ -106,7 +106,7 @@ END_DOC
 public class FastqJavascript
 	extends OnePassFastqLauncher
 	{
-	private static final Logger LOG = Logger.build(FastqJavascript.class).make();
+	private static final Logger LOG = Logger.of(FastqJavascript.class);
 
 	@Parameter(names={"-N","--limit"},description="limit to 'N' records -1:all")
 	private long LIMIT = -1L ;

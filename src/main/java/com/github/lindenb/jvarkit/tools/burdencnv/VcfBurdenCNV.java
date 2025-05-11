@@ -113,7 +113,7 @@ END_DOC
 public class VcfBurdenCNV
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfBurdenCNV.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenCNV.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

@@ -70,7 +70,7 @@ END_DOC
 		modificationDate="20241016")
 public class DragenBndToInversion extends OnePassVcfLauncher {
 	private static final String EVENT_KEY ="EVENT";
-	private static Logger LOG=Logger.build(DragenBndToInversion.class).make();
+	private static Logger LOG=Logger.of(DragenBndToInversion.class);
 	@Parameter(names={"--emit-other"},description="write other variants that are not identified as BND/INV")
 	private boolean emit_other = false;
 	@Parameter(names={"--emit-original"},description="emit original BND variants that makes an NV")

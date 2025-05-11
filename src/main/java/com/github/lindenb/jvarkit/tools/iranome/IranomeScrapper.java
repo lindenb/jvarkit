@@ -96,7 +96,7 @@ creationDate="20210728",
 modificationDate="20210729"
 )
 public class IranomeScrapper extends Launcher {
-	private static final Logger LOG = Logger.build(IranomeScrapper.class).make();
+	private static final Logger LOG = Logger.of(IranomeScrapper.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-T","--tabix"},description="Existing tabix-indexed database. Don't lookup the data if the variant is already in this database.")

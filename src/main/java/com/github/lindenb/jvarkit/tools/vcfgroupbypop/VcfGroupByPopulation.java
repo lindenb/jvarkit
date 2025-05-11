@@ -67,7 +67,7 @@ import htsjdk.variant.vcf.VCFIterator;
 	keywords= {"vcf","pedigree","population"}
 	)
 public class VcfGroupByPopulation extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfGroupByPopulation.class).make();
+	private static final Logger LOG = Logger.of(VcfGroupByPopulation.class);
 	@Parameter(names={"-p","--mapping","--sample2pop"},description="mapping file: each line is (SAMPLE)\\t(POP)\\n",required=true)
 	private Path mappingFile=null;
 	@Parameter(names={"-m","--min-fisher"},description="min inclusive value of fisher test. "+FractionConverter.OPT_DESC,converter=FractionConverter.class)

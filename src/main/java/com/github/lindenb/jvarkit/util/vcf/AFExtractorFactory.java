@@ -48,7 +48,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /** utility to extract allele frequencies from AC/AN or AF */
 public class AFExtractorFactory {
-	private static final Logger LOG = Logger.build(AFExtractorFactory.class).make();
+	private static final Logger LOG = Logger.of(AFExtractorFactory.class);
 	public static final String FORMAT_GT="FORMAT/"+VCFConstants.GENOTYPE_KEY;
 	
 /** an interface that can extract allele frequencies for each allele in a variant */

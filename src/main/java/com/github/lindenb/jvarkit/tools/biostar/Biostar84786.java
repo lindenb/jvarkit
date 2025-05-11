@@ -67,7 +67,7 @@ END_DOC
 	)
 public class Biostar84786 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar84786.class).make();
+	private static final Logger LOG = Logger.of(Biostar84786.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

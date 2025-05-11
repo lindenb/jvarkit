@@ -132,7 +132,7 @@ modificationDate="20211020",
 menu="BAM Manipulation"
 )
 public class BamToHaplotypes extends MultiBamLauncher {
-	private static final Logger LOG=Logger.build(BamToHaplotypes.class).make();
+	private static final Logger LOG=Logger.of(BamToHaplotypes.class);
 
 	
 	/* what shall we do with ALT that are not in the VCF */

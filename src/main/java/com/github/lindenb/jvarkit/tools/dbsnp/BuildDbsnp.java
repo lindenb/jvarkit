@@ -85,7 +85,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class BuildDbsnp extends Launcher {
-	private static Logger LOG=Logger.build(BuildDbsnp.class).make();
+	private static Logger LOG=Logger.of(BuildDbsnp.class);
 
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;

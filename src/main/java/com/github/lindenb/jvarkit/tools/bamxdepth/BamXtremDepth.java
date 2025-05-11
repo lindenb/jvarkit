@@ -118,7 +118,7 @@ modificationDate="20210511",
 generate_doc=true
 )
 public class BamXtremDepth extends Launcher {
-	private static final Logger LOG = Logger.build(BamXtremDepth.class).make();
+	private static final Logger LOG = Logger.of(BamXtremDepth.class);
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxPath =null;
 	@Parameter(names={"--validation-stringency"},description="SAM Reader Validation Stringency")

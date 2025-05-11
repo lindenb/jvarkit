@@ -124,7 +124,7 @@ END_DOC
 public class VcfEnsemblVepRest 
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfEnsemblVepRest.class).make();
+	private static final Logger LOG = Logger.of(VcfEnsemblVepRest.class);
 	private static final String DEFAULT_XSLT_TEMPLATE = "<?xml version=\'1.0\' encoding=\"UTF-8\"?>\n" + 
 			"<xsl:stylesheet xmlns:xsl=\'http://www.w3.org/1999/XSL/Transform\' version=\'1.0\'>\n" + 
 			"<xsl:output method=\"text\"/>\n" + 

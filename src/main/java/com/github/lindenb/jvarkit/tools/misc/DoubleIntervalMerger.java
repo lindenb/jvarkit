@@ -45,7 +45,7 @@ import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.StringUtil;
 
 public class DoubleIntervalMerger extends Launcher {
-	private static final Logger LOG = Logger.build(DoubleIntervalMerger.class).make();
+	private static final Logger LOG = Logger.of(DoubleIntervalMerger.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-d","--distance"},description="Max distance between two read to test if they both end at the same ~ position.")

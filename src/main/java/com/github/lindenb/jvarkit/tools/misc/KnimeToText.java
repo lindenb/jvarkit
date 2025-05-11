@@ -105,7 +105,7 @@ END_DOC
 		)
 public class KnimeToText extends Launcher{
 	private static final String NS="http://www.knime.org/2008/09/XMLConfig";
-	private static final Logger LOG = Logger.build(KnimeToText.class).make();
+	private static final Logger LOG = Logger.of(KnimeToText.class);
 
 	
 	private abstract class KnimeNode

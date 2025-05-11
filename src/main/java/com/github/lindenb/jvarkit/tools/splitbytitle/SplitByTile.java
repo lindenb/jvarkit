@@ -47,7 +47,7 @@ import htsjdk.samtools.SAMRecord;
 		creationDate="20130406"
 		)
 public class SplitByTile  extends AbstractBamSplitter<Integer> {
-    private static final Logger LOG = Logger.build(SplitByTile.class).make();
+    private static final Logger LOG = Logger.of(SplitByTile.class);
     
     
     @Override

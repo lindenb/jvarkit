@@ -162,7 +162,7 @@ END_DOC
 		)
 public class VcfGeneOntology extends OnePassVcfLauncher
 	{
-	 private static Logger LOG=Logger.build(VcfGeneOntology.class).make(); 
+	 private static Logger LOG=Logger.of(VcfGeneOntology.class); 
 		
 
 	@Parameter(names="-G",description=GOParser.GO_URL_OPT_DESC,required=true)

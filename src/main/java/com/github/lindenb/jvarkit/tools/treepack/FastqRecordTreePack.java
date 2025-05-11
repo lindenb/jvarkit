@@ -170,7 +170,7 @@ END_DOC
 @Program(name="fastqrecordtreepack",description="Create a TreeMap from one or more Fastq file. Ouput is a SVG file")
 public class FastqRecordTreePack extends AbstractTreePackCommandLine
 	{
-	private static final Logger LOG = Logger.build(FastqRecordTreePack.class).make();
+	private static final Logger LOG = Logger.of(FastqRecordTreePack.class);
 
 
 	@Parameter(names={"-c","--config"},description="XML config file")

@@ -83,7 +83,7 @@ keywords="vcf"
 )
 public class NoZeroVariationVCF extends Launcher
 	{
-	private static final Logger LOG = Logger.build(NoZeroVariationVCF.class).make();
+	private static final Logger LOG = Logger.of(NoZeroVariationVCF.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

@@ -82,7 +82,7 @@ creationDate="20200612",
 modificationDate="20200612"
 )
 public class VcfPostProcessSV extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfPostProcessSV.class).make();
+	private static final Logger LOG = Logger.of(VcfPostProcessSV.class);
 	@Parameter(names={"-k","--key","--keys"},description="Comma separated list of INFO field to search the ID of mate breakend. Manta: MATEID, lumpy: EVENT ")
 	private String keys="MATEID,EVENT";
 	@Parameter(names={"-A","--allele"},description="New alternate allele symbol '<x>' after pair of BND junction have been found.")

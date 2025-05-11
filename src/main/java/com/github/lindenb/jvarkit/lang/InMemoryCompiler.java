@@ -67,7 +67,7 @@ import htsjdk.samtools.util.StringUtil;
  */
 @Deprecated //openjdk doesn't support javax.tools.JavaCompiler
 public class InMemoryCompiler {
-	private static final Logger LOG = Logger.build(InMemoryCompiler.class).make();
+	private static final Logger LOG = Logger.of(InMemoryCompiler.class);
 	/** custom class loader */
 	private static class SpecialClassLoader extends ClassLoader {   
 	    private final Map<String,MemoryByteCode> class2code = new HashMap<>();

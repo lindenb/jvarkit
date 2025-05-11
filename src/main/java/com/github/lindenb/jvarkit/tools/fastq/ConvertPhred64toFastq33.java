@@ -44,7 +44,7 @@ import htsjdk.samtools.util.CloseableIterator;
 	)
 public class ConvertPhred64toFastq33 extends OnePassFastqLauncher
 	{
-	private static final Logger LOG = Logger.build(ConvertPhred64toFastq33.class).make();
+	private static final Logger LOG = Logger.of(ConvertPhred64toFastq33.class);
 
 
 	@Override

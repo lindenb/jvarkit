@@ -212,7 +212,7 @@ END_DOC
 public class PubmedGender
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedGender.class).make();
+	private static final Logger LOG = Logger.of(PubmedGender.class);
 
 	@Parameter(names={"-d","--database"},description="REQUIRED: A comma delimited file containing the following columns: 1) Name 2) sex (M/F) 3) Score. See http://cpansearch.perl.org/src/EDALY/Text-GenderFromName-0.33/GenderFromName.pm or https://www.ssa.gov/oact/babynames/names.zip",required=true)
 	private File dataFile = null;

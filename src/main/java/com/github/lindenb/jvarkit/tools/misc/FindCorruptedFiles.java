@@ -84,7 +84,7 @@ modificationDate="20190905"
 
 public class FindCorruptedFiles extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FindCorruptedFiles.class).make();
+	private static final Logger LOG = Logger.of(FindCorruptedFiles.class);
 	@Parameter(names={"-E","--noempty"},description="empty file is an error.")
 	private boolean emptyIsError=false;
 

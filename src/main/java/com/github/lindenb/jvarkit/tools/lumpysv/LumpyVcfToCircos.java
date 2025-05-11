@@ -70,7 +70,7 @@ END_DOC
 		)
 public class LumpyVcfToCircos extends Launcher {
 	
-	private static final Logger LOG = Logger.build(LumpyVcfToCircos.class).make();
+	private static final Logger LOG = Logger.of(LumpyVcfToCircos.class);
 	
 	@Parameter(names={"-o","--output"},description="output directory or zip file")
 	private File outputFile = null;

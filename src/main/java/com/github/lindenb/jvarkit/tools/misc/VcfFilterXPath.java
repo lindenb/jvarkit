@@ -67,7 +67,7 @@ import htsjdk.variant.vcf.VCFIterator;
 public class VcfFilterXPath
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfFilterXPath.class).make();
+	private static final Logger LOG = Logger.of(VcfFilterXPath.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	/** the INFO tag to use in the VCF input */

@@ -55,7 +55,7 @@ keywords={"vcf"}
 )
 
 public class VcfGapFrequent extends Launcher {
-	private static final Logger LOG = Logger.build(VcfGapFrequent.class).make();
+	private static final Logger LOG = Logger.of(VcfGapFrequent.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 

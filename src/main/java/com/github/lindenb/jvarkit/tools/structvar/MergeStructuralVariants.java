@@ -100,7 +100,7 @@ modificationDate="20211109",
 creationDate="20181109"
 )
 public class MergeStructuralVariants extends Launcher{
-	private static final Logger LOG = Logger.build(MergeStructuralVariants.class).make();
+	private static final Logger LOG = Logger.of(MergeStructuralVariants.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	@Parameter(names={"-d","--distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)

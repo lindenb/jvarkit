@@ -73,7 +73,7 @@ jvarkit_amalgamion = true,
 generate_doc=false
 )
 public class PlotMosdepth extends Launcher {
-private static final Logger LOG = Logger.build(PlotMosdepth.class).make();
+private static final Logger LOG = Logger.of(PlotMosdepth.class);
 private final String SUFFIX_REGION_DIST = ".mosdepth.region.dist.txt";
 private final String SUFFIX_GLOBAL_DIST = ".mosdepth.global.dist.txt";
 private final String SUFFIX_SUMMARY = ".mosdepth.summary.txt";

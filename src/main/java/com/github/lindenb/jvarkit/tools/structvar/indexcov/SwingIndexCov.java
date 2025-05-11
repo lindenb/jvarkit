@@ -229,7 +229,7 @@ END_DOC
 		menu="CNV/SV"
 		)
 public class SwingIndexCov extends Launcher {
-	private static final Logger LOG = Logger.build(SwingIndexCov.class).make();
+	private static final Logger LOG = Logger.of(SwingIndexCov.class);
 	private static final int MAX_GFF3_ROWS = 10_000;
 	@Parameter(names={"-R","--reference"},description=DICTIONARY_SOURCE)
 	private Path dictSource = null;

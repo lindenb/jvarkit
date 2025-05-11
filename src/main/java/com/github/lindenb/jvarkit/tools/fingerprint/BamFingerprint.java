@@ -114,7 +114,7 @@ modificationDate="20240202",
 creationDate="20240202"
 )
 public class BamFingerprint extends Launcher {
-	private static final Logger LOG = Logger.build(BamFingerprint.class).make();
+	private static final Logger LOG = Logger.of(BamFingerprint.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output;

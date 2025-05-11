@@ -29,7 +29,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 
 public abstract class AbstractCGI extends Launcher
 	{
-	//private static final Logger LOG=Logger.build(AbstractCGI.class).make();
+	//private static final Logger LOG=Logger.of(AbstractCGI.class);
 	private static final String PROPERTY_PREFFILE="prefs.file.xml";
 	
 	protected StringBuilder logStream=new StringBuilder();

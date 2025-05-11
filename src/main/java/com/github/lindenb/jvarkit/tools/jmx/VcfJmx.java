@@ -94,7 +94,7 @@ description="Monitor/interrupt/break a VCF stream with java JMX http://www.oracl
 keywords={"java","jmx","vcf"})
 public class VcfJmx extends Launcher
 	{
-	private static final Logger LOG=Logger.build(VcfJmx.class).make();
+	private static final Logger LOG=Logger.of(VcfJmx.class);
 	@Parameter(names={"-o","--out"},required=false,description="Output vcf , ot stdin")
 	private File outputFile=null;
 	@Parameter(names={"-p"},required=false,description="Stream identifier")

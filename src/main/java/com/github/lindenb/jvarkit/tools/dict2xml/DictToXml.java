@@ -123,7 +123,7 @@ END_DOC
 	jvarkit_amalgamion =  true
 	)
 public class DictToXml extends Launcher {
-	private static Logger LOG=Logger.build(DictToXml.class).make();
+	private static Logger LOG=Logger.of(DictToXml.class);
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

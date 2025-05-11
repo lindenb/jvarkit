@@ -100,7 +100,7 @@ biostars= {308310,353051},
 keywords={"vcf","stats"}
 )
 public class VcfStatsJfx extends Launcher {
-	private static final Logger LOG=Logger.build(VcfStatsJfx.class).make();
+	private static final Logger LOG=Logger.of(VcfStatsJfx.class);
 	private final DecimalFormat niceIntFormat = new DecimalFormat("###,###");
 
 	@Parameter(names={"-s","--seconds"},description="Save Rscript screen every 's' seconds, if output was defined.")

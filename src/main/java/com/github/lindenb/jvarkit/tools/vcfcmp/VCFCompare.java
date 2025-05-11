@@ -220,7 +220,7 @@ $ java -jar dist/vcfcompare.jar \
 @Program(name="vcfcompare",description="Compares two VCF files",keywords={"vcf","compare"})
 public class VCFCompare extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VCFCompare.class).make();
+	private static final Logger LOG = Logger.of(VCFCompare.class);
 
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")

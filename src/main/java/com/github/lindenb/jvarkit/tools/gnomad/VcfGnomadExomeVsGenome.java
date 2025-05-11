@@ -64,7 +64,7 @@ modificationDate="20210707",
 creationDate="20210707"
 )
 public class VcfGnomadExomeVsGenome extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfGnomadExomeVsGenome.class).make();
+	private static final Logger LOG = Logger.of(VcfGnomadExomeVsGenome.class);
 	@Parameter(names={"-exome"},description="Path to Indexed Gnomad VCF exome file.",required=true)
 	private Path exomePath =null;
 	@Parameter(names={"-genome"},description="Path to Indexed Gnomad VCF genome file.",required=true)

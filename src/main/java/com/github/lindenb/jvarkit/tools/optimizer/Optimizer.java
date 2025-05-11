@@ -168,7 +168,7 @@ END_DOC
 		)
 public class Optimizer extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Optimizer.class).make();
+	private static final Logger LOG = Logger.of(Optimizer.class);
 	
 	
 	@Parameter(names={"-A","--all"},description="Run all possible combinations")

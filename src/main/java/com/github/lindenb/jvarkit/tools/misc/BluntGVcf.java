@@ -20,7 +20,7 @@ import htsjdk.variant.vcf.VCFHeader;
 @Program(name="bluntgvcf",description="blunt a gvcf")
 public class BluntGVcf extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BluntGVcf.class).make();
+	private static final Logger LOG = Logger.of(BluntGVcf.class);
 	@Parameter(names = { "-o", "--out" }, description = OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	

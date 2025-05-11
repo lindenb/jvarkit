@@ -253,7 +253,7 @@ jvarkit_amalgamion =  true,
 menu="BAM Visualization"
 )
 public class PrettySam extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(PrettySam.class).make();
+	private static final Logger LOG = Logger.of(PrettySam.class);
 
 	@Parameter(names={"--no-unicode"},description="disable unicode to display ascii histogram")
 	private boolean disable_unicode=false;

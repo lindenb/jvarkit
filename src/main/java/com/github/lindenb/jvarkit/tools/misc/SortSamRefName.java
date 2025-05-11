@@ -82,7 +82,7 @@ END_DOC
 		menu="BAM Manipulation"
 		)
 public class SortSamRefName extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(SortSamRefName.class).make();
+	private static final Logger LOG = Logger.of(SortSamRefName.class);
 
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection=new WritingSortingCollection();

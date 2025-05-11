@@ -48,7 +48,7 @@ import htsjdk.variant.vcf.VCFReader;
 class DefaultVcfFileList extends AbstractList<VariantContext>
 	implements VcfList
 	{
-	private static final Logger LOG=Logger.build(DefaultVcfFileList.class).make();
+	private static final Logger LOG=Logger.of(DefaultVcfFileList.class);
 
 	private final File vcfFile;
 	private final VCFHeader header;

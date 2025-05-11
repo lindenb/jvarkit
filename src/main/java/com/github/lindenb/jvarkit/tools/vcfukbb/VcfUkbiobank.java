@@ -104,7 +104,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class VcfUkbiobank extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfUkbiobank.class).make();
+	private static final Logger LOG = Logger.of(VcfUkbiobank.class);
 	private final HttpClient httpClient = HttpClient.newHttpClient();
 	private final JsonParser jsonparser = new JsonParser();
 

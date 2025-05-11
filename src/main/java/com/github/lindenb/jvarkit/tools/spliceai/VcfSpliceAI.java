@@ -92,7 +92,7 @@ modificationDate="20201107",
 jvarkit_amalgamion = true
 )
 public class VcfSpliceAI  extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfSpliceAI.class).make();
+	private static final Logger LOG = Logger.of(VcfSpliceAI.class);
 	
 	private CloseableHttpClient httpClient = null;
 	private final JsonParser jsonparser = new JsonParser();

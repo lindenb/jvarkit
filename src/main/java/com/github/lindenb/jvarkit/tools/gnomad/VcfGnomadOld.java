@@ -133,7 +133,7 @@ END_DOC
 )
 public class VcfGnomadOld extends Launcher{
 	
-	private static final Logger LOG = Logger.build(VcfGnomadOld.class).make();
+	private static final Logger LOG = Logger.of(VcfGnomadOld.class);
 	/** 'ome'-type section */
 	/* private */ enum OmeType {exome,genome};
 	

@@ -69,7 +69,7 @@ import htsjdk.samtools.util.SortingCollection;
 		generate_doc = false
 		)
 public class PalindromeFinder  extends Launcher {
-private static final Logger LOG = Logger.build(PalindromeFinder.class).make();
+private static final Logger LOG = Logger.of(PalindromeFinder.class);
 
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private Path outfile=null;

@@ -84,7 +84,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 	)
 public class Biostar140111 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar130456.class).make();
+	private static final Logger LOG = Logger.of(Biostar130456.class);
 	
 	@SuppressWarnings("unused")
 	private static final gov.nih.nlm.ncbi.dbsnp.gt.ObjectFactory _fool_javac1=null;	

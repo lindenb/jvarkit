@@ -76,7 +76,7 @@ END_DOC
 	keywords={"vcf","genotype"}
 )
 public class VcfRemoveGenotypeIfInVcf extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfRemoveGenotypeIfInVcf.class).make();
+	private static final Logger LOG = Logger.of(VcfRemoveGenotypeIfInVcf.class);
 
 	@Parameter(names="-x",description="remove variant if there is no called genotype")
 	private boolean removeVariantNoGenotype=false;

@@ -97,7 +97,7 @@ END_DOC
 	description="Binary interactions depth.")
 public class Biostar92368 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar92368.class).make();
+	private static final Logger LOG = Logger.of(Biostar92368.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

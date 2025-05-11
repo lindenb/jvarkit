@@ -122,7 +122,7 @@ modificationDate = "20220517",
 jvarkit_amalgamion = true
 )
 public class VcfServer extends Launcher{
-private static final Logger LOG=Logger.build(VcfServer.class).make();
+private static final Logger LOG=Logger.of(VcfServer.class);
 private static final int DEFAULT_LIMIT=100;
 private static final String REGION_PARAM="rgn";
 private static final String VCFIDX_PARAM="vcf";

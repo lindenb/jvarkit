@@ -47,7 +47,7 @@ import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 /*** tabix annotator using Ensembl GFF to annotate SV (e/g: https://ftp.ensembl.org/pub/grch37/current/regulation/homo_sapiens/homo_sapiens.GRCh37.Regulatory_Build.regulatory_features.20201218.gff.gz ) */
 public class GffEnsemblRegVariantAnnotator extends AbstractTabixVariantAnnotator {
-	private static final Logger LOG = Logger.build(GffEnsemblRegVariantAnnotator.class).make();
+	private static final Logger LOG = Logger.of(GffEnsemblRegVariantAnnotator.class);
 	public static final String OPT_DESC="GFF file from Ensembl, indexed with Tabix. e:g https://ftp.ensembl.org/pub/grch37/current/regulation/homo_sapiens/homo_sapiens.GRCh37.Regulatory_Build.regulatory_features.20201218.gff.gz";
 	private final Set<String> undefined_types = new HashSet<>();
 	private final Map<String,VCFInfoHeaderLine> type2Flag = new HashMap<>();

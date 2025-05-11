@@ -46,7 +46,7 @@ import htsjdk.tribble.readers.TabixReader;
 public class TabixFileReader implements Closeable
 	//,Iterable<VariantContext> NO, not a true iterator
 	{
-	private static final Logger LOG=Logger.build(TabixFileReader.class).make();
+	private static final Logger LOG=Logger.of(TabixFileReader.class);
 	private TabixReader tabix=null;
     private final String uri;
     

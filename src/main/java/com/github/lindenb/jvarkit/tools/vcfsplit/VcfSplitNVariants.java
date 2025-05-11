@@ -109,7 +109,7 @@ END_DOC
 		menu="VCF Manipulation"
 		)
 public class VcfSplitNVariants 	extends Launcher {
-private static final Logger LOG = Logger.build(VcfSplitNVariants.class).make();	
+private static final Logger LOG = Logger.of(VcfSplitNVariants.class);	
 
 @Parameter(names={"-o","--output","--prefix"},description="files prefix",required = true)
 private String outputFile = null;

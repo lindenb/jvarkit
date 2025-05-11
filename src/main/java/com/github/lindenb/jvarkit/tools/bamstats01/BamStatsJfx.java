@@ -84,7 +84,7 @@ keywords={"bam","stats"},
 generate_doc=false
 )
 public class BamStatsJfx extends Launcher {
-	private static final Logger LOG=Logger.build(BamStatsJfx.class).make();
+	private static final Logger LOG=Logger.of(BamStatsJfx.class);
 
 	@Parameter(names={"-s","--seconds"},description="Save every 's' seconds if output file is defined")
 	private int refreshEverySeconds = 15;

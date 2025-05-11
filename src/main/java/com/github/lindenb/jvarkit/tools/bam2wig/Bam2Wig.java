@@ -154,7 +154,7 @@ menu="Deprecated/barely used"
 public class Bam2Wig extends Launcher
 	{
 	private static final String UCSC_HEADER="track type=track_type name=\"__REPLACE_WIG_NAME__\" description=\"__REPLACE_WIG_DESC__\"";
-	private static final Logger LOG = Logger.build(Bam2Wig.class).make();
+	private static final Logger LOG = Logger.of(Bam2Wig.class);
 	private enum WHAT {COVERAGE,CLIPPING,INSERTION,DELETION,READ_GROUPS,CASE_CTRL};
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

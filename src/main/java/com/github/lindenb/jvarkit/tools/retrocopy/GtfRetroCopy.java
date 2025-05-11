@@ -94,7 +94,7 @@ jvarkit_amalgamion = true
 )
 public class GtfRetroCopy extends Launcher
 	{
-	private static final Logger LOG = Logger.build(GtfRetroCopy.class).make();
+	private static final Logger LOG = Logger.of(GtfRetroCopy.class);
 	private enum IdKey {transcript_id,gene_id,gene_name};
 	
 	

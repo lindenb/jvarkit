@@ -72,7 +72,7 @@ END_DOC
 	)
 public class Biostar77288 extends Launcher
     {
-	private static final Logger LOG= Logger.build(Biostar77288.class).make();
+	private static final Logger LOG= Logger.of(Biostar77288.class);
 	
 	@Parameter(names={"-S","--seqlogo"},description="Input is seqLogo")
     private boolean SEQLOGO=false;

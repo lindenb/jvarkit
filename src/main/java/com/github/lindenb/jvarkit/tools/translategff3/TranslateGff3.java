@@ -84,7 +84,7 @@ modificationDate="20241003",
 jvarkit_amalgamion = true
 )
 public class TranslateGff3 extends Launcher {
-	private static final Logger LOG = Logger.build(KnownGeneToFasta.class).make();
+	private static final Logger LOG = Logger.of(KnownGeneToFasta.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

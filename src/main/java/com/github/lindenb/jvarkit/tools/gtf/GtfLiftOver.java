@@ -116,7 +116,7 @@ END_DOC
 public class GtfLiftOver
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(GtfLiftOver.class).make();
+	private static final Logger LOG = Logger.of(GtfLiftOver.class);
 	private final GTFCodec gtfCodec = new GTFCodec();
 	private LiftOver liftOver = null;
 	private ContigNameConverter contigNameConverter = null;

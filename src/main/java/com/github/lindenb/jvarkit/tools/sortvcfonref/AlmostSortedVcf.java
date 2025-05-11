@@ -63,7 +63,7 @@ jvarkit_amalgamion = true
 )
 public class AlmostSortedVcf extends Launcher
 	{
-	private static final Logger LOG = Logger.build(AlmostSortedVcf.class).make();
+	private static final Logger LOG = Logger.of(AlmostSortedVcf.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-N","--buffersize"},description="max records in ram")

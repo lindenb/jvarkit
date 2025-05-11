@@ -181,7 +181,7 @@ END_DOC
 keywords={"bam","treepack"})
 public class BamTreePack extends AbstractTreePackCommandLine
 	{
-	private static final Logger LOG = Logger.build(BamTreePack.class).make();
+	private static final Logger LOG = Logger.of(BamTreePack.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

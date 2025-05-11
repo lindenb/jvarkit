@@ -87,7 +87,7 @@ END_DOC
 	)
 public class Biostar9608448 extends OnePassBamLauncher
 	{
-	private static final Logger LOG = Logger.build(Biostar9608448.class).make();
+	private static final Logger LOG = Logger.of(Biostar9608448.class);
 	@Parameter(names={"--read-length","-L"},description="short read length")
 	private int readLength = 150;
 	

@@ -100,7 +100,7 @@ creationDate="20180215",
 generate_doc = false
 )
 public class GenbankToGff3 extends Launcher {
-	private static final Logger LOG = Logger.build(GenbankToGff3.class).make();
+	private static final Logger LOG = Logger.of(GenbankToGff3.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

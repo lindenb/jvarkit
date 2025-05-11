@@ -106,7 +106,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfSpringFilter extends AbstractOnePassVcfAnnotator {
-	private static final Logger LOG=Logger.build(VcfSpringFilter.class).make();
+	private static final Logger LOG=Logger.of(VcfSpringFilter.class);
 
 	@Parameter(names={"-c","--config"},description="Spring XML configuration file (  https://docs.spring.io/spring-framework/docs/4.2.x/spring-framework-reference/html/xsd-configuration.html ) .", required = true)
 	private List<Path> springCongigFiles = new ArrayList<>();

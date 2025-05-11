@@ -106,7 +106,7 @@ public class CombineVcfFisher extends Launcher {
 	private final static int STATUS_AFFECTED = 1;
 	private final static int STATUS_UNAFFECTED = 0;
 	private final static int STATUS_UNDEFINED = -1;
-	private static final Logger LOG = Logger.build(CombineVcfFisher.class).make();
+	private static final Logger LOG = Logger.of(CombineVcfFisher.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-p","--pedigree"},description= PedigreeParser.OPT_DESC,required=true)

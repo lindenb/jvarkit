@@ -69,7 +69,7 @@ END_DOC
 	)
 public class VcfCreateDictionary extends Launcher
 	{
-	private static final Logger LOG=Logger.build(VcfCreateDictionary.class).make();
+	private static final Logger LOG=Logger.of(VcfCreateDictionary.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

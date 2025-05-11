@@ -110,7 +110,7 @@ END_DOC
 	modificationDate="20191109"
 	)
 public class HmmMergeBed extends Launcher {
-	private static final Logger LOG = Logger.build(HmmMergeBed.class).make();
+	private static final Logger LOG = Logger.of(HmmMergeBed.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

@@ -108,7 +108,7 @@ modificationDate="20191121"
 )
 public class VcfToZip extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfToZip.class).make();
+	private static final Logger LOG = Logger.of(VcfToZip.class);
 
 
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)

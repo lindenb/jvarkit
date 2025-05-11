@@ -91,7 +91,7 @@ END_DOC
 	)
 public class Biostar90204 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar90204.class).make();
+	private static final Logger LOG = Logger.of(Biostar90204.class);
 	@Parameter(names= {"-R"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path referencePath =null;
 	@Parameter(names= {"-p","--prefix"},description="(prefix) output file prefix.")

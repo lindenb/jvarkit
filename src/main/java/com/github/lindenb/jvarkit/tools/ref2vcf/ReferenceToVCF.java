@@ -85,7 +85,7 @@ grep -v "##" | cut -f 1-5
 	)
 public class ReferenceToVCF extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ReferenceToVCF.class).make();
+	private static final Logger LOG = Logger.of(ReferenceToVCF.class);
 	
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

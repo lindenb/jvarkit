@@ -78,7 +78,7 @@ $ java -jar dist/genomicjaspar.jar  -J pfm_vertebrates.txt human_g1k_v37.fasta
 	)
 public class GenomicJaspar extends Launcher
 	{
-	private static final Logger LOG = Logger.build(GenomicJaspar.class).make();
+	private static final Logger LOG = Logger.of(GenomicJaspar.class);
 	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File OUT=null;
 	@Parameter(names="-J",description=" jaspar PFM uri. required. example: http://jaspar.genereg.net/html/DOWNLOAD/JASPAR_CORE/pfm/nonredundant/pfm_vertebrates.txt",required=true)

@@ -117,7 +117,7 @@ jvarkit_amalgamion = true,
 menu="BAM Manipulation"
 )
 public class BamToMNV extends Launcher {
-	private static final Logger LOG=Logger.build(BamToMNV.class).make();
+	private static final Logger LOG=Logger.of(BamToMNV.class);
 
 	
 	private enum Phase {

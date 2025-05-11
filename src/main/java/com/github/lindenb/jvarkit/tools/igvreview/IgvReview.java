@@ -98,7 +98,7 @@ import javafx.stage.Window;
 
 public class IgvReview extends Application
 	{
-	private static final Logger LOG = Logger.build(IgvReview.class).make();
+	private static final Logger LOG = Logger.of(IgvReview.class);
 	private static final String LAST_USED_DIR_KEY="last.used.dir";
     final Preferences preferences ;
     private List<VariantContext> variants = new Vector<>();

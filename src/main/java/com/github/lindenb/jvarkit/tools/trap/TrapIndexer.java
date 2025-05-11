@@ -46,7 +46,7 @@ END_DOC
 	keywords= {"trap"}
 )
 public class TrapIndexer extends Launcher{
-private static final Logger LOG = Logger.build(TrapIndexer.class).make();
+private static final Logger LOG = Logger.of(TrapIndexer.class);
 @Parameter(names= {"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private File outfilename=null;
 

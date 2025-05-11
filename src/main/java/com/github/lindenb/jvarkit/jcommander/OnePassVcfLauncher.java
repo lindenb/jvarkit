@@ -45,7 +45,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
 public abstract class OnePassVcfLauncher extends Launcher {
-private static final Logger LOG = Logger.build(OnePassVcfLauncher.class).make();
+private static final Logger LOG = Logger.of(OnePassVcfLauncher.class);
 @Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 protected Path outputFile=null;
 @ParametersDelegate

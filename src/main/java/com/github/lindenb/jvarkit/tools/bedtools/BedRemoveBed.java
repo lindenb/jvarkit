@@ -67,7 +67,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class BedRemoveBed extends Launcher {
-	private static final Logger LOG = Logger.build(BedRemoveBed.class).make();
+	private static final Logger LOG = Logger.of(BedRemoveBed.class);
 
 	@Parameter(names = { "-o", "--out" }, description = "Output is a setfile. "+ OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output = null;

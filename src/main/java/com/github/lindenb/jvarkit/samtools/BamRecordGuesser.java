@@ -49,7 +49,7 @@ import htsjdk.samtools.util.StringUtil;
  *
  */
 public class BamRecordGuesser {
-private static final Logger LOG = Logger.build(BamRecordGuesser.class).make();
+private static final Logger LOG = Logger.of(BamRecordGuesser.class);
 /** push back input stream should at least contains this space */
 public static final int BUFFER_SIZE=100_000;
 

@@ -98,7 +98,7 @@ END_DOC
 	)
 public class NaiveCnvDetector extends Launcher
 	{
-	private static final Logger LOG = Logger.build(NaiveCnvDetector.class).make();
+	private static final Logger LOG = Logger.of(NaiveCnvDetector.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

@@ -44,7 +44,7 @@ import htsjdk.variant.vcf.VCFHeader;
 
 public class SAMSequenceDictionaryProgress
 	{
-    private static final Logger _LOG = Logger.build(SAMSequenceDictionaryProgress.class).make();
+    private static final Logger _LOG = Logger.of(SAMSequenceDictionaryProgress.class);
 
     private Logger log = _LOG;
 	private long start_ticks=-1L;

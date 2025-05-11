@@ -144,7 +144,7 @@ END_DOC
 	description="add the read group info to the sam file on a per lane basis")
 public class Biostar78400 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar78400.class).make();
+	private static final Logger LOG = Logger.of(Biostar78400.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

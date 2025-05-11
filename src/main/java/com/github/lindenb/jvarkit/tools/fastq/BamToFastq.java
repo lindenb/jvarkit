@@ -107,7 +107,7 @@ END_DOC
 	)
 public class BamToFastq extends MultiBamLauncher
 	{
-	private static final Logger LOG = Logger.build(BamToFastq.class).make();
+	private static final Logger LOG = Logger.of(BamToFastq.class);
 
 	private static class NullFastqWriter implements FastqWriter {
 		@Override

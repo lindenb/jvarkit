@@ -47,7 +47,7 @@ import javafx.scene.chart.XYChart;
  *
  */
 public class JFXChartExporter {
-private static final Logger LOG=Logger.build(JFXChartExporter.class).make();
+private static final Logger LOG=Logger.of(JFXChartExporter.class);
 
 private enum AxisType { CATEGORY,NUMBER,UNDEFINED};
 	

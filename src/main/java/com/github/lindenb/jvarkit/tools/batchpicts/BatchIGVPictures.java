@@ -114,7 +114,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class BatchIGVPictures extends Launcher {
-	private static final Logger LOG=Logger.build(BatchIGVPictures.class).make();
+	private static final Logger LOG=Logger.of(BatchIGVPictures.class);
 	private static final String PREF_EXTEND="snp.extend";
 	private static final String PREF_IGV_PORT="igv.port";
 	private static final String PREF_IGV_HOST="igv.host";

@@ -100,7 +100,7 @@ jvarkit_amalgamion = true,
 menu="BAM Manipulation"
 )
 public class TextBam extends Launcher {
-	private static final Logger LOG = Logger.build( TextBam.class).make();
+	private static final Logger LOG = Logger.of( TextBam.class);
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
 	private Path refPath = null;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

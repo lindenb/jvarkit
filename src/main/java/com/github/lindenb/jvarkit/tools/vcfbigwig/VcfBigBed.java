@@ -100,7 +100,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfBigBed extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfBigBed.class).make();
+	private static final Logger LOG = Logger.of(VcfBigBed.class);
 
 	
 	/** describe a BigWig Resource */

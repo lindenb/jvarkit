@@ -26,7 +26,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class MyPredictionParser implements PredictionParser
 	{
-	private static final Logger LOG=Logger.build(MyPredictionParser.class).make();
+	private static final Logger LOG=Logger.of(MyPredictionParser.class);
 	private Map<VCFPredictions.FORMAT1, Integer> col2col=new HashMap<VCFPredictions.FORMAT1, Integer>();
 	private SequenceOntologyTree soTree = SequenceOntologyTree.getInstance();
 	private final Pattern pipe=Pattern.compile("[\\|]");

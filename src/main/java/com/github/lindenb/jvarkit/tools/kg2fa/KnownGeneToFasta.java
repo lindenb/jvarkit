@@ -85,7 +85,7 @@ jvarkit_amalgamion = true
 )
 public class KnownGeneToFasta extends Launcher
 	{
-	private static final Logger LOG = Logger.build(KnownGeneToFasta.class).make();
+	private static final Logger LOG = Logger.of(KnownGeneToFasta.class);
 
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;

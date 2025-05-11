@@ -111,7 +111,7 @@ END_DOC
 		)
 public class VcfCalledWithAnotherMethod extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfCalledWithAnotherMethod.class).make();
+	private static final Logger LOG = Logger.of(VcfCalledWithAnotherMethod.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

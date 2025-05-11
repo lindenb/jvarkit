@@ -40,7 +40,7 @@ END_DOC
 	keywords={"vcf"})
 public class VcfGetVariantByIndex extends Launcher
 	{
-	private static Logger LOG=Logger.build(VcfGetVariantByIndex.class).make();
+	private static Logger LOG=Logger.of(VcfGetVariantByIndex.class);
 	
 	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;

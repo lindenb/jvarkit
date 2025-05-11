@@ -140,7 +140,7 @@ END_DOC
 	)
 public class Biostar160470 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar160470.class).make();
+	private static final Logger LOG = Logger.of(Biostar160470.class);
 
 	@SuppressWarnings("unused")
 	private static final ObjectFactory _fool_javac1=null;

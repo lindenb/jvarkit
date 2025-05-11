@@ -81,7 +81,7 @@ END_DOC
 )
 public class VcfGnomadSV extends OnePassVcfLauncher {
 	
-	private static final Logger LOG = Logger.build(VcfGnomadSV.class).make();
+	private static final Logger LOG = Logger.of(VcfGnomadSV.class);
 	
 	@Parameter(names={"-g","--gnomad"},description="Gnomad-SV VCF file. see https://gnomad.broadinstitute.org/downloads#structural-variants",required=true)
 	private Path gnomadVcfSvPath = null;

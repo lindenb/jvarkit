@@ -173,7 +173,7 @@ END_DOC
 	)
 public class VcfEnsemblReg extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfEnsemblReg.class).make();
+	private static final Logger LOG = Logger.of(VcfEnsemblReg.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

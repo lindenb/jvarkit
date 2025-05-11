@@ -64,7 +64,7 @@ import htsjdk.samtools.util.CloserUtil;
 /** need to decouple from Launcher for JXF applications that cannot extends 'Launcher' */
 public  class CmdUsageBuilder
 	{
-	static final Logger LOG=Logger.build( CmdUsageBuilder.class).make();
+	static final Logger LOG=Logger.of( CmdUsageBuilder.class);
 
 	/** main class */
 	private final Class<?> _mainClass;

@@ -136,7 +136,7 @@ menu="CNV/SV"
 )
 public class VcfStrechToSvg extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfStrechToSvg.class).make();
+	private static final Logger LOG = Logger.of(VcfStrechToSvg.class);
 	/** which format to use */
 	private enum FORMAT {PL ,AD}
 	

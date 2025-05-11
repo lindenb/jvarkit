@@ -113,7 +113,7 @@ END_DOC
 public class GroupByGene
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(GroupByGene.class).make();
+	private static final Logger LOG = Logger.of(GroupByGene.class);
 
 	@Parameter(names={"--gtFiltered","--ignore-filtered-gt"},description="ignore FILTERED genotypes")
 	private boolean ignore_filtered_genotype = false;

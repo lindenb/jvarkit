@@ -124,7 +124,7 @@ END_DOC
 	)
 public class FindAllCoverageAtPosition extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FindAllCoverageAtPosition.class).make();
+	private static final Logger LOG = Logger.of(FindAllCoverageAtPosition.class);
 	private static final char INSERTION_CHAR='^';
 	private static final char DELETION_CHAR='-';
 	private static final char BASES_To_PRINT[]=new char[]{'A','C','G','T','N',INSERTION_CHAR,DELETION_CHAR};

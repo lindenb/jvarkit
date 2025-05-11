@@ -50,7 +50,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
 public class PlotRareVariants extends Launcher {
-	private static final Logger LOG = Logger.build(PlotRareVariants.class).make();
+	private static final Logger LOG = Logger.of(PlotRareVariants.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile=null;
 	@Parameter(names={"-B","--bed"},description="BED file for the regions to be displayed",required=true)

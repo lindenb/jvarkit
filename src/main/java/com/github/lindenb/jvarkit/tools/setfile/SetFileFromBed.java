@@ -66,7 +66,7 @@ jvarkit_amalgamion = true,
 menu="BED Manipulation"
 )
 public class SetFileFromBed extends AbstractSetFileTool {
-	private static final Logger LOG = Logger.build(SetFileFromBed.class).make();
+	private static final Logger LOG = Logger.of(SetFileFromBed.class);
 
 	
 	@Parameter(names={"--disable-interval-merge"},description="Do not merge overlapping intervals in a setFile record")

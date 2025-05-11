@@ -53,7 +53,7 @@ import htsjdk.tribble.annotation.Strand;
  */
 class UcscTranscriptImpl implements UcscTranscript {
 	private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("ucsc.transcript.debug","false"));
-	private static final Logger LOG = Logger.build(UcscTranscriptImpl.class).make();
+	private static final Logger LOG = Logger.of(UcscTranscriptImpl.class);
 	
 	String contig;
 	int txStart;

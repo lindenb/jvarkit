@@ -91,7 +91,7 @@ END_DOC
 	generate_doc=false
 	)
 public class DepthAnomaly extends Launcher {
-	private static final Logger LOG = Logger.build( DepthAnomaly.class).make();
+	private static final Logger LOG = Logger.of( DepthAnomaly.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

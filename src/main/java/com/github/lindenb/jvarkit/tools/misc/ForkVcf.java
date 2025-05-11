@@ -113,7 +113,7 @@ END_DOC
 public class ForkVcf
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ForkVcf.class).make();
+	private static final Logger LOG = Logger.of(ForkVcf.class);
 
 
 	@Parameter(names={"-o","--output"},description="Output file Must contains "+REPLACE_GROUPID,required=true)

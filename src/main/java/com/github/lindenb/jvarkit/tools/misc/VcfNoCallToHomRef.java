@@ -132,7 +132,7 @@ END_DOC
 	)
 public class VcfNoCallToHomRef extends OnePassVcfLauncher
 	{
-	private static final Logger LOG=Logger.build(VcfNoCallToHomRef.class).make();
+	private static final Logger LOG=Logger.of(VcfNoCallToHomRef.class);
 		
 	@Parameter(names={"-s","--includeSamples"},description="only converts those samples. Default: all samples are converted.")
 	private  Set<String> includeSamples = new HashSet<>();

@@ -130,7 +130,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class VcfLiftOver extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfLiftOver.class).make();
+	private static final Logger LOG = Logger.of(VcfLiftOver.class);
 	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required=true)
 	private String liftOverFile = null;
 	@Parameter(names={"-x","--failed"},description="(file.vcf) write variants failing the liftOver here. Optional.")

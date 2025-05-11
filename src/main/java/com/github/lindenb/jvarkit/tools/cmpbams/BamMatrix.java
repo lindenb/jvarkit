@@ -128,7 +128,7 @@ menu="CNV/SV"
 )
 public class BamMatrix  extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BamMatrix.class).make();
+	private static final Logger LOG = Logger.of(BamMatrix.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)

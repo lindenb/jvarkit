@@ -93,7 +93,7 @@ END_DOC
 	)
 public class FindNewSpliceSites extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FindNewSpliceSites.class).make();
+	private static final Logger LOG = Logger.of(FindNewSpliceSites.class);
 	private static long GENERATE_ID=0L;
 	
 	@Parameter(names={"-o","-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)

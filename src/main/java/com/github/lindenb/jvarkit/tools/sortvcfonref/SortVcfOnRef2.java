@@ -76,7 +76,7 @@ END_DOC
 	)
 public class SortVcfOnRef2 extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(SortVcfOnRef2.class).make();
+	private static final Logger LOG = Logger.of(SortVcfOnRef2.class);
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path refdict = null;
 	@ParametersDelegate

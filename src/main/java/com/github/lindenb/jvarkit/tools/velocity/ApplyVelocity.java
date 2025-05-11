@@ -114,7 +114,7 @@ modificationDate="20241023",
 jvarkit_amalgamion = true
 )
 public class ApplyVelocity extends Launcher{
-	private static final Logger LOG = Logger.build(ApplyVelocity.class).make();
+	private static final Logger LOG = Logger.of(ApplyVelocity.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	Path outputFile = null;
     @Parameter(names={"-m","--manifest"},description="TSV file with the following required header: key/value/type")

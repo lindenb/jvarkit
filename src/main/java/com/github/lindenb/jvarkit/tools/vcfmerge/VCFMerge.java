@@ -117,7 +117,7 @@ END_DOC
 public class VCFMerge
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VCFMerge.class).make();
+	private static final Logger LOG = Logger.of(VCFMerge.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

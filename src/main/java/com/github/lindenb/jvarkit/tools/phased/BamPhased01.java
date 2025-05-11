@@ -157,7 +157,7 @@ jvarkit_amalgamion = true,
 menu="BAM Manipulation"
 )
 public class BamPhased01 extends OnePassBamLauncher {
-	private static final Logger LOG=Logger.build(BamPhased01.class).make();
+	private static final Logger LOG=Logger.of(BamPhased01.class);
 
 	
 	private static class PosToCheck extends SimplePosition {

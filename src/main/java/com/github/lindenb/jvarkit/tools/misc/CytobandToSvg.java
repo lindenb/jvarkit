@@ -91,7 +91,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class CytobandToSvg extends Launcher {
-private static final Logger LOG = Logger.build(CytobandToSvg.class).make();
+private static final Logger LOG = Logger.of(CytobandToSvg.class);
 
 
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

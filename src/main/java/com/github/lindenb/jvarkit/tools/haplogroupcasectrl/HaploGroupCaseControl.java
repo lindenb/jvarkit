@@ -75,7 +75,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class HaploGroupCaseControl extends Launcher {
-	private static final Logger LOG = Logger.build(HaploGroupCaseControl.class).make();
+	private static final Logger LOG = Logger.of(HaploGroupCaseControl.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputPath = null;
 	@Parameter(names={"--phylotree","--tree"},description=PhyloTree.OPT_DESC)

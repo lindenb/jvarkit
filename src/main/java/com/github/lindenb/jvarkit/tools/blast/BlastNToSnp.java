@@ -109,7 +109,7 @@ END_DOC
 	)
 public class BlastNToSnp extends Launcher
 {
-	private static final Logger LOG = Logger.build(BlastNToSnp.class).make();
+	private static final Logger LOG = Logger.of(BlastNToSnp.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

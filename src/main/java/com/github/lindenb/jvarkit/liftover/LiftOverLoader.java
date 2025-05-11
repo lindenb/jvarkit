@@ -51,7 +51,7 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class LiftOverLoader {
-	private static final Logger LOG = Logger.build(LiftOverLoader.class).make();
+	private static final Logger LOG = Logger.of(LiftOverLoader.class);
 
 	private ContigNameConverter sourceConvert = ContigNameConverter.getIdentity();
 	private ContigNameConverter targetConvert = ContigNameConverter.getIdentity();

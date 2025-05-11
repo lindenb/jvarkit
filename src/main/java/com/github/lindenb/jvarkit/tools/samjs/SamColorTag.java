@@ -134,7 +134,7 @@ END_DOC
 public class SamColorTag
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamColorTag.class).make();
+	private static final Logger LOG = Logger.of(SamColorTag.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

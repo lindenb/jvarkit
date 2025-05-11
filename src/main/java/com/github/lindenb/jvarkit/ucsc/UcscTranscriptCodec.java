@@ -54,7 +54,7 @@ import htsjdk.tribble.readers.LineIterator;
 
 
 public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
-	private static final Logger LOG = Logger.build(UcscTranscriptCodec.class).make();
+	private static final Logger LOG = Logger.of(UcscTranscriptCodec.class);
 
 	
 	static final String FILE_SUFFIX = ".txt.gz";

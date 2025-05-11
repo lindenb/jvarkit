@@ -131,7 +131,7 @@ END_DOC
 		menu="BAM Visualization"
 		)
 public class MakeMiniBam extends Launcher {
-	private static final Logger LOG = Logger.build(MakeMiniBam.class).make();
+	private static final Logger LOG = Logger.of(MakeMiniBam.class);
 
 	
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)

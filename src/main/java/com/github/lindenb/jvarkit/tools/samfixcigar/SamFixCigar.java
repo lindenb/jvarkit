@@ -119,7 +119,7 @@ END_DOC
 	)
 public class SamFixCigar extends OnePassBamLauncher
 	{
-	private static final Logger LOG = Logger.build(SamFixCigar.class).make();
+	private static final Logger LOG = Logger.of(SamFixCigar.class);
 
 	private ReferenceSequenceFile indexedFastaSequenceFile=null;
 	private GenomicSequence genomicSequence=null;

@@ -71,7 +71,7 @@ public class VcfFilterNotInPedigree
 	extends OnePassVcfLauncher
 	{
 
-	private static final Logger LOG = Logger.build(VcfFilterNotInPedigree.class).make();
+	private static final Logger LOG = Logger.of(VcfFilterNotInPedigree.class);
 	@Parameter(names={"-f","--filter"},description="FILTER name. Will be set for variant where the only genotypes non-homref are NOT in the pedigree")
 	private String filterName = "NoGenotypeInPedigree";
 

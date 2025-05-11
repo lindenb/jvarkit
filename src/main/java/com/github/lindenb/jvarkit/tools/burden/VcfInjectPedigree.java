@@ -118,7 +118,7 @@ public class VcfInjectPedigree
 	extends Launcher
 	{
 
-	private static final Logger LOG = Logger.build(VcfInjectPedigree.class).make();
+	private static final Logger LOG = Logger.of(VcfInjectPedigree.class);
 	
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

@@ -73,7 +73,7 @@ biostars={9594639},
 menu="VCF Manipulation"
 )
 public class BCFToolsMergeBest extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(BCFToolsMergeBest.class).make();
+	private static final Logger LOG = Logger.of(BCFToolsMergeBest.class);
 	@Parameter(names="--rename-samples",description = "TSV file for manually assigning samples . Syntax: old-name(tab)new-name. Both names must be present in the VCF file")
 	private Path renameSamplesPath=null;
 

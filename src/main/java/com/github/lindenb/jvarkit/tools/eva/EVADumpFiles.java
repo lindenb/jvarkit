@@ -112,7 +112,7 @@ creationDate="20230314",
 jvarkit_amalgamion = true
 )
 public class EVADumpFiles extends Launcher {
-	private static final Logger LOG = Logger.build(EVADumpFiles.class).make();
+	private static final Logger LOG = Logger.of(EVADumpFiles.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

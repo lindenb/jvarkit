@@ -103,7 +103,7 @@ jvarkit_amalgamion =  true,
 menu="Biostars"
 )
 public class Biostar9556602 extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(Biostar9556602.class).make();
+	private static final Logger LOG = Logger.of(Biostar9556602.class);
 	private enum SORTER_TYPE {LOWEST_AF,HIGHEST_AF,LOWEST_DP,HIGHEST_DP,LOWEST_QUAL,HIGHEST_QUAL};
 	@Parameter(names={"-filter","--filter"},description="if not blank, do not remove the variants but set the FILTER with this value")
 	private String filterStr = null;

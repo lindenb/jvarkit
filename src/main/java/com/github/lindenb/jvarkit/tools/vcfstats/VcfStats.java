@@ -94,7 +94,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfStats extends Launcher {
-	private static final Logger LOG = Logger.build(VcfStats.class).make();
+	private static final Logger LOG = Logger.of(VcfStats.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

@@ -83,7 +83,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class VcfSamplesPRS extends Launcher {
-	private static final Logger LOG = Logger.build(VcfSamplesPRS.class).make();
+	private static final Logger LOG = Logger.of(VcfSamplesPRS.class);
 	private static final boolean IGNORE_REF_STATE = true;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

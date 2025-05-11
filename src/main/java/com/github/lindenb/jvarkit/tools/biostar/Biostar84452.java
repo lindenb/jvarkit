@@ -90,7 +90,7 @@ END_DOC
 	)
 public class Biostar84452 extends OnePassBamLauncher
 	{
-	private static final Logger LOG = Logger.build(Biostar84452.class).make();
+	private static final Logger LOG = Logger.of(Biostar84452.class);
 	
 	@Parameter(names={"-t","--tag"},description="tag to flag samrecord as processed")
 	private String customTag=null;

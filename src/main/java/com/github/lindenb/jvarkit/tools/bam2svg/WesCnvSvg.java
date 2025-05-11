@@ -155,7 +155,7 @@ jvarkit_amalgamion =  true,
 menu="CNV/SV"
 )
 public class WesCnvSvg  extends Launcher {
-	private static final Logger LOG = Logger.build(WesCnvSvg.class).make();
+	private static final Logger LOG = Logger.of(WesCnvSvg.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

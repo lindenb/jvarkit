@@ -78,7 +78,7 @@ END_DOC
 public class VCFComparePredictions extends AbstractVCFCompareBase {
 	private VCFComparePredictions() {
 	}
-	private final Logger LOG=Logger.build(VCFComparePredictions.class).make();
+	private final Logger LOG=Logger.of(VCFComparePredictions.class);
 
 	
 	static private class PredictionTuple

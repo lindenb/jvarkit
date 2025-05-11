@@ -75,7 +75,7 @@ jvarkit_amalgamion =  true,
 menu="Biostars"
 )
 public class Biostar480685 extends Launcher {			
-private static final Logger LOG = Logger.build(Biostar480685.class).make();
+private static final Logger LOG = Logger.of(Biostar480685.class);
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private Path outputFile = null;
 @Parameter(names= {"-R","--reference"},description=CRAM_INDEXED_REFENCE)

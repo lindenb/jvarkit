@@ -70,7 +70,7 @@ jvarkit_amalgamion =  true,
 menu="Biostars"
 )
 public class Biostar332826 extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(Biostar332826.class).make();
+	private static final Logger LOG = Logger.of(Biostar332826.class);
 	
 	@Parameter(names={"-r","-i","--ids"},description="A list of identifiers, one per line")
 	private Path rsFile = null;

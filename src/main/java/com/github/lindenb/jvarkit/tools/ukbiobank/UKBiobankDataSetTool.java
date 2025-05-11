@@ -30,7 +30,7 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.SortingCollection;
 
 public class UKBiobankDataSetTool extends Launcher {
-	private static final Logger LOG = Logger.build(UKBiobankDataSetTool.class).make();
+	private static final Logger LOG = Logger.of(UKBiobankDataSetTool.class);
 	private UKBiobankDataSet dataset;
 	@Parameter(names={"-d","--dataset"},description="Dataset basename", required = true)
 	private String base;

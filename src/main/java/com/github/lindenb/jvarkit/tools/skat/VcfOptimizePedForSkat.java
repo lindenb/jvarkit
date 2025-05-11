@@ -64,7 +64,7 @@ END_DOC
 		)
 public class VcfOptimizePedForSkat extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfOptimizePedForSkat.class).make();
+	private static final Logger LOG = Logger.of(VcfOptimizePedForSkat.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION+" If not defined, I will try to extract the pedigree from  the VCFheader.")

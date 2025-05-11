@@ -34,7 +34,7 @@ import htsjdk.samtools.util.IOUtil;
 @SuppressWarnings("unused")
 public abstract class AbstractBamSplitter<T> extends MultiBamLauncher {
 
-	private static final Logger LOG = Logger.build(AbstractBamSplitter.class).make();
+	private static final Logger LOG = Logger.of(AbstractBamSplitter.class);
 
 	@Parameter(names= {"-o","--output"},description="(prefix) output directory",required=true)
 	private Path outputDir=null;

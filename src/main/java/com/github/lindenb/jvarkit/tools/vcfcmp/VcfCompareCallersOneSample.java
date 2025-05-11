@@ -99,7 +99,7 @@ keywords= {"vcf","compare"}
 public class VcfCompareCallersOneSample
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfCompareCallersOneSample.class).make();
+	private static final Logger LOG = Logger.of(VcfCompareCallersOneSample.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

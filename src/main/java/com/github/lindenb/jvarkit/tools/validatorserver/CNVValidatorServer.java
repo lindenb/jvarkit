@@ -87,7 +87,7 @@ END_DOC
 		generate_doc = true
 		)
 public class CNVValidatorServer extends Launcher {
-	private static final Logger LOG = Logger.build(CNVValidatorServer.class).make();
+	private static final Logger LOG = Logger.of(CNVValidatorServer.class);
 	private static final String U1087="https://umr1087.univ-nantes.fr/";
 	private static final String ACTION_NAVIGATION="navigation";
 	private static final String ACTION_GOTO_PAGE ="goto_page";

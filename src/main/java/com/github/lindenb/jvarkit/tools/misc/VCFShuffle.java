@@ -85,7 +85,7 @@ END_DOC
 	)
 public class VCFShuffle extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VCFShuffle.class).make();
+	private static final Logger LOG = Logger.of(VCFShuffle.class);
 	
 	@Parameter(names={"-N","--seed"},description="random seed. Optional. -1 = use current time.")
 	private long seed = -1L ;

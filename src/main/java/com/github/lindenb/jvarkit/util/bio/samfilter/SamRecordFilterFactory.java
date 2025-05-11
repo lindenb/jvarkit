@@ -56,7 +56,7 @@ java -cp ~/package/javacc/javacc.jar javacc -OUTPUT_DIRECTORY=src/main/java/com/
 */
 public class SamRecordFilterFactory  implements IStringConverter<SamRecordFilter> {
 
-private static final Logger LOG = Logger.build(SamRecordFilterFactory.class).make();
+private static final Logger LOG = Logger.of(SamRecordFilterFactory.class);
 
 public static final String DEFAULT_FILTER = "mapqlt(1) || Duplicate() || FailsVendorQuality() || NotPrimaryAlignment() || SupplementaryAlignment()";
 public static final String FILTER_DESCRIPTION = "A filter expression. "

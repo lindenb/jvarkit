@@ -54,7 +54,7 @@ END_DOC
 	)
 public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 	static final String FIRST_INTRON="first_intron";
-	private static final Logger LOG = Logger.build(RegenieFunctionalAnnot.class).make();
+	private static final Logger LOG = Logger.of(RegenieFunctionalAnnot.class);
 	@Parameter(names={"-A","--annotations"},description="seq_ontology <-> score file. TSV file. no header. at least 2 columns prediction_name/score",required = true)
 	private Path masksFile = null;
 	@Parameter(names={"--kg","--known"},description="known gene data for first intron/intergenic. " + UcscTranscriptReader.OPT_DESC)

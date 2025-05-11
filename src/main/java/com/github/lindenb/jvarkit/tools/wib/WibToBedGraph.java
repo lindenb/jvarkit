@@ -81,7 +81,7 @@ modificationDate="20230819",
 jvarkit_amalgamion = true
 )
 public class WibToBedGraph extends Launcher {
-	private static final Logger LOG = Logger.build(WibToBedGraph.class).make();
+	private static final Logger LOG = Logger.of(WibToBedGraph.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputPath = null;

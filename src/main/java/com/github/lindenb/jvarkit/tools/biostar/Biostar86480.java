@@ -86,7 +86,7 @@ END_DOC
 	menu="Biostars"
 	)
 public class Biostar86480 extends Launcher {
-	private static final Logger LOG = Logger.build(Biostar86480.class).make();
+	private static final Logger LOG = Logger.of(Biostar86480.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

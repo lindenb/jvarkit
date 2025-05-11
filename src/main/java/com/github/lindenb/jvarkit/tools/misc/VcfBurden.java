@@ -67,7 +67,7 @@ import com.github.lindenb.jvarkit.util.jcommander.Program;
 	deprecatedMsg="deprecated")
 public class VcfBurden extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfBurden.class).make();
+	private static final Logger LOG = Logger.of(VcfBurden.class);
 
 
 	@Parameter(names={"-o","--output"},description="zip file")

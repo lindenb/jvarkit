@@ -682,7 +682,7 @@ END_DOC
 public class VcfDerby01
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfDerby01.class).make();
+	private static final Logger LOG = Logger.of(VcfDerby01.class);
 	private Function<String,String> toMd5 = S->StringUtils.md5(S);
 	
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")

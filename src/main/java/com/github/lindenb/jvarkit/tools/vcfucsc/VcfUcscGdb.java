@@ -142,7 +142,7 @@ END_DOC
 		modificationDate="20190423"
 		)
 public class VcfUcscGdb extends Launcher {
-	private static final Logger LOG = Logger.build(VcfUcscGdb.class).make();
+	private static final Logger LOG = Logger.of(VcfUcscGdb.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

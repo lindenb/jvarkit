@@ -109,7 +109,7 @@ END_DOC
 public class SamViewWithMate
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamViewWithMate.class).make();
+	private static final Logger LOG = Logger.of(SamViewWithMate.class);
 	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)
 	private Path reference_file = null;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

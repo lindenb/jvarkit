@@ -39,7 +39,7 @@ END_DOC
 @Program(name="coveragenormalizer",description="normalize BAM coverage" )
 public class CoverageNormalizer extends Launcher
 	{
-	private static Logger LOG=Logger.build(CoverageNormalizer.class).make();
+	private static Logger LOG=Logger.of(CoverageNormalizer.class);
 
 	@Parameter(names="-w",description=" (size) sliding window size")
 	private int window_size=100;

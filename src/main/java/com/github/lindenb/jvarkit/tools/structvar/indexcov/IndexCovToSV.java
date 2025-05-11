@@ -108,7 +108,7 @@ END_DOC
 		modificationDate="20211007"
 		)
 public class IndexCovToSV extends Launcher {
-	private static final Logger LOG = Logger.build(IndexCovToSV.class).make();
+	private static final Logger LOG = Logger.of(IndexCovToSV.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-t","--treshold"},description=IndexCovUtils.TRESHOLD_OPT_DESC+". " +FractionConverter.OPT_DESC,converter=FractionConverter.class)

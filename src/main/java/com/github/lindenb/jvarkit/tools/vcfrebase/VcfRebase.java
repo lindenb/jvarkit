@@ -111,7 +111,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfRebase extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfRebase.class).make();
+	private static final Logger LOG = Logger.of(VcfRebase.class);
 	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute")
 	private String ATT="ENZ";
 	@Parameter(names={"-R","-reference","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)

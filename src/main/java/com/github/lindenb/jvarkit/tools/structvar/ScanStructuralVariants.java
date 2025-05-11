@@ -94,7 +94,7 @@ modificationDate="20240916",
 jvarkit_amalgamion = true
 )
 public class ScanStructuralVariants extends Launcher{
-	private static final Logger LOG = Logger.build(ScanStructuralVariants.class).make();
+	private static final Logger LOG = Logger.of(ScanStructuralVariants.class);
 	private  static final String ATT_FILENAME="SOURCE";
 	private static final String ATT_CLUSTER="CLUSTER";
 	private static final String ATT_CONTROL="FOUND_IN_CONTROL";

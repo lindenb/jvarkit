@@ -30,7 +30,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.readers.TabixReader;
 
 public class GtfTrack {
-	private static final Logger LOG = Logger.build(GtfTrack.class).make();
+	private static final Logger LOG = Logger.of(GtfTrack.class);
 
 	private Path gtfPath;
 	private GenomeSVGDocument svgDoc;

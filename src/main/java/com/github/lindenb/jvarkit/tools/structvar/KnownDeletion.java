@@ -93,7 +93,7 @@ END_DOC
 	)
 public class KnownDeletion extends Launcher
 	{
-	private static final Logger LOG = Logger.build(KnownDeletion.class).make();
+	private static final Logger LOG = Logger.of(KnownDeletion.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

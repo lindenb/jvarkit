@@ -248,7 +248,7 @@ public class FindGVCFsBlocks extends Launcher {
 	private Path bedPath=null;
 
 
-	private static final Logger LOG = Logger.build(FindGVCFsBlocks.class).make();
+	private static final Logger LOG = Logger.of(FindGVCFsBlocks.class);
 	private static final Allele NON_REF = Allele.create("<NON_REF>",false);
 	
 	

@@ -149,7 +149,7 @@ generate_doc = true,
 jvarkit_amalgamion = true
 )
 public class RegenieMakeAnnot extends Launcher {
-	private static final Logger LOG = Logger.build(RegenieMakeAnnot.class).make();
+	private static final Logger LOG = Logger.of(RegenieMakeAnnot.class);
 
 	@Parameter(names={"-o","--output"},description="output dir.",required = true)
 	private Path outputDir=null;

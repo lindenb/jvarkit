@@ -89,7 +89,7 @@ keywords={"vcf","trap","annotation"},
 modificationDate="20190308"
 )
 public class VcfTrap extends Launcher {
-	private static final Logger LOG = Logger.build(VcfTrap.class).make();
+	private static final Logger LOG = Logger.of(VcfTrap.class);
 	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 	

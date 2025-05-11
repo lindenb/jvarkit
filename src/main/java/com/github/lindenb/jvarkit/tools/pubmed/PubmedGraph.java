@@ -126,7 +126,7 @@ END_DOC
 	)
 public class PubmedGraph extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedGraph.class).make();
+	private static final Logger LOG = Logger.of(PubmedGraph.class);
 
 	
 	@Parameter(names={"-d","--depth","--max-depth"},description="max-depth")

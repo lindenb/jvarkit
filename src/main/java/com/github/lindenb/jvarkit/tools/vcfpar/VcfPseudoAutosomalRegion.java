@@ -65,7 +65,7 @@ END_DOC
 	)
 public class VcfPseudoAutosomalRegion extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfPseudoAutosomalRegion.class).make();
+	private static final Logger LOG = Logger.of(VcfPseudoAutosomalRegion.class);
 
 	@Parameter(names={"--tag"},description="VCF info TAG")
 	private String tag = "SEX";

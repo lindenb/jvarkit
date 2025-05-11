@@ -114,7 +114,7 @@ END_DOC
 	)
 public class SamToPsl extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamToPsl.class).make();
+	private static final Logger LOG = Logger.of(SamToPsl.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-s","--single"},description="treat all reads as single end.")

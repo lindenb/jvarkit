@@ -210,7 +210,7 @@ END_DOC
 		)
 public class VCFComposite extends Launcher {
 	private static final String INFO_TAG="COMPOSITE";
-	private static final Logger LOG= Logger.build(VCFComposite.class).make();
+	private static final Logger LOG= Logger.of(VCFComposite.class);
 	
 	private enum Selection {any,all};
 	

@@ -149,7 +149,7 @@ END_DOC
 public class VcfGtfSplitter
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfGtfSplitter.class).make();
+	private static final Logger LOG = Logger.of(VcfGtfSplitter.class);
 	
 	
 	@Parameter(names={"-o","--output"},description= ArchiveFactory.OPT_DESC,required=true)

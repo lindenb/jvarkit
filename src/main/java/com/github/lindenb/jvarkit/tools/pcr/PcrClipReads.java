@@ -141,7 +141,7 @@ END_DOC
 	jvarkit_amalgamion = true
     )
 public class PcrClipReads extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(PcrClipReads.class).make();
+	private static final Logger LOG = Logger.of(PcrClipReads.class);
 
 
 	@Parameter(names={"-B","--bed","--pcr"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)

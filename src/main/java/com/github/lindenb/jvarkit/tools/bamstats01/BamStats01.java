@@ -92,7 +92,7 @@ public class BamStats01
 	extends Launcher
 	{
 
-	private static final Logger LOG = Logger.build(BamStats01.class).make();
+	private static final Logger LOG = Logger.of(BamStats01.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

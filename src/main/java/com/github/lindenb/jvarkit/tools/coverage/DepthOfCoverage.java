@@ -113,7 +113,7 @@ END_DOC
 	)
 public class DepthOfCoverage extends Launcher
 	{
-	private static Logger LOG=Logger.build(DepthOfCoverage.class).make();
+	private static Logger LOG=Logger.of(DepthOfCoverage.class);
 
 	
 	@Parameter(names={"-R","--reference"},description="For reading CRAM. " + INDEXED_FASTA_REFERENCE_DESCRIPTION)

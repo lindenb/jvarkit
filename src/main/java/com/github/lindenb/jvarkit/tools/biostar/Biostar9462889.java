@@ -96,7 +96,7 @@ END_DOC
 	)
 public class Biostar9462889 extends AbstractBamSplitter<Biostar9462889.Tokens>
 	{
-	private static final Logger LOG = Logger.build(Biostar9462889.class).make();
+	private static final Logger LOG = Logger.of(Biostar9462889.class);
 
 	@Parameter(names= {"--regex","-regex"},description="Regular expression that can be used to parse read names in the incoming SAM file. Regex groups are used to classify the reads.",required=true)
 	private String regexStr="";

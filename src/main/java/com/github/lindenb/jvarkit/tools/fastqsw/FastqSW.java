@@ -105,7 +105,7 @@ END_DOC
 	biostars=9534472
 	)
 public class FastqSW extends OnePassFastqLauncher {
-	private static final Logger LOG = Logger.build(FastqSW.class).make();
+	private static final Logger LOG = Logger.of(FastqSW.class);
 
 	
 	@Parameter(names={"--pairwise-aligner-type"},description="One item from org.biojava.nbio.alignment.Alignments.PairwiseSequenceAlignerType")

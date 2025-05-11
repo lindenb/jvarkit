@@ -118,7 +118,7 @@ END_DOC
 public class BamStats02View
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BamStats02View.class).make();
+	private static final Logger LOG = Logger.of(BamStats02View.class);
     
    
 	private static boolean isEmpty(String s)

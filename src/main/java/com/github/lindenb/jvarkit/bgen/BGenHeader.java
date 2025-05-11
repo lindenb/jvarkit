@@ -38,12 +38,11 @@ import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.tribble.TribbleException;
 
 public class BGenHeader extends BGenUtils {
-	private static final Logger LOG = Logger.of(BGenHeader.class);
+	private static final Logger LOG = Logger.of(BGenHeader.class).setDebug();
     private List<String> samples;
     private Map<String,Integer> sample2idx;
     private BitSet headerFlags;
     private long num_variants_blocks;
-    private static boolean debug_flag=true;
     
     public Compression getCompression() {
     	final int op = getCompressedSNPBlocks();
@@ -99,9 +98,12 @@ public class BGenHeader extends BGenUtils {
     	}
     
    private static List<String> readSampleIdentifierBlock(BinaryCodec binaryCodec,int expect_n_samples)throws IOException {
-	   /* sample_block_size */ binaryCodec.readUInt();        
+	   final long sample_block_size =  binaryCodec.readUInt();
+	   if(LOG.isDebug()) {
+    	   LOG.debug("sample_block_size :"+sample_block_size);
+       	    }
        final int  number_of_samples = longToUnsignedInt(binaryCodec.readUInt());
-       if(debug_flag) {
+       if(LOG.isDebug()) {
     	   LOG.debug("n samples :"+number_of_samples);
        	    }
        if(number_of_samples!=expect_n_samples) {
@@ -112,7 +114,7 @@ public class BGenHeader extends BGenUtils {
     	   final String sn = readStringUInt16(binaryCodec);
            samples.add(sn);
            
-           if(debug_flag) {
+           if(LOG.isDebug()) {
         	   LOG.debug("add sample :"+sn +" N="+samples.size());
            	    }
            }      
@@ -123,16 +125,16 @@ public class BGenHeader extends BGenUtils {
 	   final BGenHeader header=new BGenHeader();
 	   
        final int header_block_size =  longToUnsignedInt(binaryCodec.readUInt());
-       if(debug_flag) {
+       if(LOG.isDebug()) {
     	   LOG.debug("header_block_size "+header_block_size);
        		}
        header.num_variants_blocks =  binaryCodec.readUInt();
-       if(debug_flag) {
+       if(LOG.isDebug()) {
     	   LOG.debug("num_variants_blocks "+header.num_variants_blocks);
        		}
        
        final int num_samples =  longToUnsignedInt(binaryCodec.readUInt());
-       if(debug_flag) {
+       if(LOG.isDebug()) {
     	   LOG.debug("Number of sample "+num_samples);
        }
       
@@ -142,12 +144,12 @@ public class BGenHeader extends BGenUtils {
        if(!(Arrays.equals(magic, BGenUtils.BGEN_MAGIC) ||Arrays.equals(magic, new byte[] {0,0,0,0}))) {
            throw new TribbleException("Cannot decode magic "+magic[0]+"/"+magic[1]+"/"+magic[2]+"/"+magic[3]);
            }
-       if(debug_flag) {
+       if(LOG.isDebug()) {
     	   LOG.debug("magic "+Arrays.toString(magic));
        		}
        
        
-       binaryCodec.getInputStream().skipNBytes(header_block_size-20);
+       binaryCodec.getInputStream().skipNBytes(header_block_size-5*Integer.BYTES);
        //Free data area. This could be used to store, for example, identifying information about the file
        //byte[] free_area = new byte[];
        //binaryCodec.readBytes(free_area);
@@ -157,13 +159,16 @@ public class BGenHeader extends BGenUtils {
        byte flags[]=new byte[4];
        binaryCodec.readBytes(flags);
        header.headerFlags = BitSet.valueOf(flags);
-       if(debug_flag) {
+       if(LOG.isDebug()) {
     	   LOG.debug("flags "+ header.headerFlags);
        	    }
-   
+	   //test flags
+	   header.getLayout();
+	   header.getCompression();
+
        
        if( !header.hasAnonymousSamples()) {
-    	   if(debug_flag) {
+    	   if(LOG.isDebug()) {
         	   LOG.debug("samples are available");
            	    }
            /*final int sample_block_size = unsignedIntToInt(binaryCodec.readUInt());
@@ -178,7 +183,7 @@ public class BGenHeader extends BGenUtils {
 	           }*/
            }
        else {
-    	   if(debug_flag) {
+    	   if(LOG.isDebug()) {
         	   LOG.debug("samples are not available");
            	    }
        		header.samples = new java.util.AbstractList<String>() {

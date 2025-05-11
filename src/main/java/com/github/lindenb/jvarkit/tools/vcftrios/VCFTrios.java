@@ -139,7 +139,7 @@ END_DOC
 		)
 public class VCFTrios extends OnePassVcfLauncher
 	{
-	private static final  Logger LOG = Logger.build(VCFTrios.class).make();
+	private static final  Logger LOG = Logger.of(VCFTrios.class);
 
 	@Parameter(names={"-p","--ped","--pedigree"},description="Pedigree file. "+PedigreeParser.OPT_DESC,required=true)
 	private Path pedigreeFile = null;

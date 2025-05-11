@@ -53,7 +53,7 @@ END_DOC
  */
 public class VcfPhyloTree extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfPhyloTree.class).make();
+	private static final Logger LOG = Logger.of(VcfPhyloTree.class);
 	private static int ID_GENERATOR=0;
 	private static abstract class SampleNode
 		{

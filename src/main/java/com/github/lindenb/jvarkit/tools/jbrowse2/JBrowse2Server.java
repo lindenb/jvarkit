@@ -93,7 +93,7 @@ jvarkit_amalgamion = true,
 generate_doc = true
 )
 public class JBrowse2Server  extends Launcher {
-	private static final Logger LOG = Logger.build(JBrowse2Server.class).make();
+	private static final Logger LOG = Logger.of(JBrowse2Server.class);
 	@Parameter(names="--zip",description="JBrowse2 archive source")
 	private String jbrowse2url = "https://github.com/GMOD/jbrowse-components/releases/download/v3.2.0/jbrowse-web-v3.2.0.zip";
 	@Parameter(names="--port",description="server port.")

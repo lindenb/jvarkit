@@ -137,7 +137,7 @@ END_DOC
 public class ConvertBamChromosomes
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ConvertBamChromosomes.class).make();
+	private static final Logger LOG = Logger.of(ConvertBamChromosomes.class);
 	
 	
 	@Parameter(names={"-i","--ignore"},description="If the tool cannot convert a contig, skip the read ")

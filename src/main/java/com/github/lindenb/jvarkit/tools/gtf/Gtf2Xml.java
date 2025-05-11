@@ -179,7 +179,7 @@ END_DOC
 	menu="GTF/GFF Manipulation"
 	)
 public class Gtf2Xml extends Launcher{
-	private static final Logger LOG = Logger.build(FixVCF.class).make();
+	private static final Logger LOG = Logger.of(FixVCF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"--skip-record"},description="Don't record the following stuff at the end. possible values: FEATURE,SOURCES,CONTIG,ATTIBUTES Multiple separated by commas/spaces/semicolons")

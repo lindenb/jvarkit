@@ -36,7 +36,7 @@ END_DOC
 	menu="BAM Manipulation"
 	)
 public class BamLeftAlign extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(BamLeftAlign.class).make();
+	private static final Logger LOG = Logger.of(BamLeftAlign.class);
 	private enum What {none,only,discard};
 	@Parameter(names={"--filter"},description="none: keep any read (realigned or not); only: only keep realigned reads; discard: discard realigned reads.")
 	protected  What what_to_do = What.none;

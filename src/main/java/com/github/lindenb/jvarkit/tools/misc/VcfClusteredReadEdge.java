@@ -105,7 +105,7 @@ keywords={"sam","bam","vcf"}
 )
 public class VcfClusteredReadEdge extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfClusteredReadEdge.class).make();
+	private static final Logger LOG = Logger.of(VcfClusteredReadEdge.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

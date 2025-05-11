@@ -184,7 +184,7 @@ END_DOC
 	keywords={"graph","gexf","gephi","visualization"}
 	)
 public class GephiCmd  extends Launcher {
-	private static final Logger LOG = Logger.build(GephiCmd.class).make();
+	private static final Logger LOG = Logger.of(GephiCmd.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-l"},description="list available/default properties and exit with success")

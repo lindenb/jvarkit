@@ -59,7 +59,7 @@ import htsjdk.samtools.util.StringUtil;
 @Deprecated
 public class ReferenceGenomeFactory
 implements IStringConverter<ReferenceGenome>  {
-private static final Logger LOG = Logger.build(ReferenceGenomeFactory.class).make();
+private static final Logger LOG = Logger.of(ReferenceGenomeFactory.class);
 
 public static final String OPT_DESCRIPTION_FILE_ONLY="Indexed Genome Reference. "+
 		"A fasta file that must be indexed with samtools faidx and with picard CreateSequenceDictionary."

@@ -59,7 +59,7 @@ import htsjdk.tribble.readers.TabixReader;
  * A GTF/KnownGene Reader
  */
 public class GtfReader extends AbstractGxxReader {
-	private static final Logger LOG = Logger.build(GtfReader.class).make();
+	private static final Logger LOG = Logger.of(GtfReader.class);
 	public static final String OPT_DESC="A GTF (General Transfer Format) file. See https://www.ensembl.org/info/website/upload/gff.html . "
 			+ "Please note that CDS are only detected if a start and stop codons are defined.";
 	/** available files extensions for GTF files */

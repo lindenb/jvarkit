@@ -139,7 +139,7 @@ END_DOC
 public class VcfSlidingWindowSplitter
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfSlidingWindowSplitter.class).make();
+	private static final Logger LOG = Logger.of(VcfSlidingWindowSplitter.class);
 		
 	@Parameter(names={"-o","--output"},description= ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile = null;

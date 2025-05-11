@@ -80,7 +80,7 @@ END_DOC
 	jvarkit_amalgamion =  true
 	)
 public class SameDict extends Launcher {
-	private static Logger LOG=Logger.build(SameDict.class).make();
+	private static Logger LOG=Logger.of(SameDict.class);
 
 	@Parameter(names={"--verbose"},description="Be verbose")
 	private boolean be_verbose = false;

@@ -158,7 +158,7 @@ public class VcfToBed  extends Launcher {
 		bed,interval
 	}
 	
-	private static final Logger LOG = Logger.build(VcfToBed.class).make();
+	private static final Logger LOG = Logger.of(VcfToBed.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference","--dict"},description=DICTIONARY_SOURCE)

@@ -79,7 +79,7 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 public class VcfGeneEpistasis
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfGeneEpistasis.class).make();
+	private static final Logger LOG = Logger.of(VcfGeneEpistasis.class);
 
 	@Parameter(names={"-o","--output"},description="output file. extension can be vcf or vcf.gz to produce VCF, else will be a plain text report",required=true)
 	private File outputFile = null;

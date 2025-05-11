@@ -80,7 +80,7 @@ keywords={"blast","xml"},
 jvarkit_amalgamion = true
 )
 public class MergeBlastXml extends Launcher {
-private static final Logger LOG=Logger.build(MergeBlastXml.class).make();
+private static final Logger LOG=Logger.of(MergeBlastXml.class);
 private Unmarshaller unmarshaller;
 private Marshaller marshaller;
 

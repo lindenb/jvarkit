@@ -128,7 +128,7 @@ creationDate="20221013",
 jvarkit_amalgamion = true
 )
 public class OptimizeFisher extends Launcher {
-	private static final Logger LOG = Logger.build( OptimizeFisher.class).make();
+	private static final Logger LOG = Logger.of( OptimizeFisher.class);
 	private static long ID_GENERATOR=0L;
 	@ParametersDelegate
 	private CasesControls casesControls = new CasesControls();

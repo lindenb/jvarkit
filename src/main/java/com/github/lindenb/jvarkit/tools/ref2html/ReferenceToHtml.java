@@ -82,7 +82,7 @@ generate_doc=false,
 jvarkit_amalgamion = true
 )
 public class ReferenceToHtml extends Launcher {
-	private static final Logger LOG = Logger.build(ReferenceToHtml.class).make();
+	private static final Logger LOG = Logger.of(ReferenceToHtml.class);
 
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required=true)
 	private Path archiveOutput = null ;

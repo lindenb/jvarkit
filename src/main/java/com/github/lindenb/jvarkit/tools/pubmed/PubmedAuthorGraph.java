@@ -103,7 +103,7 @@ END_DOC
 public class PubmedAuthorGraph
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedAuthorGraph.class).make();
+	private static final Logger LOG = Logger.of(PubmedAuthorGraph.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

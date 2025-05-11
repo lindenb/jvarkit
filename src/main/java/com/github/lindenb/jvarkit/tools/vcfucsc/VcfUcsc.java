@@ -75,7 +75,7 @@ import htsjdk.variant.vcf.VCFIterator;
 		modificationDate="20210201"
 		)
 public class VcfUcsc extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfUcsc.class).make();
+	private static final Logger LOG = Logger.of(VcfUcsc.class);
 
 	
 	private static class ResultSetJexlContext implements JexlContext {

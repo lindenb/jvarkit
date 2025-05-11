@@ -69,7 +69,7 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 	)
 public class FastGenotypeGVCFs extends Launcher {
 	
-	private static final Logger LOG = Logger.build(FastGenotypeGVCFs.class).make();
+	private static final Logger LOG = Logger.of(FastGenotypeGVCFs.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 

@@ -150,7 +150,7 @@ END_DOC
 public class Sam2Tsv
 	extends MultiBamLauncher
 	{
-	private static final Logger LOG = Logger.build(Sam2Tsv.class).make();
+	private static final Logger LOG = Logger.of(Sam2Tsv.class);
 	private static final int NO_POSITION=-1;
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

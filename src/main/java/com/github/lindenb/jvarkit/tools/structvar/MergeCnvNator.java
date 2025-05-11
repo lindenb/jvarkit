@@ -134,7 +134,7 @@ modificationDate="20201201",
 creationDate="20181003"
 )
 public class MergeCnvNator extends Launcher{
-	private static final Logger LOG = Logger.build(MergeCnvNator.class).make();
+	private static final Logger LOG = Logger.of(MergeCnvNator.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	@Parameter(names={"-R","-reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)

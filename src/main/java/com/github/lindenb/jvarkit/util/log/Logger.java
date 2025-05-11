@@ -29,33 +29,12 @@ History:
 package com.github.lindenb.jvarkit.util.log;
 
 import java.io.PrintStream;
+import java.util.Objects;
 
-import com.github.lindenb.jvarkit.lang.Maker;
 
 /** Generic & simple Logging class */
 public interface Logger  {
 public enum Level {DEBUG,INFO,WARN,SEVERE,FATAL}
-
-public static class Builder implements Maker<Logger>
-	{
-	private Class<?> clazz=null;
-	public Builder output(final PrintStream out) {
-		return this;
-		}
-	public Builder prefix(final String prefix) {
-		return this;
-		}
-	public Builder setClass(final Class<?> clazz) {
-		this.clazz = clazz;
-		return this;
-		}
-	@Override
-	public Logger make() {
-		final DefaultLogger L= new DefaultLogger(this.clazz);
-		return L;
-
-		}
-	}
 
 
 public static Logger of(Class<?> clazz) {
@@ -117,58 +96,85 @@ public default Logger log(Logger.Level level,final Object o) {
 		return this.log(level, String.valueOf(o), null);
 		}
 	}	
-public abstract Logger log(Logger.Level level,final Object msg,final Throwable err);	
+public  Logger log(Logger.Level level,final Object msg,final Throwable err);	
 
-public static Builder build() {
-	return new Builder();
+public Logger setLevel(Level level);
+public default Logger setLevel(String level) {
+	return setLevel(Level.valueOf(level));
+}
+public Level getLevel();
+
+public default Logger setDebug() {
+	return setLevel(Level.DEBUG);
+}
+
+public default boolean isDebug() {
+	return getLevel().compareTo(Level.DEBUG)<=0;
 	}
-
-public static Builder build(final Class<?> c) {
-	final Builder b=build().setClass(c);
-	return b;
+public default boolean isInfo() {
+	return getLevel().compareTo(Level.INFO)<=0;
 	}
-
-
+public default boolean isWarning() {
+	return getLevel().compareTo(Level.WARN)<=0;
+	}
+public default boolean isFatal() {
+	return getLevel().compareTo(Level.FATAL)<=0;
+	}
 static class DefaultLogger implements Logger
 	{
 	private PrintStream out=System.err;
-	private final String prefix;
 	private final Class<?> clazz;
+	private Level level = Level.INFO;
 	DefaultLogger(Class<?> clazz) {
-		this.clazz = clazz;
-		this.prefix = "[LOG]";
+		this.clazz = Objects.requireNonNull(clazz);
+		final String property = "log."+clazz.getName();
+		final String value=java.lang.System.getProperty(property);
+		if(value!=null) {
+			try {
+				this.level = Level.valueOf(value);
+				}
+			catch(Throwable err) {
+				System.err.println("[WARN] not a valid value for -D"+property+"="+value);
+				}
+			}
 		}
 	@Override
+	public Logger setLevel(Level level) {
+		this.level=level;
+		return this;
+		}
+	@Override
+	public Level getLevel() {
+		return this.level;
+		}
+	
+	
+	@Override
 	public Logger log(final Logger.Level level,final Object msg,final Throwable err) {
-		this.out.print("[");
-		this.out.print(level.name());
-		this.out.print("]");
-		this.out.print("[");
-		this.out.print(prefix);
-		this.out.print("]");
-		if(msg!=null)
-			{
-			this.out.print(String.valueOf(msg));
-			}
-		this.out.println();
-		if(err!=null)
-			{
-			andThen(level,err);
-			err.printStackTrace(this.out);
-			}
-		
+		//if(level.compareTo(this.getLevel()) <=0) {
+			this.out.print("[");
+			this.out.print(clazz.getName());
+			this.out.print(":");
+			this.out.print(this.getLevel().name());
+			this.out.print("]");
+			if(msg!=null)
+				{
+				this.out.print(String.valueOf(msg));
+				}
+			this.out.println();
+			if(err!=null)
+				{
+				if( err instanceof java.net.ConnectException) {
+					this.log(level,"It could be a proxy error. Did you set the java proxy ? See http://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html. "+
+							"Something like `java -Dhttp.proxyHost=myproxyhost  -Dhttp.proxyPort=myproxyport -Dhttps.proxyHost=myproxyhost  -Dhttps.proxyPort=myproxyport  `",
+							null);
+					}
+				err.printStackTrace(this.out);
+				}
+		//	}
 		return this;
 		}	
 	
-	protected void andThen(final Logger.Level level,Throwable err) {
-		if(err==null) return;
-		if( err instanceof java.net.ConnectException) {
-			this.log(level,"It could be a proxy error. Did you set the java proxy ? See http://docs.oracle.com/javase/6/docs/technotes/guides/net/proxies.html. "+
-					"Something like `java -Dhttp.proxyHost=myproxyhost  -Dhttp.proxyPort=myproxyport -Dhttps.proxyHost=myproxyhost  -Dhttps.proxyPort=myproxyport  `",
-					null);
-			}
-	}
-
 
 	}
 

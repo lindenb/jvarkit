@@ -106,7 +106,7 @@ END_DOC
 	)
 public class VcfConcat extends Launcher
 	{
-	private static final Logger LOG =Logger.build(VcfConcat.class).make();
+	private static final Logger LOG =Logger.of(VcfConcat.class);
 	private enum SamplePeek {none,all,with_alt};
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)

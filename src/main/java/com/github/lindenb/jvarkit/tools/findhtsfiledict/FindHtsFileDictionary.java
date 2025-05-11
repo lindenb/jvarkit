@@ -116,7 +116,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class FindHtsFileDictionary extends Launcher {
-	private static final Logger LOG = Logger.build(FindHtsFileDictionary.class).make();
+	private static final Logger LOG = Logger.of(FindHtsFileDictionary.class);
 
 	private enum OnError { ignore,fatal,empty};
 	

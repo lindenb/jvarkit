@@ -153,7 +153,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     static final List<ExtensionFilter> EXTENSION_FILTERS=Arrays.asList(
     		new ExtensionFilter("Indexed Bam Files", "*.bam")
     	);
-    private static final Logger LOG= Logger.build(BamStage.class).make();
+    private static final Logger LOG= Logger.of(BamStage.class);
     /** shor-Read oriented chart-factories */
     private static final List<Supplier<ChartFactory<SAMFileHeader,SAMRecord>>> READ_CHART_LIST=Arrays.asList(
     		()->new BasesPerPositionChartFactory(),

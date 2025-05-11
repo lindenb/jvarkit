@@ -95,7 +95,7 @@ END_DOC
 public class VcfMoveFiltersToInfo
 	extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfMoveFiltersToInfo.class).make();
+	private static final Logger LOG = Logger.of(VcfMoveFiltersToInfo.class);
 
 	
 	@Parameter(names={"-f","--filter"},description="INFO name. This tag will be used to store the previous filters")

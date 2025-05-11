@@ -34,7 +34,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 public class StaticCodeExtractor {
-	private static final Logger LOG = Logger.build(StaticCodeExtractor.class).make();
+	private static final Logger LOG = Logger.of(StaticCodeExtractor.class);
 
 	private Class<?>  clazz;
 	private StaticCodeExtractor() {

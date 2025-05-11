@@ -85,7 +85,7 @@ END_DOC
 public class BedIndexTabix
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BedIndexTabix.class).make();
+	private static final Logger LOG = Logger.of(BedIndexTabix.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT,required=true)

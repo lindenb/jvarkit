@@ -101,7 +101,7 @@ END_DOC
 public class NgsFilesSummary extends Launcher
 	{
 	private enum Format {tsv,xml};
-	private static final Logger LOG = Logger.build(NgsFilesSummary.class).make();
+	private static final Logger LOG = Logger.of(NgsFilesSummary.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-header","--header"},description="[20180725]print header")

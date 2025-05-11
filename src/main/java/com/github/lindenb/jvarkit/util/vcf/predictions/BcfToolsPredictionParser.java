@@ -52,7 +52,7 @@ import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
  */
 public class BcfToolsPredictionParser implements PredictionParser
 	{
-	private static final Logger LOG=Logger.build(BcfToolsPredictionParser.class).make();
+	private static final Logger LOG=Logger.of(BcfToolsPredictionParser.class);
 	
 	private final Map<String, Integer> col2colidx=new HashMap<String, Integer>();
 	private final CharSplitter pipe= CharSplitter.PIPE;

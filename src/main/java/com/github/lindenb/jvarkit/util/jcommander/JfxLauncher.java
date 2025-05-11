@@ -47,7 +47,7 @@ import javafx.stage.Stage;
 public abstract class JfxLauncher
 	extends Application
 	{
-	private static final Logger LOG = Logger.build(JfxLauncher.class).make();
+	private static final Logger LOG = Logger.of(JfxLauncher.class);
 	private static int exitStatus = 0;
 
 	@ParametersDelegate

@@ -83,7 +83,7 @@ modificationDate="20200108"
 )
 public class VcfStretchOfGt extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfStretchOfGt.class).make();
+	private static final Logger LOG = Logger.of(VcfStretchOfGt.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

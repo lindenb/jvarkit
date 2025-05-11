@@ -72,7 +72,7 @@ END_DOC
 		)
 public class Manhattan extends Launcher {
 	
-	private static final Logger LOG = Logger.build(Manhattan.class).make();
+	private static final Logger LOG = Logger.of(Manhattan.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

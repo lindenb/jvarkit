@@ -186,7 +186,7 @@ END_DOC
 	)
 public class PcrSliceReads extends Launcher
 	{
-	private static final Logger LOG =Logger.build(PcrSliceReads.class).make();
+	private static final Logger LOG =Logger.of(PcrSliceReads.class);
 	
 	@Parameter(names="-c",description="clip read to their PCR fragments. see https://github.com/lindenb/jvarkit/wiki/PcrClipReads")
 	private boolean clip_reads=false;

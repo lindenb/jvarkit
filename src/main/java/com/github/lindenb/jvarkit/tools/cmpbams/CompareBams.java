@@ -283,7 +283,7 @@ END_DOC
 	)
 public class CompareBams  extends Launcher
 	{
-	private static final Logger LOG = Logger.build(CompareBams.class).make();
+	private static final Logger LOG = Logger.of(CompareBams.class);
 
 	@Parameter(names={"--no-filter"}, description="Do not filter the reads. Default is to ignore secondary or supplementary alignments.")
 	private boolean no_read_filtering = false;

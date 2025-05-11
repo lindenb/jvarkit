@@ -123,7 +123,7 @@ END_DOC
 public class BlastMapAnnotations
 	extends Launcher
 	{
-    private static Logger LOG=Logger.build(BlastMapAnnotations.class).make(); 
+    private static Logger LOG=Logger.of(BlastMapAnnotations.class); 
 	
 	private BlastOutput blastOutput=null;
 	

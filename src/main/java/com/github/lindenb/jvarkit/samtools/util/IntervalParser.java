@@ -46,7 +46,7 @@ import htsjdk.samtools.SAMSequenceRecord;
  *
  */
 public class IntervalParser implements Function<String,Optional<SimpleInterval>> {
-static final Logger LOG = Logger.build(IntervalParser.class).make();
+static final Logger LOG = Logger.of(IntervalParser.class);
 
 public static final String OPT_DESC= 
 			"An interval as the following syntax : \"chrom:start-end\". Some jvarkit programs also allow the following syntax : \"chrom:middle+extend\"  or \"chrom:start-end+extend\" or \"chrom:start-end+extend-percent%\"."

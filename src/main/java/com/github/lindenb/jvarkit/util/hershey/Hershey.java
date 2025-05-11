@@ -53,7 +53,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 public class Hershey
 	{
-	private static final Logger LOG=Logger.build(Hershey.class).make();
+	private static final Logger LOG=Logger.of(Hershey.class);
 	private double scalex=15;
 	private double scaley=15;
 	protected enum Op {MOVETO,LINETO};

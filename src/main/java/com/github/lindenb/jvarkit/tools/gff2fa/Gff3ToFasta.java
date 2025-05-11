@@ -131,7 +131,7 @@ modificationDate="20241017",
 jvarkit_amalgamion = true
 )
 public class Gff3ToFasta extends Launcher {
-	private static final Logger LOG = Logger.build(KnownGeneToFasta.class).make();
+	private static final Logger LOG = Logger.of(KnownGeneToFasta.class);
 	private enum output_format {fasta,xml,bed};
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

@@ -86,7 +86,7 @@ import htsjdk.variant.vcf.VCFIterator;
 	)
 public class AlleleFrequencyCalculator extends Launcher
 	{
-	private static final Logger LOG = Logger.build(AlleleFrequencyCalculator.class).make();
+	private static final Logger LOG = Logger.of(AlleleFrequencyCalculator.class);
 	@Parameter(names={"-o","--output"},description=Launcher.OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 

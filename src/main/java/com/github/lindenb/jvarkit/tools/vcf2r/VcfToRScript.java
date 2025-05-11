@@ -74,7 +74,7 @@ END_DOC
 public class VcfToRScript
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfToRScript.class).make();
+	private static final Logger LOG = Logger.of(VcfToRScript.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

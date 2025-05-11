@@ -264,7 +264,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class SamToJson extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(SamToJson.class).make();
+	private static final Logger LOG = Logger.of(SamToJson.class);
 	
 	@Parameter(names={"-H","--header"},description="don't print SAM HEADER")
 	private boolean print_header = false;

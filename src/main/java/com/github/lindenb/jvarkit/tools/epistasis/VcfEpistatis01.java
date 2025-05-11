@@ -66,7 +66,7 @@ BEGIN_DOC
 END_DOC
  */
 public class VcfEpistatis01 extends Launcher {
-	private static final Logger LOG = Logger.build(VcfEpistatis01.class).make();
+	private static final Logger LOG = Logger.of(VcfEpistatis01.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

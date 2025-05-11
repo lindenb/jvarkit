@@ -101,7 +101,7 @@ menu="Biostars"
 )
 public class Biostar9501110 extends OnePassBamLauncher
 	{
-	private static final Logger LOG = Logger.build(Biostar9501110.class).make();
+	private static final Logger LOG = Logger.of(Biostar9501110.class);
 	@Parameter(names={"-clip","--clip"},description="search variant in clipped section of reads")
 	protected boolean use_clip =false;
 	@Parameter(names={"-V","--variants","--vcf"},description="indexed vcf file",required=true)

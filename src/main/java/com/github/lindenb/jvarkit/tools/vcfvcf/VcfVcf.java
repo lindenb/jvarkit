@@ -36,7 +36,7 @@ END_DOC
 	)
 public class VcfVcf extends OnePassVcfLauncher
 	{
-	 private static Logger LOG=Logger.build(VcfVcf.class).make(); 
+	 private static Logger LOG=Logger.of(VcfVcf.class); 
 	
 	@Parameter(names="-TBX",description="The VCF file indexed with TABIX. Source of the annotations")
 	public String TABIX;

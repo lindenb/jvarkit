@@ -153,7 +153,7 @@ END_DOC
 		modificationDate="20240321"
 		)
 public class VcfGatkEval extends Launcher {
-	private static Logger LOG=Logger.build(VcfGatkEval.class).make();
+	private static Logger LOG=Logger.of(VcfGatkEval.class);
 	private enum INPUT_TYPE{vcf,table};
 	
 	@Parameter(names={"-o","--output"},description="filename prefix")

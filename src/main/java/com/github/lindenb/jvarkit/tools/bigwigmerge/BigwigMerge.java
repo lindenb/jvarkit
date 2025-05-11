@@ -58,7 +58,7 @@ END_DOC
 		jvarkit_amalgamion =  true
 		)
 public class BigwigMerge extends Launcher {
-	private static final Logger LOG = Logger.build(BigwigMerge.class).make();
+	private static final Logger LOG = Logger.of(BigwigMerge.class);
 	private enum Method {median,average,count,sum,min,max,random};
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

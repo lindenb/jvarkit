@@ -85,7 +85,7 @@ END_DOC
 		)
 public class VcfPeekAf extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfPeekAf.class).make();
+	private static final Logger LOG = Logger.of(VcfPeekAf.class);
 
 	@Parameter(names={"-F","--database","--tabix","--resource"},description="An indexed VCF file. Source of the annotations",required=true)
 	private Path resourceVcfFile = null;

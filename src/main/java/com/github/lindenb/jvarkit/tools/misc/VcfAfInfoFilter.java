@@ -89,7 +89,7 @@ END_DOC
 	)
 public class VcfAfInfoFilter extends Launcher{
 	
-	private static final Logger LOG = Logger.build(VcfAfInfoFilter.class).make();
+	private static final Logger LOG = Logger.of(VcfAfInfoFilter.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"--filter","-f"},description="set this filter if all ALT fails the treshold. If empty :remove the variant")

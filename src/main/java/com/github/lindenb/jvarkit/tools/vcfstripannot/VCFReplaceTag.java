@@ -85,7 +85,7 @@ END_DOC
 		)
 public class VCFReplaceTag extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VCFReplaceTag.class).make();	
+	private static final Logger LOG = Logger.of(VCFReplaceTag.class);	
 	
 	@Parameter(names={"-t","--type"},description="replace type: one of FORMAT,FILTER,INFO",required=true)
 	private String replaceType = "INFO";

@@ -58,7 +58,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 public abstract class AbstractTreePackCommandLine
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(AbstractTreePackCommandLine.class).make();
+	private static final Logger LOG = Logger.of(AbstractTreePackCommandLine.class);
 
 	
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")

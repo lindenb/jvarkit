@@ -33,7 +33,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 public class LocalRealignReads extends Launcher
 	{
 	@SuppressWarnings("unused")
-	private static final Logger LOG = Logger.build(LocalRealignReads.class).make();
+	private static final Logger LOG = Logger.of(LocalRealignReads.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

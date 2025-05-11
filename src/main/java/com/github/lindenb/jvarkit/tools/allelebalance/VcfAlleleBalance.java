@@ -81,7 +81,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfAlleleBalance extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfAlleleBalance.class).make();
+	private static final Logger LOG = Logger.of(VcfAlleleBalance.class);
 	
 	@Parameter(names={"-f","--filtered"},description="ignore FILTER-ed **GENOTYPES**")
 	private boolean ignore_filtered_genotypes = false;

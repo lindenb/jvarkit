@@ -68,7 +68,7 @@ description="Monitor/interrupt/break a BAM/SAM stream with java JMX http://www.o
 keywords={"sam","bam","jmx","monitoring"})
 public class SamJmx extends Launcher
 	{
-	private static final Logger LOG=Logger.build(SamJmx.class).make();
+	private static final Logger LOG=Logger.of(SamJmx.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
 	@ParametersDelegate

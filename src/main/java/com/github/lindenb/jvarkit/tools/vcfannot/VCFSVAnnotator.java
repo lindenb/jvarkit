@@ -87,7 +87,7 @@ END_DOC
 	)
 public class VCFSVAnnotator extends AbstractOnePassVcfAnnotator
 	{
-	private static final Logger LOG = Logger.build(VCFSVAnnotator.class).make();
+	private static final Logger LOG = Logger.of(VCFSVAnnotator.class);
 
 	@Parameter(names={"--gtf"},description=GtfTabixSVVariantAnnotator.OPT_DESC)
 	private String gtfPath = null;

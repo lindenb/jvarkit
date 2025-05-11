@@ -74,7 +74,7 @@ import htsjdk.variant.vcf.VCFIterator;
 
 
 public class Launcher {
-private static final Logger LOG=Logger.build( Launcher.class).make();
+private static final Logger LOG=Logger.of( Launcher.class);
 public static final String OPT_OUPUT_FILE_OR_STDOUT="Output file. Optional . Default: stdout";
 public static final String INDEXED_FASTA_REFERENCE_DESCRIPTION="Indexed fasta Reference file. "+
 		"This file must be indexed with samtools faidx and with picard/gatk CreateSequenceDictionary or samtools dict";

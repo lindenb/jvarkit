@@ -102,7 +102,7 @@ END_DOC
 public class PubmedDump
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedDump.class).make();
+	private static final Logger LOG = Logger.of(PubmedDump.class);
 
 	@Parameter(names={"-e","--email"},description="optional user email")
 	private String email = null;

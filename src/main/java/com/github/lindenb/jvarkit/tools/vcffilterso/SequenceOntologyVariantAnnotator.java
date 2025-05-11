@@ -48,7 +48,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFIterator;
 
 public class SequenceOntologyVariantAnnotator implements VariantAnnotator {
-	private static final Logger LOG = Logger.build(VcfFilterSequenceOntology.class).make();
+	private static final Logger LOG = Logger.of(VcfFilterSequenceOntology.class);
 	private static final String GT_FILTER_RESET_TO_NOCALL="NO_CALL";
 	
 	private boolean invertSoTerms = false;

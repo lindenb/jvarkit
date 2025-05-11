@@ -53,7 +53,7 @@ import java.util.Iterator;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 public class Dpal {
-	private static final Logger LOG = Logger.build(Dpal.class).make();
+	private static final Logger LOG = Logger.of(Dpal.class);
 	private int DPAL_MAX_ALIGN = Integer.MAX_VALUE;
 	private boolean DPAL_FORGET_PATH = false;
 

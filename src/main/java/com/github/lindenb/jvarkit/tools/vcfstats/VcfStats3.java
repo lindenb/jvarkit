@@ -82,7 +82,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfStats3 extends Launcher {
-	private static final Logger LOG = Logger.build(VcfStats3.class).make();
+	private static final Logger LOG = Logger.of(VcfStats3.class);
 	private static int ID_GENERATOR=0;
 
 	@Parameter(names={"-o","--output"},description="output directory",required=true)

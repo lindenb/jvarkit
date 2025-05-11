@@ -73,7 +73,7 @@ END_DOC
 	)
 public class DownSampleVcf extends Launcher
 	{
-	private final Logger LOG=Logger.build(DownSampleVcf.class).make();
+	private final Logger LOG=Logger.of(DownSampleVcf.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected File outputFile = null;
 	@Parameter(names="-n",description="output size. keep 'n' random variants in the input vcf")

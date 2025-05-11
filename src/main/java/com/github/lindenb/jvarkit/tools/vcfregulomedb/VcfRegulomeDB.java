@@ -95,7 +95,7 @@ menu="VCF Manipulation",
 jvarkit_amalgamion = true
 )
 public class VcfRegulomeDB extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VcfRegulomeDB.class).make();
+	private static final Logger LOG = Logger.of(VcfRegulomeDB.class);
 
 	@Parameter(names={"-b","--bed","--tabix","--regulomedb"},description="RegulomeDB bed sorted, bgzipped and indexed with tabix.",required=true)
 	private String bedFile=null;

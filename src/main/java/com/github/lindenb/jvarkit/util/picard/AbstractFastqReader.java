@@ -43,7 +43,7 @@ import java.nio.file.Path;
 public abstract class AbstractFastqReader
 	implements FastqReader
 	{
-	private static final Logger LOG=Logger.build(AbstractFastqReader.class).make();
+	private static final Logger LOG=Logger.of(AbstractFastqReader.class);
 	private Path fastqFile=null;
     private ValidationStringency validationStringency=ValidationStringency.STRICT;
     private FastqRecord nextRecord=null;

@@ -90,7 +90,7 @@ END_DOC
 public class Biostar165777 extends Launcher
 	{
 
-	private static final Logger LOG = Logger.build(Biostar165777.class).make();
+	private static final Logger LOG = Logger.of(Biostar165777.class);
 	private static final String SPLIT_TOKEN="__SPLIT__";
 
 

@@ -57,7 +57,7 @@ sition|Protein_position|Amino_acids|Codons|Existing_variation|HGNC|DISTANCE|SIFT
  */
 public class VepPredictionParser implements PredictionParser
 	{
-	private static final Logger LOG=Logger.build(VepPredictionParser.class).make();
+	private static final Logger LOG=Logger.of(VepPredictionParser.class);
 	public static final String INDEL_SYMBOL_STR="<indel>";
 	
 	/* public, used in VcfBurdenFilterGene 

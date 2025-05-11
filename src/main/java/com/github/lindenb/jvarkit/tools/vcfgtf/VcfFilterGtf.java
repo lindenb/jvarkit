@@ -79,7 +79,7 @@ END_DOC
 	)
 public class VcfFilterGtf extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfFilterGtf.class).make();
+	private static final Logger LOG = Logger.of(VcfFilterGtf.class);
 	private enum FeatureType {GENE,TRANSCRIPT,EXON,EXON_BOUDARIES};
 	private enum Coding {all,protein_coding};
 	@Parameter(names={"-gtf","--gtf"},description="GTF file",required = true)

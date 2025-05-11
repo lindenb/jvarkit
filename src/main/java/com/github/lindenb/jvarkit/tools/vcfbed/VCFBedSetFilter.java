@@ -97,7 +97,7 @@ END_DOC
 	)
 public class VCFBedSetFilter extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VCFBedSetFilter.class).make();
+	private static final Logger LOG = Logger.of(VCFBedSetFilter.class);
 
 
 	@Parameter(names={"-f","--filter"},description="FILTER name. If `--filter` is empty, FILTERED variant will be discarded.")

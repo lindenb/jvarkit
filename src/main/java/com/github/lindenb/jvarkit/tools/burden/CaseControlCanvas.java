@@ -113,7 +113,7 @@ END_DOC
 		keywords={"vcf","case","control","visualization","jfx","chart","maf"}
 		)
 public class CaseControlCanvas implements Consumer<Point2D> {
-	private static final Logger LOG = Logger.build(CaseControlCanvas.class).make();
+	private static final Logger LOG = Logger.of(CaseControlCanvas.class);
 	private static final Color ALMOST_BLACK = new Color(20,20,20);
 	private static final Color ALMOST_WHITE = new Color(240,240,240);
 	

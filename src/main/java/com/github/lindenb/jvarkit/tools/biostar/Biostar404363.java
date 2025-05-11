@@ -136,7 +136,7 @@ END_DOC
 	)
 public class Biostar404363 extends Launcher {
 	
-	private static final Logger LOG = Logger.build(Biostar404363.class).make();
+	private static final Logger LOG = Logger.of(Biostar404363.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-p","--position","--vcf"},description="VCF File containing the positions to change. if INFO/AF(allele frequency) field is present, variant is inserted if rand()<= AF. ",required=true)

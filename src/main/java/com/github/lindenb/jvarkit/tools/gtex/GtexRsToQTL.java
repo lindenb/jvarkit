@@ -83,7 +83,7 @@ modificationDate="20240225",
 jvarkit_amalgamion = true
 )
 public class GtexRsToQTL extends Launcher {
-private static final Logger LOG=Logger.build(GtexRsToQTL.class).make(); 
+private static final Logger LOG=Logger.of(GtexRsToQTL.class); 
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private Path outputFile = null;
 @Parameter(names={"--base-api"},description="GTEX base API")

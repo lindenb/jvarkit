@@ -167,7 +167,7 @@ END_DOC
 	keywords={"cnv","bam","coverage","server"}
 	)
 public  class CoverageServer extends Launcher {
-	private static final Logger LOG = Logger.build(CoverageServer.class).make();
+	private static final Logger LOG = Logger.of(CoverageServer.class);
 	
 	@Parameter(names="--port",description="server port.")
 	private int serverPort = 8080;

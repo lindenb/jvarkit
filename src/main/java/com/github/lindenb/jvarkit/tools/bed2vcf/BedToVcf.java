@@ -88,7 +88,7 @@ jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
 public class BedToVcf extends Launcher {
-	private static final Logger LOG = Logger.build(BedToVcf.class).make();
+	private static final Logger LOG = Logger.of(BedToVcf.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile=null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)

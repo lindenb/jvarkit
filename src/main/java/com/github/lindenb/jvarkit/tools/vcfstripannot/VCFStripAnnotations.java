@@ -82,7 +82,7 @@ END_DOC
 	)
 public class VCFStripAnnotations extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VCFStripAnnotations.class).make();	
+	private static final Logger LOG = Logger.of(VCFStripAnnotations.class);	
 	@Parameter(names={"-x","--exclude"},description="Use bcftools syntax INFO/x,INFO/y. "+AttributeCleaner.OPT_DESC)
 	private String pattern = null;
 	

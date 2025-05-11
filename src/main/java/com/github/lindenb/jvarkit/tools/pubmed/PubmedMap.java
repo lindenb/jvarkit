@@ -140,7 +140,7 @@ description="Use Pubmed Author's Affiliation to map the authors in the world.",
 public class PubmedMap
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedMap.class).make();
+	private static final Logger LOG = Logger.of(PubmedMap.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outFile=null;
 

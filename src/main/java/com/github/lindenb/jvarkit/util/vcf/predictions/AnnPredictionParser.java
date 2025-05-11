@@ -77,7 +77,7 @@ public class AnnPredictionParser
 		// ordered from worst to lighter, keep this order
 		 HIGH, MODERATE, MODIFIER,LOW, UNDEFINED
 		}
-	private static final Logger LOG=Logger.build(AnnPredictionParser.class).make();
+	private static final Logger LOG=Logger.of(AnnPredictionParser.class);
 
 	private final CharSplitter pipeRegex= CharSplitter.PIPE;
 	private final CharSplitter ampRegex = CharSplitter.of('&');

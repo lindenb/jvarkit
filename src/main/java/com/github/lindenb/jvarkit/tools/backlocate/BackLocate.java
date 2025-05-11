@@ -136,7 +136,7 @@ END_DOC
 public class BackLocate
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BackLocate.class).make();
+	private static final Logger LOG = Logger.of(BackLocate.class);
 	@Parameter(names={"-p","--printSeq"},description="print mRNA & protein sequences")
 	private boolean printSequences = false;
 

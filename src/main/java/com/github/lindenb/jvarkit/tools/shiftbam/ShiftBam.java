@@ -137,7 +137,7 @@ modificationDate="20241001",
 jvarkit_amalgamion = true
 )
 public class ShiftBam extends Launcher {
-	private static final Logger LOG=Logger.build(ShiftBam.class).make(); 
+	private static final Logger LOG=Logger.of(ShiftBam.class); 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"--bed"},description="Bed Path. Extract Reads overlaping this BED. Or use -R2.")

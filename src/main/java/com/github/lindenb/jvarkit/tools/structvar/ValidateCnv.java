@@ -123,7 +123,7 @@ END_DOC
 	)
 public class ValidateCnv extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ValidateCnv.class).make();
+	private static final Logger LOG = Logger.of(ValidateCnv.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

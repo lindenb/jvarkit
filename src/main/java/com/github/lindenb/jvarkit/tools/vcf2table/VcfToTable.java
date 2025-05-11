@@ -272,7 +272,7 @@ END_DOC
 		menu="VCF Manipulation"
 		)
 public class VcfToTable extends Launcher {
-	private static final Logger LOG = Logger.build(VcfToTable.class).make();
+	private static final Logger LOG = Logger.of(VcfToTable.class);
 	private static final String DEFAULT_MARGIN=" ";
 	public static final String ANSI_ESCAPE = "\u001B[";
 	public static final String ANSI_RESET = ANSI_ESCAPE+"0m";

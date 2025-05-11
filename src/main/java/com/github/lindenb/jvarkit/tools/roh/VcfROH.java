@@ -79,7 +79,7 @@ END_DOC
 	)
 public class VcfROH extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfROH.class).make();
+	private static final Logger LOG = Logger.of(VcfROH.class);
 
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output = null;

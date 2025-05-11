@@ -114,7 +114,7 @@ END_DOC
 	menu="BAM Visualization"
 	)
 public class CoverageMatrix extends Launcher {
-	private static final Logger LOG = Logger.build( CoverageMatrix.class).make();
+	private static final Logger LOG = Logger.of( CoverageMatrix.class);
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

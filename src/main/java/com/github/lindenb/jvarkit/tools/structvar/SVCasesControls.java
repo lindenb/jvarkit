@@ -111,7 +111,7 @@ jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
 public class SVCasesControls extends Launcher {
-	private static final Logger LOG = Logger.build( SVCasesControls.class).make();
+	private static final Logger LOG = Logger.of( SVCasesControls.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@ParametersDelegate

@@ -111,7 +111,7 @@ END_DOC
 public class UniprotFilterJS
 	extends Launcher
 	{
-	private static Logger LOG=Logger.build(UniprotFilterJS.class).make();
+	private static Logger LOG=Logger.of(UniprotFilterJS.class);
 
 	@SuppressWarnings("unused")
 	private static ObjectFactory _fool_javac=null;

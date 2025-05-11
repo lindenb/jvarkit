@@ -78,7 +78,7 @@ deprecated replaced by htsvelocity
 
 
 public class HtsFreemarker extends Launcher {
-	private static final Logger LOG = Logger.build(HtsFreemarker.class).make();
+	private static final Logger LOG = Logger.of(HtsFreemarker.class);
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"--reference","-R"},description="For reading CRAM." + INDEXED_FASTA_REFERENCE_DESCRIPTION)

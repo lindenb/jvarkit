@@ -267,7 +267,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class MergeSplittedBlast extends Launcher {
-	private static final Logger LOG=Logger.build(MergeSplittedBlast.class).make();
+	private static final Logger LOG=Logger.of(MergeSplittedBlast.class);
 	
 	private Unmarshaller unmarshaller;
 	private Marshaller marshaller;

@@ -32,7 +32,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 public class TreePackApp
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(TreePackApp.class).make();
+	private static final Logger LOG = Logger.of(TreePackApp.class);
 
 	@Parameter(names="-x",description="{width}x{height} dimension of the output rectangle")
 	protected Rectangle viewRect=new Rectangle(1000,1000);

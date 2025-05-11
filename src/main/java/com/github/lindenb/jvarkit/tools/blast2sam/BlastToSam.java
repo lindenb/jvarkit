@@ -265,7 +265,7 @@ keywords={"sam","blast"},
 jvarkit_amalgamion = true)
 public class BlastToSam extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BlastToSam.class).make();
+	private static final Logger LOG = Logger.of(BlastToSam.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

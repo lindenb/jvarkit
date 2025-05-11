@@ -65,7 +65,7 @@ import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 
 public abstract class MultiBamLauncher extends Launcher {
-private static final Logger LOG = Logger.build(MultiBamLauncher.class).make();
+private static final Logger LOG = Logger.of(MultiBamLauncher.class);
 @Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
 protected Path faidxPath =null;
 @Parameter(names={"--validation-stringency"},description="SAM Reader Validation Stringency")

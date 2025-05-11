@@ -115,7 +115,7 @@ public class BGenUtils {
     
     /** problem with bitSet, when using toByteArray, it goes to the last SET bit, this function use padding */
     static byte[] toByteArray(final BitSet bitSet,final int n) {
-    	if(bitSet.size()>n) throw new IllegalStateException();
+    	// non, pas sur du size()  . if(bitSet.size()>8*n) throw new IllegalStateException("the size of the bitset="+bitSet.size()+" is larger than the number of 8*bytes="+n);
     	final byte[] raw = bitSet.toByteArray();
     	if(raw.length>n) throw new IllegalStateException();
 		if(raw.length==n) return raw;

@@ -70,7 +70,7 @@ END_DOC
 	keywords= {"vcf"})
 public class VcfSimulator extends Launcher
 	{
-	private static Logger LOG=Logger.build(SkipXmlElements.class).make();
+	private static Logger LOG=Logger.of(SkipXmlElements.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names="-S",description="random number seed. -1 == current time.")

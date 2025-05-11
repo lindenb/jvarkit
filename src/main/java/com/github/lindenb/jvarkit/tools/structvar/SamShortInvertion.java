@@ -138,7 +138,7 @@ END_DOC
 	)
 public class SamShortInvertion extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamShortInvertion.class).make();
+	private static final Logger LOG = Logger.of(SamShortInvertion.class);
 	private static final byte SUPPORTING_LEFT=(byte)1;
 	private static final byte SUPPORTING_RIGHT=(byte)2;
 	

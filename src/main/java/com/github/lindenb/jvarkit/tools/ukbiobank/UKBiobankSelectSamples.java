@@ -76,7 +76,7 @@ jvarkit_amalgamion = true,
 menu="Utilities"
 )
 public class UKBiobankSelectSamples extends Launcher {
-	private static final Logger LOG = Logger.build(UKBiobankSelectSamples.class).make();
+	private static final Logger LOG = Logger.of(UKBiobankSelectSamples.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

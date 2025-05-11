@@ -42,7 +42,7 @@ import htsjdk.samtools.util.Locatable;
 
 public class ReadClipper
 	{
-	private static final Logger LOG=Logger.build(ReadClipper.class).make();
+	private static final Logger LOG=Logger.of(ReadClipper.class);
 	private String programGroup = null;
 	public void setProgramGroup(final String programGroup) {
 		this.programGroup = programGroup;

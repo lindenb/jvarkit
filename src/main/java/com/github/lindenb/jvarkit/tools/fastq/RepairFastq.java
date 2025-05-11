@@ -72,7 +72,7 @@ modificationDate="20240128",
 creationDate="20240128"
 )
 public class RepairFastq extends Launcher {
-	private static final Logger LOG = Logger.build(RepairFastq.class).make();
+	private static final Logger LOG = Logger.of(RepairFastq.class);
 	@Parameter(names={"-o","--output","--R1"},description="output for R1 reads. " + OPT_OUPUT_FILE_OR_STDOUT)
 	private File fileoutR1 = null;
 	@Parameter(names={"--R2"},description="fastq output for R2 reads.")

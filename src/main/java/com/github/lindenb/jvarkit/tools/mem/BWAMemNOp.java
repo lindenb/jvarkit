@@ -88,7 +88,7 @@ END_DOC
 		)
 public class BWAMemNOp extends Launcher
 	{
-	private static final Logger LOG=Logger.build(BWAMemNOp.class).make();
+	private static final Logger LOG=Logger.of(BWAMemNOp.class);
 	
 	@Parameter(names={"-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;

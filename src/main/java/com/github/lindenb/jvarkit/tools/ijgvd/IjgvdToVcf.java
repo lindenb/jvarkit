@@ -141,7 +141,7 @@ END_DOC
 	deprecatedMsg="Deprecated since data are now available as VCF")
 public class IjgvdToVcf extends Launcher
 	{
-	private static final Logger LOG=Logger.build(IjgvdToVcf.class).make();
+	private static final Logger LOG=Logger.of(IjgvdToVcf.class);
 	
 	private static final String REF_ALLELE_FREQ="REF_AF";
 	private static final String REF_ALLELE_COUNT="REF_AC";

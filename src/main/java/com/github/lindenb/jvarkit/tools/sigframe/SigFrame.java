@@ -155,7 +155,7 @@ END_DOC
 public class SigFrame
 	extends JFrame
 	{
-	private static final Logger LOG=Logger.build(SigFrame.class).make();
+	private static final Logger LOG=Logger.of(SigFrame.class);
 	/** desktop */
 	private JDesktopPane desktop;
 	/** map string to action */

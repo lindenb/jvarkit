@@ -123,7 +123,7 @@ END_DOC
 public class VcfGeneSplitter
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfGeneSplitter.class).make();
+	private static final Logger LOG = Logger.of(VcfGeneSplitter.class);
 	
 	private class KeyGene{
 		final String extractor;

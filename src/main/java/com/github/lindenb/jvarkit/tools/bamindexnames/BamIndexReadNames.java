@@ -67,7 +67,7 @@ END_DOC
 public class BamIndexReadNames
 	extends BaseBamIndexReadNames
 	{
-	private static final Logger LOG=Logger.build(BamIndexReadNames.class).make();
+	private static final Logger LOG=Logger.of(BamIndexReadNames.class);
 	private BamIndexReadNames()
 		{
 		}

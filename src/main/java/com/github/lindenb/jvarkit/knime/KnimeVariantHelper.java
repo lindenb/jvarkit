@@ -140,7 +140,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 		keywords={"knime","vcf"}
 		)	
 public class KnimeVariantHelper extends VcfTools {
-	public static final Logger LOG = Logger.build(KnimeVariantHelper.class).make();
+	public static final Logger LOG = Logger.of(KnimeVariantHelper.class);
 	private final Map<String,IndexedBedReader> bedReaders=new HashMap<>();
 	private final Map<String,VCFReader> vcfReaders=new HashMap<>();
 	private enum ForceSuffix { No, ForceTabix,ForceTribble};

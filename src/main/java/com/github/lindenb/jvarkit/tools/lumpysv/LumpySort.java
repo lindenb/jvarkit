@@ -115,7 +115,7 @@ generate_doc=false
 public class LumpySort 
 	 extends Launcher {
 	
-	private static final Logger LOG = Logger.build(LumpySort.class).make();
+	private static final Logger LOG = Logger.of(LumpySort.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-f","--fraction"},description="Required Overlap fraction between two intervals.")

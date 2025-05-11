@@ -75,7 +75,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfStats2 extends Launcher {
-	private static final Logger LOG = Logger.build(VcfStats2.class).make();
+	private static final Logger LOG = Logger.of(VcfStats2.class);
 	public static final String DEFAULT_MAIN_BEAN_NAME="main";
 
 

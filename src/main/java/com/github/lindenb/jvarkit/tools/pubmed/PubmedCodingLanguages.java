@@ -128,7 +128,7 @@ END_DOC
 public class PubmedCodingLanguages
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedCodingLanguages.class).make();
+	private static final Logger LOG = Logger.of(PubmedCodingLanguages.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;
 	@Parameter(names={"-c","--common"},description="[20180302] only common languages. What is a 'common' language ? well .. it's subjective...")

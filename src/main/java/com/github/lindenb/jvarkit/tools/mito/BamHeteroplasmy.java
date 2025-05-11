@@ -97,7 +97,7 @@ modificationDate="20190912",
 keywords={"vcf","sam","bam","mitochondria"}
 )
 public class BamHeteroplasmy extends Launcher {
-	private static final Logger LOG = Logger.build(BamHeteroplasmy.class).make();
+	private static final Logger LOG = Logger.of(BamHeteroplasmy.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

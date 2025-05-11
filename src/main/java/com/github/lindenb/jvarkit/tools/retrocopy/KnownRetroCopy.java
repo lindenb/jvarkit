@@ -90,7 +90,7 @@ jvarkit_amalgamion = true
 )
 public class KnownRetroCopy extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(KnownRetroCopy.class).make();
+	private static final Logger LOG = Logger.of(KnownRetroCopy.class);
 	@Parameter(names={"-genpred","--genpred","--kg","--transcripts"},description= UcscTranscriptReader.OPT_DESC,required=true)
 	private String genPredURI = null;
 	@Parameter(names={"-d","--distance"},description="max distance between an intron and the deletion found in the VCF")

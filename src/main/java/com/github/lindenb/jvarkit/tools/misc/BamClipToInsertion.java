@@ -66,7 +66,7 @@ END_DOC
 public class BamClipToInsertion
 	extends Launcher
 	{
-	private static final Logger LOG=Logger.build(BamClipToInsertion.class).make();
+	private static final Logger LOG=Logger.of(BamClipToInsertion.class);
 	@Parameter(names={"-o","--out"},required=false,description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
 	@ParametersDelegate

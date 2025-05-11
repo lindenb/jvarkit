@@ -85,7 +85,7 @@ END_DOC
 @Program(name="queue2make",description="Convert Broad/Queue genomestrip Log stream to Makefile.")
 public class QueueToMake extends Launcher
 	{
-	private static final Logger LOG = Logger.build(QueueToMake.class).make();
+	private static final Logger LOG = Logger.of(QueueToMake.class);
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
 

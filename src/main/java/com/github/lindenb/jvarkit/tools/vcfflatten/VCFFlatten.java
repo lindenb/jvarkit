@@ -105,7 +105,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class VCFFlatten extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(VCFFlatten.class).make();
+	private static final Logger LOG = Logger.of(VCFFlatten.class);
 	@Parameter(names={"-i","--id"},description="Default Variant ID")
 	protected String default_variant_id = "FLATTEN_VARIANT";
 	@Parameter(names={"--gene-extractor"},description="Activate default gene extractors. Variant will be grouped by gene using snpeff/bcftools/vep annotations")

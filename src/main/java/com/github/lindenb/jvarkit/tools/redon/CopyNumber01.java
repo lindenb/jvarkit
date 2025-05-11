@@ -144,7 +144,7 @@ END_DOC
 	)
 public class CopyNumber01 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(CopyNumber01.class).make();
+	private static final Logger LOG = Logger.of(CopyNumber01.class);
 	
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path refFile=null;

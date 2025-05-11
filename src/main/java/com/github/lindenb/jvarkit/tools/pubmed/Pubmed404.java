@@ -111,7 +111,7 @@ jvarkit_amalgamion =  true,
 menu="Pubmed"
 )
 public class Pubmed404  extends Launcher{
-	private static final Logger LOG = Logger.build(Pubmed404.class).make();
+	private static final Logger LOG = Logger.of(Pubmed404.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;
 	@Parameter(names={"-t","--timeout"},description="timeout in seconds")

@@ -188,7 +188,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class ConvertVcfChromosomes extends Launcher {
-	private static final Logger LOG = Logger.build(ConvertVcfChromosomes.class).make();
+	private static final Logger LOG = Logger.of(ConvertVcfChromosomes.class);
 	
 
 	@Parameter(names={"-f","--mapping","-m"},description=ContigNameConverter.OPT_DICT_OR_MAPPING_FILE_DESC,required=true)

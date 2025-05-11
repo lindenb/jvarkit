@@ -128,7 +128,7 @@ $ cat jeter.metrics |\
 public class PicardMetricsToXML
 	extends Launcher
 	{
-	private static final Logger LOG=Logger.build(PicardMetricsToXML.class).make();
+	private static final Logger LOG=Logger.of(PicardMetricsToXML.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File output=null;
 	@Parameter(names="-s",description="print sum")

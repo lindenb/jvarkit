@@ -139,7 +139,7 @@ END_DOC
 		modificationDate="20200818")
 public class VcfBiomart extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfBiomart.class).make();
+	private static final Logger LOG = Logger.of(VcfBiomart.class);
 	@Parameter(names= {"-X","--xml"},description=" (XML-file) XML biomart template. <Query>...</Query>",required=true)
 	private File xmlTemplate=null;
 	@Parameter(names= {"-T","--tag"},description=" (string) VCF output tag.")

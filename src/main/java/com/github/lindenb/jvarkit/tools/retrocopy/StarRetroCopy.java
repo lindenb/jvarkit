@@ -127,7 +127,7 @@ menu="Retrocopy"
 )
 public class StarRetroCopy extends Launcher
 	{
-	private static final Logger LOG = Logger.build(StarRetroCopy.class).make();
+	private static final Logger LOG = Logger.of(StarRetroCopy.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-gtf","--gtf"},description=GtfReader.OPT_DESC,required=true)

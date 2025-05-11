@@ -82,7 +82,7 @@ END_DOC
 public class BedCasesControls
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BedCasesControls.class).make();
+	private static final Logger LOG = Logger.of(BedCasesControls.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;

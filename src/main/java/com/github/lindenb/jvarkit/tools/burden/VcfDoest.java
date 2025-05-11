@@ -81,7 +81,7 @@ END_DOC
 public class VcfDoest
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfDoest.class).make();
+	private static final Logger LOG = Logger.of(VcfDoest.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

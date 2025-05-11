@@ -149,7 +149,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class CoveragePlotter extends Launcher {
-	private static final Logger LOG = Logger.build( CoveragePlotter.class).make();
+	private static final Logger LOG = Logger.of( CoveragePlotter.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

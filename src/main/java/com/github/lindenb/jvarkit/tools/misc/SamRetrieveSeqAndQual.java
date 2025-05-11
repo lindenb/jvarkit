@@ -174,7 +174,7 @@ END_DOC
 @Program(name="samretrieveseqandqual",description="I have a query-sorted BAM file without read/qual sequences and a FASTQ file with the read/qual sequences. Is there a tool to add seq to BAM?  for @sjackman https://twitter.com/sjackman/status/575368165531611136")
 public class SamRetrieveSeqAndQual extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamRetrieveSeqAndQual.class).make();
+	private static final Logger LOG = Logger.of(SamRetrieveSeqAndQual.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

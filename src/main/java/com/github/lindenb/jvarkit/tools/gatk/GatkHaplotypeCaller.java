@@ -110,7 +110,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class GatkHaplotypeCaller extends AbstractGatkTool {
-	private static final Logger LOG = Logger.build(GatkHaplotypeCaller.class).make();
+	private static final Logger LOG = Logger.of(GatkHaplotypeCaller.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

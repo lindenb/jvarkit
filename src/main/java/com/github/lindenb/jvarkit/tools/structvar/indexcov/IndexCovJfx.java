@@ -128,7 +128,7 @@ END_DOC
 		keywords={"cnv","jfx","duplication","deletion","sv"}
 		)
 public class IndexCovJfx extends JfxLauncher {
-	private static final Logger LOG = Logger.build(IndexCovJfx.class).make();
+	private static final Logger LOG = Logger.of(IndexCovJfx.class);
 
 	
 	private final ObservableList<Sample> sampleNames = FXCollections.observableArrayList();

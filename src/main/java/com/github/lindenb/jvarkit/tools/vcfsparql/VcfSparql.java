@@ -123,7 +123,7 @@ creationDate="2019-03-06",
 modificationDate="2019-03-06"
 )
 public class VcfSparql extends Launcher {
-	private static final Logger LOG=Logger.build(VcfSparql.class).make();
+	private static final Logger LOG=Logger.of(VcfSparql.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-f","--sparql-file"},description="Query as sparql file")

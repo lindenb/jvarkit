@@ -96,7 +96,7 @@ END_DOC
 @Program(description="Query a Bam file indexed with BamIndexReadNames")
 public class BamQueryReadNames extends BaseBamIndexReadNames
 	{
-	private static final Logger LOG=Logger.build(BamQueryReadNames.class).make();
+	private static final Logger LOG=Logger.of(BamQueryReadNames.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile=null;
 

@@ -99,7 +99,7 @@ END_DOC
 	deprecatedMsg="local to my lab and unused"
 	)
 public class HaloplexParasite extends Launcher {
-	private static final Logger LOG = Logger.build(HaloplexParasite.class).make();
+	private static final Logger LOG = Logger.of(HaloplexParasite.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

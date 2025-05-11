@@ -144,7 +144,7 @@ END_DOC
 public class SamCustomSortJdk
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamCustomSortJdk.class).make();
+	private static final Logger LOG = Logger.of(SamCustomSortJdk.class);
 	@SuppressWarnings("unused")
 	private IlluminaReadName _fool_javac = null;
 	

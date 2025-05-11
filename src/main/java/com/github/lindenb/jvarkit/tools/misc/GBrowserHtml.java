@@ -90,7 +90,7 @@ END_DOC
 @Program(name="gbrowserhtml",description="HYML browser")
 public class GBrowserHtml extends Launcher
 	{
-	private static final Logger LOG = Logger.build(GBrowserHtml.class).make();
+	private static final Logger LOG = Logger.of(GBrowserHtml.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

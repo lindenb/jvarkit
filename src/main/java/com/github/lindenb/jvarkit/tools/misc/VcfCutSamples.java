@@ -77,7 +77,7 @@ END_DOC
 		deprecatedMsg="use bcftools or gatk SelectVariants"
 		)
 public class VcfCutSamples extends OnePassVcfLauncher {
-	private static final Logger LOG=Logger.build(VcfCutSamples.class).make();
+	private static final Logger LOG=Logger.of(VcfCutSamples.class);
 	
 	/** selected sample */
 	@Parameter(names={"-S","--samples"},description="Sample name")

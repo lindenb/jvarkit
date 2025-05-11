@@ -88,7 +88,7 @@ END_DOC
 	)
 public class TViewCmd extends Launcher
 	{
-	private static final Logger LOG = Logger.build(TViewCmd.class).make();
+	private static final Logger LOG = Logger.of(TViewCmd.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)

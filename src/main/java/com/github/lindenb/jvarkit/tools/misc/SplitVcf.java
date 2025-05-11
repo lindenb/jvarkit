@@ -94,7 +94,7 @@ menu="Deprecated/barely used"
 public class SplitVcf
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SplitVcf.class).make();
+	private static final Logger LOG = Logger.of(SplitVcf.class);
 
 	private final static String REPLACE_GROUPID="__GROUPID__";
 	private final java.util.Map<String,SplitGroup> name2group=new java.util.HashMap<>();

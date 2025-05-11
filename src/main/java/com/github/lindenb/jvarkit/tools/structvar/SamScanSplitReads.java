@@ -185,7 +185,7 @@ END_DOC
 	keywords={"sam","sv","splitreads","clip"}
 		)
 	public class SamScanSplitReads extends MultiBamLauncher {
-	private static final Logger LOG = Logger.build(SamScanSplitReads.class).make();
+	private static final Logger LOG = Logger.of(SamScanSplitReads.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-x","--extend"},description="extends interval by 'x' pb before merging.")

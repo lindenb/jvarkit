@@ -335,7 +335,7 @@ public class IlluminaDirectory
 	extends Launcher
 	{
 	
-	private static final Logger LOG = Logger.build(IlluminaDirectory.class).make();
+	private static final Logger LOG = Logger.of(IlluminaDirectory.class);
 	private enum OutFormat {XML,JSON,TSV}
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

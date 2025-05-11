@@ -84,7 +84,7 @@ END_DOC
 	)
 public class Biostar145820 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar145820.class).make();
+	private static final Logger LOG = Logger.of(Biostar145820.class);
 
 	@Parameter(names={"-f","--filter","--jexl"},description = SamRecordJEXLFilter.FILTER_DESCRIPTION,converter=SamRecordJEXLFilter.StringConverter.class)
 	private SamRecordFilter filter  = SamRecordJEXLFilter.buildAcceptAll();

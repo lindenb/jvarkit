@@ -51,7 +51,7 @@ import htsjdk.variant.vcf.VCFIterator;
  *
  */
 public class VCFBuffer implements VariantContextWriter{
-private static final Logger LOG = Logger.build(VCFBuffer.class).make();
+private static final Logger LOG = Logger.of(VCFBuffer.class);
 
 /** vcf header */
 private VCFHeader header=null;

@@ -142,7 +142,7 @@ END_DOC
 public class GoUtils
 	extends Launcher
 	{
-	private static Logger LOG=Logger.build(GoUtils.class).make();
+	private static Logger LOG=Logger.of(GoUtils.class);
 	private enum Action{dump_table,dump_gexf,goa,gff3};
 		
 	/** wraps a Go:Term */

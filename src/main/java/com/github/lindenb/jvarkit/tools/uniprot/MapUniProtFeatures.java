@@ -129,7 +129,7 @@ END_DOC
 	)
 public class MapUniProtFeatures extends Launcher
 	{
-	private static Logger LOG=Logger.build(MapUniProtFeatures.class).make();
+	private static Logger LOG=Logger.of(MapUniProtFeatures.class);
     private static class Range
     	{
     	Range(final int start,final int end)

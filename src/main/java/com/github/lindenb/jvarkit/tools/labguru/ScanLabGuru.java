@@ -109,7 +109,7 @@ END_DOC
 		keywords={"labguru","lims","vcf","sam"}
 		)
 public class ScanLabGuru extends Launcher {
-private static final Logger LOG = Logger.build(ScanLabGuru.class).make();
+private static final Logger LOG = Logger.of(ScanLabGuru.class);
 
 
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

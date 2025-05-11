@@ -96,7 +96,7 @@ keywords={"util","table","tsv","tabular","data"},
 generate_doc=false
 )
 public class PrettyTable extends Launcher{
-	private static final Logger LOG = Logger.build(PrettyTable.class).make();
+	private static final Logger LOG = Logger.of(PrettyTable.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-d","--delim"},description="char delimiter.")

@@ -143,7 +143,7 @@ END_DOC
 	menu="CNV/SV"
 	)
 public class SamFindClippedRegions extends Launcher {
-	private static final Logger LOG=Logger.build(SamFindClippedRegions.class).make();
+	private static final Logger LOG=Logger.of(SamFindClippedRegions.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

@@ -65,7 +65,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VCFBigWig extends AbstractOnePassVcfAnnotator {
-	private static final Logger LOG = Logger.build(VCFBigWig.class).make();
+	private static final Logger LOG = Logger.of(VCFBigWig.class);
 
 	
 	@Parameter(names={"-B","--bigwig"},description= BigWigReader.OPT_DESC,required=true)

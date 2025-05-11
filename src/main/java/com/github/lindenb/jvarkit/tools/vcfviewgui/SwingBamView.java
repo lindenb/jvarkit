@@ -156,7 +156,7 @@ jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
 )
 public class SwingBamView extends Launcher {
-	private static final Logger LOG = Logger.build(SwingBamView.class).make();
+	private static final Logger LOG = Logger.of(SwingBamView.class);
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
 	@Parameter(names={"-V","--variant"},description="Indexed VCF File")

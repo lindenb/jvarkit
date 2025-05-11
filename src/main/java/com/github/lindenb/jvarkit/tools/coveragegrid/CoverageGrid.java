@@ -151,7 +151,7 @@ END_DOC
 	)
 public class CoverageGrid extends Launcher {
 	private enum PlotType {COVERAGE,MEDIAN_COVERAGE,PILEUP,PILEUP_PAIR,GRID,DISCORDANT,SUPPL};
-	private static final Logger LOG = Logger.build( CoverageGrid.class).make();
+	private static final Logger LOG = Logger.of( CoverageGrid.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

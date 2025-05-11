@@ -140,7 +140,7 @@ END_DOC
 	)
 public class SamExtractClip extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SamExtractClip.class).make();
+	private static final Logger LOG = Logger.of(SamExtractClip.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 

@@ -54,7 +54,7 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 public abstract class AbstractVCFCompareBase extends Launcher
 	{
-	private final Logger LOG=Logger.build(AbstractVCFCompareBase.class).make();
+	private final Logger LOG=Logger.of(AbstractVCFCompareBase.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected File outputFile = null;

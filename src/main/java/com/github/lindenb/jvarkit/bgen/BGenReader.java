@@ -23,7 +23,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bgen;
 
-import java.io.Closeable;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -65,7 +64,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 public class BGenReader extends BGenUtils implements AutoCloseable {
-	private static final Logger LOG = Logger.build(BGenReader.class).make();
+	private static final Logger LOG = Logger.of(BGenReader.class).setDebug();
 
 	private enum State {expect_variant_def, expect_genotypes };
 	private final BGenHeader header;
@@ -76,7 +75,6 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	private VariantImpl lastVariant=null;
 	private int layout1_expect_n_samples=-1;
 	private final ByteBuffer buffer1 = new ByteBuffer();
-	private boolean debug_flag=true;
 	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
 	private Path filenameOrNull = null;
 	private VCFFileReader vcfIndexFile = null;
@@ -485,7 +483,13 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			this.snps_offset =  codec1.readUInt();
 			this.header = BGenHeader.of(codec1);
 			final long skip = this.snps_offset + 4 - bc.count;
+			if(LOG.isDebug()) {
+				LOG.info("skip bytes: this.snps_offset="+this.snps_offset+" + 4 - header.count="+bc.count+"="+skip );
+				}
 			in.skipNBytes(skip);
+			if(LOG.isDebug() && isSeekableStream()) {
+				LOG.info("end reading header and now file offset is "+ftell() );
+				}
 			}
 		this.binaryCodec=new BinaryCodec(this.in);
 
@@ -526,14 +530,18 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	public void fseek(long position)  throws IOException {
 		assertState(State.expect_variant_def);;
 		if(position<=0) throw new IllegalArgumentException("seek.pos<=0: "+position);
-		if(!(this.in instanceof SeekableStream)) {
+		if(!(isSeekableStream())) {
 			throw new IOException("cannot do random-access with this king of input "+this.in.getClass());
 			}
 		SeekableStream.class.cast(this.in).seek(position);
 		}
 	
+	private boolean isSeekableStream() {
+		return this.in instanceof SeekableStream;
+	}
+	
 	private long ftell() throws IOException {
-		if(this.in instanceof SeekableStream) {
+		if(isSeekableStream()) {
 			return SeekableStream.class.cast(this.in).position();
 			}
 		return -1L;
@@ -684,7 +692,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				this.layout1_expect_n_samples = longToUnsignedInt(this.binaryCodec.readUInt());
 				}
 			catch(Throwable eof) {
-				if(isDebugging()) {
+				if(LOG.isDebug()) {
 					LOG.debug("not more variant layout 1 "+eof.getClass());
 					eof.printStackTrace();
 					}
@@ -700,7 +708,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			ctx.variantId = readStringUInt16(this.binaryCodec);
 			}
 		catch(Throwable eof) {
-			if(isDebugging()) {
+			if(LOG.isDebug()) {
 				LOG.debug("not more variant "+header.getLayout()+" "+eof.getClass());
 				eof.printStackTrace();
 				}
@@ -730,7 +738,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	public void skipGenotypes() throws IOException{
 		assertState(State.expect_genotypes);
 		final long skip_n =  this.binaryCodec.readUInt();
-		if(isDebugging()) {
+		if(LOG.isDebug()) {
 			LOG.debug("skipping "+skip_n+" bytes");
 			}
 		this.binaryCodec.getInputStream().skipNBytes(skip_n);
@@ -741,12 +749,12 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	public BGenVariant readGenotypes()  throws IOException{
 		assertState(State.expect_genotypes);
 		
-		if(isDebugging()) {
+		if(LOG.isDebug()) {
 			LOG.debug("reading genotypes. offset= "+ftell());
 			}
 		
 		int genotype_block_size =  longToUnsignedInt( this.binaryCodec.readUInt());
-		if(isDebugging()) {
+		if(LOG.isDebug()) {
 			LOG.debug("expect compressed size "+genotype_block_size);
 			}
 		
@@ -754,7 +762,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		 * If CompressedSNPBlocks = 0, this field is omitted and the total length of the probability data */
 		if(!getHeader().getCompression().equals(Compression.e_NoCompression)) {
 			final int uncompressed_data_size_D =longToUnsignedInt( this.binaryCodec.readUInt());
-			if(isDebugging()) {
+			if(LOG.isDebug()) {
 				LOG.debug("expect uncompressed size "+uncompressed_data_size_D+" now offset="+ftell());
 				}
 			genotype_block_size-= Integer.BYTES;
@@ -765,7 +773,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		if(this.buffer1.size()!=genotype_block_size) {
 			throw new IllegalStateException("bad size");
 			}
-		if(isDebugging()) {
+		if(LOG.isDebug()) {
 			LOG.debug("after reading genotypes. offset is now = "+ftell());
 			}
 		InputStream uncompressedStream;
@@ -788,7 +796,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		uncompressedStream.close();
 		codec2.close();
 		
-		if(isDebugging()) {
+		if(LOG.isDebug()) {
 			LOG.debug("End reading genotypes. offset= "+ftell());
 			}
 		
@@ -807,9 +815,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		if(!this.state.equals(st)) throw new IllegalStateException("expected "+st+" but got "+this.state);
 		}
 	
-	private boolean isDebugging() {
-		return this.debug_flag;
-	}
+	
 	
 	private VariantAndGenotypesLayout1 decodeLayout1(final BinaryCodec bc) throws IOException {
 		final double[] genotypes =new double[ this.layout1_expect_n_samples*3];
@@ -855,7 +861,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         /* Unsigned integer B representing the number of bits used to store each probability in this row. This must be between 1 and 32 inclusive. */
        	vcg.nbits=  (int) codec2.readUByte();
         if(vcg.nbits  <0 || vcg.nbits > 32) throw new IOException("bad nbits  ("+ vcg.nbits +")");
-        if(isDebugging()) {
+        if(LOG.isDebug()) {
    			LOG.debug("nbits="+vcg.nbits);
    			}
         
@@ -863,21 +869,21 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         final BitNumReader numReader = new BitNumReader(bitReader, vcg.nbits);
         final List<Double> values= new ArrayList<>();
         if(vcg.phased==1) {
-        	if(isDebugging()) {
+        	if(LOG.isDebug()) {
        			LOG.debug("phased==1");
        			}
     	   /* read haplotypes */
        		for(int i=0;i< n_samples;++i) {
        			values.clear();
        			VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
-       			if(isDebugging()) {
+       			if(LOG.isDebug()) {
            			LOG.debug("read phased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
            			}
        			for(int py=0;py < gt.getPloidy();++py) {
        				double sum = 0;
 	       			for(int ax=0;ax < this.lastVariant.getNAlleles() -1 ;++ax) {
        					double v = numReader.next();
-       					if(isDebugging()) {
+       					if(LOG.isDebug()) {
        						LOG.debug("next value is "+v);
        						}
        					if(gt.isMissing()) v=0;
@@ -899,7 +905,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         	
         	
        	} else  if(vcg.phased==0) {
-       		if(isDebugging()) {
+       		if(LOG.isDebug()) {
        			LOG.debug("phased==0");
        			}
        		/* read genotypes */
@@ -907,11 +913,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
        			values.clear();
        			
        			final VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
-       			if(isDebugging()) {
+       			if(LOG.isDebug()) {
            			LOG.debug("read unphased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
            			}
        			final BigInteger bi=MathUtils.combination( gt.getPloidy()+ this.lastVariant.getNAlleles()-1,this.lastVariant.getNAlleles()-1);// whyyyy ?
-       			if(isDebugging()) {
+       			if(LOG.isDebug()) {
            			LOG.debug("combination="+bi);
            			}
        			final int n_combinaison_as_int= bi.intValueExact();
@@ -921,7 +927,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
        			double sum = 0;
        			for(int j=0;j < n_combinaison_as_int -1 ;++j) {
    					double v = numReader.next();
-   					if(isDebugging()) {
+   					if(LOG.isDebug()) {
    						LOG.debug("next value is "+v);
    						}
    					if(gt.isMissing()) v=0;

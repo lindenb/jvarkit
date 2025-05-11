@@ -98,7 +98,7 @@ END_DOC
 		jvarkit_amalgamion =  true
 		)
 public class BigWigTView extends Launcher {
-	private static final Logger LOG = Logger.build(BigWigTView.class).make();
+	private static final Logger LOG = Logger.of(BigWigTView.class);
 	
 	@Parameter(names = { "-o", "--out" }, description = "Output is a setfile. "+ OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output = null;

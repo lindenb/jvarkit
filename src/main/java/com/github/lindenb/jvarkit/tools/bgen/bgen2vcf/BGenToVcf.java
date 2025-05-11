@@ -75,7 +75,7 @@ public class BGenToVcf extends Launcher {
 	private WritingVariantsDelegate writingVariantsDelegate=new WritingVariantsDelegate();
 
 	
-	private static final Logger LOG = Logger.build(BGenView.class).make();
+	private static final Logger LOG = Logger.of(BGenView.class);
 	
 	
 	@Override

@@ -83,7 +83,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfBraiding extends Launcher {
-	private static final Logger LOG = Logger.build(VcfBraiding.class).make();
+	private static final Logger LOG = Logger.of(VcfBraiding.class);
 	private static final String DEFAULT_BASE = "https://visdunneright.github.io/sequence_braiding/docs/";
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

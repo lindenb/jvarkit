@@ -47,7 +47,7 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
 public class BamFile implements NgsFile<SAMFileHeader,SAMRecord>{
-    private static final Logger LOG= Logger.build(BamFile.class).make();
+    private static final Logger LOG= Logger.of(BamFile.class);
 
 	private final SamReader samReader;
 	private final String source;

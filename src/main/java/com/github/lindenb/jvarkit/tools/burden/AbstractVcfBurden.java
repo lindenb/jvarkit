@@ -59,7 +59,7 @@ import htsjdk.variant.vcf.VCFReader;
 public abstract class AbstractVcfBurden
 extends Launcher
 {
-	private static final Logger LOG = Logger.build(AbstractVcfBurden.class).make();
+	private static final Logger LOG = Logger.of(AbstractVcfBurden.class);
 	protected static final String BURDEN_KEY = "BURDEN_KEY";
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

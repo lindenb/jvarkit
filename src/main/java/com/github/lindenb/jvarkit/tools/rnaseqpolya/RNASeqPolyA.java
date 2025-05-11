@@ -135,7 +135,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class RNASeqPolyA extends Launcher {
-	private static final Logger LOG = Logger.build(RNASeqPolyA.class).make();
+	private static final Logger LOG = Logger.of(RNASeqPolyA.class);
 	
 	@Parameter(names={"-o","-out","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

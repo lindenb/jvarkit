@@ -144,7 +144,7 @@ biostars = {9594882},
 jvarkit_amalgamion =  true
 )
 public class SwingPLinkSelectCluster extends Launcher {
-private static final Logger LOG = Logger.build(SwingPLinkSelectCluster.class).make();
+private static final Logger LOG = Logger.of(SwingPLinkSelectCluster.class);
 private static final String ACTION_XY_KEY= "plink.xy";
 private static final String ACTION_TOOL= "select.tool";
 private  enum ToolType {KEEP,EXCLUDE,INVERSE}

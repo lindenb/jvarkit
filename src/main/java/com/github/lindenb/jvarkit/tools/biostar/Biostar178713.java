@@ -78,7 +78,7 @@ END_DOC
 	)
 public class Biostar178713 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar178713.class).make();
+	private static final Logger LOG = Logger.of(Biostar178713.class);
 
 
 	@Parameter(names={"-o","--output"},description="Output file.zip .",required=true)

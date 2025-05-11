@@ -97,7 +97,7 @@ menu="Biostars"
 )
 public class Biostar76892 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar76892.class).make();
+	private static final Logger LOG = Logger.of(Biostar76892.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

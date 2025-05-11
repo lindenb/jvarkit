@@ -136,7 +136,7 @@ END_DOC
 		menu="BED Manipulation"
 		)
 public class BedNonOverlappingSet extends Launcher {
-	private static final Logger LOG = Logger.build(BedNonOverlappingSet.class).make();
+	private static final Logger LOG = Logger.of(BedNonOverlappingSet.class);
 
 	@Parameter(names = { "-o", "--out" }, description = ArchiveFactory.OPT_DESC,required=true)
 	private Path archivePath = null;

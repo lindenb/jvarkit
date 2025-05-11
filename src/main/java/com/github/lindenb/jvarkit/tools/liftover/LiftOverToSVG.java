@@ -114,7 +114,7 @@ END_DOC
 	)
 public class LiftOverToSVG extends Launcher
 	{
-	private final Logger LOG=Logger.build(LiftOverToSVG.class).make();
+	private final Logger LOG=Logger.of(LiftOverToSVG.class);
 
 	private class ChromName
 		{

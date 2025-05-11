@@ -189,7 +189,7 @@ END_DOC
 	)
 public class VCFCombineTwoSnvs extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VCFCombineTwoSnvs.class).make();
+	private static final Logger LOG = Logger.of(VCFCombineTwoSnvs.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

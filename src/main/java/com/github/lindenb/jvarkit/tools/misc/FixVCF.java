@@ -85,7 +85,7 @@ END_DOC
 public class FixVCF
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FixVCF.class).make();
+	private static final Logger LOG = Logger.of(FixVCF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-T","--tmpDir"},description="tmp directory")

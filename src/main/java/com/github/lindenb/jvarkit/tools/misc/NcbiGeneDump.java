@@ -228,7 +228,7 @@ END_DOC
 public class NcbiGeneDump
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(NcbiGeneDump.class).make();
+	private static final Logger LOG = Logger.of(NcbiGeneDump.class);
 	private static final QName CUSTOM_ATTRIBUTE_QNAME = new QName("ncbi-gene-id");
 	private static final QName CUSTOM_ANNOT_QNAME = new QName("custom-annotation");
 	private static final String CUSTOM_ANNOT_LINE_PREFIX= "## NCBI Gene ID.";

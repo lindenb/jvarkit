@@ -54,7 +54,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class GoGeneReporter extends Launcher{
-	private static Logger LOG=Logger.build(GoGeneReporter.class).make(); 
+	private static Logger LOG=Logger.of(GoGeneReporter.class); 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names="--goa",description="(goa input url)")

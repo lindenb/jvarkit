@@ -84,7 +84,7 @@ END_DOC
 public class VcfBurdenFisherV
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfBurdenFisherV.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenFisherV.class);
 	public static final String VCF_HEADER_FISHER_VALUE="VCFBurdenFisherV";
 
 	

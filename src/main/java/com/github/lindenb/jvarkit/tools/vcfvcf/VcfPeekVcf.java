@@ -107,7 +107,7 @@ END_DOC
 		)
 public class VcfPeekVcf extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfPeekVcf.class).make();
+	private static final Logger LOG = Logger.of(VcfPeekVcf.class);
 	
 	@Parameter(names={"-f","--tabix","--resource"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
 	private Path resourceVcfFile = null;

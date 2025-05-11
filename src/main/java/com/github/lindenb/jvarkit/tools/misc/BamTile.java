@@ -153,7 +153,7 @@ END_DOC
 public class BamTile
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BamTile.class).make();
+	private static final Logger LOG = Logger.of(BamTile.class);
 
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs=new WritingBamArgs();

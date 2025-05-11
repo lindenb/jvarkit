@@ -173,7 +173,7 @@ jvarkit_amalgamion = true,
 menu="BAM Visualization"
 )
 public class PlotSashimi extends Launcher {
-private static final Logger LOG = Logger.build(PlotSashimi.class).make();
+private static final Logger LOG = Logger.of(PlotSashimi.class);
 
 @Parameter(names={"-g","--gtf"},description=GtfReader.OPT_DESC)
 private Path gtfPath = null;

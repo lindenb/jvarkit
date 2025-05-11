@@ -101,7 +101,7 @@ END_DOC
 	creationDate="20200805"
 	)
 public class BamAlleleBalance extends Launcher {
-	private static final Logger LOG = Logger.build(BamAlleleBalance.class).make();
+	private static final Logger LOG = Logger.of(BamAlleleBalance.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

@@ -100,7 +100,7 @@ creationDate="20160119",
 modificationDate="20210312"
 )
 public class SamSlop extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(SamSlop.class).make();
+	private static final Logger LOG = Logger.of(SamSlop.class);
 
 	@Parameter(names={"-m","--extend5"},description="num bases to extends on 5'")
 	private int extend5 = 0 ;

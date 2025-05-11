@@ -113,7 +113,7 @@ END_DOC
 	menu="BAM Manipulation"
 	)
 public class Biostar9566948 extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(Biostar9566948.class).make();
+	private static final Logger LOG = Logger.of(Biostar9566948.class);
 	private ReferenceSequenceFile referenceSequenceFile = null;
 	private GenomicSequence genomicSequence =null;
 	@Parameter(names={"--disable-soft-clipping","-S"},description="disable soft clipping. Remove bases.")

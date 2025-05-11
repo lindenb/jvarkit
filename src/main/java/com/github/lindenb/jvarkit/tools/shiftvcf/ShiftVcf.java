@@ -70,7 +70,7 @@ modificationDate="20241002",
 jvarkit_amalgamion = true
 )
 public class ShiftVcf extends OnePassVcfLauncher {
-	private static final Logger LOG=Logger.build(ShiftVcf.class).make(); 
+	private static final Logger LOG=Logger.of(ShiftVcf.class); 
 	@Parameter(names={"--bed"},description="Bed Path. Extract Variants overlaping this BED. Or use -R2.")
 	private Path bedPath = null;
 	@Parameter(names={"-R2","--destination-reference"},description="Original fasta reference. We shift the VCF back to this reference. Required without --bed." + DICTIONARY_SOURCE)

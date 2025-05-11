@@ -57,7 +57,7 @@ generate_doc=true,
 jvarkit_amalgamion = true
 )
 public class PlotBcftoolsStats extends Launcher {
-	private static final Logger LOG = Logger.build(PlotBcftoolsStats.class).make();
+	private static final Logger LOG = Logger.of(PlotBcftoolsStats.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

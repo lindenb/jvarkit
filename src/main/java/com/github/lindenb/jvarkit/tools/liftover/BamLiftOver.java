@@ -67,7 +67,7 @@ import htsjdk.samtools.util.Interval;
 	)
 public class BamLiftOver extends OnePassBamLauncher
 	{
-	private static final Logger LOG = Logger.build(BamLiftOver.class).make();
+	private static final Logger LOG = Logger.of(BamLiftOver.class);
 	@Parameter(names={"-R2","--destination-dict"},description=DICTIONARY_SOURCE,required = true)
 	private Path destDictionaryPath = null;
 

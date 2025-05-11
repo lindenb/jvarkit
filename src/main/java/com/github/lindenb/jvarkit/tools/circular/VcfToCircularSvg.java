@@ -100,7 +100,7 @@ creationDate="20220522"
 )
 
 public class VcfToCircularSvg extends Launcher{
-	private static final Logger LOG = Logger.build(VcfToCircularSvg.class).make();
+	private static final Logger LOG = Logger.of(VcfToCircularSvg.class);
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

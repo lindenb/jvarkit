@@ -83,7 +83,7 @@ END_DOC
 	)
 public class FastqRevComp extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FastqRevComp.class).make();
+	private static final Logger LOG = Logger.of(FastqRevComp.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names="-1",description=" interleaced input : only reverse complement R1")

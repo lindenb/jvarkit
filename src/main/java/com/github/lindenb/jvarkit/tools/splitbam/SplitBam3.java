@@ -115,7 +115,7 @@ END_DOC
 	keywords={"sam","bam","split"}
 	)
 public class SplitBam3 extends AbstractBamSplitter<String> {
-	private static final Logger LOG = Logger.build(SplitBam3.class).make();
+	private static final Logger LOG = Logger.of(SplitBam3.class);
 	private final static String OTHER_NAME="OTHERS";
 
 	@Parameter(names={"-g","--groupfile"},description="Chromosome group file. Interval are 1 based. Otherwise split per chromosome.")

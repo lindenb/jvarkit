@@ -68,7 +68,7 @@ END_DOC
 	)
 public class VcfTail extends OnePassVcfLauncher
 	{
-	private static final Logger LOG=Logger.build(VcfTail.class).make();
+	private static final Logger LOG=Logger.of(VcfTail.class);
 	@Parameter(names={"-n","-N","--count"},description="number of variants")
 	private long count=10;
 	@Parameter(names={"-c","--bycontig"},description="Print first variant for each contig; Implies VCF is sorted",order=1)

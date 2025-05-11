@@ -48,7 +48,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.samtools.util.StringUtil;
 
 public class GOParser {
-	private static Logger LOG=Logger.build(GOParser.class).make(); 
+	private static Logger LOG=Logger.of(GOParser.class); 
 	public static final String GO_URL_OPT_DESC="Gene ontology URI. Formatted as OBO format. ";
 
 	private boolean ignore_synonyms=false;

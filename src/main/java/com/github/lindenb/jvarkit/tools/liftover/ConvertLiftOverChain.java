@@ -76,7 +76,7 @@ chain 14571217 1 249250621 + 317719 471368 1 248956422 - 248454805 248608454 495
 		jvarkit_amalgamion = true
 		)
 public class ConvertLiftOverChain extends Launcher {
-	private static final Logger LOG = Logger.build(ConvertLiftOverChain.class).make();
+	private static final Logger LOG = Logger.of(ConvertLiftOverChain.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

@@ -48,7 +48,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 public class PedFile implements Iterable<PedFile.Sample>
 	{
-    private static final Logger LOG= Logger.build(PedFile.class).make();
+    private static final Logger LOG= Logger.of(PedFile.class);
 
 	static final String EXTENSION=".ped";
 	public enum Sex {Male,Female,Unknown};

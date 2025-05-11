@@ -113,7 +113,7 @@ END_DOC
 	)
 public class Biostar322664 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar322664.class).make();
+	private static final Logger LOG = Logger.of(Biostar322664.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=CRAM_INDEXED_REFENCE)

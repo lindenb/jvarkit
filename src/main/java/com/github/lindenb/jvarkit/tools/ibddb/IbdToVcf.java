@@ -92,7 +92,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class IbdToVcf extends Launcher {
-	private static final Logger LOG = Logger.build(IbdToVcf.class).make();
+	private static final Logger LOG = Logger.of(IbdToVcf.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

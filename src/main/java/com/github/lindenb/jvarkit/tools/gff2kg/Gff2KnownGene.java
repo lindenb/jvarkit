@@ -94,7 +94,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class Gff2KnownGene extends Launcher {
-	private static final Logger LOG = Logger.build(Gff2KnownGene.class).make();
+	private static final Logger LOG = Logger.of(Gff2KnownGene.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-sql","--sql"},description="write SQL definition in that file")

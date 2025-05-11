@@ -67,7 +67,7 @@ import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
  *
  */
 public class ReferenceCache implements Closeable {
-private static Logger LOG=Logger.build(ReferenceCache.class).make();
+private static Logger LOG=Logger.of(ReferenceCache.class);
 private final File cacheDir;
 private final boolean deleteOnClose;
 private final List<AbstractInfo> references=new ArrayList<>();

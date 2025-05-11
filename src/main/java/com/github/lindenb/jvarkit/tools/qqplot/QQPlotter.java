@@ -66,7 +66,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class QQPlotter extends Launcher {
-	private static final Logger LOG = Logger.build(QQPlotter.class).make();
+	private static final Logger LOG = Logger.of(QQPlotter.class);
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-d","--delim"},description= "column separator as a java regexe")

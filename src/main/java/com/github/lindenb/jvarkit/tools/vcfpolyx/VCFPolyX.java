@@ -76,7 +76,7 @@ END_DOC
 	)
 public class VCFPolyX extends AbstractOnePassVcfAnnotator
 	{
-	private static final Logger LOG = Logger.build(VCFPolyX.class).make();
+	private static final Logger LOG = Logger.of(VCFPolyX.class);
 
 	@Parameter(names={"-n","--filter","--max-repeats"},description="if number of repeated bases is greater or equal to 'n' set a FILTER = (tag)")
 	private int filterTrehsold = -1 ;

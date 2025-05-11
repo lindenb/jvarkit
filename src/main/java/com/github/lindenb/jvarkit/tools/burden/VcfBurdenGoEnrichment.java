@@ -106,7 +106,7 @@ END_DOC
 public class VcfBurdenGoEnrichment
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfBurdenGoEnrichment.class).make();
+	private static final Logger LOG = Logger.of(VcfBurdenGoEnrichment.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

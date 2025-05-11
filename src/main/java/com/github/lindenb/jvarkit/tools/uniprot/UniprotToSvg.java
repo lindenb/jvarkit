@@ -103,7 +103,7 @@ jvarkit_amalgamion = true,
 menu="Utilities"
 )
 public class UniprotToSvg extends Launcher {
-	private static final Logger LOG = Logger.build(UniprotToSvg.class).make();
+	private static final Logger LOG = Logger.of(UniprotToSvg.class);
 	@Parameter(names={"-o","--output"},description=ArchiveFactory.OPT_DESC,required = true)
 	private Path outputFile = null;
 	@Parameter(names = "--vcf", description = "annotated VCF. Whole file is loaded in memory, so you'd better use a small vcf restricted to your proteins.")

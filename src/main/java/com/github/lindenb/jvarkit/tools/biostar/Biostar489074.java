@@ -105,7 +105,7 @@ generate_doc=true,
 menu="Biostars"
 )
 public class Biostar489074 extends MultiBamLauncher {			
-private static final Logger LOG = Logger.build(Biostar489074.class).make();
+private static final Logger LOG = Logger.of(Biostar489074.class);
 @Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 private Path outputFile = null;
 @Parameter(names={"--groupby","--partition"},description="Group Reads by. "+SAMRecordPartition.OPT_DESC)

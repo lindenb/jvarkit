@@ -105,7 +105,7 @@ import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsD
 )
 public class BimToVcf extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BimToVcf.class).make();
+	private static final Logger LOG = Logger.of(BimToVcf.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

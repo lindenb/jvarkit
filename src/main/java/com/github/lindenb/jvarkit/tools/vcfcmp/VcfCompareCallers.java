@@ -108,7 +108,7 @@ public class VcfCompareCallers
 	extends Launcher
 	{
 
-	private static final Logger LOG = Logger.build(VcfCompareCallers.class).make();
+	private static final Logger LOG = Logger.of(VcfCompareCallers.class);
 
 
 	@Parameter(names={"-o","--output"},description="Directory or zip file to save results to be plotted with gnuplot",required=true)

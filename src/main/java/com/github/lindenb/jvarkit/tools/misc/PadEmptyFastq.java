@@ -71,7 +71,7 @@ keywords="fastq"
 		)
 public class PadEmptyFastq extends Launcher
 	{
-	private static final Logger LOG=Logger.build(PadEmptyFastq.class).make();
+	private static final Logger LOG=Logger.of(PadEmptyFastq.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
     private File outFile=null;
 	private static final int DEFAULT_LENGTH=50;

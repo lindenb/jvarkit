@@ -127,7 +127,7 @@ END_DOC
 	)
 public class CompareBams4  extends Launcher
 	{
-	private static final Logger LOG = Logger.build(CompareBams4.class).make();
+	private static final Logger LOG = Logger.of(CompareBams4.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

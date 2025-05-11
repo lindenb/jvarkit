@@ -109,7 +109,7 @@ END_DOC
 public class BedMergeCnv
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BedMergeCnv.class).make();
+	private static final Logger LOG = Logger.of(BedMergeCnv.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;

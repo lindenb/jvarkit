@@ -143,7 +143,7 @@ END_DOC
 	)
 public class VCFPredictions extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VCFPredictions.class).make();
+	private static final Logger LOG = Logger.of(VCFPredictions.class);
 	private enum OutputSyntax {Native,Vep,SnpEff };
 	private IntervalTreeMap<List<Transcript>> transcriptTreeMap = null;
 	private ReferenceSequenceFile referenceGenome = null;

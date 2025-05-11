@@ -108,7 +108,7 @@ END_DOC
     keywords={"sam","bam","table","visualization","server","web"}
 		)
 public class TViewServer extends Launcher{
-private static final Logger LOG=Logger.build(TViewServer.class).make();
+private static final Logger LOG=Logger.of(TViewServer.class);
 private static final String REGION_PARAM="rgn";
 private static final String SAMIDX_PARAM="samfile";
 private static final String JAVASCRIPT_PARAM="js";

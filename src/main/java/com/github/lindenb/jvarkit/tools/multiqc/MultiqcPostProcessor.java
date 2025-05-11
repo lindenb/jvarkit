@@ -99,7 +99,7 @@ jvarkit_amalgamion = true,
 menu="Utilities"
 )
 public class MultiqcPostProcessor extends Launcher {
-	private static final Logger LOG = Logger.build(MultiqcPostProcessor.class).make();
+	private static final Logger LOG = Logger.of(MultiqcPostProcessor.class);
 	private final char GE_UNICODE ='\u2265';
 	@Parameter(names={"-o","--output"},description="output directory",required = true)
 	private Path outputDirectory = null;

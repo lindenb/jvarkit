@@ -140,7 +140,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class BamSliceBed extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(BamSliceBed.class).make();
+	private static final Logger LOG = Logger.of(BamSliceBed.class);
 
 	@Parameter(names={"-B","--bed","--pcr"},description="Regions containing non-overlapping PCR fragments. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,required=true)
 	private IntervalListProvider intervalListProvider = IntervalListProvider.unspecified();

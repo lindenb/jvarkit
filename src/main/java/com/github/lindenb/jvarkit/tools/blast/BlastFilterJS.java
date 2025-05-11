@@ -164,7 +164,7 @@ END_DOC
 public class BlastFilterJS
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BlastFilterJS.class).make();
+	private static final Logger LOG = Logger.of(BlastFilterJS.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

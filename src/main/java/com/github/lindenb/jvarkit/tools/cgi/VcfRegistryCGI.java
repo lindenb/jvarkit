@@ -107,7 +107,7 @@ END_DOC
  */
 @Program(name="vcfregistry.cg",description="CGI/Web tool printing all the variants at a given position for a collection of tabix-ed VCF files.")
 public class VcfRegistryCGI extends AbstractCGI {
-	private static final Logger LOG=Logger.build(VcfRegistryCGI.class).make();
+	private static final Logger LOG=Logger.of(VcfRegistryCGI.class);
 
 	 private static final String GROUPID_PARAM="g";
 	    private static final String RGN_PARAM="r";

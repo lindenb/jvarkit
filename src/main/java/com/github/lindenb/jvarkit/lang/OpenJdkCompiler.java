@@ -44,7 +44,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 
 public abstract class OpenJdkCompiler {
-	private static final Logger LOG = Logger.build(OpenJdkCompiler.class).make();
+	private static final Logger LOG = Logger.of(OpenJdkCompiler.class);
 	private static OpenJdkCompiler INSTANCE = null;
 	private static final String JDK_PROPERTIES = "/META-INF/jdk.properties";
 	public static OpenJdkCompiler getInstance() {

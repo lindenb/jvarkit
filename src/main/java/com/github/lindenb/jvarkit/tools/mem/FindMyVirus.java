@@ -77,7 +77,7 @@ $  java -jar dist/findmyvirus.jar -V virus_chr -o category in.bam
 )
 public class FindMyVirus extends Launcher
 	{
-	private static final Logger LOG= Logger.build(FindMyVirus.class).make();
+	private static final Logger LOG= Logger.of(FindMyVirus.class);
 	
 	/* how to split the bam, witch categories */
 	private enum CAT{

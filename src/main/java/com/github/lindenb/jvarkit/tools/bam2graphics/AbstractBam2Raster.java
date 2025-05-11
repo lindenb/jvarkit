@@ -77,7 +77,7 @@ public abstract class AbstractBam2Raster extends Launcher{
 	protected static final Color ALMOST_BLACK = new Color(20,20,20);
 	protected static final Color ALMOST_WHITE = new Color(240,240,240);
 
-	private static final Logger LOG = Logger.build(AbstractBam2Raster.class).make();
+	private static final Logger LOG = Logger.of(AbstractBam2Raster.class);
 	@Parameter(names={"-o","--output"},description=
 			OPT_OUPUT_FILE_OR_STDOUT+
 			" [20180829] filename can be also an existing directory or a zip file, in witch case, each individual will be saved in the zip/dir.")

@@ -72,7 +72,7 @@ END_DOC
 	)
 public class FastqSplit extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FastqSplit.class).make();
+	private static final Logger LOG = Logger.of(FastqSplit.class);
 	private final static String TAG="__TOKEN__";
 
 	@Parameter(names={"-o","--output"},description="Output file name. It MUST  end with a fastq suffix and MUST contain the word "+TAG,required=true)

@@ -349,7 +349,7 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.StringUtil;
 
 public class JvarkitCentral {
-	private static final Logger LOG = Logger.build(JvarkitCentral.class).make();
+	private static final Logger LOG = Logger.of(JvarkitCentral.class);
 	private class Command {
 		private final Class<?> clazz;
 		boolean hidden = false;

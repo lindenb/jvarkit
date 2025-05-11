@@ -81,7 +81,7 @@ END_DOC
 public class OboUtils
 	extends Launcher
 	{
-	private static Logger LOG=Logger.build(OboUtils.class).make();
+	private static Logger LOG=Logger.of(OboUtils.class);
 	private enum Action{dump_table};
 		
 	

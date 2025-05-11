@@ -12,7 +12,7 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 public class SubCloneIt extends AbstractCloneIt {
-	private static final Logger LOG = Logger.build(SubCloneIt.class).make();
+	private static final Logger LOG = Logger.of(SubCloneIt.class);
 	
 	@ParametersDelegate
 	private InsertPlasmidLoader insertLoader=new InsertPlasmidLoader();

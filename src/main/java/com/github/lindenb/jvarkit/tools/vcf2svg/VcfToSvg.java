@@ -105,7 +105,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfToSvg extends Launcher {
-private static final Logger LOG=Logger.build(VcfToSvg.class).make();
+private static final Logger LOG=Logger.of(VcfToSvg.class);
 
 @Parameter(names={"-o","--out"},description=ArchiveFactory.OPT_DESC,required=true)
 private Path outputPath=null;

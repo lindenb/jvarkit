@@ -140,7 +140,7 @@ jvarkit_amalgamion =  true,
 menu="VCF Manipulation"
 )
 public class SwingVcfJexlFilter extends Launcher {
-	private static final Logger LOG = Logger.build(SwingVcfJexlFilter.class).make();
+	private static final Logger LOG = Logger.of(SwingVcfJexlFilter.class);
 	private enum SavingState {IDLE,SAVING};
 	private static final String[] languages = {"JEXL","JAVASCRIPT"};
 	private static String ABOUT="";

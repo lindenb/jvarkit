@@ -205,7 +205,7 @@ jvarkit_amalgamion =  true,
 menu="CNV/SV"
 )
 public class CnvTView  extends Launcher {
-	private static final Logger LOG = Logger.build(CnvTView.class).make();
+	private static final Logger LOG = Logger.of(CnvTView.class);
 	private enum Format {plain,ansi};
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

@@ -138,7 +138,7 @@ END_DOC
 		menu="CNV/SV"
 		)
 public class IndexCovToVcf extends Launcher {
-	private static final Logger LOG = Logger.build(IndexCovToVcf.class).make();
+	private static final Logger LOG = Logger.of(IndexCovToVcf.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-t","--treshold"},description=IndexCovUtils.TRESHOLD_OPT_DESC+". " +FractionConverter.OPT_DESC,converter=FractionConverter.class)

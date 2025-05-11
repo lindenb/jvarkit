@@ -63,7 +63,7 @@ jvarkit_amalgamion = true,
 menu="BED Manipulation"
 )
 public class SetFileCluster extends AbstractSetFileTool {
-	private static final Logger LOG = Logger.build(SetFileCluster.class).make();
+	private static final Logger LOG = Logger.of(SetFileCluster.class);
 
 	@Parameter(names={"-S","--size"},description="number of bases max per bin. (or specify --jobs). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.LongStringConverter.class,splitter=NoSplitter.class)
 	private long long_length_per_bin=-1L;

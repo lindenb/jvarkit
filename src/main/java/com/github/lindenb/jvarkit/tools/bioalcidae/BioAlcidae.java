@@ -443,7 +443,7 @@ END_DOC
 public class BioAlcidae
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BioAlcidae.class).make();
+	private static final Logger LOG = Logger.of(BioAlcidae.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

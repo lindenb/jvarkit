@@ -94,7 +94,7 @@ modificationDate="20240808"
 )
 public class GcPercentAndDepth extends Launcher
 	{
-	private static Logger LOG=Logger.build(GcPercentAndDepth.class).make();
+	private static Logger LOG=Logger.of(GcPercentAndDepth.class);
 
 	
 	@Parameter(names="-o",description=OPT_OUPUT_FILE_OR_STDOUT)

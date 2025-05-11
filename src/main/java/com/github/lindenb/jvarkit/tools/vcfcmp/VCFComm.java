@@ -82,7 +82,7 @@ END_DOC
  */
 @Program(name="vcfcomm",description="Equivalent of linux comm for VCF")
 public class VCFComm extends AbstractVCFCompareBase {
-	private final Logger LOG=Logger.build(VCFComm.class).make();
+	private final Logger LOG=Logger.of(VCFComm.class);
 	private final Pattern tab = Pattern.compile("[\t]");
 	public VCFComm() 
 		{

@@ -51,7 +51,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 		jvarkit_amalgamion =  true
 		)
 public class BarcodeGenerator extends Launcher {
-	private static final Logger LOG = Logger.build(BarcodeGenerator.class).make();
+	private static final Logger LOG = Logger.of(BarcodeGenerator.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile= null;
 	@Parameter(names={"--polyx"},description ="max polyx")

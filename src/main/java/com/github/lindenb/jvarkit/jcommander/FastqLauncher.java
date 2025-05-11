@@ -39,7 +39,7 @@ import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.util.CloseableIterator;
 
 public abstract class FastqLauncher extends Launcher {
-private static final Logger LOG = Logger.build(FastqLauncher.class).make();
+private static final Logger LOG = Logger.of(FastqLauncher.class);
 @Parameter(names={"--paired"},description="assume input is paired end: we expect two files, or the input is assumed interleaved fastq.")
 boolean paired_end = false;
 

@@ -76,7 +76,7 @@ END_DOC
 		keywords= {"plate"}
 		)
 public class PlateOptimizer extends Launcher {
-	private static final Logger LOG = Logger.build(PlateOptimizer.class).make();
+	private static final Logger LOG = Logger.of(PlateOptimizer.class);
 	@Parameter(names= {"-o","--ouput"},description="Output prefix",required=true)
 	private String output;
 	@Parameter(names= {"--seed"},description="Random seed . -1 == use currentTimeMillis")

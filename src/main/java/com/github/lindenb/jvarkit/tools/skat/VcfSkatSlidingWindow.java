@@ -69,7 +69,7 @@ END_DOC
 		)
 public class VcfSkatSlidingWindow extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfSkatSlidingWindow.class).make();
+	private static final Logger LOG = Logger.of(VcfSkatSlidingWindow.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-ped","--pedigree"},description=Pedigree.OPT_DESCRIPTION+" If not defined, I will try to extract the pedigree from  the VCFheader.")

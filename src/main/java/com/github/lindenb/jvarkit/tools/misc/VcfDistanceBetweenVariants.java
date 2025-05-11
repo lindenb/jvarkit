@@ -75,7 +75,7 @@ END_DOC
 
 		)
 public class VcfDistanceBetweenVariants extends OnePassVcfLauncher{
-	private static final Logger LOG = Logger.build(VcfDistanceBetweenVariants.class).make();
+	private static final Logger LOG = Logger.of(VcfDistanceBetweenVariants.class);
 
 	@Parameter(names={"-p","--prefix"},description="INFO Attribute Prefix")
 	private String prefix="DIST_";

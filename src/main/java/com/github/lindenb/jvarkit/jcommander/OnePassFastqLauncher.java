@@ -44,7 +44,7 @@ import htsjdk.samtools.fastq.FastqWriterFactory;
 import htsjdk.samtools.util.CloseableIterator;
 
 public abstract class OnePassFastqLauncher extends FastqLauncher {
-private static final Logger LOG = Logger.build(OnePassFastqLauncher.class).make();
+private static final Logger LOG = Logger.of(OnePassFastqLauncher.class);
 @Parameter(names={"-o","--out","-R1"},description="Output file for R1 fastq record or interleaved output."+OPT_OUPUT_FILE_OR_STDOUT)
 private File outputFile1 = null;
 @Parameter(names={"-R2"},description="Output file for R2 fastq record. If input is paired but R2 is omitted, output will be interleaved.")

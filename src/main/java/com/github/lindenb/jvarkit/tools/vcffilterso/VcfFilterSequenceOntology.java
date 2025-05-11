@@ -162,7 +162,7 @@ END_DOC
 public class VcfFilterSequenceOntology
 	extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfFilterSequenceOntology.class).make();
+	private static final Logger LOG = Logger.of(VcfFilterSequenceOntology.class);
 	private static final String GT_FILTER_RESET_TO_NOCALL="NO_CALL";
 	
 	@Parameter(names={"-S","--showacn"},description="list the available SO terms and exit.")

@@ -39,7 +39,7 @@ import htsjdk.samtools.util.FileExtensions;
  *
  */
 public class AbstractGatkTool extends Launcher {
-	private static final Logger LOG = Logger.build(AbstractGatkTool.class).make();
+	private static final Logger LOG = Logger.of(AbstractGatkTool.class);
 	private final Gatk4Proxy gatkEngine = Gatk4Proxy.getInstance().orElse(null);
 	
 	protected Gatk4Proxy getGatkEngine() {

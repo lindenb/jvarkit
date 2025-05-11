@@ -92,7 +92,7 @@ END_DOC
 	jvarkit_amalgamion =  true
 	)
 public class DictToBed extends Launcher {
-	private static Logger LOG=Logger.build(DictToBed.class).make();
+	private static Logger LOG=Logger.of(DictToBed.class);
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

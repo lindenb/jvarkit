@@ -40,7 +40,7 @@ description="Divide the human genome among X cores, taking into account gaps",
 public class Biostar77828 extends Launcher
 	{
 
-	private static final Logger LOG = Logger.build(Biostar77828.class).make();
+	private static final Logger LOG = Logger.of(Biostar77828.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

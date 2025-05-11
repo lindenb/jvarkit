@@ -150,7 +150,7 @@ menu="Biostars"
 )
 
 public class Biostar336589 extends Launcher{
-	private static final Logger LOG = Logger.build(Biostar336589.class).make();
+	private static final Logger LOG = Logger.of(Biostar336589.class);
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

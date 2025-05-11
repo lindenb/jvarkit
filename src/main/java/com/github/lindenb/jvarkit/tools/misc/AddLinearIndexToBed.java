@@ -76,7 +76,7 @@ END_DOC
 		)
 public class AddLinearIndexToBed extends Launcher
 {
-	private static final Logger LOG = Logger.build(AddLinearIndexToBed.class).make();
+	private static final Logger LOG = Logger.of(AddLinearIndexToBed.class);
 
 	@Parameter(names = { "-o", "--out" }, description = OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

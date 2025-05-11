@@ -93,7 +93,7 @@ END_DOC
 	)
 public class FindAVariation extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FindAVariation.class).make();
+	private static final Logger LOG = Logger.of(FindAVariation.class);
 	@Parameter(names={"-p","--position"},description="A list of 'chrom/position'")
 	private Set<String> positionsList = new HashSet<>();
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)

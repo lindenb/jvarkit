@@ -25,7 +25,7 @@ END_DOC
 		description="Fix PL format in VCF. Problem is described in http://gatkforums.broadinstitute.org/discussion/3453")
 public class FixVcfFormat extends Launcher
 	{
-	private static Logger LOG=Logger.build(FixVcfFormat.class).make();
+	private static Logger LOG=Logger.of(FixVcfFormat.class);
 
 	
 

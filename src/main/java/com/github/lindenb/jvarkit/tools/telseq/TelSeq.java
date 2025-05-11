@@ -70,7 +70,7 @@ modificationDate="20240907",
 generate_doc=false
 )
 public class TelSeq extends Launcher {
-	private static final Logger LOG = Logger.build( TelSeq.class).make();
+	private static final Logger LOG = Logger.of( TelSeq.class);
 	
 	Path exomebedfile = null;
 	/** default We defined reads as telomeric if they contained k or more TTAGGG repeats, with a default threshold value of k = 7  */

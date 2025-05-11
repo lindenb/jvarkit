@@ -164,7 +164,7 @@ menu="VCF Manipulation"
 )
 public class SwingVcfView extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SwingVcfView.class).make();
+	private static final Logger LOG = Logger.of(SwingVcfView.class);
 	@Parameter(names={"-r","--regions","--interval"},description="default interval region on opening")
 	private String defaultRegion="";
 	@Parameter(names={"--limit"},description="Limit number of variants. Ignore if < 0")

@@ -86,7 +86,7 @@ END_DOC
 		)
 public class GtfToBed
 	extends Launcher {
-	private static final Logger LOG = Logger.build(GtfToBed.class).make();
+	private static final Logger LOG = Logger.of(GtfToBed.class);
 	
 	private final static String MY_COLS="gtf.source,gtf.feature,gtf.score,gtf.strand,gtf.frame";
 

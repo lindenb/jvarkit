@@ -134,7 +134,7 @@ END_DOC
 	)
 public class WorldMapGenome extends Launcher
 	{
-	private static final Logger LOG = Logger.build(WorldMapGenome.class).make();
+	private static final Logger LOG = Logger.of(WorldMapGenome.class);
 
 
 	@Parameter(names="-R",description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

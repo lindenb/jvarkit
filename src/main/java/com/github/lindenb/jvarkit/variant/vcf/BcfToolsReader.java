@@ -50,7 +50,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
 public class BcfToolsReader implements VCFReader {
-	private static final Logger LOG = Logger.build(BcfToolsReader.class).make();
+	private static final Logger LOG = Logger.of(BcfToolsReader.class);
 
 	private static int WARNING = 0;
 	private final VCFCodec codec = new VCFCodec();

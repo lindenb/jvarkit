@@ -119,7 +119,7 @@ jvarkit_amalgamion = true,
 menu="BED Manipulation"
 )
 public class SetFileTools extends Launcher {
-	private static final Logger LOG = Logger.build(SetFileTools.class).make();
+	private static final Logger LOG = Logger.of(SetFileTools.class);
 	@Parameter(names= {"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidxRef = null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT+ ". For action=cluster, output is: "+ArchiveFactory.OPT_DESC)

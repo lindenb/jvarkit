@@ -94,7 +94,7 @@ END_DOC
 	)
 public class ExtendReferenceWithReads extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ExtendReferenceWithReads.class).make();
+	private static final Logger LOG = Logger.of(ExtendReferenceWithReads.class);
 	
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

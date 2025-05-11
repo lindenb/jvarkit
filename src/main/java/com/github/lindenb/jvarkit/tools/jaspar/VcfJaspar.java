@@ -86,7 +86,7 @@ description="Finds JASPAR profiles in VCF",
 keywords={"vcf","matrix","jaspar"})
 public class VcfJaspar extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfJaspar.class).make();
+	private static final Logger LOG = Logger.of(VcfJaspar.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 

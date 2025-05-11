@@ -172,7 +172,7 @@ END_DOC
 description="Generates a BED file of the Genes in an annotated VCF, loop over those genes and generate a VCF for each gene, then execute an optional command.",
 keywords={"vcf","gene","burden"})
 public class VcfLoopOverGenes extends Launcher {
-	private static final Logger LOG = Logger.build(VcfLoopOverGenes.class).make();
+	private static final Logger LOG = Logger.of(VcfLoopOverGenes.class);
 	private static final String NUM_FORMAT = "%06d";
 	static final String VCF_HEADER_SPLITKEY="VCFBurdenSplitName";
 

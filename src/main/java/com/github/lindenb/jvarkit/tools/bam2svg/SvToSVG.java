@@ -160,7 +160,7 @@ menu="BAM Visualization"
 )
 public class SvToSVG extends Launcher
 	{
-	private static final Logger LOG = Logger.build(SvToSVG.class).make();
+	private static final Logger LOG = Logger.of(SvToSVG.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

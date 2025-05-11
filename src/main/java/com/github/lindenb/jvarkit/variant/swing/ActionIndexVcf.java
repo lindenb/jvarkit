@@ -54,7 +54,7 @@ import htsjdk.variant.vcf.VCFCodec;
 
 @SuppressWarnings("serial")
 public class ActionIndexVcf extends AbstractAction {
-	private static final Logger LOG = Logger.build(ActionIndexVcf.class).make();
+	private static final Logger LOG = Logger.of(ActionIndexVcf.class);
 
 	public ActionIndexVcf() {
 		super("Index VCF...");

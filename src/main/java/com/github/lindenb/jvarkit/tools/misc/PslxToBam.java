@@ -121,7 +121,7 @@ END_DOC
 	)
 public class PslxToBam extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PslxToBam.class).make();
+	private static final Logger LOG = Logger.of(PslxToBam.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

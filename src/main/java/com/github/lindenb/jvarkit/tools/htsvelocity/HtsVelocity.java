@@ -83,7 +83,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class HtsVelocity extends Launcher {
-	private static final Logger LOG = Logger.build(HtsVelocity.class).make();
+	private static final Logger LOG = Logger.of(HtsVelocity.class);
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"--reference","-R"},description="For reading CRAM." + INDEXED_FASTA_REFERENCE_DESCRIPTION)

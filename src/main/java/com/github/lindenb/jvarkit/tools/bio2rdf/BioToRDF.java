@@ -139,7 +139,7 @@ END_DOC
 		jvarkit_amalgamion =  true
 		)
 public class BioToRDF extends Launcher {
-	private static final Logger LOG = Logger.build(BioToRDF.class).make();
+	private static final Logger LOG = Logger.of(BioToRDF.class);
 	private final static String PREFIX="bio";
 	private final static String NS = "https://umr1087.univ-nantes.fr/bio2rdf/";
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)

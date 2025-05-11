@@ -67,7 +67,7 @@ public class CommBams extends Launcher {
 	
 	private enum WhatToPrint { name,but_metadata,all}
 	
-	private static final Logger LOG=Logger.build(CommBams.class).make();
+	private static final Logger LOG=Logger.of(CommBams.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-1","--hide1"},description="suppress read unique to file 1")

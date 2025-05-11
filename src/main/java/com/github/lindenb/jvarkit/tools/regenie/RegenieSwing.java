@@ -115,7 +115,7 @@ END_DOC
 		jvarkit_amalgamion = true
 		)
 public class RegenieSwing extends Launcher {
-	private static final Logger LOG = Logger.build(RegenieSwing.class).make();
+	private static final Logger LOG = Logger.of(RegenieSwing.class);
 	private final static String[] COLUMN_HEADER=new String[] {"CHROM","GENPOS","ID","ALLELE0","ALLELE1","A1FREQ","N","TEST","BETA","SE","CHISQ","LOG10P","EXTRA"};	
 	private static final int MANHATTAN_WIDTH = 900;
 	private static final int MANHATTAN_HEIGHT = 200;

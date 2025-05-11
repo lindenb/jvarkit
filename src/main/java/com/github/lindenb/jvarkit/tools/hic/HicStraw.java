@@ -81,7 +81,7 @@ END_DOC
 	generate_doc=false
 	)
 public class HicStraw  extends Launcher {
-	private static final Logger LOG = Logger.build(HicStraw.class).make();
+	private static final Logger LOG = Logger.of(HicStraw.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT+" If filename ends with '.png' , '.jpg' or '.svg' the output will be an image")
 	private Path outputFile = null;

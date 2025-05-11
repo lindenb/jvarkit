@@ -132,7 +132,7 @@ END_DOC
 	menu="BAM Visualization"
 	)
 public class WGSCoveragePlotter extends Launcher {
-	private static final Logger LOG = Logger.build( WGSCoveragePlotter.class).make();
+	private static final Logger LOG = Logger.of( WGSCoveragePlotter.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

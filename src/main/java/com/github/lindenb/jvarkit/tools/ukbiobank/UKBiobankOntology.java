@@ -38,7 +38,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 public class UKBiobankOntology {
-	private static final Logger LOG = Logger.build(UKBiobankOntology.class).make();
+	private static final Logger LOG = Logger.of(UKBiobankOntology.class);
 
 	/** a term in the ontology */
 	public interface Term {

@@ -105,7 +105,7 @@ END_DOC
 	menu="BAM Manipulation"
 	)
 public class Biostar154220 extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(Biostar154220.class).make();
+	private static final Logger LOG = Logger.of(Biostar154220.class);
 	
 	@Parameter(names={"-d","-n","--depth"},description="expected coverage.")
 	private int capDepth=20;

@@ -70,7 +70,7 @@ END_DOC
 public class FastqGrep
 	extends OnePassFastqLauncher
 	{
-	private static final Logger LOG = Logger.build(FastqGrep.class).make();
+	private static final Logger LOG = Logger.of(FastqGrep.class);
 
 
 	@Parameter(names="-f",description=" file containing a list of read names")

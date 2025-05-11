@@ -71,7 +71,7 @@ END_DOC
 		)
 public class VcfHead extends OnePassVcfLauncher
 	{
-	private static final Logger LOG=Logger.build(VcfHead.class).make();
+	private static final Logger LOG=Logger.of(VcfHead.class);
 	
 	@Parameter(names={"-n","-N","--count"},description="number of variants")
 	private long count=10;

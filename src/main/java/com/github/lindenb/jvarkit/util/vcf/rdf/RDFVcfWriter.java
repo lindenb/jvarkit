@@ -45,7 +45,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactor
 public class RDFVcfWriter
 	implements VariantContextWriter
 	{
-	private static final Logger LOG=Logger.build(RDFVcfWriter.class).make();
+	private static final Logger LOG=Logger.of(RDFVcfWriter.class);
 
 	private static final String XSD="http://www.w3.org/2001/XMLSchema#";
 	private static final String RDF=com.github.lindenb.jvarkit.rdf.ns.RDF.NS;

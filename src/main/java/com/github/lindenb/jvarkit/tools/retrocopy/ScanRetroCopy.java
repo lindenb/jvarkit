@@ -211,7 +211,7 @@ menu="Retrocopy"
 )
 public class ScanRetroCopy extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ScanRetroCopy.class).make();
+	private static final Logger LOG = Logger.of(ScanRetroCopy.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	

@@ -80,7 +80,7 @@ END_DOC
 	)
 public class VcfToHilbert extends Launcher
 	{
-	private static final Logger LOG=Logger.build(VcfToHilbert.class).make();
+	private static final Logger LOG=Logger.of(VcfToHilbert.class);
 	private static final String SIGNATURE="HILBERT_";
 	
     /** level of recursion */

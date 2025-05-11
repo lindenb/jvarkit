@@ -60,6 +60,7 @@ jvarkit_amalgamion =  true,
 generate_doc = false
 )
 public class BGenView extends Launcher {
+	private static final Logger LOG = Logger.of(BGenView.class).setDebug();
 
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
@@ -68,8 +69,8 @@ public class BGenView extends Launcher {
 	@Parameter(names={"--compression"},description="Compression type")
 	private BGenUtils.Compression compression = BGenUtils.Compression.e_ZlibCompression;
 	
-	@Parameter(names={"--layout"},description="BGen Layout")
-	private BGenUtils.Layout layout = BGenUtils.Layout.e_Layout1;
+	//@Parameter(names={"--layout"},description="BGen Layout")
+	//private BGenUtils.Layout layout = BGenUtils.Layout.e_Layout2;
 	
 	@Parameter(names={"--anonymous"},description="make anonymous, hide sample names")
 	private boolean anonymous_samples=false;
@@ -80,7 +81,6 @@ public class BGenView extends Launcher {
 	TargetsParameter regionFilesParameter = new TargetsParameter();
 
 	
-	private static final Logger LOG = Logger.build(BGenView.class).make();
 	
 	
 	@Override
@@ -97,7 +97,7 @@ public class BGenView extends Launcher {
 							)) {
 					w.setCompression(this.compression);
 					w.setAnonymousSamples(this.anonymous_samples);
-					w.setLayout(this.layout);
+					w.setLayout(r.getHeader().getLayout());
 					w.setNBits(this.nbits);
 					
 					final List<String> input_samples= r.getHeader().getSamples();
@@ -131,6 +131,10 @@ public class BGenView extends Launcher {
 							continue;
 							}
 						ctx = r.readGenotypes();
+						
+						if(LOG.isDebug()) {
+							LOG.debug(ctx);
+						}
 						
 						w.setNBits(this.nbits<=0?ctx.getBitsPerProb():this.nbits);
 						

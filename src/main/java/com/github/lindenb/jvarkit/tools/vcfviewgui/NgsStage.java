@@ -133,7 +133,7 @@ import javafx.util.Callback;
  *
  */
 public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends Stage {
-    protected static final Logger LOG= Logger.build(NgsStage.class).make();
+    protected static final Logger LOG= Logger.of(NgsStage.class);
 	protected static final String JAVASCRIPT_TAB_KEY="JS";
 	protected static final String TOOL_CONTEXT_KEY="tools";
 	protected static final String PEDIGREE_CONTEXT_KEY="pedigree";

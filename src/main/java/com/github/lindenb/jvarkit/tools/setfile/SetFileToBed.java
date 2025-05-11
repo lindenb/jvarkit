@@ -56,7 +56,7 @@ jvarkit_amalgamion = true,
 menu="BED Manipulation"
 )
 public class SetFileToBed extends AbstractSetFileTool {
-	private static final Logger LOG = Logger.build(SetFileToBed.class).make();
+	private static final Logger LOG = Logger.of(SetFileToBed.class);
 
 	
 	@Parameter(names={"--bed12"},description="convert to BED12. Skip setfiles with multiple contigs")

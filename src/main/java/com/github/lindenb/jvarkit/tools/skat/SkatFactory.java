@@ -53,7 +53,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 
 @XmlRootElement(name="skat")
 public class SkatFactory {
-	private static final Logger LOG = Logger.build(SkatFactory.class).make();
+	private static final Logger LOG = Logger.of(SkatFactory.class);
 
 	@Parameter(names={"--skat-adjusted"},description="SKAT adjusted")
 	private boolean adjusted = false;

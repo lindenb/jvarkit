@@ -116,7 +116,7 @@ END_DOC
 	modificationDate="20190329"
 	)
 public class SamTranslocations extends Launcher {
-	private static final Logger LOG = Logger.build(SamTranslocations.class).make();
+	private static final Logger LOG = Logger.of(SamTranslocations.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-d","--distance"},

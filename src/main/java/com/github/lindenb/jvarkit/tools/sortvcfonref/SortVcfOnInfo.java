@@ -81,7 +81,7 @@ biostars = 9536939,
 jvarkit_amalgamion = true
 )
 public class SortVcfOnInfo extends OnePassVcfLauncher {
-	private static final Logger LOG = Logger.build(SortVcfOnInfo.class).make();
+	private static final Logger LOG = Logger.of(SortVcfOnInfo.class);
 
 
 	@Parameter(names={"-T","--tag","-t"},description="INFO tag. Special words are '<ID>' to sort on ID, and <QUAL> to sort on QUAL ",required=true)

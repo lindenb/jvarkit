@@ -91,7 +91,7 @@ END_DOC
 	keywords={"gexf","graph","network"}
 	)
 public class GexfTransformer extends Launcher {
-	private static final Logger LOG = Logger.build(GexfTransformer.class).make();
+	private static final Logger LOG = Logger.of(GexfTransformer.class);
 	private static int ID_GENERATOR=0;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;

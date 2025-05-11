@@ -111,7 +111,7 @@ import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 public class IlluminaStatsFastq
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(IlluminaStatsFastq.class).make();
+	private static final Logger LOG = Logger.of(IlluminaStatsFastq.class);
 	@Parameter(names={"-o","--output"},description="Output zip file.")
 	private File outputFile = null;
 	@Parameter(names={"-X"},description="maximum number of DNA indexes to print. memory consuming if not 0. ")

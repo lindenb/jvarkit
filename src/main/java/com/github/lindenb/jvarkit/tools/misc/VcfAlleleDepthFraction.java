@@ -105,7 +105,7 @@ END_DOC
 	modificationDate="20190726"
 	)
 public class VcfAlleleDepthFraction extends Launcher {
-	private static final Logger LOG = Logger.build(VcfAlleleDepthFraction.class).make();
+	private static final Logger LOG = Logger.of(VcfAlleleDepthFraction.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null; 

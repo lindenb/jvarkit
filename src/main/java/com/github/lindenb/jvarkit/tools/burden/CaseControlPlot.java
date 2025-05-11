@@ -101,7 +101,7 @@ END_DOC
 	)
 public class CaseControlPlot extends Launcher
 	{
-	private static final Logger LOG=Logger.build(CaseControlPlot.class).make();
+	private static final Logger LOG=Logger.of(CaseControlPlot.class);
 	@Parameter(names={"-o","--out"},description="Output Directory, or a filename ending with '.zip'",required=true)
 	private File outputDirOrZip=null;
 	@Parameter(names={"-tee","--tee"},description="Output the incoming VCF to stdout. Useful to capture intermediate results in pipelines.")

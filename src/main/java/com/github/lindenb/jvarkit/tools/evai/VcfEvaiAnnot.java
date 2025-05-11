@@ -80,7 +80,7 @@ END_DOC
 	)
 public class VcfEvaiAnnot extends Launcher {
 
-	private static final Logger LOG = Logger.build(VcfEvaiAnnot.class).make();
+	private static final Logger LOG = Logger.of(VcfEvaiAnnot.class);
 	private static final String INTERVAR_COLUMN ="InterVar: InterVar and Evidence";
 	private static final String EVAI_PFX ="EVAI_";
 	private static final String INTERVAR_PFX ="INTERVAR_";

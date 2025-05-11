@@ -158,7 +158,7 @@ END_DOC
 	)
 public class FastqEntropy extends FastqLauncher
 	{
-	private static final Logger LOG = Logger.build(FastqEntropy.class).make();
+	private static final Logger LOG = Logger.of(FastqEntropy.class);
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path fileout = null;

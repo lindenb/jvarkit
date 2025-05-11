@@ -147,7 +147,7 @@ END_DOC
 	)
 public class Biostar78285 extends Launcher
 	{
-	private static final Logger LOG = Logger.build(Biostar78285.class).make();
+	private static final Logger LOG = Logger.of(Biostar78285.class);
 
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;

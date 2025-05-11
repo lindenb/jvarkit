@@ -75,7 +75,7 @@ END_DOC
 	menu="Biostars"
 	)
 public class Biostar398854 extends Launcher {
-	private static final Logger LOG = Logger.build(Biostar398854.class).make();
+	private static final Logger LOG = Logger.of(Biostar398854.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@Parameter(names={"-gtf","--gtf"},description=GtfReader.OPT_DESC,required=true)

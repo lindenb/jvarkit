@@ -27,7 +27,7 @@ jvarkit_amalgamion = true,
 generate_doc = true
 )
 public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
-	private static final Logger LOG = Logger.build(RegenieSlidingAnnot.class).make();
+	private static final Logger LOG = Logger.of(RegenieSlidingAnnot.class);
 	@Parameter(names = {"--window-size"}, description = "window size. "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class,converter=DistanceParser.StringConverter.class,required =true)
 	private int window_size=-1;
 	@Parameter(names = {"--window-shift"}, description = "window shift. "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class,converter=DistanceParser.StringConverter.class,required = true)

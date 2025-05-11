@@ -271,7 +271,7 @@ END_DOC
 	)
 public class VcfMultiToOne extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfMultiToOne.class).make();
+	private static final Logger LOG = Logger.of(VcfMultiToOne.class);
 
 	
 	@Parameter(names={"--no-origin"},description="do not include origin of variant")

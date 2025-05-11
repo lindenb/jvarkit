@@ -173,7 +173,7 @@ description="show blast alignment with annotations",
 	)
 public class Biostar3654 extends Launcher
 	{
-	private static final Logger LOG=Logger.build(Biostar3654.class).make();
+	private static final Logger LOG=Logger.of(Biostar3654.class);
 	
 	@SuppressWarnings("unused")
 	private static final gov.nih.nlm.ncbi.blast.ObjectFactory _fool_javac1=null;

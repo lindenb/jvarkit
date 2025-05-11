@@ -217,7 +217,7 @@ END_DOC
 public class GtfFileSplitter
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(GtfFileSplitter.class).make();
+	private static final Logger LOG = Logger.of(GtfFileSplitter.class);
 	
 	private enum Method {gene,transcript,contig,group /* N-files */,stack /* files contains N genes */};
 	

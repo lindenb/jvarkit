@@ -133,7 +133,7 @@ public  class HtsFileServer extends Launcher {
 	private static final String KEY_FILEID="fid";
 	private static final String VALUE_DUMP="dump";
 	
-	private static final Logger LOG = Logger.build(HtsFileServer.class).make();
+	private static final Logger LOG = Logger.of(HtsFileServer.class);
 	
 	@Parameter(names="--port",description="server port.")
 	private int serverPort = 8080;

@@ -144,7 +144,7 @@ menu="VCF Manipulation"
 public class VcfAncestralAllele
 extends OnePassVcfLauncher
 	{
-	private static final  Logger LOG = Logger.build(VcfAncestralAllele.class).make();
+	private static final  Logger LOG = Logger.of(VcfAncestralAllele.class);
 	@Parameter(names={"-m","--manifest"},description="Manifest file containing the path to the fasta files. See doc. ALL fasta files must be indexed with `samtools faidx`", required=true)
 	private Path manifestFile = null;
 	@Parameter(names={"-t","--tag"},description="Ancestral allele INFO attribute")

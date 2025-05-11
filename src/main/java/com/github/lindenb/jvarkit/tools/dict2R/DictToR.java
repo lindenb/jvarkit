@@ -89,7 +89,7 @@ END_DOC
 	generate_doc = false
 	)
 public class DictToR extends Launcher {
-	private static Logger LOG=Logger.build(DictToR.class).make();
+	private static Logger LOG=Logger.of(DictToR.class);
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

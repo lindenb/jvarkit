@@ -81,7 +81,7 @@ END_DOC
 	keywords={"vcf","genotype"}
 )
 public class VcfRemoveUnusedAlt extends Launcher {
-	private static final Logger LOG=Logger.build(VcfRemoveUnusedAlt.class).make();
+	private static final Logger LOG=Logger.of(VcfRemoveUnusedAlt.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT,required=false)
 	private Path output=null;
 	@Parameter(names={"-onespan","--onespan"},description="Don't print the variant if the only remaining allele is  '"+Allele.SPAN_DEL_STRING+"'")

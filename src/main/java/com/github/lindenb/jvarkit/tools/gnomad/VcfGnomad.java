@@ -91,7 +91,7 @@ END_DOC
 )
 public class VcfGnomad extends OnePassVcfLauncher {
 	
-	private static final Logger LOG = Logger.build(VcfGnomad.class).make();
+	private static final Logger LOG = Logger.of(VcfGnomad.class);
 	
 	
 	@Parameter(names={"-g","--gnomad"},description="Path to Indexed Gnomad VCF file. Or a file with the '.list' suffix containing the path to the indexed VCFs (one per contig).",required=true)

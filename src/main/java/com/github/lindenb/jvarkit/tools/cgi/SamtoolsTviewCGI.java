@@ -74,7 +74,7 @@ java (...) -Dprefs.file.xml=/var/www/cgi-bin/prefs.xml (...)
 @Program(name="",description="CGI/Web based version of samtools tview")
 public class SamtoolsTviewCGI extends AbstractCGICallApp
 	{
-	private static final Logger LOG=Logger.build(SamtoolsTviewCGI.class).make();
+	private static final Logger LOG=Logger.of(SamtoolsTviewCGI.class);
 
 	private SamtoolsTviewCGI()
 		{

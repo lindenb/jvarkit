@@ -72,7 +72,7 @@ END_DOC
 public class VcfMultiToOneInfo
 	extends AbstractOnePassVcfAnnotator
 	{
-	private static final Logger LOG = Logger.build(VcfMultiToOneInfo.class).make();
+	private static final Logger LOG = Logger.of(VcfMultiToOneInfo.class);
 
 	@Parameter(names={"-i","--info"},description="The INFO tag",required=true)
 	private String infoTag = null;

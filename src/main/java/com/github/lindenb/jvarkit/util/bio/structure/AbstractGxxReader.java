@@ -41,7 +41,7 @@ import htsjdk.samtools.util.Locatable;
 
 /** abstract GTF or GFF3 reader */
 public abstract class AbstractGxxReader  implements Closeable {
-	private static final Logger LOG = Logger.build(AbstractGxxReader.class).make();
+	private static final Logger LOG = Logger.of(AbstractGxxReader.class);
 
 	
 	

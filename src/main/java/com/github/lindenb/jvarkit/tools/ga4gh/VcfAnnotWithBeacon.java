@@ -92,7 +92,7 @@ END_DOC
 		keywords={"ga4gh","beacon","vcf","annotation"}
 		)
 public class VcfAnnotWithBeacon extends Launcher {
-	private static final Logger LOG=Logger.build(VcfAnnotWithBeacon.class).make();
+	private static final Logger LOG=Logger.of(VcfAnnotWithBeacon.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	@Parameter(names={"-B","--bdb"},description="Optional BerkeleyDB directory to store result. Avoid to make the same calls to beacon")

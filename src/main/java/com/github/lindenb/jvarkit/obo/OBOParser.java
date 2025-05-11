@@ -57,7 +57,7 @@ import htsjdk.samtools.util.CloserUtil;
 
 /** direct graph for Open Biological and Biomedical Ontology  (OBO) */
 public class OBOParser {
-	private static final Logger LOG = Logger.build(OBOParser.class).make();
+	private static final Logger LOG = Logger.of(OBOParser.class);
 
 		private static class OBOntologyImpl implements OBOntology {
 			private final Map<String,OBOntologyImpl.TermImpl> acn2term = new HashMap<>();

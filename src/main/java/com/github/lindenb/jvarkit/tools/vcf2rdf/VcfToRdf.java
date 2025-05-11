@@ -308,7 +308,7 @@ END_DOC
 keywords={"vcf","rdf"})
 public class VcfToRdf extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfToRdf.class).make();
+	private static final Logger LOG = Logger.of(VcfToRdf.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

@@ -430,7 +430,7 @@ END_DOC
 public class VcfFilterJdk
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(VcfFilterJdk.class).make();
+	private static final Logger LOG = Logger.of(VcfFilterJdk.class);
 	@SuppressWarnings("unused")
 	private static final Counter<?> _fool_javac=null;
 	

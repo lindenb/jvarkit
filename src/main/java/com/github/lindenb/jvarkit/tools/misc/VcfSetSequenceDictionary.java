@@ -70,7 +70,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
-	private static final Logger LOG=Logger.build(VcfSetSequenceDictionary.class).make();
+	private static final Logger LOG=Logger.of(VcfSetSequenceDictionary.class);
 	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 
 	@Parameter(names={"-r","-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

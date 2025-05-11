@@ -42,7 +42,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 public class BedLineCodec
 	extends AsciiFeatureCodec<BedLine>
 	{
-	private static final Logger LOG = Logger.build(BedLineCodec.class).make();
+	private static final Logger LOG = Logger.of(BedLineCodec.class);
 	private ValidationStringency stringency = ValidationStringency.LENIENT;
 	private UnaryOperator<String> chromosomeConverter = S->S;
 	public BedLineCodec() {

@@ -114,7 +114,7 @@ modificationDate="20240206",
 creationDate="20240130"
 )
 public class TSSEnrichment extends Launcher {
-	private static final Logger LOG = Logger.build(TSSEnrichment.class).make();
+	private static final Logger LOG = Logger.of(TSSEnrichment.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output;

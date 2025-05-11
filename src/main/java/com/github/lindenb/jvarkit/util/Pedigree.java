@@ -52,7 +52,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 
 public class Pedigree
 	{
-	private static final Logger LOG = Logger.build(Pedigree.class).make();
+	private static final Logger LOG = Logger.of(Pedigree.class);
 	public static final String OPT_DESCRIPTION="A pedigree is a text file delimited with tabs. No header. Columns are (1) Family (2) Individual-ID (3) Father Id or '0' (4) Mother Id or '0' (5) Sex : 1 male/2 female / 0 unknown (6) Status : 0 unaffected, 1 affected,-9 unknown ";
 	private final Map<String,FamilyImpl > families=new TreeMap<String, Pedigree.FamilyImpl>();
 	

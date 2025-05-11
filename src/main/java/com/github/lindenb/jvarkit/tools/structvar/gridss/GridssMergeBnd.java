@@ -85,7 +85,7 @@ END_DOC
 	modificationDate="20200518"
 	)
 public class GridssMergeBnd extends Launcher{
-	private static final Logger LOG = Logger.build(GridssMergeBnd.class).make();
+	private static final Logger LOG = Logger.of(GridssMergeBnd.class);
 	private static long ID_GENERATOR = 0L;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;

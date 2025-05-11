@@ -132,7 +132,7 @@ END_DOC
 	menu="VCF Manipulation"
 	)
 public class MiniCaller extends Launcher   {
-	private static final Logger LOG = Logger.build(MiniCaller.class).make();
+	private static final Logger LOG = Logger.of(MiniCaller.class);
 	private static final String CLIP_FLAG = "!";
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

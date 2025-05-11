@@ -146,7 +146,7 @@ END_DOC
 public class VCFBed extends OnePassVcfLauncher
 	{
 
-	private static final Logger LOG = Logger.build(VCFBed.class).make();
+	private static final Logger LOG = Logger.of(VCFBed.class);
 
 	@Parameter(names={"-e","--expr","--jexl","--format"},description="[20180124]A JEXL Expression returning a string " + JexlToString.OPT_WHAT_IS_JEXL +". "
 			+ "The variable 'bed' is the current observed BedLine (see  https://github.com/lindenb/jvarkit/blob/7bddffca3899196e568fb5e1a479300c0038f74f/src/main/java/com/github/lindenb/jvarkit/util/bio/bed/BedLine.java ). "

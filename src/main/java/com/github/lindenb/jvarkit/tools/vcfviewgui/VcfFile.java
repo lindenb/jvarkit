@@ -48,7 +48,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
 public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
-    private static final Logger LOG= Logger.build(VcfFile.class).make();
+    private static final Logger LOG= Logger.of(VcfFile.class);
     private PedFile pedigree;
     
 	protected VcfFile(final PedFile pedigree)  throws IOException

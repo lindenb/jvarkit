@@ -43,7 +43,7 @@ import htsjdk.variant.variantcontext.VariantContextUtils.JexlVCMatchExp;
  * JEXL expression factory
  */
 public class JexlVariantPredicate extends PredicateVariantAnnotator {
-	private static final Logger LOG=Logger.build(JexlVariantPredicate.class).make();
+	private static final Logger LOG=Logger.of(JexlVariantPredicate.class);
 	private static long ID_GENERATOR=System.currentTimeMillis();
 	public static final String PARAMETER_DESCRIPTION = 
 			"A Java EXpression Language (JEXL) expressions to filter the variants from a VCF. " +

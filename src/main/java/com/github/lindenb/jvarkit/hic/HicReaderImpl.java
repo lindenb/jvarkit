@@ -92,7 +92,7 @@ HIC format:
 */
 public class HicReaderImpl implements HicReader {
 	private final Paranoid paranoid = Paranoid.createThrowingInstance();
-	private static final Logger LOG = Logger.build(HicReaderImpl.class).make();
+	private static final Logger LOG = Logger.of(HicReaderImpl.class);
 	private static final String MAGIC="HIC";
 	private static final int DEFAULT_VERSION = 8;
 	

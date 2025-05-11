@@ -220,7 +220,7 @@ END_DOC
 public class SAM4WebLogo extends Launcher
 	{
 	private static final int NO_POS= -99999999; 
-	private static final Logger LOG = Logger.build(SAM4WebLogo.class).make();
+	private static final Logger LOG = Logger.of(SAM4WebLogo.class);
 	
 	private enum Format{fasta,fastq,tabular};
 	

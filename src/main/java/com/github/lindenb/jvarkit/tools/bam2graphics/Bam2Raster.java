@@ -185,7 +185,7 @@ END_DOC
 	)
 public class Bam2Raster extends AbstractBam2Raster
 	{
-	private static final Logger LOG = Logger.build(Bam2Raster.class).make();
+	private static final Logger LOG = Logger.of(Bam2Raster.class);
 
 	@Parameter(names={"-nobase","--nobase"},description="hide bases")
 	private boolean hideBases = false;

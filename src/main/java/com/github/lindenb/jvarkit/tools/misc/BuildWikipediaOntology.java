@@ -71,7 +71,7 @@ $  java -jar dist/buildwpontology.jar
 	)
 public class BuildWikipediaOntology extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BuildWikipediaOntology.class).make();
+	private static final Logger LOG = Logger.of(BuildWikipediaOntology.class);
 
 	private static long ID_GENERATOR=0L;
 	private class Frame extends JFrame

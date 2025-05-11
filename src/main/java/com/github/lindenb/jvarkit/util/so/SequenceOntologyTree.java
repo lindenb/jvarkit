@@ -64,7 +64,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 public class SequenceOntologyTree
 	implements Iterable<SequenceOntologyTree.Term>
 	{
-	private static final Logger LOG = Logger.build(SequenceOntologyTree.class).make();
+	private static final Logger LOG = Logger.of(SequenceOntologyTree.class);
 	private static SequenceOntologyTree INSTANCE=null;
 	private final Map<String,TermImpl> acn2term=new HashMap<>(3000);
 	private final Map<String,TermImpl> label2term=new HashMap<>(3000);

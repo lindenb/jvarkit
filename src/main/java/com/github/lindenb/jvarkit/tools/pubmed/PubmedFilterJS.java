@@ -144,7 +144,7 @@ keywords={"pubmed","javascript","xml","ncbi"})
 public class PubmedFilterJS
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(PubmedFilterJS.class).make();
+	private static final Logger LOG = Logger.of(PubmedFilterJS.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;
 

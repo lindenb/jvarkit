@@ -93,7 +93,7 @@ END_DOC
 public class BedRenameChromosomes
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(BedRenameChromosomes.class).make();
+	private static final Logger LOG = Logger.of(BedRenameChromosomes.class);
 	
 	private  enum OnNotFound{RAISE_EXCEPTION,SKIP,RETURN_ORIGINAL};
 

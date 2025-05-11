@@ -151,7 +151,7 @@ END_DOC
 		menu="BAM Manipulation"
 		)
 public class SamGrep extends OnePassBamLauncher {
-	private static final Logger LOG = Logger.build(SamGrep.class).make();
+	private static final Logger LOG = Logger.of(SamGrep.class);
 	
 	@Parameter(names={"-name","--readname"},description="add the read name")
 	private Set<String> nameStrings = new HashSet<>();

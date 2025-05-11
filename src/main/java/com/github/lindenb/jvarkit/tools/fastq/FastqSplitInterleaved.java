@@ -61,7 +61,7 @@ END_DOC
 	)
 public class FastqSplitInterleaved extends Launcher
 	{
-	private static final Logger LOG = Logger.build(FastqSplitInterleaved.class).make();
+	private static final Logger LOG = Logger.of(FastqSplitInterleaved.class);
 	@Parameter(names={"-a","-R1","-F"},description="R1 file",required=true)
 	private Path fileA=null;
 	@Parameter(names={"-b","-R2","-R"},description="R2 file",required=true)

@@ -96,7 +96,7 @@ END_DOC
 	jvarkit_amalgamion = true
 	)
 public class StructuralVariantToFasta extends Launcher {
-	private static final Logger LOG=Logger.build(StructuralVariantToFasta.class).make();
+	private static final Logger LOG=Logger.of(StructuralVariantToFasta.class);
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;

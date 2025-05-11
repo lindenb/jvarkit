@@ -80,7 +80,7 @@ END_DOC
 		)
 public class VcfMultiToOneAllele extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.build(VcfMultiToOneAllele.class).make();
+	private static final Logger LOG = Logger.of(VcfMultiToOneAllele.class);
 	@Parameter(names={"--keepSpanningDeletions"},description="Keep Alt Spanning deletion alleles "+Allele.SPAN_DEL_STRING)
 	private boolean keepSpanningDeletions=false;
 	@Parameter(names={"--most-frequent"},description="Keep only most frequent allele.")

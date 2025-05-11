@@ -87,7 +87,7 @@ END_DOC
 	keywords={"sam","bam"})
 public class ConcatSam extends Launcher
 	{
-	private static final Logger LOG = Logger.build(ConcatSam.class).make();
+	private static final Logger LOG = Logger.of(ConcatSam.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

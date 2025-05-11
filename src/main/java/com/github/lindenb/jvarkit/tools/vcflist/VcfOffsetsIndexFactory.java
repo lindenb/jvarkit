@@ -55,7 +55,7 @@ import htsjdk.variant.vcf.VCFHeader;
  *
  */
 public class VcfOffsetsIndexFactory {
-	private static final Logger LOG=Logger.build(VcfOffsetsIndexFactory.class).make();
+	private static final Logger LOG=Logger.of(VcfOffsetsIndexFactory.class);
 	
 	public static final String INDEX_EXTENSION =".offsets";
 	static final byte MAGIC[]="vcfindex.0.1".getBytes();

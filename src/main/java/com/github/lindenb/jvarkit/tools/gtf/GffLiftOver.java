@@ -84,7 +84,7 @@ END_DOC
 public class GffLiftOver
 	extends Launcher
 	{
-	private static final Logger LOG = Logger.build(GffLiftOver.class).make();
+	private static final Logger LOG = Logger.of(GffLiftOver.class);
 	private LiftOver liftOver = null;
 	
 	@Parameter(names={"-o","--output"},description= OPT_OUPUT_FILE_OR_STDOUT)

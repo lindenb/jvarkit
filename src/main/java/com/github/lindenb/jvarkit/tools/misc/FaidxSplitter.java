@@ -98,7 +98,7 @@ END_DOC
 	)
 public class FaidxSplitter  extends Launcher
 	{
-	private final Logger LOG=Logger.build(FaidxSplitter.class).make();
+	private final Logger LOG=Logger.of(FaidxSplitter.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

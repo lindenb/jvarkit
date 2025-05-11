@@ -58,7 +58,7 @@ creationDate="20240120",
 generate_doc = false
 )
 public class GenomeToSvg extends Launcher {
-	private static final Logger LOG=Logger.build(GenomeToSvg.class).make();
+	private static final Logger LOG=Logger.of(GenomeToSvg.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputPath=null;
 	@Parameter(names={"-r","--interval","--region"},description=IntervalParser.OPT_DESC,required = true)

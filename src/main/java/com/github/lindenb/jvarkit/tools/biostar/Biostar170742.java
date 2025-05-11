@@ -84,7 +84,7 @@ menu="Biostars"
 )
 public class Biostar170742 extends MultiBamLauncher {
 
-	private static final Logger LOG = Logger.build(Biostar170742.class).make();
+	private static final Logger LOG = Logger.of(Biostar170742.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

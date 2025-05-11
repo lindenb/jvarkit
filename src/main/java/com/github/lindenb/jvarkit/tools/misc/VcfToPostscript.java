@@ -44,7 +44,7 @@ END_DOC
 		)
 public class VcfToPostscript extends Launcher
 	{
-	private final static Logger LOG=Logger.build(VcfToPostscript.class).make();
+	private final static Logger LOG=Logger.of(VcfToPostscript.class);
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 

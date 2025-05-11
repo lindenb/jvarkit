@@ -33,7 +33,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.RuntimeIOException;
 
 public class CytobandTrack {
-	private static final Logger LOG = Logger.build(CytobandTrack.class).make();
+	private static final Logger LOG = Logger.of(CytobandTrack.class);
 	private Path cytobandPath = null;
 	private GenomeSVGDocument svgDoc = null;
 	final double featureHeight=20;

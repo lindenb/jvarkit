@@ -98,7 +98,7 @@ END_DOC
 		deprecatedMsg="can be replace with samtools view. See doc"
 		)
 public class BamForIndexCov extends Launcher {
-	private static final Logger LOG = Logger.build(BamForIndexCov.class).make();
+	private static final Logger LOG = Logger.of(BamForIndexCov.class);
 	@Parameter(names={"-o","--output"},description="Output directory",required=true)
 	private Path outputDir = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)

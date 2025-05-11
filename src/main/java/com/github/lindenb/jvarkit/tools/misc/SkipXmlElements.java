@@ -127,7 +127,7 @@ END_DOC
 public class SkipXmlElements
 	extends Launcher
 	{
-	private static Logger LOG=Logger.build(SkipXmlElements.class).make();
+	private static Logger LOG=Logger.of(SkipXmlElements.class);
 	@Parameter(names={"-o","--output"},description="Output file. Optional . Default: stdout")
 	private File outputFile = null;
 
