@@ -30,10 +30,17 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 
+import com.beust.ah.A;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.MathUtils;
+import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.FileExtensions;
@@ -44,6 +51,8 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 public class BGenUtils {
+	private static final Logger LOG = Logger.of(BGenUtils.class).setDebug();
+
 	public static final VCFFormatHeaderLine GP_format_header_line = new VCFFormatHeaderLine(
 			"GP",VCFHeaderLineCount.G,VCFHeaderLineType.Float,"Genotype call probabilities");
 	public static final VCFFormatHeaderLine HP_format_header_line = new VCFFormatHeaderLine(
@@ -305,7 +314,180 @@ public class BGenUtils {
 	            delegate.write(bit);
 	        }
 	    }
-
-
 	}
+	
+	
+	public static class AlleleCombinations {
+		private final Layout layout;
+		private final List<String> alleles;
+		private final int n_alleles;
+		private final int m_ploidy;
+		private final boolean phased;
+		
+		private static class FindByIndex implements Consumer<int[]> {
+			final int wanted_index;
+			int curr=0;
+			int[] indexes = null;
+			FindByIndex(final int wanted_index) {
+				this.wanted_index = wanted_index;
+				}
+			@Override
+			public void accept(int[] t) {
+				if(curr==this.wanted_index) {
+					this.indexes=Arrays.copyOf(t, t.length);
+					}
+				curr++;
+				}
+			}
+		
+		AlleleCombinations(Layout layout,int n_alleles,int m_ploidy,boolean phased) {
+			this.layout=layout;
+			this.alleles=null;
+			this.n_alleles=  n_alleles;
+			this.m_ploidy=m_ploidy;
+			this.phased = phased;
+			}
+		public AlleleCombinations(Layout layout,final List<String> alleles,int m_ploidy,boolean phased) {
+			this.layout=layout;
+			this.alleles=new ArrayList<>(alleles);
+			this.n_alleles = alleles.size();
+			this.m_ploidy=m_ploidy;
+			this.phased = phased;
+			}
+		 String getAllele(int idx) {
+			 return this.alleles==null?
+				 String.valueOf((char)('A'+idx)):
+				 this.alleles.get(idx)
+				 ;
+		 	}
+		
+		 int calculateTotalCombinations() {
+			 switch(layout) {
+				 case e_Layout1: return 3;
+				 case e_Layout2: return calculateTotalCombinationsForLayout2(phased,n_alleles,m_ploidy);
+				 default: throw new IllegalArgumentException(); 
+			 	}
+			}
+		
+		 public int[] getAlleleIndexesByIndex(int i) {
+			  if(layout.equals(Layout.e_Layout1)  || (layout.equals(Layout.e_Layout2) && !phased && n_alleles==2 && m_ploidy==2 )) {
+				switch(i) {
+					case 0: return new int[] {0,0};
+					case 1: return new int[] {0,1};
+					case 2: return new int[] {1,1};
+					 default: throw new IllegalArgumentException(); 
+					}
+			  	}
+
+			  
+			  final int[] buffer=new int[this.m_ploidy];
+			  FindByIndex andThen = new FindByIndex(i);
+			  if(phased) {
+		        	visitPhased(andThen, buffer, 0);
+		        	}
+		        else
+		        	{
+		        	visitUnphased(andThen, buffer, 0, 0);
+		        	}
+			  return andThen.indexes;
+		  	}
+		
+		 
+		  public List<int[]> getAllGenotypesIndexes() {
+			  final List<int[]> container;
+			if(layout.equals(Layout.e_Layout1)) {
+				container = new ArrayList<>(3);
+				container.add(new int[] {0,0});
+				container.add(new int[] {0,1});
+				container.add(new int[] {1,1});
+			  } else {
+			container = new ArrayList<>(calculateTotalCombinations());
+        	final Consumer<int[]> anThen =A->container.add(Arrays.copyOf(A, A.length));
+        	visit(anThen);
+			  }
+	        return container;
+		  	}
+		  
+		public void debug() {
+			final int[] tmp_idx=new int[]{0};
+			final StringBuilder sb=new StringBuilder("Layout: "+layout+" Phased: "+phased+" ploidy: "+this.m_ploidy+" n-alleles:"+this.n_alleles+" {");
+			if(layout.equals(Layout.e_Layout1)) {
+				sb.append( " [0] : ").append(getAllele(0)).append(getAllele(0)).append(" | ");
+				sb.append( " [1] : ").append(getAllele(0)).append(getAllele(1)).append(" | ");
+				sb.append( " [1] : ").append(getAllele(1)).append(getAllele(1));
+				}
+			else
+				{
+				final Consumer<int[]> anThen =A->{
+					sb.append( " ["+tmp_idx[0]+"] : ");
+					for(int i=0;i< A.length;++i) {
+						sb.append(getAllele(A[i]));
+						}
+					sb.append(" | ");
+					tmp_idx[0]++;
+					};
+				visit(anThen);
+				sb.append("}");
+				}
+	        LOG.debug(sb.toString());
+			}
+		
+		private void visit(Consumer<int[]> consummer) {
+			final int[] buffer=new int[this.m_ploidy];
+	        if(phased) {
+	        	visitPhased(consummer, buffer, 0);
+	        	}
+	        else
+	        	{
+	        	visitUnphased(consummer, buffer, 0, 0);
+	        	}
+			}
+		  /*
+		     alleles: 0,1,2
+		     list:
+		             0/0
+		             0/1
+		             0/2
+		             1/1
+		             1/2
+		             2/2
+		     */
+	    private void visitUnphased(Consumer<int[]> anThen, int[] current, int start,int array_index) {	    	
+	        if (array_index == m_ploidy) {
+	        	anThen.accept(current);
+	        	}
+	        else
+		        {
+		        for (int i = start; i < n_alleles; i++) {
+		            current[array_index]=i;
+		            visitUnphased(anThen, current, i,array_index+1); // Allow repetition by not incrementing 'i'
+		        	}
+		        }
+		    }
+		  /*
+	     alleles: 0,1,2
+	     list:
+	             0|0
+	             0|1
+	             0|2
+	             1|0
+	             1|1
+	             1|2
+	             2|0
+	             2|1
+	             2|2
+	     */
+	    private void visitPhased(Consumer<int[]> anThen, int[] current, int array_index) {
+	        if (array_index == m_ploidy) {
+	        	anThen.accept(current);
+	        }
+	        else {
+	        for (int i = 0; i < n_alleles; i++) {
+		            current[array_index] = i;
+		            visitPhased(anThen, current, array_index + 1); // Move to the next depth
+		        	}
+		        }
+	    	}
+		}
+	
 }

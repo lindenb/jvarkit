@@ -194,25 +194,25 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			bc2.writeBytes(BGEN_MAGIC);
 		      
 		      
-		     final BitSet bitSet=new BitSet(Integer.BYTES*8 /* number of bits=32 */);
+		    int flagByte = 0;
 		     // bit 0 and 1 are compression flags
 		     switch(this.compression) {
 		     	case e_NoCompression:break;
-		     	case e_ZlibCompression: bitSet.set(0); break;
-		     	case e_ZstdCompression: bitSet.set(1); break;
+		     	case e_ZlibCompression: flagByte |= 1; break;
+		     	case e_ZstdCompression: flagByte |= 2; break;
 		     	default : throw new IllegalStateException();
 		     	}
 		     switch(this.layout) {
-		     	case e_Layout1: bitSet.set(2); break;
-		     	case e_Layout2: bitSet.set(3); break;
+		     	case e_Layout1:  flagByte |= (1 << 2); break;
+		     	case e_Layout2:  flagByte |= (2 << 2); break;
 		     	default : throw new IllegalStateException();
 		     	}
 		     if(!(samplesOrNull==null || this.set_anonymous_flag)) {
-		    	 bitSet.set(31);
+		    	 flagByte |= (1 << 31);
 		     	} 
-		     bc2.writeBytes(toByteArray(bitSet,Integer.BYTES));
+		     bc2.writeUInt(flagByte);
 		     if(LOG.isDebug()) {
-	      	    LOG.debug("bitSet :"+bitSet);
+	      	    LOG.debug("bitSet :"+flagByte);
 	            }
 		     
 		     /* samples */

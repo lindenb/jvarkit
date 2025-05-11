@@ -23,7 +23,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bgen;
 
-import java.util.function.ToIntFunction;
 
 public interface BGenGenotype {
 	public String getSample();
@@ -34,23 +33,17 @@ public interface BGenGenotype {
 	public default boolean isDiploid() {
 		return getPloidy()==2;
 	}
-	/** return the allele indexes for this genotype 
-	 * 
-	 * @param fun select the index of the best GT in all the probabilities (getProbs())
-	 * @return the alleles indexes, an array whith length==ploidy
-	 */
-	public int[] getAllelesIndexes(ToIntFunction<double[]> fun);
-	/** return the allele indexes for this genotype 
-	 * 
-	 * @param treshold return the GT for the first probability having a proba >= treshold
-	 */
-	public default int[] getAllelesIndexes(double treshold) {
-		return getAllelesIndexes(ARRAY->{
-			final double[] p_array = getProbs();
-			for(int i=0;i< p_array.length;i++) {
-				if(p_array[i]>=treshold) return i;
+	
+	/** find index in getProbs of the highest prob >= treshold, or -1 if no value is>=treshold*/
+	public default int findHighestProbIndex(final double treshold) {
+		int best_index=-1;
+		final double[] probas = getProbs();
+		for(int j=0;j< probas.length;++j) {
+			final double p = probas[j];
+			if(p >=treshold && (best_index<0 || p> probas[best_index])) {
+				best_index=j;
 				}
-			return -1;
-			});
-	}
+			}
+		return best_index;
+		}
 }

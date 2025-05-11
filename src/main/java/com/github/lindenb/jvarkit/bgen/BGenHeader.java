@@ -41,7 +41,7 @@ public class BGenHeader extends BGenUtils {
 	private static final Logger LOG = Logger.of(BGenHeader.class).setDebug();
     private List<String> samples;
     private Map<String,Integer> sample2idx;
-    private BitSet headerFlags;
+    private int headerFlags;
     private long num_variants_blocks;
     
     public Compression getCompression() {
@@ -55,8 +55,7 @@ public class BGenHeader extends BGenUtils {
     	}
     
     private int getCompressedSNPBlocks() {
-        return (this.headerFlags.get(1)?2:0)+
-               (this.headerFlags.get(0)?1:0);
+        return (this.headerFlags &  0b11);
         }
     
     public long getNVariants() {
@@ -64,7 +63,7 @@ public class BGenHeader extends BGenUtils {
     	}
     
     public boolean hasAnonymousSamples() {
-    	return  !this.headerFlags.get(31);
+    	return   ((this.headerFlags >> 31) & 1) == 0;
     	}
     
    public Layout getLayout() {
@@ -77,10 +76,7 @@ public class BGenHeader extends BGenUtils {
     	}
     
    private int getLayoutOpCode() {
-        return (this.headerFlags.get(5)?8:0)+
-                (this.headerFlags.get(4)?4:0)+
-                (this.headerFlags.get(3)?2:0)+
-                (this.headerFlags.get(2)?1:0);
+        return  (this.headerFlags >> 2) & 0b1111;
         }
     
     public int getSampleIndex(final String sn) {
@@ -156,9 +152,7 @@ public class BGenHeader extends BGenUtils {
        //free_area = null;
        
        // A set of flags, with bits numbered as for an unsigned integer. See below for flag definitions.
-       byte flags[]=new byte[4];
-       binaryCodec.readBytes(flags);
-       header.headerFlags = BitSet.valueOf(flags);
+       header.headerFlags = binaryCodec.readInt();
        if(LOG.isDebug()) {
     	   LOG.debug("flags "+ header.headerFlags);
        	    }

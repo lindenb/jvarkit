@@ -35,8 +35,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Consumer;
-import java.util.function.ToIntFunction;
 
 import htsjdk.io.HtsPath;
 import htsjdk.samtools.Defaults;
@@ -228,12 +226,6 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				return BGenReader.this.getHeader().getSamples().get(this.sample_index);
 				}
 			
-			protected int[] getAlleleIndexesForMissingGT() {
-				final int[] array = new int[getPloidy()];
-				Arrays.fill(array, -1);
-				return array;
-				}
-			
 			@Override
 			public String toString() {
 				final StringBuilder sb=new  StringBuilder("Genotype(");
@@ -322,18 +314,6 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				}
 			
 			
-			@Override
-			public int[] getAllelesIndexes(ToIntFunction<double[]> fun) {
-				if(isMissing()) return getAlleleIndexesForMissingGT();
-				final int i = fun.applyAsInt(getProbs());
-				if(i<0)  return getAlleleIndexesForMissingGT();
-				switch(i) {
-					case 0: return new int[] {0,0};
-					case 1: return new int[] {0,1};
-					case 2: return new int[] {1,1};
-					default: throw new IllegalArgumentException("invalid index "+i);
-					}
-				}
 			}
 		
 		VariantAndGenotypesLayout1(final VariantImpl delegate,final double[] probs) {
@@ -410,30 +390,6 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			@Override
 			public double[] getProbs() {
 				return this.probs;
-				}
-			
-			@Override
-			public int[] getAllelesIndexes(ToIntFunction<double[]> fun) {
-				if(isMissing()) return getAlleleIndexesForMissingGT();
-				final int i = fun.applyAsInt(getProbs());
-				if(i<0)  return getAlleleIndexesForMissingGT();
-				//simple case
-				if(!isPhased() && isDiploid() && VariantAndGenotypesLayout2.this.getNAlleles()==2) {
-					switch(i) {
-						case 0: return new int[] {0,0};
-						case 1: return new int[] {0,1};
-						case 2: return new int[] {1,1};
-						default: throw new IllegalArgumentException("invalid index "+i+"/"+getProbs());
-						}
-					}
-				if(isPhased()) {
-					
-					}
-				return null;
-				}
-			private int[] findAlleleIndexesPhased(int wanted_index) {
-				AlleleCombinations ac= new AlleleCombinations(VariantAndGenotypesLayout2.this.getNAlleles(), getPloidy(), isPhased());
-				return ac.findAlleleIndexesByIndex(wanted_index);
 				}
 			
 			}
@@ -516,6 +472,10 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 	public BGenHeader getHeader() {
 		return header;
+		}
+	
+	public Layout getLayout() {
+		return getHeader().getLayout();
 		}
 	
 	public long getSnpsOffset() {
@@ -878,7 +838,13 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
        			VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
        			if(LOG.isDebug()) {
            			LOG.debug("read phased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
-           			}
+           			new AlleleCombinations(
+           					Layout.e_Layout2,
+           					this.lastVariant.getAlleles(), 
+           					gt.getPloidy(),
+           					true
+           					).debug();
+       				}
        			for(int py=0;py < gt.getPloidy();++py) {
        				double sum = 0;
 	       			for(int ax=0;ax < this.lastVariant.getNAlleles() -1 ;++ax) {
@@ -915,13 +881,21 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
        			final VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
        			if(LOG.isDebug()) {
            			LOG.debug("read unphased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
-           			}
+           			new AlleleCombinations(
+           					Layout.e_Layout2,
+           					this.lastVariant.getAlleles(), 
+           					gt.getPloidy(),
+           					false
+           					).debug();
+       				}
        			final BigInteger bi=MathUtils.combination( gt.getPloidy()+ this.lastVariant.getNAlleles()-1,this.lastVariant.getNAlleles()-1);// whyyyy ?
        			if(LOG.isDebug()) {
            			LOG.debug("combination="+bi);
            			}
        			final int n_combinaison_as_int= bi.intValueExact();
-       			if(n_combinaison_as_int!=new AlleleCombinations(this.lastVariant.getNAlleles(),gt.getPloidy(),false).calculateTotalCombinations()) {
+       			if(n_combinaison_as_int!= calculateTotalCombinationsForLayout2(
+       						false,this.lastVariant.getNAlleles(), gt.getPloidy()) 
+       					) {
        				throw new IllegalStateException();
        				}
        			double sum = 0;
@@ -953,122 +927,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         return vcg;
 		}
 	
-	private static class AlleleCombinations {
-		private final int n_alleles;
-		private final int m_ploidy;
-		private final boolean phased;
-		
-		private static class FindByIndex implements Consumer<int[]> {
-			final int wanted_index;
-			int curr=0;
-			int[] indexes = null;
-			FindByIndex(final int wanted_index) {
-				this.wanted_index = wanted_index;
-				}
-			@Override
-			public void accept(int[] t) {
-				if(curr==this.wanted_index) {
-					this.indexes=Arrays.copyOf(t, t.length);
-					}
-				curr++;
-				}
-			}
-		
-		AlleleCombinations(int n_alleles,int m_ploidy,boolean phased) {
-			this.n_alleles=n_alleles;
-			this.m_ploidy=m_ploidy;
-			this.phased = phased;
-			}
-		
-		 private int calculateTotalCombinations() {
-			int n = n_alleles;
-		    int k = m_ploidy;
-			final BigInteger bi;
-			if(phased) {
-				bi = BigInteger.valueOf(n_alleles).pow(m_ploidy);
-				}
-			else
-				{
-				bi = MathUtils.factorial(n + k - 1).divide(MathUtils.factorial(k).multiply(MathUtils.factorial(n - 1)));
-				}
-			return bi.intValueExact();
-			}
-		
-		  int[] findAlleleIndexesByIndex(int i) {
-			  final int[] buffer=new int[this.m_ploidy];
-			  FindByIndex andThen = new FindByIndex(i);
-			  if(phased) {
-		        	visitPhased(andThen, buffer, 0);
-		        	}
-		        else
-		        	{
-		        	visitUnphased(andThen, buffer, 0, 0);
-		        	}
-			  return andThen.indexes;
-		  	}
-		
-		 
-		  public List<int[]> getAllGenotypesPhased() {
-	        final List<int[]> container = new ArrayList<>(calculateTotalCombinations());
-        	final int[] buffer=new int[this.m_ploidy];
-        	final Consumer<int[]> anThen =A->container.add(Arrays.copyOf(A, A.length));
-	        if(phased) {
-	        	visitPhased(anThen, buffer, 0);
-	        	}
-	        else
-	        	{
-	        	visitUnphased(anThen, buffer, 0, 0);
-	        	}
-	        return container;
-		  	}
-		  /*
-		     alleles: 0,1,2
-		     list:
-		             0/0
-		             0/1
-		             0/2
-		             1/1
-		             1/2
-		             2/2
-		     */
-	    private void visitUnphased(Consumer<int[]> anThen, int[] current, int start,int array_index) {	    	
-	        if (array_index == m_ploidy) {
-	        	anThen.accept(current);
-	        	}
-	        else
-		        {
-		        for (int i = start; i < n_alleles; i++) {
-		            current[array_index]=i;
-		            visitUnphased(anThen, current, i,array_index+1); // Allow repetition by not incrementing 'i'
-		        	}
-		        }
-		    }
-		  /*
-	     alleles: 0,1,2
-	     list:
-	             0|0
-	             0|1
-	             0|2
-	             1|0
-	             1|1
-	             1|2
-	             2|0
-	             2|1
-	             2|2
-	     */
-	    private void visitPhased(Consumer<int[]> anThen, int[] current, int array_index) {
-	        if (array_index == m_ploidy) {
-	        	anThen.accept(current);
-	        }
-	        else {
-	        for (int i = 0; i < n_alleles; i++) {
-		            current[array_index] = i;
-		            visitPhased(anThen, current, array_index + 1); // Move to the next depth
-		        	}
-		        }
-	    	}
-		}
-	
+
 	private static List<int[]> buildPhasedIndexes(int n_alleles,int n_ploidy) {
 		final List<int[]> container = new ArrayList<>(n_alleles*n_ploidy);
 		buildPhasedIndexes(n_alleles,container,new int[n_ploidy],0);

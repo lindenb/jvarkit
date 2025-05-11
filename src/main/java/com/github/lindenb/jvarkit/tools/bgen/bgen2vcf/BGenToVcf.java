@@ -2,6 +2,7 @@ package com.github.lindenb.jvarkit.tools.bgen.bgen2vcf;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +33,7 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -59,6 +61,7 @@ jvarkit_amalgamion =  true,
 generate_doc = false
 )
 public class BGenToVcf extends Launcher {
+	private static final Logger LOG = Logger.of(BGenView.class).setDebug();
 
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
@@ -70,12 +73,15 @@ public class BGenToVcf extends Launcher {
 	TargetsParameter regionFilesParameter = new TargetsParameter();
 	@Parameter(names={"-N","--head"},description="limit to 'N' variant; negative==show all ")
 	private long limit_n_variants=-1L;
+	@Parameter(names={"-t","--treshold"},description="Call genotype. Select the best genotype if a probablity is greater that this value. Do not call if the value is <= 0")
+	private double gt_treshold=-1.0;
+	@Parameter(names={"-q","--low-qual"},description="mark the genotypes for LOWQUAL if all probs are < 'x' and mark the variant if all genotypes are missing or LOW_QUAL. Ignore if <=0")
+	private double low_qual_treshold=-1.0;
 
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate=new WritingVariantsDelegate();
 
 	
-	private static final Logger LOG = Logger.of(BGenView.class);
 	
 	
 	@Override
@@ -96,7 +102,7 @@ public class BGenToVcf extends Launcher {
 					new BGenReader(input))) {
 
 				final Set<VCFHeaderLine> metaData = new HashSet<>();
-				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
+				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY,VCFConstants.GENOTYPE_FILTER_KEY);
 				VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY);
 
 				final VCFInfoHeaderLine BITS_info_header_line = new VCFInfoHeaderLine(
@@ -104,12 +110,17 @@ public class BGenToVcf extends Launcher {
 				
 				final VCFInfoHeaderLine ID_info_header_line = new VCFInfoHeaderLine(
 						"ID2",1,VCFHeaderLineType.String,"bgen variant id");
+				final VCFFilterHeaderLine LOWQUAL_filter_header_line = new VCFFilterHeaderLine(
+						"LowQual","All genotypes are missing or have all probs <" +this.low_qual_treshold);
 
 				
 				metaData.add(BGenUtils.GP_format_header_line);
 				metaData.add(BGenUtils.HP_format_header_line);
 				metaData.add(BITS_info_header_line);
 				metaData.add(BGenUtils.OFFSET_format_header_line);
+				if(this.low_qual_treshold>0) {
+					metaData.add(LOWQUAL_filter_header_line);
+					}
 				
 				metaData.add(new VCFHeaderLine("bgen.compression", r.getHeader().getCompression().name()));
 				metaData.add(new VCFHeaderLine("bgen.n-variants", String.valueOf( r.getHeader().getNVariants())));
@@ -117,7 +128,7 @@ public class BGenToVcf extends Launcher {
 				metaData.add(new VCFHeaderLine("bgen.layout", r.getHeader().getLayout().name()));
 				metaData.add(new VCFHeaderLine("bgen.snps-offset", String.valueOf( r.getSnpsOffset())));
 				metaData.add(new VCFHeaderLine("bgen.anonymous", String.valueOf( r.getHeader().hasAnonymousSamples())));
-
+				
 				
 				final VCFHeader header;
 				
@@ -177,6 +188,8 @@ public class BGenToVcf extends Launcher {
 						if(ctx.getStart() < endPos) {
 							vcb.attribute(VCFConstants.END_KEY, endPos);
 							}
+						
+						boolean found_good_qual = false;
 						if(this.skip_genotypes) {
 							r.skipGenotypes();
 							}
@@ -188,21 +201,63 @@ public class BGenToVcf extends Launcher {
 							final List<Genotype> genotypes = new ArrayList<>(ctx.getNGenotypes());
 							for(int i=0;i< ctx.getNGenotypes();i++) {
 								final BGenGenotype gt  =ctx.getGenotype(i);
-								if(gt.isMissing()) {
-									genotypes.add(GenotypeBuilder.createMissing(gt.getSample(), gt.getPloidy()));
+								if(LOG.isDebug()) {
+									LOG.debug("genotype["+i+"]:"+gt);
+									}
+								
+								final GenotypeBuilder gb;
+								final int best_index;
+								if(gt_treshold>0 && !gt.isMissing()) {
+									best_index = gt.findHighestProbIndex(this.gt_treshold);
+									if(LOG.isDebug()) {
+										LOG.debug("best_index:"+best_index);
+										}
+									}
+								else {
+									best_index = -1;
+									}
+								if(best_index>=0) {
+									final BGenUtils.AlleleCombinations comb = new  BGenUtils.AlleleCombinations(
+											r.getLayout(),
+											ctx.getAlleles(),
+											gt.getPloidy(),
+											ctx.isPhased()
+											);
+									final int[] allele_indexes = comb.getAlleleIndexesByIndex(best_index);
+									final List<Allele> out_alleles = new ArrayList<>(gt.getPloidy());
+									for(int j=0;j< allele_indexes.length;++j) {
+										out_alleles.add(Allele.create(
+												ctx.getAllele(allele_indexes[j]),
+												(allele_indexes[j]==0) /* 0 == REF */
+												));
+										}
+									gb=new GenotypeBuilder(gt.getSample(),out_alleles);
 									}
 								else
 									{
-									// build from missing otherwise "java.lang.IllegalStateException: GTs cannot be missing for some samples if they are available for others in the record"
-									final GenotypeBuilder gb=new GenotypeBuilder(GenotypeBuilder.createMissing(gt.getSample(), gt.getPloidy()));
-									gb.phased(gt.isPhased());
-									gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
-									genotypes.add(gb.make());
+									 gb=new GenotypeBuilder(GenotypeBuilder.createMissing(gt.getSample(), gt.getPloidy()));
 									}
+								
+								if(!gt.isMissing() && this.low_qual_treshold>0 ) {
+									if(Arrays.stream(gt.getProbs()).anyMatch(V->V>this.low_qual_treshold)) {
+										found_good_qual=true;
+										}
+									else
+										{
+										gb.attribute(VCFConstants.GENOTYPE_FILTER_KEY, LOWQUAL_filter_header_line.getID());
+										}
+									}
+								// build from missing otherwise "java.lang.IllegalStateException: GTs cannot be missing for some samples if they are available for others in the record"
+								gb.phased(gt.isPhased());
+								gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
+								genotypes.add(gb.make());
 								}
 							vcb.genotypes(genotypes);
 							}
 						
+						if(!found_good_qual && !this.skip_genotypes && this.low_qual_treshold>0) {
+							vcb.filter(VCFConstants.GENOTYPE_FILTER_KEY);
+							}
 						
 						w.add(vcb.make());
 						}

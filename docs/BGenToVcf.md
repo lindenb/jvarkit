@@ -32,6 +32,10 @@ Usage: bgen2vcf [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -q, --low-qual
+      mark the genotypes for LOWQUAL if all probs are < 'x' and mark the 
+      variant if all genotypes are missing or LOW_QUAL. Ignore if <=0
+      Default: -1.0
     -G, --no-genotype
       skip genotypes
       Default: false
@@ -47,6 +51,10 @@ Usage: bgen2vcf [options] Files
     --targets-file
       Restrict to regions listed in BED 'FILE'. Can be prefixed with "^" to 
       request logical complement.
+    -t, --treshold
+      Call genotype. Select the best genotype if a probablity is greater that 
+      this value. Do not call if the value is <= 0
+      Default: -1.0
     --version
       print version and exit
 
