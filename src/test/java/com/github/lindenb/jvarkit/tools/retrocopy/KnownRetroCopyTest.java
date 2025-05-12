@@ -1,7 +1,7 @@
 package com.github.lindenb.jvarkit.tools.retrocopy;
 
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReaderTest;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
@@ -12,7 +12,7 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@AlsoTest({LauncherTest.class,GtfReaderTest.class})
+
 public class KnownRetroCopyTest   {
 	private final TestSupport support = new TestSupport();
 	

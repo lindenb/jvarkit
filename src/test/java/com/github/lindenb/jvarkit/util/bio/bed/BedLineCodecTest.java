@@ -4,9 +4,9 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.lang.CharSplitterTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
 
-@AlsoTest({CharSplitterTest.class})
+
+
 public class BedLineCodecTest {
 	@Test
 	public void test() {

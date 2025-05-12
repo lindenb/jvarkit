@@ -282,6 +282,7 @@ import com.github.lindenb.jvarkit.tools.structvar.manta.MantaMerger;
 import com.github.lindenb.jvarkit.tools.sv2fasta.StructuralVariantToFasta;
 import com.github.lindenb.jvarkit.tools.taxonomy.NcbiTaxonomyToXml;
 import com.github.lindenb.jvarkit.tools.tbi2bed.VcfTbiToBed;
+import com.github.lindenb.jvarkit.tools.testng.RunTestNG;
 import com.github.lindenb.jvarkit.tools.textbam.TextBam;
 import com.github.lindenb.jvarkit.tools.translategff3.TranslateGff3;
 import com.github.lindenb.jvarkit.tools.tss.TSSEnrichment;
@@ -827,6 +828,7 @@ public class JvarkitCentral {
 		command(RepairFastq.class);
 		command(ReferenceToVCF.class);
 		command(RNASeqPolyA.class);
+		command(RunTestNG.class);
 		command(VCFBigWig.class);
 		command(VcfBigBed.class);
 		command(VcfFilterGtf.class);

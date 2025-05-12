@@ -3,9 +3,9 @@ package com.github.lindenb.jvarkit.lang;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
 
-@AlsoTest(AbstractCharSequenceTest.class)
+
+
 public class DelegateCharSequenceTest {
 	@Test
 	public void testCharSeq() {

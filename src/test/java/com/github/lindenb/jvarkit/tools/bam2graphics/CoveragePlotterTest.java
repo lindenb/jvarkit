@@ -8,11 +8,11 @@ import java.util.List;
 
 import org.testng.Assert;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest(LauncherTest.class)
+
 public class CoveragePlotterTest {
 	private final TestSupport support = new TestSupport();
 	public void testZip() throws IOException {

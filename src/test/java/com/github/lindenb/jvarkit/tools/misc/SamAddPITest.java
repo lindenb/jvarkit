@@ -8,13 +8,13 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
-@AlsoTest(LauncherTest.class)
+
 public class SamAddPITest {
 	private final TestSupport support = new TestSupport();
 

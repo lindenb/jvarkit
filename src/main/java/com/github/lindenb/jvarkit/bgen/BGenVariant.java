@@ -26,9 +26,9 @@ package com.github.lindenb.jvarkit.bgen;
 import java.util.List;
 
 
-import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.Feature;
 
-public interface BGenVariant extends Locatable {
+public interface BGenVariant extends Feature {
 	/** number of bits used for storage, or -1 if not available */
 	public int getBitsPerProb();
 

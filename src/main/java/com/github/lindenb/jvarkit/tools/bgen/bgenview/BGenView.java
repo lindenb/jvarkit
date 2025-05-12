@@ -1,11 +1,14 @@
 package com.github.lindenb.jvarkit.tools.bgen.bgenview;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -19,6 +22,7 @@ import com.github.lindenb.jvarkit.interval.TargetsParameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -27,6 +31,7 @@ import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsD
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.Md5CalculatingOutputStream;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
@@ -67,11 +72,14 @@ public class BGenView extends Launcher {
 	private Path outputFile=null;
 	
 	@Parameter(names={"--compression"},description="Compression type")
-	private BGenUtils.Compression compression = BGenUtils.Compression.e_ZlibCompression;
+	private BGenUtils.Compression compression = BGenUtils.Compression.ZLIB;
 	
 	//@Parameter(names={"--layout"},description="BGen Layout")
 	//private BGenUtils.Layout layout = BGenUtils.Layout.e_Layout2;
 	
+	@Parameter(names={"--dict"},description="Use a dictionary to rename the contig. If a contig is missing, just skip the variant. "+ DICTIONARY_SOURCE)
+	private Path pathDict=null;
+
 	@Parameter(names={"--anonymous"},description="make anonymous, hide sample names")
 	private boolean anonymous_samples=false;
 	@Parameter(names={"--bits"},description="number of bits per prob. <=0 use incoming variant capacity")
@@ -81,11 +89,58 @@ public class BGenView extends Launcher {
 	TargetsParameter regionFilesParameter = new TargetsParameter();
 
 	
+	public void writeVariant(
+			final BGenVariant source_ctx,
+			String contig,int pos,String variantId,String rsId,List<String> alleles,
+			final int[] sample_new_index,
+			BGenWriter w
+			) throws IOException{
+		
+		if(variantId.isEmpty()) {
+			final Md5CalculatingOutputStream md5 = new Md5CalculatingOutputStream(OutputStream.nullOutputStream(), (Path)null);
+			md5.write(contig.getBytes(BGenUtils.ENCODING));
+			md5.write(String.valueOf(pos).getBytes(BGenUtils.ENCODING));
+			for(String a:alleles) md5.write(a.getBytes(BGenUtils.ENCODING));
+			md5.close();
+			variantId = md5.md5().substring(0,8);
+			}
+		
+		w.writeVariant(contig,pos,variantId,rsId,alleles);
+		w.setPhased(source_ctx.isPhased());
+		for(int x=0;x < source_ctx.getNGenotypes();++x)  {
+			if(sample_new_index[x]==-1) continue;//this sample is removed
+			final BGenGenotype gt = source_ctx.getGenotype(x);
+			w.setGenotype(
+					sample_new_index[x],
+					gt.getPloidy(),
+					gt.isMissing(),
+					gt.getProbs()
+					);
+			}
+		w.writeGenotypes();
+		}
 	
+	private void writeVariant(
+			UnaryOperator<String> ctgRename,
+			BGenVariant ctx,
+			final int[] sample_new_index,
+			BGenWriter w
+			) throws IOException {
+		final String contig = ctgRename.apply(ctx.getContig());
+		if(StringUtils.isBlank(contig)) return;
+		writeVariant(
+			ctx,
+			contig, ctx.getPosition(), ctx.getId(),ctx.getRsId(),ctx.getAlleles(),
+			sample_new_index,
+			w);
+		
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
+			final SAMSequenceDictionary dict=(this.pathDict==null?null:new SequenceDictionaryExtractor().extractRequiredDictionary(this.pathDict));
+			final UnaryOperator<String> renameCtg =  (dict==null?null:ContigNameConverter.fromOneDictionary(dict));
 			final Predicate<Locatable> accept = regionFilesParameter.makePredicate();
 			final String input = oneFileOrNull(args);
 			try(BGenReader r=(input==null || input.equals("-")?
@@ -137,20 +192,7 @@ public class BGenView extends Launcher {
 						}
 						
 						w.setNBits(this.nbits<=0?ctx.getBitsPerProb():this.nbits);
-						
-						w.writeVariant(ctx);
-						w.setPhased(ctx.isPhased());
-						for(int x=0;x < ctx.getNGenotypes();++x)  {
-							if(sample_new_index[x]==-1) continue;//this sample is removed
-							final BGenGenotype gt = ctx.getGenotype(x);
-							w.setGenotype(
-									sample_new_index[x],
-									gt.getPloidy(),
-									gt.isMissing(),
-									gt.getProbs()
-									);
-							}
-						w.writeGenotypes();
+						writeVariant(renameCtg,ctx, sample_new_index, w);
 						}
 					
 					}

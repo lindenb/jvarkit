@@ -8,11 +8,11 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest(LauncherTest.class)
+
 public class BamSliceBedTest  {
 	private final TestSupport support = new TestSupport();
 

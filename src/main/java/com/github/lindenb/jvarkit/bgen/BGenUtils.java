@@ -35,9 +35,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.ToIntFunction;
-
-import com.beust.ah.A;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.MathUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -62,21 +59,21 @@ public class BGenUtils {
 
 	
 	public enum Compression {
-		e_NoCompression,
-		e_ZlibCompression,
-		e_ZstdCompression
+		NONE,
+		ZLIB,
+		ZSTD
 		};
 		
 	public enum Layout {
-		e_Layout1,
-		e_Layout2
+		LAYOUT_1,
+		LAYOUT_2
 		};
 	
 	BGenUtils() {
 		
 	}
 	
-	static final Charset ENCODING=Charset.forName("UTF-8");
+	public static final Charset ENCODING=Charset.forName("UTF-8");
 	static final byte[] BGEN_MAGIC = "bgen".getBytes(ENCODING);
 	static final String FILE_SUFFIX = ".bgen";
 	static final String VCF_INDEX_SUFFIX = ".bgenix"+FileExtensions.COMPRESSED_VCF;
@@ -363,14 +360,14 @@ public class BGenUtils {
 		
 		 int calculateTotalCombinations() {
 			 switch(layout) {
-				 case e_Layout1: return 3;
-				 case e_Layout2: return calculateTotalCombinationsForLayout2(phased,n_alleles,m_ploidy);
+				 case LAYOUT_1: return 3;
+				 case LAYOUT_2: return calculateTotalCombinationsForLayout2(phased,n_alleles,m_ploidy);
 				 default: throw new IllegalArgumentException(); 
 			 	}
 			}
 		
 		 public int[] getAlleleIndexesByIndex(int i) {
-			  if(layout.equals(Layout.e_Layout1)  || (layout.equals(Layout.e_Layout2) && !phased && n_alleles==2 && m_ploidy==2 )) {
+			  if(layout.equals(Layout.LAYOUT_1)  || (layout.equals(Layout.LAYOUT_2) && !phased && n_alleles==2 && m_ploidy==2 )) {
 				switch(i) {
 					case 0: return new int[] {0,0};
 					case 1: return new int[] {0,1};
@@ -395,7 +392,7 @@ public class BGenUtils {
 		 
 		  public List<int[]> getAllGenotypesIndexes() {
 			  final List<int[]> container;
-			if(layout.equals(Layout.e_Layout1)) {
+			if(layout.equals(Layout.LAYOUT_1)) {
 				container = new ArrayList<>(3);
 				container.add(new int[] {0,0});
 				container.add(new int[] {0,1});
@@ -411,7 +408,7 @@ public class BGenUtils {
 		public void debug() {
 			final int[] tmp_idx=new int[]{0};
 			final StringBuilder sb=new StringBuilder("Layout: "+layout+" Phased: "+phased+" ploidy: "+this.m_ploidy+" n-alleles:"+this.n_alleles+" {");
-			if(layout.equals(Layout.e_Layout1)) {
+			if(layout.equals(Layout.LAYOUT_1)) {
 				sb.append( " [0] : ").append(getAllele(0)).append(getAllele(0)).append(" | ");
 				sb.append( " [1] : ").append(getAllele(0)).append(getAllele(1)).append(" | ");
 				sb.append( " [1] : ").append(getAllele(1)).append(getAllele(1));

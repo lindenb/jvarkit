@@ -31,7 +31,6 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -56,9 +55,9 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	private final OutputStream out;
 	private State state= State.expect_write_header;
 	/** output compression */
-	private Compression compression=Compression.e_ZlibCompression;
+	private Compression compression=Compression.ZLIB;
 	/** output layout */
-	private Layout layout = Layout.e_Layout2;
+	private Layout layout = Layout.LAYOUT_2;
 	/** temporary buffer1 */
 	private ByteBuffer buffer1 = new ByteBuffer();
 	/** temporary buffer2 */
@@ -90,7 +89,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		
 	}
 	
-	/** class counting the number of bytes written. Useful to skip bytes after the header */
+	/** class counting the number of bytes written. Useful to skip bytes after the header
 	private static class ByteCountOutputStream extends FilterOutputStream {
 		long count=0L;
 		ByteCountOutputStream(OutputStream delegate) {
@@ -111,7 +110,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		public void close() throws IOException {
 			//do not close !
 			}
-		}
+		} */
 	
 	public BGenWriter(final Path out) throws IOException{
 		this(Files.newOutputStream(out));
@@ -197,14 +196,14 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		    int flagByte = 0;
 		     // bit 0 and 1 are compression flags
 		     switch(this.compression) {
-		     	case e_NoCompression:break;
-		     	case e_ZlibCompression: flagByte |= 1; break;
-		     	case e_ZstdCompression: flagByte |= 2; break;
+		     	case NONE:break;
+		     	case ZLIB: flagByte |= 1; break;
+		     	case ZSTD: flagByte |= 2; break;
 		     	default : throw new IllegalStateException();
 		     	}
 		     switch(this.layout) {
-		     	case e_Layout1:  flagByte |= (1 << 2); break;
-		     	case e_Layout2:  flagByte |= (2 << 2); break;
+		     	case LAYOUT_1:  flagByte |= (1 << 2); break;
+		     	case LAYOUT_2:  flagByte |= (2 << 2); break;
 		     	default : throw new IllegalStateException();
 		     	}
 		     if(!(samplesOrNull==null || this.set_anonymous_flag)) {
@@ -273,7 +272,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	
 	public void writeVariant(String contig,int pos,String variantId,String rsId,List<String> alleles) throws IOException{
 		assertState(State.expect_variant);
-		if(layout.equals(Layout.e_Layout1)) {
+		if(layout.equals(Layout.LAYOUT_1)) {
 			this.binaryCodec.writeUInt(export_genotypes.length);//number of samples
 			}
 		if(StringUtils.isBlank(contig)) throw new IllegalArgumentException("blank chromosome");
@@ -284,7 +283,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		writeStringUInt16(this.binaryCodec, contig);
 		this.binaryCodec.writeUInt(pos);
 		
-		if(layout.equals(Layout.e_Layout1)) {
+		if(layout.equals(Layout.LAYOUT_1)) {
 			if(alleles.size()!=2) throw new IllegalArgumentException("expected 2 alleles for layout 1 but got "+String.join(",", alleles));
 			}
 		else
@@ -332,16 +331,16 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		buffer2.reset();
 		switch(this.layout)
 			{
-			case e_Layout1: writeGenotypeLayout1(); break;
-			case e_Layout2: writeGenotypeLayout2(); break;
+			case LAYOUT_1: writeGenotypeLayout1(); break;
+			case LAYOUT_2: writeGenotypeLayout2(); break;
 			default: throw new IllegalStateException();
 			}
 				
 		
 		ByteBuffer compressed;
 		switch(this.compression) {
-			case e_NoCompression : compressed = buffer1; break;
-			case e_ZlibCompression:
+			case NONE : compressed = buffer1; break;
+			case ZLIB:
 				try(java.util.zip.DeflaterOutputStream compressor=new DeflaterOutputStream(this.buffer2)) {
 					try(InputStream raw_in=buffer1.toByteArrayInputStream()) {
 						IOUtils.copy(raw_in, compressor);
@@ -351,7 +350,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 					}
 				compressed = buffer2;
 				break;
-			case e_ZstdCompression:
+			case ZSTD:
 				try(ZstdCompressorOutputStream compressor=new ZstdCompressorOutputStream(this.buffer2)) {
 					try(InputStream raw_in=buffer1.toByteArrayInputStream()) {
 						IOUtils.copy(raw_in, compressor);
@@ -384,7 +383,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 				if(gt.ploidy!=2) throw new IllegalArgumentException("Ploidy="+gt.ploidy+" for sample["+i+"] but layout "+layout+" only supports ploidy=2");
 				if(gt.missing) {
 					//write 0 0 0 (3*2 bytes)
-					writeNBytes(bc2, 6,(byte)0);
+					writeNBytes(bc2, 3*Short.BYTES,(byte)0);
 					}
 				else
 					{
@@ -392,10 +391,10 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 					if(gt.probs.length!=3)  throw new IllegalArgumentException("probs.lenth="+gt.probs.length +"("+Arrays.toString(gt.probs) +") for sample["+i+"] but layout "+layout+" only supports 3 values AA AB BB");
 					double sum=0;
 					for(int x=0;x<3;++x) {
-						double f=gt.probs[x];
+						final double f=gt.probs[x];
 						sum+=f;
 						if(f<0 || f>1)  throw new IllegalArgumentException("0<=probs["+x+"]="+f+"<1  in("+Arrays.toString(gt.probs) +") for sample["+i+"]");
-						int val=(int)(f*BinaryCodec.MAX_USHORT);
+						final int val=(int)(f*BinaryCodec.MAX_USHORT);
 						bc2.writeUShort(val);
 						}
 					if(sum>1)  throw new IllegalArgumentException("sum of probs>1  in("+Arrays.toString(gt.probs) +") for sample["+i+"] ");
@@ -408,7 +407,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		this.buffer1.reset();
 		try(BinaryCodec bc2= new BinaryCodec(this.buffer1)) {
 			/* The number of individuals for which probability data is stored. */
-			bc2.writeUInt(export_genotypes.length);
+			bc2.writeUInt(this.export_genotypes.length);
 			/* The number of alleles, encoded as an unsigned 16-bit integer. This must equal K as defined in the variant identifying data block. */
 			bc2.writeUShort(this.lastVariant.n_alleles);
 			
@@ -457,10 +456,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 							gt.probs.length + "("+Arrays.toString(gt.probs)+")");
 					}
 				
-				for(int j=0;j +1 /* do not store last allele */<n_expected_probs;++j) {
-					
-					
-					
+				for(int j=0;j +1 /* do not store last allele */<n_expected_probs;++j) {					
 					if(gt.missing) {
 						numWriter.write(0);
 						}

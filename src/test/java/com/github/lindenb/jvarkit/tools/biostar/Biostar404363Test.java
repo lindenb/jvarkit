@@ -7,11 +7,11 @@ import java.util.Arrays;
 
 import org.testng.Assert;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest(LauncherTest.class)
+
 public class Biostar404363Test {
 	
 private final TestSupport support = new TestSupport();

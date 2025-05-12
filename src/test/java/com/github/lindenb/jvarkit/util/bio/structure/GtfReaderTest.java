@@ -6,10 +6,10 @@ import java.util.List;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-@AlsoTest(PeptideSequenceTest.class)
+
 public class GtfReaderTest {
 private final TestSupport support =new TestSupport();	
 	

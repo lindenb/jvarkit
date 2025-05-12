@@ -8,11 +8,11 @@ import java.util.Arrays;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 
-@AlsoTest(Launcher.class)
+
 public class HmmMergeBedTest {
 	private final TestSupport support = new TestSupport();
 

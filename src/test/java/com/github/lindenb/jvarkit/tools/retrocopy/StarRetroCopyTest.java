@@ -1,7 +1,7 @@
 package com.github.lindenb.jvarkit.tools.retrocopy;
 
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
@@ -13,7 +13,7 @@ import java.util.Arrays;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@AlsoTest(LauncherTest.class)
+
 public class StarRetroCopyTest   {
 	private final TestSupport support = new TestSupport();
 	@Test

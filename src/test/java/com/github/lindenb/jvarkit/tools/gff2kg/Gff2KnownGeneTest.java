@@ -9,14 +9,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.gff2kg.Gff2KnownGene;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
 import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 
-@AlsoTest({LauncherTest.class,KnownGeneTest.class})
+
 public class Gff2KnownGeneTest {
 	private  final TestSupport support = new TestSupport();
 	

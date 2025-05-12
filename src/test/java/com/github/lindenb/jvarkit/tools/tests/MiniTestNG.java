@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 
 import org.testng.ITestNGListener;
 import org.testng.TestListenerAdapter;
@@ -22,15 +22,7 @@ public class MiniTestNG {
 	
 	private int registerTestClass( final Set<Class<?>> classes,final Class<?> clazz) {
 		if(classes.contains(clazz)) return 0;
-		LOG.info("adding "+clazz);
-		classes.add(clazz);
-		final AlsoTest also = clazz.getAnnotation(AlsoTest.class);
-		if(also!=null && also.value()!=null && also.value().length>0)
-			{
-			for(final Class<?> c2:also.value()) {
-				if(registerTestClass(classes,c2)!=0) return -1;
-				}
-			}
+		
 		return 0;
 		}
 	

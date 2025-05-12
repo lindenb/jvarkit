@@ -16,11 +16,8 @@ Usage: java -jar dist/jvarkit.jar regeniebedannot  [options] Files
 
 Usage: regeniebedannot [options] Files
   Options:
-    -A, --annotation
-      value for annotation field
-      Default: <empty string>
   * -B, --bed
-      custom bed file chrom/start/end/name[/score]
+      custom bed file chrom/start/end/annotation/name[/score].
     --chrom
       process only that chromosome
     -h, --help

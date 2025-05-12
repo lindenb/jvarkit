@@ -234,6 +234,7 @@ nav:
         - "swingregenie" : RegenieSwing.md
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
+        - "testng" : RunTestNG.md
         - "texbam" : TextBam.md
         - "translategff3" : TranslateGff3.md
         - "tssenrich" : TSSEnrichment.md

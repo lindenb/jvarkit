@@ -1,10 +1,19 @@
+TEST?=
 GATK4JAR=$(realpath ${HOME}/package/gatk/4/gatk-4.6.0.0/gatk-package-4.6.0.0-local.jar)
 SHELL=/bin/bash
+
+ifeq ($(TEST),true)
+TESTNG=-Djvarkit.testng=true
+else
+TESTNG=
+endif
+
+
 .PHONY: all docker test tests jvarkit
 all: jvarkit
 
 jvarkit:
-	./gradlew jvarkit $(addprefix -Dgatk4.local.jar=,$(GATK4JAR))
+	./gradlew jvarkit $(addprefix -Dgatk4.local.jar=,$(GATK4JAR)) $(TESTNG)
 
 docker: Dockerfile
 	# build
@@ -35,8 +44,12 @@ xsd-uniprot:
 	./xjc -nv -d src/main/java -p org.uniprot "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot.xsd"
 
 test: tests
-tests: jvarkit quick-test
+	
+tests:
+	$(MAKE) TEST=true
+	java -jar dist/jvarkit.jar testng src/test/resources/testng.txt
+	rm -rf dist/jvarkit.jar
 
 # do not compile jvarkit
 quick-test:
-	cd tests && $(MAKE)
+	cd tests && $(MAKE) 

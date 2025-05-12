@@ -655,7 +655,7 @@ public int doWork(final Stage primaryStage,final List<String> args) {
 						if(v <= delLimit ) {
 							gc.setStroke(Color.DARKGRAY);
 							this.hershey.paint(gc,
-									this.sampleNames.get(sampleIdx).name , 
+									this.sampleNames.get(sampleIdx).gene_name , 
 									x_v1,
 									y,
 									CHUNK_WIDTH-(x_v1-x),
@@ -679,7 +679,7 @@ public int doWork(final Stage primaryStage,final List<String> args) {
 							{
 							gc.setStroke(Color.DARKGRAY);
 							this.hershey.paint(gc,
-									this.sampleNames.get(sampleIdx).name , 
+									this.sampleNames.get(sampleIdx).gene_name , 
 									x,
 									y,
 									(x_v1-x),

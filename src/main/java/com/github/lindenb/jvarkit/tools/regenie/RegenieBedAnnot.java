@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 
@@ -65,21 +66,18 @@ END_DOC
 description="Create annotation files for regenie using sliding annotations",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="20250403",
+modificationDate="202050512",
 jvarkit_amalgamion = true,
 generate_doc = true
 )
 public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.of(RegenieBedAnnot.class);
-	@Parameter(names = {"-B","--bed"}, description = "custom bed file chrom/start/end/name[/score]",required = true)
+	@Parameter(names = {"-B","--bed"}, description = "custom bed file chrom/start/end/annotation/name[/score].",required = true)
 	private Path userBed;
-	@Parameter(names = {"-A","--annotation"}, description = "value for annotation field")
-	private String annotation_value="";
 	@Parameter(names = {"-m","--min-length"}, description = "slop each BED records in 5' and 3' so the minimal LENGTH is 'm'. Multiple are comma separated ")
 	private String min_len_str="0";
 	@Parameter(names = {"--chrom"}, description = "process only that chromosome")
 	private String only_that_chrom=null;
-
 	@Parameter(names = {"--noXY"}, description = "skip X/Y chromosome")
 	private boolean skipXY=false;	
 	private final IntervalTreeMap<List<UserBed>> interval2userbed = new IntervalTreeMap<>();
@@ -92,14 +90,15 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 		}
 	
 	private static class UserBed extends SimpleInterval {
-		String name;
+		String annotation;
+		String gene_name;
 		double score;
 		UserBed(String ctg,int start,int end) {
 			super(ctg,start,end);
 		}
 	}
 	
-	private static boolean isXY(String ctg) {
+	private static boolean isXY(final String ctg) {
 		if(ctg.equals("X") || ctg.equals("Y")) return true;
 		if(ctg.equals("chrX") || ctg.equals("chrY")) return true;
 		if(ctg.equals("23") || ctg.equals("24")) return true;
@@ -109,9 +108,8 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	
 	@Override
 	protected VCFHeader initVcfHeader(final VCFHeader h) {
-		if(StringUtils.isBlank(this.annotation_value)) {
-			this.annotation_value=IOUtils.getFilenameWithoutCommonSuffixes(this.userBed).replaceAll("[^a-zA-Z0-9]+","_");
-			}
+		final String default_annotation_value=IOUtils.getFilenameWithoutCommonSuffixes(this.userBed).replaceAll("[^a-zA-Z0-9]+","_");
+			
 		
 		this.min_length_sorted_array = Arrays.stream(CharSplitter.COMMA.split(this.min_len_str)).
 				filter(S->!StringUtils.isBlank(S)).
@@ -160,11 +158,13 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 				if(this.skipXY && isXY(ctg)) continue;
 				
 				final UserBed ub = new UserBed(ctg, rec.getStart(), rec.getEnd());
-				ub.name = rec.get(3);
-				if(StringUtils.isBlank(ub.name) || ub.name.equals(".")) throw new IOException("empty title in bed line "+line);
+				ub.annotation = StringUtils.ifBlank(rec.get(3),default_annotation_value);
+				if(!ub.annotation.matches("[A-Za-z][A-Za-z_0-9]*")) throw new IOException("bad annotation in "+line+" should match '[A-Za-z][A-Za-z_0-9]*'");
+				ub.gene_name = rec.get(4);
+				if(StringUtils.isBlank(ub.gene_name) || ub.gene_name.equals(".")) throw new IOException("empty title in bed line "+line);
 				
 				
-				final String scoreStr=rec.getOrDefault(4,"");
+				final String scoreStr=rec.getOrDefault(5,"");
 				if(StringUtils.isBlank(scoreStr) || scoreStr.equals(".")) {
 					ub.score = 1.0;
 					}
@@ -173,11 +173,23 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 					ub.score = Double.parseDouble(scoreStr);
 					}
 				
-				List<UserBed> L = gene2intervals.get(ub.name);
+				List<UserBed> L = gene2intervals.get(ub.gene_name);
 				if(L==null) {
 					L = new ArrayList<>();
-					gene2intervals.put(ub.name, L);
+					gene2intervals.put(ub.gene_name, L);
 					}
+				
+				/* same gene but different annotation at the same place */
+				final Optional<UserBed> opt=L.
+					stream().
+					filter(R->R.overlaps(ub)).
+					filter(UB->!UB.annotation.equals(ub.annotation)).
+					findFirst();
+				
+				if(opt.isPresent()) {
+					throw new IOException("for the same gene ("+ ub.gene_name+"), we have two different overlapping regionj with different annotations "+ ub+" "+opt.get());
+					}
+				
 				L.add(ub);
 				}
 			
@@ -212,18 +224,24 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 						
 						//we need to make a copy because we rename and extend user bed
 						final UserBed ub = new UserBed(ub_src.getContig(),chromStart,chromEnd);
-						ub.name = geneName+(min_len>0?"_x"+min_len:"");
+						ub.gene_name = geneName+(min_len>0?"_x"+min_len:"");
+						ub.annotation = ub_src.annotation;
 						ub.score = ub_src.score;
 
 						
 						final Interval reg  = new Interval(ub);
 						previous_lengths.add( reg);
 						
+						
 						List<UserBed> beds = 	this.interval2userbed.get(reg);
 						if(beds==null) {
 							beds = new ArrayList<>();
 							this.interval2userbed.put(reg, beds);
 							}
+						
+							
+								
+							
 						beds.add(ub);
 						}
 					}
@@ -239,14 +257,14 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {	
 		final Set<String> seen = new HashSet<>(); 
 		for(UserBed ub: this.interval2userbed.getOverlapping(ctx).stream().toArray(N->new UserBed[N]) ) {
-			if(seen.contains(ub.name)) continue;
-			seen.add(ub.name);
+			if(seen.contains(ub.gene_name)) continue;
+			seen.add(ub.gene_name);
 			final Variation v = new Variation();
 			v.contig = fixContig(ctx.getContig());
 			v.pos = ctx.getStart();
 			v.id = makeID(ctx);
-			v.gene = ub.name;
-			v.prediction = this.annotation_value;
+			v.gene = ub.gene_name;
+			v.prediction = ub.annotation;
 			v.score = OptionalDouble.of(ub.score);
 			v.cadd = getCaddScore(ctx);
 			v.is_singleton = isSingleton(ctx);

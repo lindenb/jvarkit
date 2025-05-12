@@ -3,7 +3,6 @@
 
 
 
-gradle -Djvarkit.delete.jar=true -Djvarkit.disable.test=true all all2
 gradle -Djvarkit.generate.doc=false all all2
 
 */
@@ -13,6 +12,8 @@ gradle -Djvarkit.generate.doc=false all all2
 import  java.util.stream.Collectors ;
 
 defaultTasks 'top'
+
+
 
 ext {
 	libraries = new HashMap<>();
@@ -24,16 +25,8 @@ class JarFile
 	{
 	private final String repo;
 	String server;
-	boolean test=false;
 	JarFile(final String repo) {
 		this.repo = repo.trim();
-		}
-	boolean isTest() {
-		return this.test;
-		}
-	JarFile setTest() {
-		this.test=true;
-		return this;
 		}
 	JarFile setServer(String s) {
 		this.server=s;
@@ -155,11 +148,6 @@ class Library
 		if(this.isEmpty() && !L.isEmpty()) throw new  GradleException("uh ?"+L);
 		return this;
 		}
-	Library withoutTest() {
-		final Library L=new Library().add(this);
-		L.files.removeIf{it->it.isTest()};
-		return L;
-		}
 	boolean isEmpty() { return files.isEmpty();}
 	public String toString() {
 		return files.toString();
@@ -183,8 +171,7 @@ libraries.put("jcommander",new Library().
 	add("com.beust:jcommander:jar:1.82")
 	);
 libraries.put("testng",new Library().
-	add(libraries.get("jcommander")).
-	add(new JarFile("org.testng:testng:jar:6.14.3").setTest())
+	add("org.testng:testng:jar:6.14.3")
 	);
 
 libraries.put("jaxb",new Library().
@@ -319,8 +306,6 @@ public class CompileJVarkit extends DefaultTask {
 	@Input @Optional
 	String docDir = ""
 	@Input @Optional
-	String testNgDir=""
-	@Input @Optional
 	String jdkTarget = "17"
 	@Input @Optional
 	String jdkSource = "17"
@@ -340,8 +325,6 @@ public class CompileJVarkit extends DefaultTask {
 	def otherJavaFiles = [];
 	@Input
 	boolean with_jaxb=false;
-	@Input
-	boolean includeTestsDir=false;
 
 	CompileJVarkit() {
 		def baseDir = this.getProject().projectDir.getPath();
@@ -350,7 +333,6 @@ public class CompileJVarkit extends DefaultTask {
 		this.tmpDir = baseDir + "/tmp"
 		this.distDir = baseDir + "/dist"
 		this.docDir = baseDir + "/docs"
-		this.testNgDir = baseDir+"/tests-output"
 		String jvm = java.lang.System.getProperty("jvarkit.target",null);
 		if(jvm!=null && !jvm.isEmpty()) {
 			jdkTarget = jvm;
@@ -471,18 +453,6 @@ public class CompileJVarkit extends DefaultTask {
 		return s.substring(0,dot);
 		}
 
-	private File getMainJavaTestFile() {
-		String travis = java.lang.System.getenv("TRAVIS");
-		if(travis!=null && travis.equals("true")) return null;
-		if(java.lang.System.getProperty("jvarkit.disable.test","false").equals("true")) return null;
-
-		String s = this.testDir +"/"+ getTestNgClass().replace('.','/')+".java";
-
-		File f = new File(s);
-
-		if(!f.exists()) return null;
-		return f;
-		}
 
 	@Input
 	String getMainJavaSource() {
@@ -492,28 +462,13 @@ public class CompileJVarkit extends DefaultTask {
 		s = this.srcDir + "/" + s.replace('.','/')+".java";
 		return s;
 		}
-	@Input
-	String getTestNgClass() {
-		String s = this.mainClass;
-		int dollar = s.indexOf('$');
-		if(dollar!=-1) s=s.substring(0,dollar);
-		return s+"Test";
-		}
+
 	@Input
 	String getAntInclude() {
 		final String s= this.getMainJavaSource();
 		final int slash = s.lastIndexOf('/');
 		String s2 =  "**"+s.substring(slash);
 		return s2;
-		}
-	@Input
-	String getAntTestInclude() {
-		String s= this.getMainJavaSource();
-		int slash = s.lastIndexOf('/');
-		s= s.substring(slash);
-		int dot = s.lastIndexOf('.');
-		s= s.substring(0,dot);
-		return "**"+s+"Test.java";	
 		}
 	public String toString() {
 		return	""+this.getName()+" "+this.mainClass;
@@ -532,6 +487,23 @@ public class CompileJVarkit extends DefaultTask {
 		}
 	    catch(Exception err) { return "";}
 	    }
+
+	@Internal
+	def getTestNgFiles() {
+		/** collect java files for TEST */
+		if (java.lang.System.getProperty("jvarkit.testng","false").equals("true")) {
+			def testSources = project.fileTree("src/test/java") {
+				include '**/*Test.java'
+				}
+			def L = testSources.getFiles().collect{"**/"+it.name.toString()};
+			java.lang.System.err.println(L.join("\n"))
+			return L;
+			}
+		else
+			{
+			return [];
+			}
+		}
 
 	@Input
 	public String getGitHash() {
@@ -594,6 +566,8 @@ public class CompileJVarkit extends DefaultTask {
 
 	 @TaskAction
 	 void doIt() {
+
+
 		if(this.deprecatedMsg!=null) {
 			project.logger.warn("[DEPRECATED] "+getName()+" : I won't create this project because it is deprecated : "+this.deprecatedMsg);
 			return;			
@@ -696,13 +670,15 @@ public class CompileJVarkit extends DefaultTask {
 
 		/* compile sources */
 		//System.err.println("JAVA_PATH="+getConfiguration().asPath);
-		final Set<File> classpath1 = this.jarLibs.withoutTest().files.collect{it->it.toFile(project)} as Set;
+		final Set<File> classpath1 = this.jarLibs.files.collect{it->it.toFile(project)} as Set;
 		if(this.with_jni) classpath1.add(new File("lib/htsjni/htslib.jar"));
-		/** not the 'big test' */
+
+
+
 
 		ant.javac(
 			destdir: this.tmpDir,
-			srcdir: this.srcDir+":"+this.tmpDir + (this.includeTestsDir?":"+this.testDir:""),
+			srcdir: this.srcDir+":"+this.tmpDir + (java.lang.System.getProperty("jvarkit.testng","false").equals("true")?":"+this.testDir:""),
 			includeantruntime:false,
 			failonerror: true,
 			fork: true,
@@ -719,6 +695,9 @@ public class CompileJVarkit extends DefaultTask {
 				include(name: "**/Program.java") // add this otherwise skipped because exists in annotation processor
 				for(def osrc: this.otherJavaFiles) {
 					include(name: osrc)
+					}
+				for(def j : this.getTestNgFiles()) {
+					include(name: j)
 					}
 				compilerarg(value:'-Xlint')
 			}
@@ -799,7 +778,7 @@ public class CompileJVarkit extends DefaultTask {
 		project.logger.lifecycle("jar file generated :" + distJar)
 		
 		if( isGeneratingDoc()) {
-            if(this.name.equals("jvarkit")) {
+	            if(this.name.equals("jvarkit")) {
                 ant.java(
 			                jar :  this.distDir+"/${this.name}.jar" , fork: true
 			                ) {
@@ -821,71 +800,6 @@ public class CompileJVarkit extends DefaultTask {
                 }
 		}
 
-		/** test */
-		
-		final File testJava = getMainJavaTestFile();
-		if(!isFatJar() || testJava==null)
-			{
-			project.logger.warn("No Test will be executed for "+this.getName());
-			project.logger.debug(" (test-file:"+testJava+" fat:"+isFatJar()+")");
-			}
-		else
-			{
-			ant.mkdir(dir: this.tmpDir)
-
-			project.logger.warn("Test will be executed in "+this.testNgDir+"/"+getName()+"/index.html");
-			final Set<File> classpath2 = new HashSet<>();
-			classpath2.add(distJar);
-			for(JarFile f:this.jarLibs.files)
-				{
-				if(!f.isTest()) continue;
-				classpath2.add(f.toFile(project));
-				}
-			if(this.with_jni) classpath2.add(new File("lib/htsjni/htslib.jar"));
-			
-			ant.javac(
-				destdir: this.tmpDir,
-				srcdir: this.testDir+":"+ this.srcDir,
-				includeantruntime:false,
-				failonerror: true,
-				fork: true,
-				classpath : classpath2.collect{it->it.path}.join(":"),
-				target: this.jdkTarget,
-				source: this.jdkSource,
-				debug: true
-				)
-				{
-				include(name:"**/MiniTestNG.java")
-				include(name: getAntTestInclude())
-				compilerarg(value:'-Xlint')
-				}
-			
-			
-			ant.mkdir(dir: this.testNgDir+"/"+getName());
-			try {
-			ant.java(
-				classname : "com.github.lindenb.jvarkit.tools.tests.MiniTestNG",
-				fork: true,
-				failonerror: false,
-				classpath : this.tmpDir+":"+classpath2.collect{it->it.path}.join(":")
-				) {
-				arg(value: "-d")
-				arg(value: this.testNgDir+"/"+getName())
-				arg(value: getTestNgClass());
-				}
-			} catch(Throwable err) {
-				project.logger.warn("test failed.");
-
-			}
-			
-			ant.delete( dir :  this.tmpDir )
-			}
-		
-		/** delete the jar at the if specified , jars can be big and I just want to generate the doc*/
-		if( java.lang.System.getProperty("jvarkit.delete.jar","false").equals("true")) {
-			project.logger.warn("delete jar "+ distJar);
-			ant.delete(file: distJar)
-			}
 		/** message at the end */
 		if(this.endMsg!=null && !this.endMsg.trim().isEmpty()) {
 			project.logger.info("\n#\n#\n# "+ this.endMsg+"\n#\n#\n");

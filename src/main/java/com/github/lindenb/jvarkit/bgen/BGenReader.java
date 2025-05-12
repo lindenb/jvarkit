@@ -118,7 +118,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		}
 		
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final Object obj) {
 			if (this == obj)
 				return true;
 			if (obj == null)
@@ -478,6 +478,10 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		return getHeader().getLayout();
 		}
 	
+	public Compression getCompression() {
+		return getHeader().getCompression();
+	}
+	
 	public long getSnpsOffset() {
 		return snps_offset;
 		}
@@ -647,7 +651,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		final VariantImpl ctx = new VariantImpl();
 		ctx.offset = ftell();
 		
-		if(header.getLayout().equals(Layout.e_Layout1)) {
+		if(header.getLayout().equals(Layout.LAYOUT_1)) {
 			try {
 				this.layout1_expect_n_samples = longToUnsignedInt(this.binaryCodec.readUInt());
 				}
@@ -672,7 +676,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				LOG.debug("not more variant "+header.getLayout()+" "+eof.getClass());
 				eof.printStackTrace();
 				}
-			if(!header.getLayout().equals(Layout.e_Layout1)) {
+			if(!header.getLayout().equals(Layout.LAYOUT_1)) {
 				if(eof instanceof RuntimeEOFException) return null;
 				}
 			throw eof;
@@ -683,8 +687,8 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	    ctx.position = longToUnsignedInt(this.binaryCodec.readUInt());
 	    
 	     switch(header.getLayout()) {
-	     	case e_Layout1: ctx.alleles = readNAlleles(2);break;
-	     	case e_Layout2: 
+	     	case LAYOUT_1: ctx.alleles = readNAlleles(2);break;
+	     	case LAYOUT_2: 
 	     		final int  num_alleles  = this.binaryCodec.readUShort(); 
 	     		ctx.alleles =  readNAlleles(num_alleles);
 	     		break;
@@ -705,6 +709,8 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	    this.state = State.expect_variant_def;
 		}
 	
+
+	
 	@SuppressWarnings("resource")
 	public BGenVariant readGenotypes()  throws IOException{
 		assertState(State.expect_genotypes);
@@ -720,7 +726,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		
 		/* The total length D of the probability data after uncompression.
 		 * If CompressedSNPBlocks = 0, this field is omitted and the total length of the probability data */
-		if(!getHeader().getCompression().equals(Compression.e_NoCompression)) {
+		if(!getHeader().getCompression().equals(Compression.NONE)) {
 			final int uncompressed_data_size_D =longToUnsignedInt( this.binaryCodec.readUInt());
 			if(LOG.isDebug()) {
 				LOG.debug("expect uncompressed size "+uncompressed_data_size_D+" now offset="+ftell());
@@ -741,16 +747,16 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		
 		
 		switch(getHeader().getCompression()) {
-			case e_NoCompression: uncompressedStream = this.buffer1.toByteArrayInputStream();break;
-			case e_ZlibCompression: uncompressedStream = zlibDecompress(this.buffer1.toByteArrayInputStream()); break;
-			case e_ZstdCompression: uncompressedStream = zstdDecompress(this.buffer1.toByteArrayInputStream()); break;
+			case NONE: uncompressedStream = this.buffer1.toByteArrayInputStream();break;
+			case ZLIB: uncompressedStream = zlibDecompress(this.buffer1.toByteArrayInputStream()); break;
+			case ZSTD: uncompressedStream = zstdDecompress(this.buffer1.toByteArrayInputStream()); break;
 	     	default: throw new IllegalStateException(header.getCompression().name());
 			}
 		final BinaryCodec codec2=new BinaryCodec(uncompressedStream);
 		AbstractVariantAndGenotypes vcg;
 		switch(getHeader().getLayout()) {
-			case e_Layout1: vcg=decodeLayout1(codec2); break;
-			case e_Layout2: vcg=decodeLayout2(codec2); break;
+			case LAYOUT_1: vcg=decodeLayout1(codec2); break;
+			case LAYOUT_2: vcg=decodeLayout2(codec2); break;
 	     	default: throw new IllegalStateException(header.getLayout().name());
 			}
 		uncompressedStream.close();
@@ -839,7 +845,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
        			if(LOG.isDebug()) {
            			LOG.debug("read phased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
            			new AlleleCombinations(
-           					Layout.e_Layout2,
+           					Layout.LAYOUT_2,
            					this.lastVariant.getAlleles(), 
            					gt.getPloidy(),
            					true
@@ -882,7 +888,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
        			if(LOG.isDebug()) {
            			LOG.debug("read unphased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
            			new AlleleCombinations(
-           					Layout.e_Layout2,
+           					Layout.LAYOUT_2,
            					this.lastVariant.getAlleles(), 
            					gt.getPloidy(),
            					false
@@ -927,7 +933,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
         return vcg;
 		}
 	
-
+	/*
 	private static List<int[]> buildPhasedIndexes(int n_alleles,int n_ploidy) {
 		final List<int[]> container = new ArrayList<>(n_alleles*n_ploidy);
 		buildPhasedIndexes(n_alleles,container,new int[n_ploidy],0);
@@ -950,7 +956,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 					buildPhasedIndexes(n_alleles,container,buffer2,ploidy_index+1);
 					}
 				}
-			}
+			}*/
 	
 	@Override
 	public void close()  {
@@ -962,5 +968,10 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		try {this.in.close();}
 		catch(IOException err) {}
 		this.binaryCodec.close();
+		}
+	
+	@Override
+	public String toString() {
+		return "BGenReader(file:"+this.filenameOrNull+")";
 		}
 }

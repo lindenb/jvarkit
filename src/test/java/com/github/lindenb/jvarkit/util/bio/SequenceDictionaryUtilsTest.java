@@ -7,11 +7,11 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParserFactoryTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverterTest;
 
-@AlsoTest({StringUtilsTest.class,ContigNameConverterTest.class,IntervalParserFactoryTest.class})
+
 public class SequenceDictionaryUtilsTest  {
 	private  final TestSupport support = new TestSupport();
 

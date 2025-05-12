@@ -8,10 +8,10 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest(LauncherTest.class)
+
 public class PubmedGenderTest extends PubmedDumpTest {
 	@Test
 	public void test01() throws IOException {

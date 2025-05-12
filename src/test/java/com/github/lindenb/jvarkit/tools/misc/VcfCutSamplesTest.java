@@ -12,7 +12,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
@@ -21,7 +21,7 @@ import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import htsjdk.variant.vcf.VCFReader;
 
 
-@AlsoTest({VCFUtilsTest.class,LauncherTest.class})
+
 public class VcfCutSamplesTest  {
 
 	private final TestSupport support = new TestSupport();

@@ -6,13 +6,13 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.variant.variantcontext.AttributeCleanerTest;
 
 
-@AlsoTest({LauncherTest.class,AttributeCleanerTest.class})
+
 public class VcfGtfSplitterTest {
 	private final TestSupport support = new TestSupport();
 

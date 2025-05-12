@@ -47,9 +47,9 @@ public class BGenHeader extends BGenUtils {
     public Compression getCompression() {
     	final int op = getCompressedSNPBlocks();
     	switch(op) {
-			case 0: return Compression.e_NoCompression;
-			case 1: return Compression.e_ZlibCompression;
-			case 2: return Compression.e_ZstdCompression;
+			case 0: return Compression.NONE;
+			case 1: return Compression.ZLIB;
+			case 2: return Compression.ZSTD;
 			default: throw new IllegalArgumentException("bad compression ("+op+")");
     		}
     	}
@@ -69,8 +69,8 @@ public class BGenHeader extends BGenUtils {
    public Layout getLayout() {
     	final int op= getLayoutOpCode();
     	switch(op) {
-			case 1: return Layout.e_Layout1;
-			case 2: return Layout.e_Layout2;
+			case 1: return Layout.LAYOUT_1;
+			case 2: return Layout.LAYOUT_2;
 			default: throw new IllegalArgumentException("undefined layout ("+op+")");
 			}
     	}

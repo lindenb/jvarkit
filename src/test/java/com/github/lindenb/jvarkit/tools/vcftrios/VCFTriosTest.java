@@ -8,11 +8,11 @@ import org.testng.Reporter;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest({DeNovoDetector.class,LauncherTest.class})
+
 public class VCFTriosTest {
 	
 	private final TestSupport support = new TestSupport();

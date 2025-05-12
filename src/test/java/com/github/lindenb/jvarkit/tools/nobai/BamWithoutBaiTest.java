@@ -7,13 +7,13 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.samtools.BamRecordGuesserTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 import htsjdk.samtools.util.CoordMath;
 
-@AlsoTest({LauncherTest.class,BamRecordGuesserTest.class})
+
 public class BamWithoutBaiTest {
 	private final TestSupport support = new TestSupport();
 	@Test

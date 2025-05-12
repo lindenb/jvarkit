@@ -6,14 +6,14 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 
-@AlsoTest({StringUtilsTest.class,SequenceDictionaryUtilsTest.class})
+
 public class ContigNameConverterTest {
 	private  final TestSupport support = new TestSupport();
 

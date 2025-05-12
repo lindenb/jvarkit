@@ -8,7 +8,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverterTest;
@@ -17,7 +17,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
-@AlsoTest({SequenceDictionaryUtilsTest.class,SimpleIntervalTest.class,StringUtilsTest.class,ContigNameConverterTest.class})
+
 public class IntervalParserFactoryTest {
 	private final TestSupport support = new TestSupport();
 	@Test

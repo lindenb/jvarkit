@@ -8,12 +8,12 @@ import java.util.Arrays;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparatorTest;
 
-@AlsoTest({LauncherTest.class,StructuralVariantComparatorTest.class})
+
 public class MantaMergerTest {
 	private final TestSupport support = new TestSupport();
 	@Test

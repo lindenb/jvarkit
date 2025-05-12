@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.IOUtilsTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
@@ -43,7 +43,7 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 
-@AlsoTest({IOUtilsTest.class,VCFUtilsTest.class})
+
 public class SplitVcfTest {
 
 private final TestSupport support = new TestSupport();

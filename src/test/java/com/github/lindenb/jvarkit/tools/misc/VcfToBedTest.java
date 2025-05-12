@@ -9,11 +9,11 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtenderTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
-@AlsoTest({LauncherTest.class,IntervalExtenderTest.class})
+
 public class VcfToBedTest  {
 
 	private final TestSupport support = new TestSupport();

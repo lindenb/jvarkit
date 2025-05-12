@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
@@ -16,7 +16,7 @@ import org.testng.Assert;
 import htsjdk.samtools.util.IOUtil;
 import org.testng.annotations.Test;
 
-@AlsoTest(LauncherTest.class)
+
 public class OneThousandBamTest{
 	private final TestSupport support = new TestSupport();
 

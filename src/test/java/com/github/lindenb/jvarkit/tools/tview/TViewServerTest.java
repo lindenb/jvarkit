@@ -10,13 +10,13 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 import htsjdk.samtools.util.CloserUtil;
 
-@AlsoTest(LauncherTest.class)
+
 public class TViewServerTest {
 	
 private final TestSupport support = new TestSupport();

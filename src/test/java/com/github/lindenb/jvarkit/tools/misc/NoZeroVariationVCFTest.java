@@ -7,11 +7,11 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
-@AlsoTest(VCFUtilsTest.class)
+
 public class NoZeroVariationVCFTest {
 	
 	@Test

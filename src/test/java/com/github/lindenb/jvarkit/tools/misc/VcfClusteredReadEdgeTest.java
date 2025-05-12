@@ -5,11 +5,11 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
-@AlsoTest(VCFUtilsTest.class)
+
 public class VcfClusteredReadEdgeTest {
 	@Test
 	public void test01() throws Exception{

@@ -5,7 +5,7 @@ import java.nio.file.Path;
 
 import org.testng.Assert;
 
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
@@ -15,7 +15,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFReader;
 
-@AlsoTest(LauncherTest.class)
+
 public class VcfPeekAfTest {
 	private final TestSupport support =new TestSupport();
 

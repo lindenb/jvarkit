@@ -15,11 +15,11 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
-import com.github.lindenb.jvarkit.tests.AlsoTest;
+
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.iterator.LineIteratorsTest;
 
-@AlsoTest({LineIteratorsTest.class,StringUtilsTest.class})
+
 public class IOUtilsTest {
 	private final TestSupport support = new TestSupport();
 	
