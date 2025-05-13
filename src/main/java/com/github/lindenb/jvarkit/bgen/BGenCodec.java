@@ -38,6 +38,7 @@ import java.util.Objects;
 
 import htsjdk.io.HtsPath;
 import htsjdk.samtools.Defaults;
+import htsjdk.samtools.seekablestream.SeekableBufferedStream;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.AbstractIterator;
@@ -45,9 +46,11 @@ import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.LocationAware;
 import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.AbstractFeatureCodec;
 import htsjdk.tribble.BinaryFeatureCodec;
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
@@ -66,7 +69,7 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 
-public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
+public class BGenCodec extends AbstractFeatureCodec<BGenVariant,SeekableStream> {
 	private static final Logger LOG = Logger.of(BGenCodec.class).setDebug();
 
 	private enum State {expect_variant_def, expect_genotypes };
@@ -77,8 +80,6 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 	private int layout1_expect_n_samples=-1;
 	private final BGenUtils.ByteBuffer buffer1 = new BGenUtils.ByteBuffer();
 	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
-	private Path filenameOrNull = null;
-	private VCFFileReader vcfIndexFile = null;
 	private final BinaryCodec binaryCodec = new BinaryCodec();
 	private final boolean skip_genotypes;
 
@@ -438,7 +439,7 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 	
 	
 	@Override
-	public FeatureCodecHeader readHeader(PositionalBufferedStream source) throws IOException {
+	public FeatureCodecHeader readHeader(SeekableStream source) throws IOException {
 		this.binaryCodec.setInputStream(source);
 		try(ByteCountInputStream bc=new ByteCountInputStream(this.binaryCodec.getInputStream())) {
 			final BinaryCodec codec1=new BinaryCodec(bc);
@@ -454,12 +455,13 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 				}
 			}
 		this.state= State.expect_variant_def;
-		return new FeatureCodecHeader(this.header, source.getPosition());
+		return new FeatureCodecHeader(this.header, source.position());
 		}
 	
 	
 	
 	public BGenCodec(boolean skip_genotypes) throws IOException {
+		super(BGenVariant.class);
 		this.skip_genotypes  = skip_genotypes;
 		}
 	
@@ -502,15 +504,12 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 		return this.binaryCodec.getInputStream() instanceof SeekableStream;
 	}
 	
-	private long ftell(PositionalBufferedStream source) throws IOException {
+	private long ftell(SeekableStream source) throws IOException {
 		if(isSeekableStream()) {
 			return SeekableStream.class.cast(source).position();
 			}
 		return -1L;
 		}
-	
-
-	
 	
 	private List<String> readNAlleles(final int num_alleles) throws IOException {
 	      final String[] alleles = new String[num_alleles];
@@ -518,16 +517,17 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 	            alleles[k] = BGenUtils.readStringUInt32(binaryCodec);
 	            }
 	      return Arrays.asList(alleles);
-	      } 
+	      }
+	
 	@Override
-	public BGenVariant decodeLoc(PositionalBufferedStream source) throws IOException {
-		BGenVariant ctx=readVariant(source);
+	public BGenVariant decodeLoc(final SeekableStream source) throws IOException {
+		final BGenVariant ctx=readVariant(source);
 		skipGenotypes(source);
 		return ctx ;		
 		}
 	
 	@Override
-	public BGenVariant decode(PositionalBufferedStream source) throws IOException {
+	public BGenVariant decode(final SeekableStream source) throws IOException {
 		BGenVariant ctx=readVariant(source);
 		if(this.skip_genotypes) {
 			skipGenotypes(source);
@@ -539,7 +539,7 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 		}
 	
 	/** read the next variant or returns null if end of file */
-	public BGenVariant readVariant(PositionalBufferedStream source) throws IOException {
+	public BGenVariant readVariant(SeekableStream source) throws IOException {
 		assertState(State.expect_variant_def);
 		this.binaryCodec.setInputStream(source);
 		final VariantImpl ctx = new VariantImpl();
@@ -593,7 +593,7 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 	    return ctx;
 		}
 	
-	public void skipGenotypes(PositionalBufferedStream source) throws IOException{
+	public void skipGenotypes(SeekableStream source) throws IOException{
 		assertState(State.expect_genotypes);
 		this.binaryCodec.setInputStream(source);
 		final long skip_n =  this.binaryCodec.readUInt();
@@ -607,7 +607,7 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 
 	
 	@SuppressWarnings("resource")
-	public BGenVariant readGenotypes(PositionalBufferedStream source)  throws IOException{
+	public BGenVariant readGenotypes(SeekableStream source)  throws IOException{
 		assertState(State.expect_genotypes);
 		this.binaryCodec.setInputStream(source);
 
@@ -855,19 +855,63 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 				}
 			}*/
 	@Override
-	public void close(PositionalBufferedStream source) {
-		if(this.vcfIndexFile!=null) {
-			vcfIndexFile.close();
-			vcfIndexFile=null;
-			}
-		
+	public void close(SeekableStream source) {
 		try {source.close();}
 		catch(Throwable err) {}
 		this.binaryCodec.close();
 		}
+	@Override
+	public boolean canDecode(final String path) {
+		if(path==null || !path.endsWith(BGenUtils.FILE_SUFFIX)) return false;
+		SeekableStream in = null;
+		try {
+			in = SeekableStreamFactory.getInstance().getBufferedStream(SeekableStreamFactory.getInstance().getStreamFor(Objects.requireNonNull(path,"null input")),Defaults.NON_ZERO_BUFFER_SIZE);
+			try(SeekableStream bi=makeSourceFromStream(in)) {
+				readHeader(bi);
+				}
+			return true;
+			}
+		catch(Throwable err) {
+			return false;
+			}
+		finally {
+			if(in!=null) try {
+				in.close();
+				}
+			catch(IOException err) {
+				LOG.warn(err);
+				}
+			}
+		}
+	
+	@Override
+    public SeekableStream makeSourceFromStream(final InputStream is) {
+        if (is instanceof SeekableBufferedStream)
+            return SeekableBufferedStream.class.cast(is);
+        else if (is instanceof SeekableStream)
+        	return SeekableStreamFactory.getInstance().getBufferedStream(SeekableStream.class.cast(is));
+        throw new IllegalArgumentException();
+    }
+
+	@Override
+	public boolean isDone(SeekableStream source) {
+		try {
+			return source.eof();
+			}
+		catch(IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		}
+	
+    /** {@link PositionalBufferedStream} is already {@link LocationAware}. */
+    @Override
+    public LocationAware makeIndexableSourceFromStream(final InputStream bufferedInputStream) {
+        throw new IllegalArgumentException();
+    }
+	
 	
 	@Override
 	public String toString() {
-		return "BGenReader(file:"+this.filenameOrNull+")";
+		return "BGenCodec()";
 		}
 }
