@@ -49,6 +49,10 @@ import htsjdk.samtools.util.RuntimeEOFException;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.BinaryFeatureCodec;
+import htsjdk.tribble.Feature;
+import htsjdk.tribble.FeatureCodec;
+import htsjdk.tribble.FeatureCodecHeader;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.tribble.util.ParsingUtils;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
@@ -62,12 +66,12 @@ import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 
-public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
+public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 	private static final Logger LOG = Logger.of(BGenCodec.class).setDebug();
 
 	private enum State {expect_variant_def, expect_genotypes };
-	private final BGenHeader header;
-	private final long snps_offset ;
+	private BGenHeader header;
+	private long snps_offset ;
 	private State state;
 	private VariantImpl lastVariant=null;
 	private int layout1_expect_n_samples=-1;
@@ -75,6 +79,8 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
 	private Path filenameOrNull = null;
 	private VCFFileReader vcfIndexFile = null;
+	private final BinaryCodec binaryCodec = new BinaryCodec();
+	private final boolean skip_genotypes;
 
 	/** class counting the number of bytes read. Useful to skip bytes after the header */
 	private static class ByteCountInputStream extends FilterInputStream {
@@ -431,13 +437,10 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 		}
 	
 	
-	public BGenCodec(final InputStream in) throws IOException {
-		super(Objects.requireNonNull(in,"null input"));
-		}
-	
-	void readHeader()
-		{
-		try(ByteCountInputStream bc=new ByteCountInputStream(in)) {
+	@Override
+	public FeatureCodecHeader readHeader(PositionalBufferedStream source) throws IOException {
+		this.binaryCodec.setInputStream(source);
+		try(ByteCountInputStream bc=new ByteCountInputStream(this.binaryCodec.getInputStream())) {
 			final BinaryCodec codec1=new BinaryCodec(bc);
 			this.snps_offset =  codec1.readUInt();
 			this.header = BGenHeader.of(codec1);
@@ -445,42 +448,34 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 			if(LOG.isDebug()) {
 				LOG.info("skip bytes: this.snps_offset="+this.snps_offset+" + 4 - header.count="+bc.count+"="+skip );
 				}
-			in.skipNBytes(skip);
+			this.binaryCodec.getInputStream().skipNBytes(skip);
 			if(LOG.isDebug() && isSeekableStream()) {
-				LOG.info("end reading header and now file offset is "+ftell() );
+				LOG.info("end reading header and now file offset is "+ftell(source) );
 				}
 			}
-
 		this.state= State.expect_variant_def;
+		return new FeatureCodecHeader(this.header, source.getPosition());
 		}
 	
-	public BGenCodec(final String path) throws IOException {
-		this(SeekableStreamFactory.getInstance().getBufferedStream(SeekableStreamFactory.getInstance().getStreamFor(Objects.requireNonNull(path,"null input")),Defaults.NON_ZERO_BUFFER_SIZE));
-		if(this.in instanceof SeekableStream) {
-			String src=SeekableStream.class.cast(this.in).getSource();
-			if(!StringUtils.isBlank(src)) {
-				final HtsPath source = new HtsPath(src);
-				if(source.isPath()) {
-					this.filenameOrNull = source.toPath();
-					}
-				}
-			}
+	
+	
+	public BGenCodec(boolean skip_genotypes) throws IOException {
+		this.skip_genotypes  = skip_genotypes;
 		}
 	
-	public BGenCodec(final Path path) throws IOException {
-		this(Objects.requireNonNull(path,"null input").toString());
-		this.filenameOrNull = path;
+	public BGenCodec() throws IOException {
+		this(false);
 		}
 	
 	public BGenHeader getHeader() {
 		return header;
 		}
 	
-	public Layout getLayout() {
+	public BGenUtils.Layout getLayout() {
 		return getHeader().getLayout();
 		}
 	
-	public Compression getCompression() {
+	public BGenUtils.Compression getCompression() {
 		return getHeader().getCompression();
 	}
 	
@@ -493,169 +488,66 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 	 * @param position the physical offset
 	 * @throws IOException the inutstream is not an instance of SeekableStream
 	 */
-	public void fseek(long position)  throws IOException {
-		assertState(State.expect_variant_def);;
+	public void fseek(PositionalBufferedStream source , long position)  throws IOException {
+		assertState(State.expect_variant_def);
+		this.binaryCodec.setInputStream(source);
 		if(position<=0) throw new IllegalArgumentException("seek.pos<=0: "+position);
 		if(!(isSeekableStream())) {
-			throw new IOException("cannot do random-access with this king of input "+this.in.getClass());
+			throw new IOException("cannot do random-access with this king of input "+source.getClass());
 			}
-		SeekableStream.class.cast(this.in).seek(position);
+		SeekableStream.class.cast(source).seek(position);
 		}
 	
 	private boolean isSeekableStream() {
-		return this.in instanceof SeekableStream;
+		return this.binaryCodec.getInputStream() instanceof SeekableStream;
 	}
 	
-	private long ftell() throws IOException {
+	private long ftell(PositionalBufferedStream source) throws IOException {
 		if(isSeekableStream()) {
-			return SeekableStream.class.cast(this.in).position();
+			return SeekableStream.class.cast(source).position();
 			}
 		return -1L;
 		}
 	
-	private class Iter extends AbstractIterator<BGenVariant> {
-		private final boolean skipGenotypes;
-		Iter(boolean skipGenotypes) {
-			this.skipGenotypes=skipGenotypes;
-			}
-		
-		@Override
-		protected BGenVariant advance() {
-			try {
-				final BGenVariant v= BGenCodec.this.readVariant();
-				if(v==null) {
-					return null;
-					}
-				else if(this.skipGenotypes) {
-					BGenCodec.this.skipGenotypes();
-					return v;
-					}
-				else
-					{
-					return BGenCodec.this.readGenotypes();
-					}
-				}
-			catch(IOException err) {
-				throw new RuntimeIOException(err);
-				}
-			}
-		};
+
 	
-	public AbstractIterator<BGenVariant> iterator(boolean skipGenotypes) {
-		return new Iter(skipGenotypes);
-		}
-	
-	public Iterator<BGenVariant> iterator() {
-		return iterator(false);
-		}
-	
-	private class QueryIterator extends AbstractIterator<BGenVariant> implements CloseableIterator<BGenVariant> {
-		private Locatable query;
-		private CloseableIterator<VariantContext> delegate;
-		private boolean skipGenotypes;
-		@Override
-		protected BGenVariant advance() {
-			try {
-				for(;;) {
-					if(delegate==null) return null;
-					if(!delegate.hasNext()) {
-						close();
-						return null;
-						}
-					final VariantContext ctx = this.delegate.next();
-					if(!ctx.overlaps(this.query)) continue;
-					if(!ctx.hasAttribute(OFFSET_format_header_line.getID())) continue;
-					final long offset= Long.parseLong(ctx.getAttributeAsString(OFFSET_format_header_line.getID(), "-1"));
-					if(offset<=0L) throw new IllegalArgumentException("bad offset in "+ctx);
-					BGenCodec.this.fseek(offset);
-					BGenVariant bv = BGenCodec.this.readVariant();
-					if(skipGenotypes) {
-						BGenCodec.this.skipGenotypes();
-						}
-					else
-						{
-						bv = BGenCodec.this.readGenotypes();
-						}
-					return bv;
-					}
-				}
-			catch(IOException err) {
-				throw new RuntimeIOException(err);
-				}
-			}
-		@Override
-		public void close()  {
-			if(this.delegate!=null) this.delegate.close();
-			this.delegate=null;
-			}
-		}
-	
-	public CloseableIterator<BGenVariant> query(final Locatable loc, boolean skipGenotypes) {
-		loadVcfIndex();
-		final QueryIterator iter=new QueryIterator();
-		iter.query=new SimpleInterval(loc);
-		iter.delegate = Objects.requireNonNull(this.vcfIndexFile).query(loc);
-		iter.skipGenotypes = skipGenotypes;
-		return iter;
-		}
-	
-	public boolean hasIndex() {
-		if(this.vcfIndexFile!=null) return true;
-		if(this.filenameOrNull==null)return false;
-		final Path vcfPath = getVcfIndexName(this.filenameOrNull);
-		if(!Files.exists(vcfPath)) return false;
-		final String vcffilename = vcfPath.toAbsolutePath().toString();
-		final  Path tbi = vcfPath.getFileSystem().getPath(ParsingUtils.appendToPath(vcffilename, FileExtensions.TABIX_INDEX));
-		if(!Files.exists(tbi)) return false;
-		try(VCFFileReader r=new VCFFileReader(vcfPath,false)) {
-			final VCFHeader hder = r.getHeader();
-			if(!hder.hasInfoLine(OFFSET_format_header_line.getID())) return false;
-			}
-		catch(Throwable err) {
-			return false;
-			}
-		return true;
-		}
-	
-	private void loadVcfIndex() {
-		if(this.vcfIndexFile!=null) return;
-		if(this.filenameOrNull==null) throw new RuntimeIOException("Cannot load a VCF index as the bgen is not a file (but probably a stream) ");
-		final Path vcfPath = getVcfIndexName(this.filenameOrNull);
-		if(!Files.exists(vcfPath))  throw new RuntimeIOException("cannot find associated VCF file "+vcfPath);
-		this.vcfIndexFile=new VCFFileReader(vcfPath,true);
-		final VCFHeader hder = this.vcfIndexFile.getHeader();
-		if(!hder.hasInfoLine(OFFSET_format_header_line.getID())) {
-			this.vcfIndexFile.close();
-			this.vcfIndexFile=null;
-			throw new RuntimeIOException("cannot use "+vcfPath+" as index because the header is missing ##INFO/"+OFFSET_format_header_line.getID());
-			}
-		}
-	
-	/** get the name of the VCF index for the bgen without checking it exists */
-	public static Path getVcfIndexName(Path bgenPath) {
-		final String filename = Objects.requireNonNull(bgenPath).toAbsolutePath().toString();
-		final  String vcf = ParsingUtils.appendToPath(filename, VCF_INDEX_SUFFIX);
-		return bgenPath.getFileSystem().getPath(vcf);
-		}
 	
 	private List<String> readNAlleles(final int num_alleles) throws IOException {
 	      final String[] alleles = new String[num_alleles];
 	      for(int k=0;k< num_alleles;++k) {
-	            alleles[k] = readStringUInt32(binaryCodec);
+	            alleles[k] = BGenUtils.readStringUInt32(binaryCodec);
 	            }
 	      return Arrays.asList(alleles);
 	      } 
+	@Override
+	public BGenVariant decodeLoc(PositionalBufferedStream source) throws IOException {
+		BGenVariant ctx=readVariant(source);
+		skipGenotypes(source);
+		return ctx ;		
+		}
+	
+	@Override
+	public BGenVariant decode(PositionalBufferedStream source) throws IOException {
+		BGenVariant ctx=readVariant(source);
+		if(this.skip_genotypes) {
+			skipGenotypes(source);
+			}
+		else {
+			ctx = readGenotypes(source);
+			}
+		return ctx ;
+		}
 	
 	/** read the next variant or returns null if end of file */
-	public BGenVariant readVariant() throws IOException {
+	public BGenVariant readVariant(PositionalBufferedStream source) throws IOException {
 		assertState(State.expect_variant_def);
-		
+		this.binaryCodec.setInputStream(source);
 		final VariantImpl ctx = new VariantImpl();
-		ctx.offset = ftell();
+		ctx.offset = ftell(source);
 		
-		if(header.getLayout().equals(Layout.LAYOUT_1)) {
+		if(header.getLayout().equals(BGenUtils.Layout.LAYOUT_1)) {
 			try {
-				this.layout1_expect_n_samples = longToUnsignedInt(this.binaryCodec.readUInt());
+				this.layout1_expect_n_samples = BGenUtils.longToUnsignedInt(this.binaryCodec.readUInt());
 				}
 			catch(Throwable eof) {
 				if(LOG.isDebug()) {
@@ -671,22 +563,22 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 				}
 			 }
 		try {
-			ctx.variantId = readStringUInt16(this.binaryCodec);
+			ctx.variantId = BGenUtils.readStringUInt16(this.binaryCodec);
 			}
 		catch(Throwable eof) {
 			if(LOG.isDebug()) {
 				LOG.debug("not more variant "+header.getLayout()+" "+eof.getClass());
 				eof.printStackTrace();
 				}
-			if(!header.getLayout().equals(Layout.LAYOUT_1)) {
+			if(!header.getLayout().equals(BGenUtils.Layout.LAYOUT_1)) {
 				if(eof instanceof RuntimeEOFException) return null;
 				}
 			throw eof;
 			}
-	    ctx.rsId =  readStringUInt16(this.binaryCodec);
-	    ctx.contig =  readStringUInt16(this.binaryCodec);
+	    ctx.rsId =  BGenUtils.readStringUInt16(this.binaryCodec);
+	    ctx.contig =  BGenUtils.readStringUInt16(this.binaryCodec);
 	     if(StringUtil.isBlank( ctx.contig)) throw new IOException("empty chromosome");
-	    ctx.position = longToUnsignedInt(this.binaryCodec.readUInt());
+	    ctx.position = BGenUtils.longToUnsignedInt(this.binaryCodec.readUInt());
 	    
 	     switch(header.getLayout()) {
 	     	case LAYOUT_1: ctx.alleles = readNAlleles(2);break;
@@ -701,8 +593,9 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 	    return ctx;
 		}
 	
-	public void skipGenotypes() throws IOException{
+	public void skipGenotypes(PositionalBufferedStream source) throws IOException{
 		assertState(State.expect_genotypes);
+		this.binaryCodec.setInputStream(source);
 		final long skip_n =  this.binaryCodec.readUInt();
 		if(LOG.isDebug()) {
 			LOG.debug("skipping "+skip_n+" bytes");
@@ -714,35 +607,37 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 
 	
 	@SuppressWarnings("resource")
-	public BGenVariant readGenotypes()  throws IOException{
+	public BGenVariant readGenotypes(PositionalBufferedStream source)  throws IOException{
 		assertState(State.expect_genotypes);
+		this.binaryCodec.setInputStream(source);
+
 		
 		if(LOG.isDebug()) {
-			LOG.debug("reading genotypes. offset= "+ftell());
+			LOG.debug("reading genotypes. offset= "+ftell(source));
 			}
 		
-		int genotype_block_size =  longToUnsignedInt( this.binaryCodec.readUInt());
+		int genotype_block_size = BGenUtils.longToUnsignedInt( this.binaryCodec.readUInt());
 		if(LOG.isDebug()) {
 			LOG.debug("expect compressed size "+genotype_block_size);
 			}
 		
 		/* The total length D of the probability data after uncompression.
 		 * If CompressedSNPBlocks = 0, this field is omitted and the total length of the probability data */
-		if(!getHeader().getCompression().equals(Compression.NONE)) {
-			final int uncompressed_data_size_D =longToUnsignedInt( this.binaryCodec.readUInt());
+		if(!getHeader().getCompression().equals(BGenUtils.Compression.NONE)) {
+			final int uncompressed_data_size_D = BGenUtils.longToUnsignedInt( this.binaryCodec.readUInt());
 			if(LOG.isDebug()) {
-				LOG.debug("expect uncompressed size "+uncompressed_data_size_D+" now offset="+ftell());
+				LOG.debug("expect uncompressed size "+uncompressed_data_size_D+" now offset="+ftell(source));
 				}
 			genotype_block_size-= Integer.BYTES;
 			}
 		
 		this.buffer1.reset();
-		this.buffer1.copyTo(this.in,genotype_block_size);
+		this.buffer1.copyTo(this.binaryCodec.getInputStream(),genotype_block_size);
 		if(this.buffer1.size()!=genotype_block_size) {
 			throw new IllegalStateException("bad size");
 			}
 		if(LOG.isDebug()) {
-			LOG.debug("after reading genotypes. offset is now = "+ftell());
+			LOG.debug("after reading genotypes. offset is now = "+ftell(source));
 			}
 		InputStream uncompressedStream;
 		
@@ -765,7 +660,7 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 		codec2.close();
 		
 		if(LOG.isDebug()) {
-			LOG.debug("End reading genotypes. offset= "+ftell());
+			LOG.debug("End reading genotypes. offset= "+ftell(source));
 			}
 		
 		this.state = State.expect_variant_def;
@@ -833,8 +728,8 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
    			LOG.debug("nbits="+vcg.nbits);
    			}
         
-        final BitReader bitReader = new BitReader(codec2.getInputStream());
-        final BitNumReader numReader = new BitNumReader(bitReader, vcg.nbits);
+        final BGenUtils.BitReader bitReader = new BGenUtils.BitReader(codec2.getInputStream());
+        final BGenUtils.BitNumReader numReader = new BGenUtils.BitNumReader(bitReader, vcg.nbits);
         final List<Double> values= new ArrayList<>();
         if(vcg.phased==1) {
         	if(LOG.isDebug()) {
@@ -846,8 +741,8 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
        			VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
        			if(LOG.isDebug()) {
            			LOG.debug("read phased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
-           			new AlleleCombinations(
-           					Layout.LAYOUT_2,
+           			new BGenUtils.AlleleCombinations(
+           					BGenUtils.Layout.LAYOUT_2,
            					this.lastVariant.getAlleles(), 
            					gt.getPloidy(),
            					true
@@ -889,8 +784,8 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
        			final VariantAndGenotypesLayout2.GenotypeLayout2 gt= vcg.at(i);
        			if(LOG.isDebug()) {
            			LOG.debug("read unphased genotype["+i+"] ploidy :"+gt.getPloidy()+" missing:"+gt.isMissing()+" n-alleles:"+this.lastVariant.getNAlleles());
-           			new AlleleCombinations(
-           					Layout.LAYOUT_2,
+           			new BGenUtils.AlleleCombinations(
+           					BGenUtils.Layout.LAYOUT_2,
            					this.lastVariant.getAlleles(), 
            					gt.getPloidy(),
            					false
@@ -901,7 +796,7 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
            			LOG.debug("combination="+bi);
            			}
        			final int n_combinaison_as_int= bi.intValueExact();
-       			if(n_combinaison_as_int!= calculateTotalCombinationsForLayout2(
+       			if(n_combinaison_as_int!= BGenUtils.calculateTotalCombinationsForLayout2(
        						false,this.lastVariant.getNAlleles(), gt.getPloidy()) 
        					) {
        				throw new IllegalStateException();
@@ -959,16 +854,15 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariantV> {
 					}
 				}
 			}*/
-	
 	@Override
-	public void close()  {
+	public void close(PositionalBufferedStream source) {
 		if(this.vcfIndexFile!=null) {
 			vcfIndexFile.close();
 			vcfIndexFile=null;
 			}
 		
-		try {this.in.close();}
-		catch(IOException err) {}
+		try {source.close();}
+		catch(Throwable err) {}
 		this.binaryCodec.close();
 		}
 	
