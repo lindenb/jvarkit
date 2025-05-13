@@ -23,11 +23,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bgen;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
@@ -42,25 +45,54 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.tribble.AbstractFeatureReader;
+import htsjdk.tribble.CloseableTribbleIterator;
+import htsjdk.tribble.FeatureReader;
+import htsjdk.tribble.TribbleIndexedFeatureReader;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.tribble.util.ParsingUtils;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 
 
-public class BGenReader extends BGenUtils implements AutoCloseable {
+public class BGenReader extends TribbleIndexedFeatureReader<BGenVariant,SeekableStream> {
 	private static final Logger LOG = Logger.of(BGenReader.class).setDebug();
 	private final SeekableStream seekableStream;
+	//private final AbstractFeatureReader<BGenVariant, SeekableStream> featureReader;
 	private final BGenCodec bgenCodec;
 	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
 	private Path filenameOrNull = null;
 	private VCFFileReader vcfIndexFile = null;
+	private final DelegateBGenReader delegate;
+	
+	private interface DelegateBGenReader extends Closeable {
+		
+		}
+	
+	private class  StreamBgenReader implements DelegateBGenReader {
+		SeekableStream pbs;
+		StreamBgenReader(InputStream in,final BGenCodec bgenCodec) {
+			this.pbs = bgenCodec.makeSourceFromStream(in);
+			}
+		@Override
+		public void close() throws IOException {
+			
+			}
+		}
+	
+	private class AsbstractDelegateBGenReader extends AbstractFeatureReader<BGenVariant, SeekableStream> {
+		AsbstractDelegateBGenReader(String path,final BGenCodec bgenCodec) {
+			super(path,bgenCodec);
+			}
+		
+		}
 
 	
 	public BGenReader(final InputStream in) throws IOException {
 		this.bgenCodec = new BGenCodec(false);
 		this.seekableStream = this.bgenCodec.makeSourceFromStream(in);
-		this.bgenCodec.readGenotypes(this.seekableStream);
+		this.bgenCodec.readHeader(this.seekableStream);
 		}
 	
 	public BGenReader(final String path) throws IOException {
@@ -92,6 +124,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		return this.bgenCodec.getSnpsOffset();
 		}
 	
+	@Override
+	public List<String> getSequenceNames() {
+		return Collections.emptyList();
+		}
+	 
 	/** change the reading pointer offset
 	 * 
 	 * @param position the physical offset
@@ -104,7 +141,8 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 
 	
-	private class Iter extends AbstractIterator<BGenVariant> {
+	private class Iter extends AbstractIterator<BGenVariant> implements
+		CloseableTribbleIterator<BGenVariant>{
 		private final boolean skipGenotypes;
 		Iter(boolean skipGenotypes) {
 			this.skipGenotypes=skipGenotypes;
@@ -130,17 +168,25 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				throw new RuntimeIOException(err);
 				}
 			}
+		@Override
+		public Iterator<BGenVariant> iterator() {
+			return this;
+			}
+		@Override
+		public void close() {
+			
+			}
 		};
 	
-	public AbstractIterator<BGenVariant> iterator(boolean skipGenotypes) {
+	public CloseableTribbleIterator<BGenVariant> iterator(boolean skipGenotypes) {
 		return new Iter(skipGenotypes);
 		}
 	
-	public Iterator<BGenVariant> iterator() {
+	public CloseableTribbleIterator<BGenVariant> iterator() {
 		return iterator(false);
 		}
 	
-	private class QueryIterator extends AbstractIterator<BGenVariant> implements CloseableIterator<BGenVariant> {
+	private class QueryIterator extends AbstractIterator<BGenVariant> implements CloseableTribbleIterator<BGenVariant> {
 		private Locatable query;
 		private CloseableIterator<VariantContext> delegate;
 		private boolean skipGenotypes;
@@ -179,9 +225,17 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			if(this.delegate!=null) this.delegate.close();
 			this.delegate=null;
 			}
+		@Override
+		public Iterator<BGenVariant> iterator() {
+			return this;
+			}
 		}
 	
-	public CloseableIterator<BGenVariant> query(final Locatable loc, boolean skipGenotypes) {
+	public CloseableTribbleIterator<BGenVariant> query(final String loc,int start,int end) {
+		return query(new SimpleInterval(loc,start,end),false);
+		}
+	
+	public CloseableTribbleIterator<BGenVariant> query(final Locatable loc, boolean skipGenotypes) {
 		loadVcfIndex();
 		final QueryIterator iter=new QueryIterator();
 		iter.query=new SimpleInterval(loc);
