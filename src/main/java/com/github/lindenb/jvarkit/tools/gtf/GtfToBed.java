@@ -45,6 +45,7 @@ import java.util.stream.Collectors;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -285,7 +286,7 @@ public class GtfToBed
 				}
 			
 			final String input = oneFileOrNull(args);
-			try(InputStream in1 = input==null?System.in:Files.newInputStream(Paths.get(input))) {
+			try(InputStream in1 = input==null?stdin():Files.newInputStream(Paths.get(input))) {
 				final InputStream in = IOUtils.uncompress(in1);
 				final BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
 				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
@@ -296,7 +297,9 @@ public class GtfToBed
 					while((line=br.readLine())!=null) {
 						if(line.startsWith("#") || StringUtils.isBlank(line)) continue;
 						final String[] tokens = CharSplitter.TAB.split(line);
-						if(tokens.length!=9) throw new IllegalArgumentException("expected 9 tokens in "+String.join("<\\t>", tokens));
+						if(tokens.length!=9) {
+							throw new JvarkitException.TokenErrors(9,tokens);
+						}
 						
 						final String ctg = contigNameConverter.apply(tokens[0]);
 						if(StringUtils.isBlank(ctg)) continue;

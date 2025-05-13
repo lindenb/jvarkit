@@ -777,9 +777,9 @@ public class IOUtils {
 		 if(input instanceof BlockCompressedInputStream) return input;
 		 final PushbackInputStream pb = new PushbackInputStream( input, 2 ); //we need a pushbackstream to look ahead
 	     final byte [] signature = new byte[2];
-	     pb.read( signature ); //read the signature
-	     pb.unread( signature ); //push back the signature to the stream
-	     if(isGZipCompressed(signature)) //check if matches standard gzip magic number
+	     final int nread=pb.read( signature ); //read the signature
+	     if(nread!=-1) pb.unread( signature,0,nread); //push back the signature to the stream
+	     if(nread==signature.length && isGZipCompressed(signature)) //check if matches standard gzip magic number
 	       return new GZIPInputStream( pb );
 	     else 
 	       return pb;

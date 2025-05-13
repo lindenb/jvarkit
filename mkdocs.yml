@@ -197,6 +197,7 @@ nav:
         - "regenieslidingannot" : RegenieSlidingAnnot.md
         - "repairfastq" : RepairFastq.md
         - "rnaseqpolya" : RNASeqPolyA.md
+        - "runtestng" : RunTestNG.md
         - "sam2json" : SamToJson.md
         - "sam2psl" : SamToPsl.md
         - "sam2tsv" : Sam2Tsv.md
@@ -234,7 +235,6 @@ nav:
         - "swingregenie" : RegenieSwing.md
         - "swingvcfjexl" : SwingVcfJexlFilter.md
         - "swingvcfview" : SwingVcfView.md
-        - "testng" : RunTestNG.md
         - "texbam" : TextBam.md
         - "translategff3" : TranslateGff3.md
         - "tssenrich" : TSSEnrichment.md
