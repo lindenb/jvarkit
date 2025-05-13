@@ -693,7 +693,7 @@ public class BGenCodec extends BinaryFeatureCodec<BGenVariant> {
 	private VariantAndGenotypesLayout2 decodeLayout2(final BinaryCodec codec2) throws IOException {
         /* The number of individuals for which probability data is stored. 
          * This must equal N as defined in the header block.  */
-		final int n_samples = longToUnsignedInt( codec2.readUInt());
+		final int n_samples = BGenUtils.longToUnsignedInt( codec2.readUInt());
         if(n_samples != this.getHeader().getNSamples()) throw new IOException("expected "+this.getHeader().getNSamples()+" but got  " +n_samples +")");
         
         /* The number of alleles, encoded as an unsigned 16-bit integer. 
