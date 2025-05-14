@@ -66,7 +66,7 @@ END_DOC
 description="Create annotation files for regenie using sliding annotations",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="202050512",
+modificationDate="202050514",
 jvarkit_amalgamion = true,
 generate_doc = true
 )
@@ -256,7 +256,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {	
 		final Set<String> seen = new HashSet<>(); 
-		for(UserBed ub: this.interval2userbed.getOverlapping(ctx).stream().toArray(N->new UserBed[N]) ) {
+		for(UserBed ub: this.interval2userbed.getOverlapping(ctx).stream().flatMap(T->T.stream()).toArray(N->new UserBed[N]) ) {
 			if(seen.contains(ub.gene_name)) continue;
 			seen.add(ub.gene_name);
 			final Variation v = new Variation();
