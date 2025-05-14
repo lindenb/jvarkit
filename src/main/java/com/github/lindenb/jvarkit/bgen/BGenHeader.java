@@ -23,18 +23,22 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bgen;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.BinaryCodec;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.tribble.TribbleException;
 
 public class BGenHeader extends BGenUtils {
@@ -189,18 +193,59 @@ public class BGenHeader extends BGenUtils {
 	       			}
 	       		};
        	}
-       final Map<String,Integer> hash = new HashMap<>(header.samples.size());
-       for(String sn:header.samples) {
-       	if(hash.containsKey(sn)) {
-       		throw new TribbleException("duplicate sample "+sn);
-       		}
-       	hash.put(sn, hash.size());
-        header.sample2idx = Collections.unmodifiableMap(hash);
-       	}
-       
-       return header;
+     
+        header.sample2idx = hashSamples(header.samples);
+        return header;
    		}
     
+   private static Map<String,Integer> hashSamples(final List<String> samples) {
+	   final Map<String,Integer> hash = new HashMap<>(samples.size());
+	       for(String sn: samples) {
+	       	if(hash.containsKey(sn)) {
+	       		throw new TribbleException("duplicate sample "+sn);
+	       		}
+	       	hash.put(sn, hash.size());
+	       	}
+	    return Collections.unmodifiableMap(hash);
+   		}
+  
+   /**
+    * Change the name of the sample
+    * @param new_samples new sample name, new_sample.size() must be equals to this.getNSamples()
+    */
+   public void bindSamples(final List<String> new_samples) {
+	if(this.getSamples().equals(new_samples)) return;
+	if(this.getNSamples()!=new_samples.size()) {
+		throw new IllegalArgumentException("bgen contains "+getNSamples()+" sample(s) but the bind list contains "+samples.size());
+		}
+	 final Map<String,Integer> s2i = hashSamples(new_samples);
+	 this.samples =  Collections.unmodifiableList(new ArrayList<>(new_samples));
+     this.sample2idx = s2i;
+   	 }
    
+   /**
+    * Change the name of the sample using a plink pedigree file.
+    * Call binSamples(new_samples)
+    */
+   public void bindPLinkSampleFile(final Path plinkidFile) throws IOException {
+	 IOUtil.assertFileIsReadable(plinkidFile);
+	 try(BufferedReader br= Files.newBufferedReader(plinkidFile)) {
+		final String ID_2="ID_2";
+		final List<String> new_samples= new ArrayList<>(this.getNSamples());
+		String line= br.readLine();
+		if(line==null) throw new IOException("Cannot read first line of "+plinkidFile);
+		final FileHeader h=new FileHeader(line, S->Arrays.asList(S.split("\\s+")));
+		h.assertColumnExists(ID_2);
+		while((line=br.readLine())!=null) {
+			final String sn= h.toMap(line).get(ID_2);
+			if(sn.equals("0"))  {
+				//empty sample used by plink to keep familial links consistent
+				continue;
+				}
+			new_samples.add(sn);
+			}
+		bindSamples(new_samples);
+	 	}
+   	 }
 
 }

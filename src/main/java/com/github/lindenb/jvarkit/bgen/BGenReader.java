@@ -23,111 +23,74 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bgen;
 
-import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Objects;
 
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.io.HtsPath;
-import htsjdk.samtools.Defaults;
-import htsjdk.samtools.seekablestream.SeekableStream;
-import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.CloseableTribbleIterator;
-import htsjdk.tribble.FeatureReader;
-import htsjdk.tribble.TribbleIndexedFeatureReader;
-import htsjdk.tribble.readers.PositionalBufferedStream;
-import htsjdk.tribble.util.ParsingUtils;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFReader;
 
 
-public class BGenReader extends TribbleIndexedFeatureReader<BGenVariant,SeekableStream> {
+public class BGenReader extends BGenUtils implements AutoCloseable {
 	private static final Logger LOG = Logger.of(BGenReader.class).setDebug();
-	private final SeekableStream seekableStream;
 	//private final AbstractFeatureReader<BGenVariant, SeekableStream> featureReader;
-	private final BGenCodec bgenCodec;
 	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
-	private Path filenameOrNull = null;
-	private VCFFileReader vcfIndexFile = null;
-	private final DelegateBGenReader delegate;
+	private final BGenCodec codec = new BGenCodec(false);
+	private final BGenUtils.RandomAccessSeekableStream seekableStream;
+	private final VCFReader vcfIndexFileReader;
+	private final String sourceName;
 	
-	private interface DelegateBGenReader extends Closeable {
-		
-		}
-	
-	private class  StreamBgenReader implements DelegateBGenReader {
-		SeekableStream pbs;
-		StreamBgenReader(InputStream in,final BGenCodec bgenCodec) {
-			this.pbs = bgenCodec.makeSourceFromStream(in);
-			}
-		@Override
-		public void close() throws IOException {
-			
-			}
-		}
-	
-	private class AsbstractDelegateBGenReader extends AbstractFeatureReader<BGenVariant, SeekableStream> {
-		AsbstractDelegateBGenReader(String path,final BGenCodec bgenCodec) {
-			super(path,bgenCodec);
-			}
-		
-		}
 
-	
-	public BGenReader(final InputStream in) throws IOException {
-		this.bgenCodec = new BGenCodec(false);
-		this.seekableStream = this.bgenCodec.makeSourceFromStream(in);
-		this.bgenCodec.readHeader(this.seekableStream);
+    public BGenReader(final String path,final VCFReader vcfIndexFileReaderOrNull) throws IOException {
+		this.seekableStream = new RandomAccessSeekableStream(path);
+		this.sourceName=path;
+		this.vcfIndexFileReader = vcfIndexFileReaderOrNull;
+		this.codec.readActualHeader(this.seekableStream);
 		}
 	
-	public BGenReader(final String path) throws IOException {
-		this(SeekableStreamFactory.getInstance().getBufferedStream(SeekableStreamFactory.getInstance().getStreamFor(Objects.requireNonNull(path,"null input")),Defaults.NON_ZERO_BUFFER_SIZE));
-		final HtsPath source = new HtsPath(path);
-		if(source.isPath()) {
-			this.filenameOrNull = source.toPath();
-			}			
+    public BGenReader(final String path) throws IOException {
+		this(path,null);
 		}
-	
+    
 	public BGenReader(final Path path) throws IOException {
 		this(Objects.requireNonNull(path,"null input").toString());
-		this.filenameOrNull = path;
+		}
+	
+	/** rename samples using a plink sample file */
+	public void bindPLinkSampleFile(final Path path) throws IOException {
+		this.codec.getHeader().bindPLinkSampleFile(path);
 		}
 	
 	public BGenHeader getHeader() {
-		return this.bgenCodec.getHeader();
+		return this.codec.getHeader();
 		}
 	
-	public Layout getLayout() {
+	public BGenUtils.Layout getLayout() {
 		return getHeader().getLayout();
 		}
 	
-	public Compression getCompression() {
+	public BGenUtils.Compression getCompression() {
 		return getHeader().getCompression();
 	}
 	
 	public long getSnpsOffset() {
-		return this.bgenCodec.getSnpsOffset();
+		return this.codec.getSnpsOffset();
 		}
 	
-	@Override
-	public List<String> getSequenceNames() {
-		return Collections.emptyList();
-		}
+	/** reset reader to first variant position */
+	public void rewind() throws IOException {
+		this.codec.rewind(this.seekableStream);
+	}
 	 
 	/** change the reading pointer offset
 	 * 
@@ -136,32 +99,112 @@ public class BGenReader extends TribbleIndexedFeatureReader<BGenVariant,Seekable
 	 */
 	public void fseek(long position)  throws IOException {
 		if(position<=0) throw new IllegalArgumentException("seek.pos<=0: "+position);
-		this.seekableStream.seek(position);
+		this.seekableStream.fseek(position);
 		}
 	
 
 	
-	private class Iter extends AbstractIterator<BGenVariant> implements
-		CloseableTribbleIterator<BGenVariant>{
-		private final boolean skipGenotypes;
+	
+	
+	public BGenIterator iterator(boolean skipGenotypes) {
+		return new Iter(skipGenotypes);
+		}
+	
+	public BGenIterator iterator() {
+		return iterator(false);
+		}
+	
+	
+	
+	private abstract class BaseIterator extends AbstractIterator<BGenVariant> implements BGenIterator {
+		protected final Locatable query;
+		protected final boolean skipGenotypes;
+		BaseIterator(final Locatable query,boolean skipGenotypes) {
+			this.query=query;
+			this.skipGenotypes = skipGenotypes;
+			}
+		@Override
+		public void seekTo(long file_offset) throws IOException {
+			BGenReader.this.fseek(file_offset);
+			}
+		@Override
+		public BGenHeader getHeader() {
+			return BGenReader.this.getHeader();
+			}
+		@Override
+		public BGenVariant readVariant() throws IOException {
+			return BGenReader.this.readVariant();
+			}
+		@Override
+		public void skipGenotypes() throws IOException {
+			BGenReader.this.skipGenotypes();
+			}
+		@Override
+		public BGenVariant readGenotypes() throws IOException {
+			return BGenReader.this.readGenotypes();
+			}
+		@Override
+		public long getSnpsOffset() {
+			return BGenReader.this.codec.getSnpsOffset();
+			}
+		}
+	
+	private class Iter extends  BaseIterator {
 		Iter(boolean skipGenotypes) {
-			this.skipGenotypes=skipGenotypes;
+			super(null,skipGenotypes);
 			}
 		
 		@Override
 		protected BGenVariant advance() {
 			try {
-				final BGenVariant v= BGenReader.this.readVariant();
+				final BGenVariant v= this.readVariant();
 				if(v==null) {
 					return null;
 					}
-				else if(this.skipGenotypes) {
-					BGenReader.this.skipGenotypes();
+				else if(super.skipGenotypes) {
+					this.skipGenotypes();
 					return v;
 					}
 				else
 					{
-					return BGenReader.this.readGenotypes();
+					return this.readGenotypes();
+					}
+				}
+			catch(IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		
+		@Override
+		public void close() {
+			
+			}
+		};
+
+	
+	
+	private class OverlapIterator extends BaseIterator {
+		OverlapIterator(final Locatable query,boolean skipGenotypes) {
+			super(query,skipGenotypes);
+			}
+		@Override
+		protected BGenVariant advance() {
+			try {
+				for(;;) {
+					BGenVariant bv = readVariant();
+					if(bv==null) return null;
+					if(!bv.overlaps(query)) {
+						skipGenotypes();
+						continue;
+						}
+					if(skipGenotypes) {
+						skipGenotypes();
+						}
+					else
+						{
+						bv = readGenotypes();
+						}
+					return bv;
 					}
 				}
 			catch(IOException err) {
@@ -169,27 +212,18 @@ public class BGenReader extends TribbleIndexedFeatureReader<BGenVariant,Seekable
 				}
 			}
 		@Override
-		public Iterator<BGenVariant> iterator() {
-			return this;
+		public void close()  {
 			}
-		@Override
-		public void close() {
-			
-			}
-		};
-	
-	public CloseableTribbleIterator<BGenVariant> iterator(boolean skipGenotypes) {
-		return new Iter(skipGenotypes);
 		}
-	
-	public CloseableTribbleIterator<BGenVariant> iterator() {
-		return iterator(false);
-		}
-	
-	private class QueryIterator extends AbstractIterator<BGenVariant> implements CloseableTribbleIterator<BGenVariant> {
-		private Locatable query;
+
+	private class QueryIterator extends BaseIterator {
 		private CloseableIterator<VariantContext> delegate;
-		private boolean skipGenotypes;
+		
+		QueryIterator(final Locatable query,CloseableIterator<VariantContext> delegate,boolean skipGenotypes) {
+			super(query,skipGenotypes);
+			this.delegate=delegate;
+			}
+
 		@Override
 		protected BGenVariant advance() {
 			try {
@@ -205,13 +239,13 @@ public class BGenReader extends TribbleIndexedFeatureReader<BGenVariant,Seekable
 					final long offset= Long.parseLong(ctx.getAttributeAsString(OFFSET_format_header_line.getID(), "-1"));
 					if(offset<=0L) throw new IllegalArgumentException("bad offset in "+ctx);
 					BGenReader.this.fseek(offset);
-					BGenVariant bv = BGenReader.this.readVariant();
+					BGenVariant bv = readVariant();
 					if(skipGenotypes) {
-						BGenReader.this.skipGenotypes();
+						skipGenotypes();
 						}
 					else
 						{
-						bv = BGenReader.this.readGenotypes();
+						bv = readGenotypes();
 						}
 					return bv;
 					}
@@ -225,76 +259,59 @@ public class BGenReader extends TribbleIndexedFeatureReader<BGenVariant,Seekable
 			if(this.delegate!=null) this.delegate.close();
 			this.delegate=null;
 			}
-		@Override
-		public Iterator<BGenVariant> iterator() {
-			return this;
-			}
+
 		}
 	
-	public CloseableTribbleIterator<BGenVariant> query(final String loc,int start,int end) {
+	public CloseableIterator<BGenVariant> query(final String loc,int start,int end) throws IOException {
 		return query(new SimpleInterval(loc,start,end),false);
 		}
 	
-	public CloseableTribbleIterator<BGenVariant> query(final Locatable loc, boolean skipGenotypes) {
-		loadVcfIndex();
-		final QueryIterator iter=new QueryIterator();
-		iter.query=new SimpleInterval(loc);
-		iter.delegate = Objects.requireNonNull(this.vcfIndexFile).query(loc);
-		iter.skipGenotypes = skipGenotypes;
-		return iter;
+	/**
+	 * if the BGen is VCF-indexed, use the VCF index to scan for the variant overlapping loc
+	 * if the BGen is not VCF-indexed, call rewind and scan all the vcf for an overlap
+	 * @param loc
+	 * @param skipGenotypes
+	 * @return
+	 * @throws IOException
+	 */
+	public BGenIterator query(final Locatable loc, boolean skipGenotypes) throws IOException  {
+		if(hasIndex()) {
+			return new QueryIterator(
+					new SimpleInterval(loc),
+					Objects.requireNonNull(this.vcfIndexFileReader).query(loc),
+					skipGenotypes
+					);
+			}
+		else
+			{
+			if(LOG.isDebug()) {
+				LOG.debug("index=false, rewing and scan all for overlap");
+				}
+			rewind();
+			return new OverlapIterator(loc,skipGenotypes);
+			}
 		}
 	
 	public boolean hasIndex() {
-		if(this.vcfIndexFile!=null) return true;
-		if(this.filenameOrNull==null)return false;
-		final Path vcfPath = getVcfIndexName(this.filenameOrNull);
-		if(!Files.exists(vcfPath)) return false;
-		final String vcffilename = vcfPath.toAbsolutePath().toString();
-		final  Path tbi = vcfPath.getFileSystem().getPath(ParsingUtils.appendToPath(vcffilename, FileExtensions.TABIX_INDEX));
-		if(!Files.exists(tbi)) return false;
-		try(VCFFileReader r=new VCFFileReader(vcfPath,false)) {
-			final VCFHeader hder = r.getHeader();
-			if(!hder.hasInfoLine(OFFSET_format_header_line.getID())) return false;
-			}
-		catch(Throwable err) {
-			return false;
-			}
+		if(this.vcfIndexFileReader==null) return false;
+		if(!this.vcfIndexFileReader.isQueryable()) return false;
+		final VCFHeader hder = vcfIndexFileReader.getHeader();
+		if(!hder.hasInfoLine(OFFSET_format_header_line.getID())) return false;
 		return true;
-		}
-	
-	private void loadVcfIndex() {
-		if(this.vcfIndexFile!=null) return;
-		if(this.filenameOrNull==null) throw new RuntimeIOException("Cannot load a VCF index as the bgen is not a file (but probably a stream) ");
-		final Path vcfPath = getVcfIndexName(this.filenameOrNull);
-		if(!Files.exists(vcfPath))  throw new RuntimeIOException("cannot find associated VCF file "+vcfPath);
-		this.vcfIndexFile=new VCFFileReader(vcfPath,true);
-		final VCFHeader hder = this.vcfIndexFile.getHeader();
-		if(!hder.hasInfoLine(OFFSET_format_header_line.getID())) {
-			this.vcfIndexFile.close();
-			this.vcfIndexFile=null;
-			throw new RuntimeIOException("cannot use "+vcfPath+" as index because the header is missing ##INFO/"+OFFSET_format_header_line.getID());
-			}
-		}
-	
-	/** get the name of the VCF index for the bgen without checking it exists */
-	public static Path getVcfIndexName(Path bgenPath) {
-		final String filename = Objects.requireNonNull(bgenPath).toAbsolutePath().toString();
-		final  String vcf = ParsingUtils.appendToPath(filename, VCF_INDEX_SUFFIX);
-		return bgenPath.getFileSystem().getPath(vcf);
 		}
 	
 	
 	/** read the next variant or returns null if end of file */
 	public BGenVariant readVariant() throws IOException {
-		return this.bgenCodec.readVariant(this.seekableStream);
+		return this.codec.readVariant(this.seekableStream);
 	}
 	
 	public void skipGenotypes() throws IOException{
-		this.bgenCodec.skipGenotypes(this.seekableStream);
+		this.codec.skipGenotypes(this.seekableStream);
 		}
 	
 	public BGenVariant readGenotypes()  throws IOException{
-		return this.bgenCodec.readGenotypes(this.seekableStream);
+		return this.codec.readGenotypes(this.seekableStream);
 	}
 	
 	
@@ -326,17 +343,12 @@ public class BGenReader extends TribbleIndexedFeatureReader<BGenVariant,Seekable
 	
 	@Override
 	public void close()  {
-		if(this.vcfIndexFile!=null) {
-			vcfIndexFile.close();
-			vcfIndexFile=null;
-			}
-		
-		try {this.bgenCodec.close(this.seekableStream);}
+		try {this.codec.close(this.seekableStream);}
 		catch(Throwable err) {}
 		}
 	
 	@Override
 	public String toString() {
-		return "BGenReader(file:"+this.filenameOrNull+")";
+		return "BGenReader(file:"+this.sourceName+")";
 		}
 }

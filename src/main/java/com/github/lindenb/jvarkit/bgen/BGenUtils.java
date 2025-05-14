@@ -25,6 +25,7 @@ package com.github.lindenb.jvarkit.bgen;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,9 +40,14 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.math.MathUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
+import htsjdk.samtools.seekablestream.SeekableBufferedStream;
+import htsjdk.samtools.seekablestream.SeekableStream;
+import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.BinaryCodec;
-import htsjdk.samtools.util.FileExtensions;
+import htsjdk.samtools.util.LocationAware;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.TribbleException;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -76,7 +82,6 @@ public class BGenUtils {
 	public static final Charset ENCODING=Charset.forName("UTF-8");
 	static final byte[] BGEN_MAGIC = "bgen".getBytes(ENCODING);
 	static final String FILE_SUFFIX = ".bgen";
-	static final String VCF_INDEX_SUFFIX = ".bgenix"+FileExtensions.COMPRESSED_VCF;
 
 	/** write 'N' bytes */
 	static void writeNBytes(BinaryCodec binaryCodec,long n,byte value) {
@@ -312,6 +317,76 @@ public class BGenUtils {
 	        }
 	    }
 	}
+	
+	
+	static abstract class RandomAccessStream extends FilterInputStream implements LocationAware
+		{
+		protected RandomAccessStream(InputStream in) {
+			super(in);
+			}
+		public final long ftell()  throws IOException {
+			return this.getPosition();	
+			}
+		public abstract boolean eof() throws IOException;
+		public abstract void fseek(long n) throws IOException;
+		}
+	
+	static class RandomAccessSeekableStream  extends RandomAccessStream {
+		RandomAccessSeekableStream(SeekableStream in) {
+			super(in instanceof SeekableBufferedStream?
+					SeekableBufferedStream.class.cast(in):
+					SeekableStreamFactory.getInstance().getBufferedStream(in)
+					);
+			}
+		RandomAccessSeekableStream(String fname) throws IOException {
+			this(SeekableStreamFactory.getInstance().getStreamFor(fname));
+			}
+		@Override
+		public boolean eof()  throws IOException {
+			return SeekableStream.class.cast(super.in).eof();
+			}
+		@Override
+		public long getPosition() {
+			try {
+				return SeekableStream.class.cast(super.in).position();
+				}
+			catch(IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		@Override
+		public void fseek(long position) throws IOException {
+			SeekableStream.class.cast(super.in).seek(position);
+			}
+		}
+
+	static class RandomAccessPositionalStream  extends RandomAccessStream {
+		RandomAccessPositionalStream(InputStream in) {
+			super(in instanceof PositionalBufferedStream?
+					PositionalBufferedStream.class.cast(in):
+					new PositionalBufferedStream(in)
+					);
+			}
+		@Override
+		public boolean eof() throws IOException {
+			return PositionalBufferedStream.class.cast(super.in).isDone();
+			}
+		@Override
+		public long getPosition() {
+			return PositionalBufferedStream.class.cast(super.in).getPosition();
+			}
+		@Override
+		public void fseek(long offset) throws IOException {
+			final long position = getPosition();
+			if(position>=offset) {
+				skipNBytes(offset-position);
+				}
+			else
+				{
+				throw new IOException("random access seek operation not allowed when reading a stream");
+				}
+			}
+		}
 	
 	
 	public static class AlleleCombinations {

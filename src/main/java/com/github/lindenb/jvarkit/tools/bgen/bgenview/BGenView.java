@@ -13,6 +13,7 @@ import java.util.function.UnaryOperator;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bgen.BGenGenotype;
+import com.github.lindenb.jvarkit.bgen.BGenIterator;
 import com.github.lindenb.jvarkit.bgen.BGenReader;
 import com.github.lindenb.jvarkit.bgen.BGenUtils;
 import com.github.lindenb.jvarkit.bgen.BGenVariant;
@@ -136,6 +137,63 @@ public class BGenView extends Launcher {
 		
 		}
 	
+	
+	private void scan(BGenIterator r,
+			Predicate<Locatable> accept, 
+			UnaryOperator<String> renameCtg
+			) throws IOException {
+		try(BGenWriter w = (this.outputFile==null?
+				new BGenWriter(stdout()):
+				new BGenWriter(this.outputFile)
+				)) {
+		w.setCompression(this.compression);
+		w.setAnonymousSamples(this.anonymous_samples);
+		w.setLayout(r.getHeader().getLayout());
+		w.setNBits(this.nbits);
+		
+		final List<String> input_samples= r.getHeader().getSamples();
+		final List<String> output_samples= new ArrayList<>(input_samples.size());
+
+		final int[] sample_new_index = new int[input_samples.size()];
+		
+		int j=0;
+		for(int i=0;i< input_samples.size();i++) {
+			//TODO add here sample filtering
+			sample_new_index[i]=j;
+			output_samples.add(input_samples.get(i));
+			j++;
+			}
+		
+		
+		
+		if(r.getHeader().hasAnonymousSamples()) {
+			w.writeHeader(output_samples.size());
+			}
+		else
+			{
+			w.writeHeader(output_samples);
+			}
+		
+		for(;;) {
+			BGenVariant ctx = r.readVariant();
+			if(ctx==null) break;
+			if(!accept.test(ctx)) {
+				r.skipGenotypes();
+				continue;
+				}
+			ctx = r.readGenotypes();
+			
+			if(LOG.isDebug()) {
+				LOG.debug(ctx);
+			}
+			
+			w.setNBits(this.nbits<=0?ctx.getBitsPerProb():this.nbits);
+			writeVariant(renameCtg,ctx, sample_new_index, w);
+			}
+		
+		}
+	}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
@@ -143,60 +201,18 @@ public class BGenView extends Launcher {
 			final UnaryOperator<String> renameCtg =  (dict==null?null:ContigNameConverter.fromOneDictionary(dict));
 			final Predicate<Locatable> accept = regionFilesParameter.makePredicate();
 			final String input = oneFileOrNull(args);
-			try(BGenReader r=(input==null || input.equals("-")?
-					new BGenReader(stdin()):
-					new BGenReader(input))) {
-					try(BGenWriter w = (this.outputFile==null?
-							new BGenWriter(stdout()):
-							new BGenWriter(this.outputFile)
-							)) {
-					w.setCompression(this.compression);
-					w.setAnonymousSamples(this.anonymous_samples);
-					w.setLayout(r.getHeader().getLayout());
-					w.setNBits(this.nbits);
-					
-					final List<String> input_samples= r.getHeader().getSamples();
-					final List<String> output_samples= new ArrayList<>(input_samples.size());
-
-					final int[] sample_new_index = new int[input_samples.size()];
-					
-					int j=0;
-					for(int i=0;i< input_samples.size();i++) {
-						//TODO add here sample filtering
-						sample_new_index[i]=j;
-						output_samples.add(input_samples.get(i));
-						j++;
-						}
-					
-					
-					
-					if(r.getHeader().hasAnonymousSamples()) {
-						w.writeHeader(output_samples.size());
-						}
-					else
-						{
-						w.writeHeader(output_samples);
-						}
-					
-					for(;;) {
-						BGenVariant ctx = r.readVariant();
-						if(ctx==null) break;
-						if(!accept.test(ctx)) {
-							r.skipGenotypes();
-							continue;
-							}
-						ctx = r.readGenotypes();
-						
-						if(LOG.isDebug()) {
-							LOG.debug(ctx);
-						}
-						
-						w.setNBits(this.nbits<=0?ctx.getBitsPerProb():this.nbits);
-						writeVariant(renameCtg,ctx, sample_new_index, w);
-						}
-					
+			if(input==null || input.equals("-")) {
+				try(BGenIterator iter=BGenIterator.of(stdin(),false)) {
+					scan(iter,accept,renameCtg);
 					}
 				}
+			else
+				{
+				try(BGenReader r=new BGenReader(input)) {
+					scan(r.iterator(),accept,renameCtg);
+					}
+				}
+			
 			return 0;
 			}
 		catch(Throwable err) {

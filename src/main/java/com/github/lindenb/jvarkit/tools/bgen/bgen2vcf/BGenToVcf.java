@@ -1,5 +1,6 @@
 package com.github.lindenb.jvarkit.tools.bgen.bgen2vcf;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,6 +12,8 @@ import java.util.function.Predicate;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bgen.BGenGenotype;
+import com.github.lindenb.jvarkit.bgen.BGenHeader;
+import com.github.lindenb.jvarkit.bgen.BGenIterator;
 import com.github.lindenb.jvarkit.bgen.BGenReader;
 import com.github.lindenb.jvarkit.bgen.BGenUtils;
 import com.github.lindenb.jvarkit.bgen.BGenVariant;
@@ -26,6 +29,7 @@ import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -82,7 +86,200 @@ public class BGenToVcf extends Launcher {
 	private WritingVariantsDelegate writingVariantsDelegate=new WritingVariantsDelegate();
 
 	
-	
+	private void scan(
+			String inputName,
+			final BGenIterator r,
+			final Predicate<Locatable> accept,
+			final SAMSequenceDictionary dict
+			) throws IOException {
+
+		final Set<VCFHeaderLine> metaData = new HashSet<>();
+		VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY,VCFConstants.GENOTYPE_FILTER_KEY);
+		VCFStandardHeaderLines.addStandardInfoLines(metaData, true,
+				VCFConstants.ALLELE_NUMBER_KEY,
+				VCFConstants.ALLELE_COUNT_KEY,
+				VCFConstants.ALLELE_FREQUENCY_KEY,
+				VCFConstants.END_KEY
+				);
+
+		final VCFInfoHeaderLine BITS_info_header_line = new VCFInfoHeaderLine(
+				"BITS",1,VCFHeaderLineType.Integer,"Number of bits used for storage in the bgen file");
+		
+		final VCFInfoHeaderLine ID_info_header_line = new VCFInfoHeaderLine(
+				"ID2",1,VCFHeaderLineType.String,"bgen variant id");
+		final VCFFilterHeaderLine LOWQUAL_filter_header_line = new VCFFilterHeaderLine(
+				"LowQual","All genotypes are missing or have all probs <" +this.low_qual_treshold);
+
+		
+		metaData.add(BGenUtils.GP_format_header_line);
+		metaData.add(BGenUtils.HP_format_header_line);
+		metaData.add(BITS_info_header_line);
+		metaData.add(BGenUtils.OFFSET_format_header_line);
+		if(this.low_qual_treshold>0) {
+			metaData.add(LOWQUAL_filter_header_line);
+			}
+		
+		metaData.add(new VCFHeaderLine("bgen.compression", r.getHeader().getCompression().name()));
+		metaData.add(new VCFHeaderLine("bgen.n-variants", String.valueOf( r.getHeader().getNVariants())));
+		metaData.add(new VCFHeaderLine("bgen.n-samples", String.valueOf( r.getHeader().getNSamples())));
+		metaData.add(new VCFHeaderLine("bgen.layout", r.getHeader().getLayout().name()));
+		metaData.add(new VCFHeaderLine("bgen.snps-offset", String.valueOf( r.getSnpsOffset())));
+		metaData.add(new VCFHeaderLine("bgen.anonymous", String.valueOf( r.getHeader().hasAnonymousSamples())));
+		
+		
+		final VCFHeader header;
+		
+		if(this.skip_genotypes) {
+			header=new VCFHeader(metaData);
+			}
+		else
+			{
+			header=new VCFHeader(metaData,r.getHeader().getSamples());
+			}
+		if(dict!=null) header.setSequenceDictionary(dict);
+		JVarkitVersion.getInstance().addMetaData(this, header);
+		long n_variants=0L;
+		try(VariantContextWriter w=this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
+			w.writeHeader(header);
+			
+			while(r.hasNext()) {
+				if(limit_n_variants>=0 && n_variants>=limit_n_variants) break;
+				
+				BGenVariant ctx = r.readVariant();
+				if(ctx==null) break;
+				if(!accept.test(ctx)) {
+					r.skipGenotypes();
+					continue;
+					}
+				if(dict!=null && dict.getSequence(ctx.getContig())==null) {
+					throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), dict);
+					}
+				n_variants++;
+				
+				final List<Allele> alleles = new ArrayList<>(ctx.getNAlleles());
+				int  an_count = 0;
+				final int[] ac_count =new int[ctx.getNAlleles()];
+				for(int a=0;a< ctx.getNAlleles();++a) {
+					alleles.add(Allele.create(ctx.getAllele(a), a==0));
+					}
+				final int endPos = ctx.getStart() + alleles.get(0).length()-1;
+				final VariantContextBuilder vcb=new VariantContextBuilder(inputName, 
+						ctx.getContig(), 
+						ctx.getStart(), 
+						endPos, 
+						alleles
+						);
+				
+				final long offset = ctx.getOffset();
+				if(offset>0L) {
+					vcb.attribute(BGenUtils.OFFSET_format_header_line.getID(),
+						String.valueOf(offset)/* as a String because it can be a int63 number, not an int32 */
+						);
+					}
+				
+				final String id = ctx.getId();
+				if(!StringUtils.isBlank(id) && !id.equals(".")) {
+					vcb.attribute(ID_info_header_line.getID(),id);
+					}
+				if(!StringUtils.isBlank(ctx.getRsId())) {
+					vcb.id(ctx.getRsId());
+					}
+				if(ctx.getStart() < endPos) {
+					vcb.attribute(VCFConstants.END_KEY, endPos);
+					}
+				
+				boolean found_good_qual = false;
+				if(this.skip_genotypes) {
+					r.skipGenotypes();
+					}
+				else
+					{
+					ctx = r.readGenotypes();
+					vcb.attribute(BITS_info_header_line.getID(), ctx.getBitsPerProb());
+					
+					final List<Genotype> genotypes = new ArrayList<>(ctx.getNGenotypes());
+					for(int i=0;i< ctx.getNGenotypes();i++) {
+						final BGenGenotype gt  =ctx.getGenotype(i);
+						if(LOG.isDebug()) {
+							LOG.debug("genotype["+i+"]:"+gt);
+							}
+						
+						final GenotypeBuilder gb;
+						final int best_index;
+						if(gt_treshold>0 && !gt.isMissing()) {
+							best_index = gt.findHighestProbIndex(this.gt_treshold);
+							if(LOG.isDebug()) {
+								LOG.debug("best_index:"+best_index);
+								}
+							}
+						else {
+							best_index = -1;
+							}
+						if(best_index>=0) {
+							final BGenUtils.AlleleCombinations comb = new  BGenUtils.AlleleCombinations(
+									r.getHeader().getLayout(),
+									ctx.getAlleles(),
+									gt.getPloidy(),
+									ctx.isPhased()
+									);
+							final int[] allele_indexes = comb.getAlleleIndexesByIndex(best_index);
+							final List<Allele> out_alleles = new ArrayList<>(gt.getPloidy());
+							for(int j=0;j< allele_indexes.length;++j) {
+								final Allele allele = Allele.create(
+										ctx.getAllele(allele_indexes[j]),
+										(allele_indexes[j]==0) /* 0 == REF */
+										);
+								ac_count[allele_indexes[j]]++;
+								out_alleles.add(allele);
+								}
+							gb=new GenotypeBuilder(gt.getSample(),out_alleles);
+							an_count+= gt.getPloidy();
+							}
+						else
+							{
+							 gb=new GenotypeBuilder(GenotypeBuilder.createMissing(gt.getSample(), gt.getPloidy()));
+							}
+						
+						if(!gt.isMissing() && this.low_qual_treshold>0 ) {
+							if(Arrays.stream(gt.getProbs()).anyMatch(V->V>this.low_qual_treshold)) {
+								found_good_qual=true;
+								}
+							else
+								{
+								gb.attribute(VCFConstants.GENOTYPE_FILTER_KEY, LOWQUAL_filter_header_line.getID());
+								}
+							}
+						// build from missing otherwise "java.lang.IllegalStateException: GTs cannot be missing for some samples if they are available for others in the record"
+						gb.phased(gt.isPhased());
+						gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
+						gb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an_count);
+						if(an_count>0) {
+							gb.attribute(VCFConstants.ALLELE_COUNT_KEY,
+									Arrays.copyOfRange(ac_count, 1, ac_count.length) //skip index 0 containing REF
+									);
+							final double[] af_count=new double[ac_count.length];
+							for(int j=0;j< af_count.length;++j) {
+								af_count[j]= ac_count[j]/(double)an_count;
+								}
+							gb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,
+								Arrays.copyOfRange(af_count, 1, af_count.length) //skip index 0 containing REF
+								);
+							}
+						genotypes.add(gb.make());
+						}
+					vcb.genotypes(genotypes);
+					}
+				
+				if(!found_good_qual && !this.skip_genotypes && this.low_qual_treshold>0) {
+					vcb.filter(VCFConstants.GENOTYPE_FILTER_KEY);
+					}
+				
+				w.add(vcb.make());
+				}
+			}
+		}
+
+		
 	
 	@Override
 	public int doWork(List<String> args) {
@@ -97,171 +294,15 @@ public class BGenToVcf extends Launcher {
 			
 			
 			final String input = oneFileOrNull(args);
-			try(BGenReader r=(input==null || input.equals("-")?
-					new BGenReader(stdin()):
-					new BGenReader(input))) {
-
-				final Set<VCFHeaderLine> metaData = new HashSet<>();
-				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY,VCFConstants.GENOTYPE_FILTER_KEY);
-				VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY);
-
-				final VCFInfoHeaderLine BITS_info_header_line = new VCFInfoHeaderLine(
-						"BITS",1,VCFHeaderLineType.Integer,"Number of bits used for storage in the bgen file");
-				
-				final VCFInfoHeaderLine ID_info_header_line = new VCFInfoHeaderLine(
-						"ID2",1,VCFHeaderLineType.String,"bgen variant id");
-				final VCFFilterHeaderLine LOWQUAL_filter_header_line = new VCFFilterHeaderLine(
-						"LowQual","All genotypes are missing or have all probs <" +this.low_qual_treshold);
-
-				
-				metaData.add(BGenUtils.GP_format_header_line);
-				metaData.add(BGenUtils.HP_format_header_line);
-				metaData.add(BITS_info_header_line);
-				metaData.add(BGenUtils.OFFSET_format_header_line);
-				if(this.low_qual_treshold>0) {
-					metaData.add(LOWQUAL_filter_header_line);
+			if(input==null) {
+				try(BGenIterator iter=BGenIterator.of(stdin(), skip_genotypes)) {
+					scan("<<stdin>>",iter,accept,dict);
 					}
-				
-				metaData.add(new VCFHeaderLine("bgen.compression", r.getHeader().getCompression().name()));
-				metaData.add(new VCFHeaderLine("bgen.n-variants", String.valueOf( r.getHeader().getNVariants())));
-				metaData.add(new VCFHeaderLine("bgen.n-samples", String.valueOf( r.getHeader().getNSamples())));
-				metaData.add(new VCFHeaderLine("bgen.layout", r.getHeader().getLayout().name()));
-				metaData.add(new VCFHeaderLine("bgen.snps-offset", String.valueOf( r.getSnpsOffset())));
-				metaData.add(new VCFHeaderLine("bgen.anonymous", String.valueOf( r.getHeader().hasAnonymousSamples())));
-				
-				
-				final VCFHeader header;
-				
-				if(this.skip_genotypes) {
-					header=new VCFHeader(metaData);
-					}
-				else
-					{
-					header=new VCFHeader(metaData,r.getHeader().getSamples());
-					}
-				if(dict!=null) header.setSequenceDictionary(dict);
-				JVarkitVersion.getInstance().addMetaData(this, header);
-				long n_variants=0L;
-				try(VariantContextWriter w=this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
-					w.writeHeader(header);
-					
-					for(;;) {
-						if(limit_n_variants>=0 && n_variants>=limit_n_variants) break;
-						
-						BGenVariant ctx = r.readVariant();
-						if(ctx==null) break;
-						if(!accept.test(ctx)) {
-							r.skipGenotypes();
-							continue;
-							}
-						if(dict!=null && dict.getSequence(ctx.getContig())==null) {
-							throw new JvarkitException.ContigNotFoundInDictionary(ctx.getContig(), dict);
-							}
-						n_variants++;
-						
-						final List<Allele> alleles = new ArrayList<>(ctx.getNAlleles());
-						for(int a=0;a< ctx.getNAlleles();++a) {
-							alleles.add(Allele.create(ctx.getAllele(a), a==0));
-							}
-						final int endPos = ctx.getStart() + alleles.get(0).length()-1;
-						final VariantContextBuilder vcb=new VariantContextBuilder(input, 
-								ctx.getContig(), 
-								ctx.getStart(), 
-								endPos, 
-								alleles
-								);
-						
-						final long offset = ctx.getOffset();
-						if(offset>0L) {
-							vcb.attribute(BGenUtils.OFFSET_format_header_line.getID(),
-								String.valueOf(offset)/* as a String because it can be a int63 number, not an int32 */
-								);
-							}
-						
-						final String id = ctx.getId();
-						if(!StringUtils.isBlank(id) && !id.equals(".")) {
-							vcb.attribute(ID_info_header_line.getID(),id);
-							}
-						if(!StringUtils.isBlank(ctx.getRsId())) {
-							vcb.id(ctx.getRsId());
-							}
-						if(ctx.getStart() < endPos) {
-							vcb.attribute(VCFConstants.END_KEY, endPos);
-							}
-						
-						boolean found_good_qual = false;
-						if(this.skip_genotypes) {
-							r.skipGenotypes();
-							}
-						else
-							{
-							ctx = r.readGenotypes();
-							vcb.attribute(BITS_info_header_line.getID(), ctx.getBitsPerProb());
-							
-							final List<Genotype> genotypes = new ArrayList<>(ctx.getNGenotypes());
-							for(int i=0;i< ctx.getNGenotypes();i++) {
-								final BGenGenotype gt  =ctx.getGenotype(i);
-								if(LOG.isDebug()) {
-									LOG.debug("genotype["+i+"]:"+gt);
-									}
-								
-								final GenotypeBuilder gb;
-								final int best_index;
-								if(gt_treshold>0 && !gt.isMissing()) {
-									best_index = gt.findHighestProbIndex(this.gt_treshold);
-									if(LOG.isDebug()) {
-										LOG.debug("best_index:"+best_index);
-										}
-									}
-								else {
-									best_index = -1;
-									}
-								if(best_index>=0) {
-									final BGenUtils.AlleleCombinations comb = new  BGenUtils.AlleleCombinations(
-											r.getLayout(),
-											ctx.getAlleles(),
-											gt.getPloidy(),
-											ctx.isPhased()
-											);
-									final int[] allele_indexes = comb.getAlleleIndexesByIndex(best_index);
-									final List<Allele> out_alleles = new ArrayList<>(gt.getPloidy());
-									for(int j=0;j< allele_indexes.length;++j) {
-										out_alleles.add(Allele.create(
-												ctx.getAllele(allele_indexes[j]),
-												(allele_indexes[j]==0) /* 0 == REF */
-												));
-										}
-									gb=new GenotypeBuilder(gt.getSample(),out_alleles);
-									}
-								else
-									{
-									 gb=new GenotypeBuilder(GenotypeBuilder.createMissing(gt.getSample(), gt.getPloidy()));
-									}
-								
-								if(!gt.isMissing() && this.low_qual_treshold>0 ) {
-									if(Arrays.stream(gt.getProbs()).anyMatch(V->V>this.low_qual_treshold)) {
-										found_good_qual=true;
-										}
-									else
-										{
-										gb.attribute(VCFConstants.GENOTYPE_FILTER_KEY, LOWQUAL_filter_header_line.getID());
-										}
-									}
-								// build from missing otherwise "java.lang.IllegalStateException: GTs cannot be missing for some samples if they are available for others in the record"
-								gb.phased(gt.isPhased());
-								gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
-								genotypes.add(gb.make());
-								}
-							vcb.genotypes(genotypes);
-							}
-						
-						if(!found_good_qual && !this.skip_genotypes && this.low_qual_treshold>0) {
-							vcb.filter(VCFConstants.GENOTYPE_FILTER_KEY);
-							}
-						
-						w.add(vcb.make());
-						}
-					
+				}
+			else
+				{
+				try(BGenReader r=new BGenReader(input)) {
+					scan(input,r.iterator(),accept,dict);
 					}
 				}
 			return 0;

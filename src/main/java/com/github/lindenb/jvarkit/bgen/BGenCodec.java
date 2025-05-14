@@ -26,7 +26,6 @@ package com.github.lindenb.jvarkit.bgen;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PushbackInputStream;
 import java.math.BigInteger;
 import java.util.AbstractList;
 import java.util.ArrayList;
@@ -39,9 +38,6 @@ import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStre
 import com.github.lindenb.jvarkit.math.MathUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
-import htsjdk.samtools.Defaults;
-import htsjdk.samtools.seekablestream.SeekableBufferedStream;
-import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.LocationAware;
@@ -53,7 +49,7 @@ import htsjdk.tribble.FeatureCodecHeader;
 import htsjdk.tribble.readers.PositionalBufferedStream;
 
 
-public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
+public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.RandomAccessStream> {
 	private static final Logger LOG = Logger.of(BGenCodec.class).setDebug();
 
 	private enum State {expect_header,expect_variant_def, expect_genotypes };
@@ -98,7 +94,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 		}
 	
 	
-	
+
 	private static abstract class AbstractBenVariant implements BGenVariant {
 		protected AbstractBenVariant() {}
 		
@@ -421,7 +417,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 			}
 		}
 	
-	public BGenHeader readActualHeader(InputStream source) throws IOException {
+	public BGenHeader readActualHeader(final BGenUtils.RandomAccessStream source) throws IOException {
 		assertState(State.expect_header);
 		this.binaryCodec.setInputStream(source);
 		try(ByteCountInputStream bc=new ByteCountInputStream(this.binaryCodec.getInputStream())) {
@@ -433,32 +429,24 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 				LOG.info("skip bytes: this.snps_offset="+this.snps_offset+" + 4 - header.count="+bc.count+"="+skip );
 				}
 			this.binaryCodec.getInputStream().skipNBytes(skip);
-			if(LOG.isDebug() && isSeekableStream(source)) {
-				LOG.info("end reading header and now file offset is "+ftell(source) );
+			if(LOG.isDebug()) {
+				LOG.info("end reading header,skipped bytes, and now file offset is "+source.getPosition() );
 				}
 			}
 		this.state= State.expect_variant_def;
 		return this.header;
 		}
+	
 	@Override
-	public FeatureCodecHeader readHeader(InputStream source) throws IOException {
+	public FeatureCodecHeader readHeader(final BGenUtils.RandomAccessStream source) throws IOException {
 		readActualHeader(source);
 		Objects.requireNonNull(this.header);
-		if(source instanceof SeekableStream) {
-			return new FeatureCodecHeader(this.header, SeekableStream.class.cast(source).position());
-			}
-		else if(source instanceof PositionalBufferedStream) {
-			return new FeatureCodecHeader(this.header, PositionalBufferedStream.class.cast(source).getPosition());
-			}
-		else
-			{
-			throw new IOException("cannot read header from an instance of "+source.getClass());
-			}
+		return new FeatureCodecHeader(this.header, source.getPosition());
 		}
 	
 	
 	
-	public BGenCodec(boolean skip_genotypes) throws IOException {
+	public BGenCodec(boolean skip_genotypes) {
 		super(BGenVariant.class);
 		this.skip_genotypes  = skip_genotypes;
 		}
@@ -488,44 +476,35 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 	 * @param position the physical offset
 	 * @throws IOException the inutstream is not an instance of SeekableStream
 	 */
-	public void fseek(PositionalBufferedStream source , long position)  throws IOException {
+	public void fseek(final BGenUtils.RandomAccessStream source , long position)  throws IOException {
 		assertState(State.expect_variant_def);
 		this.binaryCodec.setInputStream(source);
 		if(position<=0) throw new IllegalArgumentException("seek.pos<=0: "+position);
-		if(!(isSeekableStream(source))) {
-			throw new IOException("cannot do random-access with this king of input "+source.getClass());
-			}
-		SeekableStream.class.cast(source).seek(position);
+		source.fseek(position);
 		}
 	
-	private boolean isSeekableStream(InputStream source) {
-		return source instanceof SeekableStream;
-		}
-	
-	private long ftell(InputStream source) throws IOException {
-		if(isSeekableStream(source)) {
-			return SeekableStream.class.cast(source).position();
-			}
-		return -1L;
+	/** reset position of source to first variant */
+	public void rewind(final BGenUtils.RandomAccessStream source) throws IOException {
+		fseek(source,snps_offset);
 		}
 	
 	private List<String> readNAlleles(final int num_alleles) throws IOException {
 	      final String[] alleles = new String[num_alleles];
 	      for(int k=0;k< num_alleles;++k) {
-	            alleles[k] = BGenUtils.readStringUInt32(binaryCodec);
+	            alleles[k] = BGenUtils.readStringUInt32(this.binaryCodec);
 	            }
 	      return Arrays.asList(alleles);
 	      }
 	
 	@Override
-	public BGenVariant decodeLoc(final InputStream source) throws IOException {
+	public BGenVariant decodeLoc(final BGenUtils.RandomAccessStream source) throws IOException {
 		final BGenVariant ctx=readVariant(source);
 		skipGenotypes(source);
 		return ctx ;		
 		}
 	
 	@Override
-	public BGenVariant decode(final InputStream source) throws IOException {
+	public BGenVariant decode(final BGenUtils.RandomAccessStream source) throws IOException {
 		BGenVariant ctx=readVariant(source);
 		if(this.skip_genotypes) {
 			skipGenotypes(source);
@@ -537,11 +516,11 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 		}
 	
 	/** read the next variant or returns null if end of file */
-	public BGenVariant readVariant(InputStream source) throws IOException {
+	public BGenVariant readVariant(BGenUtils.RandomAccessStream source) throws IOException {
 		assertState(State.expect_variant_def);
 		this.binaryCodec.setInputStream(source);
 		final VariantImpl ctx = new VariantImpl();
-		ctx.offset = ftell(source);
+		ctx.offset = source.getPosition();
 		
 		if(header.getLayout().equals(BGenUtils.Layout.LAYOUT_1)) {
 			try {
@@ -605,13 +584,13 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 
 	
 	@SuppressWarnings("resource")
-	public BGenVariant readGenotypes(InputStream source)  throws IOException{
+	public BGenVariant readGenotypes(BGenUtils.RandomAccessStream source)  throws IOException{
 		assertState(State.expect_genotypes);
 		this.binaryCodec.setInputStream(source);
 
 		
 		if(LOG.isDebug()) {
-			LOG.debug("reading genotypes. offset= "+ftell(source));
+			LOG.debug("reading genotypes. offset= "+source.getPosition());
 			}
 		
 		int genotype_block_size = BGenUtils.longToUnsignedInt( this.binaryCodec.readUInt());
@@ -624,7 +603,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 		if(!getHeader().getCompression().equals(BGenUtils.Compression.NONE)) {
 			final int uncompressed_data_size_D = BGenUtils.longToUnsignedInt( this.binaryCodec.readUInt());
 			if(LOG.isDebug()) {
-				LOG.debug("expect uncompressed size "+uncompressed_data_size_D+" now offset="+ftell(source));
+				LOG.debug("expect uncompressed size "+uncompressed_data_size_D+" now offset="+source.getPosition());
 				}
 			genotype_block_size-= Integer.BYTES;
 			}
@@ -635,7 +614,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 			throw new IllegalStateException("bad size");
 			}
 		if(LOG.isDebug()) {
-			LOG.debug("after reading genotypes. offset is now = "+ftell(source));
+			LOG.debug("after reading genotypes. offset is now = "+ source.getPosition());
 			}
 		InputStream uncompressedStream;
 		
@@ -658,7 +637,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 		codec2.close();
 		
 		if(LOG.isDebug()) {
-			LOG.debug("End reading genotypes. offset= "+ftell(source));
+			LOG.debug("End reading genotypes. offset= "+source.getPosition());
 			}
 		
 		this.state = State.expect_variant_def;
@@ -853,7 +832,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 				}
 			}*/
 	@Override
-	public void close(InputStream source) {
+	public void close(BGenUtils.RandomAccessStream source) {
 		try {source.close();}
 		catch(Throwable err) {}
 		this.binaryCodec.close();
@@ -861,87 +840,35 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,InputStream> {
 	@Override
 	public boolean canDecode(final String path) {
 		if(path==null || !path.endsWith(BGenUtils.FILE_SUFFIX)) return false;
-		SeekableStream in = null;
-		try {
-			in = SeekableStreamFactory.getInstance().getBufferedStream(SeekableStreamFactory.getInstance().getStreamFor(Objects.requireNonNull(path,"null input")),Defaults.NON_ZERO_BUFFER_SIZE);
+		try(BGenUtils.RandomAccessPositionalStream in = new BGenUtils.RandomAccessPositionalStream(SeekableStreamFactory.getInstance().getStreamFor(Objects.requireNonNull(path,"null input")))) {
 			readActualHeader(in);
 			return true;
 			}
 		catch(Throwable err) {
 			return false;
 			}
-		finally {
-			if(in!=null) try {
-				in.close();
-				}
-			catch(IOException err) {
-				LOG.warn(err);
-				}
-			}
 		}
 	
-	private static class FakeSeekableStream extends SeekableStream  {
-		PushbackInputStream in;
-		FakeSeekableStream(InputStream in) {
-			this.in=new PushbackInputStream(in);
-			}
-		@Override
-		public String getSource() {
-			return null;
-			}
-		@Override
-		public long length() {
-			return 0;
-			}
-		@Override
-		public long position() throws IOException {
-			return 0;
-			}
-		@Override
-		public int read() throws IOException {
-			// TODO Auto-generated method stub
-			return 0;
-			}
-		@Override
-		public boolean eof() throws IOException {
-			int c= in.read();
-			if(c!=-1) in.unread(c);
-			return c!=-1;
-			}
-		@Override
-		public void close() throws IOException {
-			in.close();
-			}
-	}
 	
 	@Override
-    public SeekableStream makeSourceFromStream(final InputStream is) {
-        if (is instanceof SeekableBufferedStream)
-            return SeekableBufferedStream.class.cast(is);
-        else if (is instanceof SeekableStream)
-        	return SeekableStreamFactory.getInstance().getBufferedStream(SeekableStream.class.cast(is));
-    	return SeekableStreamFactory.getInstance().getBufferedStream(new FakeSeekableStream(is));
+    public BGenUtils.RandomAccessStream makeSourceFromStream(final InputStream is) {
+		return new BGenUtils.RandomAccessPositionalStream(is);
     	}
 
 	
 	@Override
-	public boolean isDone(InputStream source) {
+	public boolean isDone(BGenUtils.RandomAccessStream source) {
 		try {
-		  if (source instanceof SeekableStream)
-	            return SeekableStream.class.cast(source).eof();
-	        else if (source instanceof PositionalBufferedStream)
-	            return PositionalBufferedStream.class.cast(source).isDone();
-	        throw new IllegalArgumentException();
+			return source.eof();
 			}
 		catch(IOException err) {
 			throw new RuntimeIOException(err);
 			}
 		}
 	
-    /** {@link PositionalBufferedStream} is already {@link LocationAware}. */
     @Override
     public LocationAware makeIndexableSourceFromStream(final InputStream bufferedInputStream) {
-        throw new IllegalArgumentException();
+        return new PositionalBufferedStream(bufferedInputStream);
     }
 	
 	

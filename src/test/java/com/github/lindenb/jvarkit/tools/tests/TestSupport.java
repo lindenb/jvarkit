@@ -56,7 +56,7 @@ import htsjdk.variant.vcf.VCFReader;
 
 public class TestSupport {
 	public final Random random = new Random();
-	protected final String SRC_TEST_RESOURCE="./src/test/resources";
+	protected static final String SRC_TEST_RESOURCE="./src/test/resources";
 	private final List<Path> deletePathsAtExit = new Vector<>();
 	
 	public Predicate<String> bamHasIndex = (F)->{

@@ -1,1 +1,5 @@
+com.github.lindenb.jvarkit.bgen.BGenCodecTest
+com.github.lindenb.jvarkit.bgen.BGenHeaderTest
+com.github.lindenb.jvarkit.bgen.BGenReaderTest
+com.github.lindenb.jvarkit.bgen.BGenUtilsTest
 com.github.lindenb.jvarkit.util.AlgorithmsTest
