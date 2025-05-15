@@ -109,6 +109,9 @@ public static OptionalDouble parseDouble(final String s) {
 }
 
 
+
+
+
 /**
  * returns a string that is the rest of a given string after a given substring.
  * @param haystack The string to be evaluated. Part of this string will be returned.
@@ -394,7 +397,7 @@ public static int indexOfIgnoreCase(final String haystack,final String needle) {
 	}
 
 /** compress string as gzipped bytes */
-public byte[] compressString(final String str) {
+public static byte[] compressString(final String str) {
 	try(ByteArrayOutputStream baos = new ByteArrayOutputStream(Math.max(32,str.length()/2))) {
 		try(GZIPOutputStream gzout = new GZIPOutputStream(baos)) {
 			gzout.write(str.getBytes());
@@ -408,7 +411,7 @@ public byte[] compressString(final String str) {
 		}
 	}
 /** compress string as gzipped bytes */
-public String uncompressString(final byte[] compressed) {
+public static String uncompressString(final byte[] compressed) {
 	try(ByteArrayInputStream bis = new ByteArrayInputStream(compressed)) {
 		try(GZIPInputStream gzin = new GZIPInputStream(bis)) {
 			try(ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
@@ -421,5 +424,67 @@ public String uncompressString(final byte[] compressed) {
 		throw new RuntimeIOException(err);
 		}
 	}
+
+
+
+    /** compact a sequence of character. A repeat is replaced by a number followed the char ATTTC => A3TC */
+    public static String compactDNA(final CharSequence dna) {
+        if (dna.isEmpty()) {
+            return dna.toString();
+        	}
+
+        final StringBuilder encoded = new StringBuilder(dna.length());
+        int i=0;
+        while(i< dna.length()) {
+        	if(Character.isDigit(dna.charAt(i))) throw new IllegalArgumentException("sequence contains digit");
+        	int count=1;
+        	while(i+count<dna.length() && dna.charAt(i)==dna.charAt(i+count)) {
+        		count++;
+        		}
+        	if(count==1) {
+        		encoded.append(dna.charAt(i));
+        		}
+        	else
+        		{
+        		encoded.append(String.valueOf(count));
+        		encoded.append(dna.charAt(i));
+        		}
+        	i+=count;
+        	}
+        
+        return dna.length()<= encoded.length()?
+        		dna.toString():
+        		encoded.toString()
+        		;
+    	}
+
+    /** un compact a sequence of character. A3TC => ATTTC =>  */
+    public static String uncompactDNA(final CharSequence encoded) {
+        if (encoded.isEmpty()) return encoded.toString();
+        final StringBuilder decoded = new StringBuilder(encoded.length());
+        int i=0;
+        while(i< encoded.length()) {
+        	if(Character.isDigit(encoded.charAt(i))) {
+        		int n=encoded.charAt(i)-'0';
+        		i++;
+        		while(Character.isDigit(encoded.charAt(i))) {
+    				n=n*10 + (encoded.charAt(i)-'0');
+    				i++;
+    				}
+        		while(n>0) {
+        			decoded.append(encoded.charAt(i));
+        			--n;
+        			}
+    			i++;	
+        		}
+        	else
+        		{
+        		decoded.append(encoded.charAt(i));
+    			i++;
+        		}
+            }        
+        return decoded.toString();
+    	}
+
 
 }

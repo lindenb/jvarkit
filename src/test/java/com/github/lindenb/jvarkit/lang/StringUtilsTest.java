@@ -8,6 +8,26 @@ import org.testng.annotations.Test;
 
 
 public class StringUtilsTest {
+	
+	
+	
+@Test
+public void testCompactDNA( ) {
+	Assert.assertEquals(StringUtils.compactDNA("AAAAAAT"),"6AT");
+	Assert.assertEquals(StringUtils.compactDNA("AA"),"AA");
+	Assert.assertEquals(StringUtils.compactDNA("A"),"A");
+	Assert.assertEquals(StringUtils.compactDNA("ATTT"),"A3T");
+	Assert.assertEquals(StringUtils.compactDNA("ATTTC"),"A3TC");
+	}
+	
+@Test
+public void testUncompactDNA( ) {
+	Assert.assertEquals(StringUtils.uncompactDNA("6AT"),"AAAAAAT");
+	Assert.assertEquals(StringUtils.uncompactDNA("10AT"),"AAAAAAAAAAT");
+	Assert.assertEquals(StringUtils.uncompactDNA("1A"),"A");
+	Assert.assertEquals(StringUtils.uncompactDNA("AT"),"AT");
+	}
+	
 @Test
 public void test() {
 	Assert.assertTrue(StringUtils.isBlank(null));
