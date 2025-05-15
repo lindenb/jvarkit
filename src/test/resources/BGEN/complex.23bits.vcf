@@ -1,0 +1,15 @@
+##fileformat=VCFv4.2
+##contig=<ID=01,length=20000>
+##FORMAT=<ID=GP,Number=G,Type=Float,Description="Genotype call probabilities">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample_0	sample_1	sample_2	sample_3
+01	1	V1;	A	G	.	.	.	GT:GP	0:1,0	0/0:1,0,0	0/0:1,0,0	0/1:0,1,0
+01	2	V2;V2.1	A	G	.	.	.	GT:GP	0:1,0	0:1,0	0:1,0	1:0,1
+01	3	V3;	A	G	.	.	.	GT:GP	0:1,0	1|1:0,1,0,1	0|0:1,0,1,0	0|1:1,0,0,1
+01	4	M4;	A	G,T	.	.	.	GT:GP	0:1,0,0	0/0:1,0,0,0,0,0	0/1:0,1,0,0,0,0	0/2:0,0,0,1,0,0
+01	5	M5;	A	G	.	.	.	GT:GP	0:1,0	0|0|0:1,0,1,0,1,0	0|0|1:1,0,1,0,0,1	0|1:1,0,0,1
+01	7	M6;	A	G,GT,GTT	.	.	.	GT:GP	0:1,0,0,0	1:0,1,0,0	2:0,0,1,0	3:0,0,0,1
+01	7	M7;	A	G,GT,GTT,GTTT,GTTTT	.	.	.	GT:GP	0:1,0,0,0,0,0	3:0,0,0,1,0,0	4:0,0,0,0,1,0	5:0,0,0,0,0,1
+01	8	M8;	A	G,GT,GTT,GTTT,GTTTT,GTTTTT	.	.	.	GT:GP	0:1,0,0,0,0,0,0	3:0,0,0,1,0,0,0	4:0,0,0,0,1,0,0	5:0,0,0,0,0,1,0
+01	9	M9;	A	G,GT,GTT,GTTT,GTTTT,GTTTTT,GTTTTTT	.	.	.	GT:GP	0:1,0,0,0,0,0,0,0	6:0,0,0,0,0,0,1,0	4:0,0,0,0,1,0,0,0	1/5:0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+01	10	M10;	A	G	.	.	.	GT:GP	0/0/0/0:1,0,0,0,0	0/0/0/1:0,1,0,0,0	0/0/1/1:0,0,1,0,0	0/1/1/1:0,0,0,1,0
