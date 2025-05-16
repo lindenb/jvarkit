@@ -1,8 +1,10 @@
 image: eclipse-temurin:23-jdk
 
 before_script:
+  - env | grep -i PROXY
   - apt-get update -y
   - apt-get install -y make wget
+
 
 stages:          # List of stages for jobs, and their order of execution
   - build
