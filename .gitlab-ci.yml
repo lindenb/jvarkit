@@ -1,0 +1,16 @@
+image: openjdk:23  # Use OpenJDK version 23 as the base image
+
+stages:          # List of stages for jobs, and their order of execution
+  - build
+  - test
+
+build-job:       # This job will compile your project
+  stage: build
+  script:
+    - chmod +x gradlew   # Give permission to execute the Gradle wrapper script
+    - make     # Assuming 'make' is your command to build the project
+
+test-job:        # This job will run tests on your project
+  stage: test
+  script:
+    - make test   # Runs any tests for your project
