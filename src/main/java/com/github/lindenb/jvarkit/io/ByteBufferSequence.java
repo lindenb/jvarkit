@@ -86,7 +86,7 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		this(array,0,array.length);
 		}
 	
-	 public void ensureCapacity(int minCapacity) {
+	 public void ensureCapacity(final int minCapacity) {
 	    if (minCapacity > buf.length) {
 	        buf = Arrays.copyOf(buf,Math.max(minCapacity, (int)( buf.length*1.5)));
 	    	}
@@ -147,7 +147,8 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		}
 
 	@Override
-	public ByteBufferSequence append(CharSequence csq, int start, int end) throws IOException {
+	public ByteBufferSequence append(final CharSequence csq, int start, int end) throws IOException {
+		ensureCapacity(this.size()+(end-start));
 		for(int i=start;i< end;i++) {
 			append(csq.charAt(i));
 			}
@@ -205,7 +206,7 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		 return new ByteArrayInputStream(this.buf, 0, this.size());
 	 	}
 	 
-	 public boolean startsWith(String s) {
+	 public boolean startsWith(final String s) {
 		 if(s.length()> this.length()) return false;
 		 for(int i=0;i< s.length();i++) {
 			if(s.charAt(i)!=this.charAt(i))  return false; 

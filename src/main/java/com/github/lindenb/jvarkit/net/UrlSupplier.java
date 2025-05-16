@@ -231,6 +231,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		}
 	}
 
+/* TODO : https://japan-omics.jp/ */
 
 private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 	if(ctx==null) return;
