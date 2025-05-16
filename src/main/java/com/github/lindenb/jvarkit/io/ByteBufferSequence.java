@@ -25,6 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.io;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
@@ -61,16 +62,24 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		}
 	
 	
-	public ByteBufferSequence(CharSequence seq) {
+	public ByteBufferSequence(final CharSequence seq) {
 		this(seq.length());
-		for(int i=0;i< seq.length();i++) {
-			write(seq.charAt(i));
+		if(seq instanceof ByteBufferSequence) {
+			final ByteBufferSequence o = ByteBufferSequence.class.cast(seq);
+			System.arraycopy(o.buf,0, this.buf,0, o.count);
+			}
+		else
+			{
+			for(int i=0;i< seq.length();i++) {
+				write(seq.charAt(i));
+				}
 			}
 		}
 	
 	public ByteBufferSequence(byte[] array,int offset,int length) {
 		this(length);
 		System.arraycopy(array, offset, this.buf, 0, length);
+		this.count=length;
 		}
 	
 	public ByteBufferSequence(byte[] array) {
@@ -119,7 +128,7 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 	}
 	
 	public void setByteAt(int i,byte b) {
-		if(i<0 ||i>count) throw new IllegalArgumentException();
+		if(i<0 ||i>=count) throw new IllegalArgumentException();
 		buf[i]=b;
 		}
 	
@@ -191,6 +200,10 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 	 public byte[] toByteArray() {
         return Arrays.copyOf(buf, count);
     	}
+	 
+	 public ByteArrayInputStream toByteArrayInputStream() {
+		 return new ByteArrayInputStream(this.buf, 0, this.size());
+	 	}
 	 
 	 public boolean startsWith(String s) {
 		 if(s.length()> this.length()) return false;

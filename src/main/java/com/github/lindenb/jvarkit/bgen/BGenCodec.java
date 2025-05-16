@@ -35,6 +35,8 @@ import java.util.Objects;
 
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
 
+import com.github.lindenb.jvarkit.lang.BitNumReader;
+import com.github.lindenb.jvarkit.lang.BitReader;
 import com.github.lindenb.jvarkit.math.MathUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -705,8 +707,8 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
    			LOG.debug("nbits="+vcg.nbits);
    			}
         
-        final BGenUtils.BitReader bitReader = new BGenUtils.BitReader(codec2.getInputStream());
-        final BGenUtils.BitNumReader numReader = new BGenUtils.BitNumReader(bitReader, vcg.nbits);
+        final BitReader bitReader = new BitReader(codec2.getInputStream());
+        final BitNumReader numReader = new BitNumReader(bitReader, vcg.nbits);
         final List<Double> values= new ArrayList<>();
         if(vcg.phased==1) {
         	if(LOG.isDebug()) {

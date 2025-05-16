@@ -37,6 +37,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -66,7 +68,7 @@ END_DOC
 description="Create annotation files for regenie using sliding annotations",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="202050514",
+modificationDate="202050515",
 jvarkit_amalgamion = true,
 generate_doc = true
 )
@@ -96,7 +98,11 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 		UserBed(String ctg,int start,int end) {
 			super(ctg,start,end);
 		}
-	}
+		@Override
+		public String toString() {
+			return super.toString()+" annotation:"+annotation+" gene_name:"+gene_name+" score:"+score;
+			}
+		}
 	
 	private static boolean isXY(final String ctg) {
 		if(ctg.equals("X") || ctg.equals("Y")) return true;
@@ -144,7 +150,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 					}
 				}
 			}
-		
+		final Pattern annotation_regex = Pattern.compile("[A-Za-z][A-Za-z_0-9]*");
 		try(BufferedReader br=IOUtils.openPathForBufferedReading(this.userBed)) {
 			final BedLineCodec bc = new  BedLineCodec();
 			final Map<String,List<UserBed>> gene2intervals=new HashMap<>();
@@ -159,9 +165,13 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 				
 				final UserBed ub = new UserBed(ctg, rec.getStart(), rec.getEnd());
 				ub.annotation = StringUtils.ifBlank(rec.get(3),default_annotation_value);
-				if(!ub.annotation.matches("[A-Za-z][A-Za-z_0-9]*")) throw new IOException("bad annotation in "+line+" should match '[A-Za-z][A-Za-z_0-9]*'");
+				if(!annotation_regex.matcher(ub.annotation).matches()) {
+					throw new IOException("bad annotation in "+line+" should match "+annotation_regex.pattern());
+					}
 				ub.gene_name = rec.get(4);
-				if(StringUtils.isBlank(ub.gene_name) || ub.gene_name.equals(".")) throw new IOException("empty title in bed line "+line);
+				if(StringUtils.isBlank(ub.gene_name) || ub.gene_name.equals(".")) {
+					throw new IOException("empty title in bed line "+line);
+					}
 				
 				
 				final String scoreStr=rec.getOrDefault(5,"");
@@ -172,22 +182,31 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 					{
 					ub.score = Double.parseDouble(scoreStr);
 					}
+				if(ub.score<=0) {
+					if(LOG.isDebug()) {
+						LOG.debug("skipping "+ub+" because score <=0");
+						}
+					continue;
+					}
 				
 				List<UserBed> L = gene2intervals.get(ub.gene_name);
 				if(L==null) {
 					L = new ArrayList<>();
 					gene2intervals.put(ub.gene_name, L);
 					}
-				
-				/* same gene but different annotation at the same place */
-				final Optional<UserBed> opt=L.
-					stream().
-					filter(R->R.overlaps(ub)).
-					filter(UB->!UB.annotation.equals(ub.annotation)).
-					findFirst();
-				
-				if(opt.isPresent()) {
-					throw new IOException("for the same gene ("+ ub.gene_name+"), we have two different overlapping regionj with different annotations "+ ub+" "+opt.get());
+				else
+					{
+					/* same gene but different annotation at the same place , with same score */
+					final Optional<UserBed> opt=L.
+						stream().
+						filter(R->R.overlaps(ub)).
+						filter(UB->!UB.annotation.equals(ub.annotation)).
+						filter(UB->UB.score==ub.score).
+						findFirst();
+					
+					if(opt.isPresent()) {
+						throw new IOException("for the same gene ("+ ub.gene_name+"), we have two different overlapping regions, with the same score but with different annotations "+ ub+" "+opt.get());
+						}
 					}
 				
 				L.add(ub);
@@ -240,8 +259,6 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 							}
 						
 							
-								
-							
 						beds.add(ub);
 						}
 					}
@@ -255,10 +272,23 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 		
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {	
-		final Set<String> seen = new HashSet<>(); 
-		for(UserBed ub: this.interval2userbed.getOverlapping(ctx).stream().flatMap(T->T.stream()).toArray(N->new UserBed[N]) ) {
-			if(seen.contains(ub.gene_name)) continue;
-			seen.add(ub.gene_name);
+		
+		final Map<String,List<UserBed>> gene_name_to_user_beds = this.interval2userbed.getOverlapping(ctx).
+				stream().
+				flatMap(T->T.stream()).
+				collect(Collectors.groupingBy(UB->UB.gene_name))
+				;
+		if(gene_name_to_user_beds.isEmpty()) return;
+		
+		
+		for(String gene_name:gene_name_to_user_beds.keySet()) {
+			// sort on best score for this gene
+			final UserBed ub = gene_name_to_user_beds.get(gene_name).
+					stream().
+					sorted((A,B)->Double.compare(B.score,A.score)). //highest score first
+					findFirst().
+					get();
+			
 			final Variation v = new Variation();
 			v.contig = fixContig(ctx.getContig());
 			v.pos = ctx.getStart();

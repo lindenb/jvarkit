@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : bb371911e
-Compilation : 20250514160715
+Version     : 404a430cd
+Compilation : 20250516101539
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -235,7 +235,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 | [qqplotter](QQPlotter.md) | plot QQplot | 20250324 | 20250324 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
-| [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 202050512 |
+| [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 202050515 |
 | [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250320 |
 | [regeniemakeannot](RegenieMakeAnnot.md) | Create annotation files for regenie from a TSV input file | 20250311 | 20250320 |
 | [regenieslidingannot](RegenieSlidingAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |

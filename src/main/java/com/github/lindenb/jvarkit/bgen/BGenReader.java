@@ -25,8 +25,8 @@ package com.github.lindenb.jvarkit.bgen;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Iterator;
 import java.util.Objects;
+
 
 import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.log.Logger;
@@ -35,7 +35,6 @@ import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
@@ -47,23 +46,24 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
 	private final BGenCodec codec = new BGenCodec(false);
 	private final BGenUtils.RandomAccessSeekableStream seekableStream;
-	private final VCFReader vcfIndexFileReader;
+	private VCFReader vcfIndexFileReader = null;
 	private final String sourceName;
 	
 
-    public BGenReader(final String path,final VCFReader vcfIndexFileReaderOrNull) throws IOException {
+    public BGenReader(final String path) throws IOException {
 		this.seekableStream = new RandomAccessSeekableStream(path);
 		this.sourceName=path;
-		this.vcfIndexFileReader = vcfIndexFileReaderOrNull;
 		this.codec.readActualHeader(this.seekableStream);
 		}
 	
-    public BGenReader(final String path) throws IOException {
-		this(path,null);
-		}
+ 
     
 	public BGenReader(final Path path) throws IOException {
 		this(Objects.requireNonNull(path,"null input").toString());
+		}
+	
+	public void attachVcfReaderAsIndex( VCFReader vcfIndexFileReaderOrNull) {
+		this.vcfIndexFileReader = vcfIndexFileReaderOrNull;
 		}
 	
 	/** rename samples using a plink sample file */
@@ -117,12 +117,11 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 	
 	private abstract class BaseIterator extends AbstractIterator<BGenVariant> implements BGenIterator {
-		protected final Locatable query;
 		protected final boolean skipGenotypes;
-		BaseIterator(final Locatable query,boolean skipGenotypes) {
-			this.query=query;
+		BaseIterator(boolean skipGenotypes) {
 			this.skipGenotypes = skipGenotypes;
 			}
+		
 		@Override
 		public void seekTo(long file_offset) throws IOException {
 			BGenReader.this.fseek(file_offset);
@@ -151,9 +150,9 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	
 	private class Iter extends  BaseIterator {
 		Iter(boolean skipGenotypes) {
-			super(null,skipGenotypes);
+			super(skipGenotypes);
 			}
-		
+	
 		@Override
 		protected BGenVariant advance() {
 			try {
@@ -181,11 +180,50 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 			}
 		};
 
-	
-	
+	private class OffsetIterator extends BaseIterator {
+		private final CloseableIterator<Long> offsetIterator;
+		OffsetIterator(final CloseableIterator<Long> offsetIterator,boolean skipGenotypes) throws IOException{
+			super(skipGenotypes);
+			this.offsetIterator= offsetIterator;
+			}
+		@Override
+		protected BGenVariant advance() {
+			try {
+				for(;;) {
+					if(!offsetIterator.hasNext()) {
+						close();
+						return null;
+						}
+					final Long offset= offsetIterator.next();
+					if(offset==null) continue;
+					if(offset.longValue()<=0L) throw new IllegalArgumentException("bad offset: "+offset);
+					BGenReader.this.fseek(offset.longValue());
+					BGenVariant bv = readVariant();
+					if(skipGenotypes) {
+						skipGenotypes();
+						}
+					else
+						{
+						bv = readGenotypes();
+						}
+					return bv;
+					}
+				}
+			catch(IOException err) {
+				throw new RuntimeIOException(err);
+				}
+			}
+		@Override
+		public void close() {
+			this.offsetIterator.close();
+			}
+		}
+		
 	private class OverlapIterator extends BaseIterator {
+		final Locatable query;
 		OverlapIterator(final Locatable query,boolean skipGenotypes) {
-			super(query,skipGenotypes);
+			super(skipGenotypes);
+			this.query=query;
 			}
 		@Override
 		protected BGenVariant advance() {
@@ -193,7 +231,7 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 				for(;;) {
 					BGenVariant bv = readVariant();
 					if(bv==null) return null;
-					if(!bv.overlaps(query)) {
+					if(!bv.overlaps(this.query)) {
 						skipGenotypes();
 						continue;
 						}
@@ -215,13 +253,36 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 		public void close()  {
 			}
 		}
-
+	
+	private static class VcfOffsetIterator extends AbstractIterator<Long> implements CloseableIterator<Long>{
+		private CloseableIterator<VariantContext> delegate;
+		VcfOffsetIterator(CloseableIterator<VariantContext> delegate) {
+			this.delegate = delegate;
+			}
+		@Override
+		protected Long advance() {
+			for(;;) {
+				if(!delegate.hasNext()) return null;
+				final VariantContext ctx = this.delegate.next();
+				if(!ctx.hasAttribute(OFFSET_format_header_line.getID())) continue;
+				final long offset= Long.parseLong(ctx.getAttributeAsString(OFFSET_format_header_line.getID(), "-1"));
+				if(offset<=0L) throw new IllegalArgumentException("bad offset in "+ctx);
+				return offset;
+				}
+			}
+		@Override
+		public void close() {
+			delegate.close();
+			}
+		}
+	
 	private class QueryIterator extends BaseIterator {
 		private CloseableIterator<VariantContext> delegate;
-		
+		private final Locatable query;
 		QueryIterator(final Locatable query,CloseableIterator<VariantContext> delegate,boolean skipGenotypes) {
-			super(query,skipGenotypes);
+			super(skipGenotypes);
 			this.delegate=delegate;
+			this.query = query;
 			}
 
 		@Override
@@ -276,9 +337,8 @@ public class BGenReader extends BGenUtils implements AutoCloseable {
 	 */
 	public BGenIterator query(final Locatable loc, boolean skipGenotypes) throws IOException  {
 		if(hasIndex()) {
-			return new QueryIterator(
-					new SimpleInterval(loc),
-					Objects.requireNonNull(this.vcfIndexFileReader).query(loc),
+			return new OffsetIterator(
+					new VcfOffsetIterator(Objects.requireNonNull(this.vcfIndexFileReader).query(loc)),
 					skipGenotypes
 					);
 			}

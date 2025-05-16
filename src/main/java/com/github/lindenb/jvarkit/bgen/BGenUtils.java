@@ -28,7 +28,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -177,146 +176,11 @@ public class BGenUtils {
 		}
     
     
-    /** bit reader */
-	static class BitReader  {
-		private final InputStream in;
-		private byte curr;
-		private int offset = 8;
-		private final long max_to_read;
-		private long nRead = 0L;
-		BitReader(final InputStream in,long max_to_read) {
-			this.in = in;
-			this.max_to_read=max_to_read;
-			}
-		BitReader(final InputStream in) {
-			this(in,-1L);
-			}
-		/** return 0/1 or -1 */
-		int read() throws IOException {
-			if(max_to_read!=-1L && nRead>=max_to_read) return -1;
-			if (offset >= 8) {
-				int c = in.read();
-				if (c == -1)
-					return -1;
-				this.curr = (byte) c;
-				offset = 0;
-				}
-			final int bit = (curr >> (offset)) & 1;
-			offset++;
-			nRead++;
-			return bit;
-			}
-	
-			
-		@Override
-		public String toString() {
-			return "BitReader("+(int)curr+","+offset+")";
-			}
-		}
 	
 	
 	
-    /** bit-based number reader reader */
-	static class BitNumReader  {
-		private final double max;
-		private final BitReader delegate;
-		private final int nbits;
-		BitNumReader(BitReader delegate,int nbits) {
-			if (nbits <= 0 || nbits > 32) {
-			    throw new IllegalArgumentException("The number of bits (nbits) must be between 1 and 32.");
-				}
-			this.max = Math.pow(2,nbits)-1;
-			this.delegate = delegate;
-			this.nbits = nbits;
-			}
-		public double next() throws IOException {
-			int t=0;
-			int n = this.nbits;
-			while(n>0) {
-				final int c = delegate.read();
-				if(c==-1) throw new IOException("cannot read "+n+"th bit");
-				t = (t << 1) | c;
-				// t=t*2 + c;
-				--n;
-				}
-			return t/max;
-			}
-		}
 	
 
-	static class BitWriter {
-	    private final OutputStream out;
-	    private byte curr = '\0'; // Current byte being written
-	    private int offset = 0; // Tracks the position of the next bit in the byte
-
-	    BitWriter(final OutputStream out) {
-	        this.out = out;
-	    	}
-
-	    void write(boolean bit) throws IOException {
-	        // Set or clear the bit at the current offset
-	        if (bit) {
-	            curr |= (1 << offset); // Set the bit
-	        	}
-	        offset++;
-
-	        // If the byte is full (8 bits written), write it to the OutputStream
-	        if (offset == 8) flushByte();
-	    	}
-	    
-	    private void flushByte() throws IOException {
-	    	out.write(curr);
-            curr = '\0'; // Reset the current byte buffer
-            offset = 0; // Reset the offset
-	    	}
-	    
-	    void flush() throws IOException {
-	        // If there are remaining bits, flush them as a partial byte
-	        if (offset > 0) flushByte();
-	        out.flush(); // Ensure the OutputStream is flushed
-	    }
-
-	}
-	
-	public static class BitNumWriter {
-	    private final BitWriter delegate;
-	    private final int nbits;
-	    private final double max;
-
-	    /**
-	     * Constructor for BitNumWriter
-	     * @param delegate The BitWriter instance used for writing bits
-	     * @param nbits The number of bits to represent each number
-	     */
-	    public BitNumWriter(BitWriter delegate, int nbits) {
-	        if (nbits <= 0 || nbits > 32) {
-	            throw new IllegalArgumentException("The number of bits (nbits) must be between 1 and 32.");
-	        }
-	        this.delegate = delegate;
-	        this.nbits = nbits;
-	        this.max = Math.pow(2, nbits) - 1; // Maximum value representable with nbits
-	    }
-
-	    /**
-	     * Writes a normalized number (between 0 and 1) as nbits.
-	     * @param value The number to write (must be in the range [0, 1])
-	     * @throws IOException If writing to the BitWriter fails
-	     */
-	    public void write(double value) throws IOException {
-	        if (value < 0.0 || value > 1.0) {
-	            throw new IllegalArgumentException("The value "+value+" must be in the range [0, 1].");
-	        }
-
-	        // Scale the value to an integer representation
-	        final int scaledValue = (int) Math.round(value * max);
-
-	        // Write the scaled value bit by bit
-	        for (int i = nbits - 1; i >= 0; i--) {
-	            boolean bit = (scaledValue & (1 << i)) != 0;
-	            delegate.write(bit);
-	        }
-	    }
-	}
 	
 	
 	static abstract class RandomAccessStream extends FilterInputStream implements LocationAware

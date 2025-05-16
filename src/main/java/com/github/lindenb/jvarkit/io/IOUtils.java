@@ -43,6 +43,8 @@ import java.io.PushbackInputStream;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -320,7 +322,7 @@ public class IOUtils {
 		return new GZIPInputStream(push_back);
 		}
 	
-	/** open URL for reading, decompressed if url ends with gz of bz2 . if uri is null or '-' , open stdin */
+	/** open URL for reading, decompressed if url ends with gz, zstd or bz2 . if uri is null or '-' , open stdin */
 	public static InputStream openURIForReading(String uri) throws IOException
 		{
 		if(uri==null || uri.equals("-")) return System.in;
@@ -332,13 +334,17 @@ public class IOUtils {
 			int question=uri.indexOf('?');
 			if(question!=-1) uri=uri.substring(0, question);
 			if(isCompressedExtention(uri)) {
-				if(uri.endsWith(".gz"))
+				if(uri.endsWith(".gz") || uri.endsWith(".bgz"))
 					{
 					return tryBGZIP(in);
 					}
 				else if(uri.endsWith(".bz2"))
 					{
 					return new BZip2CompressorInputStream(in);
+					}
+				else if(uri.endsWith(".zstd"))
+					{
+					return zstdUncompress(in);
 					}
 				}
 			return in;
@@ -378,18 +384,32 @@ public class IOUtils {
 		return openPathForReading(file.toPath());
 		}
 	
+	/** open path for reading, the following suffix are interpreted : .gz, .bgz, .bz2, .zstd */
 	public static InputStream openPathForReading(final Path path) throws IOException
 		{
+		InputStream in=null;
 		IOUtil.assertFileIsReadable(path);
-		InputStream in= Files.newInputStream(path);
-		if(path.getFileName().toString().endsWith(".gz"))
-			{
-			in = tryBGZIP(in);
+		try {
+			in= Files.newInputStream(path);
+			if(path.getFileName().toString().endsWith(".gz") ||
+				path.getFileName().toString().endsWith(".bgz"))
+				{
+				in = tryBGZIP(in);
+				}
+			else if(path.getFileName().toString().endsWith(".bz2")) {
+				in  = new BZip2CompressorInputStream(in);
+				}
+			else if(path.getFileName().toString().endsWith(".zstd")) {
+				in  = zstdUncompress(in);
+				}
+			return in;
 			}
-		else if(path.getFileName().toString().endsWith(".bz2")) {
-			in  = new BZip2CompressorInputStream(in);
+		catch(Throwable err) {
+			if(in!=null) {
+				try {in.close();} catch(Throwable err2) {}
+				}
+			throw new IOException(err);
 			}
-		return Objects.requireNonNull(in,"cannot open "+path);
 		}
 	
 	public static BufferedReader openPathForBufferedReading(final Path path) throws IOException
@@ -408,9 +428,9 @@ public class IOUtils {
     	}
    
     
-	/** return true if the file has a compressed suffix '.bfz' or '.gz' or '.bz2' */
+	/** return true if the file has a compressed suffix '.bfz' or '.gz' '.zstd',or '.bz2' */
 	public static final boolean isCompressedExtention(final String s) {
-		return s!=null && StringUtils.endsWith(s, ".gz",".bgz",".bz2");
+		return s!=null && StringUtils.endsWith(s, ".gz",".bgz",".bz2",".zstd");
 		}
 
     
@@ -421,7 +441,7 @@ public class IOUtils {
     		}
     
     /** output path for writing. The following extensions
-     * are interpretted : vcf.gz, .bgz , .gz, .bz2 
+     * are interpretted : vcf.gz, .bgz , .gz, .bz2 , .zstd
      * @param file
      * @return
      * @throws IOException
@@ -431,7 +451,7 @@ public class IOUtils {
     	if(file==null) throw new IllegalArgumentException("path is null");
     	if(isCompressed(file)) {
 	    	final String base = file.getFileName().toString();
-		    if (base.endsWith(".vcf.gz") || base.endsWith(".bgz"))
+		    if (base.endsWith(".vcf.gz") ||base.endsWith(".bed.gz") || base.endsWith(".bgz"))
 		    	{
 		        return new BlockCompressedOutputStream(
 		        		file,
@@ -446,6 +466,10 @@ public class IOUtils {
 		    else if (base.endsWith(".gz"))
 		    	{
 		        return new GZIPOutputStream(Files.newOutputStream(file),true);
+		    	}
+		    else if (base.endsWith(".zstd"))
+		    	{
+		        return zstdCompress(Files.newOutputStream(file));
 		    	}
 		    else
 		    	{
@@ -930,7 +954,7 @@ public class IOUtils {
         		".fasta",".fa",
         		".fastq",".fq",
         		".bb",".bw",".bigbed",".bigwig",".bigWig",
-        		".tar",".gz",
+        		".tar",".gz", ".bgz",".zstd",".bgen",
         		".pdf",".xml",
         		".interval_list",
         		".sql",//UCSC
@@ -1012,6 +1036,42 @@ public class IOUtils {
         len -= ret;
       }
     }
+    
+    /** 
+     * uncompress the input stream using the ZSTD algorithm
+     * @param in
+     * @return
+     * @throws IOException
+     */
+    public static InputStream zstdUncompress(final InputStream in) throws IOException {
+    	final String className="org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream";
+    	try {
+    		final Class<?> clazz=Class.forName(className);
+    		final Constructor<?> ctor=clazz.getConstructor(InputStream.class);
+    		return InputStream.class.cast(ctor.newInstance(in));
+    		}
+    	catch(Throwable err) {
+    		throw new IOException(err);
+    		}
+    	}
+    
+    /** 
+     * uncompress the input stream using the ZSTD algorithm
+     * @param in
+     * @return
+     * @throws IOException
+     */
+    public static OutputStream zstdCompress(final OutputStream out) throws IOException {
+    	final String className="org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream";
+    	try {
+    		final Class<?> clazz=Class.forName(className);
+    		final Constructor<?> ctor=clazz.getConstructor(OutputStream.class);
+    		return OutputStream.class.cast(ctor.newInstance(out));
+    		}
+    	catch(Throwable err) {
+    		throw new IOException(err);
+    		}
+    	}
     
     /**
      * call mayBeGzippedInputStream with recursive=true

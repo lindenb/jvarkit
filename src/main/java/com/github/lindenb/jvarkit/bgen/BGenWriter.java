@@ -24,7 +24,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.bgen;
 
 import java.io.FileOutputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -35,11 +34,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.DeflaterOutputStream;
 
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.apache.commons.compress.utils.IOUtils;
 
+import com.github.lindenb.jvarkit.lang.BitNumWriter;
+import com.github.lindenb.jvarkit.lang.BitWriter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.log.Logger;
 
@@ -49,7 +52,7 @@ import htsjdk.samtools.util.RuntimeIOException;
 
 public class BGenWriter extends BGenUtils implements AutoCloseable {
 	private static final Logger LOG = Logger.of(BGenWriter.class).setDebug();
-
+	private final Lock write_lock= new ReentrantLock();  
 	private enum State {expect_write_header,expect_variant,expect_genotypes};
 	private final BinaryCodec binaryCodec;
 	private final OutputStream out;
@@ -270,8 +273,14 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		writeVariant(ctx.getContig(),ctx.getPosition(),ctx.getId(),ctx.getRsId(),ctx.getAlleles());
 		}
 	
-	public void writeVariant(String contig,int pos,String variantId,String rsId,List<String> alleles) throws IOException{
+	public void writeVariant(String contig,int pos,String variantId,String rsId,final List<String> alleles) throws IOException{
+		// multithread lock, only current thread can write
+		this.write_lock.lock();
+
 		assertState(State.expect_variant);
+		
+			
+		
 		if(layout.equals(Layout.LAYOUT_1)) {
 			this.binaryCodec.writeUInt(export_genotypes.length);//number of samples
 			}
@@ -363,7 +372,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			}
 		
 		// The total length C of the compressed genotype probability data for this variant. S
-		binaryCodec.writeUInt(compressed.size());
+		this.binaryCodec.writeUInt(compressed.size());
 		// Genotype probability data for the SNP for each of the N individuals in the cohort 
 		try(InputStream compressed_in=compressed.toByteArrayInputStream()) {
 			IOUtils.copy(compressed_in, binaryCodec.getOutputStream());
@@ -372,6 +381,8 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		//reset genotypes
 		Arrays.fill(this.export_genotypes, null);
 		this.state=State.expect_variant;
+		//release write lock, allow other thread to write
+		this.write_lock.unlock();
 		}
 	
 	private void writeGenotypeLayout1() {
