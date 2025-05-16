@@ -4,6 +4,7 @@ before_script:
   - env | grep -i PROXY
   - apt-get update -y
   - apt-get install -y make wget
+  - echo -e 'systemProp.http.proxyHost=proxy-serveur.univ-nantes.prive\nsystemProp.http.proxyPort=3128\nsystemProp.https.proxyHost=proxy-serveur.univ-nantes.prive\nsystemProp.https.proxyPort=3128' >  gradle.properties
 
 
 stages:          # List of stages for jobs, and their order of execution
