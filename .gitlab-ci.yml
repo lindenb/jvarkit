@@ -1,4 +1,4 @@
-image: eclipse-temurin:23-jdk
+image: eclipse-temurin:17-jdk
 
 before_script:
   - env | grep -i PROXY
