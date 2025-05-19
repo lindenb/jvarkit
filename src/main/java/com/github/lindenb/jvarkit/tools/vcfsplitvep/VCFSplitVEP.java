@@ -26,6 +26,7 @@ package com.github.lindenb.jvarkit.tools.vcfsplitvep;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.OptionalInt;
@@ -41,25 +42,10 @@ import htsjdk.samtools.util.RuntimeIOException;
 /*
 BEGIN_DOC
 
-## Example
+## Motivation
 
-```
-$ java  -jar dist/vcfpolyx.jar -R reference.fa input.vcf
-(...)
-2   1133956 .   A   G   2468.84 .   POLYX=23
-2   1133956 .   A   AG  3604.25 .   POLYX=23
-2   2981671 .   T   G   47.18   .   POLYX=24
-(...)
-```
+like `bcftools +split-vep` with aggregates
 
-## Cited in:
-
-  * "Multiscale heterogeneity in gastric adenocarcinomaevolution is an obstacle to precision medicine" https://assets.researchsquare.com/files/rs-62554/v1/7883b5d6-a5e6-4d39-8554-e9fef719ac42.pdf
-  * Maitena Tellaetxe-Abete, Borja Calvo, Charles Lawrie, Ideafix: a decision tree-based method for the refinement of variants in FFPE DNA sequencing data, NAR Genomics and Bioinformatics, Volume 3, Issue 4, December 2021, lqab092, https://doi.org/10.1093/nargab/lqab092
-  * Pol32, an accessory subunit of DNA polymerase delta, plays an essential role in genome stability and pathogenesis of Candida albicans. Shraddheya Kumar Patel & al. Gut Microbes. https://doi.org/10.1080/19490976.2022.2163840 2023.
-  * Heczko, L., Hlavac, V., Holy, P. et al. Prognostic potential of whole exome sequencing in the clinical management of metachronous colorectal cancer liver metastases. Cancer Cell Int 23, 295 (2023). https://doi.org/10.1186/s12935-023-03135-x
-  * Heczko, L., Liska, V., Vycital, O. et al. Targeted panel sequencing of pharmacogenes and oncodrivers in colorectal cancer patients reveals genes with prognostic significance. Hum Genomics 18, 83 (2024). https://doi.org/10.1186/s40246-024-00644-2
-  *  Critical roles of Dpb3-Dpb4 sub-complex of DNA polymerase epsilon in DNA replication, genome stability, and pathogenesis of Candida albicans. Bhabasha Gyanadeep Utkalaja, Shraddheya Kumar Patel, Satya Ranjan Sahu, Abinash Dutta, Narottam Acharya.  DOI: 10.1128/mbio.01227-24 . mBio. 2024 Aug 29:e0122724.
 
 
 
@@ -77,8 +63,8 @@ public class VCFSplitVEP extends AbstractOnePassVcfAnnotator
 	{
 	private static final Logger LOG = Logger.of(VCFSplitVEP.class);
 
-	@Parameter(names={"-t","--tag","--tags"},description="VEP tags name{:type{:aggregate}},name2{:type2{:aggregate2}},etc...  where type is a VCF info type Integer,String,Float an aggregate is one of none,min,max,uniq,first")
-	private String tags = "";
+	@Parameter(names={"-t","--tag","--tags"},description="VEP tags name{:type{:aggregate}},name2{:type2{:aggregate2}},etc...  where type is a VCF info type Integer,String,Float an aggregate is one of none,min,max,uniq,first,random")
+	private List<String> tags = new ArrayList<>();
 	
 	@Override
 	protected Logger getLogger() {
@@ -90,7 +76,7 @@ public class VCFSplitVEP extends AbstractOnePassVcfAnnotator
 	protected List<VariantAnnotator> createVariantAnnotators() {
 		try {
 			final VCFSplitVEPAnnotator ann = new VCFSplitVEPAnnotator();
-			ann.setTags(this.tags);
+			ann.setTags(String.join(",",this.tags));
 			return Collections.singletonList(ann);
 			}
 		catch(Throwable err) {

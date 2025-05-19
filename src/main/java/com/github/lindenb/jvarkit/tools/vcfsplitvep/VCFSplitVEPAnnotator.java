@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,7 +54,7 @@ public class VCFSplitVEPAnnotator implements VariantAnnotator {
 	private String prefix = "VEP_";
 	private final List<Tag> tags = new ArrayList<>();
 	private VepPredictionParser parser=null;
-	private enum Aggregate {none,min,max,uniq,first};
+	private enum Aggregate {none,min,max,uniq,random,first};
 	
 	private static class Tag {
 		String tag;
@@ -65,6 +66,7 @@ public class VCFSplitVEPAnnotator implements VariantAnnotator {
 		}
 
 	public void setTags(final String tags) {
+		final Random random = new Random(System.currentTimeMillis());
 		for(String tagstr: CharSplitter.COMMA.split(tags)) {
 			if(StringUtils.isBlank(tagstr)) continue;
 			
@@ -95,13 +97,13 @@ public class VCFSplitVEPAnnotator implements VariantAnnotator {
 					final Aggregate aggregate = Aggregate.valueOf(tokens[2]);
 					// set suffix
 					switch(aggregate) {
-						case first:  case max : case min : case uniq:  suffix="_"+aggregate.name();break;
+						case first:  case max : case min : case uniq:  case random: suffix="_"+aggregate.name();break;
 						case none: break;
 						default: throw new IllegalArgumentException();
 						}
 					// set VCFHeaderLineCount
 					switch(aggregate) {
-						case first:  case max : case min :count=VCFHeaderLineCount.INTEGER;break;
+						case first:  case max : case min : case random:count=VCFHeaderLineCount.INTEGER;break;
 						case uniq: break;
 						case none: break;
 						default: throw new IllegalArgumentException();
@@ -110,6 +112,13 @@ public class VCFSplitVEPAnnotator implements VariantAnnotator {
 					switch(aggregate) {
 						case first:  t.converter = STREAM->STREAM.filter(S->!isEmpty(S)).map(converter).findFirst().orElse(null); break;
 						case max : t.converter = STREAM->STREAM.filter(S->!isEmpty(S)).map(converter).sorted().reduce((A,B)->B).orElse(null); break;
+						case random : t.converter = STREAM->{
+								final List<Object> L=STREAM.filter(S->!isEmpty(S)).map(converter).collect(Collectors.toCollection(ArrayList::new)); 
+								Collections.shuffle(L, random);
+								return L.isEmpty()?null:L.get(0);
+								};
+							break;
+							
 						case min : t.converter = STREAM->STREAM.filter(S->!isEmpty(S)).map(converter).sorted().findFirst().orElse(null); break;
 						case uniq: t.converter = STREAM->STREAM.filter(S->!isEmpty(S)).map(converter).collect(Collectors.toSet()).stream().collect(Collectors.toList());break;
 						case none: t.converter = STREAM->STREAM.collect(Collectors.toList());break;
