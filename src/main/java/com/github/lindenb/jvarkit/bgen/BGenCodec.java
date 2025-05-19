@@ -35,6 +35,7 @@ import java.util.Objects;
 
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStream;
 
+import com.github.lindenb.jvarkit.io.ByteBufferSequence;
 import com.github.lindenb.jvarkit.lang.BitNumReader;
 import com.github.lindenb.jvarkit.lang.BitReader;
 import com.github.lindenb.jvarkit.math.MathUtils;
@@ -60,7 +61,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
 	private State state = State.expect_header;
 	private VariantImpl lastVariant=null;
 	private int layout1_expect_n_samples=-1;
-	private final BGenUtils.ByteBuffer buffer1 = new BGenUtils.ByteBuffer();
+	private final ByteBufferSequence buffer1 = new ByteBufferSequence();
 	/** auxiliary indexed VCF file that will be used as an coordinate index for the VCF */
 	private final BinaryCodec binaryCodec = new BinaryCodec();
 	private final boolean skip_genotypes;
@@ -611,7 +612,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
 			}
 		
 		this.buffer1.reset();
-		this.buffer1.copyTo(this.binaryCodec.getInputStream(),genotype_block_size);
+		this.buffer1.read(this.binaryCodec.getInputStream(),genotype_block_size);
 		if(this.buffer1.size()!=genotype_block_size) {
 			throw new IllegalStateException("bad size");
 			}

@@ -1,0 +1,21 @@
+#!/bin/bash
+
+fail=0
+# Find staged Java files (added, copied, or modified)
+git diff --cached --name-only --diff-filter=ACM | grep '\.java$' | while read  $files
+do
+    if [ -f "$file" ]; then
+        # Check for non-ASCII characters
+        if grep -P '[^\x00-\x7F]' "$file" > /dev/null; then
+            echo "Unicode characters detected in $file"
+            fail=1
+        fi
+    fi
+done
+
+if [ $fail -ne 0 ]; then
+    echo "Commit aborted: Java source files contain Unicode (non-ASCII) characters."
+    exit 1
+fi
+echo "DONE"
+exit 0

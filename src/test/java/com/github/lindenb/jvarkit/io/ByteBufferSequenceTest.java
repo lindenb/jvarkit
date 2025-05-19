@@ -2,8 +2,13 @@ package com.github.lindenb.jvarkit.io;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.IntUnaryOperator;
 
 public class ByteBufferSequenceTest {
@@ -57,7 +62,8 @@ public class ByteBufferSequenceTest {
         bbs.write('a');
         Assert.assertEquals(bbs.size(), 1);
         Assert.assertEquals(bbs.toString(), "a");
-    }
+        bbs.close();
+        }
 
     @Test
     public void testWriteByteArray() throws IOException {
@@ -65,6 +71,7 @@ public class ByteBufferSequenceTest {
         bbs.write(new byte[]{1, 2, 3}, 0, 3);
         Assert.assertEquals(bbs.size(), 3);
         Assert.assertEquals(bbs.toByteArray(), new byte[]{1, 2, 3});
+        bbs.close();
     }
 
     @Test
@@ -149,11 +156,82 @@ public class ByteBufferSequenceTest {
         Assert.assertTrue(bbs1.compareTo(bbs2) < 0);
         Assert.assertTrue(bbs2.compareTo(bbs1) > 0);
         Assert.assertTrue(bbs1.compareTo(bbs3) < 0);
+        
     }
 
     @Test
     public void testToString() {
         ByteBufferSequence bbs = new ByteBufferSequence("hello");
         Assert.assertEquals(bbs.toString(), "hello");
+        bbs.close();
     }
-}
+    
+    @Test
+    public void testIsBlank() {
+       try( ByteBufferSequence bbs = new ByteBufferSequence(" \n\r  ")) {
+           Assert.assertTrue(bbs.isBlank());
+           Assert.assertFalse(bbs.isEmpty());
+           bbs.clear();
+           Assert.assertTrue(bbs.isBlank());
+           Assert.assertTrue(bbs.isEmpty());
+           bbs.append('a');
+           Assert.assertFalse(bbs.isBlank());
+           Assert.assertFalse(bbs.isEmpty());
+	       }
+	    }
+    
+    @Test
+    public void testRead() throws IOException {
+       try( ByteBufferSequence bbs = new ByteBufferSequence()) {
+    	   byte[] a="0123456789".getBytes();
+    	   try(InputStream in =new  ByteArrayInputStream(a)) {
+	    	   bbs.read(in,5);
+	    	   }
+    	   Assert.assertEquals(bbs.toString(),"01234");
+	       }
+	    }
+    
+    @Test
+    public void testReadLine() throws IOException {
+    	 List<String> lines= Arrays.asList("A","","AZDD","azdazd");
+    	
+    	
+       try( ByteBufferSequence bbs = new ByteBufferSequence()) {
+    	   Assert.assertFalse(bbs.readLine(InputStream.nullInputStream()));
+    	   
+    	   List<String> L2=new ArrayList<>();
+           try(StringReader r= new StringReader(String.join("\n",lines))) {
+        	   while(bbs.readLine(r)) {
+        		   L2.add(bbs.toString());
+	        	   	}
+	           }
+        	Assert.assertEquals(lines, L2);
+        	
+        	L2.clear();
+        	try(StringReader r2= new StringReader(String.join("\r\n",lines))) {
+         	   while(bbs.readLine(r2)) {
+         		   L2.add(bbs.toString());
+	         	   	}
+	        	}
+         	Assert.assertEquals(lines, L2);
+        	
+        	L2.clear();
+            try(InputStream r= new ByteArrayInputStream(String.join("\n",lines).getBytes())) {
+         	   while(bbs.readLine(r)) {
+         		   L2.add(bbs.toString());
+ 	        	   	}
+ 	           }
+         	Assert.assertEquals(lines, L2);
+         	
+        	L2.clear();
+            try(InputStream r= new ByteArrayInputStream(String.join("\r\n",lines).getBytes())) {
+         	   while(bbs.readLine(r)) {
+         		   L2.add(bbs.toString());
+ 	        	   	}
+ 	           }
+         	Assert.assertEquals(lines, L2);         	
+       	}
+       }
+     
+    }
+

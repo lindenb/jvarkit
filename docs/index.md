@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 404a430cd
-Compilation : 20250516101539
+Version     : 050f57cf8
+Compilation : 20250519183052
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -333,6 +333,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfsetdict](VcfSetSequenceDictionary.md) | Set the `##contig` lines in a VCF header on the fly | 20140105 | 20210201 |
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20200818 |
 | [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files | 202221122 | 202221201 |
+| [vcfsplitvep](VCFSplitVEP.md) | Split CSQ vep annotations | 20250517 | 20250517 |
 | [vcfspringfilter](VcfSpringFilter.md) | Uses the java spring Framework to build complex vcf filters | 20230526 | 20230526 |
 | [vcfstats](VcfStats.md) | Produce VCF statitics | 20131212 | 20230707 |
 | [vcfsvannotator](VCFSVAnnotator.md) | SV Variant Effect prediction using gtf, gnomad, etc | 20190815 | 20230509 |

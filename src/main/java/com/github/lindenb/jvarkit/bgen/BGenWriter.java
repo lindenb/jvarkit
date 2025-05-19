@@ -41,6 +41,7 @@ import java.util.zip.DeflaterOutputStream;
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.apache.commons.compress.utils.IOUtils;
 
+import com.github.lindenb.jvarkit.io.ByteBufferSequence;
 import com.github.lindenb.jvarkit.lang.BitNumWriter;
 import com.github.lindenb.jvarkit.lang.BitWriter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -62,9 +63,9 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 	/** output layout */
 	private Layout layout = Layout.LAYOUT_2;
 	/** temporary buffer1 */
-	private ByteBuffer buffer1 = new ByteBuffer();
+	private ByteBufferSequence buffer1 = new ByteBufferSequence();
 	/** temporary buffer2 */
-	private ByteBuffer buffer2 = new ByteBuffer();
+	private ByteBufferSequence buffer2 = new ByteBufferSequence();
 	/** number of variants written so far */
 	private long n_variants=0L;
 	/** genotype to export for each variant */
@@ -219,7 +220,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		     
 		     /* samples */
 		     if(!(samplesOrNull==null || this.set_anonymous_flag)) {
-		    	 final ByteBuffer samplesBuffer=new ByteBuffer();
+		    	 final ByteBufferSequence samplesBuffer=new ByteBufferSequence();
 		    	 try(BinaryCodec bc3=new BinaryCodec(samplesBuffer)) {
 		    		 final Set<String> seen = new HashSet<>(n_samples);
 		    		 // number of samples
@@ -346,7 +347,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			}
 				
 		
-		ByteBuffer compressed;
+		ByteBufferSequence compressed;
 		switch(this.compression) {
 			case NONE : compressed = buffer1; break;
 			case ZLIB:
@@ -414,7 +415,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			}
 		}
 	
-	private ByteBuffer writeGenotypeLayout2() throws IOException {
+	private ByteBufferSequence writeGenotypeLayout2() throws IOException {
 		this.buffer1.reset();
 		try(BinaryCodec bc2= new BinaryCodec(this.buffer1)) {
 			/* The number of individuals for which probability data is stored. */

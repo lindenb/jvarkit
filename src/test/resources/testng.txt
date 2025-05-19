@@ -4,7 +4,10 @@ com.github.lindenb.jvarkit.bgen.BGenReaderTest
 com.github.lindenb.jvarkit.bgen.BGenUtilsTest
 com.github.lindenb.jvarkit.util.AlgorithmsTest
 com.github.lindenb.jvarkit.io.ByteBufferSequenceTest
+com.github.lindenb.jvarkit.io.IOUtilsTest
 com.github.lindenb.jvarkit.lang.BitNumReaderTest
 com.github.lindenb.jvarkit.lang.BitNumWriterTest
 com.github.lindenb.jvarkit.lang.BitReaderTest
 com.github.lindenb.jvarkit.lang.BitWriterTest
+com.github.lindenb.jvarkit.lang.CharSplitterTest
+com.github.lindenb.jvarkit.tools.vcfsplitvep.VCFSplitVEPTest

@@ -26,8 +26,11 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.io;
 
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.function.IntUnaryOperator;
@@ -55,9 +58,34 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		count=0;
 		return this;
 		}
+	/** alias clear */
+	public final ByteBufferSequence reset() {
+		return this.clear();
+		}
+	
+	/** write content to output stream */
+	public void writeTo(final OutputStream os) throws IOException {
+		if(os==this) throw new IllegalArgumentException("cannot write to self");
+		os.write(this.buf, 0, this.count);
+	}
+	
+	/** read n_bytes from in */
+	public void read(final InputStream in,int n_bytes) throws IOException {
+		ensureCapacity(this.size()+n_bytes);
+		int remain=n_bytes;
+		byte[] array=new byte[Defaults.NON_ZERO_BUFFER_SIZE];
+		while(remain>0) {
+			int toread = Math.min(remain, array.length);
+			int nRead = in.read(array,0,toread);
+			this.write(array,0,nRead);
+			if(nRead==-1) throw new EOFException();
+			remain-=nRead;
+		}
+	}
+	
 	
 	@Override
-	protected ByteBufferSequence clone() {
+	public ByteBufferSequence clone() {
 		return new ByteBufferSequence(this.buf,0,this.size());
 		}
 	
@@ -116,7 +144,20 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		return count;
 		}
 	
+
+	@Override
+	public final boolean isEmpty() {
+		return this.size()==0;
+	}
 	
+	public final boolean isBlank() {
+		for(int i=0;i< this.count;++i) {
+			if(!Character.isWhitespace(charAt(i))) return false;
+			}
+		return true;
+	}
+	
+	/** alias of size() */
 	@Override
 	public final int length() {
 		return this.size();
@@ -142,12 +183,12 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 	}
 
 	@Override
-	public ByteBufferSequence append(final CharSequence csq) throws IOException {
+	public ByteBufferSequence append(final CharSequence csq) {
 		return append(csq,0,csq.length());
 		}
 
 	@Override
-	public ByteBufferSequence append(final CharSequence csq, int start, int end) throws IOException {
+	public ByteBufferSequence append(final CharSequence csq, int start, int end)  {
 		ensureCapacity(this.size()+(end-start));
 		for(int i=start;i< end;i++) {
 			append(csq.charAt(i));
@@ -156,8 +197,8 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		}
 
 	@Override
-	public ByteBufferSequence append(char c) throws IOException {
-		write((char)c);
+	public ByteBufferSequence append(char c)  {
+		write(c);
 		return this;
 		}
 	
@@ -213,6 +254,47 @@ public class ByteBufferSequence extends OutputStream implements Cloneable,CharSe
 		 	}
 		 return true;
 	 	}
+	
+	private void removeCarrriageReturn() {
+		if(this.count>0 && this.buf[this.count-1]=='\r') {
+			this.count--;
+			}
+		}
+	 
+	public boolean readLine(final InputStream in) throws IOException {
+		this.clear();
+		int c= in.read();
+		if(c==-1) return false;
+		if(c=='\n') return true;
+		write(c);
+		while((c=in.read())!=-1 && c!='\n') {
+			write(c);
+			}
+		if(c=='\n') removeCarrriageReturn();
+		return true;
+		}
+	 
+	public boolean readLine(final Reader in) throws IOException {
+		this.clear();
+		int c= in.read();
+		if(c==-1) {
+			return false;
+			}
+		if(c=='\n') {
+			return true;
+			}
+		write(c);
+		while((c=in.read())!=-1 && c!='\n') {
+			write(c);
+			}
+		if(c=='\n') removeCarrriageReturn();
+		return true;
+		}
+	
+	@Override
+	public void close() {
+		// do nothing, do not clear
+		}
 	
 	@Override
 	public String toString() {

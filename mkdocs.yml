@@ -297,6 +297,7 @@ nav:
         - "vcfshuffle" : VCFShuffle.md
         - "vcfspliceai" : VcfSpliceAI.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md
+        - "vcfsplitvep" : VCFSplitVEP.md
         - "vcfspringfilter" : VcfSpringFilter.md
         - "vcfstats" : VcfStats.md
         - "vcfstats2" : VcfStats2.md

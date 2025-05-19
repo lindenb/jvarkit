@@ -164,24 +164,6 @@ public class BGenUtils {
 		return bi.intValueExact();
 		}
    
-   	/** ByteArrayOutputStream but we expose the internal buffer */
-    protected static class ByteBuffer extends ByteArrayOutputStream {
-		byte[] getBuffer() { return super.buf;}
-		public void copyTo(InputStream in,int nbytes) throws IOException {
-			IOUtils.copyTo(in,this,nbytes);
-			}
-		ByteArrayInputStream toByteArrayInputStream() {
-			return new ByteArrayInputStream(getBuffer(), 0, size());
-			}
-		}
-    
-    
-	
-	
-	
-	
-
-	
 	
 	static abstract class RandomAccessStream extends FilterInputStream implements LocationAware
 		{
