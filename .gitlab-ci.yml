@@ -1,6 +1,7 @@
 image: eclipse-temurin:17-jdk
 
 before_script:
+  - hostname
   - env | grep -i PROXY
   - apt-get update -y
   - apt-get install -y make wget
@@ -20,4 +21,4 @@ build-job:       # This job will compile your project
 test-job:        # This job will run tests on your project
   stage: test
   script:
-    - make test   # Runs any tests for your project
+    - make test JAVA_PROXY="-Dhttp.proxyHost=proxy-serveur.univ-nantes.prive -Dhttp.proxyPort=3128 -Dhttps.proxyHost=proxy-serveur.univ-nantes.prive -Dhttps.proxyPort=3128"

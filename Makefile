@@ -1,6 +1,7 @@
+SHELL=/bin/bash
 TEST?=
 GATK4JAR=$(realpath ${HOME}/package/gatk/4/gatk-4.6.0.0/gatk-package-4.6.0.0-local.jar)
-SHELL=/bin/bash
+JAVA_PROXY?=
 
 ifeq ($(TEST),true)
 TESTNG=-Djvarkit.testng=true
@@ -47,7 +48,7 @@ test: tests
 	
 tests:
 	$(MAKE) TEST=true
-	java -jar dist/jvarkit.jar testng src/test/resources/testng.txt
+	java $(JAVA_PROXY) -jar dist/jvarkit.jar testng src/test/resources/testng.txt
 	rm -rf dist/jvarkit.jar
 
 # do not compile jvarkit
