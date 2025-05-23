@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfnearest;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -73,8 +72,10 @@ public class VCFNearest extends AbstractOnePassVcfAnnotator
 	private int max_distance=0;
 	@Parameter(names={"-n","--max-features"},description="do not print more than 'x' features; disable if x <=0")
 	private int limit_n_features=-1;
-	@Parameter(names={"-C","--columns"},description="comma separated names of the columns in the bed file starting from the 4th column. Empty columns will be skipped. e.g: 'NAME,TYPE,,SCORE' expects a bed with 7 columns. The 6th will be skipped. Two columns are added: the side (0: overlap, -1 bed is before variant , 1 bed is after variant ) and the distance",required = true)
+	@Parameter(names={"-C","--columns"},description="comma separated names of the columns in the bed file. Empty columns will be skipped. e.g: ',,,NAME,TYPE,,SCORE' expects a bed with 7 columns. The 1,2,3 and 6th will be skipped. Two columns are added: the side (0: overlap, -1 bed is before variant , 1 bed is after variant ) and the distance",required = true)
 	private String columnStr="";
+	@Parameter(names={"--tabix"},description="use tabix index if possible (otherwise, put the bed in memory)")
+	private boolean use_tabix;
 
 	@Override
 	protected Logger getLogger() {
@@ -90,6 +91,7 @@ public class VCFNearest extends AbstractOnePassVcfAnnotator
 			ann.setBedPath(this.bedPath);
 			ann.setMaxDistance(max_distance);
 			ann.setLimitCount(limit_n_features);
+			ann.setUseTabixIndex(use_tabix);
 			ann.setColumns(Arrays.asList(CharSplitter.COMMA.split(this.columnStr)));
 			return Collections.singletonList(ann);
 			}

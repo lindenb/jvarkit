@@ -24,8 +24,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfnearest;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -33,10 +36,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;
@@ -44,8 +49,13 @@ import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.RuntimeIOException;
+import htsjdk.tribble.readers.TabixReader;
+import htsjdk.tribble.util.ParsingUtils;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFHeader;
@@ -59,24 +69,92 @@ public class VCFNearestAnnotator implements VariantAnnotator {
 	private int max_distance = 0;
 	private int limit_count = -1;
 	private Path bedPath;
-	private final IntervalTreeMap<List<BedLine>> loc2beds = new IntervalTreeMap<>();
 	private final List<String> bedColumns = new ArrayList<>();
+	private Scanner scanner=null;
+	private boolean use_tabix_index =false;
+	
+	private static abstract class Scanner implements Closeable {
+		abstract void loadBed(final VCFHeader header,Path bed)throws IOException;
+		abstract Stream<BedLine> query(Locatable loc)throws IOException;
+		}
+	private static class TreeMapScanner extends Scanner {
+		private final IntervalTreeMap<List<BedLine>> loc2beds = new IntervalTreeMap<>();
+
+		private void addInterval(final BedLine rec) {
+			final Interval r=new Interval(rec);
+			List<BedLine> genes = loc2beds.get(r);
+			if(genes==null) {
+				genes=new ArrayList<>();
+				loc2beds.put(r, genes);
+				}
+			genes.add(rec);
+			}
+		
+		@Override
+		void loadBed(final VCFHeader header,Path bedPath) throws IOException
+			{
+			final SAMSequenceDictionary dict= header.getSequenceDictionary();
+			final UnaryOperator<String> converter = dict==null?C->C: ContigNameConverter.fromOneDictionary(dict);
+			try(BedLineReader br = new BedLineReader(bedPath)) {
+				br.setContigNameConverter(converter);
+				br.stream().forEach(this::addInterval);
+				}
+			}
+		final Stream<BedLine> query(Locatable loc) throws IOException{
+			return this.loc2beds.getOverlapping(loc).
+				stream().
+				flatMap(L->L.stream())
+				;
+				
+			}
+		@Override
+		public void close() throws IOException {
+			loc2beds.clear();
+			}
+		}
+	
+	private static class TabixScanner extends Scanner {
+		TabixReader reader=null;
+		final BedLineCodec codec=new BedLineCodec();
+		UnaryOperator<String> to_tabix_ctg;
+		@Override
+		void loadBed(final VCFHeader header,Path bed) throws IOException
+			{
+			this.reader = new TabixReader(bed.toAbsolutePath().toString());
+			final SAMSequenceDictionary dict= header.getSequenceDictionary();
+			final UnaryOperator<String> converter = dict==null?C->C: ContigNameConverter.fromOneDictionary(dict);
+			codec.setContigNameConverter(converter);
+			this.to_tabix_ctg = ContigNameConverter.fromContigSet(this.reader.getChromosomes());
+			}
+		
+		final Stream<BedLine> query(Locatable loc) throws IOException {
+			final String ctg2 = this.to_tabix_ctg.apply(loc.getContig());
+			if(StringUtils.isBlank(ctg2)) return Stream.empty();
+			final  TabixReader.Iterator iter=reader.query(ctg2, Math.min(0,loc.getStart()-1), loc.getEnd());
+			final List<BedLine>  L = new ArrayList<>();
+			for(;;) {
+				String line=iter.next();
+				if(line==null) break;
+				final BedLine rec= this.codec.decode(line);
+				if(rec==null || !rec.overlaps(loc)) continue;
+				L.add(rec);
+				}
+			return L.stream();
+			}
+		@Override
+		public void close() throws IOException {
+			if(reader!=null) try {reader.close();} catch(Throwable err) {}
+			reader=null;
+			}
+	}
 	
 	public VCFNearestAnnotator() {
 		}
 
 
-	
-	private void addInterval(BedLine rec) {
-		final Interval r=new Interval(rec);
-		List<BedLine> genes = loc2beds.get(r);
-		if(genes==null) {
-			genes=new ArrayList<>();
-			loc2beds.put(r, genes);
-			}
-		genes.add(rec);
+	public void setUseTabixIndex(boolean use_tabix_index) {
+		this.use_tabix_index = use_tabix_index;
 		}
-	
 	public void setBedPath(Path bedPath) {
 		this.bedPath = bedPath;
 		}
@@ -107,16 +185,29 @@ public class VCFNearestAnnotator implements VariantAnnotator {
 		
 		// load BED
 		if(this.bedPath!=null) {
-			final SAMSequenceDictionary dict= header.getSequenceDictionary();
-			final UnaryOperator<String> converter = dict==null?C->C: ContigNameConverter.fromOneDictionary(dict);
-			try(BedLineReader br = new BedLineReader(this.bedPath)) {
-				br.setContigNameConverter(converter);
-				br.stream().
-					filter(B->!StringUtils.isBlank(B.getOrDefault(3,""))).
-					forEach(this::addInterval);
+			if(use_tabix_index && bedPath.getFileName().toString().endsWith(".bed.gz") &&
+					Files.exists(Paths.get(ParsingUtils.appendToPath(bedPath.toAbsolutePath().toString(), FileExtensions.TABIX_INDEX))))
+				{
+				this.scanner=new TabixScanner();
+				}
+			else
+				{
+				this.scanner=new TreeMapScanner();
+				}
+			
+			try {
+				this.scanner.loadBed(header, bedPath);
+				}
+			catch(IOException err) {
+				LOG.error(err);
+				throw new RuntimeIOException(err);
 				}
 			}
-	}
+		else
+			{
+			throw new IllegalArgumentException("undefined bed");
+			}
+		}
 	
 	private int distanceTo(final VariantContext ctx,final BedLine reg) {
 		if(ctx.overlaps(reg)) return 0;
@@ -147,14 +238,12 @@ public class VCFNearestAnnotator implements VariantAnnotator {
 	
 	@Override
 	public List<VariantContext> annotate(final VariantContext ctx) throws IOException {
-		Interval r = new Interval(
+		final Interval r = new Interval(
 				ctx.getContig(), 
 				Math.max(1, ctx.getStart()-max_distance),
 				ctx.getEnd()+max_distance
 				);
-		List<BedLine> L1= this.loc2beds.getOverlapping(r).
-				stream().
-				flatMap(L->L.stream()).
+		final List<BedLine> L1= this.scanner.query(r).
 				sorted((A,B)->Integer.compare(distanceTo(ctx,A), distanceTo(ctx,B))).
 				collect(Collectors.toList());
 		
@@ -176,7 +265,7 @@ public class VCFNearestAnnotator implements VariantAnnotator {
 			final List<String> row = new ArrayList<>(this.bedColumns.size()+2);
 			for(int x=0; x< this.bedColumns.size();++x) {
 				if(StringUtils.isBlank(this.bedColumns.get(x))) continue;
-				row.add(rec.getOrDefault(x+3,""));
+				row.add(rec.getOrDefault(x,""));
 				}
 			row.add(String.valueOf(side));
 			row.add(String.valueOf(distanceTo(ctx,rec)));
@@ -192,6 +281,10 @@ public class VCFNearestAnnotator implements VariantAnnotator {
 	
 	@Override
 	public void close() {
-		
+		if(scanner!=null) try {
+			scanner.close();
+			} catch(IOException err) {
+			}
+		scanner=null;
 		}
 }

@@ -25,11 +25,11 @@ Usage: vcfnearest [options] Files
   * -B, --bed
       Bed path.
   * -C, --columns
-      comma separated names of the columns in the bed file starting from the 
-      4th column. Empty columns will be skipped. e.g: 'NAME,TYPE,,SCORE' 
-      expects a bed with 7 columns. The 6th will be skipped. Two columns are 
-      added: the side (0: overlap, -1 bed is before variant , 1 bed is after 
-      variant ) and the distance
+      comma separated names of the columns in the bed file. Empty columns will 
+      be skipped. e.g: ',,,NAME,TYPE,,SCORE' expects a bed with 7 columns. The 
+      1,2,3 and 6th will be skipped. Two columns are added: the side (0: 
+      overlap, -1 bed is before variant , 1 bed is after variant ) and the 
+      distance 
       Default: <empty string>
     -d, --distance
       max distance from variant to feature. A distance specified as a positive 
@@ -48,6 +48,9 @@ Usage: vcfnearest [options] Files
       Default: -1
     -o, --out
       Output file. Optional . Default: stdout
+    --tabix
+      use tabix index if possible (otherwise, put the bed in memory)
+      Default: false
     -t, --tag
       Tag name
       Default: NEAREST

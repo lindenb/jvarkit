@@ -51,7 +51,7 @@ public class VCFNearestTest {
 			Assert.assertEquals(0,new VCFNearest().instanceMain(new String[] {
 					"--tag",tag,
 					"--bed",bed.toString(),
-					"-C","GENE,,TYPE",
+					"-C",",,,GENE,,TYPE",
 					"-d","100",
 					"-n","-1",
 					"-o",vout.toString(),
