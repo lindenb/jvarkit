@@ -34,7 +34,7 @@ BEGIN_DOC
 ### Example 1
 
 ```
-java -jar dist/bam2raster.jar \
+java -jar dist/jvarkit.jar bam2raster \
 	-o ~/jeter.png \
         -r 2:17379500-17379550 \
         -R  human_g1k_v37.fasta \

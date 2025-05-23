@@ -7,27 +7,24 @@ convert VCF to RDF (N3 notation)
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcf2rdf  [options] Files
+
 Usage: vcf2rdf [options] Files
   Options:
-    -a, --alleles
-      print ALT alleles
-      Default: false
-    -f, --filters
-      print FILTERs
-      Default: false
-    -g, --genotypes
-      print Genotypes informations
-      Default: false
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -o, --output
       Output file. Optional . Default: stdout
-    -vep, --vep
-      print VEP informations
-      Default: false
+    --hide, --remove
+      hide those features. Comma separated
+      Default: FILTER,ALT,VEP,GT
     --version
       print version and exit
 
@@ -40,26 +37,18 @@ Usage: vcf2rdf [options] Files
  * rdf
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcf2rdf
-```
-
-The java jar file will be installed in the `dist` directory.
+20191213
 
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdf.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdf.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdfTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcf2rdf/VcfToRdfTest.java)
 
 
 ## Contribute
@@ -312,6 +301,7 @@ ${JENAROOT}/bin/tdbdump --loc=TMPTDB | head -n 100
 loaded 78,258 variants / 20 Mbytes in Jena/TDB 11,193,250 triples / 892Mbytes 
 
 ```
+
 
 
 

@@ -73,6 +73,10 @@ import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 /**
 BEGIN_DOC
 
+## deprecated
+
+use 'samtools coverage'
+
 ## input
 
 Input is one or more indexed BAM files.
@@ -88,7 +92,7 @@ Input is one or more indexed BAM files.
 ## Example
 
 ```
-$ java -jar dist/bamstats04.jar -B src/test/resources/toy.bed.gz src/test/resources/toy.bam 2> /dev/null | column -t 
+$ java -jar dist/jvarkit.jar bamstats04 -B src/test/resources/toy.bed.gz src/test/resources/toy.bam 2> /dev/null | column -t 
 
 #chrom  start  end  length  sample  mincov  maxcov  meancov  mediancov  nocoveragebp  percentcovered
 ref     10     13   3       S1      3       3       3.0      3.0        0             100

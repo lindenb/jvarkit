@@ -73,6 +73,8 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SmooveGenesParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffLofNmdParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
+import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTable;
+import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -266,7 +268,7 @@ END_DOC
 		references="Vcf2table : a VCF prettifier. Lindenbaum & al. 2018. figshare. [https://doi.org/10.6084/m9.figshare.5853801](https://doi.org/10.6084/m9.figshare.5853801)",
 		biostars={293855,9538421},
 		creationDate="20170511",
-		modificationDate="20220507",
+		modificationDate="20250523",
 		jvarkit_amalgamion =  true,
 		nfcore = "https://nf-co.re/modules/jvarkit_vcf2table.html",
 		menu="VCF Manipulation"
@@ -803,6 +805,7 @@ public class VcfToTable extends Launcher {
 			private Pedigree pedigree = null;
 			private VcfTools vcfTools = null;
 			private UrlSupplier urlSupplier = null;
+			private final List<VCFInfoTable> vcfInfoTables = new ArrayList<>();
 
 			VcfToTableViewer getOwner() {
 				return VcfToTableViewer.this;
@@ -833,6 +836,7 @@ public class VcfToTable extends Launcher {
 				this.vcfTools = new VcfTools(header);
 				final SAMSequenceDictionary dict = header.getSequenceDictionary();
 				this.urlSupplier = dict==null ? new UrlSupplier():new UrlSupplier(dict);
+				this.vcfInfoTables.addAll(new VCFInfoTableModelFactory().parse(header));
 				
 				if(getOwner().pedigreeFile!=null) {
 					try {
@@ -1112,6 +1116,18 @@ public class VcfToTable extends Launcher {
 				 this.writeTable(margin, t);
 				}
 			
+			/** INFO table Model */
+			for(VCFInfoTable table: this.vcfInfoTables) {
+				if(isShowing(table.getTag())) {
+					final	Table t=new Table(table.getColumnNames()).setCaption(table.getDescription());
+					 for(final List<String> row:table.parse(vc))
+					 	{
+						t.addRow(row.toArray());
+					 	}
+					 this.writeTable(margin, t);
+					}
+				}
+			
 			final Set<String> all_geneNames = new HashSet<>();
 			
 			if(isShowing("SPLICEAI") && vc.hasAttribute(SpliceAI.getTag())) {
@@ -1151,6 +1167,7 @@ public class VcfToTable extends Launcher {
 					if(key.equals(this.vcfTools.getLofSnpeffParser().getTag()) && this.vcfTools.getLofSnpeffParser().isValid()) continue;
 					if(key.equals(this.vcfTools.getSmooveGenesParser().getTag()) && this.vcfTools.getSmooveGenesParser().isValid()) continue;
 					if(key.equals(SpliceAI.getTag())) continue;
+					if(this.vcfInfoTables.stream().anyMatch(T->T.getTag().equals(key))) continue;
 					Object v= atts.get(key);
 					final List<?> L;
 					if(v instanceof List)

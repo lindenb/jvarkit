@@ -110,9 +110,8 @@ input is a set of bam files or one file with the '.list' suffix containing the p
 ## Example:
 
 ```
-$ java -jar dist/basecoverage.jar --region "RF03:491-500" -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam 
+$ java -jar dist/jvarkit.jar basecoverage --region "RF03:491-500" -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam 
 
-lindenb@asimov:~/src/jvarkit$ java -jar dist/basecoverage.jar --bed jeter.bed -R src/test/resources/rotavirus_rf.fa src/test/resources/S*.bam 
 
 ##fileformat=VCFv4.2
 ##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">

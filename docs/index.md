@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : e7e8ef3bc
-Compilation : 20250519203530
+Version     : 6db6fc5af
+Compilation : 20250523152322
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -247,6 +247,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samedict](SameDict.md) | check if all HTS files share the same dictionary | 20240724 | 20240724 |
 | [samfixcigar](SamFixCigar.md) | Fix Cigar String in SAM replacing 'M' by 'X' or '=' | 20131126 | 20210223 |
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
+| [samslop](SamSlop.md) | extends sam by 'x' bases using the reference sequence | 20160119 | 20250522 |
 | [scanlabguru](ScanLabGuru.md) | scan the files stored in labguru | 20240325 | 20240325 |
 | [scansv](ScanStructuralVariants.md) | Scan structural variants for case/controls data | 20190815 | 20240916 |
 | [shiftbam](ShiftBam.md) | shit all coordinates of a bam | 20241001 | 20241001 |
@@ -269,7 +270,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcffilterbyliftover](VcfFilterByLiftOver.md) | Add FILTER(s) to a variant when it is known to map elsewhere after liftover. | 20190418 | 20210603 |
 | [vcfgatkeval](VcfGatkEval.md) | Eval/Plot gatk INFO tags for filtering | 20230424 | 20240321 |
 | [vcfgroupbypop](VcfGroupByPopulation.md) | create INFO data by population | 20190319 | 20230712 |
-| [vcfliftover](VcfLiftOver.md) | Lift-over a VCF file | 20240114 | 20210603 |
 | [vcfpeekvcf](VcfPeekVcf.md) | Get the INFO from a VCF and use it for another VCF | 20150521 | 20240405 |
 | [vcfsamplesprs](VcfSamplesPRS.md) | another program for @AntoineRimbert | 20220915 | 20220915 |
 | [vcfscanupstreamorf](VcfScanUpstreamOrf.md) | Scan BAM for upstream-ORF. Inspired from https://github.com/ImperialCardioGenetics/uORFs | 20190218 | 20200804 |
@@ -299,7 +299,8 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [swingvcfview](SwingVcfView.md) | VCFviewer using Java Swing UI | 20210503 | 20210503 |
 | [vcf2intervals](VcfToIntervals.md) | split a vcf to interval or bed for parallelization | 20211112 | 20221128 |
 | [vcf2r](VcfToRScript.md) | Convert VCF to R so it can be used for burden testing |  | 20240607 |
-| [vcf2table](VcfToTable.md) | convert a vcf to a table, to ease display in the terminal | 20170511 | 20220507 |
+| [vcf2rdf](VcfToRdf.md) | convert VCF to RDF (N3 notation) | 20191213 | 20250520 |
+| [vcf2table](VcfToTable.md) | convert a vcf to a table, to ease display in the terminal | 20170511 | 20250523 |
 | [vcfallelebalance](VcfAlleleBalance.md) | Insert missing allele balance annotation using FORMAT:AD | 20180829 | 20200805 |
 | [vcfancestralalleles](VcfAncestralAllele.md) | Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README | 20180418 | 20220126 |
 | [vcfbigbed](VcfBigBed.md) | Annotate a VCF with values from a bigbed file | 20220107 | 20220107 |
@@ -321,9 +322,11 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgnomadsv](VcfGnomadSV.md) | Peek annotations from gnomad structural variants | 20190814 | 20211109 |
 | [vcfgrantham](VcfGrantham.md) | add grantham score from annotated VCF variant | 20230503 | 20230503 |
 | [vcfhead](VcfHead.md) | print the first variants of a vcf | 202050510 | 20200518 |
+| [vcfliftover](VcfLiftOver.md) | Lift-over a VCF file | 20240114 | 20210603 |
 | [vcfmovefilterstoinfo](VcfMoveFiltersToInfo.md) | Move any FILTER to the INFO column. reset FILTER to PASS | 20161025 | 20220323 |
 | [vcfmulti2one](VcfMultiToOne.md) | Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used. | 20150312 | 20241125 |
 | [vcfmulti2oneinfo](VcfMultiToOneInfo.md) | 'one variant with INFO with N values' to 'N variants with one INFO' | 20260106 | 20230524 |
+| [vcfnearest](VCFNearest.md) | find nearest feature near a variant | 20250523 | 20250523 |
 | [vcfpar](VcfPseudoAutosomalRegion.md) | Flag human sexual regions excluding PAR. | 20200908 | 20200908 |
 | [vcfpeekaf](VcfPeekAf.md) | Peek the AF from another VCF | 20200624 | 20200904 |
 | [vcfphased01](VcfPhased01.md) | X10 Phased SVG to Scalar Vector Graphics (SVG) | 20190710 | 20230818 |

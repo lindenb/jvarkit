@@ -7,8 +7,14 @@ extends sam by 'x' bases using the reference sequence
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: SamSlop [options] Files
+Usage: java -jar dist/jvarkit.jar samslop  [options] Files
+
+Usage: samslop [options] Files
   Options:
     --bamcompression
       Compression Level. 0: no compression. 9: max compression;
@@ -30,7 +36,7 @@ Usage: SamSlop [options] Files
       Output file. Optional . Default: stdout
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard CreateSequenceDictionary
+      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --regions
       Limit analysis to this interval. A source of intervals. The following 
       suffixes are recognized: vcf, vcf.gz bed, bed.gz, gtf, gff, gff.gz, 
@@ -59,23 +65,6 @@ Usage: SamSlop [options] Files
  * bam
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew SamSlop
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -83,7 +72,11 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SamSlop.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/SamSlop.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samslop/SamSlop.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/samslop/SamSlop.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/samslop/SamSlopTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/samslop/SamSlopTest.java)
 
 
 ## Contribute
@@ -97,7 +90,7 @@ The project is licensed under the MIT license.
 
 ## Citing
 
-Should you cite **SamSlop** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
+Should you cite **samslop** ? [https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md](https://github.com/mr-c/shouldacite/blob/master/should-I-cite-this-software.md)
 
 The current reference is:
 
@@ -109,14 +102,11 @@ The current reference is:
 
 
 
-
 ### Example
 
 
-
 ```
-
-$ java -jar dist/samslop.jar -m 20 -M 10 -r ~/src/gatk-ui/testdata/ref.fa  ~/src/gatk-ui/testdata/S1.bam
+$ java -jar dist/jvarkit.jar samslop -m 20 -M 10 -r ~/src/gatk-ui/testdata/ref.fa  ~/src/gatk-ui/testdata/S1.bam
  
 @HD     VN:1.5  GO:none SO:unsorted
 @SQ     SN:rotavirus    LN:1074
@@ -140,6 +130,7 @@ rotavirus_2_488_8:0:0_9:0:0_343 99      rotavirus       1       60      4M      
 rotavirus_2_478_5:0:0_5:0:0_35c 163     rotavirus       1       60      4M      =       409     477     GGCATTTAATGCTTTTCAGTGGTTGCTGCACAAGATGGAGTCTACTCAGCAGATTGTAAGCTCTATTATTAATACTT        #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++##########   MD:Z:2T25T24G12 RG:Z:S1 NM:i:3  AS:i:53 XS:i:0
 (...)
 ```
+
 
 
 

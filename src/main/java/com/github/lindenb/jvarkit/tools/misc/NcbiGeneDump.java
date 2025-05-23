@@ -275,7 +275,7 @@ public class NcbiGeneDump
 	
 	private boolean isInteger(final String s) {
 		try {
-			new Integer(s);
+			Integer.valueOf(s);
 			return true;
 		} catch(final NumberFormatException err) {
 			return false;
@@ -284,7 +284,6 @@ public class NcbiGeneDump
 	
 	@Override
 	public int doWork(final List<String> args) {
-		PrintWriter pw=null;
 		
 		
 		if(!this.ncbiApiKey.isApiKeyDefined()) {
@@ -332,7 +331,7 @@ public class NcbiGeneDump
 			final Set<Integer> geneIds = new HashSet<>(geneIdentifiers.
 					stream().
 					filter(G->isInteger(G)).
-					map(G->new Integer(G)).
+					map(G->Integer.valueOf(G)).
 					collect(Collectors.toSet())
 					);
 			
@@ -421,149 +420,149 @@ public class NcbiGeneDump
 				try { if(!geneNames.isEmpty()) Thread.sleep(this.wait_seconds * 1000); } catch(final Throwable err) {}
 				}
 			
-			pw=super.openPathOrStdoutAsPrintWriter(outputFile);
-			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
-			final XMLEventWriter w=xof.createXMLEventWriter(pw);
-			final XMLEventFactory eventFactory = XMLEventFactory.newInstance();
-			w.add(eventFactory.createStartDocument("UTF-8", "1.0"));
-			w.add(eventFactory.createStartElement(new QName("Entrezgene-Set"), null,null));
-			w.add(eventFactory.createCharacters("\n"));
-			while(!geneIds.isEmpty()) {
-				final Set<Integer> batchIds = new HashSet<>(batchSize);
-				final Iterator<Integer> iter = geneIds.iterator();
-				while(iter.hasNext() && batchIds.size() < batchSize) {
-					batchIds.add(iter.next());
-					iter.remove();
-					}
-				
-				final String url= NcbiConstants.efetch()+"?"+
-						"db=gene"+
-						ncbiApiKey.getAmpParamValue()+
-						"&retmode=xml&id="+batchIds.stream().map(I->I.toString()).collect(Collectors.joining(","))+
-						(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
-						(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
-						;
-				LOG.info(url+" remains "+geneIds.size()+" ID(s).");
-				final XMLEventReader r = xmlInputFactory.createXMLEventReader(new StreamSource(url));
-				boolean in_gene = false;
-				Integer current_gene_id = null;
-				
-				while(r.hasNext())
-					{
-					final XMLEvent evt=r.nextEvent();
+			try(PrintWriter pw=super.openPathOrStdoutAsPrintWriter(outputFile)) {
+				final XMLOutputFactory xof=XMLOutputFactory.newFactory();
+				final XMLEventWriter w=xof.createXMLEventWriter(pw);
+				final XMLEventFactory eventFactory = XMLEventFactory.newInstance();
+				w.add(eventFactory.createStartDocument("UTF-8", "1.0"));
+				w.add(eventFactory.createStartElement(new QName("Entrezgene-Set"), null,null));
+				w.add(eventFactory.createCharacters("\n"));
+				while(!geneIds.isEmpty()) {
+					final Set<Integer> batchIds = new HashSet<>(batchSize);
+					final Iterator<Integer> iter = geneIds.iterator();
+					while(iter.hasNext() && batchIds.size() < batchSize) {
+						batchIds.add(iter.next());
+						iter.remove();
+						}
 					
-					switch(evt.getEventType())
+					final String url= NcbiConstants.efetch()+"?"+
+							"db=gene"+
+							ncbiApiKey.getAmpParamValue()+
+							"&retmode=xml&id="+batchIds.stream().map(I->I.toString()).collect(Collectors.joining(","))+
+							(email==null?"":"&email="+URLEncoder.encode(email,"UTF-8"))+
+							(tool==null?"":"&tool="+URLEncoder.encode(tool,"UTF-8"))
+							;
+					LOG.info(url+" remains "+geneIds.size()+" ID(s).");
+					final XMLEventReader r = xmlInputFactory.createXMLEventReader(new StreamSource(url));
+					boolean in_gene = false;
+					Integer current_gene_id = null;
+					
+					while(r.hasNext())
 						{
-						case XMLEvent.ATTRIBUTE:
+						final XMLEvent evt=r.nextEvent();
+						
+						switch(evt.getEventType())
 							{
-							if(in_gene) w.add(evt);
-							break;
-							}
-						case XMLEvent.START_DOCUMENT:
-						case XMLEvent.END_DOCUMENT:
-							{
-							in_gene=false;
-							break;
-							}
-						case XMLEvent.START_ELEMENT:
-							{
-							
-							final  String localName= evt.asStartElement().getName().getLocalPart();
-							if(localName.equals("Entrezgene"))
+							case XMLEvent.ATTRIBUTE:
 								{
-								in_gene = true;
-								current_gene_id = null;
-								w.add(evt);
+								if(in_gene) w.add(evt);
+								break;
 								}
-							else if(in_gene && localName.equals("Gene-track_geneid"))
+							case XMLEvent.START_DOCUMENT:
+							case XMLEvent.END_DOCUMENT:
 								{
-								w.add(evt);
-								final XMLEvent evt2 = r.nextEvent();
-								if(!evt2.isCharacters()) throw new XMLStreamException("expected a text node for Gene-track_geneid" ,evt2.getLocation());
-								current_gene_id  = new Integer(evt2.asCharacters().getData().trim());
-								if(!batchIds.remove(current_gene_id)) {
-									LOG.warn("found NCBI-GENE-ID "+current_gene_id+" but it is not in my list");
-									}
-								w.add(evt2);
+								in_gene=false;
+								break;
 								}
-							else if(in_gene && skipTags.contains(localName))
+							case XMLEvent.START_ELEMENT:
 								{
-								skip(r);
-								}
-							else if(in_gene)
-								{
-								w.add(evt);
-								}
-							break;
-							}
-						case XMLEvent.END_ELEMENT:
-							{
-							if(in_gene)
-								{
-								final  String localName= evt.asEndElement().getName().getLocalPart();
-								if(current_gene_id!=null && localName.equals("Entrezgene"))
-									{
-									insertCustomAnnotationsForGeneId(w,current_gene_id,eventFactory);
-									}
-								w.add(evt);
+								
+								final  String localName= evt.asStartElement().getName().getLocalPart();
 								if(localName.equals("Entrezgene"))
 									{
-									w.add(eventFactory.createCharacters("\n"));
-									in_gene = false;
+									in_gene = true;
 									current_gene_id = null;
+									w.add(evt);
 									}
+								else if(in_gene && localName.equals("Gene-track_geneid"))
+									{
+									w.add(evt);
+									final XMLEvent evt2 = r.nextEvent();
+									if(!evt2.isCharacters()) throw new XMLStreamException("expected a text node for Gene-track_geneid" ,evt2.getLocation());
+									current_gene_id  = Integer.valueOf(evt2.asCharacters().getData().trim());
+									if(!batchIds.remove(current_gene_id)) {
+										LOG.warn("found NCBI-GENE-ID "+current_gene_id+" but it is not in my list");
+										}
+									w.add(evt2);
+									}
+								else if(in_gene && skipTags.contains(localName))
+									{
+									skip(r);
+									}
+								else if(in_gene)
+									{
+									w.add(evt);
+									}
+								break;
 								}
-							break; 
-							}
-						case XMLEvent.COMMENT:break;
-						case XMLEvent.PROCESSING_INSTRUCTION:break;
-						case XMLEvent.DTD:
-							{
-							break;	
-							}
-						case XMLEvent.SPACE:break;
-						case XMLEvent.CHARACTERS:
-							{
-							if(in_gene) w.add(evt);
-							break;
-							}
-						default:
-							{
-							throw new IllegalStateException("XML evt no handled: "+evt);
+							case XMLEvent.END_ELEMENT:
+								{
+								if(in_gene)
+									{
+									final  String localName= evt.asEndElement().getName().getLocalPart();
+									if(current_gene_id!=null && localName.equals("Entrezgene"))
+										{
+										insertCustomAnnotationsForGeneId(w,current_gene_id,eventFactory);
+										}
+									w.add(evt);
+									if(localName.equals("Entrezgene"))
+										{
+										w.add(eventFactory.createCharacters("\n"));
+										in_gene = false;
+										current_gene_id = null;
+										}
+									}
+								break; 
+								}
+							case XMLEvent.COMMENT:break;
+							case XMLEvent.PROCESSING_INSTRUCTION:break;
+							case XMLEvent.DTD:
+								{
+								break;	
+								}
+							case XMLEvent.SPACE:break;
+							case XMLEvent.CHARACTERS:
+								{
+								if(in_gene) w.add(evt);
+								break;
+								}
+							default:
+								{
+								throw new IllegalStateException("XML evt no handled: "+evt);
+								}
 							}
 						}
-					}
-				r.close();
-				
-				if(!batchIds.isEmpty())
-					{
-					final String msg = "The following NCBI gene identifiers were not found: "+
-							batchIds.stream().
-							map(I->String.valueOf(I)).
-								collect(Collectors.joining(" , "))
-							;
-					if(abortOnNotFound) 
+					r.close();
+					
+					if(!batchIds.isEmpty())
 						{
-						LOG.error(msg);
-						return -1;
-						}
-					else
-						{
-						for(final Integer gid: batchIds)
+						final String msg = "The following NCBI gene identifiers were not found: "+
+								batchIds.stream().
+								map(I->String.valueOf(I)).
+									collect(Collectors.joining(" , "))
+								;
+						if(abortOnNotFound) 
 							{
-							w.add(eventFactory.createComment("NOT FOUND : https://www.ncbi.nlm.nih.gov/gene/ "+ gid));
+							LOG.error(msg);
+							return -1;
 							}
-						LOG.warn(msg);
+						else
+							{
+							for(final Integer gid: batchIds)
+								{
+								w.add(eventFactory.createComment("NOT FOUND : https://www.ncbi.nlm.nih.gov/gene/ "+ gid));
+								}
+							LOG.warn(msg);
+							}
 						}
-					}
-				try { if(!geneIds.isEmpty()) Thread.sleep(this.wait_seconds * 1000); } catch(final Throwable err) {}				
-				}//end while ids
-			w.add(eventFactory.createEndElement(new QName("Entrezgene-Set"),null));
-			w.add(eventFactory.createEndDocument());
-			w.flush();
-			w.close();
-			pw.flush();
-			pw.close();
+					try { if(!geneIds.isEmpty()) Thread.sleep(this.wait_seconds * 1000); } catch(final Throwable err) {}				
+					}//end while ids
+				w.add(eventFactory.createEndElement(new QName("Entrezgene-Set"),null));
+				w.add(eventFactory.createEndDocument());
+				w.flush();
+				w.close();
+				pw.flush();
+				}
 			return 0;
 			}
 		catch(final Exception err)
@@ -571,10 +570,7 @@ public class NcbiGeneDump
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(pw);
-			}
+		
 		}
 	
 	private void insertCustomAnnotationsForGeneId(
@@ -639,7 +635,7 @@ public class NcbiGeneDump
 					w.add(eventFactory.createCharacters("\n"));
 					}
 				}
-			if(in_gene) ; {
+			if(in_gene) {
 				w.add(eventFactory.createEndElement(CUSTOM_ANNOT_QNAME, null));
 				}
 			}

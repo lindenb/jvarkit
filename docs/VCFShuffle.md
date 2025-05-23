@@ -7,8 +7,13 @@ Shuffle a VCF
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfshuffle.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfshuffle  [options] Files
+
 Usage: vcfshuffle [options] Files
   Options:
     --bcf-output
@@ -48,23 +53,6 @@ Usage: vcfshuffle [options] Files
 
  * vcf
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfshuffle
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date

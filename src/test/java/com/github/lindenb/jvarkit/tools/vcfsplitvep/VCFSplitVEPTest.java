@@ -56,7 +56,7 @@ public class VCFSplitVEPTest {
 			}
 		finally {
 			if(vin!=null) IOUtil.deletePaths(vin);
-			if(vin!=null) IOUtil.deletePaths(vout);
+			if(vout!=null) IOUtil.deletePaths(vout);
 			}
 		}
 	
@@ -86,7 +86,7 @@ public class VCFSplitVEPTest {
 			}
 		finally {
 			if(vin!=null) IOUtil.deletePaths(vin);
-			if(vin!=null) IOUtil.deletePaths(vout);
+			if(vout!=null) IOUtil.deletePaths(vout);
 			}
 		}
 	
@@ -117,7 +117,7 @@ public class VCFSplitVEPTest {
 			}
 		finally {
 			if(vin!=null) IOUtil.deletePaths(vin);
-			if(vin!=null) IOUtil.deletePaths(vout);
+			if(vout!=null) IOUtil.deletePaths(vout);
 			}
 		}
 	
@@ -147,7 +147,7 @@ public class VCFSplitVEPTest {
 			}
 		finally {
 			if(vin!=null) IOUtil.deletePaths(vin);
-			if(vin!=null) IOUtil.deletePaths(vout);
+			if(vout!=null) IOUtil.deletePaths(vout);
 			}
 		}
 	}

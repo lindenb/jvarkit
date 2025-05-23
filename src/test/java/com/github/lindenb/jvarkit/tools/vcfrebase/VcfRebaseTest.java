@@ -9,31 +9,29 @@ import org.testng.annotations.Test;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.bio.RebaseTest;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
 public class VcfRebaseTest {
-	private final TestSupport support = new TestSupport();
 
 	@DataProvider(name = "src1")
 	public Object[][] createData1() {
 		return new Object[][]{
-			{support.resource("S1.vcf.gz"),support.resource("rotavirus_rf.fa")},
-			{support.resource("toy.vcf.gz"),support.resource("toy.fa")}
+			{"S1.vcf.gz","rotavirus_rf.fa"},
+			{"toy.vcf.gz","toy.fa"}
 			};
 		}
 	@Test(dataProvider="src1")
 	public void test1(final String vcf,final String ref) throws IOException {
-			try {
+		 final TestSupport support = new TestSupport();
+		try {
 			final Path out = support.createTmpPath(".vcf");
 			Assert.assertEquals(
 				new VcfRebase().instanceMain(new String[] {
 				"-o",out.toString(),
-				"-R",ref,
+				"-R",support.resource(ref),
 				"-E","EcoRI",
 				"-E","BamHI",
-				vcf}
+				support.resource(vcf)}
 				),0);
 			support.assertIsVcf(out);
 			}
@@ -43,7 +41,8 @@ public class VcfRebaseTest {
 		}
 	@Test
 	public void test2() throws IOException {
-			try {
+		final TestSupport support = new TestSupport();
+		try {
 			final Path ref=	support.getGRCh37Path().orElse(null);
 			if(ref==null) return;
 			final Path out = support.createTmpPath(".vcf");

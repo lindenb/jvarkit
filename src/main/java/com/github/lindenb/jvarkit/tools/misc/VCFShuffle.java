@@ -81,6 +81,7 @@ END_DOC
 	keywords={"vcf"},
 	creationDate="20131210",
 	modificationDate="20200818",
+	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)
 public class VCFShuffle extends OnePassVcfLauncher

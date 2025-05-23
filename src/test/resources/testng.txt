@@ -11,3 +11,11 @@ com.github.lindenb.jvarkit.lang.BitReaderTest
 com.github.lindenb.jvarkit.lang.BitWriterTest
 com.github.lindenb.jvarkit.lang.CharSplitterTest
 com.github.lindenb.jvarkit.tools.vcfsplitvep.VCFSplitVEPTest
+com.github.lindenb.jvarkit.tools.bam2graphics.Bam2RasterTest
+com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotterTest
+com.github.lindenb.jvarkit.tools.samslop.SamSlopTest
+com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervalsTest
+com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdfTest
+com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebaseTest
+com.github.lindenb.jvarkit.tools.vcfnearest.VCFNearestTest
+com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactoryTest

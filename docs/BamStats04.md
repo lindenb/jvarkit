@@ -107,6 +107,10 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## deprecated
+
+use 'samtools coverage'
+
 ## input
 
 Input is one or more indexed BAM files.
@@ -122,7 +126,7 @@ Input is one or more indexed BAM files.
 ## Example
 
 ```
-$ java -jar dist/bamstats04.jar -B src/test/resources/toy.bed.gz src/test/resources/toy.bam 2> /dev/null | column -t 
+$ java -jar dist/jvarkit.jar bamstats04 -B src/test/resources/toy.bed.gz src/test/resources/toy.bam 2> /dev/null | column -t 
 
 #chrom  start  end  length  sample  mincov  maxcov  meancov  mediancov  nocoveragebp  percentcovered
 ref     10     13   3       S1      3       3       3.0      3.0        0             100

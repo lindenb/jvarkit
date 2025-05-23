@@ -92,7 +92,9 @@ input is a set of BED file or one file with a '.list' extension containing the p
 
 
 ```
-$ bcftools query -f '%CHROM\t%POS0\t%END\n' src/test/resources/rotavirus_rf.vcf.gz | java -jar dist/jvarkit.jar bed2vcf -R src/test/resources/rotavirus_rf.fa | head -n 30
+$ bcftools query -f '%CHROM\t%POS0\t%END\n' src/test/resources/rotavirus_rf.vcf.gz |\
+	java -jar dist/jvarkit.jar bed2vcf -R src/test/resources/rotavirus_rf.fa | head -n 30
+
 ##fileformat=VCFv4.2
 ##contig=<ID=RF01,length=3302>
 ##contig=<ID=RF02,length=2687>

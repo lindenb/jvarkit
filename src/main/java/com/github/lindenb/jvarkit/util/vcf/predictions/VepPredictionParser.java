@@ -28,6 +28,7 @@ History:
 */
 package com.github.lindenb.jvarkit.util.vcf.predictions;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -189,7 +190,7 @@ public class VepPredictionParser implements PredictionParser
 		}
 			
 	
-	public class VepPrediction
+	public class VepPrediction 
 		implements Prediction
 		{
 		private final String source;
@@ -216,6 +217,21 @@ public class VepPredictionParser implements PredictionParser
 					}
 				}
 			}
+		
+		/** return number of fields in that prediction */
+		public int size() {
+			return this.tokens.length;
+			}
+		
+		/** return idx-th token or empty string if out of bounds */
+		public String at(int idx) {
+			if(idx<0 || idx>=tokens.length)
+				{
+				return "";
+				}
+			return tokens[idx];
+			}
+		
 		public String getByCol(final String col)
 			{
 			if(col==null || col.isEmpty()) return null;
@@ -224,7 +240,7 @@ public class VepPredictionParser implements PredictionParser
 				{
 				return null;
 				}
-			return this.tokens[idx];
+			return at(idx);
 			}
 		
 		/** alias of getByColl */

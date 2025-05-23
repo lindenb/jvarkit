@@ -30,6 +30,7 @@ package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -65,6 +66,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
+import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -127,7 +129,8 @@ END_DOC
 		keywords={"vcf","liftover"},
 		modificationDate="20210603",
 		creationDate="20240114",
-		jvarkit_amalgamion = true
+		jvarkit_amalgamion = true,
+		menu="VCF Manipulation"
 		)
 public class VcfLiftOver extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.of(VcfLiftOver.class);
@@ -207,7 +210,10 @@ public class VcfLiftOver extends OnePassVcfLauncher {
 			header3.setSequenceDictionary(indexedFastaSequenceFile.getSequenceDictionary());
 			JVarkitVersion.getInstance().addMetaData(this, header3);
 			header3.addMetaDataLine(VCFStandardHeaderLines.getInfoLine(VCFConstants.END_KEY, true));
-			header3.addMetaDataLine(new VCFInfoHeaderLine(this.infoTag,1,VCFHeaderLineType.String,"Chromosome|Position before liftOver."));
+			header3.addMetaDataLine( new VCFInfoHeaderLine(
+					this.infoTag,1,VCFHeaderLineType.String,
+					VCFInfoTableModelFactory.encode(Arrays.asList("Chromosome","Position_before_liftOver"))
+					));
 			out.writeHeader(header3);
 			while(in.hasNext())
 				{

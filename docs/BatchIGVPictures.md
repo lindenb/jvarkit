@@ -71,8 +71,8 @@ Takes IGV pictures in batch. Save as HTML+png images
 
 ![screenshot](http://i.imgur.com/pasROkt.jpg)
 
-## History
+## See also
 
-2019: removed open office support
+igv_report / github
 
 

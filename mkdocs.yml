@@ -210,6 +210,7 @@ nav:
         - "samgrep" : SamGrep.md
         - "samjdk" : SamJdk.md
         - "samrmdupnames" : SamRemoveDuplicatedNames.md
+        - "samslop" : SamSlop.md
         - "samviewwithmate" : SamViewWithMate.md
         - "scanlabguru" : ScanLabGuru.md
         - "scanretrocopy" : ScanRetroCopy.md
@@ -248,6 +249,7 @@ nav:
         - "vcf2hilbert" : VcfToHilbert.md
         - "vcf2intervals" : VcfToIntervals.md
         - "vcf2r" : VcfToRScript.md
+        - "vcf2rdf" : VcfToRdf.md
         - "vcf2table" : VcfToTable.md
         - "vcf2xml" : Vcf2Xml.md
         - "vcfallelebalance" : VcfAlleleBalance.md
@@ -282,6 +284,7 @@ nav:
         - "vcfmulti2one" : VcfMultiToOne.md
         - "vcfmulti2oneallele" : VcfMultiToOneAllele.md
         - "vcfmulti2oneinfo" : VcfMultiToOneInfo.md
+        - "vcfnearest" : VCFNearest.md
         - "vcfpar" : VcfPseudoAutosomalRegion.md
         - "vcfpeekaf" : VcfPeekAf.md
         - "vcfpeekvcf" : VcfPeekVcf.md

@@ -26,7 +26,7 @@ History:
 * 2014 creation
 
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.samslop;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +49,6 @@ import htsjdk.samtools.SAMValidationError;
 import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 
 
 /**
@@ -58,14 +57,11 @@ BEGIN_DOC
 
 
 
-
 ### Example
 
 
-
 ```
-
-$ java -jar dist/samslop.jar -m 20 -M 10 -r ~/src/gatk-ui/testdata/ref.fa  ~/src/gatk-ui/testdata/S1.bam
+$ java -jar dist/jvarkit.jar samslop -m 20 -M 10 -r ~/src/gatk-ui/testdata/ref.fa  ~/src/gatk-ui/testdata/S1.bam
  
 @HD     VN:1.5  GO:none SO:unsorted
 @SQ     SN:rotavirus    LN:1074
@@ -94,11 +90,13 @@ rotavirus_2_478_5:0:0_5:0:0_35c 163     rotavirus       1       60      4M      
 
 END_DOC
 */
-@Program(name="SamSlop",description="extends sam by 'x' bases using the reference sequence",
-keywords= {"sam","bam"},
-creationDate="20160119",
-modificationDate="20210312"
-)
+@Program(name="samslop",
+	description="extends sam by 'x' bases using the reference sequence",
+	keywords= {"sam","bam"},
+	creationDate="20160119",
+	modificationDate="20250522",
+	jvarkit_amalgamion = true
+	)
 public class SamSlop extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.of(SamSlop.class);
 
@@ -123,11 +121,9 @@ public class SamSlop extends OnePassBamLauncher {
 	@Override
 	protected int beforeSam()
 		{
-		if(super.faidxPath==null)
-			{
-			LOG.error("Reference was not specified.");
-			return -1;
-			}
+		// check REF
+		super.getRequiredReferencePath();
+		
 		if(this.defaultQual.length()!=1)
 			{
 			LOG.error("default quality should have length==1 "+this.defaultQual);
@@ -149,12 +145,9 @@ public class SamSlop extends OnePassBamLauncher {
 			final CloseableIterator<SAMRecord> iter, 
 			final SAMFileWriter sfw)
 		{
-		GenomicSequence genomicSequence=null;
-		ReferenceSequenceFile indexedFastaSequenceFile=null;
+		GenomicSequence genomicSequence  = null;
 		final char defaultQUAL=this.defaultQual.charAt(0);
-		try
-			{
-			indexedFastaSequenceFile= ReferenceSequenceFileFactory.getReferenceSequenceFile(getRequiredReferencePath());
+		try(ReferenceSequenceFile indexedFastaSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(getRequiredReferencePath())) {
 			while(iter.hasNext())
 				{
 				final SAMRecord rec= iter.next();
@@ -307,10 +300,6 @@ public class SamSlop extends OnePassBamLauncher {
 		catch(final Throwable err)
 			{
 			throw new SAMException(err);
-			}
-		finally
-			{
-			CloserUtil.close(indexedFastaSequenceFile);
 			}
 		}
 

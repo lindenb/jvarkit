@@ -136,6 +136,14 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		 if(isGrch38()) {
 			urls.add(new LabelledUrlImpl("TogoVar",id,"https://grch38.togovar.org/?mode=simple&term="+ StringUtils.escapeHttp(id) ));
 			}
+		 // Varaico: Literature-Extracted Genetic Variants
+		 if(isGrch38() || isGrch37()) {
+			urls.add(new LabelledUrlImpl("Varaico",id,
+					"https://varaico.com/?gene="+ StringUtils.escapeHttp(id) +"&assembly="+ (isGrch38()?"hg38":(isGrch37()?"hg19":"undefined"))));
+			}
+		 
+		 
+		 
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
 		final String hgnc = (StringUtils.isInteger(id)?"HGNC:":"") + id.toUpperCase();
@@ -392,10 +400,12 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 		}
 
 	
-	//opencravat https://www.opencravat.org/
+	
 	if(AcidNucleics.isATGC(ctx.getReference()) && (isGrch37() || isGrch38())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
+			
+			//opencravat https://www.opencravat.org/
 			urls.add(new LabelledUrlImpl("OpenCravat",
 					variantid+"/"+alt.getDisplayString(),
 					"https://run.opencravat.org/webapps/variantreport/index.html?chrom="+
@@ -405,7 +415,8 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 					"&alt_base=" + alt.getDisplayString()
 					+"&assembly="+(isGrch38()?"hg38":"hg19")
 					));
-			}	}
+			}	
+		}
 	
 	
 	//beacon , varsome

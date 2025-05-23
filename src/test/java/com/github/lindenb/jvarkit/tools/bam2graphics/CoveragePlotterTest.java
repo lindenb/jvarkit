@@ -10,8 +10,6 @@ import org.testng.Assert;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
-
 
 public class CoveragePlotterTest {
 	private final TestSupport support = new TestSupport();

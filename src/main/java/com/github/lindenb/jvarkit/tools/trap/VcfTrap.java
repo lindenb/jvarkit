@@ -52,6 +52,8 @@ import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.jcommander.Program;
 import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactory;
+
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.util.CloserUtil;
@@ -97,7 +99,7 @@ public class VcfTrap extends Launcher {
 	private Path manifestFile=null;
 	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERed variants (faster)")
 	private boolean ignore_filtered=false;
-	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute Format:(ALT|GENE|SCORE)")
+	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute name"))
 	private String ATT="TRAP";
 	
 	private static class IndexFile extends AbstractList<TrapRecord>
@@ -224,7 +226,7 @@ public class VcfTrap extends Launcher {
 				new VCFInfoHeaderLine(this.ATT,
 						VCFHeaderLineCount.UNBOUNDED,
 						VCFHeaderLineType.String,
-						"TRAP Score:((ALT|GENE|SCORE) in Trap Database  http://trap-score.org/"
+						VCFInfoTableModelFactory.encode("ALT","GENE","SCORE")+" TRAP Score in Trap Database  http://trap-score.org/"
 					));
 		header2.addMetaDataLine(
 				new VCFInfoHeaderLine(ATT_MIN,
