@@ -27,8 +27,9 @@ package com.github.lindenb.jvarkit.samtools.util;
 import java.util.function.Function;
 
 import com.beust.jcommander.IStringConverter;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;

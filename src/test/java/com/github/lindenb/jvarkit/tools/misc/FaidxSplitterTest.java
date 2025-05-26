@@ -6,12 +6,12 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.bed.BedLineCodecTest;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtilsTest;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.IOUtilsTest;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
 
 
 

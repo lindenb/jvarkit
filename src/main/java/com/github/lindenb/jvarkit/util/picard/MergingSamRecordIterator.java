@@ -31,7 +31,7 @@ package com.github.lindenb.jvarkit.util.picard;
 import java.util.Comparator;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.iterator.MergingIterator;
+import com.github.lindenb.jvarkit.iterator.MergingIterator;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMRecordCoordinateComparator;

@@ -8,9 +8,8 @@ import java.util.Arrays;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
+import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 
 
 public class HmmMergeBedTest {

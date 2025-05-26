@@ -49,14 +49,14 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.gtf.GTFLine;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.tools.misc.FixVCF;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 /*
 BEGIN_DOC
 

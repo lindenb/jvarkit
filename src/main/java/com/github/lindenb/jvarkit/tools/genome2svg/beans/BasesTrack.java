@@ -6,10 +6,10 @@ import java.nio.file.Paths;
 
 import org.w3c.dom.Element;
 
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.hershey.Hershey;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
 import htsjdk.samtools.reference.ReferenceSequenceFile;

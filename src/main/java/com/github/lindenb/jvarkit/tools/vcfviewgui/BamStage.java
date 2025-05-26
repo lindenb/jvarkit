@@ -48,6 +48,9 @@ import javax.script.CompiledScript;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
 
+import com.github.lindenb.jvarkit.hershey.JfxHershey;
+import com.github.lindenb.jvarkit.locatable.SimplePosition;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.NgsStage.LogCloseableIterator;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
@@ -60,8 +63,6 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadLengthChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ReadQualityChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.SamFlagsChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantContextChartFactory;
-import com.github.lindenb.jvarkit.util.hershey.JfxHershey;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -366,7 +367,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     		}
     	}
     
-    private static class Pileup extends ContigPos
+    private static class Pileup extends SimplePosition
     	{
     	
     	final int count[]=new int[5];
@@ -1044,7 +1045,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     	if(records.isEmpty()) return;
  
     	final long genomicIndex = (long)this.canvasScrollHGenomicLoc.getValue();
-    	final ContigPos contigStart = super.convertGenomicIndexToContigPos(genomicIndex);
+    	final SimplePosition contigStart = super.convertGenomicIndexToContigPos(genomicIndex);
     	if(contigStart==null) return;
     	
     	final int chromStart=contigStart.position;
@@ -1509,10 +1510,10 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     			bamjsfilter=Optional.empty();
     			}
     		}
-    	final Map<ContigPos,Pileup> pos2pileup=new TreeMap<>();
-    	final Function<ContigPos,Pileup> getpileup=new  Function<ContigPos, Pileup>() {
+    	final Map<SimplePosition,Pileup> pos2pileup=new TreeMap<>();
+    	final Function<SimplePosition,Pileup> getpileup=new  Function<SimplePosition, Pileup>() {
 			@Override
-			public Pileup apply(ContigPos t) {
+			public Pileup apply(SimplePosition t) {
 				Pileup p =pos2pileup.get(t);
 				if(p==null) { p=new Pileup(t.contig,t.position);pos2pileup.put(t,p);}
 				return p;
@@ -1604,7 +1605,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     					case H:
     						{
 							for(int i=0;i< ce.getLength();++i) {
-    							final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+    							final Pileup p = getpileup.apply(new SimplePosition(rec.getContig(),refpos));
     							p.watch('-','#',ce.getOperator());
     							++refpos;
     							}
@@ -1613,7 +1614,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     					case I:
     						{
     						for(int i=0;i< ce.getLength();++i) {
-    						final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+    						final Pileup p = getpileup.apply(new SimplePosition(rec.getContig(),refpos));
     							p.watch('<',getQualAt.apply(readpos),ce.getOperator());
     							readpos++;
         						}
@@ -1621,7 +1622,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     						}
     					case S:
     						for(int i=0;i< ce.getLength();++i) {
-    							final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+    							final Pileup p = getpileup.apply(new SimplePosition(rec.getContig(),refpos));
     							p.watch('-',getQualAt.apply(readpos),ce.getOperator());
     							++readpos;
     							++refpos;
@@ -1629,7 +1630,7 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     						break;
     					case EQ: case X: case M:
     						for(int i=0;i< ce.getLength();++i) {
-    							final Pileup p = getpileup.apply(new ContigPos(rec.getContig(),refpos));
+    							final Pileup p = getpileup.apply(new SimplePosition(rec.getContig(),refpos));
     							p.watch(getBaseAt.apply(readpos),getQualAt.apply(readpos),ce.getOperator());
     							++readpos;
     							++refpos;
@@ -1682,8 +1683,8 @@ public class BamStage extends NgsStage<SAMFileHeader,SAMRecord> {
     				!this.recordTable.getItems().get(last_index).getReadUnmappedFlag())
 	    		{
 	    		super.seqDictionaryCanvas.setItemsInterval(
-	    				new ContigPos(this.recordTable.getItems().get(0).getContig(), this.recordTable.getItems().get(0).getStart()),
-	    				new ContigPos(this.recordTable.getItems().get(last_index).getContig(), this.recordTable.getItems().get(last_index).getEnd())
+	    				new SimplePosition(this.recordTable.getItems().get(0).getContig(), this.recordTable.getItems().get(0).getStart()),
+	    				new SimplePosition(this.recordTable.getItems().get(last_index).getContig(), this.recordTable.getItems().get(last_index).getEnd())
 	    				);
 	    		
 	    		if(		this.recordTable.getItems().get(0).getContig().equals(

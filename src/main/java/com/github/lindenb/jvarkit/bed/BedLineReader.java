@@ -39,9 +39,7 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;

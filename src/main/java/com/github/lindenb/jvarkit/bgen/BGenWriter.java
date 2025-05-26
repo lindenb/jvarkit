@@ -45,7 +45,7 @@ import com.github.lindenb.jvarkit.io.ByteBufferSequence;
 import com.github.lindenb.jvarkit.lang.BitNumWriter;
 import com.github.lindenb.jvarkit.lang.BitWriter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.RuntimeIOException;

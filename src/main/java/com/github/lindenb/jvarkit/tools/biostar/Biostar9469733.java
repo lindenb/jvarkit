@@ -30,9 +30,9 @@ import java.util.List;
 import java.util.function.Function;
 
 import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.util.IntervalTreeMap;

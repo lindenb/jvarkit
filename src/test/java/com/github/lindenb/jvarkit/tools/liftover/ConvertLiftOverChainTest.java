@@ -22,11 +22,11 @@ public class ConvertLiftOverChainTest {
 	public void test01() throws IOException {
 		try {
 			Path chain = support.createTmpPath(".chain");
-			PrintWriter pw  = new PrintWriter(Files.newBufferedWriter(chain));
-			pw.println("chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2");
-			pw.println("chain 2920 chrUn_gl000228 129120 + 104295 104331 chr10 133797422 + 133748242 133748278 1495");
-			pw.flush();
-			pw.close();
+			try(PrintWriter pw  = new PrintWriter(Files.newBufferedWriter(chain))) {
+				pw.println("chain 20851231461 chr1 249250621 + 10000 249240621 chr1 248956422 + 10000 248946422 2");
+				pw.println("chain 2920 chrUn_gl000228 129120 + 104295 104331 chr10 133797422 + 133748242 133748278 1495");
+				pw.flush();
+				}
 			Path out = support.createTmpPath(".chain");
 
 			Assert.assertEquals(new ConvertLiftOverChain().instanceMain(new String[] {

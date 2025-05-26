@@ -28,9 +28,9 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import com.beust.jcommander.IStringConverter;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.igv.IgvConstants;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Locatable;

@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.chart.BarChart;
 import com.github.lindenb.jvarkit.chart.CategoryAxis;
 import com.github.lindenb.jvarkit.chart.Chart;
@@ -44,14 +45,13 @@ import com.github.lindenb.jvarkit.chart.NumberAxis;
 import com.github.lindenb.jvarkit.chart.RExporter;
 import com.github.lindenb.jvarkit.chart.StackedBarChart;
 import com.github.lindenb.jvarkit.chart.XYChart;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;

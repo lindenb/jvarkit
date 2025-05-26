@@ -30,8 +30,8 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;

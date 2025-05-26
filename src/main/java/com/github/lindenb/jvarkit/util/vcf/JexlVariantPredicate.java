@@ -31,7 +31,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.IStringConverter;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.variant.PredicateVariantAnnotator;
 
 import htsjdk.samtools.util.StringUtil;

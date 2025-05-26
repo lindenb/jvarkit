@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;

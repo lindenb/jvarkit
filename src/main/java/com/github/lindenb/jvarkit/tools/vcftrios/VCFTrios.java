@@ -38,10 +38,10 @@ import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.pedigree.Trio;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
 

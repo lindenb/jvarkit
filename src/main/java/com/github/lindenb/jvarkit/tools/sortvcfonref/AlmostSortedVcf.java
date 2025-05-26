@@ -35,12 +35,13 @@ import java.util.List;
 
 import htsjdk.tribble.readers.LineIterator;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
+
 import htsjdk.samtools.util.CloserUtil;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 /*
 BEGIN_DOC
 ## Warning

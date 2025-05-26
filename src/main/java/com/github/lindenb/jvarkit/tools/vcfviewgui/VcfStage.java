@@ -44,6 +44,8 @@ import java.util.stream.Collectors;
 
 import javax.script.CompiledScript;
 
+import com.github.lindenb.jvarkit.so.SequenceOntologyTree;
+import com.github.lindenb.jvarkit.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AFByPopulationChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AFBySexChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
@@ -55,8 +57,6 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantDepthChartFactor
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantQualChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -1442,8 +1442,8 @@ public class VcfStage extends NgsStage<VCFHeader,VariantContext> {
 			{
     		int last_index=this.variantTable.getItems().size()-1;
 			super.seqDictionaryCanvas.setItemsInterval(
-					new ContigPos(this.variantTable.getItems().get(0).getContig(), this.variantTable.getItems().get(0).getStart()),
-					new ContigPos(this.variantTable.getItems().get(last_index).getContig(), this.variantTable.getItems().get(last_index).getEnd())
+					new SimplePosition(this.variantTable.getItems().get(0).getContig(), this.variantTable.getItems().get(0).getStart()),
+					new SimplePosition(this.variantTable.getItems().get(last_index).getContig(), this.variantTable.getItems().get(last_index).getEnd())
 					);
 			if(this.variantTable.getItems().get(0).getContig().equals(
 				this.variantTable.getItems().get(last_index).getContig()))

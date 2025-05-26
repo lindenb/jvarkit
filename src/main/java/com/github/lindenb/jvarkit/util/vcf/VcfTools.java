@@ -29,10 +29,10 @@ import java.util.List;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.annotproc.IncludeSourceInJar;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.tools.vcftrios.DeNovoDetector;
 import com.github.lindenb.jvarkit.util.Pedigree;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;

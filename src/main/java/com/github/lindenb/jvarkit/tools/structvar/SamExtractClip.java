@@ -44,12 +44,12 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.filter.SamRecordFilter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /**

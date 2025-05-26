@@ -30,12 +30,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.FileHeader;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tabix.AbstractTabixVariantAnnotator;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;

@@ -39,24 +39,24 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLine;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimplePosition;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
-import com.github.lindenb.jvarkit.util.vcf.ContigPos;
 
 import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.QueryInterval;
@@ -240,7 +240,7 @@ public class DepthOfCoverage extends Launcher
 					
 					Integer minCov = null;
 					Integer maxCov = null;
-					ContigPos maxCovPosition = null;
+					SimplePosition maxCovPosition = null;
 					long count_raw_bases = 0L;
 					long count_bases = 0L;
 					long sum_coverage = 0L;
@@ -275,7 +275,7 @@ public class DepthOfCoverage extends Launcher
 									long sum_coverage_ctg = 0L;
 									Integer minV_ctg=null;
 									Integer maxV_ctg=null;
-									ContigPos maxPos_ctg = null;
+									SimplePosition maxPos_ctg = null;
 									final DiscreteMedian<Integer> discreteMedian_ctg = new DiscreteMedian<>();
 									final Counter<RangeOfIntegers.Range> countMap_ctg = new Counter<>();
 									
@@ -287,7 +287,7 @@ public class DepthOfCoverage extends Launcher
 										if(minV_ctg==null || minV_ctg.intValue() > covi) minV_ctg=covi;
 										if(maxV_ctg==null || maxV_ctg.intValue() < covi) {
 											maxV_ctg=covi;
-											maxPos_ctg = new ContigPos(prevContig,i+1);
+											maxPos_ctg = new SimplePosition(prevContig,i+1);
 											}
 										countMap_ctg.incr(this.summaryCov.getRange(covi));
 										count_bases_ctg++;

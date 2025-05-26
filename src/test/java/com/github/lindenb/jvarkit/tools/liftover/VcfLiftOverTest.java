@@ -11,15 +11,14 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.io.IOUtils;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
 
 public class VcfLiftOverTest {
-	final TestSupport support= new TestSupport();
 	
 	@Test
-	public void test01() throws IOException {
+	public void testRemoteChain() throws IOException {
+		final TestSupport support= new TestSupport();
 		try {
 			final String url="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/liftOver/hg19ToHg38.over.chain.gz";
 			Path chain = support.createTmpPath(".chain");

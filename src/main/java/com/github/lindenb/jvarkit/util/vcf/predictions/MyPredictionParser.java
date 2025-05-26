@@ -16,9 +16,9 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.so.SequenceOntologyTree;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFPredictions;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree;
 
 /**
  * @author lindenb

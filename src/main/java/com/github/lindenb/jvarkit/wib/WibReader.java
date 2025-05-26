@@ -32,7 +32,7 @@ import com.github.lindenb.jvarkit.bed.BedInterval;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.seekablestream.ISeekableStreamFactory;

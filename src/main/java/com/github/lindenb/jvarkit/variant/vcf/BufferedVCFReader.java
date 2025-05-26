@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;

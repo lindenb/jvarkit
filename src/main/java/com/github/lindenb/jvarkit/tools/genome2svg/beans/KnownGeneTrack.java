@@ -11,10 +11,10 @@ import org.w3c.dom.Element;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
+import com.github.lindenb.jvarkit.tabix.TabixFileReader;
 import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
-import com.github.lindenb.jvarkit.util.tabix.TabixFileReader;
 
 import htsjdk.samtools.util.RuntimeIOException;
 

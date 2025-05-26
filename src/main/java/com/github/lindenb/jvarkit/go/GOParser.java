@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.go.GOOntology.Term;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.StringUtil;
 

@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 import htsjdk.samtools.SAMSequenceDictionary;

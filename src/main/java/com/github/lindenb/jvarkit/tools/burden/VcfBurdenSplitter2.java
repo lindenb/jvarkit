@@ -57,10 +57,10 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.iterator.EqualRangeIterator;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.iterator.EqualRangeIterator;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.DelegateVariantContextWriter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -414,7 +414,7 @@ public class VcfBurdenSplitter2
 
 	
 	 
-	private static class Launcher extends com.github.lindenb.jvarkit.util.jcommander.Launcher
+	private static class Launcher extends com.github.lindenb.jvarkit.jcommander.Launcher
 		{
 		
 		@Parameter(names={"-ls","--listsplitters"},description="List available splitters and exit")

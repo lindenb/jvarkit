@@ -29,7 +29,7 @@ History:
 package com.github.lindenb.jvarkit.tools.bamindexnames;
 
 
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
 
 
 public abstract class BaseBamIndexReadNames

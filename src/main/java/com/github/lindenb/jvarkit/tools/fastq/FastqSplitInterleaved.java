@@ -33,9 +33,9 @@ import com.github.lindenb.jvarkit.fastq.FastqPairedReaderFactory;
 import com.github.lindenb.jvarkit.fastq.FastqPairedWriter;
 import com.github.lindenb.jvarkit.fastq.FastqPairedWriterFactory;
 import com.github.lindenb.jvarkit.fastq.FastqRecordPair;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;

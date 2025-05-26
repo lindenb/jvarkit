@@ -34,16 +34,16 @@ import java.util.Map;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.dgv.DGVBedTabixVariantAnnotator;
 import com.github.lindenb.jvarkit.gff3.GffEnsemblRegVariantAnnotator;
 import com.github.lindenb.jvarkit.gnomad.GnomadSVBedTabixVariantAnnotator;
 import com.github.lindenb.jvarkit.gtf.GtfTabixSVVariantAnnotator;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.regulomedb.RegulomeDBTabixAnnotator;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 import com.github.lindenb.jvarkit.variant.vcf.AbstractOnePassVcfAnnotator;
 

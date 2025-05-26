@@ -38,17 +38,17 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.samtools.Decoy;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
 import htsjdk.samtools.Cigar;
@@ -418,7 +418,7 @@ public class SamStructVarNeg extends Launcher {
 				final BedLineCodec bedCodec = new BedLineCodec();
 				try(BufferedReader br=com.github.lindenb.jvarkit.io.IOUtils.openPathForBufferedReading(this.excludeBedFile)) {
 					br.lines().
-					filter(line->!(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty())).
+					filter(line->!(line.startsWith("#") ||  com.github.lindenb.jvarkit.bed.BedLine.isBedHeader(line) ||  line.isEmpty())).
 					map(line->bedCodec.decode(line)).
 					filter(B->B!=null).
 					map(B->B.toInterval()).

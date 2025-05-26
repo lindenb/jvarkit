@@ -31,13 +31,13 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.igv.IgvConstants;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.igv.IgvConstants;
 
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -192,6 +192,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 	if(this.rsIdPattern.matcher(str).matches())
 		{
 		urls.add(new LabelledUrlImpl("dbsnp",str,"https://www.ncbi.nlm.nih.gov/snp/"+str.substring(2)));
+		urls.add(new LabelledUrlImpl("Japan-Omics",str,"https://japan-omics.jp/variant?input_value="+str.substring(2)));
 		urls.add(new LabelledUrlImpl("opensnp",str,"https://opensnp.org/snps/"+str.toLowerCase()));
 		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh37",str,"https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset=gnomad_r2_1"));
 		urls.add(new LabelledUrlImpl("Gnomad rs# GRCh38",str,"https://gnomad.broadinstitute.org/variant/"+str.toLowerCase()+"?dataset="+GNOMAD_HG38));
@@ -209,6 +210,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 			urls.add(new LabelledUrlImpl("OpenTargets",str,"https://genetics.opentargets.org/gene/"+str));
 			urls.add(new LabelledUrlImpl("Genbass GRCh38",str,"https://genebass.org/gene/"+str+"?burdenSet=pLoF&phewasOpts=1&resultLayout=full"));
 			urls.add(new LabelledUrlImpl("Protein Atlas",str,"https://www.proteinatlas.org/"+str));
+			urls.add(new LabelledUrlImpl("Japan-Omics",str,"https://japan-omics.jp/gene/JCTF?input_value="+str));
 			}
 		}
 	else if(this.ccdsPattern.matcher(str).matches()) {
@@ -360,6 +362,18 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 						StringUtils.escapeHttp(ucscCtg) +":"+ctx.getStart()+":SG"
 						));
 
+				
+				urls.add(new LabelledUrlImpl("Japan-Omics",
+						variantid+"/"+alt.getDisplayString(),
+						"https://japan-omics.jp/variant?input_value="+
+						StringUtils.escapeHttp(
+								ucscCtg+":"+
+								ctx.getStart()+":"+
+								ctx.getReference().getBaseString()+":"+
+								alt.getBaseString()
+								) 
+						));
+				
 				}
 			urls.add(new LabelledUrlImpl("Variant ResearchAllOfUs",
 					variantid+"/"+alt.getDisplayString(),

@@ -9,19 +9,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
-
-import com.github.lindenb.jvarkit.tools.gff2kg.Gff2KnownGene;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGene;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 
 
 public class Gff2KnownGeneTest {
-	private  final TestSupport support = new TestSupport();
 	
 	@DataProvider(name="gff-data")
 	public Object[][] getGffData() {
+		final TestSupport support = new TestSupport();
 		return new Object[][] {
 			{support.resource("gencode.v19.annotation.gff3")}
 		};
@@ -31,15 +26,16 @@ public class Gff2KnownGeneTest {
 	public void test01(final String inputFile) 
 		throws IOException
 		{
+		final TestSupport support = new TestSupport();
 		try {
 		final Path out = support.createTmpPath(".kg");
 		Assert.assertEquals(new Gff2KnownGene().instanceMain(new String[] {
 			"-o",out.toString(),
 			inputFile
 			}),0);
-		final BufferedReader r = IOUtils.openPathForBufferedReading(out);
-		//Assert.assertTrue(r.lines().map(L->new KnownGene(L.split("[\t]"))).count()>0);
-		r.close();
+		try(BufferedReader r = IOUtils.openPathForBufferedReading(out)) {
+			//Assert.assertTrue(r.lines().map(L->new KnownGene(L.split("[\t]"))).count()>0);
+			}
 		} finally {
 			support.removeTmpFiles();
 		}

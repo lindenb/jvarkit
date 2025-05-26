@@ -39,11 +39,14 @@ import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
+import org.broad.igv.bbfile.BBFileReader;
+
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -151,8 +154,22 @@ public static ContigNameConverter fromPathOrOneDictionary(final Path file) {
 				FileExtensions.INTERVAL_LIST
 				))
 		{
-		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(file);
+		final SAMSequenceDictionary dict = new SequenceDictionaryExtractor().extractRequiredDictionary(file);
 		return fromOneDictionary(dict);
+		}
+	else if(filename.toLowerCase().endsWith(".bb") || filename.toLowerCase().endsWith(".bigbed") ||
+			filename.toLowerCase().endsWith(".bw") || filename.toLowerCase().endsWith(".bigwig")) {
+		BBFileReader bb=null;
+		try{
+			bb=new BBFileReader(filename);
+			return fromContigSet(new HashSet<>(bb.getChromosomeNames()));
+			}
+		catch(IOException err) {
+			throw new RuntimeIOException(err);
+			}
+		finally {
+			if(bb!=null) bb.close();
+			}
 		}
 	else
 		{

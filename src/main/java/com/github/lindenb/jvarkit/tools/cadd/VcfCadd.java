@@ -30,10 +30,10 @@ import java.util.Collections;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 import com.github.lindenb.jvarkit.variant.vcf.AbstractOnePassVcfAnnotator;
 

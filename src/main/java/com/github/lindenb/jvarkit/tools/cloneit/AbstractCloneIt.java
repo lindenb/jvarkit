@@ -13,12 +13,12 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.Rebase;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Algorithms;
-import com.github.lindenb.jvarkit.util.bio.Rebase;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequence;
 import com.github.lindenb.jvarkit.util.bio.fasta.FastaSequenceReader;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.sun.javafx.scene.traversal.Algorithm;
 
 import htsjdk.samtools.util.CloseableIterator;

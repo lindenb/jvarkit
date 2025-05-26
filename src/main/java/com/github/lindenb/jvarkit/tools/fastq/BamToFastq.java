@@ -46,16 +46,16 @@ import htsjdk.samtools.util.StringUtil;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.fastq.FastqPairedWriter;
 import com.github.lindenb.jvarkit.fastq.FastqPairedWriterFactory;
 import com.github.lindenb.jvarkit.fastq.FastqUtils;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
 import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 
 /**

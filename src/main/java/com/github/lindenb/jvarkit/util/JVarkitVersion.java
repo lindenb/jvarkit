@@ -35,7 +35,7 @@ import java.util.Set;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.util.CloserUtil;

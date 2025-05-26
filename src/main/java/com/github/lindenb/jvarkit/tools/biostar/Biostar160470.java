@@ -63,9 +63,10 @@ import org.w3c.dom.Node;
 import com.beust.jcommander.Parameter;
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.ObjectFactory;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 
 /**
 

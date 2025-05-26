@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.IOUtil;

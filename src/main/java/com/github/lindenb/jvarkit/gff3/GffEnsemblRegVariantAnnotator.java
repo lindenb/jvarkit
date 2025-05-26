@@ -31,10 +31,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.github.lindenb.jvarkit.iterator.LineIterators;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.tabix.AbstractTabixVariantAnnotator;
-import com.github.lindenb.jvarkit.util.iterator.LineIterators;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.tribble.gff.Gff3Codec;
 import htsjdk.tribble.gff.Gff3Feature;

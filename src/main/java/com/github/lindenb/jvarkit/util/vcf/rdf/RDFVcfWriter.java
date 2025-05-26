@@ -14,7 +14,9 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.rdf.ns.DC;
+import com.github.lindenb.jvarkit.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFPredictions;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -27,8 +29,6 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.so.SequenceOntologyTree.Term;
 import com.github.lindenb.jvarkit.util.vcf.predictions.MyPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.Prediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.PredictionParser;

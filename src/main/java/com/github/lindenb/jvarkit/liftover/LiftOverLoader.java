@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.liftover;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -35,14 +36,13 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.derby.iapi.services.io.ArrayInputStream;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.liftover.LiftOver;
@@ -52,7 +52,8 @@ import htsjdk.samtools.util.RuntimeIOException;
 
 public class LiftOverLoader {
 	private static final Logger LOG = Logger.of(LiftOverLoader.class);
-
+	public static final String OPT_DICT_R1="Source of chromosome names to convert chromosome names ('chr1'->'1') for the source assembly. Could be a dict, a fai, etc...";
+	public static final String OPT_DICT_R2="Source of chromosome names to convert chromosome names ('chr1'->'1') for thetarget assembly. Could be a dict, a fai, etc...";
 	private ContigNameConverter sourceConvert = ContigNameConverter.getIdentity();
 	private ContigNameConverter targetConvert = ContigNameConverter.getIdentity();
 
@@ -100,13 +101,7 @@ public class LiftOverLoader {
 		}
 	
 	public LiftOver load(final BufferedReader br,final String sourceName) {
-		final StringBuilder sb = new StringBuilder();
-		try(CloseableIterator<String> iter = iterator(br)) {
-			while(iter.hasNext()) {
-				sb.append(iter.next()).append('\n');
-				}			
-			}
-		try(InputStream in= new ArrayInputStream(sb.toString().getBytes())) {
+		try(InputStream in= new LiftOverChainInputStream(br, sourceConvert, targetConvert)) {
 			return new LiftOver(in,sourceName);
 			}
 		catch(final IOException err) {
@@ -114,82 +109,4 @@ public class LiftOverLoader {
 			}
 		}
 
-	public CloseableIterator<String> iterator(final BufferedReader in) {
-		return new MyIterator(Objects.requireNonNull(in));
-		}
-	
-	private class MyIterator extends AbstractCloseableIterator<String> {
-		private final BufferedReader br;
-		private boolean valid = false;
-		private final Pattern splitter = Pattern.compile("\\s");
-		private final Set<String> notFound1 = new TreeSet<>();
-		private final Set<String> notFound2 = new TreeSet<>();
-		private int num_ignored=0;
-
-		
-		MyIterator(final BufferedReader br) {
-			this.br = br;
-			}
-		@Override
-		protected String advance() {
-			try {
-				for(;;) {
-					String line = br.readLine();
-					if(line==null) {
-						close();
-						return null;
-						}
-					if(line.startsWith("chain")) {
-						valid = false;
-						final String chainFields[]=splitter.split(line);
-						 if (chainFields.length != 13) {
-							 throw new JvarkitException.TokenErrors(13, chainFields);
-						 	}
-						 final String fromSequenceName = chainFields[2];
-						 String ctg = sourceConvert.apply(fromSequenceName);
-						 if(StringUtils.isBlank(ctg)) {
-							 notFound1.add(fromSequenceName);
-							 ++num_ignored;
-							 continue;
-						 	}
-						 chainFields[2] = ctg;
-						 final String toSequenceName = chainFields[7];
-						 ctg = targetConvert.apply(toSequenceName);
-						 if(StringUtils.isBlank(ctg)) {
-							 notFound2.add(toSequenceName);
-							 ++num_ignored;
-							 continue;
-						 	}
-						 chainFields[7] = ctg;
-						valid=true;
-						return String.join(" ", chainFields);
-						}
-					else if(valid)
-						{
-						return line;
-						}
-					else
-						{
-						++num_ignored;
-						}
-					}
-				}
-			catch(final IOException err) {
-				throw new RuntimeIOException(err);
-				}
-			}
-		@Override
-		public void close() {
-			try {
-				if(num_ignored>0) LOG.info("number of lines skipped "+num_ignored);
-				if(!notFound1.isEmpty()) LOG.info("unmatched source contigs "+notFound1.stream().collect(Collectors.joining("; ")));
-				if(!notFound2.isEmpty()) LOG.info("unmatched dest contigs "+notFound2.stream().collect(Collectors.joining("; ")));
-				this.br.close();
-				}
-			catch(final IOException err) {
-				LOG.warn(err);
-				}
-		}
-	}
-	
 }

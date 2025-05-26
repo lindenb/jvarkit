@@ -12,17 +12,15 @@ import java.util.stream.Collectors;
 import org.w3c.dom.Element;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 import com.github.lindenb.jvarkit.svg.GenomeSVGDocument;
 import com.github.lindenb.jvarkit.svg.SVGDocument;
 import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Maps;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;

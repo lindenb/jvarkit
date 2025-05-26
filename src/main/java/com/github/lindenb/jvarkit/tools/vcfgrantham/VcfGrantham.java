@@ -8,14 +8,14 @@ import java.util.List;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.bio.AminoAcids;
+import com.github.lindenb.jvarkit.bio.AminoAcids.AminoAcid;
 import com.github.lindenb.jvarkit.grantham.GranthamScore;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.AminoAcids;
-import com.github.lindenb.jvarkit.util.bio.AminoAcids.AminoAcid;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;

@@ -44,17 +44,18 @@ import javax.xml.stream.events.XMLEvent;
 
 import htsjdk.samtools.util.CloserUtil;
 
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
+
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
 import gov.nih.nlm.ncbi.blast.Iteration;
 import gov.nih.nlm.ncbi.blast.ObjectFactory;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
 

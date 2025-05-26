@@ -37,17 +37,17 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.PerContigVcfReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
@@ -96,7 +96,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	
 	@Parameter(names={"-g","--gnomad"},description="Path to Indexed Gnomad VCF file. Or a file with the '.list' suffix containing the path to the indexed VCFs (one per contig).",required=true)
 	private Path gnomadPath =null;
-	@Parameter(names={"--bufferSize"},description= BufferedVCFReader.OPT_BUFFER_DESC+" "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
+	@Parameter(names={"--bufferSize"},description= BufferedVCFReader.OPT_BUFFER_DESC+" "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=com.github.lindenb.jvarkit.jcommander.NoSplitter.class)
 	private int gnomadBufferSize= 10_000;
 	@Parameter(names={"-F","--fields"},description="AF fields to peek-up from gnomad. Space/comma/semicolon separated")
 	private String infoFieldStr="AF_popmax,AF_nfe";

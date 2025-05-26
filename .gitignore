@@ -15,7 +15,6 @@ src/main/java/com/github/lindenb/jvarkit/tools/ws/server/VcfVar.java
 src/main/java/com/github/lindenb/jvarkit/tools/ws/server/package-info.java
 src/main/generated-sources/
 src/knime/generated-sources/
-src/main/resources/so/so-simple.owl
 bin
 lib
 htsjdk*

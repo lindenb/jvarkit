@@ -66,6 +66,9 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import com.github.lindenb.jvarkit.hershey.JfxHershey;
+import com.github.lindenb.jvarkit.igv.IgvSocket;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.GCPercentChartFactory;
@@ -82,9 +85,6 @@ import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantDepthChartFactor
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantQualChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.VariantTypeChartFactory;
 import com.github.lindenb.jvarkit.util.Counter;
-import com.github.lindenb.jvarkit.util.hershey.JfxHershey;
-import com.github.lindenb.jvarkit.util.igv.IgvSocket;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.BAMIndexer;

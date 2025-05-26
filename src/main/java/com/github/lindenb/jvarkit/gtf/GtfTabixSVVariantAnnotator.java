@@ -34,8 +34,6 @@ import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.tabix.AbstractTabixVariantAnnotator;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.tribble.readers.TabixReader;

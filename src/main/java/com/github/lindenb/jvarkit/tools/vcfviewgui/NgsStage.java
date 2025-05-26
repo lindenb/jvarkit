@@ -58,10 +58,11 @@ import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
 
+import com.github.lindenb.jvarkit.hershey.JfxHershey;
+import com.github.lindenb.jvarkit.igv.IgvSocket;
+import com.github.lindenb.jvarkit.locatable.SimplePosition;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.ChartFactory;
-import com.github.lindenb.jvarkit.util.hershey.JfxHershey;
-import com.github.lindenb.jvarkit.util.igv.IgvSocket;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -300,40 +301,6 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 			}
 		}
 
-	/** simple pair chromosome/pos, used when clicking on ideogram */
-	protected static class ContigPos
-	implements Comparable<ContigPos>, Locatable
-		{
-		final String contig;
-		final int position;
-		ContigPos(final String contig,final int position) {
-			this.contig=contig;
-			this.position=position;
-		}
-		
-		@Override
-		public String getContig() {
-			return this.contig;
-			}
-		@Override
-		public int getStart() {
-			return this.position;
-			}
-		@Override
-		public int getEnd() {
-			return this.position;
-			}
-		@Override
-		public int compareTo(final ContigPos o) {
-			int i=contig.compareTo(o.contig);
-			if(i!=0) return i;
-			return position-o.position;
-			}
-		@Override
-		public String toString() {
-			return this.contig+":"+this.position;
-			}
-		}
 	
 	/* pane used to draw the karyotype of the reference */
 	protected class SeqDictionaryCanvas
@@ -341,8 +308,8 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
 		{
 		private final SAMSequenceDictionary dict;
 		private final double refLength;
-		private ContigPos itemsStart=null;
-		private ContigPos itemsEnd=null;
+		private SimplePosition itemsStart=null;
+		private SimplePosition itemsEnd=null;
 		private Interval selectInterval=null;
 	    private final Tooltip mousePositionToolTip = new Tooltip("dddd");
     	private java.text.DecimalFormat niceIntFormat = new java.text.DecimalFormat("###,###");
@@ -358,24 +325,24 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
            
             this.getCanvas().setOnMouseClicked(AE->{
             	if(AE.getClickCount()<2 || this.getCanvas().getWidth()==0) return;
-            	final ContigPos cp = pixel2base(AE.getX());
+            	final SimplePosition cp = pixel2base(AE.getX());
             	if(cp==null) return;
             	NgsStage.this.gotoField.setText(cp.contig+":"+cp.position);
                 NgsStage.this.reloadData();		
             	});
             Tooltip.install(this.getCanvas(),this.mousePositionToolTip);
             this.getCanvas().setOnMouseMoved(AE->{
-           		final ContigPos cp = pixel2base(AE.getX());
+           		final SimplePosition cp = pixel2base(AE.getX());
            		this.mousePositionToolTip.setText(cp==null?"":cp.contig+":"+this.niceIntFormat.format(cp.position));});
 			}
 		
-		private ContigPos pixel2base(final double pixx)
+		private SimplePosition pixel2base(final double pixx)
 			{
 			final long x= (long)((pixx/this.getCanvas().getWidth())*this.refLength);
 			return NgsStage.this.convertGenomicIndexToContigPos(x);
 			}
 		
-		public void setItemsInterval(final ContigPos start,final ContigPos end) {
+		public void setItemsInterval(final SimplePosition start,final SimplePosition end) {
 			this.itemsStart = start;
 			this.itemsEnd = end;
 			repaintCanvas();
@@ -1659,7 +1626,7 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	return L;
     	}
     /** convert a contig pos to genomic index, return -1 on error (contig not found ) */
-    protected long convertContigPosToGenomicIndex(final ContigPos cp) {
+    protected long convertContigPosToGenomicIndex(final SimplePosition cp) {
     	if(cp==null || cp.getContig()==null) return -1L;
     	return convertContigPosToGenomicIndex(cp.getContig(),cp.position);
     	}
@@ -1681,14 +1648,14 @@ public abstract class NgsStage<HEADERTYPE,ITEMTYPE extends Locatable> extends St
     	}
     
     /** convert a contig pos to genomic index, return null on error (contig not found ) */
-    protected ContigPos convertGenomicIndexToContigPos(long gi) {
+    protected SimplePosition convertGenomicIndexToContigPos(long gi) {
     	if(gi<0L) gi=0L;
     	long n=0L;
     	for(final SAMSequenceRecord ssr: getNgsFile().getSequenceDictionary().getSequences())
 	    	{
 	    	if(n<=gi && gi<=n+ssr.getSequenceLength())
     				{
-    				return new ContigPos(ssr.getSequenceName(),(int)(gi-n));
+    				return new SimplePosition(ssr.getSequenceName(),(int)(gi-n));
     				}
 	    	n+=ssr.getSequenceLength();
 	    	}

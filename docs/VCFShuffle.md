@@ -61,11 +61,11 @@ Usage: vcfshuffle [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VCFShuffle.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VCFShuffle.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfshuffle/VCFShuffle.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfshuffle/VCFShuffle.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VCFShuffleTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VCFShuffleTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfshuffle/VCFShuffleTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfshuffle/VCFShuffleTest.java)
 
 
 ## Contribute
@@ -92,7 +92,7 @@ The current reference is:
 ## Example
 
 ```
-$ java -jar dist/vcfshuffle.jar input.vcf
+$ java -jar dist/jvarkit.jar vcfshuffle  input.vcf
 ```
 
 ## native alternative

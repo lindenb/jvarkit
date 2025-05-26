@@ -44,6 +44,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.FastqReader;
 import com.github.lindenb.jvarkit.util.picard.FourLinesFastqReader;
 
@@ -125,8 +127,6 @@ $ curl -s "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data/NA21144/sequence_read/E
 END_DOC
 */
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 /**
 
 BEGIN_DOC

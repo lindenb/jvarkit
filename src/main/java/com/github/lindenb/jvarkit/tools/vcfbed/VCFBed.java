@@ -35,19 +35,19 @@ import java.util.function.Function;
 
 import org.apache.commons.jexl2.JexlContext;
 
-import com.github.lindenb.jvarkit.util.bio.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.NoSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLine;
+import com.github.lindenb.jvarkit.bed.IndexedBedReader;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.jexl.JexlToString;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
@@ -251,15 +251,15 @@ public class VCFBed extends OnePassVcfLauncher
 		java.io.BufferedReader r=null;
 		try
 			{
-			final  htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.util.bio.bed.BedLine>> intervals = new
+			final  htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.bed.BedLine>> intervals = new
 					 htsjdk.samtools.util.IntervalTreeMap<>();
 			r=com.github.lindenb.jvarkit.io.IOUtils.openPathForBufferedReading(file);
 			String line;
-			final com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec codec = new com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec();
+			final com.github.lindenb.jvarkit.bed.BedLineCodec codec = new com.github.lindenb.jvarkit.bed.BedLineCodec();
 			while((line=r.readLine())!=null) 
 				{
-				if(line.startsWith("#") ||  com.github.lindenb.jvarkit.util.bio.bed.BedLine.isBedHeader(line) ||  line.isEmpty()) continue; 
-				final com.github.lindenb.jvarkit.util.bio.bed.BedLine bl = codec.decode(line);
+				if(line.startsWith("#") ||  com.github.lindenb.jvarkit.bed.BedLine.isBedHeader(line) ||  line.isEmpty()) continue; 
+				final com.github.lindenb.jvarkit.bed.BedLine bl = codec.decode(line);
 				if(bl==null || bl.getStart()>bl.getEnd()) continue;
 				final htsjdk.samtools.util.Interval interval= bl.toInterval();
 				Set<BedLine> set = intervals.get(interval);

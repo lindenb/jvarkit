@@ -30,11 +30,11 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.samtools.util.SimplePosition;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
 
 import htsjdk.samtools.util.CoordMath;
@@ -46,9 +46,9 @@ import htsjdk.variant.vcf.VCFConstants;
 /** test if two SV are the same */
 public class StructuralVariantComparator /* implements BiPredicate<VariantContext,VariantContext> see https://github.com/cbeust/jcommander/issues/582 */{
 
-	@Parameter(names={"--bnd-distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
+	@Parameter(names={"--bnd-distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.jcommander.NoSplitter.class)
 	private int bnd_max_distance = 100;
-	@Parameter(names={"--sv-small-overlap"},description="Two non-BND variants are the same if they overlap and both have a length<= 'x'. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class)
+	@Parameter(names={"--sv-small-overlap"},description="Two non-BND variants are the same if they overlap and both have a length<= 'x'. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.jcommander.NoSplitter.class)
 	private int small_length_on_ref = 10;
 	@Parameter(names={"--sv-overlap-fraction"},description="Two CNV/DEL/.. variants are the same if they share 'x' fraction of their size.")
 	private double max_fraction = 0.75;

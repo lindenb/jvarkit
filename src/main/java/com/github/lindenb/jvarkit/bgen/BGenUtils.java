@@ -36,8 +36,8 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.function.Consumer;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.math.MathUtils;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.seekablestream.SeekableBufferedStream;
 import htsjdk.samtools.seekablestream.SeekableStream;

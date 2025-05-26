@@ -19,11 +19,11 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
+import com.github.lindenb.jvarkit.jcommander.Launcher.WritingBamArgs;
+import com.github.lindenb.jvarkit.jcommander.Launcher.WritingSamReaderType;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher.WritingBamArgs;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher.WritingSamReaderType;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;

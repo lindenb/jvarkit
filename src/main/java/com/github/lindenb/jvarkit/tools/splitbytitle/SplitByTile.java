@@ -35,9 +35,9 @@ import java.util.Collections;
 import java.util.Set;
 
 import com.github.lindenb.jvarkit.jcommander.AbstractBamSplitter;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.SAMRecord;
 

@@ -31,8 +31,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;
 
 import htsjdk.variant.variantcontext.VariantContext;

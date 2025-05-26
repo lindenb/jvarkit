@@ -6,10 +6,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.ContigPos;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.locatable.SimplePosition;
+import com.github.lindenb.jvarkit.log.Logger;
 import htsjdk.variant.vcf.VCFIterator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -24,8 +24,8 @@ public class BluntGVcf extends Launcher
 	@Parameter(names = { "-o", "--out" }, description = OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
 	
-	@Parameter(names = { "-E", "--stop" }, description = "Blunt end this position",converter=ContigPos.Converter.class,required=true)
-	private ContigPos pos = null;
+	@Parameter(names = { "-E", "--stop" }, description = "Blunt end this position syntax: (chr:position)",required=true)
+	private String posStr = null;
 
 	
 	@Override
@@ -37,16 +37,17 @@ public class BluntGVcf extends Launcher
 		{
 		try
 			{
+			final SimplePosition pos = new SimplePosition(posStr);
 			final LinkedList<String>  buffer= new LinkedList<>();
 			final VCFHeader header= in.getHeader();
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
 			if( dict == null ) {
 				throw new IOException("Dict missing in input vcf.");
 				}
-			final int end_tid = dict.getSequenceIndex(this.pos.getContig());
+			final int end_tid = dict.getSequenceIndex(pos.getContig());
 			
 			if( end_tid == -1 ) {
-				throw new IOException("No such contig in dictionary "+this.pos);
+				throw new IOException("No such contig in dictionary "+pos);
 			}
 
 			out.writeHeader(header);

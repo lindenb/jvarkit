@@ -28,17 +28,23 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLine;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
-import com.github.lindenb.jvarkit.ucsc.LiftOverChain;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.liftover.LiftOverChain;
+import com.github.lindenb.jvarkit.liftover.LiftOverLoader;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.liftover.LiftOver;
 import htsjdk.samtools.util.Interval;
@@ -60,7 +66,7 @@ END_DOC
 		name="bedliftover",
 		description="LiftOver a BED file",
 		creationDate="20140311",
-		modificationDate="20240625",
+		modificationDate="20250526",
 		keywords={"bed","liftover"},
 		jvarkit_amalgamion = true
 		)
@@ -71,83 +77,148 @@ public class BedLiftOver extends Launcher
 	
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-
+	@Parameter(names={"-c","--columns"},description="column indexes for chrom,start,end. Multiple chrom/start/end can be set by groups of 3 intergers: e.g '1,2,3,6,7,8,10,11,12' ")
+	private String columnsStr = "1,2,3";
 	@Parameter(names={"-f","--chain"},description=LiftOverChain.OPT_DESC,required=true)
 	private String liftOverFile = null;
 	@Parameter(names={"-x","--failed"},description="  write bed failing the liftOver here. Optional.")
 	private Path failedFile = null;
 	@Parameter(names={"-m","--minmatch"},description="lift over min-match.")
 	private double userMinMatch = LiftOver.DEFAULT_LIFTOVER_MINMATCH ;
-	@Parameter(names={"-D","-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
-	private Path faidx = null;
-	@Parameter(names={"--chainvalid"},description="Ignore LiftOver chain validation")
+	@Parameter(names={"-R1"},description=LiftOverLoader.OPT_DICT_R1)
+	private Path faidxR1 = null;
+	@Parameter(names={"-D","-R2","-R","-r","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
+	private Path faidxR2 = null;
+	@Parameter(names={"--chainvalid","--disable-chain-validation"},description="Ignore LiftOver chain validation")
 	private boolean ignoreLiftOverValidation=false;
-	@Parameter(names={"--original","--src"},description="Append original interval")
+	@Parameter(names={"--original","--src"},description="Append original interval as CHROM:START-END")
 	private boolean appendOriginal=false;
+	@Parameter(names={"-1"},description="coordinates are one-based (input is NOT bed)")
+	private boolean one_based_index =false;
 
 	
-	private void scan(final LiftOver liftOver,BufferedReader r,PrintWriter out,PrintWriter failed) throws IOException
+	private void scan(final LiftOver liftOver,
+			final List<Integer> columns1,
+			final BufferedReader r,PrintWriter out,PrintWriter failed) throws IOException
 		{
-		String line;
-		final BedLineCodec bedCodec=new BedLineCodec();
-		while((line=r.readLine())!=null)
+		final int shift_bed = one_based_index?0:1;
+		
+		for(;;)
 			{
+			final String line = r.readLine();
+			if(line==null) break;
+			if( StringUtils.isBlank(line) || BedLine.isBedHeader(line)) continue;
+			final String[] src = CharSplitter.TAB.split(line);
+			final String[] tokens = Arrays.copyOf(src, src.length);
+			boolean ok=true;
+			final StringBuilder original = new StringBuilder();
 			
-			if(line.startsWith("#") || line.trim().isEmpty()) continue;
-			final BedLine bedLine = bedCodec.decode(line);
-			if(bedLine==null) continue;
-			final Interval srcInterval = bedLine.toInterval();
-			Interval dest=liftOver.liftOver(srcInterval);
-			if(dest!=null)
-				{
-				out.print(dest.getContig());
-				out.print('\t');
-				out.print(dest.getStart()-1);
-				out.print('\t');
-				out.print(dest.getEnd());
-				for(int i=3;i< bedLine.getColumnCount();++i) { 
-					out.print('\t');
-					out.print(bedLine.get(i));
+			for(int k=0;k < columns1.size();k+=3) {
+				final int contigIdx = columns1.get(k+0)-1;
+				final int startIdx = columns1.get(k+1)-1;
+				final int endIdx = columns1.get(k+2)-1;
+				
+				if(contigIdx<0 || contigIdx >= src.length ||
+					startIdx< 0|| startIdx >= src.length ||
+					endIdx<0 || endIdx >= src.length) {
+					ok=false;
+					LOG.warn("not enough columns in $"+(contigIdx+1)+" $"+(startIdx+1)+" $"+(endIdx+1)+":\""+String.join("(tab)", src)+"\"");
+					break;
 					}
+				final String contig =  src[contigIdx];
+				final int start1 = Integer.parseInt(src[startIdx]) + shift_bed;//bed to interval
+				if(start1 < (one_based_index?1:0)) {
+					LOG.warn("Bad start in :\""+String.join("(tab)", src)+"\"");
+					break;
+					}
+				final int end1 = Integer.parseInt(src[endIdx]);
+				
+				final Interval srcInterval = new Interval(contig,start1,end1);
+				final Interval dest=liftOver.liftOver(srcInterval);
+				if(dest==null) {
+					ok=false;
+					break;
+					}
+				tokens[contigIdx]= dest.getContig();
+				tokens[startIdx]= String.valueOf(dest.getStart()-shift_bed);
+				tokens[endIdx]= String.valueOf(dest.getEnd());
+				
+				if(this.appendOriginal) {
+					if(original.length()>0) original.append(",");
+					original.append(contig+":"+start1+"-"+end1);
+					}
+				} // end loop over columns
+			
+			if(ok) {
+				out.print(String.join("\t", tokens));
 				if(this.appendOriginal) {
 					out.print('\t');
-					out.print(bedLine.getContig()+":"+bedLine.getStart()+"-"+bedLine.getEnd());
+					out.print(original.toString());
 					}
 				out.println();
 				}
 			else if(failed!=null)
 				{
 				failed.println(line);
-				}			
+				}
 			}
 		}
 	
 	@Override
-	public int doWork(final List<String> args) {
+	public int doWork(final List<String> args0) {
 		try
 			{
-			final LiftOver liftOver= LiftOverChain.load(this.liftOverFile);
+			final List<String> args  = IOUtils.unrollStrings(args0);
+			List<Integer> columns= new ArrayList<>();
+			for(String s:CharSplitter.COMMA.split(this.columnsStr)) {
+				try {
+					final int i = Integer.parseInt(s);
+					if(i<1) {
+						LOG.error("bad column index in "+this.columnsStr);
+						return -1;
+						}
+					columns.add(i);
+					}
+				catch(NumberFormatException err) {
+					LOG.error(err);
+					return -1;
+				}
+			}
+			
+			if(columns.isEmpty()) {
+				LOG.error("empty columns");
+				return -1;
+				}
+			if(columns.size()%3!=0) {
+				LOG.error("expected a multiple of 3 columns in "+columns);
+				return -1;
+				}
+			final LiftOver liftOver= new LiftOverLoader().
+					setSourceMapper(this.faidxR1==null?null:ContigNameConverter.fromPathOrOneDictionary(this.faidxR1)).
+					setTargetMapper(this.faidxR2==null?null:ContigNameConverter.fromPathOrOneDictionary(this.faidxR2)).
+					load(this.liftOverFile);
 			liftOver.setLiftOverMinMatch(this.userMinMatch);
 
-			
+
 			if(!this.ignoreLiftOverValidation) {
-				liftOver.validateToSequences(SequenceDictionaryUtils.extractRequired(faidx));
+				liftOver.validateToSequences(SequenceDictionaryUtils.extractRequired(faidxR2));
 				}
-			
+
 			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-				try(PrintWriter failed=(this.failedFile!=null?super.openPathOrStdoutAsPrintWriter(this.failedFile):new PrintWriter(new NullOuputStream()))) {
+
+				try(PrintWriter failed=(this.failedFile!=null?super.openPathOrStdoutAsPrintWriter(this.failedFile):NullOuputStream.newPrintWriter())) {
 					if(args.isEmpty())
 						{
-						try(BufferedReader r= openBufferedReader(null)) {
-							scan(liftOver, r,out,failed);
+						try(BufferedReader r= IOUtils.openStreamForBufferedReader(stdin())) {
+							scan(liftOver,columns, r,out,failed);
 							}
 						}
 					else
 						{
 						for(final String filename:args)
 							{
-							try(BufferedReader r=openBufferedReader(filename)) {
-								scan(liftOver,r,out,failed);
+							try(BufferedReader r= IOUtils.openURIForBufferedReading(filename)) {
+								scan(liftOver,columns,r,out,failed);
 								}
 							}
 						}

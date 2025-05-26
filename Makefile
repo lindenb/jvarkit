@@ -48,9 +48,8 @@ test: tests
 	
 tests:
 	$(MAKE) TEST=true
-	java $(JAVA_PROXY) -jar dist/jvarkit.jar testng src/test/resources/testng.txt
-	rm -rf dist/jvarkit.jar
+	java $(JAVA_PROXY) -jar dist/jvarkit-test.jar testng src/test/resources/testng.txt
 
 # do not compile jvarkit
 quick-test:
-	cd tests && $(MAKE) 
+	cd tests && $(MAKE)

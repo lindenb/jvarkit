@@ -31,8 +31,9 @@ package com.github.lindenb.jvarkit.util.picard;
 
 
 
-import com.github.lindenb.jvarkit.util.log.Logger;
 import htsjdk.variant.vcf.VCFIterator;
+
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;

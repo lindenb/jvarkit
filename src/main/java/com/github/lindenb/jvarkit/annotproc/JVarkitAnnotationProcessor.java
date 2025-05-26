@@ -46,9 +46,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 
-
-
-import com.github.lindenb.jvarkit.util.jcommander.Program;
+import com.github.lindenb.jvarkit.jcommander.Program;
 
 public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	private static final Logger LOG = Logger.getLogger(JVarkitAnnotationProcessor.class.getSimpleName());

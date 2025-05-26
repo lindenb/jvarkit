@@ -30,8 +30,8 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.function.Function;
 
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
 
 import htsjdk.samtools.util.Locatable;
 

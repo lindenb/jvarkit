@@ -40,12 +40,12 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
+import com.github.lindenb.jvarkit.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.gtf.GTFLine;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFCodec;
-import com.github.lindenb.jvarkit.util.bio.gtf.GTFLine;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;

@@ -50,7 +50,7 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Iterator;
 
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 public class Dpal {
 	private static final Logger LOG = Logger.of(Dpal.class);

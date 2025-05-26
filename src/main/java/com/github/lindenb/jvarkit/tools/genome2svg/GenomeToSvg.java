@@ -38,6 +38,9 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.BamCoverageTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.BasesTrack;
@@ -46,9 +49,6 @@ import com.github.lindenb.jvarkit.tools.genome2svg.beans.KnownGeneTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.Track;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.VcfTrack;
 import com.github.lindenb.jvarkit.tools.genome2svg.beans.WiggleTrack;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 @Program(name="genome2svg",
 description="static genome browser as SVG",

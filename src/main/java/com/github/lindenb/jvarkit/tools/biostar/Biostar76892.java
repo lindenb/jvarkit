@@ -29,10 +29,10 @@ import java.util.List;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.bio.DistanceParser;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMRecord;
@@ -104,7 +104,7 @@ public class Biostar76892 extends Launcher
 	
 	@Parameter(names={"-osf","--osf"},description="only save pairs of reads which have been corrected by this program")
 	private boolean onlySaveFixed = false;
-	@Parameter(names={"-d","--maxc"},description="distance beween two reads."+DistanceParser.OPT_DESCRIPTION,splitter=com.github.lindenb.jvarkit.util.jcommander.NoSplitter.class,converter=DistanceParser.StringConverter.class)
+	@Parameter(names={"-d","--maxc"},description="distance beween two reads."+DistanceParser.OPT_DESCRIPTION,splitter=com.github.lindenb.jvarkit.jcommander.NoSplitter.class,converter=DistanceParser.StringConverter.class)
 	private int distance = 30 ;
 
 	@ParametersDelegate

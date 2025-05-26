@@ -31,7 +31,7 @@ import java.io.RandomAccessFile;
 import java.util.AbstractList;
 import java.util.Arrays;
 
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 

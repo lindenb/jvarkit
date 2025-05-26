@@ -7,19 +7,14 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodecTest;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
-import com.github.lindenb.jvarkit.util.ucsc.KnownGeneTest;
 
 
 public class KnownGenesToBedTest{
-	private  final TestSupport support = new TestSupport();
 
 @DataProvider(name = "src1")
 public Object[][] createData1() {
+	final TestSupport support = new TestSupport();
 	return new Object[][]{
 		{support.resource("rotavirus_rf.knowngenes.tsv.gz"),""},
 		{support.resource("rotavirus_rf.knowngenes.tsv.gz"),"INTRON,UTR"}
@@ -27,6 +22,7 @@ public Object[][] createData1() {
 	}
 @Test(dataProvider="src1")
 public void test(final String kgfile,final String exclude) throws IOException {
+	final TestSupport support = new TestSupport();
 	try {
 		final Path out =support.createTmpPath(".bed");
 		Assert.assertEquals(new KnownGenesToBed().instanceMain(new String[] {

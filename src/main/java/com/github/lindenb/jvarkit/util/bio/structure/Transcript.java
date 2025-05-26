@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 
 import htsjdk.samtools.util.Locatable;
 

@@ -10,15 +10,14 @@ import org.testng.annotations.Test;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
 public class CnvTViewTest {
-	private final TestSupport support = new TestSupport();
 
 	
 	@Test
 	public void test01() throws IOException {
+		 final TestSupport support = new TestSupport();
 		try {
 		final  Path bamList = support.createTmpPath(".list");
 		try(PrintWriter pw = new PrintWriter(Files.newBufferedWriter(bamList))) {

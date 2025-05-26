@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.io;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
 /** output stream that doesn't print anything */
@@ -53,7 +52,7 @@ public class NullOuputStream extends OutputStream
 		if(!isClosed()) count+=len;
 		}
 	@Override
-	public void close() throws IOException
+	public void close()
 		{
 		_closed=true;
 		}

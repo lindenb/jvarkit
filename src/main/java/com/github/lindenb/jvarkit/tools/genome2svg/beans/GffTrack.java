@@ -9,9 +9,9 @@ import java.util.stream.Collectors;
 
 import org.w3c.dom.Element;
 
+import com.github.lindenb.jvarkit.iterator.LineIterators;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.tools.genome2svg.SVGContext;
-import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.annotation.Strand;

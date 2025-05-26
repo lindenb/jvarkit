@@ -27,9 +27,9 @@ import javax.xml.parsers.SAXParserFactory;
 import org.testng.Assert;
 import org.xml.sax.helpers.DefaultHandler;
 
+import com.github.lindenb.jvarkit.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMFileHeader;

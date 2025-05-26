@@ -44,13 +44,16 @@ import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
@@ -72,9 +75,6 @@ import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.log.ProgressFactory;
 /**
 BEGIN_DOC
 
@@ -795,23 +795,16 @@ public class VcfFilterJdk
 			LOG.error("script file or expression missing");
 			return -1;
 			}	
-		VCFIterator in = null;
-		VariantContextWriter w = null;
 		try {
-			in = super.openVCFIterator(oneFileOrNull(args));
-			w  = this.writingVariantsDelegate.dictionary( in.getHeader()).open(this.outputFile);
-			final int err= run(in,w);
-			in.close();in=null;
-			w.close();w=null;
-			return err ;
+			try(VCFIterator in = super.openVCFIterator(oneFileOrNull(args))) {
+				try(VariantContextWriter w  = this.writingVariantsDelegate.dictionary( in.getHeader()).open(this.outputFile)) {
+					return run(in,w);
+					}
+				}
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-			}
-		finally {
-			CloserUtil.close(in);
-			CloserUtil.close(w);
 			}
 		}
 

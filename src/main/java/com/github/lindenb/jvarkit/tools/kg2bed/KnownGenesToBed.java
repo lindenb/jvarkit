@@ -37,16 +37,16 @@ import java.util.function.Predicate;
 import org.apache.commons.jexl2.JexlContext;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jexl.JexlPredicate;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscriptCodec;
 import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 
 /**

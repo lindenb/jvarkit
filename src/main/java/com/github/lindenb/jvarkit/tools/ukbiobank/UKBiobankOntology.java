@@ -35,7 +35,7 @@ import java.util.Set;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 public class UKBiobankOntology {
 	private static final Logger LOG = Logger.of(UKBiobankOntology.class);

@@ -31,7 +31,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Optional;
 
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.BAMIndex;
 import htsjdk.samtools.BamFileIoUtils;

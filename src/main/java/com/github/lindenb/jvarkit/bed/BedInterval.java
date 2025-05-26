@@ -24,7 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bed;
 
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 
 import htsjdk.samtools.util.Locatable;
 

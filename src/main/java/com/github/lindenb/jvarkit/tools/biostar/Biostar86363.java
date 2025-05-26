@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import htsjdk.samtools.util.CloserUtil;
 
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -49,10 +48,10 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
-import com.github.lindenb.jvarkit.util.vcf.ContigPosRef;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.locatable.ContigPosRef;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -180,11 +179,10 @@ public class Biostar86363 extends Launcher
 			LOG.error("undefined genotype file");
 			return -1;
 			}
-		BufferedReader in=null;
 		try
 			{
-			Pattern tab=Pattern.compile("[\t]");
-			in=IOUtils.openFileForBufferedReading(this.genotypeFile);
+			final Pattern tab=Pattern.compile("[\t]");
+			try(BufferedReader in=IOUtils.openFileForBufferedReading(this.genotypeFile)) {
 			String line;
 			while((line=in.readLine())!=null)
 				{
@@ -193,8 +191,6 @@ public class Biostar86363 extends Launcher
 				if(tokens.length<4)
 					{
 					LOG.error("Bad line in "+line);
-					in.close();
-					in=null;
 					return -1;
 					}
 				ContigPosRef cap=new ContigPosRef(
@@ -210,16 +206,13 @@ public class Biostar86363 extends Launcher
 					}
 				samples.add(tokens[3]);
 				}
-			in.close();
+			}
 			return doVcfToVcf(args, outputFile);
 			}
-		catch(Exception err)
+		catch(Throwable err)
 			{
 			LOG.error(err);
 			return -1;
-			}
-		finally {
-			CloserUtil.close(in);
 			}
 		}
 

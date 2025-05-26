@@ -39,9 +39,9 @@ import java.util.List;
 import java.util.OptionalDouble;
 import java.util.Stack;
 
+import com.github.lindenb.jvarkit.hershey.Hershey;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
-import com.github.lindenb.jvarkit.util.hershey.Hershey;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 /**

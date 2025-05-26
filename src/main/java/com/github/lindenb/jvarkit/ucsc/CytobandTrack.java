@@ -19,6 +19,7 @@ import org.w3c.dom.Element;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
@@ -26,7 +27,6 @@ import com.github.lindenb.jvarkit.svg.GenomeSVGDocument;
 import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Maps;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;

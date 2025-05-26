@@ -29,8 +29,8 @@ import java.io.IOException;
 import com.github.lindenb.jvarkit.fastq.FastqPairedWriter;
 import com.github.lindenb.jvarkit.fastq.FastqRecordPair;
 import com.github.lindenb.jvarkit.jcommander.OnePassFastqLauncher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.fastq.FastqReader;
 import htsjdk.samtools.fastq.FastqRecord;

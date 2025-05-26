@@ -9,7 +9,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 public class SubCloneIt extends AbstractCloneIt {
 	private static final Logger LOG = Logger.of(SubCloneIt.class);

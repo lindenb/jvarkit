@@ -31,7 +31,7 @@ package com.github.lindenb.jvarkit.tools.pcr;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;

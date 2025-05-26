@@ -630,7 +630,7 @@ public class CompileJVarkit extends DefaultTask {
 		// useless since java processor ant.mkdir(dir:"${this.tmpDir}/" + this.getMainPackage().replace('.','/') )
 		
 		/** opendjk properties , required for external compilation */
-		final File distJar = new File(this.distDir+"/"+this.getName()+".jar")
+		final File distJar = new File(this.distDir+"/"+this.getName() +  (java.lang.System.getProperty("jvarkit.testng","false").equals("true")?"-test":"") + ".jar")
 
 		ant.echo(message: "java="+getExecutablePath("java")+"\n"+
 				"javac="+getExecutablePath("javac")+"\n"+
@@ -711,13 +711,13 @@ public class CompileJVarkit extends DefaultTask {
 		
 		
 		
-		/* shall we download Sequence Ontology ? */
-		File soTreeClassFile = new File("${this.tmpDir}/com/github/lindenb/jvarkit/util/so/SequenceOntologyTree.class");
+		/* copy Sequence Ontology ? */
+		File soTreeClassFile = new File("${this.tmpDir}/com/github/lindenb/jvarkit/so/SequenceOntologyTree.class");
 		if(soTreeClassFile.exists())
 			{
 			ant.mkdir(dir:"${this.tmpDir}/META-INF/so")
 			final File soOwlFile = new File( this.getProject().projectDir.getPath()+"/src/main/resources/so/so-simple.owl");
-			if(!soOwlFile.exists())
+			if(!soOwlFile.exists() || (new Date().getTime() - soOwlFile.lastModified()) > (30 /* days */ * 24 * 60*60*1000) )
 				{
 				project.logger.warn("download to "+soOwlFile);
 				ant.mkdir(dir:soOwlFile.parent)

@@ -35,10 +35,10 @@ import htsjdk.samtools.SAMSequenceRecord;
 
 import java.util.OptionalInt;
 
+import com.github.lindenb.jvarkit.bio.ChromosomeSequence;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 
 /**
  * 

@@ -24,8 +24,8 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.util.bio.structure;
 
+import com.github.lindenb.jvarkit.bio.GeneticCode;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 
 /* a Peptide sequence */
 public interface PeptideSequence<T extends CharSequence> extends CharSequence {

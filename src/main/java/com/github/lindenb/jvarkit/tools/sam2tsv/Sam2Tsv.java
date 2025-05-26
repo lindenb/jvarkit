@@ -30,9 +30,9 @@ import java.util.function.UnaryOperator;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.SAMRecordLeftAligner;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 
 import htsjdk.samtools.Cigar;

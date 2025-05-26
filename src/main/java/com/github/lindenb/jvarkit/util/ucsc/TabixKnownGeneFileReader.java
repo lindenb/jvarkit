@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.Iterator;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.util.tabix.AbstractTabixObjectReader;
+import com.github.lindenb.jvarkit.tabix.AbstractTabixObjectReader;
 
 
 /**

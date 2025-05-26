@@ -34,7 +34,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.fastq.FastqPairedWriter;
 import com.github.lindenb.jvarkit.fastq.FastqPairedWriterFactory;
 import com.github.lindenb.jvarkit.fastq.FastqRecordPair;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.fastq.BasicFastqWriter;
 import htsjdk.samtools.fastq.FastqReader;

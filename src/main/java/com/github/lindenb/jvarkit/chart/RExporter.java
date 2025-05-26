@@ -10,7 +10,7 @@ import java.util.function.Function;
 import java.util.stream.IntStream;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 public class RExporter extends ChartExporter {
 	private static final Logger LOG=Logger.of(RExporter.class);

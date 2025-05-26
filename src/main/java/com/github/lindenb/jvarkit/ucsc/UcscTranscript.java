@@ -34,8 +34,8 @@ import java.util.stream.Collectors;
 import org.apache.commons.jexl2.JexlContext;
 
 import com.github.lindenb.jvarkit.bed.BedInterval;
+import com.github.lindenb.jvarkit.bio.KozakSequence;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
-import com.github.lindenb.jvarkit.util.bio.KozakSequence;
 
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;

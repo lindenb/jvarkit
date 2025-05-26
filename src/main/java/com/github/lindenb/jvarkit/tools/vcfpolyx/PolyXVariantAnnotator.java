@@ -30,9 +30,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.OptionalInt;
 
+import com.github.lindenb.jvarkit.bio.ChromosomeSequence;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.util.bio.ChromosomeSequence;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.variant.VariantAnnotator;

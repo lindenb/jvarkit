@@ -51,9 +51,10 @@ import org.uniprot.Entry;
 import org.uniprot.FeatureType;
 import org.uniprot.LocationType;
 import org.uniprot.Uniprot;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 /**
 BEGIN_DOC
 

@@ -7,10 +7,10 @@ import java.util.function.Function;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtilsTest;
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
-
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverterTest;
 
 import htsjdk.samtools.SAMSequenceDictionary;

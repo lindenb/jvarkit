@@ -31,7 +31,7 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.samtools.fastq.FastqRecord;
 import java.util.NoSuchElementException;
 
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import java.io.*;
 import java.nio.file.Path;

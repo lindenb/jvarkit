@@ -12,14 +12,14 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtilsTest;
 import com.github.lindenb.jvarkit.io.IOUtilsTest;
+import com.github.lindenb.jvarkit.iterator.LineIterators;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.CharSplitterTest;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.tools.vcftrios.DeNovoDetectorTest;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
-import com.github.lindenb.jvarkit.util.iterator.LineIterators;
 
 public class VCFUtilsTest {
 final private TestSupport support= new TestSupport();

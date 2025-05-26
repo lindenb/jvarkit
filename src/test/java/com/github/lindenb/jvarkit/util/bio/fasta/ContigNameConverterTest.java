@@ -5,11 +5,11 @@ import java.nio.file.Paths;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtilsTest;
 import com.github.lindenb.jvarkit.lang.StringUtilsTest;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtilsTest;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 

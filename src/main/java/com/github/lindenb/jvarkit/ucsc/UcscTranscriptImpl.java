@@ -36,12 +36,12 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.github.lindenb.jvarkit.bed.BedCoordMath;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.bio.GeneticCode;
+import com.github.lindenb.jvarkit.bio.KozakSequence;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
-import com.github.lindenb.jvarkit.util.bio.KozakSequence;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.Locatable;
 import htsjdk.tribble.annotation.Strand;

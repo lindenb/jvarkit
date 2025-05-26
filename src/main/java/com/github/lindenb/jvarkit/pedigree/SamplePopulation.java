@@ -43,8 +43,8 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.HasName;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.AutoMap;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.Genotype;

@@ -45,12 +45,12 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.annotation.Strand;
 
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
+import com.github.lindenb.jvarkit.bio.GeneticCode;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
-import com.github.lindenb.jvarkit.util.bio.AcidNucleics;
-import com.github.lindenb.jvarkit.util.bio.GeneticCode;
 
 @Deprecated
 public class KnownGene implements Iterable<Integer>,Feature

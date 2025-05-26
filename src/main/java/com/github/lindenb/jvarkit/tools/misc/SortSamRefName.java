@@ -31,8 +31,8 @@ import java.util.Comparator;
 
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.BAMRecordCodec;
 import htsjdk.samtools.SAMException;

@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.github.lindenb.jvarkit.io.FileHeader;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.BinaryCodec;
 import htsjdk.samtools.util.IOUtil;

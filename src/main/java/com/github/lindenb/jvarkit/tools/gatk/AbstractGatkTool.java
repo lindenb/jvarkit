@@ -28,8 +28,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import com.github.lindenb.jvarkit.gatk.Gatk4Proxy;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.log.Logger;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.util.FileExtensions;
 

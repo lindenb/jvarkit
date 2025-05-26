@@ -38,8 +38,8 @@ import org.apache.commons.compress.compressors.zstandard.ZstdCompressorInputStre
 import com.github.lindenb.jvarkit.io.ByteBufferSequence;
 import com.github.lindenb.jvarkit.lang.BitNumReader;
 import com.github.lindenb.jvarkit.lang.BitReader;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.math.MathUtils;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.seekablestream.SeekableStreamFactory;
 import htsjdk.samtools.util.BinaryCodec;

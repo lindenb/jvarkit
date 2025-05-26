@@ -39,12 +39,12 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.canvas.Canvas;
 import com.github.lindenb.jvarkit.canvas.CanvasFactory;
 import com.github.lindenb.jvarkit.io.FileHeader;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.math.MathUtils;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 /**
 

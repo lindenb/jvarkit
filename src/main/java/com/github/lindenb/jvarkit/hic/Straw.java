@@ -48,8 +48,8 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.zip.InflaterInputStream;
 
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
-import com.github.lindenb.jvarkit.samtools.util.SimpleInterval;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;

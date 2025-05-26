@@ -42,6 +42,8 @@ import java.util.stream.Collectors;
 
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLine;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.chart.Axis;
 import com.github.lindenb.jvarkit.chart.BarChart;
 import com.github.lindenb.jvarkit.chart.BubbleChart;
@@ -54,15 +56,13 @@ import com.github.lindenb.jvarkit.chart.RExporter;
 import com.github.lindenb.jvarkit.chart.ScatterChart;
 import com.github.lindenb.jvarkit.chart.StackedBarChart;
 import com.github.lindenb.jvarkit.chart.XYChart;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.primitive.DoubleArray;
-import com.github.lindenb.jvarkit.util.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.util.bio.bed.BedLine;
+import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.jcommander.Launcher;
-import com.github.lindenb.jvarkit.util.jcommander.Program;
-import com.github.lindenb.jvarkit.util.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
