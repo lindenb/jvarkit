@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : cf8dadd52
-Compilation : 20250525124101
+Version     : 2e415c3ad
+Compilation : 20250527180525
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -171,7 +171,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [barcodegenerator](BarcodeGenerator.md) | Barcode generator for EricCharp | 20230629 | 20230629 |
 | [batchigvpictures](BatchIGVPictures.md) | Takes IGV pictures in batch. Save as HTML+png image | 20140731 | 20220524 |
 | [bedindextabix](BedIndexTabix.md) | Index and sort a Bed on the fly with Tabix (deprecated). | 20150708 | 20240724 |
-| [bedliftover](BedLiftOver.md) | LiftOver a BED file | 20140311 | 20240625 |
+| [bedliftover](BedLiftOver.md) | LiftOver a BED file | 20140311 | 20250526 |
 | [bedremovebed](BedRemoveBed.md) | Remove bed file from each record of input bed file. Output is a SETFILE | 20221210 | 20221210 |
 | [bigwigmerge](BigwigMerge.md) | merge several Bigwig files using different descriptive statistics (mean, median, etc..) | 20240417 | 20240417 |
 | [bigwigtview](BigWigTView.md) | view bigwig file coverage in a terminal | 20240704 | 20240704 |

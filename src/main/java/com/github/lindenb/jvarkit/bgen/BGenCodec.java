@@ -193,7 +193,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
 		@Override
 		public String toString() {
 			final StringBuilder builder = new StringBuilder();
-			builder.append("VariantImpl [=");
+			builder.append("VariantImpl [");
 			toString(builder);
 			builder.append("]");
 			return builder.toString();
@@ -731,7 +731,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
        			for(int py=0;py < gt.getPloidy();++py) {
        				double sum = 0;
 	       			for(int ax=0;ax < this.lastVariant.getNAlleles() -1 ;++ax) {
-       					double v = numReader.next();
+       					double v = numReader.nextDouble();
        					if(LOG.isDebug()) {
        						LOG.debug("next value is "+v);
        						}
@@ -746,7 +746,7 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
 	       			else
 	       				{
 	       				if(sum>1.0) throw new IllegalStateException("sum>1");
-	       				values.add(1.0-sum);
+	       				values.add(1.0-Math.min(1,sum));
 	       				}
 	       			gt.setProbs(values);
        				}
@@ -771,19 +771,28 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
            					false
            					).debug();
        				}
-       			final BigInteger bi=MathUtils.combination( gt.getPloidy()+ this.lastVariant.getNAlleles()-1,this.lastVariant.getNAlleles()-1);// whyyyy ?
-       			if(LOG.isDebug()) {
-           			LOG.debug("combination="+bi);
-           			}
-       			final int n_combinaison_as_int= bi.intValueExact();
-       			if(n_combinaison_as_int!= BGenUtils.calculateTotalCombinationsForLayout2(
-       						false,this.lastVariant.getNAlleles(), gt.getPloidy()) 
-       					) {
-       				throw new IllegalStateException();
+       			
+       			final int n_combinaison_as_int;
+       			/* most general case diploid, diallelic , unphased */
+       			if(gt.isDiploid() && !gt.isPhased() && this.lastVariant.getNAlleles()==2) {
+       				n_combinaison_as_int = 3;
        				}
+       			else
+       				{
+	       			final BigInteger bi=MathUtils.combination( gt.getPloidy()+ this.lastVariant.getNAlleles()-1,this.lastVariant.getNAlleles()-1);// whyyyy ?
+	       			if(LOG.isDebug()) {
+	           			LOG.debug("combination="+bi);
+	           			}
+	       			n_combinaison_as_int= bi.intValueExact();
+	       			if(n_combinaison_as_int!= BGenUtils.calculateTotalCombinationsForLayout2(
+	       						false,this.lastVariant.getNAlleles(), gt.getPloidy()) 
+	       					) {
+	       				throw new IllegalStateException();
+	       				}
+	       			}
        			double sum = 0;
        			for(int j=0;j < n_combinaison_as_int -1 ;++j) {
-   					double v = numReader.next();
+   					double v = numReader.nextDouble();
    					if(LOG.isDebug()) {
    						LOG.debug("next value is "+v);
    						}
@@ -797,15 +806,17 @@ public class BGenCodec extends AbstractFeatureCodec<BGenVariant,BGenUtils.Random
        				}
        			else
        				{
-       				if(sum>1.0) throw new IllegalStateException("sum>1");
-       				values.add(1.0-sum);
+       				if(sum>1.0 + numReader.getDefaultPrecision()) throw new IllegalStateException(
+       						"For sample $"+(i+1)+"/"+n_samples+" sum>1 "+values+"="+sum+" at "+this.lastVariant+" "+numReader
+       						);
+       				values.add(1.0-Math.min(1.0,sum));
        				}
        			gt.setProbs(values);
        			}
        	} else
-       	{
+       		{
        		throw new IOException("bad phased  ("+ vcg.phased +")");
-       	}
+       		}
         
         return vcg;
 		}

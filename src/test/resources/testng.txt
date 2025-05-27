@@ -10,6 +10,7 @@ com.github.lindenb.jvarkit.io.IOUtilsTest
 com.github.lindenb.jvarkit.lang.BitNumReaderTest
 com.github.lindenb.jvarkit.lang.BitNumWriterTest
 com.github.lindenb.jvarkit.lang.BitReaderTest
+com.github.lindenb.jvarkit.lang.BitNumReaderTest
 com.github.lindenb.jvarkit.lang.BitWriterTest
 com.github.lindenb.jvarkit.lang.CharSplitterTest
 com.github.lindenb.jvarkit.liftover.LiftOverChainInputStreamTest

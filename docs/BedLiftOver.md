@@ -19,7 +19,11 @@ Usage: bedliftover [options] Files
   * -f, --chain
       LiftOver chain file. Can be a local chain file, a URL 'https://hgdownload.soe.ucsc.edu/goldenpath/hg19/liftOver/hg19ToCriGri1.over.chain.gz', 
       or a chain identifier like 'hg19ToHg38'.
-    --chainvalid
+    -c, --columns
+      column indexes for chrom,start,end. Multiple chrom/start/end can be set 
+      by groups of 3 intergers: e.g '1,2,3,6,7,8,10,11,12'
+      Default: 1,2,3
+    --chainvalid, --disable-chain-validation
       Ignore LiftOver chain validation
       Default: false
     -x, --failed
@@ -32,15 +36,21 @@ Usage: bedliftover [options] Files
       lift over min-match.
       Default: 0.95
     --original, --src
-      Append original interval
+      Append original interval as CHROM:START-END
       Default: false
     -o, --output
       Output file. Optional . Default: stdout
-  * -D, -R, -r, --reference
+  * -D, -R2, -R, -r, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
     --version
       print version and exit
+    -1
+      coordinates are one-based (input is NOT bed)
+      Default: false
+    -R1
+      Source of chromosome names to convert chromosome names ('chr1'->'1') for 
+      the source assembly. Could be a dict, a fai, etc...
 
 ```
 

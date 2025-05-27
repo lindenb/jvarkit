@@ -12,7 +12,6 @@ import java.util.function.Predicate;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bgen.BGenGenotype;
-import com.github.lindenb.jvarkit.bgen.BGenHeader;
 import com.github.lindenb.jvarkit.bgen.BGenIterator;
 import com.github.lindenb.jvarkit.bgen.BGenReader;
 import com.github.lindenb.jvarkit.bgen.BGenUtils;
@@ -29,7 +28,6 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -114,6 +112,7 @@ public class BGenToVcf extends Launcher {
 		metaData.add(BGenUtils.GP_format_header_line);
 		metaData.add(BGenUtils.HP_format_header_line);
 		metaData.add(BITS_info_header_line);
+		metaData.add(ID_info_header_line);
 		metaData.add(BGenUtils.OFFSET_format_header_line);
 		if(this.low_qual_treshold>0) {
 			metaData.add(LOWQUAL_filter_header_line);
@@ -252,21 +251,24 @@ public class BGenToVcf extends Launcher {
 						// build from missing otherwise "java.lang.IllegalStateException: GTs cannot be missing for some samples if they are available for others in the record"
 						gb.phased(gt.isPhased());
 						gb.attribute(BGenUtils.GP_format_header_line.getID(), gt.getProbs());
-						gb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an_count);
-						if(an_count>0) {
-							gb.attribute(VCFConstants.ALLELE_COUNT_KEY,
-									Arrays.copyOfRange(ac_count, 1, ac_count.length) //skip index 0 containing REF
-									);
-							final double[] af_count=new double[ac_count.length];
-							for(int j=0;j< af_count.length;++j) {
-								af_count[j]= ac_count[j]/(double)an_count;
-								}
-							gb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,
-								Arrays.copyOfRange(af_count, 1, af_count.length) //skip index 0 containing REF
-								);
-							}
+						
 						genotypes.add(gb.make());
 						}
+					
+					vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY,an_count);
+					if(an_count>0) {
+						vcb.attribute(VCFConstants.ALLELE_COUNT_KEY,
+								Arrays.copyOfRange(ac_count, 1, ac_count.length) //skip index 0 containing REF
+								);
+						final double[] af_count=new double[ac_count.length];
+						for(int j=0;j< af_count.length;++j) {
+							af_count[j]= ac_count[j]/(double)an_count;
+							}
+						vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY,
+							Arrays.copyOfRange(af_count, 1, af_count.length) //skip index 0 containing REF
+							);
+						}
+					
 					vcb.genotypes(genotypes);
 					}
 				
