@@ -123,7 +123,8 @@ END_DOC
 	description="Creates a graph from Pubmed and Authors' Orcid identifiers",
 	keywords={"pubmed","ncbi","orcid"},
 	creationDate="20160520",
-	modificationDate="20210712"
+	modificationDate="20210712",
+	menu="Pubmed"
 	)
 public class PubmedOrcidGraph
 	extends Launcher

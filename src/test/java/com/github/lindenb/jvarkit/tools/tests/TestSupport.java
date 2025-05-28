@@ -102,7 +102,6 @@ public class TestSupport {
 		for(final Path f:this.deletePathsAtExit) try {
 			Files.delete(f);
 			} catch(IOException err) {}
-		System.err.println("[TEST] end "+this.getClass().getSimpleName());
 		}
 	
 	public Stream<VariantContext> variantStream(final Path vcfFile ) {
@@ -318,12 +317,11 @@ public class TestSupport {
 			return n;
 			}
 		else if(f.getFileName().toString().endsWith(".vcf") || f.getFileName().toString().endsWith(".vcf.gz")) {
-			final VCFReader sr = VCFReaderFactory.makeDefault().open(f,false);
-			final CloseableIterator<VariantContext> iter =sr.iterator();
-			final long n= iter.stream().count();
-			iter.close();
-			sr.close();
-			return n;
+			try( VCFReader sr = VCFReaderFactory.makeDefault().open(f,false)) {
+				try( CloseableIterator<VariantContext> iter =sr.iterator()) {
+					return iter.stream().count();
+					}
+				}
 			}
 		final BufferedReader br = IOUtils.openPathForBufferedReading(f);
 		final long n=br.lines().count();

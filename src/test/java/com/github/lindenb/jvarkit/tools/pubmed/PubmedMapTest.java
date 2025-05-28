@@ -7,16 +7,16 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 
 
 public class PubmedMapTest extends PubmedDumpTest {
 	@Test
 	public void test01() throws IOException {
+		final TestSupport support = new TestSupport();
 		try {
-		final Path inXml = dumpAsXml("Nantes lindenbaum");
+		final Path inXml = dumpAsXml(support,"Nantes lindenbaum");
 		final Path out = support.createTmpPath(".xml");
 		support.assertIsXml(inXml);
 		Assert.assertEquals(

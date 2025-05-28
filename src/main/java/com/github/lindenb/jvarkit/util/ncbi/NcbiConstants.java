@@ -31,7 +31,7 @@ package com.github.lindenb.jvarkit.util.ncbi;
 public class NcbiConstants {
 	public static final String EUTILS_BASE_URL="https://eutils.ncbi.nlm.nih.gov/entrez/eutils/";
 
-	public static final String PUBMED_DTD = "<!DOCTYPE PubmedArticleSet PUBLIC \"-//NLM//DTD PubMedArticle, 1st January 2019//EN\" \"https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_190101.dtd\">";
+	public static final String PUBMED_DTD = "<!DOCTYPE PubmedArticleSet PUBLIC \"-//NLM//DTD PubMedArticle, 1st January 2025//EN\" \"https://dtd.nlm.nih.gov/ncbi/pubmed/out/pubmed_250101.dtd\">";
 	
 	private static String service(final String name) {
 		return EUTILS_BASE_URL+name+".fcgi";

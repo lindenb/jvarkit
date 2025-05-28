@@ -4,7 +4,7 @@ before_script:
   - hostname
   - env | grep -i PROXY
   - apt-get update -y
-  - apt-get install -y make wget
+  - apt-get install -y make wget install libxml2-utils
   - echo -e 'systemProp.http.proxyHost=proxy-serveur.univ-nantes.prive\nsystemProp.http.proxyPort=3128\nsystemProp.https.proxyHost=proxy-serveur.univ-nantes.prive\nsystemProp.https.proxyPort=3128' >  gradle.properties
 
 
@@ -17,6 +17,7 @@ build-job:       # This job will compile your project
   script:
     - chmod +x gradlew   # Give permission to execute the Gradle wrapper script
     - make     # Assuming 'make' is your command to build the project
+    - xmllint --noout --stream src/main/resources/so/so-simple.owl
 
 test-job:        # This job will run tests on your project
   stage: test

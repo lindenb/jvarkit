@@ -272,9 +272,6 @@ public class Pubmed404  extends Launcher{
 	@Override
 	public int doWork(final List<String> args) {
 		final String inputName= oneFileOrNull(args);
-		PrintWriter out=null;
-		XMLEventReader r=null;
-		InputStream in=null;
 		try {
 			/** create http client */
 			this.httpClient = HttpClients.createSystem();//createDefault();
@@ -289,35 +286,35 @@ public class Pubmed404  extends Launcher{
 					return new ByteArrayInputStream(new byte[0]);
 				}
 			});
-			in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
-			r = xmlInputFactory.createXMLEventReader(in);
-			
-			out = super.openPathOrStdoutAsPrintWriter(this.outFile);
-			out.println("#PMID\tTITLE\tYEAR\tURL\thttp.code\thttp.reason");
-			
-			while(r.hasNext()) {
-				final XMLEvent evt= r.nextEvent();
-				if(evt.isStartElement() )	{
-					final String localName= evt.asStartElement().getName().getLocalPart();
-					if(localName.equals("PubmedArticle") || localName.equals("PubmedBookArticle"))
-						{
-						scanArticle(out,localName,r);	
+			try(InputStream in=(inputName==null?stdin():IOUtils.openURIForReading(inputName))) {
+				final XMLEventReader r = xmlInputFactory.createXMLEventReader(in);
+				
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outFile)) {
+					out.println("#PMID\tTITLE\tYEAR\tURL\thttp.code\thttp.reason");
+					
+					while(r.hasNext()) {
+						final XMLEvent evt= r.nextEvent();
+						if(evt.isStartElement() )	{
+							final String localName= evt.asStartElement().getName().getLocalPart();
+							if(localName.equals("PubmedArticle") || localName.equals("PubmedBookArticle"))
+								{
+								scanArticle(out,localName,r);	
+								}
+							}
 						}
+					
+					r.close();
+					out.flush();
 					}
 				}
-			
-			r.close();r=null;
-			in.close();in=null;
-			out.flush();out.close();out=null;
 			return 0;
 		} catch (final Exception err) {
 			LOG.error(err);
 			return -1;
 		} finally {
-			CloserUtil.close(r);
-			CloserUtil.close(in);
-			CloserUtil.close(out);
-			CloserUtil.close(this.httpClient);
+			if(this.httpClient!=null) try{
+				this.httpClient.close();
+			} catch(IOException err) {}
 		}
 
 		}

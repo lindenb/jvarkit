@@ -16,6 +16,10 @@ Usage: java -jar dist/jvarkit.jar pubmeddump  [options] Files
 
 Usage: pubmeddump [options] Files
   Options:
+    --by-year
+      split query year to overcome the problem of downloading more than 10000 
+      articles 
+      Default: false
     -e, --email
       optional user email
     -h, --help
@@ -33,9 +37,9 @@ Usage: pubmeddump [options] Files
       value for 'retmax' parameter for Eutils.
       Default: 10000
     -skip, --skip
-      [20180302]  Optional set of elements names to be ignored in the output. 
-      Spaces or comma separated. .eg: 'AuthorList PubmedData '
-      Default: <empty string>
+      Optional set of elements names to be ignored in the output. Spaces or 
+      comma separated. .eg: 'AuthorList PubmedData '
+      Default: History,PublicationStatus,MeshHeadingList,CitationSubset,OtherAbstract,GrantList
     --version
       print version and exit
 

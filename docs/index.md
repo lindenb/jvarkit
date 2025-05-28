@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 2e415c3ad
-Compilation : 20250527180525
+Version     : 176e0936c
+Compilation : 20250529013441
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -135,9 +135,11 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | ---: | :---------- | :------: | :----: |
 | [pubmed404](Pubmed404.md) | Test if URL in the pubmed abstracts are reacheable. | 20181210 | 20200204 |
 | [pubmedcodinglang](PubmedCodingLanguages.md) | Programming language use distribution from recent programs / articles | 20170404 | 20200223 |
-| [pubmeddump](PubmedDump.md) | Dump XML results from pubmed/Eutils | 20140805 | 20200204 |
+| [pubmeddump](PubmedDump.md) | Dump XML results from pubmed/Eutils | 20140805 | 20250528 |
 | [pubmedgender](PubmedGender.md) | Add gender-related attributes in the Author tag of pubmed xml. |  |  |
 | [pubmedgraph](PubmedGraph.md) | Creates a Gephi-gexf graph of references-cites for a given PMID | 20150605 | 20200220 |
+| [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 | 20250528 |
+| [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 
 ### GTF/GFF Manipulation
 
@@ -231,8 +233,6 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [pcrslicereads](PcrSliceReads.md) | Mark PCR reads to their PCR amplicon | 20150707 | 20240724 |
 | [plotbcftoolsstats](PlotBcftoolsStats.md) | Plot bcftools stats output | 20210622 | 20210622 |
 | [pubmedauthorgraph](PubmedAuthorGraph.md) | Creates a graph from Pubmed and Authors |  |  |
-| [pubmedmap](PubmedMap.md) | Use Pubmed Author's Affiliation to map the authors in the world. | 20160426 |  |
-| [pubmedorcidgraph](PubmedOrcidGraph.md) | Creates a graph from Pubmed and Authors' Orcid identifiers | 20160520 | 20210712 |
 | [qqplotter](QQPlotter.md) | plot QQplot | 20250324 | 20250324 |
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
 | [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 202050515 |
@@ -307,6 +307,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20230819 |
 | [vcfbraiding](VcfBraiding.md) | visualization for variants and attributes using https://visdunneright.github.io/sequence_braiding/docs/ . | 20201021 | 20201022 |
 | [vcfburdenmaf](VcfBurdenMAF.md) | MAF for Cases / Controls | 20160418 | 202000713 |
+| [vcfbyindex](VcfGetVariantByIndex.md) | Access a Plain or BGZF-compressed VCF file by index |  | 20250528 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20220119 | 20240524 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
 | [vcfcomposite](VCFComposite.md) | (in developpement) Finds Variants involved in a Het Compound Disease | 20170331 | 20200210 |

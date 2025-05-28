@@ -135,7 +135,9 @@ END_DOC
 description="Use Pubmed Author's Affiliation to map the authors in the world.",
 	keywords={"pubmed","xml","gis","map"},
 	creationDate = "20160426",
-	jvarkit_amalgamion = true
+	modificationDate = "20250528",
+	jvarkit_amalgamion = true,
+	menu="Pubmed"
 	)
 public class PubmedMap
 	extends Launcher
@@ -504,10 +506,6 @@ public class PubmedMap
 	@Override
 	public int doWork(final List<String> args) {
 		final String inputName= oneFileOrNull(args);
-		OutputStream out=null;
-		XMLEventReader r=null;
-		InputStream in=null;
-		XMLEventWriter w=null;
 		try {
 			final QName attDomainSuffix=new QName("domain");
 			final XMLEventFactory xmlEventFactory = XMLEventFactory.newFactory();
@@ -520,66 +518,62 @@ public class PubmedMap
 					return new ByteArrayInputStream(new byte[0]);
 				}
 			});
-			in=(inputName==null?stdin():IOUtils.openURIForReading(inputName));
-			r = xmlInputFactory.createXMLEventReader(in);
-			
-			out = super.openFileOrStdoutAsStream(this.outFile);
-			final XMLOutputFactory xof = XMLOutputFactory.newFactory();
-			w=xof.createXMLEventWriter(out, "UTF-8");
-			while(r.hasNext()) {
-			final XMLEvent evt = r.nextEvent();
-			if(evt.isStartElement() &&
-					evt.asStartElement().getName().getLocalPart().equals("Affiliation") &&
-					r.peek().isCharacters()
-					)
-				{
-				final List<Attribute> attributes = new ArrayList<>();
-				Iterator<?> t=evt.asStartElement().getAttributes();
-				while(t.hasNext()) {
-				    final Attribute att =  (Attribute)t.next();
-				    if(att.getName().equals(attDomainSuffix)) continue;
-				    if(att.getName().equals(QNAME_PLACE_ATTRIBUTE)) continue;
-					attributes.add(att);
-				}
+			try(InputStream in=(inputName==null?stdin():IOUtils.openURIForReading(inputName))) {
+				final XMLEventReader r = xmlInputFactory.createXMLEventReader(in);
 				
+				try(OutputStream out = super.openFileOrStdoutAsStream(this.outFile)) {
+					final XMLOutputFactory xof = XMLOutputFactory.newFactory();
+					final XMLEventWriter w=xof.createXMLEventWriter(out, "UTF-8");
+					while(r.hasNext()) {
+						final XMLEvent evt = r.nextEvent();
+						if(evt.isStartElement() &&
+								evt.asStartElement().getName().getLocalPart().equals("Affiliation") &&
+								r.peek().isCharacters()
+								)
+							{
+							final List<Attribute> attributes = new ArrayList<>();
+							Iterator<?> t=evt.asStartElement().getAttributes();
+							while(t.hasNext()) {
+							    final Attribute att =  (Attribute)t.next();
+							    if(att.getName().equals(attDomainSuffix)) continue;
+							    if(att.getName().equals(QNAME_PLACE_ATTRIBUTE)) continue;
+								attributes.add(att);
+							}
+							
+							
+							final XMLEvent textEvt = r.nextEvent();
+							final String affiliation= textEvt.asCharacters().getData();	
+							final Country country = decodeAffiliation(affiliation);
+							
+							if(country!=null) {
+								String suffix = country.suffix;
+								if(suffix.equals("gov")) suffix="us";
+								attributes.add(xmlEventFactory.createAttribute(attDomainSuffix, suffix));
+								attributes.add(xmlEventFactory.createAttribute(QNAME_PLACE_ATTRIBUTE, country.name));
+								}
+							w.add(xmlEventFactory.createStartElement(
+									evt.asStartElement().getName(),
+									attributes.iterator(),
+									evt.asStartElement().getNamespaces()
+									));
+							w.add(textEvt);
+							continue;
+							}
+							
 				
-				final XMLEvent textEvt = r.nextEvent();
-				final String affiliation= textEvt.asCharacters().getData();	
-				final Country country = decodeAffiliation(affiliation);
-				
-				if(country!=null) {
-					String suffix = country.suffix;
-					if(suffix.equals("gov")) suffix="us";
-					attributes.add(xmlEventFactory.createAttribute(attDomainSuffix, suffix));
-					attributes.add(xmlEventFactory.createAttribute(QNAME_PLACE_ATTRIBUTE, country.name));
+						w.add(evt);
+						}
+					w.flush();
+					w.close();
 					}
-				w.add(xmlEventFactory.createStartElement(
-						evt.asStartElement().getName(),
-						attributes.iterator(),
-						evt.asStartElement().getNamespaces()
-						));
-				w.add(textEvt);
-				continue;
-				}
 				
-	
-			w.add(evt);
-			}
-			
-			r.close();r=null;
-			in.close();in=null;
-			w.flush();w.close();w=null;
-			out.flush();out.close();out=null;
+				r.close();
+				}
 			return 0;
 		} catch (final Exception err) {
 			LOG.error(err);
 			return -1;
-		} finally {
-			CloserUtil.close(r);
-			CloserUtil.close(in);
-			CloserUtil.close(w);
-			CloserUtil.close(out);
-		}
+		} 
 
 		}
 		

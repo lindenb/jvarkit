@@ -17,5 +17,12 @@ if [ $fail -ne 0 ]; then
     echo "Commit aborted: Java source files contain Unicode (non-ASCII) characters."
     exit 1
 fi
+
+
+if ! xmllint --noout --stream src/main/resources/so/so-simple.owl
+then
+	fail=1
+fi
+
 echo "DONE"
 exit 0

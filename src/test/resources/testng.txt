@@ -23,6 +23,7 @@ com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdfTest
 com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebaseTest
 com.github.lindenb.jvarkit.tools.vcfshuffle.VCFShuffleTest
 com.github.lindenb.jvarkit.tools.vcfnearest.VCFNearestTest
+com.github.lindenb.jvarkit.tools.vcfbyindex.VcfGetVariantByIndexTest
 com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactoryTest
 com.github.lindenb.jvarkit.io.IOUtilsTest
 com.github.lindenb.jvarkit.io.ArchiveFactoryTest
@@ -31,6 +32,7 @@ com.github.lindenb.jvarkit.locatable.SimplePositionTest
 com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdkTest
 com.github.lindenb.jvarkit.tools.groupbygene.GroupByGeneTest
 com.github.lindenb.jvarkit.tools.liftover.BedLiftOverTest
+com.github.lindenb.jvarkit.tools.pubmed.PubmedDumpTest
 com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdkTest
 com.github.lindenb.jvarkit.tools.samjs.SamJdkTest
 com.github.lindenb.jvarkit.tools.vcf2table.VcfToTableTest

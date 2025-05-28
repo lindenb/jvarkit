@@ -140,7 +140,9 @@ xmllint  --format -  | grep PMID
  */
 @Program(name="pubmedfilterjs",
 description="Filters Pubmed XML with a javascript  (java rhino) expression. Context contain 'article' a  PubmedBookArticle or a PubmedArticle and 'index', the index in the XML file.",
-keywords={"pubmed","javascript","xml","ncbi"})
+keywords={"pubmed","javascript","xml","ncbi"},
+menu="Pubmed"
+)
 public class PubmedFilterJS
 	extends Launcher
 	{

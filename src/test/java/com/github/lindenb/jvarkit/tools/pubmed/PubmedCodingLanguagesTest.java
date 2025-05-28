@@ -7,16 +7,16 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 
 public class PubmedCodingLanguagesTest extends PubmedDumpTest {
 	
 	@Test
 	public void test01() throws IOException {
+		TestSupport support=new TestSupport();
 		try {
-		final Path inXml = super.dumpAsXml("Python Bioinformatics 2017 Java");
+		final Path inXml = super.dumpAsXml(support,"Python Bioinformatics 2017 Java");
 		final Path out = support.createTmpPath(".tsv");
 		support.assertIsXml(inXml);
 		Assert.assertEquals(

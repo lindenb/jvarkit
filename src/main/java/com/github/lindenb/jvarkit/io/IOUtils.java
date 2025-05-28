@@ -145,15 +145,24 @@ public class IOUtils {
 	
 	public static void copyTo(final Path path,final OutputStream fous) throws IOException
 		{
-		InputStream fin=null;
-		try {
-			fin =Files.newInputStream(path);
+		try(InputStream fin =Files.newInputStream(path)) {
 			copyTo(fin,fous);
 			fous.flush();
-		} finally {
-			CloserUtil.close(fin);
 			}
 		}
+	
+	/** copy one file to another*/
+	public static void copyTo(final Path pathSource,final Path pathDest) throws IOException {
+		if(pathSource.equals(pathDest)) {
+			throw new IllegalArgumentException("copyTo src=dest:"+pathDest);
+			}
+		try(InputStream fin =Files.newInputStream(pathSource)) {
+			try(OutputStream fous =Files.newOutputStream(pathDest)) {
+				copyTo(fin,fous);
+				fous.flush();
+				}
+			}
+		}	
 	
 	
 	/** copy one file to another*/
@@ -162,13 +171,7 @@ public class IOUtils {
 		if(fin.equals(fout)) {
 			throw new IllegalArgumentException("copyTo src=dest:"+fin);
 			}
-		OutputStream fous=null;
-		try {
-			fous = Files.newOutputStream(fout.toPath());
-			copyTo(fin,fous);
-		} finally {
-			CloserUtil.close(fous);
-			}
+		copyTo(fin.toPath(),fout.toPath());
 		}
 
 	public static void copyTo(final Path path,final Writer fous) throws IOException

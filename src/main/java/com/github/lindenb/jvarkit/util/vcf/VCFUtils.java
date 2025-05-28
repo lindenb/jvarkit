@@ -220,7 +220,8 @@ public class VCFUtils
 				case VCF4_0:
 				case VCF4_1:
 				case VCF4_2:
-				case VCF4_3:return new VCFCodec();
+				case VCF4_3:
+				case VCF4_4:return new VCFCodec();
 				}
 			}
 		return createDefaultVCFCodec();

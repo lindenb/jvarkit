@@ -9,13 +9,10 @@ import org.testng.annotations.Test;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
 public class PubmedDumpTest {
 	
-	protected final TestSupport support = new TestSupport();
-
 	
 @DataProvider(name = "src1")
 public Object[][] getQueries() {
@@ -24,7 +21,7 @@ public Object[][] getQueries() {
 		};
 	}
 
-protected Path dumpAsXml(final String query ) throws IOException {
+protected Path dumpAsXml(final TestSupport support ,final String query ) throws IOException {
 	final Path out = support.createTmpPath(".xml");
 	Assert.assertEquals(
 		new PubmedDump().instanceMain(new String[] {
@@ -37,7 +34,13 @@ protected Path dumpAsXml(final String query ) throws IOException {
 
 @Test(dataProvider="src1")
 public void test01(final String query ) throws IOException {
-	final Path out = dumpAsXml(query);
-	support.assertIsXml(out);
+	final TestSupport support = new TestSupport();
+	try {
+		final Path out = dumpAsXml(support,query);
+		support.assertIsXml(out);
+		}
+	finally {
+		support.removeTmpFiles();
+		}
 	}
 }

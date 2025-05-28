@@ -308,6 +308,7 @@ import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VcfBigBed;
+import com.github.lindenb.jvarkit.tools.vcfbyindex.VcfGetVariantByIndex;
 import com.github.lindenb.jvarkit.tools.vcfcomposite.VCFComposite;
 import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
 import com.github.lindenb.jvarkit.tools.vcffiltergenes.VcFilterGenes;
@@ -924,6 +925,7 @@ public class JvarkitCentral {
 		command(VcfPeekAf.class);
 		command(VcfGeneSplitter.class);
 		command(VCFSplitVEP.class);
+		command(VcfGetVariantByIndex.class);
 		command(VcfMultiToOneInfo.class);
 		command(VcfMultiToOneAllele.class);
 		command(VcfMoveFiltersToInfo.class);

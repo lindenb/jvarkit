@@ -33,7 +33,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.log.Logger;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.StringUtil;
 
 /**
@@ -91,13 +90,12 @@ public class NcbiApiKey {
 			return this.key;
 			}
 		final File keyFile = new File(System.getProperty("user.home"),CONFIG_FILE);
-		FileReader r=null;
 		try {
 			if(keyFile.exists()) {
 				final Properties prop = new Properties();
-				r=new FileReader(keyFile);
-				prop.load(r);
-				r.close();r=null;
+				try(FileReader r=new FileReader(keyFile)) {
+					prop.load(r);
+					}
 				this.key=prop.getProperty(PARAM,null);
 				if(!StringUtil.isBlank(this.key))
 					{
@@ -112,10 +110,7 @@ public class NcbiApiKey {
 		catch(final Exception err) {
 			LOG.error(err);
 			}
-		finally
-			{
-			CloserUtil.close(r);
-			}
+		
 		LOG.warn("\n"+
 			"*****\n"+
 			"*\n"+
