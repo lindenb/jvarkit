@@ -49,15 +49,16 @@ public class SequenceOntologyTreeTest
 		HttpURLConnection con = (HttpURLConnection)url.openConnection();
 		HttpURLConnection.setFollowRedirects(true);
 		con.connect();
-		InputStream in = con.getInputStream();
-		this.owlTree = SequenceOntologyTree.createFromInputStream(in);
-		in.close();
+		try(InputStream in = con.getInputStream()) {
+			this.owlTree = SequenceOntologyTree.createFromInputStream(in);
+			}
 		con.disconnect();
 		}
 		catch(final Throwable err) {
 			owlTree = SequenceOntologyTree.createDefault();
 		}
 	}
+	
 	@AfterClass
 	public void disposeOwl()
 		{
