@@ -245,7 +245,7 @@ public class PubmedDump
 		final String url=
 				NcbiConstants.esearch()+"?db=pubmed&term="+
 				StringUtils.escapeHttp(query)+
-				ncbiApiKey.getAmpParamValue()+
+				(ncbiApiKey.isApiKeyDefined()?ncbiApiKey.getAmpParamValue():"")+
 				"&retstart=0&retmax=0&usehistory=y&retmode=xml&rettype=uilist"+
 				(StringUtils.isBlank(this.email)?"":"&email="+StringUtils.escapeHttp(email))+
 				(StringUtils.isBlank(this.tool)?"":"&tool="+StringUtils.escapeHttp(tool))
@@ -301,8 +301,7 @@ public class PubmedDump
 			}
 		
 		if(!this.ncbiApiKey.isApiKeyDefined()) {
-			LOG.error("NCBI API key is not defined");
-			return -1;
+			LOG.warn("NCBI API key is not defined");
 			}
 		
 		final String query=args.stream().
@@ -377,7 +376,7 @@ public class PubmedDump
 						String url= NcbiConstants.efetch()+"?"+
 								"db=pubmed&WebEnv="+
 								StringUtils.escapeHttp(esearch.WebEnv)+
-								ncbiApiKey.getAmpParamValue()+
+								(ncbiApiKey.isApiKeyDefined()?ncbiApiKey.getAmpParamValue():"")+
 								"&query_key="+StringUtils.escapeHttp(esearch.QueryKey)+
 								"&retmode=xml&retmax="+ret_max+
 								"&retstart="+total_found_so_far_for_this_search+

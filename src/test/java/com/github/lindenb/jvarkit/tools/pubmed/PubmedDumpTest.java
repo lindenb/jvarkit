@@ -27,7 +27,7 @@ protected Path dumpAsXml(final TestSupport support ,final String query ) throws 
 		new PubmedDump().instanceMain(new String[] {
 		"-o",out.toString(),
 		query
-		}),0);
+		}),0,"query was "+query);
 	support.assertIsXml(out);
 	return out;
 	}

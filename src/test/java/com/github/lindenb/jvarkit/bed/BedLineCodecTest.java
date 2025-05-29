@@ -3,11 +3,6 @@ package com.github.lindenb.jvarkit.bed;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.bed.BedLine;
-import com.github.lindenb.jvarkit.bed.BedLineCodec;
-import com.github.lindenb.jvarkit.lang.CharSplitterTest;
-
-
 
 public class BedLineCodecTest {
 	@Test
