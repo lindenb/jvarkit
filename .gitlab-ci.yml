@@ -20,7 +20,7 @@ build-job:       # This job will compile your project
     - make     # Assuming 'make' is your command to build the project
     - xmllint --noout --stream src/main/resources/so/so-simple.owl
   artifacts:
-    path:
+    paths:
         - dist/jvarkit.jar
 
 test-job:        # This job will run tests on your project
