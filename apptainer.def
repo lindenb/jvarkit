@@ -1,11 +1,11 @@
 Bootstrap: docker
-From: ubuntu:22.04
+From: ubuntu:24.04
 
 %post
     apt-get -y update
-    apt-get -y install git wget openjdk-11-jdk make
+    apt-get -y install git wget openjdk-17-jdk make
     git clone -b dev "https://github.com/lindenb/jvarkit.git" jvarkit.tmp
-    (cd jvarkit.tmp && git reset --hard 9a2f3d5ac28e22802 && ./gradlew  -Djvarkit.disable.test=true jvarkit)
+    (cd jvarkit.tmp && git reset --hard 16aff8a16c20de4b5708763acfbaf3f798085be1 && make)
     mkdir -p /opt
     mv "jvarkit.tmp" "/opt/jvarkit"
     echo "export JVARKIT_DIST=/opt/jvarkit/dist" >> $SINGULARITY_ENVIRONMENT

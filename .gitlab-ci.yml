@@ -35,3 +35,8 @@ apptainer-job:
     - add-apt-repository -y ppa:apptainer/ppa
     - apt update
     - apt install -y apptainer
+    - apptainer build jvarkit.sif apptainer.def
+  artifacts:
+    paths:
+        - jvarkit.sif
+
