@@ -184,7 +184,7 @@ public class FileHeader extends AbstractList<String> {
 		}
 	
 	public FileHeader(final String headerLine,final Function<String,List<String>> lineSplitter) {
-		this(Objects.requireNonNull(lineSplitter,"undefined lineSplitter").apply(headerLine),lineSplitter);
+		this(Objects.requireNonNull(lineSplitter,"undefined lineSplitter").apply(Objects.requireNonNull(headerLine,"File Header is null")),lineSplitter);
 		}
 	
 	private FileHeader(final List<String> cols,final Function<String,List<String>> lineSplitter) {

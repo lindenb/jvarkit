@@ -32,10 +32,10 @@ Usage: vcfbyindex [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -I, --index
+    -i, --index
       Comma separated of 1-based index for query
       Default: <empty string>
-    -i, --index-file
+    -I, --index-file
        (file) list of 1-based indexes for query
     --version
       print version and exit
@@ -86,7 +86,7 @@ The current reference is:
 # get random indexes
 $ gunzip -c input.vcf.gz | grep -v "#" | awk '{print NR;}' | shuf | head -n 15 > index.list
 # get those 15 variants
-java -jar dist/jvarkit.jar vcfgetvariantbyindex -i index.list input.vcf.gz > output.vcf
+java -jar dist/jvarkit.jar vcfgetvariantbyindex --force --index-file index.list input.vcf.gz > output.vcf
 
 ```
 

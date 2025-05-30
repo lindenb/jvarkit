@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Concatenate VCFs with same sample. See also bcftools concat
+Concatenate VCFs with same samples. See also bcftools concat
 
 
 ## Usage
@@ -40,7 +40,7 @@ Usage: vcfconcat [options] Files
     -o, --out
       Output file. Optional . Default: stdout
     -S, --samples
-      implies --drop-genotypes
+      Print Samples in INFO columns. implies --drop-genotypes
       Default: none
       Possible Values: [none, all, with_alt]
     -T, --tag
@@ -90,30 +90,12 @@ The current reference is:
 
 ## Motivation
 
-concat numerous VCF, without checking files at start, doesn't sort.
 
-## Input
-
-input is a set of VCF files or a file with the suffix .list containing the path to the vcfs
-
-## Example
-
-### From stdin
-
-```bash
-$ find ./ -name "*.vcf" | grep Sample1 | java -jar dist/jvarkit vcfconcat > out.vcf
 ```
-
-### From files
-
-```bash
-$ java -jar dist/jvarkit vcfconcat Sample1.samtools.vcf Sample1.gatk.vcf > out.vcf
-$ java -jar dist/jvarkit vcfconcat paths.list > out.vcf
+ wget -O - "https://www.genenames.org/cgi-bin/download/custom?col=gd_hgnc_id&col=gd_app_sym&status=Approved&hgnc_dbtag=on&order_by=gd_app_sym_sort&format=text&submit=submit" |\
+ 	tail -n +2 |\
+ 	awk -F '\t' '{printf("type : gene\nsymbol : %s\nuri : %s\n\n",$2,$1);}' |\
+ 	sed 's%HGNC:%http://identifiers.org/hgnc/%' > genes.recfile
 ```
-
-
-## See also
-
-bcftools concat
 
 

@@ -66,4 +66,10 @@ public class Maps {
 	public static <K,V>  Map<K,V> of(K k1, V v1,K k2,V v2,K k3,V v3,K k4,V v4,K k5,V v5,K k6,V v6,K k7,V v7,K k8,V v8,K k9,V v9,K k10,V v10) {
 		final Map<K,V> m= of(k1,v1,k2,v2,k3,v3,k4,v4,k5,v5,k6,v6,k7,v7,k8,v8,k9,v9); m.put(k10,v10); return m;
 		}
+	public static <K,V>  Map<K,V> of(K k1, V v1,K k2,V v2,K k3,V v3,K k4,V v4,K k5,V v5,K k6,V v6,K k7,V v7,K k8,V v8,K k9,V v9,K k10,V v10,K k11, V v11) {
+		final Map<K,V> m= of(k1,v1,k2,v2,k3,v3,k4,v4,k5,v5,k6,v6,k7,v7,k8,v8,k9,v9,k10,v10); m.put(k11,v11); return m;
+		}
+	public static <K,V>  Map<K,V> of(K k1, V v1,K k2,V v2,K k3,V v3,K k4,V v4,K k5,V v5,K k6,V v6,K k7,V v7,K k8,V v8,K k9,V v9,K k10,V v10,K k11, V v11,K k12, V v12) {
+		final Map<K,V> m= of(k1,v1,k2,v2,k3,v3,k4,v4,k5,v5,k6,v6,k7,v7,k8,v8,k9,v9,k10,v10,k11,v11); m.put(k12,v12); return m;
+		}
 	}

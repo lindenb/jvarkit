@@ -196,9 +196,9 @@ public int doWork(final List<String> args) {
 						continue;
 
 					final String geneId = transcripts.stream().map(T -> T.getGene().getId()).collect(Collectors.toSet())
-							.stream().collect(HtsCollectors.oneAndOnlyOne()).orElse(null);
+							.stream().collect(HtsCollectors.oneOrNone()).orElse(null);
 					final String geneName = transcripts.stream().map(T -> T.getGene().getGeneName())
-							.collect(Collectors.toSet()).stream().collect(HtsCollectors.oneAndOnlyOne()).orElse(null);
+							.collect(Collectors.toSet()).stream().collect(HtsCollectors.oneOrNone()).orElse(null);
 
 					try (OutputStream outputStream = IOUtils.openPathForWriting(tmpSvg)) {
 						XMLStreamWriter w = null;

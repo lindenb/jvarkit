@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 047de7d62
-Compilation : 20250529173912
+Version     : 0208c72f8
+Compilation : 20250530214823
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -307,11 +307,11 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfbigwig](VCFBigWig.md) | Annotate a VCF with values from a bigwig file | 20200506 | 20230819 |
 | [vcfbraiding](VcfBraiding.md) | visualization for variants and attributes using https://visdunneright.github.io/sequence_braiding/docs/ . | 20201021 | 20201022 |
 | [vcfburdenmaf](VcfBurdenMAF.md) | MAF for Cases / Controls | 20160418 | 202000713 |
-| [vcfbyindex](VcfGetVariantByIndex.md) | Access a Plain or BGZF-compressed VCF file by index |  | 20250528 |
+| [vcfbyindex](VcfGetVariantByIndex.md) | Access a Plain or BGZF-compressed VCF file by index |  | 20250529 |
 | [vcfcadd](VcfCadd.md) | Annotate VCF with  Combined Annotation Dependent Depletion (CADD) (Kircher & al. A general framework for estimating the relative pathogenicity of human genetic variants. Nat Genet. 2014 Feb 2. doi: 10.1038/ng.2892.PubMed PMID: 24487276. | 20220119 | 20240524 |
 | [vcfcombinetwosnvs](VCFCombineTwoSnvs.md) | Detect Mutations than are the consequences of two distinct variants. This kind of variant might be ignored/skipped from classical variant consequence predictor. Idea from @SolenaLS and then @AntoineRimbert | 20160215 | 20200425 |
 | [vcfcomposite](VCFComposite.md) | (in developpement) Finds Variants involved in a Het Compound Disease | 20170331 | 20200210 |
-| [vcfconcat](VcfConcat.md) | Concatenate VCFs with same sample. See also bcftools concat | 20131230 | 20240426 |
+| [vcfconcat](VcfConcat.md) | Concatenate VCFs with same samples. See also bcftools concat | 20131230 | 20240426 |
 | [vcfdistancevariants](VcfDistanceBetweenVariants.md) | Annotate variants with the distance between previous and next variant. | 20190410 | 20230510 |
 | [vcffiltergenes](VcFilterGenes.md) | Filter VEP/SnpEff Output from a list of genes. | 20160322 | 20230505 |
 | [vcffiltergtf](VcfFilterGtf.md) | Filter VCF on GTF | 20230703 | 20230704 |

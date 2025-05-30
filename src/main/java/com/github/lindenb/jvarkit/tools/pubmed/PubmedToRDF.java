@@ -28,29 +28,31 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.pubmed;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
-import java.time.Month;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
-import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-import javax.xml.stream.events.Attribute;
 import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
@@ -61,11 +63,9 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.rdf.ns.OWL;
-import com.github.lindenb.jvarkit.rdf.ns.RDF;
-import com.github.lindenb.jvarkit.rdf.ns.RDFS;
+import com.github.lindenb.jvarkit.stream.HtsCollectors;
+import com.github.lindenb.jvarkit.util.Maps;
 
-import htsjdk.samtools.util.DateParser;
 
 /**
 BEGIN_DOC
@@ -91,17 +91,127 @@ public class PubmedToRDF
 	private static final Logger LOG = Logger.of(PubmedToRDF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;
-	@Parameter(names={"--mondo"},description="Mondo ontology URI")
-	private String mondoURI="https://purl.obolibrary.org/obo/mondo.owl";
+	@Parameter(names={"--rec"},description="rec file")
+	private List<Path> recFiles=new ArrayList<>();
 	
 	
-	private final Set<Entity> entities = new HashSet<>();
+	private final Map<String,EWord> entities_nodes = new HashMap<>(50_000);
+	private final Map<String,String> gene2uri = new HashMap<>(50_000);
+	
+	private static class Known {
+		
+	}
+	
+	private static abstract class ENode {
+		EWord parent;
+		ENode firstChild;
+		ENode nextSibling;
+		abstract void scan(List<String> words,int idx,Consumer<String> consumer);
+		String getPath() {
+			List<String> L=new ArrayList<String>();
+			EWord p = this.parent;
+			while(p!=null) {
+				L.add(p.text);
+				p=p.parent;
+				}
+			Collections.reverse(L);
+			return String.join(" ", L);
+			}
+		}
+	
+	private static class EWord extends ENode {
+		final String text;
+		EWord(final String text) {
+			this.text = text;
+			}
+		EWord find(final String s) {
+			ENode n= this.firstChild;
+			while(n!=null)
+				{
+				if((n instanceof EWord)) {
+					EWord w = EWord.class.cast(n);
+					if(w.text.equalsIgnoreCase(s)) return w;
+					}
+				n=n.nextSibling;
+				}
+			return null;
+			}
+		
+		ENode append(ENode n) {
+			n.parent=this;
+			if(this.firstChild==null) {
+				firstChild = n;
+				}
+			else
+				{
+				n.nextSibling=this.firstChild;
+				this.firstChild=n;
+				}
+			return n;
+			}
+		void add(final List<String> words,int idx,String uri) {
+			if(idx==words.size()) {
+				final EURI euri = new EURI();
+				euri.uri = uri;
+				append(euri);
+				}
+			else {
+				EWord w = find(words.get(idx)); 
+				if(w==null) {
+					w=new EWord(words.get(idx));
+					append(w);
+					}
+					
+				w.add(words,idx+1,uri);
+				}
+			}
+
+		
+		@Override
+		void scan(List<String> words,int idx,Consumer<String> consumer) {
+			if(idx >= words.size()) return;
+			boolean b = words.get(idx).equalsIgnoreCase(this.text);
+			if(!b) return;
+			ENode c = this.firstChild;
+			while(c!=null) {
+				c.scan(words, idx+1, consumer);
+				c=c.nextSibling;
+				}
+			}
+		
+		@Override
+		public String toString() {
+			StringBuilder sb=new StringBuilder(this.text);
+			sb.append("{");
+			ENode c = this.firstChild;
+			while(c!=null) {
+				sb.append(c.toString());
+				c=c.nextSibling;
+				}
+			sb.append("}");
+			return sb.toString();
+			}
+		}
+	
+	private static class EURI extends ENode {
+		String uri;
+		void scan(List<String> words,int idx,Consumer<String> consumer) {
+			consumer.accept(uri);
+			LOG.info("GOT uri = "+uri+" "+getPath());
+			}
+		@Override
+		public String toString() {
+			return "{URI="+uri+"}";
+			}
+		}
+	
+	
 	
 	private static class Entry implements Comparable<Entry> {
 		String pmid;
 		String title="";
-		Calendar pubDate;
-		final Set<Entity> entities=new HashSet<>();
+		String pubDate;
+		final Set<String> entities=new HashSet<>();
 		@Override
 		public int compareTo(Entry o) {
 			int i= this.pubDate.compareTo(o.pubDate);
@@ -116,8 +226,13 @@ public class PubmedToRDF
 			w.writeCharacters(this.title);
 			w.writeEndElement();
 			
+			w.writeStartElement("published");
+			w.writeCharacters(this.pubDate);
+			w.writeEndElement();
+
+			
 			w.writeEmptyElement("link");
-			w.writeAttribute("href", ""+pmid);
+			w.writeAttribute("href", "https://pubmed.ncbi.nlm.nih.gov/"+pmid);
 
 			
 			w.writeStartElement("id");
@@ -127,96 +242,18 @@ public class PubmedToRDF
 			
 			w.writeStartElement("content");
 			w.writeAttribute("type", "text/html");
-			
+			w.writeCharacters(this.entities.stream().collect(Collectors.joining(" ")));
 			w.writeEndElement();
 			
 			w.writeEndElement();
 		}
 	}
-	
-	private abstract class Entity {
-		final String uri;
-		Entity(final String uri) {
-			this.uri = uri;
-			}
-		public String getURI() {
-			return uri;
-			}
-		abstract boolean find(List<String> words);
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj) return true;
-			if (obj == null || !(obj instanceof Entity))  return false;
-			return uri.equals(Entity.class.cast(obj).uri);
-			}
-		@Override
-		public int hashCode() {
-			return uri.hashCode();
-			}
-		}
-	
-	private class GeneEntity extends Entity {
-			final String symbol;
-			
-			GeneEntity(final String symbol,final String uri) {
-				super(uri);
-				this.symbol = symbol;
-				}
-			
-			@Override
-			boolean find(List<String> words) {
-				return words.stream().anyMatch(S->S.equals(this.symbol));
-				}
-			
-			@Override
-			public String toString() {
-				return symbol;
-				}
-			
-		 }
-	
-	private class DiseaseEntity extends Entity {
-		final List<String> tokens;
-		DiseaseEntity(final String label,final String uri) {
-			super(uri);
-			this.tokens = null;//TODO
-			}
-		@Override
-		boolean find(List<String> words) {
-			if(tokens.size()> words.size()) return false;
-			for(int i=0;i+tokens.size()<= words.size();i++) {
-				int x=0;
-				while(x< this.tokens.size()) {
-					if(!tokens.get(x).equalsIgnoreCase(words.get(i+x))) {
-						break;
-						}
-					}
-				if(x==tokens.size()) {
-					return true;
-					}
-				}
-			return false;
-			}
-
-		@Override
-		public String toString() {
-			return String.join(" ", tokens);
-			}
 		
-		}
-	
-	
-	
-	
-	
 		
 	public PubmedToRDF()
 		{
 		
 		}
-	private static final QName OWL_Class = new QName(OWL.NS,"Class");
-	private static final QName RDFS_label = new QName(RDFS.NS,"label");
-	private static final QName RDF_about = new QName(RDF.NS,"about");
 	
 	private void skip(final XMLEventReader r) throws XMLStreamException
 		{
@@ -231,68 +268,6 @@ public class PubmedToRDF
 			}
 		}
 	
-
-	private  void visitOWLClass(XMLEventReader r,StartElement root) throws XMLStreamException {
-		final Attribute att=root.getAttributeByName(RDF_about);
-		if(att==null) {
-			skip(r);
-			return;
-			}
-		String uri = att.getValue();
-		String label=null;
-		while(r.hasNext()) {
-			XMLEvent evt=r.nextTag();
-			if(evt.isStartElement()) {
-				final StartElement se  = evt.asStartElement();
-				if(label==null && se.getName().equals(RDFS_label)) {
-					label = r.getElementText();
-					}
-				else
-					{
-					skip(r);
-					}
-				}
-			else if(evt.isEndElement()) {
-				if(uri.startsWith("http://identifiers.org/hgnc/") && !StringUtils.isBlank(label)) {
-					final GeneEntity entity=new GeneEntity(label,uri);
-					entities.add(entity);
-					}
-				else
-					{
-					final  DiseaseEntity entity = new DiseaseEntity(label, uri);
-					entities.add(entity);
-					}
-				
-				return;
-				}
-			}
-		}
-	
-	private void scanMondoOntoly(String uri) throws IOException,XMLStreamException {
-		XMLInputFactory  xmlInputFactory = XMLInputFactory.newFactory();
-		xmlInputFactory.setXMLResolver(new XMLResolver() {
-			@Override
-			public Object resolveEntity(String publicID, String systemID, String baseURI, String namespace)
-					throws XMLStreamException {
-				LOG.debug("Ignoring resolve Entity");
-				return new ByteArrayInputStream(new byte[0]);
-			}
-		});
-		try(InputStream in= IOUtils.openURIForReading(uri)) {
-			final XMLEventReader r=xmlInputFactory.createXMLEventReader(in);
-			while(r.hasNext()) {
-				final XMLEvent evt=r.nextEvent();
-				if(evt.isStartElement()) {
-					final StartElement E=evt.asStartElement();
-					if(E.getName().equals(OWL_Class)) {
-						visitOWLClass(r, E);
-						}
-					}
-				}
-			r.close();
-			}
-		LOG.info("number of entities :"+this.entities.size());
-		}
 	
 	/** extract text from stream. Cannot use XMLEventReader.getTextContent() 
 	 * when a public title contains some tag like '<sup>'
@@ -317,18 +292,18 @@ public class PubmedToRDF
 		}
 	
 	private List<String> tokenizeSentences(final String text) {
-		return Arrays.asList(text.split("(?<=[.!?])\\s+"));
+		return Arrays.asList(text.split("\\. "));
 	}
 	
-	private List<String> tokenizeWords(final String text) {
-		return null;
-		}
 	
-	private Calendar ScanDate(final XMLEventReader r) throws XMLStreamException {
+	private String ScanDate(final XMLEventReader r) throws XMLStreamException {
 		String year = null;
 		String month="01";
 		String day="01";
-		
+		final Map<String,String> month2month= Maps.of(
+				"Jan","01","Feb","02","Mar","03","Apr","04","May","05","Jun","06",
+				"Jul","07","Aug","08","Sep","09","Oct","10","Nov","11","Dec","12"
+				);
 		while(r.hasNext())
 			{
 			final XMLEvent evt = r.nextEvent();
@@ -340,6 +315,7 @@ public class PubmedToRDF
 					}
 				else if(name.equals("Month")) {
 					month =   r.getElementText();
+					month = month2month.getOrDefault(month, month);
 					}
 				else if(name.equals("Day")) {
 					day = r.getElementText();
@@ -350,6 +326,9 @@ public class PubmedToRDF
 					}
 				}
 			else if(evt.isEndElement()) {
+				if(year!=null) {
+					return String.join("-", year,month,day);
+					}
 				return null;
 				}
 			}
@@ -362,8 +341,6 @@ public class PubmedToRDF
 			final XMLEventReader r
 			) throws XMLStreamException,IOException {
 			final Entry entry=new Entry();
-			String article_year=null;
-			boolean PubDate=false;
 			while(r.hasNext()) {
 				final XMLEvent evt=r.nextEvent();
 				
@@ -379,29 +356,29 @@ public class PubmedToRDF
 					else if(eltName.equals("PubDate")) {
 						entry.pubDate = ScanDate(r);
 					}
-					else if(article_year==null && PubDate && eltName.equals("Year")) {
-						article_year=r.getElementText();
-					}
 					else if(eltName.equals("NameOfSubstance")) {
 						String subst= r.getElementText().trim();
 						final String protein_human=", protein, human";
 						int idx=subst.indexOf(protein_human);
 						if(idx!=-1 && (idx+protein_human.length())==subst.length()) {
 							final String gene_name = subst.substring(0,idx);
-							this.entities.stream().
-								filter(G->(G instanceof GeneEntity)).
-								map(G->GeneEntity.class.cast(G)).
-								filter(G->G.symbol.equals(gene_name)).
-								findFirst().
-								ifPresent(G->entry.entities.add(G));
+							String uri = this.gene2uri.get(gene_name);
+							if(uri!=null) entry.entities.add(uri);
 							}
 						}
 					else if(eltName.equals("Abstract")) {
 						for(String abstractText : tokenizeSentences(textContent(r))) {
-							List<String> words = tokenizeWords(abstractText);
-							for(Entity entity:this.entities) {
-								if(entity.find(words)) {
-									entry.entities.add(entity);
+							List<String> words = Arrays.asList(abstractText.split("[ ]+"));
+							for(int i=0;i< words.size();i++) {
+								final String gene_name = words.get(i);
+								final String uri = this.gene2uri.get(gene_name);
+								if(uri!=null) {
+									entry.entities.add(uri);
+									}
+								
+								EWord eword= this.entities_nodes.get(words.get(i).toLowerCase());
+								if(eword!=null) {
+									eword.scan(words, i, S->entry.entities.add(S));
 									}
 								}
 							}
@@ -410,10 +387,7 @@ public class PubmedToRDF
 			else if(evt.isEndElement()) {
 				final EndElement end = evt.asEndElement();
 				final String eltName = end.getName().getLocalPart();
-				if(eltName.equals("PubDate")) {
-					PubDate=false;
-					}
-				else if(eltName.equals(rootName)) 
+				if(eltName.equals(rootName)) 
 					{
 					if(!entry.entities.isEmpty()) {
 						
@@ -427,6 +401,65 @@ public class PubmedToRDF
 		return null;
 		}
 	
+	private void readRecFile(final Path path) throws IOException {
+		try(BufferedReader br = IOUtils.openPathForBufferedReading(path)) {
+			final List<Map.Entry<String, String>> items=new ArrayList<>();
+			for(;;) {
+				String line= br.readLine();
+				if(StringUtils.isBlank(line)) {
+					if(!items.isEmpty()) {
+						String type= items.stream().
+								filter(KV->KV.getKey().equals("type")).
+								map(KV->KV.getValue()).
+								collect(HtsCollectors.toSingleton());
+						
+						if(type.equals("gene")) {
+							String symbol= items.stream().filter(KV->KV.getKey().equals("symbol")).
+									map(KV->KV.getValue()).
+									collect(HtsCollectors.toSingleton());
+							String uri= items.stream().filter(KV->KV.getKey().equals("uri")).
+									map(KV->KV.getValue()).
+									collect(HtsCollectors.toSingleton());
+							this.gene2uri.put(symbol, uri);
+							}
+						else if(type.equals("disease")) {
+							
+							String uri= items.stream().filter(KV->KV.getKey().equals("uri")).
+									map(KV->KV.getValue()).
+									collect(HtsCollectors.toSingleton());
+							for(String text:  items.stream().filter(KV->KV.getKey().equals("text")).
+										map(KV->KV.getValue()).
+										collect(Collectors.toSet())) {
+								final List<String> words = Arrays.asList(text.replaceAll("[ ., ]+"," ").split("[ ]+"));
+								final String startw= words.get(0).toLowerCase();
+								EWord eword = this.entities_nodes.get(startw);
+								if(eword==null) {
+									eword = new EWord(startw);
+									this.entities_nodes.put(startw, eword);
+									}
+								eword.add(words,1,uri);
+								LOG.info("adding "+eword);
+								}
+							}
+						else
+							{
+							throw new IllegalArgumentException("unknown type "+type);
+							}
+						}
+					if(line==null) break;
+					items.clear();
+					continue;
+					}
+				int colon=line.indexOf(':');
+				if(colon==-1) throw new IOException("colon missing in "+line);
+				String k = line.substring(0,colon).trim().toLowerCase();
+				String v = line.substring(colon+1).trim();
+				if(!StringUtils.isBlank(k) && !StringUtils.isBlank(v)) {
+					items.add(new AbstractMap.SimpleEntry<>(k, v));
+					}
+			}
+		}
+	}
 	
 	
 	@Override
@@ -443,7 +476,9 @@ public class PubmedToRDF
 				}
 			});
 			final String inputName= oneFileOrNull(args);
-			this.scanMondoOntoly(this.mondoURI);
+			for(Path recPath: this.recFiles) {
+				readRecFile(recPath);
+				}
 			final List<Entry> entries=new ArrayList<>();
 			try(InputStream in=(inputName==null?stdin():IOUtils.openURIForReading(inputName))) {
 				final XMLEventReader r = xmlInputFactory.createXMLEventReader(in);

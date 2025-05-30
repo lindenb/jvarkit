@@ -241,6 +241,7 @@ public class VCFByIndex implements LongList<VariantContext>, AutoCloseable {
 	/** return true if index can be opened */
 	public static boolean indexExists(final String f) {
 		try(SeekableStream st=SeekableStreamFactory.getInstance().getStreamFor(f)) {
+			st.eof();//remove warning st no used
 			return true;
 			}
 		catch(IOException err) {

@@ -64,13 +64,22 @@ public static <T> Collector<T, ?, T> toSingleton() {
  * If there is none or more than one, empty is returned.
  * Usage: want to take uniq item in set if set.size()==1
  *  */
-public static <T> Collector<T, ?, Optional<T>> oneAndOnlyOne() {
-    return Collectors.collectingAndThen(
-            Collectors.toList(),
-            list -> list.size()==1?Optional.of(list.get(0)):Optional.empty()
-    		);
+public static <T> Collector<T, ?, Optional<T>> oneOrNone() {
+	  return Collector.of(
+		        ArrayList<T>::new,
+		        List::add,
+		        (left, right) -> { left.addAll(right); return left; },
+		        list -> {
+		            if (list.size() == 1) {
+		                return Optional.of(list.get(0));
+		            } else if (list.isEmpty()) {
+		               return Optional.empty();
+		            } else {
+		                throw new IllegalStateException("Stream contains more than one element");
+		            }
+		        }
+		    );
 		}
-
 
 
 /** convert stream of<QueryInterval> to an optimized array of QueryInterval */
