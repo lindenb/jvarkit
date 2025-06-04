@@ -3,7 +3,6 @@ package com.github.lindenb.jvarkit.bgen;
 import java.io.IOException;
 import java.io.InputStream;
 
-
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -29,6 +28,9 @@ public interface  BGenIterator extends CloseableIterator<BGenVariant> {
 			private final BGenCodec codec = new BGenCodec(false);
 			private final BGenUtils.RandomAccessPositionalStream in;
 			private final boolean skipGenotypes;
+			
+			
+			
 			public BGenIteratorImpl(final InputStream in,boolean skipGenotypes) throws IOException {
 				this.in = new BGenUtils.RandomAccessPositionalStream(in);
 				this.codec.readActualHeader(this.in);

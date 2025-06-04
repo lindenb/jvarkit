@@ -63,6 +63,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.Maps;
 
@@ -88,6 +89,8 @@ END_DOC
 public class PubmedToRDF
 	extends Launcher
 	{
+	private static final String EVI="https://w3id.org/EVI#";
+	private static final String DCTERMS="http://purl.org/dc/terms/";
 	private static final Logger LOG = Logger.of(PubmedToRDF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;
@@ -99,7 +102,7 @@ public class PubmedToRDF
 	private final Map<String,String> gene2uri = new HashMap<>(50_000);
 	
 	private static class Known {
-		
+		Set<String> uri;
 	}
 	
 	private static abstract class ENode {
@@ -220,31 +223,17 @@ public class PubmedToRDF
 		}
 		
 		void write(XMLStreamWriter w) throws XMLStreamException {
-			w.writeStartElement("entry");
+			w.writeStartElement("evi","Article",EVI);
+			w.writeAttribute("rdf", RDF.NS, "about", "https://pubmed.ncbi.nlm.nih.gov/"+pmid);
 			
-			w.writeStartElement("title");
+			w.writeStartElement("dcterms","title",DCTERMS);
 			w.writeCharacters(this.title);
 			w.writeEndElement();
 			
-			w.writeStartElement("published");
+			w.writeStartElement("dcterms","issued",DCTERMS);
 			w.writeCharacters(this.pubDate);
 			w.writeEndElement();
 
-			
-			w.writeEmptyElement("link");
-			w.writeAttribute("href", "https://pubmed.ncbi.nlm.nih.gov/"+pmid);
-
-			
-			w.writeStartElement("id");
-			w.writeCharacters(UUID.nameUUIDFromBytes(pmid.getBytes()).toString());
-			w.writeEndElement();
-			
-			
-			w.writeStartElement("content");
-			w.writeAttribute("type", "text/html");
-			w.writeCharacters(this.entities.stream().collect(Collectors.joining(" ")));
-			w.writeEndElement();
-			
 			w.writeEndElement();
 		}
 	}
@@ -505,14 +494,15 @@ public class PubmedToRDF
 					final XMLOutputFactory xof = XMLOutputFactory.newFactory();
 					final XMLStreamWriter w = xof.createXMLStreamWriter(out, "UTF-8");
 					w.writeStartDocument("UTF-8", "1.0");
-					w.writeStartElement("feed");
-					w.writeDefaultNamespace("http://www.w3.org/2005/Atom");
+					w.writeStartElement("rdf:RDF");
+					w.writeNamespace("rdf", RDF.NS);
+					w.writeNamespace("rdf", RDF.NS);
 					
 					for(Entry entry: entries) {
 						entry.write(w);
 						}
 					
-					w.writeEndElement();
+					w.writeEndElement(); //
 					w.writeEndDocument();
 					w.close();
 					out.flush();

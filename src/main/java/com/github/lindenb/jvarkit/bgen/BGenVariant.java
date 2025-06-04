@@ -52,6 +52,10 @@ public interface BGenVariant extends Feature {
 	public abstract List<String> getAlleles();
 	public abstract String getId();
 	public abstract String getRsId();
+	/** di-allelic , if getNAlleles() */
+	public default boolean isDiAllelic() {
+		return getNAlleles()==2;
+		}
 	/** physical offset of the variant in the source bgen file; Or <=0L if not available */
 	public abstract long getOffset();
 	/** return true if the genotypes have been loaded, if true, getGenotypes() is available */
