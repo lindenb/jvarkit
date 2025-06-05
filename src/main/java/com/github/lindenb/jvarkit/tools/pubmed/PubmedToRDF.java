@@ -63,6 +63,10 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.rdf.Literal;
+import com.github.lindenb.jvarkit.rdf.RDFModel;
+import com.github.lindenb.jvarkit.rdf.Resource;
+import com.github.lindenb.jvarkit.rdf.Statement;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.Maps;
@@ -89,8 +93,13 @@ END_DOC
 public class PubmedToRDF
 	extends Launcher
 	{
-	private static final String EVI="https://w3id.org/EVI#";
-	private static final String DCTERMS="http://purl.org/dc/terms/";
+	private static final String NS="http://github.com/lindenb/jvarkit/";
+	private static final Resource GENE_RSRC= new Resource("http://purl.obolibrary.org/obo/","SO_0000704");
+	private static final Resource DISEASE_RSRC = new Resource("http://purl.obolibrary.org/obo/","DOID_4");
+	private static final Resource ANNOT_PROP = new Resource(NS,"annotation");
+	private static final Resource ARTICLE_TYPE = new Resource(NS,"Article");
+	private static final Resource PUB_DATE_PROP = new Resource("http://purl.org/dc/terms/","date");
+	private static final Resource TITLE_PROP = new Resource("http://purl.org/dc/terms/","title");
 	private static final Logger LOG = Logger.of(PubmedToRDF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outFile=null;
@@ -99,7 +108,7 @@ public class PubmedToRDF
 	
 	
 	private final Map<String,EWord> entities_nodes = new HashMap<>(50_000);
-	private final Map<String,String> gene2uri = new HashMap<>(50_000);
+	private final Map<String,Resource> gene2hgnc = new HashMap<>(50_000);
 	
 	private static class Known {
 		Set<String> uri;
@@ -109,7 +118,7 @@ public class PubmedToRDF
 		EWord parent;
 		ENode firstChild;
 		ENode nextSibling;
-		abstract void scan(List<String> words,int idx,Consumer<String> consumer);
+		abstract void scan(List<String> words,int idx,final Entry entry);
 		String getPath() {
 			List<String> L=new ArrayList<String>();
 			EWord p = this.parent;
@@ -127,6 +136,7 @@ public class PubmedToRDF
 		EWord(final String text) {
 			this.text = text;
 			}
+		
 		EWord find(final String s) {
 			ENode n= this.firstChild;
 			while(n!=null)
@@ -152,10 +162,10 @@ public class PubmedToRDF
 				}
 			return n;
 			}
-		void add(final List<String> words,int idx,String uri) {
+		
+		void add(final List<String> words,int idx,final Resource uri, final String disease_name) {
 			if(idx==words.size()) {
-				final EURI euri = new EURI();
-				euri.uri = uri;
+				final EDisease euri = new EDisease(uri,disease_name);
 				append(euri);
 				}
 			else {
@@ -165,19 +175,19 @@ public class PubmedToRDF
 					append(w);
 					}
 					
-				w.add(words,idx+1,uri);
+				w.add(words,idx+1,uri,disease_name);
 				}
 			}
 
 		
 		@Override
-		void scan(List<String> words,int idx,Consumer<String> consumer) {
+		void scan(List<String> words,int idx,final Entry entry) {
 			if(idx >= words.size()) return;
 			boolean b = words.get(idx).equalsIgnoreCase(this.text);
 			if(!b) return;
 			ENode c = this.firstChild;
 			while(c!=null) {
-				c.scan(words, idx+1, consumer);
+				c.scan(words, idx+1, entry);
 				c=c.nextSibling;
 				}
 			}
@@ -196,11 +206,16 @@ public class PubmedToRDF
 			}
 		}
 	
-	private static class EURI extends ENode {
-		String uri;
-		void scan(List<String> words,int idx,Consumer<String> consumer) {
-			consumer.accept(uri);
-			LOG.info("GOT uri = "+uri+" "+getPath());
+	private static class EDisease extends ENode {
+		private final Resource uri;
+		private final String name;
+		public EDisease(final Resource uri, final String name) {
+			this.uri = uri;
+			this.name = name;
+			}
+		
+		void scan(final List<String> words,int idx,final Entry entry) {
+			entry.addDisease(name, uri);
 			}
 		@Override
 		public String toString() {
@@ -211,31 +226,62 @@ public class PubmedToRDF
 	
 	
 	private static class Entry implements Comparable<Entry> {
-		String pmid;
-		String title="";
-		String pubDate;
-		final Set<String> entities=new HashSet<>();
+		Resource pmid;
+		final RDFModel statements = new RDFModel();
+		
+		public String getPubDate() {
+			return this.statements.
+					findMatching(pmid, PUB_DATE_PROP, null).
+					map(it->it.getObject().asLiteral().getString()).
+					findAny().
+					orElse("");
+			}
+		
 		@Override
 		public int compareTo(Entry o) {
-			int i= this.pubDate.compareTo(o.pubDate);
+			final int i= this.getPubDate().compareTo(o.getPubDate());
 			if(i!=0) return i;
-			return this.pmid.compareTo(o.pmid);
-		}
+			return this.pmid.getLocalName().compareTo(o.pmid.getLocalName());
+			}
 		
-		void write(XMLStreamWriter w) throws XMLStreamException {
-			w.writeStartElement("evi","Article",EVI);
-			w.writeAttribute("rdf", RDF.NS, "about", "https://pubmed.ncbi.nlm.nih.gov/"+pmid);
+		void addGene(String geneName,Resource hgnc) {
+			this.statements.addStatement(
+				hgnc,
+				Resource.RDF_type,
+				GENE_RSRC
+				);
+			this.statements.addStatement(
+					hgnc,
+				Resource.RDFS_label,
+				geneName
+				);
 			
-			w.writeStartElement("dcterms","title",DCTERMS);
-			w.writeCharacters(this.title);
-			w.writeEndElement();
-			
-			w.writeStartElement("dcterms","issued",DCTERMS);
-			w.writeCharacters(this.pubDate);
-			w.writeEndElement();
-
-			w.writeEndElement();
-		}
+			this.statements.addStatement(
+				this.pmid,
+				ANNOT_PROP,
+				hgnc
+				);
+			}
+		
+		void addDisease(String diseaseName,Resource uri) {
+			this.statements.addStatement(
+				uri,
+				Resource.RDF_type,
+				DISEASE_RSRC
+				);
+			this.statements.addStatement(
+					uri,
+				Resource.RDFS_label,
+				diseaseName
+				);
+			this.statements.addStatement(
+				this.pmid,
+				ANNOT_PROP,
+				uri
+				);
+			}
+		
+		
 	}
 		
 		
@@ -337,13 +383,17 @@ public class PubmedToRDF
 					final StartElement start = evt.asStartElement();
 					final String eltName = start.getName().getLocalPart();
 					if(entry.pmid==null && eltName.equals("PMID")) {
-						entry.pmid=r.getElementText();
-					}
-					else if(entry.title.isEmpty() && eltName.equals("ArticleTitle")) {
-						entry.title= textContent(r);
+						final String pmid =r.getElementText();
+						entry.pmid=new Resource("https://pubmed.ncbi.nlm.nih.gov/", pmid);
+						entry.statements.addStatement(entry.pmid, Resource.RDF_type, ARTICLE_TYPE);
+						}
+					else if(entry.statements.findMatching(entry.pmid,TITLE_PROP,null).count()==0L && eltName.equals("ArticleTitle")) {
+						String title= textContent(r);
+						entry.statements.addStatement(entry.pmid, TITLE_PROP, title);
 					}
 					else if(eltName.equals("PubDate")) {
-						entry.pubDate = ScanDate(r);
+						String pubDate = ScanDate(r);
+						entry.statements.addStatement(entry.pmid, PUB_DATE_PROP, pubDate);
 					}
 					else if(eltName.equals("NameOfSubstance")) {
 						String subst= r.getElementText().trim();
@@ -351,8 +401,10 @@ public class PubmedToRDF
 						int idx=subst.indexOf(protein_human);
 						if(idx!=-1 && (idx+protein_human.length())==subst.length()) {
 							final String gene_name = subst.substring(0,idx);
-							String uri = this.gene2uri.get(gene_name);
-							if(uri!=null) entry.entities.add(uri);
+							final Resource hgnc = this.gene2hgnc.get(gene_name);
+							if(hgnc!=null) {
+								entry.addGene(gene_name, hgnc);
+								}
 							}
 						}
 					else if(eltName.equals("Abstract")) {
@@ -360,14 +412,14 @@ public class PubmedToRDF
 							List<String> words = Arrays.asList(abstractText.split("[ ]+"));
 							for(int i=0;i< words.size();i++) {
 								final String gene_name = words.get(i);
-								final String uri = this.gene2uri.get(gene_name);
-								if(uri!=null) {
-									entry.entities.add(uri);
+								final Resource hgnc = this.gene2hgnc.get(gene_name);
+								if(hgnc!=null) {
+									entry.addGene(gene_name,hgnc);
 									}
 								
-								EWord eword= this.entities_nodes.get(words.get(i).toLowerCase());
+								final EWord eword= this.entities_nodes.get(words.get(i).toLowerCase());
 								if(eword!=null) {
-									eword.scan(words, i, S->entry.entities.add(S));
+									eword.scan(words, i, entry);
 									}
 								}
 							}
@@ -378,7 +430,7 @@ public class PubmedToRDF
 				final String eltName = end.getName().getLocalPart();
 				if(eltName.equals(rootName)) 
 					{
-					if(!entry.entities.isEmpty()) {
+					if(!entry.statements.isEmpty()) {
 						
 						return entry;
 						}
@@ -406,15 +458,17 @@ public class PubmedToRDF
 							String symbol= items.stream().filter(KV->KV.getKey().equals("symbol")).
 									map(KV->KV.getValue()).
 									collect(HtsCollectors.toSingleton());
-							String uri= items.stream().filter(KV->KV.getKey().equals("uri")).
+							final Resource hgnc= items.stream().filter(KV->KV.getKey().equals("hgnc")).
 									map(KV->KV.getValue()).
+									map(S->new Resource("http://identifiers.org/hgnc/",S)).
 									collect(HtsCollectors.toSingleton());
-							this.gene2uri.put(symbol, uri);
+							this.gene2hgnc.put(symbol, hgnc);
 							}
+						
 						else if(type.equals("disease")) {
-							
-							String uri= items.stream().filter(KV->KV.getKey().equals("uri")).
+							Resource uri= items.stream().filter(KV->KV.getKey().equals("uri")).
 									map(KV->KV.getValue()).
+									map(S->new Resource(S)).
 									collect(HtsCollectors.toSingleton());
 							for(String text:  items.stream().filter(KV->KV.getKey().equals("text")).
 										map(KV->KV.getValue()).
@@ -426,7 +480,7 @@ public class PubmedToRDF
 									eword = new EWord(startw);
 									this.entities_nodes.put(startw, eword);
 									}
-								eword.add(words,1,uri);
+								eword.add(words,1,uri,text);
 								LOG.info("adding "+eword);
 								}
 							}
@@ -490,21 +544,11 @@ public class PubmedToRDF
 						}
 					}
 				
+				final RDFModel model=new RDFModel();
+				entries.stream().forEach(E->model.addAll(E.statements));
+								
 				try(PrintStream out = super.openPathOrStdoutAsPrintStream(this.outFile)) {
-					final XMLOutputFactory xof = XMLOutputFactory.newFactory();
-					final XMLStreamWriter w = xof.createXMLStreamWriter(out, "UTF-8");
-					w.writeStartDocument("UTF-8", "1.0");
-					w.writeStartElement("rdf:RDF");
-					w.writeNamespace("rdf", RDF.NS);
-					w.writeNamespace("rdf", RDF.NS);
-					
-					for(Entry entry: entries) {
-						entry.write(w);
-						}
-					
-					w.writeEndElement(); //
-					w.writeEndDocument();
-					w.close();
+					model.writeXml(out);
 					out.flush();
 					}
 				

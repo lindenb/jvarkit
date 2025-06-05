@@ -45,10 +45,17 @@ public class Statement {
 				;
 		}
 	
+	public boolean isLiteral() {
+		return getObject().isLiteral();
+		}
+	public boolean isResource() {
+		return getObject().isResource();
+		}
+	
 	public Resource getSubject() {
 		return subject;
 		}
-	public Resource getProperty() {
+	public Resource getPredicate() {
 		return property;
 		}
 	public RDFNode getObject() {
@@ -64,7 +71,7 @@ public class Statement {
 		if(obj==null || !(obj instanceof Statement)) return false;
 		final Statement stmt=Statement.class.cast(obj);
 		return this.getSubject().equals(stmt.getSubject()) &&
-				 this.getProperty().equals(stmt.getProperty()) &&
+				 this.getPredicate().equals(stmt.getPredicate()) &&
 				 this.getObject().equals(stmt.getObject())
 				 ;
 		}

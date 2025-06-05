@@ -29,11 +29,30 @@ import java.util.Objects;
 
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.rdf.ns.XSD;
 
 public class Literal implements RDFNode {
-	private final String text;
-	public Literal(String text) {
-		this.text = text;
+	private final Object value;
+	public Literal(final String text) {
+		this.value = Objects.requireNonNull(text,"text cannot be null");
+		}
+	public Literal(final long v) {
+		this.value = v;
+		}
+	public Literal(final int v) {
+		this.value = v;
+		}
+	public Literal(final short v) {
+		this.value = v;
+		}
+	public Literal(final float v) {
+		this.value = v;
+		}
+	public Literal(final double v) {
+		this.value = v;
+		}
+	public Literal(final boolean v) {
+		this.value = v;
 		}
 	
 	@Override
@@ -45,23 +64,42 @@ public class Literal implements RDFNode {
 		return true;
 		}
 	
-	@Override
-	public int hashCode() {
-		return Objects.hash(text);
+	public boolean isString() {
+		return value instanceof String;
+		}
+	
+	public String getDatatypeURI() {
+		if(isString()) return XSD.NS+"string";
+		throw new IllegalStateException("not a string");
+		}
+	
+	public String getString() {
+		if(isString()) {
+			return String.class.cast(value);
+			}
+		throw new IllegalStateException("not a string");
 		}
 	
 	@Override
-	public boolean equals(Object obj) {
+	public int hashCode() {
+		return Objects.hash(value);
+		}
+	
+	@Override
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null || !(obj instanceof Literal))
 			return false;
 		final Literal other = (Literal) obj;
-		return this.text.equals(other.text);
+		return Objects.equals(value, other.value);
 		}
 	
 	@Override
 	public String toString() {
-		return new StringBuilder("\"").append(StringUtils.escapeC(text.toString())).append("\"").toString();
+		return new StringBuilder("\"").
+				append(StringUtils.escapeC(value.toString())).
+				append("\"").
+				toString();
 		}
 	}

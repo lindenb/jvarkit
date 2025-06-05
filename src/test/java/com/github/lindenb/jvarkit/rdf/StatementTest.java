@@ -21,7 +21,7 @@ public class StatementTest {
 		Assert.assertEquals(stmt1,stmt2);
 		Assert.assertNotEquals(stmt1,stmt3);
 		Assert.assertEquals(stmt1.getSubject(),stmt2.getSubject());
-		Assert.assertEquals(stmt1.getProperty(),stmt2.getProperty());
+		Assert.assertEquals(stmt1.getPredicate(),stmt2.getPredicate());
 		Assert.assertEquals(stmt1.getObject(),stmt2.getObject());
 		}
 }
