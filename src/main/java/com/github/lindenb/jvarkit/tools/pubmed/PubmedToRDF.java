@@ -38,10 +38,12 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -63,6 +65,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.ncbi.PubmedUtils;
 import com.github.lindenb.jvarkit.rdf.Literal;
 import com.github.lindenb.jvarkit.rdf.RDFModel;
 import com.github.lindenb.jvarkit.rdf.Resource;
@@ -229,12 +232,12 @@ public class PubmedToRDF
 		Resource pmid;
 		final RDFModel statements = new RDFModel();
 		
-		public String getPubDate() {
+		public Date getPubDate() {
 			return this.statements.
 					findMatching(pmid, PUB_DATE_PROP, null).
-					map(it->it.getObject().asLiteral().getString()).
+					map(it->it.getObject().asLiteral().getDate()).
 					findAny().
-					orElse("");
+					orElse(null);
 			}
 		
 		@Override
@@ -290,18 +293,7 @@ public class PubmedToRDF
 		
 		}
 	
-	private void skip(final XMLEventReader r) throws XMLStreamException
-		{
-		while(r.hasNext())
-			{
-			final XMLEvent evt = r.nextEvent();
-			if(evt.isEndElement()) break;
-			else if(evt.isStartElement())
-				{
-				skip(r);
-				}
-			}
-		}
+	
 	
 	
 	/** extract text from stream. Cannot use XMLEventReader.getTextContent() 
@@ -331,45 +323,7 @@ public class PubmedToRDF
 	}
 	
 	
-	private String ScanDate(final XMLEventReader r) throws XMLStreamException {
-		String year = null;
-		String month="01";
-		String day="01";
-		final Map<String,String> month2month= Maps.of(
-				"Jan","01","Feb","02","Mar","03","Apr","04","May","05","Jun","06",
-				"Jul","07","Aug","08","Sep","09","Oct","10","Nov","11","Dec","12"
-				);
-		while(r.hasNext())
-			{
-			final XMLEvent evt = r.nextEvent();
-			if(evt.isStartElement())
-				{
-				String name =evt.asStartElement().getName().getLocalPart();
-				if(name.equals("Year")) {
-					year = r.getElementText();
-					}
-				else if(name.equals("Month")) {
-					month =   r.getElementText();
-					month = month2month.getOrDefault(month, month);
-					}
-				else if(name.equals("Day")) {
-					day = r.getElementText();
-					}
-				else
-					{
-					skip(r);
-					}
-				}
-			else if(evt.isEndElement()) {
-				if(year!=null) {
-					return String.join("-", year,month,day);
-					}
-				return null;
-				}
-			}
-		
-		 return null;
-		}
+	
 	
 	private Entry scanArticle(
 			final String rootName,
@@ -392,8 +346,8 @@ public class PubmedToRDF
 						entry.statements.addStatement(entry.pmid, TITLE_PROP, title);
 					}
 					else if(eltName.equals("PubDate")) {
-						String pubDate = ScanDate(r);
-						entry.statements.addStatement(entry.pmid, PUB_DATE_PROP, pubDate);
+						final Optional<Date> pubDate = PubmedUtils.scanDate(r);
+						if(pubDate.isPresent()) entry.statements.addStatement(entry.pmid, PUB_DATE_PROP, pubDate.get());
 					}
 					else if(eltName.equals("NameOfSubstance")) {
 						String subst= r.getElementText().trim();

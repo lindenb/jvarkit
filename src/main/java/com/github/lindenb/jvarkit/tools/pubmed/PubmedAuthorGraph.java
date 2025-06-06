@@ -61,7 +61,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.ncbi.NcbiApiKey;
 import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.util.CloserUtil;

@@ -62,9 +62,9 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.ncbi.NcbiConstants;
 import com.github.lindenb.jvarkit.svg.SVG;
-import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
-import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 
 /**
 BEGIN_DOC
