@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.util.ncbi;
+package com.github.lindenb.jvarkit.ncbi;
 
 import java.io.File;
 import java.io.FileReader;

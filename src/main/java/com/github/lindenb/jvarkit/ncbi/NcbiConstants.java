@@ -1,4 +1,5 @@
 /*
+
 The MIT License (MIT)
 
 Copyright (c) 2025 Pierre Lindenbaum
@@ -22,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.util.ncbi;
+package com.github.lindenb.jvarkit.ncbi;
 
 
 /**

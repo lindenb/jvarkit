@@ -104,6 +104,8 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.ncbi.NcbiConstants;
 
 import gov.nih.nlm.ncbi.blast.Hit;
 import gov.nih.nlm.ncbi.blast.Hsp;
@@ -112,9 +114,6 @@ import gov.nih.nlm.ncbi.insdseq.INSDFeature;
 import gov.nih.nlm.ncbi.insdseq.INSDFeatureIntervals;
 import gov.nih.nlm.ncbi.insdseq.INSDInterval;
 import gov.nih.nlm.ncbi.insdseq.INSDQualifier;
-
-import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
-import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
 /**
 BEGIN_DOC
 

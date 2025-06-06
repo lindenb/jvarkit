@@ -5,6 +5,7 @@ import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -59,9 +60,14 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		return this;
 		}
 	
+	public RDFModel addStatement(Resource s, Resource p, Date date) {
+		return addStatement(new Statement(s,p,new Literal(date)));
+		}
+	
 	public RDFModel addStatement(Resource s, Resource p, RDFNode o) {
 		return addStatement(new Statement(s,p,o));
 		}
+	
 	public RDFModel addStatement(Resource s, Resource p, String lit) {
 		return addStatement(s,p,new Literal(lit));
 		}

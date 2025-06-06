@@ -60,8 +60,8 @@ import com.github.lindenb.jvarkit.gexf.GexfConstants;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.util.ncbi.NcbiApiKey;
-import com.github.lindenb.jvarkit.util.ncbi.NcbiConstants;
+import com.github.lindenb.jvarkit.ncbi.NcbiApiKey;
+import com.github.lindenb.jvarkit.ncbi.NcbiConstants;
 /**
 BEGIN_DOC
 
