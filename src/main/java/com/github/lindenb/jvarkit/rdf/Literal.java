@@ -28,8 +28,11 @@ package com.github.lindenb.jvarkit.rdf;
 import java.util.Date;
 import java.util.Objects;
 
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.rdf.ns.XSD;
 
 public class Literal implements RDFNode,Comparable<Literal> {
@@ -80,6 +83,10 @@ public class Literal implements RDFNode,Comparable<Literal> {
 		return value instanceof Date;
 		}
 	
+	public boolean isNumber() {
+		return value instanceof Number;
+		}
+	
 	public String getDatatypeURI() {
 		if(isString()) return XSD.NS+"string";
 		if(isDate()) return XSD.NS+"date";
@@ -105,6 +112,22 @@ public class Literal implements RDFNode,Comparable<Literal> {
 			}
 		throw new IllegalStateException("not a Date. Use getLiteralAsString ?");
 		}
+	
+	public Number getNumber() {
+		if(isNumber()) {
+			return Number.class.cast(getValue());
+			}
+		throw new IllegalStateException("not a Number. Use getLiteralAsString ?");
+		}
+	
+	/* package method */ void writeRDFXml(final XMLStreamWriter w) throws XMLStreamException {
+		if(!isString()) {
+			final String pfx = StringUtils.ifBlank(w.getPrefix(RDF.NS), RDF.pfx);	
+			w.writeAttribute(pfx, RDF.NS, "dataType", this.getDatatypeURI());
+			}
+		w.writeCharacters(this.getLiteralAsString());	
+		}
+
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override

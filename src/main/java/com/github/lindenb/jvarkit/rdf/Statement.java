@@ -25,8 +25,19 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.rdf;
 
+import java.util.Date;
 import java.util.Objects;
 
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.rdf.ns.RDF;
+import com.github.lindenb.jvarkit.rdf.ns.RDFS;
+/**
+ * RDF Statement(S,P,O)
+ *
+ */
 public class Statement {
 	private final Resource subject;
 	private final Resource property;
@@ -37,13 +48,33 @@ public class Statement {
 		this.property = Objects.requireNonNull(property);
 		this.object = Objects.requireNonNull(object);
 		}
+	public Statement(Resource subject,Resource property,final Date object) {
+		this(subject, property, new Literal(object));
+		}
+	public Statement(Resource subject,Resource property,final String object) {
+		this(subject, property, new Literal(object));
+		}
+	public Statement(Resource subject,Resource property,final int object) {
+		this(subject, property, new Literal(object));
+		}
+	public Statement(Resource subject,Resource property,final long object) {
+		this(subject, property, new Literal(object));
+		}
+	public Statement(Resource subject,Resource property,final float object) {
+		this(subject, property, new Literal(object));
+		}
+	public Statement(Resource subject,Resource property,final double object) {
+		this(subject, property, new Literal(object));
+		}
 	
-	public boolean match(Resource subject,Resource property,RDFNode object) {
+	public boolean match(final Resource subject,final Resource property,final RDFNode object) {
 		return (subject==null || subject.equals(this.subject)) &&
 				(property==null || property.equals(this.property)) &&
 				(object==null || object.equals(this.object))
 				;
 		}
+	
+	
 	
 	public boolean isLiteral() {
 		return getObject().isLiteral();
@@ -75,6 +106,33 @@ public class Statement {
 				 this.getObject().equals(stmt.getObject())
 				 ;
 		}
+	
+	/** write this as &lt;rdf:Statement/&gt; */
+	public void writeRDFStatement(XMLStreamWriter w) throws XMLStreamException {
+		final String pfx= StringUtils.ifBlank(w.getPrefix(RDFS.NS),RDF.pfx);
+		w.writeStartElement(pfx, "Statement", RDF.NS);
+		
+		w.writeEmptyElement(pfx, "subject", RDF.NS);
+		this.getSubject().writeResourceAttribute(w);
+		
+		w.writeEmptyElement(pfx, "predicate", RDF.NS);
+		this.getPredicate().writeResourceAttribute(w);
+		
+		
+		if(isLiteral()) {
+			final Literal lit = getObject().asLiteral();
+			w.writeStartElement(pfx, "object", RDF.NS);
+			lit.writeRDFXml(w);
+			w.writeEndElement();
+			}
+		else
+			{
+			w.writeEmptyElement(pfx, "object", RDF.NS);
+			this.getObject().asResource().writeResourceAttribute(w);
+			}
+		w.writeEndElement();
+		}
+	
 	@Override
 	public String toString() {
 		return new StringBuilder(this.subject.toString()).append(" ").

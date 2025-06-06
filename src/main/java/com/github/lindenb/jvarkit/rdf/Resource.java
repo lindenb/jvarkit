@@ -26,17 +26,17 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.rdf;
 
 import java.net.URI;
+import java.net.URL;
 import java.util.Objects;
 
 import javax.xml.namespace.QName;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
-import com.github.lindenb.jvarkit.rdf.ns.RDFS;
 
 public class Resource implements RDFNode , Comparable<Resource>{
-	public static final Resource  RDF_type = new Resource(RDF.NS, "type");
-	public static final Resource  RDFS_label = new Resource(RDFS.NS, "label");
 	private static long ID_GENERATOR=System.currentTimeMillis();
 	private final String namespaceURI;
 	private final String localName;
@@ -46,9 +46,17 @@ public class Resource implements RDFNode , Comparable<Resource>{
 		}
 	
 	public Resource(final String uri) {
-		String[] tokens= splitURI(uri);
+		final String[] tokens= splitURI(uri);
 		this.namespaceURI= tokens[0];
 		this.localName= tokens[1];
+		}
+	
+	public Resource(final URL url) {
+		this(url.toString());
+		}
+	
+	public Resource(final URI url) {
+		this(url.toASCIIString());
 		}
 	
 	public Resource(QName qName) {
@@ -112,12 +120,29 @@ public class Resource implements RDFNode , Comparable<Resource>{
 		}
 	
 	@Override
-	public boolean isResource() {
+	public final boolean isResource() {
 		return true;
 		}
 	@Override
-	public boolean isLiteral() {
+	public final boolean isLiteral() {
 		return false;
+		}
+	
+	private void _writeAttribute(final XMLStreamWriter w,final String lclName) throws XMLStreamException {
+		w.writeAttribute(
+				StringUtils.ifBlank(w.getPrefix(RDF.NS), RDF.pfx),
+				RDF.NS,
+				lclName,
+				this.getURI()
+				);
+		}
+	
+	/* package */ void writeAboutAttribute(final XMLStreamWriter w) throws XMLStreamException {
+		_writeAttribute(w,"about");
+		}
+	
+	/* package */ void writeResourceAttribute(final XMLStreamWriter w) throws XMLStreamException {
+		_writeAttribute(w,"resource");
 		}
 	
 	@Override

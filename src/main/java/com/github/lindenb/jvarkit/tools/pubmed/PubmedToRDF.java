@@ -40,21 +40,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLResolver;
 import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
 import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
@@ -66,13 +61,11 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.ncbi.PubmedUtils;
-import com.github.lindenb.jvarkit.rdf.Literal;
 import com.github.lindenb.jvarkit.rdf.RDFModel;
 import com.github.lindenb.jvarkit.rdf.Resource;
-import com.github.lindenb.jvarkit.rdf.Statement;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
+import com.github.lindenb.jvarkit.rdf.ns.RDFS;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
-import com.github.lindenb.jvarkit.util.Maps;
 
 
 /**
@@ -115,7 +108,7 @@ public class PubmedToRDF
 	
 	private static class Known {
 		Set<String> uri;
-	}
+		}
 	
 	private static abstract class ENode {
 		EWord parent;
@@ -241,7 +234,7 @@ public class PubmedToRDF
 			}
 		
 		@Override
-		public int compareTo(Entry o) {
+		public int compareTo(final Entry o) {
 			final int i= this.getPubDate().compareTo(o.getPubDate());
 			if(i!=0) return i;
 			return this.pmid.getLocalName().compareTo(o.pmid.getLocalName());
@@ -250,12 +243,12 @@ public class PubmedToRDF
 		void addGene(String geneName,Resource hgnc) {
 			this.statements.addStatement(
 				hgnc,
-				Resource.RDF_type,
+				RDF.type,
 				GENE_RSRC
 				);
 			this.statements.addStatement(
 					hgnc,
-				Resource.RDFS_label,
+				RDFS.label,
 				geneName
 				);
 			
@@ -269,12 +262,12 @@ public class PubmedToRDF
 		void addDisease(String diseaseName,Resource uri) {
 			this.statements.addStatement(
 				uri,
-				Resource.RDF_type,
+				RDF.type,
 				DISEASE_RSRC
 				);
 			this.statements.addStatement(
-					uri,
-				Resource.RDFS_label,
+				uri,
+				RDFS.label,
 				diseaseName
 				);
 			this.statements.addStatement(
@@ -338,14 +331,14 @@ public class PubmedToRDF
 					final String eltName = start.getName().getLocalPart();
 					if(entry.pmid==null && eltName.equals("PMID")) {
 						final String pmid =r.getElementText();
-						entry.pmid=new Resource("https://pubmed.ncbi.nlm.nih.gov/", pmid);
-						entry.statements.addStatement(entry.pmid, Resource.RDF_type, ARTICLE_TYPE);
+						entry.pmid=new Resource(PubmedUtils.pmidToURL(pmid));
+						entry.statements.addStatement(entry.pmid, RDF.type, ARTICLE_TYPE);
 						}
-					else if(entry.statements.findMatching(entry.pmid,TITLE_PROP,null).count()==0L && eltName.equals("ArticleTitle")) {
+					else if(entry.pmid!=null && entry.statements.findMatching(entry.pmid,TITLE_PROP,null).count()==0L && eltName.equals("ArticleTitle")) {
 						String title= textContent(r);
 						entry.statements.addStatement(entry.pmid, TITLE_PROP, title);
 					}
-					else if(eltName.equals("PubDate")) {
+					else if(entry.pmid!=null && eltName.equals("PubDate")) {
 						final Optional<Date> pubDate = PubmedUtils.scanDate(r);
 						if(pubDate.isPresent()) entry.statements.addStatement(entry.pmid, PUB_DATE_PROP, pubDate.get());
 					}

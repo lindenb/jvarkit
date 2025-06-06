@@ -28,9 +28,13 @@ History:
 */
 package com.github.lindenb.jvarkit.rdf.ns;
 
+import com.github.lindenb.jvarkit.rdf.Resource;
+
 public class RDF {
 /** RDF namespace */
 public static final String NS="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 /** RDF prefix */
 public static final String pfx="rdf";
+
+public static final Resource  type = new Resource(RDF.NS, "type");
 }

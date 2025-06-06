@@ -37,6 +37,14 @@ import javax.xml.stream.events.XMLEvent;
 import com.github.lindenb.jvarkit.util.Maps;
 
 public class PubmedUtils extends NcbiConstants {
+	private static final Map<String,String> MONTH2MONTH = Maps.of(
+			"Jan","01","Feb","02","Mar","03","Apr","04","May","05","Jun","06",
+			"Jul","07","Aug","08","Sep","09","Oct","10","Nov","11","Dec","12"
+			);
+	/** returns URL for given PMID */
+	public static String pmidToURL(final String pmid) {
+		return "https://pubmed.ncbi.nlm.nih.gov/" + pmid;
+		}
 	
 	private static void skip(final XMLEventReader r) throws XMLStreamException
 		{
@@ -55,10 +63,7 @@ public class PubmedUtils extends NcbiConstants {
 		String year = null;
 		String month="01";
 		String day="01";
-		final Map<String,String> month2month= Maps.of(
-				"Jan","01","Feb","02","Mar","03","Apr","04","May","05","Jun","06",
-				"Jul","07","Aug","08","Sep","09","Oct","10","Nov","11","Dec","12"
-				);
+		
 		while(r.hasNext())
 			{
 			final XMLEvent evt = r.nextEvent();
@@ -70,7 +75,7 @@ public class PubmedUtils extends NcbiConstants {
 					}
 				else if(name.equals("Month")) {
 					month =   r.getElementText();
-					month = month2month.getOrDefault(month, month);
+					month = MONTH2MONTH.getOrDefault(month, month);
 					}
 				else if(name.equals("Day")) {
 					day = r.getElementText();
@@ -86,7 +91,7 @@ public class PubmedUtils extends NcbiConstants {
 					final SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
 					
 					try {
-						final Date date = simpleDateFormat.parse("2018-09-09");
+						final Date date = simpleDateFormat.parse(String.join("-", year,month,day));
 						return Optional.of(date);
 						}
 					catch(Throwable err) {

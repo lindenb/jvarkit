@@ -24,9 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.rdf.ns;
 
+import com.github.lindenb.jvarkit.rdf.Resource;
+
 public class RDFS {
 /** RDFS namespace */
 public static final String NS="http://www.w3.org/2000/01/rdf-schema#";
 /** RDFS prefix */
 public static final String pfx="rdfs";
+
+public static final Resource  label = new Resource(NS, "label");
+public static final Resource  subClassOf = new Resource(NS, "subClassOf");
 }
