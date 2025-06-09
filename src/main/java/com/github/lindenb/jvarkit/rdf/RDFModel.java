@@ -44,10 +44,10 @@ import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
-import org.apache.commons.lang.StringUtils;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.EqualIterator;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.rdf.ns.DC;
 import com.github.lindenb.jvarkit.rdf.ns.OWL;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
@@ -93,7 +93,6 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		}
 	
 	
-	
 	private Set<Resource> _getRDFSSubClasses(Resource type,final Resource predicate,final Set<Resource> set) {
 		if(!set.contains(type)) {
 			set.add(type);
@@ -104,7 +103,7 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		return set;
 		}
 	
-	public RDFModel removeStatement(Resource s, Resource p, RDFNode o) {
+	public RDFModel removeStatement(final Resource s, final Resource p, final RDFNode o) {
 		remove(new Statement(s,p,o));
 		return this;
 		}

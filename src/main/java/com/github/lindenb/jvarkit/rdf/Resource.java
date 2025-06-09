@@ -59,17 +59,21 @@ public class Resource implements RDFNode , Comparable<Resource>{
 		this(url.toASCIIString());
 		}
 	
-	public Resource(QName qName) {
+	public Resource(final QName qName) {
 		this(qName.getNamespaceURI(),qName.getLocalPart());
 		}
 	public Resource() {
 		this("blank:","_"+(++ID_GENERATOR));
 		}
 	
+	/** convert this to java.net.URI */
+	public URI toURI() {
+		return URI.create(this.getURI());
+		}
 	
 	public String getURI() {
 		return this.namespaceURI+this.localName;
-	}
+		}
 	
 	public String getLocalName() {
 		return this.localName;

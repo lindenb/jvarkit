@@ -176,6 +176,43 @@ public static String doubleQuote(final String str) {
 	return new StringBuilder("\"").append(escapeC(str)).append("\"").toString();
 }
 
+/** escape XML string */
+public static String escapeXML(final String str) {
+	if(str==null) return null;
+	
+	int i=0;
+	while(i< str.length())
+		{
+		char c = str.charAt(i);
+		switch(c)
+			{
+			case '<':  case '>': case '\'': case '\"': case '&':
+				{
+				final StringBuilder sb = new StringBuilder(str.length()+3);
+				sb.append(str.substring(0, i));
+				while(i< str.length())
+					{
+					c = str.charAt(i);
+					switch(c)
+						{
+						case '>': sb.append("&gt;");break;
+						case '<': sb.append("&lt;");break;
+						case '\'': sb.append("&apos;");break;
+						case '\"': sb.append("&quot;");break;
+						case '&': sb.append("&amp;");break;
+						default: sb.append(c);break;
+						}
+					i++;
+					}
+				return sb.toString();
+				}
+			default: break;
+			}
+		i++;
+		}
+	return str;
+	}
+
 /** escape C string , returns null is str is null */
 public static String escapeC(final String str) {
 	if(str==null) return null;

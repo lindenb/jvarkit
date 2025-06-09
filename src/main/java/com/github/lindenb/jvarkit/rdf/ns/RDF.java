@@ -37,4 +37,7 @@ public static final String NS="http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 public static final String pfx="rdf";
 
 public static final Resource  type = new Resource(RDF.NS, "type");
+public static final Resource  nil = new Resource(RDF.NS, "nil");
+public static final Resource  rest = new Resource(RDF.NS, "rest");
+public static final Resource  first = new Resource(RDF.NS, "first");
 }
