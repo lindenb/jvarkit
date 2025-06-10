@@ -25,8 +25,10 @@ package com.github.lindenb.jvarkit.rdf;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.Writer;
 import java.nio.file.Path;
 import java.util.AbstractSet;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -53,6 +55,7 @@ import com.github.lindenb.jvarkit.rdf.ns.OWL;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.rdf.ns.RDFS;
 import com.github.lindenb.jvarkit.rdf.ns.XSD;
+import com.github.lindenb.jvarkit.util.Algorithm;
 
 /**
  * Basic Collection of RDF statements
@@ -60,16 +63,35 @@ import com.github.lindenb.jvarkit.rdf.ns.XSD;
  *
  */
 public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
-	private final Set<Statement> statements;
+	private final List<Statement> sorted_statements = new ArrayList<>();
+	
+	
+	private final static Algorithm<Statement, Statement> SUBJECT_SORTER = new Algorithm<>(
+			STMT->STMT,
+			(A,B)->A.getSubject().compareTo(B.getSubject())
+			);
+	private final static Algorithm<Statement, Statement> STMT_SORTER = new Algorithm<>(
+			STMT->STMT,
+			(A,B)->{
+				int i = A.getSubject().compareTo(B.getSubject());
+				if(i!=0) return i;
+				i = A.getPredicate().compareTo(B.getPredicate());
+				if(i!=0) return i;
+				return A.getObject().compareTo(B.getObject());
+				}
+			);
+	
 	public RDFModel() {
-		statements = new HashSet<>();
 		}
 	public RDFModel(final Set<Statement> set) {
-		statements = new HashSet<>(set);
+		this.addAll(set);
 		}
 	@Override
 	public boolean addAll(Collection<? extends Statement> c) {
-		return statements.addAll(c);
+		for(Statement stmt: c) {
+			add(stmt);
+			}
+		return true;
 		}
 	
 	
@@ -79,13 +101,26 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		}
 	
 	@Override
-	public final boolean add(Statement e) {
-		return statements.add(e);
+	public final boolean add(final Statement stmt) {
+		final int idx = STMT_SORTER.lower_bound(sorted_statements,stmt);
+		if(idx < sorted_statements.size()) {
+			if(sorted_statements.get(idx).equals(stmt)) return false;
+			}
+		sorted_statements.add(idx,stmt);
 		}
 
 	@Override
 	public boolean remove(Object o) {
-		return statements.remove(o);
+		if(o==null || !(o instanceof Statement)) return false;
+		final Statement stmt = Statement.class.cast(o);
+		final int idx = STMT_SORTER.lower_bound(sorted_statements,stmt);
+		if(idx < sorted_statements.size()) {
+			if(sorted_statements.get(idx).equals(stmt)) {
+				sorted_statements.remove(idx);
+				return true;
+				}
+			}
+		return false;
 		}
 	
 	public Set<Resource> getRDFSDescendants(Resource type) {
@@ -125,22 +160,22 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		}
 	
 	public boolean removeMatching(final Resource s, final Resource p, final RDFNode o) {
-		return statements.removeIf(S->S.match(s, p, o));
+		return this.sorted_statements.removeIf(S->S.match(s, p, o));
 		}
 	
 	
 	@Override
 	public Iterator<Statement> iterator() {
-		return statements.iterator();
+		return sorted_statements.iterator();
 		}
 	@Override
 	public void clear() {
-		statements.clear();
+		sorted_statements.clear();
 		}
 
 	@Override
 	public int size() {
-		return statements.size();
+		return sorted_statements.size();
 		}
 	
 	
@@ -151,22 +186,86 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 			}
 		}
 	
-	public void writeXml(final OutputStream out) throws XMLStreamException {
-		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
-		final XMLStreamWriter w = xof.createXMLStreamWriter(out, "UTF-8");
+	private Map<String,String> getNamespaceToPrefixMap() {
 		final Map<String,String> ns2prefix = new HashMap<>();
 		ns2prefix.put(RDF.NS, RDF.pfx);
 		ns2prefix.put(RDFS.NS, RDFS.pfx);
 		ns2prefix.put(DC.NS, DC.pfx);
 		ns2prefix.put(OWL.NS, OWL.pfx);
 		ns2prefix.put(XSD.NS, XSD.pfx);
-		
+		ns2prefix.put("http://www.w3.org/2004/02/skos/core#", "skos");
+		ns2prefix.put("http://purl.org/dc/terms/", "dcterms");
+
+				
 		this.stream().flatMap(S->Arrays.asList(S.getSubject().getNamespaceURI(),S.getPredicate().getNamespaceURI()).stream()).
 			forEach(S->{
 				if(ns2prefix.containsKey(S)) return;
 				final String pfx="_n"+ns2prefix.size();
 				ns2prefix.put(S, pfx);
 			});
+		return ns2prefix;
+		}
+	
+	
+	public void writeTurtle(final Writer out) throws IOException {
+		final Map<String,String> ns2prefix = getNamespaceToPrefixMap();
+		for(String ns: ns2prefix.keySet()) {
+			out.append("@prefix ").
+			append(ns2prefix.get(ns)).
+				append(": <").append(ns).
+				append("> .\n");
+			}
+		out.append("\n");
+		
+		final Function<Resource,String> rsrc2uri=RSRC->{
+			final String pfx = ns2prefix.get(RSRC.getNamespaceURI());
+			if(!StringUtils.isBlank(pfx)) return pfx+":"+RSRC.getLocalName();
+			return "<"+RSRC.getURI()+">";
+			};
+		final Comparator<Statement> compare=(A,B)->A.getSubject().compareTo(A.getSubject());
+		
+		final EqualIterator<Statement> eq= new EqualIterator<>(
+				this.stream().sorted(compare).iterator(),
+				compare
+				);
+		while(eq.hasNext()) {
+			List<Statement> row = eq.next();
+			final Statement first = row.get(0);
+			out.write(rsrc2uri.apply(first.getSubject()));
+			out.write("\n");
+			for(int i=0;i< row.size();i++) {
+				out.write("    ");
+				final Statement stmt = row.get(i);
+				if(stmt.getPredicate().equals(RDF.type)) {
+					out.write("a");
+					}
+				else {
+					out.write(rsrc2uri.apply(stmt.getPredicate()));
+					}
+			
+				out.write(" ");
+				if(stmt.isLiteral()) {
+					final Literal lit = stmt.getObject().asLiteral();
+					out.write(StringUtils.doubleQuote(lit.getLiteralAsString()));
+					if(lit.hasLang()) {
+						out.write("@");
+						out.write(StringUtils.doubleQuote(lit.getLang()));
+						}
+				} else {
+					out.write(rsrc2uri.apply(stmt.getObject().asResource()));
+					}
+				out.write(i+1==row.size()?" .\n":" ;\n");
+				}
+			out.write("\n");
+			}
+				
+		out.flush();
+		}
+	
+	public void writeXml(final OutputStream out) throws XMLStreamException {
+		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
+		final XMLStreamWriter w = xof.createXMLStreamWriter(out, "UTF-8");
+		final Map<String,String> ns2prefix = getNamespaceToPrefixMap();
 		
 		
 		w.writeStartDocument("UTF-8", "1.0");
