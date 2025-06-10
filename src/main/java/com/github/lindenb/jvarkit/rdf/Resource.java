@@ -36,7 +36,7 @@ import javax.xml.stream.XMLStreamWriter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 
-public class Resource implements RDFNode , Comparable<Resource>{
+public class Resource implements RDFNode {
 	private static long ID_GENERATOR=System.currentTimeMillis();
 	private final String namespaceURI;
 	private final String localName;
@@ -155,8 +155,7 @@ public class Resource implements RDFNode , Comparable<Resource>{
 		}
 	
 	
-	@Override
-	public int compareTo(Resource other) {
+	/* package */ int _compareTo(final Resource other) {
 		int i= namespaceURI.compareTo(other.namespaceURI);
 		if(i!=0) return i;
 		return localName.compareTo(other.localName);

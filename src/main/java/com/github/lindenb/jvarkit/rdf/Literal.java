@@ -43,7 +43,7 @@ import com.github.lindenb.jvarkit.rdf.ns.XSD;
  * RDF literal
  *
  */
-public class Literal implements RDFNode,Comparable<Literal> {
+public class Literal implements RDFNode {
 	private final Comparable<?> value;
 	private final String lang ;
 	public Literal(final String text,final String lang) {
@@ -230,8 +230,7 @@ public class Literal implements RDFNode,Comparable<Literal> {
 
 	
 	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	public int compareTo(final Literal o) {
+	/* pacakage */ int _compareTo(final Literal o) {
 		if(o==this) return 0;
 		
 		if(isNumber() && o.isNumber()) {

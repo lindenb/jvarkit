@@ -25,7 +25,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.rdf;
 
-public interface RDFNode  {
+public interface RDFNode extends Comparable<RDFNode> {
 	public boolean isResource();
 	public boolean isLiteral();
 	public default Resource asResource() {
@@ -33,5 +33,36 @@ public interface RDFNode  {
 		}
 	public default Literal asLiteral() {
 		return Literal.class.cast(this);
+		}
+	@Override
+	default int compareTo(RDFNode o) {
+		if(this.isResource()) {
+			if(o.isLiteral()) {
+				return -1;
+				}
+			else if(o.isResource()) {
+				return asResource()._compareTo(o.asResource());
+				}
+			else
+				{
+				throw new IllegalStateException();
+				}
+			}
+		else if(this.isLiteral()) {
+			if(o.isLiteral()) {
+				return asLiteral()._compareTo(o.asLiteral());
+				}
+			else if(o.isResource()) {
+				return 1;
+				}
+			else
+				{
+				throw new IllegalStateException();
+				}
+			}
+		else
+			{
+			throw new IllegalStateException();
+			}
 		}
 	}
