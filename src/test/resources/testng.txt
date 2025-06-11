@@ -2,6 +2,7 @@ com.github.lindenb.jvarkit.bgen.BGenCodecTest
 com.github.lindenb.jvarkit.bgen.BGenHeaderTest
 com.github.lindenb.jvarkit.bgen.BGenReaderTest
 com.github.lindenb.jvarkit.bgen.BGenUtilsTest
+com.github.lindenb.jvarkit.util.AlgorithmTest
 com.github.lindenb.jvarkit.util.AlgorithmsTest
 com.github.lindenb.jvarkit.bed.BedLineCodecTest
 com.github.lindenb.jvarkit.bed.BedLineTest
@@ -43,6 +44,7 @@ com.github.lindenb.jvarkit.iterator.MergingIteratorTest
 com.github.lindenb.jvarkit.iterator.FilterIteratorTest
 com.github.lindenb.jvarkit.iterator.EqualRangeIteratorTest
 com.github.lindenb.jvarkit.iterator.LineIteratorsTest
+com.github.lindenb.jvarkit.rdf.RDFModelTest
 com.github.lindenb.jvarkit.rdf.ResourceTest
 com.github.lindenb.jvarkit.rdf.LiteralTest
 com.github.lindenb.jvarkit.rdf.StatementTest

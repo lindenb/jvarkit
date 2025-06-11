@@ -51,6 +51,10 @@ public class Algorithm<T,V> {
 		this.extractor = extractor;
 		}
 
+	public Comparator<V> getComparator() {
+		return this.comparator;
+		}
+	
 	private boolean lower_than(V a,V b) {
 		return this.comparator.compare(a, b) < 0;
 		}
