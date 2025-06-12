@@ -306,9 +306,9 @@ public class CompileJVarkit extends DefaultTask {
 	@Input @Optional
 	String docDir = ""
 	@Input @Optional
-	String jdkTarget = "17"
+	String jdkTarget = "21"
 	@Input @Optional
-	String jdkSource = "17"
+	String jdkSource = "21"
 	@Input @Optional
 	Library jarLibs = new Library();
 	@Input

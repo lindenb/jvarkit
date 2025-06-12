@@ -348,7 +348,7 @@ public class JBrowse2Server  extends Launcher {
 					return super.put(key, value);
 					}
 				};
-			final URL url = new URL(this.jbrowse2url);
+			final URL url = IOUtils.toURL(this.jbrowse2url);
 			LOG.info(this.jbrowse2url);
 			try(InputStream is=url.openStream()) {
 				try(ZipInputStream zipin= new ZipInputStream(is)) {

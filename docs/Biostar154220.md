@@ -152,6 +152,7 @@ $ samtools mpileup output.bam  | cut -f 4 | sort | uniq -c
 ## Cited in
 
   * "Burden of Cardiomyopathic Genetic Variation in Lethal Pediatric Myocarditis". Amy R. Kontorovich & al. 6 Jul 2021 https://doi.org/10.1161/CIRCGEN.121.003426Circulation: Genomic and Precision Medicine. 2021;0
+  * Xavier Zair, Andreas Wilm, Miles C Benton et al. Sub-consensus haploid variant calling in Long-read sequencing technology, 03 June 2025, PREPRINT (Version 1) available at Research Square [https://doi.org/10.21203/rs.3.rs-6226988/v1]
 
 
 

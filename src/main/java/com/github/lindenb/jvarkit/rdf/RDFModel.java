@@ -66,18 +66,47 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 	private final List<Statement> sorted_statements = new ArrayList<>();
 	
 	
-	private final static Algorithm<Statement, Statement> SUBJECT_SORTER = new Algorithm<>(
-			STMT->STMT,
-			(A,B)->A.getSubject().compareTo(B.getSubject())
+	private final static Algorithm<Statement, Resource> SUBJECT_SORTER = new Algorithm<>(
+			STMT->STMT.getSubject(),
+			(A,B)-> A.compareTo(B)
 			);
+	
+	
 	private final static Algorithm<Statement, Statement> STMT_SORTER = new Algorithm<>(
 			STMT->STMT,
 			(A,B)->{
-				int i = A.getSubject().compareTo(B.getSubject());
+				int i = SUBJECT_SORTER.getComparator().compare(A.getSubject(),B.getSubject());
 				if(i!=0) return i;
 				i = A.getPredicate().compareTo(B.getPredicate());
 				if(i!=0) return i;
-				return A.getObject().compareTo(B.getObject());
+				if(A.getObject().isResource()) {
+					if(B.isResource()) {
+						return A.getObject().asResource().compareTo(B.getObject().asResource());
+						}
+					else if(B.isLiteral())  {
+						return -1;
+						}
+					else
+						{
+						throw new IllegalArgumentException();
+						}
+					}
+				else if(A.getObject().isLiteral()) {
+					if(B.isResource()) {
+						return 1;
+						}
+					else if(B.isLiteral())  {
+						return A.getObject().asLiteral().compareTo(B.getObject().asLiteral());
+						}
+					else
+						{
+						throw new IllegalArgumentException();
+						}
+					}
+				else
+					{
+					throw new IllegalArgumentException();
+					}
 				}
 			);
 	
@@ -86,8 +115,16 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 	public RDFModel(final Set<Statement> set) {
 		this.addAll(set);
 		}
+	
 	@Override
-	public boolean addAll(Collection<? extends Statement> c) {
+	protected RDFModel clone() {
+		final RDFModel m=new RDFModel();
+		m.sorted_statements.addAll(this.sorted_statements);
+		return m;
+		}
+	
+	@Override
+	public boolean addAll(final Collection<? extends Statement> c) {
 		for(Statement stmt: c) {
 			add(stmt);
 			}
@@ -107,10 +144,34 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 			if(sorted_statements.get(idx).equals(stmt)) return false;
 			}
 		sorted_statements.add(idx,stmt);
+		return true;
 		}
 
 	@Override
-	public boolean remove(Object o) {
+	public boolean contains(final Object o) {
+		if(o==null || !(o instanceof Statement)) return false;
+		final Statement stmt = Statement.class.cast(o);
+		return containsStatement(stmt);
+		}
+	
+	public boolean containsStatement(Resource subject, Resource predicate, RDFNode obj) {
+		return containsStatement(new Statement(subject,predicate,obj));
+		}
+
+	
+	public boolean containsStatement(final Statement stmt) {
+		final int idx = STMT_SORTER.lower_bound(sorted_statements,stmt);
+		if(idx < sorted_statements.size()) {
+			if(sorted_statements.get(idx).equals(stmt)) {
+				return true;
+				}
+			}
+		return false;
+		}
+	
+	
+	@Override
+	public boolean remove(final Object o) {
 		if(o==null || !(o instanceof Statement)) return false;
 		final Statement stmt = Statement.class.cast(o);
 		final int idx = STMT_SORTER.lower_bound(sorted_statements,stmt);
@@ -155,12 +216,20 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		return addStatement(s,p,new Literal(lit));
 		}
 	
-	public Stream<Statement> findMatching(final Resource s, final Resource p, final RDFNode o) {
-		return stream().filter(S->S.match(s, p, o));
+	public Stream<Statement> findMatching(final Resource subject, final Resource p, final RDFNode o) {
+		if(subject!=null) {
+			final int[] idxs = SUBJECT_SORTER.equal_range(this.sorted_statements, subject);
+			return this.sorted_statements.subList(idxs[0],idxs[1]).stream().filter(S->S.match(subject, p, o));
+			}
+		return stream().filter(S->S.match(subject, p, o));
 		}
 	
-	public boolean removeMatching(final Resource s, final Resource p, final RDFNode o) {
-		return this.sorted_statements.removeIf(S->S.match(s, p, o));
+	public boolean removeMatching(final Resource subject, final Resource p, final RDFNode o) {
+		if(subject!=null) {
+			final int[] idxs = SUBJECT_SORTER.equal_range(this.sorted_statements, subject);
+			return this.sorted_statements.subList(idxs[0],idxs[1]).removeIf(S->S.match(subject, p, o));
+			}
+		return this.sorted_statements.removeIf(S->S.match(subject, p, o));
 		}
 	
 	
@@ -178,7 +247,7 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		return sorted_statements.size();
 		}
 	
-	
+	/** export model to XML+RDF */
 	public void writeXml(final Path outputPath) throws XMLStreamException,IOException {
 		try(OutputStream os = IOUtils.openPathForWriting(outputPath)) {
 			writeXml(os);
@@ -186,6 +255,7 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 			}
 		}
 	
+	/** create Mapping NS->PREFIX */
 	private Map<String,String> getNamespaceToPrefixMap() {
 		final Map<String,String> ns2prefix = new HashMap<>();
 		ns2prefix.put(RDF.NS, RDF.pfx);
@@ -195,6 +265,7 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		ns2prefix.put(XSD.NS, XSD.pfx);
 		ns2prefix.put("http://www.w3.org/2004/02/skos/core#", "skos");
 		ns2prefix.put("http://purl.org/dc/terms/", "dcterms");
+		ns2prefix.put("http://xmlns.com/foaf/0.1/", "foaf");
 
 				
 		this.stream().flatMap(S->Arrays.asList(S.getSubject().getNamespaceURI(),S.getPredicate().getNamespaceURI()).stream()).
@@ -206,7 +277,15 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 		return ns2prefix;
 		}
 	
+	/** export RDF as Turtle format */
+	public void writeTurtle(final Path outputPath) throws IOException {
+		try(Writer os = IOUtils.openPathForPrintWriter(outputPath)) {
+			writeTurtle(os);
+			os.flush();
+			}
+		}
 	
+	/** export RDF as Turtle format */
 	public void writeTurtle(final Writer out) throws IOException {
 		final Map<String,String> ns2prefix = getNamespaceToPrefixMap();
 		for(String ns: ns2prefix.keySet()) {
@@ -224,10 +303,7 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 			};
 		final Comparator<Statement> compare=(A,B)->A.getSubject().compareTo(A.getSubject());
 		
-		final EqualIterator<Statement> eq= new EqualIterator<>(
-				this.stream().sorted(compare).iterator(),
-				compare
-				);
+		final EqualIterator<Statement> eq= new EqualIterator<>(iterator(), compare );
 		while(eq.hasNext()) {
 			List<Statement> row = eq.next();
 			final Statement first = row.get(0);
@@ -294,10 +370,7 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 			
 		final Comparator<Statement> compare=(A,B)->A.getSubject().compareTo(A.getSubject());
 		
-		final EqualIterator<Statement> eq= new EqualIterator<>(
-				this.stream().sorted(compare).iterator(),
-				compare
-				);
+		final EqualIterator<Statement> eq= new EqualIterator<>(iterator(), compare );
 		while(eq.hasNext()) {
 			final List<Statement> row= eq.next();
 			final Statement first = row.get(0);
@@ -311,8 +384,9 @@ public class RDFModel extends AbstractSet<Statement> implements Set<Statement> {
 				{
 				w.writeStartElement( toPfx.apply(rdfType), rdfType.getLocalName(),rdfType.getURI());
 				}
-			first.getSubject().writeAboutAttribute(w);
-
+			if(!first.getSubject().isAnon()) {
+				first.getSubject().writeAboutAttribute(w);
+				}
 			
 			
 			for(Statement stmt:row) {

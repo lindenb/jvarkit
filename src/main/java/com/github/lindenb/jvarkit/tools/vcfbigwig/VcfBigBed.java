@@ -120,7 +120,7 @@ public class VcfBigBed extends OnePassVcfLauncher {
 			String tag;
 			LOG.info("opening "+this.biwWigFile+". Please wait...");
 			if(IOUtil.isUrl(this.biwWigFile)) {
-				final URL uri = new URL(this.biwWigFile);
+				final URL uri = IOUtils.toURL(this.biwWigFile);
 				final String path = uri.getPath();
 				tag = path.substring(path.lastIndexOf('/') + 1);
 				int i= tag.indexOf('.');

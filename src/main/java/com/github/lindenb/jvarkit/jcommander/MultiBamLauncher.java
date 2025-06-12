@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.jcommander;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
@@ -206,7 +208,7 @@ public int doWork(final List<String> args0) {
 					in = srf.open(SamInputResource.of(stdin()));
 					}
 				else if(IOUtil.isUrl(inputs.get(0))){
-					in = srf.open(SamInputResource.of(new URL(inputs.get(0))));
+					in = srf.open(SamInputResource.of(IOUtils.toURL(inputs.get(0))));
 					}
 				else 
 					{

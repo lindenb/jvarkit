@@ -14,5 +14,7 @@ public class ResourceTest {
 		Assert.assertNotEquals(new Resource(ns,"A"), new Literal(ns+"a"));
 		Assert.assertFalse(new Resource(ns,"A").isLiteral());
 		Assert.assertTrue(new Resource(ns,"A").isResource());
+		Assert.assertTrue(new Resource().isAnon());
+		Assert.assertNotEquals(new Resource(), new Resource());
 		}
 }

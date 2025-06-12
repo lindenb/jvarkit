@@ -50,6 +50,7 @@ import org.broad.igv.bbfile.BigBedIterator;
 import org.broad.igv.bbfile.BigWigIterator;
 import org.broad.igv.bbfile.WigItem;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
@@ -482,7 +483,7 @@ public class VcfEnsemblReg extends Launcher
 				case "track":track.id=val;break;
 				case "shortLabel":track.shortLabel=val;break;
 				case "longLabel":track.longLabel=val;break;
-				case "bigDataUrl":track.url=new URL(url,val);break;
+				case "bigDataUrl":track.url= IOUtils.toURL(url,val);break;
 				case "type":track.type=val;break;
 				case "parent":track.parent=val.split("[ \t]")[0];break;
 				default:break;
@@ -497,7 +498,7 @@ public class VcfEnsemblReg extends Launcher
 	public int doWork(final List<String> args) {
 		try
 			{
-			parseTrackDB(new URL(trackDBUrl));
+			parseTrackDB(IOUtils.toURL(trackDBUrl));
 			
 			return doVcfToVcf(args,outputFile);
 			}

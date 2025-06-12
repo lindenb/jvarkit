@@ -115,11 +115,7 @@ public class OneThousandBam extends Launcher{
 			}
 		
 		public URL getBaiUrl() {
-			try {
-				return new URL(this.url+".bai");
-			} catch (MalformedURLException e) {
-				throw new IllegalArgumentException("Not a url : ",e);
-				}
+			return IOUtils.toURL(this.url+".bai");
 			}
 		
 		private Path getBaiCached() {
@@ -154,7 +150,7 @@ public class OneThousandBam extends Launcher{
 			throw new RuntimeIOException("Cannot download "+this.url+".bai");
 			}
 		SamReader open() throws IOException {
-			final URL bamUrl = new URL(this.url);
+			final URL bamUrl = IOUtils.toURL(this.url);
 			final SamInputResource sir = SamInputResource.of(bamUrl);
 			sir.index(getBaiCached());
 			return samReaderFactory.open(sir);

@@ -68,6 +68,7 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.github.lindenb.jvarkit.hershey.JfxHershey;
 import com.github.lindenb.jvarkit.igv.IgvSocket;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.AlleleFrequencyChartFactory;
 import com.github.lindenb.jvarkit.tools.vcfviewgui.chart.BasesPerPositionChartFactory;
@@ -753,7 +754,7 @@ public class JfxNgs extends Application {
     		FileOutputStream out=null;
     		try {
     			LOG.info("trying "+baiurl);
-				in = new URL(baiurl).openStream();
+				in =IOUtils.toURL(baiurl).openStream();
 				out = new FileOutputStream(baiFile);
 				IOUtil.copyStream(in, out);
 				out.flush();

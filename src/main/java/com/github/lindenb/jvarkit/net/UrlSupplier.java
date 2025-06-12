@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
 import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.igv.IgvConstants;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
@@ -75,7 +76,7 @@ public static interface LabelledUrl extends Comparable<LabelledUrl>
 	public default String getDomain() {
 		final String s= getUrl();
 		try {
-			final java.net.URL u = new URL(s);
+			final java.net.URL u = IOUtils.toURL(s);
 			return u.getProtocol()+"://"+u.getHost();
 			}
 		catch(final Throwable err) {

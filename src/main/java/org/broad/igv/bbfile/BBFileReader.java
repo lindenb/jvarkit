@@ -34,6 +34,9 @@ import org.broad.igv.logging.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 
@@ -132,7 +135,12 @@ public class BBFileReader {
         log.debug("Opening BBFile source  " + path);
         if(seekable==null) {
         		if(IOUtil.isUrl(path)) {
-        			fis = SeekableStreamFactory.getInstance().getStreamFor(new URL(path));
+        			try {
+        				fis = SeekableStreamFactory.getInstance().getStreamFor(new URI(path).toURL());
+        				}
+        			catch(MalformedURLException|URISyntaxException err) {
+        				throw new IOException(err);
+        				}
         			}
         		else
         			{

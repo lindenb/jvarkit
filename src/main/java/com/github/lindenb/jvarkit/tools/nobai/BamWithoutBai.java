@@ -463,7 +463,7 @@ public class BamWithoutBai extends Launcher{
 				build();
 		
 		/* open SAM reader */
-		try( CustomSamReader sr =  new CustomSamReader(new URL(urlStr))) {
+		try( CustomSamReader sr =  new CustomSamReader(IOUtils.toURL(urlStr))) {
 			/* extract sam header */
 			final SAMFileHeader samFileHeader = sr.getFileHeader();
 			/* extract the SAM dictionary */

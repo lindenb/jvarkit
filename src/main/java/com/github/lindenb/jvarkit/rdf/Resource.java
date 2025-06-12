@@ -36,11 +36,13 @@ import javax.xml.stream.XMLStreamWriter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 
-public class Resource implements RDFNode {
+
+public class Resource implements RDFNode{
+	private static final String BLANK_URI = "blank:";
 	private static long ID_GENERATOR=System.currentTimeMillis();
 	private final String namespaceURI;
 	private final String localName;
-	public Resource(String namespaceURI,String localName) {
+	public Resource(final String namespaceURI,final String localName) {
 		this.namespaceURI = namespaceURI;
 		this.localName = localName;
 		}
@@ -63,7 +65,11 @@ public class Resource implements RDFNode {
 		this(qName.getNamespaceURI(),qName.getLocalPart());
 		}
 	public Resource() {
-		this("blank:","_"+(++ID_GENERATOR));
+		this(BLANK_URI,"_"+(++ID_GENERATOR));
+		}
+	
+	public boolean isAnon() {
+		return getNamespaceURI().equals(BLANK_URI);
 		}
 	
 	/** convert this to java.net.URI */
@@ -162,7 +168,7 @@ public class Resource implements RDFNode {
 		}
 	
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
@@ -176,6 +182,8 @@ public class Resource implements RDFNode {
 	
 	@Override
 	public String toString() {
-		return new StringBuilder("<").append(namespaceURI).append(localName).append(">").toString();
+		return new StringBuilder("<").
+				append(namespaceURI).append(localName).
+				append(">").toString();
 		}
 	}

@@ -26,6 +26,8 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.io;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Arrays;
@@ -160,15 +162,20 @@ public class CustomSeekableStreamFactory
     		 int firstslash =  slashslash==-1?-1:path.indexOf('/',slashslash+3);
     		 if(arobase!=-1 && colon!=-1 && slashslash<colon && colon< arobase && arobase<dot && dot < firstslash)
     		 	{
-    			url=new URL(path.substring(0, slashslash+3)+path.substring(arobase+1));
+    			url= IOUtils.toURL(path.substring(0, slashslash+3)+path.substring(arobase+1));
     			p_user = URLDecoder.decode(path.substring(slashslash+3, colon), "UTF-8");
     			p_password = URLDecoder.decode(path.substring(colon+1, arobase), "UTF-8");
     		 	}
     		 else
     		 	{
-    			url=new URL(path);
-    			p_user = this.getUser();
-    			p_password = this.getPassword();
+    			try {
+    				url=new URI(path).toURL();
+	    			p_user = this.getUser();
+	    			p_password = this.getPassword();
+    				}
+    			catch(URISyntaxException err) {
+    				throw new IOException(err);
+    				}
     		 	}
     		
     		 return openHttp(url,p_user,p_password);

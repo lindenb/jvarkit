@@ -43,6 +43,7 @@ import java.util.stream.Collectors;
 
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.json.FromJson;
@@ -176,16 +177,11 @@ public class HtsFreemarker extends Launcher {
 			cfg.setAPIBuiltinEnabled(true);
 		    final TemplateLoader templateLoader ;
 		    if(IOUtil.isUrl(this.templatesBaseDir)) {
-		    	final URL baseURL = new URL(templatesBaseDir);
+		    	final URL baseURL = IOUtils.toURL(templatesBaseDir);
 		    	templateLoader = new URLTemplateLoader() {
 					@Override
 					protected URL getURL(final String u) {
-						try {
-							return new URL(baseURL,u);
-							}
-						catch(MalformedURLException err)  {
-							throw new RuntimeException(err);
-							}
+						return IOUtils.toURL(baseURL,u);
 						}
 					};
 		    	}

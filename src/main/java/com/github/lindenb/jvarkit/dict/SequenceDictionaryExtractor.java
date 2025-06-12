@@ -56,6 +56,7 @@ import htsjdk.samtools.util.BufferedLineReader;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.IntervalList;
+import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.util.ParsingUtils;
 import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.vcf.VCFHeader;
@@ -175,6 +176,7 @@ public class SequenceDictionaryExtractor  {
     	if(dict==null || dict.isEmpty()) return Optional.empty();
     	return Optional.of(dict);
     	}
+  
     
     public Optional<SAMSequenceDictionary> extractDictionary(final VCFHeader header) {
     	if(header==null) return Optional.empty();
@@ -206,6 +208,8 @@ public class SequenceDictionaryExtractor  {
     	return opt.get();
 		}
     
+
+    
     public Optional<SAMSequenceDictionary> extractDictionary(final ReferenceSequenceFile fasta) {
     	if(fasta==null) return Optional.empty();
     	final SAMSequenceDictionary dict=fasta.getSequenceDictionary();
@@ -223,14 +227,11 @@ public class SequenceDictionaryExtractor  {
     
     public Optional<SAMSequenceDictionary> extractDictionary(final String pathOrurl) {
     	if(IOUtil.isUrl(pathOrurl)) {
-    		try {
-				return extractDictionary(new URL(pathOrurl));
+			try {
+			    return extractDictionary(IOUtils.toURL(pathOrurl));
 				}
-    		catch (MalformedURLException e) {
-				throw new IllegalArgumentException(e);
-				}
-    		catch (IOException e) {
-				throw new IllegalArgumentException(e);
+			catch(IOException err) {
+			    throw new RuntimeIOException(err);
 				}
     		}
     	else
@@ -290,12 +291,12 @@ public class SequenceDictionaryExtractor  {
 	    	         	filter(name::endsWith).
 	    	         	findFirst().
 	    	         	get();
-	    	        final URL url2=new URL(url,name.substring(0,name.length()-ext.length())+FileExtensions.DICT);
+	    	        final  URL url2=IOUtils.toURL(url,name.substring(0,name.length()-ext.length())+FileExtensions.DICT);
 	    	        try {
 	    	        	return extractDictionary(url2);
 	    	        	}
 	    	        catch(java.io.FileNotFoundException err) {
-		    	        final URL url3=new URL(url,name+FileExtensions.FASTA_INDEX);
+		    	        final URL url3=IOUtils.toURL(url,name+FileExtensions.FASTA_INDEX);
 	    	        	return extractDictionary(url3);
 	    	        	}
 	    			}

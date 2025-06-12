@@ -664,7 +664,7 @@ public class PubmedOrcidGraph
 		try
 			{
 			LOG.debug(urlstr);
-			in = new URL(urlstr).openStream();
+			in = IOUtils.toURL(urlstr).openStream();
 			r= createXMLInputFactory().createXMLEventReader(in);
 			while(r.hasNext()) {
 				final XMLEvent evt=r.nextEvent();
@@ -700,7 +700,7 @@ public class PubmedOrcidGraph
 			
 			try
 				{
-				in = new URL(urlstr).openStream();
+				in = IOUtils.toURL(urlstr).openStream();
 				scanArticles(in,depth);
 				}
 			catch(Exception err) {

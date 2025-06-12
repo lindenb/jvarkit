@@ -87,7 +87,7 @@ public class LiftOverChainInputStream extends InputStream {
 		String src1 = LiftOverChain.convert(path);
 		final InputStream is;
 		if(IOUtil.isUrl(src1)) {
-			is= IOUtils.mayBeGzippedInputStream(new URL(src1).openStream());
+			is= IOUtils.mayBeGzippedInputStream(IOUtils.toURL(src1).openStream());
 			}
 		else
 			{

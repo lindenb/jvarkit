@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Optional;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.BAMIndex;
@@ -81,7 +82,7 @@ public class BamFile implements NgsFile<SAMFileHeader,SAMRecord>{
 	
 	public static BamFile newInstance(final String s) throws IOException {
 		return IOUtil.isUrl(s)?
-				newInstance(new URL(s)):
+				newInstance(IOUtils.toURL(s)):
 				newInstance(new File(s))
 				;
 		}
@@ -107,7 +108,7 @@ public class BamFile implements NgsFile<SAMFileHeader,SAMRecord>{
     		FileOutputStream out=null;
     		try {
     			LOG.info("trying "+baiurl);
-				in = new URL(baiurl).openStream();
+				in = IOUtils.toURL(baiurl).openStream();
 				out = new FileOutputStream(baiFile);
 				IOUtil.copyStream(in, out);
 				out.flush();
@@ -183,7 +184,7 @@ public class BamFile implements NgsFile<SAMFileHeader,SAMRecord>{
 		final SamInputResource sir;
 		if(IOUtil.isUrl(url))
 			{
-			sir = SamInputResource.of(new URL(url));
+			sir = SamInputResource.of(IOUtils.toURL(url));
 			if(!this.indexFile.isPresent()) throw new IOException("Boum");
 			sir.index(this.indexFile.get());
 			}

@@ -100,6 +100,7 @@ import javax.xml.stream.events.XMLEvent;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -424,7 +425,7 @@ public class Biostar3654 extends Launcher
 						this.ncbiApiKey.getAmpParamValue()
 						;
 				LOG.info(uri);
-					try(InputStream in = new URL(uri).openStream()) {
+					try(InputStream in = IOUtils.toURL(uri).openStream()) {
 						XMLEventReader r=this.xif.createXMLEventReader(in);
 					while(r.hasNext())
 						{

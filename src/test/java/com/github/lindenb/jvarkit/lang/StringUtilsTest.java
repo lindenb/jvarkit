@@ -54,4 +54,12 @@ public void test() {
 	
 	Assert.assertEquals(StringUtils.unescapeC("a\\n\\tb"),"a\n\tb");
 	}
+
+
+
+@Test 
+void xmlString() {
+	Assert.assertEquals(StringUtils.escapeXML("aaaaa"),"aaaaa");
+	Assert.assertEquals(StringUtils.escapeXML("a<a"),"a&lt;a");
+	}
 }

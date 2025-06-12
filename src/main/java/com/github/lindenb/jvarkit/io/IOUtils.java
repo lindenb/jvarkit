@@ -44,7 +44,9 @@ import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -331,7 +333,13 @@ public class IOUtils {
 		if(uri==null || uri.equals("-")) return System.in;
 		if(isRemoteURI(uri))
 			{
-			final URL url=new URL(uri);
+			final URL url;
+			try {
+				url = new URI(uri).toURL();
+				}
+			catch(URISyntaxException err) {
+				throw new IOException(err);
+				}
 			InputStream in=url.openStream();
 			//do we have .... azdazpdoazkd.vcf.gz?param=1&param=2
 			int question=uri.indexOf('?');
@@ -1053,7 +1061,7 @@ public class IOUtils {
     		final Constructor<?> ctor=clazz.getConstructor(InputStream.class);
     		return InputStream.class.cast(ctor.newInstance(in));
     		}
-    	catch(Throwable err) {
+    	catch(final Throwable err) {
     		throw new IOException(err);
     		}
     	}
@@ -1114,5 +1122,24 @@ public class IOUtils {
 		        return bufferedinput;
 		        }
 	        }
+    	}
+    /** convert string to URL, now that URL(String) is deprecated */
+    @SuppressWarnings("deprecation")
+	public static URL toURL(final URL context,final String spec) {
+    	try {
+    		return new URL(context,spec);
+    		}
+    	catch (MalformedURLException e) {
+			throw new IllegalArgumentException("cannot convert to url", e);
+			}
+    	}
+    /** convert string to URL, now that URL(String) is deprecated */
+    public static URL toURL(final String urlstr) {
+    	try {
+    		return new URI(Objects.requireNonNull(urlstr)).toURL();
+    		}
+    	catch (MalformedURLException|URISyntaxException e) {
+			throw new IllegalArgumentException("cannot convert to url", e);
+			}
     	}
 	}

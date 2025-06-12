@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -129,4 +130,11 @@ public void testFileSuffix() {
 	Assert.assertEquals(IOUtils.getFileSuffix(Paths.get("x.vcf")),".vcf");
 	Assert.assertNotEquals(IOUtils.getFileSuffix(Paths.get("x.vcf")),"vcf");
 	}
+
+@Test
+public void testURL() throws Exception {
+	String str="https://en.wikipedia.org/wiki/Main_Page";
+	Assert.assertEquals(IOUtils.toURL(str),new URI(str).toURL());
+	}
+
 }

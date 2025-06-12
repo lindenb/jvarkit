@@ -33,6 +33,7 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.nio.charset.Charset;
 
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
@@ -72,7 +73,7 @@ public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
 	
 	public static VcfFile newInstance(final String s) throws IOException {
 		return IOUtil.isUrl(s)?
-				newInstance(new URL(s)):
+				newInstance(IOUtils.toURL(s)):
 				newInstance(new File(s))
 				;
 	}
@@ -116,7 +117,7 @@ public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
     	FileOutputStream out=null;
 		try {
 			LOG.info("trying "+tabixurl);
-			in = new URL(tabixurl).openStream();
+			in = IOUtils.toURL(tabixurl).openStream();
 			out = new FileOutputStream(tbiFile);
 			IOUtil.copyStream(in, out);
 			out.flush();
@@ -137,7 +138,7 @@ public abstract class VcfFile implements NgsFile<VCFHeader,VariantContext>{
 			String pedurl= url.toExternalForm().substring(0,url.toExternalForm().length()-7)+ PedFile.EXTENSION;
 			LOG.info("trying "+pedurl);
 			try {
-				in = new URL( pedurl).openStream();
+				in = IOUtils.toURL( pedurl).openStream();
 				final PedFile pedfile= PedFile.load(new BufferedReader(new InputStreamReader(in, Charset.forName("UTF-8"))));
 				ped=pedfile;
 				}

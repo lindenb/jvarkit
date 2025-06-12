@@ -67,7 +67,7 @@ public class LiftOverChain {
 	public static LiftOver load(final String src0) throws IOException {
 		final String src1 = LiftOverChain.convert(src0);
 		if(IOUtil.isUrl(src1)) {
-			try(InputStream in = IOUtils.mayBeGzippedInputStream(new URL(src1).openStream())) {
+			try(InputStream in = IOUtils.mayBeGzippedInputStream(IOUtils.toURL(src1).openStream())) {
 				return new LiftOver(in,src1);
 				}
 			}

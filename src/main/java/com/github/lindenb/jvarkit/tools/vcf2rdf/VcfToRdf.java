@@ -665,7 +665,7 @@ public class VcfToRdf extends Launcher
 						try(VCFIterator iter= new VCFIteratorBuilder().open(file)) {
 							scanVCF(w,
 									IOUtils.isRemoteURI(file)?
-									new URL(file).toURI():
+									IOUtils.toURL(file).toURI():
 									Paths.get(file).toUri()
 									,iter);
 							}
