@@ -1,0 +1,223 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2023 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+options {
+	STATIC=false;
+	DEBUG_TOKEN_MANAGER=false;
+	DEBUG_PARSER=false;
+	IGNORE_CASE=true;
+	}
+PARSER_BEGIN(NextflowProcessParser)
+package com.github.lindenb.jvarkit.tools.nfcore.parser;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import java.util.*;
+import java.io.*;
+import org.w3c.dom.*;
+
+
+/**
+
+java -cp ~/packages/javacc/target/javacc.jar javacc -OUTPUT_DIRECTORY=src/main/java/com/github/lindenb/jvarkit/sql/parser -JDK_VERSION=1.8 src/main/resources/javacc/com/github/lindenb/jvarkit/sql/parser/SchemaParser.jj 
+
+
+**/
+
+
+public class NextflowProcessParser	{
+  	private Document document = null;
+  	private NextflowProcessParser(Reader r,Document dom) {
+		this(r);
+		this.document = document;
+	  	} 
+	public static Element input(Document dom,String line) throws ParseException {
+		return new NextflowProcessParser(new java.io.StringReader(line),dom).input_item();
+		}
+	}	
+PARSER_END(NextflowProcessParser)
+
+SKIP:{
+ " "
+|"\n"
+}
+
+TOKEN:
+{
+  <PATH: "path">
+| <TUPLE: "tuple">
+| <VAL: "val">
+| <EMIT: "emit">
+| <OPTIONAL: "optional">
+| <TRUE: "true" >
+| <FALSE: "false" >
+}
+
+TOKEN:
+{
+  <#LETTER:(["a"-"z"]|["A"-"Z"]|"_")>
+| <#DIGIT:["0"-"9"]>
+| <INT: <DIGIT>(<DIGIT>)* >
+| <IDENTIFIER: <LETTER> (<DIGIT>|<LETTER>)*  >
+| <COMMA:",">
+| <LPAR:"(">
+| <RPAR:")">
+| <#ESCAPE_CHAR: "\\" ["n","t","b","r","f","\\","'","\""] >
+| <SIMPLE_QUOTE_LITERAL: "\'"( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\'">
+| <DOUBLE_QUOTE_LITERAL: "\""( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\"">
+}
+
+TOKEN : { < BLOCK_COMMENT_START : "/*" >  : WITHIN_BLOCK_COMMENT }
+<WITHIN_BLOCK_COMMENT> TOKEN: { <CHAR_IN_COMMENT: ~[] > }
+<WITHIN_BLOCK_COMMENT> TOKEN: { < END_BLOCK_COMMENT: "*/" > : DEFAULT }
+
+
+
+private Element input_item():{Element C=null;Element E = document.createElement("input");}
+	{
+	(C=tuple_input() | C=item_input() ){
+	  	E.appendChild(C);
+		return E;
+		}
+	}
+
+private Element outut_item():{Element C=null;Element E = document.createElement("output");}
+	{
+	(C=tuple_output() | C=item_output() ){
+	  	E.appendChild(C);
+		return E;
+		}
+	}
+
+
+
+private Element tuple_input(): { Element E = document.createElement("tuple"), C=null; }
+	{
+	  < TUPLE > C=item_input() { E.appendChild(C);} < COMMA > C=item_input()  { E.appendChild(C);}  ( < COMMA > C=item_input()  { E.appendChild(C);}  )* {
+		return E;
+	  	}
+	}
+
+private Element item_input(): {Element E=null;}
+	{
+	( E=val_def() | E=path_input() ){
+		return E;
+		}
+	}
+	
+
+private Element val_def(): { String id=null;Element metainfo=null;}
+	{
+	< VAL > ( < LPAR > id=identifier() <RPAR > |  id= identifier() ) (metainfo=meta())?
+		{
+		Element E = document.createElement("val");
+		E.setAttribute("name",id);
+		if(metainfo!=null) E.appendChild(metainfo);
+		return E;
+		}
+	}
+	
+private Element path_input(): { String id=null;Element metainfo=null;}
+	{
+	< PATH > ( < LPAR > id=identifier() <RPAR >  |  id= identifier() )  (metainfo=meta())? {
+	    Element E = document.createElement("path");
+		E.setAttribute("name",id);
+		if(metainfo!=null) E.appendChild(metainfo);
+		return E;
+		}
+	}
+
+
+private Element tuple_output(): { Element E = document.createElement("tuple"), C=null; }
+	{
+	  < TUPLE > C=item_output() { E.appendChild(C);} < COMMA > C=item_output()  { E.appendChild(C);}  ( < COMMA > C=item_output()  { E.appendChild(C);}  )* {
+		return E;
+	  	}
+	}
+
+private Element item_output(): {Element E=null;}
+	{
+	( E=val_def() | E=path_output() ){
+		return E;
+		}
+	}
+	
+	
+private Element path_output(): { String id=null;Element metainfo=null;}
+	{
+	< PATH > ( < LPAR > id=path_out_name() <RPAR >  |  id= path_out_name() )   (metainfo=meta())?  {
+	    Element E = document.createElement("path");
+		E.setAttribute("name",id);
+		if(metainfo!=null) E.appendChild(metainfo);
+		return E;
+		}
+	}
+
+private Element meta(): { String s=null;} {
+  s=c_comment() {
+    if(s!=null && s.startsWith("< ") && s.endsWith(" >")) {
+
+    	}
+	return null;
+  	}
+}
+
+private String c_comment() : {   Token t =null;  StringBuilder b = new StringBuilder() ; }
+{
+<BLOCK_COMMENT_START>
+   (
+         t=<CHAR_IN_COMMENT>  {b.append( t.image ) ; }
+   )*
+   <END_BLOCK_COMMENT>
+   {return b.toString().trim(); }
+}
+
+
+private String path_out_name(): { String s=null; } { 
+	(
+	  s=identifier() {  return s; }
+	| s= quoted() {  return s; }	)
+	}
+
+
+private String identifier():{Token t;String s;}
+	{
+	(
+	t=<IDENTIFIER> {s=t.image;}
+	)
+		{
+		return s;
+		}
+	}
+
+private int integer():{Token t;}
+	{
+	t=<INT> { return Integer.parseInt(t.image); }
+	}
+
+private String quoted():{Token t;}
+	{
+	(
+	  t=<SIMPLE_QUOTE_LITERAL> { return t.image;}
+        | t=<DOUBLE_QUOTE_LITERAL> { return t.image;}
+	)	
+	}
