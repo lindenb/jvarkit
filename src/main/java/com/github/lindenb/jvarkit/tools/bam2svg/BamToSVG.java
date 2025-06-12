@@ -313,7 +313,7 @@ public class BamToSVG extends Launcher {
 		final String IDT_XNS="https://umr1087.univ-nantes.fr/";
 		final Insets insets=new Insets(20, 20, 20, 20);
 		final Dimension dim=new Dimension(insets.left+insets.right+this.drawinAreaWidth,0);
-		dim.height+=context.getHeight();
+		dim.height += (int)context.getHeight();
 		//dim.height+=100;
 		
 		
@@ -474,7 +474,7 @@ public class BamToSVG extends Launcher {
 		w.writeAttribute("transform", "translate("+insets.left+","+insets.top+")");
 		w.writeAttribute("class","maing");
 		
-		int y=0;//not insets top because translate above
+		double y=0;//not insets top because translate above
 		/* write title */
 		
 		final Hyperlink hyperlink = Hyperlink.compile(dict);
