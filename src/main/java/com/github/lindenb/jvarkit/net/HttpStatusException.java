@@ -33,6 +33,7 @@ import org.apache.http.StatusLine;
  * HttpStatusException
  *
  */
+@SuppressWarnings("serial")
 public class HttpStatusException extends HttpException {
 	private static final long serialVersionUID = 0L;
 	private final StatusLine statusLine;

@@ -1,7 +1,6 @@
 package com.github.lindenb.jvarkit.tools.liftover;
 
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.zip.GZIPInputStream;
 
@@ -22,7 +21,7 @@ public class VcfLiftOverTest {
 		try {
 			final String url="http://hgdownload.cse.ucsc.edu/goldenpath/hg19/liftOver/hg19ToHg38.over.chain.gz";
 			Path chain = support.createTmpPath(".chain");
-			GZIPInputStream in=new GZIPInputStream(new URL(url).openStream());
+			GZIPInputStream in=new GZIPInputStream(IOUtils.toURL(url).openStream());
 			IOUtils.copyTo(in,chain);
 			in.close();
 			support.assertIsNotEmpty(chain);

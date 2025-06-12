@@ -562,15 +562,14 @@ public class NaiveCnvDetector extends Launcher
 					}
 				else if(this.sampleList.size()!= depthLine.depths.length)
 					{
-					LOG.error(
-							"expected at least "+( this.sampleList.size()+3)+" words"+depthLine.depths.length);
+					LOG.error( "expected at least "+( this.sampleList.size()+3)+" words"+depthLine.depths.length);
 					return -1;
 					}
 					
 				for(int x=0;x<depthLine.depths.length;++x)
 					{
 					final SampleInfo si=this.sampleList.get(x);					
-					si.sumDepth += depthLine.depths[x];
+					si.sumDepth += (long)depthLine.depths[x];
 					si.countDepth++;
 					depthLine.depths[x] *= si.adjustDepth;
 					}
