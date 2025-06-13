@@ -29,15 +29,35 @@ public class NFProcToMeta extends Launcher {
 		Element root= dom.createElement("nextflow");
 		dom.appendChild(root);
 		
-		Element procE= dom.createElement("process");
-		dom.appendChild(procE);
+		for(;;) {
+			String line = br.readLine();
+			if(line==null) break;
+			Element procE = NextflowProcessParser.processDeclaration(dom, line);
+			if(procE!=null) {
+				dom.appendChild(procE);
 
+				
+				Element inputE= dom.createElement("inputs");
+				procE.appendChild(inputE);
+				
+				Element outputE= dom.createElement("outputs");
+				procE.appendChild(outputE);
+				
+				for(;;) {
+					line = br.readLine();
+					if(line==null) break;
+					if(line.trim().equals("inputs:")) {
+						
+						}
+					else if(line.trim().equals("outputs:")) {
+						
+						}
+					}
+				
+				}
+		}
 		
-		Element inputE= dom.createElement("input");
-		procE.appendChild(inputE);
 		
-		Element outputE= dom.createElement("output");
-		procE.appendChild(outputE);
 	
 		//return dom;
 		}

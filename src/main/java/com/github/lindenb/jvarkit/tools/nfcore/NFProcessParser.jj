@@ -29,7 +29,7 @@ options {
 	IGNORE_CASE=true;
 	}
 PARSER_BEGIN(NextflowProcessParser)
-package com.github.lindenb.jvarkit.tools.nfcore.parser;
+package com.github.lindenb.jvarkit.tools.nfcore;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import java.util.*;
 import java.io.*;
@@ -38,7 +38,7 @@ import org.w3c.dom.*;
 
 /**
 
-java -cp ~/packages/javacc/target/javacc.jar javacc -OUTPUT_DIRECTORY=src/main/java/com/github/lindenb/jvarkit/sql/parser -JDK_VERSION=1.8 src/main/resources/javacc/com/github/lindenb/jvarkit/sql/parser/SchemaParser.jj 
+java -cp ~/packages/javacc/bootstrap/javacc.jar javacc -OUTPUT_DIRECTORY=. -JDK_VERSION=1.17 NFProcessParser.jj 
 
 
 **/
@@ -46,10 +46,19 @@ java -cp ~/packages/javacc/target/javacc.jar javacc -OUTPUT_DIRECTORY=src/main/j
 
 public class NextflowProcessParser	{
   	private Document document = null;
-  	private NextflowProcessParser(Reader r,Document dom) {
+  	private NextflowProcessParser(Reader r,Document document) {
 		this(r);
 		this.document = document;
 	  	} 
+	public static Element processDeclaration(Document dom,String line)  {
+		try {
+			return new NextflowProcessParser(new java.io.StringReader(line),dom).process_decl();
+			}
+		catch(ParseException err) {
+			return null;
+			}
+		}  	
+	
 	public static Element input(Document dom,String line) throws ParseException {
 		return new NextflowProcessParser(new java.io.StringReader(line),dom).input_item();
 		}
@@ -70,6 +79,7 @@ TOKEN:
 | <OPTIONAL: "optional">
 | <TRUE: "true" >
 | <FALSE: "false" >
+| <PROCESS: "process" >
 }
 
 TOKEN:
@@ -81,6 +91,7 @@ TOKEN:
 | <COMMA:",">
 | <LPAR:"(">
 | <RPAR:")">
+| <LBRACK:"{">
 | <#ESCAPE_CHAR: "\\" ["n","t","b","r","f","\\","'","\""] >
 | <SIMPLE_QUOTE_LITERAL: "\'"( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\'">
 | <DOUBLE_QUOTE_LITERAL: "\""( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\"">
@@ -90,7 +101,14 @@ TOKEN : { < BLOCK_COMMENT_START : "/*" >  : WITHIN_BLOCK_COMMENT }
 <WITHIN_BLOCK_COMMENT> TOKEN: { <CHAR_IN_COMMENT: ~[] > }
 <WITHIN_BLOCK_COMMENT> TOKEN: { < END_BLOCK_COMMENT: "*/" > : DEFAULT }
 
-
+private Element process_decl(): {String id;Element E = document.createElement("process"); Element metainfo=null;}
+	{
+	< PROCESS > id=identifier()  (metainfo=meta())? <LBRACK> {
+		if(metainfo!=null) E.appendChild(metainfo);
+		E.setAttribute("name",id);
+		return E;
+		}
+	}
 
 private Element input_item():{Element C=null;Element E = document.createElement("input");}
 	{
