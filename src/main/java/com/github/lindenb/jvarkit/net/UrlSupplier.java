@@ -133,6 +133,8 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		urls.add(new LabelledUrlImpl("hugeamp",id,"https://hugeamp.org:8000/research.html?ancestry=mixed&cohort=AoU_250k&file=600Traits.csv&gene="+ StringUtils.escapeHttp(id) +"&pageid=600_traits_app&phenotype=phecode_425.0"));
 		urls.add(new LabelledUrlImpl("intogen",id,"https://www.intogen.org/search?gene="+ StringUtils.escapeHttp(id)));
 		urls.add(new LabelledUrlImpl("ComplexPortal",id,"https://www.ebi.ac.uk/complexportal/complex/search?query="+ StringUtils.escapeHttp(id)));
+		// Genomics 2 Proteins (G2P) portal is a discovery tool to link genetic screening outputs to protein sequence and structure, offering two major capabilities:
+		urls.add(new LabelledUrlImpl("g2p.broad",id,"https://g2p.broadinstitute.org/gene/"+ StringUtils.escapeHttp(id)));
 
 		 if(isGrch38()) {
 			urls.add(new LabelledUrlImpl("TogoVar",id,"https://grch38.togovar.org/?mode=simple&term="+ StringUtils.escapeHttp(id) ));
