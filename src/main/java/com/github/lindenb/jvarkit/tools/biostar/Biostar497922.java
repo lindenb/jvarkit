@@ -58,6 +58,10 @@ import htsjdk.variant.vcf.VCFIterator;
 /**
 BEGIN_DOC
 
+## Deprecated
+
+use **VcfSplitNVariants**
+
 ## Example
 
 ```
@@ -79,12 +83,16 @@ TMP/split.000005.vcf.gz 5
 
 ```
 
+## Cited in
+
+  * Yardeni G, Barfuss MHJ, Till W, Thornton MR, Crego CG, Lexer C, Leroy T, Paun O. The explosive radiation of the Neotropical Tillandsia subgenus Tillandsia (Bromeliaceae) has been accompanied by pervasive hybridization. Syst Biol. 2025 Jun 26:syaf039. doi: 10.1093/sysbio/syaf039. Epub ahead of print. PMID: 40569662.
+
 
 END_DOC
 */
 @Program(
 		name="biostar497922",
-		description="Split VCF into separate VCFs by SNP count",
+		description="Split VCF into separate VCFs by SNP count. Deprecated use: VcfSplitNVariants",
 		keywords={"vcf"},
 		biostars=497922,
 		modificationDate="20210319",

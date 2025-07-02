@@ -15,6 +15,7 @@
  * Milhaven, M., Garg, A., Versoza, C.J. et al. Quantifying the effects of computational filter criteria on the accurate identification of de novo mutations at varying levels of sequencing coverage. Heredity (2025). https://doi.org/10.1038/s41437-025-00754-0
  * Yang, H., Ni, Y., Li, J. et al. Unveiling the mitochondrial genome of Salvia splendens insights into the evolutionary traits within the genus Salvia. Sci Rep 15, 13344 (2025). https://doi.org/10.1038/s41598-025-96637-9 **blast2snp**
  * Xavier Zair, Andreas Wilm, Miles C Benton et al. Sub-consensus haploid variant calling in Long-read sequencing technology, 03 June 2025, PREPRINT (Version 1) available at Research Square [https://doi.org/10.21203/rs.3.rs-6226988/v1]
+ * Yardeni G, Barfuss MHJ, Till W, Thornton MR, Crego CG, Lexer C, Leroy T, Paun O. The explosive radiation of the Neotropical Tillandsia subgenus Tillandsia (Bromeliaceae) has been accompanied by pervasive hybridization. Syst Biol. 2025 Jun 26:syaf039. doi: 10.1093/sysbio/syaf039. Epub ahead of print. PMID: 40569662. **biostar497922**
 
 ## 2024
 
