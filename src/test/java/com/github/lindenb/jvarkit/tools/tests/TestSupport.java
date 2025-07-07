@@ -91,8 +91,6 @@ public class TestSupport {
 	}
 
 	
-	
-	
 	public synchronized Path deleteOnExit(final Path f) {
 		if(f!=null) this.deletePathsAtExit.add(f);
 		return f;
@@ -102,6 +100,7 @@ public class TestSupport {
 		for(final Path f:this.deletePathsAtExit) try {
 			Files.delete(f);
 			} catch(IOException err) {}
+	
 		}
 	
 	public Stream<VariantContext> variantStream(final Path vcfFile ) {

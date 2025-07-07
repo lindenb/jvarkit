@@ -16,6 +16,7 @@ com.github.lindenb.jvarkit.lang.BitWriterTest
 com.github.lindenb.jvarkit.lang.CharSplitterTest
 com.github.lindenb.jvarkit.liftover.LiftOverChainInputStreamTest
 com.github.lindenb.jvarkit.tools.vcfsplitvep.VCFSplitVEPTest
+com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariantsTest
 com.github.lindenb.jvarkit.tools.bam2graphics.Bam2RasterTest
 com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotterTest
 com.github.lindenb.jvarkit.tools.samslop.SamSlopTest

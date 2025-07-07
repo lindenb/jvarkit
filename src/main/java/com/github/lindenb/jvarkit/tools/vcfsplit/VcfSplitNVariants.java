@@ -36,16 +36,19 @@ import java.util.Set;
 import java.util.function.UnaryOperator;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.tribble.index.tabix.TabixFormat;
 import htsjdk.tribble.index.tabix.TabixIndexCreator;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -100,9 +103,9 @@ END_DOC
 
 @Program(
 		name="vcfsplitnvariants",
-		description="Split VCF to 'N' VCF files ",
+		description="Split VCF to 'N' VCF files, or by number fo variant of by distance between variants ",
 		creationDate = "202221122",
-		modificationDate="202221201",
+		modificationDate="20250707",
 		biostars={9548193},
 		keywords= {"vcf"},
 		jvarkit_amalgamion =  true,
@@ -113,9 +116,11 @@ private static final Logger LOG = Logger.of(VcfSplitNVariants.class);
 
 @Parameter(names={"-o","--output","--prefix"},description="files prefix",required = true)
 private String outputFile = null;
-@Parameter(names={"--vcf-count"},description="number of output vcf files. Or use --variants-count")
+@Parameter(names={"--distance"},description="distance between variants. Or use --variants-count or --vcf-count. "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class,converter = DistanceParser.StringConverter.class)
+private int distance_between_variants = -1;
+@Parameter(names={"--vcf-count","--n-vcfs"},description="number of output vcf files. Or use --variants-count or --distance")
 private int split_n_files = -1;
-@Parameter(names={"--variants-count"},description="number of variants. Or use --vcf-count")
+@Parameter(names={"--variants-count","--vc-count","--n-variants"},description="number of variants. Or use --vcf-count or --distance")
 private int split_n_variants = -1;
 @Parameter(names={"--tbi","--index"},description="index on the fly as tbi files")
 private boolean index_on_fly = false;
@@ -178,12 +183,16 @@ private OutputVCF newOutputVCF(final VCFHeader srcHeader, final SAMSequenceDicti
 
 @Override
 public int doWork(final List<String> args) {
-	if(split_n_files<=0 && split_n_variants<=0) {
-		LOG.error("--vcf-count or --vcf-variants must be defined");
+	int check = 0;
+	if(split_n_files>0) check++;
+	if(split_n_variants>0) check++;
+	if(distance_between_variants>0) check++;
+	if(check==0) {
+		LOG.error("--vcf-count or --distance or --vcf-variants must be defined");
 		return -1;
 		}
-	if(split_n_files>0 && split_n_variants>0) {
-		LOG.error("--vcf-count *OR* --vcf-variants must be defined but not both");
+	if(check!=1) {
+		LOG.error("--vcf-count *OR* --vcf-variants **OR** --distance must be defined but not both");
 		return -1;
 		}
 	try {
@@ -208,8 +217,28 @@ public int doWork(final List<String> args) {
 					{
 					checker = T->T;
 					}
-				
-				if(this.split_n_files>0) {
+				if(this.distance_between_variants>0) {
+					VariantContext prev=null;
+					OutputVCF outvcf=null;
+					int writer_id=0;
+					for(;;) {
+						final VariantContext ctx = iter.hasNext()?checker.apply(iter.next()):null;
+						if(outvcf==null || ctx==null ||
+							(prev!=null && (!prev.contigsMatch(ctx) || CoordMath.getLength(prev.getEnd(), ctx.getStart()) > this.distance_between_variants)) 
+							)
+							{
+							if(outvcf!=null) {
+								outvcf.close(pw);
+								outvcf=null;
+								}
+							if(ctx==null) break;
+							outvcf = newOutputVCF(header,dict,writer_id++);
+							}
+						outvcf.add(ctx);
+						prev=ctx;
+						}
+					}
+				else if(this.split_n_files>0) {
 					final List<OutputVCF> writers = new ArrayList<>(this.split_n_files);
 					long n_variants = 0L;
 					while(iter.hasNext()) {
@@ -261,7 +290,7 @@ public int doWork(final List<String> args) {
 		return -1;
 		}
 	}
-public static void main(String[] args) {
+public static void main(final String[] args) {
 	new VcfSplitNVariants().instanceMainWithExit(args);
 	}
 }
