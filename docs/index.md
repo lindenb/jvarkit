@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 273086660
-Compilation : 20250612153836
+Version     : 505e3df18
+Compilation : 20250708141237
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -104,7 +104,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar404363](Biostar404363.md) | introduce artificial mutation SNV in bam | 20191023 | 20191024 |
 | [biostar480685](Biostar480685.md) | paired-end bam clip bases outside insert range | 20201223 | 20200220 |
 | [biostar489074](Biostar489074.md) | call variants for every paired overlaping read | 20200205 | 20210412 |
-| [biostar497922](Biostar497922.md) | Split VCF into separate VCFs by SNP count | 20210319 | 20210319 |
+| [biostar497922](Biostar497922.md) | Split VCF into separate VCFs by SNP count. Deprecated use: VcfSplitNVariants | 20210319 | 20210319 |
 | [biostar59647](Biostar59647.md) | SAM/BAM to XML | 20131112 | 20190926 |
 | [biostar76892](Biostar76892.md) | fix strand of two paired reads close but on the same strand. |  |  |
 | [biostar77288](Biostar77288.md) | Low resolution sequence alignment visualization |  | 20240729 |
@@ -336,7 +336,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfregulomedb](VcfRegulomeDB.md) | Annotate a VCF with the Regulome2 data (https://regulomedb.org/) | 20140709 | 20230512 |
 | [vcfsetdict](VcfSetSequenceDictionary.md) | Set the `##contig` lines in a VCF header on the fly | 20140105 | 20210201 |
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20250523 |
-| [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files | 202221122 | 202221201 |
+| [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files, or by number fo variant of by distance between variants | 202221122 | 20250707 |
 | [vcfsplitvep](VCFSplitVEP.md) | Split CSQ vep annotations | 20250517 | 20250517 |
 | [vcfspringfilter](VcfSpringFilter.md) | Uses the java spring Framework to build complex vcf filters | 20230526 | 20230526 |
 | [vcfstats](VcfStats.md) | Produce VCF statitics | 20131212 | 20230707 |

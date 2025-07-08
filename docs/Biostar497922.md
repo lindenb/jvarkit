@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Split VCF into separate VCFs by SNP count
+Split VCF into separate VCFs by SNP count. Deprecated use: VcfSplitNVariants
 
 
 ## Usage
@@ -103,6 +103,10 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Deprecated
+
+use **VcfSplitNVariants**
+
 ## Example
 
 ```
@@ -123,6 +127,10 @@ TMP/split.000004.vcf.gz 10
 TMP/split.000005.vcf.gz 5
 
 ```
+
+## Cited in
+
+  * Yardeni G, Barfuss MHJ, Till W, Thornton MR, Crego CG, Lexer C, Leroy T, Paun O. The explosive radiation of the Neotropical Tillandsia subgenus Tillandsia (Bromeliaceae) has been accompanied by pervasive hybridization. Syst Biol. 2025 Jun 26:syaf039. doi: 10.1093/sysbio/syaf039. Epub ahead of print. PMID: 40569662.
 
 
 

@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Split VCF to 'N' VCF files 
+Split VCF to 'N' VCF files, or by number fo variant of by distance between variants 
 
 
 ## Usage
@@ -16,6 +16,11 @@ Usage: java -jar dist/jvarkit.jar vcfsplitnvariants  [options] Files
 
 Usage: vcfsplitnvariants [options] Files
   Options:
+    --distance
+      distance between variants. Or use --variants-count or --vcf-count. A 
+      distance specified as a positive integer.Commas are removed. The 
+      following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
+      Default: -1
     -f, --force
       overwrite existing files
       Default: false
@@ -30,11 +35,11 @@ Usage: vcfsplitnvariants [options] Files
       write optional manifest to that file.
   * -o, --output, --prefix
       files prefix
-    --variants-count
-      number of variants. Or use --vcf-count
+    --variants-count, --vc-count, --n-variants
+      number of variants. Or use --vcf-count or --distance
       Default: -1
-    --vcf-count
-      number of output vcf files. Or use --variants-count
+    --vcf-count, --n-vcfs
+      number of output vcf files. Or use --variants-count or --distance
       Default: -1
     --version
       print version and exit
@@ -61,6 +66,10 @@ Usage: vcfsplitnvariants [options] Files
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfsplit/VcfSplitNVariants.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfsplit/VcfSplitNVariants.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfsplit/VcfSplitNVariantsTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfsplit/VcfSplitNVariantsTest.java)
 
 
 ## Contribute
