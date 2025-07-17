@@ -66,8 +66,13 @@ BEGIN_DOC
 ## Example
 
 ```bash
-$ java -jar dist/biostar145820.jar -n 10  -o out.bam  in.bam 
+$ java -jar jvarkit.jar biostar145820 -n 10  -o out.bam  in.bam
+```
 
+## CIted In:
+
+ * "MED25 connects enhancer-promoter looping and MYC2-dependent activation of jasmonate signalling. Wang et al. Nature Plants 5, 616-625 (2019)  https://doi.org/10.1038/s41477-019-0441-9 
+ * Makamure, C.E., Justinen, S., Martínez, D.E. et al. Cool temperature inhibits binary fission and results in phenotypic and transcriptomic changes that suggest inducible aging in Diadumene lineata. BMC Res Notes 18, 293 (2025). https://doi.org/10.1186/s13104-025-07378-x 
 ```
 END_DOC
 
