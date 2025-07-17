@@ -252,6 +252,7 @@ nav:
         - "vcf2rdf" : VcfToRdf.md
         - "vcf2table" : VcfToTable.md
         - "vcf2xml" : Vcf2Xml.md
+        - "vcfallele2symbolic" : VcfAlleleToSymbolic.md
         - "vcfallelebalance" : VcfAlleleBalance.md
         - "vcfancestralalleles" : VcfAncestralAllele.md
         - "vcfbigbed" : VcfBigBed.md

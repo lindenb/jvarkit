@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 TEST?=
-GATK4JAR=$(realpath ${HOME}/package/gatk/4/gatk-4.6.0.0/gatk-package-4.6.0.0-local.jar)
+GATK4JAR=$(realpath ${HOME}/packages/gatk/gatk-4.6.2.0/gatk-package-4.6.2.0-local.jar)
 JAVA_PROXY?=
 
 ifeq ($(TEST),true)

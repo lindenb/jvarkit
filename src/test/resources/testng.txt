@@ -50,3 +50,4 @@ com.github.lindenb.jvarkit.rdf.ResourceTest
 com.github.lindenb.jvarkit.rdf.LiteralTest
 com.github.lindenb.jvarkit.rdf.StatementTest
 com.github.lindenb.jvarkit.variant.vcf.VCFByIndexTest
+com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolicTest

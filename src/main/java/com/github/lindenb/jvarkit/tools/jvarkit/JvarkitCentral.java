@@ -304,6 +304,7 @@ import com.github.lindenb.jvarkit.tools.vcf2r.VcfToRScript;
 import com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
+import com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolic;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs;
 import com.github.lindenb.jvarkit.tools.vcfbigwig.VCFBigWig;
@@ -894,6 +895,7 @@ public class JvarkitCentral {
 		command(UKBiobankSelectSamples.class);
 		command(UkbiobankDump.class);
 		command(VariantsInWindow.class);
+		command(VcfAlleleToSymbolic.class);
 		command(VcfAncestralAllele.class);
 		command(VcfMultiToOne.class);
 		command(VcfBurdenCNV.class);

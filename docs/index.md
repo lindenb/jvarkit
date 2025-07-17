@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 505e3df18
-Compilation : 20250708141237
+Version     : ecdbf5d08
+Compilation : 20250717141147
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -301,6 +301,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcf2r](VcfToRScript.md) | Convert VCF to R so it can be used for burden testing |  | 20240607 |
 | [vcf2rdf](VcfToRdf.md) | convert VCF to RDF (N3 notation) | 20191213 | 20250520 |
 | [vcf2table](VcfToTable.md) | convert a vcf to a table, to ease display in the terminal | 20170511 | 20250523 |
+| [vcfallele2symbolic](VcfAlleleToSymbolic.md) | Convert large IUPAC allele to symbolic | 20250717 | 20250717 |
 | [vcfallelebalance](VcfAlleleBalance.md) | Insert missing allele balance annotation using FORMAT:AD | 20180829 | 20200805 |
 | [vcfancestralalleles](VcfAncestralAllele.md) | Annotate a VCF with it's ancestral allele. Data from http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/human_ancestor_GRCh37_e59.README | 20180418 | 20220126 |
 | [vcfbigbed](VcfBigBed.md) | Annotate a VCF with values from a bigbed file | 20220107 | 20220107 |

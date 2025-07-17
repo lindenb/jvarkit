@@ -151,7 +151,8 @@ public static ContigNameConverter fromPathOrOneDictionary(final Path file) {
 				FileExtensions.BAM,
 				FileExtensions.CRAM,
 				FileExtensions.DICT,
-				FileExtensions.INTERVAL_LIST
+				FileExtensions.INTERVAL_LIST,
+				FileExtensions.FASTA_INDEX
 				))
 		{
 		final SAMSequenceDictionary dict = new SequenceDictionaryExtractor().extractRequiredDictionary(file);
@@ -205,7 +206,7 @@ public static ContigNameConverter fromPath(final Path mappingFile)
 					|| StringUtils.isBlank(tokens[1])
 					) {
 				in.close();in=null;
-				throw new IOException("Bad mapping line: \""+line+"\" in "+mappingFile);
+				throw new IOException("Bad mapping line. Expected two columns: \""+line+"\" in "+mappingFile);
 				}
 			tokens[0]=tokens[0].trim();
 			tokens[1]=tokens[1].trim();
