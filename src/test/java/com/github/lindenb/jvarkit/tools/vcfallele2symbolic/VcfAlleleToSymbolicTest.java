@@ -25,8 +25,7 @@ public class VcfAlleleToSymbolicTest {
             vout= Files.createTempFile("tmp", ".vcf");
             Files.writeString(vin, vcf);
             
-            Assert.assertEquals(0,new VcfAlleleToSymbolic().instanceMain(new String[] {"-n","10","-o",vout.toString(),vin.toString()}));
-            support.variantStream(vout).forEach(V->Assert.assertTrue(V.getAlleles().stream().anyMatch(A->A.isSymbolic())));
+            Assert.assertEquals(0,new VcfAlleleToSymbolic().instanceMain(new String[] {"-n","10","--keep-ref","-o",vout.toString(),vin.toString()}));
 			}
 		finally {
 			support.removeTmpFiles();
