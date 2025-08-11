@@ -17,6 +17,7 @@
  * Xavier Zair, Andreas Wilm, Miles C Benton et al. Sub-consensus haploid variant calling in Long-read sequencing technology, 03 June 2025, PREPRINT (Version 1) available at Research Square [https://doi.org/10.21203/rs.3.rs-6226988/v1]
  * Yardeni G, Barfuss MHJ, Till W, Thornton MR, Crego CG, Lexer C, Leroy T, Paun O. The explosive radiation of the Neotropical Tillandsia subgenus Tillandsia (Bromeliaceae) has been accompanied by pervasive hybridization. Syst Biol. 2025 Jun 26:syaf039. doi: 10.1093/sysbio/syaf039. Epub ahead of print. PMID: 40569662. **biostar497922**
  * Makamure, C.E., Justinen, S., Martínez, D.E. et al. Cool temperature inhibits binary fission and results in phenotypic and transcriptomic changes that suggest inducible aging in Diadumene lineata. BMC Res Notes 18, 293 (2025). https://doi.org/10.1186/s13104-025-07378-x **biostar84452** and **biostar145820**
+ * Ozaki, K., Irioka, T., Noma, S. et al. Isoform analysis of heterozygous putative splicing variants at the allele level using nanopore long-read sequencing. Sci Rep 15, 29001 (2025). https://doi.org/10.1038/s41598-025-14566-z **sam2tsv**
 
 ## 2024
 
