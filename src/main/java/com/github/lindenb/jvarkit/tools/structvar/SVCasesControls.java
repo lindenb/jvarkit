@@ -53,6 +53,7 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -65,7 +66,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -106,7 +106,7 @@ END_DOC
 description="Find SV present in cases but not in controls.",
 keywords= {"sv","manta","vcf"},
 creationDate="20240513",
-modificationDate="20240516",
+modificationDate="20250901",
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
@@ -144,7 +144,7 @@ public class SVCasesControls extends Launcher {
 		}
 
 	private VCFReader open(final Path path)  {
-		return new VCFFileReader(path, true);
+		return VCFReaderFactory.makeDefault().open(path, true);
 		}
 	private Locatable extend(final VariantContext ctx) {
 		if("BND".equals(ctx.getAttributeAsString(VCFConstants.SVTYPE,""))) {

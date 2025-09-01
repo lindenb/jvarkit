@@ -37275,6 +37275,8 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <oboInOwl:created_by>kareneilbeck</oboInOwl:created_by>
         <oboInOwl:creation_date>2010-03-22T11:47:47Z</oboInOwl:creation_date>
         <oboInOwl:hasExactSynonym>decreased transcript level</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>decreased transcript level variant</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>decreased transcription</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0001541</oboInOwl:id>
         <rdfs:label>decreased_transcript_level_variant</rdfs:label>
@@ -37284,6 +37286,13 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
         <owl:annotatedTarget>A sequence variant that decreases the level of mature, spliced and processed RNA with respect to a reference sequence.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>SO:ke</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001541"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>decreased transcription</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:35775692</oboInOwl:hasDbXref>
+        <rdfs:comment>For an example, see &quot;NM_000939.4(POMC):c.-21+1G&gt;A&quot; on Clinvar (Variation ID: 1706561, Accession: VCV001706561.3).</rdfs:comment>
     </owl:Axiom>
     
 
@@ -37973,9 +37982,11 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <obo:IAO_0000115>A sequence variant causing a new (functional) splice site.</obo:IAO_0000115>
         <oboInOwl:created_by>kareneilbeck</oboInOwl:created_by>
         <oboInOwl:creation_date>2010-03-22T02:29:41Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>cryptic splice site</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>cryptic splice site activation</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0001569</oboInOwl:id>
+        <rdfs:comment>Added &quot;cryptic splice site&quot; as a synonym of cryptic_splice_site_variant at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
         <rdfs:label>cryptic_splice_site_variant</rdfs:label>
     </owl:Class>
     <owl:Axiom>
@@ -37983,6 +37994,12 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
         <owl:annotatedTarget>A sequence variant causing a new (functional) splice site.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>EBI:www.ebi.ac.uk/mutations/recommendations/mutevent.html</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001569"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>cryptic splice site</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:31275557</oboInOwl:hasDbXref>
     </owl:Axiom>
     
 
@@ -37994,9 +38011,11 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <obo:IAO_0000115>A sequence variant whereby a new splice site is created due to the activation of a new acceptor.</obo:IAO_0000115>
         <oboInOwl:created_by>kareneilbeck</oboInOwl:created_by>
         <oboInOwl:creation_date>2010-03-22T02:30:11Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>activated cryptic splice acceptor</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>cryptic splice acceptor</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0001570</oboInOwl:id>
+        <rdfs:comment>Added &quot;activated cryptic splice site acceptor&quot; as a synonym of cryptic_splice_acceptor at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
         <rdfs:label>cryptic_splice_acceptor</rdfs:label>
     </owl:Class>
     <owl:Axiom>
@@ -38004,6 +38023,12 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
         <owl:annotatedTarget>A sequence variant whereby a new splice site is created due to the activation of a new acceptor.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>SO:ke</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001570"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>activated cryptic splice acceptor</owl:annotatedTarget>
+        <rdfs:comment>For an example, see &quot;NM_000489.6(ATRX):c.371-1201G&gt;A&quot; on ClinVar (Variation ID: 3233402, Accession: VCV003233402.2).</rdfs:comment>
     </owl:Axiom>
     
 
@@ -38015,9 +38040,11 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <obo:IAO_0000115>A sequence variant whereby a new splice site is created due to the activation of a new donor.</obo:IAO_0000115>
         <oboInOwl:created_by>kareneilbeck</oboInOwl:created_by>
         <oboInOwl:creation_date>2010-03-22T02:30:35Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>activated cryptic splice donor</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>cryptic splice donor</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0001571</oboInOwl:id>
+        <rdfs:comment>Added &quot;activated cryptic splice donor&quot; as a synonym of cryptic_splice_donor at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
         <rdfs:label>cryptic_splice_donor</rdfs:label>
     </owl:Class>
     <owl:Axiom>
@@ -38025,6 +38052,13 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
         <owl:annotatedTarget>A sequence variant whereby a new splice site is created due to the activation of a new donor.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>SO:ke</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001571"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>activated cryptic splice donor</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:37260176</oboInOwl:hasDbXref>
+        <rdfs:comment>For an example, see &quot;NM_017950.4(CCDC40):c.2619+45G&gt;A&quot; on ClinVar (Variation ID: 2505169, Accession: VCV002505169.3).</rdfs:comment>
     </owl:Axiom>
     
 
@@ -38039,9 +38073,11 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <oboInOwl:hasDbXref>http://snpeff.sourceforge.net/SnpEff_manual.html</oboInOwl:hasDbXref>
         <oboInOwl:hasExactSynonym>Jannovar:exon_loss_variant</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>exon loss</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>skipped exon</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>snpEff:EXON_DELETED</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0001572</oboInOwl:id>
+        <rdfs:comment>Added &quot;skipped exon&quot; as a synonym of exon_loss_variant at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
         <rdfs:label>exon_loss_variant</rdfs:label>
     </owl:Class>
     <owl:Axiom>
@@ -38060,6 +38096,13 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
     <owl:Axiom>
         <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001572"/>
         <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>skipped exon</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:31275557</oboInOwl:hasDbXref>
+        <rdfs:comment>This synonym is written as &quot;exon skipping&quot; in the cited article (PMID:31275557) but this poses the concept as a process rather than a thing that lies on a sequence or between sequences so we&apos;ve phrased it as &quot;skipped exon&quot; here to keep it in line with the semantics of this part of the Sequence Ontology.</rdfs:comment>
+    </owl:Axiom>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001572"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
         <owl:annotatedTarget>snpEff:EXON_DELETED</owl:annotatedTarget>
         <oboInOwl:hasSynonymType rdf:resource="http://purl.obolibrary.org/obo/so#VAR"/>
     </owl:Axiom>
@@ -38073,10 +38116,13 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <obo:IAO_0000115>A sequence variant whereby an intron is gained by the processed transcript; usually a result of an alteration of the donor or acceptor.</obo:IAO_0000115>
         <oboInOwl:created_by>kareneilbeck</oboInOwl:created_by>
         <oboInOwl:creation_date>2010-03-22T02:31:25Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>included intron</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>intron gain</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>intron gain variant</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>retained intron</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0001573</oboInOwl:id>
+        <rdfs:comment>Added &quot;included intron&quot; and &quot;retained intron&quot; as synonyms of intron_gain_variant at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
         <rdfs:label>intron_gain_variant</rdfs:label>
     </owl:Class>
     <owl:Axiom>
@@ -38084,6 +38130,13 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
         <owl:annotatedTarget>A sequence variant whereby an intron is gained by the processed transcript; usually a result of an alteration of the donor or acceptor.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>EBI:www.ebi.ac.uk/mutations/recommendations/mutevent.html</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001573"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>included intron</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:31275557</oboInOwl:hasDbXref>
+        <rdfs:comment>The synonym is phrased as &quot;intron inclusion&quot; in the cited article (PMID:31275557) but this poses the concept as a process rather than a thing that lies on a sequence or between sequences so we&apos;ve phrased it as &quot;included intron&quot; here to keep it in line with the semantics of this part of the Sequence Ontology.</rdfs:comment>
     </owl:Axiom>
     
 
@@ -39623,8 +39676,10 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <oboInOwl:created_by>kareneilbeck</oboInOwl:created_by>
         <oboInOwl:creation_date>2010-03-22T02:53:07Z</oboInOwl:creation_date>
         <oboInOwl:hasExactSynonym>polypeptide truncation</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>protein truncation</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0001617</oboInOwl:id>
+        <rdfs:comment>Added &quot;protein truncation&quot; as a synonym of polypeptide_truncation at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
         <rdfs:label>polypeptide_truncation</rdfs:label>
     </owl:Class>
     <owl:Axiom>
@@ -39632,6 +39687,13 @@ From Janos Demeter: The only region shared by all chromosome ends, the X element
         <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
         <owl:annotatedTarget>A sequence variant of the CD that causes a truncation of the resulting polypeptide.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>SO:ke</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0001617"/>
+        <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
+        <owl:annotatedTarget>protein truncation</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:27858739</oboInOwl:hasDbXref>
+        <rdfs:comment>For an example, see &quot;NM_032608.7(MYO18B):c.6768del (p.Leu2257fs)&quot; in ClinVar (Variation ID: 590292, Accession: VCV000590292.3).</rdfs:comment>
     </owl:Axiom>
     
 
@@ -58272,6 +58334,178 @@ It is further clarified in the comments section as: ncRNA does NOT mean conventi
         <owl:annotatedProperty rdf:resource="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
         <owl:annotatedTarget>uSTOP_lost</owl:annotatedTarget>
         <rdfs:comment>UTRannotator</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002390 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002390">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001568"/>
+        <obo:IAO_0000115>Inclusion of a non-conserved, unannotated exon in the spliced transcript, as a consequence of a variant in the gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-07-31T18:52:18Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>included pseudoexon</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>pseudoexon</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002390</oboInOwl:id>
+        <rdfs:comment>Added at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
+        <rdfs:label>pseudoexon_variant</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002390"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>Inclusion of a non-conserved, unannotated exon in the spliced transcript, as a consequence of a variant in the gene.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:38860315</oboInOwl:hasDbXref>
+        <rdfs:comment>For an example, see &quot;NM_007289.4(MME):c.1188+428A&gt;G&quot; on ClinVar (Variation ID: 3769636, Accession: VCV003769636.1).</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002391 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002391">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001541"/>
+        <obo:IAO_0000115>Complete lack of transcription of a gene, as a consequence of a variant in the gene or a regulatory region.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-07-31T19:12:35Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>abolished transcription</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>abolished transcription level</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>abolished transcription level variant</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002391</oboInOwl:id>
+        <rdfs:comment>Added at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
+        <rdfs:label>abolished_transcription_level_variant</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002391"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>Complete lack of transcription of a gene, as a consequence of a variant in the gene or a regulatory region.</owl:annotatedTarget>
+        <rdfs:comment>For an example, see &quot;NM_001128227.3(GNE):c.51+10408_52-10008del&quot; in ClinVar (Variation ID: 438624, Accession: VCV000438624.4).</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002392 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002392">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001554"/>
+        <obo:IAO_0000115>An increase in the activity of an enzyme, as a result of a variant in the gene that encodes the enzyme or a regulatory region.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-07-31T19:43:38Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>increased enzyme activity</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>increased enzyme activity variant</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002392</oboInOwl:id>
+        <rdfs:comment>Added at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
+        <rdfs:label>increased_enzyme_activity_variant</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002392"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>An increase in the activity of an enzyme, as a result of a variant in the gene that encodes the enzyme or a regulatory region.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:28007905</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002394 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002394">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001554"/>
+        <obo:IAO_0000115>A decrease in the activity of an enzyme, as a result of a variant in the gene that encodes the enzyme or a regulatory region.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-07-31T19:52:09Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>decreased enzyme activity</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>decreased enzyme activity variant</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>reduced enzyme activity</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>reduced enzyme activity variant</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002394</oboInOwl:id>
+        <rdfs:comment>Added at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
+        <rdfs:label>decreased_enzyme_activity_variant</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002394"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A decrease in the activity of an enzyme, as a result of a variant in the gene that encodes the enzyme or a regulatory region.</owl:annotatedTarget>
+        <rdfs:comment>For an example, see &quot;NM_139027.6(ADAMTS13):c.2209T&gt;C (p.Cys737Arg)&quot; on Clinvar (Variation ID: 559588, Accession: VCV000559588.2). See also &quot;NM_006721.4(ADK):c.953C&gt;A (p.Ala318Glu)&quot; on ClinVar (Variation ID: 29603, Accession: VCV000029603.3).</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002395 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002395">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0002317"/>
+        <obo:IAO_0000115>A complete loss of polypeptide (i.e. protein) expression, as a consequence of a variant in the gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-07-31T20:00:31Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>absent polypeptide</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>absent protein</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>lost polypeptide</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>lost protein</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002395</oboInOwl:id>
+        <rdfs:comment>Added at the request of Melissa Landrum of the NCBI on 1 Aug 2025 (see GitHub issue #657).</rdfs:comment>
+        <rdfs:label>lost_polypeptide</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002395"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A complete loss of polypeptide (i.e. protein) expression, as a consequence of a variant in the gene.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:34413497</oboInOwl:hasDbXref>
+        <rdfs:comment>For an example, see &quot;NM_018117.12(WDR11):c.1255C&gt;T (p.Gln419Ter)&quot; in ClinVar (Variation ID: 1098849, Accession: VCV001098849.3).</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002396 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002396">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001555"/>
+        <obo:IAO_0000115>A decrease in polypeptide (i.e. protein) expression, as a consequence of a variant in the gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-08-01T16:54:14Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>decreased popypeptide level</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>reduced protein expression</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>reduced protein level</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002396</oboInOwl:id>
+        <rdfs:comment>Added at the request of Melissa Landrum of the NCBI on 31 July 2025 (see GitHub issue #657).</rdfs:comment>
+        <rdfs:label>decreased_polypeptide_level</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002396"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A decrease in polypeptide (i.e. protein) expression, as a consequence of a variant in the gene.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:33473208</oboInOwl:hasDbXref>
+        <rdfs:comment>For an example, see &quot;NM_018359.5(UFSP2):c.344T&gt;A (p.Val115Glu)&quot; in ClinVar (Variation ID: 932944, Accession: VCV000932944.71). See also &quot;NM_016098.4(MPC1):c.109C&gt;T (p.Pro37Ser)&quot; in ClinVar (Variation ID: 1299296, Accession: VCV001299296.3).</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002397 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002397">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001536"/>
+        <obo:IAO_0000115>Trafficking of a polypeptide (i.e. protein) sequence to the wrong cellular location, as a consequence of a variant in the gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-08-01T17:03:14Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>cellular mislocalization</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>cellular mislocalization variant</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>defective subcellular localization</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002397</oboInOwl:id>
+        <rdfs:comment>Added at the request of Melissa Landrum of the NCBI on 1 Aug 2025 (see GitHub issue #657).</rdfs:comment>
+        <rdfs:label>cellular_mislocalization_variant</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002397"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>Trafficking of a polypeptide (i.e. protein) sequence to the wrong cellular location, as a consequence of a variant in the gene.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:29844444</oboInOwl:hasDbXref>
+        <rdfs:comment>For an example, see &quot;NM_181789.4(GLDN):c.1093C&gt;T (p.Leu365Phe)&quot; in ClinVar (Variation ID: 813290, Accession: VCV000813290.5). See also &quot;NM_012448.4(STAT5B):c.530A&gt;C (p.Gln177Pro)&quot; in ClinVar (Variation ID: 522611, Accession: VCV000522611.3).</rdfs:comment>
     </owl:Axiom>
     
 

@@ -49,6 +49,8 @@ import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
+/* now use the BCFReader please from https://github.com/lindenb/bcfparser */
+@Deprecated
 public class BcfToolsReader implements VCFReader {
 	private static final Logger LOG = Logger.of(BcfToolsReader.class);
 

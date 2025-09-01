@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.FunctionalMap;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -65,7 +66,6 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 /**
 BEGIN_DOC
@@ -168,7 +168,7 @@ public class CNVPaneOfNormal extends AbstractBaseCov {
 			String rgn_contig = null;
 			int rgn_start=-1;
 			int rgn_end=-1;
-			try(VCFIterator iter= new  VCFIteratorBuilder().open(this.vcf_panel_of_normal)) {
+			try(VCFIterator iter= new  BcfIteratorBuilder().open(this.vcf_panel_of_normal)) {
 				final VCFHeader header=iter.getHeader();
 				if(!header.hasGenotypingData()) {
 					LOG.error("there is no genotype data in "+this.vcf_panel_of_normal);

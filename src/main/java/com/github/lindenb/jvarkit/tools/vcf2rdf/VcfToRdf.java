@@ -31,7 +31,6 @@ package com.github.lindenb.jvarkit.tools.vcf2rdf;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -62,11 +61,11 @@ import com.github.lindenb.jvarkit.rdf.ns.RDFS;
 import com.github.lindenb.jvarkit.util.Pedigree;
 
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 
 /**
@@ -316,7 +315,7 @@ END_DOC
 	description="convert VCF to RDF (N3 notation)",
 	keywords={"vcf","rdf"},
 	creationDate = "20191213",
-	modificationDate = "20250520",
+	modificationDate = "20250901",
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)
@@ -653,7 +652,7 @@ public class VcfToRdf extends Launcher
 				
 				if(args.isEmpty())
 					{
-					try(VCFIterator iter= new VCFIteratorBuilder().open(stdin())) {
+					try(VCFIterator iter= new BcfIteratorBuilder().open(stdin())) {
 						scanVCF(w,null,iter);
 						}
 					
@@ -662,7 +661,7 @@ public class VcfToRdf extends Launcher
 					{
 					for(final String file: IOUtils.unrollStrings(args))
 						{
-						try(VCFIterator iter= new VCFIteratorBuilder().open(file)) {
+						try(VCFIterator iter= new BcfIteratorBuilder().open(file)) {
 							scanVCF(w,
 									IOUtils.isRemoteURI(file)?
 									IOUtils.toURL(file).toURI():

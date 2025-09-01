@@ -45,6 +45,7 @@ import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
@@ -57,7 +58,6 @@ import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 /*
 BEGIN_DOC
 
@@ -199,7 +199,7 @@ public class VcfROH extends Launcher
 	public int doWork(final List<String> args) {
 		try {
 			final String input = oneFileOrNull(args);
-			try(VCFIterator iter = input==null?new VCFIteratorBuilder().open(stdin()):new VCFIteratorBuilder().open(input)) {
+			try(VCFIterator iter = input==null?new BcfIteratorBuilder().open(stdin()):new BcfIteratorBuilder().open(input)) {
 				final VCFHeader header= iter.getHeader();
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 				final OrderChecker<VariantContext> checker = new OrderChecker<VariantContext>(dict,false);

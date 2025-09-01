@@ -51,9 +51,9 @@ import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.pedigree.Sample;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -253,7 +253,7 @@ public class VcfBurdenFisherV
 						"CTRL_SV0="+count_ctrl_sv0,
 						"CTRL_SV1="+count_ctrl_sv1		
 						)));
-				try(VCFIterator in2 = new VCFIteratorBuilder().open(tmVcfOut)) {
+				try(VCFIterator in2 = new BcfIteratorBuilder().open(tmVcfOut)) {
 					out.writeHeader(header2);
 					while(in2.hasNext()) {
 						out.add(in2.next());

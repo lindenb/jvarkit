@@ -76,6 +76,7 @@ import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.IOUtil;
@@ -86,7 +87,6 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -232,7 +232,7 @@ public class UniprotToSvg extends Launcher {
 		final String ensemblId = normalizeENS(rawEnsemblId);
 		final List<Variant> L = new ArrayList<>();
 	
-		try(VCFIterator iter = new VCFIteratorBuilder().open(this.vcfPath)) {
+		try(VCFIterator iter = new BcfIteratorBuilder().open(this.vcfPath)) {
 			final VCFHeader header = iter.getHeader();
 			
 			final VepPredictionParser vepParser = new VepPredictionParserFactory().header(header).get();

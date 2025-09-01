@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.PerContigVcfReader;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
@@ -58,7 +59,6 @@ import htsjdk.tribble.bed.BEDCodec;
 import htsjdk.tribble.bed.BEDFeature;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
@@ -76,7 +76,7 @@ END_DOC
 		description="Count number of cases/controls in from a BED and a VCF file",
 		keywords={"bed","burden","vcf","case","control"},
 		creationDate="20240603",
-		modificationDate="20240603",
+		modificationDate="20250901",
 		jvarkit_amalgamion =  true
 		)
 public class BedCasesControls
@@ -172,7 +172,7 @@ public class BedCasesControls
 		}
 		else
 		{
-			return new VCFFileReader(this.vcfPath, true);	
+			return VCFReaderFactory.makeDefault().open(this.vcfPath, true);	
 		}
 	}
 	

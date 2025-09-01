@@ -88,7 +88,7 @@ END_DOC
 description="create a run a local instance of jbrowse2",
 keywords={"jbrowse","browser","genome"},
 creationDate="20250404",
-modificationDate="20250404",
+modificationDate="20250904",
 jvarkit_amalgamion = true,
 generate_doc = true
 )

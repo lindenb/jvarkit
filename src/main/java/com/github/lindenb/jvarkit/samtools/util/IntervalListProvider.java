@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.stream.HtsCollectors;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.QueryInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -64,7 +65,6 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.IntervalList.IntervalListCodec;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 public abstract class IntervalListProvider {
 	public static final String OPT_DESC="A source of intervals. The following suffixes are recognized: "
@@ -271,7 +271,7 @@ public abstract class IntervalListProvider {
 		@Override
 		public Stream<? extends Locatable> stream() {
 			try {
-				return new VCFIteratorBuilder().
+				return new BcfIteratorBuilder().
 						open(getRequiredPath()).
 						stream().
 						filter(CTX->variantPredicate==null ||variantPredicate.test(CTX) ).

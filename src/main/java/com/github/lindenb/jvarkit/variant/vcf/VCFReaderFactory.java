@@ -29,7 +29,10 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import com.github.lindenb.jvarkit.variant.bcf.BCFFileReader;
+
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -72,6 +75,9 @@ public abstract class VCFReaderFactory {
 			}
 		if(IOUtil.isUrl(pathOrUrl) ) {
 			if(requireIndex) {
+				if(pathOrUrl.endsWith(FileExtensions.BCF)) {
+					throw new RuntimeIOException("remote bcf not implemented ("+pathOrUrl+")");
+					}
 				return new TabixVcfReader(pathOrUrl);
 				}
 			else
@@ -96,8 +102,12 @@ public abstract class VCFReaderFactory {
 	
 	/** open new VCFReader */
 	public VCFReader open(final Path path,boolean requireIndex) {
-		if(BcfToolsUtils.isBcfToolsRequired(path)) {
-			return new BcfToolsReader(path.toString());
+		if(path.getFileName().endsWith(FileExtensions.BCF)) {
+			try {
+				return new BCFFileReader(path,requireIndex);
+			} catch (IOException e) {
+				throw new RuntimeIOException("Cannot open BCF File \""+path+"\"",e);
+			}
 			}
 		
 		return new VCFFileReader(path, requireIndex);
@@ -115,7 +125,7 @@ public abstract class VCFReaderFactory {
 
 	private static class SimpleVcfIteratorWrapper implements VCFReader {
 		private final VCFIterator iter;
-		SimpleVcfIteratorWrapper(VCFIterator iter) {
+		SimpleVcfIteratorWrapper(final VCFIterator iter) {
 			this.iter = iter;
 		 	}
 		@Override

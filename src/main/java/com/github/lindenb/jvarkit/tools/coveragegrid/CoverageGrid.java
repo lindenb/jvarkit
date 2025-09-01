@@ -113,7 +113,6 @@ import htsjdk.tribble.readers.TabixReader;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 /**
@@ -145,7 +144,7 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams as a grid image",
 	keywords={"cnv","bam","depth","coverage","svg","postscript"},
 	creationDate="20241009",
-	modificationDate="20241021",
+	modificationDate="20250901",
 	jvarkit_amalgamion =  true,
 	menu="CNV/SV"
 	)
@@ -421,7 +420,7 @@ public class CoverageGrid extends Launcher {
 		protected void plotVariants(final Canvas canvas) {
 			if(this.vcfPath==null) return;
 			double prev_x=-10000;
-			try(VCFReader reader = new VCFFileReader(this.vcfPath, true)) {
+			try(VCFReader reader = VCFReaderFactory.makeDefault().open(this.vcfPath, true)) {
 				final VCFHeader header= reader.getHeader();
 				final Hyperlink hlink =Hyperlink.compile(header.getSequenceDictionary());
 				try(CloseableIterator<VariantContext> iter = reader.query(this.extendedInterval)) {

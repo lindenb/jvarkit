@@ -46,6 +46,7 @@ import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
@@ -58,7 +59,6 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 
 /**
@@ -104,8 +104,8 @@ END_DOC
 @Program(
 		name="vcfsplitnvariants",
 		description="Split VCF to 'N' VCF files, or by number fo variant of by distance between variants ",
-		creationDate = "202221122",
-		modificationDate="20250707",
+		creationDate = "20221122",
+		modificationDate="20250901",
 		biostars={9548193},
 		keywords= {"vcf"},
 		jvarkit_amalgamion =  true,
@@ -204,8 +204,8 @@ public int doWork(final List<String> args) {
 		pw.println("vcf\tcount\tcontigs");
 		/* get number of variants */
 		try(VCFIterator iter = (input==null?
-				new VCFIteratorBuilder().open(stdin()):
-					new VCFIteratorBuilder().open(Paths.get(input)))) {
+				new  BcfIteratorBuilder().open(stdin()):
+					new BcfIteratorBuilder().open(Paths.get(input)))) {
 				final VCFHeader header = iter.getHeader();
 				
 				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);

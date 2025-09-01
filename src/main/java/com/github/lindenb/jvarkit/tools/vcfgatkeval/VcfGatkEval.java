@@ -44,6 +44,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -51,7 +52,6 @@ import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 /**
 BEGIN_DOC
@@ -519,8 +519,8 @@ public class VcfGatkEval extends Launcher {
 						return -1;
 						}
 					try(VCFIterator r = (paths.isEmpty()?
-								new VCFIteratorBuilder().open(stdin()):
-								new VCFIteratorBuilder().open(paths.get(0))
+								new BcfIteratorBuilder().open(stdin()):
+								new BcfIteratorBuilder().open(paths.get(0))
 							)) {
 						final VCFHeader header = r.getHeader();
 						for(Annotation ann: annotations) {

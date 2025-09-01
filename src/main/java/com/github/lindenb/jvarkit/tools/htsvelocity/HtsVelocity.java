@@ -51,6 +51,7 @@ import com.github.lindenb.jvarkit.json.FromJson;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import com.google.gson.stream.JsonReader;
 
 import htsjdk.samtools.SAMFileHeader;
@@ -62,7 +63,6 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
@@ -77,8 +77,8 @@ END_DOC
 @Program(
 	name="htsfreemarker",
 	description="Apply apache velocity to VCF/BAM/JSON files.",
-	keywords={"template","velocuty","vcf","bam"},
-	creationDate = "20230616",
+	keywords={"template","velocity","vcf","bam"},
+	creationDate = "20250901",
 	modificationDate = "20230616",
 	jvarkit_amalgamion = true
 	)
@@ -133,7 +133,7 @@ public class HtsVelocity extends Launcher {
 	
 	private Object remapVcf(final String filename) {
 		final Map<String,Object> hash = new LinkedHashMap<>();
-		try(VCFReader reader = new VCFFileReader(Paths.get(filename),!StringUtils.isBlank(this.interval_str))) {
+		try(VCFReader reader = VCFReaderFactory.makeDefault().open(Paths.get(filename),!StringUtils.isBlank(this.interval_str))) {
 			final VCFHeader header = reader.getHeader();
 			hash.put("header", header);
 			try(CloseableIterator<VariantContext> iter=StringUtils.isBlank(this.interval_str)?

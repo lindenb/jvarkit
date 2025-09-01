@@ -60,6 +60,7 @@ import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
@@ -68,7 +69,6 @@ import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFReader;
 /**
 ## mask
@@ -144,7 +144,7 @@ OUT/manifest.tsv
 description="Create annotation files for regenie from a TSV input file",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="20250320",
+modificationDate="20250901",
 generate_doc = true,
 jvarkit_amalgamion = true
 )
@@ -369,7 +369,7 @@ public class RegenieMakeAnnot extends Launcher {
 			final Map<String, Target> target_hash = new HashMap<>(50_000);
 			
 			if(this.externalVCFPath!=null) {
-				vcfReader  = new VCFFileReader(this.externalVCFPath);
+				vcfReader  = VCFReaderFactory.makeDefault().open(this.externalVCFPath,true);
 				final SAMSequenceDictionary dict = new SequenceDictionaryExtractor().extractRequiredDictionary(vcfReader.getHeader());
 				vcfCtgConverter = ContigNameConverter.fromOneDictionary(dict);
 				bufferedVCFReader = new BufferedVCFReader(vcfReader, 10000);

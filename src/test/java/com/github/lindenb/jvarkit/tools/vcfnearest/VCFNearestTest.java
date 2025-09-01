@@ -13,13 +13,13 @@ import org.testng.annotations.Test;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTable;
 import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactory;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 public class VCFNearestTest {
 	private String createVCF() throws IOException {
@@ -58,7 +58,7 @@ public class VCFNearestTest {
 					vin.toString()
 					}));
 			
-			try(VCFIterator iter=new VCFIteratorBuilder().open(vout)) {
+			try(VCFIterator iter=new BcfIteratorBuilder().open(vout)) {
 				List<VCFInfoTable> tables = new VCFInfoTableModelFactory().parse(iter.getHeader());
 				Assert.assertEquals(tables.size(),1);
 				VCFInfoTable table=tables.get(0);

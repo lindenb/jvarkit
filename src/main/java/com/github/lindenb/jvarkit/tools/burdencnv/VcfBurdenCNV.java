@@ -58,6 +58,7 @@ import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import com.github.lindenb.jvarkit.variant.vcf.VcfHeaderExtractor;
 
 import htsjdk.samtools.SAMSequenceDictionary;
@@ -69,7 +70,6 @@ import htsjdk.samtools.util.IntervalTree;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
@@ -256,7 +256,7 @@ public class VcfBurdenCNV
 					final IntervalTree<Double> knownIntervalTree = loadKnown(dict,ssr.getContig());
 
 					for(Path p : vcfPaths) {
-						try(VCFReader in = new VCFFileReader(p, true)) {
+						try(VCFReader in =VCFReaderFactory.makeDefault().open(p, true)) {
 							final VCFHeader h= VcfHeaderExtractor.decode(p);
 							final String sn = h.getGenotypeSamples().get(0);
 							final Integer idx = sample2idx.get(sn);

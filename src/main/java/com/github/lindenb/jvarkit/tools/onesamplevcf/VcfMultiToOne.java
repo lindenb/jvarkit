@@ -78,9 +78,9 @@ import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 /*
 BEGIN_DOC
@@ -329,7 +329,7 @@ public class VcfMultiToOne extends Launcher
 		public NamedVcfIterator next() throws IOException{
 			if(!first) return null;
 			first=false;
-			return new NamedVcfIterator(new VCFIteratorBuilder().open(arg),arg.toString());
+			return new NamedVcfIterator(new BcfIteratorBuilder().open(arg),arg.toString());
 			}
 		@Override
 		public void close() throws IOException {}
@@ -367,7 +367,7 @@ public class VcfMultiToOne extends Launcher
 					final InputStream do_not_close_in = new NoCloseInputStream(this.zin);
 
 					return new NamedVcfIterator(
-							new VCFIteratorBuilder().open(do_not_close_in),
+							new BcfIteratorBuilder().open(do_not_close_in),
 							path.toString()+"!"+entry.getName()
 							);
 					}
@@ -425,7 +425,7 @@ public class VcfMultiToOne extends Launcher
 					/* prevent zip from being closed */
 					final InputStream do_not_close_in = new NoCloseInputStream(tarin);
 					return new NamedVcfIterator(
-							new VCFIteratorBuilder().open(do_not_close_in),
+							new BcfIteratorBuilder().open(do_not_close_in),
 							path.toString()+"!"+entry.getName()
 							);
 					}

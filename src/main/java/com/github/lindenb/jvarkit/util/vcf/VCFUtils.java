@@ -75,7 +75,6 @@ import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -284,7 +283,7 @@ public class VCFUtils
 	 * */
 	public static  VCFIterator createVCFIteratorFromInputStream(final InputStream in) throws IOException
 		{
-		return new VCFIteratorBuilder().open(in);	
+		return new BcfIteratorBuilder().open(in);	
 		}
 
 	/** create a VCF iterator from LineReader

@@ -10,13 +10,14 @@ import java.util.stream.Collectors;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
+
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 public class VCFSplitVEPTest {
 	private String createVCF(String csq,String...infos) throws IOException {
@@ -40,7 +41,7 @@ public class VCFSplitVEPTest {
 			Files.writeString(vin, createVCF("maf","1","10","12","3","","1.2"));
 			Assert.assertEquals(0,new VCFSplitVEP().instanceMain(new String[] {"--tags","maf:Float:min","-o",vout.toString(),vin.toString()}));
 			String id = "VEP_maf_min";
-			try(VCFIterator iter=new VCFIteratorBuilder().open(vout)) {
+			try(VCFIterator iter=new BcfIteratorBuilder().open(vout)) {
 				VCFInfoHeaderLine hdr= iter.getHeader().getInfoHeaderLine(id);
 				Assert.assertNotNull(hdr);
 				Assert.assertEquals(hdr.getCount(),1);
@@ -70,7 +71,7 @@ public class VCFSplitVEPTest {
 			Files.writeString(vin, createVCF("maf","1","100","12","3","","1"));
 			Assert.assertEquals(0,new VCFSplitVEP().instanceMain(new String[] {"--tags","maf:Integer:max","-o",vout.toString(),vin.toString()}));
 			String id = "VEP_maf_max";
-			try(VCFIterator iter=new VCFIteratorBuilder().open(vout)) {
+			try(VCFIterator iter=new BcfIteratorBuilder().open(vout)) {
 				VCFInfoHeaderLine hdr= iter.getHeader().getInfoHeaderLine(id);
 				Assert.assertNotNull(hdr);
 				Assert.assertEquals(hdr.getCount(),1);
@@ -101,7 +102,7 @@ public class VCFSplitVEPTest {
 			Files.writeString(vin, createVCF("maf","1","100","12","3","","1"));
 			Assert.assertEquals(0,new VCFSplitVEP().instanceMain(new String[] {"--tags","maf:Integer:random","-o",vout.toString(),vin.toString()}));
 			String id = "VEP_maf_random";
-			try(VCFIterator iter=new VCFIteratorBuilder().open(vout)) {
+			try(VCFIterator iter=new BcfIteratorBuilder().open(vout)) {
 				VCFInfoHeaderLine hdr= iter.getHeader().getInfoHeaderLine(id);
 				Assert.assertNotNull(hdr);
 				Assert.assertEquals(hdr.getCount(),1);
@@ -131,7 +132,7 @@ public class VCFSplitVEPTest {
 			Files.writeString(vin, createVCF("maf","A","A","B","C","","D","C"));
 			Assert.assertEquals(0,new VCFSplitVEP().instanceMain(new String[] {"--tags","maf:String:uniq","-o",vout.toString(),vin.toString()}));
 			String id = "VEP_maf_uniq";
-			try(VCFIterator iter=new VCFIteratorBuilder().open(vout)) {
+			try(VCFIterator iter=new BcfIteratorBuilder().open(vout)) {
 				VCFInfoHeaderLine hdr= iter.getHeader().getInfoHeaderLine(id);
 				Assert.assertNotNull(hdr);
 				Assert.assertEquals(hdr.getCountType(),VCFHeaderLineCount.UNBOUNDED);

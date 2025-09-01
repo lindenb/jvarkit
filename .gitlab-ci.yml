@@ -1,5 +1,8 @@
 image: eclipse-temurin:17-jdk
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 before_script:
   - hostname
   - env | grep -i PROXY

@@ -47,6 +47,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 import com.github.lindenb.jvarkit.velocity.VelocityTools;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -56,7 +57,6 @@ import com.google.gson.JsonPrimitive;
 
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFReader;
 
 import org.apache.velocity.Template;
@@ -110,7 +110,7 @@ END_DOC
 keywords={"velocity","json"},
 description="Execute apache velocity macros ",
 creationDate="20241023",
-modificationDate="20241023",
+modificationDate="20250901",
 jvarkit_amalgamion = true
 )
 public class ApplyVelocity extends Launcher{
@@ -197,7 +197,7 @@ public class ApplyVelocity extends Launcher{
 		
 
 			for(int i=0;i+1< kvVcfFile.size();i+=2) {				
-				try(VCFReader r= new VCFFileReader(Paths.get(kvVcfFile.get(i+1)),false)) {
+				try(VCFReader r= VCFReaderFactory.makeDefault().open(Paths.get(kvVcfFile.get(i+1)),false)) {
 					try(CloseableIterator<VariantContext> iter=r.iterator()) {
 						put(context, kvVcfFile.get(i+0), iter.stream().collect(Collectors.toList()));
 						}
@@ -250,7 +250,7 @@ public class ApplyVelocity extends Launcher{
 					return -1;
 					}
 				else if(type.equals("vcf")) {
-					try(VCFReader r= new VCFFileReader(Paths.get(value),false)) {
+					try(VCFReader r= VCFReaderFactory.makeDefault().open(Paths.get(value),false)) {
 						try(CloseableIterator<VariantContext> iter=r.iterator()) {
 							o =  iter.stream().collect(Collectors.toList());
 							}

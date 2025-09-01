@@ -64,8 +64,9 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
+
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 
 
 /**
@@ -213,7 +214,7 @@ public class FixVCF
 		//reopen tmp file
 
 		@SuppressWarnings("resource")
-		VCFIterator in= new VCFIteratorBuilder().open(new SequenceInputStream(
+		VCFIterator in= new BcfIteratorBuilder().open(new SequenceInputStream(
 				new ByteArrayInputStream(baos.toByteArray()),
 				new GZIPInputStream(new FileInputStream(tmp)))
 				);

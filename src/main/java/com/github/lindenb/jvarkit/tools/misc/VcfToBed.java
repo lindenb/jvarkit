@@ -53,9 +53,9 @@ import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFIteratorBuilder;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -152,7 +152,7 @@ END_DOC
 	description="vcf to bed",
 	keywords={"bed","vcf"},
 	creationDate="20181203",
-	modificationDate="20200224"
+	modificationDate="20250901"
 )
 public class VcfToBed  extends Launcher {
 	private enum OutputFormat {
@@ -443,7 +443,7 @@ public class VcfToBed  extends Launcher {
 							}
 						/* prevent zip from being closed */
 						final InputStream do_not_close_in = new NoCloseInputStream(zin);
-						try(VCFIterator iter = new VCFIteratorBuilder().open(do_not_close_in)){
+						try(VCFIterator iter = new BcfIteratorBuilder().open(do_not_close_in)){
 							scan(args.get(0)+"!"+entry.getName(),iter,pw);
 							}
 						//zin.closeEntry();
@@ -473,7 +473,7 @@ public class VcfToBed  extends Launcher {
 						/* prevent tar from being closed */
 						final InputStream do_not_close_in = new NoCloseInputStream(tarin);
 
-						try(VCFIterator iter = new VCFIteratorBuilder().open(do_not_close_in)){
+						try(VCFIterator iter = new BcfIteratorBuilder().open(do_not_close_in)){
 							scan(args.get(0)+"!"+entry.getName(),iter,pw);
 							}
 						}
