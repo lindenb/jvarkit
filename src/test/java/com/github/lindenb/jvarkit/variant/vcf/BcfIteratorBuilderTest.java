@@ -1,6 +1,8 @@
 package com.github.lindenb.jvarkit.variant.vcf;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -40,6 +42,22 @@ public void scanIterator(String fname) throws IOException {
 	Assert.assertEquals(n, 5);
 	}
 		
-	
+
+@Test(dataProvider = "src1")
+public void scanStream(final String fname) throws IOException {
+	final TestSupport support  = new TestSupport();
+	long n=0;
+	final Path p = Paths.get(support.resource(fname));
+	try(InputStream in = Files.newInputStream(p)) {
+		try(VCFIterator iter = new BcfIteratorBuilder().open(in)) {
+			iter.getHeader();
+			while(iter.hasNext()) {
+				iter.next();
+				n++;
+				}
+			}
+		}
+	Assert.assertEquals(n, 5);
+	}
 	
 }
