@@ -345,13 +345,13 @@ public  class CmdUsageBuilder
 					sb.append("\n");
 					sb.append("### Requirements / Dependencies\n");
 					sb.append("\n");
-					sb.append("* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
+					sb.append("* java [compiler SDK 17](https://jdk.java.net/17/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )\n");
 					sb.append("\n");
 					sb.append("\n");
 					sb.append("### Download and Compile\n");
 					sb.append("\n");
 					sb.append("```bash\n");
-					sb.append("$ git clone \"https://github.com/lindenb/jvarkit.git\"\n");
+					sb.append("$ git clone --recurse-submodules \"https://github.com/lindenb/jvarkit.git\"\n");
 					sb.append("$ cd jvarkit\n");
 					sb.append("$ ./gradlew "+progName+"\n");
 					sb.append("```\n");

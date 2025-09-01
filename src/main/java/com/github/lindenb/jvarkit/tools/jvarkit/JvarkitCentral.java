@@ -580,7 +580,7 @@ public class JvarkitCentral {
 			out.append("### Download and Compile\n");
 			out.append("\n");
 			out.append("```bash\n");
-			out.append("$ git clone \"https://github.com/lindenb/jvarkit.git\"\n");
+			out.append("$ git clone --recurse-submodules \"https://github.com/lindenb/jvarkit.git\"\n");
 			out.append("$ cd jvarkit\n");
 			out.append("$ ./gradlew jvarkit\n");
 			out.append("```\n");
