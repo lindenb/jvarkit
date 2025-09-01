@@ -102,7 +102,7 @@ public abstract class VCFReaderFactory {
 	
 	/** open new VCFReader */
 	public VCFReader open(final Path path,boolean requireIndex) {
-		if(path.getFileName().endsWith(FileExtensions.BCF)) {
+		if(path.getFileName().toString().endsWith(FileExtensions.BCF)) {
 			try {
 				return new BCFFileReader(path,requireIndex);
 			} catch (IOException e) {

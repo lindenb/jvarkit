@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="VCF" verbose="1">
+
+ 
+  <test name="Internal" enabled="true">
+    <classes>
+      <class name="com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactoryTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilderTest"/>
+      <class name="com.github.lindenb.jvarkit.util.AlgorithmTest"/>
+      <class name="com.github.lindenb.jvarkit.util.AlgorithmsTest"/>
+      <class name="com.github.lindenb.jvarkit.bed.BedLineCodecTest"/>
+      <class name="com.github.lindenb.jvarkit.bed.BedLineTest"/>
+      <class name="com.github.lindenb.jvarkit.io.ByteBufferSequenceTest"/>
+      <class name="com.github.lindenb.jvarkit.io.IOUtilsTest"/>
+      <class name="com.github.lindenb.jvarkit.lang.BitNumReaderTest"/>
+      <class name="com.github.lindenb.jvarkit.lang.BitNumWriterTest"/>
+      <class name="com.github.lindenb.jvarkit.lang.BitReaderTest"/>
+      <class name="com.github.lindenb.jvarkit.lang.BitNumReaderTest"/>
+      <class name="com.github.lindenb.jvarkit.lang.BitWriterTest"/>
+      <class name="com.github.lindenb.jvarkit.lang.CharSplitterTest"/>
+      <class name="com.github.lindenb.jvarkit.liftover.LiftOverChainInputStreamTest"/>
+      <class name="com.github.lindenb.jvarkit.io.IOUtilsTest"/>
+      <class name="com.github.lindenb.jvarkit.io.ArchiveFactoryTest"/>
+      <class name="com.github.lindenb.jvarkit.locatable.SimpleIntervalTest"/>
+      <class name="com.github.lindenb.jvarkit.locatable.SimplePositionTest"/>
+      <class name="com.github.lindenb.jvarkit.util.CounterTest"/>
+      <class name="com.github.lindenb.jvarkit.lang.StringUtilsTest"/>
+   </classes>
+  </test>
+
+  <test name="Tools" enabled="true">
+    <classes>
+      <class name="com.github.lindenb.jvarkit.bgen.BGenCodecTest"/>
+      <class name="com.github.lindenb.jvarkit.bgen.BGenHeaderTest"/>
+      <class name="com.github.lindenb.jvarkit.bgen.BGenReaderTest"/>
+      <class name="com.github.lindenb.jvarkit.bgen.BGenUtilsTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfsplitvep.VCFSplitVEPTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariantsTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.bam2graphics.Bam2RasterTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotterTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.samslop.SamSlopTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervalsTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdfTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebaseTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfshuffle.VCFShuffleTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfnearest.VCFNearestTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfbyindex.VcfGetVariantByIndexTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactoryTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdkTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.groupbygene.GroupByGeneTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.liftover.BedLiftOverTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.pubmed.PubmedDumpTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdkTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.samjs.SamJdkTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcf2table.VcfToTableTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntologyTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.MergingIteratorTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.FilterIteratorTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.EqualRangeIteratorTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.LineIteratorsTest"/>
+      <class name="com.github.lindenb.jvarkit.rdf.RDFModelTest"/>
+      <class name="com.github.lindenb.jvarkit.rdf.ResourceTest"/>
+      <class name="com.github.lindenb.jvarkit.rdf.LiteralTest"/>
+      <class name="com.github.lindenb.jvarkit.rdf.StatementTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.vcf.VCFByIndexTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolicTest"/>
+    </classes>
+  </test>
+</suite>
