@@ -239,9 +239,9 @@ public class VCFUtils
 	public static List<String> convertVCFHeaderToList(final VCFHeader header)
 		{	
 		final ByteArrayOutputStream baos=new ByteArrayOutputStream(1000);
-		final VariantContextWriter vcw=createVariantContextWriterToOutputStream(baos);
-		vcw.writeHeader(header);
-		vcw.close();
+		try(VariantContextWriter vcw=createVariantContextWriterToOutputStream(baos)) {
+			vcw.writeHeader(header);
+			}
 		return  Arrays.asList(
 						new String(baos.toByteArray()).split("\n")
 				);
