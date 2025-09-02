@@ -31,6 +31,8 @@ import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -40,7 +42,7 @@ import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
+import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -54,6 +56,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
@@ -71,6 +74,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 import com.beust.jcommander.Parameter;
@@ -455,14 +459,16 @@ public class VcfFilterJdk
 	@Parameter(names={"--saveCodeInDir"},description="Save the generated java code in the following directory")
 	private Path saveCodeInDir=null;
 	
-	@Parameter(names={"-vn","--variable"},description="[20180716] how to name the VariantContext in the code. htsjdk/gatk often use 'vc'.")
+	@Parameter(names={"-vn","--variable"},description="[20180716] how to name the VariantContext in the code. htsjdk/gatk often uses 'vc'.")
 	private String variantVariable="variant";
 	
 	@Parameter(names={"-rc","--recalc"},description="[20180716] recalc attributes like INFO/AF, INFO/AC, INFO/AN... if the number of genotypes has been altered. Recal is not applied if there is no genotype.")
 	private boolean recalcAttributes = false;
 	
-	@Parameter(names={"-xf","--extra-filters"},description="[20180716] extra FILTERs names that will be added in the VCF header and that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- . Multiple separated by space/comma")
-	private String extraFilters = "";
+	@Parameter(names={"-xh","--extra-header"},description="Add the following VCF header to the output header e.g '####FORMAT=<ID=GQ,Number=1,Type=Integer,Description=\"Genotype Quality\">' ."
+			+ "If it's a simple string matching /[A-Za-z][A-Za-z0-9_]*/ , it's interpreted as a new FILTER. " 
+			+ "If there is only one value and it ends with '.txt' it is considered as a file containing the header(s).")
+	private List<String> extraHeaders = new ArrayList<>();
 
 	@Parameter(names={"-p","--pedigree"},description="Optional pedigree file. " + PedigreeParser.OPT_DESC)
 	private Path pedigreePath = null;
@@ -655,13 +661,40 @@ public class VcfFilterJdk
 				h2.addMetaDataLine(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY, true));
 				}
 			
-			for(final String xf: Arrays.stream(this.extraFilters.split("[ ,;]+")).
-					filter(S->!StringUtil.isBlank(S)).
-					collect(Collectors.toSet())
-					)
-				{
-				h2.addMetaDataLine(new VCFFilterHeaderLine(xf,"Custom FILTER inserted with "+VcfFilterJdk.class.getSimpleName()));
+			
+			if(!extraHeaders.isEmpty()) {
+				/* convert simple string to filter */
+				final UnaryOperator<String> toFilter = S->{
+					if(S.matches("[A-Za-z][A-Za-z_0-9]*")) {
+						return "##FILTER=<ID="+S+",Description=\"Custom filter\">";
+						}
+					else {
+						return S;
+						}
+					};
+				
+				final List<String> newheader = new ArrayList<>();
+				newheader.add("##fileformat=VCFv4.2");
+				if(extraHeaders.size()==1 && extraHeaders.get(0).endsWith(".txt")) {
+					Files.lines(Paths.get(extraHeaders.get(0))).
+						map(L->L.trim()).
+						map(toFilter).
+						filter(F->!StringUtils.isBlank(F)).
+						forEach(L->newheader.add(L));
+					}
+				else
+					{
+					for(String L: extraHeaders) {
+						newheader.add(toFilter.apply(L));
+						}
+					}
+				newheader.add("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n");
+				final VCFHeader xtraHeader= VCFUtils.parseHeader(extraHeaders).header;
+				for(VCFHeaderLine xxh: xtraHeader.getMetaDataInInputOrder()) {
+					h2.addMetaDataLine(xxh);
+					}
 				}
+			
 			
 			try {
 				filter_instance = (AbstractFilter)constructor.newInstance(header);
