@@ -54,7 +54,6 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -111,7 +110,7 @@ END_DOC
 description="Merge Vcf from Manta VCF.",
 keywords= {"sv","manta","vcf"},
 creationDate="20190916",
-modificationDate="20230320",
+modificationDate="20250903",
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )
@@ -206,6 +205,10 @@ public class MantaMerger extends Launcher {
 		String sample;
 		int contigCount=0;
 		}
+
+private boolean isDecoy(final String s) {
+	return false;
+}
 	
 @Override
 public int doWork(final List<String> args) {
@@ -330,13 +333,12 @@ public int doWork(final List<String> args) {
 		
 		try(VariantContextWriter out = VCFUtils.createVariantContextWriterToPath(this.outputFile)) {
 			out.writeHeader(header);
-			final Decoy decoy = Decoy.getDefaultInstance();
 			for(final SAMSequenceRecord ssr: dict.getSequences()) {
 				if(!StringUtils.isBlank(this.limitContig)) {
 					if(!ssr.getSequenceName().equals(this.limitContig)) continue;
 					}
 				
-				if(decoy.isDecoy(ssr.getSequenceName())) continue;
+				if(isDecoy(ssr.getSequenceName())) continue;
 				LOG.info("contig "+ssr.getSequenceName());
 
 				final Map<SVKey,Set<MiniGT>> variants2samples = new HashMap<>();

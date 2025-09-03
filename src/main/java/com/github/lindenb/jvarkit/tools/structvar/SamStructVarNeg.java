@@ -47,7 +47,6 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.log.ProgressFactory;
-import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
@@ -115,7 +114,7 @@ END_DOC
 	description="Find Structural Variation by Negative Comparaison",
 	keywords={"sam","bam","sv","translocation"},
 	creationDate="20190413",
-	modificationDate="20190826"
+	modificationDate="20250903"
 	)
 public class SamStructVarNeg extends Launcher {
 	private static final Logger LOG = Logger.of(SamStructVarNeg.class);
@@ -134,7 +133,6 @@ public class SamStructVarNeg extends Launcher {
 	private Path excludeBedFile = null;
 	
 	private SamReaderFactory samReaderFactory = null;
-	private final Decoy decoy = Decoy.getDefaultInstance();
 	
 	
 	private abstract interface SVChecker {

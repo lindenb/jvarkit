@@ -44,7 +44,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.samtools.Decoy;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.sv.StructuralVariantComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
@@ -77,7 +76,7 @@ BEGIN_DOC
 ```
 find CONTROLS/ -name "*.vcf.gz" > controls.list
 
-java -Xmx3g -Djava.io.tmpdir=. -jar scansv.jar --controls controls.list -d2 25 --fraction 0.6 cases1.vcf cases2.vcf > out.vcf
+java -Xmx3g -Djava.io.tmpdir=. -jar scansv.jar --controls controls.list -d2 25  cases1.vcf cases2.vcf > out.vcf
 
 ```
 
@@ -90,7 +89,7 @@ END_DOC
 description="Scan structural variants for case/controls data",
 keywords= {"cnv","indel","sv","pedigree"},
 creationDate="20190815",
-modificationDate="20240916",
+modificationDate="20250903",
 jvarkit_amalgamion = true
 )
 public class ScanStructuralVariants extends Launcher{
@@ -272,7 +271,9 @@ public class ScanStructuralVariants extends Launcher{
 		candidates.add(ctx2);
 		return recursive(ctx,candidates,vcfFilesInput,shadowControls,out);
 		}
-	
+	private boolean isDecoy(String s) {
+		return false;
+	}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -430,13 +431,12 @@ public class ScanStructuralVariants extends Launcher{
 				try(VariantContextWriter out =  this.variantWriter.dictionary(dict).open(this.outputFile)) {
 				out.writeHeader(header);
 				final CloseableIterator<VariantContext> iter = casesFiles.get(0).iterator();
-				final Decoy decoy = Decoy.getDefaultInstance();
 				VariantContext prevCtx = null;
 				while(iter.hasNext()) {
 					final VariantContext ctx= iter.next();
-					if(decoy.isDecoy(ctx.getContig())) continue;
+					if(isDecoy(ctx.getContig())) continue;
 					
-					if(Breakend.parse(ctx).stream().anyMatch(B->decoy.isDecoy(B.getContig()))) continue;
+					if(Breakend.parse(ctx).stream().anyMatch(B->isDecoy(B.getContig()))) continue;
 					
 					if(intervalTreeMap!=null && !intervalTreeMap.containsOverlapping(ctx)) continue;
 					

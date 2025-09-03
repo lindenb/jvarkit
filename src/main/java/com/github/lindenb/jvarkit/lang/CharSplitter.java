@@ -26,9 +26,11 @@ package com.github.lindenb.jvarkit.lang;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.stream.Stream;
@@ -76,85 +78,72 @@ public default int countTokens(final CharSequence seq) {
 
 /** breaks the input string as a list of CharSequence */
 public default List<CharSequence> splitAsCharSequenceList(final CharSequence seq) {
+	final List<CharSequence> list = new ArrayList<>();
+	split(seq,(S)->list.add(S));
+	return list;
+	}
+
+
+/** breaks the input string and manage each token with the handler */
+public default void split(final CharSequence seq,final java.util.function.Consumer<CharSequence> handler) {
 	final char delim = getDelimiter();
 	int seqLen = seq.length();
 	while(seqLen-1 >=0 && seq.charAt(seqLen-1)==delim) {
 		seqLen--;
 		}
 	int prev=0;
-	final List<CharSequence> list = new ArrayList<>();
 	for(int i=0;i< seqLen ;i++)
 		{
 		if(seq.charAt(i)==delim)
 			{
-			list.add(seq.subSequence(prev, i));
+			handler.accept(seq.subSequence(prev, i));
 			prev=i+1; 
 			}
 		}
-	list.add(seq.subSequence(prev, seqLen));
+	handler.accept(seq.subSequence(prev, seqLen));
+	}
+
+public default List<CharSequence> splitAsCharSequenceList(final CharSequence seq,final int maxTokens) {
+	final List<CharSequence> list = new ArrayList<>();
+	split(seq,maxTokens,S->list.add(S));
 	return list;
 	}
 
 /** breaks the input string as a list of CharSequence, will produce at max 'maxTokens' */
-public default List<CharSequence> splitAsCharSequenceList(final CharSequence seq,final int maxTokens) {
+public default void split(final CharSequence seq,final int maxTokens,final java.util.function.Consumer<CharSequence> handler) {
 	final char delim = getDelimiter();
 	int seqLen = seq.length();
 	while(seqLen-1 >=0 && seq.charAt(seqLen-1)==delim) {
 		seqLen--;
 		}
 	int prev=0;
-	final List<CharSequence> list = new ArrayList<>();
-	for(int i=0;i< seqLen && list.size()+1 < maxTokens ;i++)
+	int count=0;
+	for(int i=0;i< seqLen && count+1 < maxTokens ;i++)
 		{
 		if(seq.charAt(i)==delim)
 			{
-			list.add(seq.subSequence(prev, i));
-			prev=i+1; 
+			handler.accept(seq.subSequence(prev, i));
+			prev=i+1;
+			count++;
 			}
 		}
-	list.add(seq.subSequence(prev, seqLen));
-	return list;
+	handler.accept(seq.subSequence(prev, seqLen));
 	}
+
+
+
 
 /** breaks the input string as a list of CharSequence */
 public default List<String> splitAsStringList(final CharSequence seq) {
-	final char delim = getDelimiter();
-	int seqLen = seq.length();
-	while(seqLen-1 >=0 && seq.charAt(seqLen-1)==delim) {
-		seqLen--;
-		}
-	int prev=0;
 	final List<String> list = new ArrayList<>();
-	for(int i=0;i< seqLen ;i++)
-		{
-		if(seq.charAt(i)==delim)
-			{
-			list.add(seq.subSequence(prev, i).toString());
-			prev=i+1; 
-			}
-		}
-	list.add(seq.subSequence(prev, seqLen).toString());
+	split(seq,S->list.add(S.toString()));
 	return list;
 	}
 
 /** breaks the input string as a list of CharSequence, will produce at max 'maxTokens' */
 public default List<String> splitAsStringList(final CharSequence seq,final int maxTokens) {
-	final char delim = getDelimiter();
-	int seqLen = seq.length();
-	while(seqLen-1 >=0 && seq.charAt(seqLen-1)==delim) {
-		seqLen--;
-		}
-	int prev=0;
 	final List<String> list = new ArrayList<>();
-	for(int i=0;i< seqLen && list.size()+1 < maxTokens ;i++)
-		{
-		if(seq.charAt(i)==delim)
-			{
-			list.add(seq.subSequence(prev, i).toString());
-			prev=i+1; 
-			}
-		}
-	list.add(seq.subSequence(prev, seqLen).toString());
+	split(seq,maxTokens,S->list.add(S.toString()));
 	return list;
 	}
 
@@ -167,6 +156,14 @@ public default String[] split(final CharSequence seq,final int maxTokens) {
 	final List<String> L = splitAsStringList(seq,maxTokens);
 	return L.toArray(new String[L.size()]);
 	}
+
+/** split the input and put it in a set */
+public default Set<String> splitAsSet(final CharSequence seq) {
+	final Set<String> set = new HashSet<>();
+	split(seq,S->set.add(S.toString()));
+	return set;
+	}
+
 
 /** split a string using the first delimiter and return a java.util.Map entry
  * throw an error if the delimiter is not found  */
@@ -264,19 +261,34 @@ public static CharSplitter of(final String s) {
 
 /** create a new CharSplitter from a single character */
 public static CharSplitter of(final char c) {
-	return new CharSplitterImpl(c);
+	switch(c) {
+		case '\t': return TAB;
+		case ':': return COLON;
+		case ',': return COMMA;
+		case ' ': return SPACE;
+		case ';': return SEMICOLON;
+		case '|': return PIPE;
+		case '.': return DOT;
+		case '\n': return NEWLINE;
+		case '_': return UNDERSCORE;
+		case '&': return AMP;
+		case '=': return EQ;
+		case '-': return HYPHEN;
+		default:return new CharSplitterImpl(c);
+		}
+	
 	}
-public static final CharSplitter TAB = of('\t');
-public static final CharSplitter COLON = of(':');
-public static final CharSplitter COMMA = of(',');
-public static final CharSplitter SPACE = of(' ');
-public static final CharSplitter SEMICOLON = of(';');
-public static final CharSplitter PIPE = of('|');
-public static final CharSplitter DOT = of('.');
-public static final CharSplitter NEWLINE = of('\n');
-public static final CharSplitter UNDERSCORE = of('_');
-public static final CharSplitter AMP = of('&');
-public static final CharSplitter EQ = of('=');
-public static final CharSplitter HYPHEN = of('-');
+public static final CharSplitter TAB = new CharSplitterImpl('\t');
+public static final CharSplitter COLON = new CharSplitterImpl(':');
+public static final CharSplitter COMMA = new CharSplitterImpl(',');
+public static final CharSplitter SPACE = new CharSplitterImpl(' ');
+public static final CharSplitter SEMICOLON = new CharSplitterImpl(';');
+public static final CharSplitter PIPE = new CharSplitterImpl('|');
+public static final CharSplitter DOT = new CharSplitterImpl('.');
+public static final CharSplitter NEWLINE = new CharSplitterImpl('\n');
+public static final CharSplitter UNDERSCORE = new CharSplitterImpl('_');
+public static final CharSplitter AMP = new CharSplitterImpl('&');
+public static final CharSplitter EQ = new CharSplitterImpl('=');
+public static final CharSplitter HYPHEN = new CharSplitterImpl('-');
 
 }
