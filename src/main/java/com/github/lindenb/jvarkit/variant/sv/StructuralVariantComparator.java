@@ -32,6 +32,7 @@ import java.util.function.Function;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.locatable.SimplePosition;
@@ -48,10 +49,8 @@ public class StructuralVariantComparator /* implements BiPredicate<VariantContex
 
 	@Parameter(names={"--bnd-distance"},description="Two BND variants are the same if their bounds are distant by less than xxx bases. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.jcommander.NoSplitter.class)
 	private int bnd_max_distance = 100;
-	@Parameter(names={"--sv-small-overlap"},description="Two non-BND variants are the same if they overlap and both have a length<= 'x'. "+ DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class ,splitter=com.github.lindenb.jvarkit.jcommander.NoSplitter.class)
-	private int small_length_on_ref = 10;
-	@Parameter(names={"--sv-overlap-fraction"},description="Two CNV/DEL/.. variants are the same if they share 'x' fraction of their size.")
-	private double max_fraction = 0.75;
+	@Parameter(names={"--sv-fraction"},description= OverlapComparator.OPT_DESC,splitter = NoSplitter.class,converter = OverlapComparator.StringConverter.class)
+	private OverlapComparator overlap_comparator = OverlapComparator.makeDefault();
 	@Parameter(names={"--force-svtype"},description="When comparing two SV variants, their INFO/SVTYPE should be the same. Default is to just use coordinates to compare non-BND variants.")
 	private boolean svtype_mus_be_the_same = false;
 	@Parameter(names={"--sv-alleles-bases"},description="When comparing two non-BND SV variants, use their ALT alleles to adjust the interval. It solves the problem of  'chr2:10556028:AATTATATAATTAAATTAATTATATAATT:A'  vs 'chr2:10556028:A:AATTATATAATTAAATTAATTATATAATT'. See https://twitter.com/yokofakun/status/1169182491606999046 ")
@@ -231,19 +230,11 @@ public boolean test(final VariantContext a, final VariantContext b) {
 		final SimpleInterval interval2 = toInterval(b);
 		if(!testSimpleOverlap(interval1,interval2)) return false;
 
-		/* small overlapping variant
-		chrZ    137402727       MantaINS:160764:0:0:0:0:0       CTAA    CACCCGGCTAAT    .       .       CIGAR=1M11I3D;CLUSTER=CTX8375;DOWNSTREAM_PAIR_COUNT=0;END=137402730;PAIR_COUNT=0;SVLEN=11;SVTYPE=INS;UPSTREAM_PAIR_COUNT=0
-		chrZ    137402727       MantaINS:152106:0:0:0:1:0       CT      CACCCGGCG       .       .       CIGAR=1M8I1D;CLUSTER=CTX8140;DOWNSTREAM_PAIR_COUNT=0;END=137402728;PAIR_COUNT=0;SVLEN=8;SVTYPE=INS;UPSTREAM_PAIR_COUNT=1
-		*/
-
-		if( interval1.length() <= this.small_length_on_ref && interval2.length() <= this.small_length_on_ref) return true;
-
-		final int p1 = Math.max(interval1.getStart(),interval2.getStart());
-		final int p2 = Math.min(interval1.getEnd(),interval2.getEnd());
-		final double len = CoordMath.getLength(p1,p2);
-		if(len/interval1.getLengthOnReference() < this.max_fraction ) return false; 
-		if(len/interval2.getLengthOnReference() < this.max_fraction ) return false; 
-		return true;
+		
+		return overlap_comparator.test(
+				interval1.getStart(),interval1.getEnd(),
+				interval2.getStart(),interval2.getEnd()
+				);
 		}
 	}
 }

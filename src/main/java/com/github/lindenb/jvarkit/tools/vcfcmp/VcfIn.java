@@ -27,154 +27,50 @@ package com.github.lindenb.jvarkit.tools.vcfcmp;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.iterator.EqualRangeIterator;
+import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.sv.OverlapComparator;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
-import htsjdk.variant.vcf.VCFIterator;
-import htsjdk.variant.vcf.VCFReader;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.StringUtil;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFReader;
 
 /**
 
 BEGIN_DOC
 
-VCF files should be sorted using the same order as the sequence dictionary (see picard SortVcf).
+* For Structural Variants (identified with INFO/SVTYPE) we just compare the fraction of common overlap.
+* For SNVs : spanning deletions (`*`) are not considered when comparing alleles
 
+See also:
 
-### Example
-
-list variants found with gatk AND samtools, keep the variants with http://www.sequenceontology.org/browser/current_release/term/SO:0001818 , remove variants found in a previous alignment (samtools or gatk)
-
-
-```
-#!/bin/bash
-
-ls Samples | while read S
-do
-gunzip -c NEWALIGN/{S}.gatk.vcf.gz |\
-        java -jar jvarkit-git/dist/vcffilterso.jar -A SO:0001818 |\
-        java -jar jvarkit-git/dist/vcfin.jar -D NEWALIGN/{S}.samtools.vcf.gz |\
-        java -jar jvarkit-git/dist/vcfin.jar -i -D OLDALIGN/{S}.samtools.vcf.gz |
-        java -jar jvarkit-git/dist/vcfin.jar -i -D OLDALIGN/${S}.gatk.vcf.gz |
-        grep -vE '^#' |
-        awk -v S=${S} -F '      ' '{printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",S,$1,$2,$3,$4,$5,$8);}' 
-done
-```
-
-
-#### Example 2
-
-My list of bad variants is in the file 'bad.vcf'.
-
-
-```
-##fileformat=VCFv4.2
-##contig=<ID=1,length=249250621,assembly=b37>
-##contig=<ID=22,length=51304566,assembly=b37>
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-1	11167517	.	G	A	.	.	.
-1	11167760	.	C	T	.	.	.
-1	11168529	.	A	G	.	.	.
-1	11169789	.	A	G	.	.	.
-1	11174331	.	T	C	.	.	.
-1	11174715	.	T	C	.	.	.
-1	11180949	.	C	T	.	.	.
-```
-
-My main vcf file is 'input.vcf'.
-
-
-```
-##fileformat=VCFv4.2
-##contig=<ID=1,length=249250621,assembly=b37>
-##contig=<ID=22,length=51304566,assembly=b37>
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-1	11166480	.	C	T	.	.	.
-1	11166541	.	G	C	.	.	.
-1	11166577	.	C	T	.	.	.
-1	11166713	.	T	C	.	.	.
-1	11167146	.	G	A	.	.	.
-1	11167158	.	C	T	.	.	.
-1	11167270	.	G	T	.	.	.
-1	11167517	.	G	T	.	.	.
-1	11167627	.	G	C	.	.	.
-1	11167760	.	C	T	.	.	.
-1	11167829	.	C	T	.	.	.
-1	11168529	.	A	G	.	.	.
-1	11168769	.	CAAA	C	.	.	.
-1	11169250	.	G	A	.	.	.
-1	11169420	.	G	A	.	.	.
-1	11169440	.	A	G	.	.	.
-1	11169585	.	A	G	.	.	.
-1	11169624	.	T	C	.	.	.
-```
-
-
-I want to put a FILTER in the variants if they are contained in VCF.
-
-
-```
-java -jar dist/vcfin.jar -A -fi InMyListOfBadVariants -D jeter2.vcf jeter1.vcf
-```
-
-output:
-
-```
-##fileformat=VCFv4.2
-##FILTER=<ID=InMyListOfBadVariants,Description="Variant overlapping database.">
-##contig=<ID=1,length=249250621,assembly=b37>
-##contig=<ID=22,length=51304566,assembly=b37>
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
-1	11166480	.	C	T	.	.	.
-1	11166541	.	G	C	.	.	.
-1	11166577	.	C	T	.	.	.
-1	11166713	.	T	C	.	.	.
-1	11167146	.	G	A	.	.	.
-1	11167158	.	C	T	.	.	.
-1	11167270	.	G	T	.	.	.
-1	11167517	.	G	T	.	.	.
-1	11167627	.	G	C	.	.	.
-1	11167760	.	C	T	.	InMyListOfBadVariants	.
-1	11167829	.	C	T	.	.	.
-1	11168529	.	A	G	.	InMyListOfBadVariants	.
-1	11168769	.	CAAA	C	.	.	.
-1	11169250	.	G	A	.	.	.
-1	11169420	.	G	A	.	.	.
-1	11169440	.	A	G	.	.	.
-1	11169585	.	A	G	.	.	.
-1	11169624	.	T	C	.	.	.
-
-```
-
-Please note that variant 1	11167517 is not flagged because is alternate allele is not contained in 'bad.vcf'
+ * bcftools isec
 
 END_DOC
 */
@@ -182,377 +78,224 @@ END_DOC
 @Program(name="vcfin",
 	description="Only prints variants that are contained/not contained into another VCF",
 	keywords={"vcf","compare"},
-	modificationDate="20201119",
+	modificationDate="20250903",
 	creationDate="20140204",
 	biostars={287815}
 	)
 public class VcfIn extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.of(VcfIn.class);
-
+	private enum Matcher {id,overlap,chrom_pos,chrom_pos_ref,chrom_pos_ref_any_alt,chrom_pos_ref_all_alt}
+	
 	@Parameter(names={"-i","--inverse"},description="Print variants that are not part of the VCF-database.")
 	private boolean inverse = false;
-	@Parameter(names={"-t","--tabix","--tribble","--indexed"},description=
-			"Database is indexed with tabix or tribble. I will use random access to get the data. Otherwise, VCF are assumed to be sorted the same way."
-			+ " [20180731] I will try to convert the contig names e.g: 'chr1' -> '1'")
-	private boolean databaseIsIndexed = false;
-	@Parameter(names={"-A","--allalt"},description="ALL user ALT must be found in VCF-database ALT")
-	private boolean userAltInDatabase = false;
-	@Parameter(names={"-fi","--filterin"},description="Do not discard variant but add this FILTER if the variant is found in the database(s)")
-	private String filterIn = "";
-	@Parameter(names={"-fo","--filterout"},description="Do not discard variant but add this FILTER if the variant is NOT found in the database(s)")
-	private String filterOut = "";
-	@Parameter(names={"-D","--database"},description="external database uri",required=true)
-	private List<String> externalDatabaseList = new ArrayList<>();
+	@Parameter(names={"--vcf","--vcfs","--file-list"},description= "External indexed VCFs. a file with the suffix '.list' is interpreted as a file containing the path to the indexed VCFs")
+	private List<String> databaseVCFPaths = new ArrayList<>();
+	@Parameter(names={"--filter"},description="FILTER name for SOFT filtering")
+	private String filterName = "";
+	@Parameter(names={"--sv-fraction"},description="How to match two SV. " + OverlapComparator.OPT_DESC,splitter = NoSplitter.class,converter = OverlapComparator.StringConverter.class)
+	private OverlapComparator overlap_comparator = OverlapComparator.makeDefault();
+	@Parameter(names={"--matcher"},description="How to match two SNVs. Note that Spanning deletion are ignored.")
+	private Matcher matcher = Matcher.chrom_pos_ref_any_alt;
+
 	
-	// http://gnomad.broadinstitute.org/dbsnp/rs11361742
-	// gnomad www: 19:45454285 TA / T 
-	// gnomad www: 19:45454285 TAA/ T
-	// my data: 19	45454285	TA	T
-	// gnomad-vcf: 19	45454285	TAA	TA,T,TAAA
-
-	@Parameter(names={"-cp","--only-contig-pos"},description=
-			"Two variants are the same if they have the same CONTIG/POS. Do NOT Look at REF or ALTS. "
-			+ "Motivation: e.g  http://gnomad.broadinstitute.org/dbsnp/rs11361742 "
-			+ "in gnomad VCF: [19	45454285 TAA	TA,T,TAAA ] "
-			+ "in my VCF: [19	45454285	TA	T]. "
-			+ "Only works with --tabix option")
-	private boolean only_contig_pos = false;
-	@Parameter(names="-m",description="min number of equivalent variants found in database(s), inclusive. With --tabix mode only. .eg: '2': the user variant must be found in at least 2 VCF database.")
-	private int minCountInclusive=1;
-	@Parameter(names="-M",description=" max number of equivalent variants found in database(s). -1 : no limit. sinclusive.With --tabix mode only. .eg: '3': the user variant must be found in 3 or less VCF database.")
-	private int maxCountInclusive= -1;
-
-
-	public VcfIn()
+	private final List<DatabaseVcf> databaseVCFS = new ArrayList<>();
+	
+	
+	private static class DatabaseVcf
+	implements Closeable
 		{
+		final Path file;
+		final VCFReader vcfReader;
+		final ContigNameConverter contigNameConverter;
+		DatabaseVcf(Path file) {
+			this.file = file;
+			this.vcfReader =VCFReaderFactory.makeDefault().open(this.file,true);
+			final VCFHeader header = this.vcfReader.getHeader();
+			final SAMSequenceDictionary dict = header.getSequenceDictionary();
+			this.contigNameConverter = dict==null
+					? ContigNameConverter.getIdentity()
+					:ContigNameConverter.fromOneDictionary(dict);
+			}
+		
+		
+		@Override
+		public void close() {
+			try {vcfReader.close();}
+			catch(IOException err) {LOG.error(err);}
+			}
 		}
+
 	
 	@Override
 	protected Logger getLogger() {
 		return LOG;
 		}
 	/** if dict are different , ignore contig*/
-	private boolean sameContextIgnoreContig(			
-			final VariantContext ctx1,
-			final VariantContext ctx2
+	private static boolean compare(
+			final Matcher matcher,
+			final VariantContext vc1,
+			final VariantContext vc2
 			)
 		{
-		return ctx1.getStart() == ctx2.getStart() &&
-				ctx1.getEnd() == ctx2.getEnd() &&
-				ctx1.getReference().equals(ctx2.getReference())
-				;
+		switch(matcher) {
+			case overlap:
+				return true;//assume we already know they overlap
+			case id:
+				{
+				if(!vc1.hasID() || !vc2.hasID()) return false;
+				final Set<String> id1s =CharSplitter.of(VCFConstants.ID_FIELD_SEPARATOR).splitAsSet((vc1.getID()));
+				final Set<String> id2s =CharSplitter.of(VCFConstants.ID_FIELD_SEPARATOR).splitAsSet((vc2.getID()));
+				for(String id: id1s) {
+					if(id.equals(VCFConstants.EMPTY_ID_FIELD)) continue;
+					if(id2s.contains(id)) return true;
+					}
+				return false;
+				}
+			case chrom_pos:
+				return vc1.getStart() == vc2.getStart();
+			case chrom_pos_ref:
+				{
+				if(vc1.getStart() != vc2.getStart()) return false;
+				if(vc1.getNAlleles()<1 || vc2.getNAlleles()<1) return false;
+				return vc1.getReference().equals(vc2.getReference());
+				}
+			case chrom_pos_ref_any_alt:
+				{
+				if(!compare(Matcher.chrom_pos_ref,vc1,vc2)) return false;
+				for(Allele alt: vc1.getAlternateAlleles()) {
+					if(alt.equals(Allele.SPAN_DEL)) continue;
+					if(vc2.hasAllele(alt)) return true;
+					}
+				return false;
+				}
+			case chrom_pos_ref_all_alt:
+				{
+				if(!compare(Matcher.chrom_pos_ref,vc1,vc2)) return false;
+				if(vc1.getNAlleles()<2) return false;
+				if(vc2.getNAlleles()<2) return false;
+				boolean ok=false;
+				for(Allele alt: vc1.getAlternateAlleles()) {
+					if(alt.equals(Allele.SPAN_DEL)) continue;
+					if(!vc2.hasAllele(alt)) return false;
+					ok=true;
+					}
+				return ok;
+				}
+			default: throw new IllegalStateException();
+			}
 		}
 
 	
-	private boolean sameContext(			
-			final VariantContext ctx1,
-			final VariantContext ctx2
-			)
-		{
-		return ctx1.getContig().equals(ctx2.getContig()) &&
-				sameContextIgnoreContig(ctx1,ctx2)
-				;
-		}
 	
-	private boolean allUserAltFoundInDatabase(
-			final VariantContext userVariants,
-			final VariantContext databaseVariants
-			)
-		{
-		if(!this.userAltInDatabase) return true;
-		final Set<Allele> user_alts=new HashSet<Allele>(userVariants.getAlternateAlleles());
-		user_alts.removeAll(databaseVariants.getAlternateAlleles());
-		return user_alts.isEmpty();
-		}
 	
-	@Override
-	protected VCFHeader addMetaData(final VCFHeader header) {
-		if(!this.filterIn.isEmpty()) {
-			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterIn,
-					"Variant overlapping database(s). " + 
-			String.join(" ",this.externalDatabaseList)));
-			}
-		if(!this.filterOut.isEmpty()) {
-			header.addMetaDataLine(new VCFFilterHeaderLine(this.filterOut,
-					"Variant non overlapping database(s)." +
-			String.join(" ",this.externalDatabaseList)));
-			}
-		return super.addMetaData(header);
-		}
-	
-	private void addVariant(final VariantContextWriter w,final VariantContext ctx,boolean keep)
-		{
-		if(this.inverse) keep=!keep;
-		if(!this.filterIn.isEmpty())
-			{
-			if(keep){
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.filter(this.filterIn);
-				w.add(vcb.make());
-				}
-			else
-				{
-				if(ctx.isFiltered()) {
-					w.add(ctx);
-					}
-				else
-					{
-					w.add(new VariantContextBuilder(ctx).passFilters().make());
-					}
-				}
-			}
-		else  if(!this.filterOut.isEmpty()) {
-			if(keep){
-				if(ctx.isFiltered()) {
-					w.add(ctx);
-					}
-				else
-					{
-					w.add(new VariantContextBuilder(ctx).passFilters().make());
-					}
-				}
-			else
-				{
-				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.filter(this.filterOut);
-				w.add(vcb.make());
-				}
-			}
-		else
-			{
-			if(keep) {
-				w.add(ctx);
-				} else
-				{
-					/* don't print */
-				}
-			}
-		}
-	
-	private int scanFileSorted(
-			final VariantContextWriter vcw,
-			final VCFIterator userVcfIn,
-			String externalDatabaseURI
-			)
-		{
-		EqualRangeVcfIterator equalRangeDbIter=null;
-		EqualRangeIterator<VariantContext> equalRangeUserVcf = null;
-		try
-			{
-			final VCFHeader header = new VCFHeader(userVcfIn.getHeader());
-			final SAMSequenceDictionary userVcfDict = header.getSequenceDictionary();
-			/// NO need if(dict1==null)
-			if(userVcfDict==null)
-				{
-				LOG.error(JvarkitException.VcfDictionaryMissing.getMessage("user file"));
-				return -1;
-				}
-			final Comparator<VariantContext> userVcfComparator =
-					VCFUtils.createTidPosComparator(userVcfDict)
-					;
-			equalRangeDbIter = new EqualRangeVcfIterator(
-					VCFUtils.createVCFIterator(externalDatabaseURI),userVcfComparator);
 
-			this.addMetaData(header);
-			vcw.writeHeader(header);
-						
-			equalRangeUserVcf = new EqualRangeIterator<>(userVcfIn, userVcfComparator);
-			
-			while(equalRangeUserVcf.hasNext())
-				{
-				final List<VariantContext> ctxList = equalRangeUserVcf.next();
-				
-				//fill both contextes
-				final List<VariantContext> dbContexes = new ArrayList<VariantContext>(equalRangeDbIter.next(ctxList.get(0)));
-				
-				for(final VariantContext userCtx:ctxList)
-					{
-					boolean keep = dbContexes.stream().
-							filter(V->sameContext(userCtx,V)).
-							anyMatch(V->allUserAltFoundInDatabase(userCtx,V))
-							;
-					addVariant(vcw,userCtx,keep);
-					}
-				if(vcw.checkError()) break;
-				}
-			equalRangeUserVcf.close();
-			return RETURN_OK;
-			}
-		catch(final Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(equalRangeDbIter);
-			CloserUtil.close(userVcfIn);
-			CloserUtil.close(vcw);
-			}
-		}
 	
-	private class TabixVcf
-		implements Closeable
-		{
-		final Path file;
-		final VCFReader vcfFileReader;
-		final VCFHeader header;
-		final SAMSequenceDictionary dict;
-		final ContigNameConverter contigNameConverter;
-		TabixVcf(SAMSequenceDictionary dictIn,final String file) {
-			this.file = Paths.get(file);
-			this.vcfFileReader =VCFReaderFactory.makeDefault().open(this.file,true);
-			this.header = this.vcfFileReader.getHeader();
-			this.dict = this.header.getSequenceDictionary();
-			
-			if(dictIn!=null && this.dict!=null)
-				{
-				contigNameConverter = ContigNameConverter.fromDictionaries(dictIn, this.dict);
-				}
-			else if(this.dict!=null)
-				{
-				contigNameConverter = ContigNameConverter.fromOneDictionary(this.dict);
-				}
-			else
-				{
-				contigNameConverter = ContigNameConverter.getIdentity();
-				}
-			}
-		
-		@Override
-		public void close() throws IOException {
-			CloserUtil.close(vcfFileReader);
-			}
-		}
 
-	private int scanUsingTabix(
-			final VariantContextWriter vcw,
-			final VCFIterator vcfIn,
-			final List<String> databasesPaths
-			)
-		{
-		final List<TabixVcf> tabixList = new ArrayList<>(databasesPaths.size());
-		try
-			{
-			final VCFHeader header1= new VCFHeader(vcfIn.getHeader());
-			final SAMSequenceDictionary dictIn = header1.getSequenceDictionary();
-			
-
-			
-			for(final String path: databasesPaths)
-				{
-				tabixList.add(new TabixVcf(dictIn,path));
-				}
-			
-			final VCFHeader header2 = new VCFHeader(header1);
-			this.addMetaData(header2);
-			vcw.writeHeader(header2);
-			
-			
-			while(vcfIn.hasNext())
-				{
-				final VariantContext userCtx=  vcfIn.next();
-				
-				int number_of_time_ctx_was_found = 0;
-				for(final TabixVcf tabix:tabixList)  {
-					final String newContigName = tabix.contigNameConverter.apply(userCtx.getContig());
-					if(StringUtil.isBlank(newContigName))  continue;
-					final CloseableIterator<VariantContext> iter= tabix.vcfFileReader.query(
-							newContigName,
-							Math.max(1,userCtx.getStart()-1),
-							userCtx.getEnd()+1
-							);
-					final Predicate<VariantContext> acceptVariant = (V)->{
-						if(!V.getContig().equals(newContigName)) return false;
-						if(only_contig_pos && V.getStart()==userCtx.getStart()) return true;
-						if(!sameContextIgnoreContig(userCtx,V)) return false;
-						if(!allUserAltFoundInDatabase(userCtx, V)) return false;
-						return true;
-						};
-					
-					while(iter.hasNext())
-						{
-						final VariantContext dbctx= iter.next();
-						if(!acceptVariant.test(dbctx)) continue;
-						number_of_time_ctx_was_found++;
-						break;
-						}
-					iter.close();
-					if( number_of_time_ctx_was_found >= minCountInclusive) break;
-					}
-				final boolean keep = number_of_time_ctx_was_found >= this.minCountInclusive &&
-						(this.maxCountInclusive<0 || number_of_time_ctx_was_found <= this.maxCountInclusive)
-						;
-				addVariant(vcw,userCtx,keep);
-				if(vcw.checkError()) break;
-				}
-			return RETURN_OK;
-			}
-		catch(final Exception err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		finally
-			{
-			CloserUtil.close(tabixList);
-			}
-		}
+	
 	@Override
 	protected int beforeVcf() {
 		try {
-			if(!StringUtils.isBlank(this.filterIn) && !StringUtils.isBlank(this.filterOut)) {
-				 LOG.error("Option filterIn/filterOut both defined.");
-				 return -1;
-			}
-			if(this.inverse && (!StringUtils.isBlank(this.filterIn) || !StringUtils.isBlank(this.filterOut))) {
-				 LOG.error("Option inverse cannot be used when Option filterin/filterou is defined.");
-				 return -1;
+			for(Path p: IOUtils.unrollPaths(this.databaseVCFPaths)) {
+				this.databaseVCFS.add(new DatabaseVcf(p));
 				}
-			}
+			if(this.databaseVCFPaths.isEmpty()) {
+				LOG.error("no database VCF was specified.");
+				return -1;
+				}
+			
+		}
 		catch(final Throwable err ) {
 			return -1;
 			}
 		return super.beforeVcf();
 		}
+	
 	@Override
 	protected void afterVcf() {
+		
+		for(DatabaseVcf v:this.databaseVCFS) {
+			v.close();
+			}
 		super.afterVcf();
 		}
 	
 	@Override
 	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter w) {
 		try {
-		final List<String> externalDatabaseUris = 
-				this.externalDatabaseList.size() ==1 && this.externalDatabaseList.get(0).endsWith(".list") ?
-				Files.lines(Paths.get(this.externalDatabaseList.get(0))).filter(L->!StringUtil.isBlank(L)).collect(Collectors.toList())
-				:
-				this.externalDatabaseList
-				;
-		
-		if(externalDatabaseUris.isEmpty()) {
-			LOG.error("Empty external database URI");
-			return -1;
-			}
-
-		if(this.databaseIsIndexed)
-				{
-				return this.scanUsingTabix(w,in,externalDatabaseUris);
+			final VCFHeader h0 = in.getHeader();
+			final VCFHeader h = new VCFHeader(h0); 
+			final VCFFilterHeaderLine filterHeaderLine;
+			if(StringUtils.isBlank(this.filterName)) {
+				filterHeaderLine = null;
 				}
 			else
 				{
-				if(externalDatabaseUris.size()!=1) {
-					LOG.info("When files are sorted, I can only use one URI.");
-					return -1;
-					}
-				if(this.only_contig_pos)
-					{
-					LOG.error("--only-contig-pos only  works with --tabix flag ");
-					return -1;
-					}
-				return this.scanFileSorted(w,in,externalDatabaseUris.get(0));
+				filterHeaderLine = new VCFFilterHeaderLine(this.filterName, "Filtered "+getProgramName());
+				h.addMetaDataLine(filterHeaderLine);
 				}
+			
+			final VCFInfoHeaderLine countHdr = new VCFInfoHeaderLine("VCFIN_COUNT",1,VCFHeaderLineType.Integer,"The variant was found in 'x' other VCF using "+getProgramName());
+			h.addMetaDataLine(countHdr);
+			JVarkitVersion.getInstance().addMetaData(this, h);
+			
+			w.writeHeader(h);
+			while(in.hasNext()) {
+				final VariantContext ctx= in.next();
+				final boolean is_sv1 = !StringUtils.isBlank(ctx.getAttributeAsString(VCFConstants.SVTYPE,""));
+				
+				int n_found=0;
+				for(DatabaseVcf db:this.databaseVCFS) {
+					boolean found = false;
+					final String ctg = db.contigNameConverter.apply(ctx.getContig());
+					if(!StringUtils.isBlank(ctg)) {
+						try(CloseableIterator<VariantContext> iter = db.vcfReader.query(new Interval(ctg,ctx.getStart(),ctx.getEnd()))) {
+							while(!found && iter.hasNext()) {
+								final VariantContext vc2 = iter.next();
+								if(!CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), vc2.getStart(), vc2.getEnd())) continue;
+								final boolean is_sv2 = !StringUtils.isBlank(vc2.getAttributeAsString(VCFConstants.SVTYPE,""));
+								if(is_sv1 && is_sv2) {
+									if(overlap_comparator.test(ctx.getStart(), ctx.getEnd(), vc2.getStart(), vc2.getEnd())) {
+										found = true;
+										}
+									}
+								else if(!is_sv1 && !is_sv2) {
+									if(compare(this.matcher,ctx,vc2)) {
+										
+										}
+									}
+								else
+									{
+									/* both must have the same SV type */
+									continue;
+									}
+								}
+							
+							}
+						}
+					if(found) n_found++;
+ 					}
+				
+				boolean keep = n_found>0;
+				if(this.inverse) {
+					keep= !keep;
+					}
+				
+				// just skip the variant
+				if(!keep && filterHeaderLine==null) continue;
+				
+				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+				vcb.attribute(countHdr.getID(), n_found);
+				if(keep) {
+					if(!ctx.isFiltered()) vcb.passFilters();
+					}
+				else
+					{
+					vcb.filter(filterHeaderLine.getID());
+					}
+				w.add(vcb.make());
+				}
+			return 0;
 			}
 		catch(final Throwable err ) {
 			LOG.error(err);
