@@ -75,13 +75,13 @@ Usage: coveragematrix [options] Files
 
 ### Requirements / Dependencies
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
+* java [compiler SDK 17](https://jdk.java.net/17/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
 
 
 ### Download and Compile
 
 ```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
+$ git clone --recurse-submodules "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
 $ ./gradlew coveragematrix
 ```

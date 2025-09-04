@@ -16,7 +16,8 @@ copies or substantial portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+AUTHORS OR COPYRIGHT HOLimport htsjdk.samtools.util.CloserUtil;
+DERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
@@ -33,32 +34,30 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.variant.sv.OverlapComparator;
+import com.github.lindenb.jvarkit.variant.variantcontext.SNVMatcher;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 /** 
@@ -92,7 +91,6 @@ END_DOC
 	)
 public class FindAVariation extends Launcher
 	{
-	private enum Matcher {overlap,id,chrom_pos,chrom_pos_ref,chrom_pos_any_alt,chrom_pos_all_alt};
 	private static final Logger LOG = Logger.of(FindAVariation.class);
 	@Parameter(names={"-V","--vcf","--variants"}, description="A VCF file containing the variants",required = true)
 	private Path vcfFile = null;
@@ -102,58 +100,19 @@ public class FindAVariation extends Launcher
 	private boolean hideHomRef=false;
 	@Parameter(names={"-nocall","--nocall"},description="Hide NO_CALL genotypes")
 	private boolean hideNoCall=false;
-	@Parameter(names={"--enable-no-index"},description="Enabled scan of non-indexed files.")
+	@Parameter(names={"--snv-matcher"},description=SNVMatcher.OPT_DESC)
+	private SNVMatcher snvMatcher = SNVMatcher.chrom_pos_ref_any_alt;
+	@Parameter(names={"--sv-fraction"},description="How to match two SV. " + OverlapComparator.OPT_DESC,splitter = NoSplitter.class,converter = OverlapComparator.StringConverter.class)
+	private OverlapComparator overlap_comparator = OverlapComparator.makeDefault();
+	@Parameter(names={"--enable-non-indexed","--no-index"},description="Enable Scanning of non-indexed VCF/BCF files")
 	private boolean enabled_non_indexed=false;
-	@Parameter(names={"--pair-logic","-p"},description=" Matching records by 'x'")
-	private Matcher matcher= Matcher.chrom_pos_any_alt;
 
-	
-	
     public FindAVariation()
     	{
     	}		
    
-    
-    private static boolean overlap(final Matcher matcher,final VariantContext userVar, final VariantContext vcfVar) {
-    	if(!userVar.overlaps(vcfVar)) return false;
-    	switch(matcher) {
-    		case overlap: return true;
-    		case id:
-    			{
-				if(!userVar.hasID() || !vcfVar.hasID() ) return false;
-				final Set<String> set = Arrays.stream( CharSplitter.COMMA.split(vcfVar.getID())).collect(Collectors.toSet());
-				for(String id : CharSplitter.COMMA.split(userVar.getID())) {
-					if(id.equals(VCFConstants.EMPTY_ID_FIELD)) continue;
-					if(set.contains(id)) return true;
-					}
-				return false;
-    			}
-    		case chrom_pos:
-    			return userVar.contigsMatch(vcfVar) && userVar.getStart() == vcfVar.getStart();
-    		case chrom_pos_ref:
-    			return overlap(Matcher.chrom_pos,userVar,vcfVar) && userVar.getNAlleles()>0 && userVar.getReference().equals(vcfVar.getReference());
-    		case chrom_pos_any_alt:
-    			{
-    			if(!overlap(Matcher.chrom_pos_ref,userVar,vcfVar)) return false;
-    			final Set<Allele> set =new HashSet<>(userVar.getAlternateAlleles());
-    			for(Allele a: vcfVar.getAlternateAlleles()) {
-    				if(set.contains(a)) return true;
-    				}
-    			return false;
-    			}
-    		case chrom_pos_all_alt:
-				{
-				if(!overlap(Matcher.chrom_pos_ref,userVar,vcfVar)) return false;
-				final Set<Allele> set1 =new HashSet<>(userVar.getAlternateAlleles());
-				final Set<Allele> set2 =new HashSet<>(vcfVar.getAlternateAlleles());
-				return set1.containsAll(set2);
-				}
-   			}
-    	return false;
-    	}
-    
     private boolean overlap(final VariantContext userVar, final VariantContext vcfVar) {
-    	return overlap(this.matcher,userVar,vcfVar);
+    	return this.snvMatcher.test(userVar,vcfVar);
     	}
     
     private void reportPos(	final PrintWriter out,final String f,final VCFHeader header,final VariantContext ctx)
@@ -213,6 +172,8 @@ public class FindAVariation extends Launcher
     			out.print(g.hasDP()?String.valueOf(g.getDP()):".");
     			out.print('\t');
     			out.print(g.hasGQ()?String.valueOf(g.getGQ()):".");
+    			out.print('\t');
+    			out.print(g.isFiltered()?String.valueOf(g.getFilters()):"PASS");
     			out.println();
     			}
     		}
@@ -258,6 +219,7 @@ public class FindAVariation extends Launcher
     private void scanRemote(final PrintWriter out,final String url,final List<VariantContext> mutations,final VCFHeader userHeader)  {
     	try (VCFReader tabix=VCFReaderFactory.makeDefault().open(url)) {
     		final VCFHeader header = tabix.getHeader();
+    		if(!areHeaderCompatibles(userHeader, header)) return;
     		final SAMSequenceDictionary dict = header.getSequenceDictionary();
     		for(final VariantContext m:convertFromVcfHeader(url,header,mutations))
     			{
@@ -276,8 +238,19 @@ public class FindAVariation extends Launcher
 			LOG.severe("URL= "+url,err);
 			}
     	}
+    private boolean areDictCompatibles(SAMSequenceDictionary userDict,SAMSequenceDictionary dbDict) {
+    	if(userDict==null || dbDict==null) return true;
+    	Optional<String> db1=SequenceDictionaryUtils.getBuildName(userDict);
+    	Optional<String> db2=SequenceDictionaryUtils.getBuildName(dbDict);
+    	if(db1.isPresent() && db2.isPresent() && !db1.get().equals(db2.get())) return false;
+    	return true;// let's be optimistic...
+		}
     
-    private void scanPath(final PrintWriter out,final String vcfPathString,final List<VariantContext> mutations)  {
+    private boolean areHeaderCompatibles(VCFHeader userHeader,VCFHeader dbHeader) {
+    	return areDictCompatibles(userHeader.getSequenceDictionary(),dbHeader.getSequenceDictionary());
+    	}
+    
+    private void scanPath(final PrintWriter out,final String vcfPathString,final List<VariantContext> mutations,final VCFHeader userHeader)  {
     	final Path vcfPath=Paths.get(vcfPathString);
     	if(Files.isDirectory(vcfPath)) return;
     	if(!Files.isReadable(vcfPath)) return;
@@ -287,6 +260,7 @@ public class FindAVariation extends Launcher
 			lastError=null;
 			try(VCFReader r= VCFReaderFactory.makeDefault().open(vcfPath,n_try==0)) {
 				final VCFHeader header =r.getHeader();
+				if(!areHeaderCompatibles(userHeader, header)) continue;
 				if(n_try==0) {
 					for(final VariantContext m : convertFromVcfHeader(vcfPath.toString(),header, mutations))
 						{
@@ -334,7 +308,7 @@ public class FindAVariation extends Launcher
 		try
 			{
 			final List<VariantContext> mutations=new ArrayList<>();
-			VCFHeader userHeader=null;
+			final VCFHeader userHeader;
 			try(final VCFReader r = VCFReaderFactory.makeDefault().open(this.vcfFile,false) ) {
 				userHeader = r.getHeader();
 				try(CloseableIterator<VariantContext> iter=r.iterator()) {
@@ -346,7 +320,7 @@ public class FindAVariation extends Launcher
 			
 			
 			try(PrintWriter out=super.openPathOrStdoutAsPrintWriter(this.outputFile) ) {
-				out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tAD\tDP\tGQ");
+				out.println("#FILE\tCHROM\tstart\tend\tID\tREF\tsample\ttype\tALLELES\tAD\tDP\tGQ\tFILTER");
 				
 				if(args.isEmpty())
 					{

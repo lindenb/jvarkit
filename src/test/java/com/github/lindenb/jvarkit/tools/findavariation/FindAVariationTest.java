@@ -18,19 +18,19 @@ public void test01() throws IOException {
 	final TestSupport support = new TestSupport();
 	try {
 		final Path input = support.createTmpPath(".list");
-		PrintWriter pw=new PrintWriter(Files.newBufferedWriter(input));
-		pw.println(support.resource("S1.vcf.gz"));
-		pw.println(support.resource("S3.vcf.gz"));
-		pw.println(support.resource("S4.vcf.gz"));
-		pw.println(support.resource("toy.vcf.gz"));
-		pw.println(support.resource("toy.bcf"));
-		pw.flush();
-		pw.close();
+			try(PrintWriter pw=new PrintWriter(Files.newBufferedWriter(input))) {
+			pw.println(support.resource("S1.vcf.gz"));
+			pw.println(support.resource("S3.vcf.gz"));
+			pw.println(support.resource("S4.vcf.gz"));
+			pw.println(support.resource("toy.vcf.gz"));
+			pw.println(support.resource("toy.bcf"));
+			pw.flush();
+			}
 		Assert.assertTrue(support.wc(input)>0L);
 		final Path output = support.createTmpPath(".tsv");
 		Assert.assertEquals(new FindAVariation().instanceMain(new String[]{
 	    		"-o",output.toString(),
-	    		"-p","ref2:14",
+	    		"--vcf",support.resource("S2.vcf.gz"),
 	    		input.toString()
 	    		}),0);
 		Assert.assertTrue(support.wc(output)>1L);

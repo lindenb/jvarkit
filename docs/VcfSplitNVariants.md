@@ -61,7 +61,7 @@ Usage: vcfsplitnvariants [options] Files
 
 ## Creation Date
 
-202221122
+20221122
 
 ## Source code 
 

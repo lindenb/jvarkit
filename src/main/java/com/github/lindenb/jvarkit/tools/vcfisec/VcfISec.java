@@ -23,12 +23,13 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.vcfcmp;
+package com.github.lindenb.jvarkit.tools.vcfisec;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -37,25 +38,25 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.variant.sv.OverlapComparator;
+import com.github.lindenb.jvarkit.variant.variantcontext.SNVMatcher;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
-import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
@@ -68,24 +69,32 @@ BEGIN_DOC
 * For Structural Variants (identified with INFO/SVTYPE) we just compare the fraction of common overlap.
 * For SNVs : spanning deletions (`*`) are not considered when comparing alleles
 
-See also:
+# Example
+
+```
+find DIR -name "*.vcf.gz" > paths.list
+java -jar jvarkit.jar vcfisec --vcfs paths.list in.vcf
+```
+
+# See also:
 
  * bcftools isec
 
 END_DOC
 */
 
-@Program(name="vcfin",
+@Program(name="vcfisec",
 	description="Only prints variants that are contained/not contained into another VCF",
 	keywords={"vcf","compare"},
-	modificationDate="20250903",
 	creationDate="20140204",
+	modificationDate="20250903",
+	jvarkit_amalgamion = true,
+	menu="VCF Manipulation",
 	biostars={287815}
 	)
-public class VcfIn extends OnePassVcfLauncher
+public class VcfISec extends OnePassVcfLauncher
 	{
-	private static final Logger LOG = Logger.of(VcfIn.class);
-	private enum Matcher {id,overlap,chrom_pos,chrom_pos_ref,chrom_pos_ref_any_alt,chrom_pos_ref_all_alt}
+	private static final Logger LOG = Logger.of(VcfISec.class);
 	
 	@Parameter(names={"-i","--inverse"},description="Print variants that are not part of the VCF-database.")
 	private boolean inverse = false;
@@ -95,8 +104,8 @@ public class VcfIn extends OnePassVcfLauncher
 	private String filterName = "";
 	@Parameter(names={"--sv-fraction"},description="How to match two SV. " + OverlapComparator.OPT_DESC,splitter = NoSplitter.class,converter = OverlapComparator.StringConverter.class)
 	private OverlapComparator overlap_comparator = OverlapComparator.makeDefault();
-	@Parameter(names={"--matcher"},description="How to match two SNVs. Note that Spanning deletion are ignored.")
-	private Matcher matcher = Matcher.chrom_pos_ref_any_alt;
+	@Parameter(names={"--snv-matcher"},description=SNVMatcher.OPT_DESC)
+	private SNVMatcher matcher = SNVMatcher.chrom_pos_ref_any_alt;
 
 	
 	private final List<DatabaseVcf> databaseVCFS = new ArrayList<>();
@@ -108,8 +117,10 @@ public class VcfIn extends OnePassVcfLauncher
 		final Path file;
 		final VCFReader vcfReader;
 		final ContigNameConverter contigNameConverter;
-		DatabaseVcf(Path file) {
+		final int file_id;
+		DatabaseVcf(final Path file,int file_id) {
 			this.file = file;
+			this.file_id = file_id;
 			this.vcfReader =VCFReaderFactory.makeDefault().open(this.file,true);
 			final VCFHeader header = this.vcfReader.getHeader();
 			final SAMSequenceDictionary dict = header.getSequenceDictionary();
@@ -117,7 +128,6 @@ public class VcfIn extends OnePassVcfLauncher
 					? ContigNameConverter.getIdentity()
 					:ContigNameConverter.fromOneDictionary(dict);
 			}
-		
 		
 		@Override
 		public void close() {
@@ -131,73 +141,13 @@ public class VcfIn extends OnePassVcfLauncher
 	protected Logger getLogger() {
 		return LOG;
 		}
-	/** if dict are different , ignore contig*/
-	private static boolean compare(
-			final Matcher matcher,
-			final VariantContext vc1,
-			final VariantContext vc2
-			)
-		{
-		switch(matcher) {
-			case overlap:
-				return true;//assume we already know they overlap
-			case id:
-				{
-				if(!vc1.hasID() || !vc2.hasID()) return false;
-				final Set<String> id1s =CharSplitter.of(VCFConstants.ID_FIELD_SEPARATOR).splitAsSet((vc1.getID()));
-				final Set<String> id2s =CharSplitter.of(VCFConstants.ID_FIELD_SEPARATOR).splitAsSet((vc2.getID()));
-				for(String id: id1s) {
-					if(id.equals(VCFConstants.EMPTY_ID_FIELD)) continue;
-					if(id2s.contains(id)) return true;
-					}
-				return false;
-				}
-			case chrom_pos:
-				return vc1.getStart() == vc2.getStart();
-			case chrom_pos_ref:
-				{
-				if(vc1.getStart() != vc2.getStart()) return false;
-				if(vc1.getNAlleles()<1 || vc2.getNAlleles()<1) return false;
-				return vc1.getReference().equals(vc2.getReference());
-				}
-			case chrom_pos_ref_any_alt:
-				{
-				if(!compare(Matcher.chrom_pos_ref,vc1,vc2)) return false;
-				for(Allele alt: vc1.getAlternateAlleles()) {
-					if(alt.equals(Allele.SPAN_DEL)) continue;
-					if(vc2.hasAllele(alt)) return true;
-					}
-				return false;
-				}
-			case chrom_pos_ref_all_alt:
-				{
-				if(!compare(Matcher.chrom_pos_ref,vc1,vc2)) return false;
-				if(vc1.getNAlleles()<2) return false;
-				if(vc2.getNAlleles()<2) return false;
-				boolean ok=false;
-				for(Allele alt: vc1.getAlternateAlleles()) {
-					if(alt.equals(Allele.SPAN_DEL)) continue;
-					if(!vc2.hasAllele(alt)) return false;
-					ok=true;
-					}
-				return ok;
-				}
-			default: throw new IllegalStateException();
-			}
-		}
-
 	
-	
-	
-
-	
-
 	
 	@Override
 	protected int beforeVcf() {
 		try {
 			for(Path p: IOUtils.unrollPaths(this.databaseVCFPaths)) {
-				this.databaseVCFS.add(new DatabaseVcf(p));
+				this.databaseVCFS.add(new DatabaseVcf(p,this.databaseVCFS.size()));
 				}
 			if(this.databaseVCFPaths.isEmpty()) {
 				LOG.error("no database VCF was specified.");
@@ -213,7 +163,6 @@ public class VcfIn extends OnePassVcfLauncher
 	
 	@Override
 	protected void afterVcf() {
-		
 		for(DatabaseVcf v:this.databaseVCFS) {
 			v.close();
 			}
@@ -235,8 +184,11 @@ public class VcfIn extends OnePassVcfLauncher
 				h.addMetaDataLine(filterHeaderLine);
 				}
 			
-			final VCFInfoHeaderLine countHdr = new VCFInfoHeaderLine("VCFIN_COUNT",1,VCFHeaderLineType.Integer,"The variant was found in 'x' other VCF using "+getProgramName());
+			final VCFInfoHeaderLine countHdr = new VCFInfoHeaderLine("VCFISEC_COUNT",1,VCFHeaderLineType.Integer,"The variant was found in 'x' other VCF using "+getProgramName());
 			h.addMetaDataLine(countHdr);
+			final VCFInfoHeaderLine fileIdHdr = new VCFInfoHeaderLine("VCFISEC_FILE_IDS",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.Integer,"The File indexes (0-based) where the variant was found. "+getProgramName());
+			h.addMetaDataLine(fileIdHdr);
+
 			JVarkitVersion.getInstance().addMetaData(this, h);
 			
 			w.writeHeader(h);
@@ -244,7 +196,7 @@ public class VcfIn extends OnePassVcfLauncher
 				final VariantContext ctx= in.next();
 				final boolean is_sv1 = !StringUtils.isBlank(ctx.getAttributeAsString(VCFConstants.SVTYPE,""));
 				
-				int n_found=0;
+				final Set<Integer> found_file_ids = new HashSet<>(this.databaseVCFS.size());
 				for(DatabaseVcf db:this.databaseVCFS) {
 					boolean found = false;
 					final String ctg = db.contigNameConverter.apply(ctx.getContig());
@@ -255,13 +207,13 @@ public class VcfIn extends OnePassVcfLauncher
 								if(!CoordMath.overlaps(ctx.getStart(), ctx.getEnd(), vc2.getStart(), vc2.getEnd())) continue;
 								final boolean is_sv2 = !StringUtils.isBlank(vc2.getAttributeAsString(VCFConstants.SVTYPE,""));
 								if(is_sv1 && is_sv2) {
-									if(overlap_comparator.test(ctx.getStart(), ctx.getEnd(), vc2.getStart(), vc2.getEnd())) {
+									if(this.overlap_comparator.test(ctx.getStart(), ctx.getEnd(), vc2.getStart(), vc2.getEnd())) {
 										found = true;
 										}
 									}
 								else if(!is_sv1 && !is_sv2) {
-									if(compare(this.matcher,ctx,vc2)) {
-										
+									if(this.matcher.test(ctx,vc2)) {
+										found = true;
 										}
 									}
 								else
@@ -273,10 +225,12 @@ public class VcfIn extends OnePassVcfLauncher
 							
 							}
 						}
-					if(found) n_found++;
+					if(found) {
+						found_file_ids.add(db.file_id);
+						}
  					}
 				
-				boolean keep = n_found>0;
+				boolean keep =!found_file_ids.isEmpty();
 				if(this.inverse) {
 					keep= !keep;
 					}
@@ -285,7 +239,12 @@ public class VcfIn extends OnePassVcfLauncher
 				if(!keep && filterHeaderLine==null) continue;
 				
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				vcb.attribute(countHdr.getID(), n_found);
+				vcb.attribute(countHdr.getID(), found_file_ids.size());
+				if(!found_file_ids.isEmpty())
+					{
+					vcb.attribute(fileIdHdr.getID(), new ArrayList<>(found_file_ids));
+					}
+				
 				if(keep) {
 					if(!ctx.isFiltered()) vcb.passFilters();
 					}
@@ -305,6 +264,6 @@ public class VcfIn extends OnePassVcfLauncher
 		
 
 	public static void main(final String[] args) {
-		new VcfIn().instanceMainWithExit(args);
+		new VcfISec().instanceMainWithExit(args);
 		}
 	}

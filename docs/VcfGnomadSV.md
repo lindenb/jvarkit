@@ -86,15 +86,15 @@ Usage: vcfgnomadsv [options] Files
       'chr2:10556028:A:AATTATATAATTAAATTAATTATATAATT'. See 
       https://twitter.com/yokofakun/status/1169182491606999046 
       Default: false
-    --sv-overlap-fraction
-      Two CNV/DEL/.. variants are the same if they share 'x' fraction of their 
-      size. 
-      Default: 0.75
-    --sv-small-overlap
-      Two non-BND variants are the same if they overlap and both have a 
-      length<= 'x'. A distance specified as a positive integer.Commas are 
-      removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
-      Default: 10
+    --sv-fraction
+      Two SV have are the same if they share a fraction 'x' of their bases. 
+      For very small SV the fraction can be quite small while for large SV the 
+      fraction should be close to 1. The Syntax is the following : 
+      (<MAX_SIZE_INCLUSIVE>:<FRACTION as double or percent>;)+ . For example 
+      if the SV as a size of 99bp, the fraction used with be 0.6 for 
+      '10:0.1;100:0.6;1000:0.9'. For the smallest size, a simple overlap is a 
+      positive match.
+      Default: 10:0.5;100:0.75;1000:0.8;10000:0.9
     --version
       print version and exit
 

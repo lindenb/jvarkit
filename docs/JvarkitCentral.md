@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : ecdbf5d08
-Compilation : 20250717141147
+Version     : 8d66ea652
+Compilation : 20250904111707
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -36,7 +36,7 @@ A pre-compiled java executable of jvarkit.jar is available at [https://uncloud.u
 ### Download and Compile
 
 ```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
+$ git clone --recurse-submodules "https://github.com/lindenb/jvarkit.git"
 $ cd jvarkit
 $ ./gradlew jvarkit
 ```

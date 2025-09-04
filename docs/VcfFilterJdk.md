@@ -28,11 +28,13 @@ Usage: vcffilterjdk [options] Files
       Default: false
     -e, --expression
       The java code expression.
-    -xf, --extra-filters
-      [20180716] extra FILTERs names that will be added in the VCF header and 
-      that you can add in the variant using https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContextBuilder.html#filter-java.lang.String- 
-      . Multiple separated by space/comma
-      Default: <empty string>
+    -xh, --extra-header
+      Add the following VCF header to the output header e.g 
+      '####FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype 
+      Quality">' .If it's a simple string matching /[A-Za-z][A-Za-z0-9_]*/ , 
+      it's interpreted as a new FILTER. If there is only one value and it ends 
+      with '.txt' it is considered as a file containing the header(s).
+      Default: []
     -F, --filter
       If not empty, variants won't be discarded and this name will be used in 
       the FILTER column
@@ -66,7 +68,7 @@ Usage: vcffilterjdk [options] Files
       The java source code file.
     -vn, --variable
       [20180716] how to name the VariantContext in the code. htsjdk/gatk often 
-      use 'vc'.
+      uses 'vc'.
       Default: variant
     --version
       print version and exit

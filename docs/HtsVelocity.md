@@ -54,7 +54,7 @@ Usage: htsfreemarker [options] Files
 ## Keywords
 
  * template
- * velocuty
+ * velocity
  * vcf
  * bam
 
@@ -62,7 +62,7 @@ Usage: htsfreemarker [options] Files
 
 ## Creation Date
 
-20230616
+20250901
 
 ## Source code 
 

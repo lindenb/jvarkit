@@ -281,6 +281,7 @@ nav:
         - "vcfgrantham" : VcfGrantham.md
         - "vcfgroupbypop" : VcfGroupByPopulation.md
         - "vcfhead" : VcfHead.md
+        - "vcfisec" : VcfISec.md
         - "vcfliftover" : VcfLiftOver.md
         - "vcfmovefilterstoinfo" : VcfMoveFiltersToInfo.md
         - "vcfmulti2one" : VcfMultiToOne.md

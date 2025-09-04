@@ -27,8 +27,13 @@
       <class name="com.github.lindenb.jvarkit.util.CounterTest"/>
       <class name="com.github.lindenb.jvarkit.lang.StringUtilsTest"/>
       <class name="com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactoryTest"/>
-      <class name="com.github.lindenb.jvarkit.variant.variantcontext.AlleleMatcherTest"/>
       <class name="com.github.lindenb.jvarkit.variant.variantcontext.BreakendTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.sv.OverlapComparatorTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.variantcontext.SNVMatcherTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.MergingIteratorTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.FilterIteratorTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.EqualRangeIteratorTest"/>
+      <class name="com.github.lindenb.jvarkit.iterator.LineIteratorsTest"/>
    </classes>
   </test>
 
@@ -58,16 +63,13 @@
       <class name="com.github.lindenb.jvarkit.tools.samjs.SamJdkTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcf2table.VcfToTableTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntologyTest"/>
-      <class name="com.github.lindenb.jvarkit.iterator.MergingIteratorTest"/>
-      <class name="com.github.lindenb.jvarkit.iterator.FilterIteratorTest"/>
-      <class name="com.github.lindenb.jvarkit.iterator.EqualRangeIteratorTest"/>
-      <class name="com.github.lindenb.jvarkit.iterator.LineIteratorsTest"/>
       <class name="com.github.lindenb.jvarkit.rdf.RDFModelTest"/>
       <class name="com.github.lindenb.jvarkit.rdf.ResourceTest"/>
       <class name="com.github.lindenb.jvarkit.rdf.LiteralTest"/>
       <class name="com.github.lindenb.jvarkit.rdf.StatementTest"/>
       <class name="com.github.lindenb.jvarkit.variant.vcf.VCFByIndexTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolicTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfisec.VcfISecTest"/>
     </classes>
   </test>
 </suite>

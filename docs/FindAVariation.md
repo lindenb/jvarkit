@@ -16,10 +16,8 @@ Usage: java -jar dist/jvarkit.jar findavariation  [options] Files
 
 Usage: findavariation [options] Files
   Options:
-    --bcf
-      Enable BCF. On 20200217 the java library htsjdk doesn't support the 
-      recent version of bcf. This tool will call `bcftools` to get the 
-      variants. bcftools must be in the ${PATH}.
+    --enable-non-indexed, --no-index
+      Enable Scanning of non-indexed VCF/BCF files
       Default: false
     -h, --help
       print help and exit
@@ -28,24 +26,26 @@ Usage: findavariation [options] Files
     -homref, --homref
       Hide HOM_REF genotypes
       Default: false
-    -indexed, --indexed
-      [20171020] Search only in indexed vcf
-      Default: false
     -nocall, --nocall
       Hide NO_CALL genotypes
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
-    -f, --posfile
-      Add this file containing chrom:position
-      Default: []
-    -p, --position
-      A list of 'chrom/position'
-      Default: []
-    -snp, --snp
-      Search only variant have the very same position (ignore overlapping 
-      variants) 
-      Default: false
+    --snv-matcher
+      How to test if two SNVs are the same. Spanning deletion will be ignored.
+      Default: chrom_pos_ref_any_alt
+      Possible Values: [id, overlap, chrom_pos, chrom_pos_ref, chrom_pos_ref_any_alt, chrom_pos_ref_all_alt]
+    --sv-fraction
+      How to match two SV. Two SV have are the same if they share a fraction 
+      'x' of their bases. For very small SV the fraction can be quite small 
+      while for large SV the fraction should be close to 1. The Syntax is the 
+      following : (<MAX_SIZE_INCLUSIVE>:<FRACTION as double or percent>;)+ . 
+      For example if the SV as a size of 99bp, the fraction used with be 0.6 
+      for '10:0.1;100:0.6;1000:0.9'. For the smallest size, a simple overlap 
+      is a positive match.
+      Default: 10:0.5;100:0.75;1000:0.8;10000:0.9
+  * -V, --vcf, --variants
+      A VCF file containing the variants
     --version
       print version and exit
 
@@ -68,11 +68,11 @@ Usage: findavariation [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindAVariation.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/FindAVariation.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/findavariation/FindAVariation.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/findavariation/FindAVariation.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/FindAVariationTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/FindAVariationTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/findavariation/FindAVariationTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/findavariation/FindAVariationTest.java)
 
 
 ## Contribute
@@ -100,7 +100,7 @@ The current reference is:
 
 ```
 $ find ./ -name "*.vcf" -o -name "*.vcf.gz" |\
-   java -jar dist/findavariation.jar -p "chr1:1234" 
+   java -jar dist/findavariation.jar -V search.vcf
 
 
 htsjdk/testdata/htsjdk/samtools/intervallist/IntervalListFromVCFTestManual.vcf	1	8216713	8216713	yossi-1		NA12878	HET	A G

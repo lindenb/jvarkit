@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : ecdbf5d08
-Compilation : 20250717141147
+Version     : 8d66ea652
+Compilation : 20250904111707
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -51,7 +51,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [bammatrix](BamMatrix.md) | Bam matrix, inspired from 10x/loupe | 20190620 | 20211206 |
 | [cnvpanelofnormal](CNVPaneOfNormal.md) | Call CNV from panel of normal computed with 'basecoverage' | 20241123 | 20241123 |
 | [cnvtview](CnvTView.md) | Text visualization of bam DEPTH for multiple regions in a terminal | 20181018 | 20210412 |
-| [coveragegrid](CoverageGrid.md) | Display an image of depth to display any anomaly an intervals+bams as a grid image | 20241009 | 20241021 |
+| [coveragegrid](CoverageGrid.md) | Display an image of depth to display any anomaly an intervals+bams as a grid image | 20241009 | 20250901 |
 | [coverageplotter](CoveragePlotter.md) | Display an image of depth to display any anomaly an intervals+bams | 20200605 | 20241009 |
 | [indexcov2vcf](IndexCovToVcf.md) | convert indexcov data to vcf | 20200528 | 20400313 |
 | [samfindclippedregions](SamFindClippedRegions.md) | Fins clipped position in one or more bam. | 20140228 | 20220329 |
@@ -164,7 +164,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 
 | Tool | Description | Creation | Update |
 | ---: | :---------- | :------: | :----: |
-| [applyvelocity](ApplyVelocity.md) | Execute apache velocity macros | 20241023 | 20241023 |
+| [applyvelocity](ApplyVelocity.md) | Execute apache velocity macros | 20241023 | 20250901 |
 | [bamclip2insertion](BamClipToInsertion.md) | Convert SOFT clip to Insertion if other read confirm it |  |  |
 | [bamcmpcoverage](BamCmpCoverage.md) | Creates the figure of a comparative view of the depths sample vs sample. Memory consideration: the tool alloc an array of bits which size is: (MIN(maxdepth-mindepth,pixel_width_for_one_sample) * count_samples)^2 |  |  |
 | [bamliftover](BamLiftOver.md) | Lift-over a BAM file. |  | 20250114 |
@@ -215,9 +215,9 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [gtfretrocopy](GtfRetroCopy.md) | Scan retrocopies by comparing the gtf/intron and the deletions in a VCF | 20190813 | 20191104 |
 | [haplogroupcasectrl](HaploGroupCaseControl.md) | Run Fisher test for Haplogroup input. | 20240610 | 20240610 |
 | [howmanybamdict](HowManyBamDict.md) | finds if there's are some differences in the sequence dictionaries. | 20131108 | 20201021 |
-| [htsfreemarker](HtsVelocity.md) | Apply apache velocity to VCF/BAM/JSON files. | 20230616 | 20230616 |
+| [htsfreemarker](HtsVelocity.md) | Apply apache velocity to VCF/BAM/JSON files. | 20250901 | 20230616 |
 | [illuminadir](IlluminaDirectory.md) | Create a structured (**JSON** or **XML**) representation of a directory containing some Illumina FASTQs. | 20131021 | 20180717 |
-| [jbrowse2](JBrowse2Server.md) | create a run a local instance of jbrowse2 | 20250404 | 20250404 |
+| [jbrowse2](JBrowse2Server.md) | create a run a local instance of jbrowse2 | 20250404 | 20250904 |
 | [kg2bed](KnownGenesToBed.md) | converts UCSC knownGenes file to BED. | 20140311 | 20230815 |
 | [kg2fa](KnownGeneToFasta.md) | convert ucsc genpred to fasta | 20190213 | 20230815 |
 | [kg2gff](KgToGff.md) | Convert UCSC genpred/knowngene file to gff3 or gtf | 20210106 | 20250324 |
@@ -237,7 +237,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [reduceblast](ReduceBlast.md) | Reduce the size of XML blast, by removing iterations that have no Hit |  |  |
 | [regeniebedannot](RegenieBedAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 202050515 |
 | [regeniefunctionalannot](RegenieFunctionalAnnot.md) | Create annotation files for regenie using snpEff annotations | 20250311 | 20250320 |
-| [regeniemakeannot](RegenieMakeAnnot.md) | Create annotation files for regenie from a TSV input file | 20250311 | 20250320 |
+| [regeniemakeannot](RegenieMakeAnnot.md) | Create annotation files for regenie from a TSV input file | 20250311 | 20250901 |
 | [regenieslidingannot](RegenieSlidingAnnot.md) | Create annotation files for regenie using sliding annotations | 20250311 | 20250320 |
 | [repairfastq](RepairFastq.md) | Join single end reads to paired end | 20240128 | 20240128 |
 | [rnaseqpolya](RNASeqPolyA.md) | find poly-A tail in RNASeq data | 20210913 | 20210914 |
@@ -249,7 +249,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [samjdk](SamJdk.md) | Filters a BAM using a java expression compiled in memory. | 20170807 | 20191119 |
 | [samslop](SamSlop.md) | extends sam by 'x' bases using the reference sequence | 20160119 | 20250522 |
 | [scanlabguru](ScanLabGuru.md) | scan the files stored in labguru | 20240325 | 20240325 |
-| [scansv](ScanStructuralVariants.md) | Scan structural variants for case/controls data | 20190815 | 20240916 |
+| [scansv](ScanStructuralVariants.md) | Scan structural variants for case/controls data | 20190815 | 20250903 |
 | [shiftbam](ShiftBam.md) | shit all coordinates of a bam | 20241001 | 20241001 |
 | [shiftvcf](ShiftVcf.md) | shit all coordinates of a VCF | 20241002 | 20241002 |
 | [sortvcfoninfo](SortVcfOnInfo.md) | Sort a VCF a field in the INFO column | 20140218 | 20201204 |
@@ -290,16 +290,16 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [biostar130456](Biostar130456.md) | Split individual VCF files from multisamples VCF file | 20150210 | 20200603 |
 | [breakdancer2vcf](BreakdancerToVcf.md) | Convert output of breakdancer to VCF | 20200511 | 20241122 |
 | [builddbsnp](BuildDbsnp.md) | Build a DBSNP file from different sources for GATK | 20200904 | 2021070726 |
-| [findavariation](FindAVariation.md) | Finds a specific mutation in a list of VCF files | 20140623 | 20200217 |
+| [findavariation](FindAVariation.md) | Finds a specific mutation in a list of VCF files | 20140623 | 202050902 |
 | [findgvcfsblocks](FindGVCFsBlocks.md) | Find common blocks of calleable regions from a set of gvcfs | 20210806 | 20220401 |
-| [mantamerger](MantaMerger.md) | Merge Vcf from Manta VCF. | 20190916 | 20230320 |
+| [mantamerger](MantaMerger.md) | Merge Vcf from Manta VCF. | 20190916 | 20250903 |
 | [minicaller](MiniCaller.md) | Simple and Stupid Variant Caller designed for @AdrienLeger2 | 201500306 | 20250327 |
-| [svcasescontrols](SVCasesControls.md) | Find SV present in cases but not in controls. | 20240513 | 20240516 |
+| [svcasescontrols](SVCasesControls.md) | Find SV present in cases but not in controls. | 20240513 | 20250901 |
 | [swingvcfjexl](SwingVcfJexlFilter.md) | Filter VCF using Java Swing UI and JEXL/Javascript expression | 20220413 | 20220414 |
 | [swingvcfview](SwingVcfView.md) | VCFviewer using Java Swing UI | 20210503 | 20210503 |
 | [vcf2intervals](VcfToIntervals.md) | split a vcf to interval or bed for parallelization | 20211112 | 20221128 |
 | [vcf2r](VcfToRScript.md) | Convert VCF to R so it can be used for burden testing |  | 20240607 |
-| [vcf2rdf](VcfToRdf.md) | convert VCF to RDF (N3 notation) | 20191213 | 20250520 |
+| [vcf2rdf](VcfToRdf.md) | convert VCF to RDF (N3 notation) | 20191213 | 20250901 |
 | [vcf2table](VcfToTable.md) | convert a vcf to a table, to ease display in the terminal | 20170511 | 20250523 |
 | [vcfallele2symbolic](VcfAlleleToSymbolic.md) | Convert large IUPAC allele to symbolic | 20250717 | 20250717 |
 | [vcfallelebalance](VcfAlleleBalance.md) | Insert missing allele balance annotation using FORMAT:AD | 20180829 | 20200805 |
@@ -324,6 +324,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfgnomadsv](VcfGnomadSV.md) | Peek annotations from gnomad structural variants | 20190814 | 20211109 |
 | [vcfgrantham](VcfGrantham.md) | add grantham score from annotated VCF variant | 20230503 | 20230503 |
 | [vcfhead](VcfHead.md) | print the first variants of a vcf | 202050510 | 20200518 |
+| [vcfisec](VcfISec.md) | Only prints variants that are contained/not contained into another VCF | 20140204 | 20250903 |
 | [vcfliftover](VcfLiftOver.md) | Lift-over a VCF file | 20240114 | 20210603 |
 | [vcfmovefilterstoinfo](VcfMoveFiltersToInfo.md) | Move any FILTER to the INFO column. reset FILTER to PASS | 20161025 | 20220323 |
 | [vcfmulti2one](VcfMultiToOne.md) | Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used. | 20150312 | 20241125 |
@@ -337,7 +338,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfregulomedb](VcfRegulomeDB.md) | Annotate a VCF with the Regulome2 data (https://regulomedb.org/) | 20140709 | 20230512 |
 | [vcfsetdict](VcfSetSequenceDictionary.md) | Set the `##contig` lines in a VCF header on the fly | 20140105 | 20210201 |
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20250523 |
-| [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files, or by number fo variant of by distance between variants | 202221122 | 20250707 |
+| [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files, or by number fo variant of by distance between variants | 20221122 | 20250901 |
 | [vcfsplitvep](VCFSplitVEP.md) | Split CSQ vep annotations | 20250517 | 20250517 |
 | [vcfspringfilter](VcfSpringFilter.md) | Uses the java spring Framework to build complex vcf filters | 20230526 | 20230526 |
 | [vcfstats](VcfStats.md) | Produce VCF statitics | 20131212 | 20230707 |
