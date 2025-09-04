@@ -95,12 +95,11 @@ The current reference is:
   * A long noncoding RNA promotes parasite differentiation in African trypanosomes. Fabien GueganK & al. Sci. Adv., 8 (24), eabn2706. . DOI: 10.1126/sciadv.abn2706
   * Baaijens, J.A., Zulli, A., Ott, I.M. et al. Lineage abundance estimation for SARS-CoV-2 in wastewater using transcriptome quantification techniques. Genome Biol 23, 236 (2022). https://doi.org/10.1186/s13059-022-02805-9
   * The Mitoribosome. Methods in Molecular Biology. https://doi.org/10.1007/978-1-0716-3171-3
-  * Makamure, C.E., Justinen, S., Martínez, D.E. et al. Cool temperature inhibits binary fission and results in phenotypic and transcriptomic changes that suggest inducible aging in Diadumene lineata. BMC Res Notes 18, 293 (2025). https://doi.org/10.1186/s13104-025-07378-x
 
 ## Example
 
 ```bash
-$  java -jar dist/jvarkit.jar biostar84452 samtools-0.1.18/examples/toy.sam > out.sam
+$  java -jar dist/biostar84452.jar samtools-0.1.18/examples/toy.sam > out.sam
 
 @HD	VN:1.4	SO:unsorted
 @SQ	SN:ref	LN:45

@@ -1092,12 +1092,7 @@ all.add( task("sigframe", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.sigframe.SigFrame.Main"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
-all.add( task("simpleplot", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.misc.SimplePlot"
-	jarLibs = combineLibs("htsjdk","testng","jcommander")
-	jdkTarget="8"
-	jdkSource="8"
-	});
+
 all.add( task("skipxmlelements", type: CompileJVarkit) {
 	mainClass = "com.github.lindenb.jvarkit.tools.misc.SkipXmlElements"
 	jarLibs = combineLibs("htsjdk","testng","jcommander")

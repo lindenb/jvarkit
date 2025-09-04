@@ -26,6 +26,9 @@
       <class name="com.github.lindenb.jvarkit.locatable.SimplePositionTest"/>
       <class name="com.github.lindenb.jvarkit.util.CounterTest"/>
       <class name="com.github.lindenb.jvarkit.lang.StringUtilsTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactoryTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.variantcontext.AlleleMatcherTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.variantcontext.BreakendTest"/>
    </classes>
   </test>
 
@@ -35,6 +38,7 @@
       <class name="com.github.lindenb.jvarkit.bgen.BGenHeaderTest"/>
       <class name="com.github.lindenb.jvarkit.bgen.BGenReaderTest"/>
       <class name="com.github.lindenb.jvarkit.bgen.BGenUtilsTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.findavariation.FindAVariationTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfsplitvep.VCFSplitVEPTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfsplit.VcfSplitNVariantsTest"/>
       <class name="com.github.lindenb.jvarkit.tools.bam2graphics.Bam2RasterTest"/>
@@ -46,7 +50,6 @@
       <class name="com.github.lindenb.jvarkit.tools.vcfshuffle.VCFShuffleTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfnearest.VCFNearestTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfbyindex.VcfGetVariantByIndexTest"/>
-      <class name="com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactoryTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdkTest"/>
       <class name="com.github.lindenb.jvarkit.tools.groupbygene.GroupByGeneTest"/>
       <class name="com.github.lindenb.jvarkit.tools.liftover.BedLiftOverTest"/>

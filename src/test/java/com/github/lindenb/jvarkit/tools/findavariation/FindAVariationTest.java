@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.findavariation;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -8,16 +8,14 @@ import java.nio.file.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtilsTest;
 
 
 public class FindAVariationTest {	
-	private final TestSupport support = new TestSupport();
 
 @Test
 public void test01() throws IOException {
+	final TestSupport support = new TestSupport();
 	try {
 		final Path input = support.createTmpPath(".list");
 		PrintWriter pw=new PrintWriter(Files.newBufferedWriter(input));
@@ -25,6 +23,7 @@ public void test01() throws IOException {
 		pw.println(support.resource("S3.vcf.gz"));
 		pw.println(support.resource("S4.vcf.gz"));
 		pw.println(support.resource("toy.vcf.gz"));
+		pw.println(support.resource("toy.bcf"));
 		pw.flush();
 		pw.close();
 		Assert.assertTrue(support.wc(input)>0L);
