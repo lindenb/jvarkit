@@ -296,6 +296,7 @@ public class BamWithoutBai extends Launcher{
 				this.seekableStream = customSeekableStreamFactory.
 						setUserAgent(IOUtils.getDefaultUserAgent()).
 						setUsingHttpHead(false).
+						setDebug(do_debug).
 						getStreamFor(url);
 				
 				this.bgzfBlockGuesser= new BgzfBlockGuesser(this.seekableStream, this.url.toString());

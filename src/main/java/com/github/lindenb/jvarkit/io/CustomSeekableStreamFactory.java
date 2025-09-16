@@ -49,10 +49,10 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.client.protocol.HttpClientContext;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.seekablestream.ISeekableStreamFactory;
 import htsjdk.samtools.seekablestream.SeekableStream;
-import htsjdk.samtools.util.CloserUtil;
 
 /**
  * 
@@ -62,6 +62,7 @@ import htsjdk.samtools.util.CloserUtil;
  */
 public class CustomSeekableStreamFactory 
 	implements ISeekableStreamFactory {
+	private static final Logger LOG = Logger.of(CustomSeekableStreamFactory.class);
 	private final ISeekableStreamFactory defaultInstance;
 	private String user = null;
 	private String password = null;
@@ -72,6 +73,7 @@ public class CustomSeekableStreamFactory
 	// use httpGet instead of httpHead to get the content-length
 	private boolean usingHttpHead = true;
 	
+	private boolean debug_flag = false;
 	
 	
 	/** construct with htsjdk.samtools.seekablestream.SeekableStreamFactory.getInstance()</code> */
@@ -121,6 +123,11 @@ public class CustomSeekableStreamFactory
 	public boolean isNormalizeURI() {
 		return normalizeURI;
 		}
+	
+	public CustomSeekableStreamFactory setDebug(boolean debug_flag) {
+		this.debug_flag = debug_flag;
+		return this;
+	}
 	
 	/** amazon doesn't like httpHead https://stackoverflow.com/questions/56598349/wget-returns-200-ok-while-org-apache-http-impl-client-closeablehttpclient-return#comment99824950_56605768 */
 	public CustomSeekableStreamFactory setUsingHttpHead(boolean usingHttpHead) {
@@ -195,6 +202,7 @@ public class CustomSeekableStreamFactory
 
     private SeekableStream openHttp(final URL url,final String p_user,final String p_password) 
     	throws IOException {
+    	if(this.debug_flag) LOG.info("openHttp:"+url);
 		final HttpClientBuilder hb = HttpClients.custom();
 		
 		hb.useSystemProperties();
@@ -213,6 +221,7 @@ public class CustomSeekableStreamFactory
 		
 		// set login/password
 		if(!StringUtils.isBlank(p_user) && !StringUtils.isBlank(p_password)) {
+			if(this.debug_flag) LOG.debug("setting login/password");
 			final BasicCredentialsProvider provider = new BasicCredentialsProvider();
 			provider.setCredentials( AuthScope.ANY, new UsernamePasswordCredentials(p_user,p_password));
 			hb.setDefaultCredentialsProvider(provider);
@@ -228,7 +237,9 @@ public class CustomSeekableStreamFactory
 		try
 			{
 			final CloseableHttpResponse response = httpClient.execute(httpHead,clientContext);
-			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK ) {
+			final int status_code = response.getStatusLine().getStatusCode();
+			if ( status_code != HttpStatus.SC_OK ) {
+				if(this.debug_flag) LOG.debug("response.getStatusLine().getStatusCode()=" + status_code );
 				if(response.getAllHeaders()!=null)
 					{
 					/*
@@ -238,9 +249,10 @@ public class CustomSeekableStreamFactory
 					*/
 					}
 				
-				final String msg = "Unexpected Http status code "
+				final String msg = "Unexpected Http status code = "+ status_code+" "
      		            + response.getStatusLine()+" for \""+ url+"\""
      		            ;
+				if(this.debug_flag) LOG.debug(msg);
 				response.close();
 				httpClient.close();
  		        throw new IOException(msg);
@@ -250,6 +262,7 @@ public class CustomSeekableStreamFactory
 			if(contentLengthHeader==null)
 				{
 				final String msg = "Cannot get Content-length for "+ url;
+				if(this.debug_flag) LOG.debug(msg);
 				response.close();
 				httpClient.close();
  		        throw new IOException(msg);
@@ -267,11 +280,16 @@ public class CustomSeekableStreamFactory
 			long contentLength;
 			try {
 				contentLength = Long.parseLong(contentLengthHeader.getValue());
-				if(contentLength<0) throw new NumberFormatException("Negative content length for "+url);
+				if(this.debug_flag) LOG.debug("contentLength:"+contentLength);
+				
+				if(contentLength<0) {
+					throw new NumberFormatException("Negative content length for "+url);
+					}
 				}
 			catch(final NumberFormatException err)
 				{
 				final String msg = "bad Content-Length in "+contentLengthHeader+" for "+ url;
+				if(this.debug_flag) LOG.debug(err);
 				response.close();
 				httpClient.close();
  		        throw new IOException(msg,err);
@@ -287,7 +305,9 @@ public class CustomSeekableStreamFactory
 			}
 		catch(final IOException err)
 			{
-			CloserUtil.close(httpClient);
+			if(this.debug_flag) LOG.info(err);
+			try {httpClient.close();}
+			catch(Throwable err2) {}
 			throw err;
 			}	
     	}
