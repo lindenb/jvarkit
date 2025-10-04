@@ -82,6 +82,7 @@ $java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf
 ## Cited in
 
  * Megquier K, Turner-Maier J, Morrill K, Li X, Johnson J, Karlsson EK, et al. (2022) The genomic landscape of canine osteosarcoma cell lines reveals conserved structural complexity and pathway alterations. PLoS ONE 17(9): e0274383. https://doi.org/10.1371/journal.pone.0274383
+ * Hannah Melhorn, Megan Sha, Manabu Kurihara, Katherine Megquier, Riley Aronson, Vicky Yang, Incidentally identified aortic dissection in a Great Pyrenees, Journal of Veterinary Cardiology, 2025, , ISSN 1760-2734, https://doi.org/10.1016/j.jvc.2025.09.007. (https://www.sciencedirect.com/science/article/pii/S1760273425001079)
 
 END_DOC
 */

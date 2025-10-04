@@ -18,8 +18,9 @@
  * Yardeni G, Barfuss MHJ, Till W, Thornton MR, Crego CG, Lexer C, Leroy T, Paun O. The explosive radiation of the Neotropical Tillandsia subgenus Tillandsia (Bromeliaceae) has been accompanied by pervasive hybridization. Syst Biol. 2025 Jun 26:syaf039. doi: 10.1093/sysbio/syaf039. Epub ahead of print. PMID: 40569662. **biostar497922**
  * Makamure, C.E., Justinen, S., Martínez, D.E. et al. Cool temperature inhibits binary fission and results in phenotypic and transcriptomic changes that suggest inducible aging in Diadumene lineata. BMC Res Notes 18, 293 (2025). https://doi.org/10.1186/s13104-025-07378-x **biostar84452** and **biostar145820**
  * Ozaki, K., Irioka, T., Noma, S. et al. Isoform analysis of heterozygous putative splicing variants at the allele level using nanopore long-read sequencing. Sci Rep 15, 29001 (2025). https://doi.org/10.1038/s41598-025-14566-z **sam2tsv**
-* Dijkstra, J., A. C. van Westerhoven, L. Gómez-Gil, et al. 2025. “ Accessory Chromosome Contributes to Virulence of Banana Infecting Fusarium oxysporum Tropical Race 4.” Molecular Plant Pathology 26, no. 9: e70146. https://doi.org/10.1111/mpp.70146.  (**WGSCoverage**)
-* Tosti & al.  Genome-wide profiling of unmodified DNA using methyltransferase-directed tagging and enrichment . 10.1016/j.crmeth.2025.101187 2025 Cell Reports Methods
+ * Dijkstra, J., A. C. van Westerhoven, L. Gómez-Gil, et al. 2025. “ Accessory Chromosome Contributes to Virulence of Banana Infecting Fusarium oxysporum Tropical Race 4.” Molecular Plant Pathology 26, no. 9: e70146. https://doi.org/10.1111/mpp.70146.  (**WGSCoverage**)
+ * Tosti & al.  Genome-wide profiling of unmodified DNA using methyltransferase-directed tagging and enrichment . 10.1016/j.crmeth.2025.101187 2025 Cell Reports Methods
+ * Hannah Melhorn, Megan Sha, Manabu Kurihara, Katherine Megquier, Riley Aronson, Vicky Yang, Incidentally identified aortic dissection in a Great Pyrenees, Journal of Veterinary Cardiology, 2025, , ISSN 1760-2734, https://doi.org/10.1016/j.jvc.2025.09.007. (https://www.sciencedirect.com/science/article/pii/S1760273425001079) **vcfbedsetfilter**
 
 ## 2024
 
