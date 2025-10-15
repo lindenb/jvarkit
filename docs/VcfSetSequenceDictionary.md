@@ -56,15 +56,15 @@ Usage: vcfsetdict [options] Files
 
 ## Creation Date
 
-20140105
+20251014
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfSetSequenceDictionary.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfSetSequenceDictionary.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfsetdict/VcfSetSequenceDictionary.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfsetdict/VcfSetSequenceDictionary.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfSetSequenceDictionaryTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfSetSequenceDictionaryTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfsetdict/VcfSetSequenceDictionaryTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfsetdict/VcfSetSequenceDictionaryTest.java)
 
 
 ## Contribute

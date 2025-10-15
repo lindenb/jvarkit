@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 5d4126be3
-Compilation : 20250916231545
+Version     : 7fd5da468
+Compilation : 20251015185353
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -336,7 +336,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [vcfpolyx](VCFPolyX.md) | Number of repeated REF bases around POS. | 20200930 | 20230526 |
 | [vcfrebase](VcfRebase.md) | Restriction sites overlaping variations in a vcf | 20131115 | 20200624 |
 | [vcfregulomedb](VcfRegulomeDB.md) | Annotate a VCF with the Regulome2 data (https://regulomedb.org/) | 20140709 | 20230512 |
-| [vcfsetdict](VcfSetSequenceDictionary.md) | Set the `##contig` lines in a VCF header on the fly | 20140105 | 20210201 |
+| [vcfsetdict](VcfSetSequenceDictionary.md) | Set the `##contig` lines in a VCF header on the fly | 20251014 | 20210201 |
 | [vcfshuffle](VCFShuffle.md) | Shuffle a VCF | 20131210 | 20250523 |
 | [vcfsplitnvariants](VcfSplitNVariants.md) | Split VCF to 'N' VCF files, or by number fo variant of by distance between variants | 20221122 | 20250901 |
 | [vcfsplitvep](VCFSplitVEP.md) | Split CSQ vep annotations | 20250517 | 20250517 |

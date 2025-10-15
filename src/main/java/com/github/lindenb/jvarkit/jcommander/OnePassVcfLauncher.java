@@ -57,6 +57,7 @@ private static class VCFIter implements VCFIterator {
 		this.delegate = delegate;
 		this.progess =ProgressFactory.newInstance().
 				dictionary(delegate.getHeader()).
+				validatingContig(false).
 				logger(logger).
 				build();
 		}

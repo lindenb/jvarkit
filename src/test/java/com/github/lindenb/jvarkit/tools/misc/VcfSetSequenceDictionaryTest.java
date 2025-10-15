@@ -12,6 +12,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
+import com.github.lindenb.jvarkit.tools.vcfsetdict.VcfSetSequenceDictionary;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceDictionaryCodec;

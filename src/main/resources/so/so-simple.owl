@@ -5378,13 +5378,12 @@ For example a variant transcript may have lost a stop codon present in the refer
         <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0000673"/>
         <obo:IAO_0000115>A transcript that in its initial state requires modification to be functional.</obo:IAO_0000115>
         <oboInOwl:hasDbXref>http://en.wikipedia.org/wiki/Primary_transcript</oboInOwl:hasDbXref>
-        <oboInOwl:hasExactSynonym>INSDC_feature:precursor_RNA</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>INSDC_feature:prim_transcript</oboInOwl:hasExactSynonym>
-        <oboInOwl:hasExactSynonym>precursor RNA</oboInOwl:hasExactSynonym>
         <oboInOwl:hasExactSynonym>primary transcript</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
         <oboInOwl:id>SO:0000185</oboInOwl:id>
         <oboInOwl:inSubset rdf:resource="http://purl.obolibrary.org/obo/so#SOFA"/>
+        <rdfs:comment>See &quot;precursor_RNA&quot; (SO:0002393) for RNA which may be the result of post-transcriptional processing. If the RNA in question is known not to have been processed, use this class (&quot;primary_transcript&quot;). On 9 Sep 2025, Removed &quot;has_exact_synonym : INSDC_feature:precursor_RNA&quot; and &quot;has_exact_synonym : precursor RNA&quot; from the annotation for this class at the request of Terence Murphy of NCBI. See GitHub Issue #655.</rdfs:comment>
         <rdfs:label>primary_transcript</rdfs:label>
     </owl:Class>
     <owl:Axiom>
@@ -8451,7 +8450,7 @@ For example a variant transcript may have lost a stop codon present in the refer
 
     <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0000319">
         <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0000360"/>
-        <obo:IAO_0000115>In mRNA, a set of three nucleotides that indicates the end of information for protein synthesis.</obo:IAO_0000115>
+        <obo:IAO_0000115>In mRNA, a set of three nucleotides that indicates the end of information for protein synthesis. In genomic sequence, a stop codon may be only one or two nucleotides where the additional nucleotides are provided in the RNA via polyadenylation.</obo:IAO_0000115>
         <oboInOwl:hasDbXref>http://en.wikipedia.org/wiki/Stop_codon</oboInOwl:hasDbXref>
         <oboInOwl:hasExactSynonym>stop codon</oboInOwl:hasExactSynonym>
         <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
@@ -8462,8 +8461,9 @@ For example a variant transcript may have lost a stop codon present in the refer
     <owl:Axiom>
         <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0000319"/>
         <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
-        <owl:annotatedTarget>In mRNA, a set of three nucleotides that indicates the end of information for protein synthesis.</owl:annotatedTarget>
+        <owl:annotatedTarget>In mRNA, a set of three nucleotides that indicates the end of information for protein synthesis. In genomic sequence, a stop codon may be only one or two nucleotides where the additional nucleotides are provided in the RNA via polyadenylation.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>SO:ke</oboInOwl:hasDbXref>
+        <rdfs:comment>Added &quot;In genomic sequence, a stop codon may be only one or two nucleotides where the additional nucleotides are provided in the RNA via polyadenylation.&quot; to the definition on 9 Sep 2025 at the request of Terence Murphy of NCBI (See GitHub Issue #658).</rdfs:comment>
     </owl:Axiom>
     <owl:Axiom>
         <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0000319"/>
@@ -58409,6 +58409,29 @@ It is further clarified in the comments section as: ncRNA does NOT mean conventi
     
 
 
+    <!-- http://purl.obolibrary.org/obo/SO_0002393 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002393">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0000673"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/so#derives_from"/>
+                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/SO_0000185"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <obo:IAO_0000115>Any RNA species that is not yet the mature RNA product; may include ncRNA, rRNA, tRNA, 5&apos; untranslated region (5&apos;UTR), coding sequences (CDS, exon), intervening sequences (intron) and 3&apos; untranslated region (3&apos;UTR).</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-09-09T19:26:13Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>INSDC_feature:precursor_RNA</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasExactSynonym>precursor RNA</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002393</oboInOwl:id>
+        <rdfs:comment>This term should be used for RNA which may be the result of post-transcriptional processing; if the RNA in question is known not to have been processed, use primary_transcript (SO:0000185). At the time this SO term was created, the INSDC Feature Table has a specific term (i.e. precursor_RNA) for transcripts that may be in various stages of processing between primary_transcript (SO:0000185) and mature_transcript (SO:0000233). See the INSDC Feature Table Definition for the &quot;precursor_RNA&quot; feature key https://www.insdc.org/submitting-standards/feature-table/. Added 9 Sep 2025 at the request of Terence Murphy of NCBI to support transformation between the INSDC Feature Table and GFF3 formats. See GitHub Issue #655.</rdfs:comment>
+        <rdfs:label>precursor_RNA</rdfs:label>
+    </owl:Class>
+    
+
+
     <!-- http://purl.obolibrary.org/obo/SO_0002394 -->
 
     <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002394">
@@ -58506,6 +58529,74 @@ It is further clarified in the comments section as: ncRNA does NOT mean conventi
         <owl:annotatedTarget>Trafficking of a polypeptide (i.e. protein) sequence to the wrong cellular location, as a consequence of a variant in the gene.</owl:annotatedTarget>
         <oboInOwl:hasDbXref>PMID:29844444</oboInOwl:hasDbXref>
         <rdfs:comment>For an example, see &quot;NM_181789.4(GLDN):c.1093C&gt;T (p.Leu365Phe)&quot; in ClinVar (Variation ID: 813290, Accession: VCV000813290.5). See also &quot;NM_012448.4(STAT5B):c.530A&gt;C (p.Gln177Pro)&quot; in ClinVar (Variation ID: 522611, Accession: VCV000522611.3).</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002398 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002398">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0002008"/>
+        <obo:IAO_0000115>A sequence variant whereby at least one base of a codon is changed, resulting in a selenocysteine.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-09-09T22:25:50Z</oboInOwl:creation_date>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002398</oboInOwl:id>
+        <rdfs:comment>Added on 9 Sep 2025 at the request of Till Hartmann of the Berlin Institute of Health (BIH). See GitHub Issue #653.</rdfs:comment>
+        <rdfs:label>selenocysteine_gain</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002398"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby at least one base of a codon is changed, resulting in a selenocysteine.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:23716634</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>PMID:25436585</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002399 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002399">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0002085"/>
+        <obo:IAO_0000115>A sequence variant whereby two genes, on the same strand have become joined without a disruption of the translational reading frame, because the number of nucleotides between the reading frames of the joined genes is a multiple of three.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-09-10T19:34:06Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>inframe unidirectional gene fusion</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002399</oboInOwl:id>
+        <rdfs:comment>Added 10 Sep 2025. See GitHub Issue #664.</rdfs:comment>
+        <rdfs:label>inframe_unidirectional_gene_fusion</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002399"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby two genes, on the same strand have become joined without a disruption of the translational reading frame, because the number of nucleotides between the reading frames of the joined genes is a multiple of three.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:21247443</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>PMID:36002559</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002400 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002400">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0002085"/>
+        <obo:IAO_0000115>A sequence variant whereby two genes, on the same strand have become joined with a disruption of the translational reading frame, because the number of nucleotides between the reading frames of the joined genes is not a multiple of three.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2025-09-10T19:38:04Z</oboInOwl:creation_date>
+        <oboInOwl:hasExactSynonym>frameshift unidirectional gene fusion</oboInOwl:hasExactSynonym>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002400</oboInOwl:id>
+        <rdfs:comment>Added 10 Sep 2025. See GitHub Issue #664.</rdfs:comment>
+        <rdfs:label>frameshift_unidirectional_gene_fusion</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002400"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby two genes, on the same strand have become joined with a disruption of the translational reading frame, because the number of nucleotides between the reading frames of the joined genes is not a multiple of three.</owl:annotatedTarget>
+        <rdfs:comment>PMID:21247443</rdfs:comment>
+        <rdfs:comment>PMID:36002559</rdfs:comment>
     </owl:Axiom>
     
 
@@ -62307,7 +62398,8 @@ Updated after discussion with Peter Taschner - Feb 09.</rdfs:comment>
     <!-- http://purl.obolibrary.org/obo/SO_1000158 -->
 
     <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_1000158">
-        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_1000148"/>
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_1000030"/>
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_1000041"/>
         <rdfs:subClassOf>
             <owl:Restriction>
                 <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/so#has_part"/>

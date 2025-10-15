@@ -21,6 +21,7 @@
  * Dijkstra, J., A. C. van Westerhoven, L. Gómez-Gil, et al. 2025. “ Accessory Chromosome Contributes to Virulence of Banana Infecting Fusarium oxysporum Tropical Race 4.” Molecular Plant Pathology 26, no. 9: e70146. https://doi.org/10.1111/mpp.70146.  (**WGSCoverage**)
  * Tosti & al.  Genome-wide profiling of unmodified DNA using methyltransferase-directed tagging and enrichment . 10.1016/j.crmeth.2025.101187 2025 Cell Reports Methods
  * Hannah Melhorn, Megan Sha, Manabu Kurihara, Katherine Megquier, Riley Aronson, Vicky Yang, Incidentally identified aortic dissection in a Great Pyrenees, Journal of Veterinary Cardiology, 2025, , ISSN 1760-2734, https://doi.org/10.1016/j.jvc.2025.09.007. (https://www.sciencedirect.com/science/article/pii/S1760273425001079) **vcfbedsetfilter**
+ * Yang, F., Ling, S., Yang, R., Wen, F., Gu, W., Hu, X., Lin, L., Wang, Y., Cai, J., Ren, M., Möller, M. and Cai, L. (2025), Phylogenomic reconstruction reveals deep reticulate evolutionary history and polyphyletic genus (Boeica) in the subtribe Leptoboeinae (Gesneriaceae), with description of a novel genus. Cladistics. https://doi.org/10.1111/cla.70010 **msa2vcf**
 
 ## 2024
 

@@ -62,6 +62,7 @@
       <class name="com.github.lindenb.jvarkit.tools.bioalcidae.BioAlcidaeJdkTest"/>
       <class name="com.github.lindenb.jvarkit.tools.samjs.SamJdkTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcf2table.VcfToTableTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfsetdict.VcfSetSequenceDictionaryTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntologyTest"/>
       <class name="com.github.lindenb.jvarkit.rdf.RDFModelTest"/>
       <class name="com.github.lindenb.jvarkit.rdf.ResourceTest"/>
