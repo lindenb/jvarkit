@@ -10,10 +10,8 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.tools.vcfrebase.VcfRebase;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.SequenceUtil;
@@ -32,9 +30,9 @@ public class VcfSetSequenceDictionaryTest {
 		final TestSupport support = new TestSupport();
 		try {
 			int n_variants1=0;
-			Path tmp = support.createTmpPath(".vcf");
+			final Path tmp = support.createTmpPath(".vcf");
 			try(PrintWriter pw = IOUtils.openPathForPrintWriter(tmp)) {
-			try(BufferedReader r=IOUtils.openPathForBufferedReading(Paths.get(support.resource(vcf)))) {
+				try(BufferedReader r=IOUtils.openPathForBufferedReading(Paths.get(support.resource(vcf)))) {
 					for(;;) {
 						String line = r.readLine();
 						if(line==null) break;
@@ -54,9 +52,10 @@ public class VcfSetSequenceDictionaryTest {
 				pw.flush();
 				}
 			
+			
 			final Path out = support.createTmpPath(".vcf");
 			Assert.assertEquals(
-				new VcfRebase().instanceMain(new String[] {
+				new VcfSetSequenceDictionary().instanceMain(new String[] {
 				"-R",support.resource(ref),
 				"-n","SKIP",
 				"-o",out.toString(),
