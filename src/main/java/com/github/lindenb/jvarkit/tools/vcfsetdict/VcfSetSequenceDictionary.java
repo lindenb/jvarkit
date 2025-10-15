@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -110,13 +111,12 @@ public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
 		
 		w.writeHeader(header2);
 		
-		
 		while(in.hasNext())
 			{
 			final VariantContext ctx = in.next();
 			
 			String newContig = contigNameConverter.apply(ctx.getContig());
-			
+
 			if(StringUtils.isBlank(newContig))
 				{
 				if(this.onContigNotFound.equals(OnNotFound.RAISE_EXCEPTION))
@@ -166,10 +166,10 @@ public class VcfSetSequenceDictionary extends OnePassVcfLauncher {
 			return -1;
 			}
 		try {
-			this.dict = SAMSequenceDictionaryExtractor.extractDictionary(this.faidx);
+			this.dict = new SequenceDictionaryExtractor().extractRequiredDictionary(this.faidx);
 			return 0;
 			}
-		catch (final Exception err2)
+		catch (final Throwable err2)
 			{
 			LOG.error(err2);
 			return -1;

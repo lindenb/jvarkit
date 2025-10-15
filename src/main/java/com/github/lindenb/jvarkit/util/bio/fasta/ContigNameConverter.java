@@ -305,7 +305,6 @@ public static ContigNameConverter fromIntervalTreeMap(
 private static class TwoDictionaries extends ContigNameConverter
 	{
 	private final Map<String,String> map = new HashMap<>();
-	private final ContigNameConverter oneConverger;
 	TwoDictionaries(final SAMSequenceDictionary dictIn,final SAMSequenceDictionary dictOut) {
 		if(dictIn==null || dictIn.isEmpty())
 			{
@@ -315,56 +314,54 @@ private static class TwoDictionaries extends ContigNameConverter
 			{
 			throw new IllegalArgumentException("dictOut is null or empty");
 			}
-		this.oneConverger = fromOneDictionary(dictOut);
 		for(final SAMSequenceRecord ssr : dictIn.getSequences())
 			{
-			if(dictOut.getSequence(ssr.getSequenceName())!=null)
+			final SAMSequenceRecord ssr2 = dictOut.getSequence(ssr.getContig());
+			if(ssr2!=null)
 				{
-				this.map.put(ssr.getSequenceName(), ssr.getSequenceName());
+				this.map.put(ssr.getContig(), ssr2.getContig());//got a bug here due to aliases in .dict file
 				continue;
 				}
-			
-			if(ssr.getSequenceName().startsWith("chr") )
+			if(ssr.getContig().startsWith("chr") )
 				{
-				final String ctg = ssr.getSequenceName().substring(3);
+				final String ctg = ssr.getContig().substring(3);
 				if(dictOut.getSequence(ctg)!=null)
 					{
-					this.map.put(ssr.getSequenceName(), ctg);
+					this.map.put(ssr.getContig(), ctg);
 					continue;
 					}
-				if(ssr.getSequenceName().equals("chrMT") && dictOut.getSequence("M")!=null)
+				if(ssr.getContig().equals("chrMT") && dictOut.getSequence("M")!=null)
 					{
 					this.map.put("chrMT","M");
 					continue;
 					}
-				if(ssr.getSequenceName().equals("chrM") && dictOut.getSequence("MT")!=null)
+				if(ssr.getContig().equals("chrM") && dictOut.getSequence("MT")!=null)
 					{
 					this.map.put("chrM","MT");
 					continue;
 					}
 				continue;
 				}
-			if(!ssr.getSequenceName().startsWith("chr") )
+			if(!ssr.getContig().startsWith("chr") )
 				{
-				final String ctg = "chr"+ssr.getSequenceName();
+				final String ctg = "chr"+ssr.getContig();
 				if(dictOut.getSequence(ctg)!=null)
 					{
-					this.map.put(ssr.getSequenceName(), ctg);
+					this.map.put(ssr.getContig(), ctg);
 					continue;
 					}
-				if(ssr.getSequenceName().equals("MT") && dictOut.getSequence("chrM")!=null)
+				if(ssr.getContig().equals("MT") && dictOut.getSequence("chrM")!=null)
 					{
 					this.map.put("MT","chrM");
 					continue;
 					}
-				if(ssr.getSequenceName().equals("M") && dictOut.getSequence("chrMT")!=null)
+				if(ssr.getContig().equals("M") && dictOut.getSequence("chrMT")!=null)
 					{
 					this.map.put("M","chrMT");
 					continue;
 					}
 				continue;
 				}
-			
 			final String md5in = ssr.getMd5();
 			if(!StringUtil.isBlank(md5in)) {
 				final List<SAMSequenceRecord> ssrOUts = dictOut.getSequences().
@@ -382,16 +379,7 @@ private static class TwoDictionaries extends ContigNameConverter
 	
 	@Override
 	protected String find(final String contig) {
-		String s= this.map.getOrDefault(contig,null);
-		if(s==null) {
-			s = this.oneConverger.apply(contig);
-			}
-		if(s==null) {
-			for(String key:this.map.keySet()) {
-				if(key.equalsIgnoreCase(contig)) return this.map.get(key);
-				}
-			}
-		return s;
+		return this.map.getOrDefault(contig,null);
 		}
 	
 	@Override
@@ -421,7 +409,7 @@ public static ContigNameConverter fromOneContig(final String contig)
 
 private static class OneDictionary extends ContigNameConverter
 	{
-	private final Map<String,String> found = new HashMap<>();
+	private final Map<String,String> found;
 	private final SAMSequenceDictionary dict;
 	@SuppressWarnings("serial")
 	private final Set<String> mitochrondrials = new HashSet<String>() {{{
@@ -433,15 +421,16 @@ private static class OneDictionary extends ContigNameConverter
 	OneDictionary( final SAMSequenceDictionary dict)
 		{
 		this.dict = dict;
+		this.found = new HashMap<>(dict.size()*2+1); 
 		}
 	
 	OneDictionary( final Set<String> contigs)
 		{
-		this.dict = new SAMSequenceDictionary(
+		this(new SAMSequenceDictionary(
 			contigs.stream().
 				map(C->new SAMSequenceRecord(C, 9999)).
 				collect(Collectors.toList())
-			);
+			));
 		}
 	
 	private String update_found(final String old_c,final String true_c) {
@@ -452,9 +441,11 @@ private static class OneDictionary extends ContigNameConverter
 	@Override
 	protected String find(final String contig) {
 		if(StringUtils.isBlank(contig)) return null;
-		if(this.dict.getSequenceIndex(contig)!=-1) return contig;
 		final String prev_found  = this.found.get(contig);
 		if(prev_found!=null) return prev_found;
+		final SAMSequenceRecord without_alias= this.dict.getSequence(contig);
+		if(without_alias!=null)  return update_found(contig,without_alias.getContig());
+		
 		
 		if(this.mitochrondrials.contains(contig))
 			{
