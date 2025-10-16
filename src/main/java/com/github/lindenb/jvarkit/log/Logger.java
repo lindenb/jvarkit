@@ -153,7 +153,7 @@ static class DefaultLogger implements Logger
 	public Logger log(final Logger.Level level,final Object msg,final Throwable err) {
 		//if(level.compareTo(this.getLevel()) <=0) {
 			this.out.print("[");
-			this.out.print(clazz.getName());
+			this.out.print(String.valueOf(clazz.getSimpleName()));
 			this.out.print(":");
 			this.out.print(this.getLevel().name());
 			this.out.print("]");

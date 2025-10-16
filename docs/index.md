@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 9f2b0c6d3
-Compilation : 20251015213931
+Version     : 064651840
+Compilation : 20251016153559
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -231,6 +231,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [optimizefisher](OptimizeFisher.md) | Optimize fisher test on VCF using genetic algo | 20221013 | 20240207 |
 | [pcrclipreads](PcrClipReads.md) | Soft clip bam files based on PCR target regions | 20150618 | 20210322 |
 | [pcrslicereads](PcrSliceReads.md) | Mark PCR reads to their PCR amplicon | 20150707 | 20240724 |
+| [plinkfixvcf](PlinkFixVcf.md) | Fix plink --recode vcf | 20251016 | 20251016 |
 | [plotbcftoolsstats](PlotBcftoolsStats.md) | Plot bcftools stats output | 20210622 | 20210622 |
 | [pubmedauthorgraph](PubmedAuthorGraph.md) | Creates a graph from Pubmed and Authors |  |  |
 | [qqplotter](QQPlotter.md) | plot QQplot | 20250324 | 20250324 |

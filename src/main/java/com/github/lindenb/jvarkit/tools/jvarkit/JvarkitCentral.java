@@ -226,6 +226,7 @@ import com.github.lindenb.jvarkit.tools.phased.BamToHaplotypes;
 import com.github.lindenb.jvarkit.tools.phased.BamToMNV;
 import com.github.lindenb.jvarkit.tools.phased.VcfPhased01;
 import com.github.lindenb.jvarkit.tools.plink.SwingPLinkSelectCluster;
+import com.github.lindenb.jvarkit.tools.plink.fixvcf.PlinkFixVcf;
 import com.github.lindenb.jvarkit.tools.prettysam.PrettySam;
 import com.github.lindenb.jvarkit.tools.prs.VcfSamplesPRS;
 import com.github.lindenb.jvarkit.tools.pubmed.Pubmed404;
@@ -809,6 +810,7 @@ public class JvarkitCentral {
 		command(NgsFilesSummary.class);
 		command(OptimizeFisher.class);
 		command(OboUtils.class);
+		command(PlinkFixVcf.class);
 		command(PlotBcftoolsStats.class);
 		command(PlotMosdepth.class);
 		command(PubmedDump.class);

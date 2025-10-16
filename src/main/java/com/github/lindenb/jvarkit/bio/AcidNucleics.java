@@ -271,6 +271,16 @@ public static char[] degenerateToBases(final char base) {
 		}
 	}
 
+
+/** return true if s is not null, not empty and all bases match 'isIUPAC */
+public static boolean isIUPAC(final CharSequence c) {
+	if(c==null || c.length()==0) return false;
+	for(int i=0;i< c.length();i++) {
+		if(!isIUPAC(c.charAt(i))) return false;
+		}
+	return true;
+	}
+
 /** looks like a nucleotide in the IUPAC classification */
 public static boolean isIUPAC(final char base) {
 	switch(base) {

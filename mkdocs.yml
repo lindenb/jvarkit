@@ -176,6 +176,7 @@ nav:
         - "optimizefisher" : OptimizeFisher.md
         - "pcrclipreads" : PcrClipReads.md
         - "pcrslicereads" : PcrSliceReads.md
+        - "plinkfixvcf" : PlinkFixVcf.md
         - "plotbcftoolsstats" : PlotBcftoolsStats.md
         - "plotmosdepth" : PlotMosdepth.md
         - "plotsashimi" : PlotSashimi.md
