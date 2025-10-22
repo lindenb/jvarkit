@@ -95,8 +95,9 @@ END_DOC
 @Program(name="vcf2circularsvg",
 description="displays a VCF as a circular SVG",
 keywords= {"genome","browser","circular","vcf","svg"},
-modificationDate="20220522",
-creationDate="20220522"
+modificationDate="20251022",
+creationDate="20220522",
+jvarkit_amalgamion = true
 )
 
 public class VcfToCircularSvg extends Launcher{

@@ -22,7 +22,7 @@ Usage: plinkfixvcf [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    -d, --discarded
+    -D, --discarded
       Save skipped/ignored variants in that file
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
@@ -83,5 +83,11 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+## Example
+
+```
+plink --recode vcf bgz -o jeter (...)
+gunzip -c  jeter.vcf.gz | java -jar jvarkit.jar plinkfixvcf -R reference.fa
+```
 
 

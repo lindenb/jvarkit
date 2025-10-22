@@ -286,6 +286,9 @@ libraries.put("velocity",new Library().
 	add("org.apache.velocity:velocity-engine-core:jar:2.3")
 	);
 
+libraries.put("snakeyaml",new Library().
+	add("org.yaml:snakeyaml:jar:2.5")
+	);
 
 // https://stackoverflow.com/questions/28498688
 
