@@ -15,5 +15,8 @@ public void testAcidNucleic() {
 	Assert.assertEquals(AcidNucleics.reverseComplement("AATTCG"),"CGAATT");
 	Assert.assertEquals(AcidNucleics.degenerateToBases('N').length,4);
 	Assert.assertEquals(AcidNucleics.degenerateToBases('W').length,2);
+	Assert.assertEquals(AcidNucleics.degenerateToBases('A').length,3);
+	Assert.assertFalse(new String(AcidNucleics.otherwise('A')).contains("A"));
+	Assert.assertTrue(new String(AcidNucleics.otherwise('T')).contains("A"));
 	}
 }

@@ -22,6 +22,7 @@
  * Tosti & al.  Genome-wide profiling of unmodified DNA using methyltransferase-directed tagging and enrichment . 10.1016/j.crmeth.2025.101187 2025 Cell Reports Methods
  * Hannah Melhorn, Megan Sha, Manabu Kurihara, Katherine Megquier, Riley Aronson, Vicky Yang, Incidentally identified aortic dissection in a Great Pyrenees, Journal of Veterinary Cardiology, 2025, , ISSN 1760-2734, https://doi.org/10.1016/j.jvc.2025.09.007. (https://www.sciencedirect.com/science/article/pii/S1760273425001079) **vcfbedsetfilter**
  * Yang, F., Ling, S., Yang, R., Wen, F., Gu, W., Hu, X., Lin, L., Wang, Y., Cai, J., Ren, M., Möller, M. and Cai, L. (2025), Phylogenomic reconstruction reveals deep reticulate evolutionary history and polyphyletic genus (Boeica) in the subtribe Leptoboeinae (Gesneriaceae), with description of a novel genus. Cladistics. https://doi.org/10.1111/cla.70010 **msa2vcf**
+ * Umhoefer J & al. FOXP3 expression depends on cell-type-specific <em>cis</em>-regulatory elements and transcription factor circuitry. Immunity. 2025. https://doi.org/10.1016/j.immuni.2025.10.020
 
 ## 2024
 

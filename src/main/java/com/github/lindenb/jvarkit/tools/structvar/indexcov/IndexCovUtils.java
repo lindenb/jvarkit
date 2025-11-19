@@ -51,6 +51,13 @@ public enum SvType {HOM_DEL(0),HET_DEL(0.5),REF(1.0),HET_DUP(1.5),HOM_DUP(2.0),A
 	public boolean isAmbigous() {
 		return this.equals(AMBIGOUS);
 		}
+	public boolean isReference() {
+		switch(this) {
+			case REF: return true;
+			default: return false;
+			}
+		}
+	
 	public boolean isVariant() {
 		switch(this) {
 			case REF: return false;

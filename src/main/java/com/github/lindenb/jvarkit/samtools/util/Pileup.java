@@ -40,7 +40,8 @@ import htsjdk.samtools.util.Locatable;
 	private int prev_start=0;
 	private final BiPredicate<T, T> noCollisionTest;
 	
-	/** BiPredicate returns true if the two item DO NOT collidate */
+	/** BiPredicate returns true if the two item DO NOT collidate .
+	 * Not invoked if there is a genomic overlap. Invoked as (left,right)  */
 	public Pileup(final BiPredicate<T, T> noCollisionTest) {
 		this.noCollisionTest = noCollisionTest;
 		}
@@ -97,7 +98,7 @@ import htsjdk.samtools.util.Locatable;
 		return item;
 		}
 	
-	/** test wether two items can be added to the same row */
+	/** test whether two items can be added to the same row */
 	protected boolean overlap(final T left,final T right) {
 		if(left.overlaps(right)) return true;
 		return !this.noCollisionTest.test(left, right);

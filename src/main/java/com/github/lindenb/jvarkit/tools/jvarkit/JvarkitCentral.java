@@ -136,6 +136,7 @@ import com.github.lindenb.jvarkit.tools.burden.VcfMoveFiltersToInfo;
 import com.github.lindenb.jvarkit.tools.burdencnv.VcfBurdenCNV;
 import com.github.lindenb.jvarkit.tools.cadd.VcfCadd;
 import com.github.lindenb.jvarkit.tools.calling.MiniCaller;
+import com.github.lindenb.jvarkit.tools.circular.Circular;
 import com.github.lindenb.jvarkit.tools.cmpbams.BamMatrix;
 import com.github.lindenb.jvarkit.tools.cmpbams.CommBams;
 import com.github.lindenb.jvarkit.tools.cmpbams.CompareBamAndBuild;
@@ -744,6 +745,7 @@ public class JvarkitCentral {
 		command(DictToXml.class);
 		command(DictToR.class);
 		command(DragenBndToInversion.class);
+		command(Circular.class);
 		command(CompareBamAndBuild.class);
 		command(ConvertLiftOverChain.class);
 		command(CommBams.class);

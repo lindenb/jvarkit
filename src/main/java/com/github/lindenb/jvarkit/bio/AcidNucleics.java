@@ -231,6 +231,26 @@ public static float weight(char c)
 		default: return 0.f;
 		}
 	}
+
+/** bases that are not the input (used to generate mutation */
+public static char[] otherwise(final char base) {
+	switch(base) {
+		case 'A': return new char[] {'C','G','T'};
+		case 'a': return new char[] {'c','g','t'};
+		case 'T': return new char[] {'C','G','A'};
+		case 't': return new char[] {'c','g','a'};
+		case 'C': return new char[] {'T','G','A'};
+		case 'c': return new char[] {'t','g','a'};
+		case 'G': return new char[] {'T','C','A'};
+		case 'g': return new char[] {'t','c','a'};
+		case 'W': return new char[] {'G','C'};
+		case 'w': return new char[] {'g','c'};
+		case 'S': return new char[] {'A','T'};
+		case 's': return new char[] {'a','t'};
+		default: throw new IllegalArgumentException("not handled "+base);
+	}
+}
+
 /** convert degenerate base to array of ATGC */
 public static char[] degenerateToBases(final char base) {
 	switch(base) {
