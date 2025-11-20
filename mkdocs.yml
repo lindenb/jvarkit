@@ -106,6 +106,7 @@ nav:
         - "blastn2snp" : BlastNToSnp.md
         - "breakdancer2vcf" : BreakdancerToVcf.md
         - "builddbsnp" : BuildDbsnp.md
+        - "circular" : Circular.md
         - "cmpbams" : CompareBams.md
         - "cmpbams4" : CompareBams4.md
         - "cmpbamsandbuild" : CompareBamAndBuild.md
@@ -171,6 +172,7 @@ nav:
         - "msa2vcf" : MsaToVcf.md
         - "multiqcpostproc" : MultiqcPostProcessor.md
         - "ncbitaxonomy2xml" : NcbiTaxonomyToXml.md
+        - "nfhashtools" : NFHashTools.md
         - "ngsfilessummary" : NgsFilesSummary.md
         - "oboutils" : OboUtils.md
         - "optimizefisher" : OptimizeFisher.md

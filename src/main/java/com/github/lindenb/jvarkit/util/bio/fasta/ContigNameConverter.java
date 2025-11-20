@@ -37,6 +37,8 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.broad.igv.bbfile.BBFileReader;
@@ -411,7 +413,7 @@ private static class OneDictionary extends ContigNameConverter
 	{
 	private final Map<String,String> found;
 	private final SAMSequenceDictionary dict;
-	@SuppressWarnings("serial")
+	private final Pattern human_ncbi_regex = Pattern.compile("^NC_0000([012]\\d)(\\.\\d+)?$");
 	private final Set<String> mitochrondrials = new HashSet<String>() {{{
 		add("M");
 		add("MT");
@@ -477,6 +479,21 @@ private static class OneDictionary extends ContigNameConverter
 			if(c2.equalsIgnoreCase(ssr2.getContig())) return update_found(c2,ssr2.getContig());
 			}
 		
+		/** NCBI chromosomes... */
+		final Matcher ncbi_human_matcher = this.human_ncbi_regex.matcher(contig);
+		if(ncbi_human_matcher.find()) {
+			String ctg = ncbi_human_matcher.group(1);
+			if(ctg.equals("23")) ctg="X";
+			else if(ctg.equals("24")) ctg="Y";
+			else if(ctg.startsWith("0")) ctg=ctg.substring(1);
+			SAMSequenceRecord ssr3 = this.dict.getSequence(ctg);
+			if(ssr3!=null) return update_found(contig,ssr3.getContig());
+			
+			
+			ssr3 = this.dict.getSequence("chr"+ctg);
+			if(ssr3!=null) return update_found(contig,ssr3.getContig());
+			}
+		
 		// chrUn_gl000247 vs GL000247.1
 		if(contig.startsWith("chrUn_gl"))
 			{
@@ -497,9 +514,8 @@ private static class OneDictionary extends ContigNameConverter
 		}
 	@Override
 	public String getName() {
-		if(SequenceDictionaryUtils.isGRCh37(this.dict)) return "GRCh37";
-		if(SequenceDictionaryUtils.isGRCh38(this.dict)) return "GRCh38";
-		return "OneDictionary";
+		return SequenceDictionaryUtils.getBuildName(this.dict)
+				.orElse("OneDictionary");
 		}
 	}
 /** add common known contig aliases to the dict.  eg chr1->1, 2 -> chr2

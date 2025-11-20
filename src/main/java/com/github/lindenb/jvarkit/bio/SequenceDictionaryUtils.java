@@ -89,7 +89,11 @@ public static boolean isGRCh37(final SAMSequenceDictionary dict) {
 	}
 /** test if dict looks like GRCh38  */
 public static boolean isGRCh38(final SAMSequenceDictionary dict) {
-	return hasChrom1(dict,248_956_422);
+	final int len_chr1 = 248_956_422;
+	if( hasChrom1(dict,len_chr1)) return true;
+	final SAMSequenceRecord ssr=dict.getSequence("NC_000001.11");
+	if(ssr!=null && ssr.getLengthOnReference()==len_chr1) return true;
+	return false;
 	}
 
 

@@ -119,7 +119,7 @@ private class MyJCommander extends JCommander
 
 /** original arc/argv */
 private List<String> argcargv=Collections.emptyList();
-private final JCommander jcommander = new MyJCommander();
+private  JCommander _jcommander= null;
 
 @Parameter(description = "Files")
 private List<String> files = new ArrayList<>();
@@ -290,7 +290,6 @@ public class WritingBamArgs
 	}
 
 
-@SuppressWarnings("unchecked")
 public Launcher()
 	{
 	final Class<?> clazz=Launcher.this.getClass();
@@ -324,21 +323,12 @@ public Launcher()
 	catch(final Throwable /*java.security.AccessControlException deprecated*/ err) {
 	}
 	
-	@SuppressWarnings({"rawtypes","serial"})
-	final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
-		    put(SamRecordFilter.class,SamRecordFilterFactory.class);
-		}};	
+	
 
-	this.jcommander.addConverterFactory(new IStringConverterFactory() {
-			@Override
-			public Class<? extends IStringConverter<?>> getConverter(@SuppressWarnings("rawtypes") Class forType) {		
-				return MAP.get(forType);
-				}
-			});
 	
-	
-	this.jcommander.addObject(this);	
 	}
+
+
 
 public String getProgramName()
 	{
@@ -360,10 +350,32 @@ public String getVersion()
 	return this.usageBuilder.getVersion();
 	}
 
-
+/* getter instead of cstor to avoid
+ * 
+ *  warning: [this-escape] possible 'this' escape before subclass is fully initialized
+ */
+@SuppressWarnings({ "rawtypes", "unchecked" })
 protected JCommander getJCommander()
 	{
-	return this.jcommander;
+	if(this._jcommander==null) {
+		this._jcommander = new MyJCommander();
+		
+		final Map<Class, Class<? extends IStringConverter<?>>> MAP = new HashMap() {{
+			    put(SamRecordFilter.class,SamRecordFilterFactory.class);
+			}};	
+		
+		this._jcommander.addConverterFactory(new IStringConverterFactory() {
+			@Override
+			public Class<? extends IStringConverter<?>> getConverter( Class forType) {		
+				return MAP.get(forType);
+				}
+			});
+	
+	
+		this._jcommander.addObject(this);	
+		}
+	return this._jcommander;
+	
 	}
 
 /** called AFTER argc/argv has been initialized */

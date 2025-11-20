@@ -71,6 +71,7 @@
       <class name="com.github.lindenb.jvarkit.variant.vcf.VCFByIndexTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolicTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfisec.VcfISecTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.nextflow.nfhashtools.NFHashToolsTest"/>
     </classes>
   </test>
 </suite>

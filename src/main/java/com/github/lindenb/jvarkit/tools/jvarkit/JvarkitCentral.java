@@ -214,6 +214,7 @@ import com.github.lindenb.jvarkit.tools.misc.XsltStream;
 import com.github.lindenb.jvarkit.tools.mosdepth.PlotMosdepth;
 import com.github.lindenb.jvarkit.tools.msa2vcf.MsaToVcf;
 import com.github.lindenb.jvarkit.tools.multiqc.MultiqcPostProcessor;
+import com.github.lindenb.jvarkit.tools.nextflow.nfhashtools.NFHashTools;
 import com.github.lindenb.jvarkit.tools.ngsfiles.NgsFilesSummary;
 import com.github.lindenb.jvarkit.tools.nobai.BamWithoutBai;
 import com.github.lindenb.jvarkit.tools.obo.OboUtils;
@@ -810,6 +811,7 @@ public class JvarkitCentral {
 		command(MergeSplittedBlast.class);
 		command(NcbiTaxonomyToXml.class);
 		command(NgsFilesSummary.class);
+		command(NFHashTools.class);
 		command(OptimizeFisher.class);
 		command(OboUtils.class);
 		command(PlinkFixVcf.class);

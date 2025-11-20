@@ -2,8 +2,8 @@ JVARKIT
 =======
 
 Author      : Pierre Lindenbaum Phd. Institut du Thorax. Nantes. France.
-Version     : 5818e7057
-Compilation : 20251022153404
+Version     : a14254e24
+Compilation : 20251120110129
 Github      : https://github.com/lindenb/jvarkit
 Issues      : https://github.com/lindenb/jvarkit/issues
 
@@ -155,6 +155,7 @@ Please, read [how to run and install jvarkit](JvarkitCentral.md)
 | [goutils](GoUtils.md) | Gene Ontology Utils. Retrieves terms from Gene Ontology | 20180130 | 20240523 |
 | [multiqcpostproc](MultiqcPostProcessor.md) | Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population. | 20240708 | 20240730 |
 | [ncbitaxonomy2xml](NcbiTaxonomyToXml.md) | Dump NCBI taxonomy tree as a hierarchical XML document or as a table | 20120320 | 20240320 |
+| [nfhashtools](NFHashTools.md) | A tool to print and compare hashes .nextflow.log files | 20251119 | 20251120 |
 | [oboutils](OboUtils.md) | OBO Ontology Utils. | 20230105 | 20230105 |
 | [ukbiobanksamples](UKBiobankSelectSamples.md) | Select samples from ukbiobank | 20210705 | 20220322 |
 | [uniprot2svg](UniprotToSvg.md) | plot uniprot to SVG | 20220608 | 20220922 |
