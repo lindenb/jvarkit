@@ -45,7 +45,14 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonWriter;
+/**
+BEGIN_DOC
 
+Nextflow run **must** be launcher with `-dump-hashes json`
+
+END_DOC
+*/
 @Program(name="nfhashdiff",
 description="Compare .nextflow.log",
 keywords={"json"},
@@ -65,6 +72,8 @@ public class NFHashDiff extends Launcher {
 	private boolean hide_file2=false;
 	@Parameter(names={"-t"},description="look only at hashes value that value")
 	private String search_value=null;
+	@Parameter(names={"-g","--grep"},description="Search for all those strings")
+	private List<String> grep_items = new ArrayList<>();
 
 
 	private int compare(JsonArray a,JsonArray b) {
@@ -90,8 +99,12 @@ public class NFHashDiff extends Launcher {
 			for(;;) {
 				String line=br.readLine();
 				if(line==null) break;
-				if(!(line.contains("cache hash:") && line.endsWith("["))) continue;
-				StringBuilder sb=new StringBuilder("[");
+				if(!line.contains("cache hash:")) continue;
+				if(!line.endsWith("[")) {
+					LOG.warn("line doesn't end with '[' . Did you use '-dump-hashes json' ? "+line); 
+					continue;
+					}
+				final StringBuilder sb=new StringBuilder("[");
 				for(;;) {
 					line=br.readLine();
 					if(line==null) {
@@ -114,7 +127,28 @@ public class NFHashDiff extends Launcher {
 									}
 								}
 							}
-						
+						if(ok && !grep_items.isEmpty()) {
+							int n=0;
+							for(String s:this.grep_items) {
+								boolean found=false;
+								for(int x=0;x< array.size();++x) {
+									final JsonObject oa = array.get(x).getAsJsonObject();
+									String sa = oa.get("value").getAsString();
+									if(sa.contains(s)) {
+										found=true;
+										break;
+										}
+									sa = oa.get("hash").getAsString();
+									if(sa.contains(s)) {
+										found=true;
+										break;
+										}
+									}
+								n+=(found?1:0);
+								if(!found) break;
+								}
+							ok = (n==this.grep_items.size());
+							}
 						
 						if(ok) {
 							elements.add(array);
@@ -124,82 +158,113 @@ public class NFHashDiff extends Launcher {
 					}
 				}
 			LOG.info("in "+p+" got "+elements.size()+" element(s).");
+			if(elements.isEmpty()) {
+				LOG.warn("no element found. Did you use '-dump-hashes json'  ?");
+				}
 			Collections.sort(elements,(A,B)->compare(A,B));
 			return elements;
 			}
 		}
-	private void print(PrintWriter w, List<JsonArray> L) {
-		Gson gson = new GsonBuilder().setPrettyPrinting().create();
-		w.println("[");
+	private void print(JsonWriter w,Gson gson, List<JsonArray> L) throws IOException {
+		w.beginArray();
 		for(int i=0;i< L.size();i++) {
-			if(i>0) w.print(",");
-			w.println(gson.toJson( L.get(i)));
+			w.jsonValue(gson.toJson( L.get(i)));
 			}
-		w.println("]");
+		w.endArray();
 		}
 	@Override
 	public int doWork(List<String> args) {
 		try {
-			if(args.size()!=2) {
-				LOG.error("exepected two files");
+			if(args.size()!=1 && args.size()!=2) {
+				LOG.error("exepected one or two files");
 				return -1;
 				}
 			final List<JsonArray> L1 = readLog(Paths.get(args.get(0)));
-			final List<JsonArray> L2 = readLog(Paths.get(args.get(1)));
 			
-			while(!L1.isEmpty() && !L2.isEmpty()) {
-				final JsonArray oa = L1.get(0);
-				final JsonArray ob = L2.get(0);
-				if(equals(oa,ob)) {
-					L1.remove(0);
-					L2.remove(0);
-					}
-				else
-					{
-					break;
+			
+			if(args.size()==1) {
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outFile)) {
+					Gson gson = new GsonBuilder().setPrettyPrinting().create();
+					try(JsonWriter w=gson.newJsonWriter(out)) {
+						print(w,gson,L1);
+						}
 					}
 				}
-			
-			int x=0;
-			while(x< L1.size()) {
-				JsonArray oa = L1.get(x);
-				int y=0;
-				while(y < L2.size()) {
-					JsonArray ob = L2.get(y);
-					if(equals(oa,ob)) break;
-					y++;
+			else
+				{
+				final List<JsonArray> L2 = readLog(Paths.get(args.get(1)));
+				
+				while(!L1.isEmpty() && !L2.isEmpty()) {
+					final JsonArray oa = L1.get(0);
+					final JsonArray ob = L2.get(0);
+					if(equals(oa,ob)) {
+						L1.remove(0);
+						L2.remove(0);
+						}
+					else
+						{
+						break;
+						}
 					}
-				if(y< L2.size()) {
-					L1.remove(x);
-					L2.remove(y);
+				
+				int x=0;
+				while(x< L1.size()) {
+					JsonArray oa = L1.get(x);
+					int y=0;
+					while(y < L2.size()) {
+						JsonArray ob = L2.get(y);
+						if(equals(oa,ob)) break;
+						y++;
+						}
+					if(y< L2.size()) {
+						L1.remove(x);
+						L2.remove(y);
+						}
+					else
+						{
+						x++;
+						}
 					}
-				else
-					{
-					x++;
+				
+				try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outFile)) {
+					Gson gson = new GsonBuilder().setPrettyPrinting().create();
+					try(JsonWriter w=gson.newJsonWriter(out)) {
+						w.beginArray();
+						
+						
+						
+						
+						if(!hide_file1) {
+							w.beginObject();
+							w.name("description");
+							w.value("Unique to "+args.get(0));
+							w.name("file");
+							w.value(args.get(0));
+							w.name("items");
+							print(w,gson,L1);
+							w.endObject();
+							}
+						if(!hide_file2) {
+							w.beginObject();
+							w.name("description");
+							w.value("Unique to "+args.get(1));
+							w.name("file");
+							w.value(args.get(1));
+							w.name("items");
+							print(w,gson,L2);
+							w.endObject();
+							}
+						w.endArray();
+						w.flush();
 					}
 				}
-			
-			try(PrintWriter out = super.openPathOrStdoutAsPrintWriter(this.outFile)) {
-				out.println("{");
-				if(!hide_file1) {
-					out.print("\"Unique to "+args.get(0)+"\":");
-					print(out,L1);
-					}
-				if(!hide_file2) {
-					if(!hide_file1) out.print(",");
-					out.print("\"Unique to "+args.get(1)+"\":");
-					print(out,L2);
-					}
-				out.println("}");
-				out.flush();
-			}
-			
+				}
+			return 0;
 			}
 		catch(Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
-		return super.doWork(args);
 		}
 	
 	public static void main(String[] args) {
