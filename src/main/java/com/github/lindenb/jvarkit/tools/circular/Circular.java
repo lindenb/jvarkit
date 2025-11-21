@@ -71,6 +71,7 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.ExtendedLocatable;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
@@ -90,7 +91,10 @@ import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
 
 
@@ -125,6 +129,144 @@ public class Circular extends Launcher {
 		return  String.valueOf(s);
 		}
 	
+	/**
+	 * Abstract class DataReader reading locatable data from a file
+	 */
+	private abstract class DataReader<HEADER,DATATYPE extends Locatable> implements AutoCloseable {
+		protected final Element config;
+		DataReader(Element config) {
+			this.config = config;
+			}
+		abstract HEADER open() throws IOException;
+		abstract CloseableIterator<DATATYPE> iterator();
+		}
+	/**
+	 * VariantReader for VCF
+	 */
+	private class VariantReader extends DataReader<VCFHeader,VariantContext> {
+		private VCFReader vcf_reader=null;
+		VariantReader(Element config) {
+			super(config);
+			}
+		Path getPath() {
+			final String path_str = (String)Circular.this.evalXPath("text()", Circular.this.resolvePath(super.config, "vcf"), XPathConstants.STRING);
+			if(StringUtils.isBlank(path_str)) throw new IllegalArgumentException(DOMUtils.getNodePath(super.config)+"/vcf : cannot get path");
+			return Paths.get(path_str);
+			}
+		@Override
+		VCFHeader open() throws IOException {
+			if(this.vcf_reader!=null) close();
+			this.vcf_reader = VCFReaderFactory.makeDefault().open(getPath(), true);
+			return this.vcf_reader.getHeader();
+			}
+		@Override
+		CloseableIterator<VariantContext> iterator() {
+			return this.vcf_reader.iterator();
+			}
+		@Override
+		public void close() throws IOException {
+			if(this.vcf_reader!=null) vcf_reader.close();
+			vcf_reader= null;
+			}
+		}
+	/**
+	 * DataReader for BAM Files
+	 */
+	private class BAMReader extends DataReader<SAMFileHeader,SAMRecord> {
+		private SamReader sam_reader=null;
+		BAMReader(Element config) {
+			super(config);
+			}
+		SamInputResource getPath() {
+			final String path_str = (String)Circular.this.evalXPath("text()", Circular.this.resolvePath(super.config, "bam"), XPathConstants.STRING);
+			if(StringUtils.isBlank(path_str)) throw new IllegalArgumentException(DOMUtils.getNodePath(super.config)+"/bam : cannot get path");
+			return SamInputResource.of(path_str);
+			}
+		Path getReferencePath() {
+			final String path_str = (String)Circular.this.evalXPath("text()", Circular.this.resolvePath(super.config, "reference"), XPathConstants.STRING);
+			if(StringUtils.isBlank(path_str)) return null;
+			return Paths.get(path_str);
+			}
+		@Override
+		SAMFileHeader open() throws IOException {
+			if(this.sam_reader!=null) close();
+			final SamReaderFactory srf = SamReaderFactory.make();
+			srf.validationStringency( ValidationStringency.LENIENT);
+			this.sam_reader = srf.open(getPath());
+			return this.sam_reader.getFileHeader();
+			}
+		@Override
+		CloseableIterator<SAMRecord> iterator() {
+			return this.sam_reader.iterator();
+			}
+		@Override
+		public void close() throws IOException {
+			if(this.sam_reader!=null) sam_reader.close();
+			sam_reader= null;
+			}
+		}
+	
+	/**
+	 * DataReader for Column oriented files Files
+	 */
+	private class TabularReader extends DataReader<List<String>,TabularReader.DataLine> {
+		private BufferedReader bf_reader=null;
+		private Function<List<String>,Locatable> tokens2location= T->{
+				String chr = T.get(0);
+				int start = 1+ Integer.valueOf(T.get(1));
+				int end = Integer.valueOf(T.get(2));
+				return new SimpleInterval(chr,start,end);
+				};
+		class DataLine implements Locatable {
+			List<String> columns ;
+			private Locatable _asloc=null;
+			private Locatable asLoc() {
+				if(_asloc==null) {
+					_asloc = tokens2location.apply(this.columns);
+					}
+				return _asloc;
+				}
+			
+			@Override
+			public String getContig() {
+				return asLoc().getContig();
+				}
+			@Override
+			public int getStart() {
+				return asLoc().getStart();
+			}
+			@Override
+			public int getEnd() {
+				return asLoc().getEnd();
+				}
+			}
+		
+		TabularReader(Element config) {
+			super(config);
+			}
+		Path getPath() {
+			final String path_str = (String)Circular.this.evalXPath("text()", Circular.this.resolvePath(super.config, "file"), XPathConstants.STRING);
+			if(StringUtils.isBlank(path_str)) throw new IllegalArgumentException(DOMUtils.getNodePath(super.config)+"/file : cannot get path");
+			return Paths.get(path_str);
+			}
+		@Override
+		List<String> open() throws IOException {
+			if(this.bf_reader!=null) close();
+			Path p = getPath();
+			this.bf_reader = IOUtils.openPathForBufferedReading(p);
+			List<String> hdr=new ArrayList<>();
+			return hdr;
+			}
+		@Override
+		CloseableIterator<TabularReader.DataLine> iterator() {
+			return null;
+			}
+		@Override
+		public void close() throws IOException {
+			if(this.bf_reader!=null) bf_reader.close();
+			bf_reader= null;
+			}
+		}
 	
 	private class RadialAndLocatable implements ExtendedLocatable {
 		final ContigInfo contigInfo;
