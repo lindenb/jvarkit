@@ -40,6 +40,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -543,6 +545,27 @@ public class Circular extends Launcher {
 				}//try samReader
 			}//plot
 		}
+	
+	
+	private class GenericTabularTrack<HEADER_TYPE,DATATYPE> extends ConfigurableTrack {
+		BiFunction<HEADER_TYPE, DATATYPE, String> line2stroke_fun = (H,T)->null;
+		BiFunction<HEADER_TYPE, DATATYPE, String> line2fill_fun = (H,T)->null;
+		BiFunction<HEADER_TYPE, DATATYPE, String> line2title_fun = (H,T)->null;
+		BiFunction<HEADER_TYPE, DATATYPE, String> line2url_fun = (H,T)->null;
+		boolean pileup=false;
+		public GenericTabularTrack(Element root) {
+			super(root);
+			}
+		
+		@Override
+		void plot(XMLStreamWriter w) throws IOException, XMLStreamException, XPathException {
+			
+			
+			
+			
+			}
+		}
+	
 	
 	private class PileupBamTrack extends AbstractBamTrack {
 		
