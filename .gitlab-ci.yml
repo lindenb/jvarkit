@@ -38,7 +38,7 @@ apptainer-job:
     - add-apt-repository -y ppa:apptainer/ppa
     - apt update
     - apt install -y fuse3 apptainer
-    - sudo sysctl -w kernel.unprivileged_userns_clone=1 || true
+    - sysctl -w kernel.unprivileged_userns_clone=1 || true
     - apptainer build jvarkit.sif apptainer.def
   artifacts:
     paths:
