@@ -3,33 +3,37 @@
  */
 package com.github.lindenb.jvarkit.tools.vcf2xml;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.net.Hyperlink;
+
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
-import htsjdk.variant.variantcontext.VariantContextBuilder;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-
-import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.jcommander.Launcher;
-import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
-
 import htsjdk.variant.vcf.VCFConstants;
-import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
@@ -37,6 +41,7 @@ import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFIteratorBuilder;
 /**
 BEGIN_DOC
 
@@ -1524,447 +1529,444 @@ $ xsltproc vcf2mongo.xsl vcf.xml | mongo
 ```
 
 END_DOC
- 
+
  */
 @Program(
-		name="vcf2xml",
-		description="Convert VCF to XML",
-		keywords={"vcf","xml"},
-		modificationDate = "20230822",
-		jvarkit_amalgamion = true
-		)
+	name="vcf2xml",
+	description="Convert VCF to XML",
+	keywords={"vcf","xml"},
+	modificationDate = "20251124",
+	jvarkit_amalgamion = true
+	)
 public class Vcf2Xml extends Launcher
 	{
+	private static final Logger LOG=Logger.of(Vcf2Xml.class);
+
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
-
-	/** VCF writer */
-	private class XMLVcfWriter implements VariantContextWriter
-		{
-		private XMLStreamWriter writer=null;
-		private OutputStream delegateOut=null;
-		private VCFHeader  header=null;
-
-
-		@Override
-		public boolean checkError()
-			{
-			if( delegateOut==null) return false;
-			if( !(delegateOut instanceof java.io.PrintStream) ) return false;
-			return  java.io.PrintStream.class.cast(delegateOut).checkError();
-			}
-
-		private XMLVcfWriter()
-			{
-			}		
-		
-		protected void start(String tag) throws XMLStreamException
-			{
-			this.writer.writeStartElement(tag);
-			}
-		
-		protected void attribute(String tag,Object o) throws XMLStreamException
-			{
-			this.writer.writeAttribute(tag, String.valueOf(o));
-			}
-		
-		protected void end() throws XMLStreamException
-			{
-			this.writer.writeEndElement();
-			}
-		
-		protected void element(String tag,Object content) throws XMLStreamException
-			{
-			if(content==null)
-				{
-				this.writer.writeEmptyElement(tag);
-				return;
-				}
-			start(tag);
-			characters(content);
-			end();
-			}
+	private Path outputFile = null;
+	@Parameter(names={"--hide"},description="features to hide '(genotypes|gt|het|nocall|homref|mixed|homvar|info|filter|id|header)'")
+	private String hide_str = "";
+	@Parameter(names={"--regex"},description="keep chromosomes matching that regular expression")
+	private String contig_regex=null;
+	@Parameter(names={"--min-length"},description="keep chromosomes which length is greater than 'x'")
+	private int min_contig_length=0;
 	
-		protected void characters(Object content)
-				throws XMLStreamException
-			{
-			if(content==null) return;
-			this.writer.writeCharacters(String.valueOf(content));
-			}
 		
-		@Override
-		public void setHeader(final VCFHeader header) {
-			throw new UnsupportedOperationException("setHeader shouldn't be called"); 
-			}
 		
-		@Override
-		public void writeHeader(VCFHeader header)
-			{
-			if(this.header!=null) throw new RuntimeException("Header was already written");
-			this.header=header;
-	
-			try
-				{
-				start("vcf");
-				start("header");
-				if(header.getInfoHeaderLines()!=null)
-					{
-					start("infos");
-					for(final VCFInfoHeaderLine h:header.getInfoHeaderLines())
-						{
-						start("info");
-						attribute("id",h.getID());
-						attribute("countType",h.getCountType());
-						if(h.getCountType()==VCFHeaderLineCount.INTEGER)
-							{
-							attribute("count",h.getCount());
-							}
-						if(h.getValue()!=null && !h.getValue().isEmpty())
-							attribute("value",h.getValue());
-						characters(h.getDescription());
-						end();
-						}
-					end();
-					}
-				
-				if(header.getFormatHeaderLines()!=null)
-					{
-					start("formats");
-					for(final VCFFormatHeaderLine h: header.getFormatHeaderLines())
-						{
-						start("format");
-						attribute("id",h.getID());
-						attribute("countType",h.getCountType());
-						if(h.getCountType()==VCFHeaderLineCount.INTEGER)
-							{
-							attribute("count",h.getCount());
-							}
-						if(h.getValue()!=null && !h.getValue().isEmpty())
-							attribute("value",h.getValue());
-						characters(h.getDescription());
-						end();
-						}
-					end();
-					}
-				
-				if(header.getFilterLines()!=null)
-					{
-					start("filters");
-					for(VCFFilterHeaderLine h: header.getFilterLines())
-						{
-						start("filter");
-						element("id",h.getID());
-						characters(h.getValue());
-						end();
-						}
-					end();
-					}
-				
-				if(header.getContigLines()!=null)
-					{
-					start("contigs");
-					for(final VCFContigHeaderLine h:header.getContigLines())
-						{
-						start("contig");
-						attribute("tid", h.getContigIndex());
-						element("key",h.getID());
-						Map<String,String> fields = h.getGenericFields();
-						for(final String k1: fields.keySet()) {
-							start("property");
-							attribute("name",k1);
-							characters(fields.get(k1));
-							end();
-							}
-						end();
-						}
-					end();
-					}
-				
-				if(header.getSampleNamesInOrder()!=null)
-					{
-					start("samples");
-					for(final String name:header.getSampleNamesInOrder())
-						{
-						start("sample");
-						attribute("index", header.getSampleNameToOffset().get(name));
-						characters(name);
-						end();
-						}
-					end();
-					}
-				if(header.getMetaDataInInputOrder()!=null)
-					{
-					start("metas");
-					for(final VCFHeaderLine meta:header.getMetaDataInInputOrder())
-						{
-						if(meta.getKey().equals("INFO"))continue;
-						if(meta.getKey().equals("FORMAT"))continue;
-						if(meta.getKey().equals("contig"))continue;
-						if(meta.getKey().equals("FILTER"))continue;
-						if(meta.getKey().equals("fileformat"))continue;
-						start("meta");
-						attribute("key", meta.getKey());
-						characters(meta.getValue());
-						end();
-						}
-					end();
-					}
-				end();//header
-				start("variations");
-				characters("\n");
-				}
-			catch (final XMLStreamException e)
-				{
-				e.printStackTrace();
-				throw new RuntimeException(String.valueOf(e.getMessage()),e);
-				}
-			}
-		
-	    // should we write genotypes or just sites?
-		private boolean doNotWriteGenotypes=false;
-		
-		@Override
-		public void add(VariantContext variant)
-			{
-			if(this.header==null) throw new RuntimeException("No header was written.");
-	
-			try
-				{
-				 if ( doNotWriteGenotypes )
-					 variant = new VariantContextBuilder(variant).noGenotypes().make();
-							 
-				start("variation");
-				element("chrom",variant.getContig());
-				element("start",variant.getStart());
-				element("end",variant.getEnd());
-				if(variant.hasID())
-					{
-					element("id",variant.getID());	
-					}
-				element("ref",variant.getReference().getDisplayString());
-				
-				if ( variant.isVariant() )
-					{
-					for(Allele a:variant.getAlternateAlleles())
-						{
-						element("alt",a.getDisplayString());
-						}
-					}
-				
-				if(variant.hasLog10PError())
-					{
-					element("qual", variant.getPhredScaledQual());
-					}
-				
-				if(variant.isFiltered() || variant.filtersWereApplied())
-					{
-					start("filters");
-					if(variant.isFiltered())
-						{
-						for(String s: variant.getFilters())
-							{
-							element("filter",s);
-							}
-						}
-					else if(variant.filtersWereApplied())
-						{
-						element("filter",VCFConstants.PASSES_FILTERS_v4);
-						}
-					end();
-					}
-					
-				if(variant.getAttributes()!=null)
-					{
-					start("infos");
-					writeAttributes(variant.getAttributes());
-					end();
-					}
-				
-				
-				
-				if(variant.hasGenotypes())
-					{
-					start("genotypes");
-					for(String sample:variant.getSampleNames())
-						{
-						final Genotype g=variant.getGenotype(sample);
-						if(g==null) continue;
-						start("genotype");
-						attribute("available",g.isAvailable());
-						attribute("called",g.isCalled());
-						attribute("het",g.isHet());
-						attribute("hom",g.isHom());
-						attribute("homRef",g.isHomRef());
-						attribute("homVar",g.isHomVar());
-						attribute("mixed",g.isMixed());
-						attribute("noCall",g.isNoCall());
-						attribute("nonInformative",g.isNonInformative());
-						attribute("filtered",g.isFiltered());
-						attribute("phased",g.isPhased());
-						attribute("sample",g.getSampleName());
-						if(g.hasAD())
-							{
-							start("AD");
-							for(int ad:g.getAD())
-								{
-								element("value", ad);
-								}
-							end();
-							}
-						if(g.hasDP())
-							{
-							element("DP", g.getDP());
-							}
-						if(g.hasGQ())
-							{
-							element("GQ", g.getGQ());
-							}
-						if(g.hasPL())
-							{
-							start("PL");
-							int index=0;
-							for(int v:g.getPL())
-								{
-								start("value");
-								attribute("index", ++index);
-								characters(v);
-								end();
-								}
-							end();
-							}
-						
-						
-						
-						start("alleles");
-						for(Allele a:g.getAlleles())
-							{
-							if(a.isNoCall()) continue;
-							if(a.getBaseString().isEmpty()) continue;
-							if(a.getBaseString().equals(".")) continue;
-							start("allele");
-							if(a.isReference()) attribute("ref", a.isReference());
-							if(a.isSymbolic()) attribute("symbolic",true);
-							characters(a.getBaseString());
-							end();
-							}
-						end();
-						
-						
-						writeAttributes(g.getExtendedAttributes());
-						end();
-						}
-					end();
-					}
-				end();//variation
-				characters("\n");
-				}
-			catch (XMLStreamException e)
-				{
-				throw new RuntimeException(e);
-				}
-			}
-		
-		@Override
-		public void close()
-			{
-			if(this.writer==null) return;
-			if(this.header==null) throw new RuntimeException("No header was written.");
-			try {
-				end();//variations
-				end();//vcf
-				writer.close();
-				if(this.delegateOut!=null) {delegateOut.flush(); delegateOut.close();}
-				this.writer=null;
-				} 
-			catch (Exception e)
-				{
-				e.printStackTrace();
-				throw new RuntimeException("close failed",e);
-				}
-			}
-		@SuppressWarnings("rawtypes")
-		private void writeAttributes(final Map<String, Object> hash) throws XMLStreamException {
-			if (hash == null)
-				return;
-			for (String key : hash.keySet()) {
-				boolean is_array = false;
-				final Object o = hash.get(key);
-				final Collection col;
-				if (o == null)
-					continue;
-				if (o.getClass().isArray()) {
-					Object array[] = (Object[]) o;
-					col = Arrays.asList(array);
-					is_array = true;
-				} else if (o instanceof Collection) {
-					Collection array = (Collection) o;
-					col = array;
-					is_array = true;
-				} else {
-					col = Collections.singletonList(o);
-				}
-				if (col.isEmpty())
-					continue;
-				start("attribute");
-				attribute("id", key);
-				int idx=1;
-				for (Object v: col) {
-					start("value");
-					if (is_array)
-						attribute("index", String.valueOf(idx++));
-					characters(String.valueOf(v));
-					end();
-				}
-
-			}
+	private static void element(final XMLStreamWriter w,String name,Object o) throws XMLStreamException {
+		if(o==null) return;
+		final String s=String.valueOf(o);
+		if(StringUtils.isBlank(s)) return;
+		w.writeStartElement(name);
+		w.writeCharacters(s);
+		w.writeEndElement();
 		}
+	   
+		
+	@SuppressWarnings("rawtypes")
+	private static void writeAttributes(final XMLStreamWriter w, final Map<String, Object> hash) throws XMLStreamException {
+		if (hash == null)
+			return;
+		for (String key : hash.keySet()) {
+			boolean is_array = false;
+			final Object o = hash.get(key);
+			final Collection col;
+			if (o == null)
+				continue;
+			if (o.getClass().isArray()) {
+				final Object array[] = (Object[]) o;
+				col = Arrays.asList(array);
+				is_array = true;
+			} else if (o instanceof Collection) {
+				final Collection array = (Collection) o;
+				col = array;
+				is_array = true;
+			} else {
+				col = Collections.singletonList(o);
+			}
+			if (col.isEmpty())
+				continue;
+			w.writeStartElement("attribute");
+			w.writeAttribute("id", key);
+			int idx=1;
+			for (Object v: col) {
+				w.writeStartElement("value");
+				if (is_array) {
+					w.writeAttribute("index", String.valueOf(idx++));
+					}
+				w.writeCharacters(String.valueOf(v));
+				w.writeEndElement();
+				}
+			w.writeEndElement();
+
 		}
+	}
+		
 
 	
-	@Override
-	protected int doVcfToVcf(
-			final String inputName,
-			final VCFIterator iterin, 
-			final VariantContextWriter out
-			) {
-		final SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(iterin.getHeader());
-		out.writeHeader(iterin.getHeader());
-		while(iterin.hasNext())
-			{
-			out.add(progress.watch(iterin.next()));
-			}
-		progress.finish();
-		return 0;
-		}
-	
-	/** open VariantContextWriter */
-	@Override
-	protected VariantContextWriter openVariantContextWriter(final File outorNull) throws IOException {
-		final XMLVcfWriter w=new XMLVcfWriter();
-       try {
-               final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
-               if(this.outputFile!=null)
-                       {
-                       w.delegateOut=IOUtils.openFileForWriting(this.outputFile);
-                       }
-               else
-                       {
-                       w.delegateOut= stdout();
-                       }
-               w.writer = xmlfactory.createXMLStreamWriter(w.delegateOut);
-               } 
-       catch (final XMLStreamException e)
-               {
-	           if(w.writer!=null) try {w.writer.close();} catch(Throwable e2) {}
-	           if(w.delegateOut!=null) try {w.delegateOut.close();}catch(Throwable e2) {}
-               throw new IOException(e);
-               }
-		return w;
-		}
-	
+
 	@Override
 	public int doWork(final List<String> args) {
-		return doVcfToVcf(args, outputFile);
+		try {
+			final String input = super.oneFileOrNull(args);
+			
+			final Set<String> hide= Arrays.stream(this.hide_str.split("[  ,;|]"))
+					.map(S->S.toLowerCase())
+					.filter(S->!StringUtils.isBlank(S))
+					.collect(Collectors.toSet());
+			
+			if(hide.contains("genotype")) hide.add("gt");
+			if(hide.contains("genotypes")) hide.add("gt");
+			if(hide.contains("infos")) hide.add("info");
+			if(hide.contains("href")) hide.add("url");
+			if(hide.contains("filters")) hide.add("filter");
+			if(hide.contains("no_call")) hide.add("nocall");
+			if(hide.contains("hom_ref")) hide.add("homref");
+			if(hide.contains("hom_var")) hide.add("homvar");
+			
+			try(VCFIterator iter = input==null || input.equals("-")?new VCFIteratorBuilder().open(stdin()):new VCFIteratorBuilder().open(input)) {
+				final VCFHeader header = iter.getHeader();
+				final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(header);
+				final Hyperlink hyperlink = Hyperlink.compile(dict0);
+				
+				final Pattern contigRegex = (this.contig_regex==null?null:Pattern.compile(this.contig_regex));
+				final SAMSequenceDictionary dict = new SAMSequenceDictionary(
+						dict0.getSequences().stream().
+						filter(SSR->min_contig_length<=0 || SSR.getSequenceLength()>=min_contig_length).
+						filter(SSR->contigRegex==null?true:contigRegex.matcher(SSR.getSequenceName()).matches()).
+						collect(Collectors.toList())
+						);
+				if(dict.isEmpty()) {
+					LOG.error("empty dictionary");
+					return -1;
+					}
+				
+				final Map<String,Long> contig2genomicindex = new HashMap<>(dict.size());
+				final long genome_length = dict.getReferenceLength();
+				
+				try(OutputStream out= super.openPathOrStdoutAsStream(this.outputFile)) {
+					final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
+					final String encoding = "UTF-8";
+					final XMLStreamWriter w= xmlfactory.createXMLStreamWriter(out, encoding);
+					w.writeStartDocument(encoding, "1.0");
+					w.writeStartElement("vcf");
+					
+					/* VCF HEADER *****************************************/
+					if(!hide.contains("header")) {
+						w.writeStartElement("header");
+						if(header.getInfoHeaderLines()!=null)
+							{
+							w.writeStartElement("infos");
+							for(final VCFInfoHeaderLine h:header.getInfoHeaderLines())
+								{
+								w.writeStartElement("info");
+								w.writeAttribute("id",h.getID());
+								w.writeAttribute("countType", String.valueOf( h.getCountType()));
+								if(h.getCountType()==VCFHeaderLineCount.INTEGER)
+									{
+									w.writeAttribute("count", String.valueOf( h.getCount()));
+									}
+								if(!StringUtils.isBlank(h.getValue())) {
+									w.writeAttribute("value",h.getValue());
+									}
+								w.writeCharacters(h.getDescription());
+								w.writeEndElement();
+								}
+							w.writeEndElement();
+							}
+						
+						if(header.getFormatHeaderLines()!=null && !hide.contains("genotype"))
+							{
+							w.writeStartElement("formats");
+							for(final VCFFormatHeaderLine h: header.getFormatHeaderLines())
+								{
+								w.writeStartElement("format");
+								w.writeAttribute("id",h.getID());
+								w.writeAttribute("countType",h.getCountType().name());
+								if(h.getCountType()==VCFHeaderLineCount.INTEGER)
+									{
+									w.writeAttribute("count",String.valueOf(h.getCount()));
+									}
+								if(!StringUtils.isBlank(h.getValue())) {
+									w.writeAttribute("value",h.getValue());
+									}
+								w.writeCharacters(h.getDescription());
+								w.writeEndElement();
+								}
+							w.writeEndElement();
+							}
+						
+						if(header.getFilterLines()!=null && !hide.contains("filter"))
+							{
+							w.writeStartElement("filters");
+							for(VCFFilterHeaderLine h: header.getFilterLines())
+								{
+								w.writeStartElement("filter");
+								w.writeAttribute("id",h.getID());
+								if(!StringUtils.isBlank(h.getDescription())) {
+									w.writeCharacters(h.getDescription());
+									}
+								w.writeEndElement();
+								}
+							w.writeEndElement();
+							}
+						
+						//write dict
+							{
+							w.writeStartElement("dict");
+							w.writeAttribute("genome_length", String.valueOf(genome_length));
+							final String build =  SequenceDictionaryUtils.getBuildName(dict0 /* yes , that one */).orElse(null);
+							if(!StringUtils.isBlank(build)) w.writeAttribute("build",build);
+							long x=0;
+							
+							for(final SAMSequenceRecord h: dict.getSequences())
+								{
+								w.writeStartElement("contig");
+								w.writeAttribute("tid",String.valueOf(h.getSequenceIndex()));
+								w.writeAttribute("name",h.getSequenceName());
+								w.writeAttribute("x",String.valueOf(x));
+								w.writeAttribute("f1",String.valueOf(x/(double)genome_length));
+								w.writeAttribute("f2",String.valueOf((x+h.getLengthOnReference())/(double)genome_length));
+								contig2genomicindex.put(h.getSequenceName(), x);
+								
+								
+								for(final Map.Entry<String, String> kv: h.getAttributes()) {
+									if(!StringUtils.isBlank(kv.getValue())) continue;
+									w.writeStartElement("property");
+									w.writeAttribute("name",kv.getKey());
+									w.writeCharacters(kv.getValue());
+									w.writeEndElement();
+									}
+								w.writeEndElement();
+								x+= h.getLengthOnReference();
+								}
+							w.writeEndElement();
+							}
+						
+						if(header.getSampleNamesInOrder()!=null && !hide.contains("gt"))
+							{
+							w.writeStartElement("samples");
+							for(final String name:header.getSampleNamesInOrder())
+								{
+								w.writeStartElement("sample");
+								w.writeAttribute("index", String.valueOf(header.getSampleNameToOffset().get(name)));
+								w.writeCharacters(name);
+								w.writeEndElement();
+								}
+							w.writeEndElement();
+							}
+						if(header.getMetaDataInInputOrder()!=null)
+							{
+							w.writeStartElement("metas");
+							for(final VCFHeaderLine meta:header.getMetaDataInInputOrder())
+								{
+								if(meta.getKey().equals( "INFO"))continue;
+								if(meta.getKey().equals("FORMAT"))continue;
+								if(meta.getKey().equals("contig"))continue;
+								if(meta.getKey().equals("FILTER"))continue;
+								if(meta.getKey().equals("fileformat"))continue;
+								w.writeStartElement("meta");
+								w.writeAttribute("key", meta.getKey());
+								if(!StringUtils.isBlank(meta.getValue())) {
+									w.writeCharacters(meta.getValue());
+									}
+								w.writeEndElement();
+								}
+							w.writeEndElement();
+							}
+						w.writeEndElement();//header
+						}
+					/* variants */
+					w.writeStartElement("variants");
+					while(iter.hasNext()) {
+						final VariantContext ctx = iter.next();
+						final SAMSequenceRecord ssr = dict.getSequence(ctx.getContig());
+						if(ssr==null) continue;
+						w.writeStartElement("variant");
+						final long x1 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getStart();
+						final long x2 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getEnd();
+						w.writeAttribute("x1", String.valueOf(x1));
+						w.writeAttribute("x2", String.valueOf(x2));
+						w.writeAttribute("f1", String.valueOf(x1/(double)genome_length));
+						w.writeAttribute("f2", String.valueOf(x2/(double)genome_length));
+						if(!hide.contains("url")) {
+							final Optional<String> url= hyperlink.apply(ctx);
+							if(url.isPresent()) {
+								w.writeEmptyElement("url");
+								w.writeAttribute("href", url.get());
+								}
+							else if(ctx.getID()!=null && ctx.getID().matches("rs[0-9]+"))
+								{
+								w.writeEmptyElement("url");
+								w.writeAttribute("href",  "https://www.ncbi.nlm.nih.gov/snp/"+ctx.getID());
+								}
+							}
+						
+						
+						w.writeStartElement("chrom");
+						w.writeAttribute("tid", String.valueOf(ssr.getSequenceIndex()));
+						w.writeCharacters(ctx.getContig());
+						w.writeEndElement();
+						
+						w.writeStartElement("start");
+						w.writeCharacters(String.valueOf(ctx.getStart()));
+						w.writeEndElement();
+						
+						w.writeStartElement("end");
+						w.writeCharacters(String.valueOf(ctx.getEnd()));
+						w.writeEndElement();
+						
+
+						
+						if(ctx.hasID() && !hide.contains("id"))
+							{
+							w.writeStartElement("id");
+							w.writeCharacters(String.valueOf(ctx.getID()));
+							w.writeEndElement();
+							}
+						
+						
+						
+						w.writeStartElement("alleles");
+						w.writeAttribute("count", String.valueOf(ctx.getNAlleles()));
+						for(Allele a:ctx.getAlleles())
+							{
+							w.writeStartElement("allele");
+							if(a.isReference()) {
+								w.writeAttribute("ref", String.valueOf(a.isReference()));
+								}
+							w.writeAttribute("idx", String.valueOf(ctx.getAlleleIndex(a)));
+							w.writeCharacters(a.getDisplayString());
+							w.writeEndElement();
+							}
+						w.writeEndElement();
+						
+						if(ctx.hasLog10PError() && !hide.contains("qual"))
+							{
+							w.writeStartElement("qual");
+							w.writeCharacters(String.valueOf(ctx.getPhredScaledQual()));
+							w.writeEndElement();
+							}
+						
+						if((ctx.isFiltered() || ctx.filtersWereApplied()) && !hide.contains("filter"))
+							{
+							w.writeStartElement("filters");
+							if(ctx.isFiltered())
+								{
+								for(String s: ctx.getFilters())
+									{
+									w.writeStartElement("filter");
+									w.writeCharacters(s);
+									w.writeEndElement();
+									}
+								}
+							else if(ctx.filtersWereApplied())
+								{
+								w.writeStartElement("filter");
+								w.writeCharacters(VCFConstants.PASSES_FILTERS_v4);
+								w.writeEndElement();
+								}
+							w.writeEndElement();
+							}
+							
+						if(ctx.getAttributes()!=null  && !hide.contains("info"))
+							{
+							w.writeStartElement("infos");
+							writeAttributes(w,ctx.getAttributes());
+							w.writeEndElement();
+							}
+						
+						
+						
+						if(ctx.hasGenotypes() && !hide.contains("gt"))
+							{
+							w.writeStartElement("genotypes");
+							for(String sample:ctx.getSampleNames())
+								{
+								final Genotype g=ctx.getGenotype(sample);
+								if(g==null) continue;
+								if(hide.contains("het") && g.isHet()) continue;
+								if(hide.contains("homvar") && g.isHomVar()) continue;
+								if(hide.contains("homref") && g.isHomRef()) continue;
+								if(hide.contains("nocall") && g.isNoCall()) continue;
+								if(hide.contains("mixed") && g.isMixed()) continue;
+								
+								
+								w.writeStartElement("genotype");
+								w.writeAttribute("type",g.getType().name());
+								if(g.isFiltered()) w.writeAttribute("filtered",String.valueOf(g.isFiltered()));
+								if(g.isPhased()) w.writeAttribute("phased",String.valueOf(g.isPhased()));
+								w.writeAttribute("sample",g.getSampleName());
+								if(g.hasAD() && !hide.contains("ad"))
+									{
+									w.writeStartElement("AD");
+									for(int ad:g.getAD())
+										{
+										element(w,"value", ad);
+										}
+									w.writeEndElement();
+									}
+								if(g.hasDP())
+									{
+									}
+								if(g.hasGQ() && !hide.contains("gq"))
+									{
+									w.writeStartElement("GQ");
+									w.writeCharacters(String.valueOf(g.getGQ()));
+									w.writeEndElement();
+									}
+								if(g.hasPL() && !hide.contains("pl"))
+									{
+									w.writeStartElement("PL");
+									int index=0;
+									for(int v:g.getPL())
+										{
+										w.writeStartElement("value");
+										w.writeAttribute("index",String.valueOf(index++));
+										w.writeCharacters(String.valueOf(v));
+										w.writeEndElement();
+										}
+									w.writeEndElement();
+									}
+								
+								
+								
+								w.writeStartElement("alleles");
+								for(Allele a:g.getAlleles())
+									{
+									w.writeStartElement("allele");
+									if(ctx.getAlleleIndex(a)>=0) w.writeAttribute("index", String.valueOf(ctx.getAlleleIndex(a)));
+									if(a.isReference()) w.writeAttribute("ref", String.valueOf(a.isReference()));
+									if(a.isSymbolic()) w.writeAttribute("symbolic","true");
+									w.writeCharacters(a.getDisplayString());
+									w.writeEndElement();
+									}
+								w.writeEndElement();
+								
+								
+								writeAttributes(w,g.getExtendedAttributes());
+								w.writeEndElement();//genotype
+								}
+							w.writeEndElement();// genotypes
+							}
+						
+						w.writeEndElement();//variant
+						}
+					
+					w.writeEndElement();// variations
+					w.writeEndElement();//vcf
+					w.writeEndDocument();
+					w.flush();
+					w.close();
+					out.flush();
+					}
+				}
+			return 0;
+			}
+		catch(final Throwable err) {
+			LOG.error(err);
+			return -1;
+			}
 		}
 	
 	public static void main(final String[] args)

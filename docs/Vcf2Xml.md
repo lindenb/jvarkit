@@ -20,8 +20,17 @@ Usage: vcf2xml [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --hide
+      features to hide 
+      '(genotypes|gt|het|nocall|homref|mixed|homvar|info|filter|id|header)' 
+      Default: <empty string>
+    --min-length
+      keep chromosomes which length is greater than 'x'
+      Default: 0
     -o, --output
       Output file. Optional . Default: stdout
+    --regex
+      keep chromosomes matching that regular expression
     --version
       print version and exit
 
@@ -37,6 +46,10 @@ Usage: vcf2xml [options] Files
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2Xml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2Xml.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2XmlTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcf2xml/Vcf2XmlTest.java)
 
 
 ## Contribute
