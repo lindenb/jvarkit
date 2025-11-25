@@ -89,10 +89,13 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Locatable;
+import htsjdk.tribble.readers.AsciiLineReader;
+import htsjdk.tribble.readers.AsciiLineReaderIterator;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFReader;
@@ -210,13 +213,18 @@ public class Circular extends Launcher {
 	 * DataReader for Column oriented files Files
 	 */
 	private class TabularReader extends DataReader<List<String>,TabularReader.DataLine> {
-		private BufferedReader bf_reader=null;
+		private PositionalBufferedStream bf_reader=null;
+		private htsjdk.tribble.readers.AsciiLineReader line_reader = null;
+		private htsjdk.tribble.readers.LineIterator line_iter = null;
 		private Function<List<String>,Locatable> tokens2location= T->{
 				String chr = T.get(0);
 				int start = 1+ Integer.valueOf(T.get(1));
 				int end = Integer.valueOf(T.get(2));
 				return new SimpleInterval(chr,start,end);
 				};
+				
+				
+			
 		class DataLine implements Locatable {
 			List<String> columns ;
 			private Locatable _asloc=null;
@@ -241,20 +249,57 @@ public class Circular extends Launcher {
 				}
 			}
 		
+		private class MyIter extends AbstractIterator<DataLine> implements CloseableIterator<DataLine> {
+			boolean closed = false;
+			@Override
+			protected DataLine advance() {
+				if(closed==true) return null;
+				if(!TabularReader.this.line_iter.hasNext()) return null;
+				final String line = TabularReader.this.line_iter.next();
+				final DataLine dt = new DataLine();
+				dt.columns = split(line);
+				return dt;
+				}
+			@Override
+			public void close() {
+				closed=true;
+				}
+			}
+		
 		TabularReader(Element config) {
 			super(config);
 			}
+		
+		private List<String> split(String line) {
+			return CharSplitter.TAB.splitAsStringList(line);
+			}
+		
 		Path getPath() {
 			final String path_str = (String)Circular.this.evalXPath("text()", Circular.this.resolvePath(super.config, "file"), XPathConstants.STRING);
 			if(StringUtils.isBlank(path_str)) throw new IllegalArgumentException(DOMUtils.getNodePath(super.config)+"/file : cannot get path");
 			return Paths.get(path_str);
 			}
+		boolean isHeader(String line) {
+			return line.startsWith("#");
+			}
 		@Override
 		List<String> open() throws IOException {
 			if(this.bf_reader!=null) close();
 			Path p = getPath();
-			this.bf_reader = IOUtils.openPathForBufferedReading(p);
-			List<String> hdr=new ArrayList<>();
+			this.bf_reader = new PositionalBufferedStream(IOUtils.openPathForReading(p));
+			this.line_reader = AsciiLineReader.from(this.bf_reader);
+			this.line_iter = new AsciiLineReaderIterator(this.line_reader);
+			final List<String> hdr=new ArrayList<>();
+			 while(line_iter.hasNext()) {
+				String line =  line_iter.peek();
+				if(isHeader(line)) {
+					hdr.add(line);
+					}
+				else
+					{
+					break;
+					}
+			 	}
 			return hdr;
 			}
 		@Override
@@ -265,6 +310,8 @@ public class Circular extends Launcher {
 		public void close() throws IOException {
 			if(this.bf_reader!=null) bf_reader.close();
 			bf_reader= null;
+			line_reader=null;
+			line_iter = null;
 			}
 		}
 	
@@ -306,8 +353,10 @@ public class Circular extends Launcher {
 		
 		void writeTitle(XMLStreamWriter w,Object t)throws IOException,XMLStreamException {
 			if(t==null) return;
+			String s = String.valueOf(t);
+			if(StringUtils.isBlank(s)) return;
 			w.writeStartElement("title");
-			w.writeCharacters(String.valueOf(t));
+			w.writeCharacters(s);
 			w.writeEndElement();
 			}
 		 void pack() {
