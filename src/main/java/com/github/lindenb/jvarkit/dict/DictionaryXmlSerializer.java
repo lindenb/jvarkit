@@ -123,9 +123,10 @@ public class DictionaryXmlSerializer {
 		}
 	
 	public void writeDictionary(final XMLStreamWriter w,final SAMSequenceDictionary dict) throws XMLStreamException {
+		final long genome_length = dict.getReferenceLength();
 		w.writeStartElement("dictionary");
 		w.writeAttribute("md5", dict.md5());
-		w.writeAttribute("length", String.valueOf(dict.getReferenceLength()));
+		w.writeAttribute("length", String.valueOf(genome_length));
 		w.writeAttribute("count", String.valueOf(dict.size()));
 		writeOtherAttributes(w,dict);
 		
@@ -141,6 +142,8 @@ public class DictionaryXmlSerializer {
 			w.writeAttribute("length", String.valueOf(ssr.getSequenceLength()));
 			w.writeAttribute("index", String.valueOf(ssr.getSequenceIndex()));
 			w.writeAttribute("offset", String.valueOf(offset));
+			w.writeAttribute("f1", String.valueOf((offset)/(double)genome_length));
+			w.writeAttribute("f2", String.valueOf((offset+ssr.getSequenceLength())/(double)genome_length));
 			for(Map.Entry<String, String> kv :ssr.getAttributes()) {
 				if(kv.getKey().equals("name") || kv.getKey().equals(SAMSequenceRecord.SEQUENCE_NAME_TAG)) continue;
 				if(kv.getKey().equals("length") || kv.getKey().equals(SAMSequenceRecord.SEQUENCE_LENGTH_TAG)) continue;

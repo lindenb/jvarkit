@@ -1,6 +1,28 @@
-/**
- * 
- */
+/*
+The MIT License (MIT)
+
+Copyright (c) 2025 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+*/
 package com.github.lindenb.jvarkit.tools.vcf2xml;
 
 import java.io.OutputStream;
@@ -24,9 +46,14 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.net.Hyperlink;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParserFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -1623,26 +1650,28 @@ public class Vcf2Xml extends Launcher
 			if(hide.contains("no_call")) hide.add("nocall");
 			if(hide.contains("hom_ref")) hide.add("homref");
 			if(hide.contains("hom_var")) hide.add("homvar");
+			if(hide.contains("ann")) hide.add("snpeff");
 			
 			try(VCFIterator iter = input==null || input.equals("-")?new VCFIteratorBuilder().open(stdin()):new VCFIteratorBuilder().open(input)) {
 				final VCFHeader header = iter.getHeader();
-				final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(header);
-				final Hyperlink hyperlink = Hyperlink.compile(dict0);
+				final SAMSequenceDictionary dict0 = header.getSequenceDictionary();
+				final Hyperlink hyperlink = dict0==null?Hyperlink.empty():Hyperlink.compile(dict0);
 				
 				final Pattern contigRegex = (this.contig_regex==null?null:Pattern.compile(this.contig_regex));
-				final SAMSequenceDictionary dict = new SAMSequenceDictionary(
+				final SAMSequenceDictionary dict = dict0==null?null:new SAMSequenceDictionary(
 						dict0.getSequences().stream().
 						filter(SSR->min_contig_length<=0 || SSR.getSequenceLength()>=min_contig_length).
 						filter(SSR->contigRegex==null?true:contigRegex.matcher(SSR.getSequenceName()).matches()).
 						collect(Collectors.toList())
 						);
-				if(dict.isEmpty()) {
-					LOG.error("empty dictionary");
-					return -1;
+				if(dict==null || dict.isEmpty()) {
+					LOG.warn("empty dictionary");
 					}
 				
-				final Map<String,Long> contig2genomicindex = new HashMap<>(dict.size());
-				final long genome_length = dict.getReferenceLength();
+				final Map<String,Long> contig2genomicindex = new HashMap<>(dict==null?10:dict.size());
+				final long genome_length = dict==null?0L:dict.getReferenceLength();
+				final VepPredictionParser vepParser = new VepPredictionParserFactory(header).get();
+				final AnnPredictionParser annParser = new AnnPredictionParserFactory(header).get();
 				
 				try(OutputStream out= super.openPathOrStdoutAsStream(this.outputFile)) {
 					final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
@@ -1650,6 +1679,7 @@ public class Vcf2Xml extends Launcher
 					final XMLStreamWriter w= xmlfactory.createXMLStreamWriter(out, encoding);
 					w.writeStartDocument(encoding, "1.0");
 					w.writeStartElement("vcf");
+					if(input!=null) w.writeAttribute("src", input);
 					
 					/* VCF HEADER *****************************************/
 					if(!hide.contains("header")) {
@@ -1712,6 +1742,7 @@ public class Vcf2Xml extends Launcher
 							}
 						
 						//write dict
+						if(dict!=null)
 							{
 							w.writeStartElement("dict");
 							w.writeAttribute("genome_length", String.valueOf(genome_length));
@@ -1724,11 +1755,14 @@ public class Vcf2Xml extends Launcher
 								w.writeStartElement("contig");
 								w.writeAttribute("tid",String.valueOf(h.getSequenceIndex()));
 								w.writeAttribute("name",h.getSequenceName());
+								w.writeAttribute("length",String.valueOf(h.getSequenceLength()));
+								if(!StringUtils.isBlank(h.getMd5())) {
+									w.writeAttribute("md5",String.valueOf(h.getMd5()));
+									}
 								w.writeAttribute("x",String.valueOf(x));
 								w.writeAttribute("f1",String.valueOf(x/(double)genome_length));
 								w.writeAttribute("f2",String.valueOf((x+h.getLengthOnReference())/(double)genome_length));
 								contig2genomicindex.put(h.getSequenceName(), x);
-								
 								
 								for(final Map.Entry<String, String> kv: h.getAttributes()) {
 									if(!StringUtils.isBlank(kv.getValue())) continue;
@@ -1741,7 +1775,7 @@ public class Vcf2Xml extends Launcher
 								x+= h.getLengthOnReference();
 								}
 							w.writeEndElement();
-							}
+							} // end dict
 						
 						if(header.getSampleNamesInOrder()!=null && !hide.contains("gt"))
 							{
@@ -1780,15 +1814,32 @@ public class Vcf2Xml extends Launcher
 					w.writeStartElement("variants");
 					while(iter.hasNext()) {
 						final VariantContext ctx = iter.next();
-						final SAMSequenceRecord ssr = dict.getSequence(ctx.getContig());
-						if(ssr==null) continue;
+						final SAMSequenceRecord ssr;
+						if(dict!=null) {
+							ssr = dict.getSequence(ctx.getContig());
+							if(ssr==null) continue;
+							}
+						else
+							{
+							if(contigRegex!=null && !contigRegex.matcher(ctx.getContig()).matches()) continue; 
+							ssr=null;
+							}
 						w.writeStartElement("variant");
-						final long x1 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getStart();
-						final long x2 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getEnd();
-						w.writeAttribute("x1", String.valueOf(x1));
-						w.writeAttribute("x2", String.valueOf(x2));
-						w.writeAttribute("f1", String.valueOf(x1/(double)genome_length));
-						w.writeAttribute("f2", String.valueOf(x2/(double)genome_length));
+						if(dict!=null) {
+							final long x1 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getStart();
+							final long x2 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getEnd();
+							w.writeAttribute("x1", String.valueOf(x1));
+							w.writeAttribute("x2", String.valueOf(x2));
+							w.writeAttribute("f1", String.valueOf(x1/(double)genome_length));
+							w.writeAttribute("f2", String.valueOf(x2/(double)genome_length));
+							}
+						int len = ctx.getLengthOnReference();
+						if(ctx.hasAttribute("SVLEN") ) {
+							len = Math.max(len,ctx.getAttributeAsIntList("SVLEN",0).stream().mapToInt(n->Math.abs(n)).max().orElse(0));
+							}
+						w.writeAttribute("length", String.valueOf(len));
+						
+						
 						if(!hide.contains("url")) {
 							final Optional<String> url= hyperlink.apply(ctx);
 							if(url.isPresent()) {
@@ -1803,8 +1854,11 @@ public class Vcf2Xml extends Launcher
 							}
 						
 						
+						
 						w.writeStartElement("chrom");
-						w.writeAttribute("tid", String.valueOf(ssr.getSequenceIndex()));
+						if(ssr!=null) {
+							w.writeAttribute("tid", String.valueOf(ssr.getSequenceIndex()));
+							}
 						w.writeCharacters(ctx.getContig());
 						w.writeEndElement();
 						
@@ -1820,9 +1874,12 @@ public class Vcf2Xml extends Launcher
 						
 						if(ctx.hasID() && !hide.contains("id"))
 							{
-							w.writeStartElement("id");
-							w.writeCharacters(String.valueOf(ctx.getID()));
-							w.writeEndElement();
+							for(String id: CharSplitter.SEMICOLON.split(ctx.getID())) {
+								if(id.equals(".") || StringUtils.isBlank(id)) continue;
+								w.writeStartElement("id");
+								w.writeCharacters(id);
+								w.writeEndElement();
+								}
 							}
 						
 						
@@ -1833,7 +1890,7 @@ public class Vcf2Xml extends Launcher
 							{
 							w.writeStartElement("allele");
 							if(a.isReference()) {
-								w.writeAttribute("ref", String.valueOf(a.isReference()));
+								w.writeAttribute("ref", "true");
 								}
 							w.writeAttribute("idx", String.valueOf(ctx.getAlleleIndex(a)));
 							w.writeCharacters(a.getDisplayString());
@@ -1868,13 +1925,60 @@ public class Vcf2Xml extends Launcher
 								}
 							w.writeEndElement();
 							}
-							
+						/* INFO COLUMN********************************************* */
 						if(ctx.getAttributes()!=null  && !hide.contains("info"))
 							{
 							w.writeStartElement("infos");
 							writeAttributes(w,ctx.getAttributes());
+
+							// VEP
+							if(!hide.contains("vep") && vepParser.isValid() && ctx.hasAttribute(vepParser.getTag())) {
+								final List<VepPredictionParser.VepPrediction> preds= vepParser.getPredictions(ctx);
+								if(!preds.isEmpty()) {
+									for(VepPredictionParser.VepPrediction pred:preds) {
+										w.writeStartElement("vep");
+										for(final String cat:vepParser.getCategories()) {
+											final String v = pred.getByCol(cat);
+											if(StringUtils.isBlank(v)) continue;
+											List<String> cols = Collections.singletonList(v);
+											if(cat.equals("Consequence")) cols= CharSplitter.AMP.splitAsStringList(v);
+											for(String s: cols) {
+												if(StringUtils.isBlank(s)) continue;
+												w.writeStartElement("property");
+												w.writeAttribute("name", cat);
+												w.writeCharacters(s);
+												w.writeEndElement();
+												}
+											}
+										w.writeEndElement();
+										}
+									}
+								}
+							// SNPEFF
+							if(!hide.contains("snpeff") && annParser.isValid() && ctx.hasAttribute(annParser.getTag())) {
+								final List<AnnPredictionParser.AnnPrediction> preds= annParser.getPredictions(ctx);
+								if(!preds.isEmpty()) {
+									for(AnnPredictionParser.AnnPrediction pred:preds) {
+										w.writeStartElement("ann");
+										for(int x=0;x< AnnPredictionParser.getColumnCount();++x) {
+											final String v = pred.at(x);
+											if(StringUtils.isBlank(v)) continue;
+											List<String> cols = Collections.singletonList(v);
+											if( AnnPredictionParser.getLabel(x).equals("Annotation")) cols= CharSplitter.AMP.splitAsStringList(v);
+											for(String s: cols) {
+												if(StringUtils.isBlank(s)) continue;
+												w.writeStartElement("property");
+												w.writeAttribute("name", AnnPredictionParser.getLabel(x));
+												w.writeCharacters(s);
+												w.writeEndElement();
+												}
+											}
+										w.writeEndElement();
+										}
+									}
+								}
 							w.writeEndElement();
-							}
+							} // INFO
 						
 						
 						

@@ -116,7 +116,34 @@ public class AnnPredictionParser
 			}
 		this.valid=true;
 		}
+	
+	public static int getColumnCount() {
+		return 16;
+		}
+	
+	public static String getLabel(int col) {
+		switch(col+1) {
+		case 1: return "Allele";
+		case 2: return "Annotation"; 
+		case 3: return "Annotation_Impact";
+		case 4: return "Gene_Name";
+		case 5: return "Gene_ID"; 
+		case 6: return "Feature_Type"; 
+		case 7: return "Feature_ID";
+		case 8: return "Transcript_BioType"; 
+		case 9: return "Rank";
+		case  10: return "HGVS_c"; 
+		case 11: return "HGVS_p"; 
+		case 12: return "cDNA_pos_length";
+		case 13: return "CDS_pos_length";
+		case 14: return "AA_pos_length";
+		case 15: return "Distance";
+		case 16: return "ERRORS_WARNINGS_INFO";
+		default: return "";
+		}
+	}
 
+	
 	public String getTag()
 		{
 		return this.tag;
@@ -190,8 +217,8 @@ public class AnnPredictionParser
 			this.originalStr = originalStr;
 			this._tokens=tokens;
 			}
-		
-		private String at(int i)
+		/** get data for n-th column or null */
+		public String at(int i)
 			{
 			return(i<0 || i>=_tokens.size() ? null:_tokens.get(i).toString());
 			}

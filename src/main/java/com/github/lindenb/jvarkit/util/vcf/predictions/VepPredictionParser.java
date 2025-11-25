@@ -156,7 +156,7 @@ public class VepPredictionParser implements PredictionParser
 	public boolean isValid() {
 		return valid;
 		}
-	
+	/** return columns defined in the VCF header for VEP */
 	public Set<String> getCategories() {
 		return Collections.unmodifiableSet(this.col2colidx.keySet());
 	}
