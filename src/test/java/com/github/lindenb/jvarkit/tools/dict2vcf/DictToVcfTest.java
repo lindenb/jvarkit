@@ -16,7 +16,7 @@ public class DictToVcfTest {
 			final Path out = support.createTmpPath(".vcf");
 			Assert.assertEquals(new DictToVcf().instanceMain(new String[] {
 				"-o",out.toString(),
-				"-R",support.resource("rotavirus_rf.fa"),
+				support.resource("rotavirus_rf.fa")
 				}),0);
 			support.assertIsVcf(out);
 			}
@@ -33,7 +33,7 @@ public class DictToVcfTest {
 			Assert.assertEquals(new DictToVcf().instanceMain(new String[] {
 				"-o",out.toString(),
 				"--samples-file",support.resource("S1.bam"),
-				"-R",support.resource("rotavirus_rf.fa"),
+				support.resource("rotavirus_rf.fa")
 				}),0);
 			support.assertIsVcf(out);
 			}
