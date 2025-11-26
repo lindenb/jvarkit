@@ -73,6 +73,7 @@
       <class name="com.github.lindenb.jvarkit.tools.vcfisec.VcfISecTest"/>
       <class name="com.github.lindenb.jvarkit.tools.nextflow.nfhashtools.NFHashToolsTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2XmlTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.dict2vcf.DictToVcfTest"/>
     </classes>
   </test>
 </suite>

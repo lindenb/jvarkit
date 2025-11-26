@@ -147,6 +147,7 @@ import com.github.lindenb.jvarkit.tools.coverageserver.CoverageServer;
 import com.github.lindenb.jvarkit.tools.dbsnp.BuildDbsnp;
 import com.github.lindenb.jvarkit.tools.dict2R.DictToR;
 import com.github.lindenb.jvarkit.tools.dict2bed.DictToBed;
+import com.github.lindenb.jvarkit.tools.dict2vcf.DictToVcf;
 import com.github.lindenb.jvarkit.tools.dict2xml.DictToXml;
 import com.github.lindenb.jvarkit.tools.drageninv.DragenBndToInversion;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
@@ -746,6 +747,7 @@ public class JvarkitCentral {
 		command(DictToBed.class);
 		command(DictToXml.class);
 		command(DictToR.class);
+		command(DictToVcf.class);
 		command(DragenBndToInversion.class);
 		command(Circular.class);
 		command(CompareBamAndBuild.class);
