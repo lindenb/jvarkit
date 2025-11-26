@@ -53,11 +53,12 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.CloseableIterator;
 /**
- 
+BEGIN_DOC
+
 ## Example
 
 ```
-$ java -jar dist/kg2fa.jar -R human_g1k_v37.fasta -D  --case 3 -L 0 | cut -c 1-200 | head
+$ java -jar dist/jvarkit.jar kg2fa -R human_g1k_v37.fasta -D  --case 3 -L 0 | cut -c 1-200 | head
 
 >ENST00000456328.2 585|ENST00000456328.2|chr1|+|11868|14409|11868|11868|3|11868,12612,13220,|12227,12721,14409,|0|DDX11L1|none|none|-1,-1,-1,
 GTTAACTTGCCGTCAGCCTTTTCTTTGACCTCTTCTTTCTGTTCATGTGTATTTGCTGTCTCTTAGCCCAGACTTCCCGTGTCCTTTCCACCGGGCCTTTGAGAGGTCACAGGGTCTTGATGCTGTGGTCTTCATCTGCAGGTGTCTGACTTCCAGCAACTGCTGGCCTGTGCCAGGGTGCAAGCTGAGCACTGGAGTGG
@@ -73,7 +74,7 @@ CTGATCCATATGAATTCCTCTTATTAAGAAAAATAAAGCATCCAGGATTCAATGAAGAACTGACTATCACCTTGTTAATC
 
 ```
  
- 
+END_DOC
 */
 
 @Program(name="kg2fa",

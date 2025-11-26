@@ -155,6 +155,7 @@ nav:
         - "illuminadir" : IlluminaDirectory.md
         - "indexcov2vcf" : IndexCovToVcf.md
         - "jbrowse2" : JBrowse2Server.md
+        - "json2xml" : Json2Xml.md
         - "kg2bed" : KnownGenesToBed.md
         - "kg2fa" : KnownGeneToFasta.md
         - "kg2gff" : KgToGff.md
