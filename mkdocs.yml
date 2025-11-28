@@ -41,6 +41,7 @@ nav:
         - "batchigvpictures" : BatchIGVPictures.md
         - "bcftoolsmergebest" : BCFToolsMergeBest.md
         - "bed2vcf" : BedToVcf.md
+        - "bed2xml" : BedToXml.md
         - "bedcluster" : BedCluster.md
         - "bedclustername" : BedClusterName.md
         - "bedindextabix" : BedIndexTabix.md

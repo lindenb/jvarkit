@@ -62,6 +62,7 @@ import com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures;
 import com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats;
 import com.github.lindenb.jvarkit.tools.bcftoolsmergebest.BCFToolsMergeBest;
 import com.github.lindenb.jvarkit.tools.bed2vcf.BedToVcf;
+import com.github.lindenb.jvarkit.tools.bed2xml.BedToXml;
 import com.github.lindenb.jvarkit.tools.bedcluster.BedCluster;
 import com.github.lindenb.jvarkit.tools.bedclustername.BedClusterName;
 import com.github.lindenb.jvarkit.tools.bedrenamechr.BedRenameChromosomes;
@@ -690,6 +691,7 @@ public class JvarkitCentral {
 		command(BedToVcf.class);
 		command(BGenToVcf.class);
 		command(BGenView.class);
+		command(BedToXml.class);
 		command(BioAlcidae.class);
 		command(BioAlcidaeJdk.class);
 		command(BigwigMerge.class);

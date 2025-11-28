@@ -16,6 +16,8 @@ Usage: java -jar dist/jvarkit.jar vcf2xml  [options] Files
 
 Usage: vcf2xml [options] Files
   Options:
+    --contig-regex
+      keep chromosomes matching that regular expression
     -h, --help
       print help and exit
     --helpFormat
@@ -24,13 +26,14 @@ Usage: vcf2xml [options] Files
       features to hide 
       '(genotypes|gt|het|nocall|homref|mixed|homvar|info|filter|id|header)' 
       Default: <empty string>
-    --min-length
+    --min-contig-length
       keep chromosomes which length is greater than 'x'
       Default: 0
+    --omit-xml-desclaration
+      Don't print XM declaration.
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
-    --regex
-      keep chromosomes matching that regular expression
     --version
       print version and exit
 

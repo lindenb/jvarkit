@@ -30,7 +30,6 @@ import java.io.Reader;
 import java.nio.file.Path;
 import java.util.List;
 
-import javax.xml.XMLConstants;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;

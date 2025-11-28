@@ -142,8 +142,10 @@ public class DictionaryXmlSerializer {
 			w.writeAttribute("length", String.valueOf(ssr.getSequenceLength()));
 			w.writeAttribute("index", String.valueOf(ssr.getSequenceIndex()));
 			w.writeAttribute("offset", String.valueOf(offset));
-			w.writeAttribute("f1", String.valueOf((offset)/(double)genome_length));
-			w.writeAttribute("f2", String.valueOf((offset+ssr.getSequenceLength())/(double)genome_length));
+			if(genome_length>0 ) {
+				w.writeAttribute("f1", String.valueOf((offset)/(double)genome_length));
+				w.writeAttribute("f2", String.valueOf((offset+ssr.getSequenceLength())/(double)genome_length));
+				}
 			for(Map.Entry<String, String> kv :ssr.getAttributes()) {
 				if(kv.getKey().equals("name") || kv.getKey().equals(SAMSequenceRecord.SEQUENCE_NAME_TAG)) continue;
 				if(kv.getKey().equals("length") || kv.getKey().equals(SAMSequenceRecord.SEQUENCE_LENGTH_TAG)) continue;

@@ -43,7 +43,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.dict.DictionaryXmlSerializer;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
@@ -1573,11 +1573,13 @@ public class Vcf2Xml extends Launcher
 	private Path outputFile = null;
 	@Parameter(names={"--hide"},description="features to hide '(genotypes|gt|het|nocall|homref|mixed|homvar|info|filter|id|header)'")
 	private String hide_str = "";
-	@Parameter(names={"--regex"},description="keep chromosomes matching that regular expression")
+	@Parameter(names={"--contig-regex"},description="keep chromosomes matching that regular expression")
 	private String contig_regex=null;
-	@Parameter(names={"--min-length"},description="keep chromosomes which length is greater than 'x'")
+	@Parameter(names={"--min-contig-length"},description="keep chromosomes which length is greater than 'x'")
 	private int min_contig_length=0;
-	
+	@Parameter(names={"--omit-xml-desclaration"},description="Don't print XM declaration.")
+	private boolean omit_xml_decl = false;
+
 		
 		
 	private static void element(final XMLStreamWriter w,String name,Object o) throws XMLStreamException {
@@ -1677,7 +1679,7 @@ public class Vcf2Xml extends Launcher
 					final XMLOutputFactory xmlfactory= XMLOutputFactory.newInstance();
 					final String encoding = "UTF-8";
 					final XMLStreamWriter w= xmlfactory.createXMLStreamWriter(out, encoding);
-					w.writeStartDocument(encoding, "1.0");
+					if(!omit_xml_decl) w.writeStartDocument(encoding, "1.0");
 					w.writeStartElement("vcf");
 					if(input!=null) w.writeAttribute("src", input);
 					
@@ -1744,37 +1746,13 @@ public class Vcf2Xml extends Launcher
 						//write dict
 						if(dict!=null)
 							{
-							w.writeStartElement("dict");
-							w.writeAttribute("genome_length", String.valueOf(genome_length));
-							final String build =  SequenceDictionaryUtils.getBuildName(dict0 /* yes , that one */).orElse(null);
-							if(!StringUtils.isBlank(build)) w.writeAttribute("build",build);
+							new DictionaryXmlSerializer().writeDictionary(w, dict);
 							long x=0;
-							
-							for(final SAMSequenceRecord h: dict.getSequences())
-								{
-								w.writeStartElement("contig");
-								w.writeAttribute("tid",String.valueOf(h.getSequenceIndex()));
-								w.writeAttribute("name",h.getSequenceName());
-								w.writeAttribute("length",String.valueOf(h.getSequenceLength()));
-								if(!StringUtils.isBlank(h.getMd5())) {
-									w.writeAttribute("md5",String.valueOf(h.getMd5()));
-									}
-								w.writeAttribute("x",String.valueOf(x));
-								w.writeAttribute("f1",String.valueOf(x/(double)genome_length));
-								w.writeAttribute("f2",String.valueOf((x+h.getLengthOnReference())/(double)genome_length));
-								contig2genomicindex.put(h.getSequenceName(), x);
-								
-								for(final Map.Entry<String, String> kv: h.getAttributes()) {
-									if(!StringUtils.isBlank(kv.getValue())) continue;
-									w.writeStartElement("property");
-									w.writeAttribute("name",kv.getKey());
-									w.writeCharacters(kv.getValue());
-									w.writeEndElement();
-									}
-								w.writeEndElement();
-								x+= h.getLengthOnReference();
+							for(SAMSequenceRecord ssr: dict.getSequences()) {
+								contig2genomicindex.put(ssr.getContig(), x);
+								x+= ssr.getLengthOnReference();
 								}
-							w.writeEndElement();
+							
 							} // end dict
 						
 						if(header.getSampleNamesInOrder()!=null && !hide.contains("gt"))
@@ -1825,7 +1803,7 @@ public class Vcf2Xml extends Launcher
 							ssr=null;
 							}
 						w.writeStartElement("variant");
-						if(dict!=null) {
+						if(dict!=null && contig2genomicindex!=null) {
 							final long x1 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getStart();
 							final long x2 =  contig2genomicindex.get(ctx.getContig()).longValue() + ctx.getEnd();
 							w.writeAttribute("x1", String.valueOf(x1));
