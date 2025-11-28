@@ -163,7 +163,8 @@ java -jar dist/jvarkit.jar wgscoverageplotter --dimension 1500x500 -C -1 --clip 
  * Survival of the "unfittest": clinical emergence of hyper-multidrug-resistant Nakaseomyces glabratus with rare nonfunctional Erg3 and Erg11 and severely impaired fitness. Hans Carolus & al. bioRxiv 2025.02.05.636719; doi: https://doi.org/10.1101/2025.02.05.636719 
  * Kinnby, A., Robert, C., Havenhand, J.N., Brostrom, G., Bussiere, L. and De Wit, P. (2025), The Roles of Plasticity and Selection in Rapid Phenotypic Changes at the Pacific Oyster Invasion Front in Europe. Mol Ecol e17684. https://doi.org/10.1111/mec.17684
  * Dijkstra, J., A. C. van Westerhoven, L. Gomez-Gil, et al. 2025. "Accessory Chromosome Contributes to Virulence of Banana Infecting Fusarium oxysporum Tropical Race 4." Molecular Plant Pathology 26, no. 9: e70146. https://doi.org/10.1111/mpp.70146.
- * 
+ * Wan J, Weldon E, Ganser G, Morris ERA, Hughes EV, Bordin AI, Heine PA, Hust M, Cohen ND, Gill JJ, Liu M. 0. Immunogenic Streptococcus equi cell surface proteins identified by ORFeome phage display. mSphere 0:e00626-25. https://doi.org/10.1128/msphere.00626-25 
+
 ## Screenshot
 
 https://twitter.com/yokofakun/status/1331898068002861056
