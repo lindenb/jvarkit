@@ -312,12 +312,12 @@ public class VCFUtils
 		else if(FileExtensions.VCF_LIST.stream().anyMatch(S->IN.endsWith(S))
 				&& !IOUtils.isRemoteURI(IN))
 			{
-			final File bcfFile = new File(
+			final Path bcfFile = Paths.get(
 					IN.startsWith("file://")?
 					IN.substring(7):
 					IN
 					);
-			return createVCFIteratorFromFile(bcfFile);
+			return createVCFIteratorFromPath(bcfFile);
 			}
 		else
 			{

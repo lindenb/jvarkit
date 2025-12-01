@@ -515,7 +515,7 @@ protected String oneFileOrNull(final List<String> args) {
 	switch(args.size())
 	{
 	case 0: return null;
-	case 1: return args.get(0);
+	case 1: return args.get(0).equals("-")?null:args.get(0);
 	default: throw new JvarkitException.CommandLineError("Expected one or zero argument but got "+args.size()+" : "+args.toString());
 	}
 }

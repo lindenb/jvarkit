@@ -49,6 +49,17 @@ public interface SampleSet {
 		}
 
 	
+	/** return the affected samples names in this SampleSet */
+	public default Set<String> getAffectedNames() {
+		return getAffectedSamples().stream().map(S->S.getId()).collect(Collectors.toCollection(TreeSet::new));
+		}
+	
+	/** return the unaffected samples names in this SampleSet */
+	public default Set<String> getUnaffectedNames() {
+		return getUnaffectedSamples().stream().map(S->S.getId()).collect(Collectors.toCollection(TreeSet::new));
+		}
+
+	
 	/** find a sample in this SampleSet . returns the sample with this id or null if not found */
 	public default Sample getSampleById(final String id) {
 		if(id==null) return null;
