@@ -262,6 +262,7 @@ public class BedToXml extends Launcher {
 			final Map<String,MinMaxInteger> contig2minmaxpos=new HashMap<>();
 			final List<String> colNames = CharSplitter.COMMA.splitAsStringList(this.column_names_str);
 			final OptionalLong genome_length;
+			int max_rows = -1;
 			if(faidPath!=null) {
 				final SAMSequenceDictionary dict0 = new SequenceDictionaryExtractor().extractRequiredDictionary(faidPath);
 				
@@ -335,6 +336,7 @@ public class BedToXml extends Launcher {
 									final Pileup<BedLine> cmp = new Pileup<>((LEFT,RIGHT)->CoordMath.getLength(LEFT.getEnd(),RIGHT.getStart())>= BedToXml.this.distance);
 									cmp.addAll(records);
 									final List<List<BedLine>> rows = cmp.getRows();
+									max_rows = Math.max(rows.size(), max_rows);
 									w.writeAttribute("rows", String.valueOf(rows.size()));
 									
 									for(int y=0;y< rows.size();++y) {
@@ -413,6 +415,11 @@ public class BedToXml extends Launcher {
 						w.writeAttribute("name", ctg);
 						w.writeAttribute("start", String.valueOf(mM.getMinAsInt()));
 						w.writeAttribute("end", String.valueOf(mM.getMaxAsInt()));
+						}
+					
+					if(max_rows>0) {
+						w.writeEmptyElement("max-rows");
+						w.writeAttribute("count", String.valueOf(max_rows));
 						}
 					
 					w.writeEndElement();
