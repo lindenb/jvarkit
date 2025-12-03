@@ -20,6 +20,8 @@ Usage: bed2xml [options] Files
       Optional Comma separated list names of column starting from the 3rd 
       column (after 'end'). Use '.' to ignore.
       Default: <empty string>
+    --dict-out
+      Save reduced/modified dict to this file
     -d, --distance
       if >=0, add a 'y' attribute that could be used to display the bed 
       records in a browser, 	this 'y' is the graphical row where the item 
@@ -41,8 +43,9 @@ Usage: bed2xml [options] Files
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+      A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
+      indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
+      any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
     --regex
       keep chromosomes matching that regular expression
     --type

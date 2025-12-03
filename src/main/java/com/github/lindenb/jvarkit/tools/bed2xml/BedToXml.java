@@ -27,6 +27,8 @@ package com.github.lindenb.jvarkit.tools.bed2xml;
 
 import java.io.BufferedReader;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,6 +67,7 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceDictionaryCodec;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.CoordMath;
 
@@ -146,6 +149,8 @@ public class BedToXml extends Launcher {
 	private static final Logger LOG=Logger.of(BedToXml.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
+	@Parameter(names={"--dict-out"},description="Save reduced/modified dict to this file")
+	private Path outputDictFile = null;
 	@Parameter(names={"--type"},description="BedType. bedGraph will print the min/max of value. bed12 will display each block ")
 	private BedType bedType= BedType.generic;
 	@Parameter(names={"--omit-xml-desclaration"},description="Don't print XM declaration.")
@@ -157,7 +162,7 @@ public class BedToXml extends Launcher {
 	private String column_names_str="";
 	@Parameter(names={"--min-contig-length"},description="keep chromosomes which length is greater than 'x'")
 	private int min_contig_length=0;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=DICTIONARY_SOURCE)
 	private Path faidPath=null;
 	@Parameter(names={"-d","--distance"},description="if >=0, add a 'y' attribute that could be used to display the bed records in a browser, " 
 					+ "	this 'y' is the graphical row where the item should be displayed. " 
@@ -283,6 +288,22 @@ public class BedToXml extends Launcher {
 					x+=ssr.getLengthOnReference();
 					}
 				genome_length = OptionalLong.of(dict.getReferenceLength());
+				
+				if(this.outputDictFile!=null && !dict.isEmpty()) {
+					if(Files.isSameFile(this.outputDictFile, this.faidPath)) {
+						LOG.warn("dict-out path is the same as dict-in");
+						return -1;
+						}
+					else
+						{
+						 try(PrintWriter writer = IOUtils.openPathForPrintWriter(this.outputDictFile)) {
+							final SAMSequenceDictionaryCodec codec = new SAMSequenceDictionaryCodec(writer);
+							codec.encode(dict);
+							writer.flush();
+							}
+						}
+					}
+				
 				}
 			else
 				{
