@@ -290,18 +290,12 @@ public class BedToXml extends Launcher {
 				genome_length = OptionalLong.of(dict.getReferenceLength());
 				
 				if(this.outputDictFile!=null && !dict.isEmpty()) {
-					if(Files.isSameFile(this.outputDictFile, this.faidPath)) {
-						LOG.warn("dict-out path is the same as dict-in");
-						return -1;
-						}
-					else
-						{
 						 try(PrintWriter writer = IOUtils.openPathForPrintWriter(this.outputDictFile)) {
 							final SAMSequenceDictionaryCodec codec = new SAMSequenceDictionaryCodec(writer);
 							codec.encode(dict);
 							writer.flush();
 							}
-						}
+						
 					}
 				
 				}
