@@ -28,7 +28,6 @@ package com.github.lindenb.jvarkit.tools.bed2xml;
 import java.io.BufferedReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -155,6 +154,9 @@ public class BedToXml extends Launcher {
 	private BedType bedType= BedType.generic;
 	@Parameter(names={"--omit-xml-desclaration"},description="Don't print XM declaration.")
 	private boolean omit_xml_decl = false;
+	@Parameter(names={"--first-line-header"},description="First line is a header. Use it as the name of the columns")
+	private boolean first_line_is_header = false;
+
 
 	@Parameter(names={"--regex"},description="keep chromosomes matching that regular expression")
 	private String contig_regex=null;
@@ -171,6 +173,12 @@ public class BedToXml extends Launcher {
 					converter = DistanceParser.StringConverter.class, splitter = NoSplitter.class)
 	private int distance=-1;
 
+	private String fixXmlName(String tag) {
+		tag = tag.replaceAll("[^A-Za-z0-9\\-\\.]+", "_");
+		if(Character.isDigit(tag.charAt(0))) tag="_"+tag;
+		return tag;
+		}
+	
 	private void writeBedRecord(
 		final XMLStreamWriter w,
 		final BedLine bed,
@@ -198,7 +206,7 @@ public class BedToXml extends Launcher {
 		
 		final String tag;
 		if(col>=3  && col-3 < column_names.size() && !StringUtils.isBlank(column_names.get(col-3)) && !column_names.get(col-3).equals(".")) {
-			tag  = column_names.get(col-3);
+			tag  = fixXmlName(column_names.get(col-3));
 			}
 		else if(this.bedType.equals(BedType.bed12) && col < 9) {
 			switch(col) {
@@ -265,7 +273,7 @@ public class BedToXml extends Launcher {
 			final SAMSequenceDictionary dict;
 			final Map<String,Long> contig2idx;
 			final Map<String,MinMaxInteger> contig2minmaxpos=new HashMap<>();
-			final List<String> colNames = CharSplitter.COMMA.splitAsStringList(this.column_names_str);
+			final List<String> colNames = new ArrayList<>(CharSplitter.COMMA.splitAsStringList(this.column_names_str));
 			final OptionalLong genome_length;
 			int max_rows = -1;
 			if(faidPath!=null) {
@@ -327,6 +335,37 @@ public class BedToXml extends Launcher {
 						}
 					w.writeEndElement();//header
 					w.writeStartElement("body");
+					
+					if(first_line_is_header) {
+						String line = br.readLine();
+						if(line!=null) {
+							while(line.startsWith("#")) {
+								line=line.substring(1);
+								}
+							List<String> headers  = CharSplitter.TAB.splitAsStringList(line);
+							if(headers.size()>3) {
+								headers = headers.subList(3, headers.size());//remove contig/sart/end
+								}
+							else
+								{
+								headers.clear();
+								}
+							for(int i=0;i< colNames.size() && i< headers.size();++i) {
+								final String s= colNames.get(i);
+								if(StringUtils.isBlank(s) || s.equals(".")) {
+									colNames.set(i, headers.get(i));
+									}
+								}
+							while(colNames.size() < headers.size()) {
+								colNames.add(headers.get(colNames.size()));
+								}
+							}
+						else
+							{	
+							LOG.warn("cannot read first line.");
+							}
+						}
+					
 					for(;;) {
 						String line = br.readLine();
 						if(line==null) {
