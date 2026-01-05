@@ -30,6 +30,9 @@ Usage: bed2xml [options] Files
       positive integer.Commas are removed. The following suffixes are 
       interpreted : b,bp,k,kb,m,mb,g,gb
       Default: -1
+    --first-line-header
+      First line is a header. Use it as the name of the columns
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
