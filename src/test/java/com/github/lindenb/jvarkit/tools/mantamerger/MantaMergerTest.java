@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.structvar.manta;
+package com.github.lindenb.jvarkit.tools.mantamerger;
 
 import java.io.IOException;
 import java.nio.file.Files;
