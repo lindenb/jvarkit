@@ -45,6 +45,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bed.BedLine;
 import com.github.lindenb.jvarkit.bed.BedLineCodec;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
@@ -134,7 +135,7 @@ public class MantaMerger extends Launcher {
 		MiniGT(final String sample) {
 			this(sample,null);
 			}
-		MiniGT(final String sample,Genotype genotype) {
+		MiniGT(final String sample,final Genotype genotype) {
 			this.sample = sample;
 			if(genotype==null) {
 				this.genotypeType=GenotypeType.UNAVAILABLE;
@@ -149,10 +150,10 @@ public class MantaMerger extends Launcher {
 			return sample.hashCode();
 			}
 		@Override
-		public boolean equals(Object obj) {
+		public boolean equals(final  Object obj) {
 			return MiniGT.class.cast(obj).sample.equals(this.sample);
 			}
-		private boolean isA(GenotypeType gt) {
+		private boolean isA(final GenotypeType gt) {
 			return this.genotypeType.equals(gt);
 			}
 		
@@ -199,11 +200,12 @@ public class MantaMerger extends Launcher {
 			}
 		}
 	
-
+	/**
+	 * VCF PAth and sample name
+	 */
 	private static class VcfInput {
 		Path vcfPath;
 		String sample;
-		int contigCount=0;
 		}
 
 private boolean isDecoy(final String s) {
@@ -244,6 +246,7 @@ public int doWork(final List<String> args) {
 				{
 				throw new JvarkitException.DictionariesAreNotTheSame(dict1, dict);
 				}
+			/* extract sample name from VCF */
 			if(tokens.length<2 || StringUtils.isBlank(tokens[1])) {
 				try(VCFReader r= VCFReaderFactory.makeDefault().open(vcfInput.vcfPath, false)) {
 					final List<String> snl = r.getHeader().getSampleNamesInOrder();
@@ -285,21 +288,17 @@ public int doWork(final List<String> args) {
 		
 		final Predicate<VariantContext> bedPredicate;
 		if(this.excludeBedPath!=null) {
-			final BedLineCodec codec = new BedLineCodec();
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
 			final IntervalTreeMap<Boolean> map = new IntervalTreeMap<>();
-			try(BufferedReader br=IOUtils.openPathForBufferedReading(this.excludeBedPath))
-				{
-				br.lines().
-					filter(L->!BedLine.isBedHeader(L)).
-					map(L->codec.decode(L)).
+			try(BedLineReader blr = new BedLineReader(this.excludeBedPath)) {
+				blr.setContigNameConverter(converter);
+				blr.stream().
 					filter(L->L!=null).
-					filter(B->!StringUtils.isBlank(converter.apply(B.getContig()))).
-					map(B->new Interval(converter.apply(B.getContig()), B.getStart(),B.getEnd())).
+					map(B->new Interval(B)).
 					forEach(R->map.put(R,true));
 				}
 			bedPredicate = V->!map.containsOverlapping(V);
-			} 
+			}
 		else {
 			bedPredicate = V -> true;	
 			}
@@ -344,7 +343,6 @@ public int doWork(final List<String> args) {
 				final Map<SVKey,Set<MiniGT>> variants2samples = new HashMap<>();
 				/* scan each input, build a list of intervals */
 				for(final VcfInput vcfinput: sample2inputs.values()) {
-					vcfinput.contigCount=0;//reset count for this contig
 					
 					try(VCFReader vcfFileReader = VCFReaderFactory.makeDefault().open(vcfinput.vcfPath,true)) {
 						vcfFileReader.query(ssr).
@@ -372,7 +370,6 @@ public int doWork(final List<String> args) {
 								final SVKey key1=new SVKey(V);
 								if(!svComparator.test(V, V)) throw new RuntimeException("compare to self failed ! "+V);
 								variants2samples.put(key1, new HashSet<>());
-								vcfinput.contigCount++;
 							});
 						
 						}

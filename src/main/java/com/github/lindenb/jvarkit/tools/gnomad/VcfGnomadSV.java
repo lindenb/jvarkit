@@ -26,7 +26,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.gnomad;
 
 import java.nio.file.Path;
-import java.util.function.Predicate;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
@@ -35,7 +34,6 @@ import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
-import com.github.lindenb.jvarkit.jcommander.converter.RatioConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -75,7 +73,7 @@ END_DOC
 	description="Peek annotations from gnomad structural variants",
 	keywords={"vcf","annotation","gnomad","sv"},
 	creationDate="20190814",
-	modificationDate="20211109",
+	modificationDate="20260109",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 )
@@ -102,6 +100,8 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 	private String population = "POPMAX_AF";
 	@Parameter(names={"--filter"},description="set this FILTER is the allele frequency found in the population is not min-af<=x<=max-af. Discard variant if it is blank.")
 	private String filterAFStr = "BAD_AF";
+	@Parameter(names={"--disable-annotations","-A"},description="do not transfer annotations from GNOMAD to VCF. Just a way to filter the VCF using gnomad Frequency data")
+	private boolean disable_annotation_transfer = false;
 
 	
 	@ParametersDelegate
@@ -138,41 +138,45 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 			final VCFHeader h0 = iter.getHeader();
 			final SAMSequenceDictionary dict= h0.getSequenceDictionary();
 			
-			if(!SequenceDictionaryUtils.isGRCh37(dict)) {
-				LOG.warn("Input is NOT GRCh37 ?");
+			if(!SequenceDictionaryUtils.isGRCh37(dict) && !SequenceDictionaryUtils.isGRCh38(dict)) {
+				LOG.warn("Input is NOT GRCh37/38 ?");
 				// can be lift over
 				}
 			
 			
 	
 			final VCFHeader h2 = new VCFHeader(h0);
-			
-			if(!StringUtils.isBlank(this.filterAFStr)) {
-				h2.addMetaDataLine(new VCFFilterHeaderLine(this.filterAFStr, "Allele frequency in "+this.population+" is not("+this.min_allele_frequency+"<=AF<="+this.max_allele_frequency+")"));
-				}
-			
-			if(!StringUtils.isBlank(this.in_gnomad_filter)) {
-				h2.addMetaDataLine(new VCFFilterHeaderLine(this.in_gnomad_filter, "Variant is found in GNOMADSV"));
-			}
-			if(!StringUtils.isBlank(this.discordant_svtype_filter)) {
-				h2.addMetaDataLine(new VCFFilterHeaderLine(this.discordant_svtype_filter, "SVTYPE are discordants."));
-			}
-			if(!StringUtils.isBlank(this.any_overlap_filter)) {
-				h2.addMetaDataLine(new VCFFilterHeaderLine(this.any_overlap_filter, "A variant in gnomad is found overlaping the variant"));
-			}
+			if(!disable_annotation_transfer) {
+
+				if(!StringUtils.isBlank(this.filterAFStr)) {
+					h2.addMetaDataLine(new VCFFilterHeaderLine(this.filterAFStr, "Allele frequency in "+this.population+" is not("+this.min_allele_frequency+"<=AF<="+this.max_allele_frequency+")"));
+					}
+				
+				if(!StringUtils.isBlank(this.in_gnomad_filter)) {
+					h2.addMetaDataLine(new VCFFilterHeaderLine(this.in_gnomad_filter, "Variant is found in GNOMADSV"));
+					}
+				if(!StringUtils.isBlank(this.discordant_svtype_filter)) {
+					h2.addMetaDataLine(new VCFFilterHeaderLine(this.discordant_svtype_filter, "SVTYPE are discordants."));
+					}
+				if(!StringUtils.isBlank(this.any_overlap_filter)) {
+					h2.addMetaDataLine(new VCFFilterHeaderLine(this.any_overlap_filter, "A variant in gnomad is found overlaping the variant"));
+					}
 	
-			for(final VCFInfoHeaderLine h: gnomadHeader.getInfoHeaderLines()) {
-				final VCFInfoHeaderLine hd2 = VCFUtils.renameVCFInfoHeaderLine(h, this.prefix + h.getID());
-				h2.addMetaDataLine(hd2);
-			}
-			for(final VCFFilterHeaderLine h: gnomadHeader.getFilterLines()) {
-				final VCFFilterHeaderLine hd2 = new VCFFilterHeaderLine(this.prefix + h.getID(),h.getDescription());
-				h2.addMetaDataLine(hd2);
-			}
-			
+				for(final VCFInfoHeaderLine h: gnomadHeader.getInfoHeaderLines()) {
+					final VCFInfoHeaderLine hd2 = VCFUtils.renameVCFInfoHeaderLine(h, this.prefix + h.getID());
+					h2.addMetaDataLine(hd2);
+					}
+				for(final VCFFilterHeaderLine h: gnomadHeader.getFilterLines()) {
+					final VCFFilterHeaderLine hd2 = new VCFFilterHeaderLine(this.prefix + h.getID(),h.getDescription());
+					h2.addMetaDataLine(hd2);
+					}
+				
+				}
 			final VCFInfoHeaderLine ghomadIdInfo = new VCFInfoHeaderLine(this.prefix + "ID",1,VCFHeaderLineType.String,"Original ID column in gnomad");
-			h2.addMetaDataLine(ghomadIdInfo);
-			
+			if(!disable_annotation_transfer) {
+				h2.addMetaDataLine(ghomadIdInfo);
+				}
+
 			JVarkitVersion.getInstance().addMetaData(this, h2);
 			
 			out.writeHeader(h2);
@@ -217,6 +221,7 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
 				if(!(this.min_allele_frequency<= found_af && found_af <=this.max_allele_frequency)) {
 					if(StringUtils.isBlank(this.filterAFStr)) {
+						// skip variant
 						continue;
 						} 
 					else
@@ -225,6 +230,10 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 						}
 					}
 				
+				if(this.disable_annotation_transfer ) {
+					out.add(ctx);
+					continue;
+					}
 				
 				if(cgtx==null) {
 					if(found_any_overlap && !StringUtil.isBlank(this.any_overlap_filter)) {
@@ -235,14 +244,18 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 					out.add(ctx);
 					continue;
 					}
+				
+				
+				
 				for(final String key: cgtx.getAttributes().keySet()) {
 					vcb.attribute(this.prefix+key,cgtx.getAttribute(key));
 					}
 				for(final String f: cgtx.getFilters()) {
 					vcb.filter(this.prefix+f);
 					}
+					
 				
-				if(cgtx.hasID()) {
+				if(cgtx.hasID() ) {
 					if(!ctx.hasID())
 						{
 						vcb.id(cgtx.getID());
@@ -259,7 +272,6 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 					}
 				out.add(vcb.make());
 				}
-			out.close();
 			return 0;
 			}
 		catch(final Throwable err) {
