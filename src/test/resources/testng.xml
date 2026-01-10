@@ -75,6 +75,7 @@
       <class name="com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2XmlTest"/>
       <class name="com.github.lindenb.jvarkit.tools.bed2xml.BedToXmlTest"/>
       <class name="com.github.lindenb.jvarkit.tools.dict2vcf.DictToVcfTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfcluster.VcfClusterTest"/>
     </classes>
   </test>
 </suite>

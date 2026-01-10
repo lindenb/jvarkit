@@ -270,6 +270,7 @@ nav:
         - "vcfburdenslidingwindow" : VcfBurdenSlidingWindow.md
         - "vcfbyindex" : VcfGetVariantByIndex.md
         - "vcfcadd" : VcfCadd.md
+        - "vcfcluster" : VcfCluster.md
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcfcomposite" : VCFComposite.md
         - "vcfconcat" : VcfConcat.md

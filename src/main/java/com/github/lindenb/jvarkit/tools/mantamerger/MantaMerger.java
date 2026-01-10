@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.structvar.manta;
+package com.github.lindenb.jvarkit.tools.mantamerger;
 
 import java.io.BufferedReader;
 import java.nio.file.Files;
@@ -110,7 +110,7 @@ END_DOC
 description="Merge Vcf from Manta VCF.",
 keywords= {"sv","manta","vcf"},
 creationDate="20190916",
-modificationDate="20250903",
+modificationDate="20260109",
 jvarkit_amalgamion = true,
 menu="VCF Manipulation"
 )

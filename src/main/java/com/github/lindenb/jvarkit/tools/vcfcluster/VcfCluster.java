@@ -64,7 +64,7 @@ All INFO/SVTYPE=BND are grouped in the same cluster using ID and INFO/MATEID
 ## Example
 
 ```bash
-java -jar dist/jvarkit.jar -o
+java -jar dist/jvarkit.jar vcfcluster -o TMP manta.vcf.gz
 
 ```
 
@@ -72,9 +72,10 @@ END_DOC
 */
 @Program(name="vcfcluster",
 	description="VCF",
-	keywords={"vcf"},
+	keywords={"vcf","cluster","cnv","sv"},
 	creationDate = "20260108",
 	modificationDate = "20260108",
+	generate_doc = true,
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)
@@ -92,6 +93,8 @@ public class VcfCluster extends Launcher {
 	private boolean force_write = false;
 	@Parameter(names={"--no-index"},description="do no write tbi index")
 	private boolean disable_index = false;
+	@Parameter(names={"--no-group-bnd"},description="disable grouping variants with INFO/SVTYPE=BND  having same ID=INFO/MATEID")
+	private boolean disable_group_bnd = false;
 
 	private static int ID_GENERATOR=0;
 	
@@ -217,7 +220,8 @@ public int doWork(final List<String> args) {
 					break;
 					}
 				
-				if(ctx.hasAttribute(VCFConstants.SVTYPE) && 
+				if(!disable_group_bnd &&
+					ctx.hasAttribute(VCFConstants.SVTYPE) && 
 					ctx.getAttributeAsString(VCFConstants.SVTYPE, "").equals("BND")) {
 					if(bnd_batch==null) {
 						bnd_batch = new Batch();

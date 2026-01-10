@@ -90,6 +90,11 @@ public class TestSupport {
 		return deleteOnExit(Files.createTempFile("tmp.", suffix));
 	}
 
+	public Path createTmpDirectory() throws IOException {
+		return Files.createTempDirectory("tmp_jvarkit_test");
+	}
+
+	
 	
 	public synchronized Path deleteOnExit(final Path f) {
 		if(f!=null) this.deletePathsAtExit.add(f);

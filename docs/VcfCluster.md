@@ -53,6 +53,9 @@ Usage: vcfcluster [options] Files
 ## Keywords
 
  * vcf
+ * cluster
+ * cnv
+ * sv
 
 
 

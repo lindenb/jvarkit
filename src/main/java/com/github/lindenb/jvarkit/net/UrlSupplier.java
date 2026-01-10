@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.net;
 
-import java.net.URL;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -144,8 +143,11 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 			urls.add(new LabelledUrlImpl("Varaico",id,
 					"https://varaico.com/?gene="+ StringUtils.escapeHttp(id) +"&assembly="+ (isGrch38()?"hg38":(isGrch37()?"hg19":"undefined"))));
 			}
-		 
-		 
+		 // SCREEN (Search Candidate Regulatory Elements by ENCODE) is a web-based visualization and discovery platform for exploring the ENCODE Registry of cis-Regulatory Elements (cCREs) and other ENCODE Encyclopedia annotations
+		 if(isGrch38() || isGrch37()) {
+				urls.add(new LabelledUrlImpl("Screen",id,
+						"https://screen.wenglab.org/GRCh38/gene/"+ StringUtils.escapeHttp(id)));
+				}
 		 
 		}
 	else if( columnName.equalsIgnoreCase("hgnc") && (StringUtils.isInteger(id)  || id.toUpperCase().startsWith("HGNC:"))) {
@@ -205,6 +207,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		if(isGrch38()) {
 			urls.add(new LabelledUrlImpl("TogoVar",str,"https://grch38.togovar.org/?mode=simple&term="+ str ));
 			}
+		urls.add(new LabelledUrlImpl("Screen",str,"https://screen.wenglab.org/GRCh38/variant/"+str));
 		}
 	else if(this.ensemblPattern.matcher(str).matches())
 		{
@@ -521,6 +524,9 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 			));
 		urls.add(new LabelledUrlImpl("AF.ukbiobank",locid,"https://afb.ukbiobank.ac.uk/region/"+
 				StringUtils.escapeHttp(ucscCtg) + "-" + xstart1 +"-"+ xend1
+				));
+		urls.add(new LabelledUrlImpl("Screen",locid,"https://screen.wenglab.org/GRCh38/region/"+
+				StringUtils.escapeHttp(ucscCtg) + "-" + xstart1 +"-"+ xend1+"/ccres"
 				));
 		}
 
