@@ -89,7 +89,7 @@ public class SameDict extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		if(args.isEmpty()) {
-			if(be_verbose) LOG.equals("No argument provided");
+			if(be_verbose) LOG.warn("No argument provided");
 			return -1;
 			}
 		try {
@@ -97,7 +97,7 @@ public class SameDict extends Launcher {
 			for(final String filename: args) {
 				final Optional<SAMSequenceDictionary> optDict = SequenceDictionaryUtils.extractDictionary(Paths.get(filename));
 				if(!optDict.isPresent()) {
-					if(be_verbose) LOG.equals("Cannot extract dict from "+filename);
+					if(be_verbose) LOG.warn("Cannot extract dict from "+filename);
 					return -1;
 					}
 				if(dict==null) {
@@ -110,7 +110,7 @@ public class SameDict extends Launcher {
 					catch(final SequenceListsDifferException err) {
 						if(be_verbose) {
 							LOG.error(err);
-							LOG.equals("Dict in  "+filename+" is different from the others");
+							LOG.error("Dict in  "+filename+" is different from the others");
 							}	
 						return -1;
 						}

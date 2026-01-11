@@ -309,7 +309,7 @@ public class MergeCnvNator extends Launcher{
 			this.e_val_4 =toDbl.apply(7 + shift);
 			this.q0 = toDbl.apply(8 + shift);
 			if(tokens.size()>9+shift ) {
-				this.pe = new Integer(tokens.get(9 + shift));
+				this.pe = Integer.valueOf(tokens.get(9 + shift));
 				}
 			else
 				{

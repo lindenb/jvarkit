@@ -218,7 +218,7 @@ public class BamXtremDepth extends Launcher {
 	public int doWork(final List<String> args)
 		{
 		if(this.min_coverage>= this.max_coverage) {
-			LOG.equals("min coverage >= max_coverage");
+			LOG.warn("min coverage >= max_coverage");
 			return -1;
 			}
 		

@@ -89,7 +89,7 @@ public class SetFileCluster extends AbstractSetFileTool {
 		
 		try {
 			if(this.outputFile==null) {
-				LOG.equals("output file must be defined.");
+				LOG.warn("output file must be defined.");
 				return -1;
 				}
 			if(this.number_of_jobs<1 && this.long_length_per_bin<1L) {
