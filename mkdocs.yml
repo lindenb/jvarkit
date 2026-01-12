@@ -107,7 +107,6 @@ nav:
         - "blastn2snp" : BlastNToSnp.md
         - "breakdancer2vcf" : BreakdancerToVcf.md
         - "builddbsnp" : BuildDbsnp.md
-        - "circular" : Circular.md
         - "cmpbams" : CompareBams.md
         - "cmpbams4" : CompareBams4.md
         - "cmpbamsandbuild" : CompareBamAndBuild.md
@@ -261,6 +260,8 @@ nav:
         - "vcfallele2symbolic" : VcfAlleleToSymbolic.md
         - "vcfallelebalance" : VcfAlleleBalance.md
         - "vcfancestralalleles" : VcfAncestralAllele.md
+        - "vcfbed" : VCFBed.md
+        - "vcfbedsetfilter" : VCFBedSetFilter.md
         - "vcfbigbed" : VcfBigBed.md
         - "vcfbigwig" : VCFBigWig.md
         - "vcfbraiding" : VcfBraiding.md

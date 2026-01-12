@@ -7,8 +7,13 @@ Transfer information from a BED to a VCF
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfbed.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfbed  [options] Files
+
 Usage: vcfbed [options] Files
   Options:
     --bcf-output
@@ -40,7 +45,7 @@ Usage: vcfbed [options] Files
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
     -ignoreFiltered, --ignoreFiltered
-      [20171031] Ignore FILTERed Variants (should be faster)
+      Ignore FILTERed Variants (should be faster)
       Default: false
     --fast, --memory
       Load files in memory (faster than tribble/tabix but memory consumming)
@@ -60,6 +65,14 @@ Usage: vcfbed [options] Files
       between 0.0 and 1.0. If the value ends with '%' it is interpretted as a 
       percentage eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. 
       e.g: '1/100' => '0.01'.
+    -M, --mutual-fraction
+      Mutual comparator Two SV have are the same if they share a fraction 'x' 
+      of their bases. For very small SV the fraction can be quite small while 
+      for large SV the fraction should be close to 1. The Syntax is the 
+      following : (<MAX_SIZE_INCLUSIVE>:<FRACTION as double or percent>;)+ . 
+      For example if the SV as a size of 99bp, the fraction used with be 0.6 
+      for '10:0.1;100:0.6;1000:0.9'. For the smallest size, a simple overlap 
+      is a positive match.. Example:"10:0.5;100:75%;1000:80%;10000:90%".
     -o, --out
       Output file. Optional . Default: stdout
     -T, --tag
@@ -88,23 +101,6 @@ Usage: vcfbed [options] Files
 
  * [https://www.biostars.org/p/247224](https://www.biostars.org/p/247224)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfbed
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -164,7 +160,7 @@ Now, annotate a remote VCF with the data of NCBI biosystems.
 ```
 curl "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
  sed 's/^chr//' |\
- java -jar  dist/vcfbed.jar -B ~/ncbibiosystem.bed.gz -T NCBIBIOSYS  -f '($4|$5|$6|$7)' |\
+ java -jar jvarkit.jar vcfbed -B ~/ncbibiosystem.bed.gz -T NCBIBIOSYS  -f '($4|$5|$6|$7)' |\
  grep -E '(^#CHR|NCBI)'
 
 ##INFO=<ID=NCBIBIOSYS,Number=.,Type=String,Description="metadata added from /home/lindenb/ncbibiosystem.bed.gz . Format was ($4|$5|$6|$7)">
@@ -193,4 +189,7 @@ chr19   58865164    rs80109863  C   T   .   .   CAF=[0.9949,0.005051];COMMON=1;G
 ## Cited in
 
  * Megquier K, Turner-Maier J, Morrill K, Li X, Johnson J, Karlsson EK, et al. (2022) The genomic landscape of canine osteosarcoma cell lines reveals conserved structural complexity and pathway alterations. PLoS ONE 17(9): e0274383. https://doi.org/10.1371/journal.pone.0274383
+
+
+
 

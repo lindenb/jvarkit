@@ -7,8 +7,13 @@ Set FILTER for VCF if intersects with BED.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
-Usage: java -jar dist/vcfbedsetfilter.jar  [options] Files
+Usage: java -jar dist/jvarkit.jar vcfbedsetfilter  [options] Files
+
 Usage: vcfbedsetfilter [options] Files
   Options:
     --bcf-output
@@ -50,6 +55,14 @@ Usage: vcfbedsetfilter [options] Files
       and 1.0. If the value ends with '%' it is interpretted as a percentage 
       eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. e.g: '1/100' 
       => '0.01'.
+    -M, --mutual-fraction
+      Mutual comparator Two SV have are the same if they share a fraction 'x' 
+      of their bases. For very small SV the fraction can be quite small while 
+      for large SV the fraction should be close to 1. The Syntax is the 
+      following : (<MAX_SIZE_INCLUSIVE>:<FRACTION as double or percent>;)+ . 
+      For example if the SV as a size of 99bp, the fraction used with be 0.6 
+      for '10:0.1;100:0.6;1000:0.9'. For the smallest size, a simple overlap 
+      is a positive match.. Example:"10:0.5;100:75%;1000:80%;10000:90%".
     -o, --out
       Output file. Optional . Default: stdout
     --version
@@ -74,23 +87,6 @@ Usage: vcfbedsetfilter [options] Files
 
  * [https://www.biostars.org/p/9465226](https://www.biostars.org/p/9465226)
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfbedsetfilter
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -130,14 +126,14 @@ The current reference is:
 ### Examples
 
 ```
-$java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf 
+$java -jar jvarkit.jar vcfbedsetfilter -f MYFILTER --include database.bed in.bed in.vcf
 ```
 
-## history:
 
-2191104: changed the logic which was wrongly defined in the documentation. :-/
 
 ## Cited in
 
  * Megquier K, Turner-Maier J, Morrill K, Li X, Johnson J, Karlsson EK, et al. (2022) The genomic landscape of canine osteosarcoma cell lines reveals conserved structural complexity and pathway alterations. PLoS ONE 17(9): e0274383. https://doi.org/10.1371/journal.pone.0274383
+ * Hannah Melhorn, Megan Sha, Manabu Kurihara, Katherine Megquier, Riley Aronson, Vicky Yang, Incidentally identified aortic dissection in a Great Pyrenees, Journal of Veterinary Cardiology, 2025, , ISSN 1760-2734, https://doi.org/10.1016/j.jvc.2025.09.007. (https://www.sciencedirect.com/science/article/pii/S1760273425001079)
+
 

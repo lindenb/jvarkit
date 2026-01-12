@@ -42,10 +42,12 @@ import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
+import com.github.lindenb.jvarkit.variant.sv.OverlapComparator;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -72,12 +74,10 @@ BEGIN_DOC
 ### Examples
 
 ```
-$java -jar dist/vcfbedsetfilter.jar -f MYFILTER - -B in.bed in.vcf 
+$java -jar jvarkit.jar vcfbedsetfilter -f MYFILTER --include database.bed in.bed in.vcf
 ```
 
-## history:
 
-2191104: changed the logic which was wrongly defined in the documentation. :-/
 
 ## Cited in
 
@@ -92,8 +92,9 @@ END_DOC
 @Program(name="vcfbedsetfilter",
 	description="Set FILTER for VCF if intersects with BED.",
 	keywords={"vcf","bed","filter"},
-	modificationDate="20210417",
+	modificationDate="20260111",
 	creationDate="20150415",
+	jvarkit_amalgamion = true,
 	biostars={9465226}
 	)
 public class VCFBedSetFilter extends OnePassVcfLauncher
@@ -117,12 +118,14 @@ public class VCFBedSetFilter extends OnePassVcfLauncher
 	private Double min_bed_fraction_overlap = null;
 	@Parameter(names={"--min-vc-fraction"},description="Min Variant fraction overlap after extension. Only consider BED records if bed overlap >= 'x' percent of vc length. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private Double min_vc_fraction_overlap = null;
+	@Parameter(names={"-M","--mutual-fraction"},description="Mutual comparator " + OverlapComparator.OPT_DESC+". Example:\"" + OverlapComparator.DEFAULT_VALUE+"\".",splitter = NoSplitter.class,converter = OverlapComparator.StringConverter.class)
+	private String mutual_Compararor_expr =null;
 
 	
-
 	private IntervalTreeMap<Interval> intervalTreeMap=null;
 	private IndexedBedReader bedReader =null;
 	private File tabixFile = null;
+	private OverlapComparator overlap_comparator = null;
 	
 	public VCFBedSetFilter()
 		{
@@ -144,6 +147,10 @@ public class VCFBedSetFilter extends OnePassVcfLauncher
 			final double len_vc =  CoordMath.getLength(ctx_start, ctx_end);
 			if(len_x/len_vc < this.min_vc_fraction_overlap) return false;
 		}
+		if(overlap_comparator!=null) {
+			return overlap_comparator.test(ctx_start, ctx_end, bed.getStart(), bed.getEnd());
+		}
+		
 		return true;
 	}
 	
@@ -180,6 +187,11 @@ public class VCFBedSetFilter extends OnePassVcfLauncher
 				{
 				this.bedReader= new IndexedBedReader(this.tabixFile);
 				}
+			
+			if(!StringUtils.isBlank(mutual_Compararor_expr)) {
+				this.overlap_comparator  = OverlapComparator.parse(this.mutual_Compararor_expr);
+				}
+			
 			}
 		catch(final Throwable err) {
 			LOG.error(err);

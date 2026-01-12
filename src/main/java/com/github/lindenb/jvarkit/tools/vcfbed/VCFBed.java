@@ -27,8 +27,9 @@ package com.github.lindenb.jvarkit.tools.vcfbed;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.HashSet;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -38,6 +39,7 @@ import org.apache.commons.jexl2.JexlContext;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLine;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bed.IndexedBedReader;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
@@ -45,12 +47,12 @@ import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.jexl.JexlToString;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
@@ -65,6 +67,7 @@ import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.variant.sv.OverlapComparator;
 import com.github.lindenb.jvarkit.variant.variantcontext.Breakend;
 
 import htsjdk.variant.vcf.VCFIterator;
@@ -98,7 +101,7 @@ Now, annotate a remote VCF with the data of NCBI biosystems.
 ```
 curl "https://raw.github.com/arq5x/gemini/master/test/test1.snpeff.vcf" |\
  sed 's/^chr//' |\
- java -jar  dist/vcfbed.jar -B ~/ncbibiosystem.bed.gz -T NCBIBIOSYS  -f '($4|$5|$6|$7)' |\
+ java -jar jvarkit.jar vcfbed -B ~/ncbibiosystem.bed.gz -T NCBIBIOSYS  -f '($4|$5|$6|$7)' |\
  grep -E '(^#CHR|NCBI)'
 
 ##INFO=<ID=NCBIBIOSYS,Number=.,Type=String,Description="metadata added from /home/lindenb/ncbibiosystem.bed.gz . Format was ($4|$5|$6|$7)">
@@ -128,9 +131,7 @@ chr19   58865164    rs80109863  C   T   .   .   CAF=[0.9949,0.005051];COMMON=1;G
 
  * Megquier K, Turner-Maier J, Morrill K, Li X, Johnson J, Karlsson EK, et al. (2022) The genomic landscape of canine osteosarcoma cell lines reveals conserved structural complexity and pathway alterations. PLoS ONE 17(9): e0274383. https://doi.org/10.1371/journal.pone.0274383
 
-## Deprecated
 
-use bcftools annotate
 
 END_DOC
 
@@ -140,8 +141,8 @@ END_DOC
 	keywords={"bed","vcf","annotation"},
 	biostars=247224,
 	creationDate="20180406",
-	modificationDate="20200623",
-	deprecatedMsg = "use bcftools annotate"
+	modificationDate="20260112",
+	jvarkit_amalgamion = true
 	)
 public class VCFBed extends OnePassVcfLauncher
 	{
@@ -164,7 +165,7 @@ public class VCFBed extends OnePassVcfLauncher
 	@Parameter(names={"--fast","--memory"},description="Load files in memory (faster than tribble/tabix but memory consumming)")
 	private boolean in_memory=false;
 
-	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="[20171031] Ignore FILTERed Variants (should be faster)")
+	@Parameter(names={"-ignoreFiltered","--ignoreFiltered"},description="Ignore FILTERed Variants (should be faster)")
 	private boolean ignoreFILTERed=false;
 
 	@Parameter(names={"-extend","--extend","--within-distance"},description="Variant and BED must be within 'x' bp." + DistanceParser.OPT_DESCRIPTION, converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
@@ -177,13 +178,16 @@ public class VCFBed extends OnePassVcfLauncher
 	private Double min_overlap_both_fraction=  null;
 	@Parameter(names={"--bnd"},description="for SVTYPE=BND do not try to extend the interval to the variant and the mate breakend.")
 	private boolean disable_bnd_eval  = false;
+	@Parameter(names={"-M","--mutual-fraction"},description="Mutual comparator " + OverlapComparator.OPT_DESC+". Example:\"" + OverlapComparator.DEFAULT_VALUE+"\".",splitter = NoSplitter.class,converter = OverlapComparator.StringConverter.class)
+	private String mutual_Compararor_expr =null;
 
 	
 	
-	private IntervalTreeMap<Set<BedLine>> intervalTreeMap=null;
+	private IntervalTreeMap<List<BedLine>> intervalTreeMap=null;
 	private IndexedBedReader bedReader =null;
 	private ContigNameConverter contigNameConverter = null;
 	private Function<JexlContext, String> bedJexlToString;
+	private OverlapComparator overlap_comparator = null;
 
 	
 	
@@ -241,41 +245,35 @@ public class VCFBed extends OnePassVcfLauncher
 			if(variantL==0.0) return false; 
 			if(overlap_len/variantL < this.min_overlap_vcf_fraction) return false;
 			}
+		if(overlap_comparator!=null) {
+			return overlap_comparator.test(variant.getStart(), variant.getEnd(), bed.getStart(), bed.getEnd());
+			}
 		return true;
 		}
 	
 	
 	/** reads a Bed file and convert it to a IntervalTreeMap<Bedline> */
-	private IntervalTreeMap<Set<BedLine>>  readBedFileAsIntervalTreeMap(final Path file) throws java.io.IOException
+	private IntervalTreeMap<List<BedLine>>  readBedFileAsIntervalTreeMap(final Path file) throws java.io.IOException
 		{
-		java.io.BufferedReader r=null;
-		try
-			{
-			final  htsjdk.samtools.util.IntervalTreeMap<Set<com.github.lindenb.jvarkit.bed.BedLine>> intervals = new
+		try(BedLineReader blr = new BedLineReader(file)) {
+			final  htsjdk.samtools.util.IntervalTreeMap<List<com.github.lindenb.jvarkit.bed.BedLine>> intervals = new
 					 htsjdk.samtools.util.IntervalTreeMap<>();
-			r=com.github.lindenb.jvarkit.io.IOUtils.openPathForBufferedReading(file);
-			String line;
-			final com.github.lindenb.jvarkit.bed.BedLineCodec codec = new com.github.lindenb.jvarkit.bed.BedLineCodec();
-			while((line=r.readLine())!=null) 
+			while(blr.hasNext())
 				{
-				if(line.startsWith("#") ||  com.github.lindenb.jvarkit.bed.BedLine.isBedHeader(line) ||  line.isEmpty()) continue; 
-				final com.github.lindenb.jvarkit.bed.BedLine bl = codec.decode(line);
+				final com.github.lindenb.jvarkit.bed.BedLine bl =blr.next();
 				if(bl==null || bl.getStart()>bl.getEnd()) continue;
 				final htsjdk.samtools.util.Interval interval= bl.toInterval();
-				Set<BedLine> set = intervals.get(interval);
+				List<BedLine> set = intervals.get(interval);
 				if(set==null )
 					{
-					set = new HashSet<>();
+					set = new ArrayList<>();
 					intervals.put(interval,set); 
 					}
 				set.add(bl);
 				}
 			return intervals;
 			}
-		finally
-			{
-			htsjdk.samtools.util.CloserUtil.close(r);
-			}
+	
 		}
 
 	@Override
@@ -377,7 +375,7 @@ public class VCFBed extends OnePassVcfLauncher
 			
 			
 			if(this.intervalTreeMap!=null) {
-				for(final Set<BedLine> bedLines :this.intervalTreeMap.getOverlapping(extendedInterval)) {
+				for(final List<BedLine> bedLines :this.intervalTreeMap.getOverlapping(extendedInterval)) {
 					for(final BedLine bedLine:bedLines) {
 						count_basic_overlap++;
 						if(!testFinerIntersection(theInterval,bedLine)) continue;
@@ -431,7 +429,6 @@ public class VCFBed extends OnePassVcfLauncher
 			out.add(vcb.make());
 				
 			}
-		out.close();
 		return 0;
 		}
 	
@@ -467,7 +464,9 @@ public class VCFBed extends OnePassVcfLauncher
 			LOG.error("bad value for min_overlap_vcf_fraction");
 			return -1;
 			}
-		
+		if(!StringUtils.isBlank(mutual_Compararor_expr)) {
+			this.overlap_comparator  = OverlapComparator.parse(this.mutual_Compararor_expr);
+			}
 		this.bedJexlToString = new JexlToString(this.formatPattern);
 
 			
@@ -501,7 +500,10 @@ public class VCFBed extends OnePassVcfLauncher
 	
 	@Override
 	protected void afterVcf() {
-		CloserUtil.close(this.bedReader);
+		if(this.bedReader!=null) {
+			try { this.bedReader.close(); }
+			catch(Throwable err) {}
+			}
 		this.bedReader = null;
 		this.intervalTreeMap=null;
 		}
