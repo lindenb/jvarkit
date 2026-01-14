@@ -1,0 +1,110 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2026 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+options {
+	STATIC=false;
+	DEBUG_TOKEN_MANAGER=false;
+	DEBUG_PARSER=true;
+	IGNORE_CASE=false;
+	}
+PARSER_BEGIN(NextflowParser)
+package com.github.lindenb.jvarkit.nextflow.parser;
+import java.util.*;
+import java.io.*;
+import java.nio.file.*;
+import javax.xml.parsers.*;
+import javax.xml.parsers.*;
+import htsjdk.samtools.util.IOUtil;
+import org.w3c.dom.*;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
+
+
+public class NextflowParser {
+  private Document document;
+  private Element root;
+
+	private void run() throws IOException, ParseException {
+	  	Token t;
+	  	for(;;) {
+	  	  	any();
+			System.err.println("ok");
+	  		}
+		}
+  
+  public static Document parse(Path p) throws IOException, ParseException {
+	try {
+	  	IOUtil.assertFileIsReadable(p);
+		final DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+		final Document dom = db.newDocument();
+		Element root1 =dom.createElement("nextflow");
+		dom.appendChild(root1);
+		Element  root=dom.createElement("script");
+		root1.appendChild(root);
+	  	root.setAttribute("file",p.toString());
+		try(BufferedReader br=IOUtils.openPathForBufferedReading(p)) {
+			final NextflowParser parser = new NextflowParser(br,dom,root);
+			parser.run();
+			}
+	  	return dom;
+		}
+	catch(IOException err) {
+		throw err;
+		}
+	catch(Throwable err) {
+		throw new IOException(err);
+		}
+  	}
+  private NextflowParser(Reader r, Document document, Element root) {
+	this(r);
+	this.document = document;
+	this.root= root;
+  	} 
+}
+
+PARSER_END(NextflowParser)
+
+SKIP:{
+ " "
+|  "\n"
+|  "\t"
+}
+
+
+TOKEN : { < START_BLOCK_COMMENT : "/*" >  : WITHIN_BLOCK_COMMENT }
+<WITHIN_BLOCK_COMMENT> TOKEN: { < END_BLOCK_COMMENT: "*/" > : DEFAULT }
+<WITHIN_BLOCK_COMMENT> TOKEN: { <IN_C_COMMENT: (~[])+ > }
+
+
+/* http://eriklievaart.com/blog/javacc2.html */
+
+void any() : { } {
+	c_comment()
+	}
+
+
+void c_comment():{}
+	{
+	  < START_BLOCK_COMMENT > (< IN_C_COMMENT >  )* <END_BLOCK_COMMENT >
+	}
