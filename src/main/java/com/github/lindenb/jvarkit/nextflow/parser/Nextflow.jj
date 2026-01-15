@@ -86,12 +86,12 @@ public class NextflowParser {
 	catch(final Throwable err) {
 		throw new IOException(err);
 		}
-  	}
+	}
   private NextflowParser(Reader r, Document document, Element root) {
 	this(r);
 	this.document = document;
 	this.root= root;
-  	} 
+	}
 }
 
 PARSER_END(NextflowParser)
@@ -99,11 +99,36 @@ PARSER_END(NextflowParser)
 SKIP:{
  " "
 |  "\t"
-|  "\n"
 }
 
-TOKEN: {
-< PROCESS: "process" >
+TOKEN:
+{
+  <PROCESS: "process">
+| <INPUT: "input">
+| <OUTPUT: "output">
+| <SCRIPT: "script">
+| <STUB: "stub">
+| <TUPLE: "tuple">
+| <EMIT: "emit">
+| <OPTIONAL: "optional">
+| <VAL: "val">
+| <PATH: "path">
+| <CR: "\n">
+| <#LETTER:(["a"-"z"]|["A"-"Z"]|"_")>
+| <#DIGIT:["0"-"9"]>
+| <INT: <DIGIT>(<DIGIT>)* >
+| <IDENTIFIER: <LETTER> (<DIGIT>|<LETTER>)*  >
+| <COMMA:",">
+| <COLON:":">
+| <LPAR:"(">
+| <RPAR:")">
+| <LBRACK:"{">
+| <RBRACK:"}">
+| <LARRAY: "[">
+| <RARRAY: "]">
+| <#ESCAPE_CHAR: "\\" ["n","t","b","r","f","\\","'","\""] >
+| <SIMPLE_QUOTE_LITERAL: "\'"( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\'">
+| <DOUBLE_QUOTE_LITERAL: "\""( (~["\'","\\","\n","\r"])| <ESCAPE_CHAR>)* "\"">
 }
 
 
@@ -116,6 +141,57 @@ void any() : { } {
 
 void process(): { }
 	{
-	< PROCESS > <TOKEN > <LBRAC >
-	< RBRAC > 
+	< PROCESS > <IDENTIFIER > <LBRACK > crlf()
+	(input_block()|script_block()|ignore_stmt())*
+	< RBRACK > crlf()
+	}
+
+void script_block():{}
+	{
+	<SCRIPT> <COLON> crlf()
+	}
+
+void input_block():{}
+	{
+	<INPUT> <COLON> crlf()
+	(input_block_item())*
+	}
+void input_block_item():{}
+	{
+	(input_tuple() | input_item()) crlf()
+	}
+void input_tuple():{}
+	{
+	<TUPLE> input_item() <COMMA> input_item() (<COMMA> input_item()) 
+	}
+
+void input_item():{}
+	{
+	(
+	  <PATH> <LPAR> (<IDENTIFIER>|string()) <RPAR>
+	| <VAL> (<LPAR> <IDENTIFIER> <RPAR> | <IDENTIFIER>)
+	)
+	}
+
+void crlf():{}
+	{
+	<CR>
+	}
+
+void string():{}
+	{
+	(<SIMPLE_QUOTE_LITERAL> | <DOUBLE_QUOTE_LITERAL> )
+	}
+void ignore_stmt():{}
+	{
+	(
+	  <LPAR> ignore_stmt() <RPAR>
+	| <LBRACK> ignore_stmt() <RBRACK>
+	| <LARRAY> ignore_stmt() <RARRAY>
+	| <IDENTIFIER>
+	| <COMMA>
+	| <COLON>
+	| string()
+	| crlf()
+	) 
 	}
