@@ -22,12 +22,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
+
+/*
+java -cp /home/lindenb/packages/javacc/bootstrap/javacc.jar  javacc -OUTPUT_DIRECTORY=src/main/java/com/github/lindenb/jvarkit/nextflow/parser src/main/java/com/github/lindenb/jvarkit/nextflow/parser/Nextflow.jj 
+
+*/
 options {
 	STATIC=false;
 	DEBUG_TOKEN_MANAGER=false;
 	DEBUG_PARSER=true;
 	IGNORE_CASE=false;
 	}
+
 PARSER_BEGIN(NextflowParser)
 package com.github.lindenb.jvarkit.nextflow.parser;
 import java.util.*;
@@ -55,24 +61,29 @@ public class NextflowParser {
   
   public static Document parse(Path p) throws IOException, ParseException {
 	try {
-	  	IOUtil.assertFileIsReadable(p);
+		IOUtil.assertFileIsReadable(p);
 		final DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 		final Document dom = db.newDocument();
-		Element root1 =dom.createElement("nextflow");
+		final Element root1 =dom.createElement("nextflow");
 		dom.appendChild(root1);
-		Element  root=dom.createElement("script");
+		final Element  root=dom.createElement("script");
 		root1.appendChild(root);
-	  	root.setAttribute("file",p.toString());
-		try(BufferedReader br=IOUtils.openPathForBufferedReading(p)) {
+		root.setAttribute("file",p.toString());
+		BufferedReader br = null;
+		try {
+		  	br = IOUtils.openPathForBufferedReading(p);
 			final NextflowParser parser = new NextflowParser(br,dom,root);
 			parser.run();
 			}
-	  	return dom;
+		finally {
+			if(br!=null) br.close();
+			}
+		return dom;
 		}
-	catch(IOException err) {
+	catch(final IOException err) {
 		throw err;
 		}
-	catch(Throwable err) {
+	catch(final Throwable err) {
 		throw new IOException(err);
 		}
   	}
@@ -87,24 +98,24 @@ PARSER_END(NextflowParser)
 
 SKIP:{
  " "
-|  "\n"
 |  "\t"
+|  "\n"
 }
 
+TOKEN: {
+< PROCESS: "process" >
+}
 
-TOKEN : { < START_BLOCK_COMMENT : "/*" >  : WITHIN_BLOCK_COMMENT }
-<WITHIN_BLOCK_COMMENT> TOKEN: { < END_BLOCK_COMMENT: "*/" > : DEFAULT }
-<WITHIN_BLOCK_COMMENT> TOKEN: { <IN_C_COMMENT: (~[])+ > }
 
 
 /* http://eriklievaart.com/blog/javacc2.html */
 
 void any() : { } {
-	c_comment()
+	process()
 	}
 
-
-void c_comment():{}
+void process(): { }
 	{
-	  < START_BLOCK_COMMENT > (< IN_C_COMMENT >  )* <END_BLOCK_COMMENT >
+	< PROCESS > <TOKEN > <LBRAC >
+	< RBRAC > 
 	}
