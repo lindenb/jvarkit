@@ -16,8 +16,6 @@ Usage: java -jar dist/jvarkit.jar mantamerger  [options] Files
 
 Usage: mantamerger [options] Files
   Options:
-    -B, --bed
-      Keep regions in this bed file.
     --bnd-distance
       Two BND variants are the same if their bounds are distant by less than 
       xxx bases. A distance specified as a positive integer.Commas are 
@@ -29,6 +27,8 @@ Usage: mantamerger [options] Files
       Default: false
     -c, --contig
       limit to this contig
+    -x, --exclude
+      Exclude regions in this bed file
     --force-svtype
       When comparing two SV variants, their INFO/SVTYPE should be the same. 
       Default is to just use coordinates to compare non-BND variants.
@@ -114,7 +114,7 @@ input is a list of indexed vcf files or one file with the '.list' suffix contain
 # Example
 
 ```
-$ find src -type f -name "manta*.vcf.gz" > jeter.list
+$ find src -name "manta*z" > jeter.list
 $ java -jar dist/mantamerger.jar jeter.list 2> /dev/null
 
 (...)

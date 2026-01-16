@@ -29,8 +29,8 @@ public class NextflowToXml extends Launcher {
 	}
 	
 	private void parseNextflowScript(Document dom,Element root,Path p) throws IOException,ParseException {
-		Document dom2= NextflowParser.parse(p);
-		Element root2=dom2.getDocumentElement();
+		final Document dom2= NextflowParser.parse(p);
+		final Element root2 = dom2.getDocumentElement();
 		for(Node c=root2.getFirstChild();c!=null;c=c.getNextSibling()) {
 			if(c.getNodeType()!=Node.ELEMENT_NODE) continue;
 			root.appendChild(dom.importNode(c, true));

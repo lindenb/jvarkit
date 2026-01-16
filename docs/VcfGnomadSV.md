@@ -35,10 +35,6 @@ Usage: vcfgnomadsv [options] Files
       When comparing two BND, check that their mate (using the ALT allele) are 
       the same too
       Default: false
-    --disable-annotations, -A
-      do not transfer annotations from GNOMAD to VCF. Just a way to filter the 
-      VCF using gnomad Frequency data
-      Default: false
     --discordant_svtype
       If not empty, set this FILTER if SVTYPE are discordants
       Default: <empty string>
