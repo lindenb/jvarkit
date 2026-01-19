@@ -23,24 +23,19 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.gtf;
+package com.github.lindenb.jvarkit.tools.gtf2xml;
 
-import htsjdk.samtools.util.CloserUtil;
-import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.samtools.util.StringUtil;
-import htsjdk.tribble.readers.LineIterator;
-
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -49,14 +44,27 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.gtf.GTFLine;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.math.MinMaxInteger;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.tools.misc.FixVCF;
+import com.github.lindenb.jvarkit.util.AutoMap;
+
+import htsjdk.samtools.util.CoordMath;
+import htsjdk.samtools.util.Locatable;
+import htsjdk.samtools.util.StringUtil;
+import htsjdk.tribble.readers.TabixReader;
 /*
 BEGIN_DOC
 
@@ -64,7 +72,7 @@ BEGIN_DOC
 ## Example
 
 ```bash
-$ java -jar dist/gtf2xml.jar src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
+$ java -jar dist/jvarkit gtf2xml src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
 <?xml version="1.0" encoding="UTF-8"?>
 <gtf genebuild-last-updated="2013-09" genome-build="GRCh37.p13" genome-build-accession="NCBI:GCA_000001405.14" genome-date="2009-02" genome-version="GRCh37">
   <gene id="ENSG00000100403" chrom="22" start="41697526" end="41756151" strand="+" source="ensembl_havana" type="gene">
@@ -173,7 +181,7 @@ END_DOC
 	description="Convert GTF/GFF to XML",
 	keywords={"xml","gtf","gff","gff3"},
 	creationDate="20150811",
-	modificationDate="20230512",
+	modificationDate="20260118",
 	biostars={478242},
 	jvarkit_amalgamion = true,
 	menu="GTF/GFF Manipulation"
@@ -182,50 +190,69 @@ public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.of(FixVCF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"--skip-record"},description="Don't record the following stuff at the end. possible values: FEATURE,SOURCES,CONTIG,ATTIBUTES Multiple separated by commas/spaces/semicolons")
-	private String skipRecordStr = "";
+
 	@Parameter(names={"--skip-attributes"},description="Don't print the following attributes. Multiple separated by commas/spaces/semicolons")
 	private String skipAttributeStr = "";
+	@Parameter(names={"--interval","--regions","--region","-R"},description="only in the following interval CHR:START-END. First Scan for genes in the interval and extend the interval to get the whole genes. Requires GTF input is a tabix index file.")
+	private String intervalStr = "";
+	@Parameter(names={"-d","--distance"},description="if >=0, add a 'y' attribute that could be used to display the bed records in a browser, " 
+			+ "	this 'y' is the graphical row where the item should be displayed. " 
+			+ "	This distance is the distance between two item where there is a collision. Memory consuming . "+
+			DistanceParser.OPT_DESCRIPTION,
+			converter = DistanceParser.StringConverter.class, splitter = NoSplitter.class)
+	private int distance=-1;
+	@Parameter(names={"--simple"},description="Don't print group data by gene/transcript. Print each GTF record on the fly")
+	private boolean disable_group_by_gene = false;
 
 	
-	private final Map<String,Long> seqdict=new LinkedHashMap<>();
-	private final Set<String> att_keys=new HashSet<>();
-	private final Set<String> sources=new HashSet<>();
-	private final Set<String> types=new HashSet<>();
 	private final Set<String> skip_attributes_set = new HashSet<>();
-	private boolean enable_feature_type=true;
-	private boolean enable_sources=true;
-	private boolean enable_dict=true;
-	private boolean enable_att_keys=true;
 	
-	private void commonFields(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException
+
+	private static class CountRows {
+		final int y;
+		final int nrows;
+		CountRows(int y, int nrows) {
+			this.y = y;
+			this.nrows = nrows;
+			}
+		}
+	
+	private void writeStartRecord(final XMLStreamWriter w,final GTFLine line,
+			final CountRows countRows,
+			final Locatable interval) throws XMLStreamException
 		{
+		w.writeStartElement(line.getType());
 		w.writeAttribute("chrom", line.getContig());
 		w.writeAttribute("start",String.valueOf(line.getStart()));
 		w.writeAttribute("end",String.valueOf(line.getEnd()));
-
-		if(this.enable_dict) {
-			Long contifLength  = this.seqdict.get(line.getContig());
-			if(contifLength==null) contifLength=0L;
-			this.seqdict.put(line.getContig(),Math.max(line.getEnd(), contifLength));
+		if(interval!=null) {
+			if(interval.overlaps(line)) {
+				w.writeAttribute("f0",String.valueOf( (Math.max(interval.getStart(), line.getStart())-interval.getStart())/(double)interval.getLengthOnReference()));
+				w.writeAttribute("f1",String.valueOf( (Math.min(interval.getEnd(), line.getEnd())-interval.getStart()+1)/(double)interval.getLengthOnReference()));
+				}
+			else
+				{
+				w.writeAttribute("visible","false");
+				}
 			}
+		
+		
 		if(line.getScore()!=null)  {
 			w.writeAttribute("score",String.valueOf(line.getScore()));
 		}
 		if(line.getStrand()!=GTFLine.NO_STRAND) {
 			w.writeAttribute("strand",String.valueOf(line.getStrand()));
 		}
-		if(!StringUtil.isBlank(line.getSource()))  {
-			if(this.enable_sources) this.sources.add(line.getSource());
-			w.writeAttribute("source",line.getSource());
-		}
-		if(!StringUtil.isBlank(line.getType()))  {
-			if(this.enable_feature_type) this.types.add(line.getType());
-			w.writeAttribute("type",line.getType());
-		}
+		
 		if(line.getPhase()!=GTFLine.NO_PHASE) {
 			w.writeAttribute("phase",String.valueOf(line.getPhase()));
 			}
+		
+		if(countRows!=null ) {
+			w.writeAttribute("y",String.valueOf(countRows.y));
+			w.writeAttribute("nrows",String.valueOf(countRows.nrows));
+			}
+	
 		
 		w.writeStartElement("attributes");
 		final Map<String,String> atts = line.getAttributes();
@@ -233,69 +260,120 @@ public class Gtf2Xml extends Launcher{
 			if(this.skip_attributes_set.contains(key)) continue;
 			w.writeStartElement("attribute");
 			w.writeAttribute("key", key);
-			if(this.enable_att_keys) this.att_keys.add(key);
 			w.writeCharacters(atts.get(key));
 			w.writeEndElement();
 			}
-		w.writeEndElement();
+		w.writeEndElement();//attributes
 		}
 	
-	private void writeTranscript(final XMLStreamWriter w,final String transcript_id,final List<GTFLine> lines) throws XMLStreamException,IOException
+	private void writeEndRecord(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException
 		{
-		final Optional<GTFLine> optGeneLine = lines.stream().filter(G->G.getType().equals("transcript")).findFirst();
-		if(!optGeneLine.isPresent()) throw new RuntimeIOException("No 'transcript' found for transcript : "+transcript_id+" in "+lines);
-		w.writeStartElement("transcript");
-		w.writeAttribute("id", transcript_id);
-		commonFields(w,optGeneLine.get());
-		for(final GTFLine l:lines) {
-			write(w, l);
-			}
-		
-		w.writeEndElement();
-		}
-	
-	private void writeGene(final XMLStreamWriter w,final String gene_id,final List<GTFLine> lines) throws XMLStreamException,IOException
-		{
-		final Optional<GTFLine> optGeneLine = lines.stream().filter(G->G.getType().equals("gene")).findFirst();
-		if(!optGeneLine.isPresent()) throw new RuntimeIOException("No 'gene' found for gene_id : "+gene_id);
-		w.writeStartElement("gene");
-		w.writeAttribute("id", gene_id);
-		commonFields(w,optGeneLine.get());
-		
-		final Map<String,List<GTFLine>> id2transcript = new HashMap<>();
-		for(final GTFLine line:lines) {
-			final String transcript_id = line.getAttribute("transcript_id");
-			if(StringUtil.isBlank(transcript_id))  continue;
-			
-			List<GTFLine> lines2 = id2transcript.get(transcript_id);
-			if(lines2==null) {
-				lines2 = new ArrayList<>();
-				id2transcript.put(transcript_id,lines2);
-				}
-			lines2.add(line);
-			}
-		if(!id2transcript.isEmpty()) {
-			w.writeStartElement("transcripts");
-			for(final String transcript_id:id2transcript.keySet()) {
-				writeTranscript(w,transcript_id,id2transcript.get(transcript_id));
-				}
-			w.writeEndElement();
-			}
-		
-		w.writeEndElement();
-		}
-
-	
-	private void write(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException,IOException
-		{
-		w.writeStartElement(line.getType());
-		
-		commonFields(w,line);
-		
-		
 		w.writeEndElement();
 		w.writeCharacters("\n");
 		}
+	
+	
+	private void write(final XMLStreamWriter w,final GTFLine line, final CountRows countRows,final Locatable loc) throws XMLStreamException
+		{
+		writeStartRecord(w, line, countRows, loc);
+		writeEndRecord(w, line);
+		}
+	
+	
+	
+	private void compile(final XMLStreamWriter w, List<GTFLine> records,final Locatable interval) throws XMLStreamException {
+		final List<GTFLine> genes = new ArrayList<>();
+		final AutoMap<String, GTFLine, List<GTFLine>> gene2transcripts = AutoMap.makeList();
+		final AutoMap<String, GTFLine, List<GTFLine>> transcript_components = AutoMap.makeList();
+		
+		while(!records.isEmpty()) {
+			final GTFLine rec = records.remove(records.size()-1);
+			if(rec.isGene()) {
+				genes.add(rec);
+				}
+			else if(rec.isTranscript()) {
+				final String gene_id = rec.getGeneId();
+				if(StringUtils.isBlank(gene_id)) {
+					LOG.warn("no gene_id for " + rec);
+					continue;
+					}
+				gene2transcripts.insert(gene_id, rec);
+				}
+			else {
+				final String transcript_id = rec.getTranscriptId();
+				if(StringUtils.isBlank(transcript_id)) {
+					LOG.warn("no transcript_id for " + rec);
+					continue;
+					}
+				transcript_components.insert(transcript_id, rec);
+				}
+			}
+		final Map<String,CountRows> gene2y = new HashMap<>();
+		final Map<String,CountRows> transcript2y = new HashMap<>();
+		if(this.distance>=0) {
+			/* transcripts */
+			final Pileup<GTFLine> pileup = new Pileup<>((LEFT,RIGHT)->CoordMath.getLength(LEFT.getEnd(),RIGHT.getStart())>= Gtf2Xml.this.distance);
+			pileup.addAll(
+				gene2transcripts.values()
+					.stream()
+					.flatMap(L->L.stream())
+					.sorted((A,B)->Integer.compare(A.getStart(),B.getStart()))
+					.collect(Collectors.toList())
+					);
+			int y=0;
+			for(List<GTFLine> row : pileup.getRows()) {
+				for(GTFLine rec:row) {
+					final String transcript_id = rec.getTranscriptId();
+					if(StringUtils.isBlank(transcript_id)) {
+						throw new IllegalStateException();
+						}
+					transcript2y.put(transcript_id, new CountRows(y,pileup.getRowCount()));
+					}
+				++y;
+				}
+			pileup.clear();
+			
+			/* genes */
+			Collections.sort(genes,(A,B)->Integer.compare(A.getStart(),B.getStart()));
+			pileup.addAll(genes);
+			y=0;
+			for(List<GTFLine> row : pileup.getRows()) {
+				for(GTFLine rec:row) {
+					final String gene_id = rec.getGeneId();
+					if(StringUtils.isBlank(gene_id)) {
+						throw new IllegalStateException();
+						}
+					gene2y.put(gene_id,new CountRows(y,pileup.getRowCount()));
+					}
+				++y;
+				}
+			}
+		
+		for(GTFLine gene: genes) {
+			final String gene_id = gene.getGeneId();
+			writeStartRecord(w, gene, gene2y.get(gene_id), interval);
+
+			final List<GTFLine> transcripts = gene2transcripts.getOrDefault(gene_id,Collections.emptyList());
+			w.writeStartElement("transcripts");
+			w.writeAttribute("count", String.valueOf(transcripts.size()));
+			for(GTFLine transcript: transcripts) {
+				final String transcript_id = transcript.getTranscriptId();
+				final CountRows countRow =  transcript2y.get(transcript_id);
+				writeStartRecord(w, transcript, countRow, interval);
+				
+				final List<GTFLine> components = transcript_components.getOrDefault(transcript_id,Collections.emptyList());
+				for(GTFLine c: components) {
+					write(w,c, countRow, interval);
+					}
+				
+				writeEndRecord(w, transcript);
+				}
+			w.writeEndElement();//transcripts
+			writeEndRecord(w, gene);
+			}
+		
+		}
+	
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -304,24 +382,19 @@ public class Gtf2Xml extends Launcher{
 				filter(S->!StringUtils.isBlank(S)).
 				collect(Collectors.toSet())
 				);
-		final Set<String> hide= Arrays.stream(this.skipRecordStr.split("[ ;,]+")).
-				filter(S->!StringUtils.isBlank(S)).
-				map(S->S.toUpperCase()).
-				collect(Collectors.toSet());
-		this.enable_feature_type = !(hide.contains("FEATURE") || hide.contains("FEATURES"));
-		this.enable_sources = !(hide.contains("SOURCES") || hide.contains("SOURCE"));
-		this.enable_dict = !(hide.contains("CONTIG") || hide.contains("DICT"));
-		this.enable_att_keys = !(hide.contains("ATTIBUTES") || hide.contains("ATTIBUTE"));
 		
-		LineIterator r=null;
 		XMLStreamWriter w=null;
 		PrintWriter fw=null;
 		try {
-			String inputName=oneFileOrNull(args);
-			r = (StringUtil.isBlank(inputName)?
-					IOUtils.openStreamForLineIterator(stdin()):
-					IOUtils.openURIForLineIterator(inputName)
-					);
+			final String inputName=oneFileOrNull(args);
+			final GTFCodec codec = new GTFCodec();
+
+			
+			if(this.intervalStr!=null && inputName==null) {
+				LOG.info("--interval require tabix indexed file.");
+				return -1;
+				}
+			
 			XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			if(this.outputFile==null)
 				{
@@ -331,115 +404,135 @@ public class Gtf2Xml extends Launcher{
 				{
 				w = xof.createXMLStreamWriter((fw=super.openPathOrStdoutAsPrintWriter(outputFile)));
 				}
-			final GTFCodec codec = new GTFCodec();
 			w.writeStartDocument("UTF-8","1.0");
 			w.writeStartElement("gtf");
+			if(!StringUtil.isBlank(inputName)) {
+				w.writeAttribute("filename", inputName);
+				}
 			
-			final GTFCodec.GTFHeader header = codec.readActualHeader(r);
-			for(final String headerLine:header.getLines()) {
-				if(!headerLine.startsWith("#!")) continue;
-				final int ws = headerLine.indexOf(' ');
-				if(ws==-1) continue; //??
-				w.writeAttribute(
-						headerLine.substring(2, ws),
-						headerLine.substring(ws+1).trim());
+			if(intervalStr!=null) {
+				if(inputName==null) {
+					LOG.info("--interval require tabix indexed file.");
+					return -1;
+					}
 				
-				}
-		
-			final Map<String,List<GTFLine>> geneid2lines = new HashMap<>(50_000);
-			
-			while(r.hasNext())
-				{
-				final String line=r.next();
-				final GTFLine gtfline = codec.decode(line);
-				if(gtfline==null) continue;
-				final String gene_id = gtfline.getAttribute("gene_id");
-				if(StringUtil.isBlank(gene_id)) {
-					write(w,gtfline);
-					}
-				else
-					{
-					List<GTFLine> lines = geneid2lines.get(gene_id);
-					if(lines==null) {
-						lines = new ArrayList<>();
-						geneid2lines.put(gene_id,lines);
+				try(TabixReader tabixR = new TabixReader(inputName)) {
+					final SimpleInterval interval = new IntervalParser()
+							.apply(this.intervalStr)
+							.orElseThrow();
+					final List<GTFLine> records = new ArrayList<>();
+					final Set<String> gene_ids = new HashSet<>();
+					// first pass, look for the min/max of genes
+					TabixReader.Iterator iter1 = tabixR.query(interval.getContig(), Math.max(1,interval.getStart()-1), interval.getEnd()+1);
+					final MinMaxInteger minmax = new MinMaxInteger(interval.getStart(), interval.getEnd());
+					for(;;) {
+						final String line = iter1.next();
+						if(line==null) break;
+						final GTFLine rec = codec.decode(line);
+						if(rec==null) continue;
+						if(this.disable_group_by_gene) {
+							write(w,rec, null,interval);
+							}
+						else
+							{
+							if(!rec.isGene() || StringUtils.isBlank(rec.getGeneId())) continue;
+							if(!rec.overlaps(interval)) continue;// the interval was extended...
+							minmax.accept(rec.getStart());
+							minmax.accept(rec.getEnd());
+							gene_ids.add(rec.getGeneId());
+							}
 						}
-					lines.add(gtfline);
+					if(!minmax.isEmpty()) {
+						iter1 = tabixR.query(interval.getContig(), Math.max(1,minmax.getMinAsInt()-1), minmax.getMaxAsInt()+1);
+						for(;;) {
+							final String line = iter1.next();
+							if(line==null) break;
+							final GTFLine rec = codec.decode(line);
+							final String gene_id = rec.getGeneId();
+							if(StringUtils.isBlank(gene_id)) continue;
+							if(!gene_ids.contains(gene_id)) continue;
+							records.add(rec);
+							}
+						w.writeStartElement("contig");
+						w.writeAttribute("name", interval.getContig());
+						w.writeAttribute("start",String.valueOf(interval.getStart()));
+						w.writeAttribute("end",String.valueOf(interval.getEnd()));
+						compile(w, records, interval);
+						w.writeEndElement();//contig
+						}
+					}
+				}
+			else if(this.disable_group_by_gene) {
+				try(BufferedReader br=StringUtil.isBlank(inputName)?
+						IOUtils.openStreamForBufferedReader(stdin()):
+						IOUtils.openURIForBufferedReading(inputName)
+						) {
+					for(;;) {
+						final String line = br.readLine();
+						if(line==null) break;
+						if(line.startsWith("#") || StringUtil.isBlank(line)) continue;
+						final GTFLine rec = line==null?null:codec.decode(line);
+						if(rec==null) continue;
+						write(w,rec, null, null);
+						}
+					}
+				}
+			else
+				{
+				final OrderChecker<GTFLine> orderChecker = new OrderChecker<>();
+				try(BufferedReader br=StringUtil.isBlank(inputName)?
+					IOUtils.openStreamForBufferedReader(stdin()):
+					IOUtils.openURIForBufferedReading(inputName)
+					) {
+					final List<GTFLine> records = new ArrayList<>();
+					String prevContig=null;
+					for(;;) {
+						final String line = br.readLine();
+						if(line==null) break;
+						if(line.startsWith("#") || StringUtil.isBlank(line)) continue;
+						final GTFLine rec = codec.decode(line);
+						if(rec==null) continue;
+						orderChecker.apply(rec);
+						if(prevContig!=null && !prevContig.equals(rec.getContig())) {
+							if(!records.isEmpty()) {
+								if(prevContig!=null) {
+									w.writeEndElement();//contig
+									}
+								w.writeStartElement("contig");
+								w.writeAttribute("name", prevContig);
+								compile(w, records, null);
+								records.clear();
+								}
+							prevContig = rec.getContig();
+							}
+						records.add(rec);
+						}
+					
+					if(!records.isEmpty()) {
+						w.writeStartElement("contig");
+						w.writeAttribute("name", prevContig);
+						compile(w, records, null);
+						w.writeEndElement();//contig
+						}
 					}
 				}
 			
-			for(final String gene_id:geneid2lines.keySet()) {
-				writeGene(w,gene_id,geneid2lines.get(gene_id));
-				}
-			
-			if(this.enable_att_keys) {
-				w.writeStartElement("attributes");
-				for(final String k : this.att_keys)
-					{
-					w.writeStartElement("attribute");
-					w.writeCharacters(k);
-					w.writeEndElement();
-					w.writeCharacters("\n");
-					}
-				w.writeEndElement();
-				w.writeCharacters("\n");
-				}
 			
 			
-			if(this.enable_feature_type) {
-				w.writeStartElement("types");
-				for(String k : this.types)
-					{
-					w.writeStartElement("type");
-					w.writeCharacters(k);
-					w.writeEndElement();
-					w.writeCharacters("\n");
-					}
-				w.writeEndElement();
-				w.writeCharacters("\n");
-				}
-			
-			if(this.enable_sources) {
-				w.writeStartElement("sources");
-				for(final String k : this.sources)
-					{
-					w.writeStartElement("source");
-					w.writeCharacters(k);
-					w.writeEndElement();
-					w.writeCharacters("\n");
-					}
-				w.writeEndElement();
-				w.writeCharacters("\n");
-				}
-
-			
-			if(this.enable_dict) {
-				w.writeStartElement("dict");
-				for(final String k : this.seqdict.keySet())
-					{
-					w.writeEmptyElement("chrom");
-					w.writeAttribute("name",k);
-					w.writeAttribute("length", String.valueOf(this.seqdict.get(k)));
-					w.writeCharacters("\n");
-					}
-				w.writeEndElement();
-				w.writeCharacters("\n");
-				}
-
+		
 			
 			w.writeEndElement();
 			w.writeEndDocument();
 			w.flush();
 			return 0;
 			}
-		catch (Throwable e) {
+		catch (final Throwable e) {
 			LOG.error(e);
 			return -1;
 			}
 		finally
 			{
-			CloserUtil.close(r);
-			CloserUtil.close(fw);
+			if(fw!=null) fw.close();
 			}
 		}
 

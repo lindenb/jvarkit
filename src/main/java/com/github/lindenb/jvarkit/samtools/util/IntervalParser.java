@@ -61,14 +61,14 @@ private boolean enable_extend = false;
 private boolean enable_size_suffix = false;
 private final DistanceParser distanceParser=new DistanceParser();
 private boolean thow_on_error=false;
-private UnaryOperator<String> ctgNameConverter;
+private UnaryOperator<String> _ctgNameConverter;
 public IntervalParser() {
 	this(null);
 	}
 
 public IntervalParser(final SAMSequenceDictionary dict) {
 	this._dict=dict;
-	this.ctgNameConverter=(dict==null?null:ContigNameConverter.fromOneDictionary(dict));
+	this._ctgNameConverter=(dict==null?null:ContigNameConverter.fromOneDictionary(dict));
 	}
 
 
@@ -96,6 +96,15 @@ public IntervalParser raiseExeceptionOnError() {
 	return raiseExeceptionOnError(true);
 	}
 
+/**
+ * Set contigNameConverter
+ * @param converter
+ * @return
+ */
+public IntervalParser contigConverter(UnaryOperator<String> converter) {
+	this._ctgNameConverter = converter;
+	return this;
+	}
 
 public IntervalParser enableSinglePoint() {
 	return enableSinglePoint(true);
@@ -168,7 +177,7 @@ public Optional<SimpleInterval> apply(final String s)
 		if(colon==-1 && this.enableWholeContig)
 			{
 			if(this._dict!=null) {
-				ssr= this._dict.getSequence(this.ctgNameConverter.apply(s.trim()));
+				ssr= this._dict.getSequence(this._ctgNameConverter.apply(s.trim()));
 				if(ssr==null) return returnErrorOrNullInterval(JvarkitException.ContigNotFoundInDictionary.getMessage(s, this._dict));
 				return Optional.of(new SimpleInterval(ssr));
 				}
@@ -189,7 +198,7 @@ public Optional<SimpleInterval> apply(final String s)
 		/** single point mutation */
 		String contig = s.substring(0,colon).trim();
 		if(this._dict!=null) {
-			ssr= this._dict.getSequence(this.ctgNameConverter.apply(contig));
+			ssr= this._dict.getSequence(this._ctgNameConverter.apply(contig));
 			if(ssr==null) return returnErrorOrNullInterval(JvarkitException.ContigNotFoundInDictionary.getMessage(contig, this._dict));
 			contig = ssr.getContig();
 			}
@@ -208,7 +217,7 @@ public Optional<SimpleInterval> apply(final String s)
 		
 		String contig = s.substring(0,colon).trim();
 		if(this._dict!=null) {
-			ssr = this._dict.getSequence(this.ctgNameConverter.apply(contig));
+			ssr = this._dict.getSequence(this._ctgNameConverter.apply(contig));
 			if(ssr==null) return returnErrorOrNullInterval(JvarkitException.ContigNotFoundInDictionary.getMessage(contig, this._dict));
 			contig = ssr.getContig();
 			}

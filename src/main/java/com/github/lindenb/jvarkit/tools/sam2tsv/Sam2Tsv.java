@@ -50,7 +50,7 @@ BEGIN_DOC
 
 
 ### Example
- 
+
 
 
 ```
@@ -135,6 +135,7 @@ Sam2tsv was cited in :
   * Heng, J. J. W. (2024). Development of sequencing methods to illuminate the epitranscriptome. Doctoral thesis, Nanyang Technological University, Singapore. https://hdl.handle.net/10356/182139
   * Liu, C., Liang, H., Wan, A.H. et al. Decoding the m6A epitranscriptomic landscape for biotechnological applications using a direct RNA sequencing approach. Nat Commun 16, 798 (2025). https://doi.org/10.1038/s41467-025-56173-6
   * Ozaki, K., Irioka, T., Noma, S. et al. Isoform analysis of heterozygous putative splicing variants at the allele level using nanopore long-read sequencing. Sci Rep 15, 29001 (2025). https://doi.org/10.1038/s41598-025-14566-z
+  * Dong, H., Gao, Y., Cai, Z. et al. Comprehensive mapping of RNA modification dynamics and crosstalk via deep learning and nanopore direct RNA-sequencing. Nat Commun (2026). https://doi.org/10.1038/s41467-026-68419-y
 
 END_DOC
 */

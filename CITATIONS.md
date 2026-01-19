@@ -1,5 +1,9 @@
 # Citations
 
+## 2026
+
+ * Dong, H., Gao, Y., Cai, Z. et al. Comprehensive mapping of RNA modification dynamics and crosstalk via deep learning and nanopore direct RNA-sequencing. Nat Commun (2026). https://doi.org/10.1038/s41467-026-68419-y **SAM2TSV**
+
 ## 2025
 
  * Heng, J. J. W. (2024). Development of sequencing methods to illuminate the epitranscriptome. Doctoral thesis, Nanyang Technological University, Singapore. https://hdl.handle.net/10356/182139 **Sam2Tsv**

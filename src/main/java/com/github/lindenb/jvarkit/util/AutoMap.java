@@ -77,7 +77,7 @@ public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 		}
 
 	
-	public CONTAINER_OF_V insert(K key, V value) {
+	public CONTAINER_OF_V insert(final K key,final V value) {
 		Objects.requireNonNull(value,"value is null");
 		CONTAINER_OF_V col = this.delegate.get(key);
 		if(col==null) {
@@ -88,6 +88,7 @@ public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 		return col;
 		}
 	
+	/** create a new AutoMap<KEY,VALUE,ArrayList<VALUE>> */
 	public static <K,V> AutoMap<K,V,List<V>> makeList() {
 		return new AutoMap<K,V,List<V>>(
 				()->new HashMap<>(),
@@ -95,6 +96,7 @@ public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 				(A,B)->A.add(B)
 				);
 		}
+	/** create a new AutoMap<KEY,VALUE,HashSet<VALUE>> */
 	public static <K,V> AutoMap<K,V,Set<V>> makeSet() {
 		return new AutoMap<K,V,Set<V>>(
 				()->new HashMap<>(),
