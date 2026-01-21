@@ -167,7 +167,7 @@ import com.github.lindenb.jvarkit.tools.gnomad.VcfGnomadSV;
 import com.github.lindenb.jvarkit.tools.go.GoUtils;
 import com.github.lindenb.jvarkit.tools.groupbygene.GroupByGene;
 import com.github.lindenb.jvarkit.tools.gtex.GtexRsToQTL;
-import com.github.lindenb.jvarkit.tools.gtf.Gtf2Xml;
+import com.github.lindenb.jvarkit.tools.gtf2xml.Gtf2Xml;
 import com.github.lindenb.jvarkit.tools.gtf.GtfLiftOver;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToGff;

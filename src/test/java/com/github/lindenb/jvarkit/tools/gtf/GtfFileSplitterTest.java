@@ -9,8 +9,7 @@ import org.testng.annotations.Test;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.bio.structure.GtfReaderTest;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
+
 
 import htsjdk.samtools.util.IOUtil;
 

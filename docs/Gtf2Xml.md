@@ -16,19 +16,31 @@ Usage: java -jar dist/jvarkit.jar gtf2xml  [options] Files
 
 Usage: gtf2xml [options] Files
   Options:
+    -d, --distance
+      if >=0, add a 'y' attribute that could be used to display the bed 
+      records in a browser, 	this 'y' is the graphical row where the item 
+      should be displayed. 	This distance is the distance between two item 
+      where there is a collision. Memory consuming . A distance specified as a 
+      positive integer.Commas are removed. The following suffixes are 
+      interpreted : b,bp,k,kb,m,mb,g,gb
+      Default: -1
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --interval, --regions, --region, -R
+      only in the following interval CHR:START-END. First Scan for genes in 
+      the interval and extend the interval to get the whole genes. Requires 
+      GTF input is a tabix index file.
+      Default: <empty string>
     -o, --output
       Output file. Optional . Default: stdout
+    --simple
+      Don't print group data by gene/transcript. Print each GTF record on the 
+      fly 
+      Default: false
     --skip-attributes
       Don't print the following attributes. Multiple separated by 
-      commas/spaces/semicolons 
-      Default: <empty string>
-    --skip-record
-      Don't record the following stuff at the end. possible values: 
-      FEATURE,SOURCES,CONTIG,ATTIBUTES Multiple separated by 
       commas/spaces/semicolons 
       Default: <empty string>
     --version
@@ -58,7 +70,11 @@ Usage: gtf2xml [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/Gtf2Xml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf/Gtf2Xml.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf2xml/Gtf2Xml.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/gtf2xml/Gtf2Xml.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gtf2xml/Gtf2XmlTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/gtf2xml/Gtf2XmlTest.java)
 
 
 ## Contribute
@@ -86,7 +102,7 @@ The current reference is:
 ## Example
 
 ```bash
-$ java -jar dist/gtf2xml.jar src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
+$ java -jar dist/jvarkit gtf2xml src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
 <?xml version="1.0" encoding="UTF-8"?>
 <gtf genebuild-last-updated="2013-09" genome-build="GRCh37.p13" genome-build-accession="NCBI:GCA_000001405.14" genome-date="2009-02" genome-version="GRCh37">
   <gene id="ENSG00000100403" chrom="22" start="41697526" end="41756151" strand="+" source="ensembl_havana" type="gene">

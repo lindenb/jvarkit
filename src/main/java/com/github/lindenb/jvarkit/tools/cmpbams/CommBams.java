@@ -16,7 +16,6 @@ import com.github.lindenb.jvarkit.util.samtools.ReadNameSortMethod;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SamReader;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.PeekableIterator;
 /**
 BEGIN_DOC
@@ -229,86 +228,86 @@ public class CommBams extends Launcher {
 				
 				iters[i] = new PeekableIterator<>(samFileReaders[i].iterator());
 				}
-			try(PrintWriter out= super.openFileOrStdoutAsPrintWriter(outputFile)) {
-			
-			for(;;) {
-				for(int i=0;i< 2;++i) {
-					Optional<SAMRecord> optRec = (i==0?rec0:rec1);
-					if(!optRec.isPresent())
-						{
-						while(iters[i].hasNext()) {
-							final SAMRecord rec = iters[i].peek();
-							
-							if(optRec.isPresent() && comparator.compare(optRec.get(),rec)>0)
-								{
-								LOG.error("Something is wrong in sort order of "+args.get(i)+" : got\n\t"
-										+rec+" "+side(rec)+"\nafter\n\t"+ optRec.get()+" "+side(optRec.get())+"\nSee also option (samtools querysort)"
-										);
-								return -1;
-								}
-							// equals
-							else if( optRec.isPresent()&& comparator.compare(optRec.get(),rec)==0)
-								{
-								iters[i].next();//consumme
-								}
-							//it's a new
-							else if(!optRec.isPresent()){
-								optRec = Optional.of(iters[i].next());//consumme
-								if(i==0)
+				try(PrintWriter out= super.openFileOrStdoutAsPrintWriter(outputFile)) {
+				
+				for(;;) {
+					for(int i=0;i< 2;++i) {
+						Optional<SAMRecord> optRec = (i==0?rec0:rec1);
+						if(!optRec.isPresent())
+							{
+							while(iters[i].hasNext()) {
+								final SAMRecord rec = iters[i].peek();
+								
+								if(optRec.isPresent() && comparator.compare(optRec.get(),rec)>0)
 									{
-									rec0=optRec;
+									LOG.error("Something is wrong in sort order of "+args.get(i)+" : got\n\t"
+											+rec+" "+side(rec)+"\nafter\n\t"+ optRec.get()+" "+side(optRec.get())+"\nSee also option (samtools querysort)"
+											);
+									return -1;
 									}
+								// equals
+								else if( optRec.isPresent()&& comparator.compare(optRec.get(),rec)==0)
+									{
+									iters[i].next();//consumme
+									}
+								//it's a new
+								else if(!optRec.isPresent()){
+									optRec = Optional.of(iters[i].next());//consumme
+									if(i==0)
+										{
+										rec0=optRec;
+										}
+									else
+										{
+										rec1=optRec;
+										}
+									}
+								// compare <0
 								else
-									{
-									rec1=optRec;
+									{	
+									break;
 									}
-								}
-							// compare <0
-							else
-								{	
-								break;
 								}
 							}
+					}
+					
+					
+					if(!rec0.isPresent() && !rec1.isPresent()) break;
+		
+							
+					if((!rec0.isPresent() && rec1.isPresent()) ||
+					   (rec0.isPresent() && rec1.isPresent() && comparator.compare(rec0.get(),rec1.get())>0)
+						)
+						{
+						dump(out,null,rec1.get());
+						rec1 =Optional.empty();
 						}
+					else if((rec0.isPresent() && !rec1.isPresent()) ||
+							(rec0.isPresent() && rec1.isPresent() && comparator.compare(rec0.get(), rec1.get())<0))
+						{
+						dump(out,rec0.get(),null);
+						rec0 =Optional.empty();
+						}
+					else
+						{
+						dump(out,rec0.get(),rec1.get());
+						rec0 =Optional.empty();
+						rec1 =Optional.empty();
+						}
+					}
+				out.flush();
 				}
-				
-				
-				if(!rec0.isPresent() && !rec1.isPresent()) break;
-	
-						
-				if((!rec0.isPresent() && rec1.isPresent()) ||
-				   (rec0.isPresent() && rec1.isPresent() && comparator.compare(rec0.get(),rec1.get())>0)
-					)
-					{
-					dump(out,null,rec1.get());
-					rec1 =Optional.empty();
-					}
-				else if((rec0.isPresent() && !rec1.isPresent()) ||
-						(rec0.isPresent() && rec1.isPresent() && comparator.compare(rec0.get(), rec1.get())<0))
-					{
-					dump(out,rec0.get(),null);
-					rec0 =Optional.empty();
-					}
-				else
-					{
-					dump(out,rec0.get(),rec1.get());
-					rec0 =Optional.empty();
-					rec1 =Optional.empty();
-					}
-				}
-			out.flush();
-			}
 			return 0;
 			}
-		catch(Throwable err) {
+		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
 		finally
 			{
 			for(int i=0;i< samFileReaders.length;++i){
-				CloserUtil.close(iters[i]);
-				CloserUtil.close(samFileReaders[i]);
+				try { iters[i].close();} catch(Throwable err2) {}
+				try { samFileReaders[i].close();} catch(Throwable err2) {}
 				}
 			}
 		}

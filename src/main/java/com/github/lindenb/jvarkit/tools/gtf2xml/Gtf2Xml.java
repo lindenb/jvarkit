@@ -390,7 +390,7 @@ public class Gtf2Xml extends Launcher{
 			final GTFCodec codec = new GTFCodec();
 
 			
-			if(this.intervalStr!=null && inputName==null) {
+			if(!StringUtil.isBlank(this.intervalStr) && inputName==null) {
 				LOG.info("--interval require tabix indexed file.");
 				return -1;
 				}
@@ -410,7 +410,7 @@ public class Gtf2Xml extends Launcher{
 				w.writeAttribute("filename", inputName);
 				}
 			
-			if(intervalStr!=null) {
+			if(!StringUtil.isBlank(this.intervalStr)) {
 				if(inputName==null) {
 					LOG.info("--interval require tabix indexed file.");
 					return -1;
@@ -493,11 +493,13 @@ public class Gtf2Xml extends Launcher{
 						final GTFLine rec = codec.decode(line);
 						if(rec==null) continue;
 						orderChecker.apply(rec);
-						if(prevContig!=null && !prevContig.equals(rec.getContig())) {
+						if(prevContig==null || !prevContig.equals(rec.getContig())) {
+							if(prevContig!=null) {
+								w.writeComment("end of contig "+prevContig);
+								w.writeEndElement();//contig
+								}
 							if(!records.isEmpty()) {
-								if(prevContig!=null) {
-									w.writeEndElement();//contig
-									}
+								
 								w.writeStartElement("contig");
 								w.writeAttribute("name", prevContig);
 								compile(w, records, null);
