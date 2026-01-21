@@ -306,7 +306,7 @@ public int doWork(final List<String> args) {
 			}
 		
 		// load bed containing regions to exclude
-		final Predicate<VariantContext> bedPredicate;
+		final Predicate<Locatable> bedPredicate;
 		if(this.includePath!=null) {
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(dict);
 			final IntervalTreeMap<Boolean> map = new IntervalTreeMap<>();
@@ -362,7 +362,7 @@ public int doWork(final List<String> args) {
 				if(!StringUtils.isBlank(this.limitContig)) {
 					if(!ssr.getSequenceName().equals(this.limitContig)) continue;
 					}
-				
+				if(!bedPredicate.test(ssr)) continue;
 				if(isDecoy(ssr.getSequenceName())) continue;
 				LOG.info("contig "+ssr.getSequenceName());
 
