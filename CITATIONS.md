@@ -114,6 +114,10 @@
  *  Lado, S. & al. Innate and Adaptive Immune Genes Associated with MERS-CoV Infection in Dromedaries. Cells 2021, 10, 1291. https://doi.org/10.3390/cells10061291 
  * Anatomy, transcription dynamics and evolution of wheat ribosomal RNA loci deciphered by a multi-omics approach.  https://doi.org/10.1101/2020.08.29.273623
 
+## 2020
+
+ * Lin, B.D., Colas, F., Nijman, I.J. et al. The role of rare compound heterozygous events in autism spectrum disorder. Transl Psychiatry 10, 204 (2020). https://doi.org/10.1038/s41398-020-00866-7
+
 ## 2019
 
  * Robust mapping of polyadenylated and non-polyadenylated RNA 3’-ends at nucleotide resolution by 3́end sequencing 23 May 2019. Roy & al. Methods.  https://doi.org/10.1016/j.ymeth.2019.05.016

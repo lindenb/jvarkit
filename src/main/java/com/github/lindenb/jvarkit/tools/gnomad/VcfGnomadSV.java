@@ -102,7 +102,8 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 	private String filterAFStr = "BAD_AF";
 	@Parameter(names={"--disable-annotations","-A"},description="do not transfer annotations from GNOMAD to VCF. Just a way to filter the VCF using gnomad Frequency data")
 	private boolean disable_annotation_transfer = false;
-
+	@Parameter(names={"--debug" },description="debug",hidden = true)
+	private boolean do_debug=false;
 	
 	@ParametersDelegate
 	private StructuralVariantComparator svComparator = new StructuralVariantComparator();
@@ -116,6 +117,10 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 	}
 	
 	
+	private String toString(final VariantContext ctx) {
+		if(ctx==null) return "null";
+		return ctx.getContig()+":"+ctx.getStart()+"-"+ctx.getEnd()+"/"+ctx.getAttributeAsStringList(VCFConstants.SVTYPE, ".");
+	}
 	
 	@Override
 	protected int doVcfToVcf(
@@ -126,6 +131,12 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 		{
 		try(VCFReader gnomadVcfReader = VCFReaderFactory.makeDefault().open(this.gnomadVcfSvPath,true)) {
 			final VCFHeader gnomadHeader = gnomadVcfReader.getHeader();
+			if(gnomadHeader.getInfoHeaderLine(this.population)==null) {
+				LOG.warn("Cannot find INFO/"+this.population+" in gnomad vcf file "+this.gnomadVcfSvPath);
+				return -1;
+				}
+			
+			
 			final SAMSequenceDictionary gnomadDict= SequenceDictionaryUtils.extractRequired(gnomadHeader);
 			final ContigNameConverter contigNameConverter = ContigNameConverter.fromOneDictionary(gnomadDict);
 			this.svComparator.setContigComparator((A,B)->{
@@ -188,7 +199,9 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 					out.add(ctx);
 					continue;
 					}
-				
+				if(do_debug) {
+					LOG.debug("SCANNING:"+toString(ctx));
+					}
 				
 				VariantContext cgtx=null;
 				boolean found_any_overlap = false;
@@ -207,19 +220,33 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 						
 						if(this.svComparator.test(ctx, ctx2)) {
 							cgtx=ctx2;
+							if(do_debug) {
+								LOG.debug("MATCHER:"+toString(ctx)+" match "+toString(ctx2));
+								}
 							break;
 							}
 						}
 					}
-				double found_af=0;
+				Double found_af= null;
 				if(cgtx!=null && cgtx.hasAttribute(this.population)) {
 					for(final double v:cgtx.getAttributeAsDoubleList(this.population, 0.0)) {
-						found_af = Math.min(v, found_af);
+						found_af = found_af == null?  v : Math.min(v, found_af.doubleValue());
+						}
+					}
+				
+				if(do_debug)
+					{
+					if(cgtx!=null) {
+						LOG.debug(toString(cgtx)+" "+cgtx.getAttribute(this.population));
+						}
+					else
+						{
+						LOG.debug("not found "+toString(cgtx));
 						}
 					}
 				
 				final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-				if(!(this.min_allele_frequency<= found_af && found_af <=this.max_allele_frequency)) {
+				if(found_af!=null && !(this.min_allele_frequency<= found_af && found_af <=this.max_allele_frequency)) {
 					if(StringUtils.isBlank(this.filterAFStr)) {
 						// skip variant
 						continue;
