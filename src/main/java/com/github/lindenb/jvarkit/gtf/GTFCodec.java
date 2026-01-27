@@ -32,9 +32,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -79,15 +81,21 @@ JH568905.1	ensembl	stop_codon	3667491	3667493	.	-	0	gene_id "ENSDNOG00000013511"
 public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 	private static final String GFF_VERSION="##gff-version";
 	private GTFHeaderImpl header=null;
-	
+	private UnaryOperator<String> contigNameConverter=S->S;
 
 	public GTFCodec() {
 		super(GTFLine.class);
 		}
 	
+	/** set the contigName converter and return 'this' */
+	public GTFCodec setContigNameConverter(final UnaryOperator<String> contigNameConverter) {
+		this.contigNameConverter = (contigNameConverter==null?S->S:contigNameConverter);
+		return this;
+		}
+	
 	@Override
 	public GTFLine decode(final String line) {
-		/* non, on s'en fout a vrai dire...
+		/* non, on s'en fou a vrai dire...
 		if(this.header==null) {
 			throw new RuntimeIOException("header was not parsed");
 		}*/
@@ -96,8 +104,14 @@ public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 		}
 	
 	/** decode from array of strings */
-	public GTFLine decode(final String tokens[]) {
+	public GTFLine decode(String tokens[]) {
 		if(tokens==null) return null;
+		final String ctg = this.contigNameConverter.apply(tokens[0]);
+		if(StringUtils.isBlank(ctg)) return null;
+		if(!ctg.equals(tokens[0])) {
+			tokens = Arrays.copyOf(tokens, tokens.length);
+			tokens[0] = ctg;
+			}
 		return new GTFLineImpl(tokens);
 		}
 	
@@ -178,7 +192,7 @@ public class  GTFCodec extends AsciiFeatureCodec<GTFLine> {
 			{
 			this.tokens = tokens;
 			if(tokens.length<8)
-				{	
+				{
 				throw new JvarkitException.TokenErrors("Expected 8 columns",tokens);
 				}
 			this.start = Integer.parseInt(tokens[3]);

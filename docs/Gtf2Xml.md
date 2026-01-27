@@ -28,13 +28,17 @@ Usage: gtf2xml [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --interval, --regions, --region, -R
+    --interval, --regions, --region, -r
       only in the following interval CHR:START-END. First Scan for genes in 
       the interval and extend the interval to get the whole genes. Requires 
       GTF input is a tabix index file.
       Default: <empty string>
     -o, --output
       Output file. Optional . Default: stdout
+    --reference, -R
+      A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
+      indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
+      any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
     --simple
       Don't print group data by gene/transcript. Print each GTF record on the 
       fly 
@@ -101,8 +105,10 @@ The current reference is:
 
 ## Example
 
+(the xml in the example below is old)
+
 ```bash
-$ java -jar dist/jvarkit gtf2xml src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
+$ java -jar dist/jvarkit.jar gtf2xml src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
 <?xml version="1.0" encoding="UTF-8"?>
 <gtf genebuild-last-updated="2013-09" genome-build="GRCh37.p13" genome-build-accession="NCBI:GCA_000001405.14" genome-date="2009-02" genome-version="GRCh37">
   <gene id="ENSG00000100403" chrom="22" start="41697526" end="41756151" strand="+" source="ensembl_havana" type="gene">

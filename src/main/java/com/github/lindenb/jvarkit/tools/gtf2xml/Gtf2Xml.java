@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLOutputFactory;
@@ -45,6 +46,8 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.dict.DictionaryXmlSerializer;
 import com.github.lindenb.jvarkit.dict.OrderChecker;
 import com.github.lindenb.jvarkit.gtf.GTFCodec;
 import com.github.lindenb.jvarkit.gtf.GTFLine;
@@ -60,7 +63,9 @@ import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.tools.misc.FixVCF;
 import com.github.lindenb.jvarkit.util.AutoMap;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.StringUtil;
@@ -71,8 +76,10 @@ BEGIN_DOC
 
 ## Example
 
+(the xml in the example below is old)
+
 ```bash
-$ java -jar dist/jvarkit gtf2xml src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
+$ java -jar dist/jvarkit.jar gtf2xml src/test/resources/Homo_sapiens.GRCh37.87.gtf.gz | xmllint --format - | head -n 100
 <?xml version="1.0" encoding="UTF-8"?>
 <gtf genebuild-last-updated="2013-09" genome-build="GRCh37.p13" genome-build-accession="NCBI:GCA_000001405.14" genome-date="2009-02" genome-version="GRCh37">
   <gene id="ENSG00000100403" chrom="22" start="41697526" end="41756151" strand="+" source="ensembl_havana" type="gene">
@@ -190,10 +197,11 @@ public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.of(FixVCF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-
+	@Parameter(names={"--reference","-R"},description=DICTIONARY_SOURCE)
+	private Path faidxPath = null;
 	@Parameter(names={"--skip-attributes"},description="Don't print the following attributes. Multiple separated by commas/spaces/semicolons")
 	private String skipAttributeStr = "";
-	@Parameter(names={"--interval","--regions","--region","-R"},description="only in the following interval CHR:START-END. First Scan for genes in the interval and extend the interval to get the whole genes. Requires GTF input is a tabix index file.")
+	@Parameter(names={"--interval","--regions","--region","-r"},description="only in the following interval CHR:START-END. First Scan for genes in the interval and extend the interval to get the whole genes. Requires GTF input is a tabix index file.")
 	private String intervalStr = "";
 	@Parameter(names={"-d","--distance"},description="if >=0, add a 'y' attribute that could be used to display the bed records in a browser, " 
 			+ "	this 'y' is the graphical row where the item should be displayed. " 
@@ -221,7 +229,7 @@ public class Gtf2Xml extends Launcher{
 			final CountRows countRows,
 			final Locatable interval) throws XMLStreamException
 		{
-		w.writeStartElement(line.getType());
+		w.writeStartElement(line.getType().toLowerCase());
 		w.writeAttribute("chrom", line.getContig());
 		w.writeAttribute("start",String.valueOf(line.getStart()));
 		w.writeAttribute("end",String.valueOf(line.getEnd()));
@@ -388,14 +396,22 @@ public class Gtf2Xml extends Launcher{
 		try {
 			final String inputName=oneFileOrNull(args);
 			final GTFCodec codec = new GTFCodec();
-
+			final SAMSequenceDictionary dict;
 			
 			if(!StringUtil.isBlank(this.intervalStr) && inputName==null) {
 				LOG.info("--interval require tabix indexed file.");
 				return -1;
 				}
 			
-			XMLOutputFactory xof=XMLOutputFactory.newFactory();
+			if(this.faidxPath!=null) {
+				dict = SequenceDictionaryUtils.extractRequired(this.faidxPath);
+				}
+			else
+				{
+				dict=null;
+				}
+			
+			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			if(this.outputFile==null)
 				{
 				w = xof.createXMLStreamWriter(stdout(), "UTF-8");
@@ -409,6 +425,17 @@ public class Gtf2Xml extends Launcher{
 			if(!StringUtil.isBlank(inputName)) {
 				w.writeAttribute("filename", inputName);
 				}
+			final UnaryOperator<String> contigConverter;
+			if(dict!=null) {
+				new DictionaryXmlSerializer().writeDictionary(w, dict);
+				contigConverter = ContigNameConverter.fromOneDictionary(dict);
+				codec.setContigNameConverter(contigConverter);
+				}
+			else {
+				contigConverter = ContigNameConverter.getIdentity();
+				}
+			
+			
 			
 			if(!StringUtil.isBlank(this.intervalStr)) {
 				if(inputName==null) {
@@ -418,6 +445,7 @@ public class Gtf2Xml extends Launcher{
 				
 				try(TabixReader tabixR = new TabixReader(inputName)) {
 					final SimpleInterval interval = new IntervalParser()
+							.contigConverter(contigConverter)
 							.apply(this.intervalStr)
 							.orElseThrow();
 					final List<GTFLine> records = new ArrayList<>();
@@ -493,21 +521,17 @@ public class Gtf2Xml extends Launcher{
 						final GTFLine rec = codec.decode(line);
 						if(rec==null) continue;
 						orderChecker.apply(rec);
-						if(prevContig==null || !prevContig.equals(rec.getContig())) {
-							if(prevContig!=null) {
-								w.writeComment("end of contig "+prevContig);
-								w.writeEndElement();//contig
-								}
+						if(prevContig!=null && !prevContig.equals(rec.getContig())) {
 							if(!records.isEmpty()) {
-								
 								w.writeStartElement("contig");
 								w.writeAttribute("name", prevContig);
 								compile(w, records, null);
-								records.clear();
+								records.clear();								
+								w.writeEndElement();//contig
 								}
-							prevContig = rec.getContig();
 							}
 						records.add(rec);
+						prevContig = rec.getContig();
 						}
 					
 					if(!records.isEmpty()) {
@@ -518,10 +542,6 @@ public class Gtf2Xml extends Launcher{
 						}
 					}
 				}
-			
-			
-			
-		
 			
 			w.writeEndElement();
 			w.writeEndDocument();
@@ -539,7 +559,7 @@ public class Gtf2Xml extends Launcher{
 		}
 
 	
-	public static void main(String[] args) throws IOException
+	public static void main(final String[] args) throws IOException
 		{
 		new Gtf2Xml().instanceMainWithExit(args);
 		}
