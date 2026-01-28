@@ -178,7 +178,7 @@ public class VCFBed extends OnePassVcfLauncher
 	private Double min_overlap_both_fraction=  null;
 	@Parameter(names={"--bnd"},description="for SVTYPE=BND do not try to extend the interval to the variant and the mate breakend.")
 	private boolean disable_bnd_eval  = false;
-	@Parameter(names={"-M","--mutual-fraction"},description="Mutual comparator " + OverlapComparator.OPT_DESC+". Example:\"" + OverlapComparator.DEFAULT_VALUE+"\".",splitter = NoSplitter.class,converter = OverlapComparator.StringConverter.class)
+	@Parameter(names={"-M","--mutual-fraction"},description="Mutual comparator " + OverlapComparator.OPT_DESC+". Example:\"" + OverlapComparator.DEFAULT_VALUE+"\".",splitter = NoSplitter.class)
 	private String mutual_Compararor_expr =null;
 
 	
@@ -490,7 +490,8 @@ public class VCFBed extends OnePassVcfLauncher
 				this.intervalTreeMap = this.readBedFileAsIntervalTreeMap(this.inputBedFile);
 				this.contigNameConverter = ContigNameConverter.fromIntervalTreeMap(this.intervalTreeMap);
 				}
-			catch(final Exception err) {
+			catch(final Throwable err) {
+				err.printStackTrace();
 				LOG.error(err);
 				return -1;
 				}
