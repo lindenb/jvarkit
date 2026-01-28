@@ -35,7 +35,7 @@ Usage: gtf2xml [options] Files
       Default: <empty string>
     -o, --output
       Output file. Optional . Default: stdout
-    --reference, -R
+    --reference, -R, --dict
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
       any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)

@@ -44,6 +44,9 @@ Usage: bedcluster [options] Files
   * -o, --out
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.
+    --prefix
+      custom User file prefix.
+      Default: <empty string>
     -R, --reference
       For sorting and /or writing interval_list,A SAM Sequence dictionary 
       source: it can be a *.dict file, a fasta file indexed with 'picard 
