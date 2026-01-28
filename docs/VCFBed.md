@@ -47,6 +47,9 @@ Usage: vcfbed [options] Files
     -ignoreFiltered, --ignoreFiltered
       Ignore FILTERed Variants (should be faster)
       Default: false
+    --limit
+      limit number of annotations to that number. -1: unlimited
+      Default: -1
     --fast, --memory
       Load files in memory (faster than tribble/tabix but memory consumming)
       Default: false

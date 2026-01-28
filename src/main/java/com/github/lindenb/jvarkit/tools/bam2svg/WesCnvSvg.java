@@ -529,7 +529,7 @@ public class WesCnvSvg  extends Launcher {
 			w.writeStartElement("g");
 			w.writeAttribute("class", "maing");
 			
-			int y=0;
+			double y=0;
 			w.writeStartElement("g");
 			w.writeComment("interval background");
 			for(final CaptureInterval ci:userIntervals)
@@ -718,7 +718,7 @@ public class WesCnvSvg  extends Launcher {
 
 				
 				w.writeEndElement();//g
-				y+=bi.getPixelHeight();
+				y += bi.getPixelHeight();
 				}
 			
 			w.writeStartElement("g");
