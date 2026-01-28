@@ -429,7 +429,9 @@ public class FindGVCFsBlocks extends Launcher {
 							intervals.remove(0);
 							loc = new SimpleInterval(loc.getContig(),loc.getStart(),loc2.getEnd());
 							}
-						w.add(loc);
+						if(inCapture.test(loc)) {
+							w.add(loc);
+							}
 						}
 					}
 				}
