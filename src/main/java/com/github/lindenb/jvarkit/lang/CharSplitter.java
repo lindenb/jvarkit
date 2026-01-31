@@ -24,12 +24,14 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.lang;
 
+import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -291,4 +293,21 @@ public static final CharSplitter AMP = new CharSplitterImpl('&');
 public static final CharSplitter EQ = new CharSplitterImpl('=');
 public static final CharSplitter HYPHEN = new CharSplitterImpl('-');
 
+
+/**
+ * Extract CharSplitter from filename (.csv, .tsv are supported )  
+ * @param s
+ * @return
+ */
+public static CharSplitter forFilename(final String s) {
+	Objects.requireNonNull(s, "filename cannot be null");
+	if(s.toLowerCase().endsWith(".csv")) return CharSplitter.COMMA;
+	if(s.toLowerCase().endsWith(".tsv")) return CharSplitter.TAB;
+	throw new IllegalArgumentException("Cannot guess separator  from file extension ("+s+") (.csv or .tsv )");
+	}
+
+public static CharSplitter forPath(final Path p) {
+	Objects.requireNonNull(p, "path cannot be null");
+	return forFilename(p.getFileName().toString());
+	}
 }

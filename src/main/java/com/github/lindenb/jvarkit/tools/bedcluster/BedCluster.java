@@ -121,7 +121,7 @@ END_DOC
 		description="Clusters a BED file into a set of BED files.",
 		keywords={"bed","chromosome","contig"},
 		creationDate="20200130",
-		modificationDate="2050129",
+		modificationDate="20260128",
 		biostars= {424828},
 		jvarkit_amalgamion =  true,
 		menu="BED Manipulation"
@@ -153,6 +153,9 @@ public class BedCluster
 	private long sliding_window_shift=-1L;
 	@Parameter(names={"--md5-dir","--sub-dir"},description="prevent the creation of too many files in the same directory. Create some intermediate directories based on filename's md5.")
 	private boolean create_md5_dir_flag=false;
+	@Parameter(names={"--prefix"},description="custom User file prefix.")
+	private String user_prefix ="";
+
 	
 	private int id_generator =0;
 	
@@ -316,7 +319,7 @@ public class BedCluster
 		for(final Cluster cluster : clusters) {
 			Collections.sort(cluster.intervals,sorter);
 			final String prefix;
-			if(this.group_by_contig || this.sliding_window_size>0) {
+			if(cluster.stream().map(B->B.getContig()).collect(Collectors.toSet()).size()==1) {
 				final int chromStart = cluster.stream().mapToInt(R->R.getStart()-1).min().orElse(0);
 				final int chromEnd = cluster.stream().mapToInt(R->R.getEnd()).max().orElse(0);
 				manifest.print(cluster.get(0).getContig());
@@ -324,11 +327,11 @@ public class BedCluster
 				manifest.print(chromStart);
 				manifest.print("\t");
 				manifest.print(chromEnd);
-				prefix= cluster.get(0).getContig()+"_"+(chromStart+1)+"_"+chromEnd;
+				prefix= this.user_prefix + cluster.get(0).getContig()+"_"+(chromStart+1)+"_"+chromEnd;
 				}
 			else
 				{
-				prefix="cluster";
+				prefix=this.user_prefix + "cluster";
 				}
 			
 			boolean save_as_interval_list;
@@ -432,6 +435,11 @@ public class BedCluster
 			/** muse be set for this method */
 			this.group_by_contig=true;
 			this.consecutive_flags=true;
+			}
+		
+		if(user_prefix.contains(File.separator) || user_prefix.contains(File.pathSeparator)) {
+			LOG.error("bad user prefix : "+this.user_prefix);
+			return -1;
 			}
 		
 		

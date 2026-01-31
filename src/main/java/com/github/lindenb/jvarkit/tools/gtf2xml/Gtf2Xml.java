@@ -197,7 +197,7 @@ public class Gtf2Xml extends Launcher{
 	private static final Logger LOG = Logger.of(FixVCF.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
-	@Parameter(names={"--reference","-R"},description=DICTIONARY_SOURCE)
+	@Parameter(names={"--reference","-R","--dict"},description=DICTIONARY_SOURCE)
 	private Path faidxPath = null;
 	@Parameter(names={"--skip-attributes"},description="Don't print the following attributes. Multiple separated by commas/spaces/semicolons")
 	private String skipAttributeStr = "";

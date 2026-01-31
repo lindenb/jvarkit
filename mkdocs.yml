@@ -50,6 +50,7 @@ nav:
         - "bednonoverlappingset" : BedNonOverlappingSet.md
         - "bedremovebed" : BedRemoveBed.md
         - "bedrenamechr" : BedRenameChromosomes.md
+        - "bedstats" : BedStats.md
         - "bgen2vcf" : BGenToVcf.md
         - "bgenview" : BGenView.md
         - "bigwigmerge" : BigwigMerge.md

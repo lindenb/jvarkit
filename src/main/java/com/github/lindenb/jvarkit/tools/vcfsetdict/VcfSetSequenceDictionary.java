@@ -37,7 +37,6 @@ import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.variant.utils.SAMSequenceDictionaryExtractor;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -66,7 +65,7 @@ END_DOC
 	description="Set the `##contig` lines in a VCF header on the fly",
 	keywords={"vcf","dict","fai"},
 	creationDate="20251014",
-	modificationDate="20210201",
+	modificationDate="20260129",
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)

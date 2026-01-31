@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
@@ -226,7 +227,7 @@ END_DOC
 	description="Find common blocks of calleable regions from a set of gvcfs",
 	keywords={"gvcf","gatk","vcf"},
 	creationDate="20210806",
-	modificationDate="20220401",
+	modificationDate="20260129",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 	)
@@ -246,6 +247,8 @@ public class FindGVCFsBlocks extends Launcher {
 	private boolean _deprecated_lenient_processing = false;
 	@Parameter(names={"--bed"},description="Restrict output blocks to those overlapping this bed")
 	private Path bedPath=null;
+	@Parameter(names={"--debug"},description="Debug",hidden=true)
+	private boolean debug_flag = false;
 
 
 	private static final Logger LOG = Logger.of(FindGVCFsBlocks.class);
@@ -281,12 +284,14 @@ public class FindGVCFsBlocks extends Launcher {
 			w.flush();
 			w.close();
 			}
-		
 		}
 	
 	
 	
 	private ContigBlocks scanVcfFile(final ContigBlocks prevBloc ,final SAMSequenceDictionary mainDict,final SAMSequenceRecord ssr, final Path gvcfFile) throws IOException {
+			if(debug_flag) {
+				LOG.debug("scanVcfFile "+gvcfFile);
+				}
 			final ContigBlocks blocks = new ContigBlocks();
 			if(prevBloc!=null) {
 				blocks.minPos = prevBloc.minPos;
@@ -316,14 +321,44 @@ public class FindGVCFsBlocks extends Launcher {
 						if(!ctx.hasAttribute(VCFConstants.END_KEY)) continue;
 						final int end_pos = ctx.getAttributeAsInt(VCFConstants.END_KEY, -1);
 						if(prevBloc==null || prevBloc.end_positions.contains(end_pos)) {
+							
 							blocks.end_positions.add(end_pos);
+							if(debug_flag) {
+								LOG.debug("scanVcfFile "+gvcfFile+" POS: "+end_pos+" N="+blocks.end_positions.size());
+								}
 							}
 						}
 					}
 				}
+			if(debug_flag) {
+				LOG.debug("scanVcfFile "+gvcfFile+" interval: "+ssr.getContig()+":"+blocks.minPos+"-"+blocks.maxPos+" N="+blocks.end_positions.size());
+				}
 			return blocks;
 			}
-		
+	
+	private List<Locatable> mergeBlocks(final List<Locatable> intervals0) {
+		final List<Locatable> mergedList = new ArrayList<>();
+		// make a copy
+		final List<Locatable> intervals = new ArrayList<>(intervals0);
+		Collections.sort(intervals,(A,B)->Integer.compare(A.getStart(), B.getStart()));
+
+		while(!intervals.isEmpty()) {
+			Locatable loc = intervals.remove(0);
+			while(this.min_block_size>0 && !intervals.isEmpty() ) {
+				final Locatable loc2 = intervals.get(0);
+				if(!loc2.withinDistanceOf(loc, merge_blocks_distance)) break;
+				if(CoordMath.getLength(loc.getStart(), loc2.getEnd()) > this.min_block_size) break;
+				//consumme loc2
+				intervals.remove(0);
+				if(debug_flag) {
+					LOG.debug("merging interval "+loc+" and:"+loc2);
+					}
+				loc = new SimpleInterval(loc.getContig(),loc.getStart(),loc2.getEnd());
+				}
+			mergedList.add(loc);
+			}
+		return mergedList;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -344,15 +379,15 @@ public class FindGVCFsBlocks extends Launcher {
 				return -1;
 				}
 			
-			
+			final IntervalTreeMap<Boolean> intervalTreeMap;
 			final Predicate<Locatable> inCapture;
 			if (this.bedPath!=null) {
-				final IntervalTreeMap<Boolean> intervalTreeMap;
 				try(BedLineReader blr = new BedLineReader(this.bedPath)) {
 					intervalTreeMap = blr.toIntervalTreeMap(BED->Boolean.TRUE);
 					}
 				inCapture = (L)->intervalTreeMap.containsOverlapping(L);
 			} else {
+				intervalTreeMap = null;
 				inCapture = (L)->true;
 			}
 			
@@ -385,6 +420,9 @@ public class FindGVCFsBlocks extends Launcher {
 					/* nothing was seen */
 					if(mainBlock.minPos==null) continue;
 					if(mainBlock.end_positions.isEmpty()) {
+						if(debug_flag) {
+							LOG.debug("not END position for "+ssr.getContig());
+							}
 						final Locatable loc = new SimpleInterval(ssr.getContig(),mainBlock.minPos,mainBlock.maxPos);
 						if(inCapture.test(loc)) {
 							w.add(loc);
@@ -397,6 +435,9 @@ public class FindGVCFsBlocks extends Launcher {
 					if(mainBlock.minPos< pos1 ) {
 						final Locatable loc = new SimpleInterval(ssr.getContig(),mainBlock.minPos,pos1-1);
 						if(inCapture.test(loc)) {
+							if(debug_flag) {
+								LOG.debug("adding minPOs-pos "+loc);
+								}
 							intervals.add(loc);
 							}
 						}
@@ -405,6 +446,9 @@ public class FindGVCFsBlocks extends Launcher {
 						if(prev!=null) {
 							final Locatable loc = new SimpleInterval(ssr.getContig(),prev+1,p);
 							if(inCapture.test(loc)) {
+								if(debug_flag) {
+									LOG.debug("adding interval "+loc+" length:"+loc.getLengthOnReference());
+									}
 								intervals.add(loc);
 								}
 							}
@@ -415,20 +459,29 @@ public class FindGVCFsBlocks extends Launcher {
 					if(mainBlock.maxPos> pos2 ) {
 						final Locatable loc = new SimpleInterval(ssr.getContig(),pos2+1,mainBlock.maxPos);
 						if(inCapture.test(loc)) {
+							if(debug_flag) {
+								LOG.debug("adding maxPOs-pos "+loc);
+								}
 							intervals.add(loc);
 							}
 						}
-					Collections.sort(intervals,(A,B)->Integer.compare(A.getStart(), B.getStart()));
-					while(!intervals.isEmpty()) {
-						Locatable loc = intervals.remove(0);
-						while(this.min_block_size>0 && !intervals.isEmpty() ) {
-							final Locatable loc2 = intervals.get(0);
-							if(!loc2.withinDistanceOf(loc, merge_blocks_distance)) break;
-							if(CoordMath.getLength(loc.getStart(), loc2.getEnd()) > this.min_block_size) break;
-							//consumme loc2
-							intervals.remove(0);
-							loc = new SimpleInterval(loc.getContig(),loc.getStart(),loc2.getEnd());
+					final List<Locatable> merged_blocks;
+					if(intervalTreeMap!=null) {
+						merged_blocks = new ArrayList<>();
+						for(Locatable capture: intervalTreeMap.keySet()) {
+							final List<Locatable> intervals_in_capture = intervals.stream().
+									filter(R->capture.overlaps(R)).
+									collect(Collectors.toList());
+							merged_blocks.addAll( mergeBlocks(intervals_in_capture) ) ;
 							}
+						}
+					else
+						{
+						merged_blocks = mergeBlocks(intervals);
+						}
+					Collections.sort(merged_blocks,(A,B)->Integer.compare(A.getStart(), B.getStart()));
+					
+					for(Locatable loc: merged_blocks) {
 						w.add(loc);
 						}
 					}

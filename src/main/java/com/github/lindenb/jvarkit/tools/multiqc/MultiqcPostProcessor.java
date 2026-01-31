@@ -94,7 +94,7 @@ END_DOC
 description="Enhances multiqc output by reading the data folder and producing new plots (eg. boxplot per population.",
 keywords={"multiqc"},
 creationDate="20240708",
-modificationDate="20240730",
+modificationDate="20260129",
 jvarkit_amalgamion = true,
 menu="Utilities"
 )
@@ -113,6 +113,8 @@ public class MultiqcPostProcessor extends Launcher {
 	private String main_section_title = "";
 	@Parameter(names={"--description"},description="main section description")
 	private String main_section_description = "";
+	@Parameter(names={"--debug"},description="debug",hidden=true)
+	private boolean debug_flag = true;
 
 
 	private final SamplePopulation sampleCollection = new SamplePopulation();
@@ -120,16 +122,16 @@ public class MultiqcPostProcessor extends Launcher {
 	private static class SampleValue {
 		final String sample;
 		final double value;
-		SampleValue(final String sample,double value) {
+		SampleValue(final String sample,final double value) {
 			this.sample = sample;
 			this.value = value;
+			}
 		}
-	}
 	
 	private static class FileContent {
 		FileHeader fileHeader;
 		List<FileHeader.RowMap> rows;
-	}
+		}
 	
 	private abstract class Handler {
 		final Map<String,String> properties=new HashMap<>();
@@ -137,16 +139,29 @@ public class MultiqcPostProcessor extends Launcher {
 			this.properties.putAll(prop);
 			}
 		
+		public String getName() {
+			return getClass().getSimpleName();
+			}
+		
 		public boolean isHandlerForFile(String fname) {
+			if(debug_flag) {
+				LOG.debug("testing handler "+getName()+" for "+fname+" properties: "+this.properties);
+				}
 			final String[] s=  CharSplitter.COMMA.split(this.properties.getOrDefault("filename", ""));
 			return Arrays.stream(s).
 					map(S->{
 						if(S.startsWith("glob:")) {
+							if(debug_flag) {
+								LOG.debug("tfilename looks like a glob: "+fname);
+								}
+							
 							final PathMatcher pm = FileSystems.getDefault().getPathMatcher(S);
 							return new Predicate<String>() {
 								public boolean test(final String s) {
 									boolean b= pm.matches(Paths.get(s).getFileName());
-									LOG.debug("glob matcher for "+s+"/"+S+" is "+b);
+									if(debug_flag) {
+										LOG.debug(getName()+": glob matcher for "+s+"/"+S+" is status="+b);
+										}
 									return b;
 									}
 								};
@@ -156,7 +171,11 @@ public class MultiqcPostProcessor extends Launcher {
 							final String x1=S;
 							return new Predicate<String>() {
 								public boolean test(final String s) {
-									return x1.equals(s);
+									boolean b= x1.equals(s);
+									if(debug_flag) {
+										LOG.debug(getName()+": test matcher for for "+s+"/"+S+" is status="+b);
+										}
+									return b;
 									}
 								};
 							}
@@ -298,6 +317,11 @@ public class MultiqcPostProcessor extends Launcher {
 			}
 		
 		public abstract void apply(final Set<Path> pathSet);
+		
+		@Override
+		public String toString() {
+			return getName()+ " "+this.properties;
+			}
 		};
 	
 	private abstract class AbstractHandler extends Handler {
@@ -769,7 +793,7 @@ public class MultiqcPostProcessor extends Launcher {
 				}
 			
 			if(this.sampleCollection.isEmpty()) {
-				LOG.error("no sample/collection defined");
+				LOG.error("no sample/collection defined or no dragen_ploidy.txt was found");
 				return -1;
 				}
 			
@@ -778,6 +802,9 @@ public class MultiqcPostProcessor extends Launcher {
 					filter(PATH->handler.isHandlerForFile(PATH.getFileName().toString())).
 					collect(Collectors.toSet());
 				if(pathSet.isEmpty()) {
+					if(this.debug_flag) {
+						LOG.debug("NO file was found for "+handler);
+						}
 					continue;
 					}
 				LOG.info("running "+pathSet);
