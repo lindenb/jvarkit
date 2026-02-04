@@ -30,9 +30,6 @@ Usage: bedstats [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --mqc_id
-      mqc id
-      Default: bedstats_
     -o, --out
       Output file. Optional . Default: stdout
     --version

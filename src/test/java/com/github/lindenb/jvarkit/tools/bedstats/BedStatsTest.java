@@ -10,6 +10,8 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
+import htsjdk.samtools.util.IOUtil;
+
 public class BedStatsTest {
 	
 	private Path generateBed(TestSupport support) throws IOException {
@@ -34,13 +36,14 @@ public class BedStatsTest {
 		TestSupport support=new TestSupport();
 		try {
 			Path bed = generateBed(support);
-			Path out = support.createTmpPath(".txt");
+			Path out = support.createTmpDirectory();
 			
 			Assert.assertEquals(
 				new BedStats().instanceMain(new String[] {
 						"-o",out.toString(),
 						bed.toString()
 						}),0);
+			IOUtil.deleteDirectoryTree(out.toFile());
 		} finally {
 			support.removeTmpFiles();
 		}
@@ -51,7 +54,7 @@ public class BedStatsTest {
 		try {
 			Path bed1 = generateBed(support);
 			Path bed2 = generateBed(support);
-			Path out = support.createTmpPath(".txt");
+			Path out =  support.createTmpDirectory();
 			
 			Assert.assertEquals(
 				new BedStats().instanceMain(new String[] {
@@ -59,6 +62,7 @@ public class BedStatsTest {
 						bed1.toString(),
 						bed2.toString()
 						}),0);
+			IOUtil.deleteDirectoryTree(out.toFile());
 		} finally {
 			support.removeTmpFiles();
 		}
@@ -71,7 +75,7 @@ public class BedStatsTest {
 			Path bed1 = generateBed(support);
 			Path bed2 = generateBed(support);
 			Path bed3 = generateBed(support);
-			Path out = support.createTmpPath(".txt");
+			Path out =  support.createTmpDirectory();
 			
 			Assert.assertEquals(
 				new BedStats().instanceMain(new String[] {
@@ -80,6 +84,7 @@ public class BedStatsTest {
 						bed2.toString(),
 						bed3.toString(),
 						}),0);
+			IOUtil.deleteDirectoryTree(out.toFile());
 		} finally {
 			support.removeTmpFiles();
 		}

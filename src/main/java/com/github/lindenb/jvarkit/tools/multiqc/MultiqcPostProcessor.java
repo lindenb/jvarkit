@@ -775,7 +775,7 @@ public class MultiqcPostProcessor extends Launcher {
 				this.sampleCollection.load(this.sample2collectionPath);
 				}
 			else {
-				final Path dragenPath = filesForInput.stream().filter(F->F.endsWith("dragen_ploidy.txt") || F.endsWith("dragen_ploidy_table.txt")).findFirst().orElse(null);
+				final Path dragenPath = filesForInput.stream().filter(F->F.getFileName().toString().endsWith("dragen_ploidy.txt") || F.getFileName().toString().endsWith("dragen_ploidy_table.txt")).findFirst().orElse(null);
 				if(dragenPath!=null) {
 					final FileContent fc=readFileContent(dragenPath);
 					final String dragenPloidy =fc.fileHeader.containsKey("Ploidy estimation")?"Ploidy estimation":"Sex";
@@ -790,6 +790,7 @@ public class MultiqcPostProcessor extends Launcher {
 							}
 						}
 					}
+			
 				}
 			
 			if(this.sampleCollection.isEmpty()) {
@@ -811,7 +812,7 @@ public class MultiqcPostProcessor extends Launcher {
 				handler.apply(pathSet);
 				}
 			return 0;
-		} catch (Throwable err) {
+		} catch (final Throwable err) {
 			LOG.error(err);
 			return -1;
 			}
