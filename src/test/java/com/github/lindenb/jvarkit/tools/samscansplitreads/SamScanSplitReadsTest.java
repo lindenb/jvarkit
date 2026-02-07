@@ -1,10 +1,10 @@
-package com.github.lindenb.jvarkit.tools.structvar;
+package com.github.lindenb.jvarkit.tools.samscansplitreads;
 import java.nio.file.Path;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
+import com.github.lindenb.jvarkit.tools.samscansplitreads.SamScanSplitReads;
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 

@@ -47,6 +47,10 @@ Usage: gtf2xml [options] Files
       Don't print the following attributes. Multiple separated by 
       commas/spaces/semicolons 
       Default: <empty string>
+    --trim_version_id
+      in the GTF fields *_id remove everything after any dot '.' (e.g: 
+      ENST00000001.1 -> ENST00000001)
+      Default: false
     --version
       print version and exit
 

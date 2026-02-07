@@ -24,21 +24,29 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.rnaseq;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.gtf.GTFLine;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.iterator.EqualRangeIterator;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
@@ -106,6 +114,9 @@ public class FindNewSpliceSites extends Launcher
 	private int max_distance=0;
 	@Parameter(names= {"-R","--reference"},description="For reading cram. "+ INDEXED_FASTA_REFERENCE_DESCRIPTION)
 	private Path faidx;
+	@Parameter(names= {"--debug"},description="debug",hidden = true)
+	private boolean do_debug=false;
+
 	@ParametersDelegate
 	private WritingBamArgs writingBamArgs = new WritingBamArgs();
 	@ParametersDelegate
@@ -135,11 +146,11 @@ public class FindNewSpliceSites extends Launcher
 		public int getEnd() {
 			return end;
 			}
-		public int compare1(Junction other) {
+		public int compare1(final Junction other) {
 			return junctionComparator.compare(this, other);
 			}
-		public int compare2(Junction other) {
-			int i= compare1(other);
+		public int compare2(final Junction other) {
+			final int i= compare1(other);
 			if(i!=0) return i;
 			return Long.compare(this.id,other.id);
 			}
@@ -358,19 +369,67 @@ public class FindNewSpliceSites extends Launcher
 				header0 =  sfr.getFileHeader();
 				
 				
-				try(GtfReader gftReader=new GtfReader(this.gtfPath))
+				try(BufferedReader br = IOUtils.openPathForBufferedReading(this.gtfPath))
 					{
-					final SAMSequenceDictionary dict = header0.getSequenceDictionary();
-					if(dict!=null) gftReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
-					gftReader.getAllGenes().stream().
-						flatMap(G->G.getTranscripts().stream()).
-						filter(T->T.getExonCount()>1).
-						flatMap(T->T.getIntrons().stream()).
-						map(T->T.toInterval()).
-						forEach(T->
-						{
-						this.intronMap.put(T,T);
-						});
+					final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header0);
+					final Comparator<Locatable> orderer = new ContigDictComparator(dict).createLocatableComparator();
+					final GTFCodec codec = new GTFCodec();
+					codec.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+					final Map<String,List<Interval>> tx2exons = new HashMap<>(50_000);
+					for(;;) {
+						final String line = br.readLine();
+						if(line==null) break;
+						final GTFLine rec = codec.decode(line);
+						if(rec==null) continue;
+						if(!rec.isExon()) continue;
+						if(!rec.hasAttribute("transcript_id")) {
+							LOG.warn("no transcript_id in "+line);
+							continue;
+							}
+						final String tr = rec.getAttribute("transcript_id");
+						List<Interval> L = tx2exons.get(tr);
+						if(L==null) {
+							L=new ArrayList<>();
+							tx2exons.put(tr, L);
+							}
+						L.add(new Interval(rec.getContig(),rec.getStart(),rec.getEnd(),rec.isNegativeStrand(),tr));
+						}
+					for(final String transcript_id: tx2exons.keySet() ) {
+						final List<Interval> exons = tx2exons.get(transcript_id);
+						if(exons.size()<2) continue;//no intron
+						Collections.sort(exons,orderer);
+						for(int i=0;i+1< exons.size();i++) {
+							if(!exons.get(i).contigsMatch(exons.get(i+1))) {
+								LOG.warn("multiple contigs in "+exons);
+								continue;
+								}
+							if(exons.get(i).overlaps(exons.get(i+1))) {
+								LOG.warn("overlapping exons: "+exons.get(i)+" and "+exons.get(i+1));
+								continue;
+								}
+							if(!exons.get(i).getStrand().equals(exons.get(i+1).getStrand())) {
+								LOG.warn("multiple strand exons: "+exons.get(i)+" and "+exons.get(i+1));
+								continue;
+								}
+							
+							final Interval intron = new Interval(
+									exons.get(i).getContig(),
+									exons.get(i  ).getEnd()+1,
+									exons.get(i+1).getStart()-1,
+									exons.get(0).isNegativeStrand(),
+									exons.get(0).getName()+".Intron"+(
+											exons.get(0).isPositiveStrand()?
+											i+1:
+											exons.size()-(i+1))
+									);
+							this.intronMap.put(intron,intron);
+							}
+						}
+					if(do_debug) {
+						for(Interval intron:this.intronMap.keySet()) {
+							LOG.debug("found intron :"+intron);
+							}
+						}
 					}
 				
 				final SAMFileHeader header1= header0.clone();

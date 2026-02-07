@@ -7,11 +7,17 @@ use the 'N' operator in the cigar string to find unknown splice sites
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar findnewsplicesites  [options] Files
+
 Usage: findnewsplicesites [options] Files
   Options:
     --bamcompression
-      Compression Level.
+      Compression Level. 0: no compression. 9: max compression;
       Default: 5
     -B, --bed
       Optional BED output
@@ -29,11 +35,12 @@ Usage: findnewsplicesites [options] Files
       reduces the number of file  handles needed to sort a file, and increases 
       the amount of RAM needed
       Default: 50000
-    -out, --out
+    -o, -out, --out
       Output file. Optional . Default: stdout
     -R, --reference
       For reading cram. Indexed fasta Reference file. This file must be 
-      indexed with samtools faidx and with picard CreateSequenceDictionary
+      indexed with samtools faidx and with picard/gatk 
+      CreateSequenceDictionary or samtools dict
     --samoutputformat
       Sam output format.
       Default: SAM
@@ -59,22 +66,10 @@ Usage: findnewsplicesites [options] Files
  * gtf
 
 
-## Compilation
 
-### Requirements / Dependencies
+## Creation Date
 
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew findnewsplicesites
-```
-
-The java jar file will be installed in the `dist` directory.
+20140402
 
 ## Source code 
 
@@ -106,8 +101,9 @@ The current reference is:
 ## Example
 
 ```bash
-$  java -jar dist/findnewsplicesites.jar \
-     --gtf http://hgdownload.cse.ucsc.edu/goldenPath/hg19/database/knownGene.gtf.gz \
-      hg19.bam > out.sam
+$  java -jar dist/jvarkit.git findnewsplicesites  \
+     --gtf /pah/to/file.gtf.gz \
+      my.bam > out.sam
 ```
+
 

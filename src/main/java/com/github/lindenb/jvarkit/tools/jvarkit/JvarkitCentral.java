@@ -256,6 +256,7 @@ import com.github.lindenb.jvarkit.tools.retrocopy.GtfRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.KnownRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.ScanRetroCopy;
 import com.github.lindenb.jvarkit.tools.retrocopy.StarRetroCopy;
+import com.github.lindenb.jvarkit.tools.rnaseq.FindNewSpliceSites;
 import com.github.lindenb.jvarkit.tools.rnaseqpolya.RNASeqPolyA;
 import com.github.lindenb.jvarkit.tools.sam2tsv.CnvTView;
 import com.github.lindenb.jvarkit.tools.sam2tsv.Sam2Tsv;
@@ -781,6 +782,7 @@ public class JvarkitCentral {
 		command(FindGVCFsBlocks.class);
 		command(FindAVariation.class);
 		command(FindAllCoverageAtPosition.class);
+		command(FindNewSpliceSites.class);
 		command(FindHtsFileDictionary.class);
 		command(GatkHaplotypeCaller.class);
 		command(GtfToBed.class);

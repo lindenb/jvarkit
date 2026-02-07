@@ -25,13 +25,14 @@ Usage: bedstats [options] Files
       between 0.0 and 1.0. If the value ends with '%' it is interpretted as a 
       percentage eg. '1%' => '0.01'. A slash '/' is interpretted as a ratio. 
       e.g: '1/100' => '0.01'.
-      Default: 1.0E-7
+      Default: 1.0E-9
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -o, --out
-      Output file. Optional . Default: stdout
+  * -o, --out
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
     --version
       print version and exit
 

@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.structvar;
+package com.github.lindenb.jvarkit.tools.samscansplitreads;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -182,8 +182,9 @@ END_DOC
 */
 @Program(name="samscansplitreads",
 	description="scan split reads",
-	keywords={"sam","sv","splitreads","clip"}
-		)
+	keywords={"sam","sv","split","splice"},
+	modificationDate = "20260206"
+	)
 	public class SamScanSplitReads extends MultiBamLauncher {
 	private static final Logger LOG = Logger.of(SamScanSplitReads.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)

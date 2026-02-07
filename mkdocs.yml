@@ -137,6 +137,7 @@ nav:
         - "findavariation" : FindAVariation.md
         - "findgvcfsblocks" : FindGVCFsBlocks.md
         - "findhtsfiledict" : FindHtsFileDictionary.md
+        - "findnewsplicesites" : FindNewSpliceSites.md
         - "fixvcfmissinggenotypes" : FixVcfMissingGenotypes.md
         - "gatkhc" : GatkHaplotypeCaller.md
         - "gff2fasta" : Gff3ToFasta.md

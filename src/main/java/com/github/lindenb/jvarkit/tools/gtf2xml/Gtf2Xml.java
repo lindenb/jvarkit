@@ -211,6 +211,8 @@ public class Gtf2Xml extends Launcher{
 	private int distance=-1;
 	@Parameter(names={"--simple"},description="Don't print group data by gene/transcript. Print each GTF record on the fly")
 	private boolean disable_group_by_gene = false;
+	@Parameter(names={"--trim_version_id"},description="in the GTF fields *_id remove everything after any dot '.' (e.g: ENST00000001.1 -> ENST00000001)")
+	private boolean trim_version_id = false;
 
 	
 	private final Set<String> skip_attributes_set = new HashSet<>();
@@ -268,11 +270,18 @@ public class Gtf2Xml extends Launcher{
 			if(this.skip_attributes_set.contains(key)) continue;
 			w.writeStartElement("attribute");
 			w.writeAttribute("key", key);
-			w.writeCharacters(atts.get(key));
+			w.writeCharacters(trim_version(key,atts.get(key)));
 			w.writeEndElement();
 			}
 		w.writeEndElement();//attributes
 		}
+	
+	private String trim_version(final String key,final String value) {
+		if(!this.trim_version_id) return value;
+		if(!key.endsWith("_id")) return value;
+		final int dot = value.lastIndexOf('.');
+		return dot>0 ? value.substring(0, dot-1) : value;
+	} 
 	
 	private void writeEndRecord(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException
 		{

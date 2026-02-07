@@ -20,7 +20,7 @@ import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 
 public class IOUtilsTest {
-	private static final String STABLE_URL="https://mastodon.social//api/v1/timelines/public";
+	private static final String STABLE_URL = "https://raw.githubusercontent.com/stefangabos/world_countries/refs/heads/master/data/countries/fr/countries.csv";
 	private final TestSupport support = new TestSupport();
 	
 	private void write(OutputStream os) throws IOException {
