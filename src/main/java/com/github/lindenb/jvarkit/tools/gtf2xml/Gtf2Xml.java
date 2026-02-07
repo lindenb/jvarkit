@@ -280,7 +280,7 @@ public class Gtf2Xml extends Launcher{
 		if(!this.trim_version_id) return value;
 		if(!key.endsWith("_id")) return value;
 		final int dot = value.lastIndexOf('.');
-		return dot>0 ? value.substring(0, dot-1) : value;
+		return dot>0 ? value.substring(0, dot) : value;
 	} 
 	
 	private void writeEndRecord(final XMLStreamWriter w,final GTFLine line) throws XMLStreamException

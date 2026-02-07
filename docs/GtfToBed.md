@@ -32,6 +32,10 @@ Usage: gtf2bed [options] Files
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+    --remove-version-id
+      for each attribute ending with _id, remove the string after '.' . e.g 
+      ENST0000001.23 -> ENST0000001
+      Default: false
     --version
       print version and exit
 

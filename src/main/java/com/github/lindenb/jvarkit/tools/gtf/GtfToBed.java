@@ -114,6 +114,9 @@ public class GtfToBed
 	@Parameter(names={"--grep"},description= "Check some identifiers are found in a column. syntax: <COLUMN>:<FILE_CONTAINING_THE_IDENTIFIERS>")
 	private List<String> grepStr = new ArrayList<>();
 
+	@Parameter(names={"--remove-version-id"},description= "for each attribute ending with _id, remove the string after '.' . e.g ENST0000001.23 -> ENST0000001 ")
+	private boolean remove_version_id = false;
+
 
 	private static class Grep {
 		final String column;
@@ -162,6 +165,14 @@ public class GtfToBed
 			}
 		}
 
+	private String removeVersionId(final String key,final String value) {
+		if(!this.remove_version_id) return value;
+		if(!key.endsWith("_id")) return value;
+		final int dot = value.lastIndexOf('.');
+		if(dot<1) return value;
+		return value.substring(0, dot);
+		}
+	
 	private Map<String,String> attributes(final String s) {
 		final Map<String,String> map= new HashMap<>();
 		if(s.equals(".")) return map;
@@ -239,7 +250,8 @@ public class GtfToBed
 				if(this.gtype.equals(Type.gtf) &&  s.charAt(i)!='\"')  throw new IllegalArgumentException("expected quote after "+s.substring(0,i));
 				i++;
 				}
-			this.put(map,key.toString(), value.toString());
+			final String the_key = key.toString();
+			this.put(map,the_key, removeVersionId(the_key,value.toString()));
 			
 			/* skip ws */
 			while(i< s.length() && Character.isWhitespace(s.charAt(i))) i++;
