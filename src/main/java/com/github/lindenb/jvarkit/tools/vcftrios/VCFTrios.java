@@ -133,7 +133,7 @@ END_DOC
 		description="Find mendelian incompatibilitie / denovo variants in a VCF",
 		keywords={"vcf","mendelian","pedigree","denovo"},
 		creationDate="20130705",
-		modificationDate="20200624",
+		modificationDate="20260213",
 		jvarkit_amalgamion = true,
 		menu="VCF Manipulation"
 		)
@@ -155,6 +155,9 @@ public class VCFTrios extends OnePassVcfLauncher
 	private boolean discard_variants_without_mendelian_incompat=false;	
 	@Parameter(names={"-hr","--hom-ref"},description="[20180705] treat NO_CALL genotypes as HOM_REF (when individual VCF/Sample have been merged).")
 	private boolean nocall_to_homref = false;
+	@Parameter(names={"--debug"},description="debug",hidden = true)
+	private boolean do_debug = false;
+
 	
 	private static class TrioTriple
 		{
@@ -187,7 +190,17 @@ public class VCFTrios extends OnePassVcfLauncher
 						"Samples with mendelian incompatibilities." +
 							(this.pedigreeFile==null?"":" Pedigree File was : " + this.pedigreeFile)
 						));
+
+				meta.add(new VCFInfoHeaderLine(
+						"N_"+this.attributeName,
+						1,
+						VCFHeaderLineType.Integer,
+						"Number of Samples with mendelian incompatibilities." +
+							(this.pedigreeFile==null?"":" Pedigree File was : " + this.pedigreeFile)
+						));
+
 				meta.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY, true));
+
 				
 				if(!StringUtil.isBlank(this.filterAnyIncompat)) {
 					meta.add(new VCFFilterHeaderLine(this.filterAnyIncompat,
@@ -248,6 +261,9 @@ public class VCFTrios extends OnePassVcfLauncher
 						
 						if(mut!=null)
 							{
+							if(do_debug) {
+								LOG.info("adding MENDEL isConvertingNoCallToHomRef="+ detector.isConvertingNoCallToHomRef() + " incompat with:\n\t:CHILD"+ gChild+"\n\tFATHER:"+ gFather+"\n\tMOTHER:"+gMother);	
+								}
 							incompatibilities.add(gChild.getSampleName());
 							}
 						}	
@@ -268,7 +284,8 @@ public class VCFTrios extends OnePassVcfLauncher
 						
 						++count_incompats;
 						// set INFO attribute
-						vcb.attribute(attributeName, incompatibilities.toArray());
+						vcb.attribute(attributeName, incompatibilities.toArray(new String[incompatibilities.size()]));
+						vcb.attribute("N_"+attributeName, incompatibilities.size());
 						
 						// set FILTER 
 						if(!StringUtil.isBlank(this.filterAnyIncompat))

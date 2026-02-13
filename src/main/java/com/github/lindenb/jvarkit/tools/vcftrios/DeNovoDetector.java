@@ -115,7 +115,6 @@ public DeNovoMutation test(
 	mut.gChild = convertGT(vc,mut.gChildOriginal);
 	if(mut.gChild==null) return null;
 	
-	
 	mut.gFatherOriginal = fatherGt;
 	mut.gFather = convertGT(vc,mut.gFatherOriginal);
 		
@@ -144,7 +143,7 @@ public DeNovoMutation test(final Genotype gFather,final  Genotype gMother,final 
 
 
 private DeNovoMutation _test(final DeNovoMutationImpl mut) {
-	if(mut.gChild==null) return null;
+	if(isNotCalled(mut.gChild)) return null;
 	if(!testPloidy(mut.gChild)) return null;
 	if(mut.gFather!=null && !testPloidy(mut.gFather)) return null;
 	if(mut.gMother!=null && !testPloidy(mut.gMother)) return null;
