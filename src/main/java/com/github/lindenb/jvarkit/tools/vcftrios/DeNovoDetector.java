@@ -51,6 +51,7 @@ public static interface DeNovoMutation
 
 private boolean convertNoCallToHomRef = false;
 private boolean fixPloidy = false;
+private boolean skipChildIsNoCall = false;
 
 /** shall we convert ./. to 0/0 ? can be used when using a VCF from gatk CombineVariants */
 public void setConvertingNoCallToHomRef(boolean convertNoCallToHomRef) {
@@ -66,6 +67,14 @@ public void setFixingPloidy(boolean fixPloidy) {
 	}
 public boolean isFixingPloidy() {
 	return fixPloidy;
+	}
+
+/** always ignore trio when child is NO_CALL , BEFORE converting NO_CALL to HOM_REF*/
+public void setSkipChildIsNoCall(boolean skipChildIsNoCall) {
+	this.skipChildIsNoCall = skipChildIsNoCall;
+	}
+public boolean isSkipChildIsNoCall() {
+	return skipChildIsNoCall;
 	}
 
 public DeNovoMutation test(
@@ -110,8 +119,11 @@ public DeNovoMutation test(
 		final Genotype motherGt,
 		final Genotype childGt
 		) {
+	if(childGt!=null && isNotCalled(childGt) && isSkipChildIsNoCall()) return null;
+
 	final DeNovoMutationImpl mut = new DeNovoMutationImpl();
 	mut.gChildOriginal = childGt;
+	
 	mut.gChild = convertGT(vc,mut.gChildOriginal);
 	if(mut.gChild==null) return null;
 	
@@ -143,7 +155,7 @@ public DeNovoMutation test(final Genotype gFather,final  Genotype gMother,final 
 
 
 private DeNovoMutation _test(final DeNovoMutationImpl mut) {
-	if(isNotCalled(mut.gChild)) return null;
+	if(mut.gChild==null) return null;
 	if(!testPloidy(mut.gChild)) return null;
 	if(mut.gFather!=null && !testPloidy(mut.gFather)) return null;
 	if(mut.gMother!=null && !testPloidy(mut.gMother)) return null;

@@ -157,6 +157,8 @@ public class VCFTrios extends OnePassVcfLauncher
 	private boolean nocall_to_homref = false;
 	@Parameter(names={"--debug"},description="debug",hidden = true)
 	private boolean do_debug = false;
+	@Parameter(names={"--skip-child-no-call"},description="ignore NO_CALL children (before converting to HOM_REF)")
+	private boolean skip_child_no_call = false;
 
 	
 	private static class TrioTriple
@@ -176,6 +178,7 @@ public class VCFTrios extends OnePassVcfLauncher
 		try		{
 				final DeNovoDetector detector = new DeNovoDetector();
 				detector.setConvertingNoCallToHomRef(this.nocall_to_homref);
+				detector.setSkipChildIsNoCall(this.skip_child_no_call);
 				
 				final VCFHeader header = r.getHeader(); 
 				final PedigreeParser pedParser = new PedigreeParser();

@@ -54,6 +54,9 @@ Usage: vcftrio [options] Files
       sex:(0|.|undefined|unknown:unknown;1|male|M:male;2|female|F:female), 
       phenotype 
       (-9|?|.:unknown;1|affected|case:affected;0|unaffected|control:unaffected) 
+    --skip-child-no-call
+      ignore NO_CALL children (before converting to HOM_REF)
+      Default: false
     --version
       print version and exit
 
