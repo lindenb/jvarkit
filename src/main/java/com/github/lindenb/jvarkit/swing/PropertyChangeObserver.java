@@ -29,14 +29,21 @@ import java.beans.PropertyChangeSupport;
 
 public class PropertyChangeObserver<T> {
 private T value;
-private final PropertyChangeSupport pcs;
+private PropertyChangeSupport _pcs = null;
+
 public PropertyChangeObserver() {
 	this(null);
 	}
+
 public PropertyChangeObserver(final T value) {
 	this.value = value;
-	this.pcs = new PropertyChangeSupport(this);
 	}
+
+private PropertyChangeSupport pcs() {
+    if(this._pcs==null) this._pcs = new PropertyChangeSupport(this);
+    return this._pcs;
+    }
+
 public boolean isPresent() {
 	return this.value!=null;
 	}
@@ -59,15 +66,15 @@ protected String getEventName() {
 public synchronized T setValue(final T newValue) {
 	final T oldValue = this.value;
 	this.value = newValue;
-	this.pcs.firePropertyChange(getEventName(), oldValue, newValue);
+	pcs().firePropertyChange(getEventName(), oldValue, newValue);
 	return oldValue;
 	}
 public void addPropertyChangeListener(PropertyChangeListener listener) {
-    this.pcs.addPropertyChangeListener(listener);
+    pcs().addPropertyChangeListener(listener);
 	}
 
 public void removePropertyChangeListener(PropertyChangeListener listener) {
-    this.pcs.removePropertyChangeListener(listener);
+    pcs().removePropertyChangeListener(listener);
 	}
 @Override
 public int hashCode() {

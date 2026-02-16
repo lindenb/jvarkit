@@ -207,6 +207,9 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 		if(isGrch38()) {
 			urls.add(new LabelledUrlImpl("TogoVar",str,"https://grch38.togovar.org/?mode=simple&term="+ str ));
 			}
+		if(isGrch38() || isGrch37()) {
+			urls.add(new LabelledUrlImpl("GWASLookup",str,"https://sashagusev.github.io/gwas_lookup/#rsid="+ str +"&build="+(isGrch38()?"hg38":"hg19")));
+			}
 		urls.add(new LabelledUrlImpl("Screen",str,"https://screen.wenglab.org/GRCh38/variant/"+str));
 		}
 	else if(this.ensemblPattern.matcher(str).matches())
@@ -594,6 +597,14 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 				"https://enhancer.lbl.gov/vista/browse?filter="+
 				StringUtils.escapeHttp(ucscCtg) +"%3A"+loc.getStart()+"-"+loc.getEnd()
 				));
+		}
+	
+	
+	if(loc.getLengthOnReference()==1 && (isGrch38() || isGrch37())) {
+		urls.add(new LabelledUrlImpl("GWASLookup",
+				locid,
+				"https://sashagusev.github.io/gwas_lookup/#pos=" + 
+				StringUtils.escapeHttp(ucscCtg)+"%3A"+loc.getStart()+"&build="+(isGrch38()?"hg38":"hg19")));
 		}
 	
 	

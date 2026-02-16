@@ -486,7 +486,7 @@ public class MultiqcPostProcessor extends Launcher {
 	}
 	
 	private class BoxPlotHandler extends AbstractHandler {
-		BoxPlotHandler(Map<String,String> prop) {
+		BoxPlotHandler(final Map<String,String> prop) {
 			super(prop);
 			}
 		
@@ -732,20 +732,25 @@ public class MultiqcPostProcessor extends Launcher {
 				try(BufferedReader br = IOUtils.openPathForBufferedReading(customMapping)) {
 					final List<Map.Entry<String, String>> rows= new ArrayList<>();
 					for(;;) {
-						String line = br.readLine();
+						final String line = br.readLine();
 						if(StringUtils.isBlank(line)) {
 							final Map<String,String> hash = new HashMap<>();
 							for(String key : rows.stream().map(KV->KV.getKey()).collect(Collectors.toSet())) {
 								hash.put(key, rows.stream().filter(KV->KV.getKey().equals(key)).map(KV->KV.getValue()).collect(Collectors.joining(",")));
+								}
+							if(debug_flag) {
+								LOG.debug("adding custom BoxPlotHandler "+hash );
 								}
 							handlers.add(new BoxPlotHandler(hash));
 							if(line==null) break;
 							rows.clear();
 							continue;
 							}
+						final int colon = line.indexOf(':');
+						if(colon<=0) throw new IllegalArgumentException("expected 'key:value' in line :"+line);
 						rows.add(new AbstractMap.SimpleEntry<>(
-							StringUtils.substringBefore(line,":").trim(),
-							StringUtils.substringAfter(line,":").trim()
+							line.substring(0, colon).trim(),
+							line.substring(colon+1).trim()
 							));
 					}
 				}

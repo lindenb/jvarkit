@@ -208,7 +208,7 @@ public class SvToSVG extends Launcher
 	private class Sample extends YHeight {
 		final String sampleName;
 		final List<Region> regions = new ArrayList<>();
-		double y = 0;
+		double y = 0.0 ;
 		double height = 0.0;
 		
 		/** abstract base class for a short read, wrap a SAMRecord and a SVG element */
@@ -1008,7 +1008,7 @@ public class SvToSVG extends Launcher
 			
 			svgRoot.setAttribute("width",format(this.drawinAreaWidth+1));
 			
-			int doc_height =0;
+			double doc_height = 0.0;
 			
 			final Element title = element("title");
 			svgRoot.appendChild(title);

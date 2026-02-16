@@ -61,8 +61,7 @@ public class ActionIndexVcf extends AbstractAction {
 		this.putValue(AbstractAction.SHORT_DESCRIPTION, "Index VCF files.");
 		this.putValue(AbstractAction.LONG_DESCRIPTION, "Index one or more vcf/vcf.gz file(s)");
 		}
-	
-	
+
 	public static void indexVcf(final Path vcf,boolean overwrite) throws IOException {
 		final boolean is_vcf_gz = vcf.getFileName().toString().toLowerCase().endsWith(FileExtensions.COMPRESSED_VCF) ;
 

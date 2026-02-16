@@ -69,7 +69,7 @@ keywords={"merge","vcf","bcftools"},
 creationDate="20240604",
 modificationDate="20240604",
 jvarkit_amalgamion = true,
-biostars={9594639},
+biostars={9594639,9617846},
 menu="VCF Manipulation"
 )
 public class BCFToolsMergeBest extends OnePassVcfLauncher {
