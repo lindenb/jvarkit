@@ -24,17 +24,23 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.samedict;
 
+import java.io.BufferedReader;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SequenceUtil.SequenceListsDifferException;
 
@@ -52,6 +58,9 @@ return 0 if all argument share the same dictionary
 ## Example
 
 ```
+$ find DIR -type f -name "*.bam" | java -jar dist/jvarkit.jar samedict
+
+
 $ java -jar dist/jvarkit.jar samedict src/test/resources/S*.bam && echo "OK"
 OK
 
@@ -76,7 +85,7 @@ END_DOC
 	description="check if all HTS files share the same dictionary",
 	keywords={"dict","bed","sam","bam","vcf"},
 	creationDate="20240724",
-	modificationDate="20240724",
+	modificationDate="20260218",
 	jvarkit_amalgamion =  true
 	)
 public class SameDict extends Launcher {
@@ -87,12 +96,38 @@ public class SameDict extends Launcher {
 
 	
 	@Override
-	public int doWork(final List<String> args) {
-		if(args.isEmpty()) {
-			if(be_verbose) LOG.warn("No argument provided");
-			return -1;
-			}
+	public int doWork(final List<String> args0) {
+		
+			
 		try {
+			final List<String> args;
+ 			if(args0.isEmpty() || (args0.size()==1 && args0.get(0).equals("-"))) {
+ 				args = new ArrayList<>();
+				try(BufferedReader br  = IOUtils.openStreamForBufferedReader(stdin())) {
+					String line;
+					while((line=br.readLine())!=null)  {
+						if(StringUtils.isBlank(line) || line.startsWith("#")) {
+							args.add(line);
+							}
+						}
+					}
+ 				}
+ 			else if(args0.size()==1 && args0.get(0).endsWith(".list")) {
+ 				args = new ArrayList<>();
+				try(BufferedReader br  = IOUtils.openPathForBufferedReading(Paths.get(args0.get(0)))) {
+					String line;
+					while((line=br.readLine())!=null)  {
+						if(StringUtils.isBlank(line) || line.startsWith("#")) {
+							args.add(line);
+							}
+						}
+					}
+ 				}
+			else
+				{
+				args = args0;
+				}
+			
 			SAMSequenceDictionary dict=null;
 			for(final String filename: args) {
 				final Optional<SAMSequenceDictionary> optDict = SequenceDictionaryUtils.extractDictionary(Paths.get(filename));
@@ -110,7 +145,20 @@ public class SameDict extends Launcher {
 					catch(final SequenceListsDifferException err) {
 						if(be_verbose) {
 							LOG.error(err);
+							final Function<SAMSequenceRecord, String> toString=SSR->{
+								if(SSR==null) return ".";
+								return SSR.getSequenceName()+" len:"+SSR.getSequenceLength();
+								};
 							LOG.error("Dict in  "+filename+" is different from the others");
+							final int nSeq = Math.max(optDict.get().size(), dict.size());
+							for(int tid=0;tid < nSeq;++tid) {
+								final SAMSequenceRecord recA  = tid<optDict.get().size()?optDict.get().getSequence(tid):null;
+								final SAMSequenceRecord recB  = tid< dict.size() ? dict.getSequence(tid):null;
+								if(recA==null || recB==null || !recA.equals(recB)) {
+									LOG.error("$"+(tid+1)+"\t"+toString.apply(recA)+"\t"+toString.apply(recB));
+									break;
+									}
+								}
 							}	
 						return -1;
 						}
