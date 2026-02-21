@@ -191,6 +191,7 @@ import com.github.lindenb.jvarkit.tools.liftover.VcfFilterByLiftOver;
 import com.github.lindenb.jvarkit.tools.liftover.VcfLiftOver;
 import com.github.lindenb.jvarkit.tools.manhattan.Manhattan;
 import com.github.lindenb.jvarkit.tools.minibam.MakeMiniBam;
+import com.github.lindenb.jvarkit.tools.minigenotyper.MiniGenotyper;
 import com.github.lindenb.jvarkit.tools.misc.AddLinearIndexToBed;
 import com.github.lindenb.jvarkit.tools.misc.AlleleFrequencyCalculator;
 import com.github.lindenb.jvarkit.tools.misc.BamClipToInsertion;
@@ -813,6 +814,7 @@ public class JvarkitCentral {
 		command(LowResBam2Raster.class);
 		command(MantaMerger.class);
 		command(MiniCaller.class);
+		command(MiniGenotyper.class);
 		command(MsaToVcf.class);
 		command(Manhattan.class);
 		command(MultiqcPostProcessor.class);

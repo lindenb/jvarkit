@@ -80,6 +80,9 @@ return 0 if all argument share the same dictionary
 ## Example
 
 ```
+$ find DIR -type f -name "*.bam" | java -jar dist/jvarkit.jar samedict
+
+
 $ java -jar dist/jvarkit.jar samedict src/test/resources/S*.bam && echo "OK"
 OK
 

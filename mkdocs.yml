@@ -172,6 +172,7 @@ nav:
         - "mergeblastxml" : MergeBlastXml.md
         - "mergesplittedblast" : MergeSplittedBlast.md
         - "minicaller" : MiniCaller.md
+        - "minigenotyper" : MiniGenotyper.md
         - "mkminibam" : MakeMiniBam.md
         - "msa2vcf" : MsaToVcf.md
         - "multiqcpostproc" : MultiqcPostProcessor.md
