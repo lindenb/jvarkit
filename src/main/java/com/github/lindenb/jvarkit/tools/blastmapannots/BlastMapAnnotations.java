@@ -260,15 +260,15 @@ public class BlastMapAnnotations
 					{
 					if(isSeqLetter(qS.charAt(i)) )
 						{
-						match+=(1/3.0);
+						match+=(1/3.0f);
 						}
 					if(isSeqLetter(hS.charAt(i)))
 						{
-						match+=(1/3.0);
+						match+=(1/3.0f);
 						}
 					if(isMidMatch(mid.charAt(i)))
 						{
-						match+=(1/3.0);
+						match+=(1/3.0f);
 						}
 					}
 				if(isSeqLetter(qS.charAt(i)) )

@@ -25,6 +25,9 @@ Usage: minigenotyper [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    --disable-overlap-detection
+      Disable Paired-end read overlap detection
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -54,6 +57,9 @@ Usage: minigenotyper [options] Files
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict. 
       This can be used multiple times if there is more than one REF.
       Default: []
+    --skip-illegal-variant
+      just skip illegal variant in the VCF (not diallelic SNPs)
+      Default: false
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -107,6 +113,20 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Input
+
+input is a set of indexed bam or a file with the paths ending with '.list'
+
+## Example
+
+```
+find src/test/resources/ -type f -name "S*.bam" > jeter.list
+java -jar dist/jvarkit.jar minigenotyper \
+ 	-V src/test/resources/rotavirus_rf.vcf.gz  \
+ 	-R src/test/resources/rotavirus_rf.fa \
+ 	jeter.list --skip-illegal-variant > out.vcf
+ ```
 
 
 

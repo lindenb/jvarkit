@@ -449,7 +449,7 @@ public class MiniCaller extends Launcher   {
 				                            				if(pos< interval.getStart()) continue;
 				                            				if(pos> interval.getEnd()) break;
 				                            				if(pos-1 >= genomicSequence.length() ) break;
-				                            				if(quals[readpos0] < this.min_base_quality) continue;
+				                            				if(quals[readpos0+i] < this.min_base_quality) continue;
 				                            				char refB = Character.toUpperCase(genomicSequence.charAt(pos-1));
 				                            				byte readB = bases[readpos0+i];
 				                            				

@@ -57,12 +57,13 @@ import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
+import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
-import htsjdk.samtools.CigarElement;
-import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMTag;
+import htsjdk.samtools.SAMUtils;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
@@ -75,14 +76,30 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
 
 /*
 BEGIN_DOC
+
+## Input
+
+input is a set of indexed bam or a file with the paths ending with '.list'
+
+## Example
+
+```
+find src/test/resources/ -type f -name "S*.bam" > jeter.list
+java -jar dist/jvarkit.jar minigenotyper \
+ 	-V src/test/resources/rotavirus_rf.vcf.gz  \
+ 	-R src/test/resources/rotavirus_rf.fa \
+ 	jeter.list --skip-illegal-variant > out.vcf
+ ```
 
 
 END_DOC
@@ -111,8 +128,11 @@ public class MiniGenotyper extends Launcher   {
 	private int min_genotype_depth = 5;
 	@Parameter(names={"--bad-ad-ratio"},description="Ignore Alt if x < AD ratio < (1-x)")
 	private double bad_ad_ratio = 0.1;
+	@Parameter(names={"--disable-overlap-detection"},description="Disable Paired-end read overlap detection")
+	private boolean disable_overlap_detection = false;
+	@Parameter(names={"--skip-illegal-variant"},description="just skip illegal variant in the VCF (not diallelic SNPs)")
+	private boolean just_skip_illegal_variant = false;
 
-	
 	
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
@@ -150,6 +170,7 @@ public class MiniGenotyper extends Launcher   {
     	public int getDepth() {
     		return n_REF+n_ALT+n_OTHER; 
     		}
+    	
     	@Override
     	public String toString()
     		{
@@ -198,19 +219,56 @@ public class MiniGenotyper extends Launcher   {
 
 
     
-    private void checkValidVariant(final VariantContext ctx) {
-    	if(ctx.getNAlleles()!=2) throw new IllegalArgumentException("only diallelic variants enabled: "+ctx);
-    	if(!ctx.isSNP()) throw new IllegalArgumentException("only SNP variants enabled: "+ctx);
-    	for(Allele a: ctx.getAlleles()) {
-    		if(a.length()!=1)  throw new IllegalArgumentException("only Allele length=1 enabled: "+ctx);
-    		if(!AcidNucleics.isATGC(a))  throw new IllegalArgumentException("only Allele [ATGC] enabled: "+ctx);
+    private boolean checkValidVariant(final VariantContext ctx) {
+    	if(ctx.getNAlleles()!=2) {
+    		final String msg ="only diallelic variants enabled: "+ctx;
+    		if(just_skip_illegal_variant) {
+    			LOG.warn(msg);
+    			return false;
+    			}
+    				
+    		throw new IllegalArgumentException(msg);
     		}
+    	if(!ctx.isSNP()) {
+    		final String msg = "only SNP variants enabled: "+ctx;
+    		if(just_skip_illegal_variant) {
+    			LOG.warn(msg);
+    			return false;
+    			}
+    				
+    		throw new IllegalArgumentException(msg);
+    		}
+    	for(Allele a: ctx.getAlleles()) {
+    		if(a.length()!=1)  {
+    			final String msg = "only Allele length=1 enabled: "+ctx;
+        		if(just_skip_illegal_variant) {
+        			LOG.warn(msg);
+        			return false;
+        			}
+        				
+        		throw new IllegalArgumentException(msg);
+    			}
+    		if(!AcidNucleics.isATGC(a)) {
+    			final String msg = "only Allele [ATGC] enabled: "+ctx;
+        		if(just_skip_illegal_variant) {
+        			LOG.warn(msg);
+        			return false;
+        			}        				
+        		throw new IllegalArgumentException(msg);
+    			}
+    		}
+    	return true;
     	}
-    
+    /** get mate end position or mate-start */
+    private static int getMateEnd(final SAMRecord rec0) {
+        return rec0.hasAttribute(SAMTag.MC)?SAMUtils.getMateAlignmentEnd(rec0):rec0.getMateAlignmentStart();
+        }
+
     @Override
     public int doWork(final List<String> args) {
 
-    	try {			
+    	try {
+    			
 			final SampleAndBamFactory sampleAndBamFacory = new SampleAndBamFactory(); 
 			for(final String fna: this.otherReferences) {
 				final Path fa = Paths.get(fna);
@@ -226,10 +284,14 @@ public class MiniGenotyper extends Launcher   {
     			}
     		
     		final SAMSequenceDictionary variantDict ;
-    		final int count_variant; 
+    		int count_variant = 0; 
     		try(VCFIterator iter= new VCFIteratorBuilder().open(this.variantPath)) {
     			variantDict =  SequenceDictionaryUtils.extractRequired(iter.getHeader());
-    			count_variant = (int)iter.stream().map(V->{checkValidVariant(V);return 1;}).count();
+    			while(iter.hasNext()) {
+    				final VariantContext ctx = iter.next();
+    				checkValidVariant(ctx);
+    				count_variant++;
+    				}
     			}
     		if(count_variant==0) {
     			LOG.error("VCF is empty : "+this.variantPath);
@@ -251,16 +313,17 @@ public class MiniGenotyper extends Launcher   {
 	        		try(SamReader sr = srf.open(bamRecord.getPath())) {
 	        			final SAMFileHeader samHeader  = sr.getFileHeader();
 	        			final Function<String,String> contigConverter = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(samHeader));
+	        			long n_processed=0;
 	        			try(CloseableIterator<VariantContext> iter= new VCFIteratorBuilder().open(this.variantPath)) {
 		        			while(iter.hasNext()) {
 		        				final VariantContext ctx = iter.next();
-		        				checkValidVariant(ctx);
+		        				if(!checkValidVariant(ctx)) continue;
 		        				final String contig = contigConverter.apply(ctx.getContig());
 		        				final Call call = new Call();
 		        				call.tid = variantDict.getSequenceIndex(ctx.getContig());
 		        				if(call.tid<0) continue;
-		        				call.ref  =  ctx.getReference().getBases()[0];
-	        					call.alt =  ctx.getAlternateAllele(0).getBases()[0];
+		        				call.ref  = (byte)Character.toUpperCase( ctx.getReference().getBases()[0]);
+	        					call.alt =  (byte)Character.toUpperCase( ctx.getAlternateAllele(0).getBases()[0]);
 	        					call.sample_index = bam_idx;
 	        					call.position = ctx.getStart();
 		        				if(StringUtils.isBlank(contig)) {
@@ -272,60 +335,56 @@ public class MiniGenotyper extends Launcher   {
 		        						while(iter2.hasNext()) {
 		        							final SAMRecord rec = iter2.next();
 				        					if(!SAMRecordDefaultFilter.accept(rec, this.mapq)) continue;
+				        					
+				        					if(!disable_overlap_detection && 
+	                            					rec.getReadPairedFlag() && 
+	                            					!rec.getMateUnmappedFlag() && 
+	                            					rec.getReferenceName().equals(rec.getMateReferenceName()) && 
+	                            					rec.getAlignmentStart() <= rec.getMateAlignmentStart() && 
+	                            					rec.getMateAlignmentStart() <= call.position &&
+	                            					getMateEnd(rec) >= call.position
+	                            					) {
+	                            					continue;
+	                            					}
+				        					
 				                            final Cigar cigar= rec.getCigar();
 				                            if(cigar==null) continue;
 				                            final byte[] bases = rec.getReadBases();
 				                            final byte[] quals = rec.getBaseQualities();
 				                            if(bases ==  SAMRecord.NULL_SEQUENCE) continue;
 				                            if(quals !=  SAMRecord.NULL_QUALS && bases.length != bases.length) continue;
-				                            int refpos1 = rec.getUnclippedStart();
-				                            int readpos0 = 0;
-				                            for(CigarElement ce : cigar) {
-				                            	if(refpos1 > call.position) break;
-				                            	final CigarOperator op = ce.getOperator();
-				                            	final int len = ce.getLength();
-				                            	switch(op) {
-					                            	case P: break;
-					                            	case H: case S:case D: case N:
-				                            			{
-				                            			refpos1 += len;
-				                            			break;
-				                            			}
-				                            		case I: {
-				                            			readpos0 += len;
-				                            			break;
-				                            			}
-				                            		case X: case M: case EQ: {
-				                            			for(int i=0;i<len;i++) {
-				                            				final int pos1 = refpos1 +i;
-				                            				if(pos1 < call.position ) continue;
-				                            				
-				                            				if(quals !=  SAMRecord.NULL_QUALS && quals[readpos0] < this.min_base_quality) continue;
-				                            				byte readBase = bases[readpos0+i];
-				                            				if(readBase==call.ref) {
-				                            					call.n_REF++;
-				                            					}
-				                            				else if(readBase==call.alt) {
-				                            					call.n_ALT++;
-				                            					}
-				                            				else
-				                            					{
-				                            					call.n_OTHER++;
-				                            					}
-				                            				break;
-				                            				}
-			                            				refpos1 += len;
-			                            				readpos0 += len;
-				                            			break;
-				                            			}
-				                            		default:throw new IllegalStateException();
-				                            		} /* end cigar */
-				                            	
-				                            	}/* end while iter Cigar */
+				                            for(AlignmentBlock block: rec.getAlignmentBlocks()) {
+				                            	if(block.getReferenceStart() > call.position) break;
+				                            	if(block.getReferenceStart()+block.getLength() <call.position) continue;
+				                            	for(int i=0;i< block.getLength();i++) {
+				                            		final int pos1 = block.getReferenceStart() +i;
+		                            				if(pos1 < call.position ) continue;
+		                            				if(pos1 > call.position ) break;
+		                            				final int readpos0 = block.getReadStart()-1+i;
+		                            				
+		                            				if(quals !=  SAMRecord.NULL_QUALS && quals[readpos0] < this.min_base_quality) continue;
+		                            				final byte readBase = (byte)Character.toUpperCase(  bases[readpos0] );
+		                            				if( readBase==call.ref) {
+		                            					call.n_REF++;
+		                            					}
+		                            				else if(readBase==call.alt) {
+		                            					call.n_ALT++;
+		                            					}
+		                            				else
+		                            					{
+		                            					call.n_OTHER++;
+		                            					}
+		                            				break;		                            				
+				                            		}
+				                            	}
 				        					} /* end loop SAM Record */
 		        						} /* end contig found in SAM */
 	        						}
 		        				sorter.add(call);
+		        				n_processed++;
+		        				if(n_processed%1000L==0) {
+		        					LOG.info(""+n_processed+"/"+count_variant+" ("+(n_processed/(double)count_variant)+") bam:"+"("+(bam_idx+1)+"/"+bams.size()+")");
+		        					}
 	        					} /* while variant has Next */
 	        				} /* open VCF */
 	        			}
@@ -341,11 +400,13 @@ public class MiniGenotyper extends Launcher   {
 		            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS));
 		            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_FILTER_KEY));
 		            metaData.add(VCFStandardHeaderLines.getFormatLine(VCFConstants.GENOTYPE_QUALITY_KEY));
+		            metaData.add(new VCFFormatHeaderLine("N", 1, VCFHeaderLineType.Integer, "Number of other bases"));
+
 		            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));
 		            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_COUNT_KEY));
 		            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_NUMBER_KEY));
 		            metaData.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.ALLELE_FREQUENCY_KEY));
-	
+		            
 			        final VCFHeader header =new VCFHeader(
 		                    metaData, 
 		                    bams.stream().map(REC->REC.getSampleName()).collect(Collectors.toList())
@@ -354,7 +415,7 @@ public class MiniGenotyper extends Launcher   {
 			        JVarkitVersion.getInstance().addMetaData(this, header);
 			        
 		            try(VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(variantDict).open(this.outputFile)) {
-		            	vcw.writeHeader(header);	
+		            	vcw.writeHeader(header);
 		            	while(iter.hasNext()) {
 		            			final List<Call> row = iter.next();
 		            			final Call first = row.get(0);
@@ -364,8 +425,12 @@ public class MiniGenotyper extends Launcher   {
 		            			final Map<String,Genotype> sample2genotypes = new HashMap<>(bams.size());
 		            			int ac=0;
 		            			int an=0;
+		            			int dp= 0;
 		            			for(Call c:row) {
+		            				String filter=null;
 		            				final String sample = bams.get(c.sample_index).getSampleName();
+		            				dp+= c.n_ALT+c.n_REF;
+		            				
 		            				if(c.getDepth()<this.min_genotype_depth || c.getDepth()==0 ) {
 		            					sample2genotypes.put(sample, GenotypeBuilder.createMissing(sample, 2));
 		            					}
@@ -373,6 +438,7 @@ public class MiniGenotyper extends Launcher   {
 		            					{
 		            					final GenotypeBuilder gb=new GenotypeBuilder(sample);
 		            					gb.DP(c.getDepth());
+		            					
 		            					gb.AD(new int[] {c.n_REF,c.n_ALT});
 		            					double qual = Math.min(c.getDepth(),30)/30.0;
 		            					
@@ -380,10 +446,12 @@ public class MiniGenotyper extends Launcher   {
 		            						gb.alleles(Arrays.asList(REF,REF));
 		            						qual *= (c.n_REF/(double)c.getDepth());
 		            						an+=2;
+		            						if(c.n_OTHER >= c.n_REF*0.2) filter="LowQual";
 		            						}
-		            					if(c.n_REF==0 && c.n_ALT>=0) {
+		            					else if(c.n_REF==0 && c.n_ALT>=0) {
 		            						gb.alleles(Arrays.asList(ALT,ALT));
 		            						qual *= (c.n_ALT/(double)c.getDepth());
+		            						if(c.n_OTHER >= c.n_ALT*0.2) filter="LowQual";
 		            						an+=2;
 		            						ac+=2;
 		            						}
@@ -393,6 +461,7 @@ public class MiniGenotyper extends Launcher   {
 		            						if(ratio <= this.bad_ad_ratio) {
 		            							gb.alleles(Arrays.asList(REF,REF));
 		            							qual *= (c.n_REF/(double)c.getDepth());
+		            							if(c.n_OTHER >= c.n_REF*0.2 || c.n_OTHER>=c.n_ALT) filter="LowQual";
 		            							an+=2;
 		            							}
 		            						else if(ratio >= (1.0-this.bad_ad_ratio)) {
@@ -400,23 +469,30 @@ public class MiniGenotyper extends Launcher   {
 		            							qual *= (c.n_ALT/(double)c.getDepth());
 		            							an+=2;
 		            							ac+=2;
+		            							if(c.n_OTHER >= c.n_ALT*0.2 || c.n_OTHER>=c.n_REF) filter="LowQual";
 		            							}
 		            						else
 		            							{
 		            							gb.alleles(Arrays.asList(REF,ALT));
-		            							qual *= ((c.n_ALT+c.n_REF)/(double)c.getDepth());
+		            							qual *= Math.abs(0.5-((c.n_ALT+c.n_REF)/(double)c.getDepth()))/0.5;
+		            							if( c.n_OTHER>=c.n_ALT || c.n_OTHER>=c.n_REF) filter="LowQual";
 		            							an+=2;
 		            							ac++;
 		            							}
-		            						gb.GQ((int)(qual*99.0));
+		            						
 		            						}
-		            					
+		            					gb.attribute("N", c.n_OTHER);
+	            						gb.GQ((int)(qual*99.0));
+		            					if(filter!=null) gb.filter(filter);
 		            					sample2genotypes.put(sample,gb.make());
 		            					}
 		            				}
+		            			vcb.id(variantDict.getSequence(first.tid).getContig()+":"+first.position+":"+(char)first.ref+":"+(char)first.alt);
 		            			vcb.genotypes(new ArrayList<>(sample2genotypes.values()));
 		            			vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, an);
 		            			vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, ac);
+		            			vcb.attribute(VCFConstants.DEPTH_KEY, dp);
+		            			
 		            			if(an>0) vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, ac/(double)an);
 		            			vcw.add(vcb.make());
 		            			}
