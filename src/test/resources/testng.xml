@@ -79,6 +79,7 @@
       <class name="com.github.lindenb.jvarkit.tools.gtf2xml.Gtf2XmlTest"/>
       <class name="com.github.lindenb.jvarkit.tools.bedstats.BedStatsTest"/>
       <class name="com.github.lindenb.jvarkit.tools.minigenotyper.MiniGenotyperTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMergeTest"/>
     </classes>
   </test>
 </suite>

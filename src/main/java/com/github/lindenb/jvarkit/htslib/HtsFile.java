@@ -38,7 +38,7 @@ public abstract class HtsFile extends CPtr implements Closeable {
 		}
 	
 	public HtsFile(final String s,final String m) throws IOException {
-		super(Htslib.hts_hopen(s,m));
+		super(HtsLib.hts_hopen(s,m));
 		this.filename = s;
 		if(isNull()) throw new IOException("Cannot open "+s);
 		}
@@ -54,7 +54,7 @@ public abstract class HtsFile extends CPtr implements Closeable {
 		
 	@Override
 	public void dispose() {
-		if(isOpen()) Htslib.hts_hclose(this.getPtr());
+		if(isOpen()) HtsLib.hts_hclose(this.getPtr());
 		setNull();
 		super.dispose();
 		}

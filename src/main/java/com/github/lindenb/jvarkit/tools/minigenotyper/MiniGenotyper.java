@@ -138,6 +138,10 @@ public class MiniGenotyper extends Launcher   {
 	private boolean just_skip_illegal_variant = false;
 	@Parameter(names={"--mode"},description="how to scan the bam. Using random-access (ok if small number of variant) or streaming (no index required, large number of variants)")
 	private Mode run_mode = Mode.random_access;
+	@Parameter(names={"--no-id"},description="don't print ID column")
+	private boolean without_ID = false;
+	@Parameter(names={"--no-info"},description="don't print INFO column")
+	private boolean without_INFO = false;
 
 	
 	@ParametersDelegate
@@ -637,13 +641,18 @@ public class MiniGenotyper extends Launcher   {
 		            					}
 		            				sample2genotypes.put(sample,gb.make());
 		            				}
-		            			vcb.id(variantDict.getSequence(first.tid).getContig()+":"+first.position+":"+(char)first.ref+":"+(char)first.alt);
+		            			if(!without_ID) {
+			            			vcb.id(variantDict.getSequence(first.tid).getContig()+":"+first.position+":"+(char)first.ref+":"+(char)first.alt);
+			            			}
 		            			vcb.genotypes(new ArrayList<>(sample2genotypes.values()));
-		            			vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, an);
-		            			vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, ac);
-		            			vcb.attribute(VCFConstants.DEPTH_KEY, dp);
 		            			
-		            			if(an>0) vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, ac/(double)an);
+		            			if(!without_INFO) {
+			            			vcb.attribute(VCFConstants.ALLELE_NUMBER_KEY, an);
+			            			vcb.attribute(VCFConstants.ALLELE_COUNT_KEY, ac);
+			            			vcb.attribute(VCFConstants.DEPTH_KEY, dp);
+			            			if(an>0) vcb.attribute(VCFConstants.ALLELE_FREQUENCY_KEY, ac/(double)an);
+			            			}
+		            			
 		            			vcw.add(vcb.make());
 		            			}
 		            		} /* end writer */
@@ -651,7 +660,7 @@ public class MiniGenotyper extends Launcher   {
 		        	} /* end sort iterator */
 		        sorter.cleanup();
 		        return 0;
-	    	} catch(Throwable err) {
+	    	} catch(final Throwable err) {
 	    		LOG.error(err);
 	    		return -1;
 	    	}

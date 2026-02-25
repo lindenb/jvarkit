@@ -332,6 +332,7 @@ import com.github.lindenb.jvarkit.tools.vcfgroupbypop.VcfGroupByPopulation;
 import com.github.lindenb.jvarkit.tools.vcfgtf.VcfFilterGtf;
 import com.github.lindenb.jvarkit.tools.vcfhead.VcfHead;
 import com.github.lindenb.jvarkit.tools.vcfisec.VcfISec;
+import com.github.lindenb.jvarkit.tools.vcfmerge.VCFMerge;
 import com.github.lindenb.jvarkit.tools.vcfmulti2oneallele.VcfMultiToOneAllele;
 import com.github.lindenb.jvarkit.tools.vcfmulti2oneinfo.VcfMultiToOneInfo;
 import com.github.lindenb.jvarkit.tools.vcfnearest.VCFNearest;
@@ -955,6 +956,7 @@ public class JvarkitCentral {
 		command(VcfMultiToOneInfo.class);
 		command(VcfMultiToOneAllele.class);
 		command(VcfMoveFiltersToInfo.class);
+		command(VCFMerge.class);
 		command(VcfTbiToBed.class);
 		command(VcfSplitNVariants.class);
 		command(VcfStrechToSvg.class);
