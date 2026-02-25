@@ -50,6 +50,11 @@ Usage: minigenotyper [options] Files
     --min-gt-depth
       min genotype DP
       Default: 5
+    --mode
+      how to scan the bam. Using random-access (ok if small number of variant) 
+      or streaming (no index required, large number of variants)
+      Default: random_access
+      Possible Values: [random_access, streaming]
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference
