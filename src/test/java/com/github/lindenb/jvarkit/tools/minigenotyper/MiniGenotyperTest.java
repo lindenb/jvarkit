@@ -30,6 +30,7 @@ public class MiniGenotyperTest {
 					"-o",out.toString(),
 					"-V",support.resource("rotavirus_rf.vcf.gz"),
 					"--mode","random_access",
+					"--skip-illegal-variant",
 					"-R",support.resource("rotavirus_rf.fa"),
 					bams.toString()
 					}),0);
@@ -56,6 +57,7 @@ public class MiniGenotyperTest {
 			Assert.assertEquals(new MiniGenotyper().instanceMain(new String[] {
 					"-o",out.toString(),
 					"--mode","streaming",
+					"--skip-illegal-variant",
 					"-V",support.resource("rotavirus_rf.vcf.gz"),
 					"-R",support.resource("rotavirus_rf.fa"),
 					bams.toString()
