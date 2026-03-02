@@ -67,7 +67,12 @@ public class AutoMap<K,V,CONTAINER_OF_V> extends AbstractMap<K,CONTAINER_OF_V> {
 		this(()->new HashMap<K,CONTAINER_OF_V>(),collectionMaker,inserter);
 		}
 	
-	public CONTAINER_OF_V insert(K key) {
+	/**
+	 * 
+	 * @param key the key to insert. The CONTAINER_OF_V is created if it doesn't exist
+	 * @return
+	 */
+	public CONTAINER_OF_V insert(final K key) {
 		CONTAINER_OF_V col = this.delegate.get(key);
 		if(col==null) {
 			col = Objects.requireNonNull(this.collectionMaker.apply(key,null));

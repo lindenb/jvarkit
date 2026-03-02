@@ -3,6 +3,7 @@
 ## 2026
 
  * Dong, H., Gao, Y., Cai, Z. et al. Comprehensive mapping of RNA modification dynamics and crosstalk via deep learning and nanopore direct RNA-sequencing. Nat Commun (2026). https://doi.org/10.1038/s41467-026-68419-y **SAM2TSV**
+ *  In vivo lineage tracing across human tissues using methylation barcodes in the protocadherin gene cluster. Samuel F. Hackett, Christopher T. Boniface, Adriana V.A. Fonseca, Akemi D. Ramos-Yamasaki, Caroline Watson, Hannah M. L. Bazin, Amanda Tan, Henson Lee Yu, Lars L. P. Hanssen, Harveer Dev, Sophia Apostolidou, Aleksandra Gentry-Maharaj, Sadik Esener, Usha Menon, Jamie Blundell bioRxiv 2026.02.23.707349; doi: https://doi.org/10.64898/2026.02.23.707349 **Biostar322664**
 
 ## 2025
 
