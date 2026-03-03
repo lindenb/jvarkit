@@ -22,50 +22,19 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.chart;
 
-public abstract class AbstractChartXY extends Chart {
-	private final Double[] y_limits = new Double[] {null,null};
-	private String yAxisLabel="";
-	private final Double[] x_limits = new Double[] {null,null};
-	private String xAxisLabel="";
-	private boolean logy=false;
-	private boolean logx=false;
-	public AbstractChartXY setYLimits(final Double m,Double M) {
-		this.y_limits[0] = m;
-		this.y_limits[1] = M;
-		return this;
+import java.util.Map;
+
+/** component of a bar plot or a pie chart */
+public class NamedY extends AbstractDataY {
+	private final String name;
+	public NamedY(final Map.Entry<String, ? extends Number> kv) {
+		this(kv.getKey(),kv.getValue().doubleValue());
 		}
-	
-	public void setLogY(boolean logy) {
-		this.logy = logy;
+	public NamedY(final String name,double y) {
+		super(y);
+		this.name = name;
 		}
-	public boolean isLogY() {
-		return logy;
+	public String getName() {
+		return name;
 		}
-	
-	public void setLogX(boolean logx) {
-		this.logx = logx;
-		}
-	public boolean isLogX() {
-		return logx;
-		}
-	
-	 public void setYAxisLabel(String yAxisLabel) {
-		this.yAxisLabel = yAxisLabel;
-	 	}
-	
-	 public String getYAxisLabel() {
-		return yAxisLabel;
-	 	}
-	
-	public AbstractChartXY setXLimits(final Double m,Double M) {
-		this.x_limits[0] = m;
-		this.x_limits[1] = M;
-		return this;
-		}
-	 public void setXAxisLabel(String xAxisLabel) {
-		this.xAxisLabel = xAxisLabel;
-	 	}
-	 public String getXAxisLabel() {
-		return xAxisLabel;
-	 	}
-}
+	}

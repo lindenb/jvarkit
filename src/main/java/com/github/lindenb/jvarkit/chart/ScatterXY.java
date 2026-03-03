@@ -23,9 +23,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.chart;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.io.Writer;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -33,7 +31,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
@@ -96,12 +93,21 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 			.append(" title: {text: ")
 			.append(StringUtils.doubleQuote(getTitle()))
 			.append("},")
-			.append("xaxis: {title:{text: ")
-			.append(StringUtils.doubleQuote(getXAxisLabel()))
-			.append("}},")
-			.append("yaxis: {title: {text: ")
-			.append(StringUtils.doubleQuote(getYAxisLabel()))
-			.append("}}")
+			.append("xaxis: {")
+			.append("title: {text: ").append(StringUtils.doubleQuote(getXAxisLabel())).append("}")
+			.append(",autorange:true");
+			if(super.isLogX()) {
+				w.append(",type:'log'");
+				}
+		
+		w.append("},")
+			.append("yaxis: {")
+			.append("title: {text: ").append(StringUtils.doubleQuote(getYAxisLabel())).append("}")
+			.append(",autorange:true");
+		if(super.isLogY()) {
+			w.append(",type:'log'");
+			}
+		w.append("}")
 			.append("};\n");
 		
 		w.append("Plotly.newPlot('div")

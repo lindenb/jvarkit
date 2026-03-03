@@ -48,14 +48,15 @@ import javax.xml.stream.XMLStreamException;
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.chart.BarPlot;
+import com.github.lindenb.jvarkit.chart.BoxPlotChart;
 import com.github.lindenb.jvarkit.chart.DataXY;
 import com.github.lindenb.jvarkit.chart.NamedSeries;
+import com.github.lindenb.jvarkit.chart.NamedY;
 import com.github.lindenb.jvarkit.chart.ScatterXY;
 import com.github.lindenb.jvarkit.chart.SeriesXY;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.lang.AttributeMap;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.pedigree.SampleToGroup;
@@ -97,7 +98,7 @@ END_DOC
 public class VcfStats extends Launcher {
 	private static final Logger LOG = Logger.of(VcfStats.class);
 
-	@Parameter(names={"-o","--output"},description="Output directory")
+	@Parameter(names={"-o","--output"},description="Output directory",required = true)
 	private Path outputDirectory = null;
 		
 	@Parameter(names={"--categories","--phenotypes"},description=SampleToGroup.OPT_DESC,hidden = true)
@@ -106,16 +107,16 @@ public class VcfStats extends Launcher {
 	
 	@Parameter(names={"-exclude","--exclude"},description="name of modules to be excluded",hidden=true)
 	private String moduleExcludeStr = "";
-	@Parameter(names={"--list"},description="list available modules and exit",help = true)
+	@Parameter(names={"--list","-l"},description="list available modules and exit",help = true)
 	private boolean list_modules = false;	
 	@Parameter(names={"--prefix"},description="file prefix")
 	private String prefix = "";
 	
-	@Parameter(names={"--fill"},description="assign group 'x' to sample if it's not defined in the file for --categories. Special value = '*' : assign the sample name to it's own private group")
+	@Parameter(names={"--fill-group"},description="assign group 'x' to sample if it's not defined in the file for --categories. Special value = '*' : assign the sample name to it's own private group")
 	private String fill_sample_name_unknown_group = "other";
 
 	
-	@DynamicParameter(names={"-D"},description="other parameters.")
+	@DynamicParameter(names={"-D"},description="other parameters.",hidden = true)
 	private Map<String,String> __dynaParams = new HashMap<>();
 	
 
@@ -192,7 +193,7 @@ public class VcfStats extends Launcher {
 			this.sampleToGroup = sampleToGroup;
 			}
 		@Override
-		public String getProperty(String key,String def) {
+		public String getProperty(final String key,final String def) {
 			return this.properties.getOrDefault(key,def);
 			}
 		
@@ -207,8 +208,8 @@ public class VcfStats extends Launcher {
 			return enabled;
 			}
 		protected String getLabelForGroup(final String grpName) {
-			Set<String> sns  = this.sampleToGroup.getSamplesForGroup(grpName);
-			if(sns.size()<1) return grpName;
+			final Set<String> sns  = this.sampleToGroup.getSamplesForGroup(grpName);
+			if(sns.size()<2) return grpName;
 			return grpName+" N="+sns.size();
 			}
 		
@@ -349,20 +350,17 @@ public class VcfStats extends Launcher {
 			boolean contains(final double f) {
 				return this.lowerBound <= f && f < this.upperBound;
 				}
-			@Override
-			public String toString() {
-				return "("+lowerBound+"/"+upperBound+"(:"+count;
-				}
 			}
 		private final int precision;
 		private final String infoTag;
 		private final DecimalFormat decimalFormat;
 		private final List<Range> ranges = new ArrayList<>();
-		private boolean logX=false;
+		private final boolean logX;
 		
-		RangeBarPlot(final String infoTag,int precision) {
+		RangeBarPlot(final String infoTag,int precision,boolean logX) {
 			this.precision=precision;
 			this.infoTag = infoTag;
+			this.logX = logX;
 			String str="#.";
 			int p = precision;
 			while(p>1) {
@@ -371,10 +369,8 @@ public class VcfStats extends Launcher {
 				}
 			this.decimalFormat = new DecimalFormat(str);
 			this.decimalFormat.setRoundingMode(java.math.RoundingMode.CEILING);
-			xlab(infoTag);
-			xlab("Count Variants");
+			super.properties.put("filename","info_"+infoTag+"_distribution");
 			}
-
 			
 		private double round(final double v) {
 			return Double.parseDouble(this.decimalFormat.format(v));
@@ -387,14 +383,21 @@ public class VcfStats extends Launcher {
 					(info.getType()==VCFHeaderLineType.Float ||info.getType()==VCFHeaderLineType.Integer )
 					;
 			}
+		
 		@Override
 		public void visit(final VariantContext ctx) {
-			if(!getVariantPredicate().test(ctx)) return;
+			if(!acceptVariant(ctx)) return;
 			if(!ctx.hasAttribute(this.infoTag)) return;
 			try {
 				for(String s : ctx.getAttributeAsStringList(this.infoTag,".") ) {
 					if(s.equals(".")) continue;
-					final double v0 = Double.parseDouble(s);
+					final double v0;
+					try {
+						v0 = Double.parseDouble(s);
+						}
+					catch(NumberFormatException err) {
+						continue;
+						}
 					if(Double.isNaN(v0)) continue;
 					if(Double.isInfinite(v0)) continue;
 					final double v = round(v0); 
@@ -420,39 +423,26 @@ public class VcfStats extends Launcher {
 				LOG.warn(err);
 				}
 			}
-		long getCount() {
-			return ranges.stream().mapToLong(R->R.count).sum();
-			}
-
-		RangeBarPlot logX(boolean b) { this.logX=b; return this;}
-
-		private OptionalDouble getPercentile(double f) {
-			final long count = getCount();
-			if(count==0L) return OptionalDouble.empty();
-			long count2 = (long)(count*f);
-			for(Range r: ranges) {
-				for(long i=0;i< r.count;i++) {
-					if(count2==0L) return OptionalDouble.of(r.lowerBound);
-					count2--;
-					}
-				}
-			throw new IllegalStateException();
-			}
 		
-		OptionalDouble getLowPercentile() {
-			return getPercentile(0.0025);
-			}
-		
-		OptionalDouble getHighPercentile() {
-			return getPercentile(1.0 - 0.0025);
-			}
 
 		
 		@Override
-		public void finish(Path outdir) {
+		public void finish(Path outputDir) throws IOException,XMLStreamException{
 			if(this.ranges.isEmpty()) return;
-			final long count = getCount();
-
+			final SeriesXY series = new SeriesXY(
+					this.infoTag,
+					this.ranges.stream().map(RR->new DataXY(RR.lowerBound, RR.count)).collect(Collectors.toList())
+					);
+			series.sort();
+			final String basename = getProperty("filename",this.infoTag+"_distribution");
+			final ScatterXY chart = new ScatterXY(series);
+			chart.setTitle(getTitle());
+			chart.setYAxisLabel("Count "+this.infoTag);
+			chart.setLogX(this.logX);
+			chart.setXAxisLabel(this.logX?"log("+this.infoTag+")":this.infoTag);
+			System.err.println("saving ("+basename+")."+this.infoTag+" "+getProperty("XXXXXX", "zorg")+" ("+super.properties+")");
+			chart.saveMultiQC(outputDir.resolve(basename+"_mqc.json"));
+			chart.savePlotly(outputDir.resolve(basename+".html"));
 			}
 	}
 
@@ -578,7 +568,9 @@ public class VcfStats extends Launcher {
 			}
 		}
 	/***************************************************************************/
-	private static class Singleton extends AbstractSampleToFraction {
+	private static class SingletonAnalyzer extends AbstractAnalyzer {
+		private Counter<String> sample2count = new Counter<>();
+		private long n_variants = 0L;
 		@Override
 		public void init(final VCFHeader h ,Map<String,String> props, SampleToGroup s2g) {
 			super.init(h,props,s2g);
@@ -588,16 +580,42 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public void visit(final VariantContext ctx) {
-			if(!getVariantPredicate().test(ctx)) return;
-			super.n_variants++;
+			if(!acceptVariant(ctx)) return;
+			n_variants++;
 			Genotype single = null;
 			for(Genotype g:ctx.getGenotypes()) {
-				if(g.isNoCall() || g.isHomRef()) continue;
-				if(!getGenotypePredicate().test(g)) continue;
+				if(!g.hasAltAllele()) continue;
+				if(!acceptGenotype(g)) continue;
 				if(single!=null) return;
 				single=g;
 				}
-			if(single!=null) add(single.getSampleName(),1.0);
+			if(single!=null) sample2count.incr(single.getSampleName());
+			}
+		@Override
+		public void finish(Path outputDir) throws IOException, XMLStreamException {
+			if(sample2count.isEmpty()) {
+				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
+				return;
+				}
+			final List<NamedSeries> series = new ArrayList<NamedSeries>(super.sampleToGroup.getGroupsCount());
+			for(String groupName: super.sampleToGroup.getGroups()) {
+				final List<NamedY> L2 =new ArrayList<>();
+				for(String sn: this.sample2count.keySet()) {
+					if(!super.sampleToGroup.hasSampleInGroup(sn,groupName)) continue;
+					L2.add(new NamedY(sn,this.sample2count.count(sn)));
+					}
+				if(L2.isEmpty()) continue;
+				
+				series.add(new NamedSeries(getLabelForGroup(groupName), L2));
+				}
+			
+			final BoxPlotChart chart = new BoxPlotChart(series);
+			chart.sortOnName();
+			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
+			chart.setYAxisLabel("count");
+			chart.setXAxisLabel("Group");
+			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			
 			}
 		}
 	
@@ -605,14 +623,13 @@ public class VcfStats extends Launcher {
 	
 	/***************************************************************************/
 		
-	private static class NormalizedContigs extends AbstractMultipleBarPlot {
-		private SAMSequenceDictionary dict;
+	private static class CountPerContig extends AbstractAnalyzer {
+		private long n_variants = 0L;
+		private SAMSequenceDictionary dict = null;
 		private final Predicate<SAMSequenceRecord> predicate;
-		NormalizedContigs(final Predicate<SAMSequenceRecord> predicate) {
+		private final Map<String,Counter<VariantContext.Type>> chromosome2count = new HashMap<>();
+		CountPerContig(final Predicate<SAMSequenceRecord> predicate) {
 			this.predicate=predicate;
-			xlab("Samples");
-			ylab("Count Variants/length chrom");
-			normalizer((CHROM,COUNT)-> COUNT/(double)dict.getSequence(CHROM).getLengthOnReference());
 			}
 		@Override
 		public void init(final VCFHeader h,Map<String,String> props,SampleToGroup s2g) {
@@ -624,24 +641,45 @@ public class VcfStats extends Launcher {
 					filter(this.predicate).
 					collect(Collectors.toList())
 					);
+				
+				for(SAMSequenceRecord ssr: this.dict.getSequences()) {
+					this.chromosome2count.put(ssr.getSequenceName(), new Counter<>());
+					}
 				}
 			this.enabled = dict!=null && !dict.isEmpty();
+			
+			}
+	
+		@Override
+		public void visit(final VariantContext ctx) {
+			if(!acceptVariant(ctx)) return;
+			final Counter<VariantContext.Type> c=this.chromosome2count.get(ctx.getContig());
+			if(c==null) return;
+			n_variants++;
+			c.incr(ctx.getType());
 			}
 		
 		@Override
-		protected boolean isBeside() {
-			return true;
-			}
-		@Override
-		public void visit(VariantContext ctx) {
-			final String contig = ctx.getContig();
-			if(dict.getSequence(contig)==null) return;
-			if(!getVariantPredicate().test(ctx)) return;
-			for(Genotype g: ctx.getGenotypes()) {
-				if(!getGenotypePredicate().test(g)) continue;
-				if(g.getAlleles().stream().allMatch(A->A.isReference() || A.isNoCall())) continue;
-				add(g.getSampleName(), contig);
+		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+			if(n_variants==0) {
+				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
+				return;
 				}
+			final List<NamedSeries> series=new ArrayList<>();
+			for(SAMSequenceRecord ssr: this.dict.getSequences()) {
+				final List<NamedY> L2 =new ArrayList<>();
+				
+				for(VariantContext.Type vtype: VariantContext.Type.values()) {
+					L2.add(new NamedY(vtype.name(),this.chromosome2count.get(ssr.getContig()).count(vtype)));
+					}
+				series.add(new NamedSeries(ssr.getContig(), L2));
+				}
+			
+			final BarPlot chart = new BarPlot(series);
+			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
+			chart.setYAxisLabel("count");
+			chart.setXAxisLabel("Chromosome");
+			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
 			}
 		}
 	
@@ -725,28 +763,7 @@ public class VcfStats extends Launcher {
 			}
 		}
 
-	/***************************************************************************/
-	private static class Sample2GTType extends AbstractMultipleBarPlot {
-		private final Function<Genotype,String> gt2str;
-		Sample2GTType( Function<Genotype,String> gt2str) {
-			this.gt2str=gt2str;
-			}
-		@Override
-		public void init(final VCFHeader h,Map<String,String> props,SampleToGroup s2g) {
-			super.init(h, props, s2g);
-			this.enabled = h.hasGenotypingData();
-			}
-		@Override
-		public void visit(VariantContext ctx) {
-			if(!getVariantPredicate().test(ctx)) return;
-			for(final Genotype gt: ctx.getGenotypes()) {
-				if(!getGenotypePredicate().test(gt)) continue;
-				final String value = gt2str.apply(gt);
-				if(StringUtils.isBlank(value)) continue;
-				super.add(gt.getSampleName(), value);	
-				}
-			}
-		}
+	
 	/***************************************************************************/
 	private abstract static class AbstractSampleToFraction extends AbstractAggregateBarPlot {
 		protected long n_variants =0L;
@@ -784,20 +801,7 @@ public class VcfStats extends Launcher {
 				}
 			}
 		}
-	/***************************************************************************/
-	private static class SampleToGenotypeTypeFraction extends AbstractSampleToFraction {
-		private final GenotypeType genotypeType;
-		SampleToGenotypeTypeFraction(GenotypeType genotypeType) {
-			this.genotypeType = genotypeType;
-			name("fraction of "+genotypeType.name());
-			ylab("Fraction of "+genotypeType.name()+" genotypes");
-			xlab("Sample");
-			}
-		@Override
-		Predicate<Genotype> getGenotypePredicate() {
-			return super.getGenotypePredicate().and(GT->GT.getType().equals(this.genotypeType));
-			}
-		}
+	
 	/***************************************************************************/
 	private static class SampleMultiAllelicFraction extends AbstractAnalyzer {
 		private long n_variants=0L;
@@ -1149,7 +1153,70 @@ public class VcfStats extends Launcher {
 				}
 			}
 		}
-
+	/***************************************************************************/
+	private static class SampleToGenotypeType extends AbstractAnalyzer {
+		private final boolean ignore_hom_ref;
+		private long n_variants = 0L;
+		private final Map<String,Counter<GenotypeType>> group2gtype = new HashMap<>();
+		SampleToGenotypeType(boolean ignore_hom_ref) {
+			this.ignore_hom_ref = ignore_hom_ref;
+			}
+		@Override
+		public void init(VCFHeader h, Map<String, String> props, SampleToGroup sample2group) {
+			super.init(h, props, sample2group);
+			if(!h.hasGenotypingData() || h.getFormatHeaderLine(VCFConstants.GENOTYPE_KEY)==null) {
+				super.enabled = false;
+				}
+			for(String groupName: sample2group.getGroups()) {
+				this.group2gtype.put(groupName, new Counter<>());
+				}
+			}
+		@Override
+		public void visit(final VariantContext ctx) {
+			if(!ctx.hasGenotypes()) return;
+			if(!acceptVariant(ctx)) return;
+			n_variants++;
+			for(Genotype gt: ctx.getGenotypes()) {
+				if(!acceptGenotype(gt)) continue;
+				if(ignore_hom_ref && gt.isHomRef()) continue;
+				for(String groupname: super.sampleToGroup.getGroupsForSample(gt.getSampleName())) {
+					group2gtype.get(groupname).incr(gt.getType());
+					}
+				}
+			}
+		@Override
+		public void finish(Path outputDir) throws IOException, XMLStreamException {
+			if(this.group2gtype.values().stream().noneMatch(C->C.getTotal()>0L)) {
+				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
+				return;
+				}
+			boolean use_fraction= group2gtype.keySet().stream().anyMatch(G->super.sampleToGroup.getSamplesForGroup(G).size()>1);
+			final List<NamedSeries> series=new ArrayList<>();
+			for(String groupName: this.group2gtype.keySet()) {
+				final List<NamedY> L2 =new ArrayList<>();
+				final double total = Math.max(1.0, (use_fraction?this.group2gtype.get(groupName)
+						.entrySet()
+						.stream()
+						.filter(KV->!ignore_hom_ref || !KV.getKey().equals(GenotypeType.HOM_REF))
+						.mapToDouble(KV->KV.getValue())
+						.sum():1.0)
+						);
+				
+				for(GenotypeType gtype: GenotypeType.values()) {
+					if(this.ignore_hom_ref && gtype.equals(GenotypeType.HOM_REF)) continue;
+					L2.add(new NamedY(gtype.name(),this.group2gtype.get(groupName).count(gtype)/total));
+					}
+				series.add(new NamedSeries(getLabelForGroup(groupName), L2));
+				}
+			
+			final BarPlot chart = new BarPlot(series);
+			chart.sortOnName();
+			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
+			chart.setYAxisLabel("count");
+			chart.setXAxisLabel("Group");
+			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			}
+		}
 	/***************************************************************************/
 	private static class ADRatioAnalyzer extends AbstractAnalyzer {
 		private final GenotypeType gtype;
@@ -1270,20 +1337,8 @@ public class VcfStats extends Launcher {
 				{
 				acceptGT = A->!A.isFiltered();
 				}
-			modules.add(new Singleton().
-					setAcceptGenotype(acceptGT).
-					name("Singleton"+fltstr).
-					description("Singleton per Sample"+fltstr).
-					xlab("Sample").
-					ylab("Fraction(Singletons)")
-					);
-			modules.add(new Sample2GTType(side==0?GT->GT.getType().name():(GT->GT.isFiltered()?VCFConstants.GENOTYPE_FILTER_KEY:GT.getType().name())).
-					setAcceptGenotype(acceptGT).
-					name("Genotype-Type / Sample"+fltstr).
-					description("Genotype type per Sample"+fltstr).
-					xlab("Sample").
-					ylab("GT Types")
-					);
+			
+		
 			modules.add(new SampleToGQ().
 					setAcceptGenotype(acceptGT).
 					name("Sample GQ "+fltstr).
@@ -1342,49 +1397,13 @@ public class VcfStats extends Launcher {
 				);
 		
 		
-		modules.add(new RangeBarPlot(GATKConstants.QD_KEY, 1).
+		modules.add(new RangeBarPlot(GATKConstants.QD_KEY, 1,false).
 				name(GATKConstants.QD_KEY).
 				description("Variant Confidence (QUAL) / Quality by Depth.").
 				xlab(GATKConstants.QD_KEY).
 				ylab("Count Variants")
 				);
 		
-		
-		modules.add(new RangeBarPlot(GATKConstants.FS_KEY, 1).
-			logX(true).
-			name(GATKConstants.FS_KEY).
-			description("Phred-scaled p-value using Fisher's exact test to detect strand bias").
-			xlab(GATKConstants.FS_KEY).
-			ylab("Count Variants")
-			);
-		
-		modules.add(new RangeBarPlot(GATKConstants.SOR_KEY, 10).
-			name(GATKConstants.SOR_KEY).
-			description("Symmetric Odds Ratio of 2x2 contingency table to detect strand bias").
-			xlab(GATKConstants.SOR_KEY).
-			ylab("Count Variants")
-			);
-		
-		modules.add(new RangeBarPlot(GATKConstants.MQ_KEY, 1).
-			name(GATKConstants.MQ_KEY).
-			description("Mean square mapping quality over all the reads at the site").
-			xlab(GATKConstants.MQ_KEY).
-			ylab("Count Variants")
-			);
-
-		modules.add(new RangeBarPlot(GATKConstants.MQRankSum_KEY, 10).
-			name(GATKConstants.MQRankSum_KEY).
-			description("Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities").
-			xlab(GATKConstants.MQRankSum_KEY).
-			ylab("Count Variants")
-			);
-		
-		modules.add(new RangeBarPlot(GATKConstants.ReadPosRankSum_KEY, 10).
-			name(GATKConstants.ReadPosRankSum_KEY).
-			description("Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias").
-			xlab(GATKConstants.ReadPosRankSum_KEY).
-			ylab("Count Variants")
-			);
 
 		
 		modules.add(new GatkDeNovo().
@@ -1402,14 +1421,14 @@ public class VcfStats extends Launcher {
 		modules.add(new SampleToAvgBoxPlot(VCFConstants.DEPTH_KEY));
 		modules.add(new SampleToAvgBoxPlot(VCFConstants.GENOTYPE_QUALITY_KEY));
 		modules.add(new SampleToAvgBoxPlot(VCFConstants.GENOTYPE_ALLELE_DEPTHS));
-		
+		/*
 		modules.add(new RangeBarPlot(VCFConstants.DEPTH_KEY, 1).
 				logX(true).
 				name(VCFConstants.DEPTH_KEY).
 				description("DEPTH per variant").
 				xlab(VCFConstants.DEPTH_KEY).
 				ylab("Count Variants")
-				);
+				);*/
 
 		modules.add(new CountVariantsManhattanPlot().
 				name("manhattan count variants").
@@ -1425,26 +1444,55 @@ public class VcfStats extends Launcher {
 				ylab("Count Variants")
 				);
 		
-		modules.add(
-				new SampleToGenotypeTypeFraction(GenotypeType.NO_CALL).
-					setMinYIsZero(false)
-				);
-		modules.add(
-				new NormalizedContigs(SSR->SSR.getContig().matches("(chr)?[XY]")).
-					name("xy per sample").
-					description("Number of variants per X/Y per Samples")
-				);
-		modules.add(
-				new SampleMultiAllelicFraction()
-				);
 		
-
-		modules.add(
-				new SampleMultiAllelicFraction()
-				);
+		
 		
 		modules.clear();//TODO fix me
 		
+
+		
+		modules.add(new RangeBarPlot(GATKConstants.FS_KEY, 1,true).
+			setProperty("title","Phred-scaled p-value using Fisher's exact test to detect strand bias")
+			);
+		
+		modules.add(new RangeBarPlot(GATKConstants.SOR_KEY, 10,false).
+			setProperty("title","Symmetric Odds Ratio of 2x2 contingency table to detect strand bias")
+			);
+		
+		modules.add(new RangeBarPlot(GATKConstants.MQ_KEY, 1,false).
+			setProperty("title","Mean square mapping quality over all the reads at the site")
+			);
+
+		modules.add(new RangeBarPlot(GATKConstants.MQRankSum_KEY, 10,false).
+			setProperty("title","Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities")
+			);
+		
+		modules.add(new RangeBarPlot(GATKConstants.ReadPosRankSum_KEY, 10,false)
+			.setProperty("title", "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias")
+			);
+		modules.add(new SingletonAnalyzer()
+				.setProperty("title","Count singletons")
+				.setProperty("filename", "singletons_by_groups")
+				);
+		
+		modules.add(
+				new CountPerContig(SSR->SSR.getContig().matches("(chr)?[0-9XY]+"))
+					.setProperty("title", "Variant per chromosome")
+					.setProperty("filename", "variants_per_chromosome")
+				);
+		
+		modules.add(
+				new SampleToGenotypeType(true)
+					.setProperty("title", "Genotype Types (without HOM_REF)")
+					.setProperty("filename", "genotype_type_ignore_hom_ref")
+				);
+		
+		modules.add(
+				new SampleToGenotypeType(false)
+					.setProperty("title", "Genotype Types")
+					.setProperty("filename", "genotype_type_all")
+				);
+
 		
 		modules.add(
 				new ADRatioAnalyzer(GenotypeType.HET)

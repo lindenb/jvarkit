@@ -25,16 +25,17 @@ package com.github.lindenb.jvarkit.chart;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.MiniList;
 
 public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  {
 	private final List<NamedSeries> delegate;
-	private List<String> categories = null;
 	private boolean beside=false;
 	
 	public BarPlot(final NamedSeries series) {
@@ -50,8 +51,9 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 			);
 		}
 	
-	public void setCategoriesName(List<String> categories)  {
-		this.categories = new ArrayList<String>(categories);
+	public void sortOnName() {
+		final SmartComparator cmp = new SmartComparator();
+		Collections.sort(delegate,(A,B)->cmp.compare(A.getName(), B.getName()));
 		}
 	
 	@Override
@@ -69,20 +71,20 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 		this.beside = beside;
 		}
 	
-	private String getCategoryAt(int index) {
-		if(this.categories==null || index<0 || index>=this.categories.size()) {
-			return "#cat"+(1+index);
-			}
-		return this.categories.get(index);
+	private List<String> getCategories() {
+		return new ArrayList<>( this.stream()
+			.flatMap(NS->NS.stream())
+			.map(NS->NS.getName())
+			.collect(Collectors.toCollection(LinkedHashSet::new))
+			);
 		}
 	
 	public void savePlotlyJS(final Appendable w) throws IOException {
-		final int n_categories = stream().mapToInt(L->L.size()).max().orElse(0);
-		if(n_categories==0) return;
+		List<String> categories_names = getCategories();
+		if(categories_names.isEmpty()) return;
 		
-		if(n_categories>1) {
-			for(int cat_index = 0; cat_index < n_categories;++cat_index) {
-				
+	
+			for(int cat_index = 0; cat_index < categories_names.size();++cat_index) {
 				w.append("trace").append(getId()+"_"+cat_index).append(" = {");
 				w.append("x:[");
 				for(int x=0;x<size();x++) {
@@ -94,8 +96,9 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 				for(int x=0;x<size();x++) {
 					if(x>0) w.append(",");
 					final NamedSeries ns = get(x);
-					if(cat_index< ns.size()) {
-						w.append(String.valueOf(ns.get(cat_index)));
+					final NamedY ny = ns.getNamedYByName(categories_names.get(cat_index));
+					if(ny!=null) {
+						w.append(String.valueOf(ny.getY()));
 						}
 					else
 						{
@@ -103,15 +106,15 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 						}
 					}
 				w.append("], name:");
-				w.append(StringUtils.doubleQuote(getCategoryAt(cat_index)));
+				w.append(StringUtils.doubleQuote(categories_names.get(cat_index)));
 				w.append(", type:'bar'");
 				w.append("};\n");
 				}
 			
 			w.append("var data").append(getId()).append("= [");
-			for(int index=0;index< n_categories ;++index) {
+			for(int index=0;index< categories_names.size();++index) {
 				if(index>0) w.append(",");
-				w.append(StringUtils.doubleQuote("trace"+getId()+"_"+index));
+				w.append("trace"+getId()+"_"+index);
 				}
 			w.append("];\n");
 			
@@ -128,24 +131,7 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 				.append(", layout")
 				.append(getId())
 				.append(");\n");
-			}
-		else
-			{
-			w.append("data").append(getId()).append(" = [{");
-			w.append("x:[");
-			w.append(this.stream().map(S->StringUtils.doubleQuote(S.getName())).collect(Collectors.joining(",")));
-			w.append("], y:[");
-			w.append(this.stream().map(S->String.valueOf(S.get(0))).collect(Collectors.joining(",")));
-			w.append("], type:'bar'");
-			w.append("}];\n");
 			
-			w.append("Plotly.newPlot('div")
-				.append(getId())
-				.append("', data")
-				.append(getId())
-				//.append(", layout")
-				//.append(getId())
-				.append(");\n");
-			}
-	}
+		
+		}
 	}

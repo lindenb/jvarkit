@@ -87,8 +87,13 @@ public class SampleToGroup {
 	
 	public boolean hasGroup(final String gr) {
 		return this.groups.containsKey(gr);
-	}
+		}
 	
+	public boolean hasSampleInGroup(final String sampleName,final String groupName) {
+		if(!hasSample(sampleName)) return false;
+		if(!hasGroup(groupName)) return false;
+		return getSamplesForGroup(groupName).contains(sampleName);
+		}
 	
 	public int getSamplesCount() {
 		return this.samples.size();
@@ -130,7 +135,7 @@ public class SampleToGroup {
 		}
 	
 	public SampleToGroup assertOneGroupPerSample() {
-		Sample opt = this.samples.
+		final Sample opt = this.samples.
 				values().
 				stream().
 				filter(KV->KV.size()!=1).
