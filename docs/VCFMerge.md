@@ -7,7 +7,13 @@ Merge a large number of VCF Files
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfmerge  [options] Files
+
 Usage: vcfmerge [options] Files
   Options:
     --bcf-output
@@ -16,9 +22,6 @@ Usage: vcfmerge [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    --fields
-      print the following INFO/FORMAT Fields.
-      Default: AC,AN,AF,DP,GQ,AD,PL
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -42,8 +45,9 @@ Usage: vcfmerge [options] Files
       Default: 2
     -region, --region, -r
       Merge in that region: An interval as the following syntax : 
-      "chrom:start-end" or "chrom:middle+extend"  or "chrom:start-end+extend" 
-      or "chrom:start-end+extend-percent%".A program might use a Reference 
+      "chrom:start-end". Some jvarkit programs also allow the following syntax 
+      : "chrom:middle+extend"  or "chrom:start-end+extend" or 
+      "chrom:start-end+extend-percent%".A program might use a Reference 
       sequence to fix the chromosome name (e.g: 1->chr1)
       Default: <empty string>
     --tmpDir
@@ -61,23 +65,6 @@ Usage: vcfmerge [options] Files
  * sort
  * merge
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfmerge
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -116,7 +103,7 @@ The current reference is:
 
 The motivation for this is to merge a large number of VCF files without opening a bunch of temporary files.
 
-For a regular normal number of files you should use  GATK combineVariants or bcftools merge
+For a regular normal number of files you should use  GATK3 combineVariants or bcftools merge
  
 ## Example
 
@@ -143,4 +130,5 @@ RF02	2332	.	AT	A	.	.	AC=1;AF=0.100;AN=10	GT	0/0	0/0	0/0	0/1	0/0
 RF02	2662	.	G	C	.	.	AC=2;AF=0.200;AN=10	GT	0/0	0/0	0/0	0/0	1/1
 
 ```
+
 

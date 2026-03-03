@@ -50,11 +50,9 @@ import java.util.stream.IntStream;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.chart.ChartExporter;
-import com.github.lindenb.jvarkit.chart.LineChart;
-import com.github.lindenb.jvarkit.chart.NumericAxis;
-import com.github.lindenb.jvarkit.chart.Series;
-import com.github.lindenb.jvarkit.chart.XYData;
+import com.github.lindenb.jvarkit.chart.DataXY;
+import com.github.lindenb.jvarkit.chart.ScatterXY;
+import com.github.lindenb.jvarkit.chart.SeriesXY;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
@@ -175,7 +173,7 @@ public class VcfStats extends Launcher {
 	private static interface Analyzer {
 		void init(VCFHeader h,Map<String,String> properties,final SampleToGroup sn2group);
 		void visit(final VariantContext ctx);
-		void finish(Path outputDir);
+		void finish(Path outputDir) throws IOException;
 		public String getName();
 		public String getDescription();
 		public boolean isEnabled();
@@ -1143,7 +1141,7 @@ public class VcfStats extends Launcher {
 			}
 		
 		@Override
-		public void visit(VariantContext ctx) {
+		public void visit(final VariantContext ctx) {
 			if(!ctx.isBiallelic()) return;
 			if(!ctx.hasGenotypes()) return ;
 			if(!acceptVariant(ctx)) return;
@@ -1155,21 +1153,31 @@ public class VcfStats extends Launcher {
 				if(ad==null || ad.length!=2) continue;
 				final int sum = ad[0]+ad[1];
 				if(sum<=0) continue;
-				double f = ad[0]/(double)sum;
-				int f_as_int10 = (int)Math.floor(f*10.0);
-				final String groupName = this.sampleToGroup.getGroupForSample(gt.getSampleName());
-				if(StringUtils.isBlank(groupName)) continue;
-				this.group2count10.insert(groupName).incr(f_as_int10);
+				final double f = ad[0]/(double)sum;
+				final int f_as_int10 = (int)Math.floor(f*10.0);
+				for(final String groupName : this.sampleToGroup.getGroupsForSample(gt.getSampleName())) {
+					this.group2count10.insert(groupName).incr(f_as_int10);
+					}
 				}
 			}
 		@Override
-		public void finish(Path outputDir) {
+		public void finish(Path outputDir) throws IOException {
 			if(this.group2count10.isEmpty()) return;
-			final ChartExporter plotter = new ChartExporter();
-			for(String groupName: this.group2count10.keySet()) {
-				plotter.addLine2DSeries(groupName,"");
-				}
 			
+			final List<SeriesXY> series=new ArrayList<SeriesXY>();
+			this.group2count10.entrySet().forEach(KV->{
+				final SeriesXY L = new SeriesXY(
+						KV.getKey(),
+						KV.getValue()
+							.entrySet()
+							.stream()
+							.map(KV2->new DataXY(KV2.getKey()/10.0, KV2.getValue()))
+							.collect(Collectors.toList())
+						);
+				series.add(L);
+				});
+			ScatterXY chart = new ScatterXY(series);
+			chart.saveMultiQC(outputDir);
 			}
 		}
 	/*********************************************************************/

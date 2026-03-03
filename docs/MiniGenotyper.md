@@ -55,6 +55,12 @@ Usage: minigenotyper [options] Files
       or streaming (no index required, large number of variants)
       Default: random_access
       Possible Values: [random_access, streaming]
+    --no-id
+      don't print ID column
+      Default: false
+    --no-info
+      don't print INFO column
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -R, --reference

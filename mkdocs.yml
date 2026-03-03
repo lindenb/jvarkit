@@ -294,6 +294,7 @@ nav:
         - "vcfhead" : VcfHead.md
         - "vcfisec" : VcfISec.md
         - "vcfliftover" : VcfLiftOver.md
+        - "vcfmerge" : VCFMerge.md
         - "vcfmovefilterstoinfo" : VcfMoveFiltersToInfo.md
         - "vcfmulti2one" : VcfMultiToOne.md
         - "vcfmulti2oneallele" : VcfMultiToOneAllele.md
