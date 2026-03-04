@@ -45,6 +45,7 @@ import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.chart.BarPlot;
 import com.github.lindenb.jvarkit.chart.BoxPlotChart;
+import com.github.lindenb.jvarkit.chart.Chart;
 import com.github.lindenb.jvarkit.chart.DataXY;
 import com.github.lindenb.jvarkit.chart.NamedSeries;
 import com.github.lindenb.jvarkit.chart.NamedY;
@@ -68,6 +69,7 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -253,6 +255,15 @@ public class VcfStats extends Launcher {
 		public boolean acceptGenotype(final Genotype gt) {
 			return this._acceptGT.test(gt);
 			}
+		void exportChart(Path outputDir,Chart chart) throws IOException,XMLStreamException {
+			final String basename =  getProperty("filename","file");
+			LOG.info("saving "+getName()+" to "+basename);
+			chart.savePlotly(outputDir.resolve(basename+".html"));
+			chart.saveXml(outputDir.resolve(basename+".xml"));
+			chart.saveMultiQC(outputDir.resolve(basename+"_mqc.json"));
+			chart.saveR(outputDir.resolve(basename+".R"));
+			}
+		
 		}
 	
 	/** Abstract BoxPlot ******************************************************************************************/
@@ -360,9 +371,7 @@ public class VcfStats extends Launcher {
 			chart.setYAxisLabel("Count "+this.infoTag);
 			chart.setLogX(this.logX);
 			chart.setXAxisLabel(this.logX?"log("+this.infoTag+")":this.infoTag);
-			System.err.println("saving ("+basename+")."+this.infoTag+" "+getProperty("XXXXXX", "zorg")+" ("+super.properties+")");
-			chart.saveMultiQC(outputDir.resolve(basename+"_mqc.json"));
-			chart.savePlotly(outputDir.resolve(basename+".html"));
+			exportChart(outputDir,chart);
 			}
 	}
 
@@ -513,8 +522,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Group");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
-			
+			exportChart(outputDir,chart);
 			}
 		}
 	
@@ -578,7 +586,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Chromosome");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 	
@@ -633,7 +641,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Sample");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -688,7 +696,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Sample");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 
@@ -718,9 +726,16 @@ public class VcfStats extends Launcher {
 		private long n_variants=0L;
 		private Map<String,Counter<VariantContext.Type>> group2count=new HashMap<>();
 		private final Predicate<VariantContext> variant_filter;
+		private boolean do_normalize=false;
 		private VariantTypeFraction(final Predicate<VariantContext> variant_filter) {
 			this.variant_filter = variant_filter;
 			}
+		
+		VariantTypeFraction setNormalize(boolean b) {
+			this.do_normalize = b;
+			return this;
+			}
+		
 		@Override
 		public void init(VCFHeader h, Map<String, String> properties, SampleToGroup sampleToGroup) {
 			super.init(h, properties, sampleToGroup);
@@ -755,10 +770,11 @@ public class VcfStats extends Launcher {
 			
 			for(String grpName: this.group2count.keySet()) {
 				Counter<VariantContext.Type> count = this.group2count.get(grpName);
+				final double divide = do_normalize?this.n_variants:1.0;
 				final List<NamedY> L2 = count.stream()
-						.map(KV->new NamedY(KV.getKey().name(), KV.getValue()/(double)n_variants) )
+						.map(KV->new NamedY(KV.getKey().name(), KV.getValue()/divide) )
 						.collect(Collectors.toList());
-				
+				if(L2.isEmpty()) continue;
 				L.add(new  NamedSeries(getLabelForGroup(grpName), L2));
 				}
 			
@@ -768,9 +784,8 @@ public class VcfStats extends Launcher {
 			final BarPlot chart = new BarPlot(L);
 			chart.setTitle(getProperty("title","")+ " N-variants="+this.n_variants);
 			chart.setXAxisLabel("collection");
-			chart.setYAxisLabel("proportion of variant");
-			//chart.saveMultiQC(outputDir.resolve(getProperty("filename","file")+"_mqc.json"));
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			chart.setYAxisLabel(this.do_normalize?"Percentage":" Count");
+			exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -822,7 +837,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count Filters");
 			chart.setXAxisLabel("Group");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -833,12 +848,12 @@ public class VcfStats extends Launcher {
 ;		@Override
 		public void init(final VCFHeader h,Map<String,String> props,SampleToGroup s2g) {
 			super.init(h, props, s2g);
-			if(!h.hasGenotypingData() ||  h.getFormatHeaderLines().isEmpty()) {
+			if(h.getFilterLines().isEmpty()) {
 				this.enabled = false;
 				}
 			else
 				{
-				for(VCFFormatHeaderLine g: h.getFormatHeaderLines()) {
+				for(VCFFilterHeaderLine g: h.getFilterLines()) {
 					filters.initializeIfNotExists(g.getID());
 					}
 				}
@@ -850,6 +865,7 @@ public class VcfStats extends Launcher {
 				n_pass++;
 				return;
 				}
+			n_variants++;
 			for(final String flt: ctx.getFilters()) {				
 				filters.incr(flt);
 				}
@@ -866,10 +882,10 @@ public class VcfStats extends Launcher {
 				}
 			
 			final BarPlot chart = new BarPlot(series);
-			chart.setTitle(getTitle()+" (n-variants = "+n_variants+") PASS="+n_pass+" ("+((n_pass/n_variants)*100.0)+"%)");
+			chart.setTitle(getTitle()+" (n-variants = "+n_variants+") PASS="+n_pass+" ("+((n_pass/(n_pass+n_variants))*100.0)+"%)");
 			chart.setYAxisLabel("count Filters");
 			chart.setXAxisLabel("Filter");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 
@@ -1030,8 +1046,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Group");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
-			
+			exportChart(outputDir,chart);
 			}
 		
 		}
@@ -1093,10 +1108,17 @@ public class VcfStats extends Launcher {
 	private static class SampleToGenotypeType extends AbstractAnalyzer {
 		private final boolean ignore_hom_ref;
 		private long n_variants = 0L;
+		private boolean do_normalize=false;
 		private final Map<String,Counter<GenotypeType>> group2gtype = new HashMap<>();
 		SampleToGenotypeType(boolean ignore_hom_ref) {
 			this.ignore_hom_ref = ignore_hom_ref;
 			}
+		
+		SampleToGenotypeType setNormalizeFlag(boolean b) {
+			this.do_normalize = b;
+			return this;
+			}
+		
 		@Override
 		public void init(VCFHeader h, Map<String, String> props, SampleToGroup sample2group) {
 			super.init(h, props, sample2group);
@@ -1130,13 +1152,20 @@ public class VcfStats extends Launcher {
 			final List<NamedSeries> series=new ArrayList<>();
 			for(String groupName: this.group2gtype.keySet()) {
 				final List<NamedY> L2 =new ArrayList<>();
-				final double total = Math.max(1.0, (use_fraction?this.group2gtype.get(groupName)
+				final double total;
+				if(do_normalize) {
+						total = Math.max(1.0, (use_fraction?this.group2gtype.get(groupName)
 						.entrySet()
 						.stream()
 						.filter(KV->!ignore_hom_ref || !KV.getKey().equals(GenotypeType.HOM_REF))
 						.mapToDouble(KV->KV.getValue())
 						.sum():1.0)
 						);
+						}
+					else
+						{
+						total = 1.0;
+						}
 				
 				for(GenotypeType gtype: GenotypeType.values()) {
 					if(this.ignore_hom_ref && gtype.equals(GenotypeType.HOM_REF)) continue;
@@ -1150,7 +1179,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Group");
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -1159,12 +1188,17 @@ public class VcfStats extends Launcher {
 		private final AutoMap<String,Counter<Double>,Counter<Double>> group2count= AutoMap.make(SN->new Counter<>());
 		private final boolean non_pure_only;
 		private final DoubleRounder rounder=new DoubleRounder(2);
+		private boolean do_normalize=false;
 		ADRatioAnalyzer(final GenotypeType gtype,boolean non_pure_only) {
 			this.gtype=gtype;
 			this.non_pure_only = non_pure_only;
 			}
 		ADRatioAnalyzer(final GenotypeType gtype) {
 			this(gtype,false);
+			}
+		ADRatioAnalyzer setNormalizeFlag(boolean b) {
+			this.do_normalize= b;
+			return this;
 			}
 		@Override
 		public void init(VCFHeader h, Map<String, String> properties, SampleToGroup sampleToGroup) {
@@ -1235,17 +1269,16 @@ public class VcfStats extends Launcher {
 							.map(KV2->new DataXY(KV2.getKey(), KV2.getValue()))
 							.collect(Collectors.toList())
 						);
-				L.normalize();	
+				if(this.do_normalize) L.normalize();	
 				L.sort();
 				series.add(L);
 				});
 			
 			final ScatterXY chart = new ScatterXY(series);
 			chart.setTitle(getTitle());
-			chart.setYAxisLabel("Count");
+			chart.setYAxisLabel((do_normalize?"Normalized ":"")+"Count");
 			chart.setXAxisLabel("AD Ratio ALT/(REF+ALT)");
-			chart.saveMultiQC(outputDir.resolve(getProperty("filename","file")+"_mqc.json"));
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 	
@@ -1254,6 +1287,7 @@ public class VcfStats extends Launcher {
 	private static class CrossContaminationAnalyzer extends AbstractAnalyzer {
 		private int factor = 100;
 		private final AutoMap<String,Counter<Integer>,Counter<Integer>> group2count100 = AutoMap.make(SN->new Counter<>());
+		private boolean do_normalize=false;
 		@Override
 		public void init(VCFHeader h, Map<String, String> properties, final SampleToGroup sampleToGroup) {
 			super.init(h, properties, sampleToGroup);
@@ -1267,6 +1301,12 @@ public class VcfStats extends Launcher {
 				super.enabled=false;
 				}
 			}
+		
+		CrossContaminationAnalyzer setNormalizeFlag(boolean b) {
+			this.do_normalize= b;
+			return this;
+			}
+		
 		@Override
 		public void visit(VariantContext ctx) {
 			if(!acceptVariant(ctx)) return;
@@ -1310,17 +1350,16 @@ public class VcfStats extends Launcher {
 							.map(KV2->new DataXY(KV2.getKey()/(double)this.factor, KV2.getValue()))
 							.collect(Collectors.toList())
 						);
-				L.normalize();
+				if(this.do_normalize) L.normalize();
 				L.sort();
 				series.add(L);
 				});
 			
 			final ScatterXY chart = new ScatterXY(series);
 			chart.setTitle(getTitle());
-			chart.setYAxisLabel("normalized count");
+			chart.setYAxisLabel((this.do_normalize?"Normalized ":"")+"Count");
 			chart.setXAxisLabel("AD Ratio ALT/(REF+ALT)");
-			chart.saveMultiQC(outputDir.resolve(getProperty("filename","file")+"_mqc.json"));
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 	
@@ -1345,7 +1384,7 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void visit(VariantContext ctx) {
+		public void visit(final VariantContext ctx) {
 			if(!acceptVariant(ctx)) {
 				//System.err.println("skip");
 				return;
@@ -1386,8 +1425,7 @@ public class VcfStats extends Launcher {
 			chart.setYAxisLabel("log(count Variants)");
 			chart.setLogY(true);
 			chart.setXAxisLabel("Number of genotypes carrying an ALT allele per variant");
-			chart.saveMultiQC(outputDir.resolve(getProperty("filename","file")+"_mqc.json"));
-			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
+			exportChart(outputDir,chart);
 			}
 		}
 

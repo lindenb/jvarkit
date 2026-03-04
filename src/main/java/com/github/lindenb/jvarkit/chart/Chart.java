@@ -72,7 +72,7 @@ public class Chart {
 	public void saveXml(XMLStreamWriter w) throws IOException,XMLStreamException {
 		w.writeComment("not implemented");
 		}
-	public void saveXml(Path p) throws IOException,XMLStreamException {
+	public void saveXml(final Path p) throws IOException,XMLStreamException {
 		final Charset charset=Charset.defaultCharset();
 		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
 		try(Writer w= Files.newBufferedWriter(p, charset)) {
@@ -148,7 +148,7 @@ public class Chart {
 			}
 		}
 	public void saveR(Appendable w) throws IOException,XMLStreamException {
-		w.append("#not implemented\n");
+		w.append("# not implemented\n");
 		}
 	
 	public void saveR(Path filename) throws IOException,XMLStreamException {
@@ -157,6 +157,7 @@ public class Chart {
 			pw.flush();
 			}
 		}
-	
+	public void saveMultiQC(final Path filename) throws IOException {
+		}
 
 	}

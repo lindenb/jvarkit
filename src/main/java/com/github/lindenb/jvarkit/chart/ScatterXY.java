@@ -69,8 +69,23 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 	
 	 
 	@Override
-	public void saveXml(XMLStreamWriter w) throws IOException,XMLStreamException {
+	public void saveXml(final XMLStreamWriter w) throws IOException,XMLStreamException {
 		w.writeStartElement("scatter");
+		w.writeAttribute("id", getId());
+		
+		w.writeStartElement("title");
+		w.writeCharacters(getTitle());
+		w.writeEndElement();
+		w.writeStartElement("x-axis");
+		w.writeAttribute("log", String.valueOf(isLogX()));
+		w.writeCharacters(getXAxisLabel());
+		w.writeEndElement();
+		w.writeStartElement("y-axis");
+		w.writeAttribute("log", String.valueOf(isLogY()));
+		w.writeCharacters(getYAxisLabel());
+		w.writeEndElement();		
+		
+		
 		for(SeriesXY xy: this) {
 			xy.saveXml(w);
 			}
@@ -160,7 +175,7 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 		w.endObject();//data
 		w.endObject();
 		}
-	
+	@Override
 	public void saveMultiQC(final Path filename) throws IOException {
 		if(filename.getFileName().endsWith("_mqc.json")) {
 			throw new IllegalArgumentException("filename should end with _mqc.json but got "+filename);

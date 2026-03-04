@@ -83,9 +83,29 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 		}
 	
 	@Override
-	public void saveXml(XMLStreamWriter w) throws IOException, XMLStreamException {
+	public void saveXml(final XMLStreamWriter w) throws IOException, XMLStreamException {
 		w.writeStartElement("barplot");
 		w.writeAttribute("id", getId());
+		w.writeStartElement("title");
+		w.writeCharacters(getTitle());
+		w.writeEndElement();
+		w.writeStartElement("x-axis");
+		w.writeAttribute("log", String.valueOf(isLogX()));
+		w.writeCharacters(getXAxisLabel());
+		w.writeEndElement();
+		w.writeStartElement("y-axis");
+		w.writeAttribute("log", String.valueOf(isLogY()));
+		w.writeCharacters(getYAxisLabel());
+		w.writeEndElement();
+		w.writeStartElement("categories");
+		w.writeAttribute("count", String.valueOf(getCategories().size()));
+		for(String cat: getCategories()) {
+			w.writeStartElement("category");
+			w.writeCharacters(cat);
+			w.writeEndElement();
+			}
+		w.writeEndElement();
+
 		for(NamedSeries ns: this) {
 			ns.saveXml(w);
 			}

@@ -27,7 +27,9 @@ import java.text.DecimalFormat;
 import java.util.function.DoubleUnaryOperator;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
-
+/**
+ * Round numbers to 'n' decimals
+ */
 public class DoubleRounder implements DoubleUnaryOperator{
 	private final DecimalFormat decimalFormat;
 	public DoubleRounder(final int numbe_of_decimal_after_comma) {
@@ -37,8 +39,19 @@ public class DoubleRounder implements DoubleUnaryOperator{
 		this.decimalFormat = new DecimalFormat("#."+StringUtils.repeat(numbe_of_decimal_after_comma, '#'));
 		this.decimalFormat.setRoundingMode(mode);
 		}
+	/**
+	 * format number as string
+	 * @param operand
+	 * @return
+	 */
+	public String format(double operand) {
+		return this.decimalFormat.format(operand);
+		}
+	/**
+	 * Round number
+	 */
 	@Override
 	public double applyAsDouble(final double operand) {
-		return  Double.parseDouble(this.decimalFormat.format(operand));
+		return  Double.parseDouble(format(operand));
 		}
 }
