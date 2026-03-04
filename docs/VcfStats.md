@@ -16,6 +16,11 @@ Usage: java -jar dist/jvarkit.jar vcfstats  [options] Files
 
 Usage: vcfstats [options] Files
   Options:
+    --fill
+      assign group 'x' to sample if it's not defined in the file for 
+      --categories. Special value = '*' : assign the sample name to it's own 
+      private group
+      Default: other
     -h, --help
       print help and exit
     --helpFormat
@@ -23,7 +28,7 @@ Usage: vcfstats [options] Files
     --list
       list available modules and exit
     -o, --output
-      Output file. Optional . Default: stdout
+      Output directory
     --prefix
       file prefix
       Default: <empty string>

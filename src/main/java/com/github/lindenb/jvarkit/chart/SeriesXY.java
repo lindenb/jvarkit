@@ -37,65 +37,39 @@ import javax.xml.stream.XMLStreamWriter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.google.gson.stream.JsonWriter;
 
-public  class SeriesXY extends AbstractList<DataXY> {
-	private static int ID_GENERATOR=0;
-	private String id = String.valueOf("series"+(++ID_GENERATOR));
-	private final List<DataXY> data;
-	private String name="";
+public  class SeriesXY extends AbstractSeries<DataXY> {
 	private Color color;
 	public SeriesXY() {
-		this.data = new ArrayList<DataXY>();
+		this("",new ArrayList<DataXY>());
 		}
 	
 	public SeriesXY(String name) {
-		this();
-		this.name = name;
+		this(name,Collections.emptyList());
 		}
 	
 	public SeriesXY( List<DataXY> data) {
-		this.data = new ArrayList<DataXY>(data);
+		this("",data);
 		}
 	public SeriesXY(String name, List<DataXY> data) {
-		this(data);
-		this.name= name;
+		super(name,data);
 		}
 	
 	
-	@Override
-	public DataXY get(int index) {
-		return data.get(index);
-		}
 	
 	OptionalDouble getMinX() {
-		return data.stream().mapToDouble(DataXY::getX).min();
+		return stream().mapToDouble(DataXY::getX).min();
 		}
 	OptionalDouble getMaxX() {
-		return data.stream().mapToDouble(DataXY::getX).max();
+		return stream().mapToDouble(DataXY::getX).max();
 		}
 	OptionalDouble getMinY() {
-		return data.stream().mapToDouble(DataXY::getY).min();
+		return stream().mapToDouble(DataXY::getY).min();
 		}
 	OptionalDouble getMaxY() {
-		return data.stream().mapToDouble(DataXY::getY).max();
-		}
-	public String getId() {
-		return id;
-		}
-	public void setId(String id) {
-		this.id = id;
+		return stream().mapToDouble(DataXY::getY).max();
 		}
 	
-	@Override
-	public int size() {
-		return this.data.size();
-		}
 	
-	public String getName() {
-		return name;
-		}
-	public void setName(String name) {
-		this.name = name;
-		}
 	
 	void saveXml(XMLStreamWriter w) throws IOException,XMLStreamException {
 		w.writeStartElement("series");
@@ -119,25 +93,39 @@ public  class SeriesXY extends AbstractList<DataXY> {
 		}
 	void plottlyJS(Appendable w) throws IOException {
 		w.append("var "+getId())
-			.append(" = {x=[")
+			.append(" = {x:[")
 			.append(this.stream().map(PT->String.valueOf(PT.getX())).collect(Collectors.joining(",")))
-			.append("],y=[")
+			.append("],y:[")
 			.append(this.stream().map(PT->String.valueOf(PT.getY())).collect(Collectors.joining(",")))
 			.append("]");
 		if(!StringUtils.isBlank(getName())) {
-			w.append(",name=")
+			w.append(",name:")
 				.append(StringUtils.doubleQuote(getName()));
 			}
 			
-		w.append("};");
+		w.append("};\n");
 		}
 	
-	public void sort() {
-		Collections.sort(this.data,(A,B)->{
-			int i = Double.compare(A.getX(), B.getX());
-			
+	/** reorder DATA on X and then Y */
+	public SeriesXY sort() {
+		Collections.sort(super.delegate,(A,B)->{
+			final int i = Double.compare(A.getX(), B.getX());
+			if(i!=0) return i;
+			return Double.compare(A.getY(), B.getY());
 			});
+		return this;
 		}
+	public SeriesXY normalize() {
+		final double minY = getMinY().orElse(0);
+		final double maxY = getMaxY().orElse(0);
+		double distance = maxY-minY;
+		if(distance==0) distance=1;
+		for(DataXY pt:this) {
+			pt.setY((pt.getY()-minY)/distance);
+			}
+		return this;
+		}
+	
 	
 	public void saveMultiQC(JsonWriter w) throws IOException {
 		w.name(getName());

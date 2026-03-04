@@ -25,6 +25,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -62,6 +63,20 @@ public class Counter<T>
 		{
 		this(stream.collect(Collectors.groupingBy(Function.identity(), Collectors.counting())));
 		}
+	
+	/** initialize to zero all keys of the collection */
+	public void initializeIfNotExists(final Collection<T> keys)
+		{
+		initializeIfNotExists(keys,0L);
+		}
+	/** initialize to 'initialValue' all keys of the collection */
+	public void initializeIfNotExists(final Collection<T> keys,long initialValue)
+		{
+		for(T key:keys) {
+			initializeIfNotExists(key,initialValue);
+			}
+		}
+	
 	
 	public void initializeIfNotExists(final T key)
 		{

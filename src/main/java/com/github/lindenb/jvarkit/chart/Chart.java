@@ -23,6 +23,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.chart;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -65,20 +66,82 @@ public class Chart {
 	public String getPlotlyLibraryUrl() {
 		return plotly_library_url;
 		}
-	public void saveXML(XMLStreamWriter w) throws IOException,XMLStreamException {
+	public void saveXml(XMLStreamWriter w) throws IOException,XMLStreamException {
 		w.writeComment("not implemented");
 		}
-	public void saveXML(Path p) throws IOException,XMLStreamException {
+	public void saveXml(Path p) throws IOException,XMLStreamException {
 		final Charset charset=Charset.defaultCharset();
 		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
 		try(Writer w= Files.newBufferedWriter(p, charset)) {
 			final XMLStreamWriter xw = xof.createXMLStreamWriter(w);
 			xw.writeStartDocument(charset.displayName(), "1.0");
-			saveXML(xw);
+			saveXml(xw);
 			xw.writeEndDocument();
 			xw.flush();
 			w.flush();
 			}
 		}
 	
+	public void savePlotlyJS(Appendable w) throws IOException {
+		w.append("/* not implemented */");
+		}
+	
+	public void savePlotly(final XMLStreamWriter w,final Charset charset) throws IOException,XMLStreamException {
+		w.writeStartElement("html");
+		w.writeStartElement("head");
+		w.writeStartElement("title");
+		w.writeCharacters(getTitle());
+		w.writeEndElement();
+		
+		w.writeEmptyElement("meta");
+		w.writeAttribute("charset", charset.displayName());
+		w.writeEmptyElement("meta");
+		w.writeAttribute("author", "Pierre Lindenbaum");
+		w.writeEmptyElement("meta");
+		w.writeAttribute("date", "todo");
+	
+		w.writeStartElement("script");
+		w.writeAttribute("src",this.getPlotlyLibraryUrl());
+		w.writeCharacters("");//empty
+		w.writeEndElement();//script
+		
+		w.writeEndElement();//head
+		w.writeStartElement("body");
+		w.writeStartElement("h2");
+		w.writeCharacters(getTitle());
+		w.writeEndElement();//h2
+		w.writeStartElement("div");
+		w.writeAttribute("id", "div"+getId());
+		w.writeEndElement();///div
+		w.writeEmptyElement("hr");
+		w.writeEndElement();//body
+		
+		w.writeStartElement("foot");
+		
+		w.writeStartElement("script");
+		
+		try(StringWriter sw=new StringWriter()) {
+			savePlotlyJS(sw);
+			w.writeCharacters(sw.toString());
+			}
+		w.writeEndElement();//script
+		
+		w.writeEndElement();//foot
+		
+		w.writeEndElement();//html
+		}
+	
+	public void savePlotly(Path filename) throws IOException,XMLStreamException {
+		if(filename.getFileName().endsWith(".html")) {
+			throw new IllegalArgumentException("filename should end with .html but got "+filename);
+			}
+		final Charset charset=Charset.defaultCharset();
+		final XMLOutputFactory xof = XMLOutputFactory.newFactory();
+		try(Writer w= Files.newBufferedWriter(filename, charset)) {
+			final XMLStreamWriter xw = xof.createXMLStreamWriter(w);
+			savePlotly(xw,charset);
+			xw.flush();
+			w.flush();
+			}
+		}
 	}

@@ -22,39 +22,38 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.chart;
 
-import java.awt.geom.Point2D;
-import java.io.IOException;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.List;
 
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
 
-import com.google.gson.stream.JsonWriter;
-
-public class DataXY extends AbstractDataY {
-	double x;
-	public DataXY(final double x, final double y) {
-		super(y);
-		this.x = x;
+public abstract class AbstractSeries<X> extends AbstractList<X> {
+	private static int ID_GENERATOR=0;
+	private String id = String.valueOf("series"+(++ID_GENERATOR));
+	private String name="";
+	protected final List<X> delegate;
+	AbstractSeries(final String name, final List<X> values) {
+		this.delegate = new ArrayList<>(values);
+		this.name = name;
 		}
-	public DataXY(Point2D pt) {
-		this(pt.getX(),pt.getY());
+	public void setName(String name) {
+		this.name = name;
 		}
-	
-	
-	public double getX() {
-		return x;
+	public String getName() {
+		return name;
 		}
-	
-	void saveMultiQC(final JsonWriter w) throws IOException {
-		w.beginArray();
-		w.value(getX());
-		w.value(getY());
-		w.endArray();
+	@Override
+	public X get(int index) {
+		return delegate.get(index);
 		}
-	
-	void saveXml(XMLStreamWriter w) throws IOException,XMLStreamException {
-		w.writeEmptyElement("point");
-		w.writeAttribute("x", String.valueOf(getX()));
-		w.writeAttribute("y", String.valueOf(getY()));
+	@Override
+	public int size() {
+		return delegate.size();
+		}
+	public String getId() {
+		return id;
+		}
+	public void setId(final String id) {
+		this.id = id;
 		}
 	}

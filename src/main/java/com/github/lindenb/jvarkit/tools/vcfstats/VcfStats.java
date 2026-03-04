@@ -22,9 +22,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfstats;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -38,28 +36,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.function.BiFunction;
 import java.util.function.DoubleConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+
+import javax.xml.stream.XMLStreamException;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.chart.BarPlot;
 import com.github.lindenb.jvarkit.chart.DataXY;
+import com.github.lindenb.jvarkit.chart.NamedSeries;
 import com.github.lindenb.jvarkit.chart.ScatterXY;
 import com.github.lindenb.jvarkit.chart.SeriesXY;
 import com.github.lindenb.jvarkit.gatk.GATKConstants;
-import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.AttributeMap;
-import com.github.lindenb.jvarkit.lang.CharSplitter;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.pedigree.SampleToGroup;
@@ -114,14 +110,16 @@ public class VcfStats extends Launcher {
 	private boolean list_modules = false;	
 	@Parameter(names={"--prefix"},description="file prefix")
 	private String prefix = "";
+	
+	@Parameter(names={"--fill"},description="assign group 'x' to sample if it's not defined in the file for --categories. Special value = '*' : assign the sample name to it's own private group")
+	private String fill_sample_name_unknown_group = "other";
+
+	
 	@DynamicParameter(names={"-D"},description="other parameters.")
 	private Map<String,String> __dynaParams = new HashMap<>();
 	
 
 	private final SampleToGroup sampleToGroup = new SampleToGroup();
-	private final AttributeMap att = AttributeMap.verbose(AttributeMap.wrap(this.__dynaParams), (S)->{
-		LOG.info("undefined parameter \"" + S + "\". Using default.");
-		});
 	
 	private static abstract class DataPoint implements DoubleConsumer,Supplier<OptionalDouble>,Comparable<DataPoint>{
 		protected long count=0;
@@ -173,10 +171,12 @@ public class VcfStats extends Launcher {
 	private static interface Analyzer {
 		void init(VCFHeader h,Map<String,String> properties,final SampleToGroup sn2group);
 		void visit(final VariantContext ctx);
-		void finish(Path outputDir) throws IOException;
+		void finish(Path outputDir) throws IOException,XMLStreamException;
 		public String getName();
-		public String getDescription();
+		public String getTitle();
 		public boolean isEnabled();
+		public Analyzer setProperty(String key,String v);
+		public String getProperty(String key,String def);
 		}
 	
 	/** AbstractAnalyzer **/
@@ -191,10 +191,13 @@ public class VcfStats extends Launcher {
 			this.properties.putAll(properties);
 			this.sampleToGroup = sampleToGroup;
 			}
-		protected String getProperty(String key,String def) {
+		@Override
+		public String getProperty(String key,String def) {
 			return this.properties.getOrDefault(key,def);
 			}
-		protected AbstractAnalyzer setProperty(String key,String v) {
+		
+		@Override
+		public AbstractAnalyzer setProperty(String key,String v) {
 			this.properties.put(key,v);
 			return this;
 			}
@@ -203,21 +206,23 @@ public class VcfStats extends Launcher {
 		public boolean isEnabled() {
 			return enabled;
 			}
-		
-		protected String quote(final String s) {
-			return "\""+StringUtils.escapeC(s)+"\"";
+		protected String getLabelForGroup(final String grpName) {
+			Set<String> sns  = this.sampleToGroup.getSamplesForGroup(grpName);
+			if(sns.size()<1) return grpName;
+			return grpName+" N="+sns.size();
 			}
+		
 		
 		@Override
 		public final String getName() {
 			return getProperty("name", String.valueOf(getClass().getSimpleName()));
 			}
 		@Override
-		public String getDescription() {
-			return getProperty("description",getName());
+		public String getTitle() {
+			return getProperty("title",getName());
 			}
 		AbstractAnalyzer name(final String s) {
-			
+			setProperty("name", s);
 			return this;
 			}
 		AbstractAnalyzer description(final String s) {
@@ -250,11 +255,7 @@ public class VcfStats extends Launcher {
 		public boolean acceptGenotype(final Genotype gt) {
 			return this._acceptGT.test(gt);
 			}
-		public String getTitle() { return getName();}
-		public String getSubTitle() { return getDescription();}
 		public String getYLab() { return getProperty("ylab", "y axis");}
-		public String getXLab()  {return getProperty("xlab", "x axis");}
-		public String getColor(String category) { return "lightgray";}
 		}
 	
 	/** Abstract BoxPlot ******************************************************************************************/
@@ -798,24 +799,48 @@ public class VcfStats extends Launcher {
 			}
 		}
 	/***************************************************************************/
-	private static class SampleMultiAllelicFraction extends AbstractSampleToFraction {
-		SampleMultiAllelicFraction() {
-			name("fraction of multiallelic");
-			ylab("fraction of multiallelic");
-			xlab("Sample");
+	private static class SampleMultiAllelicFraction extends AbstractAnalyzer {
+		private long n_variants=0L;
+		private Counter<String> group2count=new Counter<String>();
+		@Override
+		public void init(VCFHeader h, Map<String, String> properties, SampleToGroup sampleToGroup) {
+			super.init(h, properties, sampleToGroup);
+			this.group2count.initializeIfNotExists(sampleToGroup.getGroups());
 			}
 		@Override
 		public void visit(VariantContext ctx) {
-			if(!getVariantPredicate().test(ctx)) return;
+			if(!acceptVariant(ctx)) return;
 			this.n_variants++;
 			if(ctx.getNAlleles()<=2) return;
-			
-			final Predicate<Genotype> filterGT = getGenotypePredicate();
+			final Set<String> group_in_variant = new HashSet<String>();
 			for(final Genotype gt: ctx.getGenotypes()) {
-				if(!filterGT.test(gt)) continue;
-				if(gt.getAlleles().stream().allMatch(A->A.isReference() ||A.isNoCall())) continue;
-				super.add(gt.getSampleName(), 1.0);
+				if(!acceptGenotype(gt)) continue;
+				if(!gt.hasAltAllele()) continue;
+				for(String groupName: super.sampleToGroup.getGroupsForSample(gt.getSampleName())) {
+					group_in_variant.add(groupName);
+					}
 				}
+			for(String groupName: group_in_variant) {
+				this.group2count.incr(groupName);
+				}
+			}
+		@Override
+		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+			if(n_variants==0L || group2count.isEmpty()) {
+				LOG.warn("nothing found for "+getTitle());
+				return;
+				}
+			final List<NamedSeries> L=new ArrayList<>();
+			group2count.stream()
+				.map(KV->new NamedSeries(getLabelForGroup(KV.getKey()), KV.getValue()/(double)n_variants) )
+				.forEach(NS->L.add(NS));
+			
+			final BarPlot chart = new BarPlot(L);
+			chart.setTitle(getProperty("title","")+ " N-variants="+this.n_variants);
+			chart.setXAxisLabel("collection");
+			chart.setYAxisLabel("proportion of diallelic");
+			//chart.saveMultiQC(outputDir.resolve(getProperty("filename","file")+"_mqc.json"));
+			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
 			}
 		}
 	/***************************************************************************/
@@ -1138,22 +1163,43 @@ public class VcfStats extends Launcher {
 			if(!h.hasGenotypingData()) {
 				super.enabled=false;
 				}
+			if(h.getFormatHeaderLine(VCFConstants.GENOTYPE_ALLELE_DEPTHS)==null) {
+				super.enabled=false;
+				}
 			}
 		
 		@Override
 		public void visit(final VariantContext ctx) {
-			if(!ctx.isBiallelic()) return;
-			if(!ctx.hasGenotypes()) return ;
-			if(!acceptVariant(ctx)) return;
+			if(!ctx.isBiallelic()) {
+				//System.err.println("biallalic");
+				return;
+				}
+			if(!ctx.hasGenotypes()) {
+				//System.err.println("no hasGenotypes");
+				return ;
+				}
+			if(!acceptVariant(ctx)) {
+				//System.err.println("no reject variant");
+				return;
+				}
 			for(Genotype gt: ctx.getGenotypes()) {
-				if(!gt.getType().equals(this.gtype)) continue;
+				if(!gt.getType().equals(this.gtype)) {
+					//System.err.println("no good  gtype "+this.gtype+" vs "+gt.getType());
+					continue;
+					}
 				if(!acceptGenotype(gt)) continue;
-				if(!gt.hasAD()) continue;
-				int[] ad=gt.getAD();
-				if(ad==null || ad.length!=2) continue;
+				if(!gt.hasAD()) {
+					//System.err.println("no AD");
+					continue;
+					}
+				final int[] ad=gt.getAD();
+				if(ad==null || ad.length!=2) {
+					//System.err.println("no AD.length==2");
+					continue;
+					}
 				final int sum = ad[0]+ad[1];
 				if(sum<=0) continue;
-				final double f = ad[0]/(double)sum;
+				final double f = ad[1]/(double)sum;
 				final int f_as_int10 = (int)Math.floor(f*10.0);
 				for(final String groupName : this.sampleToGroup.getGroupsForSample(gt.getSampleName())) {
 					this.group2count10.insert(groupName).incr(f_as_int10);
@@ -1161,8 +1207,11 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(Path outputDir) throws IOException {
-			if(this.group2count10.isEmpty()) return;
+		public void finish(Path outputDir) throws IOException,XMLStreamException {
+			if(this.group2count10.isEmpty()) {
+				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
+				return;
+				}
 			
 			final List<SeriesXY> series=new ArrayList<SeriesXY>();
 			this.group2count10.entrySet().forEach(KV->{
@@ -1174,10 +1223,18 @@ public class VcfStats extends Launcher {
 							.map(KV2->new DataXY(KV2.getKey()/10.0, KV2.getValue()))
 							.collect(Collectors.toList())
 						);
+				L.setName(L.getName()+" N="+this.sampleToGroup.getSamplesForGroup(L.getName()).size());
+				L.normalize();
+				L.sort();
 				series.add(L);
 				});
-			ScatterXY chart = new ScatterXY(series);
-			chart.saveMultiQC(outputDir);
+			
+			final ScatterXY chart = new ScatterXY(series);
+			chart.setTitle(getTitle());
+			chart.setYAxisLabel("normalized count");
+			chart.setXAxisLabel("AD Ratio ALT/(REF+ALT)");
+			chart.saveMultiQC(outputDir.resolve(getProperty("filename","file")+"_mqc.json"));
+			chart.savePlotly(outputDir.resolve(getProperty("filename","file")+".html"));
 			}
 		}
 	/*********************************************************************/
@@ -1187,22 +1244,17 @@ public class VcfStats extends Launcher {
 
 	private void loadPhenotypes(final VCFHeader header) throws IOException {
 		if(!header.hasGenotypingData()) return;
-		final Set<String> sampleset = new HashSet<>(header.getGenotypeSamples());
 		if(sample2catPath!=null) {
 			this.sampleToGroup
 				.load(this.sample2catPath)
 				.retainSamples(header)
-				.assertOneGroupPerSample()
 				;
-			
-		final String other="other";
-		for(String sn:sampleset) {
-			if(!sampleToGroup.getGroupsForSample(sn).isEmpty()) continue;
-			this.sampleToGroup.putSampleGroup(sn, other);
-			}
 		}
 	}
 	
+	private static boolean isSingletonVariant(final VariantContext ctx) {
+		return ctx.getGenotypes().stream().filter(G->G.hasAltAllele()).count()==1L;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -1383,17 +1435,51 @@ public class VcfStats extends Launcher {
 					description("Number of variants per X/Y per Samples")
 				);
 		modules.add(
-				new SampleMultiAllelicFraction().
-					setMinYIsZero(false)
+				new SampleMultiAllelicFraction()
 				);
 		
+
+		modules.add(
+				new SampleMultiAllelicFraction()
+				);
 		
 		modules.clear();//TODO fix me
 		
+		
 		modules.add(
-				new SampleMultiAllelicFraction().
-					setMinYIsZero(false)
+				new ADRatioAnalyzer(GenotypeType.HET)
+					.setProperty("title", "AD Ratio for Singletons HET genotypes, Diallelic Variant")
+					.setProperty("filename", "AD_ratio_singleton_HET")
+					.setAcceptVariant(VcfStats::isSingletonVariant)
 				);
+		
+		modules.add(
+				new ADRatioAnalyzer(GenotypeType.HET)
+					.setProperty("title", "AD Ratio for HET genotypes, Diallelic Variant")
+					.setProperty("filename", "AD_ratio_HET")
+				);
+		
+		modules.add(
+				new ADRatioAnalyzer(GenotypeType.HOM_REF)
+					.setProperty("title", "AD Ratio for HOM_REF genotypes, Diallelic Variant")
+					.setProperty("filename", "AD_ratio_HOM_REF")
+				);
+		modules.add(
+				new ADRatioAnalyzer(GenotypeType.HOM_VAR)
+					.setProperty("title", "AD Ratio for HOM_VAR genotypes, Diallelic Variant")
+					.setProperty("filename", "AD_ratio_HHOM_VAR")
+				);
+		
+		modules.add(
+				new SampleMultiAllelicFraction()
+					.setProperty("title", "Multi-allelic Fraction")
+					.setProperty("filename", "multi_allelic_fraction")
+				);
+		
+		// update filename with prefix
+		for(Analyzer analyzer:modules) {
+			analyzer.setProperty("filename", this.prefix+analyzer.getProperty("filename", ""));
+			}
 		
 		final String input = oneFileOrNull(args);
 		
@@ -1404,7 +1490,7 @@ public class VcfStats extends Launcher {
 				for(Analyzer analyzer:modules) {
 					System.out.print(analyzer.getName());
 					System.out.print("\t");
-					System.out.println(analyzer.getDescription());
+					System.out.println(analyzer.getTitle());
 					}	
 					
 				return 0;
@@ -1413,6 +1499,21 @@ public class VcfStats extends Launcher {
 			try(VCFIterator iter= super.openVCFIterator(input)) {	
 				final VCFHeader header=iter.getHeader();
 				loadPhenotypes(header);
+				
+				// fill sample without group
+				for(String sn:header.getGenotypeSamples()) {
+					if(sampleToGroup.hasSample(sn)) continue;
+					LOG.info("adding sample "+sn+" to group "+this.fill_sample_name_unknown_group);
+					if(this.fill_sample_name_unknown_group.equals("*")) {
+						this.sampleToGroup.putSampleGroup(sn, sn);
+						}
+					else
+						{
+						this.sampleToGroup.putSampleGroup(sn, this.fill_sample_name_unknown_group);
+						}
+					}
+				LOG.info("n-samples:"+this.sampleToGroup.getSamplesCount()+" -ngroups:"+this.sampleToGroup.getGroupsCount());
+				
 				
 				for(Analyzer analyzer:modules) {
 					analyzer.init(header,properties,this.sampleToGroup);

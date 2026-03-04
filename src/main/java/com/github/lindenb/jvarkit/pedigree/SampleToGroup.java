@@ -88,7 +88,7 @@ public class SampleToGroup {
 	public boolean hasGroup(final String gr) {
 		return this.groups.containsKey(gr);
 	}
-
+	
 	
 	public int getSamplesCount() {
 		return this.samples.size();
@@ -105,7 +105,7 @@ public class SampleToGroup {
 		}
 	
 	public Set<String> getSamplesForGroup(final String groupName) {
-		if(!hasGroup(groupName)) throw new IllegalArgumentException("no such sample "+groupName);
+		if(!hasGroup(groupName)) throw new IllegalArgumentException("no such group \""+groupName+"\" ("+String.join(",",getGroups())+")");
 		return Collections.unmodifiableSet(this.groups.get(groupName));
 		}
 	public Set<String> getGroupsForSample(final String sampleName) {

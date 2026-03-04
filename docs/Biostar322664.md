@@ -136,5 +136,9 @@ RF02_827_1292_4:0:0_1:0:0_50    163     RF02    827     60      70M     =       
 (...)
 ```
 
+## Cited in
+
+ *  In vivo lineage tracing across human tissues using methylation barcodes in the protocadherin gene cluster Samuel F. Hackett, Christopher T. Boniface, Adriana V.A. Fonseca, Akemi D. Ramos-Yamasaki, Caroline Watson, Hannah M. L. Bazin, Amanda Tan, Henson Lee Yu, Lars L. P. Hanssen, Harveer Dev, Sophia Apostolidou, Aleksandra Gentry-Maharaj, Sadik Esener, Usha Menon, Jamie Blundell bioRxiv 2026.02.23.707349; doi: https://doi.org/10.64898/2026.02.23.707349
+
 
 
