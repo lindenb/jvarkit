@@ -29,6 +29,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
+
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
@@ -77,6 +80,16 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 			.map(NS->NS.getName())
 			.collect(Collectors.toCollection(LinkedHashSet::new))
 			);
+		}
+	
+	@Override
+	public void saveXml(XMLStreamWriter w) throws IOException, XMLStreamException {
+		w.writeStartElement("barplot");
+		w.writeAttribute("id", getId());
+		for(NamedSeries ns: this) {
+			ns.saveXml(w);
+			}
+		w.writeEndElement();
 		}
 	
 	public void savePlotlyJS(final Appendable w) throws IOException {

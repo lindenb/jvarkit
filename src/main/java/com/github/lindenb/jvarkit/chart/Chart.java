@@ -23,6 +23,7 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.chart;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.Charset;
@@ -32,6 +33,8 @@ import java.nio.file.Path;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
+
+import com.github.lindenb.jvarkit.io.IOUtils;
 
 
 public class Chart {
@@ -144,4 +147,16 @@ public class Chart {
 			w.flush();
 			}
 		}
+	public void saveR(Appendable w) throws IOException,XMLStreamException {
+		w.append("#not implemented\n");
+		}
+	
+	public void saveR(Path filename) throws IOException,XMLStreamException {
+		try(PrintWriter pw = IOUtils.openPathForPrintWriter(filename)) {
+			saveR(pw);
+			pw.flush();
+			}
+		}
+	
+
 	}

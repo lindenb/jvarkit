@@ -23,7 +23,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.tools.vcfstats;
 
 
-import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,20 +55,6 @@ public abstract class AbstractAnalyzer implements Analyzer {
 	protected SamplePopulation sample2population = null;
 	
 	
-	protected static class DoubleRounder implements DoubleUnaryOperator {
-		final DecimalFormat decimalFormat;
-		DoubleRounder(int n) {
-			this("#."+StringUtils.repeat(n, '#'));
-			}
-		DoubleRounder(final String decimalFormatStr) {
-			this.decimalFormat = new DecimalFormat(decimalFormatStr);
-			this.decimalFormat.setRoundingMode(java.math.RoundingMode.CEILING);
-			}
-		@Override
-		public double applyAsDouble(double v) {
-			return Double.parseDouble(this.decimalFormat.format(v));
-			}
-		}
 	
 	protected static class BinRounder implements DoubleUnaryOperator {
 		private final double[] bins;

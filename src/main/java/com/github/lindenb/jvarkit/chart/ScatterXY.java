@@ -77,8 +77,22 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 		w.writeEndElement();
 		}
 	
+	/*
+	 {
+		    type: 'line',
+		    xref: 'x',
+		    yref: 'paper',   // "paper" makes it span the full plot height
+		    x0: 2e6,
+		    x1: 2e6,
+		    y0: 0,
+		    y1: 1,
+		    line: { color: 'red', width: 1, dash: 'dot' }
+		  }, */
 	
-
+	protected void writePlotlyShapes(Appendable w) throws IOException { 
+		w.append("[]");
+		}
+	
 	@Override
 	public void savePlotlyJS(Appendable w) throws IOException {
 		w.append("\n");
@@ -107,8 +121,11 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 		if(super.isLogY()) {
 			w.append(",type:'log'");
 			}
-		w.append("}")
-			.append("};\n");
+		w.append("},shapes:");
+		
+		writePlotlyShapes(w);
+		
+		w.append("};\n");
 		
 		w.append("Plotly.newPlot('div")
 			.append(getId())

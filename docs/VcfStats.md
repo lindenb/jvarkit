@@ -32,6 +32,9 @@ Usage: vcfstats [options] Files
     --prefix
       file prefix
       Default: <empty string>
+    --title
+      title as prefix
+      Default: <empty string>
     --version
       print version and exit
 

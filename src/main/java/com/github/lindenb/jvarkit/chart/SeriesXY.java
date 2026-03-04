@@ -93,13 +93,13 @@ public  class SeriesXY extends AbstractSeries<DataXY> {
 		}
 	void plottlyJS(Appendable w) throws IOException {
 		w.append("var "+getId())
-			.append(" = {x:[")
+			.append(" = {\nx:[")
 			.append(this.stream().map(PT->String.valueOf(PT.getX())).collect(Collectors.joining(",")))
-			.append("],y:[")
+			.append("],\ny:[")
 			.append(this.stream().map(PT->String.valueOf(PT.getY())).collect(Collectors.joining(",")))
 			.append("]");
 		if(!StringUtils.isBlank(getName())) {
-			w.append(",name:")
+			w.append(",\nname:")
 				.append(StringUtils.doubleQuote(getName()));
 			}
 			

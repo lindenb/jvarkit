@@ -24,6 +24,10 @@ package com.github.lindenb.jvarkit.chart;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamWriter;
 
 /** a bar in a bar plot */
 public class NamedSeries extends AbstractSeries<NamedY> {
@@ -38,5 +42,19 @@ public class NamedSeries extends AbstractSeries<NamedY> {
 		}
 	public NamedY getNamedYByName(final String s) {
 		return stream().filter(NY->NY.getName().equals(s)).findFirst().orElse(null);
+		}
+	void saveXml(XMLStreamWriter w) throws XMLStreamException {
+		w.writeStartElement("series");
+		w.writeAttribute("name", this.getName());
+		w.writeAttribute("id", this.getId());
+		w.writeAttribute("size",String.valueOf(this.size()));
+		for(NamedY ny: this) {
+			ny.saveXml(w);
+			}
+		w.writeEndElement();
+		}
+	@Override
+	public String toString() {
+		return getName() + "=["+stream().map(X->X.toString()).collect(Collectors.joining(","))+"]";
 		}
 	}

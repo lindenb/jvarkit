@@ -20,33 +20,25 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-package com.github.lindenb.jvarkit.chart;
+package com.github.lindenb.jvarkit.math;
 
-import java.util.Map;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.util.function.DoubleUnaryOperator;
 
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 
-/** component of a bar plot or a pie chart */
-public class NamedY extends AbstractDataY {
-	private final String name;
-	public NamedY(final Map.Entry<String, ? extends Number> kv) {
-		this(kv.getKey(),kv.getValue().doubleValue());
+public class DoubleRounder implements DoubleUnaryOperator{
+	private final DecimalFormat decimalFormat;
+	public DoubleRounder(final int numbe_of_decimal_after_comma) {
+		this(numbe_of_decimal_after_comma,java.math.RoundingMode.CEILING);
 		}
-	public NamedY(final String name,double y) {
-		super(y);
-		this.name = name;
-		}
-	public String getName() {
-		return name;
-		}
-	void saveXml(XMLStreamWriter w) throws XMLStreamException {
-		w.writeEmptyElement("entry");
-		w.writeAttribute("name", this.getName());
-		w.writeAttribute("value",String.valueOf(this.getY()));
+	public DoubleRounder(final int numbe_of_decimal_after_comma,final RoundingMode mode) {
+		this.decimalFormat = new DecimalFormat("#."+StringUtils.repeat(numbe_of_decimal_after_comma, '#'));
+		this.decimalFormat.setRoundingMode(mode);
 		}
 	@Override
-	public String toString() {
-		return getName()+"="+getY();
+	public double applyAsDouble(final double operand) {
+		return  Double.parseDouble(this.decimalFormat.format(operand));
 		}
-	}
+}
