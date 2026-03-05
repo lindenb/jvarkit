@@ -132,8 +132,8 @@ public class Biostar165777 extends Launcher
 			return -1;
 			}
 		XMLEventReader r = null;
+		final List<FileOutputStream> fwriters = new ArrayList<>();
 		try {
-			final List<FileOutputStream> fwriters = new ArrayList<>();
 			final List<XMLEventWriter> writers = new ArrayList<>();
 			final XMLOutputFactory xof=XMLOutputFactory.newFactory();
 			for(int i=0;i< this.count;++i)
@@ -208,16 +208,17 @@ public class Biostar165777 extends Launcher
 				w.flush();
 				CloserUtil.close(w);
 				}
-			for(final FileOutputStream w:fwriters)
-				{	
-				CloserUtil.close(w);
-				}
 			return RETURN_OK;
 			}
 		catch(final Exception err)
 			{
 			LOG.error(err);
 			return -1;
+			}
+			finally {
+				for(final FileOutputStream w:fwriters) {	
+					CloserUtil.close(w);
+				}
 			}
 		}
 	
