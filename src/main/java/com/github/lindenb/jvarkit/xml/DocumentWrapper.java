@@ -30,7 +30,6 @@ import java.io.OutputStream;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.file.Path;
-import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -61,6 +60,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.Text;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.math.DoubleRounder;
 
 
 /**
@@ -71,7 +71,7 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 public abstract class DocumentWrapper  {
 	public abstract Document getDocument();
 	private static int ID_GENERATOR = 0;
-	private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+	private final DoubleRounder decimalFormater = new DoubleRounder(2);
 	private Function<Object,String> stringConverter = new Function<Object,String>() {
 		@Override
 		public String apply(Object s) {

@@ -32,7 +32,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
-import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -51,6 +50,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.math.DoubleRounder;
 import com.github.lindenb.jvarkit.rdf.ns.XLINK;
 import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.ucsc.Cytoband;
@@ -105,7 +105,7 @@ private int width = 1000;
 @Parameter(names={"-H","--height"},description="Image height")
 private int height = 700;
 
-private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+private final DoubleRounder decimalFormater = new DoubleRounder(2);
 private final int contig_title_size = 12;
 private final int round_rect = 5;
 

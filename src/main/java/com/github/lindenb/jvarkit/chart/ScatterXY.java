@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLStreamException;
@@ -36,6 +37,10 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.MiniList;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.stream.JsonWriter;
 
 /**
@@ -152,6 +157,28 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 		}
 	
 	
+	public JsonObject buildMultiQCJson() {
+		final  JsonObject o = new JsonObject();
+		o.add("id", new JsonPrimitive(getId()));
+		o.add("plot_type", new JsonPrimitive("linegraph"));
+		
+		final  JsonObject pconfig = new JsonObject();
+		o.add("pconfig", pconfig);
+		
+		pconfig.add("id", new JsonPrimitive(getId()));
+		pconfig.add("title", new JsonPrimitive(getTitle()));
+		pconfig.add("xlab", new JsonPrimitive(getXAxisLabel()));
+		pconfig.add("ylab", new JsonPrimitive(getYAxisLabel()));
+		
+		final  JsonObject data = new JsonObject();
+		o.add("data", data);
+		for(SeriesXY series:this) {
+			final Map.Entry<String, JsonArray> entry = series.buildMultiQCJson();
+			data.add(entry.getKey(),entry.getValue());
+			}
+		return o;
+		}
+	
 	
 	public void saveMultiQC(final JsonWriter w) throws IOException {
 		w.beginObject();
@@ -187,6 +214,31 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 			}
 		}
 	
+
+	
+	@Override
+	public void saveR(final Appendable w) throws IOException, XMLStreamException {
+		if(this.isEmpty()) return;
+		w.append("line_type <- 2\n");
+		w.append("plot(\n");
+		w.append(" c(").append(get(0).stream().map(D->String.valueOf(D.getX())).collect(Collectors.joining(","))).append(")\n");
+		w.append(",c(").append(get(0).stream().map(D->String.valueOf(D.getY())).collect(Collectors.joining(","))).append(")\n");
+		w.append(",xlab=").append(StringUtils.doubleQuote(getXAxisLabel())).append(")\n");
+		w.append(",ylab=").append(StringUtils.doubleQuote(getYAxisLabel())).append(")\n");
+		w.append(",main=").append(StringUtils.doubleQuote(getTitle())).append(")\n");
+		w.append(")\n");
+		for(int n=1;n< this.size();++n) {
+			w.append("lines(\n");
+			w.append(" c(").append(get(n).stream().map(D->String.valueOf(D.getX())).collect(Collectors.joining(","))).append(")\n");
+			w.append(",c(").append(get(n).stream().map(D->String.valueOf(D.getY())).collect(Collectors.joining(","))).append(")\n");
+			w.append(",lty=line_type)\n");
+			}
+		w.append("legend(1,19,legend=c(");
+		w.append(stream().map(E->StringUtils.doubleQuote(E.getName())).collect(Collectors.joining(",")));
+		w.append(",lty=c(").append(stream().map(E->"line_type").collect(Collectors.joining(","))).append("\n");
+		w.append(",ncol=1)\n");
+		
+		}
 	
 	
 	}

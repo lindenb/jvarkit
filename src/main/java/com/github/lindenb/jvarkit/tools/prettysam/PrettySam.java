@@ -27,8 +27,6 @@ package com.github.lindenb.jvarkit.tools.prettysam;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -47,6 +45,7 @@ import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.math.DoubleRounder;
 import com.github.lindenb.jvarkit.tools.misc.IlluminaReadName;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -377,7 +376,7 @@ public class PrettySam extends OnePassBamLauncher {
 	
 	public class PrettySAMWriter implements SAMFileWriter
 		{
-		private final NumberFormat fmt = new DecimalFormat("#,###");
+		private final DoubleRounder fmt = new DoubleRounder(3);
 		private final PrintWriter pw ;
 		private SAMFileHeader header = null;
 		private SAMSequenceDictionary samDict=null;

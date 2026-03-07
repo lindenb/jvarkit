@@ -115,19 +115,23 @@ public class DictToVcf extends Launcher {
 				{
 				dict = SequenceDictionaryUtils.extractRequired(Paths.get(input));
 				}
-			final Set<VCFHeaderLine> metadata = new HashSet<>();
 			
-			VCFStandardHeaderLines.addStandardInfoLines(metadata, true,
-					Arrays.stream(this.info_fiels.split("[,; ]+"))
-						.filter(S->!StringUtils.isBlank(S))
-						.collect(Collectors.toSet())
-					);
-			VCFStandardHeaderLines.addStandardFormatLines(metadata, true,
-					Arrays.stream(this.formats_fiels.split("[,; ]+"))
-						.filter(S->!StringUtils.isBlank(S))
-						.collect(Collectors.toSet())
-					);
-			Set<String> samples = new TreeSet<>(this.samples.stream().
+			final Set<VCFHeaderLine> metadata = new HashSet<>();
+			if(!StringUtils.isBlank(this.info_fiels)) {
+				VCFStandardHeaderLines.addStandardInfoLines(metadata, true,
+						Arrays.stream(this.info_fiels.split("[,; ]+"))
+							.filter(S->!StringUtils.isBlank(S))
+							.collect(Collectors.toSet())
+						);
+				}
+			if(!StringUtils.isBlank(this.formats_fiels)) {
+				VCFStandardHeaderLines.addStandardFormatLines(metadata, true,
+						Arrays.stream(this.formats_fiels.split("[,; ]+"))
+							.filter(S->!StringUtils.isBlank(S))
+							.collect(Collectors.toSet())
+						);
+				}
+			final  Set<String> samples = new TreeSet<>(this.samples.stream().
 					flatMap(S->Arrays.stream(S.split("[,; ]+"))).
 						filter(S->!StringUtils.isBlank(S)).
 						collect(Collectors.toSet())

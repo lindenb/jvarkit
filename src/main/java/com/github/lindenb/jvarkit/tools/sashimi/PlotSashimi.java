@@ -29,7 +29,6 @@ import java.io.File;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Path;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -67,6 +66,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.math.DoubleRounder;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.svg.SVG;
@@ -217,7 +217,7 @@ public Map<String, String> dynamicParams = new HashMap<String,String>() {{{
 
 private final IntervalTreeMap<Gene> geneMap = new IntervalTreeMap<>();
 private Document document;
-private final DecimalFormat decimalFormater = new DecimalFormat("##.##");
+private final DoubleRounder decimalFormater = new DoubleRounder(2);
 
 private Element element(final String tag) {
 	return this.document.createElementNS(SVG.NS, tag);

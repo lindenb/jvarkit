@@ -25,9 +25,11 @@ package com.github.lindenb.jvarkit.chart;
 import java.awt.Color;
 import java.io.IOException;
 import java.util.AbstractList;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
@@ -35,6 +37,8 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonWriter;
 
 public  class SeriesXY extends AbstractSeries<DataXY> {
@@ -124,6 +128,14 @@ public  class SeriesXY extends AbstractSeries<DataXY> {
 			pt.setY((pt.getY()-minY)/distance);
 			}
 		return this;
+		}
+	
+	Map.Entry<String,JsonArray> buildMultiQCJson() {
+		final JsonArray array = new JsonArray();
+		for(DataXY xy:this) {
+			array.add(xy.buildMultiQCJson());
+			}
+		return new AbstractMap.SimpleEntry<>(this.getName(),array);
 		}
 	
 	

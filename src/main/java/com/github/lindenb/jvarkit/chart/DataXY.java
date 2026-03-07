@@ -28,6 +28,7 @@ import java.io.IOException;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
+import com.google.gson.JsonArray;
 import com.google.gson.stream.JsonWriter;
 
 public class DataXY extends AbstractDataY {
@@ -43,6 +44,13 @@ public class DataXY extends AbstractDataY {
 	
 	public double getX() {
 		return x;
+		}
+	
+	JsonArray buildMultiQCJson() {
+		JsonArray a=new JsonArray();
+		a.add(getX());
+		a.add(getY());
+		return a;
 		}
 	
 	void saveMultiQC(final JsonWriter w) throws IOException {
