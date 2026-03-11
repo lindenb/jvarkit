@@ -62,6 +62,8 @@ import com.github.lindenb.jvarkit.pedigree.SampleToGroup;
 import com.github.lindenb.jvarkit.util.AutoMap;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser;
+import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParserFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
@@ -185,6 +187,7 @@ public class VcfStats extends Launcher {
 	
 	/** AbstractAnalyzer **/
 	private static  abstract class AbstractAnalyzer implements Analyzer {
+		protected VCFHeader vcfHeader;
 		protected boolean enabled=true;
 		protected Predicate<VariantContext> _acceptVariant = V->true;
 		protected Predicate<Genotype> _acceptGT = V->true;
@@ -192,6 +195,7 @@ public class VcfStats extends Launcher {
 		protected SampleToGroup sampleToGroup = null;
 		@Override
 		public void init(VCFHeader h, final Map<String, String> properties, final SampleToGroup sampleToGroup) {
+			this.vcfHeader = h;
 			this.properties.putAll(properties);
 			this.sampleToGroup = sampleToGroup;
 			}
@@ -211,6 +215,7 @@ public class VcfStats extends Launcher {
 			return enabled;
 			}
 		protected String getLabelForGroup(final String grpName) {
+			if(!this.sampleToGroup.hasGroup(grpName)) return grpName;
 			final Set<String> sns  = this.sampleToGroup.getSamplesForGroup(grpName);
 			if(sns.size()<2) return grpName;
 			return grpName+" N="+sns.size();
@@ -734,7 +739,115 @@ public class VcfStats extends Launcher {
 			}
 		}
 
-	
+	/***************************************************************************/
+	private static class SampleCount extends AbstractAnalyzer {
+		
+		@Override
+		public void init(final VCFHeader h,Map<String,String> props,SampleToGroup s2g) {
+			super.init(h, props, s2g);
+			}
+		@Override
+		public void visit(final VariantContext ctx) {
+			//nothing
+			}
+		@Override
+		public Set<Path> finish(Path outputDir) throws  XMLStreamException,IOException {
+			if(super.sampleToGroup.getGroups().stream().mapToInt(N->sampleToGroup.getSamplesForGroup(N).size()).allMatch(C->C<2)) return Collections.emptySet();
+			
+			final List<NamedSeries> L=new ArrayList<>();
+			for(String g : super.sampleToGroup.getGroups()) {
+				L.add(new NamedSeries(getLabelForGroup(g), new NamedY("count",super.sampleToGroup.getSamplesForGroup(g).size())));
+				}
+			if(L.isEmpty()) return Collections.emptySet();
+			
+			final BarPlot chart = new BarPlot(L);
+			chart.setTitle("Samples");
+			chart.setXAxisLabel("Group");
+			chart.setYAxisLabel("Count");
+			return exportChart(outputDir,chart);
+			}
+		}
+	/***************************************************************************/
+	private static class SnpEffAnalyzer extends AbstractAnalyzer {
+		private long n_variants=0L;
+		private Map<String,Counter<String>> group2count=new HashMap<>();
+		private SnpEffPredictionParser snpEffParser = null;
+		private SnpEffAnalyzer() {
+			}
+		
+		
+		
+		@Override
+		public void init(VCFHeader h, Map<String, String> properties, SampleToGroup sampleToGroup) {
+			super.init(h, properties, sampleToGroup);
+			if(h.hasGenotypingData()) {
+				for(String gn:sampleToGroup.getGroups()) {
+					this.group2count.put(gn, new Counter<>());
+					}
+				}
+			else
+				{
+				this.group2count.put("all", new Counter<>());
+				}
+			snpEffParser = new SnpEffPredictionParserFactory(h).get();
+			this.enabled= h.hasInfoLine(snpEffParser.getTag());
+			}
+		@Override
+		public void visit(VariantContext ctx) {
+			if(!acceptVariant(ctx)) return;
+			this.n_variants++;
+			// find first prediction ?
+			final String pred = this.snpEffParser.getPredictions(ctx).stream().flatMap(PRED->PRED.getSOTermsStrings().stream()).findFirst().orElse("undefined");
+			if(ctx.hasGenotypes()) {
+				final Set<String> group_in_variant = new HashSet<>();
+				for(final Genotype gt: ctx.getGenotypes()) {
+					if(!acceptGenotype(gt)) continue;
+					if(!gt.hasAltAllele()) continue;
+					for(String groupName: super.sampleToGroup.getGroupsForSample(gt.getSampleName())) {
+						group_in_variant.add(groupName);
+						}
+					}
+				for(String groupName: group_in_variant) {
+					this.group2count.get(groupName).incr(pred);
+					}
+				}
+			else
+				{
+				this.group2count.get("all").incr(pred);
+				}
+			}
+			@Override
+			public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
+				if(n_variants==0L ) {
+					LOG.warn("nothing found for "+getTitle());
+					return Collections.emptySet();
+					}
+				final List<NamedSeries> L;
+				if(super.vcfHeader.hasGenotypingData()) {
+					L =new ArrayList<>(this.group2count.size());
+					for(String grpName: this.group2count.keySet()) {
+						Counter<String> count = this.group2count.get(grpName);
+						final List<NamedY> L2 = count.entrySet().stream()
+								.map(KV->new NamedY(KV.getKey(),KV.getValue()) )
+								.collect(Collectors.toList());
+						L.add(new NamedSeries(getLabelForGroup(grpName),L2));
+						}
+					}
+				else
+					{
+					L = this.group2count.get("all").entrySet().stream()
+							.map(KV->new NamedSeries(KV.getKey(),KV.getValue()) )
+							.collect(Collectors.toList());
+					}
+				if(L.isEmpty()) return Collections.emptySet();
+				
+				final BarPlot chart = new BarPlot(L);
+				chart.setTitle(getProperty("title","")+ " N-variants="+this.n_variants);
+				chart.setXAxisLabel(vcfHeader.hasGenotypingData()?"collection":"type");
+				chart.setYAxisLabel("Count");
+				return exportChart(outputDir,chart);
+				}
+			}
 	
 	/***************************************************************************/
 	private static class VariantTypeFraction extends AbstractAnalyzer {
@@ -1679,7 +1792,7 @@ public class VcfStats extends Launcher {
 				);
 		
 		
-		
+
 		
 		modules.clear();//TODO fix me
 		
@@ -1824,6 +1937,14 @@ public class VcfStats extends Launcher {
 		modules.add(
 				new HomozygousPurityFraction()
 					.setProperty("filename", "homozygous_purity")
+				);
+		
+		modules.add(new SampleCount()
+					.setProperty("filename", "sample_count")
+				);
+		modules.add(new SnpEffAnalyzer()
+					.setProperty("filename", "snpeff")
+					.setProperty("title", "SNPEFF  predictions")
 				);
 		
 		// update filename with prefix, update title

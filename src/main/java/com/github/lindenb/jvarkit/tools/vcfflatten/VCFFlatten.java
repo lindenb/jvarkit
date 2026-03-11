@@ -40,6 +40,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -100,7 +101,7 @@ END_DOC
 	description="Flatten variants to one variant",
 	keywords={"vcf","burden","contrast"},
 	creationDate = "20230222",
-	modificationDate  = "20230222",
+	modificationDate  = "20260311",
 	menu="VCF Manipulation",
 	jvarkit_amalgamion = true
 	)
@@ -108,8 +109,10 @@ public class VCFFlatten extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.of(VCFFlatten.class);
 	@Parameter(names={"-i","--id"},description="Default Variant ID")
 	protected String default_variant_id = "FLATTEN_VARIANT";
-	@Parameter(names={"--gene-extractor"},description="Activate default gene extractors. Variant will be grouped by gene using snpeff/bcftools/vep annotations")
-	protected boolean use_gene_extractors = false;
+	@Parameter(names={"-X","--gene-extractors"},description="if not blanks, variants will be grouped by gene using snpeff/bcftools/vep annotations. "+GeneExtractorFactory.OPT_DESC)
+	protected String use_gene_extractors_names="";
+	@Parameter(names={"-l"},description="list available Gene Extractor and exit")
+	protected boolean list_gene_extractors=false;
 
 	@Override
 	protected Logger getLogger() {
@@ -207,8 +210,8 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		header.setSequenceDictionary(dict);
 		final List<String> sampleNames = headerin.getGenotypeSamples();
 		
-		if(use_gene_extractors) {
-			this.geneExtractors.addAll( new GeneExtractorFactory(headerin).getAllExtractors());
+		if(!StringUtils.isBlank(this.use_gene_extractors_names)) {
+			this.geneExtractors.addAll( new GeneExtractorFactory(headerin).parse(this.use_gene_extractors_names));
 		}
 		
 		/* paranoid test */
@@ -266,6 +269,18 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		this.geneExtractors.clear();
 		return 0;
 		}
+	
+	@Override
+	public int doWork(List<String> args) {
+		if(this.list_gene_extractors) {
+			for(String ex: GeneExtractorFactory.getExtractorNames()) {
+				stdout().println(ex);
+				}
+			return 0;
+			}
+		return super.doWork(args);
+		}
+	
 public static void main(final String[] args) {
 	new VCFFlatten().instanceMainWithExit(args);
 	}

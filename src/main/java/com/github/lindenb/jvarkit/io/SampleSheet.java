@@ -25,7 +25,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.io;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

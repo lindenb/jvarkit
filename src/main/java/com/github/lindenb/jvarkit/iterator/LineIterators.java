@@ -32,6 +32,7 @@ import java.io.Reader;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Objects;
 
@@ -74,6 +75,7 @@ public class LineIterators  {
 			};
 		}
 
+	/** create iterator from inputstream converted to Reader UTF-8 */
 	public static LineIterator of(final InputStream in) {
 		try {
 			return of(new InputStreamReader(in, "UTF-8"));
@@ -83,6 +85,11 @@ public class LineIterators  {
 			}
 		}
 
+	/** create iterator from one single line */
+	public static LineIterator singleton(final String line) {
+		return of(Collections.singletonList(line));
+		}
+	
 	public static LineIterator of(final Reader in) {
 		return of(new BufferedReader(in));
 		}

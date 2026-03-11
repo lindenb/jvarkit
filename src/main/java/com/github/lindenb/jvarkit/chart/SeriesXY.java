@@ -22,9 +22,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.chart;
 
-import java.awt.Color;
 import java.io.IOException;
-import java.util.AbstractList;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,11 +36,10 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonWriter;
 
 public  class SeriesXY extends AbstractSeries<DataXY> {
-	private Color color;
+	//private Color color;
 	public SeriesXY() {
 		this("",new ArrayList<DataXY>());
 		}

@@ -19,7 +19,8 @@ Usage: vcfgenesplitter [options] Files
     -e, -E, --extractors
       Gene Extractors Name. Space/semicolon/Comma separated. custom:tag is a 
       custom extractor extracting all the values for INFO/tag as one or more 
-      gene name
+      gene name. +x is a custom extractor using sliding windows of integer 
+      size=x (e.g: '+10000' or '+1Mb' )
       Default: ANN/GeneId VEP/GeneId
     -h, --help
       print help and exit

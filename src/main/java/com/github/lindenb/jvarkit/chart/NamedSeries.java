@@ -36,12 +36,14 @@ import com.google.gson.JsonArray;
 /** a bar in a bar plot */
 public class NamedSeries extends AbstractSeries<NamedY> {
 	
-	
+	public NamedSeries(final String name, NamedY value) {
+		this(name,Collections.singletonList(value));
+		}
 	public NamedSeries(final String name, final List<NamedY> values) {
 		super(name,values);
 		}
 	public NamedSeries(final String name,double value) {
-		super(name,Collections.singletonList(new NamedY("data",value)));
+		this(name,new NamedY("data",value));
 		}
 	
 	public NamedSeries(final String name, final Map<String,? extends Number> label2count) {
@@ -52,7 +54,7 @@ public class NamedSeries extends AbstractSeries<NamedY> {
 				.collect(Collectors.toList())
 				);
 		}
-	
+
 	public double sum() {
 		return stream().mapToDouble(NamedY::getY).sum();
 		}

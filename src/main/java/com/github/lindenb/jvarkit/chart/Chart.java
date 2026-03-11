@@ -40,7 +40,7 @@ import com.google.gson.JsonElement;
 
 
 public abstract class Chart {
-	private static int ID_GENERATOR=0;
+	protected static int ID_GENERATOR=0;
 	private final String id = String.valueOf("chart"+(++ID_GENERATOR));
 	private String plotly_library_url = "https://cdn.plot.ly/plotly-3.3.0.min.js";
 
@@ -63,6 +63,9 @@ public abstract class Chart {
 	public Chart setSubTitle(final String title) {
 		this.subTitle = title;
 		return this;
+		}
+	public String getSubTitle() {
+		return subTitle;
 		}
 	
 	public void setPlotlyLibraryUrl(String plotly_library_url) {

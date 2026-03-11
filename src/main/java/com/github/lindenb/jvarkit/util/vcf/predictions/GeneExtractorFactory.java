@@ -31,17 +31,20 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser.AnnPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.SnpEffPredictionParser.SnpEffPrediction;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser.VepPrediction;
 import com.github.lindenb.jvarkit.spliceai.SpliceAI;
 
+import htsjdk.samtools.util.CoordMath;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
@@ -95,7 +98,7 @@ public static class KeyAndGeneImpl implements KeyAndGene
 		}
 	@Override
 	public int hashCode() {
-		return this.key.hashCode()*31+this.method.hashCode();
+		return Objects.hash(this.key,this.method);
 		}
 	@Override
 	public boolean equals(final Object obj) {
@@ -111,7 +114,10 @@ public static class KeyAndGeneImpl implements KeyAndGene
 	}
 
 	
-	
+/**
+ * GeneExtractor
+ * convert a variant context to a Map<KeyAndGene,Set<String>>> where the second items are the predictions
+ */
 public interface GeneExtractor extends Function<VariantContext, Map<KeyAndGene,Set<String>>> {
 	/** get name of the tag in the INFO column */
 	public String getInfoTag();
@@ -120,7 +126,7 @@ public interface GeneExtractor extends Function<VariantContext, Map<KeyAndGene,S
 	}
 
 private abstract class  AbstractGeneExtractorImpl implements GeneExtractor {
-	private String extractorName;
+	private final String extractorName;
 	AbstractGeneExtractorImpl(final String extractorName) {
 		this.extractorName = extractorName;
 		}
@@ -133,7 +139,7 @@ private abstract class  AbstractGeneExtractorImpl implements GeneExtractor {
 		return this.extractorName.hashCode();
 		}
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if(obj==this) return true;
 		if(obj==null || !(obj instanceof GeneExtractor)) return false;
 		return this.extractorName.equals(GeneExtractor.class.cast(obj).getName());
@@ -144,6 +150,40 @@ private abstract class  AbstractGeneExtractorImpl implements GeneExtractor {
 		return this.getName();
 		}
 	}
+
+/**
+ * Sliding window extractor
+ */
+private class SlidingWindowExtractor   extends AbstractGeneExtractorImpl {
+	private final int window_size;
+	SlidingWindowExtractor(int window_size) {
+		super("sliding"+window_size);
+		this.window_size = window_size;
+		if(window_size<1) throw new IllegalArgumentException();
+		}
+
+	
+	@Override
+	public String getInfoTag() {
+		return "_ignore_";
+		}
+	@Override
+	public Map<KeyAndGene, Set<String>> apply(VariantContext t) {
+		final Map<KeyAndGene,Set<String>> gene2values = new HashMap<>();
+		int start  = (t.getStart() -  t.getStart()%this.window_size);
+		while(start<= t.getEnd()) {
+			int end = start+window_size;
+			if(CoordMath.overlaps(start, end , t.getStart(),t.getEnd())) {
+				final String window_name = t.getContig()+"_"+start+"_"+end;
+				final KeyAndGene kg = new KeyAndGeneImpl(window_name, window_name, getName());
+				gene2values.put(kg, Collections.singleton(t.getContig()+":"+t.getStart()+"-"+t.getEnd()));
+				}
+			start+= this.window_size;
+			}
+		return gene2values;
+		}
+	}
+
 
 private class VepGeneExtractor   extends AbstractGeneExtractorImpl {
 	private VepPredictionParser parser = null;
@@ -381,11 +421,14 @@ private static List<String> AVAILABLE_EXTRACTORS_NAMES = Collections.unmodifiabl
 		"BCSQ/gene","BCSQ/transcript",//8 & 9
 		"SMOOVE", //10
 		"SpliceAI", //11
-		CUSTOM_PREFIX+"tag"//12
+		CUSTOM_PREFIX+"tag",//12
+		"+(distance)"//13
 		))
 		;
 
-public static final String OPT_DESC = "Gene Extractors Name. Space/semicolon/Comma separated. "+CUSTOM_PREFIX+"tag is a custom extractor extracting all the values for INFO/tag as one or more gene name";
+public static final String OPT_DESC = "Gene Extractors Name. Space/semicolon/Comma separated. "+
+		CUSTOM_PREFIX + "tag is a custom extractor extracting all the values for INFO/tag as one or more gene name. "+
+		"+x"+ " is a custom extractor using sliding windows of integer size=x (e.g: '+10000' or '+1Mb' ) ";
 
 public GeneExtractorFactory(final VCFHeader header) {
 	
@@ -419,6 +462,7 @@ public GeneExtractorFactory(final VCFHeader header) {
 	extractors.add( new SpliceAiGeneExtractor(AVAILABLE_EXTRACTORS_NAMES.get(11)));
 	
 	//12 is custom : tag
+	//13 is sliding window
 	}
 
 /** return a list of all the available extractors' names */
@@ -447,7 +491,13 @@ public List<GeneExtractor> parse(final String arg)
 			L.add(new CustomGeneExtractor(tag));
 			continue;
 			}
-		
+		else if(s.startsWith("+") && s.length()>1) {
+			final DistanceParser.StringConverter convert =new DistanceParser.StringConverter();
+			final int distance = convert.convert(s.substring(1));
+			if(distance<1) throw new IllegalArgumentException("sliding window with bad size: "+s);
+			L.add(new SlidingWindowExtractor(distance));
+			continue;
+			}
 		
 		final Optional<GeneExtractor> ex = this.getAllExtractors().
 				stream().
