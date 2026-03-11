@@ -156,8 +156,9 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 			.append(");\n");
 		}
 	
-	
-	public JsonObject buildMultiQCJson() {
+	@Override
+	public JsonObject 	getMultiQCJSon()
+		{
 		final  JsonObject o = new JsonObject();
 		o.add("id", new JsonPrimitive(getId()));
 		o.add("plot_type", new JsonPrimitive("linegraph"));
@@ -169,6 +170,8 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 		pconfig.add("title", new JsonPrimitive(getTitle()));
 		pconfig.add("xlab", new JsonPrimitive(getXAxisLabel()));
 		pconfig.add("ylab", new JsonPrimitive(getYAxisLabel()));
+		pconfig.add("xlog", new JsonPrimitive(isLogX()));
+		pconfig.add("ylog", new JsonPrimitive(isLogY()));
 		
 		final  JsonObject data = new JsonObject();
 		o.add("data", data);
@@ -180,44 +183,10 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 		}
 	
 	
-	public void saveMultiQC(final JsonWriter w) throws IOException {
-		w.beginObject();
-		
-		w.name("data"); w.value(getId());
-		w.name("plot_type"); w.value("linegraph");
-		
-		w.name("pconfig");
-		w.beginObject();
-			w.name("id"); w.value(getId());
-			w.name("title"); w.value(getTitle());
-			w.name("xlab"); w.value(getXAxisLabel());
-			w.name("ylab"); w.value(getYAxisLabel());
-		w.endObject();
-		
-		w.name("data");
-		w.beginObject();
-		for(SeriesXY series:this) {
-			series.saveMultiQC(w);
-			}
-		w.endObject();//data
-		w.endObject();
-		}
-	@Override
-	public void saveMultiQC(final Path filename) throws IOException {
-		if(filename.getFileName().endsWith("_mqc.json")) {
-			throw new IllegalArgumentException("filename should end with _mqc.json but got "+filename);
-			}
-		try(Writer w = Files.newBufferedWriter(filename)) {
-			JsonWriter jw = new JsonWriter(w);
-			saveMultiQC(jw);
-			w.flush();
-			}
-		}
-	
 
 	
 	@Override
-	public void saveR(final Appendable w) throws IOException, XMLStreamException {
+	public void saveR(final Appendable w) throws IOException {
 		if(this.isEmpty()) return;
 		w.append("line_type <- 2\n");
 		w.append("plot(\n");

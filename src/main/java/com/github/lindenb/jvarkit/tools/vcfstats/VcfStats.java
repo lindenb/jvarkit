@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -174,7 +175,7 @@ public class VcfStats extends Launcher {
 	private static interface Analyzer {
 		void init(VCFHeader h,Map<String,String> properties,final SampleToGroup sn2group);
 		void visit(final VariantContext ctx);
-		void finish(Path outputDir) throws IOException,XMLStreamException;
+		Set<Path> finish(Path outputDir) throws IOException,XMLStreamException;
 		public String getName();
 		public String getTitle();
 		public boolean isEnabled();
@@ -255,13 +256,27 @@ public class VcfStats extends Launcher {
 		public boolean acceptGenotype(final Genotype gt) {
 			return this._acceptGT.test(gt);
 			}
-		void exportChart(Path outputDir,Chart chart) throws IOException,XMLStreamException {
+		Set<Path> exportChart(final Path outputDir,Chart chart) throws IOException,XMLStreamException {
 			final String basename =  getProperty("filename","file");
 			LOG.info("saving "+getName()+" to "+basename);
-			chart.savePlotly(outputDir.resolve(basename+".html"));
-			chart.saveXml(outputDir.resolve(basename+".xml"));
-			chart.saveMultiQC(outputDir.resolve(basename+"_mqc.json"));
-			chart.saveR(outputDir.resolve(basename+".R"));
+			final Set<Path> paths = new HashSet<Path>(3);
+			Path p = outputDir.resolve(basename+".html");
+			chart.savePlotly(p);
+			paths.add(p);
+			
+			p = outputDir.resolve(basename+".xml");
+			chart.saveXml(p);
+			paths.add(p);
+			
+			p  = outputDir.resolve(basename+"_mqc.json");
+			chart.saveMultiQC(p);
+			paths.add(p);
+			
+			p  = outputDir.resolve(basename+".R");
+			chart.saveR(p);
+			paths.add(p);
+			
+			return paths;
 			}
 		
 		}
@@ -280,9 +295,9 @@ public class VcfStats extends Launcher {
 
 
 		@Override
-		public void finish(final Path dir) {
-			if(cat2values.isEmpty()) return;
-			
+		public Set<Path> finish(final Path dir) {
+			if(cat2values.isEmpty()) return Collections.emptySet();
+			return Collections.emptySet();
 			}
 		}
 	/***************************************************************************/
@@ -350,7 +365,7 @@ public class VcfStats extends Launcher {
 
 		
 		@Override
-		public void finish(Path outputDir) throws IOException,XMLStreamException{
+		public Set<Path> finish(Path outputDir) throws IOException,XMLStreamException{
 			
 			final List<SeriesXY> L=new ArrayList<SeriesXY>();
 			for(VariantContext.Type vt: this.sv2type2ranges.keySet()) {
@@ -364,14 +379,13 @@ public class VcfStats extends Launcher {
 				series.sort();
 				L.add(series);
 				}
-			if(L.isEmpty()) return;
-			final String basename = getProperty("filename",this.infoTag+"_distribution");
+			if(L.isEmpty()) return Collections.emptySet();
 			final ScatterXY chart = new ScatterXY(L);
 			chart.setTitle(getTitle());
 			chart.setYAxisLabel("Count "+this.infoTag);
 			chart.setLogX(this.logX);
 			chart.setXAxisLabel(this.logX?"log("+this.infoTag+")":this.infoTag);
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 	}
 
@@ -395,9 +409,9 @@ public class VcfStats extends Launcher {
 		
 		
 		@Override
-		public void finish(Path outputDir ) {
-			if(horiz2counts.isEmpty()) return;
-			
+		public Set<Path> finish(Path outputDir ) {
+			if(horiz2counts.isEmpty()) return Collections.emptySet();
+			return Collections.emptySet();
 			}
 		}
 	/***************************************************************************/
@@ -470,9 +484,9 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(Path  outdir) {
-			if(this.cat2index.isEmpty()) return;
-			
+		public Set<Path> finish(Path  outdir) {
+			if(this.cat2index.isEmpty()) return Collections.emptySet();
+			return Collections.emptySet();
 			}
 		}
 	/***************************************************************************/
@@ -500,10 +514,10 @@ public class VcfStats extends Launcher {
 			if(single!=null) sample2count.incr(single.getSampleName());
 			}
 		@Override
-		public void finish(Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(Path outputDir) throws IOException, XMLStreamException {
 			if(sample2count.isEmpty()) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> series = new ArrayList<NamedSeries>(super.sampleToGroup.getGroupsCount());
 			for(String groupName: super.sampleToGroup.getGroups()) {
@@ -522,7 +536,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Group");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 	
@@ -567,10 +581,10 @@ public class VcfStats extends Launcher {
 			}
 		
 		@Override
-		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
 			if(n_variants==0) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> series=new ArrayList<>();
 			for(SAMSequenceRecord ssr: this.dict.getSequences()) {
@@ -586,7 +600,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Chromosome");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 	
@@ -622,10 +636,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
 			if(sample2count.isEmpty()) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> series=new ArrayList<>();
 			for(String sn: this.sample2count.keySet()) {
@@ -641,7 +655,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Sample");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -677,10 +691,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
 			if(sample2count.isEmpty()) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> series=new ArrayList<>();
 			for(String sn: this.sample2count.keySet()) {
@@ -696,7 +710,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Sample");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 
@@ -720,6 +734,7 @@ public class VcfStats extends Launcher {
 			}
 		}
 
+	
 	
 	/***************************************************************************/
 	private static class VariantTypeFraction extends AbstractAnalyzer {
@@ -761,10 +776,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
 			if(n_variants==0L ) {
 				LOG.warn("nothing found for "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> L=new ArrayList<>(this.group2count.size());
 			
@@ -779,13 +794,105 @@ public class VcfStats extends Launcher {
 				}
 			
 			
-			if(L.isEmpty()) return;
+			if(L.isEmpty()) return Collections.emptySet();
 			
 			final BarPlot chart = new BarPlot(L);
 			chart.setTitle(getProperty("title","")+ " N-variants="+this.n_variants);
 			chart.setXAxisLabel("collection");
 			chart.setYAxisLabel(this.do_normalize?"Percentage":" Count");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
+			}
+		}
+	
+	
+	
+	/***************************************************************************/
+	private static class HomozygousPurityFraction extends AbstractAnalyzer {
+		private long n_variants=0L;
+		private int min_dp = 20;
+		private static class CountPure {
+			long n_pure_homvar = 0L;
+			long n_pure_homref = 0L;
+			long n_impure_homvar = 0L;
+			long n_impure_homref = 0L;
+			long sum() {
+				return n_pure_homvar + n_pure_homref + n_impure_homvar + n_impure_homref;
+				}
+			}
+		private Map<String,CountPure> group2count=new HashMap<>();
+		private HomozygousPurityFraction() {
+			}
+		
+		@Override
+		public void init(VCFHeader h, Map<String, String> properties, SampleToGroup sampleToGroup) {
+			super.init(h, properties, sampleToGroup);
+			for(String gn:sampleToGroup.getGroups()) {
+				this.group2count.put(gn, new CountPure());
+				}
+			}
+		@Override
+		public void visit(VariantContext ctx) {
+			if(!acceptVariant(ctx)) return;
+			if(ctx.getNAlleles()!=2) return;
+			this.n_variants++;
+			for(final Genotype gt: ctx.getGenotypes()) {
+				if(!acceptGenotype(gt)) continue;
+				if(gt.hasDP() && gt.getDP() < this.min_dp) continue;
+				if(!gt.hasAD()) continue;
+				final int[] ad = gt.getAD();
+				if(ad.length!=2 || (ad[0]==0 && ad[1]==0)) continue;
+				final boolean is_pure=(ad[0]==0 || ad[1]==0);
+				if(!gt.isHom()) continue;
+				for(String groupName : super.sampleToGroup.getGroupsForSample(gt.getSampleName())) {
+					final CountPure  c = this.group2count.get(groupName);
+					if(gt.isHomRef()) {
+						if(is_pure) {
+							c.n_pure_homref++;
+							}
+						else
+							{
+							c.n_impure_homref++;
+							}
+						}
+					else if(gt.isHomVar()) {
+						if(is_pure) {
+							c.n_pure_homvar++;
+							}
+						else
+							{
+							c.n_impure_homvar++;
+							}
+						}
+					}
+				}
+		
+			}
+		@Override
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
+			if(n_variants==0L && this.group2count.values().stream().allMatch(C->C.sum()==0L)) {
+				LOG.warn("nothing found for "+getTitle());
+				return Collections.emptySet();
+				}
+			final List<NamedSeries> L=new ArrayList<>(this.group2count.size());
+			
+			for(String grpName: this.group2count.keySet()) {
+				final CountPure c = this.group2count.get(grpName);
+				final List<NamedY> L2 = new ArrayList<>(4);
+				L2.add(new NamedY("Impure HOM_REF",c.n_impure_homref));
+				L2.add(new NamedY("Impure HOM_VAR",c.n_impure_homvar));
+				L2.add(new NamedY("Pure HOM_REF",c.n_pure_homref));
+				L2.add(new NamedY("Pure HOM_VAR",c.n_pure_homvar));
+				L.add(new  NamedSeries(getLabelForGroup(grpName), L2));
+				}
+			
+			
+			if(L.isEmpty()) return Collections.emptySet();
+			
+			final BarPlot chart = new BarPlot(L);
+			chart.setTitle(getProperty("title","Purity of homozygous genotypes with DP>="+this.min_dp+ " for Di-Alleleic variants")+" N-variants="+this.n_variants);
+			chart.setXAxisLabel("collection");
+			chart.setYAxisLabel("Count");
+			return exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -818,10 +925,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
 			if(n_variants==0) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> series=new ArrayList<>();
 			for(String groupName: this.group2flt.keySet()) {
@@ -837,7 +944,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count Filters");
 			chart.setXAxisLabel("Group");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -871,10 +978,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(final Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
 			if(n_variants==0) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> series=new ArrayList<>();
 			for(String filter: this.filters.keySet()) {
@@ -885,27 +992,41 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+") PASS="+n_pass+" ("+((n_pass/(n_pass+n_variants))*100.0)+"%)");
 			chart.setYAxisLabel("count Filters");
 			chart.setXAxisLabel("Filter");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 
 	/*********************************************************************/
-	private static class SVLen extends AbstractBoxPlot {
-		SVLen() {
-			name("SVLEN");
-			description("SVLEN");
-			ylab("median(SVLEN)");
-			xlab("SVTYPE = median(SVLEN)");
+	private static class SVLen extends AbstractAnalyzer {
+		private final String svType;
+		private boolean with_genotypes=true;
+		private final Map<String,Counter<Integer>> grp2sizes = new HashMap<>();
+		SVLen(final String svType) {
+			this.svType=svType;
 			}
 		@Override
 		public void init(final VCFHeader h,Map<String,String> props,SampleToGroup s2g) {
 			super.init(h, props, s2g);
 			this.enabled = h.getInfoHeaderLine(VCFConstants.SVTYPE)!=null;
+			this.with_genotypes = h.hasGenotypingData();
+			if(this.with_genotypes && h.getFormatHeaderLine(VCFConstants.GENOTYPE_KEY)==null) {
+				with_genotypes=false;
+				}
+			
+			if(with_genotypes) {
+				for(String grpName: s2g.getGroups()) {
+					grp2sizes.put(grpName, new Counter<>());
+					}
+				}
+			else
+				{
+				grp2sizes.put("ALL", new Counter<>());
+				}
 			}
 		
 		@Override
-		public void visit(VariantContext ctx) {
-			if(!getVariantPredicate().test(ctx)) return;
+		public void visit(final VariantContext ctx) {
+			if(!acceptVariant(ctx)) return;
 			final String st = ctx.getAttributeAsString(VCFConstants.SVTYPE, "");
 			if(StringUtils.isBlank(st) || st.equalsIgnoreCase("BND")) return;
 			int svLen;
@@ -919,7 +1040,46 @@ public class VcfStats extends Launcher {
 				{
 				return;
 				}
-			super.add(st, svLen);
+			svLen = Math.abs(svLen);
+			if(with_genotypes) {
+				final Set<String> groups  = ctx.getGenotypes()
+						.stream()
+						.filter(G->G.hasAltAllele())
+						.flatMap(G->super.sampleToGroup.getGroupsForSample(G.getSampleName()).stream())
+						.collect(Collectors.toSet());
+				for(String groupName: groups) {
+					grp2sizes.get(groupName).incr(svLen);
+					}
+				}
+			else
+				{
+				grp2sizes.get("ALL").incr(svLen);
+				}
+			}
+	
+		@Override
+		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
+			final List<SeriesXY> series=new ArrayList<SeriesXY>();
+			this.grp2sizes.entrySet().forEach(KV->{
+				final SeriesXY L = new SeriesXY(
+						(this.with_genotypes? getLabelForGroup( KV.getKey()):"ALL"),
+						KV.getValue()
+							.entrySet()
+							.stream()
+							.map(KV2->new DataXY(KV2.getKey(), KV2.getValue()))
+							.collect(Collectors.toList())
+						);
+				L.sort();
+				series.add(L);
+				});
+			
+			final ScatterXY chart = new ScatterXY(series);
+			chart.setLogY(true);
+			chart.setLogX(true);
+			chart.setTitle("SVLEN "+this.svType);
+			chart.setYAxisLabel("log(Count)");
+			chart.setXAxisLabel("log(SVLen)");
+			return exportChart(outputDir,chart);
 			}
 		}
 	
@@ -1022,10 +1182,10 @@ public class VcfStats extends Launcher {
 			}
 		
 		@Override
-		public void finish(Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(Path outputDir) throws IOException, XMLStreamException {
 			if(sample2count.isEmpty()) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<NamedSeries> series = new ArrayList<NamedSeries>(super.sampleToGroup.getGroupsCount());
 			for(String groupName: super.sampleToGroup.getGroups()) {
@@ -1040,13 +1200,13 @@ public class VcfStats extends Launcher {
 				
 				series.add(new NamedSeries(getLabelForGroup(groupName), L2));
 				}
-			if(series.isEmpty()) return;
+			if(series.isEmpty()) return Collections.emptySet();
 			final BoxPlotChart chart = new BoxPlotChart(series);
 			chart.sortOnName();
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Group");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		
 		}
@@ -1143,10 +1303,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(Path outputDir) throws IOException, XMLStreamException {
+		public Set<Path> finish(Path outputDir) throws IOException, XMLStreamException {
 			if(this.group2gtype.values().stream().noneMatch(C->C.getTotal()>0L)) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			boolean use_fraction= group2gtype.keySet().stream().anyMatch(G->super.sampleToGroup.getSamplesForGroup(G).size()>1);
 			final List<NamedSeries> series=new ArrayList<>();
@@ -1179,7 +1339,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle()+" (n-variants = "+n_variants+")");
 			chart.setYAxisLabel("count");
 			chart.setXAxisLabel("Group");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 	/***************************************************************************/
@@ -1253,10 +1413,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(Path outputDir) throws IOException,XMLStreamException {
+		public Set<Path> finish(Path outputDir) throws IOException,XMLStreamException {
 			if(this.group2count.isEmpty()) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			
 			final List<SeriesXY> series=new ArrayList<SeriesXY>();
@@ -1278,7 +1438,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle());
 			chart.setYAxisLabel((do_normalize?"Normalized ":"")+"Count");
 			chart.setXAxisLabel("AD Ratio ALT/(REF+ALT)");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 	
@@ -1334,10 +1494,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(Path outputDir) throws IOException,XMLStreamException {
+		public Set<Path> finish(Path outputDir) throws IOException,XMLStreamException {
 			if(this.group2count100.isEmpty()) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			
 			final List<SeriesXY> series=new ArrayList<SeriesXY>();
@@ -1359,7 +1519,7 @@ public class VcfStats extends Launcher {
 			chart.setTitle(getTitle());
 			chart.setYAxisLabel((this.do_normalize?"Normalized ":"")+"Count");
 			chart.setXAxisLabel("AD Ratio ALT/(REF+ALT)");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 	
@@ -1400,10 +1560,10 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public void finish(Path outputDir) throws IOException,XMLStreamException {
+		public Set<Path> finish(Path outputDir) throws IOException,XMLStreamException {
 			if(this.group2count.values().stream().allMatch(C->C.getMaxCount().orElse(0L)<=0)) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
-				return;
+				return Collections.emptySet();
 				}
 			final List<SeriesXY> L=new ArrayList<SeriesXY>(this.group2count.size());
 			for(String grpName: this.group2count.keySet()) {
@@ -1425,7 +1585,7 @@ public class VcfStats extends Launcher {
 			chart.setYAxisLabel("log(count Variants)");
 			chart.setLogY(true);
 			chart.setXAxisLabel("Number of genotypes carrying an ALT allele per variant");
-			exportChart(outputDir,chart);
+			return exportChart(outputDir,chart);
 			}
 		}
 
@@ -1474,14 +1634,7 @@ public class VcfStats extends Launcher {
 				xlab("Contig").
 				ylab("SVTYPE")
 			);
-		modules.add(
-			new SVLen().
-				name("SVLEN per SVTYPE").
-				description("SVLEN per SVTYPE").
-				xlab("SVTYPE").
-				ylab("SVLEN")
-				
-			);
+		
 		modules.add(new SampleToSVTypes().
 				name("Sample To SVTYPE").
 				description("Sample To SVTYPE").
@@ -1492,6 +1645,7 @@ public class VcfStats extends Launcher {
 		
 		
 		modules.add(new RangeBarPlot(GATKConstants.QD_KEY, 1,false).
+				setProperty("filename", "info_QD").
 				name(GATKConstants.QD_KEY).
 				description("Variant Confidence (QUAL) / Quality by Depth.").
 				xlab(GATKConstants.QD_KEY).
@@ -1529,6 +1683,10 @@ public class VcfStats extends Launcher {
 		
 		modules.clear();//TODO fix me
 		
+		for(final String svType: new String[] {"DEL","INV","DUP"}) {
+			modules.add( new SVLen(svType) );
+		}
+		
 		modules.add(new GatkDeNovo()
 				.setProperty("title","GATK DeNovo")
 				.setProperty("filename","gatk_denovo")
@@ -1562,23 +1720,28 @@ public class VcfStats extends Launcher {
 		
 		
 		modules.add(new RangeBarPlot(GATKConstants.FS_KEY, 1,true).
-			setProperty("title","Phred-scaled p-value using Fisher's exact test to detect strand bias")
+			setProperty("title","Phred-scaled p-value using Fisher's exact test to detect strand bias").
+			setProperty("filename", "info_FS")
 			);
 		
 		modules.add(new RangeBarPlot(GATKConstants.SOR_KEY, 2,false).
-			setProperty("title","Symmetric Odds Ratio of 2x2 contingency table to detect strand bias")
+			setProperty("title","Symmetric Odds Ratio of 2x2 contingency table to detect strand bias").
+			setProperty("filename", "info_SOR")
 			);
 		
 		modules.add(new RangeBarPlot(GATKConstants.MQ_KEY, 1,false).
-			setProperty("title","Mean square mapping quality over all the reads at the site")
+			setProperty("title","Mean square mapping quality over all the reads at the site").
+			setProperty("filename", "info_MQ")
 			);
 
 		modules.add(new RangeBarPlot(GATKConstants.MQRankSum_KEY, 2,false).
-			setProperty("title","Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities")
+			setProperty("title","Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities").
+			setProperty("filename", "info_MQRankSum")
 			);
 		
 		modules.add(new RangeBarPlot(GATKConstants.ReadPosRankSum_KEY, 2,false)
-			.setProperty("title", "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias")
+			.setProperty("title", "Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias").
+			setProperty("filename", "info_ReadPosRankSum")
 			);
 		modules.add(new SingletonAnalyzer()
 				.setProperty("title","Count singletons")
@@ -1658,6 +1821,11 @@ public class VcfStats extends Launcher {
 					.setProperty("filename", "cross_contamination_singleton_het")
 				);
 		
+		modules.add(
+				new HomozygousPurityFraction()
+					.setProperty("filename", "homozygous_purity")
+				);
+		
 		// update filename with prefix, update title
 		for(Analyzer analyzer:modules) {
 			analyzer.setProperty("filename", this.prefix+analyzer.getProperty("filename", ""));
@@ -1718,8 +1886,11 @@ public class VcfStats extends Launcher {
 						}
 					}
 				progress.finish();
+				
+				
+				final Set<Path> generated_files = new HashSet<>();
 				for(Analyzer analyzer:modules) {
-					analyzer.finish(outputDirectory);
+					generated_files.addAll( analyzer.finish(outputDirectory)) ;
 					}				
 				}
 			return 0;

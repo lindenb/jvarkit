@@ -26,17 +26,19 @@ import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * AbstractSeries
+ */
 public abstract class AbstractSeries<X> extends AbstractList<X> {
 	private static int ID_GENERATOR=0;
 	private String id = String.valueOf("series"+(++ID_GENERATOR));
 	private String name="";
 	protected final List<X> delegate;
-	AbstractSeries(final String name, final List<X> values) {
+	protected AbstractSeries(final String name, final List<X> values) {
 		this.delegate = new ArrayList<>(values);
 		this.name = name;
 		}
-	public void setName(String name) {
+	public void setName(final String name) {
 		this.name = name;
 		}
 	public String getName() {

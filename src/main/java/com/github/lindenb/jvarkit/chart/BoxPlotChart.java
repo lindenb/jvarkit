@@ -4,12 +4,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.MiniList;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 public class BoxPlotChart extends AbstractChartXY implements MiniList<NamedSeries> {
 	private final List<NamedSeries> delegate;
@@ -40,6 +44,36 @@ public class BoxPlotChart extends AbstractChartXY implements MiniList<NamedSerie
 		return  this.delegate.size();
 		}
 
+	
+
+	@Override
+	public JsonObject 	getMultiQCJSon()
+		{
+		final  JsonObject o = new JsonObject();
+		o.add("id", new JsonPrimitive(getId()));
+		o.add("plot_type", new JsonPrimitive("boxplot"));
+		
+		final  JsonObject pconfig = new JsonObject();
+		o.add("pconfig", pconfig);
+		
+		pconfig.add("id", new JsonPrimitive(getId()));
+		pconfig.add("title", new JsonPrimitive(getTitle()));
+		pconfig.add("xlab", new JsonPrimitive(getXAxisLabel()));
+		pconfig.add("ylab", new JsonPrimitive(getYAxisLabel()));
+		pconfig.add("xlog", new JsonPrimitive(isLogX()));
+		pconfig.add("ylog", new JsonPrimitive(isLogY()));
+		
+		final  JsonObject data = new JsonObject();
+		o.add("data", data);
+		for(NamedSeries series:this) {
+			data.add(series.getName(), series.getMultiQCArrayY());
+			}
+		return o;
+		}
+	
+	
+	
+	
 	public void savePlotlyJS(final Appendable w) throws IOException {
 		if(isEmpty()) return;
 		for(NamedSeries ns : this) {
@@ -68,7 +102,6 @@ public class BoxPlotChart extends AbstractChartXY implements MiniList<NamedSerie
 				.append(", layout")
 				.append(getId())
 				.append(");\n");
-			
 		
 		}
 }

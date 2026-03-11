@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLStreamException;
@@ -36,6 +37,9 @@ import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.MiniList;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  {
 	private final List<NamedSeries> delegate;
@@ -82,6 +86,54 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 			);
 		}
 	
+	
+	@Override
+	public void saveR(Appendable w) throws IOException {
+		// TODO Auto-generated method stub
+		super.saveR(w);
+		}
+	
+	
+	
+
+	@Override
+	public JsonObject 	getMultiQCJSon()
+		{
+		final  JsonObject o = new JsonObject();
+		o.add("id", new JsonPrimitive(getId()));
+		o.add("plot_type", new JsonPrimitive("bargraph"));
+		
+		final  JsonObject pconfig = new JsonObject();
+		o.add("pconfig", pconfig);
+		
+		pconfig.add("id", new JsonPrimitive(getId()));
+		pconfig.add("title", new JsonPrimitive(getTitle()));
+		pconfig.add("xlab", new JsonPrimitive(getXAxisLabel()));
+		pconfig.add("ylab", new JsonPrimitive(getYAxisLabel()));
+		//pconfig.add("xlog", new JsonPrimitive(isLogX()));
+		pconfig.add("ylog", new JsonPrimitive(isLogY()));
+		
+		final List<String> categories = getCategories();
+		final  JsonObject data = new JsonObject();
+		o.add("data", data);
+		for(NamedSeries series:this) {
+			JsonObject datao = new JsonObject();
+			data.add(series.getName(), datao);
+			for(final String cat: categories) {
+				final NamedY y = series.getNamedYByName(cat);
+				if(y==null) {
+					datao.addProperty(cat, 0.0);
+					}
+				else
+					{
+					datao.addProperty(cat, y.getY());
+					}
+				}
+			}
+		return o;
+		}
+	
+	
 	@Override
 	public void saveXml(final XMLStreamWriter w) throws IOException, XMLStreamException {
 		w.writeStartElement("barplot");
@@ -105,10 +157,12 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 			w.writeEndElement();
 			}
 		w.writeEndElement();
-
+		w.writeStartElement("series");
+		w.writeAttribute("count", String.valueOf(this.size()));
 		for(NamedSeries ns: this) {
 			ns.saveXml(w);
 			}
+		w.writeEndElement();
 		w.writeEndElement();
 		}
 	

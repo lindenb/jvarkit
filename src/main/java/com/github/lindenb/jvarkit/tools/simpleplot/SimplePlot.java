@@ -42,6 +42,10 @@ import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.DynamicParameter;
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.chart.BarPlot;
+import com.github.lindenb.jvarkit.chart.Chart;
+import com.github.lindenb.jvarkit.chart.NamedSeries;
+import com.github.lindenb.jvarkit.chart.NamedY;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
@@ -90,7 +94,7 @@ public class SimplePlot extends Launcher {
 		protected List<String> splitLine(final String s) {
 			return tokenizer.apply(s);
 			}
-		protected Map.Entry<String,Double> splitSortUniq(final String s) {
+		protected NamedY splitSortUniq(final String s) {
 			int i0=0;
 			while(i0< s.length()) {
 				if(!Character.isWhitespace(s.charAt(i0))) {
@@ -105,11 +109,15 @@ public class SimplePlot extends Launcher {
 					}
 				i1++;
 				}
-			return new java.util.AbstractMap.SimpleEntry<String,Double>(null,null);
+			int i2=i1;
+			
+			return new NamedY( s.substring(i2+1),Integer.parseInt(s.substring(i0,i1)) );
 			}
-		protected XMLStreamWriter openXMLStreamWriter(PrintWriter w) {
-			return null;//TODO
+		protected int writeChart(Chart c) {
+			return -1;//TODO
 			}
+		
+		
 		
 		public String getName() {
 			return this.getClass().getSimpleName().replaceAll("Factory", "");
@@ -152,84 +160,24 @@ public class SimplePlot extends Launcher {
 	private class SortUniqFactory extends AbstractChartFactory {
 		
 		public int apply(BufferedReader br,PrintWriter out)  throws IOException,XMLStreamException {
+			
 			String line;
-			final List<Map.Entry<String,Double> > pairs = new ArrayList<>();
+			final List<NamedSeries> pairs = new ArrayList<>();
 			while((line=br.readLine())!=null) {
-				final Map.Entry<String,Double> pair = splitSortUniq(line);
-				pairs.add(pair);
+				final NamedY bar = splitSortUniq(line);
+				pairs.add(new NamedSeries(bar.getName(), bar.getY()));
 				}
-			double max_v = pairs.stream().mapToDouble(P->P.getValue()).max().orElse(1.0);
+			
+			
 			
 			
 			if(pairs.isEmpty()) {
 				LOG.error("no data");
 				return -1;
 				}
-			else if(SimplePlot.this.outputMode.equals(OutputMode.R)) {
-				out.print("barplot(c(");
-				pairs.stream().map(P->String.valueOf(P.getValue())).collect(Collectors.joining(","));
-				out.print("),names.arg=c(");
-				pairs.stream().map(P->StringUtils.doubleQuote(P.getKey())).collect(Collectors.joining(","));
-				out.println("))");
-				}
-			else if(SimplePlot.this.outputMode.equals(OutputMode.plotly)) {
-				final String id= "plotid";
-				XMLStreamWriter w=openXMLStreamWriter(out);
-				w.writeStartDocument("UTF-8", "1.0");
-				w.writeStartElement("html");
-				w.writeStartElement("head");
-				w.writeStartElement("script");
-				w.writeAttribute("src", SimplePlot.this.plotly_library_url);
-				w.writeEndElement();//script
-				w.writeStartElement("script");
-				w.writeCharacters(
-						"var data"+id+" = [{type=\"bar\",x=["
-								+ pairs.stream().map(P->StringUtils.doubleQuote(P.getKey())).collect(Collectors.joining(","))
-								+ "],y=["
-								+ pairs.stream().map(P->String.valueOf(P.getValue())).collect(Collectors.joining(","))
-								+ "}]; Plotly.newPlot(" + StringUtils.doubleQuote(id)+", data"+id+"); "
-						);
-				w.writeEndElement();//script
-				w.writeEndElement();//head
-				w.writeStartElement("body");
-				w.writeStartElement("div");
-				w.writeAttribute("id", id);
-				w.writeEndElement();///div
-				w.writeEndElement();//body
-				w.writeEndElement();//html
-				w.writeEndDocument();
-				w.close();
-				}
-			else if(SimplePlot.this.outputMode.equals(OutputMode.tt)) {
-				int name_len = pairs.stream().mapToInt(KV->KV.getKey().length()).max().orElse(0);
-				
-				for(Map.Entry<String,Double> p:pairs) {
-					out.print(StringUtils.repeat(name_len - p.getKey().length(), ' '));
-					out.print(p.getKey());
-					out.print(" | ");
-					out.print(String.format("%9ld",p.getValue().longValue()));
-					out.print(" | ");
-					out.println();
-					}
-				}
-			else if(SimplePlot.this.outputMode.equals(OutputMode.xml)) {
-				XMLStreamWriter w=openXMLStreamWriter(out);
-				w.writeStartDocument("UTF-8", "1.0");
-				w.writeStartElement("barplot");
-				for(Map.Entry<String,Double> p:pairs) {
-					w.writeEmptyElement("bar");
-					w.writeAttribute("name", p.getKey());
-					w.writeAttribute("value", String.valueOf(p.getValue()));
-					}
-				w.writeEndElement();
-				w.writeEndElement();
-				w.close();
-				}
-			else
-				{
-				throw new IllegalArgumentException("not supported "+SimplePlot.this.outputMode);
-				}	
-			return 0;
+			
+			final BarPlot chart = new BarPlot(pairs);
+			return writeChart(chart);
 			}
 		}
 	

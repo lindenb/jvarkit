@@ -35,9 +35,11 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 
 
-public class Chart {
+public abstract class Chart {
 	private static int ID_GENERATOR=0;
 	private final String id = String.valueOf("chart"+(++ID_GENERATOR));
 	private String plotly_library_url = "https://cdn.plot.ly/plotly-3.3.0.min.js";
@@ -135,7 +137,7 @@ public class Chart {
 		}
 	
 	public void savePlotly(Path filename) throws IOException,XMLStreamException {
-		if(filename.getFileName().endsWith(".html")) {
+		if(!filename.getFileName().endsWith(".html")) {
 			throw new IllegalArgumentException("filename should end with .html but got "+filename);
 			}
 		final Charset charset=Charset.defaultCharset();
@@ -147,17 +149,29 @@ public class Chart {
 			w.flush();
 			}
 		}
-	public void saveR(Appendable w) throws IOException,XMLStreamException {
+	public void saveR(final Appendable w) throws IOException {
 		w.append("# not implemented\n");
 		}
 	
-	public void saveR(Path filename) throws IOException,XMLStreamException {
+	public void saveR(final Path filename) throws IOException {
 		try(PrintWriter pw = IOUtils.openPathForPrintWriter(filename)) {
 			saveR(pw);
 			pw.flush();
 			}
 		}
+	
+	protected abstract JsonElement getMultiQCJSon();
+	
 	public void saveMultiQC(final Path filename) throws IOException {
+		if(!filename.getFileName().endsWith("_mqc.json")) {
+			throw new IllegalArgumentException("filename should end with _mqc.json but got "+filename);
+			}
+		final Gson gson = new Gson();
+		final JsonElement root = getMultiQCJSon();
+		try(PrintWriter pw= IOUtils.openPathForPrintWriter(filename)) {
+			gson.toJson(root, pw);
+			pw.flush();
+			}
 		}
 
 	}
