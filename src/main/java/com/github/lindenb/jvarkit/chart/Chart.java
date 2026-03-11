@@ -38,7 +38,7 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 
 
 public class Chart {
-	private static int ID_GENERATOR=0;
+	protected static int ID_GENERATOR=0;
 	private final String id = String.valueOf("chart"+(++ID_GENERATOR));
 	private String plotly_library_url = "https://cdn.plot.ly/plotly-3.3.0.min.js";
 
