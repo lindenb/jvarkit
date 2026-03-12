@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfflatten;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -37,16 +38,21 @@ import java.util.Set;
 
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
+import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
 
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
@@ -55,6 +61,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -113,6 +120,12 @@ public class VCFFlatten extends OnePassVcfLauncher {
 	protected String use_gene_extractors_names="";
 	@Parameter(names={"-l"},description="list available Gene Extractor and exit")
 	protected boolean list_gene_extractors=false;
+	@Parameter(names={"--hom-var"},description="write homozygous alt genotypes instead of heterozygous")
+	protected boolean make_hom_var =false;
+	@Parameter(names={"--bed"},description="group variants using that bed file. The 4th column is the name of the cluster (or we use contig_start_end)")
+	protected Path bed_for_groups = null;
+	@Parameter(names={"--bed-id"},description="name for the INFO/METHOD when using the --bed parameter.")
+	protected String bed_for_groups_id = "BED";
 
 	@Override
 	protected Logger getLogger() {
@@ -121,9 +134,11 @@ public class VCFFlatten extends OnePassVcfLauncher {
 	private Group default_group = null;
 	private final List<GeneExtractorFactory.GeneExtractor> geneExtractors = new ArrayList<>();
 	private final Map<GeneExtractorFactory.KeyAndGene,Group> keyAndGeneToGroup = new HashMap<>();
+	private final Map<String,Group> intervalIdToGroup = new HashMap<>();
 	
 	private static class Group implements Locatable {
-		final String name;
+		final String method;
+		final String key;
 		final BitSet has_ALT;
 		String contig=null;
 		int start=0;
@@ -131,8 +146,9 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		boolean multiple_contigs = false;
 		int n_variants = 0;
 		
-		Group(final String name,int n_samples) {
-			this.name = name;
+		Group(final String method,final String key,int n_samples) {
+			this.method = method;
+			this.key = key;
 			this.has_ALT = new BitSet(n_samples);
 			}
 		@Override
@@ -142,9 +158,13 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		@Override
 		public int getEnd() {return this.end;}
 		
+		public String getName() {
+			if(this.method.equals(this.key)) return this.key;// for default Group default_variant_id
+			return String.join(":", method,key);
+			}
 		
 		Allele getAlt() {
-			return Allele.create("<"+name+">", false);
+			return Allele.create("<"+getName()+">", false);
 			}
 		void visit(final VariantContext ctx) {
 			this.n_variants++;
@@ -171,26 +191,36 @@ public class VCFFlatten extends OnePassVcfLauncher {
 			}
 		}
 	
-	private Collection<Group>  extractGroups(final VariantContext ctx) {
+	private Collection<Group>  extractGroups(final VariantContext ctx, final IntervalTreeMap<List<Interval>> customIntervals) {
 		if(default_group==null) {
-			this.default_group = new Group(this.default_variant_id, ctx.getNSamples());
+			this.default_group = new Group(this.default_variant_id,this.default_variant_id, ctx.getNSamples());
 			}
 		final List<Group> ret = new ArrayList<>();
 		ret.add(this.default_group);
 
 		for(GeneExtractorFactory.GeneExtractor extractor: this.geneExtractors) {
-			Map<GeneExtractorFactory.KeyAndGene,Set<String>> gene2values = extractor.apply(ctx);
+			final Map<GeneExtractorFactory.KeyAndGene,Set<String>> gene2values = extractor.apply(ctx);
 			if(gene2values.isEmpty()) continue;
 			
 			for(final GeneExtractorFactory.KeyAndGene keyAndGene :gene2values.keySet()) {
 				Group g = this.keyAndGeneToGroup.get(keyAndGene);
 				if(g==null) {
-					g = new Group(keyAndGene.getMethod()+":"+keyAndGene.getKey(), ctx.getNSamples());
+					g = new Group(keyAndGene.getMethod(),keyAndGene.getKey(), ctx.getNSamples());
 					this.keyAndGeneToGroup.put(keyAndGene,g);
 					}
 				ret.add(g);
 				}
 			}
+		
+		customIntervals.getOverlapping(ctx).stream().flatMap(L->L.stream()).forEach(RGN->{
+			Group g =  this.intervalIdToGroup.get(RGN.getName());
+			if(g==null) {
+				g = new Group(this.bed_for_groups_id,RGN.getName(), ctx.getNSamples());
+				this.intervalIdToGroup.put(RGN.getName(),g);
+				}
+			ret.add(g);
+			});
+		
 		return ret;
 		}
 	
@@ -198,6 +228,25 @@ public class VCFFlatten extends OnePassVcfLauncher {
 	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {
 		final VCFHeader headerin = iterin.getHeader();
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(headerin);
+		final IntervalTreeMap<List<Interval>> interval2group=new IntervalTreeMap<>();
+		if(bed_for_groups!=null) {
+			try(BedLineReader blr = new BedLineReader(this.bed_for_groups)) {
+				blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+				blr.stream().forEach(BL->{
+					String name = BL.getOrDefault(3, "");
+					if(StringUtils.isBlank(name)) name= BL.getContig()+"_"+BL.getStart()+"_"+BL.getEnd();
+					final Interval r =new Interval(BL.getContig(), BL.getStart(), BL.getEnd(),false,name);
+					List<Interval> L= interval2group.get(r);
+					if(L==null) {
+						L=new ArrayList<>();
+						interval2group.put(r,L);
+						}
+					L.add(r);
+					});
+			}
+		}
+		
+		
 		final Set<VCFHeaderLine> metaData = new HashSet<>();
 		VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_KEY);
 		VCFStandardHeaderLines.addStandardInfoLines(metaData, true,VCFConstants.END_KEY);
@@ -206,6 +255,14 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		final VCFInfoHeaderLine info_n_variant = new VCFInfoHeaderLine("N_VARIANTS", 1, VCFHeaderLineType.Integer ,"Number of variants");
 		metaData.add(info_n_variant);
 
+		final VCFInfoHeaderLine info_method = new VCFInfoHeaderLine("METHOD", 1, VCFHeaderLineType.String ,"Gene Extractor method");
+		metaData.add(info_method);
+		final VCFInfoHeaderLine info_key = new VCFInfoHeaderLine("KEY", 1, VCFHeaderLineType.String ,"Gene Extractor gene id");
+		metaData.add(info_key);
+		final VCFFilterHeaderLine filter_multi_flag = new VCFFilterHeaderLine("MULTIPLE_CONTIG","Record spans multiple chromosomes. Only first chromosome is reported");
+		metaData.add(filter_multi_flag);
+
+		
 		final VCFHeader header = new VCFHeader(metaData,headerin.getGenotypeSamples());
 		header.setSequenceDictionary(dict);
 		final List<String> sampleNames = headerin.getGenotypeSamples();
@@ -226,7 +283,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		
 		while(iterin.hasNext()) {
 			final VariantContext ctx = iterin.next();
-			for(final Group group: extractGroups(ctx)) {
+			for(final Group group: extractGroups(ctx, interval2group)) {
 				group.visit(ctx);
 				}
 			}
@@ -240,7 +297,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		for(Group g:all_groups) {
 			final Allele ALT= g.getAlt();
 			final Allele REF= Allele.REF_N;
-			final List<Allele> HOM_VAR = Arrays.asList(ALT,ALT);
+			final List<Allele> ALT_GEN = Arrays.asList((this.make_hom_var?ALT:REF),ALT);
 			final List<Allele> HOM_REF = Arrays.asList(REF,REF);
 			final VariantContextBuilder vcb=new VariantContextBuilder(
 				null,
@@ -254,14 +311,17 @@ public class VCFFlatten extends OnePassVcfLauncher {
 				genotypes.add(
 					new GenotypeBuilder(
 						sampleNames.get(i),
-						g.has_ALT.get(i)?HOM_VAR:HOM_REF
+						g.has_ALT.get(i)?ALT_GEN:HOM_REF
 						).make());
 				}
 			if(g.getStart()!=g.getEnd()) vcb.attribute(VCFConstants.END_KEY,g.getEnd());
 			if(g.multiple_contigs) {
 				vcb.attribute(info_multi_flag.getID(), true);
+				vcb.filter(filter_multi_flag.getID());
 				}
 			vcb.attribute(info_n_variant.getID(), g.n_variants);
+			vcb.attribute(info_method.getID(), VCFUtils.escapeInfoField(g.method));
+			vcb.attribute(info_key.getID(), VCFUtils.escapeInfoField(g.key));
 			vcb.genotypes(genotypes);
 			out.add(vcb.make());
 			}
@@ -271,7 +331,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		if(this.list_gene_extractors) {
 			for(String ex: GeneExtractorFactory.getExtractorNames()) {
 				stdout().println(ex);

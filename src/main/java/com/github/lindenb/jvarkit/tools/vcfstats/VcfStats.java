@@ -2012,17 +2012,13 @@ public class VcfStats extends Launcher {
 				final Set<Path> generated_files = new HashSet<>();
 				for(Analyzer analyzer:modules) {
 					generated_files.addAll( analyzer.finish(outputDirectory)) ;
-					}				
+					}
+				generated_files.stream().forEach(F->LOG.info("saved "+F));
 				}
 			return 0;
 		} catch (final Throwable e) {
-			e.printStackTrace();
 			LOG.error(e);
 			return -1;
-			}
-		finally
-			{
-			
 			}
 		}
 	

@@ -37,6 +37,9 @@ Usage: vcfflatten [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --hom-var
+      write homozygous alt genotypes instead of heterozygous
+      Default: false
     -i, --id
       Default Variant ID
       Default: FLATTEN_VARIANT
@@ -66,6 +69,10 @@ Usage: vcfflatten [options] Files
 ## Source code 
 
 [https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfflatten/VCFFlatten.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfflatten/VCFFlatten.java)
+
+### Unit Tests
+
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfflatten/VCFFlattenTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfflatten/VCFFlattenTest.java)
 
 
 ## Contribute

@@ -80,6 +80,8 @@
       <class name="com.github.lindenb.jvarkit.tools.bedstats.BedStatsTest"/>
       <class name="com.github.lindenb.jvarkit.tools.minigenotyper.MiniGenotyperTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMergeTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfflatten.VCFFlattenTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfstats.VcfStatsTest"/>
     </classes>
   </test>
 </suite>
