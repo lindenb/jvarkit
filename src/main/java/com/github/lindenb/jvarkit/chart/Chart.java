@@ -38,7 +38,9 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
-
+/**
+ * Base class for BarChart, ScatterXYChart , etc...
+ */
 public abstract class Chart {
 	protected static int ID_GENERATOR=0;
 	private final String id = String.valueOf("chart"+(++ID_GENERATOR));
@@ -68,13 +70,13 @@ public abstract class Chart {
 		return subTitle;
 		}
 	
-	public void setPlotlyLibraryUrl(String plotly_library_url) {
+	public void setPlotlyLibraryUrl(final String plotly_library_url) {
 		this.plotly_library_url = plotly_library_url;
 		}
 	public String getPlotlyLibraryUrl() {
 		return plotly_library_url;
 		}
-	public void saveXml(XMLStreamWriter w) throws IOException,XMLStreamException {
+	public void saveXml(final XMLStreamWriter w) throws IOException,XMLStreamException {
 		w.writeComment("not implemented");
 		}
 	public void saveXml(final Path p) throws IOException,XMLStreamException {
@@ -140,7 +142,7 @@ public abstract class Chart {
 		}
 	
 	public void savePlotly(Path filename) throws IOException,XMLStreamException {
-		if(!filename.getFileName().endsWith(".html")) {
+		if(!filename.getFileName().toString().endsWith(".html")) {
 			throw new IllegalArgumentException("filename should end with .html but got "+filename);
 			}
 		final Charset charset=Charset.defaultCharset();
@@ -166,7 +168,7 @@ public abstract class Chart {
 	protected abstract JsonElement getMultiQCJSon();
 	
 	public void saveMultiQC(final Path filename) throws IOException {
-		if(!filename.getFileName().endsWith("_mqc.json")) {
+		if(!filename.getFileName().toString().endsWith("_mqc.json")) {
 			throw new IllegalArgumentException("filename should end with _mqc.json but got "+filename);
 			}
 		final Gson gson = new Gson();

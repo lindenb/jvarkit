@@ -1,7 +1,6 @@
 package com.github.lindenb.jvarkit.tools.vcffilterso;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -11,7 +10,6 @@ import org.testng.annotations.Test;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
 public class VcfFilterSequenceOntologyTest {

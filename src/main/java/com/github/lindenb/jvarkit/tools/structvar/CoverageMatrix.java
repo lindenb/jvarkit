@@ -383,7 +383,7 @@ public class CoverageMatrix extends Launcher {
 				final double medianOfmedian = optMedianOfmedian.orElse(1.0);
 				if(medianOfmedian<=0) continue;
 				for(int i=0;i< list.size();i++) {
-					list.get(i).depth/=medianOfmedian;
+					list.get(i).depth/=(float)medianOfmedian;
 					}
 				if( list.stream().allMatch(F->Float.isNaN(F.depth) || Float.isInfinite(F.depth))) continue;
 				
