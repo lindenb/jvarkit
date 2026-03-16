@@ -310,6 +310,7 @@ import com.github.lindenb.jvarkit.tools.vcf2intervals.VcfToIntervals;
 import com.github.lindenb.jvarkit.tools.vcf2r.VcfToRScript;
 import com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
+import com.github.lindenb.jvarkit.tools.vcf2xls.VcfToExcel;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolic;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
@@ -966,6 +967,7 @@ public class JvarkitCentral {
 		command(VcfTbiToBed.class);
 		command(VcfToRdf.class);
 		command(VcfToHilbert.class);
+		command(VcfToExcel.class);
 		command(VcfGroupByPopulation.class);
 		command(VcfBraiding.class);
 		command(VcfSamplesPRS.class);

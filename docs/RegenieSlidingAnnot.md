@@ -22,17 +22,17 @@ Usage: regenieslidingannot [options] Files
       What kind of help. One of [usage,markdown,xml].
     --version
       print version and exit
-  * --window-shift
+  * --window-shift, -s
       window shift. A distance specified as a positive integer.Commas are 
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: -1
-  * --window-size
+  * --window-size, -w
       window size. A distance specified as a positive integer.Commas are 
       removed. The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: -1
     -f
-      comma separated of Allele frequencies , I will use the highest to 
-      discard frequent variants.
+      comma separated of Allele frequencies , This program will use the 
+      highest freq to discard frequent variants.
       Default: 0.01
     -o
       Output file. Optional . Default: stdout
@@ -77,6 +77,13 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+ The aim of this  class is to produce a file for regenie containing sliding windows with the following header:
+ 
+<pre>"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"</pre>
+ 
+
+## Example
 
 
 

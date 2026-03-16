@@ -1,9 +1,35 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2026 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.regenie;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -15,17 +41,18 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.gtf.GTFCodec;
+import com.github.lindenb.jvarkit.gtf.GTFLine;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.ucsc.UcscTranscript;
-import com.github.lindenb.jvarkit.ucsc.UcscTranscriptReader;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParserFactory;
 
-import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.RuntimeIOException;
@@ -35,11 +62,13 @@ import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
-## Example
+ The aim of this  class is to produce a file for regenie containing functional annotations with the following header:
+ 
+<pre>"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"</pre>
+ 
 
-snpeff.cadd.in.vcf.gz |\
-	java -jar dist/jvarkit.jar regeniefunctionalannot -A anot.tsv |\
-	java -jar dist/jvarkit.jar regeniemakeannot -o OUT
+
+## Example
 
 
 END_DOC
@@ -48,7 +77,7 @@ END_DOC
 	description="Create annotation files for regenie using snpEff annotations",
 	keywords={"vcf","regenie","burden"},
 	creationDate="20250311",
-	modificationDate="20250320",
+	modificationDate="20260315",
 	jvarkit_amalgamion = true,
 	generate_doc = true
 	)
@@ -57,8 +86,8 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.of(RegenieFunctionalAnnot.class);
 	@Parameter(names={"-A","--annotations"},description="seq_ontology <-> score file. TSV file. no header. at least 2 columns prediction_name/score",required = true)
 	private Path masksFile = null;
-	@Parameter(names={"--kg","--known"},description="known gene data for first intron/intergenic. " + UcscTranscriptReader.OPT_DESC)
-	private Path knownGene = null;
+	@Parameter(names={"--gtf"},description="GTF file used to get first intron/intergenic. ")
+	private Path gtfPath = null;
 
 	
 	@Override
@@ -94,43 +123,73 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 					prediction2score.put(pred, Double.parseDouble(tokens[1].trim()));
 				}
 			}
-		catch(IOException err) {
+		catch(final IOException err) {
 			throw new RuntimeIOException(err);
 			}
 		
-		if(knownGene!=null && !prediction2score.containsKey(FIRST_INTRON)) {
+		if(gtfPath!=null && !prediction2score.containsKey(FIRST_INTRON)) {
 			LOG.warning("No "+FIRST_INTRON+" defined in "+masksFile);
-		}
+			}
 		
-		if(knownGene!=null && prediction2score.containsKey(FIRST_INTRON)) {
+		if(gtfPath!=null && prediction2score.containsKey(FIRST_INTRON)) {
 			this.firstIntronToTranscript = new IntervalTreeMap<>();
-			try(UcscTranscriptReader rd=new UcscTranscriptReader(this.knownGene)) {
-				try(CloseableIterator<UcscTranscript> iter= rd.iterator()) {
-					while(iter.hasNext()) {
-						final UcscTranscript kg = iter.next();
-						if(kg.getIntronCount()<=0) continue;
-						final String ctg = fixContig(kg.getContig());
-						if(StringUtils.isBlank(ctg)) continue;
-						final	UcscTranscript.Intron intron;
-						if(kg.isPositiveStrand()) {
-							intron = kg.getIntron(0);
-							}
-						else
-							{
-							intron = kg.getIntron(kg.getIntronCount()-1);
-							}
-						final Interval r = new Interval(ctg,intron.getStart(),intron.getEnd());
-						Set<String> transcriptids = firstIntronToTranscript.get(r);
-						if(transcriptids==null) {
-							transcriptids=new HashSet<>();
-							firstIntronToTranscript.put(r, transcriptids);
-							}
-						transcriptids.add(kg.getTranscriptId());
+			try(BufferedReader rd= IOUtils.openPathForBufferedReading(this.gtfPath)) {
+				final GTFCodec gtfCodec = new GTFCodec();
+				final Map<String,List<Interval>> tr2exons = new HashMap<>();
+				final SAMSequenceDictionary dict = h.getSequenceDictionary();
+				if(dict!=null) {
+					gtfCodec.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
+					}
+				for(;;) {
+					final String line = rd.readLine();
+					if(line==null) break;
+					if(line.startsWith("#") || StringUtils.isBlank(line)) continue; 
+					final GTFLine rec= gtfCodec.decode(line);
+					if(rec==null) continue;
+					if(!rec.getType().equals("exon")) continue;
+					if(!rec.hasAttribute("transcript_id")) continue;
+					final String tr = removeVersionFromEnst(rec.getAttribute("transcript_id"));
+					List<Interval> exons = tr2exons.get(tr);
+					if(exons==null) {
+						exons = new ArrayList<>();
+						tr2exons.put(tr, exons);
 						}
+					exons.add(new Interval(rec.getContig(),rec.getStart(),rec.getEnd(),rec.isNegativeStrand(),tr));
 					}
-				catch(IOException err) {
-					throw new RuntimeIOException(err);
+				for(String tr:tr2exons.keySet()) {
+					List<Interval> L = tr2exons.get(tr);
+					if(L.size()<2) continue;//no intron
+					Collections.sort(L,(A,B)->Integer.compare(A.getStart(), B.getStart()));
+					final Interval first = L.get(0);
+					final Interval intron;
+					if(first.isPositiveStrand()) {
+						intron = new Interval(
+								first.getContig(),
+								L.get(0).getEnd()+1,
+								L.get(1).getStart()-1,
+								false,
+								first.getName()
+								);
+						}
+					else {
+						intron = new Interval(
+								first.getContig(),
+								L.get(L.size()-2).getEnd()+1,
+								L.get(L.size()-1).getStart()-1,
+								false,
+								first.getName()
+								);
+						}
+					Set<String> transcriptids = firstIntronToTranscript.get(intron);
+					if(transcriptids==null) {
+						transcriptids=new HashSet<>();
+						firstIntronToTranscript.put(intron, transcriptids);
+						}
+					transcriptids.add(first.getName());
 					}
+				}
+			catch(IOException err) {
+				throw new RuntimeIOException(err);
 				}
 			}
 		
@@ -152,7 +211,7 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 		final List<AnnPredictionParser.AnnPrediction> predictions = this.annParser.getPredictions(ctx);
 		
 		
-		
+		// two loop, one for Transcript, the other for gene
 		for(int side=0;side< 2;++side) {
 			final Function<AnnPredictionParser.AnnPrediction, String> extract_gene = side==0?
 					PRED->PRED.getGeneName():

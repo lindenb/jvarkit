@@ -34,8 +34,8 @@ Usage: regeniebedannot [options] Files
     --version
       print version and exit
     -f
-      comma separated of Allele frequencies , I will use the highest to 
-      discard frequent variants.
+      comma separated of Allele frequencies , This program will use the 
+      highest freq to discard frequent variants.
       Default: 0.01
     -o
       Output file. Optional . Default: stdout

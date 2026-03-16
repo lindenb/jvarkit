@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2026 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.tools.regenie;
 
 import java.io.PrintWriter;
@@ -15,6 +39,13 @@ import htsjdk.variant.vcf.VCFHeader;
 /**
 BEGIN_DOC
 
+ The aim of this  class is to produce a file for regenie containing sliding windows with the following header:
+ 
+<pre>"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"</pre>
+ 
+
+## Example
+
 
 END_DOC
 **/
@@ -28,9 +59,9 @@ generate_doc = true
 )
 public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 	private static final Logger LOG = Logger.of(RegenieSlidingAnnot.class);
-	@Parameter(names = {"--window-size"}, description = "window size. "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class,converter=DistanceParser.StringConverter.class,required =true)
+	@Parameter(names = {"--window-size","-w"}, description = "window size. "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class,converter=DistanceParser.StringConverter.class,required =true)
 	private int window_size=-1;
-	@Parameter(names = {"--window-shift"}, description = "window shift. "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class,converter=DistanceParser.StringConverter.class,required = true)
+	@Parameter(names = {"--window-shift","-s"}, description = "window shift. "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class,converter=DistanceParser.StringConverter.class,required = true)
 	private int window_shift=-1;
 
 	@Override
@@ -39,7 +70,7 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 		}
 
 	@Override
-	protected VCFHeader initVcfHeader(VCFHeader h) {
+	protected VCFHeader initVcfHeader(final VCFHeader h) {
 		if(window_shift<1 || window_shift>window_size) throw new IllegalArgumentException("shift>size");
 		return super.initVcfHeader(h);
 		}
@@ -69,7 +100,7 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 			} while(CoordMath.overlaps(win_pos, win_pos+this.window_size-1, ctx.getStart(), ctx.getEnd()));
 		}
 
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new RegenieSlidingAnnot().instanceMainWithExit(args);
 	}
 }

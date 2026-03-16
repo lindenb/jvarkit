@@ -71,6 +71,8 @@ import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFReader;
 /**
+ 
+
 ## mask
 
 example mask for snpeff

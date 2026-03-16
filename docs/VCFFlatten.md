@@ -22,6 +22,12 @@ Usage: vcfflatten [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    --bed
+      group variants using that bed file. The 4th column is the name of the 
+      cluster (or we use contig_start_end)
+    --bed-id
+      name for the INFO/METHOD when using the --bed parameter.
+      Default: BED
     -X, --gene-extractors
       if not blanks, variants will be grouped by gene using 
       snpeff/bcftools/vep annotations. Gene Extractors Name. 

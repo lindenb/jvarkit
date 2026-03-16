@@ -259,6 +259,7 @@ nav:
         - "vcf2r" : VcfToRScript.md
         - "vcf2rdf" : VcfToRdf.md
         - "vcf2table" : VcfToTable.md
+        - "vcf2xls" : VcfToExcel.md
         - "vcf2xml" : Vcf2Xml.md
         - "vcfallele2symbolic" : VcfAlleleToSymbolic.md
         - "vcfallelebalance" : VcfAlleleBalance.md

@@ -50,6 +50,9 @@ import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.FeatureReader;
 
+/**
+ * Reader of  UcscTranscript 
+ */
 public class UcscTranscriptReader implements FeatureReader<UcscTranscript> {
 	
 	public static final String OPT_DESC=

@@ -19,23 +19,17 @@ Usage: regeniefunctionalannot [options] Files
   * -A, --annotations
       seq_ontology <-> score file. TSV file. no header. at least 2 columns 
       prediction_name/score 
+    --gtf
+      GTF file used to get first intron/intergenic.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --kg, --known
-      known gene data for first intron/intergenic. Transcrips as genpred 
-      format https://genome.ucsc.edu/FAQ/FAQformat.html#format9  . The 
-      genePred format is a compact alternative to GFF/GTF because one 
-      transcript is described using only one line.	Beware chromosome names are 
-      formatted the same as your REFERENCE. A typical KnownGene file is http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV47.txt.gz 
-      .If you only have a gff file, you can try to generate a knownGene file 
-      with [http://lindenb.github.io/jvarkit/Gff2KnownGene.html](http://lindenb.github.io/jvarkit/Gff2KnownGene.html)
     --version
       print version and exit
     -f
-      comma separated of Allele frequencies , I will use the highest to 
-      discard frequent variants.
+      comma separated of Allele frequencies , This program will use the 
+      highest freq to discard frequent variants.
       Default: 0.01
     -o
       Output file. Optional . Default: stdout
@@ -81,11 +75,13 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
-## Example
+ The aim of this  class is to produce a file for regenie containing functional annotations with the following header:
+ 
+<pre>"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"</pre>
+ 
 
-snpeff.cadd.in.vcf.gz |\
-	java -jar dist/jvarkit.jar regeniefunctionalannot -A anot.tsv |\
-	java -jar dist/jvarkit.jar regeniemakeannot -o OUT
+
+## Example
 
 
 

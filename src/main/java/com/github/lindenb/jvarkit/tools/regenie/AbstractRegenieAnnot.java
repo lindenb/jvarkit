@@ -44,8 +44,20 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
- * Base class for Regenie** Generator
- *
+ * Base class for Regenie  Generator, output will be passed to RegenieMakeAnnot
+ 
+ The aim of this abstract class is to produce a file for regenie with the following header:
+ 
+<pre>"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"</pre>
+ 
+ 
+ The frequency is extracted from the internal MAF or the Gnomad Frequency (if found using vcf gnomad ) 
+ 
+ The ID is generated on the fly, using normalized chromosome chr1->1
+ 
+ 
+ Sub classes must implement <code>void dump(final PrintWriter w,final VariantContext ctx) </code>
+ 
  */
 public abstract class AbstractRegenieAnnot extends Launcher {
 	private static final String CADD_PHRED = "CADD_PHRED";
@@ -53,7 +65,7 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 	@Parameter(names = "-o", description = OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 
-	@Parameter(names = "-f", description = "comma separated of Allele frequencies , I will use the highest to discard frequent variants.")
+	@Parameter(names = "-f", description = "comma separated of Allele frequencies , This program will use the highest freq to discard frequent variants.")
 	private String freqStr="0.01";
 
 	protected static class Variation {
