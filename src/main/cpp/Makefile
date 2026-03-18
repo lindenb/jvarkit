@@ -1,5 +1,5 @@
 .SHELL=/bin/bash
-HTSLIB_VERSION?=1.11
+HTSLIB_VERSION?=1.23
 CC?=gcc
 CFLAGS=-O3 -Wall  -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 ARCH=$(shell arch)
@@ -7,13 +7,12 @@ ARCH=$(shell arch)
 
 
 
-cvarkit.o : cvarkit.cpp
-	$(CC) -c -o $@ $(CFLAGS) $<
-
-
 ifeq (${JAVA_HOME},)
 $(error $${JAVA_HOME} is not defined)
 endif
+
+JAVAC=${JAVA_HOME}/bin/javac
+
 
 ## find path where to find include files
 JDK_JNI_INCLUDES?=$(addprefix -I,$(sort $(dir $(shell find ${JAVA_HOME}/include -type f -name "*.h"))))
@@ -39,7 +38,7 @@ com_github_lindenb_jvarkit_htslib_HtsLib.o : com_github_lindenb_jvarkit_htslib_H
 	$(CC) -c $(CFLAGS) -o $@ -fPIC  $(JDK_JNI_INCLUDES)  -I htslib-$(HTSLIB_VERSION) $<
 
 com_github_lindenb_jvarkit_htslib_HtsLib.h : ../java/com/github/lindenb/jvarkit/htslib/HtsLib.java
-	javah -o $@ -jni -force -classpath  ../java "com.github.lindenb.jvarkit.htslib.HtsLib"
+	$(JAVAC) -h . -classpath  ../java  $<
 
 htslib-$(HTSLIB_VERSION)/libhts.a :  htslib-$(HTSLIB_VERSION)/Makefile
 	cd $(dir $@) && make

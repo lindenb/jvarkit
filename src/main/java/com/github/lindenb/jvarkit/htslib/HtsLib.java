@@ -25,16 +25,29 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.htslib;
 
 public class HtsLib {
-/** kseq */
+	
+	/** kseq */
+	/*
 	public static native long kseq_init_file(final String filename);
 	public static native void kseq_destroy(long ptr);
-	public static native int kseq_read4(long ptr,final String array[]);
+	public static native int kseq_read4(long ptr,final String array[]); */
 	/** bcf */
+	/*
 	public static native long bcf_open(final String filename,boolean requireIndex);
 	public static native String bcf_hdr_to_string(final long bcfptr);
 	public static native void bcf_close(long bcfptr);
 	public static native int bcf_itr_init(long bcfptr,String contig,int start,int end);
-	public static native String bcf_itr_next(long bcfptr);
+	public static native String bcf_itr_next(long bcfptr);*/
+	static native long /* htsFile */ hts_hopen(final String fn,final String mode);
+	static native int hts_close(long fp /* htsFile */);
+	static native int hts_flush(long fp /* htsFile */);
 	
+	static native long bcf_hdr_read(long fp /* htsFile */);
+	static native void bcf_hdr_destroy(long h /* bcf_hdr_t */);
+
+	static native long bcf_init();
+	static native void bcf_destroy(long h /* bcf1_t */);
+	static native long bcf_dup(long h /* bcf1_t */);
+	static native int bcf_read(long fp, long h,long v);
 	
 }

@@ -25,46 +25,46 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.htslib;
 
 import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
-import java.nio.file.Path;
-import htslib.Htslib;
-import com.github.lindenb.jvarkit.jni.CPtr;
 
 
-public abstract class HtsFile extends CPtr implements Closeable {
-	private final String filename;
-	public HtsFile(final Path s,final String m) throws IOException {
-		this(s.toString(),m);
-		}
-	
+public class HtsFile implements  Closeable, Flushable {
+	private long ptr;
 	public HtsFile(final String s,final String m) throws IOException {
-		super(HtsLib.hts_hopen(s,m));
-		this.filename = s;
-		if(isNull()) throw new IOException("Cannot open "+s);
+		this.ptr = (HtsLib.hts_hopen(s,m));
+		if(this.ptr==0L) throw new IOException("Cannot open "+s);
 		}
 	
 	public boolean isOpen() {
-		return !super.isNull();
+		return this.ptr!=0;
 		}
 	
+	
+	@Override
+	public void flush() throws IOException {
+		if(isOpen()) HtsLib.hts_flush(this.ptr);
+		}
 	@Override
 	public final void close() {
-		this.dispose();
-		}
-		
-	@Override
-	public void dispose() {
-		if(isOpen()) HtsLib.hts_hclose(this.getPtr());
-		setNull();
-		super.dispose();
+		HtsLib.hts_close(this.ptr);
+		this.ptr=0L;
 		}
 	
-	public String getFilename() {
-		return filename;
+	@Override
+	public boolean equals(Object obj) {
+		if(this==obj) return true;
+		if(!(obj instanceof HtsFile)) return false;
+		return this.ptr==HtsFile.class.cast(obj).ptr;
 		}
+	
+	@Override
+	public int hashCode() {
+		return Long.hashCode(this.ptr);
+	 	}
 	
 	@Override
 	public String toString() {
-		return this.getClass().getName()+"(" + getFilename() + ")";
+		return "HtsFile("+this.ptr+")";
 		}
 	}

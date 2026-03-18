@@ -5,6 +5,7 @@
 #include <zlib.h>
 #include <getopt.h>
 #include "htslib/kseq.h"
+#include "htslib/vcf.h"
 #include <htslib/hts.h>
 
 #include "com_github_lindenb_jvarkit_htslib_HtsLib.h"
@@ -12,6 +13,52 @@
 KSEQ_DECLARE(gzFile)
 
 #define QUALIFIEDMETHOD(fun) Java_com_github_lindenb_jvarkit_htslib_HtsLib_##fun
+
+
+JNIEXPORT jlong JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_hts_1hopen(JNIEnv *env, jclass clazz, jstring filename, jstring mode) {
+	const char* c_filename = (*env)->GetStringUTFChars(env,(jstring) filename, NULL);
+	const char* c_mode = (*env)->GetStringUTFChars(env,(jstring) mode, NULL);
+  	htsFile *fp = hts_open(c_filename, c_mode);
+    (*env)->ReleaseStringUTFChars(env,filename, c_filename);
+    (*env)->ReleaseStringUTFChars(env,mode, c_mode);
+    return (jlong)fp;
+	}
+
+JNIEXPORT jint JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_hts_1close(JNIEnv *env, jclass clazz, jlong fp) {
+  return hts_close((htsFile*)fp);
+  }
+
+JNIEXPORT jint JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_hts_1flush(JNIEnv *env, jclass clazz, jlong fp) {
+  return hts_flush((htsFile*)fp);
+  }
+  
+ JNIEXPORT jlong JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_bcf_1hdr_1read(JNIEnv *env, jclass clazz, jlong fp) {
+ 	return (jlong)bcf_hdr_read((htsFile*)fp);
+ }
+
+
+JNIEXPORT void JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_bcf_1hdr_1destroy(JNIEnv *env, jclass clazz, jlong fp) {
+ 	bcf_hdr_destroy((bcf_hdr_t*)fp);
+ 	}
+
+
+JNIEXPORT jlong JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_bcf_1init(JNIEnv *env, jclass clazz) {
+	return (long)bcf_init();
+	}
+
+
+JNIEXPORT void JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_bcf_1destroy(JNIEnv *env, jclass clazz, jlong ptr) {
+	bcf_destroy((bcf1_t*)ptr);
+	}
+
+JNIEXPORT jlong JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_bcf_1dup(JNIEnv *env, jclass clazz, jlong ptr) {
+	return (long)bcf_dup((bcf1_t*)ptr);
+	}
+
+JNIEXPORT jint JNICALL Java_com_github_lindenb_jvarkit_htslib_HtsLib_bcf_1read(JNIEnv *env, jclass clazz,long fp, long hdr, long v) {
+	return bcf_read((htsFile*)fp, (bcf_hdr_t *)hdr, (bcf1_t*)v); 
+  }
+#ifdef XXXXXXXXXXXXXXXXXXX
 
 jlong QUALIFIEDMETHOD(kseq_1init_1file)(JNIEnv *env, jclass clazz, jstring filename) {
     const char* fn = (*env)->GetStringUTFChars(env,(jstring) filename, NULL);
@@ -208,4 +255,4 @@ if ( files->streaming )
                 exit(1);
             }
         }
-
+#endif

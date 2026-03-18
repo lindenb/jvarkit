@@ -103,7 +103,7 @@ public class VcfStats extends Launcher {
 	@Parameter(names={"-o","--output"},description="Output directory",required = true)
 	private Path outputDirectory = null;
 		
-	@Parameter(names={"--categories","--phenotypes"},description=SampleToGroup.OPT_DESC,hidden = true)
+	@Parameter(names={"--categories","--phenotypes"},description=SampleToGroup.OPT_DESC)
 	private Path sample2catPath = null;
 
 	
