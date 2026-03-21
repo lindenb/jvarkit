@@ -28,43 +28,43 @@ import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
 
+import com.github.lindenb.jvarkit.jni.AbstractCPtr;
 
-public class HtsFile implements  Closeable, Flushable {
-	private long ptr;
+
+public class HtsFile extends AbstractCPtr implements Closeable, Flushable {
 	public HtsFile(final String s,final String m) throws IOException {
-		this.ptr = (HtsLib.hts_hopen(s,m));
-		if(this.ptr==0L) throw new IOException("Cannot open "+s);
+		super(HtsLib.hts_hopen(s,m),true);
+		if(isPtrNull()) throw new IOException("Cannot open "+s);
 		}
 	
 	public boolean isOpen() {
-		return this.ptr!=0;
+		return isPtrNotNull();
 		}
 	
 	
 	@Override
 	public void flush() throws IOException {
-		if(isOpen()) HtsLib.hts_flush(this.ptr);
+		if(isOpen()) HtsLib.hts_flush(getPtr());
 		}
 	@Override
 	public final void close() {
-		HtsLib.hts_close(this.ptr);
-		this.ptr=0L;
+		if(isOpen()) {
+			HtsLib.hts_close(getPtr());
+			setPtrToNull();
+			}
 		}
+	@Override
+	public void disposePtr() {
+		if(isMemoryManaged()) close();
+		}
+	
 	
 	@Override
 	public boolean equals(Object obj) {
 		if(this==obj) return true;
 		if(!(obj instanceof HtsFile)) return false;
-		return this.ptr==HtsFile.class.cast(obj).ptr;
+		return this.getPtr()==HtsFile.class.cast(obj).getPtr();
 		}
 	
-	@Override
-	public int hashCode() {
-		return Long.hashCode(this.ptr);
-	 	}
 	
-	@Override
-	public String toString() {
-		return "HtsFile("+this.ptr+")";
-		}
 	}

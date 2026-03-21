@@ -25,61 +25,29 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.jni;
 
 /** wrapper for C pointers */
-public class CPtr {
-	private long ptr = 0L;
-	
-	public CPtr()
-		{
-		this(0L);
-		}
-	
-	public CPtr(final long n) {
-		this.ptr = n;
-		}
-	
-	@Override
-	protected void finalize() throws Throwable {
-		dispose();
-		super.finalize();
-		}
+public interface CPtr {
 	
 	/** set ptr to 0L, should be the place to free memory if needed */
-	public void dispose() {
-		this.setPtr(0L);
-		}
+	public void disposePtr();
 	
-	public void assertNotNull() {
-		if(isNull()) throw new NullPointerException("JNI Pointer is null !");
-	}
 	
-	public long getMustBeNotNull() {
-		assertNotNull();
+	public default long getPtrMustBeNotNull() {
+		long n = getPtr();
+		if(n==0L) throw new IllegalArgumentException("Ptr is null");
 		return this.getPtr();
 		}
-
 	
-	public long getPtr() {
-		return this.ptr;
-		}
+	public long getPtr();
+	public void setPtr(final long n);
 	
-	public void setPtr(final long n) {
-		this.ptr = n;
-	}
-	
-	public void setNull() {
+	public default void setPtrToNull() {
 		setPtr(0L);
-	}
-	
-	public boolean isNull() {
-		return this.ptr<=0L;
-		}
-	@Override
-	public int hashCode() {
-		return Long.hashCode(this.ptr);
 		}
 	
-	@Override
-	public String toString() {
-		return String.valueOf(this.getClass().getName())+"("+(isNull()?"null":String.format("0x%08X",this.getPtr())+")");
+	public default boolean isPtrNull() {
+		return getPtr()==0L;
+		}
+	public default boolean isPtrNotNull() {
+		return !isPtrNull();
 		}
  	}

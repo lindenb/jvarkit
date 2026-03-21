@@ -146,7 +146,7 @@ OUT/manifest.tsv
 description="Create annotation files for regenie from a TSV input file",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="20250901",
+modificationDate="20260318",
 generate_doc = true,
 jvarkit_amalgamion = true
 )
@@ -167,11 +167,12 @@ public class RegenieMakeAnnot extends Launcher {
 	private boolean gzip_files=false;
 	@Parameter(names={"--reserve"},description="reserve 'n' output files of non-overlaping gene/target")
 	private int reserve_output = 20;
-	
+	@Parameter(names={"--auto"},description="if no mask was found use the ANNOTATION column with score=1 as the mask")
+	private boolean auto_mask = false;
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 
-	private final Map<String,Prediction> predictions_hash = new HashMap<>();//tmpFile = Files.createTempFile("regenie", ".tmp");
+	private final Map<String,Prediction> predictions_hash = new HashMap<>();
 
 	
 	 
@@ -440,8 +441,9 @@ public class RegenieMakeAnnot extends Launcher {
 					v.contig = fixContig(row.at(col_chrom));
 					v.gene =row.at(col_gene);
 					v.prediction = row.at(col_prediction);
-					if(this.masksFile==null) {
+					if(this.masksFile==null || (!this.predictions_hash.containsKey(v.prediction) && this.auto_mask)) {
 						if(!this.predictions_hash.containsKey(v.prediction)) {
+							LOG.info("creating mask for "+v.prediction);
 							final Prediction p  = new Prediction(v.prediction);
 							p.masks.add(v.prediction);
 							p.score=OptionalDouble.of(1.0);
@@ -452,6 +454,7 @@ public class RegenieMakeAnnot extends Launcher {
 						{
 						if(!this.predictions_hash.containsKey(v.prediction)) {
 							throw new IllegalArgumentException("got prediction "+v.prediction+" in "+line+" but no mask was defined : " + this.predictions_hash.keySet());
+								
 							}
 						}
 					final String scoreStr=col_score<0?"":row.at(col_score);

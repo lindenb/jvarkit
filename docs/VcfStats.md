@@ -16,6 +16,8 @@ Usage: java -jar dist/jvarkit.jar vcfstats  [options] Files
 
 Usage: vcfstats [options] Files
   Options:
+    --categories, --phenotypes
+      a tab delimited file with two columns: (sample-name)(TAB)(group-name)
     --fill-group
       assign group 'x' to sample if it's not defined in the file for 
       --categories. Special value = '*' : assign the sample name to it's own 

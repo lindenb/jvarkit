@@ -1,14 +1,12 @@
 package com.github.lindenb.jvarkit.htslib;
 
+import com.github.lindenb.jvarkit.jni.AbstractCPtr;
 import com.github.lindenb.jvarkit.jni.CPtr;
 
-public class KString
-extends CPtr  
-	implements CharSequence,
-	Comparable<CharSequence>
+public class KString extends AbstractCPtr implements CharSequence, Comparable<CharSequence>
 {
 public KString() {
-	super(Htslib.bind_kstring_create());
+	super(Htslib.bind_kstring_create(),true);
 	}
 	
 @Override

@@ -60,15 +60,23 @@ import htsjdk.variant.vcf.VCFHeader;
 /** 
 BEGIN_DOC
 
+ The aim of this  class is to produce a file for regenie from a bed file
+ 
+ <pre>CHROM START END ANNOTATION TITLE</pre>
+ 
+ and to generate a file
+ 
+<pre>"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"</pre>
 
+that can be piped into RegeniemakeAnnot
 
 END_DOC
 */
 @Program(name="regeniebedannot",
-description="Create annotation files for regenie using sliding annotations",
+description="Create annotation files for regenie using BED annotations",
 keywords={"vcf","regenie","burden"},
 creationDate="20250311",
-modificationDate="202050515",
+modificationDate="20260319",
 jvarkit_amalgamion = true,
 generate_doc = true
 )
@@ -85,6 +93,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	private final IntervalTreeMap<List<UserBed>> interval2userbed = new IntervalTreeMap<>();
 	
 	private int[] min_length_sorted_array = null;
+	private long count_no_overlap_with_gene = 0L;
 	
 	@Override
 	protected Logger getLogger() {
@@ -211,13 +220,17 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 				
 				L.add(ub);
 				}
+			LOG.info("initial number of ROI  =  "+gene2intervals.size());
 			
+			if(gene2intervals.isEmpty()) {
+				LOG.warn("NO ROI was found !!");
+				}
 			
 			for(String geneName: gene2intervals.keySet()) {
 				final List<UserBed> user_bed_list = gene2intervals.get(geneName);
 				List<Locatable> previous_lengths=null;
 				for(int min_len : this.min_length_sorted_array) {
-					// check extendingh is required or useless by comparing with previous start/end
+					// check extending is required or useless by comparing with previous start/end
 					if(previous_lengths!=null) {
 						boolean same=true;
 						for(int i=0;i< user_bed_list.size();++i) {
@@ -263,6 +276,7 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 						}
 					}
 				}
+			LOG.info(" number of ROI  =  "+gene2intervals.size());
 			}
 		catch(final IOException err) {
 			throw new RuntimeIOException(err);
@@ -273,12 +287,15 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 	@Override
 	protected void dump(final PrintWriter w,final VariantContext ctx) throws Exception {	
 		
-		final Map<String,List<UserBed>> gene_name_to_user_beds = this.interval2userbed.getOverlapping(ctx).
+		final Map<String,List<UserBed>> gene_name_to_user_beds = this.interval2userbed.getOverlapping(new SimpleInterval(fixContig(ctx.getContig()), ctx.getStart(), ctx.getEnd())).
 				stream().
 				flatMap(T->T.stream()).
 				collect(Collectors.groupingBy(UB->UB.gene_name))
 				;
-		if(gene_name_to_user_beds.isEmpty()) return;
+		if(gene_name_to_user_beds.isEmpty()) {
+			++count_no_overlap_with_gene;
+			return;
+			}
 		
 		
 		for(String gene_name:gene_name_to_user_beds.keySet()) {
@@ -303,6 +320,11 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 			}
 		}
 	
+	@Override
+	protected int afterVcf() {
+		LOG.info("number of variants without overlap with bed "+count_no_overlap_with_gene);
+		return super.afterVcf();
+		}
 
 	public static void main(final String[] args) {
 		new RegenieBedAnnot().instanceMainWithExit(args);

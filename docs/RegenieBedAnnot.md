@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Create annotation files for regenie using sliding annotations
+Create annotation files for regenie using BED annotations
 
 
 ## Usage
@@ -81,6 +81,14 @@ The current reference is:
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
 
+ The aim of this  class is to produce a file for regenie from a bed file
+ 
+ <pre>CHROM START END ANNOTATION TITLE</pre>
+ 
+ and to generate a file
+ 
+<pre>"CONTIG","POS","ID","GENE","ANNOTATION","SCORE","CADD","FREQ","SINGLETON"</pre>
 
+that can be piped into RegeniemakeAnnot
 
 

@@ -60,6 +60,7 @@ import htsjdk.variant.vcf.VCFIterator;
  
  */
 public abstract class AbstractRegenieAnnot extends Launcher {
+	private static final Logger LOG = Logger.of(AbstractRegenieAnnot.class);
 	private static final String CADD_PHRED = "CADD_PHRED";
 	private static final String GNOMAD_AF = "gnomad_genome_AF_NFE";
 	@Parameter(names = "-o", description = OPT_OUPUT_FILE_OR_STDOUT)
@@ -68,6 +69,11 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 	@Parameter(names = "-f", description = "comma separated of Allele frequencies , This program will use the highest freq to discard frequent variants.")
 	private String freqStr="0.01";
 
+	private long n_variants_input = 0L;
+	private long n_variants_skipped = 0L;
+	private long n_variants_emit = 0L;
+	private long n_variants_printed = 0L;
+	
 	protected static class Variation {
 		String contig;
 		int pos;
@@ -134,6 +140,8 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		w.print("\t");
 		w.print(ctx.is_singleton);
 		w.println();
+		
+		++n_variants_printed;
 	}
 	
 
@@ -173,6 +181,16 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 	
 	protected abstract Logger getLogger();
 	
+	protected int afterVcf() {
+		LOG.info("\n"+
+				"number of variants processed : "+ n_variants_input+" \n" +
+				"number of variants skipped   : "+ n_variants_skipped+" \n" +
+				"number of variants emitted   : "+ n_variants_emit+" \n"+ 
+				"number of variants printed   : "+ n_variants_printed+" \n" 
+					);
+		return 0;
+		}
+	
 	@Override
 	public int doWork(final List<String> args) {
 		try {
@@ -188,16 +206,23 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 					
 					while (iter.hasNext()) {
 						final VariantContext vc = iter.next();
+						
+						++n_variants_input;
+						
 						if (vc.getNAlleles() != 2)
 							throw new IOException(vc.getContig() + ":" + vc.getStart() + ":" + vc.getAlleles());
-						if(!keepVariant(freq,vc)) continue;
+						if(!keepVariant(freq,vc)) {
+							++n_variants_skipped;
+							continue;
+							}
 						dump(w, vc);
+						++n_variants_emit;
 					} // end while
 				w.flush();
 				}
 			}
-
-			return 0;
+			// give a chance to display something
+			return afterVcf();
 		} catch (final Throwable err) {
 			getLogger().error(err);
 			return -1;

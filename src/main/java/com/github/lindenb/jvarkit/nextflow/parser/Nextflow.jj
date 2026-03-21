@@ -211,7 +211,7 @@ void output_block():{}
 	<OUTPUT> <COLON> crlf()
 	(output_block_item())*
 	}
-Element input_block_item():{Element E;}
+public Element input_block_item():{Element E;}
 	{
 	(E=input_tuple() | E=input_item()) crlf()
 	{
