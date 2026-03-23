@@ -160,6 +160,9 @@ public class SampleToGroup {
 			samples.put(sample, s);
 			}
 		s.add(group);
+		
+
+		
 		return this;
 		}
 	private SampleToGroup cleanup() {

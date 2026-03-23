@@ -22,24 +22,23 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
 
 */
 package com.github.lindenb.jvarkit.tools.vcf2sql;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -48,10 +47,11 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.util.picard.SAMSequenceDictionaryProgress;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
@@ -64,7 +64,7 @@ BEGIN_DOC
 ## Examples
 
 ```bash
-java -jar dist/vcf2sql.jar  file.vcf | mysql -u user -p -D vcf_db 
+java -jarjvarkit.jar vcf2sql  file.vcf | mysql -u user -p -D vcf_db 
 ```
 ## Database schema (dot)
 
@@ -105,17 +105,19 @@ genotype -> allele[label=a2_id];
 END_DOC
 */
 @Program(name="vcf2sql",
-		description="Generate the SQL code to insert a VCF into mysql",
-		keywords={"vcf","sql"},
-		menu="VCF Manipulation"
-		)
+	description="Generate the SQL code to insert a VCF into mysql",
+	keywords={"vcf","sql"},
+	creationDate = "20130709",
+	modificationDate = "20260323",
+	menu="VCF Manipulation"
+	)
 public class VcfToSql extends Launcher
 	{
 	private static final Logger LOG = Logger.of(VcfToSql.class);
 
 
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private File outputFile = null;
+	private Path outputFile = null;
 	@Parameter(names={"-s","--schema"},description="Print Schema")
 	private boolean print_schema = false;
 	@Parameter(names={"-d","--drop"},description="Add Drop Tables Statement")
@@ -124,11 +126,10 @@ public class VcfToSql extends Launcher
 	private boolean ignore_info = false;
 	@Parameter(names={"-f","--nofilter"},description="ignore FILTER column")
 	private boolean ignore_filter = false;
-    private PrintWriter outputWriter =null;
     
-    private class SelectStmt
+    private static class SelectStmt
     	{
-    	String sql;
+    	final String sql;
     	
     	SelectStmt(final Table t,final String field,final Object o)
 			{
@@ -145,11 +146,11 @@ public class VcfToSql extends Launcher
     		return sql;
     		}
     	}
-    private abstract class AbstractComponent
+    private static abstract class AbstractComponent
     	{
-    	String name;
+    	private String name;
     	
-    	AbstractComponent(String name)
+    	AbstractComponent(final String name)
 			{
 			this.name=name;
 			}
@@ -158,6 +159,11 @@ public class VcfToSql extends Launcher
     		{
 			return name;
 			}
+    	
+    	public void setName(String name) {
+			this.name = name;
+			}
+    	
     	public String getAntiquote()
     		{
 			return "`"+getName()+"`";
@@ -165,7 +171,7 @@ public class VcfToSql extends Launcher
     	
     	}
     
-    private class ColumnBuilder
+    private static class ColumnBuilder
     	{
     	private Table _foreignTable=null;
     	private boolean _pkey=false;
@@ -192,7 +198,7 @@ public class VcfToSql extends Launcher
     			if(_foreignTable!=null)
     				{
     				c = new ForeignKey(this._foreignTable);
-    				if(_name!=null) c.name=_name;
+    				if(_name!=null) c.setName(_name);
     				}
     			else if(_pkey)
     				{
@@ -243,7 +249,7 @@ public class VcfToSql extends Launcher
     		}
     	}
     
-    private abstract class Column
+    private abstract static class Column
     	extends AbstractComponent
     	{
     	boolean indexed=false;
@@ -284,7 +290,7 @@ public class VcfToSql extends Launcher
     	
     	}
     
-    private class LongColumn
+    private static class LongColumn
 	extends Column
 		{
 		LongColumn(String name)
@@ -300,7 +306,7 @@ public class VcfToSql extends Launcher
 		}
 
     
-    private class ForeignKey
+    private static class ForeignKey
 	extends LongColumn
 		{
 		Table referencesTable;
@@ -328,7 +334,7 @@ public class VcfToSql extends Launcher
 
 		}
     
-    private class PrimaryKey
+    private static  class PrimaryKey
    	extends LongColumn
    		{   		
        	public PrimaryKey()
@@ -349,7 +355,7 @@ public class VcfToSql extends Launcher
     		}
    		}
     
-    private class IntegerColumn
+    private static class IntegerColumn
 	extends Column
 		{
     	IntegerColumn(String name)
@@ -365,7 +371,7 @@ public class VcfToSql extends Launcher
 
 		}
     
-    private class DoubleColumn
+    private static class DoubleColumn
 	extends Column
 		{
     	DoubleColumn(String name)
@@ -382,15 +388,15 @@ public class VcfToSql extends Launcher
 		}
 
     
-    private class StringColumn
+    private static class StringColumn
     	extends Column
     	{
-    	StringColumn(String name)
+    	StringColumn(final String name)
 			{
 			super(name);
 			}
     	@Override
-    	Object escape(Object o)
+    	Object escape(final Object o)
 			{
     		if(o==null)
 				{
@@ -403,24 +409,13 @@ public class VcfToSql extends Launcher
 					{
 					throw new RuntimeException("string length("+s+") greater  than "+this.maxLength+" L="+s.length()+" . Update source code for "+getAntiquote()+" "+table.getName());
 					}
-				StringBuilder sb=new StringBuilder(s.length()+2);
-				sb.append("\"");
-				for(int i=0;i< s.length();++i)
-					{
-					switch(s.charAt(i))
-						{	
-						case '\"': sb.append("\\\""); break;
-						default: sb.append(s.charAt(i)); break;
-						}
-					}
-				sb.append("\"");
-				return sb.toString();
+				return StringUtils.doubleQuote(s);
 				}
 			}
 
     	
 		@Override
-		public void createColumn(PrintWriter pw)
+		public void createColumn(final PrintWriter pw)
 			{
 			pw.print(  getAntiquote()+" VARCHAR("+(maxLength+1)+") "+
 					(nilleable?"":" NOT ")+"NULL" );
@@ -447,10 +442,12 @@ public class VcfToSql extends Launcher
 				}
 			}
     	
-    	public Column getColumnByBame(String s)
+    	public Column getColumnByBame(final String s)
     		{
-    		for(Column c:this.columns) if(s.equals(c.getName())) return c;
-    		throw new RuntimeException("Cannot find col \""+s +"\" in "+getName());
+    		return this.columns.stream()
+    				.filter(C->C.getName().equals(s))
+    				.findFirst()
+    				.orElseThrow(()->new RuntimeException("Cannot find col \""+s +"\" in "+getName()));
     		}
     	
     	void insert(PrintWriter pw,Object...row)
@@ -460,11 +457,8 @@ public class VcfToSql extends Launcher
 			pw.print("(");
 			
 
-    		for(int i=0;i < this.columns.size();++i)
-				{
-				if(i>0) pw.print(',');
-				pw.print(this.columns.get(i).getAntiquote());
-				}
+			this.columns.stream().map(C->C.getAntiquote()).collect(Collectors.joining(","));
+    		
     		pw.print(") VALUES (");
     		
 			for(int i=0;i < this.columns.size();++i)
@@ -497,32 +491,28 @@ public class VcfToSql extends Launcher
     			}
     		pw.println("\n) ENGINE=InnoDB, DEFAULT CHARSET=utf8 ;");
     		}
-    	
-    	
-    	
-    	
     	}
     
     private int MAX_ALLELE_LENGTH=250;
     
-    private Table vcfFileTable = new TableBuilder().name("vcffile").columns(
+    private final Table vcfFileTable = new TableBuilder().name("vcffile").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().name("file").length(250).uniq().make()
     		).make();
     
-    private Table sampleTable = new TableBuilder().name("sample").columns(
+    private final  Table sampleTable = new TableBuilder().name("sample").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().name("name").length(50).uniq().make()
     		).insertIgnore().make();
     
-    private Table sample2fileTable = new TableBuilder().name("sample2file").columns(
+    private final  Table sample2fileTable = new TableBuilder().name("sample2file").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vcfFileTable).make(),
     		new ColumnBuilder().foreignKey(sampleTable).make()
     		).make();
 
     
-    private Table filterTable = new TableBuilder().name("filter").columns(
+    private final  Table filterTable = new TableBuilder().name("filter").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vcfFileTable).make(),
     		new ColumnBuilder().name("name").length(50).make(),
@@ -536,13 +526,13 @@ public class VcfToSql extends Launcher
     		new ColumnBuilder().name("chromLength").type(Integer.class).make()
     		).make();
     
-    private Table alleleTable = new TableBuilder().name("allele").columns(
+    private final  Table alleleTable = new TableBuilder().name("allele").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().name("bases").length(MAX_ALLELE_LENGTH).uniq().make()
     		).insertIgnore().make(); 
 
     
-    private Table variantTable = new TableBuilder().name("variant").columns(
+    private final  Table variantTable = new TableBuilder().name("variant").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vcfFileTable).make(),
     		new ColumnBuilder().name("index_in_file").type(Integer.class).make(),
@@ -559,13 +549,13 @@ public class VcfToSql extends Launcher
     		new ColumnBuilder().foreignKey(alleleTable,"alt_id").make()
     		).make(); 
     
-    private Table variant2filters = new TableBuilder().name("variant2filter").columns(
+    private final  Table variant2filters = new TableBuilder().name("variant2filter").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
     		new ColumnBuilder().foreignKey(filterTable).make()
     		).make(); 
 
-    private Table vepPrediction = new TableBuilder().name("vepPrediction").columns(
+    private final  Table vepPrediction = new TableBuilder().name("vepPrediction").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
     		new ColumnBuilder().name("ensGene").nilleable().length(20).make(),
@@ -574,21 +564,21 @@ public class VcfToSql extends Launcher
     		new ColumnBuilder().name("geneSymbol").nilleable().length(20).make()
     		).make(); 
     
-    private Table soTermTable = new TableBuilder().name("soTerm").columns(
+    private final  Table soTermTable = new TableBuilder().name("soTerm").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().name("acn").uniq().length(11).make(),
     		new ColumnBuilder().name("description").length(255).make()
     		).insertIgnore().make(); 
 
     
-    private Table vepPrediction2so = new TableBuilder().name("vepPrediction2so").columns(
+    private final  Table vepPrediction2so = new TableBuilder().name("vepPrediction2so").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(vepPrediction).make(),
     		new ColumnBuilder().foreignKey(soTermTable).make()
     		).make(); 
 
     
-    private Table genotypeTable = new TableBuilder().name("genotype").columns(
+    private final Table genotypeTable = new TableBuilder().name("genotype").columns(
     		new ColumnBuilder().primaryKey().make(),
     		new ColumnBuilder().foreignKey(variantTable).make(),
     		new ColumnBuilder().foreignKey(sampleTable).make(),
@@ -598,7 +588,7 @@ public class VcfToSql extends Launcher
     		new ColumnBuilder().name("gq").nilleable().type(Double.class).make()
     		).make(); 
 
-    private Table all_tables[]=new Table[]{
+    private final Table all_tables[]=new Table[]{
     	   vcfFileTable,sampleTable,sample2fileTable,
     	   alleleTable,filterTable,chromosomeTable,
     	   variantTable,variant2altTable,variant2filters,
@@ -609,13 +599,9 @@ public class VcfToSql extends Launcher
     	};
     
     
-    public VcfToSql()
-    	{
-    	
-    	}
     
 	
-	private void read(File filename)
+	private void read(final PrintWriter outputWriter,Path filename)
 		throws IOException
 		{
 
@@ -626,7 +612,7 @@ public class VcfToSql extends Launcher
 		this.alleleTable.insert(outputWriter,null,"T");
 
 		
-		/* insert this sample */
+		/* insert this file */
 		this.vcfFileTable.insert(outputWriter,null,filename);
 		final SelectStmt vcffile_id = new SelectStmt(this.vcfFileTable);
 		
@@ -634,7 +620,7 @@ public class VcfToSql extends Launcher
 		final Map<String,SelectStmt> filter2filterid = new HashMap<String,SelectStmt>();
 		final Map<String,SelectStmt> chrom2chromId = new HashMap<String,SelectStmt>();
 		
-		final VCFIterator r=VCFUtils.createVCFIteratorFromFile(filename);
+		final VCFIterator r=VCFUtils.createVCFIteratorFromPath(filename);
 		final VCFHeader header=r.getHeader();
 		
 		/* parse samples */
@@ -662,11 +648,8 @@ public class VcfToSql extends Launcher
 		filter2filterid.put(VCFConstants.PASSES_FILTERS_v4, new SelectStmt(this.filterTable, "name", VCFConstants.PASSES_FILTERS_v4));
 
 		
-		final SAMSequenceDictionary dict= header.getSequenceDictionary();
-		if(dict==null)
-			{
-			throw new RuntimeException("dictionary missing in VCF");
-			}
+		final SAMSequenceDictionary dict=  SequenceDictionaryUtils.extractRequired(header);
+	
 		/* parse sequence dict */
 		for(final SAMSequenceRecord ssr: dict.getSequences())
 			{
@@ -682,14 +665,11 @@ public class VcfToSql extends Launcher
 		
 		VepPredictionParser vepPredictionParser=new VepPredictionParserFactory(header).get();
 		
-		SAMSequenceDictionaryProgress progress=new SAMSequenceDictionaryProgress(dict);
 		int nVariants=0;
 		while(r.hasNext())
 			{
-			if(this.outputWriter.checkError()) break;
-
-			
-			VariantContext var= progress.watch(r.next());
+			if(outputWriter.checkError()) break;
+			VariantContext var=  r.next();
 			++nVariants;
 			/* insert ref allele */
 			this.alleleTable.insert(outputWriter, null,var.getReference().getBaseString());
@@ -807,71 +787,64 @@ public class VcfToSql extends Launcher
 			{
 			if(this.print_schema)
 				{
-				this.outputWriter =  this.openFileOrStdoutAsPrintWriter(this.outputFile);
-				
-				this.outputWriter.println("digraph G{");
-				for(int i=0;i< this.all_tables.length;++i)
-					{
-					this.outputWriter.println(this.all_tables[i].getName()+";");
-					}
-				for(int i=0;i< this.all_tables.length;++i)
-					{
-					for(Column c2:this.all_tables[i].columns)
+				try(PrintWriter outputWriter =  this.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					outputWriter.println("digraph G{");
+					for(int i=0;i< this.all_tables.length;++i)
 						{
-						if(!(c2 instanceof ForeignKey)) continue;
-						ForeignKey fk=ForeignKey.class.cast(c2);
-						this.outputWriter.println(
-								this.all_tables[i].getName()+
-								" -> "+
-								fk.referencesTable.getName()+
-								"[label="+fk.name+"];"
-								);
+						outputWriter.println(this.all_tables[i].getName()+";");
 						}
+					for(int i=0;i< this.all_tables.length;++i)
+						{
+						for(Column c2:this.all_tables[i].columns)
+							{
+							if(!(c2 instanceof ForeignKey)) continue;
+							ForeignKey fk=ForeignKey.class.cast(c2);
+							outputWriter.println(
+									this.all_tables[i].getName()+
+									" -> "+
+									fk.referencesTable.getName()+
+									"[label="+fk.getName()+"];"
+									);
+							}
+						}
+						outputWriter.println("}");
+					 outputWriter.flush();
 					}
-				this.outputWriter.println("}");
-				this.outputWriter.flush();
-				this.outputWriter.close();
-				return RETURN_OK;
+				return 0;
 				}
 			
 			//final String inputName=;
-			final File filename=new File( oneAndOnlyOneFile(args));
+			final Path filename= Paths.get( oneAndOnlyOneFile(args));
 			
-			this.outputWriter =  this.openFileOrStdoutAsPrintWriter(this.outputFile);
-			
-			if(this.drop_tables)
-				{
-				for(int i=this.all_tables.length-1;i>=0;--i)
+			try(PrintWriter outputWriter =  this.openPathOrStdoutAsPrintWriter(this.outputFile)) {	
+				if(this.drop_tables)
 					{
-		    		this.outputWriter.println("DROP TABLE IF EXISTS "+all_tables[i].getAntiquote()+";");
-	
+					for(int i=this.all_tables.length-1;i>=0;--i)
+						{
+			    		outputWriter.println("DROP TABLE IF EXISTS "+all_tables[i].getAntiquote()+";");
+		
+						}
 					}
+				outputWriter.println("START TRANSACTION;");
+				outputWriter.println("SET autocommit=0;");
+				for(Table t:this.all_tables)
+					{
+					t.createTable(outputWriter);
+					}
+				
+				read(outputWriter,filename);
+				
+				outputWriter.println("COMMIT;");
+				outputWriter.flush();
 				}
-			this.outputWriter.println("START TRANSACTION;");
-			this.outputWriter.println("SET autocommit=0;");
-			for(Table t:this.all_tables)
-				{
-				t.createTable(outputWriter);
-				}
-			
-			read(filename);
-			
-			this.outputWriter.println("COMMIT;");
-			this.outputWriter.flush();
-			this.outputWriter.close();
-			this.outputWriter=null;
-			LOG.info("done");
-			return RETURN_OK;
+			return 0;
 			}
-		catch(final Exception err)
+		catch(final Throwable err)
 			{
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(this.outputWriter);
-			}
+	
 		}
     
 

@@ -220,6 +220,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 			urls.add(new LabelledUrlImpl("Genbass GRCh38",str,"https://genebass.org/gene/"+str+"?burdenSet=pLoF&phewasOpts=1&resultLayout=full"));
 			urls.add(new LabelledUrlImpl("Protein Atlas",str,"https://www.proteinatlas.org/"+str));
 			urls.add(new LabelledUrlImpl("Japan-Omics",str,"https://japan-omics.jp/gene/JCTF?input_value="+str));
+			urls.add(new LabelledUrlImpl("bgee",str,"https://www.bgee.org/gene/"+str));
 			}
 		}
 	else if(this.ccdsPattern.matcher(str).matches()) {

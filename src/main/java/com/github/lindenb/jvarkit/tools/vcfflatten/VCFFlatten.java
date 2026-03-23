@@ -62,8 +62,10 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFilterHeaderLine;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
@@ -139,7 +141,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 	private static class Group implements Locatable {
 		final String method;
 		final String key;
-		final BitSet has_ALT;
+		final int[] count_ALT;
 		String contig=null;
 		int start=0;
 		int end=0;
@@ -149,7 +151,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		Group(final String method,final String key,int n_samples) {
 			this.method = method;
 			this.key = key;
-			this.has_ALT = new BitSet(n_samples);
+			this.count_ALT = new int[n_samples];
 			}
 		@Override
 		public String getContig() {return this.contig;}
@@ -182,10 +184,9 @@ public class VCFFlatten extends OnePassVcfLauncher {
 				multiple_contigs = true;
 				}
 			for(int i=0;i< ctx.getNSamples();i++) {
-				if(this.has_ALT.get(i)) continue;
 				final Genotype gt = ctx.getGenotype(i);
-				if(gt.getAlleles().stream().anyMatch(A->!(A.isReference() || A.isNoCall()))) {
-					this.has_ALT.set(i);
+				if(gt.hasAltAllele()) {
+					this.count_ALT[i]++;
 					}
 				}
 			}
@@ -261,6 +262,8 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		metaData.add(info_key);
 		final VCFFilterHeaderLine filter_multi_flag = new VCFFilterHeaderLine("MULTIPLE_CONTIG","Record spans multiple chromosomes. Only first chromosome is reported");
 		metaData.add(filter_multi_flag);
+		final VCFFormatHeaderLine format_count_alt = new VCFFormatHeaderLine("C",1,VCFHeaderLineType.Integer,"Count number of genotypes with at least one ALT allele");
+		metaData.add(format_count_alt);
 
 		
 		final VCFHeader header = new VCFHeader(metaData,headerin.getGenotypeSamples());
@@ -308,11 +311,12 @@ public class VCFFlatten extends OnePassVcfLauncher {
 				);
 			final List<Genotype> genotypes = new ArrayList<>(sampleNames.size());
 			for(int i=0;i< sampleNames.size();i++) {
-				genotypes.add(
-					new GenotypeBuilder(
-						sampleNames.get(i),
-						g.has_ALT.get(i)?ALT_GEN:HOM_REF
-						).make());
+				final GenotypeBuilder gb= new GenotypeBuilder(
+					sampleNames.get(i),
+					g.count_ALT[i]>0?ALT_GEN:HOM_REF
+					);
+				gb.attribute(format_count_alt.getID(), g.count_ALT[i]);
+				genotypes.add(gb.make());
 				}
 			if(g.getStart()!=g.getEnd()) vcb.attribute(VCFConstants.END_KEY,g.getEnd());
 			if(g.multiple_contigs) {

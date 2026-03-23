@@ -331,9 +331,6 @@ public class VcfToRdf extends Launcher
 
 	
 	
-	
-	
-	
 	//private long id_generator=0L;
 	private static final String XSD=com.github.lindenb.jvarkit.rdf.ns.XSD.NS; ;
 	private static final String RDF=com.github.lindenb.jvarkit.rdf.ns.RDF.NS;

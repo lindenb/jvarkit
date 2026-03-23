@@ -1713,6 +1713,7 @@ public class VcfStats extends Launcher {
 		}
 	}
 	
+	/** return singleton or return null */
 	private static Genotype findSingleton(final VariantContext ctx) {
 		Genotype single = null;
 		for(Genotype g:ctx.getGenotypes()) {
