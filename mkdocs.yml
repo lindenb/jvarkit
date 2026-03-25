@@ -151,6 +151,7 @@ nav:
         - "gtf2xml" : Gtf2Xml.md
         - "gtfliftover" : GtfLiftOver.md
         - "gtfretrocopy" : GtfRetroCopy.md
+        - "gwascatalog2bed" : GwasCatalogToBed.md
         - "haplogroupcasectrl" : HaploGroupCaseControl.md
         - "howmanybamdict" : HowManyBamDict.md
         - "htsfreemarker" : HtsVelocity.md

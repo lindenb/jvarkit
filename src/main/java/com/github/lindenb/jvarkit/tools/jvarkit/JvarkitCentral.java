@@ -173,6 +173,7 @@ import com.github.lindenb.jvarkit.tools.gtf.GtfLiftOver;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToBed;
 import com.github.lindenb.jvarkit.tools.gtf.GtfToGff;
 import com.github.lindenb.jvarkit.tools.gvcf.FindGVCFsBlocks;
+import com.github.lindenb.jvarkit.tools.gwascat2bed.GwasCatalogToBed;
 import com.github.lindenb.jvarkit.tools.haplogroupcasectrl.HaploGroupCaseControl;
 import com.github.lindenb.jvarkit.tools.hilbert.VcfToHilbert;
 import com.github.lindenb.jvarkit.tools.htsvelocity.HtsVelocity;
@@ -797,6 +798,7 @@ public class JvarkitCentral {
 		command(Gff3ToFasta.class);
 		command(GoUtils.class);
 		command(GroupByGene.class);
+		command(GwasCatalogToBed.class);
 		command(Gtf2Xml.class);
 		command(Gff2KnownGene.class);
 		command(HaploGroupCaseControl.class);
