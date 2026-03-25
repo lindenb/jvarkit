@@ -324,9 +324,9 @@ public class VcfStats extends Launcher {
 			super.properties.put("filename","info_"+infoTag+"_distribution");
 			}
 			
-		private double round(final double v) {
+		protected double round(final double v) {
 			return this.doubleRounder.applyAsDouble(v);
-			}		
+			}
 		@Override
 		public void init(final VCFHeader h,Map<String,String> prop,SampleToGroup s2g) {
 			super.init(h, prop, s2g);
@@ -1767,7 +1767,19 @@ public class VcfStats extends Launcher {
 				);
 		
 
-		
+		modules.add(new RangeBarPlot("PASSOC", 1,false) {
+				@Override
+				protected double round(double v) {
+					v = -Math.log10(v);
+					return super.round(v);
+					}
+				}.
+				setProperty("filename", "contrast_passoc").
+				name("PASSOC").
+				description("Fisher's exact test probability of genotypic association (REF vs non-REF allele)").
+				xlab("-log10(PASSOC)").
+				ylab("Count Variants")
+				);
 		
 		/*
 		modules.add(new RangeBarPlot(VCFConstants.DEPTH_KEY, 1).

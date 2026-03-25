@@ -23,6 +23,9 @@ Usage: addlinearindextobed [options] Files
     --ignore
       skip unknown chromosomes.
       Default: false
+    --min-contig-length
+      keep chromosomes matching which length is greater that 'x'.
+      Default: 0
     -o, --out
       Output file. Optional . Default: stdout
   * -R, --reference, --dict

@@ -70,12 +70,12 @@ END_DOC
 		description="Use a Sequence dictionary to create a linear index for a BED file. Can be used as a X-Axis for a chart.",
 		keywords={"bed","reference"},
 		creationDate="20140201",
-		modificationDate="20250115",
+		modificationDate="20260325",
 		jvarkit_amalgamion = true,
 		menu="Deprecated/barely used"
 		)
 public class AddLinearIndexToBed extends Launcher
-{
+	{
 	private static final Logger LOG = Logger.of(AddLinearIndexToBed.class);
 
 	@Parameter(names = { "-o", "--out" }, description = OPT_OUPUT_FILE_OR_STDOUT)
@@ -84,6 +84,8 @@ public class AddLinearIndexToBed extends Launcher
 	private Path refFile = null;
 	@Parameter(names={"--regex"},description="keep chromosomes matching that regular expression. (use --ignore too prevent error the other chromosomes)")
 	private String contig_regex="(chr)?[0-9XY]+";	
+	@Parameter(names={"--min-contig-length"},description="keep chromosomes matching which length is greater that 'x'.")
+	private int min_contig_length=0;
 	@Parameter(names={"--ignore"},description="skip unknown chromosomes.")
 	private boolean ignore_unknown_chromosomes=false;
 
@@ -106,6 +108,7 @@ public class AddLinearIndexToBed extends Launcher
 			}
 			final String ctg =  ctgNameConverter.apply(tokens[0]);
 			if(StringUtils.isBlank(ctg)) {
+				if(this.ignore_unknown_chromosomes) continue;
 				throw new JvarkitException.ContigNotFoundInDictionary(tokens[0],dictionary);
 				}
 			
@@ -132,13 +135,13 @@ public class AddLinearIndexToBed extends Launcher
 		if (refFile == null) {
 			LOG.error("Reference file undefined");
 			return -1;
-		}
+			}
 		try {
 			final SAMSequenceDictionary dict0 = SequenceDictionaryUtils.extractRequired(this.refFile);
 
 			final SAMSequenceDictionary dictionary = new SAMSequenceDictionary(
 					dict0.getSequences().stream().
-					filter(SSR->SSR.getContig().matches(contig_regex)).
+					filter(SSR->SSR.getContig().matches(contig_regex) && SSR.getLengthOnReference()>this.min_contig_length).
 					collect(Collectors.toList())
 					);
 			

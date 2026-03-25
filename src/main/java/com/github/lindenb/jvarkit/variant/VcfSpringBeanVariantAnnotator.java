@@ -56,7 +56,7 @@ public VcfSpringBeanVariantAnnotator(final Path xmlConfigPath,final String beanN
 
 public VcfSpringBeanVariantAnnotator(final List<String> xmlConfigs,final String beanName) {
 	this.xmlConfigPaths.addAll(xmlConfigs);
-	setBeanName(beanName);
+        this.beanName = beanName;
 	createAnnotators();
 	}
 
