@@ -82,6 +82,8 @@
       <class name="com.github.lindenb.jvarkit.tools.vcfmerge.VCFMergeTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfflatten.VCFFlattenTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfstats.VcfStatsTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitterTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfwindowsplitter.VcfSlidingWindowSplitterTest"/>
     </classes>
   </test>
 </suite>

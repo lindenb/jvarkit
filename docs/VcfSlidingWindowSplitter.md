@@ -7,9 +7,20 @@ Split VCF by sliding window
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar vcfwindowsplitter  [options] Files
+
 Usage: vcfwindowsplitter [options] Files
   Options:
+    --disable-hash-directory, --dhd
+      disable default which is to save each file in a checksum-based 
+      directory-a-la-nextflow to avoid a large number of files in the same 
+      directory. 
+      Default: false
     -h, --help
       print help and exit
     --helpFormat
@@ -31,7 +42,11 @@ Usage: vcfwindowsplitter [options] Files
       num(variant) < 'x'
       Default: 1
   * -o, --output
-      An existing directory or a filename ending with the '.zip' suffix.
+      An existing directory or a filename ending with the '.zip' or '.tar' or 
+      '.tar.gz' suffix.
+    --prefix
+      prefix each output VCF file with this string
+      Default: <empty string>
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
@@ -39,11 +54,13 @@ Usage: vcfwindowsplitter [options] Files
       print version and exit
     -s, -S, --window-shift
       Sliding window shift. A distance specified as a positive integer.Commas 
-      are removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 500000
     -w, -W, --window-size
       Sliding window size. A distance specified as a positive integer.Commas 
-      are removed. The following suffixes are interpreted : b,bp,k,kb,m,mb
+      are removed. The following suffixes are interpreted : 
+      b,bp,k,kb,m,mb,g,gb 
       Default: 1000000
 
 ```
@@ -56,23 +73,6 @@ Usage: vcfwindowsplitter [options] Files
  * window
 
 
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew vcfwindowsplitter
-```
-
-The java jar file will be installed in the `dist` directory.
-
 
 ## Creation Date
 
@@ -80,11 +80,11 @@ The java jar file will be installed in the `dist` directory.
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfSlidingWindowSplitter.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/misc/VcfSlidingWindowSplitter.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfwindowsplitter/VcfSlidingWindowSplitter.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfwindowsplitter/VcfSlidingWindowSplitter.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfSlidingWindowSplitterTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/misc/VcfSlidingWindowSplitterTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfwindowsplitter/VcfSlidingWindowSplitterTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/vcfwindowsplitter/VcfSlidingWindowSplitterTest.java)
 
 
 ## Contribute
@@ -111,7 +111,7 @@ The current reference is:
 ### Example
 
 ```
-$ java -jar dist/vcfwindowsplitter.jar -n 2 -w 1000 -s 500 -o jeter.zip -m jeter.manifest src/test/resources/rotavirus_rf.vcf.gz 
+$ java -jar dist/jvarkit.jar vcfwindowsplitter -n 2 -w 1000 -s 500 -o jeter.zip -m jeter.manifest src/test/resources/rotavirus_rf.vcf.gz 
 [INFO][VcfSlidingWindowSplitter]. Completed. N=45. That took:0 second
 
 $ head jeter.manifest  | column -t
@@ -157,4 +157,9 @@ Archive:  jeter.zip
     31223                     23 files
 
 ```
+
+# see also
+
+ * vcfgenesplitter
+
 

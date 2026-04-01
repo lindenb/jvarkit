@@ -316,6 +316,7 @@ nav:
         - "vcfsetdict" : VcfSetSequenceDictionary.md
         - "vcfshuffle" : VCFShuffle.md
         - "vcfspliceai" : VcfSpliceAI.md
+        - "vcfsplitbed" : VcfSplitBed.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfsplitvep" : VCFSplitVEP.md
         - "vcfspringfilter" : VcfSpringFilter.md
@@ -328,6 +329,7 @@ nav:
         - "vcftbi2bed" : VcfTbiToBed.md
         - "vcftrio" : VCFTrios.md
         - "vcfukbb" : VcfUkbiobank.md
+        - "vcfwindowsplitter" : VcfSlidingWindowSplitter.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
         - "wib2bedgraph" : WibToBedGraph.md

@@ -16,6 +16,11 @@ Usage: java -jar dist/jvarkit.jar vcfgenesplitter  [options] Files
 
 Usage: vcfgenesplitter [options] Files
   Options:
+    --disable-hash-directory, --dhd
+      disable default which is to save each file in a checksum-based 
+      directory-a-la-nextflow to avoid a large number of files in the same 
+      directory. 
+      Default: false
     -e, -E, --extractors
       Gene Extractors Name. Space/semicolon/Comma separated. custom:tag is a 
       custom extractor extracting all the values for INFO/tag as one or more 
@@ -33,11 +38,11 @@ Usage: vcfgenesplitter [options] Files
       list all available extractors
     -m, --manifest
       Manifest Bed file output containing chrom/start/end of each gene
-    -M, --max-variant
+    -M, --max-variant, --max-variants
       Maximum number of variants required to write a vcf. don't write if 
       num(variant) > 'x' . '<=0' is ignore
       Default: -1
-    -n, --min-variant
+    -n, --min-variant, --min-variants
       Minimum number of variants required to write a vcf. don't write if 
       num(variant) < 'x'
       Default: 1
@@ -47,6 +52,9 @@ Usage: vcfgenesplitter [options] Files
   * -o, --output
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.
+    --prefix
+      prefix each output VCF file with this string
+      Default: <empty string>
     --version
       print version and exit
 
@@ -137,5 +145,9 @@ RF11	73	79	ANN/GeneId	Gene_78_374	83/bc905cf311428ab80ce59aaf503838/Gene_78_374.
 
 
 ```
+
+## See also
+
+* vcfwindowsplitter
 
 

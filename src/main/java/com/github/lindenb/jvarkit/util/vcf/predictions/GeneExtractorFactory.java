@@ -121,6 +121,8 @@ public static class KeyAndGeneImpl implements KeyAndGene
 public interface GeneExtractor extends Function<VariantContext, Map<KeyAndGene,Set<String>>> {
 	/** get name of the tag in the INFO column */
 	public String getInfoTag();
+	/**return true if tag will be in the VCF header. Otherwise it could be a sliding window for example */
+	public boolean hasInfoTag();
 	/** get name for this extraction */
 	public String getName();
 	}
@@ -137,6 +139,10 @@ private abstract class  AbstractGeneExtractorImpl implements GeneExtractor {
 	@Override
 	public int hashCode() {
 		return this.extractorName.hashCode();
+		}
+	@Override
+	public boolean hasInfoTag() {
+		return true;
 		}
 	@Override
 	public boolean equals(final Object obj) {
@@ -162,7 +168,10 @@ private class SlidingWindowExtractor   extends AbstractGeneExtractorImpl {
 		if(window_size<1) throw new IllegalArgumentException();
 		}
 
-	
+	@Override
+	public final boolean hasInfoTag() {
+		return false;
+		}
 	@Override
 	public String getInfoTag() {
 		return "_ignore_";

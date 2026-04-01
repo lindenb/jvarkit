@@ -22,12 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-History:
-* 2014 creation
-* 2015 moving to knime
-
 */
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcfwindowsplitter;
 
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -57,6 +53,7 @@ import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
@@ -65,7 +62,6 @@ import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
-import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -80,7 +76,7 @@ BEGIN_DOC
 ### Example
 
 ```
-$ java -jar dist/vcfwindowsplitter.jar -n 2 -w 1000 -s 500 -o jeter.zip -m jeter.manifest src/test/resources/rotavirus_rf.vcf.gz 
+$ java -jar dist/jvarkit.jar vcfwindowsplitter -n 2 -w 1000 -s 500 -o jeter.zip -m jeter.manifest src/test/resources/rotavirus_rf.vcf.gz 
 [INFO][VcfSlidingWindowSplitter]. Completed. N=45. That took:0 second
 
 $ head jeter.manifest  | column -t
@@ -127,13 +123,18 @@ Archive:  jeter.zip
 
 ```
 
+# see also
+
+ * vcfgenesplitter
+
 END_DOC
 */
 @Program(
 		name="vcfwindowsplitter",
 		description="Split VCF by sliding window",
 		creationDate="20190619",
-		modificationDate="20191129",
+		modificationDate="20260401",
+		jvarkit_amalgamion = true,
 		keywords= {"vcf","sliding","window"}
 		)
 public class VcfSlidingWindowSplitter
@@ -153,15 +154,19 @@ public class VcfSlidingWindowSplitter
 	private int min_number_of_ctx = 1;
 	@Parameter(names={"-M","--max-variant"},description="Maximum number of variants required to write a vcf. don't write if num(variant) > 'x' . '<=0' is ignore")
 	private int max_number_of_ctx = -1;
+	@Parameter(names={"--prefix"},description="prefix each output VCF file with this string")
+	private String prefix="";
+	@Parameter(names={"--disable-hash-directory","--dhd"},description="disable default which is to save each file in a checksum-based directory-a-la-nextflow to avoid a large number of files in the same directory.")
+	private boolean disable_hash_dir = false;
 
 
 	@ParametersDelegate
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
 	private static class WinAndLine {
-		final Interval interval;
+		final SimpleInterval interval;
 		final String ctx;
-		WinAndLine(final Interval interval,final String ctx) {
+		WinAndLine(final SimpleInterval interval,final String ctx) {
 			this.interval = interval;
 			this.ctx = ctx;
 		}
@@ -206,7 +211,7 @@ public class VcfSlidingWindowSplitter
 			final int start = dis.readInt();
 			final int end = dis.readInt();
 			final String line = AbstractDataCodec.readString(dis);
-			return new WinAndLine(new Interval(ctg,start,end),line);
+			return new WinAndLine(new SimpleInterval(ctg,start,end),line);
 		}
 		@Override
 		public void encode(final DataOutputStream dos,final  WinAndLine object) throws IOException {
@@ -235,11 +240,11 @@ public class VcfSlidingWindowSplitter
 		ArchiveFactory archiveFactory = null;
 		PrintWriter manifest = null;
 		
-		final Function<VariantContext,List<Interval>> makeWindows = (ctx)-> {
+		final Function<VariantContext,List<SimpleInterval>> makeWindows = (ctx)-> {
 			final int ctx_start = ctx.getStart();
 			final int ctx_end = ctx.getEnd();
-			final List<Interval> list = new ArrayList<>();
-		    int right = ctx_start -  ctx_start%this.window_shift;
+			final List<SimpleInterval> list = new ArrayList<>();
+		    int right = ctx_start -  ctx_start%this.window_size;
 		    while (right + this.window_size >= ctx_start )
 		    	{
 		    	right -= this.window_shift;
@@ -250,7 +255,7 @@ public class VcfSlidingWindowSplitter
 		    		final int left = right + this.window_size;
 
 		    		if(  right>0 && CoordMath.overlaps(right,left,ctx_start,ctx_end) )  {
-						list.add(new Interval(ctx.getContig(),right,left));
+						list.add(new SimpleInterval(ctx.getContig(),right,left));
 						}
 		    		right += this.window_shift;
 		    		}
@@ -308,12 +313,14 @@ public class VcfSlidingWindowSplitter
 							out.close();
 							
 							final String md5 = StringUtils.md5(first.interval.getContig()+":"+first.interval.getStart()+"-"+first.interval.getEnd());
-							final String filename =  md5.substring(0,2) + 
-										File.separatorChar + 
-										md5.substring(2) + 
-										File.separator + 
-										first.interval.getContig()+"_"+first.interval.getStart()+"_"+first.interval.getEnd() + 
-										".vcf.gz";
+							final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
+							final String filename =
+									(this.disable_hash_dir?"":parentDir + File.separator)+
+									this.prefix+
+									first.interval.getContig()+"_"+first.interval.getStart()+"_"+first.interval.getEnd() +
+									".vcf.gz";
+							
+							
 							
 							
 							try( final OutputStream os = archiveFactory.openOuputStream(filename)) {
@@ -347,7 +354,7 @@ public class VcfSlidingWindowSplitter
 				
 			 
 				
-		    	for(final Interval win: makeWindows.apply(ctx))
+		    	for(final SimpleInterval win: makeWindows.apply(ctx))
 		    		{		    		
 		    		if(sortingcollection==null) {
 						sortingcollection = SortingCollection.newInstance(
@@ -369,7 +376,7 @@ public class VcfSlidingWindowSplitter
 			manifest.close();
 			archiveFactory.close();
 			Files.deleteIfExists(tmpVcf);
-			return RETURN_OK;
+			return 0;
 			}
 		catch(final Exception err) 
 			{

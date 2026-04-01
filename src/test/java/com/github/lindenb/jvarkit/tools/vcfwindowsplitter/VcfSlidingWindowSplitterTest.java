@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.misc;
+package com.github.lindenb.jvarkit.tools.vcfwindowsplitter;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -8,15 +8,14 @@ import org.testng.annotations.Test;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 
 
 public class VcfSlidingWindowSplitterTest {
-	private final TestSupport support = new TestSupport();
 
 	@Test
-	public void test01() throws IOException {
+	public void testZip() throws IOException {
+		final TestSupport support = new TestSupport();
 		try {
 			final Path tmp = support.createTmpPath(".zip");
 			final Path manifest = support.createTmpPath(".mf");

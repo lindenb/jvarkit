@@ -1,6 +1,5 @@
 package com.github.lindenb.jvarkit.tools.vcfsplitgene;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
@@ -9,17 +8,15 @@ import org.testng.annotations.Test;
 
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
-import com.github.lindenb.jvarkit.tools.vcfsplitgene.VcfGeneSplitter;
-import com.github.lindenb.jvarkit.util.jcommander.LauncherTest;
 
 import htsjdk.samtools.util.IOUtil;
 
 
 public class VcfGeneSplitterTest {
-	private final TestSupport support = new TestSupport();
 
 	@Test
-	public void test01() throws IOException {
+	public void inZip() throws IOException {
+		final TestSupport support = new TestSupport();
 		try {
 			Path tmp = support.createTmpPath(".zip");
 			Path manifest = support.createTmpPath(".mf");
@@ -40,10 +37,11 @@ public class VcfGeneSplitterTest {
 	}
 	
 	@Test
-	public void test02() throws IOException {
-		File tmp=null;
+	public void inDirectory() throws IOException {
+		final TestSupport support = new TestSupport();
+		Path tmp=null;
 		try {
-			tmp = IOUtil.createTempDir("tmp.", ".dir");
+			tmp = IOUtil.createTempDir("tmp.");
 			Path manifest = support.createTmpPath(".mf");
 			
 			Assert.assertEquals(new VcfGeneSplitter().instanceMain(new String[] {
@@ -56,7 +54,7 @@ public class VcfGeneSplitterTest {
 			support.assertTsvTableIsConsitent(manifest, null);
 			}
 		finally {
-			if(tmp!=null) IOUtil.deleteDirectoryTree(tmp);
+			if(tmp!=null) IOUtil.deleteDirectoryTree(tmp.toFile());
 			support.removeTmpFiles();
 		}
 	}

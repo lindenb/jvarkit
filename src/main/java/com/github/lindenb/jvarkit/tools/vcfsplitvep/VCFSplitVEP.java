@@ -24,12 +24,9 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfsplitvep;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.OptionalInt;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.Program;

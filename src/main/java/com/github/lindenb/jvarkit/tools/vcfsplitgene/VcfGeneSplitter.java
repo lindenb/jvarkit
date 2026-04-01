@@ -109,13 +109,17 @@ RF11	73	79	ANN/GeneId	Gene_78_374	83/bc905cf311428ab80ce59aaf503838/Gene_78_374.
 
 ```
 
+## See also
+
+* vcfwindowsplitter
+
 END_DOC
 */
 @Program(
 		name="vcfgenesplitter",
 		description="Split VCF+VEP by gene/transcript.",
 		creationDate = "20160310",
-		modificationDate="202220531",
+		modificationDate="20250401",
 		keywords= {"genes","vcf"},
 		jvarkit_amalgamion =  true,
 		menu="VCF Manipulation"
@@ -208,13 +212,19 @@ public class VcfGeneSplitter
 	private String extractorsNames="ANN/GeneId VEP/GeneId";
 	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERED variant")
 	private boolean ignoreFiltered = false;
-	@Parameter(names={"-n","--min-variant"},description="Minimum number of variants required to write a vcf. don't write if num(variant) < 'x' ")
+	@Parameter(names={"-n","--min-variant","--min-variants"},description="Minimum number of variants required to write a vcf. don't write if num(variant) < 'x' ")
 	private int min_number_of_ctx = 1;
-	@Parameter(names={"-M","--max-variant"},description="Maximum number of variants required to write a vcf. don't write if num(variant) > 'x' . '<=0' is ignore")
+	@Parameter(names={"-M","--max-variant","--max-variants"},description="Maximum number of variants required to write a vcf. don't write if num(variant) > 'x' . '<=0' is ignore")
 	private int max_number_of_ctx = -1;
 	@Parameter(names={"--open-max"},description="Maximum number of opened VCF writers at the same time.")
 	private int max_open_files = 100;
-		
+	@Parameter(names={"--prefix"},description="prefix each output VCF file with this string")
+	private String prefix="";
+	@Parameter(names={"--disable-hash-directory","--dhd"},description="disable default which is to save each file in a checksum-based directory-a-la-nextflow to avoid a large number of files in the same directory.")
+	private boolean disable_hash_dir = false;
+
+	
+	
 	public VcfGeneSplitter()
 		{
 		
@@ -264,12 +274,13 @@ public class VcfGeneSplitter
 											LOG.info("skipping "+kg+" because there are too many variants. N="+kg.count_variants+">"+this.max_number_of_ctx);
 											continue;
 											}
-				
+										
 										final String md5 = StringUtils.md5(prevCtg+":"+kg.extractor+":"+kg.key);
 										final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
 										final String filename0 =
-												parentDir + File.separator+
-												kg.key.replaceAll("[/\\:]", "_") + ".vcf.gz";
+												(this.disable_hash_dir?"":parentDir + File.separator)+
+												this.prefix+
+												kg.key.replaceAll("[/\\:_]+", "_") + ".vcf.gz";
 										
 										
 										try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename0),(Path)null)) {
@@ -320,7 +331,8 @@ public class VcfGeneSplitter
 				
 										KeyGene keyGene = keyGenes.stream().
 													filter(KG->KG.extractor.equals(keyAndGene.getMethod())&& KG.key.equals(keyAndGene.getKey())).
-													findFirst().orElse(null);
+													findFirst().
+													orElse(null);
 										if(keyGene==null) {
 											keyGene = new KeyGene(keyAndGene.getMethod(),keyAndGene.getKey(),keyAndGene.getGene());
 											
@@ -331,9 +343,10 @@ public class VcfGeneSplitter
 										vcb.rmAttribute(AnnPredictionParser.getDefaultTag());
 										vcb.rmAttribute(BcfToolsPredictionParser.getDefaultTag());
 										
-											
-										vcb.attribute(ex.getInfoTag(), new ArrayList<>(values));
-				
+										if(ex.hasInfoTag()) {
+											vcb.attribute(ex.getInfoTag(), new ArrayList<>(values));
+											}
+										
 										keyGene.write(header,vcb.make());
 										
 										
