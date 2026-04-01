@@ -47,10 +47,8 @@ public class BedGraphItem extends SimpleInterval {
 		return this.value;
 		}
 	
-	
-	
 	@Override
-	public boolean equals(Object obj) {
+	public boolean equals(final Object obj) {
 		if (this == obj) return true;
 		if (obj==null || !(obj instanceof BedGraphItem)) return false;
 		final BedGraphItem o = (BedGraphItem) obj;

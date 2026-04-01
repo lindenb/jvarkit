@@ -1118,7 +1118,7 @@ public class VcfStats extends Launcher {
 			this.svType=svType;
 			}
 		@Override
-		public void init(final VCFHeader h,Map<String,String> props,SampleToGroup s2g) {
+		public void init(final VCFHeader h,final Map<String,String> props,final SampleToGroup s2g) {
 			super.init(h, props, s2g);
 			this.enabled = h.getInfoHeaderLine(VCFConstants.SVTYPE)!=null;
 			this.with_genotypes = h.hasGenotypingData();
@@ -1185,7 +1185,7 @@ public class VcfStats extends Launcher {
 				L.sort();
 				series.add(L);
 				});
-			
+			if(series.isEmpty()) return Collections.emptySet();
 			final ScatterXY chart = new ScatterXY(series);
 			chart.setLogY(true);
 			chart.setLogX(true);
@@ -1810,7 +1810,11 @@ public class VcfStats extends Launcher {
 		modules.clear();//TODO fix me
 		
 		for(final String svType: new String[] {"DEL","INV","DUP"}) {
-			modules.add( new SVLen(svType) );
+			modules.add( 
+					new SVLen(svType)
+						.setProperty("title", "SVLEN ("+svType+")")
+						.setProperty("filename","svlen_"+svType)
+					);
 		}
 		
 		modules.add(new GatkDeNovo()
