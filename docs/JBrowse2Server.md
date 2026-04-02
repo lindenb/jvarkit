@@ -30,7 +30,7 @@ Usage: jbrowse2 [options] Files
       print version and exit
     --zip
       JBrowse2 archive source
-      Default: https://github.com/GMOD/jbrowse-components/releases/download/v4.1.14/jbrowse-web-v4.1.14.zip
+      Default: https://github.com/GMOD/jbrowse-components/releases/download/v3.2.0/jbrowse-web-v3.2.0.zip
 
 ```
 

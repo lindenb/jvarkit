@@ -46,6 +46,7 @@ public static CloseableIterator<VariantContext> query(final VCFFileReader reader
 	final SAMSequenceDictionary dict = reader.getFileHeader().getSequenceDictionary();
 	final List<Locatable> intervals   = LocatableUtils.mergeIntervals(intervals0);
 	if(dict!=null && dict.size()>0) {
+		intervals.removeIf(R->dict.getSequence(R.getContig())==null);
 		Collections.sort(intervals,ContigDictComparator.createLocatableComparator(dict));
 		}
 	if(intervals.isEmpty()) return AbstractCloseableIterator.empty();

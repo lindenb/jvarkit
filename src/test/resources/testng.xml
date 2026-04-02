@@ -30,6 +30,7 @@
       <class name="com.github.lindenb.jvarkit.variant.variantcontext.BreakendTest"/>
       <class name="com.github.lindenb.jvarkit.variant.sv.OverlapComparatorTest"/>
       <class name="com.github.lindenb.jvarkit.variant.variantcontext.SNVMatcherTest"/>
+      <class name="com.github.lindenb.jvarkit.variant.vcf.MultiIntervalVariantIteratorTest"/>
       <class name="com.github.lindenb.jvarkit.iterator.MergingIteratorTest"/>
       <class name="com.github.lindenb.jvarkit.iterator.FilterIteratorTest"/>
       <class name="com.github.lindenb.jvarkit.iterator.EqualRangeIteratorTest"/>

@@ -151,7 +151,6 @@ nav:
         - "gtf2xml" : Gtf2Xml.md
         - "gtfliftover" : GtfLiftOver.md
         - "gtfretrocopy" : GtfRetroCopy.md
-        - "gwascatalog2bed" : GwasCatalogToBed.md
         - "haplogroupcasectrl" : HaploGroupCaseControl.md
         - "howmanybamdict" : HowManyBamDict.md
         - "htsfreemarker" : HtsVelocity.md
@@ -260,7 +259,6 @@ nav:
         - "vcf2r" : VcfToRScript.md
         - "vcf2rdf" : VcfToRdf.md
         - "vcf2table" : VcfToTable.md
-        - "vcf2xls" : VcfToExcel.md
         - "vcf2xml" : Vcf2Xml.md
         - "vcfallele2symbolic" : VcfAlleleToSymbolic.md
         - "vcfallelebalance" : VcfAlleleBalance.md
@@ -316,7 +314,6 @@ nav:
         - "vcfsetdict" : VcfSetSequenceDictionary.md
         - "vcfshuffle" : VCFShuffle.md
         - "vcfspliceai" : VcfSpliceAI.md
-        - "vcfsplitbed" : VcfSplitBed.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md
         - "vcfsplitvep" : VCFSplitVEP.md
         - "vcfspringfilter" : VcfSpringFilter.md
@@ -329,7 +326,6 @@ nav:
         - "vcftbi2bed" : VcfTbiToBed.md
         - "vcftrio" : VCFTrios.md
         - "vcfukbb" : VcfUkbiobank.md
-        - "vcfwindowsplitter" : VcfSlidingWindowSplitter.md
         - "wescnvsvg" : WesCnvSvg.md
         - "wgscoverageplotter" : WGSCoveragePlotter.md
         - "wib2bedgraph" : WibToBedGraph.md
