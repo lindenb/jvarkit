@@ -22,10 +22,20 @@ Usage: vcfflatten [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    --gene-extractor
-      Activate default gene extractors. Variant will be grouped by gene using 
-      snpeff/bcftools/vep annotations
-      Default: false
+    --bed
+      group variants using that bed file. The 4th column is the name of the 
+      cluster (or we use contig_start_end)
+    --bed-id
+      name for the INFO/METHOD when using the --bed parameter.
+      Default: BED
+    -X, --gene-extractors
+      if not blanks, variants will be grouped by gene using 
+      snpeff/bcftools/vep annotations. Gene Extractors Name. 
+      Space/semicolon/Comma separated. custom:tag is a custom extractor 
+      extracting all the values for INFO/tag as one or more gene name. +x is a 
+      custom extractor using sliding windows of integer size=x (e.g: '+10000' 
+      or '+1Mb' )
+      Default: <empty string>
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -33,6 +43,9 @@ Usage: vcfflatten [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --hom-var
+      write homozygous alt genotypes instead of heterozygous
+      Default: false
     -i, --id
       Default Variant ID
       Default: FLATTEN_VARIANT
@@ -40,6 +53,9 @@ Usage: vcfflatten [options] Files
       Output file. Optional . Default: stdout
     --version
       print version and exit
+    -l
+      list available Gene Extractor and exit
+      Default: false
 
 ```
 

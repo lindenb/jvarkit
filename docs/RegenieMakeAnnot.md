@@ -16,6 +16,9 @@ Usage: java -jar dist/jvarkit.jar regeniemakeannot  [options] Files
 
 Usage: regeniemakeannot [options] Files
   Options:
+    --auto
+      if no mask was found use the ANNOTATION column with score=1 as the mask
+      Default: false
     --gzip, -Z
       compress output files
       Default: false

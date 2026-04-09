@@ -24,20 +24,20 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.vcfsplitgene;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.beust.jcommander.Parameter;
-import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
-import com.github.lindenb.jvarkit.dict.OrderChecker;
+import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.NullOuputStream;
@@ -46,19 +46,24 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
+import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.predictions.AnnPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.BcfToolsPredictionParser;
 import com.github.lindenb.jvarkit.util.vcf.predictions.GeneExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.predictions.VepPredictionParser;
 
-import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.BlockCompressedOutputStream;
+import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
+import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
+import htsjdk.variant.vcf.VCFHeaderVersion;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -91,20 +96,20 @@ Archive:  jeter.zip
     25027                     13 files
 
 $ cat jeter.mf
-#chrom	start	end	key	path	Count_Variants
-RF01	969	970	ANN/GeneId	Gene_18_3284	2c/8fb9d2539e3f30d1d9b06f9ec54c4c/Gene_18_3284.vcf.gz	1
-RF02	250	1965	ANN/GeneId	Gene_1621_1636	4e/4897c51fe2dd067a8b75c19f111477/Gene_1621_1636.vcf.gz	5
-RF02	250	1965	ANN/GeneId	UniProtKB/Swiss-Prot:P12472	74/ca4273c3d5803c5865891c808234da/UniProtKB_Swiss-Prot:P12472.vcf.gz	5
-RF03	1220	2573	ANN/GeneId	Gene_50_2557	23/6b59cfe4fdd33a5f4feeb55521dd34/Gene_50_2557.vcf.gz	8
-RF04	886	1920	ANN/GeneId	Gene_9_2339	b3/4bda8d8502e64e442fce077e45ded6/Gene_9_2339.vcf.gz	7
-RF05	40	1339	ANN/GeneId	Gene_32_1507	b7/83f96c410c7cd75bc732d44a1522a7/Gene_32_1507.vcf.gz	6
-RF06	516	1132	ANN/GeneId	Gene_23_1216	6f/8472e9f192c92bf46e4893b2367b7e/Gene_23_1216.vcf.gz	5
-RF07	97	952	ANN/GeneId	Gene_0_1073	3c/513d82eaea18447dd5f621f92b40e6/Gene_0_1073.vcf.gz	4
-RF08	925	992	ANN/GeneId	Gene_0_1058	84/977eac8cdef861cbd3109209675d21/Gene_0_1058.vcf.gz	2
-RF09	293	414	ANN/GeneId	Gene_0_1061	db/aee9cc8f5c9c3d39c7af4cec63b7a5/Gene_0_1061.vcf.gz	3
-RF10	45	175	ANN/GeneId	Gene_41_568	b0/133c483f0ea676f8d29ab1f2daee5d/Gene_41_568.vcf.gz	3
-RF11	73	79	ANN/GeneId	Gene_20_616	59/0fd5c1e8d6d60a986a0021fe357514/Gene_20_616.vcf.gz	1
-RF11	73	79	ANN/GeneId	Gene_78_374	83/bc905cf311428ab80ce59aaf503838/Gene_78_374.vcf.gz	1
+#chrom	POS	key	path	Count_Variants
+RF01	969		ANN/GeneId	Gene_18_3284	2c/8fb9d2539e3f30d1d9b06f9ec54c4c/Gene_18_3284.vcf.gz	1
+RF02	250		ANN/GeneId	Gene_1621_1636	4e/4897c51fe2dd067a8b75c19f111477/Gene_1621_1636.vcf.gz	5
+RF02	250		ANN/GeneId	UniProtKB/Swiss-Prot:P12472	74/ca4273c3d5803c5865891c808234da/UniProtKB_Swiss-Prot:P12472.vcf.gz	5
+RF03	1220		ANN/GeneId	Gene_50_2557	23/6b59cfe4fdd33a5f4feeb55521dd34/Gene_50_2557.vcf.gz	8
+RF04	886		ANN/GeneId	Gene_9_2339	b3/4bda8d8502e64e442fce077e45ded6/Gene_9_2339.vcf.gz	7
+RF05	40		ANN/GeneId	Gene_32_1507	b7/83f96c410c7cd75bc732d44a1522a7/Gene_32_1507.vcf.gz	6
+RF06	516		ANN/GeneId	Gene_23_1216	6f/8472e9f192c92bf46e4893b2367b7e/Gene_23_1216.vcf.gz	5
+RF07	97		ANN/GeneId	Gene_0_1073	3c/513d82eaea18447dd5f621f92b40e6/Gene_0_1073.vcf.gz	4
+RF08	925		ANN/GeneId	Gene_0_1058	84/977eac8cdef861cbd3109209675d21/Gene_0_1058.vcf.gz	2
+RF09	293		ANN/GeneId	Gene_0_1061	db/aee9cc8f5c9c3d39c7af4cec63b7a5/Gene_0_1061.vcf.gz	3
+RF10	45		ANN/GeneId	Gene_41_568	b0/133c483f0ea676f8d29ab1f2daee5d/Gene_41_568.vcf.gz	3
+RF11	73		ANN/GeneId	Gene_20_616	59/0fd5c1e8d6d60a986a0021fe357514/Gene_20_616.vcf.gz	1
+RF11	73		ANN/GeneId	Gene_78_374	83/bc905cf311428ab80ce59aaf503838/Gene_78_374.vcf.gz	1
 
 
 ```
@@ -119,7 +124,7 @@ END_DOC
 		name="vcfgenesplitter",
 		description="Split VCF+VEP by gene/transcript.",
 		creationDate = "20160310",
-		modificationDate="20250401",
+		modificationDate="20260409",
 		keywords= {"genes","vcf"},
 		jvarkit_amalgamion =  true,
 		menu="VCF Manipulation"
@@ -129,82 +134,133 @@ public class VcfGeneSplitter
 	{
 	private static final Logger LOG = Logger.of(VcfGeneSplitter.class);
 	
-	private class KeyGene{
-		final String extractor;
-		final String key;
-		final String geneName;
-		int count_variants = 0;
-		Path tmpVcfPath = null;
-		PrintWriter pw = null;
-		VCFEncoder vcfEncoder = null;
-		long lastModificationDate = 0L;
-		int minPos=Integer.MAX_VALUE;
-		int maxPos=0;
 
-		
-		KeyGene(final String extractor,final String key,final String gene)  throws IOException {
-			this.extractor = extractor;
-			this.key = key;
-			this.geneName = StringUtils.isBlank(gene)?".":gene;
-			}
-		@Override
-		public int hashCode() {
-			int h = extractor.hashCode();
-			h= h*31 + key.hashCode();
-			//h= h*31 + gene.hashCode();
-			return h;
-			}
-		@Override
-		public boolean equals(final Object obj) {
-			if(obj==this) return true;
-			if(obj==null || !(obj instanceof KeyGene)) return false;
-			final KeyGene kg = KeyGene.class.cast(obj);
-			return this.extractor.equals(kg.extractor) && this.key.equals(kg.key) ;
-			}
+    private static class GeneName
+	    {
+	    final String gene_id;
+	    final String label;
+	    final String extractorName;
+	    GeneName(final String gene_id,final String label,final String type)
+	            {
+	            this.gene_id=gene_id;
+	            this.label=StringUtils.isBlank(label)?".":label;
+	            this.extractorName=type;
+	            }
+	    @Override
+	    public int hashCode()
+	            {
+	            final int prime = 31;
+	            int result = 1;
+	            result = prime * result +  gene_id.hashCode();
+	            result = prime * result +  extractorName.hashCode();
+	            return result;
+	            }
+	    @Override
+	    public boolean equals(final Object o)
+	            {
+	            if (this == o) return true;
+	            if (o == null) return false;
+	            if (getClass() != o.getClass()) return false;
+	            final GeneName g=(GeneName)o;
+	            return gene_id.equals(g.gene_id) && extractorName.equals(g.extractorName);
+	            }
+	    @Override
+	    public String toString() {
+	            return  gene_id+"("+extractorName+")";
+	            }
 	
-		public void write(final VCFHeader header,final VariantContext ctx) throws IOException {
-			if(this.pw!=null) {
-				//nothing
-				}
-			else if(this.tmpVcfPath ==null ) {
-				LOG.info("Opening VCF for "+this.extractor+" "+this.key+" "+this.geneName);
-				this.tmpVcfPath =  Files.createTempFile("tmp.", ".vcf");
-				this.pw = new PrintWriter(Files.newBufferedWriter(this.tmpVcfPath, StandardOpenOption.APPEND));
-				final VCFHeader h2 = new VCFHeader(header);
-				h2.addMetaDataLine(new VCFHeaderLine("GtfFileSplitter.Name",String.valueOf(this.key)));
-				h2.addMetaDataLine(new VCFHeaderLine("GtfFileSplitter.Gene",String.valueOf(this.geneName)));
-				JVarkitVersion.getInstance().addMetaData(VcfGeneSplitter.this, h2);
+	    }
 
-				this.vcfEncoder  = new VCFEncoder(h2, false, false);
-
-				for(final String s: VCFUtils.convertVCFHeaderToList(h2)) {
-					this.pw.println(s);
-					}
-				}
-			else
-				{
-				this.pw = new PrintWriter(Files.newBufferedWriter(this.tmpVcfPath, StandardOpenOption.APPEND));
-				}
-			this.lastModificationDate = System.currentTimeMillis();
-			this.count_variants++;
-			this.minPos = Math.min(ctx.getStart(), minPos);
-			this.maxPos = Math.max(ctx.getEnd(), maxPos);
-			this.vcfEncoder.write(this.pw,ctx);
-			this.pw.println();
-			}
-		@Override
-		public String toString() {
-			return this.extractor+" "+this.key+" "+this.geneName;
-			}
-		}
+	
+    private class Call implements Comparable<Call>
+	    {
+    	GeneName gene;
+	    VariantContext ctx;
+	
+	    Call() {
+	    	this(null,null);
+	    	}
+	    Call(GeneName gene,VariantContext ctx) {
+	    	this.gene = gene;
+	    	this.ctx = ctx;
+	    	}
+	
+	    String getContig()
+	            {
+	            return ctx.getContig();
+	            }
+	
+	    @Override
+	    public int compareTo(final Call o) {
+	            int i=  this.getContig().compareTo(o.getContig());
+	            if(i!=0) return i;
+	            i= this.gene.gene_id.compareTo(o.gene.gene_id);
+	            if(i!=0) return i;
+	            i= this.gene.extractorName.compareTo(o.gene.extractorName);
+	            return i;
+	            }
+	
+	    public int compare2(final Call C2) {
+	            int i= this.compareTo(C2);
+	            if(i!=0) return i;
+	            i =  this.ctx.getContig().compareTo(C2.ctx.getContig());
+	            if(i!=0) return i;
+	            i =  Integer.compare(this.ctx.getStart(),C2.ctx.getStart());
+	            if(i!=0) return i;
+	            i =  this.ctx.getReference().compareTo(C2.ctx.getReference());
+	            return i;
+	            }
 	
 	
+	    }
+    private class CallCodec 
+    extends AbstractDataCodec<Call>
+	    {
+	    final VCFHeader header;
+	    private final VCFCodec vCodec;
+	    private final VCFEncoder vcfEncoder;
 	
+	    CallCodec(final VCFHeader header) {
+	            this.header= header;
+	            this.vCodec = new VCFCodec();
+	            this.vcfEncoder = new VCFEncoder(header, false, false);
+	            this.vCodec.setVCFHeader(header, VCFHeaderVersion.VCF4_2);
+	            }
+	    @Override
+	    public void encode(final DataOutputStream dos,final Call c)
+	                    throws IOException
+	            {
+	            dos.writeUTF(c.gene.gene_id);
+	            dos.writeUTF(c.gene.label);
+	            dos.writeUTF(c.gene.extractorName);
+	            writeString(dos, this.vcfEncoder.encode(c.ctx));
+	            }
 	
+	    @Override
+	    public Call decode(final DataInputStream dis) throws IOException
+	            {
+	            final String gene_id;
+	            try {
+	            	gene_id=dis.readUTF();
+	            } catch (final EOFException e) {
+	                    return null;
+	                    }
+	            final String label=dis.readUTF();
+	            final String extractor=dis.readUTF();
+	            final Call c= new Call();
+	            c.gene=new GeneName(gene_id,label, extractor);
+	            c.ctx = this.vCodec.decode(readString(dis));
+	            return c;
+	            }
+	    @Override
+	    public CallCodec clone() {
+	            return new CallCodec(this.header);
+	            }
+	    	}
 	
 	@Parameter(names={"-o","--output"},description= ArchiveFactory.OPT_DESC,required=true)
 	private Path outputFile = null;
-	@Parameter(names={"-m","--manifest"},description="Manifest Bed file output containing chrom/start/end of each gene")
+	@Parameter(names={"-m","--manifest"},description="Manifest BED file output containing chrom/POS of each gene")
 	private Path manifestFile = null;
 	@Parameter(names={"-l","--list"},description= "list all available extractors", help=true)
 	private boolean list_extractors = false;
@@ -212,16 +268,12 @@ public class VcfGeneSplitter
 	private String extractorsNames="ANN/GeneId VEP/GeneId";
 	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERED variant")
 	private boolean ignoreFiltered = false;
-	@Parameter(names={"-n","--min-variant","--min-variants"},description="Minimum number of variants required to write a vcf. don't write if num(variant) < 'x' ")
-	private int min_number_of_ctx = 1;
-	@Parameter(names={"-M","--max-variant","--max-variants"},description="Maximum number of variants required to write a vcf. don't write if num(variant) > 'x' . '<=0' is ignore")
-	private int max_number_of_ctx = -1;
-	@Parameter(names={"--open-max"},description="Maximum number of opened VCF writers at the same time.")
-	private int max_open_files = 100;
 	@Parameter(names={"--prefix"},description="prefix each output VCF file with this string")
 	private String prefix="";
 	@Parameter(names={"--disable-hash-directory","--dhd"},description="disable default which is to save each file in a checksum-based directory-a-la-nextflow to avoid a large number of files in the same directory.")
 	private boolean disable_hash_dir = false;
+    @ParametersDelegate
+    private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 
 	
 	
@@ -229,150 +281,142 @@ public class VcfGeneSplitter
 		{
 		
 		}
-	
+
 	
 	private int run(final List<String> args) {
-		final List<KeyGene> keyGenes = new ArrayList<>();
-
+		SortingCollection<Call> sortingCollection=null;
+		final VCFHeader vcfHeader ;
 		try {
-			
-					
 		try(VCFIterator iterator = super.openVCFIterator(oneFileOrNull(args))) {
-			final VCFHeader header = iterator.getHeader();
-			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
-			final OrderChecker<VariantContext> order = new OrderChecker<VariantContext>(dict,false);
-			final GeneExtractorFactory geneExtractorFactory = new GeneExtractorFactory(header);
+			vcfHeader = iterator.getHeader();
+			final GeneExtractorFactory geneExtractorFactory = new GeneExtractorFactory(vcfHeader);
 			final List<GeneExtractorFactory.GeneExtractor> extractors = geneExtractorFactory.parse(this.extractorsNames);
 			if(extractors.isEmpty()) {
 				LOG.warn("No extractor defined!");
 				return -1;
 				}
-			try(ArchiveFactory archiveFactory = ArchiveFactory.open(this.outputFile)) {
-						try(PrintWriter manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile))) {
-							manifest.println("#chrom\tstart\tend\tsplitter\tgene\tkey\tpath\tCount_Variants");
-							manifest.flush();
-							String prevCtg = null;
-							for(;;)
-								{
-								final VariantContext ctx = iterator.hasNext()?order.apply(iterator.next()):null;
-								
-								if(this.ignoreFiltered && ctx!=null && ctx.isFiltered()) continue;
-				
-								if(ctx==null || !ctx.getContig().equals(prevCtg))
-									{
-									for(KeyGene kg: keyGenes) {
-										if(kg.pw!=null) {
-											kg.pw.flush();
-											kg.pw.close();
-											kg.pw=null;
-											}
-										if ( kg.count_variants < this.min_number_of_ctx )  {
-											LOG.info("skipping "+kg+" because there are not enough variants. N="+kg.count_variants+"<"+this.min_number_of_ctx);
-											continue;
-											}
-										if ( this.max_number_of_ctx!=-1 && kg.count_variants > this.max_number_of_ctx ) {
-											LOG.info("skipping "+kg+" because there are too many variants. N="+kg.count_variants+">"+this.max_number_of_ctx);
-											continue;
-											}
-										
-										final String md5 = StringUtils.md5(prevCtg+":"+kg.extractor+":"+kg.key);
-										final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
-										final String filename0 =
-												(this.disable_hash_dir?"":parentDir + File.separator)+
-												this.prefix+
-												kg.key.replaceAll("[/\\:_]+", "_") + ".vcf.gz";
-										
-										
-										try(final BlockCompressedOutputStream os = new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename0),(Path)null)) {
-											IOUtils.copyTo(kg.tmpVcfPath, os);
-											os.flush();
-											}
-										
-										manifest.print(prevCtg);
-										manifest.print('\t');
-										manifest.print(kg.minPos-1);
-										manifest.print('\t');
-										manifest.print(kg.maxPos);
-										manifest.print('\t');
-										manifest.print(kg.extractor);
-										manifest.print('\t');
-										manifest.print(kg.geneName);
-										manifest.print('\t');
-										manifest.print(kg.key);
-										manifest.print('\t');
-										manifest.print(
-											archiveFactory.isTarOrZipArchive()?
-											filename0:
-											this.outputFile.resolve(filename0).toAbsolutePath().toString()
-											);
-										manifest.print('\t');
-										manifest.println(kg.count_variants);
-										}
-										
-									for(KeyGene kg: keyGenes) {
-										Files.delete(kg.tmpVcfPath);
-										}
-									keyGenes.clear();
-									
-									if(ctx==null) break;
-									prevCtg = ctx.getContig();
-									}
-						
-					
-								for(final GeneExtractorFactory.GeneExtractor ex: extractors)
-									{
-									final Map<GeneExtractorFactory.KeyAndGene,Set<String>> gene2values = ex.apply(ctx);
-									
-									if(gene2values.isEmpty()) continue;
-									
-									for(final GeneExtractorFactory.KeyAndGene keyAndGene :gene2values.keySet()) {
-										final Set<String> values = gene2values.get(keyAndGene);
-										if(values.isEmpty()) continue;
-				
-										KeyGene keyGene = keyGenes.stream().
-													filter(KG->KG.extractor.equals(keyAndGene.getMethod())&& KG.key.equals(keyAndGene.getKey())).
-													findFirst().
-													orElse(null);
-										if(keyGene==null) {
-											keyGene = new KeyGene(keyAndGene.getMethod(),keyAndGene.getKey(),keyAndGene.getGene());
-											
-											keyGenes.add(keyGene);
-											}
-										final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-										vcb.rmAttribute(VepPredictionParser.getDefaultTag());
-										vcb.rmAttribute(AnnPredictionParser.getDefaultTag());
-										vcb.rmAttribute(BcfToolsPredictionParser.getDefaultTag());
-										
-										if(ex.hasInfoTag()) {
-											vcb.attribute(ex.getInfoTag(), new ArrayList<>(values));
-											}
-										
-										keyGene.write(header,vcb.make());
-										
-										
-										final long num_files_opened = keyGenes.stream().filter(K->K.pw!=null).count();
-										if(num_files_opened > this.max_open_files) {
-											final KeyGene toClose = keyGenes.stream().
-												filter(K->K.pw!=null).
-												sorted((A,B)->Long.compare(A.lastModificationDate,B.lastModificationDate)).
-												findFirst().
-												orElse(null)
-												;
-											if(toClose!=null) {
-												toClose.pw.flush();
-												toClose.pw.close();
-												toClose.pw= null;
-												}
-											}
-										}
-									}
-						}// end of for(;;)
-						
-						}//end of in
 			
-
-					}// end of manifest
-				}// end of archive
+            sortingCollection =SortingCollection.newInstance(
+                    Call.class,
+                    new CallCodec(vcfHeader),
+                    (C1,C2)->C1.compare2(C2),
+                    this.writingSortingCollection.getMaxRecordsInRam(),
+                    this.writingSortingCollection.getTmpPaths()
+                    );
+            sortingCollection.setDestructiveIteration(true);
+            while(iterator.hasNext()) {
+            	final VariantContext ctx = iterator.next();
+				
+				if(this.ignoreFiltered && ctx!=null && ctx.isFiltered()) continue;
+				for(final GeneExtractorFactory.GeneExtractor ex: extractors)
+					{
+					final Map<GeneExtractorFactory.KeyAndGene,Set<String>> gene2values = ex.apply(ctx);
+					for(final GeneExtractorFactory.KeyAndGene keyAndGene :gene2values.keySet()) {
+						final Set<String> values = gene2values.get(keyAndGene);
+						final GeneName geneName = new GeneName(keyAndGene.getKey(), StringUtils.ifBlank(keyAndGene.getGene(),"."), keyAndGene.getMethod());
+						
+						
+						final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+						vcb.rmAttribute(VepPredictionParser.getDefaultTag());
+						vcb.rmAttribute(AnnPredictionParser.getDefaultTag());
+						vcb.rmAttribute(BcfToolsPredictionParser.getDefaultTag());
+						
+						if(ex.hasInfoTag() && !values.isEmpty()) {
+							vcb.attribute(ex.getInfoTag(), new ArrayList<>(values));
+							}
+						sortingCollection.add(new Call(geneName,vcb.make()));
+						} // end genes
+	            	}//end extractors
+            	}// end iterator VCF
+			}
+			sortingCollection.doneAdding();
+			try(CloseableIterator<Call> iter = sortingCollection.iterator()) {
+				try(ArchiveFactory archiveFactory = ArchiveFactory.open(this.outputFile)) {
+					try(PrintWriter manifest = new PrintWriter(this.manifestFile==null?new NullOuputStream():IOUtils.openPathForWriting(manifestFile))) {
+						manifest.println("#chrom\tstart\tend\tsplitter\tgene\tkey\tpath\tCount_Variants");
+						
+						
+						GeneName prevGeneName =   null;
+						VariantContextWriter currentWriter = null;
+						int min_pos=-1;
+						int max_pos=-1;
+						int count_variants=0;
+						String currContig=null;
+						String filename0 = null;
+						for(;;)
+							{
+							final Call curr = iter.hasNext()?iter.next():null;
+							
+							if(curr==null || !curr.gene.equals(prevGeneName)) {
+								if(currentWriter!=null) {
+									manifest.print(currContig);
+									manifest.print('\t');
+									manifest.print(min_pos-1);
+									manifest.print('\t');
+									manifest.print(max_pos);
+									manifest.print('\t');
+									manifest.print(prevGeneName.extractorName);
+									manifest.print('\t');
+									manifest.print(prevGeneName.label);
+									manifest.print('\t');
+									manifest.print(prevGeneName.gene_id);
+									manifest.print('\t');
+									manifest.print(
+										archiveFactory.isTarOrZipArchive()?
+										filename0:
+										this.outputFile.resolve(filename0).toAbsolutePath().toString()
+										);
+									manifest.print('\t');
+									manifest.println(count_variants);
+								
+									currentWriter.close();
+									currentWriter=null;
+									
+									if(curr==null) break;
+									
+								
+									}
+								min_pos = curr.ctx.getStart();
+								max_pos= curr.ctx.getEnd();
+								count_variants = 0;
+								filename0 = null;
+								
+								prevGeneName = curr.gene;
+								
+								
+								
+								final String md5 = StringUtils.md5(curr.getContig()+":"+curr.gene.extractorName+":"+curr.gene.gene_id);
+								final String parentDir = md5.substring(0,2) + File.separatorChar + md5.substring(2);
+								filename0 =
+										(this.disable_hash_dir?"":parentDir + File.separator)+
+										this.prefix+
+										(curr.getContig()+"_"+curr.gene.extractorName+"_"+curr.gene.label+"_"+curr.gene.gene_id).replaceAll("[/\\:_]+", "_") + ".vcf.gz";
+								final VCFHeader h2 = new VCFHeader(vcfHeader);
+								h2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.GeneId",String.valueOf(curr.gene.gene_id)));
+								h2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.GeneName",String.valueOf(curr.gene.label)));
+								h2.addMetaDataLine(new VCFHeaderLine("VcfGeneSplitter.Extractor",String.valueOf(curr.gene.extractorName)));
+								JVarkitVersion.getInstance().addMetaData(VcfGeneSplitter.this, h2);
+								
+								final VariantContextWriterBuilder vcwb=new VariantContextWriterBuilder();
+								vcwb.setCreateMD5(false);
+								vcwb.setReferenceDictionary(vcfHeader.getSequenceDictionary());
+								vcwb.clearOptions();
+								vcwb.setOutputStream(new BlockCompressedOutputStream(archiveFactory.openOuputStream(filename0),(Path)null));
+								currentWriter =vcwb.build();
+								currentWriter.writeHeader(h2);
+								}
+							currentWriter.add(curr.ctx);
+							currContig = curr.ctx.getContig();
+							min_pos = Math.min(min_pos,curr.ctx.getStart());
+							max_pos= Math.max(max_pos,curr.ctx.getEnd());
+							count_variants++;
+							}
+						manifest.flush();
+						}//end manifest
+					}
+				}
+			sortingCollection.cleanup();
+			sortingCollection=null;
 			return 0;
 			}
 		catch(final Throwable err) 
@@ -380,13 +424,13 @@ public class VcfGeneSplitter
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			for(KeyGene kg:keyGenes) {
-				if(kg.pw!=null) try {kg.pw.close();} catch(Throwable err) {}
-				if(kg.tmpVcfPath!=null) try {Files.delete(kg.tmpVcfPath);} catch(Throwable err) {}
-				}
+		finally {
+			if(sortingCollection!=null) try {
+				sortingCollection.cleanup();
+			} catch(Throwable err) {
+				
 			}
+		}
 		}
 	
 	

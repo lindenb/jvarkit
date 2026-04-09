@@ -28,17 +28,6 @@ Usage: vcfsplitbed [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    -M, --max-variant
-      Maximum number of variants required to write a vcf. don't write if 
-      num(variant) > 'x' . '<=0' is ignore
-      Default: -1
-    -n, --min-variant
-      Minimum number of variants required to write a vcf. don't write if 
-      num(variant) < 'x'
-      Default: 1
-    --open-max
-      Maximum number of opened VCF writers at the same time.
-      Default: 100
   * -o, --output
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.

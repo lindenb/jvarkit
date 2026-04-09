@@ -16,10 +16,16 @@ Usage: java -jar dist/jvarkit.jar vcfgenesplitter  [options] Files
 
 Usage: vcfgenesplitter [options] Files
   Options:
+    --disable-hash-directory, --dhd
+      disable default which is to save each file in a checksum-based 
+      directory-a-la-nextflow to avoid a large number of files in the same 
+      directory. 
+      Default: false
     -e, -E, --extractors
       Gene Extractors Name. Space/semicolon/Comma separated. custom:tag is a 
       custom extractor extracting all the values for INFO/tag as one or more 
-      gene name
+      gene name. +x is a custom extractor using sliding windows of integer 
+      size=x (e.g: '+10000' or '+1Mb' )
       Default: ANN/GeneId VEP/GeneId
     -h, --help
       print help and exit
@@ -31,21 +37,22 @@ Usage: vcfgenesplitter [options] Files
     -l, --list
       list all available extractors
     -m, --manifest
-      Manifest Bed file output containing chrom/start/end of each gene
-    -M, --max-variant
-      Maximum number of variants required to write a vcf. don't write if 
-      num(variant) > 'x' . '<=0' is ignore
-      Default: -1
-    -n, --min-variant
-      Minimum number of variants required to write a vcf. don't write if 
-      num(variant) < 'x'
-      Default: 1
-    --open-max
-      Maximum number of opened VCF writers at the same time.
-      Default: 100
+      Manifest BED file output containing chrom/POS of each gene
+    --maxRecordsInRam
+      When writing  files that need to be sorted, this will specify the number 
+      of records stored in RAM before spilling to disk. Increasing this number 
+      reduces the number of file  handles needed to sort a file, and increases 
+      the amount of RAM needed
+      Default: 50000
   * -o, --output
       An existing directory or a filename ending with the '.zip' or '.tar' or 
       '.tar.gz' suffix.
+    --prefix
+      prefix each output VCF file with this string
+      Default: <empty string>
+    --tmpDir
+      tmp working directory. Default: java.io.tmpDir
+      Default: []
     --version
       print version and exit
 
@@ -119,22 +126,26 @@ Archive:  jeter.zip
     25027                     13 files
 
 $ cat jeter.mf
-#chrom	start	end	key	path	Count_Variants
-RF01	969	970	ANN/GeneId	Gene_18_3284	2c/8fb9d2539e3f30d1d9b06f9ec54c4c/Gene_18_3284.vcf.gz	1
-RF02	250	1965	ANN/GeneId	Gene_1621_1636	4e/4897c51fe2dd067a8b75c19f111477/Gene_1621_1636.vcf.gz	5
-RF02	250	1965	ANN/GeneId	UniProtKB/Swiss-Prot:P12472	74/ca4273c3d5803c5865891c808234da/UniProtKB_Swiss-Prot:P12472.vcf.gz	5
-RF03	1220	2573	ANN/GeneId	Gene_50_2557	23/6b59cfe4fdd33a5f4feeb55521dd34/Gene_50_2557.vcf.gz	8
-RF04	886	1920	ANN/GeneId	Gene_9_2339	b3/4bda8d8502e64e442fce077e45ded6/Gene_9_2339.vcf.gz	7
-RF05	40	1339	ANN/GeneId	Gene_32_1507	b7/83f96c410c7cd75bc732d44a1522a7/Gene_32_1507.vcf.gz	6
-RF06	516	1132	ANN/GeneId	Gene_23_1216	6f/8472e9f192c92bf46e4893b2367b7e/Gene_23_1216.vcf.gz	5
-RF07	97	952	ANN/GeneId	Gene_0_1073	3c/513d82eaea18447dd5f621f92b40e6/Gene_0_1073.vcf.gz	4
-RF08	925	992	ANN/GeneId	Gene_0_1058	84/977eac8cdef861cbd3109209675d21/Gene_0_1058.vcf.gz	2
-RF09	293	414	ANN/GeneId	Gene_0_1061	db/aee9cc8f5c9c3d39c7af4cec63b7a5/Gene_0_1061.vcf.gz	3
-RF10	45	175	ANN/GeneId	Gene_41_568	b0/133c483f0ea676f8d29ab1f2daee5d/Gene_41_568.vcf.gz	3
-RF11	73	79	ANN/GeneId	Gene_20_616	59/0fd5c1e8d6d60a986a0021fe357514/Gene_20_616.vcf.gz	1
-RF11	73	79	ANN/GeneId	Gene_78_374	83/bc905cf311428ab80ce59aaf503838/Gene_78_374.vcf.gz	1
+#chrom	POS	key	path	Count_Variants
+RF01	969		ANN/GeneId	Gene_18_3284	2c/8fb9d2539e3f30d1d9b06f9ec54c4c/Gene_18_3284.vcf.gz	1
+RF02	250		ANN/GeneId	Gene_1621_1636	4e/4897c51fe2dd067a8b75c19f111477/Gene_1621_1636.vcf.gz	5
+RF02	250		ANN/GeneId	UniProtKB/Swiss-Prot:P12472	74/ca4273c3d5803c5865891c808234da/UniProtKB_Swiss-Prot:P12472.vcf.gz	5
+RF03	1220		ANN/GeneId	Gene_50_2557	23/6b59cfe4fdd33a5f4feeb55521dd34/Gene_50_2557.vcf.gz	8
+RF04	886		ANN/GeneId	Gene_9_2339	b3/4bda8d8502e64e442fce077e45ded6/Gene_9_2339.vcf.gz	7
+RF05	40		ANN/GeneId	Gene_32_1507	b7/83f96c410c7cd75bc732d44a1522a7/Gene_32_1507.vcf.gz	6
+RF06	516		ANN/GeneId	Gene_23_1216	6f/8472e9f192c92bf46e4893b2367b7e/Gene_23_1216.vcf.gz	5
+RF07	97		ANN/GeneId	Gene_0_1073	3c/513d82eaea18447dd5f621f92b40e6/Gene_0_1073.vcf.gz	4
+RF08	925		ANN/GeneId	Gene_0_1058	84/977eac8cdef861cbd3109209675d21/Gene_0_1058.vcf.gz	2
+RF09	293		ANN/GeneId	Gene_0_1061	db/aee9cc8f5c9c3d39c7af4cec63b7a5/Gene_0_1061.vcf.gz	3
+RF10	45		ANN/GeneId	Gene_41_568	b0/133c483f0ea676f8d29ab1f2daee5d/Gene_41_568.vcf.gz	3
+RF11	73		ANN/GeneId	Gene_20_616	59/0fd5c1e8d6d60a986a0021fe357514/Gene_20_616.vcf.gz	1
+RF11	73		ANN/GeneId	Gene_78_374	83/bc905cf311428ab80ce59aaf503838/Gene_78_374.vcf.gz	1
 
 
 ```
+
+## See also
+
+* vcfwindowsplitter
 
 
