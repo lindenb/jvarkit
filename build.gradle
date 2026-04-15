@@ -1833,8 +1833,8 @@ all2.add( task("jeter20", type: CompileJVarkit) {
 	jarLibs = combineLibs("htsjdk","testng","jcommander")
 	});
 all2.add( task("jeter21", type: CompileJVarkit) {
-	mainClass = "com.github.lindenb.jvarkit.tools.nextflow.nf2xml.NextflowToXml"
-	jarLibs = combineLibs("htsjdk","testng","jcommander","gson")
+	mainClass = "com.github.lindenb.jvarkit.tools.lookup.Lookup"
+	jarLibs = combineLibs("htsjdk","testng","jcommander","gson","httpclient")
 	});
 
  
