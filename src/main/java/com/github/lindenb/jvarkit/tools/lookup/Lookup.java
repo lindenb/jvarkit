@@ -3,7 +3,9 @@ package com.github.lindenb.jvarkit.tools.lookup;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.Reader;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -22,9 +24,13 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.w3c.dom.Document;
 
+import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.io.TeeInputStream;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.tools.ensemblreg.VcfEnsemblReg;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -32,15 +38,19 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import htsjdk.samtools.util.CloserUtil;
+import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.variant.variantcontext.VariantContext;
 
 public class Lookup extends Launcher {
-	private static final int MAX_QUERY_REGION_SIZE=4_999_000;
 	private static final Logger LOG = Logger.of(Lookup.class);
+	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
+	Path outputFile = null;
+	@Parameter(names={"--tee"},description="'tee' json stream to stderr")
 	private boolean teeResponse =false;
+	
 	private long lastMillisec = 0L;
 	public Lookup() {
 		}
@@ -203,6 +213,7 @@ public class Lookup extends Launcher {
 	
 	
 	private Set<EnsemblGene> getEnsemblGenes(final HttpClient httpClient,final Locatable loc) throws IOException {
+		final int MAX_QUERY_REGION_SIZE=4_999_000;
 		final Set<EnsemblGene> genes= new HashSet<>();
 		int x1=loc.getStart();
 		while(x1 < loc.getEnd()) {
@@ -285,16 +296,44 @@ public class Lookup extends Launcher {
 		}
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		try {
+			
 			try( CloseableHttpClient httpClient = HttpClients.createSystem(); ) {
-				for(EnsemblGene ensGene: getEnsemblGenes(httpClient,new Interval("chr3",38541867,38567253)))  {
-					if(ensGene.getGeneName().equals("SCN5A")==false) continue;
-					System.err.println(ensGene);
-					callOpenTargetsForGene(httpClient,ensGene);
-					getEQTLForGene(httpClient,ensGene);
-					getPhewebForGene(httpClient,ensGene);
-					getGTexEQTLForGene(httpClient,ensGene);
+				try(PrintWriter w = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
+					if(args.isEmpty()) {
+						
+						}
+					else if(args.size()==1 && args.get(0).endsWith(FileExtensions.BED)) {
+						
+						}
+					else if(args.size()==1 && (args.get(0).endsWith(FileExtensions.VCF) || args.get(0).endsWith(FileExtensions.COMPRESSED_VCF))) {
+						
+						}
+					else if(args.size()==3 && args.get(0).matches("(chr)?[0-9XY]+") && StringUtils.isInteger(args.get(1)) && StringUtils.isInteger(args.get(2))) {
+						final Locatable loc = new SimpleInterval(
+								args.get(0),
+								Integer.valueOf(args.get(1)),
+								Integer.valueOf(args.get(2))
+								);
+						
+						}
+					else
+						{
+						for(String str: args) {
+							if(str.matches("(chr)?[0-9XY]+[\\:[0-9]+\\-[0-9]+")) {
+								final Locatable loc = new IntervalParser().apply(str).get();
+								}
+							}
+						}
+					for(EnsemblGene ensGene: getEnsemblGenes(httpClient,new Interval("chr3",38541867,38567253)))  {
+						if(ensGene.getGeneName().equals("SCN5A")==false) continue;
+						System.err.println(ensGene);
+						callOpenTargetsForGene(httpClient,ensGene);
+						getEQTLForGene(httpClient,ensGene);
+						getPhewebForGene(httpClient,ensGene);
+						getGTexEQTLForGene(httpClient,ensGene);
+						}
 					}
 				}
 			return 0;
