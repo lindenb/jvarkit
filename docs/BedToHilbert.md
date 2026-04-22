@@ -97,3 +97,15 @@ The current reference is:
 > Lindenbaum, Pierre (2015): JVarkit: java-based utilities for Bioinformatics. figshare.
 > [http://dx.doi.org/10.6084/m9.figshare.1425030](http://dx.doi.org/10.6084/m9.figshare.1425030)
 
+
+## Motivation
+
+Creates a Hilbert SVG Graph  for a BED file.
+
+
+## Example
+
+```
+ java -jar dist/jvarkit.jar bed2hilbert  -R src/test/resources/rotavirus_rf.dict input.bed > out.svg
+```
+

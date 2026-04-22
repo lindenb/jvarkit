@@ -28,6 +28,8 @@ package com.github.lindenb.jvarkit.tools.bed2hilbert;
 import java.awt.Color;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.geom.RectangularShape;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -53,6 +55,7 @@ import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.math.DoubleRounder;
 import com.github.lindenb.jvarkit.net.Hyperlink;
 import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -112,7 +115,9 @@ public class BedToHilbert extends Launcher {
 	@Parameter(names={"--css"},description="load custom CSS style file")
 	private Path cssPath=null;
 
-    
+    private  final DoubleRounder dblRounder= new DoubleRounder(2);
+	
+	
     private static long toIndex(final SAMSequenceDictionary dict,final String contig,final int pos) {
     	long n = 0L;
     	for(SAMSequenceRecord ssr: dict.getSequences()) {
@@ -125,7 +130,7 @@ public class BedToHilbert extends Launcher {
     	}
     
     private String format(double v) {
-    	return String.valueOf(v);
+    	return dblRounder.format(v);
     	}
     
     
@@ -138,6 +143,17 @@ public class BedToHilbert extends Launcher {
 			sb.append(format(points.get(i).getY()));
 			}
 		return sb.toString();
+    	}
+    private RectangularShape toShape(final List<Point2D.Double> points) {
+    	final double x = points.stream().mapToDouble(P->P.getX()).min().orElse(0.0);
+    	final double y = points.stream().mapToDouble(P->P.getY()).min().orElse(0.0);
+    	final double w = points.stream().mapToDouble(P->P.getX()-x).max().orElse(1.0);
+    	final double h = points.stream().mapToDouble(P->P.getY()-y).max().orElse(1.0);
+    	return new Rectangle2D.Double(x, y, w, h);
+    	}
+    private Point2D.Double toCenter(final List<Point2D.Double> points) {
+    	final RectangularShape r = toShape(points);
+    	return new Point2D.Double(r.getCenterX(),r.getCenterY());
     	}
     
 	@Override
@@ -185,7 +201,7 @@ public class BedToHilbert extends Launcher {
 				if(!StringUtils.isBlank(this.column_names_str)) {
 					String[] tokens = CharSplitter.COMMA.split(this.column_names_str);
 					for(int i=0;i< tokens.length;i++) {
-						if(i+3<=header_tokens.size()) {
+						if(i+3< header_tokens.size()) {
 							header_tokens.set(i+3, tokens[i]);
 							}
 						else
@@ -207,14 +223,22 @@ public class BedToHilbert extends Launcher {
 					w.writeAttribute("width", String.valueOf(this.imageWidth+1));
 					w.writeAttribute("height", String.valueOf(this.imageWidth+1));
 					
+					w.writeStartElement("title");
+					w.writeCharacters(input==null?"bed2hilbert":input);
+					w.writeEndElement();
+
+					
 					w.writeStartElement("style");
 					w.writeCharacters(
 						 ".bckg {stroke:darkgray;fill:whitesmoke;}\n"
-						+".k0 {stroke:forestgreen;fill:none;}\n"
+						+".ka {fill:none;;stroke-dasharray:1,1;stroke-width:2px;}\n"
 						+".k1 {stroke:darkslateblue;fill:none;}\n"
 						+".kX {stroke:blue;fill:none;}\n"
 						+".kY {stroke:pink;fill:none;}\n"
 						+".rec {stroke:yellow;fill:none;stroke-width:5;opacity:0.5;}\n"
+						+".rec:hover,.rec:focus {stroke:darkgreen;stroke-width:4px;}\n"
+						+".ctgLabel {stroke:none;opacity:0.9;text-anchor:middle;font-size:10px;}\n"
+						+"circle.edge {fill:black;stroke:black;opacity:0.8;}\n"
 						);
 					w.writeEndElement();
 					if(this.cssPath!=null) {
@@ -223,13 +247,11 @@ public class BedToHilbert extends Launcher {
 						w.writeEndElement();
 						}
 					
+					w.writeStartElement("defs");
 					w.writeStartElement("g");
-					w.writeEmptyElement("rect");
-					w.writeAttribute("class", "bckg");
-					w.writeAttribute("x", String.valueOf(0));
-					w.writeAttribute("y", String.valueOf(0));
-					w.writeAttribute("width", String.valueOf(this.imageWidth));
-					w.writeAttribute("height", String.valueOf(this.imageWidth));
+					w.writeAttribute("id", "genome");
+					
+					
 					
 					for(SAMSequenceRecord ssr: dict.getSequences()) {
 						final Color c = Color.getHSBColor((float) ssr.getSequenceIndex() / (float)dict.size(), 0.7f, 0.5f);
@@ -238,20 +260,20 @@ public class BedToHilbert extends Launcher {
 						if(points.isEmpty()) continue;
 						w.writeStartElement("g");
 						w.writeStartElement("polyline"); //path
-						String style= "stroke:"+ColorUtils.toRGB(c)+";";
+						String stroke=ColorUtils.toRGB(c)+";";
 						String className =  "k"+(ssr.getSequenceIndex()%2);
 						if(ssr.getSequenceName().matches("(chr)?X")) {
-							style = "stroke:blue;";
+							stroke = "blue;";
 							className = "kX";
 							}
 						else if(ssr.getSequenceName().matches("(chr)?Y")) {
-							style = "stroke:pink;";
+							stroke = "pink;";
 							className = "kY";
 							}
 						
-						w.writeAttribute("class",className);
-						if(!StringUtils.isBlank(style)) {
-							w.writeAttribute("style",style);
+						w.writeAttribute("class","ka "+className);
+						if(!StringUtils.isBlank(stroke)) {
+							w.writeAttribute("style", "stroke:"+stroke);
 							}
 						w.writeAttribute("points", toString(points));
 						
@@ -260,9 +282,49 @@ public class BedToHilbert extends Launcher {
 						w.writeEndElement();
 						
 						w.writeEndElement(); // path
+						
+						
+						Point2D.Double center = toCenter(points);
+						w.writeStartElement("text");
+						w.writeAttribute("class", "ctgLabel");
+						w.writeAttribute("style", "fill:"+stroke);
+						w.writeAttribute("x", format(center.getX()));
+						w.writeAttribute("y", format(center.getY()));
+						w.writeCharacters(ssr.getContig());
+						w.writeEndElement();
+						
+						if(ssr.getSequenceIndex()+1 < dict.size()) {
+							w.writeEmptyElement("circle");
+							w.writeAttribute("class", "edge");
+							w.writeAttribute("r", "3");
+							w.writeAttribute("cx", format(points.get(points.size()-1).getX()));
+							w.writeAttribute("cy", format(points.get(points.size()-1).getY()));
+							}
+						
+						
 						w.writeEndElement(); // g
 						}
-					w.writeEndElement();
+					
+					w.writeEndElement();//g
+					w.writeEndElement();//defs
+					
+					
+					
+					w.writeStartElement("g");
+					w.writeAttribute("id", "bed_records");
+					
+					
+					w.writeEmptyElement("rect");
+					w.writeAttribute("class", "bckg");
+					w.writeAttribute("x", String.valueOf(0));
+					w.writeAttribute("y", String.valueOf(0));
+					w.writeAttribute("width", String.valueOf(this.imageWidth));
+					w.writeAttribute("height", String.valueOf(this.imageWidth));
+					
+					w.writeEmptyElement("use");
+					w.writeAttribute("x","0");
+					w.writeAttribute("y","0");
+					w.writeAttribute("href","#genome");
 					
 					
 					while((line=br.readLine())!=null) {
@@ -293,15 +355,10 @@ public class BedToHilbert extends Launcher {
 						
 						
 						if(points.isEmpty()) continue;
-						GeneralPath gp = new GeneralPath();
-						gp.moveTo(points.get(0).getX(), points.get(0).getY());
-						for(int i=0;i< points.size();i++) {
-							gp.lineTo(points.get(0).getX(), points.get(0).getY());
-							}
-						gp.closePath();
 						
 						
 						
+						w.writeStartElement("g");
 						
 						String href = row.getOrDefault("href", hyperlink.apply(new SimpleInterval(ctg,chromStart0+1,chromEnd)).orElse(""));
 						String title = row.getOrDefault("title", ctg+":"+StringUtils.niceInt(chromStart0+1)+"-"+StringUtils.niceInt(chromEnd)+" len:"+StringUtils.niceInt(chromEnd-chromStart0));
@@ -330,10 +387,30 @@ public class BedToHilbert extends Launcher {
 						
 						w.writeEndElement(); // path
 						
+						final String label = row.getOrDefault("label","");
+						if(!StringUtils.isBlank(label)) {
+							double wd = Math.min(toShape(points).getWidth()*0.8,label.length()*7)/label.length();
+							Point2D.Double center = toCenter(points);
+							w.writeStartElement("text");
+							w.writeAttribute("style","stroke:none;text-anchor;middle;font-size:"+ wd);
+							w.writeAttribute("x", format(center.getX()));
+							w.writeAttribute("y", format(center.getY()));
+							w.writeCharacters(label);
+							w.writeEndElement();
+							}
+						
 						if(!StringUtils.isBlank(href)) {
 							w.writeEndElement();// anchor
 							}
+						w.writeEndElement();// g
 						}
+					/*
+					w.writeEmptyElement("use");
+					w.writeAttribute("x","0");
+					w.writeAttribute("y","0");
+					w.writeAttribute("href","#genome");
+					*/
+					w.writeEndElement();//g
 					w.writeEndElement();
 					if(!omit_xml_decl) w.writeEndDocument();
 					w.flush();
