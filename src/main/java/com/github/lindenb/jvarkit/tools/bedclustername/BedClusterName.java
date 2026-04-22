@@ -323,7 +323,7 @@ public class BedClusterName
 				manifest.print(chromStart);
 				manifest.print("\t");
 				manifest.print(chromEnd);
-				prefix= all_beds.get(0).getContig()+"_"+(chromStart+1)+"_"+chromEnd;
+				prefix=  IOUtils.escapePath( all_beds.get(0).getContig())+"_"+(chromStart+1)+"_"+chromEnd;
 				}
 			else if(cluster.intervals.size()==1) {
 				prefix="cluster."+cluster.intervals.get(0).name.replaceAll("[^A-Z_a-z0-9]","_");

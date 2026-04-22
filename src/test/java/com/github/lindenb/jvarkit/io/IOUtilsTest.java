@@ -138,4 +138,11 @@ public void testURL() throws Exception {
 	Assert.assertEquals(IOUtils.toURL(str),new URI(str).toURL());
 	}
 
+@Test
+public void testEscapePath() {
+	Assert.assertFalse(IOUtils.escapePath("H:H").contains(":"));
+	Assert.assertFalse(IOUtils.escapePath("H/H").contains("/"));
+	Assert.assertTrue(IOUtils.escapePath("ABC-D_E.").contains("ABC-D_E."));
+	}
+
 }

@@ -49,7 +49,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /**
@@ -197,13 +196,12 @@ public class SamExtractClip extends Launcher
 	private void run(final SamReader r,final FastqWriter out)
 		{
 		int startend[]=new int[2];
-		final SAMFileHeader header=r.getFileHeader();
+		r.getFileHeader();//no used
 		//w=swf.make(header, System.out);
-		final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		try(final SAMRecordIterator it= r.iterator()) {
 			while(it.hasNext())
 				{
-				final SAMRecord rec=progress.apply(it.next());
+				final SAMRecord rec= it.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				if(this.samRecordFilter.filterOut(rec)) continue;
 				
@@ -312,7 +310,6 @@ public class SamExtractClip extends Launcher
 					}
 				}
 			}
-		progress.close();
 		}
 	
 	public static void main(final String[] args)

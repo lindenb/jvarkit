@@ -671,8 +671,10 @@ public class VcfStats extends Launcher {
 		@Override
 		public void init(final VCFHeader h,Map<String,String> props,SampleToGroup s2g) {
 			super.init(h, props, s2g);
-			VCFFormatHeaderLine hdr= h.getFormatHeaderLine(DN);
-			this.enabled = hdr!=null && hdr.getType().equals(VCFHeaderLineType.String);
+			final VCFFormatHeaderLine hdr= h.getFormatHeaderLine(DN);
+			if(hdr==null || !hdr.getType().equals(VCFHeaderLineType.String) || !hdr.getDescription().contains("DeNovo")) {
+				this.enabled = false;
+				}
 			}
 		
 		@Override
@@ -686,7 +688,7 @@ public class VcfStats extends Launcher {
 				final Object v = g.getExtendedAttribute(DN,"");
 				if(v==null) continue;
 				final String s= v.toString();
-				if(StringUtils.isBlank(s) || !s.equals("DeNovo")) continue;
+				if(StringUtils.isBlank(s)) continue;
 				Counter<String> c= this.sample2count.get(g.getSampleName());
 				if(c==null) {
 					c = new Counter<>();

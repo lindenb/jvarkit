@@ -1083,7 +1083,7 @@ public class BamToSVG extends Launcher {
 			LOG.info("Feature height:"+context.featureHeight);
 			
 			final String buildName= SequenceDictionaryUtils.getBuildName(this.referenceDict).orElse("");
-			final String filename= this.prefix+buildName+(buildName.isEmpty()?"":".")+this.interval.getContig()+"_"+this.interval.getStart()+"_"+this.interval.getEnd()+"."+context.sampleName+".svg";
+			final String filename= this.prefix+buildName+(buildName.isEmpty()?"":".")+ IOUtils.escapePath( this.interval.getContig())+"_"+this.interval.getStart()+"_"+this.interval.getEnd()+"."+context.sampleName+".svg";
 			
 
 			LOG.info("writing "+ filename);

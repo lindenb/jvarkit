@@ -40,6 +40,7 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.ArchiveFactory;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StaticCodeExtractor;
@@ -210,7 +211,7 @@ public class ReferenceToHtml extends Launcher {
 							
 							
 							
-							final String filename = this.prefix + loc.getContig()+"_"+loc.getStart()+"_"+loc.getEnd()+".html";
+							final String filename = this.prefix + IOUtils.escapePath( loc.getContig())+"_"+loc.getStart()+"_"+loc.getEnd()+".html";
 
 							final String title= (buildName.isPresent()?buildName.get()+" ":"")+new SimpleInterval(loc).toNiceString();
 							OutputStream os = archive.openOuputStream(filename);

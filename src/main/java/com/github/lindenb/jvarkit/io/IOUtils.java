@@ -1142,4 +1142,8 @@ public class IOUtils {
 			throw new IllegalArgumentException("cannot convert to url", e);
 			}
     	}
+    /** escape special characters in a path */
+   public static String escapePath(final String filename) {
+	return filename.replaceAll("[^A-Za-z0-9\\._\\-]+", "_");
+   	}
 	}

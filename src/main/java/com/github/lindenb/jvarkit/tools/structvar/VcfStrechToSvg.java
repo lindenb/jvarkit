@@ -637,7 +637,7 @@ public class VcfStrechToSvg extends Launcher
 				}
 			//save
 			final Transformer tr = TransformerFactory.newInstance().newTransformer();
-			final String filename =    bed.getContig()+"_"+bed.getStart()+"_"+bed.getEnd()+ ".svg"+(this.compressed_svg?".gz":"");
+			final String filename =   IOUtils.escapePath( bed.getContig())+"_"+bed.getStart()+"_"+bed.getEnd()+ ".svg"+(this.compressed_svg?".gz":"");
 			LOG.info("writing "+filename);
 			if(this.compressed_svg) {
 				try(final OutputStream pw=archive.openOuputStream(filename)) {

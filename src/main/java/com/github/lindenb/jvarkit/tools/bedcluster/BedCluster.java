@@ -327,7 +327,7 @@ public class BedCluster
 				manifest.print(chromStart);
 				manifest.print("\t");
 				manifest.print(chromEnd);
-				prefix= this.user_prefix + cluster.get(0).getContig()+"_"+(chromStart+1)+"_"+chromEnd;
+				prefix= this.user_prefix + IOUtils.escapePath(cluster.get(0).getContig())+"_"+(chromStart+1)+"_"+chromEnd;
 				}
 			else
 				{
