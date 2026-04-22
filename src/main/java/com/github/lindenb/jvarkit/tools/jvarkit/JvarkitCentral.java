@@ -61,6 +61,7 @@ import com.github.lindenb.jvarkit.tools.basecoverage.CNVPaneOfNormal;
 import com.github.lindenb.jvarkit.tools.batchpicts.BatchIGVPictures;
 import com.github.lindenb.jvarkit.tools.bcftools.PlotBcftoolsStats;
 import com.github.lindenb.jvarkit.tools.bcftoolsmergebest.BCFToolsMergeBest;
+import com.github.lindenb.jvarkit.tools.bed2hilbert.BedToHilbert;
 import com.github.lindenb.jvarkit.tools.bed2vcf.BedToVcf;
 import com.github.lindenb.jvarkit.tools.bed2xml.BedToXml;
 import com.github.lindenb.jvarkit.tools.bedcluster.BedCluster;
@@ -703,6 +704,7 @@ public class JvarkitCentral {
 		command(BGenToVcf.class);
 		command(BGenView.class);
 		command(BedToXml.class);
+		command(BedToHilbert.class);
 		command(BioAlcidae.class);
 		command(BioAlcidaeJdk.class);
 		command(BigwigMerge.class);

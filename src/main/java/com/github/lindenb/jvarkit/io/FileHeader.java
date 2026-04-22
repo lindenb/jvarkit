@@ -186,7 +186,10 @@ public class FileHeader extends AbstractList<String> {
 	public FileHeader(final String headerLine,final Function<String,List<String>> lineSplitter) {
 		this(Objects.requireNonNull(lineSplitter,"undefined lineSplitter").apply(Objects.requireNonNull(headerLine,"File Header is null")),lineSplitter);
 		}
-	
+	public FileHeader(final List<String> cols,final CharSplitter charSplitter) {
+		this(cols,HDR->charSplitter.splitAsStringList(HDR));
+		}
+
 	private FileHeader(final List<String> cols,final Function<String,List<String>> lineSplitter) {
 		this.cols = Collections.unmodifiableList(cols);
 		this.lineSplitter = (lineSplitter==null?DEFAULT_SPLITTER:lineSplitter);

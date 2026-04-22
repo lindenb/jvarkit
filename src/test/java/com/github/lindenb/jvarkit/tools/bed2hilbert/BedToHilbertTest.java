@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.bed2xml;
+package com.github.lindenb.jvarkit.tools.bed2hilbert;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -10,8 +10,7 @@ import org.testng.annotations.Test;
 
 import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
-public class BedToXmlTest {
-
+public class BedToHilbertTest {
 
 	private Path createBed(final TestSupport support) throws IOException  {
 		final Path bed = support.createTmpPath(".bed");
@@ -23,25 +22,7 @@ public class BedToXmlTest {
 		return bed;
 		}
 
-	@Test
-	public void testNoRef() 
-		throws IOException
-		{
-		final TestSupport support = new TestSupport();
-		try {
-			final Path in = createBed(support);
-			final Path out = support.createTmpPath(".xml");
-			final BedToXml cmd =new BedToXml();
-			Assert.assertEquals(0,cmd.instanceMain(new String[] {
-				"-o",out.toString(),
-				in.toString()
-				}));
-			support.assertIsXml(out);
-			}
-		finally {
-			support.removeTmpFiles();
-			}
-		}
+	
 	@Test
 	public void testWithRef()
 		throws IOException
@@ -50,10 +31,9 @@ public class BedToXmlTest {
 		try {
 			final Path in = createBed(support);
 			final Path out = support.createTmpPath(".xml");
-			final BedToXml cmd =new BedToXml();
+			final BedToHilbert cmd =new BedToHilbert();
 			Assert.assertEquals(0,cmd.instanceMain(new String[] {
 				"-R",support.resource("rotavirus_rf.dict"),
-				"-d","100",
 				"-o",out.toString(),
 				in.toString()
 				}));
