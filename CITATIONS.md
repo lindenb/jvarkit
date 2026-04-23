@@ -6,6 +6,7 @@
  * In vivo lineage tracing across human tissues using methylation barcodes in the protocadherin gene cluster. Samuel F. Hackett, Christopher T. Boniface, Adriana V.A. Fonseca, Akemi D. Ramos-Yamasaki, Caroline Watson, Hannah M. L. Bazin, Amanda Tan, Henson Lee Yu, Lars L. P. Hanssen, Harveer Dev, Sophia Apostolidou, Aleksandra Gentry-Maharaj, Sadik Esener, Usha Menon, Jamie Blundell bioRxiv 2026.02.23.707349; doi: https://doi.org/10.64898/2026.02.23.707349 **Biostar322664**
  * Gao, J., Ginja, C., Liu, Y. et al. Distinct adaptation and ancestral retention signals in African and European indigenous cattle genomes. Commun Biol (2026). https://doi.org/10.1038/s42003-026-09856-9
  * Bjornson S, Bringloe T, Uthanumallian K .Stepwise evolutionary transitions in Cladophorales plastid genomes reveal origins of hairpin chromosomes. Current Biology, 2026; **biostar154220**
+ * Ølnes ÅS, Teigen M, Strøm TB, Arnesen EK, Rimbert A, Eggen AE, et al. (2026) Genetic testing in individuals with extreme HDL-C levels: Diagnostic yield and clinical implications from the Tromsø Study. PLoS One 21(4): e0344627. https://doi.org/10.1371/journal.pone.0344627 **vcffilterjdk**
 
 ## 2025
 
