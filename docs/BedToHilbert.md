@@ -40,7 +40,7 @@ Usage: bed2hilbert [options] Files
     -r, --recursion
       Hilbert Curve level of recursion
       Default: 6
-  * -R, --reference
+  * -R, --reference, --dict
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
       any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
@@ -108,4 +108,5 @@ Creates a Hilbert SVG Graph  for a BED file.
 ```
  java -jar dist/jvarkit.jar bed2hilbert  -R src/test/resources/rotavirus_rf.dict input.bed > out.svg
 ```
+
 

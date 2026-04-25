@@ -73,7 +73,7 @@ END_DOC
 	description="Peek annotations from gnomad structural variants",
 	keywords={"vcf","annotation","gnomad","sv"},
 	creationDate="20190814",
-	modificationDate="20260109",
+	modificationDate="20260424",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 )
@@ -91,12 +91,13 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 	private String discordant_svtype_filter = "";
 	@Parameter(names={"--any-overlap-filter"},description="If not empty, set this FILTER if any variant in gnomad is found overlaping the variant BUT we didn't find a correct match")
 	private String any_overlap_filter = "";
-
+	@Parameter(names={"--ignore-filtered"},description="Skip FILTERed variants in gnomad.")
+	private boolean ignore_gnomad_filtered_variant = false;
 	@Parameter(names={"--min-af"},description="min allele frequency in watched population. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double min_allele_frequency = 0.0;
 	@Parameter(names={"--max-af"},description="max allele frequency in watched population. "+ FractionConverter.OPT_DESC,converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double max_allele_frequency = 1.0;
-	@Parameter(names={"--population"},description="Watch gnomad population for AF")
+	@Parameter(names={"--population"},description="Watch gnomad population for AF. The default is 'POPMAX_AF' . if POP_MAX is not found in the VCF header then 'GRPMAX_AF' is used.")
 	private String population = "POPMAX_AF";
 	@Parameter(names={"--filter"},description="set this FILTER is the allele frequency found in the population is not min-af<=x<=max-af. Discard variant if it is blank.")
 	private String filterAFStr = "BAD_AF";
@@ -131,9 +132,24 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 		{
 		try(VCFReader gnomadVcfReader = VCFReaderFactory.makeDefault().open(this.gnomadVcfSvPath,true)) {
 			final VCFHeader gnomadHeader = gnomadVcfReader.getHeader();
-			if(gnomadHeader.getInfoHeaderLine(this.population)==null) {
+			VCFInfoHeaderLine popmaxVcfHeader;
+			if((popmaxVcfHeader=gnomadHeader.getInfoHeaderLine(this.population))==null) {
 				LOG.warn("Cannot find INFO/"+this.population+" in gnomad vcf file "+this.gnomadVcfSvPath);
-				return -1;
+				if(this.population.equals("POPMAX_AF")) {
+					popmaxVcfHeader=gnomadHeader.getInfoHeaderLine("GRPMAX_AF");
+					if(popmaxVcfHeader!=null) {
+						LOG.warn("But INFO/GRPMAX_AF was found. Using this as a replacement.");
+						this.population = "GRPMAX_AF";
+						}
+					else
+						{
+						return -1;
+						}
+					}
+				else
+					{
+					return -1;
+					}
 				}
 			
 			
@@ -214,6 +230,10 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 					while(iter2.hasNext()) {
 						final VariantContext ctx2 = iter2.next();
 						
+						if(this.ignore_gnomad_filtered_variant && ctx2.isFiltered()) {
+							continue;
+							}
+						
 						if(this.svComparator.testSimpleOverlap(ctx, ctx2)) {
 							found_any_overlap = true;
 							}
@@ -271,8 +291,6 @@ public class VcfGnomadSV extends OnePassVcfLauncher {
 					out.add(ctx);
 					continue;
 					}
-				
-				
 				
 				for(final String key: cgtx.getAttributes().keySet()) {
 					vcb.attribute(this.prefix+key,cgtx.getAttribute(key));

@@ -25,9 +25,10 @@ Usage: biostar214299 [options] Files
       What kind of help. One of [usage,markdown,xml].
     -o, --out
       Output file. Optional . Default: stdout
-  * -p, --positions
-      Position file. A Tab delimited file containing the following 4 column: 
-      (1)chrom (2)position (3) allele A/T/G/C (4) sample name.
+    -p, --positions
+      Position file. Or use --vcf . A Tab delimited file containing the 
+      following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample 
+      name. 
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
@@ -44,8 +45,20 @@ Usage: biostar214299 [options] Files
       SAM Reader Validation Stringency
       Default: LENIENT
       Possible Values: [STRICT, LENIENT, SILENT]
+    -V, --vcf
+      VCF file. Or use --positions . A VCF file with genotypes. Warning: Only 
+      ALT alleles for SINGLETONS are detected.
     --version
       print version and exit
+    -a
+      skip ambigous reads (with multiple samples)
+      Default: false
+    -n
+      skip unaffected reads (with no samples)
+      Default: false
+    -u
+      skip unmapped reads
+      Default: false
 
 ```
 
@@ -124,7 +137,7 @@ rotavirus       267     G       SAMPLE2
 processing :
 
 ```
-$ java -jar dist/biostar214299.jar -p positions.tsv input.bam
+$ java -jar dist/jvarkit.jar biostar214299 -p positions.tsv input.bam
 
 @HD     VN:1.5  SO:coordinate
 @SQ     SN:rotavirus    LN:1074
@@ -142,6 +155,13 @@ rotavirus_237_699_3:0:0_8:0:0_22f       163     rotavirus       237     60      
 rotavirus_311_846_10:0:0_11:0:0_3d7     141     *       0       0       *       *       0       0       AACTTAGATGAAGACGATCAAAACCTTAGAATGACTTTATGTTCTAAATGGCTCGACCCAAAGATGAGAG  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 rotavirus_85_600_7:0:0_9:0:0_3e0        77      *       0       0       *       *       0       0       AGCTGCAGTTGTTTCTGCTCCTTCAACATTAGAATTACTGGGTATTGAATATGATTCCAATGAAGTCTAT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       *       0       0       TATTTCTCCTTAAGCCTGTGTTTTATTGCATCAAATCTTTTTTCAAACTGCTCATAACGAGATTTCCACT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
+```
+
+
+```
+$ java -jar dist/jvarkit.jar biostar214299 -R src/test/resources/rotavirus_rf.fa -V src/test/resources/rotavirus_rf.vcf.gz src/test/resources/S2.bam -u -n 2> /dev/null | grep -v "^@" 
+RF02_817_1370_1:0:0_1:0:0_8f    99      RF02    817     60      70M     =       1301    554     TGATATAATATTCAATTACATTCCTGAAAGGATAAGGAATGACGTTAACTATATACTTAAAATGGACAGA       2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S1 NM:i:1  AS:i:65 XS:i:0
+RF04_700_1259_0:0:0_3:0:0_33    147     RF04    1190    60      70M     =       700     -560    ATCCAGTTATCACTGGGGGTGCTGTGTCATTGCATGCAGCAGGTGTAACTTGATCAACGCAGTTTACAGA       2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S4 NM:i:3  AS:i:55 XS:i:0
 ```
 
 ## Cited In

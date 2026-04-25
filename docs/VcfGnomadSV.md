@@ -60,6 +60,9 @@ Usage: vcfgnomadsv [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore-filtered
+      Skip FILTERed variants in gnomad.
+      Default: false
     --in-gnomad-filter
       If not empty, set this FILTER is variant was found in gnomad
       Default: <empty string>
@@ -78,7 +81,8 @@ Usage: vcfgnomadsv [options] Files
     -o, --out
       Output file. Optional . Default: stdout
     --population
-      Watch gnomad population for AF
+      Watch gnomad population for AF. The default is 'POPMAX_AF' . if POP_MAX 
+      is not found in the VCF header then 'GRPMAX_AF' is used.
       Default: POPMAX_AF
     -p, --prefix
       INFO field prefix

@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.OnePassBamLauncher;
@@ -43,6 +44,7 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
@@ -55,6 +57,11 @@ import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
+import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFIterator;
+import htsjdk.variant.vcf.VCFIteratorBuilder;
 /**
 BEGIN_DOC
 
@@ -83,7 +90,7 @@ rotavirus       267     G       SAMPLE2
 processing :
 
 ```
-$ java -jar dist/biostar214299.jar -p positions.tsv input.bam
+$ java -jar dist/jvarkit.jar biostar214299 -p positions.tsv input.bam
 
 @HD     VN:1.5  SO:coordinate
 @SQ     SN:rotavirus    LN:1074
@@ -101,6 +108,13 @@ rotavirus_237_699_3:0:0_8:0:0_22f       163     rotavirus       237     60      
 rotavirus_311_846_10:0:0_11:0:0_3d7     141     *       0       0       *       *       0       0       AACTTAGATGAAGACGATCAAAACCTTAGAATGACTTTATGTTCTAAATGGCTCGACCCAAAGATGAGAG  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 rotavirus_85_600_7:0:0_9:0:0_3e0        77      *       0       0       *       *       0       0       AGCTGCAGTTGTTTCTGCTCCTTCAACATTAGAATTACTGGGTATTGAATATGATTCCAATGAAGTCTAT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
 rotavirus_85_600_7:0:0_9:0:0_3e0        141     *       0       0       *       *       0       0       TATTTCTCCTTAAGCCTGTGTTTTATTGCATCAAATCTTTTTTCAAACTGCTCATAACGAGATTTCCACT  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++      RG:Z:UNMAPPED   AS:i:0  XS:i:0
+```
+
+
+```
+$ java -jar dist/jvarkit.jar biostar214299 -R src/test/resources/rotavirus_rf.fa -V src/test/resources/rotavirus_rf.vcf.gz src/test/resources/S2.bam -u -n 2> /dev/null | grep -v "^@" 
+RF02_817_1370_1:0:0_1:0:0_8f    99      RF02    817     60      70M     =       1301    554     TGATATAATATTCAATTACATTCCTGAAAGGATAAGGAATGACGTTAACTATATACTTAAAATGGACAGA       2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S1 NM:i:1  AS:i:65 XS:i:0
+RF04_700_1259_0:0:0_3:0:0_33    147     RF04    1190    60      70M     =       700     -560    ATCCAGTTATCACTGGGGGTGCTGTGTCATTGCATGCAGCAGGTGTAACTTGATCAACGCAGTTTACAGA       2222222222222222222222222222222222222222222222222222222222222222222222  RG:Z:S4 NM:i:3  AS:i:55 XS:i:0
 ```
 
 ## Cited In
@@ -121,16 +135,25 @@ END_DOC
 	biostars=214299,
 	keywords={"sam","bam","variant","snp"},
 	creationDate="20160930",
-	modificationDate="20220420",
+	modificationDate="20260423",
 	jvarkit_amalgamion =  true,
 	menu="Biostars"
 	)
 public class Biostar214299 extends OnePassBamLauncher {
 	private static final Logger LOG = Logger.of(Biostar214299.class);
 
-	@Parameter(names={"-p","--positions"},description="Position file. A Tab delimited file containing the following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample name.",required=true)
+	@Parameter(names={"-p","--positions"},description="Position file. Or use --vcf . A Tab delimited file containing the following 4 column: (1)chrom (2)position (3) allele A/T/G/C (4) sample name.")
 	private Path positionFile = null;
-	
+	@Parameter(names={"-V","--vcf"},description="VCF file. Or use --positions . A VCF file with genotypes. Warning: Only ALT alleles for SINGLETONS are detected.")
+	private Path vcfFile = null;
+	@Parameter(names={"-u"},description="skip unmapped reads")
+	private boolean skip_unmapped_flag=false;
+	@Parameter(names={"-a"},description="skip ambigous reads (with multiple samples)")
+	private boolean skip_ambigous_flag=false;
+	@Parameter(names={"-n"},description="skip unaffected reads (with no samples)")
+	private boolean skip_unaffected_flag=false;
+
+
 	private static class Position
 		{
 		//String contig;
@@ -148,8 +171,12 @@ public class Biostar214299 extends OnePassBamLauncher {
 		}
 	@Override
 	protected int beforeSam() {
-		if(this.positionFile==null) {
-			LOG.error("position File is not defined.");
+		if(this.positionFile==null && this.vcfFile==null) {
+			LOG.error("VCF or position File are not defined.");
+			return -1;
+			}
+		if(this.positionFile!=null && this.vcfFile!=null) {
+			LOG.error("VCF or position File are both defined.");
 			return -1;
 			}
 		
@@ -167,58 +194,123 @@ public class Biostar214299 extends OnePassBamLauncher {
 			{
 			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(header);
 			
-			try ( BufferedReader br = IOUtils.openPathForBufferedReading(this.positionFile)) {
-				String line;
-				final CharSplitter tab = CharSplitter.TAB;
-				while((line=br.readLine())!=null) {
-					if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
-					final String tokens[]=tab.split(line);
-					if(tokens.length<4) {
-						LOG.error("Not enough columns in "+line);
+			if(this.positionFile!=null) {
+				try ( BufferedReader br = IOUtils.openPathForBufferedReading(this.positionFile)) {
+					String line;
+					final CharSplitter tab = CharSplitter.TAB;
+					while((line=br.readLine())!=null) {
+						if(StringUtils.isBlank(line) || line.startsWith("#")) continue;
+						final String tokens[]=tab.split(line);
+						if(tokens.length<4) {
+							LOG.error("Not enough columns in "+line);
+							return -1;
+							}
+						final String contig = tokens[0];
+						if(dict.getSequence(contig)==null) 
+							{
+							LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(contig, dict));
+							return -1;
+							}
+						final int refpos = Integer.parseInt(tokens[1]);
+						final Interval interval = new Interval(contig, refpos, refpos);
+						Position position = positionsTreeMap.get(interval);
+						if(position==null) {
+							position = new Position();
+							//position.contig = contig;
+							position.refpos = refpos;
+							 positionsTreeMap.put(interval, position);
+						}
+						
+						final String bases = tokens[2].toUpperCase();
+						if(bases.length()!=1 || !AcidNucleics.isATGC(bases))
+							{
+							LOG.error("in "+line+" bases should be one letter and ATGC");
+							return -1;
+							}
+						if(position.base2sample.containsKey(bases.charAt(0))) {
+							LOG.error("in "+line+" bases already defined for this position");
+							return -1;
+						}
+						
+						final String sampleName = tokens[3].trim();
+						if(sampleName.isEmpty())
+							{
+							LOG.error("sample name cannot be empty");
+							return -1;
+							}
+						samples.add(sampleName);
+						position.base2sample.put(bases.charAt(0), sampleName);
+						
+						}
+					} catch (final IOException err) {
+						LOG.error(err);
+						return -1;
+					}//end try with resources
+				} //end if position!=null
+			else if(this.vcfFile!=null)
+				{
+				try(VCFIterator it= new VCFIteratorBuilder().open(this.vcfFile)) {
+					if(!it.getHeader().hasGenotypingData()) {
+						LOG.error("no genotyping data in "+this.vcfFile);
 						return -1;
 						}
-					final String contig = tokens[0];
-					if(dict.getSequence(contig)==null) 
-						{
-						LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(contig, dict));
-						return -1;
+					while(it.hasNext()) {
+						final VariantContext ctx = it.next();
+						if(dict.getSequence(ctx.getContig())==null) {
+							LOG.warn("skipping variant in contig "+ctx.getContig()+" because it's not in dict");
+							continue;
+							}
+						if(!(AcidNucleics.isATGC(ctx.getReference()) && ctx.getReference().length()==1)) {
+							LOG.warn("skipping variant  "+ctx.getContig()+":"+ctx.getStart()+" because REF is not ATGC, size=1");
+							continue;
+							}
+						if(ctx.getNAlleles()!=2) {
+							LOG.warn("skipping variant  "+ctx.getContig()+":"+ctx.getStart()+" because number of alleles != 2");
+							continue;
+							}
+						final Allele the_alt = ctx.getAlleles().get(1);
+						if(!(AcidNucleics.isATGC(the_alt) && the_alt.length()==1)) {
+							LOG.warn("skipping variant  "+ctx.getContig()+":"+ctx.getStart()+" because ALT ("+the_alt+") is not ATGC, size=1");
+							continue;
+							}
+						
+						final Interval interval = new Interval(ctx.getContig(), ctx.getStart(), ctx.getStart());
+						Position position = positionsTreeMap.get(interval);
+						if(position==null) {
+							position = new Position();
+							//position.contig = contig;
+							position.refpos =  ctx.getStart();
+							positionsTreeMap.put(interval, position);
+							}
+						Genotype singleton=null;
+						for(Genotype g : ctx.getGenotypes()) {
+							if(g.getAlleles().contains(the_alt)) {
+								if(singleton!=null) {//not a singleton after all
+									singleton=null;
+									break;
+									}
+								else
+									{
+									singleton = g;
+									}
+								}
+							}
+						if(singleton==null) {
+							LOG.warn("skipping variant  "+ctx.getContig()+":"+ctx.getStart()+":"+the_alt+" because there is no singleton");
+							continue;
+							}
+						else {
+							position.base2sample.put(the_alt.getBaseString().toUpperCase().charAt(0), singleton.getSampleName());
+							samples.add(singleton.getSampleName());
+							}
 						}
-					final int refpos = Integer.parseInt(tokens[1]);
-					final Interval interval = new Interval(contig, refpos, refpos);
-					Position position = positionsTreeMap.get(interval);
-					if(position==null) {
-						position = new Position();
-						//position.contig = contig;
-						position.refpos = refpos;
-						 positionsTreeMap.put(interval, position);
 					}
-					
-					final String bases = tokens[2].toUpperCase();
-					if(bases.length()!=1 || !bases.matches("[ATGC]"))
-						{
-						LOG.error("in "+line+" bases should be one letter and ATGC");
-						return -1;
-						}
-					if(position.base2sample.containsKey(bases.charAt(0))) {
-						LOG.error("in "+line+" bases already defined for this position");
-						return -1;
-					}
-					
-					final String sampleName = tokens[3].trim();
-					if(sampleName.isEmpty())
-						{
-						LOG.error("sample name cannot be empty");
-						return -1;
-						}
-					samples.add(sampleName);
-					position.base2sample.put(bases.charAt(0), sampleName);
-					
-					}
-			} catch (final IOException err) {
-				LOG.error(err);
-				return -1;
-			}
-			
+				}
+			else
+				{
+				throw new IllegalArgumentException();
+				}
+
 			if(samples.contains(UNAFFECTED_SAMPLE)) 
 				{
 				LOG.error("Sample cannot be named "+UNAFFECTED_SAMPLE);
@@ -245,13 +337,14 @@ public class Biostar214299 extends OnePassBamLauncher {
 			final SAMFileHeader newHeader = new SAMFileHeader();
 			newHeader.setSortOrder(header.getSortOrder());
 			newHeader.setSequenceDictionary(dict);
+			JVarkitVersion.getInstance().addMetaData(this, newHeader);
 			/* create groups */
 			for(final String sample: samples) {
 				final SAMReadGroupRecord rg = new SAMReadGroupRecord(sample);
 				rg.setSample(sample);
 				rg.setLibrary(sample);
 				newHeader.addReadGroup(rg);
-			}
+				}
 			
 			
 			try(SAMFileWriter sfw = super.openSamFileWriter(newHeader)) {
@@ -261,6 +354,7 @@ public class Biostar214299 extends OnePassBamLauncher {
 					final SAMRecord rec = iter.next();
 					rec.setAttribute("RG",null);
 					if(rec.getReadUnmappedFlag()) {
+						if(this.skip_unmapped_flag) continue;
 						rec.setAttribute("RG",UNMAPPED);
 						sfw.addAlignment(rec);
 						continue;
@@ -269,10 +363,11 @@ public class Biostar214299 extends OnePassBamLauncher {
 					final Cigar cigar = rec.getCigar();
 					final Collection<Position> snps =  positionsTreeMap.getContained(new Interval(rec.getContig(),rec.getUnclippedStart(),rec.getUnclippedEnd()));
 					if(snps== null || snps.isEmpty()) {
+						if(this.skip_unaffected_flag) continue;
 						rec.setAttribute("RG",UNAFFECTED_SAMPLE);
 						sfw.addAlignment(rec);
 						continue;
-					}
+						}
 					final Map<Integer,Position> index2pos= snps.stream().
 							collect(Collectors.toMap(P->P.refpos,P->P));
 					final Set<String> selectedSamples = new HashSet<>();
@@ -319,12 +414,14 @@ public class Biostar214299 extends OnePassBamLauncher {
 							}
 						}
 					if(selectedSamples.isEmpty())  {
+						if(this.skip_unaffected_flag) continue;
 						rec.setAttribute("RG",UNAFFECTED_SAMPLE);
 						}
 					else if(selectedSamples.size()==1) {
 						rec.setAttribute("RG",selectedSamples.iterator().next());
 						}
 					else {
+						if(this.skip_ambigous_flag) continue;
 						rec.setAttribute("RG",AMBIGOUS_SAMPLE);
 						}
 					
@@ -336,8 +433,6 @@ public class Biostar214299 extends OnePassBamLauncher {
 		catch(final Throwable err) {
 			LOG.error(err);
 			return -1;
-			}
-		finally {
 			}
 		}
 

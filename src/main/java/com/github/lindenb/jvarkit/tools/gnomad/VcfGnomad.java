@@ -102,9 +102,8 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	private String infoFieldStr="AF_popmax,AF_nfe";
 	@Parameter(names={"--noUpdateId"},description="do Not Update ID if it is missing in user's variant")
 	private boolean doNotUpdateId=false;
-	@Parameter(names={"--prefix"},description="If not empty, include the Gnomad FILTERs using this prefix.")
+	@Parameter(names={"--prefix"},description="If not empty, include the Gnomad FILTERs using this prefix. If empty: discard the variant if the gnomad variant is filtered or if the frequency if not between min-af and max-af")
 	private String filteredInGnomadFilterPrefix="GNOMAD";
-	
 	@Parameter(names={"--min-af"},description="Min allele frequency",converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double min_af = 0.0;
 	@Parameter(names={"--max-af"},description="Max allele frequency",converter=FractionConverter.class,splitter=NoSplitter.class)

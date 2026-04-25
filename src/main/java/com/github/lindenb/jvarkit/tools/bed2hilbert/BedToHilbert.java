@@ -63,6 +63,7 @@ import com.github.lindenb.jvarkit.util.swing.ColorUtils;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
+import htsjdk.samtools.util.CoordMath;
 
 /**
 BEGIN_DOC
@@ -85,7 +86,7 @@ END_DOC
 		description="BED to hilbert curve as SVG.",
 		keywords={"bed","xml","svg","hilbert"},
 		creationDate = "20260417",
-		modificationDate = "20260417",
+		modificationDate = "20260423",
 		jvarkit_amalgamion = true
 		)
 public class BedToHilbert extends Launcher {
@@ -100,7 +101,7 @@ public class BedToHilbert extends Launcher {
 	private String column_names_str="";
 	@Parameter(names={"--min-contig-length"},description="keep chromosomes which length is greater than 'x'")
 	private int min_contig_length=0;
-	@Parameter(names={"-R","--reference"},description=DICTIONARY_SOURCE,required = true)
+	@Parameter(names={"-R","--reference","--dict"},description=DICTIONARY_SOURCE,required = true)
 	private Path faidPath=null;
     /** with/height of the final picture */
     @Parameter(names={"-w","--width"},description="Image width")
@@ -349,8 +350,25 @@ public class BedToHilbert extends Launcher {
 						if(chromEnd<chromStart0) throw new IllegalArgumentException("end < start in "+row);
 						if(chromStart0== chromEnd) continue;
 
-						long index = toIndex(dict, ctg, chromStart0); 
-						final List<Point2D.Double> points = hilbertCurve.getPoints( index, index+(chromEnd-chromStart0));
+						final double circle_radius;
+						if(!StringUtils.isBlank( row.getOrDefault("radius","" ))) {
+							circle_radius = Double.parseDouble(row.get("radius"));
+							if(circle_radius <=0) continue;
+							}
+						else
+							{
+							circle_radius = -1;
+							}
+						
+						
+						final long index = toIndex(dict, ctg, 
+								circle_radius<0 ?
+										chromStart0 :
+										chromStart0+(chromEnd-chromStart0)/2
+										); 
+						
+						
+						final List<Point2D.Double> points = hilbertCurve.getPoints( index, index+(circle_radius<0?chromEnd-chromStart0:1));
 						
 						
 						
@@ -368,16 +386,23 @@ public class BedToHilbert extends Launcher {
 							w.writeAttribute("target", "_blank");
 							}
 						
-						w.writeStartElement("polyline"); //path
+						w.writeStartElement(circle_radius<0? "polyline":"circle"); //polyline
 						
 						w.writeAttribute("class", row.getOrDefault("class","rec" ));
 							
 						if(!StringUtils.isBlank( row.getOrDefault("style","" ))) {
 							w.writeAttribute("style", row.getOrDefault("style","" ));
 							}
-						
-						w.writeAttribute("points", toString(points));
-						
+						if(circle_radius<0)
+							{
+							w.writeAttribute("points", toString(points));
+							}
+						else
+							{
+							w.writeAttribute("r", format(circle_radius));
+							w.writeAttribute("cx", format(points.get(0).getX()));
+							w.writeAttribute("cy", format(points.get(0).getY()));
+							}
 						if(!StringUtils.isBlank(title)) {
 							w.writeStartElement("title");
 							w.writeCharacters(title);
@@ -385,7 +410,7 @@ public class BedToHilbert extends Launcher {
 							}
 
 						
-						w.writeEndElement(); // path
+						w.writeEndElement(); // polyline/circle
 						
 						final String label = row.getOrDefault("label","");
 						if(!StringUtils.isBlank(label)) {

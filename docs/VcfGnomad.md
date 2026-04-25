@@ -58,7 +58,9 @@ Usage: vcfgnomad [options] Files
     -o, --out
       Output file. Optional . Default: stdout
     --prefix
-      If not empty, include the Gnomad FILTERs using this prefix.
+      If not empty, include the Gnomad FILTERs using this prefix. If empty: 
+      discard the variant if the gnomad variant is filtered or if the 
+      frequency if not between min-af and max-af
       Default: GNOMAD
     --version
       print version and exit
