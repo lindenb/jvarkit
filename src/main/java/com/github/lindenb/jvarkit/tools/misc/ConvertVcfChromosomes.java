@@ -182,7 +182,7 @@ END_DOC
 @Program(name="vcfrenamechr",
 	description="Convert the names of the chromosomes in a VCF file",
 	keywords={"vcf","contig","chromosome","convert"},
-	deprecatedMsg="use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ?)",
+	deprecatedMsg="use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ? or use vcfsetdict)",
 	modificationDate="20190411",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"

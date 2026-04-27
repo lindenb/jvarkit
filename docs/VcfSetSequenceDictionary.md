@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Set the `##contig` lines in a VCF header on the fly
+Set the `##contig` lines in a VCF header on the fly, fix also 
 
 
 ## Usage
@@ -37,9 +37,10 @@ Usage: vcfsetdict [options] Files
       Possible Values: [RAISE_EXCEPTION, SKIP, RETURN_ORIGINAL]
     -o, --out
       Output file. Optional . Default: stdout
-  * -r, -R, --reference
-      Indexed fasta Reference file. This file must be indexed with samtools 
-      faidx and with picard/gatk CreateSequenceDictionary or samtools dict
+  * -r, -R, --reference, --dict
+      A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
+      indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
+      any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
     --version
       print version and exit
 
@@ -89,16 +90,13 @@ The current reference is:
 
 
 The tool will try to convert the contig names ('1' -> 'chr1') according to the new dictionary.
+It also fixes the contig names in the BND ALT alleles
 
 ## Example
 
 ```
-java  -jar jvarkit-git/vcfsetdict.jar --onNotFound SKIP -r ref.fasta input.vcf > out.vcf
+java  -jar jvarkit-git/jvarkit.jar vcfsetdict --onNotFound SKIP -r ref.fasta input.vcf > out.vcf
 ```
-
-## History
-
-* [20170906] remove the creation of a dictionary, moved to VcfCreateDictionary
 
 
 

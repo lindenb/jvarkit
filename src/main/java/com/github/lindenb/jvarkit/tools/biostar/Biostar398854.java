@@ -82,7 +82,9 @@ public class Biostar398854 extends Launcher {
 	private Path gtfIn = null;
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path faidx = null;
-	
+	@Parameter(names={"--debug"},description="debug",hidden = true)
+	private boolean do_debug=false;
+
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -96,18 +98,31 @@ public class Biostar398854 extends Launcher {
 		
 						
 						try(GtfReader gtfReader= new GtfReader(this.gtfIn)) {
+							if(do_debug) {
+								LOG.debug("reading GTF");
+								gtfReader.getAllGenes().stream().flatMap(G->G.getTranscripts().stream()).forEach(T->LOG.debug(T.getId()+" "+T.getExons()));
+								}
 							final SAMSequenceDictionary dict2 = in.getHeader().getSequenceDictionary();
 							if(dict2!=null) SequenceUtil.assertSequenceDictionariesEqual(dict, dict2);
 							gtfReader.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 							gtfReader.getAllGenes().
 								stream().
 								flatMap(G->G.getTranscripts().stream()).
-								filter(T->T.hasCDS()).
+								filter(T->{
+									final boolean has_cds =T.hasCDS();
+									if(do_debug) {
+										LOG.debug("transcript "+T.getId()+" has_cds:"+has_cds+" "+T);
+										}
+									return has_cds;
+									}).
 								forEach(transcript->{
 									final List<VariantContext> variants1 = in.query(transcript).
 											stream().
 											filter(V->V.isVariant() && AcidNucleics.isATGCN(V.getReference()) &&  V.getAlternateAlleles().stream().anyMatch(A->AcidNucleics.isATGCN(A))).
 											collect(Collectors.toCollection(ArrayList::new));
+									if(do_debug) {
+										LOG.debug("in transcript :"+transcript.getId()+" n-variants:"+variants1.size());
+										}
 									
 									if(variants1.isEmpty()) return;
 									
@@ -124,6 +139,12 @@ public class Biostar398854 extends Launcher {
 												return insert>=0 && insert < positions1.length;
 												}).
 											collect(Collectors.toCollection(ArrayList::new));
+									
+									if(do_debug) {
+										LOG.debug("in positions1 :"+ Arrays.stream(positions1).mapToObj(I->String.valueOf(I)).collect(Collectors.joining(",")));
+										LOG.debug("variants :"+ variants1.stream().map(V->V.getContig()+":"+V.getStart()+":"+V.getReference()).collect(Collectors.joining(",")));
+										}
+									
 									if(variants.isEmpty()) return;
 									
 									final ReferenceSequence refSeq = referenceSequenceFile.getSubsequenceAt(transcript.getContig(),transcript.getStart(), transcript.getEnd());
@@ -150,6 +171,10 @@ public class Biostar398854 extends Launcher {
 													filter(A->AcidNucleics.isATGCN(A)).
 													findFirst().
 													orElse(null);
+											if(do_debug) {
+												LOG.debug("position x1="+x1+" alt="+alt);
+												}
+											
 											if(ctx!=null && nSample< samples.size()) {
 												final Genotype gt = ctx.getGenotype(nSample);
 												if(gt.hasAltAllele() && (!gt.hasDP() || gt.getDP()>0)) {

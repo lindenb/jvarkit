@@ -7,7 +7,7 @@ Convert the names of the chromosomes in a VCF file
 
 ## DEPRECATED
 
-use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ?)
+use `bcftools annotate` with `--rename-chrs file` (does it handle BND ALT alleles ? or use vcfsetdict)
 
 ## Usage
 

@@ -66,6 +66,8 @@ Usage: vcfgnomadsv [options] Files
     --in-gnomad-filter
       If not empty, set this FILTER is variant was found in gnomad
       Default: <empty string>
+    --manifest
+      write optional matching manifest as BED
     --max-af
       max allele frequency in watched population. A decimal number between 0.0 
       and 1.0. If the value ends with '%' it is interpretted as a percentage 

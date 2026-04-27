@@ -23,9 +23,6 @@ SOFTWARE.
 package com.github.lindenb.jvarkit.chart;
 
 import java.io.IOException;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,10 +35,8 @@ import javax.xml.stream.XMLStreamWriter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.MiniList;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import com.google.gson.stream.JsonWriter;
 
 /**
  * Scatter XY
@@ -177,7 +172,8 @@ public class ScatterXY extends  AbstractChartXY implements MiniList<SeriesXY>  {
 		o.add("data", data);
 		for(SeriesXY series:this) {
 			final Map.Entry<String, JsonArray> entry = series.buildMultiQCJson();
-			data.add(entry.getKey(),entry.getValue());
+			if(entry.getValue().size()==0) continue;//prevent bug in multiqc
+ 			data.add(entry.getKey(),entry.getValue());
 			}
 		return o;
 		}

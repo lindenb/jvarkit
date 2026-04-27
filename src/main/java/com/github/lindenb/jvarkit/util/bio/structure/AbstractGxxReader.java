@@ -463,6 +463,7 @@ public abstract class AbstractGxxReader  implements Closeable {
 		
 		@Override
 		public List<Exon> getExons() {
+			if(!this.hasExon()) return Collections.emptyList();
 			return IntStream.range(0, this.getExonCount()).
 					mapToObj(T->getExon(T)).
 					collect(Collectors.toList());

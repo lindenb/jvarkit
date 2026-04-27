@@ -152,7 +152,7 @@ public class GtfReader extends AbstractGxxReader {
 			return g;
 			}
 		private void visitKg(final String line) {
-
+			
 			final String tokens[] = CharSplitter.TAB.split(line);
 			final int binIdx=tokens[2].equals("+") || tokens[2].equals("-")?0:1;
 			
@@ -367,9 +367,9 @@ public class GtfReader extends AbstractGxxReader {
 			// gunzip -c ~/jeter.gtf.gz | grep ENST00000541351 | grep codon
 			// 12	havana	stop_codon	10854686	10854688	.	-	0	gene_id "ENSG00000060138"; gene_version "8"; transcript_id "ENST00000541351"; transcript_version "1"; exon_number "5"; gene_name "YBX3"; gene_source "ensembl_havana"; gene_biotype "protein_coding"; transcript_name "YBX3-014"; transcript_source "havana"; transcript_biotype "nonsense_mediated_decay"; havana_transcript "OTTHUMT00000399636"; havana_transcript_version "1"; tag "cds_start_NF"; tag "mRNA_start_NF";
 			
-			
 			for(final TranscriptImpl tr: this.id2transcript.values())
 				{
+				
 				/*
 				if(tr.codon_start==-1 && tr.codon_end==-1)
 					{
@@ -394,7 +394,6 @@ public class GtfReader extends AbstractGxxReader {
 					//tr+" codon_start="+tr.codon_start+" codon_end="+tr.codon_end);
 					}*/
 				}
-			
 			for(final String transcript_id:this.transcript2exons.keySet())
 				{
 				final TranscriptImpl tr = this.id2transcript.get(transcript_id);
@@ -407,6 +406,15 @@ public class GtfReader extends AbstractGxxReader {
 				Collections.sort(coords,(A,B)->Integer.compare(A.start, B.start));
 				tr.exonStarts = coords.stream().mapToInt(E->E.start).toArray();
 				tr.exonEnds = coords.stream().mapToInt(E->E.end).toArray();
+				}
+			
+			for(final String transcript_id:this.transcript2exons.keySet()) {
+				final TranscriptImpl tr = this.id2transcript.get(transcript_id);
+				if(tr.exonStarts==null) {
+					LOG.warn("no exon defined for transcript: "+transcript_id);
+					tr.exonStarts = new int[0];
+					tr.exonEnds = new int[0];
+					}
 				}
 			
 			this.id2gene.values().stream().filter(T->T.start==-1 || T.end==-1 || StringUtils.isBlank(T.contig)).findAny().ifPresent(T->new RuntimeIOException("gene without data : "+T.gene_id));

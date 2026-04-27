@@ -984,7 +984,7 @@ public class VcfStats extends Launcher {
 			}
 		@Override
 		public Set<Path> finish(final Path outputDir) throws IOException, XMLStreamException {
-			if(n_variants==0L && this.group2count.values().stream().allMatch(C->C.sum()==0L)) {
+			if(n_variants==0L || this.group2count.values().stream().allMatch(C->C.sum()==0L)) {
 				LOG.warn("nothing found for "+getTitle());
 				return Collections.emptySet();
 				}
