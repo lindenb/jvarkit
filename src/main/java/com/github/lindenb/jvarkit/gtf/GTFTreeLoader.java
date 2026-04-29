@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2026 Pierre Lindenbaum
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
 package com.github.lindenb.jvarkit.gtf;
 
 import java.io.BufferedReader;
@@ -13,14 +37,20 @@ import java.util.stream.Collectors;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 
+/** LOAD a GTFTreeLoader tree */
 public class GTFTreeLoader implements Consumer<GTFLine> {
 
 	public GTFTreeLoader() {
 		// TODO Auto-generated constructor stub
-	}
+		}
 
 	private final Map<String,GTFTreeNode> gene2node= new HashMap<>(50_000);
 	private final Map<String,GTFTreeNode> transcript2node= new HashMap<>(50_000);
+	
+	private void clear() {
+		gene2node.clear();
+		transcript2node.clear();
+		}
 	
 	void finish() {
 		transcript2node.values().stream().forEach(T->T.cleanup());
@@ -33,7 +63,7 @@ public class GTFTreeLoader implements Consumer<GTFLine> {
 		if(t.isGene()) {
 			final String gene_id = t.getGeneId();
 			if(StringUtils.isBlank(gene_id)) return;
-			GTFTreeNode prev = gene2node.get(gene_id);
+			GTFTreeNode prev = this.gene2node.get(gene_id);
 			if(prev!=null) {
 				if(prev.line==null) {
 					prev.line = t;
@@ -102,33 +132,40 @@ public class GTFTreeLoader implements Consumer<GTFLine> {
 			}
 		}
 
-	public static List<GTFTreeNode> slurpGenes(final Iterator<GTFLine> iter) throws IOException {
-		final GTFTreeLoader loader=new GTFTreeLoader();
-		while(iter.hasNext()) {
-			loader.accept(iter.next());
-			}
-		loader.finish();
-		return loader.gene2node.values().stream().filter(G->G.line!=null).collect(Collectors.toList());
+	private List<GTFTreeNode> _getGenes() {
+		this.finish();
+		final List<GTFTreeNode> L= this.gene2node.values()
+				.stream().filter(G->G.line!=null)
+				.collect(Collectors.toList());
+		this.clear();
+		return L;
 		}
-	public static List<GTFTreeNode> slurpGenes(final Path path) throws IOException {
+	
+	public  List<GTFTreeNode> slurpGenes(final Iterator<GTFLine> iter) throws IOException {
+		while(iter.hasNext()) {
+			this.accept(iter.next());
+			}
+		return _getGenes();
+		}
+	public List<GTFTreeNode> slurpGenes(final Path path) throws IOException {
 		try(BufferedReader br = IOUtils.openPathForBufferedReading(path)) {
 			return slurpGenes(br);
 			}
 		}
-	public static List<GTFTreeNode> slurpGenes(final BufferedReader br) throws IOException {
+	public List<GTFTreeNode> slurpGenes(final BufferedReader br) throws IOException {
 		return slurpGenes(new GTFCodec(),br);
 		}
 
-	public static List<GTFTreeNode> slurpGenes(final GTFCodec codec,final BufferedReader br) throws IOException {
-		final GTFTreeLoader loader=new GTFTreeLoader();
-		final GTFCodec codec = new GTFCodec();
+	public  List<GTFTreeNode> slurpGenes(final GTFCodec codec,final BufferedReader br) throws IOException {
 		String line;
 		while((line=br.readLine())!=null) {
 			if(line.startsWith("#") || StringUtils.isBlank(line)) continue;
-			GTFLine rec = codec.decode(line);
+			final GTFLine rec = codec.decode(line);
 			if(rec==null) continue;
-			loader.accept(rec);
+			this.accept(rec);
 			}
-		return loader.gene2node.values().stream().filter(G->G.line!=null).collect(Collectors.toList());
+		return _getGenes();
 		}
+	
+	
 }

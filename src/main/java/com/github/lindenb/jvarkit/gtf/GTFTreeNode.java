@@ -29,29 +29,60 @@ import java.util.List;
 
 import com.github.lindenb.jvarkit.samtools.util.AbstractLocatable;
 
-public class GTFTreeNode extends AbstractLocatable {
+import htsjdk.samtools.util.AbstractIterator;
+
+/** A GTF line as a Tree */
+public class GTFTreeNode extends AbstractLocatable implements Iterable<GTFTreeNode> {
 	/* package */ GTFTreeNode parent = null;
 	private GTFTreeNode firstChild = null;
 	private GTFTreeNode nextSibling = null;
 	/* package */ GTFLine line = null;
+	
+	/** Iterator over all the children of root node */
+	private static class Iter extends AbstractIterator<GTFTreeNode> {
+		private final GTFTreeNode root;
+		private GTFTreeNode curr;
+		private boolean first=true;
+		Iter(final GTFTreeNode root) {
+			this.root = root;
+			}
+		@Override
+		protected GTFTreeNode advance() {
+			if(this.first) {
+				this.first=false;
+				this.curr= this.root.firstChild;
+				}
+			else
+				{
+				this.curr = (this.curr==null?null:this.curr.nextSibling);
+				}
+			return this.curr;
+			}
+		}
+	
+	
 	/* package */ GTFTreeNode() {
 		}
 	
 	public boolean hasParentNode() {
 		return this.parent!=null;
 		}
-	public GTFTreeNode getParent() {
+	
+	/** return parent node */
+	public GTFTreeNode getParentNode() {
 		return parent;
 		}
 	
+	/** get access to underlying gtf line */
 	public GTFLine getDelegate() {
 		return this.line;
 		}
 	
-	void addChild(GTFTreeNode child) {
+	/* package */ void addChild(final GTFTreeNode child) {
 		if(child.parent!=null && child.parent!=this) throw new IllegalStateException();
 		if(child.line==null) throw new IllegalStateException();
 		child.parent=this;
+		if(!child.contigsMatch(this)) throw new IllegalStateException("Discordant contigs for "+child.getDelegate()+" and "+getDelegate());
 		if(this.firstChild==null) {
 			this.firstChild= child;
 			}
@@ -116,6 +147,11 @@ public class GTFTreeNode extends AbstractLocatable {
 		return this.line.equals(GTFTreeNode.class.cast(obj).line);
 		}
 	
+	@Override
+	public AbstractIterator<GTFTreeNode> iterator() {
+		return new Iter(this);
+		}
+	
 	public List<GTFTreeNode> getChildren() {
 		final List<GTFTreeNode> L= new ArrayList<>();
 		GTFTreeNode c=this.firstChild;
@@ -131,5 +167,9 @@ public class GTFTreeNode extends AbstractLocatable {
 	public boolean isExon() { return getDelegate().isExon();}
 	public boolean isCDS() { return getDelegate().isCDS();}
 	
+	@Override
+	public String toString() {
+		return getDelegate().toString();
+		}
 	
 }
