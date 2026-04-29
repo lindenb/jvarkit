@@ -36,7 +36,7 @@ public class VcfCustomSortJdkTest {
 		final TestSupport support =new TestSupport();
 		try {
 			final Path output = support.createTmpPath(".vcf");
-	        Assert.assertEquals(new VcfFilterJdk().instanceMain(new String[] {
+	        Assert.assertEquals(new VcfCustomSortJdk().instanceMain(new String[] {
 	        		"-o",output.toString(),
 	        		"-e",expr,
 	        		inputFile}),
@@ -58,7 +58,7 @@ public class VcfCustomSortJdkTest {
 			Path code  = support.createTmpPath(".code");
 			Files.writeString(code, expr);
 			final Path output = support.createTmpPath(".vcf");
-	        Assert.assertEquals(new VcfFilterJdk().instanceMain(new String[] {
+	        Assert.assertEquals(new VcfCustomSortJdk().instanceMain(new String[] {
 	        		"-o",output.toString(),
 	        		"-f",code.toAbsolutePath().toString(),
 	        		inputFile}),
