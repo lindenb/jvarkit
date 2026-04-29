@@ -326,6 +326,7 @@ import com.github.lindenb.jvarkit.tools.vcfcluster.VcfCluster;
 import com.github.lindenb.jvarkit.tools.vcfcomposite.VCFComposite;
 import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
 import com.github.lindenb.jvarkit.tools.vcffiltergenes.VcFilterGenes;
+import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfCustomSortJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterso.VcfFilterSequenceOntology;
 import com.github.lindenb.jvarkit.tools.vcfflatten.VCFFlatten;
@@ -982,6 +983,7 @@ public class JvarkitCentral {
 		command(VcfUkbiobank.class);
 		command(VCFNearest.class);
 		command(VCFTabixml.class);
+		command(VcfCustomSortJdk.class);
 		command(CNVValidatorServer.class);
 		command(VcfBurdenFisherH.class);
 		command(WibToBedGraph.class);

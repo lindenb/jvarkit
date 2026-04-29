@@ -316,6 +316,7 @@ nav:
         - "vcfserver" : VcfServer.md
         - "vcfsetdict" : VcfSetSequenceDictionary.md
         - "vcfshuffle" : VCFShuffle.md
+        - "vcfsortjdk" : VcfCustomSortJdk.md
         - "vcfspliceai" : VcfSpliceAI.md
         - "vcfsplitbed" : VcfSplitBed.md
         - "vcfsplitnvariants" : VcfSplitNVariants.md

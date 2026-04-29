@@ -57,6 +57,7 @@
       <class name="com.github.lindenb.jvarkit.tools.vcfnearest.VCFNearestTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfbyindex.VcfGetVariantByIndexTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdkTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcffilterjs.VcfCustomSortJdkTest"/>
       <class name="com.github.lindenb.jvarkit.tools.groupbygene.GroupByGeneTest"/>
       <class name="com.github.lindenb.jvarkit.tools.liftover.BedLiftOverTest"/>
       <class name="com.github.lindenb.jvarkit.tools.pubmed.PubmedDumpTest"/>
