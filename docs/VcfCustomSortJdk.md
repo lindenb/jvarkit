@@ -53,6 +53,10 @@ Usage: vcfsortjdk [options] Files
       Save the generated java code in the following directory
     -f, --script
       The java source code file.
+    --tag
+      Insert the sorting index with this INFO tag. Useful if a standard sort 
+      on coordinate is applied after.
+      Default: IDX
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []

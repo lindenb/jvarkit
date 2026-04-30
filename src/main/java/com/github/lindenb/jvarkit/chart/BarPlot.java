@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.xml.stream.XMLStreamException;
@@ -37,7 +36,6 @@ import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.MiniList;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
@@ -48,7 +46,7 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 	public BarPlot(final NamedSeries series) {
 		this(Collections.singletonList(series));
 		}
-	public BarPlot(List<NamedSeries> L) {
+	public BarPlot(final List<NamedSeries> L) {
 		this.delegate = new ArrayList<>(L);
 		}
 	public BarPlot(final Counter<String> counter) {
@@ -93,6 +91,21 @@ public class BarPlot extends AbstractChartXY  implements MiniList<NamedSeries>  
 		super.saveR(w);
 		}
 	
+	/** 
+	 * if there is only one series with N items, there is no use to stack everything in one verticale bar. Just create N bars with one item 
+	 * 
+	 * @return true if the chart was rotated
+	 */
+	public boolean autoRotate() {
+		if(this.delegate.size()!=1 ) return false;
+		final List<NamedSeries> n2 = new ArrayList<NamedSeries>();
+		for(NamedY ny : this.delegate.get(0)) {
+			n2.add(new NamedSeries(ny.getName(), new NamedY("data", ny.getY())));
+			}
+		this.delegate.clear();
+		this.delegate.addAll(n2);
+		return true;
+		}
 	
 	
 

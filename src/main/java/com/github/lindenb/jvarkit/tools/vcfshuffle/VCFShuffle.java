@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.util.Random;
 
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -92,8 +91,7 @@ public class VCFShuffle extends OnePassVcfLauncher
 	private WritingSortingCollection writingSortingCollection = new WritingSortingCollection();
 	
 	
-	private static class RLine
-		{
+	private static class RLine {
 		long rand;
 		String line;
 		}
@@ -182,8 +180,7 @@ public class VCFShuffle extends OnePassVcfLauncher
 			return -1;
 			}
 		finally {
-			if(shuffled!=null) shuffled.cleanup();
-			CloserUtil.close(shuffled);
+			if(shuffled!=null) try {shuffled.cleanup();}catch(Throwable e2) {}
 			}
 		}
 	

@@ -25,7 +25,6 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.swing;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 
 import java.awt.BorderLayout;
@@ -100,7 +99,7 @@ public class ThrowablePane extends JPanel
         tf.setFont(new Font("Dialog",Font.PLAIN,24));
         tabbedPane.addTab("Message", tf);
          
-        JPanel pane= new JPanel(new GridLayout(0,1));
+        final JPanel pane= new JPanel(new GridLayout(0,1));
         tabbedPane.addTab("Trace", pane);
         StringWriter statckTrace= new StringWriter();
         throwable.printStackTrace(new PrintWriter(statckTrace));
@@ -117,7 +116,7 @@ public class ThrowablePane extends JPanel
         scroll.setPreferredSize(new Dimension(200,200));
         pane.add(scroll);
 
-        JTable table = new JTable(tableModel);
+        final JTable table = new JTable(tableModel);
         DefaultTableCellRenderer render= new DefaultTableCellRenderer()
         	{
 			private static final long serialVersionUID = 1L;
@@ -167,9 +166,9 @@ public class ThrowablePane extends JPanel
         	try {
         		in= getClass().getResourceAsStream(classname);
             	if(in==null) continue;
-            	String javaFile = IOUtil.readFully(in);
-				JTextArea area= new JTextArea(javaFile.toString());
-				JPanel srcPane= new JPanel(new BorderLayout());
+            	final String javaFile = IOUtil.readFully(in);
+            	final JTextArea area= new JTextArea(javaFile.toString());
+            	final JPanel srcPane= new JPanel(new BorderLayout());
 				srcPane.setBorder(BorderFactory.createTitledBorder("Source"));
 				srcPane.add(new JScrollPane(area));
 				tabbedPane.addTab("Source", srcPane);
@@ -180,7 +179,9 @@ public class ThrowablePane extends JPanel
 				}
         	finally
         		{
-        		CloserUtil.close(in);
+        		if(in!=null) try {
+        			in.close();
+        			} catch(Throwable e2) {}
         		}		
         	break;
         	}

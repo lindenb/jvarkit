@@ -35,6 +35,7 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 
 import com.github.lindenb.jvarkit.io.IOUtils;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 
@@ -43,7 +44,7 @@ import com.google.gson.JsonElement;
  */
 public abstract class Chart {
 	protected static int ID_GENERATOR=0;
-	private final String id = String.valueOf("chart"+(++ID_GENERATOR));
+	private String _id = null;
 	private String plotly_library_url = "https://cdn.plot.ly/plotly-3.3.0.min.js";
 
 	private String mainTitle="";
@@ -53,7 +54,11 @@ public abstract class Chart {
 		}
 	
 	public String getId() {
-		return id;
+		if(StringUtils.isBlank(this._id)) {
+			final String suffix = getTitle();
+			this._id = String.valueOf("chart"+(++ID_GENERATOR))+(StringUtils.isBlank(suffix)?"":"."+suffix.replaceAll("[^A-Za-z0-9]+","_"));
+			}
+		return _id;
 		}
 	public String getTitle() {
 		return mainTitle;

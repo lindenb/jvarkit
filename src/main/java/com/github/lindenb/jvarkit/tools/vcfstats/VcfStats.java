@@ -205,7 +205,7 @@ public class VcfStats extends Launcher {
 			}
 		
 		@Override
-		public AbstractAnalyzer setProperty(String key,String v) {
+		public AbstractAnalyzer setProperty(final String key,final String v) {
 			this.properties.put(key,v);
 			return this;
 			}
@@ -948,10 +948,11 @@ public class VcfStats extends Launcher {
 		@Override
 		public void visit(VariantContext ctx) {
 			if(!acceptVariant(ctx)) return;
-			if(ctx.getNAlleles()!=2) return;
+			if(ctx.getNAlleles()!=2 || ctx.isFiltered()) return;
 			this.n_variants++;
 			for(final Genotype gt: ctx.getGenotypes()) {
 				if(!acceptGenotype(gt)) continue;
+				if(gt.isFiltered()) continue;
 				if(gt.hasDP() && gt.getDP() < this.min_dp) continue;
 				if(!gt.hasAD()) continue;
 				final int[] ad = gt.getAD();
@@ -1004,9 +1005,10 @@ public class VcfStats extends Launcher {
 			if(L.isEmpty()) return Collections.emptySet();
 			
 			final BarPlot chart = new BarPlot(L);
-			chart.setTitle(getProperty("title","Purity of homozygous genotypes with DP>="+this.min_dp+ " for Di-Alleleic variants")+" N-variants="+this.n_variants);
+			chart.setTitle(getProperty("title","Purity of homozygous PASS genotypes with DP>="+this.min_dp+ " for Di-Alleleic PASSing variants")+" N-variants="+this.n_variants);
 			chart.setXAxisLabel("collection");
 			chart.setYAxisLabel("Count");
+			chart.autoRotate();
 			return exportChart(outputDir,chart);
 			}
 		}
@@ -1497,11 +1499,15 @@ public class VcfStats extends Launcher {
 			if(!acceptVariant(ctx)) {
 				return;
 				}
+			if(ctx.isFiltered()) {
+				return;
+				}
 			for(Genotype gt: ctx.getGenotypes()) {
 				if(!gt.getType().equals(this.gtype)) {
 					continue;
 					}
 				if(!acceptGenotype(gt)) continue;
+				if(gt.isFiltered()) continue;
 				if(!gt.hasAD()) {
 					//System.err.println("no AD");
 					continue;
@@ -1528,7 +1534,7 @@ public class VcfStats extends Launcher {
 				}
 			}
 		@Override
-		public Set<Path> finish(Path outputDir) throws IOException,XMLStreamException {
+		public Set<Path> finish(final Path outputDir) throws IOException,XMLStreamException {
 			if(this.group2count.isEmpty()) {
 				LOG.warn("nothing found for "+this.getName()+" "+getTitle());
 				return Collections.emptySet();
@@ -1552,7 +1558,7 @@ public class VcfStats extends Launcher {
 			final ScatterXY chart = new ScatterXY(series);
 			chart.setTitle(getTitle());
 			chart.setYAxisLabel((do_normalize?"Normalized ":"")+"Count");
-			chart.setXAxisLabel("AD Ratio ALT/(REF+ALT)");
+			chart.setXAxisLabel("AD Ratio = ALT/(REF+ALT)");
 			return exportChart(outputDir,chart);
 			}
 		}
@@ -1901,37 +1907,37 @@ public class VcfStats extends Launcher {
 		
 		modules.add(
 				new ADRatioAnalyzer(GenotypeType.HET)
-					.setProperty("title", "AD Ratio for Singletons HET genotypes, Diallelic Variant")
+					.setProperty("title", "AD Ratio (ALT/(REF+ALT)) for Singletons HET genotypes, Diallelic Variant")
 					.setProperty("filename", "AD_ratio_singleton_HET")
 					.setAcceptVariant(VcfStats::isSingletonVariant)
 				);
 		
 		modules.add(
 				new ADRatioAnalyzer(GenotypeType.HET)
-					.setProperty("title", "AD Ratio for HET genotypes, Diallelic Variant")
+					.setProperty("title", "AD Ratio (ALT/(REF+ALT)) for HET genotypes, Diallelic Variant")
 					.setProperty("filename", "AD_ratio_HET")
 				);
 		
 		modules.add(
 				new ADRatioAnalyzer(GenotypeType.HOM_REF)
-					.setProperty("title", "AD Ratio for HOM_REF genotypes, Diallelic Variant")
+					.setProperty("title", "AD Ratio (ALT/(REF+ALT)) for HOM_REF OASS genotypes, Diallelic Variant")
 					.setProperty("filename", "AD_ratio_HOM_REF")
 				);
 		modules.add(
 				new ADRatioAnalyzer(GenotypeType.HOM_VAR)
-					.setProperty("title", "AD Ratio for HOM_VAR genotypes, Diallelic Variant")
+					.setProperty("title", "AD Ratio (ALT/(REF+ALT)) for HOM_VAR PASS genotypes, Diallelic PASS Variant")
 					.setProperty("filename", "AD_ratio_HOM_VAR")
 				);
 		
 		
 		modules.add(
 				new ADRatioAnalyzer(GenotypeType.HOM_REF,true)
-					.setProperty("title", "AD Ratio for non-pure HOM_REF genotypes, Diallelic Variant")
+					.setProperty("title", "AD Ratio (ALT/(REF+ALT)) for non-pure HOM_REF PASS genotypes, Diallelic PASS Variant")
 					.setProperty("filename", "AD_ratio_impure_HOM_REF")
 				);
 		modules.add(
 				new ADRatioAnalyzer(GenotypeType.HOM_VAR,true)
-					.setProperty("title", "AD Ratio for non-pure HOM_VAR genotypes, Diallelic Variant")
+					.setProperty("title", "AD Ratio (ALT/(REF+ALT)) for non-pure HOM_VAR PASS genotypes, Diallelic PASS Variant")
 					.setProperty("filename", "AD_ratio_impure_HOM_VAR")
 				);
 		
