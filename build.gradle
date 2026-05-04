@@ -17,7 +17,7 @@ defaultTasks 'top'
 
 ext {
 	libraries = new HashMap<>();
-	htsjdkVersion = "4.1.1"
+	htsjdkVersion = "5.0.0"
 	jettyVersion = "9.4.26.v20200117"
 	}
 
@@ -158,12 +158,13 @@ class Library
 
 libraries.put("htsjdk",new Library().
 	add("com.github.samtools:htsjdk:jar:" + ext.htsjdkVersion ).
+	add("com.fulcrumgenomics:jlibdeflate:jar:0.1.0").
 	add("commons-logging:commons-logging:jar:1.3.0").
 	add("org.apache.commons:commons-jexl:jar:2.1.1").
-	add("org.apache.commons:commons-compress:jar:1.25.0").
+	add("org.apache.commons:commons-compress:jar:1.26.0").
 	add("com.github.luben:zstd-jni:jar:1.5.5-10").// for ZSTD compression used by BGEN format
-	add("org.tukaani:xz:jar:1.9").
-	add("org.json:json:jar:20231013").
+	add("org.tukaani:xz:jar:1.12").
+	add("org.json:json:jar:20251224").
 	add("org.openjdk.nashorn:nashorn-core:jar:15.4").
 	add("org.xerial.snappy:snappy-java:jar:1.1.10.5")
 	);

@@ -50,13 +50,12 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 
 public class JVarkitAnnotationProcessor extends AbstractProcessor{
 	private static final Logger LOG = Logger.getLogger(JVarkitAnnotationProcessor.class.getSimpleName());
-	
-	
+
 	@Override
 	public SourceVersion getSupportedSourceVersion() {
 		return SourceVersion.latest();
 		}
-	
+
 	@Override
 	public Set<String> getSupportedAnnotationTypes() {
 		return Arrays.asList(
@@ -67,32 +66,32 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 			collect(Collectors.toSet())
 			;
 		}
-	
+
 	private void copySource(final javax.lang.model.element.Element element)
 			{
 			final boolean include_super_class = false;
 			if(element==null || element.getKind()!=ElementKind.CLASS) return;
-			final String thisDir = System.getProperty("jvarkit.this.dir","src/main/java");	
+			final String thisDir = System.getProperty("jvarkit.this.dir","src/main/java");
 			if(thisDir==null || thisDir.isEmpty()) {
 				LOG.warning("[PROC] jvarkit.basedir is not defined");
 				return ;
 				}
-			try 
+			try
 				{
 				do
 					{
 					String className= element.toString();
 					if(className==null ||  className.isEmpty() || className.equals("java.lang.Object") ) return;
-		
+
 					final int dollar  = className.indexOf('$');
 					if(dollar!=-1) className = className.substring(0,dollar);
 					final File javaFile = new File(thisDir+File.separator+className.replace('.',File.separatorChar) +".java");
-		
+
 					if(!javaFile.exists()) {
 						LOG.warning("[PROC] File not found: "+javaFile);
 						break;
 						}
-					final Filer filer = super.processingEnv.getFiler();					
+					final Filer filer = super.processingEnv.getFiler();
 					final String packageName;
 					final String fileName;
 					int dot= className.lastIndexOf('.');
@@ -109,12 +108,12 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 					final FileObject fo=filer.createResource(StandardLocation.CLASS_OUTPUT,
 							packageName,
 							fileName+".java");
-					
+
 					if( new File(fo.getName()).exists()) {
 						LOG.info("[PROC] ## skip "+ javaFile+ " because it exists");
 						break;
 						}
-					
+
 					LOG.info("[PROC] ## Copying "+ javaFile+ " -> "+ fo.getName());
 					try(FileReader reader = new FileReader(javaFile)) {
 						try(Writer writer=fo.openWriter()) {
@@ -143,8 +142,8 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 				copySource(kind.asElement());
 				}
 			}
-	
-		
+
+
 		@Override
 		public boolean process(final Set<? extends TypeElement> annotations,
 			final RoundEnvironment roundEnv
@@ -153,11 +152,11 @@ public class JVarkitAnnotationProcessor extends AbstractProcessor{
 			final Set<Element> set = new HashSet<>();
 			set.addAll(roundEnv.getElementsAnnotatedWith(IncludeSourceInJar.class));
 			set.addAll(roundEnv.getElementsAnnotatedWith(Program.class));
-			
+
 			set.stream().
 					filter(E->E.getKind()==ElementKind.CLASS).
 					filter(E-> E.getAnnotation(Program.class)!=null || E.getAnnotation(IncludeSourceInJar.class)!=null).
-					forEach(E->{					
+					forEach(E->{
 						copySource(E);
 						});
 			return true;
