@@ -166,6 +166,7 @@ libraries.put("htsjdk",new Library().
 	add("org.tukaani:xz:jar:1.12").
 	add("org.json:json:jar:20251224").
 	add("org.openjdk.nashorn:nashorn-core:jar:15.4").
+	add("commons-io:commons-io:jar:2.22.0").
 	add("org.xerial.snappy:snappy-java:jar:1.1.10.5")
 	);
 libraries.put("jcommander",new Library().
@@ -234,7 +235,6 @@ libraries.put("derby",new Library().
 	add("org.apache.derby:derbyclient:jar:10.12.1.1")
 	);
 libraries.put("jena",new Library().
-	add("commons-io:commons-io:jar:2.12.0").
 	add("commons-cli:commons-cli:jar:1.4").
 	add("commons-codec:commons-codec:jar:1.11").
 	add("org.apache.jena:jena-iri:jar:3.10.0").
