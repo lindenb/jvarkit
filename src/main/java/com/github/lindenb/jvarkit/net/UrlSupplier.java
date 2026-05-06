@@ -135,6 +135,11 @@ public Set<LabelledUrl> of(final String columnName,final String id) {
 		// Genomics 2 Proteins (G2P) portal is a discovery tool to link genetic screening outputs to protein sequence and structure, offering two major capabilities:
 		urls.add(new LabelledUrlImpl("g2p.broad",id,"https://g2p.broadinstitute.org/gene/"+ StringUtils.escapeHttp(id)));
 
+		//primate AI
+		urls.add(new LabelledUrlImpl("primateai3d",id,"https://primateai3d.basespace.illumina.com/gene/"+id+"?dataset=gnomad_r3"));
+
+		
+		
 		 if(isGrch38()) {
 			urls.add(new LabelledUrlImpl("TogoVar",id,"https://grch38.togovar.org/?mode=simple&term="+ StringUtils.escapeHttp(id) ));
 			}
@@ -221,6 +226,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 			urls.add(new LabelledUrlImpl("Protein Atlas",str,"https://www.proteinatlas.org/"+str));
 			urls.add(new LabelledUrlImpl("Japan-Omics",str,"https://japan-omics.jp/gene/JCTF?input_value="+str));
 			urls.add(new LabelledUrlImpl("bgee",str,"https://www.bgee.org/gene/"+str));
+			urls.add(new LabelledUrlImpl("primateai3d",str,"https://primateai3d.basespace.illumina.com/gene/"+str+"?dataset=gnomad_r3"));
 			}
 		}
 	else if(this.ccdsPattern.matcher(str).matches()) {
@@ -514,10 +520,12 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset="+GNOMAD_HG38
 			));
 		
+		urls.add(new LabelledUrlImpl("Region Primateai3d",locid,"ttps://primateai3d.basespace.illumina.com/region/"+
+				StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_r3"
+				));
 		
 		
 		urls.add(new LabelledUrlImpl("TogoVar",locid,"https://grch38.togovar.org/?mode=simple&term="+ StringUtils.escapeHttp(ensemblCtg)+":"+loc.getStart()+"-"+loc.getEnd() ));
-			
 		}
 	
 	final String ucscCtg =  toUcsc.apply(loc.getContig());

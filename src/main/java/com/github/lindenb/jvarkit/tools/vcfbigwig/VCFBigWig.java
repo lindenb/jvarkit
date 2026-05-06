@@ -68,7 +68,7 @@ public class VCFBigWig extends AbstractOnePassVcfAnnotator {
 	private static final Logger LOG = Logger.of(VCFBigWig.class);
 
 	
-	@Parameter(names={"-B","--bigwig"},description= BigWigReader.OPT_DESC,required=true)
+	@Parameter(names={"-B","--bigwig","--bw"},description= BigWigReader.OPT_DESC,required=true)
 	private String userBigWigFileUri = null;
 
 	@Parameter(names={"-T","--tag","-tag"},description="Name of the INFO tag. default: name of the bigwig")
