@@ -17,8 +17,7 @@ public class VcfForIGVTest {
 
 
 	@Test
-	public void simpleTest() 
-		throws IOException
+	public void simpleTest() throws IOException
 		{
 		final TestSupport support = new TestSupport();
 		final Path dir=null;
@@ -34,8 +33,6 @@ public class VcfForIGVTest {
 				pw.flush();
 				}
 
-			
-		
 			final Path out = support.createTmpPath(".json");
 			final VcfForIGV cmd =new VcfForIGV();
 			Assert.assertEquals(0,cmd.instanceMain(new String[] {
@@ -52,4 +49,4 @@ public class VcfForIGVTest {
 			if(dir!=null) IOUtil.deleteDirectoryTree(dir.toFile());
 			}
 		}
-	
+}
