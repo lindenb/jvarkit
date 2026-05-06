@@ -20,7 +20,7 @@ public class VcfForIGVTest {
 	public void simpleTest() throws IOException
 		{
 		final TestSupport support = new TestSupport();
-		final Path dir=null;
+		Path dir=null;
 		try {
 			dir =support.createTmpDirectory();
 			final Path samplesheet = support.createTmpPath("samplesheet.csv");
