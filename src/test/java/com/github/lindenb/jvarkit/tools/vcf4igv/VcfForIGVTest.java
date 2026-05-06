@@ -26,10 +26,10 @@ public class VcfForIGVTest {
 			final Path samplesheet = support.createTmpPath("samplesheet.csv");
 			try(Writer pw = Files.newBufferedWriter(samplesheet)) {
 				pw.write("sample,bam,status\n");
-				pw.write("S1,"+support.resource("S1.bam")+",case");
-				pw.write("S2,"+support.resource("S2.bam")+",control");
-				pw.write(","+support.resource("S3.bam")+",case");
-				pw.write(","+support.resource("S4.bam")+",control");
+				pw.write("S1,"+support.resource("S1.bam")+",case\n");
+				pw.write("S2,"+support.resource("S2.bam")+",control\n");
+				pw.write(","+support.resource("S3.bam")+",case\n");
+				pw.write(","+support.resource("S4.bam")+",control\n");
 				pw.flush();
 				}
 
