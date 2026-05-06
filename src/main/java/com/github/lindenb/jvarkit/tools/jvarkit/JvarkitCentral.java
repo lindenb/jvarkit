@@ -314,6 +314,7 @@ import com.github.lindenb.jvarkit.tools.vcf2rdf.VcfToRdf;
 import com.github.lindenb.jvarkit.tools.vcf2table.VcfToTable;
 import com.github.lindenb.jvarkit.tools.vcf2xls.VcfToExcel;
 import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
+import com.github.lindenb.jvarkit.tools.vcf4igv.VcfForIGV;
 import com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolic;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
@@ -934,6 +935,7 @@ public class JvarkitCentral {
 		command(VcfSlidingWindowSplitter.class);
 		command(VcfBurdenSlidingWindow.class);
 		command(Vcf2Xml.class);
+		command(VcfForIGV.class);
 		command(VcfPhased01.class);
 		command(VcfConcat.class);
 		command(VcfCadd.class);

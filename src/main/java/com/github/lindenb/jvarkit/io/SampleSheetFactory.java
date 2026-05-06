@@ -40,21 +40,27 @@ public class SampleSheetFactory {
 		splitter(CharSplitter.TAB);
 	}
 	
-	public SampleSheetFactory setSplitter(Function<String, List<String>> splitter) {
+	public SampleSheetFactory setSplitter(final Function<String, List<String>> splitter) {
 		this._splitter = splitter;
 		return this;
 		}
-	public SampleSheetFactory splitter(CharSplitter cs) {
+	public SampleSheetFactory splitter(final CharSplitter cs) {
 		return setSplitter(S->cs.splitAsStringList(S));
 		}
 	
+	/** read all samplesheet from path, if the splitter is undefined, it is guessed by looking at file extension */
 	public SampleSheet of(final Path path) throws IOException {
+		Function<String,List<String>> splitor = this._splitter;
+		if(splitor==null) {
+			final CharSplitter cs = CharSplitter.forFilename(path.getFileName().toString());
+			splitor = S->cs.splitAsStringList(S);
+			}
 		try(BufferedReader br=IOUtils.openPathForBufferedReading(path)) {
-			String line=br.readLine();
+			final String line=br.readLine();
 			if(line==null) throw new IOException("cannot read first line of "+path);
 			final SampleSheetImpl ss = new SampleSheetImpl();
 			ss.source = path.toString();
-			ss.header =  new FileHeader(line,this._splitter);
+			ss.header =  new FileHeader(line,splitor);
 			ss.addAll(ss.header.readAll(br));
 			return ss;
 			}

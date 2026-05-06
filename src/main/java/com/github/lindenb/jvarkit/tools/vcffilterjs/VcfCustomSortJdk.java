@@ -68,7 +68,7 @@ BEGIN_DOC
 
 The user code is a piece of java code that will be inserted as the method apply, or as the body of a com.github.lindenb.jvarkit.tools.vcffilterjs.VcfCustomSortJdk.AbstractComparator class with implements `java.util.Comparator &lt;VariantContext&gt;`:
 
-At the time of writing the documentation, the parent class AbstractFilter is defined as:
+At the time of writing the documentation, the parent class AbstractComparator is defined as:
 
 ```java
 public static class AbstractComparator
@@ -76,17 +76,14 @@ public static class AbstractComparator
 	implements Comparator<VariantContext>>
 	{
 	protected final VCFHeader header;
-	protected AbstractFilter(final VCFHeader header) {
+	protected AbstractComparator(final VCFHeader header) {
 		super(header);
 		this.header = header;
 		}
 	@Override
 	public int compare(final VariantContext vc1 , final VariantContext vc2) {
-		throw new IllegalStateException("apply(variant) for AbstractFilter is not implemented");
+		throw new IllegalStateException("apply(variant) for AbstractComparator is not implemented");
 		}
-	// if option --pedigree is defined. Returns an instance of com.github.lindenb.jvarkit.pedigree.Pedigree
-	public Pedigree getPedigree();
-    public boolean hasPedigree();
 	}
 ```
 

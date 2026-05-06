@@ -22,7 +22,7 @@ Usage: vcfbigwig [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-  * -B, --bigwig
+  * -B, --bigwig, --bw
       Path/URI to bigwig file.
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
