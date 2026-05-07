@@ -20,8 +20,9 @@ Usage: vcf4igv [options] Files
       For Case-controls (at least one 'case' and one 'control' in the 
       samplesheet' ) 8 comma integers representing the maximum number of bam 
       to display: case-HOM_REF,case-HET,case-HOM_VAR,case-NO_CALL,ctrl-HOM_REF,ctrl-HET,ctrl-HOM_VAR,ctr-NO_CALL 
-      . If there is no case  4 comma separated 
-      integers:HOM_REF,HET,HOM_VAR,NO_CALL (other fields are ignored)
+      . A negative number is 'infinite'. If there is no case  4 comma 
+      separated integers:HOM_REF,HET,HOM_VAR,NO_CALL (other fields are 
+      ignored) 
       Default: 1,5,1,0,1,5,1,0
     -h, --help
       print help and exit
