@@ -66,6 +66,7 @@ import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeType;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFIteratorBuilder;
@@ -239,6 +240,14 @@ public class VcfForIGV extends Launcher {
 		}
 	private static String toAbsolutePath(Path p) {
 		try {
+			final Path p2 = p.toRealPath();//resolve symlink for nextflow
+			p=p2;
+			}
+		catch(Throwable err) {
+			
+			}
+		
+		try {
 			return p.toAbsolutePath().toString();
 		}
 		catch(Throwable err) {
@@ -277,8 +286,11 @@ public class VcfForIGV extends Launcher {
 				final Set<String> samples_in_vcf= h.getSampleNameToOffset().keySet();
 				
 				for(FileHeader.RowMap rowMap : sampleSheet ) {
-					BamInfo bi = new BamInfo();
-					
+					final BamInfo bi = new BamInfo();
+					if(StringUtils.isBlank(rowMap.get("bam"))) {
+						LOG.info("skipping ("+rowMap+") because bam is empty");
+						continue;
+						}
 					bi.bam = Paths.get(rowMap.get("bam"));
 					if(!Files.exists(bi.bam)) {
 						LOG.info("skipping ("+rowMap+") because cannot find bam \""+bi.bam+"\"");
@@ -352,6 +364,12 @@ public class VcfForIGV extends Launcher {
 						
 						if(buildName.isPresent()) {
 							description.append(" ").append(buildName.get());
+							}
+						if(ctx.hasAttribute(VCFConstants.SVTYPE)) {
+							description.append(" SVTYPE:").append(ctx.getAttributeAsString(VCFConstants.SVTYPE,"."));
+							}
+						if(ctx.hasAttribute("SVLEN")) {
+							description.append(" SVLEN:").append(ctx.getAttribute("SVLEN"));
 							}
 						
 						final List<Genotype> L=new ArrayList<>();
@@ -508,11 +526,21 @@ public class VcfForIGV extends Launcher {
 						jw.name("end");jw.value(ctx.getEnd());
 						jw.name("length");jw.value(ctx.getLengthOnReference());
 
+						if(ctx.hasID()) {
+							jw.name("variant-id");jw.value(ctx.getID());
+							}
+						
+						jw.name("filtered");jw.value(ctx.isFiltered());
+						
 						if(AcidNucleics.isATGC(ctx.getReference())) {
 							jw.name("ref");jw.value(ctx.getReference().getDisplayString());
 							}
 						if(ctx.getNAlleles()==2 && AcidNucleics.isATGC(ctx.getAlleles().get(1))) {
 							jw.name("alt");jw.value(ctx.getAlleles().get(1).getDisplayString());
+							}
+						if(ctx.hasAttribute(VCFConstants.SVTYPE)) {
+							jw.name("svtype");
+							jw.value(ctx.getAttributeAsString(VCFConstants.SVTYPE,"."));
 							}
 						jw.name("description");jw.value(description.toString());
 

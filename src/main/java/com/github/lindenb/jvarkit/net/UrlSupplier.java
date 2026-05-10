@@ -199,6 +199,16 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 	else if(this.hgncPattern.matcher(str).matches()) {
 		urls.addAll(of("hgnc",str));
 		}
+	
+	final String gnomad_sv_prefix="gnomAD-SV_v3_";
+	if(str.startsWith(gnomad_sv_prefix)  ) {
+		final String vcid = str.substring(13).toUpperCase();
+		urls.add(new LabelledUrlImpl("Variant SV Gnomad 4",
+				vcid,
+				"https://gnomad.broadinstitute.org/variant/"+vcid+"?dataset=gnomad_sv_r4"
+				));
+		}
+	
 	if(this.rsIdPattern.matcher(str).matches())
 		{
 		urls.add(new LabelledUrlImpl("dbsnp",str,"https://www.ncbi.nlm.nih.gov/snp/"+str.substring(2)));
@@ -343,6 +353,17 @@ private void _variant(final VariantContext ctx,final Set<LabelledUrl> urls) {
 				));
 			}
 		}
+	if(isGrch38() && ctx.hasAttribute(VCFConstants.SVTYPE)) {
+		final String prefix="gnomAD-SV_v3_";
+		if(ctx.getID().startsWith(prefix)  ) {
+			final String vcid = ctx.getID().substring(13).toUpperCase();
+			urls.add(new LabelledUrlImpl("Variant SV Gnomad 4",
+					vcid,
+					"https://gnomad.broadinstitute.org/variant/"+vcid+"?dataset=gnomad_sv_r4"
+					));
+			}
+		}
+	
 	if(isGrch38() && AcidNucleics.isATGC(ctx.getReference())) {
 		for(final Allele alt: ctx.getAlternateAlleles()) {
 			if(!AcidNucleics.isATGC(alt)) continue;
@@ -519,7 +540,10 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 		urls.add(new LabelledUrlImpl("Region Gnomad 3",locid,"https://gnomad.broadinstitute.org/region/"+
 			StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset="+GNOMAD_HG38
 			));
-		
+		urls.add(new LabelledUrlImpl("Region Gnomad SV 4",locid,"https://gnomad.broadinstitute.org/region/"+
+				StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_sv_r4"
+				));
+
 		urls.add(new LabelledUrlImpl("Region Primateai3d",locid,"ttps://primateai3d.basespace.illumina.com/region/"+
 				StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_r3"
 				));

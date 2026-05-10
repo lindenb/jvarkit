@@ -84,6 +84,7 @@ import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalExtender;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
+import com.github.lindenb.jvarkit.samtools.util.LocatableDelegate;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
 import com.github.lindenb.jvarkit.svg.SVG;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -143,7 +144,7 @@ END_DOC
 	description="Display an image of depth to display any anomaly an intervals+bams",
 	keywords={"cnv","bam","depth","coverage","svg"},
 	creationDate="20200605",
-	modificationDate="20241009",
+	modificationDate="20260509",
 	biostars = 9536274,
 	jvarkit_amalgamion =  true,
 	menu="CNV/SV"
@@ -204,12 +205,30 @@ public class CoveragePlotter extends Launcher {
 		double medianOuter=0.0;
 		}
 	
-	private List<Interval> getKnownCNVs(final Locatable region) {
+	private static class KnownInterval extends LocatableDelegate<Interval> {
+		String name=null;
+		String url;
+		boolean filtered=false;
+		String svType=null;
+		KnownInterval(final Interval base) {
+			super(base);
+			}
+		String getName() {
+			if(!StringUtils.isBlank(name)) return this.name;
+			return getDelegate().getName();
+			}
+		String getURL() {
+			if(!StringUtils.isBlank(url)) return this.url;
+			return null;
+			}
+		}
+	
+	private List<KnownInterval> getKnownCNVs(final Locatable region) {
 		if(this.knownCnvFile==null) return Collections.emptyList();
 		final String fname=this.knownCnvFile.getFileName().toString();
 
 		final Predicate<Interval> rejectCnv = cnv->(this.ignore_cnv_overlapping && cnv.getStart() < region.getStart() && cnv.getEnd() > region.getEnd());
-		final List<Interval> knowns = new ArrayList<>();
+		final List<KnownInterval> knowns = new ArrayList<>();
 		if(fname.endsWith(".bed.gz")) {
 			try(TabixReader tbr = new TabixReader(this.knownCnvFile.toString())) {
 				final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
@@ -224,7 +243,8 @@ public class CoveragePlotter extends Launcher {
 							if(bed==null) continue;
 							final Interval rgn = new Interval(region.getContig(),bed.getStart(),bed.getEnd(),false,bed.getOrDefault(3, ""));
 							if(rejectCnv.test(rgn)) continue;
-							knowns.add(rgn);
+							final KnownInterval k=new KnownInterval(rgn);
+							knowns.add(k);
 							}
 					}
 				}
@@ -234,7 +254,8 @@ public class CoveragePlotter extends Launcher {
 			}
 		else if(FileExtensions.VCF_LIST.stream().anyMatch(X->fname.endsWith(X))) {
 			try(VCFReader vcfFileReader= VCFReaderFactory.makeDefault().open(this.knownCnvFile,true)) {
-				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(SequenceDictionaryUtils.extractRequired(vcfFileReader.getHeader()));
+				final SAMSequenceDictionary vcfdict =SequenceDictionaryUtils.extractRequired(vcfFileReader.getHeader());
+				final ContigNameConverter cvt = ContigNameConverter.fromOneDictionary(vcfdict);
 				final String ctg = cvt.apply(region.getContig());
 				if(!StringUtils.isBlank(ctg)) {
 					vcfFileReader.query(ctg, region.getStart(), region.getEnd()).
@@ -246,7 +267,25 @@ public class CoveragePlotter extends Launcher {
 								if(VC.hasAttribute(VCFConstants.SVTYPE))  list.add(VC.getAttributeAsString(VCFConstants.SVTYPE,"."));
 								final Interval rgn= new Interval(region.getContig(),VC.getStart(),VC.getEnd(),false,String.join(";",list));
 								if(rejectCnv.test(rgn)) return;
-								knowns.add(rgn);
+								final KnownInterval k =new KnownInterval(rgn);
+								k.svType = VC.getAttributeAsString(VCFConstants.SVTYPE, ".");
+								if(VC.isFiltered()) {
+									k.filtered=true;
+									}
+								if(VC.hasID()) {
+									k.name=VC.getID();
+									final String prefix="gnomAD-SV_v3_";
+									if(SequenceDictionaryUtils.isGRCh38(vcfdict) && VC.getID().startsWith(prefix)) {
+										final String id = VC.getID().substring(13).toUpperCase();
+										k.name=id;
+										k.url = "https://gnomad.broadinstitute.org/variant/"+id+"?dataset=gnomad_sv_r4";
+										}
+									}
+								if(StringUtils.isBlank(k.url) && SequenceDictionaryUtils.isGRCh38(vcfdict))
+									{
+									k.url = "https://gnomad.broadinstitute.org/region/"+VC.getContig()+"-"+VC.getStart()+"-"+VC.getEnd()+"?dataset=gnomad_sv_r4";
+									}
+								knowns.add(k);
 								});
 					}
 				}
@@ -262,27 +301,29 @@ public class CoveragePlotter extends Launcher {
 		}
 	
 	private void drawKnownCnv(final XMLStreamWriter w,final Rectangle rectangle,final Locatable region) {
-		final List<Interval> knows = getKnownCNVs(region);
+		final List<KnownInterval> knows = getKnownCNVs(region);
 
-		final Pileup<Interval> pileup = new Pileup<>();
+		final Pileup<KnownInterval> pileup = new Pileup<>();
 		pileup.addAll(knows);
 
 		if(!pileup.isEmpty() ) {
 			final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rectangle.getWidth();
 			final double featureHeight = 10.0/pileup.getRowCount();
+			int idx=0;
 			for(int row=0;row< pileup.getRowCount();++row) {
-				for(final Interval cnv:pileup.getRow(row)) {
+				for(final KnownInterval cnv:pileup.getRow(row)) {
+					idx++;
 					final double y= rectangle.getHeight()-12.0 + row*featureHeight;
 					final double x1 = Math.max(rectangle.getX(),position2pixel.applyAsDouble(cnv.getStart()));
 					final double x2 = Math.min(rectangle.getMaxX(),position2pixel.applyAsDouble(cnv.getEnd()));
 					try {
 						w.writeStartElement("rect");
-						w.writeAttribute("class", "cnv");
+						w.writeAttribute("class", "cnv"+(idx%2));
 						w.writeAttribute("x", format(x1));
 						w.writeAttribute("y", format(y-1));
 						w.writeAttribute("width", format(Math.max(0.5, x2-x1)));
 						w.writeAttribute("height", format(featureHeight*0.9));
-						title(w, "Known: "+new SimpleInterval(cnv).toNiceString()+" "+cnv.getName());
+						title(w, "Known: "+new SimpleInterval(cnv).toNiceString()+" "+cnv.getName()+(cnv.filtered?" FILTERED":"")+" "+StringUtils.ifBlank(cnv.svType, ""));
 						w.writeEndElement();
 						}
 					catch(final Throwable err) {
@@ -583,7 +624,8 @@ public int doWork(final List<String> args) {
 				+ ".title1 {fill:darkgray;stroke:none;dominant-baseline:middle;text-anchor:middle;}\n"
 				+ ".title2 {fill:darkgray;stroke:none;}\n"
 				+ ".labely {fill:darkgray;stroke:none;dominant-baseline:middle;text-anchor:end;}\n"
-				+ ".cnv {fill:blue;stroke:orange;opacity:0.5;}\n"
+				+ ".cnv0 {fill:blue;stroke:orange;opacity:0.5;}\n"
+				+ ".cnv1 {fill:blue;stroke:coral;opacity:0.5;}\n"
 				+ ".gene {fill:green;stroke:orange;opacity:0.5;}\n" +
 				sample2css.entrySet().stream().map(KV->"."+KV.getKey()+" {"+KV.getValue()+"}\n").collect(Collectors.joining("\n"))
 				);
@@ -1215,7 +1257,7 @@ public int doWork(final List<String> args) {
 				
 			/** KNOWN CNV */
 			if(knownCnvFile!=null) {
-				final List<Interval> knows = getKnownCNVs(extendedRegion).stream().
+				final List<KnownInterval> knows = getKnownCNVs(extendedRegion).stream().
 						filter(R->R.overlaps(rawRegion)).
 						collect(Collectors.toList());
 				if(!knows.isEmpty()) {
@@ -1241,6 +1283,13 @@ public int doWork(final List<String> args) {
 				w.writeCharacters("Length");
 				w.writeEndElement();//th
 
+				w.writeStartElement("th");
+				w.writeCharacters("Filtered");
+				w.writeEndElement();//th
+				
+				w.writeStartElement("th");
+				w.writeCharacters("SVTYPE");
+				w.writeEndElement();//th
 				
 				w.writeStartElement("th");
 				w.writeCharacters("Name");
@@ -1259,24 +1308,34 @@ public int doWork(final List<String> args) {
 				w.writeEndElement();//thead
 				
 				w.writeStartElement("tbody");
-				for(Interval k:knows) {
+				for(KnownInterval k:knows) {
 					w.writeStartElement("tr");
 	
 					w.writeStartElement("td");
 					
 					w.writeStartElement("a");
 					w.writeAttribute("title",new SimpleInterval(k).toNiceString());
-					w.writeAttribute("href",hyperlink.apply(k).orElse(""));
+					w.writeAttribute("href", StringUtils.ifBlank(k.getURL(),hyperlink.apply(k).orElse("")));
 					w.writeAttribute("target","_blank");
 					w.writeCharacters(new SimpleInterval(k).toNiceString());
 					w.writeEndElement();//a
 					
 					w.writeEndElement();//td
 					
-					int len = k.getLengthOnReference();
+					final int len = k.getLengthOnReference();
 					w.writeStartElement("td");
 					w.writeCharacters(StringUtils.niceInt(len));
 					w.writeEndElement();//td
+					
+					w.writeStartElement("td");
+					w.writeCharacters(k.filtered?"FILTER":"");
+					w.writeEndElement();//td
+					
+					w.writeStartElement("td");
+					w.writeCharacters(StringUtils.ifBlank(k.svType,""));
+					w.writeEndElement();//td
+
+					
 					
 					w.writeStartElement("td");
 					w.writeCharacters(k.getName());
@@ -1326,7 +1385,7 @@ public int doWork(final List<String> args) {
 			w.writeEmptyElement("hr");
 
 			w.writeStartElement("div");
-			w.writeCharacters("Made with "+getClass().getSimpleName()+" version:"+getVersion()+". Pierre Lindenbaum PhD. 2022.");
+			w.writeCharacters("Made with "+getClass().getSimpleName()+" version:"+getVersion()+". Pierre Lindenbaum PhD. 2026.");
 			w.writeEndElement();//div
 			
 			
