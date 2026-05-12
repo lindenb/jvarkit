@@ -86,7 +86,7 @@ BEGIN_DOC
 ## Example
 
 ```
-java -jar dist/lowresbam2raster.jar \
+java -jar dist/jvarkit.jar  lowresbam2raster \
 	-o out.png -r "22:38999+10000" in.bam \
 	 -clip -srf "" -R ref.fasta  -kg knownGene.txt.gz
 ```
@@ -1157,9 +1157,7 @@ public class LowResBam2Raster extends AbstractBam2Raster {
 					LOG.error(err);
 					return -1;
 					}
-				finally
-					{
-					}
+				
 		
 				}
 			
