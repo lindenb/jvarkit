@@ -28,6 +28,7 @@ package com.github.lindenb.jvarkit.ucsc;
 import java.util.AbstractList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
@@ -358,13 +359,12 @@ public class Intron extends Component {
 	}
 
 /** ===================================================================*/
+/** an entity that is associated to an Exon : can be a UTR or a CDS */
 public abstract class ExonComponent extends Component {
 	private final Exon exon;
 	private ExonComponent(final Exon exon) {
 		this.exon = exon;
 		}
-	
-	
 	@Override
 	public UcscTranscript getTranscript() {
 		return this.exon.getTranscript();
@@ -414,6 +414,7 @@ public class CDS extends ExonComponent {
 	}
 
 /** ===================================================================*/
+/** An UTR in a Transcript */
 public abstract class UTR extends ExonComponent {
 	protected UTR(final Exon exon) {
 		super(exon);
@@ -426,8 +427,11 @@ public abstract class UTR extends ExonComponent {
 public default boolean hasUTRs() {
 	return hasUTR5() || hasUTR3();
 }
-/** return  list of mixed UTR5/UTR3 */
+/** return  list of mixed UTR5/UTR3, each UTR is an exon overlapping the UTR, so there can be several fragment for UTR5' or UTR3'*/
 public List<UTR> getUTRs();
+
+/** return  3' UTR segments */
+public List<UTR> getUTR3();
 
 /** return true if there is a 5' UTR */
 public default boolean hasUTR5() {

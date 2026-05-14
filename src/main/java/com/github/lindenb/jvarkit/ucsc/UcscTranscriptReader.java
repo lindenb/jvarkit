@@ -74,20 +74,37 @@ public	UcscTranscriptReader(final Path path) {
 	}
 
 public	UcscTranscriptReader(final String uri) {
+	this(uri,true);
+	}
+
+public	UcscTranscriptReader(final Path path,boolean requireSql) {
+	this(path.toString());
+	}
+
+
+public	UcscTranscriptReader(final String uri, boolean requireSql) {
 	if(!uri.endsWith(UcscTranscriptCodec.FILE_SUFFIX)) {
 		throw new RuntimeIOException("path '"+uri+"' should end with '"+UcscTranscriptCodec.FILE_SUFFIX+"'");
 		}
+	final UcscTranscriptCodec codec;
 	final String sqlpath = uri.substring(0,uri.length()-UcscTranscriptCodec.FILE_SUFFIX.length())+".sql";
-	SchemaParser.Table table;
-	try(InputStream sqlin = IOUtils.openURIForReading(sqlpath)) {
-		table = SchemaParser.parseTable(sqlin);
+	if(requireSql) {
+		SchemaParser.Table table;
+		try(InputStream sqlin = IOUtils.openURIForReading(sqlpath)) {
+			table = SchemaParser.parseTable(sqlin);
+			}
+		catch(Throwable err) {
+			throw new RuntimeIOException("Every genePred file must be compressed with bgzip, indexed with tabix and associated with a .sql file. "
+					+ "Eg: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql and http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.txt.gz", err);
+			}
+		codec = new UcscTranscriptCodec(table);
 		}
-	catch(Throwable err) {
-		throw new RuntimeIOException("Every genePred file must be compressed with bgzip, indexed with tabix and associated with a .sql file. "
-				+ "Eg: http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.sql and http://hgdownload.cse.ucsc.edu/goldenPath/hg38/database/wgEncodeGencodeBasicV20.txt.gz", err);
+	else
+		{
+		/* create codec with auto_detect_flag=true */
+		codec = new UcscTranscriptCodec();
 		}
 	
-	final UcscTranscriptCodec codec = new UcscTranscriptCodec(table);
 	this.delegate= AbstractFeatureReader.getFeatureReader(uri, codec);
 	}
 	

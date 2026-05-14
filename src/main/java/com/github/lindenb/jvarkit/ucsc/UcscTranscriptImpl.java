@@ -546,10 +546,12 @@ class UcscTranscriptImpl implements UcscTranscript {
 			}
 		}
 
-
+	/**
+	 * Implentation of an INTRON
+	 */
 	private class UTRImpl extends UcscTranscript.UTR {
-		private int start0;
-		private int end0;
+		private final int start0;
+		private final int end0;
 		UTRImpl(final UcscTranscript.Exon exon,int start0,int end0) {
 			super(exon);
 			this.start0 = start0;
@@ -606,6 +608,35 @@ class UcscTranscriptImpl implements UcscTranscript {
 			}
 		return L;
 		}
+	
+	@Override
+	public List<UTR> getUTR3() {
+		if(!hasUTR3()) return Collections.emptyList();
+		
+		final List<UTR> L = new ArrayList<>();
+		for(int i=0;i< getExonCount();i++) {
+			final Exon ex = getExon(i);
+			if(isPositiveStrand()) {
+				if(BedCoordMath.overlaps(ex.getBedStart(),ex.getBedEnd(),this.cdsEnd,this.txEnd)) {
+					L.add(new UTRImpl(ex,
+						Math.max(ex.getBedStart(),this.cdsEnd),
+						Math.min(ex.getBedEnd(),this.txEnd)
+						));
+					}
+				}
+			else
+				{
+				if(BedCoordMath.overlaps(ex.getBedStart(),ex.getBedEnd(),this.txStart,this.cdsStart)) {
+					L.add(new UTRImpl(ex,
+						Math.max(ex.getBedStart(),this.txStart),
+						Math.min(ex.getBedEnd(),this.cdsStart)
+						));
+					}
+				}
+			}
+		return L;
+		}
+
 	
 	
 	private class CodonImpl extends UcscTranscript.Codon {

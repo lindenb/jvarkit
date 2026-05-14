@@ -52,7 +52,9 @@ import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.AsciiFeatureCodec;
 import htsjdk.tribble.readers.LineIterator;
 
-
+/**
+ * Implementation of AsciiFeatureCodec&lt;UcscTranscript&gt; 
+ */
 public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 	private static final Logger LOG = Logger.of(UcscTranscriptCodec.class);
 
@@ -76,11 +78,17 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 	// file Header generating other columns
 	private FileHeader fileHeader = null;
 	
+	/**
+	 * create codec with auto_detect_flag=true
+	 */
 	public UcscTranscriptCodec() {
 		super(UcscTranscript.class);
 		auto_detect_flag =true;
 		}
-	
+	/**
+	 * Codec with an associate SQL table
+	 * @param table the sqltable
+	 */
 	public UcscTranscriptCodec(final SchemaParser.Table table ) {
 		super(UcscTranscript.class);
 		auto_detect_flag = false;
@@ -143,7 +151,7 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		this.fileHeader = new FileHeader(table.getColumns().stream().map(C->C.getName()).collect(Collectors.toList()));
 		}
 	
-	public UcscTranscriptCodec setContigConverter(UnaryOperator<String> contigConverter) {
+	public UcscTranscriptCodec setContigConverter(final UnaryOperator<String> contigConverter) {
 		this.contigConverter = contigConverter;
 		return this;
 		}
@@ -364,4 +372,12 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 			return null;
 		}
     }
+    
+    static UcscTranscriptCodec guessSchema(final String sqluri) throws IOException {
+    	if
+    	try(InputStream in=IOUtils.openURIForReading(sqluri)) {
+    		
+    		}
+    	}
+    
 }
