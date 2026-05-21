@@ -373,11 +373,5 @@ public class UcscTranscriptCodec extends AsciiFeatureCodec<UcscTranscript> {
 		}
     }
     
-    static UcscTranscriptCodec guessSchema(final String sqluri) throws IOException {
-    	if
-    	try(InputStream in=IOUtils.openURIForReading(sqluri)) {
-    		
-    		}
-    	}
     
 }

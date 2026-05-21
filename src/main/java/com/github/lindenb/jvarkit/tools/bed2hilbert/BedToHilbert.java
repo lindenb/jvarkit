@@ -367,9 +367,9 @@ public class BedToHilbert extends Launcher {
 										chromStart0+(chromEnd-chromStart0)/2
 										); 
 						
-						
+						System.err.println("index="+index+" "+ctg+":"+chromStart0+"-"+chromEnd);
 						final List<Point2D.Double> points = hilbertCurve.getPoints( index, index+(circle_radius<0?chromEnd-chromStart0:1));
-						
+						System.err.println("points :"+ points);
 						
 						
 						if(points.isEmpty()) continue;

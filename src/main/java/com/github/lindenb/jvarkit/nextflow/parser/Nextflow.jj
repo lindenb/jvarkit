@@ -49,8 +49,8 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 
 
 public class NextflowParser {
-  private Document document;
-  private Element root;
+  private Document document = null;
+  private Element root = null;
 
 	private void run() throws IOException, ParseException {
 	  	any();
@@ -89,6 +89,12 @@ public class NextflowParser {
 		throw new IOException(err);
 		}
 	}
+	
+public NextflowParser(Reader r, Document document) {
+	this(r);
+	this.document = document;
+	}	
+	
   private NextflowParser(Reader r, Document document, Element root) {
 	this(r);
 	this.document = document;
@@ -254,24 +260,33 @@ private Element path_item():{Element E= document.createElement("path");Token t;S
 	  	}
 	}
 
-void output_block_item():{}
+public Element output_block_item():{Element E;Attr att;}
 	{
-	(output_tuple() | output_item()) (LOOKAHEAD(2) <COMMA>  (crlf())*  output_modifier())* crlf()
+	(E=output_tuple() | E=utput_item()) (LOOKAHEAD(2) <COMMA>  (crlf())*  att=output_modifier() {E.setAttributeNode(att);} )* crlf()
+		{
+		return E;
+		}
 	}
 
-void output_modifier():{}
+Attr output_modifier():{Attr att;}
 	{
-	(emit_modifier()|optional_modifier())
+	(att=emit_modifier()|att=optional_modifier()) {
+		return att;
+		}
 	}
 
-void optional_modifier():{}
+Attr optional_modifier():{}
 	{
-	<OPTIONAL> <COLON> <IDENTIFIER>
+	<OPTIONAL> <COLON> <IDENTIFIER> {
+		return dom.createAttributeNode("optional",true");
+		}
 	}
 	
-void emit_modifier():{}
+Attr emit_modifier():{Token t;}
 	{
-	<EMIT> <COLON> (<IDENTIFIER>|<OUTPUT>)
+	<EMIT> <COLON> t=<IDENTIFIER> {
+		return dom.createAttributeNode("name",true");
+		}
 	}
 
 void output_tuple():{}

@@ -165,7 +165,7 @@ The current reference is:
 ## Example
 
 ```
-java -jar dist/lowresbam2raster.jar \
+java -jar dist/jvarkit.jar  lowresbam2raster \
 	-o out.png -r "22:38999+10000" in.bam \
 	 -clip -srf "" -R ref.fasta  -kg knownGene.txt.gz
 ```
