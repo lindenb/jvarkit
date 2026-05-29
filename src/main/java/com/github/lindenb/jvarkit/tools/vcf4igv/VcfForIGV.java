@@ -122,7 +122,7 @@ BEGIN_DOC
 		description="Prepare IGV sessions file and json for nextflow/igv_report",
 		keywords={"vcf","igv","json"},
 		creationDate="20260506",
-		modificationDate="20260506",
+		modificationDate="20260528",
 		jvarkit_amalgamion =  true,
 		menu="VCF Manipulation"
 		)
@@ -179,25 +179,25 @@ public class VcfForIGV extends Launcher {
 			i=  Integer.compare(g2.getDP(),g1.getDP());
 			if(i!=0) return i;
 			}
-		if(g1.hasAD() && g2.hasAD()) {
-			final int[] a1=g1.getAD();
-			final int[] a2=g2.getAD();
+		if(g1.isCalled() && g2.isCalled() && g1.hasAD() && g2.hasAD()) {
+			final int[] a1= g1.getAD();
+			final int[] a2= g2.getAD();
 			if(a1.length==2 && a2.length==2) {
 				final int n1= a1[0]+a1[1];
 				final int n2= a2[0]+a2[1];
 				if(n1>0 && n2>0) {
-					float f1 = a1[1]/(float)n1;
-					float f2 = a2[1]/(float)n2;
+					final float f1 = a1[1]/(float)n1;
+					final float f2 = a2[1]/(float)n2;
 					if(g1.isHet() && g2.isHet()) {
 						i= Float.compare(Math.abs(0.5f-f1), Math.abs(0.5f-f2));
 						if(i!=0) return i;
 						}
 					else if(g1.isHomRef() && g2.isHomRef()) {
-						i= Float.compare(f1,f2);//lowest is bestter
+						i= Float.compare(f1,f2);//lowest is best
 						if(i!=0) return i;
 						}
 					else if(g1.isHomVar() && g2.isHomVar()) {
-						i= Float.compare(f2,f1);//highest is bestter
+						i= Float.compare(f2,f1);//highest is best
 						if(i!=0) return i;
 						}
 					}
