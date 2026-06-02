@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
@@ -52,6 +53,8 @@ import htsjdk.samtools.util.StringUtil;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.vcf.BufferedVCFReader;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+
 
 import htsjdk.variant.vcf.VCFIterator;
 import htsjdk.variant.vcf.VCFReader;
@@ -99,23 +102,23 @@ END_DOC
 
  */
 @Program(name="vcfpeekvcf",
-		description="Get the INFO from a VCF and use it for another VCF",
-		keywords={"vcf","annotation"},
-		creationDate="20150521",
-		modificationDate="20240405",
-		jvarkit_amalgamion = true
-		)
+	description="Get the INFO from a VCF and use it for another VCF",
+	keywords={"vcf","annotation"},
+	creationDate="20150521",
+	modificationDate="20260602",
+	jvarkit_amalgamion = true
+	)
 public class VcfPeekVcf extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.of(VcfPeekVcf.class);
 	
-	@Parameter(names={"-f","--tabix","--resource"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
+	@Parameter(names={"-f","--tabix","--resource","--annotation"},description="The VCF file indexed with TABIX or tribble. Source of the annotations",required=true)
 	private Path resourceVcfFile = null;
 	
-	@Parameter(names={"-t","--tags"},description="tag1,tag2,tag... the INFO keys to peek from the indexed file")
+	@Parameter(names={"-t","--tags"},description="tag1,tag2,tag... the INFO keys to peek from the indexed file. Multiple separated by colon")
 	private Set<String> tagsAsString = new HashSet<>();
 	
-	@Parameter(names={"-p","--prefix"},description="prefix all database tags with this prefix to avoid collisions")
+	@Parameter(names={"-p","--prefix"},description="prefix all database tags with this prefix to avoid collisions. For example prefix 'EXTERNAL_' with change AF to EXTERNAL_AF")
 	private String peekTagPrefix = "";
 	
 	private enum AlleleMatch {none,all,at_least_one};
@@ -123,7 +126,7 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 			+ "All: All ALT alleles must be found in the database ALTs. at_least_one: At least one of the user ALT must be found in database ALTs. None: just use CHROM/POS/REF")
 	private AlleleMatch altAlleleMatcher = AlleleMatch.none;
 	
-	@Parameter(names={"-i","--replaceid"},description="Replace the ID field if it exists")
+	@Parameter(names={"-i","--replaceid"},description="Replace the ID field if it exists in annotation VCF")
 	private boolean peekId = false;
 	
 	@Parameter(names={"-missingIsError","--missingIsError"},description="Missing Info Header is an error")
@@ -253,11 +256,11 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 				if(outContig==null)
 					{
 					unmatchedcontigs.add(ctx.getContig());
+					out.add(ctx);
 					continue;
 					}
 				
-				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-				
+				final List<VariantContext> annotationsVC = new ArrayList<VariantContext>();
 				try(CloseableIterator<VariantContext> iter2= this.bufferedVcfReader.query(outContig,ctx.getStart(),ctx.getEnd()))
 					{
 					while(iter2.hasNext()) {
@@ -294,94 +297,132 @@ public class VcfPeekVcf extends OnePassVcfLauncher
 						
 						if(!okAllele) continue;
 						
+						if(databaseTags.keySet().stream().noneMatch(ATT->ctx2.hasAttribute(ATT))) {
+							continue;
+							}
 						
-						if(this.peekId && ctx2.hasID())
-							{
-							vcb.id(ctx2.getID());
-							}
-						boolean somethingWasChanged=false;
-						for(final String key: databaseTags.keySet())
-							{
-							if(!ctx2.hasAttribute(key)) continue;
-							
-							final VCFInfoHeaderLine dbHeader= databaseTags.get(key);
-							switch(dbHeader.getCountType())
-								{
-								case A:
-									{
-									final List<Object> newatt = new ArrayList<>();
-									final List<Object> ctx2att = ctx2.getAttributeAsList(key);
-									boolean got_value = false;
-									for(int i=0;i< ctx.getAlternateAlleles().size();++i)
-										{
-										final Allele ctxalt = ctx.getAlternateAllele(i);
-										int index2 = ctx2.getAlternateAlleles().indexOf(ctxalt);
-										if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
-											{
-											Object value2 = getDefaultValue(dbHeader);
-											
-											newatt.add(value2);
-											}
-										else
-											{
-											final Object value2 = ctx2att.get(index2);
-											if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
-											newatt.add(value2);
-											}
-										}
-									if(got_value)
-										{
-										vcb.attribute(this.peekTagPrefix+key, newatt);
-										somethingWasChanged=true;
-										}
-									break;
-									}
-								case R:
-									{
-									boolean got_value = false;
-									final List<Object> newatt = new ArrayList<>();
-									final List<Object> ctx2att = ctx2.getAttributeAsList(key);
-									for(int i=0;i< ctx.getAlleles().size();++i)
-										{
-										final Allele ctxalt = ctx.getAlleles().get(i);
-										int index2 = ctx2.getAlleleIndex(ctxalt);
-										if(index2==-1 || index2>=ctx2att.size() || isIgnorableSpanDel(ctxalt))
-											{
-											newatt.add(getDefaultValue(dbHeader));
-											}
-										else
-											{
-											final Object value2 = ctx2att.get(index2);
-											if( value2!=null && !VCFConstants.EMPTY_INFO_FIELD.equals(value2)) got_value = true;
-											newatt.add(value2);
-											}
-										}
-									if(got_value)
-										{
-										vcb.attribute(this.peekTagPrefix+key, newatt);
-										somethingWasChanged=true;
-										}
-									break;
-									}
-								default:
-									{
-									final Object o = ctx2.getAttribute(key);
-									vcb.attribute(this.peekTagPrefix+key, o);
-									somethingWasChanged=true;
-									break;
-									}
-								}
-							}
-						if(somethingWasChanged) break;
+						annotationsVC.add(ctx2);
 						}
 					}
+				/** no annotations , continue */
+				if(annotationsVC.isEmpty())  {
+					out.add(ctx);
+					continue;
+					}
+				final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+				/** replace ID */
+				if(this.peekId)
+					{
+					final String id = annotationsVC.stream()
+							.filter(VC->VC.hasID())
+							.map(VC->VC.getID())
+							.findFirst().orElse(null);
+					if(!StringUtils.isBlank(id)) {
+						vcb.id(id);
+						}
+					}
+
 				
-				out.add(vcb.make());
+				for(final String key: databaseTags.keySet()) {						
+					if(annotationsVC.stream().noneMatch(VC->VC.hasAttribute(key))) continue;
+					final VCFInfoHeaderLine dbHeader= databaseTags.get(key);
+
+					switch(dbHeader.getCountType())
+						{
+						case A:
+							{
+							// initalize new attributes
+							final List<Object> newatt = new ArrayList<>();
+							for(int i=0;i< ctx.getAlternateAlleles().size();++i)
+								{
+								newatt.add(getDefaultValue(dbHeader));
+								}
+							boolean changed=false;
+							for(VariantContext annot_ctx: annotationsVC) {
+								if(!annot_ctx.hasAttribute(key)) continue;
+								
+								final List<Object> annot_attribute = annot_ctx.getAttributeAsList(key);
+								for(int i=0;i< ctx.getAlternateAlleles().size();++i)
+									{
+									final Allele ctxalt = ctx.getAlternateAllele(i);
+									if(isIgnorableSpanDel(ctxalt)) continue;
+									
+									final int index2 = annot_ctx.getAlternateAlleles().indexOf(ctxalt);
+									if(!(index2< 0|| index2>=annot_attribute.size())) {
+										final Object value2 = annot_attribute.get(index2);
+										newatt.set(i, value2);
+										changed = true;
+										}
+									}
+								}
+							if(changed) {
+								vcb.attribute(this.peekTagPrefix+key, newatt);
+								}
+							break;
+							}
+						case R: 
+							{
+							// initalize new attributes
+							final List<Object> newatt = new ArrayList<>();
+							for(int i=0;i< ctx.getAlleles().size();++i)
+								{
+								newatt.add(getDefaultValue(dbHeader));
+								}
+							boolean changed=false;
+							for(VariantContext annot_ctx: annotationsVC) {
+								if(!annot_ctx.hasAttribute(key)) continue;
+								
+								final List<Object> annot_attribute = annot_ctx.getAttributeAsList(key);
+								for(int i=0;i< ctx.getAlleles().size();++i)
+									{
+									final Allele ctx_allele = ctx.getAlleles().get(i);
+									if(isIgnorableSpanDel(ctx_allele)) continue;
+									
+									final int index2 = annot_ctx.getAlleles().indexOf(ctx_allele);
+									if(!(index2< 0|| index2>=annot_attribute.size())) {
+										final Object value2 = annot_attribute.get(index2);
+										newatt.set(i, value2);
+										changed = true;
+										}
+									}
+								}
+							if(changed) {
+								vcb.attribute(this.peekTagPrefix+key, newatt);
+								}
+							break;
+							}
+						default:
+							{
+							final  Set<Object> newatt = new HashSet<>();
+							for(VariantContext annot_ctx: annotationsVC) {
+								if(!annot_ctx.hasAttribute(key)) continue;
+								newatt.addAll(annot_ctx.getAttributeAsList(key));
+								}
+							if(!newatt.isEmpty()) {
+								final List<Object> L=new ArrayList<>(newatt);
+								switch(dbHeader.getCountType())
+									{
+									case UNBOUNDED:
+										break;
+									case INTEGER:
+										final int n_x = dbHeader.getCount();
+										while(L.size()< n_x) L.add(getDefaultValue(dbHeader));
+										while(L.size()> n_x) L.remove(L.size()-1);
+										break;
+									default: throw new IllegalArgumentException();
+									}
+								vcb.attribute(this.peekTagPrefix+key, L);
+								}
+							}
+						}
+					} // end of loop ver attribute
 					
-				if(out.checkError()) break;
+				
+				
+				
+				out.add(vcb.make());					
 				}
-			if(!unmatchedcontigs.isEmpty())
-				{
+			if(!unmatchedcontigs.isEmpty()) {
 				LOG.debug("Unmatched contigs: "+unmatchedcontigs.stream().collect(Collectors.joining("; ")));
 				}
 			

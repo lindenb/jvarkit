@@ -23,6 +23,8 @@ Usage: vcfpeekvcf [options] Files
       CHROM/POS/REF 
       Default: none
       Possible Values: [none, all, at_least_one]
+  * -f, --tabix, --resource, --annotation
+      The VCF file indexed with TABIX or tribble. Source of the annotations
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 
@@ -54,19 +56,19 @@ Usage: vcfpeekvcf [options] Files
     -o, --out
       Output file. Optional . Default: stdout
     -p, --prefix
-      prefix all database tags with this prefix to avoid collisions
+      prefix all database tags with this prefix to avoid collisions. For 
+      example prefix 'EXTERNAL_' with change AF to EXTERNAL_AF
       Default: <empty string>
     -i, --replaceid
-      Replace the ID field if it exists
+      Replace the ID field if it exists in annotation VCF
       Default: false
-  * -f, --tabix, --resource
-      The VCF file indexed with TABIX or tribble. Source of the annotations
     -span, --span
       [20180713] when checking for the '--alt' option, ignore spanning 
       deletion: *
       Default: false
     -t, --tags
-      tag1,tag2,tag... the INFO keys to peek from the indexed file
+      tag1,tag2,tag... the INFO keys to peek from the indexed file. Multiple 
+      separated by colon
       Default: []
     --version
       print version and exit

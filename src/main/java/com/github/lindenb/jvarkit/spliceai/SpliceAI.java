@@ -48,6 +48,8 @@ public int getDeltaPositionAcceptorGain();
 public int getDeltaPositionAcceptorLoss();
 public int getDeltaPositionDonorGain();
 public int getDeltaPositionDonorLoss();
+/** return native String attribute in INFO */
+public String getAttribute();
 
 public default double[] getDeltaScores() {
 	return new double[] {
@@ -61,13 +63,17 @@ public default double getDelatScoreMax() {
 	return Arrays.stream(getDeltaScores()).max().orElse(0.0);
 	}
 
-public static List<SpliceAI> parse(final VariantContext vc) {
-	if(!vc.hasAttribute(getTag())) return Collections.emptyList();
-	return  vc.getAttributeAsStringList(getTag(), "").
+public static List<SpliceAI> parse(final VariantContext vc,final String tag_name) {
+	if(!vc.hasAttribute(tag_name)) return Collections.emptyList();
+	return  vc.getAttributeAsStringList(tag_name , "").
 			stream().
 			map(S->CharSplitter.PIPE.split(S)).
 			map(S->new SpliceAIImpl(S)).
 			collect(Collectors.toList());
+	}
+
+public static List<SpliceAI> parse(final VariantContext vc) {
+	return parse(vc, getTag());
 	}
 
 /* ##INFO=<ID=SpliceAI,Number=.,Type=String,Description="SpliceAIv1.3.1 
@@ -125,9 +131,24 @@ static class SpliceAIImpl implements SpliceAI {
 	@Override public int getDeltaPositionDonorLoss() {
 		return DP_DL;
 		}
+	@Override
+	public int hashCode() {
+		return getAttribute().hashCode();
+		}
+	
+	@Override
+	public boolean equals(final Object obj) {
+		if(obj==this) return true;
+		if(obj==null || !(obj instanceof SpliceAI)) return false;
+		return getAttribute().equals(SpliceAI.class.cast(obj).getAttribute());
+		}
 	
 	@Override
 	public String toString() {
+		return  getAttribute();
+		}
+	@Override
+	public String getAttribute() {
 		return allele+"|"+gene+"|"+DS_AG+"|"+DS_AL+"|"+DS_DG+"|"+DS_DL+
 				"|"+DP_AG+"|"+DP_AL+"|"+DP_DG+"|"+DP_DL;
 		}
