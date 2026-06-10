@@ -29,6 +29,8 @@ Usage: swingindexcov [options] Files
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
       any hts file containing a dictionary (VCF, BAM, CRAM, intervals...)
+    --roi, --bed
+      BED file with regions of interest, to plot
     --version
       print version and exit
 

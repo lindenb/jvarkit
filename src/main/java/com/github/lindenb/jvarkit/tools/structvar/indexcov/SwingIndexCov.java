@@ -25,9 +25,11 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.structvar.indexcov;
 
+import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Composite;
 import java.awt.Cursor;
 import java.awt.Desktop;
 import java.awt.Dimension;
@@ -96,6 +98,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
 import com.github.lindenb.jvarkit.hershey.Hershey;
@@ -108,13 +111,17 @@ import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
+import com.github.lindenb.jvarkit.swing.AbstractGenericTableModel;
 import com.github.lindenb.jvarkit.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.tabix.TabixFileReader;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import htsjdk.samtools.util.IOUtil;
+import htsjdk.samtools.util.Interval;
+import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
@@ -224,7 +231,7 @@ END_DOC
 		description="indexcov visualization",
 		keywords={"cnv","duplication","deletion","sv"},
 		creationDate="2020511",
-		modificationDate="2020512",
+		modificationDate="20260610",
 		jvarkit_amalgamion = true,
 		menu="CNV/SV"
 		)
@@ -235,6 +242,8 @@ public class SwingIndexCov extends Launcher {
 	private Path dictSource = null;
 	@Parameter(names={"--gtf","--gff","--gff3"},description="GFF3 file indexed with tabix to plot the genes.")
 	private String gff3Path = null;
+	@Parameter(names={"--roi","--bed"},description="BED file with regions of interest, to plot")
+	private Path roiBedPath = null;
 	@Parameter(names={"--helper"},description="For expert users only. java archive implenting Helper. Syntax \"path/to/helper.jar package.helper.implementation.Name\"")
 	private String helperPath = null;
 
@@ -348,8 +357,9 @@ public class SwingIndexCov extends Launcher {
 		private final String gff3Path;
 		private final Helper helper;
 		private final SwingGff3TableModel gff3TableModel;
-		
-		
+		private final IntervalTreeMap<Interval> roiTreeMap = new IntervalTreeMap<Interval>();// genes of interest
+		private final AbstractGenericTableModel<Interval> roiTableModel;
+
 		private static class Sample {
 			final String srcName;
 			final String displayName;
@@ -397,6 +407,7 @@ public class SwingIndexCov extends Launcher {
 				pushHistory();
 				updateHyperlinks();
 				updateGff3Table();
+				updateROITable();
 				drawingArea.repaint();
 				}
 			abstract Locatable change(SAMSequenceRecord ssr,Locatable loc);
@@ -478,6 +489,7 @@ public class SwingIndexCov extends Launcher {
 			final Hershey _hershey = new Hershey();
 			Helper helper = null;
 			boolean showNames = false;
+			IntervalTreeMap<Interval> roiTreeMap = null;
 			
 			private void updateDrawingArea(BufferedImage img) {
 				if(this.abort_flag) return;
@@ -490,6 +502,20 @@ public class SwingIndexCov extends Launcher {
 			
 			private double pos2pixel(int pos) {
 				return ((pos-(double)this.interval.getStart())/this.interval.getLengthOnReference())*this.width;
+				}
+			
+			private void plotROI(final Graphics2D g,final BufferedImage img) {
+				if(this.roiTreeMap.isEmpty()) return;
+				//if(this.interval.getLengthOnReference() > 300_000_000) return;
+				g.setColor(Color.GRAY);
+				final Composite oldc = g.getComposite();
+				g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,0.2f));
+				for(Interval roi:this.roiTreeMap.getOverlapping(this.interval)) {
+					final double x0 = pos2pixel(roi.getStart());
+					final double x1 = pos2pixel(roi.getEnd());
+					g.fill(new Rectangle2D.Double(x0,0,Math.max(1.0,x1-x0),this.height/6.0));
+					}
+				g.setComposite(oldc);
 				}
 			
 			private void plotGenes(final Graphics2D g,final BufferedImage img) {
@@ -548,6 +574,7 @@ public class SwingIndexCov extends Launcher {
 				g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 				g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g.fillRect(0, 0, this.width, this.height);
+				plotROI(g,img);
 				final double sample_height =
 						this.per_sample?
 						(this.height-top_margin)/(double)samples.size():
@@ -724,7 +751,12 @@ public class SwingIndexCov extends Launcher {
 		
 		
 		
-		XFrame(final SAMSequenceDictionary srcDict,final String tabixFileUri,final String gff3path,final Helper helper) throws IOException {
+		XFrame(final SAMSequenceDictionary srcDict,
+				final String tabixFileUri,
+				final String gff3path,
+				final Path roiBedPath,
+				final Helper helper
+				) throws IOException {
 			super(SwingIndexCov.class.getSimpleName());
 			super.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 			this.tabixFileUri = tabixFileUri;
@@ -847,6 +879,7 @@ public class SwingIndexCov extends Launcher {
 					pushHistory();
 					updateHyperlinks();
 					updateGff3Table();
+					updateROITable();
 					offscreen=null;
 					drawingArea.repaint();
 					}
@@ -913,6 +946,7 @@ public class SwingIndexCov extends Launcher {
 						jtextFieldLocation.setText(loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
 						updateHyperlinks();
 						updateGff3Table();
+						updateROITable();
 						offscreen=null;
 						drawingArea.repaint();
 						}
@@ -927,6 +961,7 @@ public class SwingIndexCov extends Launcher {
 						jtextFieldLocation.setText(loc.getContig()+":"+loc.getStart()+"-"+loc.getEnd());
 						updateHyperlinks();
 						updateGff3Table();
+						updateROITable();
 						offscreen=null;
 						drawingArea.repaint();
 						}
@@ -965,8 +1000,9 @@ public class SwingIndexCov extends Launcher {
 			
 			/** ref tab */
 			jTabbedPane.addTab("REF", new JScrollPane( new JTable(new SwingSequenceDictionaryTableModel(this.srcDict))));
-			/** gff3 tab */
 			
+			{
+			/** gff3 tab */
 			final JTable jtableGff3=  new JTable(this.gff3TableModel=new SwingGff3TableModel());
 			jtableGff3.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
 			final JPanel jpanelgff3 = new JPanel(new BorderLayout());
@@ -974,8 +1010,54 @@ public class SwingIndexCov extends Launcher {
 			jpanelgff3.setBorder(BorderFactory.createTitledBorder("MAX="+StringUtils.niceInt(MAX_GFF3_ROWS)));
 			final String titleTabGff3="GFF";
 			jTabbedPane.addTab(titleTabGff3,jpanelgff3 );
+			}
 			
-
+			{
+			/** roi tab */
+			final JTable jtableROI=  new JTable(this.roiTableModel=new AbstractGenericTableModel<Interval>()
+					{
+					@Override
+					public int getColumnCount() {
+						return 4;
+						}
+					public java.lang.Class<?> getColumnClass(int columnIndex) {
+						switch(columnIndex) {
+						case 0: return String.class;
+						case 1: return Integer.class;
+						case 2: return Integer.class;
+						case 3: return String.class;
+						default: return Object.class;
+						}
+						}
+					public String getColumnName(int columnIndex) {
+							switch(columnIndex) {
+							case 0: return "CHROM";
+							case 1: return "START";
+							case 2: return "END";
+							case 3: return "NAME";
+							default: return null;
+							}
+						}
+					@Override
+					public Object getValueOf(final Interval r, int columnIndex) {
+							switch(columnIndex) {
+								case 0: return r.getContig();
+								case 1: return r.getStart();
+								case 2: return r.getEnd();
+								case 3: return r.getName();
+								default: return null;
+							}
+						}
+					});
+			jtableROI.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+			final JPanel jpanelRoi = new JPanel(new BorderLayout());
+			jpanelRoi.add(new JScrollPane(jtableROI),BorderLayout.CENTER);
+			jpanelRoi.setBorder(BorderFactory.createTitledBorder("ROI"));
+			final String titleTabROI="ROI";
+			jTabbedPane.addTab(titleTabROI,jpanelRoi );
+			}
+			
+			
 			
 			
 			/* open close operations */
@@ -1033,6 +1115,7 @@ public class SwingIndexCov extends Launcher {
 					pushHistory();
 					updateHyperlinks();
 					updateGff3Table();
+					updateROITable();
 					XFrame.this.offscreen=null;
 					mouseStart=null;
 					mousePrev=null;
@@ -1042,6 +1125,15 @@ public class SwingIndexCov extends Launcher {
 			this.drawingArea.addMouseListener(mouse);
 			this.drawingArea.addMouseMotionListener(mouse);
 			this.drawingArea.setToolTipText("");
+			
+			if(roiBedPath!=null) {
+				try(BedLineReader br= new BedLineReader(roiBedPath)) {
+					br.setContigNameConverter(ContigNameConverter.fromOneDictionary(this.srcDict));
+					br.stream()
+						.map(B->new Interval(B.getContig(),B.getStart(),B.getEnd(),false,StringUtils.ifBlank( B.getOrDefault(3,""), B.toNiceString())))
+						.forEach(R->roiTreeMap.put(R, R));
+					}
+				}
 			}
 		
 		private void doMenuSaveAs() {
@@ -1104,6 +1196,17 @@ public class SwingIndexCov extends Launcher {
 				}
 			}
 		
+		private void updateROITable() {
+			final Locatable loc = getUserInterval().orElse(null);
+			if(this.roiTreeMap.isEmpty() || loc==null) {
+				this.roiTableModel.setRows(Collections.emptyList());
+				}
+			else
+				{
+				this.roiTableModel.setRows(this.roiTreeMap.getOverlapping(loc).stream().collect(Collectors.toList()));
+				}
+			}
+		
 		private void updateGff3Table()  {
 			final Locatable loc = getUserInterval().orElse(null);
 
@@ -1147,6 +1250,7 @@ public class SwingIndexCov extends Launcher {
 			pushHistory();
 			updateHyperlinks();
 			updateGff3Table();
+			updateROITable();
 			this.drawingArea.repaint();
 			}
 		
@@ -1184,6 +1288,7 @@ public class SwingIndexCov extends Launcher {
 			plotter.gff3Path = this.gff3Path;
 			plotter.helper = this.helper;
 			plotter.showNames = this.jcboxShowName.isSelected();
+			plotter.roiTreeMap = this.roiTreeMap;
 			final List<Sample> L2 = jlistSamples.getSelectedValuesList();
 			plotter.samples = new ArrayList<>();
 			if(L2==null || L2.isEmpty()) {
@@ -1331,7 +1436,7 @@ public class SwingIndexCov extends Launcher {
 				SequenceDictionaryUtils.extractRequired(this.dictSource)
 				;
 			try {
-				final XFrame frame = new XFrame(dict,input.toString(),this.gff3Path,helper);
+				final XFrame frame = new XFrame(dict,input.toString(),this.gff3Path,this.roiBedPath,helper);
 				SwingUtilities.invokeLater(()->{
 					final Dimension dim= Toolkit.getDefaultToolkit().getScreenSize();
 					frame.setBounds(50, 50, dim.width-100, dim.height-100);
