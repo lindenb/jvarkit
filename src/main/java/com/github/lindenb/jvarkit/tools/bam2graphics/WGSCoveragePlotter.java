@@ -112,6 +112,7 @@ java -jar dist/jvarkit.jar wgscoverageplotter --dimension 1500x500 -C -1 --clip 
  * Kinnby, A., Robert, C., Havenhand, J.N., Brostrom, G., Bussiere, L. and De Wit, P. (2025), The Roles of Plasticity and Selection in Rapid Phenotypic Changes at the Pacific Oyster Invasion Front in Europe. Mol Ecol e17684. https://doi.org/10.1111/mec.17684
  * Dijkstra, J., A. C. van Westerhoven, L. Gomez-Gil, et al. 2025. "Accessory Chromosome Contributes to Virulence of Banana Infecting Fusarium oxysporum Tropical Race 4." Molecular Plant Pathology 26, no. 9: e70146. https://doi.org/10.1111/mpp.70146.
  * Wan J, Weldon E, Ganser G, Morris ERA, Hughes EV, Bordin AI, Heine PA, Hust M, Cohen ND, Gill JJ, Liu M. 0. Immunogenic Streptococcus equi cell surface proteins identified by ORFeome phage display. mSphere 0:e00626-25. https://doi.org/10.1128/msphere.00626-25 
+ * Janzekovic, Franc & al . "The enigma of the Oltenia blind mole-rat (Spalax istricus) within the collapsing steppe biome" Mammalia. https://doi.org/10.1515/mammalia-2026-0024
 
 ## Screenshot
 
