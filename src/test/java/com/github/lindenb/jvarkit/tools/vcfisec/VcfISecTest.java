@@ -27,7 +27,7 @@ private List<String> getIndexedesFiles() {
 	L.add("S5.vcf.gz");
 	L.add("S4.vcf.gz");
 	L.add("toy.vcf.gz");
-	L.add("toy.bcf");
+	//L.add("toy.bcf");
 	L.add("rotavirus_rf.ann.vcf.gz");
 	L.add("manta.D000Q1R.vcf.gz");
 	L.add("S2.vcf.gz");

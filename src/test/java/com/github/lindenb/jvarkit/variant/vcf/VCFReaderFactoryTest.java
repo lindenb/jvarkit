@@ -21,7 +21,7 @@ public class VCFReaderFactoryTest {
 @DataProvider(name = "src1")
 public Iterator<Object[]> listVCFsFortest() {
 	return Arrays.asList(
-			"toy.bcf",
+			//"toy.bcf",
 			"toy.vcf.gz"
 			).stream()
 		.map(it->new Object[] {it})

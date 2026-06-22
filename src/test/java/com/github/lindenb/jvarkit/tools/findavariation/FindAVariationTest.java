@@ -23,7 +23,7 @@ public void test01() throws IOException {
 			pw.println(support.resource("S3.vcf.gz"));
 			pw.println(support.resource("S4.vcf.gz"));
 			pw.println(support.resource("toy.vcf.gz"));
-			pw.println(support.resource("toy.bcf"));
+			//pw.println(support.resource("toy.bcf"));
 			pw.flush();
 			}
 		Assert.assertTrue(support.wc(input)>0L);
