@@ -1,3 +1,0 @@
-[submodule "bcfparser"]
-	path = bcfparser
-	url = https://github.com/lindenb/bcfparser.git

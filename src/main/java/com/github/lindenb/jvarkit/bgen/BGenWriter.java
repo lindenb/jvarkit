@@ -39,7 +39,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.DeflaterOutputStream;
 
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
-import org.apache.commons.compress.utils.IOUtils;
 
 import com.github.lindenb.jvarkit.io.ByteBufferSequence;
 import com.github.lindenb.jvarkit.lang.BitNumWriter;
@@ -353,7 +352,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			case ZLIB:
 				try(java.util.zip.DeflaterOutputStream compressor=new DeflaterOutputStream(this.buffer2)) {
 					try(InputStream raw_in=buffer1.toByteArrayInputStream()) {
-						IOUtils.copy(raw_in, compressor);
+						raw_in.transferTo(compressor);
 						}
 					compressor.finish();
 					compressor.flush();
@@ -363,7 +362,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 			case ZSTD:
 				try(ZstdCompressorOutputStream compressor=new ZstdCompressorOutputStream(this.buffer2)) {
 					try(InputStream raw_in=buffer1.toByteArrayInputStream()) {
-						IOUtils.copy(raw_in, compressor);
+						raw_in.transferTo(compressor);
 						}
 					compressor.flush();
 					}
@@ -376,7 +375,7 @@ public class BGenWriter extends BGenUtils implements AutoCloseable {
 		this.binaryCodec.writeUInt(compressed.size());
 		// Genotype probability data for the SNP for each of the N individuals in the cohort 
 		try(InputStream compressed_in=compressed.toByteArrayInputStream()) {
-			IOUtils.copy(compressed_in, binaryCodec.getOutputStream());
+			compressed_in.transferTo( binaryCodec.getOutputStream());
 			}
 		
 		//reset genotypes

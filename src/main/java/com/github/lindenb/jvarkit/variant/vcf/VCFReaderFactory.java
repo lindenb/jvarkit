@@ -29,8 +29,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import com.github.lindenb.jvarkit.variant.bcf.BCFFileReader;
-
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.FileExtensions;
 import htsjdk.samtools.util.IOUtil;
@@ -103,11 +101,7 @@ public abstract class VCFReaderFactory {
 	/** open new VCFReader */
 	public VCFReader open(final Path path,boolean requireIndex) {
 		if(path.getFileName().toString().endsWith(FileExtensions.BCF)) {
-			try {
-				return new BCFFileReader(path,requireIndex);
-			} catch (IOException e) {
-				throw new RuntimeIOException("Cannot open BCF File \""+path+"\"",e);
-			}
+			throw new RuntimeIOException("BCF reading is not supported. You should convert to VCF or pipe from bcftools view if possible. \""+path+"\"");
 			}
 		
 		return new VCFFileReader(path, requireIndex);

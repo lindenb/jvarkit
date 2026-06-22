@@ -32,7 +32,6 @@ import java.nio.file.Paths;
 import java.util.zip.GZIPInputStream;
 
 import com.github.lindenb.jvarkit.lang.StringUtils;
-import com.github.lindenb.jvarkit.variant.bcf.BCFIterator;
 
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.FileExtensions;
@@ -69,7 +68,7 @@ public class BcfIteratorBuilder extends VCFIteratorBuilder {
 
         if (bcfVersion != null) {
             //this is BCF
-            return BCFIterator.open(bufferedinput);
+            throw new IOException("Reading BCF is not supported. Try to convert to vcf or pipe into bcftools view.");
         } else {
             //this is VCF
             return new VCFReaderIterator2(bufferedinput);
@@ -89,7 +88,7 @@ public VCFIterator open(final String pathOrUrl) throws IOException {
 public VCFIterator open(final Path path) throws IOException {
 	IOUtil.assertFileIsReadable(path);
 	if(path.getFileName().getFileName().toString().endsWith(FileExtensions.BCF)) {
-		return BCFIterator.open(path);
+		throw new IOException("Reading BCF is not supported. Try to convert to vcf to pipe from bcftools view :"+path);
 		}
 	return super.open(path);
 	}
