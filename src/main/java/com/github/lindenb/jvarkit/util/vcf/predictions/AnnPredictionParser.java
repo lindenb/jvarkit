@@ -324,9 +324,10 @@ public class AnnPredictionParser
 			final Set<SequenceOntologyTree.Term> set=new HashSet<>(effects.size());
 			for(final String label:effects) {
 				if(label.isEmpty()) continue;
+				if(label.equals("custom")) continue; //// https://github.com/pcingola/SnpEff/blob/1db15998ea6aad93a35848aca0f6cba81cd36738/src/docs/snpeff/additionalann.md?plain=1#L95
 				final SequenceOntologyTree.Term t = AnnPredictionParser.this.soTree.getTermByLabel(label);
 				if(t==null) {
-					LOG.warning("Current Sequence Ontology Tree doesn't contain \""+ label+"\". May be it's a deprecated term or the current version of this package is obsolete.");
+					LOG.warning("Current Sequence Ontology Tree doesn't contain \""+ label+"\". May be it's a deprecated term or the current version of this package is obsolete. (was "+this.getOriginalAttributeAsString()+")");
 					} 
 				else
 					{
