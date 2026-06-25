@@ -159,7 +159,7 @@ END_DOC
 	description="split a vcf to interval or bed for parallelization",
 	keywords={"vcf","bed","interval"},
 	creationDate="20211112",
-	modificationDate="20221128",
+	modificationDate="20260625",
 	biostars= {9506628,9529137},
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
@@ -176,8 +176,6 @@ public class VcfToIntervals extends Launcher
 	private long n_variants_per_interval = -1L;
 	@Parameter(names={"-D","--distance"},description="min size of an interval (or use option -N). "+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int distance_per_interval = -1;
-	@Parameter(names="--min-distance",description="extends the interval if the last variant is withing distance 'x' of the next interval. Ignore if negative."+DistanceParser.OPT_DESCRIPTION,converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
-	private int min_distance = -1;
 	@Parameter(names={"--intervals","--bed-input"},description="Search for intervals for EACH record of the provided bed file. VCF path must be provided and indexed.")
 	private Path bedIn = null;
 
@@ -204,10 +202,13 @@ public class VcfToIntervals extends Launcher
 			final Locatable optional_interval
 			)
 		{
+		
 		while(iter.hasNext()) {
 			final VariantContext first = orderChecker.apply(iter.next());
 			VariantContext last = first;
 			long n_variants = 1;
+			int max_end=first.getEnd();
+			
 			if(this.n_variants_per_interval>0L) {
 				while(iter.hasNext() && n_variants < this.n_variants_per_interval) {
 					if (!first.contigsMatch( iter.peek())) {
@@ -215,6 +216,7 @@ public class VcfToIntervals extends Launcher
 						}
 					// consumme
 					last = orderChecker.apply(iter.next());
+					max_end = Math.max(max_end, last.getEnd());
 					n_variants++;
 					}
 				}
@@ -229,15 +231,22 @@ public class VcfToIntervals extends Launcher
 						}
 					// consumme
 					last = orderChecker.apply(iter.next());
+					max_end = Math.max(max_end, last.getEnd());
 					n_variants++;
 					}
 				}
-			// next variant is just too close than the last one
-			while(this.min_distance>=0 && iter.hasNext()) {
-				final VariantContext curr = iter.peek();
-				if(!last.withinDistanceOf(curr, this.min_distance)) break;
+			//avoid overlapping variants in the end e.g: last variant is a large SV
+			while(iter.hasNext()) {
+				final VariantContext ctx =  iter.peek();
+				if (!first.contigsMatch(ctx)) {
+					break;
+					}
+				if(ctx.getStart() > max_end) {
+					break;
+					}
 				// consumme
 				last = orderChecker.apply(iter.next());
+				max_end = Math.max(max_end, last.getEnd());
 				n_variants++;
 				}
 			pw.print(first.getContig());
@@ -318,12 +327,8 @@ public class VcfToIntervals extends Launcher
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			}
 		}
 
-	
 	
 	public static void main(final String[] args)
 		{
