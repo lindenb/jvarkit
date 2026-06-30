@@ -31,12 +31,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamWriter;
@@ -167,43 +170,78 @@ public class VcfForIGV extends Launcher {
 			}
 		}
 	
-	
-	static private int compareGT(final Genotype g1, final Genotype g2) {
-		int i  = Integer.compare((g1.isFiltered()?1:-1),(g2.isFiltered()?1:-1));
-		if(i!=0) return i;
-		if(g1.hasGQ() && g2.hasGQ()) {
-			i=  Integer.compare(g2.getGQ(),g1.getGQ());
-			if(i!=0) return i;
+		
+		private static class GenotypeComparator implements Comparator<Genotype> {
+			@Override
+			public int compare(final Genotype g1,final Genotype g2) {	
+				int i  = Integer.compare((g1.isFiltered()?1:-1),(g2.isFiltered()?1:-1));
+				if(i!=0) return i;
+				if(g1.hasGQ() && g2.hasGQ()) {
+					i=  Integer.compare(g2.getGQ(),g1.getGQ());
+					if(i!=0) return i;
+					}
+				if(g1.hasDP() && g2.hasDP()) {
+					i=  Integer.compare(g2.getDP(),g1.getDP());
+					if(i!=0) return i;
+					}
+				if(g1.isCalled() && g2.isCalled() && g1.hasAD() && g2.hasAD()) {
+					final int[] a1= g1.getAD();
+					final int[] a2= g2.getAD();
+					if(a1.length==2 && a2.length==2) {
+						final int n1= a1[0]+a1[1];
+						final int n2= a2[0]+a2[1];
+						if(n1>0 && n2>0) {
+							final float f1 = a1[1]/(float)n1;
+							final float f2 = a2[1]/(float)n2;
+							if(g1.isHet() && g2.isHet()) {
+								i= Float.compare(Math.abs(0.5f-f1), Math.abs(0.5f-f2));
+								if(i!=0) return i;
+								}
+							else if(g1.isHomRef() && g2.isHomRef()) {
+								i= Float.compare(f1,f2);//lowest is best
+								if(i!=0) return i;
+								}
+							else if(g1.isHomVar() && g2.isHomVar()) {
+								i= Float.compare(f2,f1);//highest is best
+								if(i!=0) return i;
+								}
+							}
+						}
+					}
+				return g1.getSampleName().compareTo(g2.getSampleName());
+				}
+		}
+		
+	/* why this ugly stuff ? I've got a bug with my comparator and I can't find 
+	 why it is throwing a illegalArgumentException
+	 */
+	private static List<Genotype> sort(final Stream<Genotype> stream) {
+		final ArrayList<Genotype> L = new ArrayList<>();
+		final Iterator<Genotype> it = stream.iterator();
+		while(it.hasNext()) {
+			L.add(it.next());
 			}
-		if(g1.hasDP() && g2.hasDP()) {
-			i=  Integer.compare(g2.getDP(),g1.getDP());
-			if(i!=0) return i;
-			}
-		if(g1.isCalled() && g2.isCalled() && g1.hasAD() && g2.hasAD()) {
-			final int[] a1= g1.getAD();
-			final int[] a2= g2.getAD();
-			if(a1.length==2 && a2.length==2) {
-				final int n1= a1[0]+a1[1];
-				final int n2= a2[0]+a2[1];
-				if(n1>0 && n2>0) {
-					final float f1 = a1[1]/(float)n1;
-					final float f2 = a2[1]/(float)n2;
-					if(g1.isHet() && g2.isHet()) {
-						i= Float.compare(Math.abs(0.5f-f1), Math.abs(0.5f-f2));
-						if(i!=0) return i;
+		final GenotypeComparator cmp = new GenotypeComparator();
+		boolean done=false;
+		while(!done) {
+			done=true;
+			for(int i=0;i+1< L.size();i++) {
+				final Genotype g0 = L.get(i+0);
+				final Genotype g1 = L.get(i+1);
+				if(cmp.compare(g0, g1)>0) {
+					
+					if(cmp.compare(g1, g0)>0) {
+						throw new IllegalArgumentException("Cannot sort\n"+g0+"\n"+g1);
 						}
-					else if(g1.isHomRef() && g2.isHomRef()) {
-						i= Float.compare(f1,f2);//lowest is best
-						if(i!=0) return i;
-						}
-					else if(g1.isHomVar() && g2.isHomVar()) {
-						i= Float.compare(f2,f1);//highest is best
-						if(i!=0) return i;
-						}
+					
+					L.set(i+0, g1);
+					L.set(i+1, g0);
+					done=false;
+					
 					}
 				}
 			}
-		return g1.getSampleName().compareTo(g2.getSampleName());
+		return L;
 		}
 	
 	private static List<Genotype> makeList(
@@ -212,12 +250,12 @@ public class VcfForIGV extends Launcher {
 			final boolean is_case,
 			final GenotypeType gtype
 			) {
-			return ctx.getGenotypes()
-				.stream()
-				.filter(G->sample2baminfo.containsKey(G.getSampleName()) && sample2baminfo.get(G.getSampleName()).isCase()== is_case)
-				.filter(G->G.getType().equals(gtype))
-				.sorted(VcfForIGV::compareGT)
-				.collect(Collectors.toCollection(ArrayList::new));
+			return sort(
+				ctx.getGenotypes()
+					.stream()
+					.filter(G->sample2baminfo.containsKey(G.getSampleName()) && sample2baminfo.get(G.getSampleName()).isCase()== is_case)
+					.filter(G->G.getType().equals(gtype))
+				);
 			}
 	
 	private static List<Genotype> makeList(
@@ -225,12 +263,12 @@ public class VcfForIGV extends Launcher {
 			final VariantContext ctx,
 			final GenotypeType gtype
 			) {
-			return ctx.getGenotypes()
-				.stream()
-				.filter(G->sample2baminfo.containsKey(G.getSampleName()))
-				.filter(G->G.getType().equals(gtype))
-				.sorted(VcfForIGV::compareGT)
-				.collect(Collectors.toCollection(ArrayList::new));
+			return sort(
+				ctx.getGenotypes()
+					.stream()
+					.filter(G->sample2baminfo.containsKey(G.getSampleName()))
+					.filter(G->G.getType().equals(gtype))
+				);
 			}
 	
 	private static List<Genotype> limit(final List<Genotype> L,int N) {
