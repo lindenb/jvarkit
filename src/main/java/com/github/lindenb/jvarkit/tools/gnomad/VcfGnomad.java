@@ -112,6 +112,8 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	private boolean debug = false;
 	@Parameter(names={"--ome"},description="is the genome vcf exome or genome ? If 'undefined', try to guess from filename")
 	private OmeType user_ome_type = OmeType.undefined;
+	@Parameter(names={"--disable-lcr"},description="Do NOT use the 'INFO/lcr'  (low complexity region) flag. Default is to set a FILTER those variants.")
+	private boolean disable_lcr=false;
 
 
 	private enum OmeType {genome,exome,undefined;}
@@ -331,6 +333,31 @@ public class VcfGnomad extends OnePassVcfLauncher {
 				"Count Gnomad Variants that were found overlapping the user variant, not necessarily at the same CHROM/POS in "+this.gnomadPath
 				);
 		h2.addMetaDataLine(infoNumOverlapping);
+		
+		// low complexity region
+		final VCFInfoHeaderLine src_info_lcr = h0.getInfoHeaderLine("lcr");
+		final VCFFilterHeaderLine filterLowComplexityHeader;
+
+		if(!this.disable_lcr && src_info_lcr!=null && src_info_lcr.getType()==VCFHeaderLineType.Flag) {
+			if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix)) {
+				filterLowComplexityHeader =  new VCFFilterHeaderLine(
+						toNewFilter.apply("LCR"),
+						"Low Compexity region defined in "+this.gnomadPath
+						);
+				h2.addMetaDataLine(filterLowComplexityHeader);
+				if(this.debug) LOG.debug("adding filter "+ filterLowComplexityHeader.getID());
+				}
+			else
+				{
+				filterLowComplexityHeader = null;
+				}
+			}
+		else
+			{
+			filterLowComplexityHeader = null;
+			}
+		
+		
 		if(this.debug) LOG.debug("adding vcfheader "+infoNumOverlapping.getID());
 		
 		
@@ -400,6 +427,14 @@ public class VcfGnomad extends OnePassVcfLauncher {
 						map(F->toNewFilter.apply(F)).
 						collect(Collectors.toList())
 						);
+					
+					// low complexity
+					if(filterFrequencyHeader!=null) {
+						// at least one variant has INFO/lcr
+						if(gnomadVariants.stream().anyMatch(V->V.hasAttribute(src_info_lcr.getID())))  {
+							filters.add(filterFrequencyHeader.getID());
+							}
+						}
 					}
 				
 				// loop over each field
@@ -455,7 +490,13 @@ public class VcfGnomad extends OnePassVcfLauncher {
 				}
 			
 			if(!this.doNotUpdateId && !ctx.hasID() && !StringUtil.isBlank(newid)) vcb.id(newid);
-			vcb.filters(filters);
+			if(filters.isEmpty()) {
+				vcb.passFilters();
+				}
+			else
+				{
+				vcb.filters(filters);
+				}
 			out.add(vcb.make());
 			}
 		return 0;
