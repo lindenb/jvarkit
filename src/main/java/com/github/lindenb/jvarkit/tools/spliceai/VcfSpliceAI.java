@@ -24,9 +24,12 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.tools.spliceai;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -86,7 +89,7 @@ END_DOC
 description="Annotate VCF with local spiceai vcf",
 keywords={"vcf","splice","splicing","spliceai"},
 creationDate="20201107",
-modificationDate="20260602",
+modificationDate="20260702",
 jvarkit_amalgamion = true
 )
 public class VcfSpliceAI  extends OnePassVcfLauncher {
@@ -96,12 +99,10 @@ public class VcfSpliceAI  extends OnePassVcfLauncher {
 	@Parameter(names={"--tag"},description="INFO tag")
 	private String tag=SpliceAI.getTag();
 	@Parameter(names={"--vcf","--annotation","--spliceai"},description="SpliceAI VCF.vcf.gz indexed with tabix",required = true)
-	private Path spliceAiVCF = null;
+	private List<Path> spliceAiVCFs = new ArrayList<>();
 	@Parameter(names={"--buffer"},description=BufferedVCFReader.OPT_BUFFER_DESC+" "+DistanceParser.OPT_DESCRIPTION,splitter = NoSplitter.class, converter = DistanceParser.StringConverter.class)
 	private int distance=1000;
 
-	private VCFFileReader localSpliceAIVcf=null;
-	private BufferedVCFReader localSpliceAIBufferedVcf=null;
 	
 	@Override
 	protected Logger getLogger()
@@ -109,16 +110,66 @@ public class VcfSpliceAI  extends OnePassVcfLauncher {
 		return LOG;
 		}
 
+	private class AnnotSource implements Closeable {
+		private final Path spliceAiVCF;
+		private VCFFileReader localSpliceAIVcf=null;
+		private BufferedVCFReader localSpliceAIBufferedVcf=null;
+		private final VCFHeader annotHeader;
+		private final ContigNameConverter ctgConverter;
+		private final VCFInfoHeaderLine info_hdr;
+		AnnotSource(final Path spliceAiVCF) throws IOException {
+			this.spliceAiVCF = spliceAiVCF;
+			this.localSpliceAIVcf = new VCFFileReader(spliceAiVCF,true);
+			final VCFHeader annotHeader = this.localSpliceAIVcf.getHeader();
+			final VCFInfoHeaderLine info = annotHeader.getInfoHeaderLine(VcfSpliceAI.this.tag);
+			if(info==null) throw new IllegalArgumentException("INFO/"+VcfSpliceAI.this.tag+" missing in "+this.spliceAiVCF);
+
+			this.localSpliceAIBufferedVcf = new BufferedVCFReader(this.localSpliceAIVcf, VcfSpliceAI.this.distance);
+			
+			
+			this.annotHeader = this.localSpliceAIBufferedVcf.getHeader();
+			this.info_hdr = annotHeader.getInfoHeaderLine(VcfSpliceAI.this.tag);
+			if(info_hdr==null) throw new IllegalArgumentException("INFO/"+VcfSpliceAI.this.tag+" missing in "+this.spliceAiVCF);
+			final SAMSequenceDictionary annotdict = SequenceDictionaryUtils.extractRequired(this.annotHeader);
+			this.ctgConverter = ContigNameConverter.fromOneDictionary(annotdict);
+			}
+		
+		@Override
+		public void close() {
+			if(this.localSpliceAIBufferedVcf!=null) {
+				try {
+					this.localSpliceAIBufferedVcf.close();
+					this.localSpliceAIBufferedVcf = null;
+					}
+				catch(Throwable err) {
+					LOG.error(err);
+					}
+				}
+			if(this.localSpliceAIVcf!=null) {
+				try {
+					this.localSpliceAIVcf.close();
+					this.localSpliceAIVcf = null;
+					}
+				catch(Throwable err) {
+					LOG.error(err);
+					}
+				}
+			}
+		}
+	private final List<AnnotSource> annotationSources = new ArrayList<>();
+	
+	
 	@Override
 	protected int beforeVcf()
 		{
+		if(spliceAiVCFs.isEmpty()) {
+			LOG.error("spliceAI vcf missing");
+			return -1;
+			}
 		try {
-			this.localSpliceAIVcf = new VCFFileReader(this.spliceAiVCF,true);
-			final VCFHeader annotHeader = this.localSpliceAIVcf.getHeader();
-			final VCFInfoHeaderLine info = annotHeader.getInfoHeaderLine(this.tag);
-			if(info==null) throw new IllegalArgumentException("INFO/"+this.tag+" missing in "+this.spliceAiVCF);
-
-			this.localSpliceAIBufferedVcf = new BufferedVCFReader(this.localSpliceAIVcf, this.distance);
+			for(Path p: this.spliceAiVCFs) {
+				this.annotationSources.add(new AnnotSource(p));
+				}
 			}
 		catch(final Throwable err) {
 			LOG.error(err);
@@ -128,23 +179,8 @@ public class VcfSpliceAI  extends OnePassVcfLauncher {
 	
 	@Override
 	protected void afterVcf() {
-		if(this.localSpliceAIBufferedVcf!=null) {
-			try {
-				this.localSpliceAIBufferedVcf.close();
-				this.localSpliceAIBufferedVcf = null;
-				}
-			catch(Throwable err) {
-				LOG.error(err);
-				}
-			}
-		if(this.localSpliceAIVcf!=null) {
-			try {
-				this.localSpliceAIVcf.close();
-				this.localSpliceAIVcf = null;
-				}
-			catch(Throwable err) {
-				LOG.error(err);
-				}
+		for(AnnotSource a: this.annotationSources) {
+			a.close();
 			}
 		super.afterVcf();
 		}
@@ -159,44 +195,37 @@ public class VcfSpliceAI  extends OnePassVcfLauncher {
 			final VariantContextWriter out)
 		{
 		final VCFHeader header = iterin.getHeader();
-		final VCFHeader annotHeader = this.localSpliceAIBufferedVcf.getHeader();
-		final VCFInfoHeaderLine info_hdr = annotHeader.getInfoHeaderLine(this.tag);
-		if(info_hdr==null) throw new IllegalArgumentException("INFO/"+this.tag+" missing in "+this.spliceAiVCF);
-		final SAMSequenceDictionary annotdict = SequenceDictionaryUtils.extractRequired(annotHeader);
-		final ContigNameConverter ctgConverter = ContigNameConverter.fromOneDictionary(annotdict);
 		
 		
-		
-		header.addMetaDataLine(info_hdr);
+		for(final AnnotSource a:this.annotationSources) {
+			header.addMetaDataLine(a.info_hdr);
+			break;
+			}
 		JVarkitVersion.getInstance().addMetaData(this, header);
 		
 		out.writeHeader(header);
 		while(iterin.hasNext()) {
 			final VariantContext ctx= iterin.next();
-			final String ctg_annot = ctgConverter.apply(ctx.getContig());
-			if(StringUtils.isBlank(ctg_annot)) {
-				out.add(ctx);
-				continue;
-				}
+			
 			final Set<SpliceAI> predictions =new HashSet<>();
-			// previous values
-			if(ctx.hasAttribute(this.tag)) {
-				for(SpliceAI prediction: SpliceAI.parse(ctx,tag)) {
-					final Allele alt = Allele.create(prediction.getAllele(),false);
-					if(!ctx.hasAlternateAllele(alt)) continue;
-					predictions.add(prediction);
+
+			for(AnnotSource annot:this.annotationSources) {	
+				final String ctg_annot = annot.ctgConverter.apply(ctx.getContig());
+				if(StringUtils.isBlank(ctg_annot)) {
+					continue;
 					}
-				}
-			try(CloseableIterator<VariantContext> iter2 =  this.localSpliceAIBufferedVcf.query(ctg_annot,ctx.getStart(),ctx.getEnd())) {
-				while(iter2.hasNext()) {
-					final VariantContext ctx2 = iter2.next();
-					if(!ctx2.hasAttribute(tag)) continue;
-					if(ctx.getStart()!=ctx2.getStart()) continue;
-					if(!ctx.getReference().equals(ctx2.getReference())) continue;
-					for(SpliceAI prediction: SpliceAI.parse(ctx2,tag)) {
-						final Allele alt = Allele.create(prediction.getAllele(),false);
-						if(!ctx.hasAlternateAllele(alt)) continue;
-						predictions.add(prediction);
+				
+				try(CloseableIterator<VariantContext> iter2 =  annot.localSpliceAIBufferedVcf.query(ctg_annot,ctx.getStart(),ctx.getEnd())) {
+					while(iter2.hasNext()) {
+						final VariantContext ctx2 = iter2.next();
+						if(!ctx2.hasAttribute(this.tag)) continue;
+						if(ctx.getStart()!=ctx2.getStart()) continue;
+						if(!ctx.getReference().equals(ctx2.getReference())) continue;
+						for(SpliceAI prediction: SpliceAI.parse(ctx2, this.tag)) {
+							final Allele alt = Allele.create(prediction.getAllele(),false);
+							if(!ctx.hasAlternateAllele(alt)) continue;
+							predictions.add(prediction);
+							}
 						}
 					}
 				}
