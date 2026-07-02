@@ -28,6 +28,10 @@ Usage: vcfgnomad [options] Files
       variant. A distance specified as a positive integer.Commas are removed. 
       The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10000
+    --disable-lcr
+      Do NOT use the 'INFO/lcr'  (low complexity region) flag. Default is to 
+      set a FILTER those variants.
+      Default: false
     -F, --fields
       AF fields to peek-up from gnomad. Space/comma/semicolon separated
       Default: AF_popmax,AF_nfe

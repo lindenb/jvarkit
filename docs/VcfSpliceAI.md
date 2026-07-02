@@ -18,6 +18,7 @@ Usage: vcfspliceai [options] Files
   Options:
   * --vcf, --annotation, --spliceai
       SpliceAI VCF.vcf.gz indexed with tabix
+      Default: []
     --bcf-output
       If this program writes a VCF to a file, The format is first guessed from 
       the file suffix. Otherwise, force BCF output. The current supported BCF 

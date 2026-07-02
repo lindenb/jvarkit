@@ -342,7 +342,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 			if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix)) {
 				filterLowComplexityHeader =  new VCFFilterHeaderLine(
 						toNewFilter.apply("LCR"),
-						"Low Compexity region defined in "+this.gnomadPath
+						"Low Compexity region defined in "+this.gnomadPath+" : "+src_info_lcr.getDescription()
 						);
 				h2.addMetaDataLine(filterLowComplexityHeader);
 				if(this.debug) LOG.debug("adding filter "+ filterLowComplexityHeader.getID());
@@ -429,10 +429,10 @@ public class VcfGnomad extends OnePassVcfLauncher {
 						);
 					
 					// low complexity
-					if(filterFrequencyHeader!=null) {
+					if(filterLowComplexityHeader!=null) {
 						// at least one variant has INFO/lcr
 						if(gnomadVariants.stream().anyMatch(V->V.hasAttribute(src_info_lcr.getID())))  {
-							filters.add(filterFrequencyHeader.getID());
+							filters.add(filterLowComplexityHeader.getID());
 							}
 						}
 					}
