@@ -544,7 +544,7 @@ private void _interval(final Locatable loc,final Set<LabelledUrl> urls) {
 				StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_sv_r4"
 				));
 
-		urls.add(new LabelledUrlImpl("Region Primateai3d",locid,"ttps://primateai3d.basespace.illumina.com/region/"+
+		urls.add(new LabelledUrlImpl("Region Primateai3d",locid,"https://primateai3d.basespace.illumina.com/region/"+
 				StringUtils.escapeHttp(ensemblCtg) + "-" + xstart1 +"-"+ xend1 +"?dataset=gnomad_r3"
 				));
 		
