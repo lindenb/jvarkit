@@ -2,7 +2,7 @@
 
 ![Last commit](https://img.shields.io/github/last-commit/lindenb/jvarkit.png)
 
-Concatenate VCFs with same samples. See also bcftools concat
+Concatenate VCFs. See also bcftools concat
 
 
 ## Usage
@@ -22,8 +22,12 @@ Usage: vcfconcat [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
-    --chrom, --contig
-      limit to that chromosome
+    -R, --dict
+      Optional: use that dictionary otherwise, use the first ddictionary found 
+      in the vcfs.A SAM Sequence dictionary source: it can be a *.dict file, a 
+      fasta file indexed with 'picard CreateSequenceDictionary' or 'samtools 
+      dict', or any hts file containing a dictionary (VCF, BAM, CRAM, 
+      intervals...) 
     -G, --drop-genotypes
       Drop genotypes
       Default: false
@@ -39,6 +43,8 @@ Usage: vcfconcat [options] Files
       Default: false
     -o, --out
       Output file. Optional . Default: stdout
+    --bed, --regions-file, --regions
+      limit to that bed file
     -S, --samples
       Print Samples in INFO columns. implies --drop-genotypes
       Default: none
@@ -92,10 +98,16 @@ The current reference is:
 
 
 ```
- wget -O - "https://www.genenames.org/cgi-bin/download/custom?col=gd_hgnc_id&col=gd_app_sym&status=Approved&hgnc_dbtag=on&order_by=gd_app_sym_sort&format=text&submit=submit" |\
- 	tail -n +2 |\
- 	awk -F '\t' '{printf("type : gene\nsymbol : %s\nuri : %s\n\n",$2,$1);}' |\
- 	sed 's%HGNC:%http://identifiers.org/hgnc/%' > genes.recfile
+find /path -type f -name "*.vcf.gz" > input.list
+java -jar jvarkit.jar vcfconcat --merge input.list
 ```
+
+if not argument: paths are read on stdin:
+
+```
+find /path -type f -name "*.vcf.gz" |\
+	java -jar jvarkit.jar vcfconcat --merge input.list
+```
+
 
 

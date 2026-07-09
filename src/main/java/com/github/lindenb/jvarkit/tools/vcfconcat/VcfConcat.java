@@ -37,25 +37,29 @@ import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.bed.BedLineReader;
+import com.github.lindenb.jvarkit.dict.SequenceDictionaryExtractor;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
+import com.github.lindenb.jvarkit.variant.vcf.MultiIntervalVariantIterator;
 import com.github.lindenb.jvarkit.variant.vcf.VcfHeaderExtractor;
 
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.SequenceUtil;
+import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -69,19 +73,25 @@ BEGIN_DOC
 
 
 ```
- wget -O - "https://www.genenames.org/cgi-bin/download/custom?col=gd_hgnc_id&col=gd_app_sym&status=Approved&hgnc_dbtag=on&order_by=gd_app_sym_sort&format=text&submit=submit" |\
- 	tail -n +2 |\
- 	awk -F '\t' '{printf("type : gene\nsymbol : %s\nuri : %s\n\n",$2,$1);}' |\
- 	sed 's%HGNC:%http://identifiers.org/hgnc/%' > genes.recfile
+find /path -type f -name "*.vcf.gz" > input.list
+java -jar jvarkit.jar vcfconcat --merge input.list
 ```
+
+if not argument: paths are read on stdin:
+
+```
+find /path -type f -name "*.vcf.gz" |\
+	java -jar jvarkit.jar vcfconcat --merge input.list
+```
+
 
 END_DOC
 */
 @Program(name="vcfconcat",
 	keywords={"vcf"},
 	creationDate = "20131230",
-	modificationDate = "20240426",
-	description="Concatenate VCFs with same samples. See also bcftools concat",
+	modificationDate = "20260709",
+	description="Concatenate VCFs. See also bcftools concat",
 	generate_doc = true,
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
@@ -91,6 +101,8 @@ public class VcfConcat extends Launcher
 	private static final Logger LOG =Logger.of(VcfConcat.class);
 	private enum SamplePeek {none,all,with_alt};
 	
+	@Parameter(names={"-R","--dict"},description="Optional: use that dictionary otherwise, use the first ddictionary found in the vcfs."+DICTIONARY_SOURCE)
+	private Path dictSource=null;
 	@Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 	@Parameter(names={"-T","--tag"},description="if not empty, add INFO/tag containing the source/path of the variant")
@@ -100,8 +112,8 @@ public class VcfConcat extends Launcher
 	@Parameter(names={"-S","--samples"},description="Print Samples in INFO columns. implies --drop-genotypes")
 	private SamplePeek samplePeek = SamplePeek.none;
 	
-	@Parameter(names={"--chrom","--contig"},description="limit to that chromosome")
-	private String limitChrom = null;
+	@Parameter(names={"--bed","--regions-file","--regions"},description="limit to that bed file")
+	private Path input_bed_path = null;
 
 	@Parameter(names={"--merge"},description="merge all samples. First Scan all files to get all distinct samples")
 	private boolean merge_distinct_samples = false;
@@ -110,6 +122,8 @@ public class VcfConcat extends Launcher
 	@ParametersDelegate
 	private WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
 
+	
+	
 	@Override
 	public int doWork(final List<String> args) {
 		VariantContextWriter w=null;
@@ -160,30 +174,61 @@ public class VcfConcat extends Launcher
 				{
 				distinct_samples = null;
 				}
+			final SAMSequenceDictionary firstDict = new SequenceDictionaryExtractor()
+					.extractRequiredDictionary(dictSource==null?vcfs.get(0):this.dictSource);
+			final ContigNameConverter ctgConvert = ContigNameConverter.fromOneDictionary(firstDict);
+			
+			
+			final List<Interval> intervals;
+			
+			if(this.input_bed_path==null) {
+				intervals = null;
+				}
+			else
+				{
+				try(BedLineReader br= new BedLineReader(this.input_bed_path)) {
+					intervals = br.stream()
+							.map(T->T.toInterval())
+							.collect(Collectors.toList()
+						);
+					}
+				if(intervals.isEmpty()) {
+					LOG.warn("Empty bed in "+this.input_bed_path);
+					}
+				}
 			
 			VCFInfoHeaderLine variantSourceHeader = null;
 			VCFInfoHeaderLine variantSampleHeader = null;
 			VCFHeader firstHeader=null;
 			long count_variants=0L;
-			SAMSequenceDictionary firstDict=null;
 			final long initMilliSec = System.currentTimeMillis();
 			for(int i=0;i< vcfs.size();i++) {
 				final Path vcfPath = vcfs.get(i);
 				final long startMilliSec = System.currentTimeMillis();
 				LOG.info(String.valueOf(i+1)+"/"+vcfs.size()+" "+vcfPath);
-				try(VCFIterator in = new BcfIteratorBuilder().open(vcfPath)) {
+				
+				VCFFileReader vcfFileReader=null;
+				VCFIterator in = null;
+				
+				try{
+					if( this.input_bed_path!=null) {
+						in = new BcfIteratorBuilder().open(vcfPath);
+						}
+					else
+						{
+						vcfFileReader  = new VCFFileReader(vcfPath,true);
+						in= MultiIntervalVariantIterator.query(vcfFileReader,intervals);
+						}
+					
+					
 					final VCFHeader header0 = in.getHeader();
-					final VCFHeader header = drop_genotypes?
+					final VCFHeader header = this.drop_genotypes?
 							new VCFHeader(header0.getMetaDataInInputOrder()):
 							(distinct_samples==null?header0:new VCFHeader(header0.getMetaDataInInputOrder(),distinct_samples));
-					final SAMSequenceDictionary dict= header.getSequenceDictionary();
 					if(firstHeader==null) {
-						w=this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
+						w=this.writingVariantsDelegate.dictionary(firstDict).open(this.outputFile);
 						firstHeader = header;
-						firstDict = dict;
-						if(dict!=null && limitChrom!=null && dict.getSequence(this.limitChrom)==null) {
-							throw new JvarkitException.ContigNotFoundInDictionary(limitChrom, dict);
-							}
+						
 						if(!StringUtils.isBlank(this.variantsourceTag)) {
 							variantSourceHeader = new VCFInfoHeaderLine(
 									this.variantsourceTag,
@@ -208,7 +253,6 @@ public class VcfConcat extends Launcher
 						}
 					else
 						{
-						if(firstDict!=null && dict!=null) SequenceUtil.assertSequenceDictionariesEqual(firstDict, dict);
 						if(!this.drop_genotypes && !firstHeader.getGenotypeSamples().equals(header.getGenotypeSamples())) {
 							LOG.error("Samples names/order mismatch between "+ vcfs.get(0)+" and "+ vcfPath+
 									". You can also use --merge to merge all genotypes, or --drop-genotypes");
@@ -217,12 +261,18 @@ public class VcfConcat extends Launcher
 						}
 					while(in.hasNext()) {
 						VariantContext ctx = in.next();
-						if(limitChrom!=null && !ctx.getContig().equals(limitChrom)) {
-							continue;
-							}
+						final String ctg = ctgConvert.apply(ctx.getContig());
+						if(StringUtils.isBlank(ctg)) continue;
+						
 												
-						if(drop_genotypes || variantSourceHeader!=null) {
+						if(drop_genotypes || variantSourceHeader!=null || !ctg.equals(ctx.getContig())) {
+							
 							final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+							if( !ctg.equals(ctx.getContig())) {
+								vcb.chr(ctg);
+								}
+							
+							
 							if(variantSourceHeader!=null) vcb.attribute(
 									variantSourceHeader.getID(),
 									VCFUtils.escapeInfoField(vcfPath.toString())
@@ -267,7 +317,10 @@ public class VcfConcat extends Launcher
 					final long millisecPerVcf  = (System.currentTimeMillis() - initMilliSec)/(i+1L);
 					LOG.info("N="+count_variants+". That took: "+StringUtils.niceDuration(System.currentTimeMillis() - startMilliSec)+" Remains: "+ StringUtils.niceDuration((vcfs.size()-(i+1))*millisecPerVcf));
 					}
-				
+				finally {
+					if(in!=null) in.close();
+					if(vcfFileReader!=null) vcfFileReader.close();
+					}
 				}
 			w.close();
 			w=null;

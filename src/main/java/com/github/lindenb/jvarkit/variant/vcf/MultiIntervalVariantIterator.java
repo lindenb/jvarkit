@@ -26,8 +26,8 @@ package com.github.lindenb.jvarkit.variant.vcf;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 
-import com.github.lindenb.jvarkit.iterator.AbstractCloseableIterator;
 import com.github.lindenb.jvarkit.samtools.util.LocatableUtils;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
 
@@ -37,24 +37,46 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFIterator;
 
 /**
  * creates a Multiple-interval iterator list
  */
 public class MultiIntervalVariantIterator {
-public static CloseableIterator<VariantContext> query(final VCFFileReader reader,List<? extends Locatable> intervals0) {
+	
+public static VCFIterator query(final VCFFileReader reader,List<? extends Locatable> intervals0) {
 	final SAMSequenceDictionary dict = reader.getFileHeader().getSequenceDictionary();
 	final List<Locatable> intervals   = LocatableUtils.mergeIntervals(intervals0);
 	if(dict!=null && dict.size()>0) {
 		intervals.removeIf(R->dict.getSequence(R.getContig())==null);
 		Collections.sort(intervals,ContigDictComparator.createLocatableComparator(dict));
 		}
-	if(intervals.isEmpty()) return AbstractCloseableIterator.empty();
-	if(intervals.size()==1) return reader.query(intervals.get(0));
+	if(intervals.isEmpty()) {
+		final VCFHeader h0 = reader.getFileHeader();
+		return new VCFIterator() {
+			@Override
+			public VCFHeader getHeader() {return h0;};
+			@Override
+			public boolean hasNext() {
+				return false;
+				}
+			@Override
+			public VariantContext next() {
+				throw new NoSuchElementException();
+				}
+			@Override
+			public VariantContext peek() {
+				return null;
+				}
+			public void close() {};
+			};
+		}
 	return new Iter0(reader,intervals);
 	}
 
-	private static class Iter0 extends AbstractIterator<VariantContext> implements CloseableIterator<VariantContext> {
+	private static class Iter0 extends AbstractIterator<VariantContext>
+		implements VCFIterator {
 		private final VCFFileReader reader;
 		private  CloseableIterator<VariantContext> delegate=null;
 		private  final List<Locatable> intervals;
@@ -63,6 +85,11 @@ public static CloseableIterator<VariantContext> query(final VCFFileReader reader
 			this.reader = reader;
 			this.intervals = intervals;
 			}
+		@Override
+		public VCFHeader getHeader() {
+			return reader.getHeader();
+			}
+		
 		@Override
 		protected VariantContext advance() {
 				for(;;) {
