@@ -43,7 +43,6 @@ import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
@@ -152,10 +151,9 @@ public class Biostar497922 extends Launcher
 				VariantContext prev = null;
 				VariantContext first = null;
 				long n = 0L;
-				final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 				for(;;)
 					{
-					final VariantContext ctx= in.hasNext()?progress.apply(in.next()):null;
+					final VariantContext ctx= in.hasNext()?in.next():null;
 					if(ctx==null ||
 						(this.count>0 && n>=this.count) || 
 						(this.consider_chromosome &&  prev!=null && !ctx.contigsMatch(prev)) ||
@@ -207,7 +205,6 @@ public class Biostar497922 extends Launcher
 					n++;
 					}
 				
-				progress.close();
 				manifest.flush();
 				manifest.close();
 				manifest=null;

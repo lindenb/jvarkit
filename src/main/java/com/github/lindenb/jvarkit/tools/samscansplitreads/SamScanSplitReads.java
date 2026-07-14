@@ -39,7 +39,6 @@ import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.MultiBamLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -364,16 +363,11 @@ END_DOC
 			vcw.writeHeader(header);
 			
 			
-			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
-					newInstance().
-					dictionary(dict).
-					logger(LOG).
-					build();
 			
 			String prevContig=null;
 			while(iter.hasNext())
 				{
-				final SAMRecord rec = progress.apply(iter.next());
+				final SAMRecord rec = iter.next();
 				if(!SAMRecordDefaultFilter.accept(rec)) continue;
 							
 				

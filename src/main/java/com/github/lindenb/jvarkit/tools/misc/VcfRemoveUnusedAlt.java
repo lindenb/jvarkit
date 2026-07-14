@@ -37,7 +37,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VcfTools;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
@@ -111,11 +110,10 @@ public class VcfRemoveUnusedAlt extends Launcher {
 				{
 				throw new JvarkitException.UserError("cannot remove spanning allele where there are some genotypes");
 				}
-			ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			out.writeHeader(header);
 			
 			while(in.hasNext()) {
-				final VariantContext ctx  = progress.apply(in.next()); 
+				final VariantContext ctx  = in.next(); 
 				final List<Allele> alts = ctx.getAlternateAlleles();
 				if((this.no_span_allele || this.never_span_allele) && alts.size()==1 && alts.get(0).equals(Allele.SPAN_DEL)) {
 					continue;
@@ -250,7 +248,6 @@ public class VcfRemoveUnusedAlt extends Launcher {
 				nChanges++;
 				} //end while iter
 			
-			progress.close();
 			out.close();
 			LOG.info("number of changes "+ nChanges);
 			return 0;

@@ -16,7 +16,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
@@ -277,19 +276,13 @@ public class VcfGapFrequent extends Launcher {
 			handlers.add(new Handler(null));
 			header.getSampleNamesInOrder().stream().map(S->new Handler(S)).forEach(H->handlers.add(H));
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
-					dictionary(header).
-					validatingSortOrder(true).
-					logger(LOG).
-					build();
 			
 			while(in.hasNext())
 				{
-				final VariantContext ctx =progress.apply(in.next());
+				final VariantContext ctx = in.next();
 				handlers.stream().forEach(H->H.visit(ctx));
 				}
 			handlers.stream().forEach(H->H.finish());
-			progress.close();
 			
 			
 			out.flush();

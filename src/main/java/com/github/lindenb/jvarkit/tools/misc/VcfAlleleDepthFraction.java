@@ -36,7 +36,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
 import htsjdk.variant.vcf.VCFIterator;
@@ -150,14 +149,9 @@ public class VcfAlleleDepthFraction extends Launcher {
 		JVarkitVersion.getInstance().addMetaData(VcfAlleleDepthFraction.class.getSimpleName(), header2);
 		out.writeHeader(header2);
 		
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.
-				newInstance().
-				logger(LOG).
-				dictionary(header).
-				build();
 		while(iterin.hasNext())
 			{
-			final VariantContext ctx = progress.apply(iterin.next());
+			final VariantContext ctx =iterin.next();
 			if(!ctx.hasGenotypes() || !ctx.isVariant())
 				{
 				out.add(ctx);
@@ -266,7 +260,6 @@ public class VcfAlleleDepthFraction extends Launcher {
 			
 			out.add(vcb.make());
 			}
-		progress.close();
 		return 0;
 		}
 	

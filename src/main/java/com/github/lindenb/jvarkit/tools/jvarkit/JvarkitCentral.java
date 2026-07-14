@@ -153,6 +153,7 @@ import com.github.lindenb.jvarkit.tools.dict2vcf.DictToVcf;
 import com.github.lindenb.jvarkit.tools.dict2xml.DictToXml;
 import com.github.lindenb.jvarkit.tools.drageninv.DragenBndToInversion;
 import com.github.lindenb.jvarkit.tools.eva.EVADumpFiles;
+import com.github.lindenb.jvarkit.tools.expansionhunter.ExpansionHunterMerge;
 import com.github.lindenb.jvarkit.tools.extendref.ExtendReferenceWithReads;
 import com.github.lindenb.jvarkit.tools.fastq.BamToFastq;
 import com.github.lindenb.jvarkit.tools.fastq.FastqShuffle;
@@ -783,6 +784,7 @@ public class JvarkitCentral {
 		command(CoveragePlotter.class);
 		command(CoverageServer.class);
 		command(CoverageGrid.class);
+		command(ExpansionHunterMerge.class);
 		command(EVADumpFiles.class);
 		command(ExtendReferenceWithReads.class);
 		command(FastqShuffle.class);

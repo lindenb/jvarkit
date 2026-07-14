@@ -41,7 +41,6 @@ import com.github.lindenb.jvarkit.chart.XYChart;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.Pedigree;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
@@ -348,10 +347,9 @@ public class CaseControlJfx extends Launcher {
 					}
 				
 				int count = 0;
-				final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 				while(in.hasNext() && (this.limit_to_N_variants<0 || count<this.limit_to_N_variants)) 
 					{
-					final VariantContext ctx=progress.apply(in.next());
+					final VariantContext ctx= in.next();
 					
 					if(this.ignore_ctx_filtered && ctx.isFiltered()) continue;
 					
@@ -397,7 +395,6 @@ public class CaseControlJfx extends Launcher {
 						partition.add(ctx,pedigree,data);
 						}
 					}
-				progress.close();
 				in.close();in=null;
 				
 				

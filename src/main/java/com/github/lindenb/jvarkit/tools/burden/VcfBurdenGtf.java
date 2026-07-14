@@ -40,8 +40,7 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
-import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
+//import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.Exon;
 import com.github.lindenb.jvarkit.util.bio.structure.Gene;
@@ -81,7 +80,7 @@ generate_doc=false
 public class VcfBurdenGtf
 extends AbstractVcfBurden
 {
-	private static final Logger LOG = Logger.of(VcfBurdenGtf.class);
+	//private static final Logger LOG = Logger.of(VcfBurdenGtf.class);
 	@Parameter(names={"-g","-gtf","--gtf"},description="GTF file",required=true)
 	private Path gtfFile = null;
 	@Parameter(names={"-f","--filter"},description=JexlVariantPredicate.PARAMETER_DESCRIPTION,converter=JexlVariantPredicate.Converter.class)
@@ -211,11 +210,9 @@ extends AbstractVcfBurden
 				all_genes.clear();
 				}
 			
-			final ProgressFactory.Watcher<Gene> progress = ProgressFactory.newInstance().logger(LOG).dictionary(vcfDict).build();
 			
 			/* run genes */
 			for(final Gene gene : all_genes) {
-				progress.apply(gene);
 				final IntervalTree<VariantContext> intervalTree = new IntervalTree<>();
 				vcfReader.query(gene).stream().
 					filter(V->accept(V)).
@@ -359,13 +356,10 @@ extends AbstractVcfBurden
 					
 					}
 				}
-			progress.close();
 			
-			final ProgressFactory.Watcher<SimpleInterval> progress2 = ProgressFactory.newInstance().logger(LOG).dictionary(vcfDict).build();
 
 			/** scan intergenics ... */
 			for(final SimpleInterval intergenic : all_intergenic) {
-				progress2.apply(intergenic);
 				final int intergenic_window_size=2000;
 				final int intergenic_window_shifr=100;
 				final List<SimpleInterval> parts = new ArrayList<>();
@@ -438,7 +432,6 @@ extends AbstractVcfBurden
 					}
 					
 				}
-			progress2.close();
 	
 		}
 	

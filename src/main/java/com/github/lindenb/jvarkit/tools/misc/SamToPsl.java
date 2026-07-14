@@ -48,7 +48,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.ucsc.PslAlign;
 
 /**
@@ -337,17 +336,15 @@ public class SamToPsl extends Launcher
 		{
 		final SAMSequenceDictionary dict=SequenceDictionaryUtils.extractRequired(in.getFileHeader());
 		try(final SAMRecordIterator iter=in.iterator()) {
-			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();		
 			while(iter.hasNext() && !this.out.checkError())
 				{
-				final  SAMRecord rec=progress.apply(iter.next());
+				final  SAMRecord rec= iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				for(final PslAlign a: makePslAlign(rec,dict))
 					{
 					out.println(toString(a,rec));
 					}
 				}
-			progress.close();
 			}
 		}
 	

@@ -33,14 +33,11 @@ import java.util.List;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
 
 import htsjdk.samtools.util.IOUtil;
-import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFIterator;
 
 public abstract class OnePassVcfLauncher extends Launcher {
@@ -50,39 +47,6 @@ protected Path outputFile=null;
 @ParametersDelegate
 protected WritingVariantsDelegate writingVariantsDelegate= new WritingVariantsDelegate();
 
-private static class VCFIter implements VCFIterator {
-	final VCFIterator delegate;
-	final ProgressFactory.Watcher<VariantContext> progess;
-	VCFIter(final VCFIterator delegate,final Logger logger) {
-		this.delegate = delegate;
-		this.progess =ProgressFactory.newInstance().
-				dictionary(delegate.getHeader()).
-				validatingContig(false).
-				logger(logger).
-				build();
-		}
-	@Override
-	public VCFHeader getHeader() {
-		return this.delegate.getHeader();
-		}
-	@Override
-	public boolean hasNext() {
-		return this.delegate.hasNext();
-		}
-	@Override
-	public VariantContext peek() {
-		return this.delegate.peek();
-		}
-	@Override
-	public VariantContext next() {
-		return progess.apply(this.delegate.next());
-		}
-	@Override
-	public void close() {
-		this.progess.close();
-		this.delegate.close();
-		}
-	}
 
 protected Logger getLogger() {
 	return null;
@@ -132,9 +96,8 @@ public int doWork(final List<String> args) {
 		final int err;
 		final BcfIteratorBuilder bcb = new BcfIteratorBuilder();
 		try(VCFIterator in = (input==null? bcb.open(stdin()):bcb.open(input))) {
-			final VCFIterator in2=getLogger()!=null?new VCFIter(in, getLogger()):in;
-			try(VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(in2.getHeader()).open(this.outputFile)) {
-				err = doVcfToVcf(input==null?"<stdin>":input, in2,vcw);
+			try(VariantContextWriter vcw = this.writingVariantsDelegate.dictionary(in.getHeader()).open(this.outputFile)) {
+				err = doVcfToVcf(input==null?"<stdin>":input, in,vcw);
 				}
 			}
 		if(err!=0) deleteOutputOnError();

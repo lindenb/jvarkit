@@ -51,7 +51,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -436,10 +435,9 @@ public class RNASeqPolyA extends Launcher {
 						return -1;
 						}
 					samples.add(sample);
-					final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(dict).build();
 					try(CloseableIterator<SAMRecord> iter= (intervals==null || inputs.isEmpty()/*stdin*/?sr.iterator():sr.query(intervals, false))) {
 						while(iter.hasNext()) {
-							final SAMRecord rec = progress.apply(iter.next());
+							final SAMRecord rec = iter.next();
 							if(rec.getReadUnmappedFlag()) continue;
 							if(!StringUtils.isBlank(this.limit_contig) && !rec.getContig().equals(this.limit_contig)) continue;
 							if(this.default_read_filter && !SAMRecordDefaultFilter.accept(rec)) continue;
@@ -553,7 +551,6 @@ public class RNASeqPolyA extends Launcher {
 									}
 								}//end of loop last exon
 							}
-						progress.close();
 						}
 					}
 				++bam_index;

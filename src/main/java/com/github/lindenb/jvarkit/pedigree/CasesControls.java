@@ -124,7 +124,7 @@ public class CasesControls {
 		return retain(header.getGenotypeSamples());
 		}
 	
-	/** retain cases / controls that are in collection */
+	/** retain cases / controls that are in collection 'other' */
 	public CasesControls retain(final Collection<String> other) {
 		if(other==null) throw new NullPointerException("other header is null");
 		final Set<String> vcfsamples = new HashSet<>(other);
@@ -154,7 +154,6 @@ public class CasesControls {
 		return getCases().size();
 		}
 
-	
 	public Set<String> getControls() {
 		return _controls;
 		}
@@ -163,6 +162,11 @@ public class CasesControls {
 		return getControls().size();
 		}
 
+	/* get sum of cases and controls */
+	public int getTotalCount() {
+		return getCasesCount() + getControlsCount();
+		}
+	
 	
 	/**
 	 * return getCases() for side==0 && getControls() for side==1

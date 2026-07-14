@@ -51,7 +51,6 @@ import com.github.lindenb.jvarkit.io.NullOuputStream;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFBuffer;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
@@ -236,7 +235,6 @@ public class ForkVcf
 			if (!this.keep_order)
 				{
 				in = openVCFIterator(oneFileOrNull(args));
-				final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 
 				while(groups.size()<this.number_of_files)
 					{
@@ -247,12 +245,11 @@ public class ForkVcf
 					}
 				int idx=0;
 				while(in.hasNext()) {
-					final VariantContext ctx = progress.apply(in.next());
+					final VariantContext ctx = in.next();
 					groups.get(idx%this.number_of_files)._writer.add(ctx);
 					++idx;
 					}
 				in.close();
-				progress.close();
 				} 
 			else {
 				VCFBuffer buffer= null;
@@ -264,18 +261,16 @@ public class ForkVcf
 					{
 					in = openVCFIterator(null);
 					
-					final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 					
 					buffer=new VCFBuffer(this.maxRecordsInRam,this.tmpDir);
 					header= in.getHeader();
 					buffer.writeHeader(header);
 					while(in.hasNext()) {
-						final VariantContext ctx = progress.apply(in.next());
+						final VariantContext ctx = in.next();
 						buffer.add(ctx);
 						++count_variants;
 						}
 					in.close();
-					progress.close();
 					ctxIter = buffer.iterator();
 					}
 				else

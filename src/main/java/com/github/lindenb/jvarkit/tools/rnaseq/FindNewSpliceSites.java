@@ -53,7 +53,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
@@ -321,11 +320,10 @@ public class FindNewSpliceSites extends Launcher
 		
 		
 		try(SAMRecordIterator iter=in.iterator() ) {
-			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			
 			while(iter.hasNext())
 				{
-				final SAMRecord rec=progress.apply(iter.next());
+				final SAMRecord rec= iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.isSecondaryOrSupplementary()) continue;
 				
@@ -343,7 +341,6 @@ public class FindNewSpliceSites extends Launcher
 					scanRead(rec,dict,okPrg,junctionSorter);
 					}	
 				}
-			progress.close();
 			}
 		
 		}

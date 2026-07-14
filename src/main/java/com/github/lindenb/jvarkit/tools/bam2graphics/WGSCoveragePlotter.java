@@ -64,7 +64,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.DimensionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.rdf.ns.RDF;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
@@ -448,17 +447,15 @@ public int doWork(final List<String> args) {
 			
 			if(this.max_depth==-1) {
 				LOG.info("Computing "+ this.percentile.name() +" depth...");
-				final ProgressFactory.Watcher<SAMSequenceRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 				final DiscreteMedian<Integer> median = new DiscreteMedian<>();
 				for(final ChromInfo ci: chromInfos) {
-					int coverage[]  = getContigCoverage(sr, progress.apply(ci.ssr), samReadFilter);
+					int coverage[]  = getContigCoverage(sr,ci.ssr, samReadFilter);
 					for(int i=0;i<coverage.length;i++) {
 						median.add(coverage[i]);
 						}
 					coverage=null;
 					System.gc();
 					}
-				progress.close();
 				final DiscreteMedian.Tendency t;
 				
 				if(this.percentile.equals(DiscreteMedian.Tendency.median)) {
@@ -478,9 +475,7 @@ public int doWork(final List<String> args) {
 				return -1;
 				}
 			
-			final ProgressFactory.Watcher<SAMSequenceRecord> progress= ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			for(final ChromInfo ci: chromInfos) {
-				progress.apply(ci.ssr);
 				int coverage[]  = getContigCoverage(sr, ci.ssr, samReadFilter);
 
 				final Element g = element("g");
@@ -587,7 +582,6 @@ public int doWork(final List<String> args) {
 				coverage=null;
 				System.gc();
 				}
-			progress.close();
 			
 			final Element rulers= element("g");
 			g_chroms.appendChild(rulers);

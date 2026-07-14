@@ -49,7 +49,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.util.Counter;
 
@@ -634,11 +633,10 @@ public class BamStatsJfx extends Launcher {
 			chartGenerators.removeIf(G->!G.isEnabled());
 			
 			iter = samReader.iterator();
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			long last = -1L;
 			while(iter.hasNext())
 				{
-				final SAMRecord rec = progress.apply(iter.next());
+				final SAMRecord rec = iter.next();
 				
 				for(final ChartGenerator cg: this.chartGenerators) {
 					if(!cg.isEnabled()) continue;
@@ -653,7 +651,6 @@ public class BamStatsJfx extends Launcher {
 						}
 					}
 				}
-			progress.close();
 			iter.close();iter=null;
 			samReader.close();samReader=null;
 			save();

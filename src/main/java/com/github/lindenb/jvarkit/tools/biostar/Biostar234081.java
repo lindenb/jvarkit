@@ -34,7 +34,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
 import htsjdk.samtools.Cigar;
@@ -104,11 +103,10 @@ public class Biostar234081 extends Launcher
 		prg.setProgramVersion(this.getGitHash());
 		prg.setCommandLine(this.getProgramCommandLine());
 		w = this.writingBamArgs.setReferencePath(this.reference).openSamWriter(this.outputFile,header,true);
-		final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		iter=in.iterator();
 		while(iter.hasNext())
 			{
-			final SAMRecord rec = progress.apply(iter.next());
+			final SAMRecord rec = iter.next();
 			if(!rec.getReadUnmappedFlag() &&
 					rec.getCigar()!=null &&
 					rec.getCigar().getCigarElements().
@@ -147,7 +145,6 @@ public class Biostar234081 extends Launcher
 				}
 			w.addAlignment(rec);
 			}
-		progress.close();
 		iter.close();iter=null;
 		w.close();w=null;
 		return RETURN_OK;

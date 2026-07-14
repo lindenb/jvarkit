@@ -38,7 +38,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -91,13 +90,12 @@ public class DownSampleVcf extends Launcher
 		final VCFHeader h2=new VCFHeader(h1);
 		super.addMetaData(h2);
 		
-		final ProgressFactory.Watcher<VariantContext> progess=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 		out.writeHeader(h2);
 		if(this.reservoir_size!=0)
 			{
 			while(in.hasNext())
 				{	
-				final VariantContext ctx = progess.apply(in.next());
+				final VariantContext ctx = in.next();
 				if(buffer.size() < this.reservoir_size)
 					{
 					buffer.add(ctx);
@@ -113,7 +111,6 @@ public class DownSampleVcf extends Launcher
 			stream().
 			sorted(dict==null?VCFUtils.createChromPosRefComparator():VCFUtils.createTidPosRefComparator(dict)).
 			forEach(V->out.add(V));
-		progess.close();
 		return 0;
 		}
 	

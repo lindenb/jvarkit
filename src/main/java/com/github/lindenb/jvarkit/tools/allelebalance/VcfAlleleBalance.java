@@ -76,7 +76,7 @@ END_DOC
 @Program(name="vcfallelebalance",
 	description="Insert missing allele balance annotation using FORMAT:AD",
 	keywords= {"vcf","allele-balance","depth"},
-	modificationDate="20200805",
+	modificationDate="20260713",
 	creationDate="20180829",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
@@ -227,6 +227,10 @@ public class VcfAlleleBalance extends OnePassVcfLauncher {
 					else
 						{
 						Object o= gt.getAnyAttribute("DP4");
+						// since https://github.com/samtools/htsjdk/issues/274
+						if(o!=null && (o instanceof int[])) {
+							o = Arrays.stream((int[])o).mapToObj(I->Integer.valueOf(I)).collect(Collectors.toList());
+							}
 						if(o==null || !(o instanceof List) || List.class.cast(o).size()!=4) continue;
 						final List<?> dp4 = (List<?>)o;
 						final int ad[] = new int[ctx.getNAlleles()];

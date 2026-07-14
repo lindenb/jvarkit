@@ -46,7 +46,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
@@ -199,7 +198,6 @@ public class BamTile
 			sfw =  this.writingBamArgs.setReferencePath(this.faidx).openSamWriter(this.outputFile,header2, true);
 			
 			
-			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(header1).logger(LOG).build();
 			iter=sfr.iterator();
 			final LinkedList<SAMRecord> buffer=new LinkedList<>();
 			for(;;)
@@ -207,7 +205,7 @@ public class BamTile
 				SAMRecord rec=null;
 				if( iter.hasNext())
 					{
-					rec= progress.apply(iter.next());
+					rec= iter.next();
 					if(rec.getReadUnmappedFlag()) continue;
 					if(this.filterOut.filterOut(rec)) continue;
 					if(!buffer.isEmpty())
@@ -268,7 +266,6 @@ public class BamTile
 					}
 				
 				}
-			progress.close();
 			sfw.close();sfw=null;
 			iter.close();iter=null;
 			sfr.close();sfr=null;

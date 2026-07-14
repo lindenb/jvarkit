@@ -129,6 +129,7 @@ nav:
         - "dict2xml" : DictToXml.md
         - "dragenbnd2inv" : DragenBndToInversion.md
         - "evadumpfiles" : EVADumpFiles.md
+        - "expansionhuntermerge" : ExpansionHunterMerge.md
         - "extendrefwithreads" : ExtendReferenceWithReads.md
         - "fasta2vcf" : ReferenceToVCF.md
         - "fastqgrep" : FastqGrep.md

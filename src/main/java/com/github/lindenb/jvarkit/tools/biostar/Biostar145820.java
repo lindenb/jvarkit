@@ -57,7 +57,6 @@ import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 
 /*
@@ -198,7 +197,6 @@ public class Biostar145820 extends Launcher
 			header.addComment("Processed with "+getProgramName()+" : "+getProgramCommandLine());
 			
 			
-			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(samReader.getFileHeader()).logger(LOG).build();
 			iter=samReader.iterator();
 
 			
@@ -212,7 +210,7 @@ public class Biostar145820 extends Launcher
 			sorter.setDestructiveIteration(true);
 			while(iter.hasNext())
 				{
-				final SAMRecord rec = progress.apply(iter.next());
+				final SAMRecord rec = iter.next();
 				if(this.filter.filterOut(rec)) {
 					continue;
 				}
@@ -237,7 +235,6 @@ public class Biostar145820 extends Launcher
 				
 			iter2.close();iter2=null;
 			sorter.cleanup();
-			progress.close();
 			}
 		catch(final Throwable e)
 			{

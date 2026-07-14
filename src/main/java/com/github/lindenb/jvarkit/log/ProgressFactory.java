@@ -55,6 +55,7 @@ import htsjdk.samtools.util.StringUtil;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 
+@Deprecated
 public class ProgressFactory {
 private static final Logger LOG=Logger.of( ProgressFactory.class);
 private SAMSequenceDictionary _dictionary = null;

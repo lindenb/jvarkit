@@ -55,7 +55,6 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.picard.AbstractDataCodec;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
@@ -274,14 +273,12 @@ public class VcfSlidingWindowSplitter
 			final VCFUtils.CodecAndHeader cah = VCFUtils.parseHeader(in);
 			
 			// read variants
-			final ProgressFactory.Watcher<VariantContext> progess= ProgressFactory.newInstance().dictionary(cah.header).logger(LOG).build();
 			String prevCtg = null;
 			for(;;)
 				{
 				final String line = in.readLine();
 				
 				final VariantContext ctx = (line==null?null:cah.codec.decode(line));
-				if(ctx!=null) progess.apply(ctx);
 				
 				if(ctx==null || !ctx.getContig().equals(prevCtg))
 					{
@@ -371,7 +368,6 @@ public class VcfSlidingWindowSplitter
 		    		}
 
 				}
-			progess.close();
 			manifest.flush();
 			manifest.close();
 			archiveFactory.close();

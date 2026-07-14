@@ -34,7 +34,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
@@ -139,10 +138,9 @@ public class Biostar251649 extends Launcher
 			header.addMetaDataLine(info3);
 			GenomicSequence chrom= null;
 			JVarkitVersion.getInstance().addMetaData(this, header);
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			w.writeHeader(header);
 			while(in.hasNext()) {
-				final VariantContext ctx = progress.apply(in.next());
+				final VariantContext ctx = in.next();
 				if(chrom==null || !chrom.getChrom().equals(ctx.getContig())) {
 					chrom = new GenomicSequence(referenceSequenceFile,ctx.getContig());
 					}
@@ -171,7 +169,6 @@ public class Biostar251649 extends Launcher
 					}
 				w.add(vcb.make());
 				}
-			progress.close();
 			return 0;
 			}
 		catch(final Throwable err)

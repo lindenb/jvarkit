@@ -37,7 +37,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory;
 import com.github.lindenb.jvarkit.util.vcf.AFExtractorFactory.AFExtractor;
@@ -222,14 +221,10 @@ public class VcfAfInfoFilter extends Launcher{
 			this.recalculator.setHeader(header);
 			headerLines.stream().forEach(H->header.addMetaDataLine(H));
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
-					dictionary(header).
-					logger(LOG).
-					build();
 			out.writeHeader(header);
 			while(in.hasNext())
 				{
-				final VariantContext ctx = progress.apply(in.next());
+				final VariantContext ctx = in.next();
 
 				if(!ctx.isVariant())
 					{
@@ -312,7 +307,6 @@ public class VcfAfInfoFilter extends Launcher{
 				vcb.genotypes(genotypes);
 				out.add(this.recalculator.apply(vcb.make()));
 				}
-			progress.close();
 			return 0;
 			}
 		catch(final Throwable err) {

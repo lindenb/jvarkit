@@ -63,7 +63,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.samtools.SAMRecordPartition;
 import com.github.lindenb.jvarkit.util.samtools.SamRecordJEXLFilter;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
@@ -243,12 +242,11 @@ public class FixVcfMissingGenotypes extends Launcher
 			h2.addMetaDataLine(new VCFFormatHeaderLine(NCLIPPED,1,VCFHeaderLineType.Integer,"Number of clipped reads"));
 			
 			final short SA_TAG = SAMTag.SA.getBinaryTag();
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header).build();
 			this.recalculator.setHeader(h2);
 			out.writeHeader(h2);
 			while(in.hasNext())
 				{
-				final VariantContext ctx = progress.apply(in.next());
+				final VariantContext ctx =in.next();
 				boolean somethingWasChanged=false;
 				final List<Genotype> genotypes = new ArrayList<>(ctx.getNSamples());
 				for(int i=0;i< ctx.getNSamples();++i)
@@ -348,7 +346,6 @@ public class FixVcfMissingGenotypes extends Launcher
 					out.add(ctx);
 					}
 				}
-			progress.close();
 
 			return 0;
 			}

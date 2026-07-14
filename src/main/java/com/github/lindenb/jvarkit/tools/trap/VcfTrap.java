@@ -49,7 +49,6 @@ import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.variant.infotable.VCFInfoTableModelFactory;
@@ -99,7 +98,7 @@ public class VcfTrap extends Launcher {
 	private Path manifestFile=null;
 	@Parameter(names={"--ignore-filtered"},description="Ignore FILTERed variants (faster)")
 	private boolean ignore_filtered=false;
-	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute name"))
+	@Parameter(names={"-A","--attribute"},description="VCF INFO attribute name")
 	private String ATT="TRAP";
 	
 	private static class IndexFile extends AbstractList<TrapRecord>
@@ -241,14 +240,11 @@ public class VcfTrap extends Launcher {
 						"Max Score in Trap Database  http://trap-score.org/"
 					));
 		JVarkitVersion.getInstance().addMetaData(this, header2);
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
-							dictionary(iter.getHeader()).
-							logger(LOG).
-							build();
+		
 		out.writeHeader(header2);
 		while(iter.hasNext())
 			{
-			final VariantContext var = progress.apply(iter.next());
+			final VariantContext var =  iter.next();
 			
 			
 			if(this.ignore_filtered && var.isFiltered())
@@ -336,7 +332,6 @@ public class VcfTrap extends Launcher {
 			out.add(var);
 			}
 		out.close();
-		progress.close();
 		CloserUtil.close(current);
 		return 0;
 		}

@@ -40,7 +40,6 @@ import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 
 import htsjdk.variant.vcf.VCFIterator;
@@ -241,15 +240,11 @@ public class VCFTrios extends OnePassVcfLauncher
 					}
 			
 				LOG.info("trios(s) in pedigree: "+trios.size());
-				final ProgressFactory.Watcher<VariantContext> progress = 
-						ProgressFactory.newInstance().
-						dictionary(header).
-						logger(LOG).
-						build();
+				
 				w.writeHeader(h2);
 				while(r.hasNext())
 					{
-					final VariantContext ctx = progress.apply(r.next());
+					final VariantContext ctx =  r.next();
 								
 					final Set<String> incompatibilities = new HashSet<String>();
 					
@@ -318,7 +313,6 @@ public class VCFTrios extends OnePassVcfLauncher
 						}
 					w.add(vcb.make());
 					}
-				progress.close();
 				
 				
 				LOG.info("incompatibilitie(s) N="+count_incompats);

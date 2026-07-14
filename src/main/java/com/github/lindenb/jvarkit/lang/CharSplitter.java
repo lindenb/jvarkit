@@ -292,6 +292,7 @@ public static final CharSplitter UNDERSCORE = new CharSplitterImpl('_');
 public static final CharSplitter AMP = new CharSplitterImpl('&');
 public static final CharSplitter EQ = new CharSplitterImpl('=');
 public static final CharSplitter HYPHEN = new CharSplitterImpl('-');
+public static final CharSplitter SLASH = new CharSplitterImpl('/');
 
 
 /**

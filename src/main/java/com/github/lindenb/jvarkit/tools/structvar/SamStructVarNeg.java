@@ -46,7 +46,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
 
@@ -501,11 +500,6 @@ public class SamStructVarNeg extends Launcher {
 			out.writeHeader(vcfHeader);
 
 			
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
-					newInstance().
-					dictionary(dict).
-					logger(LOG).
-					build();
 
 			final SamReader first = casesReaders.get(0);
 			final List<Window> windows = new ArrayList<>();
@@ -514,7 +508,7 @@ public class SamStructVarNeg extends Launcher {
 				for(;;) {
 					final int window_size=1000;
 					final int window_shift=500;
-					final SAMRecord rec = iter.hasNext()?progress.apply(iter.next()):null;
+					final SAMRecord rec = iter.hasNext()?iter.next():null;
 					if(rec!=null && !accept(rec)) continue;
 					
 					int idx=0;
@@ -561,7 +555,6 @@ public class SamStructVarNeg extends Launcher {
 			
 		out.close();
 		out=null;
-		progress.close();
 		
 		return 0;
 		} catch(final Throwable err) {

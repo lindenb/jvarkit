@@ -51,7 +51,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.picard.GenomicSequence;
@@ -1025,10 +1024,9 @@ public class ScanRetroCopy extends Launcher
 				this.saveInsertionsPw = new PrintWriter(new NullOuputStream());
 				}
 			
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(samFileHeader).logger(LOG).build();
 			
 			while(iter.hasNext()) {
-				final SAMRecord rec = progress.apply(iter.next());
+				final SAMRecord rec = iter.next();
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.getMappingQuality() < this.min_read_mapq) continue;
 				if(rec.isSecondaryOrSupplementary()) continue;
@@ -1218,7 +1216,6 @@ public class ScanRetroCopy extends Launcher
 			dump(vcw,null);
 			
 			
-			progress.close();
 			vcw.close();
 			iter.close();
 			iter=null;

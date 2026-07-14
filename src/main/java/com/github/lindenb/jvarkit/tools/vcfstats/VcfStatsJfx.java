@@ -49,7 +49,6 @@ import com.github.lindenb.jvarkit.chart.XYChart;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.RangeOfDoubles;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.so.SequenceOntologyTree;
@@ -1303,11 +1302,10 @@ public class VcfStatsJfx extends Launcher {
 				}
 			chartGenerators.removeIf(G->!G.isEnabled());
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			long last = -1L;
 			while(iter.hasNext())
 				{
-				final VariantContext ctx = progress.apply(iter.next());
+				final VariantContext ctx = iter.next();
 				
 				for(final ChartGenerator cg: this.chartGenerators) {
 					if(!cg.isEnabled()) continue;
@@ -1322,7 +1320,6 @@ public class VcfStatsJfx extends Launcher {
 						}
 					}
 				}
-			progress.close();
 			
 			save();
 			

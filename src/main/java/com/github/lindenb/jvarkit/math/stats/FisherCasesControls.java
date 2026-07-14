@@ -59,7 +59,7 @@ public class FisherCasesControls implements DoubleSupplier,Consumer<String> {
     public boolean isSeen(final String sn) {
     	return this.seen.contains(sn);
     	}
-    public void acceptAll(Collection<String> samplesNames) {
+    public void acceptAll(final Collection<String> samplesNames) {
     	for(final String sn:samplesNames) accept(sn);
     	}
     @Override
@@ -111,14 +111,32 @@ public class FisherCasesControls implements DoubleSupplier,Consumer<String> {
     public Set<String> getControlsAlt() {
     	return this.seen.stream().filter(sn->this.casesControls.isControl(sn)).collect(Collectors.toSet());
     	}
-
+    /** compute fisher test on the fly */
     public FisherExactTest getFisherExactTest() {
     	final FisherExactTest fisher = FisherExactTest.compute(
-    			getCasesAltCount(),getCasesRefCount(),
-    			getControlsAltCount(),getControlsRefCount()
+    			getCasesAltCount(),
+    			getCasesRefCount(),
+    			getControlsAltCount(),
+    			getControlsRefCount()
 				);
     	return fisher;
     	}
+    
+    /** call join with '|' as delimiter */
+    public String join() {
+    	return join("|");
+    	}
+
+    
+    /** return string representation of proportions case-ref/case-alt/ctrl-ref/ctrl-alt */
+    public String join(final String delim) {
+    	return String.join(delim,
+    	String.valueOf(getCasesRefCount()),
+    	String.valueOf(getCasesAltCount()),
+    	String.valueOf(getControlsRefCount()),
+    	String.valueOf(getControlsAltCount())
+		);
+    }
     
     @Override
     public double getAsDouble() {

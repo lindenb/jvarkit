@@ -59,7 +59,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.DelegateCharSequence;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.bio.structure.GtfReader;
@@ -693,11 +692,10 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 			
 			
 			
-	       ProgressFactory.Watcher<VariantContext> progress1= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 		   String vcfLine=null;
 	       while((vcfLine=bufferedReader.readLine())!=null)
 				{
-				final VariantContext ctx= progress1.apply(cah.codec.decode(vcfLine));
+				final VariantContext ctx=  cah.codec.decode(vcfLine);
 								
 				/* discard non SNV variant */
 				if(!ctx.isVariant() || ctx.isIndel())
@@ -726,7 +724,6 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 						}
 					}
 				}
-	       	progress1.close();
 			this.variants.doneAdding();
 			
 			bedPeReport = this.bedPePath==null?
@@ -752,7 +749,6 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 			@SuppressWarnings("resource")
 			EqualRangeIterator<Variant> eqVarIter=new EqualRangeIterator<>(varIter, new VariantComparatorOne(dict));
 			
-		    ProgressFactory.Watcher<Variant> progress2= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			
 			while(eqVarIter.hasNext())
 				{
@@ -1060,7 +1056,6 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 						}
 					}					
 				}
-			progress2.close();
 			mutations.doneAdding();
 			eqVarIter.close();eqVarIter=null;
 			varIter.close();varIter=null;
@@ -1102,7 +1097,6 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 			w = this.writingVariantsDelegate.dictionary(dict).open(IOUtil.toPath(saveAs));
 			w.writeHeader(header2);
 			
-		    ProgressFactory.Watcher<CombinedMutation> progress3= ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			mutIter = mutations.iterator();
 			EqualRangeIterator<CombinedMutation> eqRangeMutIter = new EqualRangeIterator<>(mutIter, new MutationComparatorOne(dict));
 			
@@ -1110,7 +1104,6 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 				{
 				final List<CombinedMutation> mBuffer = eqRangeMutIter.next();
 				if(mBuffer.isEmpty()) break;				
-				progress3.apply(mBuffer.get(0));
 			
 				//default grantham score used in QUAL
 				int grantham_score = -1;
@@ -1168,7 +1161,6 @@ static private class MutationComparatorTwo extends MutationComparatorOne
 				
 				w.add(vcb.make());	
 				}
-			progress3.close();
 			eqRangeMutIter.close();
 			mutIter.close();
 			mutations.cleanup();mutations=null;

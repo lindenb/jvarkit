@@ -7,7 +7,13 @@ Merge Vcf from ExpansionHunter.
 
 ## Usage
 
+
+This program is now part of the main `jvarkit` tool. See [jvarkit](JvarkitCentral.md) for compiling.
+
+
 ```
+Usage: java -jar dist/jvarkit.jar expansionhuntermerge  [options] Files
+
 Usage: expansionhuntermerge [options] Files
   Options:
     --bcf-output
@@ -16,6 +22,15 @@ Usage: expansionhuntermerge [options] Files
       version is : 2.1 which is not compatible with bcftools/htslib (last 
       checked 2019-11-15)
       Default: false
+    --cases
+      File or comma-separated list of control samples
+    --controls
+      File or comma-separated list of control samples
+    --factor
+      multiple median/mean value of controls by 'factor'. if median value=100, 
+      then we count case having a size greater than 100*factor for the burden 
+      test 
+      Default: 1.0
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false
@@ -31,9 +46,19 @@ Usage: expansionhuntermerge [options] Files
       Default: 50000
     -o, --output
       Output file. Optional . Default: stdout
+    -p, --percentile
+      percentile to use 'average' or 'median'
+      Default: median
+    --skip-filtered
+      Skip filtered variants
+      Default: false
     --tmpDir
       tmp working directory. Default: java.io.tmpDir
       Default: []
+    --types
+      types of call to consider using FORMAT/SO. There can be a bias of size 
+      depending of the nature of the call: SPANNING|FLANKING|INREPEAT
+      Default: SPANNING,FLANKING,INREPEAT
     --version
       print version and exit
 
@@ -46,23 +71,6 @@ Usage: expansionhuntermerge [options] Files
  * merge
  * ExpansionHunter
 
-
-## Compilation
-
-### Requirements / Dependencies
-
-* java [compiler SDK 11](https://jdk.java.net/11/). Please check that this java is in the `${PATH}`. Setting JAVA_HOME is not enough : (e.g: https://github.com/lindenb/jvarkit/issues/23 )
-
-
-### Download and Compile
-
-```bash
-$ git clone "https://github.com/lindenb/jvarkit.git"
-$ cd jvarkit
-$ ./gradlew expansionhuntermerge
-```
-
-The java jar file will be installed in the `dist` directory.
 
 
 ## Creation Date
@@ -99,4 +107,5 @@ The current reference is:
  
 Input is a list of indexed vcf files or one file with the '.list' suffix containing the path to the vcfs
  
+
 

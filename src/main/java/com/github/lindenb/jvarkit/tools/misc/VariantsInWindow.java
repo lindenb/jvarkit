@@ -39,7 +39,6 @@ import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.JexlVariantPredicate;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
@@ -411,14 +410,12 @@ public class VariantsInWindow extends Launcher{
         			"Filter defined in "+getProgramName()
         			));
     		}
-    	final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().logger(LOG).dictionary(header).build();
     	writer.writeHeader(header);
     	while(in.hasNext()) {
-    		final VariantContext ctx = progress.apply(in.next());
+    		final VariantContext ctx = in.next();
     		mapVariant(writer,ctx);
     		}
     	flushVariants(writer,null);
-    	progress.close();
     	return 0;
     	}
     

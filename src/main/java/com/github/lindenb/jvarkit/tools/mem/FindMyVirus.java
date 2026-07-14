@@ -56,7 +56,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.Counter;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
@@ -229,11 +228,10 @@ public class FindMyVirus extends Launcher
 				sfw=new SAMFileWriterCount(sfw, countFile,category);
 				sfwArray[category.ordinal()]=sfw;
 				}
-			final ProgressFactory.Watcher<SAMRecord> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			final SAMRecordIterator iter=sfr.iterator();
 			while(iter.hasNext())
 				{
-				final SAMRecord rec=progress.apply(iter.next());
+				final SAMRecord rec= iter.next();
 				
 				CAT category=null;
 				
@@ -377,7 +375,6 @@ public class FindMyVirus extends Launcher
 					}
 				sfwArray[category.ordinal()].addAlignment(rec);
 				}
-			progress.close();
 			iter.close();
 			for(final SAMFileWriter sfw:sfwArray)
 				{

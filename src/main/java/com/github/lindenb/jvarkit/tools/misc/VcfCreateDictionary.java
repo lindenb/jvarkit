@@ -34,7 +34,6 @@ import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 
 import htsjdk.variant.vcf.VCFIterator;
 
@@ -97,18 +96,16 @@ public class VcfCreateDictionary extends Launcher
 			do
 				{
 				in = super.openVCFIterator(args.isEmpty()?null:args.get(optind));
-				final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(in.getHeader()).logger(LOG).build();
 	
 				while(in.hasNext())
 					{
-					final VariantContext ctx = progress.apply(in.next());
+					final VariantContext ctx = in.next();
 					Integer length= buildNewDictionary.getOrDefault(ctx.getContig(),0);
 					if(ctx.getEnd()>length)
 						{
 						buildNewDictionary.put(ctx.getContig(),ctx.getEnd());
 						}
 					}
-				progress.close();
 				in.close();
 				in=null;
 				++optind;

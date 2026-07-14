@@ -51,7 +51,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.vcf.VCFUtils;
@@ -297,13 +296,6 @@ public class SamTranslocations extends Launcher {
 					filter(SR->!pat.matcher(SR.getSequenceName()).matches()).
 					forEach(SR->allowedContigs[SR.getSequenceIndex()]=false);
 				}
-			final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.
-					newInstance().
-					dictionary(refDict).
-					logger(LOG).
-					build();
-			
-			
 			
 			
 			final Set<VCFHeaderLine> metaData=new HashSet<>();
@@ -394,7 +386,7 @@ public class SamTranslocations extends Launcher {
 					rec= buffer.pollFirst();
 					}
 				else if(iter.hasNext()) {
-					rec= progress.apply(iter.next());
+					rec= iter.next();
 					}
 				else
 					{
@@ -630,7 +622,6 @@ public class SamTranslocations extends Launcher {
 				
 				
 				}
-			progress.close();
 			iter.close();
 			samRecordIterators.forEach(S->S.close());
 			samRecordIterators.clear();

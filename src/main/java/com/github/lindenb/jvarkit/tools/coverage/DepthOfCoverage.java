@@ -51,7 +51,6 @@ import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.RangeOfIntegers;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
@@ -258,11 +257,10 @@ public class DepthOfCoverage extends Launcher
 					String prevContig = null;
 					
 					BitSet mask=null;
-					final ProgressFactory.Watcher<SAMRecord> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 					try(CloseableIterator<SAMRecord> iter= intervals==null?sr.iterator():sr.queryOverlapping(intervals)) {
 						for(;;)
 							{
-							final SAMRecord rec = iter.hasNext()?progress.apply(iter.next()):null;
+							final SAMRecord rec = iter.hasNext()?iter.next():null;
 							
 							if(rec!=null) {
 								if(!SAMRecordDefaultFilter.accept(rec,this.mapping_quality)) continue;
@@ -457,7 +455,6 @@ public class DepthOfCoverage extends Launcher
 					
 					
 						} /* end iter */
-					progress.close();
 					
 					out.print(path);
 					out.print("\t");

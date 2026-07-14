@@ -61,7 +61,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
 /** 
@@ -337,11 +336,10 @@ public class Biostar103303 extends Launcher
 			iter=samReader.iterator();
 			
 			
-			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.newInstance().dictionary(samReader.getFileHeader()).logger(LOG).build();
 			
 			while(iter.hasNext())
 				{
-				final SAMRecord rec= progress.apply(iter.next());
+				final SAMRecord rec=  iter.next();
 				
 				if(rec.getReadUnmappedFlag()) continue;
 				if(rec.getReadFailsVendorQualityCheckFlag()) continue;
@@ -434,7 +432,6 @@ public class Biostar103303 extends Launcher
 						}
 					}
 				}
-			progress.close();
 			out.print("#chrom");
 			out.print("\t");
 			out.print("exon.start");

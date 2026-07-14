@@ -68,7 +68,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -377,14 +376,12 @@ public class IjgvdToVcf extends Launcher
 			header.setSequenceDictionary(dict);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			vcw.writeHeader(header);
-			ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 			while(iter.hasNext()) {
-				final VariantContext ctx = progress.apply(iter.next());
+				final VariantContext ctx = iter.next();
 				vcw.add(ctx);
 				}
 			vcw.close();
 			iter.close();
-			progress.close();
 			return 0;
 		} catch (Exception e) {
 			LOG.error(e);

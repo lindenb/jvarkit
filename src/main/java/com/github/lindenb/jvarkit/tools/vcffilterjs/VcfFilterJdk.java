@@ -47,7 +47,6 @@ import java.util.function.UnaryOperator;
 import com.github.lindenb.jvarkit.lang.OpenJdkCompiler;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 import com.github.lindenb.jvarkit.io.IOUtils;
@@ -533,7 +532,6 @@ public class VcfFilterJdk
 			final VariantContextWriter out
 			)
 		{	
-		ProgressFactory.Watcher<VariantContext> progress = null;
 		String code = null;
 		
 		try {
@@ -718,10 +716,9 @@ public class VcfFilterJdk
 			filter_instance.userData.put("first.variant", Boolean.TRUE);
 			filter_instance.userData.put("last.variant", Boolean.FALSE);
 	
-			progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			while (iter.hasNext() && !out.checkError())
 				{				
-				final VariantContext variation=progress.apply(iter.next());
+				final VariantContext variation= iter.next();
 				
 				/* handle variant */
 				final Object result = filter_instance.apply(variation);
@@ -801,8 +798,6 @@ public class VcfFilterJdk
 				final Object stop = filter_instance.userData.get("STOP");
 				if(Boolean.TRUE.equals(stop)) break;
 				}
-			progress.close();
-			progress = null;
 			return 0;
 			}
 		catch(final Throwable err) {
@@ -812,7 +807,6 @@ public class VcfFilterJdk
 		finally
 			{
 			code = null;
-			CloserUtil.close(progress);
 			}
 		}
 	

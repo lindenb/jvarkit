@@ -40,7 +40,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.pedigree.Pedigree;
 import com.github.lindenb.jvarkit.pedigree.PedigreeParser;
 
@@ -268,17 +267,15 @@ public class VcfStretchOfGt extends Launcher
 			w.print("count.other.variants");
 			w.println();
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 			
 			
 			while(iter.hasNext()) {
-				final VariantContext ctx=progress.apply(iter.next());
+				final VariantContext ctx= iter.next();
 				for(final SampleSet snSet:all_sample_set) snSet.visit(w, ctx);
 				}
 			for(final SampleSet snSet:all_sample_set) snSet.dump(w);
 			w.flush();w.close();w=null;
 			iter.close();iter=null;
-			progress.close();
 			return 0;
 			}
 		catch(final Throwable err) {

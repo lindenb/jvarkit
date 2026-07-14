@@ -49,7 +49,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -409,16 +408,10 @@ public class SamShortInvertion extends Launcher
 			vcw.writeHeader(header);
 			
 			
-			final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
-					newInstance().
-					dictionary(dict).
-					logger(LOG).
-					build();
-			
 			String prevContig=null;
 			while(iter.hasNext())
 				{
-				final SAMRecord rec = progress.apply(iter.next());
+				final SAMRecord rec = iter.next();
 				
 				if(theFilter.filterOut(rec)) continue;
 				
@@ -492,7 +485,6 @@ public class SamShortInvertion extends Launcher
 				}
 			dump(dict,database,vcw,samples,null);
 			iter.close();
-			progress.close();
 			vcw.close();vcw=null;
 			for(final SamReader sr: samReaders.keySet()) {
 				samReaders.get(sr).close();

@@ -53,7 +53,6 @@ import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.math.RunMedian;
 import com.github.lindenb.jvarkit.math.stats.Percentile;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
@@ -294,10 +293,6 @@ public class ValidateCnv extends Launcher
 			if(dict!=null) header.setSequenceDictionary(dict);
 			JVarkitVersion.getInstance().addMetaData(this, header);
 			
-			final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().
-					dictionary(dict).
-					logger(LOG).
-					build();
 			out =  this.writingVariantsDelegate.
 					dictionary(dict).
 					open(this.outputFile);
@@ -599,7 +594,6 @@ public class ValidateCnv extends Launcher
 				
 				out.add(vcb.make());
 				}
-			progress.close();
 			out.close();
 			
 			return 0;

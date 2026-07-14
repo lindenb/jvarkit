@@ -54,7 +54,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
 import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
@@ -168,10 +167,9 @@ public class Biostar130456 extends Launcher
 					
 					sample2writer.put(sample, w);
 					}
-				final ProgressFactory.Watcher<VariantContext> progress=ProgressFactory.newInstance().dictionary(header).logger(LOG).build();
 				while(in.hasNext())
 					{
-					final VariantContext ctx= progress.apply(in.next());
+					final VariantContext ctx= in.next();
 					for(final String sample: samples)
 						{
 						final Genotype g= ctx.getGenotype(sample);
@@ -197,7 +195,6 @@ public class Biostar130456 extends Launcher
 					LOG.info("Closing for sample "+sample);
 					CloserUtil.close(sample2writer.get(sample));
 					}
-				progress.close();
 				out.flush();
 				return RETURN_OK;
 				}

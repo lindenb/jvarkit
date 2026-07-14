@@ -48,7 +48,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.variant.vcf.VCFReaderFactory;
@@ -365,7 +364,6 @@ public class VcfGnomadOld extends Launcher{
 			LOG.warn("Input is NOT GRCh37 ?");
 			// can be lift over
 			}
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(h0).logger(LOG).build();
 		
 		
 		final VCFHeader h2 = new VCFHeader(h0);
@@ -464,7 +462,7 @@ public class VcfGnomadOld extends Launcher{
 		
 		final ManifestEntry om2manifest[] = new ManifestEntry[]{null,null};
 		while(iter.hasNext()) {
-			final VariantContext ctx = progress.apply(iter.next());
+			final VariantContext ctx = iter.next();
 			
 			final Set<String> filters = new HashSet<>(ctx.getFilters());
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
@@ -579,7 +577,6 @@ public class VcfGnomadOld extends Launcher{
 						else
 							{
 							LOG.error("Found more than one value ("+set+") for "+infoField+" "+ ctx.getContig()+":"+ctx.getStart()+". Are you using a lift-overed gnomad ? Use option --ignore-error0 to skip this error");
-							progress.close();
 							return -1;
 							}
 						}
@@ -630,7 +627,6 @@ public class VcfGnomadOld extends Launcher{
 					else
 						{
 						LOG.error("not handled "+infoField);
-						progress.close();
 						return -1;
 						}
 					}
@@ -648,7 +644,6 @@ public class VcfGnomadOld extends Launcher{
 			out.add(vcb.make());
 			}
 		out.close();
-		progress.close();
 		for(int omeIndex=0;omeIndex<2;omeIndex++) CloserUtil.close(om2manifest[omeIndex]);
 		return 0;
 		}

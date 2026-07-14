@@ -48,7 +48,6 @@ import com.github.lindenb.jvarkit.lang.AbstractCharSequence;
 import com.github.lindenb.jvarkit.lang.Paranoid;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.Algorithms;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -1300,7 +1299,6 @@ public class VcfScanUpstreamOrf extends OnePassVcfLauncher
 				pw3.println("track name=\"uORF\" description=\"uORF for "+this.gtfPath+"\"");
 				pw3.println("#chrom\tchromStart\tchromEnd\tname\tscore\tstrand\tthickStart\tthickEnd\titemRgb\tblockCount\tblockSizes\tblockStarts");
 				
-				final ProgressFactory.Watcher<Locatable> progress=ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 				for(final Transcript kg:this.transcriptMap.values().
 						stream().
 						flatMap(L->L.stream()).
@@ -1313,7 +1311,6 @@ public class VcfScanUpstreamOrf extends OnePassVcfLauncher
 					
 					final TranscriptRNA mRNA=new TranscriptRNA(kg);
 					final UpstreamORF uorf=new UpstreamORF(mRNA);
-					progress.apply(new Interval(uorf.getContig(),uorf.getChromStart()+1,uorf.getChromEnd()));
 					final OpenReadingFrame orf = uorf.getBestOpenReadingFrame();
 					if(orf==null) continue;
 					orf.printFastaDNA(pw1);
@@ -1323,7 +1320,6 @@ public class VcfScanUpstreamOrf extends OnePassVcfLauncher
 				pw1.flush(); pw1.close();
 				pw2.flush(); pw2.close();
 				pw3.flush(); pw3.close();
-				progress.close();
 				}
 			} //end archive
 			

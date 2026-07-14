@@ -46,7 +46,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.jcommander.converter.FractionConverter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
@@ -571,15 +570,10 @@ public class VcfPeekAf extends OnePassVcfLauncher
 			
 			
 			out.writeHeader(h2);
-			final ProgressFactory.Watcher<VariantContext> progress = 
-					ProgressFactory.newInstance().
-					dictionary(h).
-					logger(LOG).
-					build()
-					;
+			
 			while(vcfIn.hasNext())
 				{
-				final VariantContext ctx=progress.apply(vcfIn.next());
+				final VariantContext ctx= vcfIn.next();
 				final String dbContig = dbCtgConverter.apply(ctx.getContig());
 
 				final List<VariantContext> overlappers;
@@ -611,7 +605,6 @@ public class VcfPeekAf extends OnePassVcfLauncher
 				
 				out.add(ctx2);
 				}
-			progress.close();
 			return 0;
 			}
 		catch(final Throwable err)

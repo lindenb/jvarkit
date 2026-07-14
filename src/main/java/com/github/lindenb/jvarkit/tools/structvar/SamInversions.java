@@ -43,7 +43,6 @@ import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
 import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
@@ -189,15 +188,10 @@ public class SamInversions extends Launcher
 					return true;
 					};
 				final List<Allele> alleles = Arrays.asList(REF,INV);
-				final ProgressFactory.Watcher<SAMRecord> progress= ProgressFactory.
-						newInstance().
-						dictionary(dict).
-						logger(LOG).
-						build();
 				try(final CloseableIterator<SAMRecord> iter0 = (queryIntervals==null?samReader.iterator():samReader.query(queryIntervals,false))) {
 					final PeekIterator<SAMRecord> iter = new PeekIterator<>(iter0);
 					while(iter.hasNext()) {
-						final SAMRecord rec = progress.apply(iter.next());
+						final SAMRecord rec = iter.next();
 						if(!acceptRecord.test(rec)) continue;
 						final int invStart = rec.getAlignmentStart();
 						int invEnd = Math.max(rec.getEnd(),mateEnd.applyAsInt(rec));
@@ -242,7 +236,6 @@ public class SamInversions extends Launcher
 							}
 						}
 					}
-				progress.close();
 				vcw.close();
 				}
 			return 0;

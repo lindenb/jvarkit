@@ -46,7 +46,6 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 
 import htsjdk.samtools.util.CoordMath;
@@ -424,11 +423,10 @@ public class VcfEvaiAnnot extends Launcher {
 		meta.stream().forEach(M->header2.addMetaDataLine(M));
 		
 		JVarkitVersion.getInstance().addMetaData(this, header2);
-		final ProgressFactory.Watcher<VariantContext> progress = ProgressFactory.newInstance().dictionary(header0).logger(LOG).build();
 		
 		out.writeHeader(header2);
 		while(iterin.hasNext()) {
-			final VariantContext ctx = progress.apply(iterin.next());
+			final VariantContext ctx = iterin.next();
 			if(this.ignore_filtered && ctx.isFiltered()) {
 				out.add(ctx);
 				continue;
@@ -449,7 +447,6 @@ public class VcfEvaiAnnot extends Launcher {
 				}
 			}
 		
-		progress.close();
 		return 0;
 		}
 	

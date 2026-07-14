@@ -52,7 +52,6 @@ import com.github.lindenb.jvarkit.lang.CharSplitter;
 import com.github.lindenb.jvarkit.lang.SmartComparator;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.log.ProgressFactory;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 import com.github.lindenb.jvarkit.util.samtools.ContigDictComparator;
@@ -581,12 +580,10 @@ public class MergeCnvNator extends Launcher{
 			try(VariantContextWriter out =  this.writingVariants.dictionary(dict).open(this.outputFile)) {
 				long id_generator=0L;
 				out.writeHeader(header);
-				final ProgressFactory.Watcher<CNVNatorInterval> progress = ProgressFactory.newInstance().dictionary(dict).logger(LOG).build();
 				String prevContig=null;
 				for(final CNVNatorInterval interval:intervals_list)
 					{
 					final Set<String> warnings = new HashSet<>();
-					progress.apply(interval);
 					
 					if(!interval.getContig().equals(prevContig)) {
 						//cleanup memory, increase speed ?
@@ -749,7 +746,6 @@ public class MergeCnvNator extends Launcher{
 					vcb.genotypes(sample2gt.values());
 					out.add(vcb.make());
 					}
-				progress.close();
 				}
 			
 			if(uniq_use_of_one_cnv) {
