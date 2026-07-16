@@ -40,6 +40,9 @@ import htsjdk.samtools.util.IOUtil;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFIterator;
 
+/**
+ * A Program that reads a VCF on the fly and write the variants on the fly
+ */
 public abstract class OnePassVcfLauncher extends Launcher {
 private static final Logger LOG = Logger.of(OnePassVcfLauncher.class);
 @Parameter(names={"-o","--out"},description=OPT_OUPUT_FILE_OR_STDOUT)

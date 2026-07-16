@@ -71,6 +71,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
@@ -155,6 +156,21 @@ public class ExpansionHunterMerge extends Launcher {
 	@ParametersDelegate
 	private CasesControls casescontrols= new CasesControls();
 	
+	
+	private boolean badVariance(final AbstractUnivariateStatistic percentile,final double[] array) {
+		if(array.length<10) return false;
+		final double mean = percentile.evaluate(array);
+		int n_lt=0;
+		int n_gt=0;
+		for(double v:array) {
+			if(v> mean*factor_value) n_gt++;
+			if(v< mean/factor_value) n_lt++;
+			}
+		double n_samples= 0.1*array.length;//10% of sample with problems
+		if(n_gt>=n_samples || n_lt>=n_samples) return true;
+		return false;
+		}
+	
 	private AbstractUnivariateStatistic getPercentile() {
 		if(this.percentile_name.equalsIgnoreCase("median")) {
 			return new Median();
@@ -178,6 +194,8 @@ public class ExpansionHunterMerge extends Launcher {
 					LOG.error("Bad percentile name not (median|average|mean) "+this.percentile_name);
 					return -1;
 					}
+			 	final AbstractUnivariateStatistic percentile= getPercentile();
+
 				
 				if(this.factor_value<1.0) {
 					LOG.error("Factor should be >=1.0 "+this.factor_value);
@@ -279,7 +297,10 @@ public class ExpansionHunterMerge extends Launcher {
 				final VCFInfoHeaderLine info_header_median_case_size = new VCFInfoHeaderLine(this.percentile_name.toUpperCase()+"_CASE_SIZE",1,VCFHeaderLineType.Float, this.percentile_name+" size in cases");
 				final VCFInfoHeaderLine info_header_case_histo = new VCFInfoHeaderLine("CASE_HISTO",1,VCFHeaderLineType.String,"cases histogram");
 				final VCFInfoHeaderLine info_header_ctrl_histo = new VCFInfoHeaderLine("CTRL_HISTO",1,VCFHeaderLineType.String,"cpntrols histogram");
-
+				final VCFFilterHeaderLine filter_header_bad_ctrls= new VCFFilterHeaderLine("VARIANCE_CTRLS","Too much variance of size in controls");
+				//final VCFFilterHeaderLine filter_header_bad_cases= new VCFFilterHeaderLine("VARIANCE_CASES","Too much variance of size in cases");
+				
+				
 				if(!this.casescontrols.isEmpty()) {
 					metaData.add(info_header_line_gt);
 					metaData.add(info_header_line_lt);
@@ -290,6 +311,8 @@ public class ExpansionHunterMerge extends Launcher {
 					metaData.add(info_header_median_case_size);
 					metaData.add(info_header_case_histo);
 					metaData.add(info_header_ctrl_histo);
+					metaData.add(filter_header_bad_ctrls);
+					//metaData.add(filter_header_bad_cases);
 					}
 				
 				VCFStandardHeaderLines.addStandardFormatLines(metaData, true,VCFConstants.GENOTYPE_FILTER_KEY);
@@ -354,11 +377,11 @@ public class ExpansionHunterMerge extends Launcher {
 							LOG.warning("sample "+sn+" is not in case/controls list. Skipping "+path);
 							continue;
 							}
-						
+						/* loop over each variant */
 						try(CloseableIterator<VariantContext> iter = r.iterator()) {
 							while(iter.hasNext()) {
 								final VariantContext ctx = iter.next();
-								
+								/* rename the sample of the variant to fakeSample, same the original name in INFO */
 								final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
 								final Genotype gt0 = ctx.getGenotype(0);
 								final Genotype gt = new GenotypeBuilder(gt0).name(fakeSample).make();
@@ -389,6 +412,7 @@ public class ExpansionHunterMerge extends Launcher {
 								sample2vc.put(sn,ctx);
 								}
 							
+							final Set<String> filters = new HashSet<String>();
 							
 							final Set<Allele> altAllelesSet = calls.stream().
 									flatMap(V->V.getGenotypes().stream()).
@@ -401,7 +425,7 @@ public class ExpansionHunterMerge extends Launcher {
 								vcAlleles.add(first.getReference());
 								vcAlleles.addAll(altAllelesList);
 
-								final Map<String,List<Integer>> sample2mean_sizes= (this.casescontrols.isEmpty()?null: new HashMap<>(this.casescontrols.getTotalCount()));
+								final Map<String,Double> sample2mean_size= (this.casescontrols.isEmpty()?null: new HashMap<>(this.casescontrols.getTotalCount()));
 								
 								final List<Genotype> genotypes = new ArrayList<>(samples.size());
 								for(final String sn : samples) {
@@ -420,7 +444,7 @@ public class ExpansionHunterMerge extends Launcher {
 											}
 										
 										gt = gtb.make();
-										if(sample2mean_sizes!=null && 
+										if(sample2mean_size!=null && 
 												!gt.isNoCall() && 
 												this.casescontrols.contains(sn) &&  
 												gt.hasExtendedAttribute(REPCN) && 
@@ -436,8 +460,13 @@ public class ExpansionHunterMerge extends Launcher {
 												}
 											
 											if(!values.isEmpty()) {
-												Collections.sort(values);
-												sample2mean_sizes.put(sn, values);
+													sample2mean_size.put(
+														sn,
+														values.stream()
+															.mapToDouble(I->I.doubleValue())
+															.average()
+															.getAsDouble()
+													);
 												}
 											}
 										}
@@ -449,27 +478,12 @@ public class ExpansionHunterMerge extends Launcher {
 										vcAlleles
 										);
 								
-								if(sample2mean_sizes!=null && !sample2mean_sizes.isEmpty()) {
-									final double[] ctrl_min_sizes = this.casescontrols.getControls().stream()
-										.filter(S->sample2mean_sizes.containsKey(S))
-										.map(S->sample2mean_sizes.get(S))
-										.mapToDouble(L->L.get(0))
-										.sorted()
-										.toArray();
-									
-									final double[] ctrl_max_sizes = this.casescontrols.getControls().stream()
-											.filter(S->sample2mean_sizes.containsKey(S))
-											.map(S->sample2mean_sizes.get(S))
-											.mapToDouble(L->L.get(L.size()-1))
-											.sorted()
-											.toArray();
-									
-									
-									// create an histo for for case and controls
+								if(sample2mean_size!=null && !sample2mean_size.isEmpty()) {
+									// create an histogram for for case and controls
 									for(int side=0;side<2;++side) {
 										final String histo = this.casescontrols.get(side).stream()
-											.filter(S->sample2mean_sizes.containsKey(S))
-											.flatMap(S->sample2mean_sizes.get(S).stream())
+											.filter(S->sample2mean_size.containsKey(S))
+											.map(S->sample2mean_size.get(S))
 											.collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
 											.entrySet()
 											.stream()
@@ -481,52 +495,59 @@ public class ExpansionHunterMerge extends Launcher {
 											}
 										}
 									
+									
+									
+									
+									
 									/* median case size*/
 										{
 										final double[] case_sizes=	this.casescontrols.getCases().stream()
-											.filter(S->sample2mean_sizes.containsKey(S))
-											.flatMap(S->sample2mean_sizes.get(S).stream())
-											.mapToDouble(S->S.doubleValue())
-											.sorted()
-											.toArray();
+												.filter(S->sample2mean_size.containsKey(S))
+												.mapToDouble(S->sample2mean_size.get(S))
+												.sorted()
+												.toArray();
 										
-										final double median_case_size=  getPercentile().evaluate(case_sizes);
-										vcb.attribute(info_header_median_case_size.getID(),median_case_size);
+										if(case_sizes.length>0) {
+											final double median_case_size=  percentile.evaluate(case_sizes);
+											vcb.attribute(info_header_median_case_size.getID(),median_case_size);
+											
+											/*
+											if(badVariance(percentile,case_sizes)) {
+												filters.add(filter_header_bad_cases.getID());
+												}
+											*/
+											}
 										}
 										
 									/* median ctrl size*/
-									{
-									final double[] ctrl_sizes=	this.casescontrols.getControls().stream()
-										.filter(S->sample2mean_sizes.containsKey(S))
-										.flatMap(S->sample2mean_sizes.get(S).stream())
-										.mapToDouble(S->S.doubleValue())
+									final double[] ctrl_mean_sizes = this.casescontrols.getControls().stream()
+										.filter(S->sample2mean_size.containsKey(S))
+										.mapToDouble(S->sample2mean_size.get(S))
 										.sorted()
 										.toArray();
 									
-									final double median_ctr_size=  getPercentile().evaluate(ctrl_sizes);
-									vcb.attribute(info_header_median_ctrl_size.getID(),median_ctr_size);
-									}
+									if(badVariance(percentile,ctrl_mean_sizes)) {
+										filters.add(filter_header_bad_ctrls.getID());
+										}
 									
 									/* check fisher for population lower or greater than reference population */
-									if(ctrl_min_sizes.length>0) {
-										final double min_median_crl_size= getPercentile().evaluate(ctrl_min_sizes);
-										final double max_median_crl_size= getPercentile().evaluate(ctrl_max_sizes);
+									if(ctrl_mean_sizes.length>0) {
+										final double median_ctrl_size=  percentile.evaluate(ctrl_mean_sizes);
+										vcb.attribute(info_header_median_ctrl_size.getID(),median_ctrl_size);
 										
 										
 										// use only the case/control where we found a genotype/size
-										final CasesControls casescontrols2 = this.casescontrols.clone().retain(sample2mean_sizes.keySet());
+										final CasesControls casescontrols2 = this.casescontrols.clone().retain(sample2mean_size.keySet());
 										if(!casescontrols2.isEmpty()) {
 											final FisherCasesControls fisherFactory_gt = new FisherCasesControls(casescontrols2);
 											final FisherCasesControls fisherFactory_lt = new FisherCasesControls(casescontrols2);
 											
-											for(String sn: sample2mean_sizes.keySet()) {
-												final List<Integer> sizes= sample2mean_sizes.get(sn);
-												double sn_size = sizes.get(sizes.size()-1);//biggest
-												if(sn_size> max_median_crl_size*this.factor_value ) {
+											for(String sn: sample2mean_size.keySet()) {
+												double sample_size = sample2mean_size.get(sn);
+												if(sample_size> median_ctrl_size*this.factor_value ) {
 													fisherFactory_gt.accept(sn);
 													}
-												sn_size = sizes.get(0);//smallest
-												if(sn_size < min_median_crl_size/this.factor_value) {
+												if(sample_size < median_ctrl_size/this.factor_value) {
 													fisherFactory_lt.accept(sn);
 													}
 												}
@@ -544,6 +565,14 @@ public class ExpansionHunterMerge extends Launcher {
 											vcb.attribute(info_header_line_min.getID(), min);
 											}
 										}
+									}
+								
+								if(filters.isEmpty()) {
+									vcb.passFilters();
+									}
+								else
+									{
+									vcb.filters(filters);
 									}
 								
 								vcb.attribute(VCFConstants.END_KEY, first.getEnd());
