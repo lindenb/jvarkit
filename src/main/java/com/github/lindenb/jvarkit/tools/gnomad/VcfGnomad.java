@@ -382,7 +382,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 			
 			// variant overlapping 'ctx'
 			final List<VariantContext> overlappingVariants = this.findOverlapping(ctx);
-			vcb.attribute(infoNumOverlapping.getID(), overlappingVariants.size());			
+			vcb.attribute(infoNumOverlapping.getID(), overlappingVariants.size());
 
 			
 			final List<VariantContext> gnomadVariants = overlappingVariants.
