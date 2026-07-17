@@ -374,6 +374,7 @@ $ java -jar dist/samjdk.jar -e 'return record.getReadUnmappedFlag() || record.ge
  + Detection and identification of authorized and unauthorized GMOs using high-throughput sequencing with the support of a sequence-based GMO database. Food Chemistry: Molecular Sciences Volume 4, 30 July 2022, 100096. https://doi.org/10.1016/j.fochms.2022.100096
  + Borreda, C., Perez-Roman, E., Talon, M. et al. Comparative transcriptomics of wild and commercial Citrus during early ripening reveals how domestication shaped fruit gene expression. BMC Plant Biol 22, 123 (2022). https://doi.org/10.1186/s12870-022-03509-9
  + L. J. Stevens et al., Sci. Transl. Med. 10.1126/scitranslmed.abo0718 (2022). Mutations in the SARS-CoV-2 RNA dependent RNA polymerase confer resistance to remdesivir by distinct mechanisms
+ + Garcia-Salinas O, Andrews K, Sanghvi R . Landscape of parental postzygotic mutations across >11,000 rare disease trios The American Journal of Human Genetics, 2026
 
 END_DOC
 */

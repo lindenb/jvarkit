@@ -10,6 +10,7 @@
  * Benjamen C. Kline . Genomic variation of brook trout along the Minnesota shoreline of Lake Superior: Implications for coaster life history, https://doi.org/10.1016/j.jglr.2026.102855
  * García-Marín, A.M., Torres-Puente, M., Martinez-Priego, L. et al. Complete genomes reveal a refined map of Mycobacterium tuberculosis genetic diversity across evolutionary scales. Nat Commun (2026). https://doi.org/10.1038/s41467-026-73869-5
  * Janžekovič, Franc, Gojznikar, Jan, Chişamera, Gabriel Bogdan, Stanciu, Cătălin Răzvan, Gavril, Viorel Dumitru, Buzan, Elena, Murariu, Dumitru, Leskošek, Brane, Ferk, Polonca and Kryštufek, Boris. "The enigma of the Oltenia blind mole-rat (Spalax istricus) within the collapsing steppe biome" Mammalia. https://doi.org/10.1515/mammalia-2026-0024 **WGSCoveragePlotter**
+ * Garcia-Salinas O, Andrews K, Sanghvi R Landscape of parental postzygotic mutations across >11,000 rare disease trios The American Journal of Human Genetics, 2026; **samjdk**
 
 ## 2025
 
