@@ -28,6 +28,10 @@ Usage: biostar139647 [options] Files
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    -X, --matchandmismatch
+      when a reference is selected, identical residue match (=) and mismatches 
+      (X) are output. Default is using general match (M). Optional
+      Default: false
     -o, --output
       Output file. Optional . Default: stdout
     -R, --refname
