@@ -62,13 +62,21 @@ import htsjdk.variant.vcf.VCFIterator;
 public abstract class AbstractRegenieAnnot extends Launcher {
 	private static final Logger LOG = Logger.of(AbstractRegenieAnnot.class);
 	private static final String CADD_PHRED = "CADD_PHRED";
-	private static final String GNOMAD_AF = "gnomad_genome_AF_NFE";
+	private static final String DEFAULT_GNOMAD_AF = "gnomad_genome_AF_NFE";
 	@Parameter(names = "-o", description = OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile=null;
 
 	@Parameter(names = "-f", description = "comma separated of Allele frequencies , This program will use the highest freq to discard frequent variants.")
 	private String freqStr="0.01";
+	@Parameter(names = "--gnomad-population", description = "search gnomad population frequency in INFO/xx. Set blank to ignore gnomad frequencies and just use internal AC/AN")
+	private String gnomad_population = DEFAULT_GNOMAD_AF;
+	@Parameter(names = "--ignore-cadd", description = "Ignore CADD weight. Just use '1'")
+	private boolean ignore_cadd_weight = false;
+	@Parameter(names = "--ignore-mask-score", description = "Ignore mask score. Just use '1'")
+	private boolean ignore_mask_score = false;
 
+	
+	
 	private long n_variants_input = 0L;
 	private long n_variants_skipped = 0L;
 	private long n_variants_emit = 0L;
@@ -111,9 +119,11 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 				AN++;//consider NO_CALL=REF
 				}
 			}
+		
 		double freq = AC/AN;
-		if(ctx.hasAttribute(GNOMAD_AF)) {
-			freq = Math.max(ctx.getAttributeAsDouble(GNOMAD_AF, 0.0), freq);
+		
+		if(!StringUtils.isBlank(this.gnomad_population) &&  ctx.hasAttribute(this.gnomad_population)) {
+			freq = Math.max(ctx.getAttributeAsDouble(this.gnomad_population, 0.0), freq);
 			}
 		return freq;
 		}
@@ -132,9 +142,21 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		w.print("\t");
 		w.print(ctx.prediction);
 		w.print("\t");
-		w.print(ctx.score.orElse(1.0));
+		if(this.ignore_mask_score) {
+			w.print("1.0");
+			}
+		else
+			{
+			w.print(ctx.score.orElse(1.0));
+			}
 		w.print("\t");
-		w.print(ctx.cadd.orElse(0.0));
+		if(this.ignore_cadd_weight) {
+			w.print("1.0");
+			}
+		else
+			{
+			w.print(ctx.cadd.orElse(0.0));
+			}
 		w.print("\t");
 		w.print(ctx.frequency);
 		w.print("\t");
@@ -166,7 +188,8 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		}
 
 	protected OptionalDouble getCaddScore(final VariantContext ctx) {
-		if (ctx.hasAttribute(CADD_PHRED)) {
+		
+		if (!this.ignore_cadd_weight && ctx.hasAttribute(CADD_PHRED)) {
 				final String s = ctx.getAttributeAsString(CADD_PHRED, ".");
 				if (!(s.equals(".") || StringUtils.isBlank(s))) {
 					return OptionalDouble.of(Double.valueOf(s));
@@ -189,6 +212,10 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 				"number of variants printed   : "+ n_variants_printed+" \n" 
 					);
 		return 0;
+		}
+	
+	protected boolean isIgnoringMaskScore() {
+		return this.ignore_mask_score;
 		}
 	
 	@Override

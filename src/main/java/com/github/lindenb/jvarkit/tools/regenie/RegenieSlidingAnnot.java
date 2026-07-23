@@ -91,7 +91,7 @@ public class RegenieSlidingAnnot extends AbstractRegenieAnnot {
 			v.id = makeID(ctx);
 			v.gene = ctx.getContig()+ "_" + (win_pos) + "_" + (win_pos - 1 + this.window_size) ;
 			v.prediction = getPredictionName();
-			v.score = OptionalDouble.empty();
+			v.score =(isIgnoringMaskScore()?OptionalDouble.of(1.0): OptionalDouble.empty());
 			v.cadd = getCaddScore(ctx);
 			v.is_singleton = is_singleton;
 			v.frequency = freq;

@@ -184,7 +184,10 @@ public class RegenieBedAnnot extends AbstractRegenieAnnot {
 				
 				
 				final String scoreStr=rec.getOrDefault(5,"");
-				if(StringUtils.isBlank(scoreStr) || scoreStr.equals(".")) {
+				if(super.isIgnoringMaskScore()) {
+					ub.score = 1.0;
+					}
+				else if(StringUtils.isBlank(scoreStr) || scoreStr.equals(".")) {
 					ub.score = 1.0;
 					}
 				else

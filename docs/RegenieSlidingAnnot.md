@@ -16,10 +16,20 @@ Usage: java -jar dist/jvarkit.jar regenieslidingannot  [options] Files
 
 Usage: regenieslidingannot [options] Files
   Options:
+    --gnomad-population
+      search gnomad population frequency in INFO/xx. Set blank to ignore 
+      gnomad frequencies and just use internal AC/AN
+      Default: gnomad_genome_AF_NFE
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore-cadd
+      Ignore CADD weight. Just use '1'
+      Default: false
+    --ignore-mask-score
+      Ignore mask score. Just use '1'
+      Default: false
     --version
       print version and exit
   * --window-shift, -s

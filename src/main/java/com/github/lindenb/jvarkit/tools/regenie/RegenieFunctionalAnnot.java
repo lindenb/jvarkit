@@ -121,7 +121,7 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 						throw new IllegalArgumentException("duplicate prediction "+tokens[0]+" in "+masksFile);
 						}
 					prediction2score.put(pred, Double.parseDouble(tokens[1].trim()));
-				}
+		            }
 			}
 		catch(final IOException err) {
 			throw new RuntimeIOException(err);
@@ -233,7 +233,9 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 					for(String pred_key : pred.getSOTermsStrings()) {
 						if(pred_key.equals("intergenic_region")) continue;
 						final Double score = this.prediction2score.getOrDefault(pred_key, null);
-						if (score == null) throw new IOException("undefined prediction key "+pred_key+ " in file "+masksFile+" available are:"+String.join(",", this.prediction2score.keySet()));
+						if (score == null) {
+							throw new IOException("undefined prediction key "+pred_key+ " in file "+masksFile+" available are:"+String.join(",", this.prediction2score.keySet()));
+							}
 						if (best_score == null || best_score.compareTo(score) < 0) {
 							best_score =score;
 							best_pred = pred_key;
@@ -248,7 +250,13 @@ public class RegenieFunctionalAnnot extends AbstractRegenieAnnot {
 					v.id = makeID(ctx);
 					v.gene = gene_name;
 					v.prediction = best_pred;
-					v.score = OptionalDouble.of( best_score);
+					if(super.isIgnoringMaskScore()) {
+							v.score = OptionalDouble.of(1.0);
+							}
+						else
+							{
+                            v.score = OptionalDouble.of( best_score);
+                            }
 					v.cadd = getCaddScore(ctx);
 					v.is_singleton = isSingleton(ctx);
 					v.frequency = getFrequency(ctx);

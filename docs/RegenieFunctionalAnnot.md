@@ -19,12 +19,22 @@ Usage: regeniefunctionalannot [options] Files
   * -A, --annotations
       seq_ontology <-> score file. TSV file. no header. at least 2 columns 
       prediction_name/score 
+    --gnomad-population
+      search gnomad population frequency in INFO/xx. Set blank to ignore 
+      gnomad frequencies and just use internal AC/AN
+      Default: gnomad_genome_AF_NFE
     --gtf
       GTF file used to get first intron/intergenic.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore-cadd
+      Ignore CADD weight. Just use '1'
+      Default: false
+    --ignore-mask-score
+      Ignore mask score. Just use '1'
+      Default: false
     --version
       print version and exit
     -f

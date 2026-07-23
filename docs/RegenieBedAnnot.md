@@ -20,10 +20,20 @@ Usage: regeniebedannot [options] Files
       custom bed file chrom/start/end/annotation/name[/score].
     --chrom
       process only that chromosome
+    --gnomad-population
+      search gnomad population frequency in INFO/xx. Set blank to ignore 
+      gnomad frequencies and just use internal AC/AN
+      Default: gnomad_genome_AF_NFE
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
+    --ignore-cadd
+      Ignore CADD weight. Just use '1'
+      Default: false
+    --ignore-mask-score
+      Ignore mask score. Just use '1'
+      Default: false
     -m, --min-length
       slop each BED records in 5' and 3' so the minimal LENGTH is 'm'. 
       Multiple are comma separated

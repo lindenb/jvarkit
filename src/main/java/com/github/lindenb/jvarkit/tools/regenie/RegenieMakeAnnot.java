@@ -295,7 +295,7 @@ public class RegenieMakeAnnot extends Launcher {
 
 	private static class RowCodec extends AbstractDataCodec<Variation> {
 		@Override
-		public void encode(DataOutputStream dos, final Variation variant) throws IOException {
+		public void encode(final DataOutputStream dos, final Variation variant) throws IOException {
 			dos.writeUTF(variant.contig);
 			dos.writeInt(variant.pos);
 			dos.writeUTF(variant.id);
@@ -308,7 +308,7 @@ public class RegenieMakeAnnot extends Launcher {
 		}
 
 		@Override
-		public Variation decode(DataInputStream dis) throws IOException {
+		public Variation decode(final DataInputStream dis) throws IOException {
 			final Variation v = new Variation();
 			try {
 				v.contig = dis.readUTF();
@@ -344,7 +344,7 @@ public class RegenieMakeAnnot extends Launcher {
 		return StringUtils.isBlank(s) || s.equals(".");
 	}
 
-	private static int compareVariant(Variation t1, Variation t2, int level) {
+	private static int compareVariant(final Variation t1, final Variation t2, int level) {
 		int i = t1.contig.compareTo(t2.contig);// CHROMOSOME
 		if (i != 0)
 			return i;
