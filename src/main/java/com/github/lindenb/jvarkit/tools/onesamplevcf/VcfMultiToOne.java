@@ -28,32 +28,22 @@ History:
 */
 package com.github.lindenb.jvarkit.tools.onesamplevcf;
 
-import java.io.BufferedInputStream;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.function.UnaryOperator;
 
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParametersDelegate;
+import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
+import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.StringUtils;
+import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.util.JVarkitVersion;
+import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
-import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.samtools.util.FileExtensions;
-import htsjdk.samtools.util.Interval;
-import htsjdk.samtools.util.IntervalTreeMap;
-import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -63,61 +53,15 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
-import com.github.lindenb.jvarkit.delly.DellyVariantAnnotator;
-import com.github.lindenb.jvarkit.io.IOUtils;
-import com.github.lindenb.jvarkit.io.NoCloseInputStream;
-import com.github.lindenb.jvarkit.jcommander.Launcher;
-import com.github.lindenb.jvarkit.jcommander.NoSplitter;
-import com.github.lindenb.jvarkit.jcommander.Program;
-import com.github.lindenb.jvarkit.lang.JvarkitException;
-import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.samtools.util.IntervalListProvider;
-import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.util.vcf.VariantAttributesRecalculator;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
-import com.github.lindenb.jvarkit.variant.vcf.BcfIteratorBuilder;
-
 import htsjdk.variant.vcf.VCFIterator;
 
 /*
 BEGIN_DOC
 
-## Deprecated
-
-I don't use this software anymore.
-
 ## Input
 
 if there is only one input with the '.list' suffix, it is interpreted as a file containing the path to the vcf files
 
-A file with the suffixes '.zip' or '.tar' or '.tar.gz' is interpreted as an archive and all the entries looking like a vcf are extracted.
-
-24 fev 2020: refactored, the input is not anymore sorted. Use bcftools sort
-
-## Example
-
-with zip  and tar
-
-```
-$ tar tvfz ~/jeter.tar.gz && unzip -l ~/jeter.zip && java -jar dist/jvarkit.jar vcfmulti2one ~/jeter.tar.gz ~/jeter.zip | bcftools view - | wc -l
--rw-r--r-- lindenb/lindenb 5805 2019-01-11 18:29 src/test/resources/rotavirus_rf.ann.vcf.gz
--rw-r--r-- lindenb/lindenb 27450 2019-01-11 18:29 src/test/resources/rotavirus_rf.freebayes.vcf.gz
--rw-r--r-- lindenb/lindenb  7366 2019-01-11 18:29 src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
-Archive:  /home/lindenb/jeter.zip
-  Length      Date    Time    Name
----------  ---------- -----   ----
-     7366  2019-01-11 18:29   src/test/resources/rotavirus_rf.unifiedgenotyper.vcf.gz
-     5805  2019-01-11 18:29   src/test/resources/rotavirus_rf.ann.vcf.gz
-     3661  2019-01-11 18:29   src/test/resources/rotavirus_rf.vcf.gz
-    27450  2019-01-11 18:29   src/test/resources/rotavirus_rf.freebayes.vcf.gz
----------                     -------
-    44282                     4 files
-4883
-
-```
 
 
 ```bash
@@ -173,8 +117,7 @@ $10  SAMPLE : 0|1
 >>> 5
 $1   #CHROM : 1
 $2      POS : 10177
-$3       ID : .import java.util.Comparator;
-
+$3       ID : .
 $4      REF : A
 $5      ALT : AC
 $6     QUAL : 100
@@ -262,20 +205,16 @@ END_DOC
  */
 @Program(name="vcfmulti2one",
 	biostars=130456,
-	description="Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. Never used.",
+	description="Convert VCF with multiple samples to a VCF with one SAMPLE, duplicating variant and adding the sample name in the INFO column. ",
 	keywords={"vcf","sample"},
 	creationDate="20150312",
-	modificationDate="20241125",
+	modificationDate="20260724",
 	jvarkit_amalgamion = true,
 	menu="VCF Manipulation"
 	)
-public class VcfMultiToOne extends Launcher
+public class VcfMultiToOne extends OnePassVcfLauncher
 	{
 	private static final Logger LOG = Logger.of(VcfMultiToOne.class);
-
-	
-	@Parameter(names={"--no-origin"},description="do not include origin of variant")
-	private boolean discard_ctx_origin = false;
 
 	@Parameter(names={"-c","--nc","-nc","--discard_no_call"},description="discard if variant is no-call")
 	private boolean discard_no_call = false;
@@ -283,169 +222,21 @@ public class VcfMultiToOne extends Launcher
 	private boolean discard_hom_ref = false;
 	@Parameter(names={"-a","--discard_non_available"},description="discard if variant is not available (see htsjdk definition 'available if the type of this genotype is set')")
 	private boolean discard_non_available = false;
-	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
-	private Path outputFile = null;
-	@Parameter(names={"--regions"},description="Optional. "+IntervalListProvider.OPT_DESC,converter=IntervalListProvider.StringConverter.class,splitter=NoSplitter.class)
-	private IntervalListProvider userRegions = null;
-	@ParametersDelegate
-	private VariantAttributesRecalculator recalculator = new VariantAttributesRecalculator();
-	@ParametersDelegate
-	private WritingVariantsDelegate writingVariantsDelegate = new WritingVariantsDelegate();
+	@Parameter(names={"--anonymize","-x"},description="anonymize samples")
+	private boolean anonymize_flag = false;
 
 	public static final String DEFAULT_VCF_SAMPLE_NAME="SAMPLE";
 	public static final String DEFAULT_SAMPLE_TAGID="SAMPLENAME";
-	public static final String DEFAULT_SAMPLE_FILETAGID ="SAMPLESOURCE";
 	public static final String SAMPLE_HEADER_DECLARATION="VcfMultiToOne.Sample";
-	
-	
-	private static class NamedVcfIterator {
-		private final VCFIterator delegate;
-		private final String name;
-		NamedVcfIterator(final VCFIterator delegate,final String name) {
-			this.name = name;
-			this.delegate = delegate;
-		}
-	}
-	
-	private interface VCFIteratorSource extends Closeable /* NOT Iterator. Was a mess with the closed stream */{
-	public void open() throws IOException;
-	/* get next or return null */
-	public NamedVcfIterator next() throws IOException;
-	}
-
-	
-	
-	private class PathsIterator implements VCFIteratorSource {
-		final String arg;
-		boolean first=false;
-		PathsIterator(final String arg) {
-			this.arg = arg;
-			}
-		@Override
-		public void open() {
-			first=true;
-			}
-		@Override
-		public NamedVcfIterator next() throws IOException{
-			if(!first) return null;
-			first=false;
-			return new NamedVcfIterator(new BcfIteratorBuilder().open(arg),arg.toString());
-			}
-		@Override
-		public void close() throws IOException {}
-		}
-	
-	/* reads all vcf-like entries in a zip archive */
-	private class ZipIterator implements VCFIteratorSource {
-		private final Path path;
-		private InputStream in = null;
-		private ZipInputStream zin = null;
-		ZipIterator(final Path path){
-			this.path= path;
-			}
-		
-		@Override
-		public void open()  throws IOException {
-			this.in = new BufferedInputStream(Files.newInputStream(path));
-			this.zin = new ZipInputStream(this.in);		
-			}
-		
-		@Override
-		public NamedVcfIterator next() throws IOException {
-				for(;;) {
-					final ZipEntry entry = zin.getNextEntry();
-					if(entry==null) {
-						return null;
-						}
-					if(entry.isDirectory()) {
-						continue;
-						}
-					if(!FileExtensions.VCF_LIST.stream().anyMatch(X->entry.getName().endsWith(X))) {
-						continue;
-						}
-					/* prevent zip from being closed */
-					final InputStream do_not_close_in = new NoCloseInputStream(this.zin);
-
-					return new NamedVcfIterator(
-							new BcfIteratorBuilder().open(do_not_close_in),
-							path.toString()+"!"+entry.getName()
-							);
-					}
-				}
-				
-			
-		@Override
-		public void close() throws IOException {
-			if(zin!=null) zin.close();
-			if(in!=null) in.close();
-			zin=null;
-			in=null;
-			}
-		@Override
-		public String toString() {
-			return this.path.toString();
-			}
-		}
-	private class TarIterator implements VCFIteratorSource {
-		final Path path;
-		private TarArchiveInputStream tarin=null;
-		private InputStream in=null;
-		private GZIPInputStream gzin=null;
-		TarIterator(final Path path) {
-			this.path=path;
-		}
-		@Override
-		public void open() throws IOException {
-			this.in = new BufferedInputStream(Files.newInputStream(this.path));
-			if( this.path.getFileName().toString().endsWith(".tar")) {
-				this.tarin = new TarArchiveInputStream(this.in);
-				this.gzin=null;
-				}
-			else
-				{
-				this.gzin=new GZIPInputStream(this.in);
-				this.tarin = new TarArchiveInputStream(this.gzin);
-				}
-			}
-		
-		@Override
-		public NamedVcfIterator next() throws IOException {
-				for(;;) {
-					final TarArchiveEntry entry = tarin.getNextEntry();
-					if(entry==null) return null;
-					
-					if(!tarin.canReadEntryData(entry)) continue;
-					
-					if(entry.isDirectory()) {
-						continue;
-						}
-					if(!FileExtensions.VCF_LIST.stream().anyMatch(X->entry.getName().endsWith(X))) {
-						continue;
-						}
-					/* prevent zip from being closed */
-					final InputStream do_not_close_in = new NoCloseInputStream(tarin);
-					return new NamedVcfIterator(
-							new BcfIteratorBuilder().open(do_not_close_in),
-							path.toString()+"!"+entry.getName()
-							);
-					}
-				}
-		@Override
-		public void close() throws IOException {
-			this.tarin.close();
-			if(this.gzin!=null) this.gzin.close();
-			this.in.close();
-			}
-		}
-	
-
 	
 	public VcfMultiToOne()
 		{
 		}
-	
-	
-	
+	@Override
+	protected Logger getLogger() {
+		return  LOG;
+		}
+		
 	/** general utility for program using VCFMulti2One:
 	 *  Extract SampleNames
 	 */
@@ -467,194 +258,76 @@ public class VcfMultiToOne extends Launcher
 		return samples;
 		}
 	
-	private boolean keepHeader( final VCFHeaderLine hdr) {
-		// remove bcftools command, takes to much memory for large number of files.
-		if(hdr.getKey().equals("bcftools_viewCommand")) return false;
-		return true;
-		}
-	
 	@Override
-	public int doWork(final List<String> args) {
-
-		try
+	protected int doVcfToVcf(String inputName, VCFIterator in, VariantContextWriter out) {
+		final VCFHeader h0 = in.getHeader();	
+		final Set<VCFHeaderLine> metaData = new LinkedHashSet<VCFHeaderLine>(h0.getMetaDataInInputOrder());
+		final UnaryOperator<String> rename;
+		
+		if(this.anonymize_flag) {
+			rename= S->StringUtils.md5(S);
+			}
+		else
 			{
-			final List<String> paths = IOUtils.unrollStrings(args);
-			if(paths.isEmpty())
+			rename= S->S;
+			}
+		//addMetaData(metaData);
+		metaData.add(new VCFInfoHeaderLine(
+				DEFAULT_SAMPLE_TAGID,1,VCFHeaderLineType.String,
+				"Sample Name from multi-sample vcf"
+				));
+			
+			for(final String sample:h0.getSampleNamesInOrder())
 				{
-				LOG.error("No vcf provided");
-				return -1;
+				metaData.add(
+					new VCFHeaderLine(
+					SAMPLE_HEADER_DECLARATION,
+					rename.apply(sample)));
 				}
 			
-			final List<VCFIteratorSource> inputFiles = paths.stream().map(fname->{
-				if(fname.endsWith(".tar") || fname.endsWith(".tar.gz")) {
-					return new TarIterator(Paths.get(fname));
-					}
-				else if(fname.endsWith(".zip")) {
-					return new ZipIterator(Paths.get(fname));
-					}
-				else
-					{
-					return new PathsIterator(fname);
-					}
-				}).collect(Collectors.toList());
-
-			
-			SAMSequenceDictionary dict=null;
-			final Set<String> sampleNames= (discard_ctx_origin?Collections.emptySet():new HashSet<String>());
-
-			final Set<VCFHeaderLine> metaData = new HashSet<VCFHeaderLine>();
-			
-			// collect dictionary and meta data
-			for(final VCFIteratorSource source:inputFiles) {
-				source.open();
-				for(;;)
-					{
-					final	NamedVcfIterator nvi = source.next();
-					if(nvi==null) break;
-					final VCFIterator in = nvi.delegate;
-					final VCFHeader header = in.getHeader();
-					final SAMSequenceDictionary dict2= header.getSequenceDictionary();
-					if(dict2==null) {
-						//nothing
-						}
-					else if(dict==null)
-						{
-						dict = dict2;
-						}
-					else if(!SequenceUtil.areSequenceDictionariesEqual(dict, dict2))
-						{
-						LOG.error(JvarkitException.DictionariesAreNotTheSame.getMessage(dict, dict2));
-						return -1;
-						}
-					metaData.addAll(in.
-							getHeader().
-							getMetaDataInInputOrder().
-							stream().
-							filter(H->keepHeader(H)).
-							collect(Collectors.toList())
-							);
-					if(!discard_ctx_origin) {
-						sampleNames.addAll(in.getHeader().getSampleNamesInOrder());
-						}
-					in.close();
-					}
-				source.close();
-				}
-			
-			//addMetaData(metaData);
-			metaData.add(new VCFInfoHeaderLine(
-					DEFAULT_SAMPLE_TAGID,1,VCFHeaderLineType.String,
-					"Sample Name from multi-sample vcf"
-					));
-			
-			if(!discard_ctx_origin) {
-				metaData.add(new VCFInfoHeaderLine(
-						DEFAULT_SAMPLE_FILETAGID,1,VCFHeaderLineType.String,
-						"Origin of sample"
-						));
-				
-				
-				for(final String sample:sampleNames)
-					{
-					metaData.add(
-						new VCFHeaderLine(
-						SAMPLE_HEADER_DECLARATION,
-						sample));
-					}
-				}
-			
-			final VCFHeader h2 = new VCFHeader(
+			final VCFHeader h2 =  new VCFHeader(
 					metaData,
 					Collections.singleton(DEFAULT_VCF_SAMPLE_NAME)
 					);
-			this.recalculator.setHeader(h2);
 			JVarkitVersion.getInstance().addMetaData(this, h2);
-			
-			
-			final Predicate<VariantContext> pedicateVariantOverlapUserInterval;
-			if(this.userRegions!=null) {
-				final  IntervalTreeMap<Boolean> userIntervalTreeMap= new IntervalTreeMap<>();
-				this.userRegions.dictionary(dict)
-					.skipUnknownContigs()
-					.stream()
-					.forEach(L->userIntervalTreeMap.put(new Interval(L),Boolean.TRUE));
-				pedicateVariantOverlapUserInterval = VC->userIntervalTreeMap.containsOverlapping(VC);
-			} else
-			{
-				pedicateVariantOverlapUserInterval = VC->true;
-			}
-			
-			@SuppressWarnings("resource")
-			final DellyVariantAnnotator svLenHelper = new DellyVariantAnnotator();
-			svLenHelper.fillHeader(h2);
-			try(VariantContextWriter out= this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
-				out.writeHeader(h2);
-				for(final VCFIteratorSource source:inputFiles) {
-					source.open();
-					 for(;;)
+			out.writeHeader(h2);
+			while(in.hasNext()) {
+				final VariantContext ctx = in.next();
+				// no genotype
+				if(!ctx.hasGenotypes())
+					{
+					if(!this.discard_no_call)
 						{
-						if(out.checkError()) break;
-						final	NamedVcfIterator nvi = source.next();
-						if(nvi==null) break;
-						final VCFIterator in = nvi.delegate;
-						while(in.hasNext()) {
-							final VariantContext ctx = in.next();
-							if(!pedicateVariantOverlapUserInterval.test(ctx)) continue;
-							// no genotype
-							if(ctx.getNSamples()==0)
-								{
-								if(!this.discard_no_call)
-									{
-									final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
-									if(!discard_ctx_origin) {
-										vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
-										}
-									vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
-									out.add(this.recalculator.apply(vcb.make()));
-									}
-								continue;
-								}
-							//loop over samples
-							for(int i=0;i< ctx.getNSamples();++i)
-								{
-								final Genotype g= ctx.getGenotype(i);
-								final String sample = g.getSampleName();
-								
-								if(this.discard_no_call && g.getAlleles().stream().allMatch(A->A.isNoCall())) continue;
-								if(!g.isAvailable() && this.discard_non_available) continue;
-								if(this.discard_hom_ref && g.getAlleles().stream().allMatch(A->A.isReference())) continue;
-								
-								
-								final GenotypeBuilder gb=new GenotypeBuilder(g);
-								gb.name(DEFAULT_VCF_SAMPLE_NAME);
-								
-								
-								final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
-								svLenHelper.fill(vcb, ctx);
-								vcb.attribute(DEFAULT_SAMPLE_TAGID, sample);
-								if(!discard_ctx_origin) {
-									vcb.attribute(DEFAULT_SAMPLE_FILETAGID,nvi.name);
-									}
-								
-								vcb.genotypes(gb.make());
-								out.add(this.recalculator.apply(vcb.make()));
-								}
-							} //end while vcfiterator
-						//in.close();
+						final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
+						vcb.genotypes(GenotypeBuilder.createMissing(DEFAULT_VCF_SAMPLE_NAME,2));
+						out.add(vcb.make());
 						}
-					source.close();
+					continue;
 					}
-				} //close out
+				//loop over samples
+				for(Genotype g: ctx.getGenotypes())
+					{
+					
+					if(this.discard_no_call && g.getAlleles().stream().allMatch(A->A.isNoCall())) continue;
+					if(!g.isAvailable() && this.discard_non_available) continue;
+					if(this.discard_hom_ref && g.getAlleles().stream().allMatch(A->A.isReference())) continue;
+					
+					
+					final GenotypeBuilder gb=new GenotypeBuilder(g);
+					gb.name(DEFAULT_VCF_SAMPLE_NAME);
+					
+					
+					final VariantContextBuilder vcb=new VariantContextBuilder(ctx);
+					vcb.attribute(DEFAULT_SAMPLE_TAGID, rename.apply( g.getSampleName()));
+					
+					vcb.genotypes(Collections.singletonList( gb.make()));
+					out.add(vcb.make());
+					}
+				} //end while vcfiterator
+				
 			
 			return 0;
 			}
-		catch(final Throwable err)
-			{
-			LOG.error(err);
-			return -1;
-			}
-		
-		}
 	
 	
 	

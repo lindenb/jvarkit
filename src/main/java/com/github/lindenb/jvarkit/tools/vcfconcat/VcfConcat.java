@@ -90,7 +90,7 @@ END_DOC
 @Program(name="vcfconcat",
 	keywords={"vcf"},
 	creationDate = "20131230",
-	modificationDate = "20260709",
+	modificationDate = "20260724",
 	description="Concatenate VCFs. See also bcftools concat",
 	generate_doc = true,
 	jvarkit_amalgamion = true,
@@ -111,10 +111,8 @@ public class VcfConcat extends Launcher
 	private boolean drop_genotypes = false;
 	@Parameter(names={"-S","--samples"},description="Print Samples in INFO columns. implies --drop-genotypes")
 	private SamplePeek samplePeek = SamplePeek.none;
-	
 	@Parameter(names={"--bed","--regions-file","--regions"},description="limit to that bed file")
 	private Path input_bed_path = null;
-
 	@Parameter(names={"--merge"},description="merge all samples. First Scan all files to get all distinct samples")
 	private boolean merge_distinct_samples = false;
 
@@ -211,7 +209,7 @@ public class VcfConcat extends Launcher
 				VCFIterator in = null;
 				
 				try{
-					if( this.input_bed_path!=null) {
+					if(intervals==null) {
 						in = new BcfIteratorBuilder().open(vcfPath);
 						}
 					else
