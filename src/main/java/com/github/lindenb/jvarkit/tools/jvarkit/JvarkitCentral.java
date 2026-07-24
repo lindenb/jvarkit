@@ -318,6 +318,7 @@ import com.github.lindenb.jvarkit.tools.vcf2xml.Vcf2Xml;
 import com.github.lindenb.jvarkit.tools.vcf4igv.VcfForIGV;
 import com.github.lindenb.jvarkit.tools.vcfallele2symbolic.VcfAlleleToSymbolic;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFSVAnnotator;
+import com.github.lindenb.jvarkit.tools.vcfanonymize.VcfAnonymize;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBed;
 import com.github.lindenb.jvarkit.tools.vcfbed.VCFBedSetFilter;
 import com.github.lindenb.jvarkit.tools.vcfannot.VCFCombineTwoSnvs;
@@ -867,6 +868,7 @@ public class JvarkitCentral {
 		command(ReferenceToVCF.class);
 		command(RNASeqPolyA.class);
 		command(RunTestNG.class);
+		command(VcfAnonymize.class);
 		command(VCFBigWig.class);
 		command(VcfBigBed.class);
 		command(VcfFilterGtf.class);

@@ -41,6 +41,7 @@ import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
 
 /**
@@ -106,6 +107,18 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		return (byte)(single==null?0:1);
 		}
 	
+	protected String getGnomad_population() {
+		return gnomad_population;
+		}
+	
+	private void verifyGnomadTag(final VCFHeader h) {
+		final String tag = getGnomad_population();
+		if(!StringUtils.isBlank(tag)) {
+			final VCFInfoHeaderLine hl = h.getInfoHeaderLine(tag);
+			if(hl==null) throw new IllegalArgumentException("cannot find gnomad frequency INFO/"+tag+" in vcf header. Use option --gnomad-population or set it blank.");
+			}
+		}
+	
 	protected double getFrequency(final VariantContext ctx) {
 		if(!ctx.hasGenotypes()) throw new IllegalArgumentException("GT missing");
 		int AC=0;
@@ -122,8 +135,9 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		
 		double freq = AC/AN;
 		
-		if(!StringUtils.isBlank(this.gnomad_population) &&  ctx.hasAttribute(this.gnomad_population)) {
-			freq = Math.max(ctx.getAttributeAsDouble(this.gnomad_population, 0.0), freq);
+		final String tag = getGnomad_population();
+		if(!StringUtils.isBlank( tag) &&  ctx.hasAttribute( tag)) {
+			freq = Math.max(ctx.getAttributeAsDouble( tag, 0.0), freq);
 			}
 		return freq;
 		}
@@ -199,6 +213,7 @@ public abstract class AbstractRegenieAnnot extends Launcher {
 		}
 	
 	protected VCFHeader initVcfHeader(final VCFHeader h) {
+		verifyGnomadTag(h);
 		return h;
 	}
 	
