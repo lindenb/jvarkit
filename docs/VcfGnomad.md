@@ -66,6 +66,10 @@ Usage: vcfgnomad [options] Files
       discard the variant if the gnomad variant is filtered or if the 
       frequency if not between min-af and max-af
       Default: GNOMAD
+    --skip-filtered
+      Remove any user's variant if the gnomad variant is filtered (or overlap 
+      a LCR), or doesn't fit the min/max AF
+      Default: false
     --version
       print version and exit
 

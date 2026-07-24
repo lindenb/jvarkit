@@ -114,6 +114,8 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	private OmeType user_ome_type = OmeType.undefined;
 	@Parameter(names={"--disable-lcr"},description="Do NOT use the 'INFO/lcr'  (low complexity region) flag. Default is to set a FILTER those variants.")
 	private boolean disable_lcr=false;
+	@Parameter(names={"--skip-filtered"},description="Remove any user's variant if the gnomad variant is filtered (or overlap a LCR), or doesn't fit the min/max AF")
+	private boolean skip_FILTEed_variant=false;
 
 
 	private enum OmeType {genome,exome,undefined;}
@@ -367,7 +369,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		while(iter.hasNext()) {
 			final VariantContext ctx = iter.next();
 			
-			final Set<String> filters = new HashSet<>(ctx.getFilters());
+			final Set<String> filters = new HashSet<>();
 
 			
 			final VariantContextBuilder vcb = new VariantContextBuilder(ctx);
@@ -489,6 +491,14 @@ public class VcfGnomad extends OnePassVcfLauncher {
 					}
 				}
 			
+			if(this.skip_FILTEed_variant && !filters.isEmpty()) {
+				if(this.debug) LOG.debug(toString(ctx)+ " skipping because filters "+filters);
+				continue;
+				}
+			// add previous variants
+			if(ctx.isFiltered()) {
+				filters.addAll(ctx.getFilters());
+				}
 			if(!this.doNotUpdateId && !ctx.hasID() && !StringUtil.isBlank(newid)) vcb.id(newid);
 			if(filters.isEmpty()) {
 				vcb.passFilters();
