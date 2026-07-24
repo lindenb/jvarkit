@@ -2,7 +2,7 @@ String jvarkit(name) {
 	return "java  -Djava.io.tmpdir=TMP -jar ${params.jvarkit} ${name} ";
 	}
 workflow {
-	rotavirus_bams = Channel.of(
+	rotavirus_bams = channel.of(
 		"${params.testDir}/S1.bam",
 		"${params.testDir}/S2.bam",
 		"${params.testDir}/S3.bam",
@@ -10,22 +10,22 @@ workflow {
 		"${params.testDir}/S5.bam"
 		)
 	
-	rotavirus_vcfs = Channel.of(
+	rotavirus_vcfs = channel.of(
 		"${params.testDir}/rotavirus_rf.vcf.gz"
-		).mix(rotavirus_bams.map{it.replaceAll("\\.bam",".vcf.gz")})
+		).mix(rotavirus_bams.map{t->t.replaceAll("\\.bam",".vcf.gz")})
 
-	TEST_BAMLEFTALIGN("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("--filter none","--filter only ","--filter discard","--regions RF02:1-10")))
-	TEST_BIOSTAR84452("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("-t X2")))
-	TEST_DICT2BED(rotavirus_bams.combine(Channel.of("")))
-	TEST_FINDALLCOVERAGEATPOS("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.collect(),Channel.of("-p 'RF01:100'"))
-	TEST_GTF2BED(Channel.fromPath("${params.testDir}/Homo_sapiens.GRCh37.87.gtf.gz").combine(Channel.of("-c 'return gene_id' ")))
-	TEST_SAMJDK("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(Channel.of("-e 'return record.getStart()<100;' ")))
+	TEST_BAMLEFTALIGN("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(channel.of("--filter none","--filter only ","--filter discard","--regions RF02:1-10")))
+	TEST_BIOSTAR84452("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(channel.of("-t X2")))
+	TEST_DICT2BED(rotavirus_bams.combine(channel.of("")))
+	TEST_FINDALLCOVERAGEATPOS("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.collect(),channel.of("-p 'RF01:100'"))
+	TEST_GTF2BED(channel.fromPath("${params.testDir}/Homo_sapiens.GRCh37.87.gtf.gz").combine(channel.of("-c 'return gene_id' ")))
+	TEST_SAMJDK("${params.testDir}/rotavirus_rf.fa",rotavirus_bams.combine(channel.of("-e 'return record.getStart()<100;' ")))
 	TEST_SAM2TSV("${params.testDir}/rotavirus_rf.fa",rotavirus_bams)
-	TEST_VCFHEAD(rotavirus_vcfs.combine(Channel.of("-n 0","-n 10")))
-	TEST_VCFFILTERSO(Channel.fromPath("${params.testDir}/rotavirus_rf.ann.vcf.gz").combine(Channel.of("-A 'SO:0001818,SO:0001629'  ")))
+	TEST_VCFHEAD(rotavirus_vcfs.combine(channel.of("-n 0","-n 10")))
+	TEST_VCFFILTERSO(channel.fromPath("${params.testDir}/rotavirus_rf.ann.vcf.gz").combine(channel.of("-A 'SO:0001818,SO:0001629'  ")))
 	TEST_VCFPOLYX("${params.testDir}/rotavirus_rf.fa",rotavirus_vcfs)
-	TEST_VCFTAIL(rotavirus_vcfs.combine(Channel.of("-n 0","-n 10")))
-	TEST_VCF2TABLE(rotavirus_vcfs.combine(Channel.of("--hide 'HOM_REF' ")))
+	TEST_VCFTAIL(rotavirus_vcfs.combine(channel.of("-n 0","-n 10")))
+	TEST_VCF2TABLE(rotavirus_vcfs.combine(channel.of("--hide 'HOM_REF' ")))
 	}
 
 
