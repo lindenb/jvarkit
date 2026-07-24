@@ -84,15 +84,14 @@ END_DOC
 @Program(name="vcfgnomad",
 	description="Peek annotations from gnomad",
 	keywords={"vcf","annotation","gnomad"},
-	modificationDate="20231103",
+	modificationDate="20260724",
 	creationDate="20170407",
 	jvarkit_amalgamion =  true,
 	menu="VCF Manipulation"
 )
 public class VcfGnomad extends OnePassVcfLauncher {
-	
 	private static final Logger LOG = Logger.of(VcfGnomad.class);
-	
+	private final String[] NEGATIVE_FLAGS = new String []{"lcr","segdup","fail_interval_qc","negative_train_site"};
 	
 	@Parameter(names={"-g","--gnomad"},description="Path to Indexed Gnomad VCF file. Or a file with the '.list' suffix containing the path to the indexed VCFs (one per contig).",required=true)
 	private Path gnomadPath =null;
@@ -102,26 +101,53 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	private String infoFieldStr="AF_popmax,AF_nfe";
 	@Parameter(names={"--noUpdateId"},description="do Not Update ID if it is missing in user's variant")
 	private boolean doNotUpdateId=false;
-	@Parameter(names={"--prefix"},description="If not empty, include the Gnomad FILTERs using this prefix. If empty: discard the variant if the gnomad variant is filtered or if the frequency if not between min-af and max-af")
-	private String filteredInGnomadFilterPrefix="GNOMAD";
+	@Parameter(names={"--prefix"},description="Use this prefix for the FILTERs.")
+	private String filteredInGnomadFilterPrefix2 ="GNOMAD";
 	@Parameter(names={"--min-af"},description="Min allele frequency",converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double min_af = 0.0;
 	@Parameter(names={"--max-af"},description="Max allele frequency",converter=FractionConverter.class,splitter=NoSplitter.class)
 	private double max_af = 1.0;
 	@Parameter(names={"--debug"},description="debug",hidden=true)
 	private boolean debug = false;
-	@Parameter(names={"--ome"},description="is the genome vcf exome or genome ? If 'undefined', try to guess from filename")
-	private OmeType user_ome_type = OmeType.undefined;
-	@Parameter(names={"--disable-lcr"},description="Do NOT use the 'INFO/lcr'  (low complexity region) flag. Default is to set a FILTER those variants.")
-	private boolean disable_lcr=false;
-	@Parameter(names={"--skip-filtered"},description="Remove any user's variant if the gnomad variant is filtered (or overlap a LCR), or doesn't fit the min/max AF")
+	@Parameter(names={"--disable-bad-flag"},description="A list of INFO/xxx Flag that will be used to FILTER variants. Multiple, comma separated: valid values are 'lcr,segdup,fail_interval_qc,negative_train_site'.")
+	private String disable_bad_flag_str="";
+	@Parameter(names={"--skip-filtered","--pass"},description="Remove any user's variant if the gnomad variant is filtered (or overlap a LCR,segdup, ...), or doesn't fit the min/max AF")
 	private boolean skip_FILTEed_variant=false;
 
-
-	private enum OmeType {genome,exome,undefined;}
+	/** handle INFO/xx flag like segdup, low_compexity region etc.. */
+	private class BadFlag {
+		private final String tag;
+		private VCFInfoHeaderLine src_info = null;
+		private VCFFilterHeaderLine filterHeader = null;
+		BadFlag(final String tag) {
+			this.tag=tag;
+			}
+		
+		void init(final VCFHeader h0,final  UnaryOperator<String> toNewFilter) {
+			this.src_info = h0.getInfoHeaderLine(this.tag);
+			// low complexity region
+			if(this.src_info!=null && src_info.getType()==VCFHeaderLineType.Flag) {
+				this.filterHeader =  new VCFFilterHeaderLine(
+						toNewFilter.apply(this.tag.toUpperCase()),
+						"INFO/"+this.tag+" defined in "+ VcfGnomad.this.gnomadPath+" : "+src_info.getDescription()
+						);
+				}
+			else
+				{
+				this.filterHeader = null;
+				}
+			}
+		
+		@Override
+		public String toString() {
+			return  tag;
+			}
+		}
+	
 	private BufferedVCFReader gnomadReader = null;
 	private ContigNameConverter ctgNameConverter = null;
 	private final Set<String> gnomad_info_af_attributes = new HashSet<>();
+	private List<BadFlag> bad_flags = new ArrayList<>();
 	
 	private String toString(final VariantContext vc) {
 	return vc.getContig()+":"+vc.getStart()+":"+vc.getReference();
@@ -134,6 +160,11 @@ public class VcfGnomad extends OnePassVcfLauncher {
 	
 	@Override
 	protected int beforeVcf() {
+		if(StringUtils.isBlank(this.filteredInGnomadFilterPrefix2)) {
+			LOG.error("empty prefix for filteredInGnomadFilterPrefix");
+			return -1;
+			}
+		
 		try {
 			final VCFReader r; 
 			if(this.gnomadPath.getFileName().toString().endsWith(".list")) {
@@ -155,6 +186,8 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		
 		
 		final VCFHeader gnomadHeader = this.gnomadReader.getHeader();
+	
+		
 		for(final String field: this.infoFieldStr.split("[ ,;\t]+")) {
 			if(StringUtils.isBlank(field)) continue;
 			
@@ -162,6 +195,11 @@ public class VcfGnomad extends OnePassVcfLauncher {
 					stream().
 					filter(F->F.getID().equalsIgnoreCase(field)).
 					findFirst().orElse(null);
+			/* in gnomad JOIN vcf https://storage.googleapis.com/gcp-public-data--gnomad/release/4.1/vcf/joint/gnomad.joint.v4.1.sites.chr1.vcf.bgz , there is genome */
+			if(info==null) {
+				
+				}
+			
 			if(info==null) {
 				LOG.error("field INFO/"+field +" is undefined in "+this.gnomadPath+" . available info fields are:"+
 						gnomadHeader.getInfoHeaderLines().
@@ -185,10 +223,20 @@ public class VcfGnomad extends OnePassVcfLauncher {
 			}
 
 		
+		for(final String s: NEGATIVE_FLAGS) {
+			if(Arrays.stream(this.disable_bad_flag_str.split("[ ,;]"))
+				.map(S->S.toLowerCase())
+				.anyMatch(S->S.equals(s))) continue;
+			this.bad_flags.add(new BadFlag(s));
+			}
+		
+		final Set<String> keep_info = new HashSet<>(this.gnomad_info_af_attributes);
+		this.bad_flags.stream().forEach(F->keep_info.add(F.tag));
+				
 		/* do not keep those INFO in memory */
-		final List<String> removeAtt =  this.gnomadReader.getHeader().getInfoHeaderLines().stream().
+		final List<String> removeAtt = this.gnomadReader.getHeader().getInfoHeaderLines().stream().
 				map(H->H.getID()).
-				filter(ID->!this.gnomad_info_af_attributes.contains(ID)).
+				filter(ID->!keep_info.contains(ID)).
 				collect(Collectors.toList());
 		
 		this.gnomadReader.setSimplifier(V->{
@@ -237,11 +285,6 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		return list;
 		}
 	
-	
-	
-	
-		
-		
 		
 		
 	@Override
@@ -253,54 +296,33 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		{
 		final VCFHeader h0 = iter.getHeader();
 		final VCFHeader h2 = new VCFHeader(h0);
-		final OmeType ome;
-		if(!this.user_ome_type.equals(OmeType.undefined)) {
-			ome = this.user_ome_type;
-			}
-		else if(this.gnomadPath.getFileName().toString().contains("genomes")) {
-			ome= OmeType.genome;
-			}
-		else if(this.gnomadPath.getFileName().toString().contains("exomes")) {
-			ome= OmeType.exome;
-			}
-		else
-			{
-			LOG.info("Cannot identify if gnomad is exome or genome :"+this.gnomadPath+". use option --ome .");
-			return -1;
-			}
+		
 		/* output FILTER name */
-		final UnaryOperator<String> toNewFilter = S-> this.filteredInGnomadFilterPrefix+"_"+ome.name().toUpperCase()+"_"+S;
+		final UnaryOperator<String> toNewFilter = S-> String.join("_",this.filteredInGnomadFilterPrefix2,S);
 		/* output INFO name */
-		final UnaryOperator<String> toNewInfo = S-> "gnomad_" + ome.name() + "_"+ S.toUpperCase();
+		final UnaryOperator<String> toNewInfo = S-> "gnomad_" + S.toUpperCase();
 		
 		
 		final VCFHeader gnomadHeader = this.gnomadReader.getHeader();
-		final VCFFilterHeaderLine filterFrequencyHeader;
 		
 		/* peek FILTER from GNOMAD */
-		if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix))
+		for(final VCFFilterHeaderLine fh: gnomadHeader.getFilterLines())
 			{
-			for(final VCFFilterHeaderLine fh: gnomadHeader.getFilterLines())
-				{
-				if(fh.getID().equals(VCFConstants.PASSES_FILTERS_v4)) continue;
-				final VCFFilterHeaderLine fh2 = new VCFFilterHeaderLine(
-						toNewFilter.apply(fh.getID()),
-						"[gnomad-"+ome.name()+"]" + fh.getDescription()+" in "+ gnomadPath
-						);
-				if(this.debug) LOG.debug("adding vcf filter "+fh2.getID());
-				h2.addMetaDataLine(fh2);
-				}
-			filterFrequencyHeader = new VCFFilterHeaderLine(this.filteredInGnomadFilterPrefix+"_"+ome.name().toUpperCase()+"_BAD_AF",
-					"AF if not between "+this.min_af+"<= 'af' <="+this.max_af+" for "+this.gnomadPath
+			if(fh.getID().equals(VCFConstants.PASSES_FILTERS_v4)) continue;
+			final VCFFilterHeaderLine fh2 = new VCFFilterHeaderLine(
+					toNewFilter.apply(fh.getID()),
+					"[gnomad]" + fh.getDescription()+" in "+ gnomadPath
 					);
-			h2.addMetaDataLine(filterFrequencyHeader);
-			if(this.debug) LOG.debug("adding filter "+ filterFrequencyHeader.getID());
-
+			if(this.debug) LOG.debug("adding vcf filter "+fh2.getID());
+			h2.addMetaDataLine(fh2);
 			}
-		else
-			{
-			filterFrequencyHeader = null;
-			}
+		final VCFFilterHeaderLine filterFrequencyHeader2 = new VCFFilterHeaderLine(this.filteredInGnomadFilterPrefix2+"_BAD_AF",
+				"AF if not between "+this.min_af+"<= 'af' <="+this.max_af+" for "+this.gnomadPath
+				);
+		h2.addMetaDataLine(filterFrequencyHeader2);
+		if(this.debug) LOG.debug("adding filter "+ filterFrequencyHeader2.getID());
+		
+		
 		
 		/* peek INFO from GNOMAD */
 		for(final String field: this.gnomad_info_af_attributes)
@@ -312,7 +334,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 					toNewInfo.apply(fh.getID()),
 					VCFHeaderLineCount.A,
 					VCFHeaderLineType.Float,
-					"[gnomad-"+ome.name()+"]" + fh.getDescription()+" in "+ gnomadPath
+					"[gnomad]" + fh.getDescription()+" in "+ gnomadPath
 					);
 			h2.addMetaDataLine(fh2);
 			if(this.debug) LOG.debug("Adding INFO vcf "+fh2.getID());
@@ -320,7 +342,7 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		
 		
 		final VCFInfoHeaderLine infoFlagContigStartRef = new VCFInfoHeaderLine(
-				"IN_GNOMAD_"+ome.name().toUpperCase(),
+				"IN_GNOMAD",
 				1,
 				VCFHeaderLineType.Flag,
 				"Variant CHROM/POS/REF was found in gnomad "+this.gnomadPath
@@ -329,34 +351,20 @@ public class VcfGnomad extends OnePassVcfLauncher {
 		if(this.debug) LOG.debug("adding vcfheader "+infoFlagContigStartRef.getID());
 
 		final VCFInfoHeaderLine infoNumOverlapping = new VCFInfoHeaderLine(
-				"N_GNOMAD_"+ome.name().toUpperCase(),
+				"N_GNOMAD",
 				1,
 				VCFHeaderLineType.Integer,
 				"Count Gnomad Variants that were found overlapping the user variant, not necessarily at the same CHROM/POS in "+this.gnomadPath
 				);
 		h2.addMetaDataLine(infoNumOverlapping);
 		
-		// low complexity region
-		final VCFInfoHeaderLine src_info_lcr = h0.getInfoHeaderLine("lcr");
-		final VCFFilterHeaderLine filterLowComplexityHeader;
 
-		if(!this.disable_lcr && src_info_lcr!=null && src_info_lcr.getType()==VCFHeaderLineType.Flag) {
-			if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix)) {
-				filterLowComplexityHeader =  new VCFFilterHeaderLine(
-						toNewFilter.apply("LCR"),
-						"Low Compexity region defined in "+this.gnomadPath+" : "+src_info_lcr.getDescription()
-						);
-				h2.addMetaDataLine(filterLowComplexityHeader);
-				if(this.debug) LOG.debug("adding filter "+ filterLowComplexityHeader.getID());
+		for(BadFlag badflag:this.bad_flags) {
+			badflag.init(h0,toNewFilter);
+			if(badflag.filterHeader!=null) {
+				h2.addMetaDataLine(badflag.filterHeader);
+				if(this.debug) LOG.debug("adding filter "+ badflag.filterHeader.getID());
 				}
-			else
-				{
-				filterLowComplexityHeader = null;
-				}
-			}
-		else
-			{
-			filterLowComplexityHeader = null;
 			}
 		
 		
@@ -419,25 +427,25 @@ public class VcfGnomad extends OnePassVcfLauncher {
 					}
 					
 				// add FILTER(s)
-				if(!StringUtil.isBlank(this.filteredInGnomadFilterPrefix)) {
-					filters.addAll(
-						gnomadVariants.
-						stream().
-						filter(V->V.isFiltered()).
-						flatMap(V->V.getFilters().stream()).
-						filter(F->!F.equals(VCFConstants.PASSES_FILTERS_v4)).
-						map(F->toNewFilter.apply(F)).
-						collect(Collectors.toList())
-						);
-					
-					// low complexity
-					if(filterLowComplexityHeader!=null) {
-						// at least one variant has INFO/lcr
-						if(gnomadVariants.stream().anyMatch(V->V.hasAttribute(src_info_lcr.getID())))  {
-							filters.add(filterLowComplexityHeader.getID());
+				filters.addAll(
+					gnomadVariants.
+					stream().
+					filter(V->V.isFiltered()).
+					flatMap(V->V.getFilters().stream()).
+					filter(F->!F.equals(VCFConstants.PASSES_FILTERS_v4)).
+					map(F->toNewFilter.apply(F)).
+					collect(Collectors.toList())
+					);
+				
+				// add filters from flags
+				for(BadFlag badflag:this.bad_flags) {
+					if(badflag.filterHeader!=null) {
+						if(gnomadVariants.stream().anyMatch(V->V.hasAttribute(badflag.src_info.getID())))  {
+							filters.add(badflag.filterHeader.getID());
 							}
 						}
 					}
+					
 				
 				// loop over each field
 				for(final String infoField: this.gnomad_info_af_attributes) {
@@ -480,15 +488,9 @@ public class VcfGnomad extends OnePassVcfLauncher {
 			// test for frequency
 			if(!(this.min_af<=ctx_min_AF && ctx_min_AF<=this.max_af) ) {
 				if(this.debug) LOG.debug(toString(ctx)+ "fails  "+ this.min_af +"<="+ctx_min_AF+"<="+this.max_af);
-				// skip variants
-				if(filterFrequencyHeader==null) {
-					continue;
-					}
-				else
-					{
-					if(this.debug) LOG.debug(toString(ctx)+ "set filter "+filterFrequencyHeader.getID());
-					filters.add(filterFrequencyHeader.getID());
-					}
+				// skip variants				
+				if(this.debug) LOG.debug(toString(ctx)+ "set filter "+filterFrequencyHeader2.getID());
+				filters.add(filterFrequencyHeader2.getID());
 				}
 			
 			if(this.skip_FILTEed_variant && !filters.isEmpty()) {

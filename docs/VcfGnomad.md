@@ -28,10 +28,11 @@ Usage: vcfgnomad [options] Files
       variant. A distance specified as a positive integer.Commas are removed. 
       The following suffixes are interpreted : b,bp,k,kb,m,mb,g,gb
       Default: 10000
-    --disable-lcr
-      Do NOT use the 'INFO/lcr'  (low complexity region) flag. Default is to 
-      set a FILTER those variants.
-      Default: false
+    --disable-bad-flag
+      A list of INFO/xxx Flag that will be used to FILTER variants. Multiple, 
+      comma separated: valid values are 
+      'lcr,segdup,fail_interval_qc,negative_train_site'. 
+      Default: <empty string>
     -F, --fields
       AF fields to peek-up from gnomad. Space/comma/semicolon separated
       Default: AF_popmax,AF_nfe
@@ -54,21 +55,14 @@ Usage: vcfgnomad [options] Files
     --noUpdateId
       do Not Update ID if it is missing in user's variant
       Default: false
-    --ome
-      is the genome vcf exome or genome ? If 'undefined', try to guess from 
-      filename 
-      Default: undefined
-      Possible Values: [genome, exome, undefined]
     -o, --out
       Output file. Optional . Default: stdout
     --prefix
-      If not empty, include the Gnomad FILTERs using this prefix. If empty: 
-      discard the variant if the gnomad variant is filtered or if the 
-      frequency if not between min-af and max-af
+      Use this prefix for the FILTERs.
       Default: GNOMAD
-    --skip-filtered
+    --skip-filtered, --pass
       Remove any user's variant if the gnomad variant is filtered (or overlap 
-      a LCR), or doesn't fit the min/max AF
+      a LCR,segdup, ...), or doesn't fit the min/max AF
       Default: false
     --version
       print version and exit
