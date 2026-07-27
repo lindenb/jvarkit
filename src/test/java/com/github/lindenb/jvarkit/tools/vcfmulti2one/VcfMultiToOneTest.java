@@ -1,4 +1,4 @@
-package com.github.lindenb.jvarkit.tools.onesamplevcf;
+package com.github.lindenb.jvarkit.tools.vcfmulti2one;
 
 import java.io.IOException;
 import java.nio.file.Path;

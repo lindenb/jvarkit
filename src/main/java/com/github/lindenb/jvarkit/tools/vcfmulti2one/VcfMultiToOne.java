@@ -26,7 +26,7 @@ History:
 * 2014 creation
 
 */
-package com.github.lindenb.jvarkit.tools.onesamplevcf;
+package com.github.lindenb.jvarkit.tools.vcfmulti2one;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -36,13 +36,11 @@ import java.util.TreeSet;
 import java.util.function.UnaryOperator;
 
 import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jcommander.OnePassVcfLauncher;
 import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.util.JVarkitVersion;
-import com.github.lindenb.jvarkit.variant.variantcontext.writer.WritingVariantsDelegate;
 
 import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.GenotypeBuilder;

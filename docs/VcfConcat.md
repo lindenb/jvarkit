@@ -113,5 +113,6 @@ find /path -type f -name "*.vcf.gz" |\
 	java -jar jvarkit.jar vcfconcat --merge input.list
 ```
 
+use vcfconcat to normalize the output of vcfconcat --merge
 
 

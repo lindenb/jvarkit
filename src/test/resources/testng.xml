@@ -90,6 +90,7 @@
       <class name="com.github.lindenb.jvarkit.tools.vcf4igv.VcfForIGVTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfanonymize.VcfAnonymizeTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcatTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.vcfmulti2one.VcfMultiToOneTest"/>
     </classes>
   </test>
 </suite>

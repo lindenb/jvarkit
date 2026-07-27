@@ -29,6 +29,7 @@ import java.io.BufferedReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -61,6 +62,7 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
@@ -84,6 +86,7 @@ find /path -type f -name "*.vcf.gz" |\
 	java -jar jvarkit.jar vcfconcat --merge input.list
 ```
 
+use vcfconcat to normalize the output of vcfconcat --merge
 
 END_DOC
 */
@@ -161,15 +164,20 @@ public class VcfConcat extends Launcher
 				}
 			
 			final Set<String> distinct_samples;
+			final Set<VCFHeaderLine> all_metadata;
 			if(!drop_genotypes && this.merge_distinct_samples) {
 				final Set<String> set = new TreeSet<>();
+				all_metadata = new LinkedHashSet<>();
 				for(Path path: vcfs) {
-					set.addAll(VcfHeaderExtractor.decode(path).getGenotypeSamples());
+					final VCFHeader hdr= VcfHeaderExtractor.decode(path);
+					all_metadata.addAll(hdr.getMetaDataInInputOrder());
+					set.addAll(hdr.getGenotypeSamples());
 					}
 				distinct_samples = set.isEmpty()?null:set;
 				}
 			else
 				{
+				all_metadata  = null;
 				distinct_samples = null;
 				}
 			final SAMSequenceDictionary firstDict = new SequenceDictionaryExtractor()
@@ -222,7 +230,7 @@ public class VcfConcat extends Launcher
 					final VCFHeader header0 = in.getHeader();
 					final VCFHeader header = this.drop_genotypes?
 							new VCFHeader(header0.getMetaDataInInputOrder()):
-							(distinct_samples==null?header0:new VCFHeader(header0.getMetaDataInInputOrder(),distinct_samples));
+							(distinct_samples==null?header0:new VCFHeader(all_metadata,distinct_samples));
 					if(firstHeader==null) {
 						w=this.writingVariantsDelegate.dictionary(firstDict).open(this.outputFile);
 						firstHeader = header;
