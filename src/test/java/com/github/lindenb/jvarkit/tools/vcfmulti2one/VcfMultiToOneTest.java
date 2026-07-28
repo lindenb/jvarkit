@@ -20,13 +20,12 @@ public class VcfMultiToOneTest {
 			final Path output = support.createTmpPath(".vcf");
 			Assert.assertEquals(new VcfMultiToOne().instanceMain(new String[] {
 		     		"-o",output.toString(),
-		     		support.resource("rotavirus_rf.vcf.gz"),
-		     		support.resource("rotavirus_rf.ann.vcf.gz"),
+		     		support.resource("rotavirus_rf.vcf.gz")
 					}),0);
 			support.assertIsVcf(output);
-			} 
+			}
 		finally {
 			support.removeTmpFiles();
 			}
 		}
-}
+	}

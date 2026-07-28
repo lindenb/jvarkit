@@ -16,10 +16,7 @@ public class VcfConcatTest {
 		{
 		final TestSupport support=new TestSupport();
 		try {
-			
-		
 			final Path output = support.createTmpPath(".vcf");
-			
 			Assert.assertEquals(new VcfConcat().instanceMain(new String[] {
 	        		"-o",output.toString(),
 	        		"--merge",
@@ -30,9 +27,9 @@ public class VcfConcatTest {
 	        		 support.resource("S5.vcf.gz")
 				}),0);
 			support.assertIsVcf(output);
-			} 
+			}
 		finally {
 			support.removeTmpFiles();
 			}
 		}
-}
+	}
