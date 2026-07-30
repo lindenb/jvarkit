@@ -31,6 +31,10 @@ Usage: vcfconcat [options] Files
     -G, --drop-genotypes
       Drop genotypes
       Default: false
+    --filter-genotypes, --ft
+      if the **variant** is FILTERed, flag all the genotype as FILTEred. 
+      Implies --merge
+      Default: false
     --generate-vcf-md5
       Generate MD5 checksum for VCF output.
       Default: false

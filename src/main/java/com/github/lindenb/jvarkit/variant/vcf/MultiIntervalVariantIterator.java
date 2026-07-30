@@ -81,7 +81,7 @@ public static VCFIterator query(final VCFFileReader reader,List<? extends Locata
 		private  CloseableIterator<VariantContext> delegate=null;
 		private  final List<Locatable> intervals;
 		private  int index=-1;
-		Iter0(VCFFileReader reader,List<Locatable> intervals) {
+		Iter0(final VCFFileReader reader,final List<Locatable> intervals) {
 			this.reader = reader;
 			this.intervals = intervals;
 			}

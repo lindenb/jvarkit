@@ -60,7 +60,9 @@ import htsjdk.variant.variantcontext.GenotypeBuilder;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
+import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFHeaderLineCount;
@@ -118,6 +120,8 @@ public class VcfConcat extends Launcher
 	private Path input_bed_path = null;
 	@Parameter(names={"--merge"},description="merge all samples. First Scan all files to get all distinct samples")
 	private boolean merge_distinct_samples = false;
+	@Parameter(names={"--filter-genotypes","--ft"},description="if the **variant** is FILTERed, flag all the genotype as FILTEred. Implies --merge")
+	private boolean transfer_info_filter = false;
 
 	
 	@ParametersDelegate
@@ -254,6 +258,15 @@ public class VcfConcat extends Launcher
 							header.addMetaDataLine(variantSampleHeader);
 							}
 						
+						if(this.transfer_info_filter) {
+							header.addMetaDataLine(new VCFFormatHeaderLine(
+				                VCFConstants.GENOTYPE_FILTER_KEY,
+				                VCFHeaderLineCount.UNBOUNDED,
+				                VCFHeaderLineType.String,
+				                "Genotype-level filter")
+								);
+							}
+						
 						JVarkitVersion.getInstance().addMetaData(this, header);
 						w.writeHeader(firstHeader);
 						}
@@ -311,6 +324,11 @@ public class VcfConcat extends Launcher
 								Genotype g = ctx.getGenotype(sn);
 								if(g==null) {
 									g = GenotypeBuilder.createMissing(sn, ploidy);
+									}
+								//if variant was filtered, dilter the genotype
+								if(this.transfer_info_filter && ctx.isFiltered() && 
+										!g.isFiltered() && !g.isNoCall()) {
+									g = new GenotypeBuilder(g).filter("FAIL").make();
 									}
 								genotypes.add(g);
 								}

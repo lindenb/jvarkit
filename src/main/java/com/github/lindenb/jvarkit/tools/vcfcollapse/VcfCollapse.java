@@ -131,6 +131,11 @@ public class VcfCollapse extends OnePassVcfLauncher {
 	private boolean isBetter(final Genotype gt, final Genotype old) {
 		if(old==null ) return true;
 		if(!gt.isNoCall() && old.isNoCall()) return true;
+		if(gt.isNoCall() && !old.isNoCall()) return false;
+		
+		if(!gt.isFiltered() && old.isFiltered()) return true;
+		if(gt.isFiltered() && !old.isFiltered()) return false;
+		
 		if(gt.hasGQ() && old.hasGQ()) {
 			return gt.getGQ()>old.getGQ();
 			}
@@ -143,6 +148,7 @@ public class VcfCollapse extends OnePassVcfLauncher {
 			return m1>m2;
 			}
 		if(gt.hasAltAllele() && !old.hasAltAllele()) return true;
+		if(!gt.hasAltAllele() && old.hasAltAllele()) return false;
 		return false;
 		}
 	
@@ -157,11 +163,11 @@ public class VcfCollapse extends OnePassVcfLauncher {
 		@Override
 		public boolean equals(Object obj) {
 			final SVSignature other=(SVSignature)obj;
-			return Objects.equals(this.svtype, other.svtype) && 
-					Objects.equals(this.svlen, other.svlen) && 
-					Objects.equals(this.end, other.end);
+			return this.svtype.equals(other.svtype) && 
+					(this.svlen == other.svlen) && 
+					(this.end == other.end);
 			}
-	}
+		}
 	
 	private Collection<List<VariantContext>> second_split(boolean sv_flag,final List<VariantContext> row) {
 		if(sv_flag) {
@@ -185,7 +191,7 @@ public class VcfCollapse extends OnePassVcfLauncher {
 		}
 	
 	@Override
-	protected int doVcfToVcf(String inputName, VCFIterator iterin, VariantContextWriter out) {
+	protected int doVcfToVcf(String inputName,final VCFIterator iterin,final VariantContextWriter out) {
 		final VCFHeader h0 = iterin.getHeader();
 		final VCFHeader h1 = new VCFHeader(h0);
 		final boolean sv_flag = h0.getInfoHeaderLine(VCFConstants.SVTYPE)!=null &&  h0.getInfoHeaderLine("SVLEN")!=null;
