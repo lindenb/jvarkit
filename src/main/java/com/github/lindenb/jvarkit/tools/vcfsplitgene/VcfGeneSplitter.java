@@ -370,12 +370,9 @@ public class VcfGeneSplitter
 									manifest.println(count_variants);
 								
 									currentWriter.close();
-									currentWriter=null;
-									
-									if(curr==null) break;
-									
-								
+									currentWriter=null;									
 									}
+								if(curr==null) break;
 								min_pos = curr.ctx.getStart();
 								max_pos= curr.ctx.getEnd();
 								count_variants = 0;
