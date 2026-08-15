@@ -29,6 +29,8 @@ From: ubuntu:24.04
 %labels
 	Author Pierre Lindenbaum
     Refactoring Charles VAN GOETHEM
+    Version v2026.04.30 (#fc2356a34)
+    Description Java utilities for Bioinformatics (jvarkit.readthedocs.io/)
 
 %help
 	This is a container for jvarkit.
