@@ -29,8 +29,23 @@ A conda package created by [DrYak](https://github.com/DrYak)  is available at [h
 
 ## Containers
 
+### GalaxyProject
+
 jvarkit is available as a **Singularity** container under [https://depot.galaxyproject.org/singularity/](https://depot.galaxyproject.org/singularity/) .
 GUI/Swing applications might not work. 
+
+### Apptainer/Singularity
+
+An **Apptainer/Singularity** recipe is available in this repository at [`jvarkit.def`](jvarkit.def).
+To build and run the container:
+
+```bash
+# Build the container
+apptainer build jvarkit.sif jvarkit.def
+
+# Run a tool (e.g., biostar)
+apptainer exec jvarkit.sif jvarkit --help
+```
 
 ## Author
 
