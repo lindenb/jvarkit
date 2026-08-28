@@ -113,7 +113,7 @@ java -jar dist/jvarkit.jar wgscoverageplotter --dimension 1500x500 -C -1 --clip 
  * Wan J, Weldon E, Ganser G, Morris ERA, Hughes EV, Bordin AI, Heine PA, Hust M, Cohen ND, Gill JJ, Liu M. 0. Immunogenic Streptococcus equi cell surface proteins identified by ORFeome phage display. mSphere 0:e00626-25. https://doi.org/10.1128/msphere.00626-25 
  * Janzekovic, Franc & al . "The enigma of the Oltenia blind mole-rat (Spalax istricus) within the collapsing steppe biome" Mammalia. https://doi.org/10.1515/mammalia-2026-0024
  * Sawaswong & al. Genetic diversity of clinical Mycobacterium bovis BCG isolates from an immunocompromised patient with BCG infection https://doi.org/10.1016/j.meegid.2026.106014 **WGSCoveragePlotter**
-
+ * Mandal, K., Malar C, M., Upadhyay, A. et al. Three-dimensional genome architecture of the pathogenic oomycete Phytophthora capsici provides insights into its chromatin architecture and regulatory complexity. Commun Biol (2026). https://doi.org/10.1038/s42003-026-10760-5
 
 ## Screenshot
 
