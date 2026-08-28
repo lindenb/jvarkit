@@ -112,6 +112,8 @@ java -jar dist/jvarkit.jar wgscoverageplotter --dimension 1500x500 -C -1 --clip 
  * Dijkstra, J., A. C. van Westerhoven, L. Gomez-Gil, et al. 2025. "Accessory Chromosome Contributes to Virulence of Banana Infecting Fusarium oxysporum Tropical Race 4." Molecular Plant Pathology 26, no. 9: e70146. https://doi.org/10.1111/mpp.70146.
  * Wan J, Weldon E, Ganser G, Morris ERA, Hughes EV, Bordin AI, Heine PA, Hust M, Cohen ND, Gill JJ, Liu M. 0. Immunogenic Streptococcus equi cell surface proteins identified by ORFeome phage display. mSphere 0:e00626-25. https://doi.org/10.1128/msphere.00626-25 
  * Janzekovic, Franc & al . "The enigma of the Oltenia blind mole-rat (Spalax istricus) within the collapsing steppe biome" Mammalia. https://doi.org/10.1515/mammalia-2026-0024
+ * Sawaswong & al. Genetic diversity of clinical Mycobacterium bovis BCG isolates from an immunocompromised patient with BCG infection https://doi.org/10.1016/j.meegid.2026.106014 **WGSCoveragePlotter**
+
 
 ## Screenshot
 
