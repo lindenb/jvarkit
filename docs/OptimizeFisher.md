@@ -17,7 +17,7 @@ Usage: java -jar dist/jvarkit.jar optimizefisher  [options] Files
 Usage: optimizefisher [options] Files
   Options:
     --cases
-      File or comma-separated list of control samples
+      File or comma-separated list of cases samples
     --chiasma
       Proba chiasma
       Default: 0.01

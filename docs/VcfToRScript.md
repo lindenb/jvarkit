@@ -17,7 +17,7 @@ Usage: java -jar dist/jvarkit.jar vcf2r  [options] Files
 Usage: vcf2r [options] Files
   Options:
     --cases
-      File or comma-separated list of control samples
+      File or comma-separated list of cases samples
     --controls
       File or comma-separated list of control samples
     -h, --help

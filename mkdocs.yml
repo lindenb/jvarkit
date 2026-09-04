@@ -285,6 +285,7 @@ nav:
         - "vcfcombinetwosnvs" : VCFCombineTwoSnvs.md
         - "vcfcomposite" : VCFComposite.md
         - "vcfconcat" : VcfConcat.md
+        - "vcfcoocurrence" : VcfCoOccurrence.md
         - "vcfdistancevariants" : VcfDistanceBetweenVariants.md
         - "vcffilterbyliftover" : VcfFilterByLiftOver.md
         - "vcffiltergenes" : VcFilterGenes.md

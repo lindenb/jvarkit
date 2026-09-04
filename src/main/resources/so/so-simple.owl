@@ -11,12 +11,12 @@
      xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
      xmlns:oboInOwl="http://www.geneontology.org/formats/oboInOwl#">
     <owl:Ontology rdf:about="http://purl.obolibrary.org/obo/so/so-simple.owl">
-        <owl:versionIRI rdf:resource="http://purl.obolibrary.org/obo/so/2024-11-18/so-simple.owl"/>
+        <owl:versionIRI rdf:resource="http://purl.obolibrary.org/obo/so/2026-08-07/so-simple.owl"/>
         <obo:IAO_0000700 rdf:resource="http://purl.obolibrary.org/obo/SO_0000110"/>
         <obo:IAO_0000700 rdf:resource="http://purl.obolibrary.org/obo/SO_0000400"/>
         <obo:IAO_0000700 rdf:resource="http://purl.obolibrary.org/obo/SO_0001060"/>
         <obo:IAO_0000700 rdf:resource="http://purl.obolibrary.org/obo/SO_0001260"/>
-        <oboInOwl:date>18:11:2024 23:05</oboInOwl:date>
+        <oboInOwl:date>08:07:2026 18:22</oboInOwl:date>
         <oboInOwl:default-namespace>sequence</oboInOwl:default-namespace>
         <oboInOwl:hasOBOFormatVersion>1.2</oboInOwl:hasOBOFormatVersion>
         <oboInOwl:saved-by>Evan Christensen</oboInOwl:saved-by>
@@ -58597,6 +58597,118 @@ It is further clarified in the comments section as: ncRNA does NOT mean conventi
         <owl:annotatedTarget>A sequence variant whereby two genes, on the same strand have become joined with a disruption of the translational reading frame, because the number of nucleotides between the reading frames of the joined genes is not a multiple of three.</owl:annotatedTarget>
         <rdfs:comment>PMID:21247443</rdfs:comment>
         <rdfs:comment>PMID:36002559</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002401 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002401">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001628"/>
+        <obo:IAO_0000115>A sequence variant whereby two genomic features have become joined with one breakend proximally upstream of a gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2026-08-07T18:03:57Z</oboInOwl:creation_date>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002401</oboInOwl:id>
+        <rdfs:comment>Added on 7 August 2026 at the request of Sam Ng at Illumina. See GitHub Issue #682.</rdfs:comment>
+        <rdfs:label>upstream_intergenic_fusion</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002401"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby two genomic features have become joined with one breakend proximally upstream of a gene.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:34764425</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>PMID:39702242</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002402 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002402">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001628"/>
+        <obo:IAO_0000115>A sequence variant whereby two genomic features have become joined with one breakend proximally downstream of a gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2026-08-07T18:07:14Z</oboInOwl:creation_date>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002402</oboInOwl:id>
+        <rdfs:comment>Added on 7 August 2026 at the request of Sam Ng at Illumina. See GitHub Issue #682.</rdfs:comment>
+        <rdfs:label>downstream_intergenic_fusion</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002402"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby two genomic features have become joined with one breakend proximally downstream of a gene.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:34764425</oboInOwl:hasDbXref>
+        <oboInOwl:hasDbXref>PMID:39702242</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002403 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002403">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001564"/>
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001882"/>
+        <obo:IAO_0000115>A sequence variant whereby two genes on the same strand have become joined such that the 5&apos; breakend is intragenic and the 3&apos; breakend lies proximally upstream of a gene such that it may potentially form a chimeric transcript.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2026-08-07T18:10:38Z</oboInOwl:creation_date>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002403</oboInOwl:id>
+        <rdfs:comment>Added on 7 August 2026 at the request of Sam Ng at Illumina. See GitHub Issue #682.</rdfs:comment>
+        <rdfs:label>unidirectional_intergenic_fusion</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002403"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby two genes on the same strand have become joined such that the 5&apos; breakend is intragenic and the 3&apos; breakend lies proximally upstream of a gene such that it may potentially form a chimeric transcript.</owl:annotatedTarget>
+        <oboInOwl:hasDbXref>PMID:36776527</oboInOwl:hasDbXref>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002404 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002404">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001564"/>
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001882"/>
+        <obo:IAO_0000115>A sequence variant whereby two genomic features have become joined with one breakend within the 5&apos; end of a gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2026-08-07T18:13:00Z</oboInOwl:creation_date>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002404</oboInOwl:id>
+        <rdfs:comment>Added on 7 August 2026 at the request of Sam Ng at Illumina. See GitHub Issue #682.</rdfs:comment>
+        <rdfs:label>five_prime_gene_fusion</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002404"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby two genomic features have become joined with one breakend within the 5&apos; end of a gene.</owl:annotatedTarget>
+        <rdfs:comment>PMID:34764425</rdfs:comment>
+        <rdfs:comment>PMID:39702242</rdfs:comment>
+    </owl:Axiom>
+    
+
+
+    <!-- http://purl.obolibrary.org/obo/SO_0002405 -->
+
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/SO_0002405">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001564"/>
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/SO_0001882"/>
+        <obo:IAO_0000115>A sequence variant whereby two genomic features have become joined with one breakend within the 3&apos; end of a gene.</obo:IAO_0000115>
+        <oboInOwl:created_by>Evan Christensen</oboInOwl:created_by>
+        <oboInOwl:creation_date>2026-08-07T18:15:31Z</oboInOwl:creation_date>
+        <oboInOwl:hasOBONamespace>sequence</oboInOwl:hasOBONamespace>
+        <oboInOwl:id>SO:0002405</oboInOwl:id>
+        <rdfs:comment>Added on 7 August 2026 at the request of Sam Ng at Illumina. See GitHub Issue #682.</rdfs:comment>
+        <rdfs:label>three_prime_gene_fusion</rdfs:label>
+    </owl:Class>
+    <owl:Axiom>
+        <owl:annotatedSource rdf:resource="http://purl.obolibrary.org/obo/SO_0002405"/>
+        <owl:annotatedProperty rdf:resource="http://purl.obolibrary.org/obo/IAO_0000115"/>
+        <owl:annotatedTarget>A sequence variant whereby two genomic features have become joined with one breakend within the 3&apos; end of a gene.</owl:annotatedTarget>
+        <rdfs:comment>PMID:34764425</rdfs:comment>
+        <rdfs:comment>PMID:39702242</rdfs:comment>
     </owl:Axiom>
     
 

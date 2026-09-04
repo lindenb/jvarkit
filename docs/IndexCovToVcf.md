@@ -23,7 +23,7 @@ Usage: indexcov2vcf [options] Files
       checked 2019-11-15)
       Default: false
     --cases
-      File or comma-separated list of control samples
+      File or comma-separated list of cases samples
     --controls
       File or comma-separated list of control samples
     --generate-vcf-md5

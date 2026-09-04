@@ -329,6 +329,7 @@ import com.github.lindenb.jvarkit.tools.vcfcluster.VcfCluster;
 import com.github.lindenb.jvarkit.tools.vcfcollapse.VcfCollapse;
 import com.github.lindenb.jvarkit.tools.vcfcomposite.VCFComposite;
 import com.github.lindenb.jvarkit.tools.vcfconcat.VcfConcat;
+import com.github.lindenb.jvarkit.tools.vcfcoocurrence.VcfCoOccurrence;
 import com.github.lindenb.jvarkit.tools.vcffiltergenes.VcFilterGenes;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfCustomSortJdk;
 import com.github.lindenb.jvarkit.tools.vcffilterjs.VcfFilterJdk;
@@ -884,6 +885,7 @@ public class JvarkitCentral {
 		command(VcfStats.class);
 		command(VcfStats2.class);
 		command(VcfGnomad.class);
+		command(VcfCoOccurrence.class);
 		command(VcfSetSequenceDictionary.class);
 		command(VcfFilterSequenceOntology.class);
 		command(VcfToBam.class);

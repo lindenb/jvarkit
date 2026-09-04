@@ -17,7 +17,7 @@ Usage: java -jar dist/jvarkit.jar vcfburdenslidingwindow  [options] Files
 Usage: vcfburdenslidingwindow [options] Files
   Options:
     --cases
-      File or comma-separated list of control samples
+      File or comma-separated list of cases samples
     -C, --contig
       limit to this contig
     --controls

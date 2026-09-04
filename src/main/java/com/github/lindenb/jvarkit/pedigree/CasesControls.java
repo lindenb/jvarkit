@@ -54,7 +54,7 @@ import htsjdk.variant.vcf.VCFHeader;
 public class CasesControls {
 	private static final Logger LOG = Logger.of(CasesControls.class);
 
-	@Parameter(names={"--cases"},description="File or comma-separated list of control samples")
+	@Parameter(names={"--cases"},description="File or comma-separated list of cases samples")
 	private String sourceCases = null;
 	@Parameter(names={"--controls"},description="File or comma-separated list of control samples")
 	private String sourceControls = null;
