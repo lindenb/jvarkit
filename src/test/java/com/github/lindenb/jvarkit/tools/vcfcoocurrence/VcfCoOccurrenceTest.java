@@ -10,10 +10,8 @@ import com.github.lindenb.jvarkit.tools.tests.TestSupport;
 
 public class VcfCoOccurrenceTest {
 
-	
-	
 	@Test
-	public void testFile(final String inputFile,String expr) 
+	public void testFile() 
 		throws IOException
 		{
 		final TestSupport support =new TestSupport();
