@@ -30,14 +30,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParametersDelegate;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.LogicalOp;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.math.stats.FisherCasesControls;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
 import com.github.lindenb.jvarkit.pedigree.CasesControls;
 
@@ -74,12 +77,16 @@ END_DOC
 	keywords={"vcf","fisher","burden"},
 	jvarkit_amalgamion =  true,
 	creationDate = "2026-09-04",
-	modificationDate = "2026-09-04"
+	modificationDate = "2026-09-05"
 	)
 public class VcfCoOccurrence extends Launcher {
 	private static final Logger LOG = Logger.of(VcfCoOccurrence.class);
-	@Parameter(names={"--tresholdd","-t"},description="fisher treshold, don't print pairs with fisher test > t")
+	@Parameter(names={"--treshold","-t"},description="fisher treshold, don't print pairs with fisher test > t")
 	private double treshold  = 1.0;
+	@Parameter(names={"--internal","-i"},description="internal fisher treshold, don't use variant where fisher exact test is lower than 'x'")
+	private double internal_treshold  = 0.0;
+	@Parameter(names={"--operator","--logical","--op"},description="logical operator to combine to variants. e.g: AND= both genotypes must be carried by the same sample. OR: one of the genotype must be carried by the same sample, etc...")
+	private LogicalOp logical_op = LogicalOp.AND;
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path outputFile = null;
 	@ParametersDelegate
@@ -91,7 +98,7 @@ public class VcfCoOccurrence extends Launcher {
 		final Allele ref;
 		final Allele alt;
 		final BitSet has_alt;
-		
+		double internal_fisher=0.0;
 		Variant(final VariantContext ctx,final Allele alt) {
 			this.contig = ctx.getContig();
 			this.pos = ctx.getStart();
@@ -103,6 +110,7 @@ public class VcfCoOccurrence extends Launcher {
 					this.has_alt.set(i);
 					}
 				}
+			this.internal_fisher = 0;
 			}
 		
 		@Override
@@ -120,12 +128,41 @@ public class VcfCoOccurrence extends Launcher {
 		}
 	
 
-	private List<Variant> toVariants(final VariantContext ctx) {
+	private List<Variant> toVariants(final VariantContext ctx,
+			final int[] cases_indexes,
+			final int[] ctrls_indexes
+			) {
+		final int[] counts = new int[4];
 		final List<Variant> list =new ArrayList<Variant>(ctx.getNAlleles());
 		for(Allele alt: ctx.getAlternateAlleles()) {
 			if(alt.equals(Allele.SPAN_DEL)) continue;
+			if(alt.equals(Allele.NO_CALL)) continue;
 			final Variant v = new Variant(ctx,alt);
+			if(v.has_alt.nextSetBit(0)==-1) continue;//all bits are off
 			
+			Arrays.fill(counts, 0);
+			for(int x: cases_indexes) {
+				if(v.has_alt.get(x)) {
+					counts[0]++;
+					}
+				else
+					{
+					counts[1]++;
+					}
+				}
+			for(int x: ctrls_indexes) {
+				if(v.has_alt.get(x)) {
+					counts[2]++;
+					}
+				else
+					{
+					counts[3]++;
+					}
+				}
+			if(counts[0]==0 && counts[2]==0) continue; //no alt
+			final FisherExactTest fisher = FisherExactTest.compute(counts);
+			v.internal_fisher = fisher.getAsDouble();
+			if(v.internal_fisher < this.internal_treshold) continue;
 			list.add(v);
 			}
 		return list;
@@ -140,7 +177,7 @@ public class VcfCoOccurrence extends Launcher {
 			) {
 		final int[] counts = new int[4];
 		final List<Variant> variants = iter.stream()
-				.flatMap(V->toVariants(V).stream())
+				.flatMap(V->toVariants(V,cases_indexes,ctrls_indexes).stream())
 				.collect(Collectors.toList());
 		
 		for(int i=0;i+1 < variants.size();i++) {
@@ -149,7 +186,7 @@ public class VcfCoOccurrence extends Launcher {
 				final Variant vj =  variants.get(j);
 				Arrays.fill(counts, 0);
 				for(int x: cases_indexes) {
-					if(vi.has_alt.get(x) && vj.has_alt.get(x)) {
+					if(this.logical_op.test( vi.has_alt.get(x) , vj.has_alt.get(x))) {
 						counts[0]++;
 						}
 					else
@@ -158,7 +195,7 @@ public class VcfCoOccurrence extends Launcher {
 						}
 					}
 				for(int x: ctrls_indexes) {
-					if(vi.has_alt.get(x) && vj.has_alt.get(x)) {
+					if(this.logical_op.test(vi.has_alt.get(x) , vj.has_alt.get(x))) {
 						counts[2]++;
 						}
 					else
@@ -167,7 +204,8 @@ public class VcfCoOccurrence extends Launcher {
 						}
 					}
 				if(counts[0]==0 && counts[2]==0) continue;
-				final double pvalue=FisherExactTest.compute(counts).getAsDouble();
+				final FisherExactTest fisher = FisherExactTest.compute(counts);
+				final double pvalue= fisher.getAsDouble();
 				if(pvalue > this.treshold) continue;
 				w.print(vi.getContig());
 				w.print("\t");
@@ -177,6 +215,8 @@ public class VcfCoOccurrence extends Launcher {
 				w.print("\t");
 				w.print(vi.alt.getDisplayString());
 				w.print("\t");
+				w.print(vi.internal_fisher);
+				w.print("\t");
 				w.print(vj.getContig());
 				w.print("\t");
 				w.print(vj.getStart());
@@ -184,6 +224,8 @@ public class VcfCoOccurrence extends Launcher {
 				w.print(vj.ref.getDisplayString());
 				w.print("\t");
 				w.print(vj.alt.getDisplayString());
+				w.print("\t");
+				w.print(vj.internal_fisher);
 				w.print("\t");
 				w.print(counts[0]);
 				w.print("\t");
@@ -212,12 +254,21 @@ public class VcfCoOccurrence extends Launcher {
 					)
 				{
 				final VCFHeader header = iter.getHeader();
-				caseControls.load();
-				caseControls.retain(header);
-				caseControls.checkHaveCasesControls();
+				this.caseControls.load();
+				this.caseControls.retain(header);
+				this.caseControls.checkHaveCasesControls();
+				final Map<String,Integer> sample2offset = header.getSampleNameToOffset();
+				final int[] cases = this.caseControls.getCases().stream().map(S->sample2offset.get(S)).filter(I->I!=null).mapToInt(I->I.intValue()).sorted().toArray();
+				final int[] controls =this. caseControls.getControls().stream().map(S->sample2offset.get(S)).filter(I->I!=null).mapToInt(I->I.intValue()).sorted().toArray();
 				
-				final int[] cases = caseControls.getCases().stream().map(S->header.getSampleNameToOffset().get(S)).filter(I->I!=null).mapToInt(I->I.intValue()).sorted().toArray();
-				final int[] controls = caseControls.getControls().stream().map(S->header.getSampleNameToOffset().get(S)).filter(I->I!=null).mapToInt(I->I.intValue()).sorted().toArray();
+				if(cases.length==0) {
+					LOG.error("No cases in VCF");
+					return -1;
+					}
+				if(controls.length==0) {
+					LOG.error("No controls in VCF");
+					return -1;
+					}
 				
 				try(PrintWriter w =  super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
 					w.print("#CHROM1");
@@ -226,15 +277,19 @@ public class VcfCoOccurrence extends Launcher {
 					w.print("\t");
 					w.print("REF1");
 					w.print("\t");
-					w.print("ALT2");
+					w.print("ALT1");
+					w.print("\t");
+					w.print("FISHER1");
 					w.print("\t");
 					w.print("CHROM2");
 					w.print("\t");
-					w.print("START1");
+					w.print("START2");
 					w.print("\t");
 					w.print("REF2");
 					w.print("\t");
 					w.print("ALT2");
+					w.print("\t");
+					w.print("FISHER2");
 					w.print("\t");
 					w.print("CASE_ALT");
 					w.print("\t");
@@ -244,7 +299,7 @@ public class VcfCoOccurrence extends Launcher {
 					w.print("\t");
 					w.print("CTRL_REF");
 					w.print("\t");
-					w.print("PVALUE");
+					w.print("FISHER");
 					w.println();
 					
 					scan(

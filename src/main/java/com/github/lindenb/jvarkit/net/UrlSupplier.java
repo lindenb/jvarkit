@@ -237,6 +237,7 @@ private void _string(final String str,final Set<LabelledUrl> urls) {
 			urls.add(new LabelledUrlImpl("Japan-Omics",str,"https://japan-omics.jp/gene/JCTF?input_value="+str));
 			urls.add(new LabelledUrlImpl("bgee",str,"https://www.bgee.org/gene/"+str));
 			urls.add(new LabelledUrlImpl("primateai3d",str,"https://primateai3d.basespace.illumina.com/gene/"+str+"?dataset=gnomad_r3"));
+			urls.add(new LabelledUrlImpl("Brava",str,"https://nikbaya.github.io/brava_browser/#/gene/"+str));
 			}
 		}
 	else if(this.ccdsPattern.matcher(str).matches()) {
