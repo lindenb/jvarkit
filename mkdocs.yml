@@ -267,6 +267,7 @@ nav:
         - "vcf4igv" : VcfForIGV.md
         - "vcfallele2symbolic" : VcfAlleleToSymbolic.md
         - "vcfallelebalance" : VcfAlleleBalance.md
+        - "vcfalphagenome" : VcfAlphaGenome.md
         - "vcfancestralalleles" : VcfAncestralAllele.md
         - "vcfanonym" : VcfAnonymize.md
         - "vcfbed" : VCFBed.md
