@@ -46,6 +46,8 @@ public class AtacSeqDiff extends Launcher {
 	private double foldFactor=2.0;
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output;
+	@Parameter(names={"--min-dp","-D"},description="min DEPTH")
+	private int min_depth=20;
 
 	
 	private static class InputBam  {
@@ -66,7 +68,7 @@ public class AtacSeqDiff extends Launcher {
 				if(!SAMRecordDefaultFilter.accept(rec, mapq)) continue;
 				for(AlignmentBlock bloc : rec.getAlignmentBlocks()) {
 					for(int x=0;x< bloc.getLength();++x) {
-						int p = (bloc.getReferenceStart()+x)- r.getStart();
+						final int p = (bloc.getReferenceStart()+x)- r.getStart();
 						if(p< 0) continue;
 						if(p>= coverage.length) break;
 						coverage[p]++;
@@ -79,7 +81,7 @@ public class AtacSeqDiff extends Launcher {
 	
 	
 	@Override
-	public int doWork(List<String> args) {
+	public int doWork(final List<String> args) {
 		
 		try {
 			final List<Interval> intervals;
@@ -129,6 +131,7 @@ public class AtacSeqDiff extends Launcher {
 				final DiscreteMedian<Integer> median = new DiscreteMedian<>();
 				for(final Interval r: intervals) {
 					if(!r.getContig().matches("(chr)?[0-9]+")) continue;
+					final List<Integer> vals = new ArrayList<>();
 					final int[] coverage=getCoverage(inputBam.samReader,r);
 					//higest cov at the end
 					Arrays.sort(coverage);
@@ -137,8 +140,12 @@ public class AtacSeqDiff extends Launcher {
 					// at least one position
 					if(best_idx<=0) best_idx=1;
 					for(int i=0;i< best_idx && i< coverage.length;i++) {
-						median.add(coverage[(coverage.length-1)-i]);
+						vals.add(coverage[(coverage.length-1)-i]);
 						}
+					if(vals.stream().mapToDouble(V->V.doubleValue()).average().orElse(0) < this.min_depth)  {
+						continue;
+						}
+					median.addAll(vals);
 					}
 				inputBam.median_depth = median.getMedian().getAsDouble();
 				LOG.info("coverage for "+inputBam.bam+" median cov:"+inputBam.median_depth);
@@ -175,26 +182,27 @@ public class AtacSeqDiff extends Launcher {
 					pw.print(r.getStart()-1);
 					pw.print("\t");
 					pw.print(r.getEnd());
-					
+					boolean all_have_low_dp_flag=true;
 
 					for(InputBam inputBam : inputBams) {
-						final List<Double> vals = new ArrayList<>();
+						final List<Integer> vals = new ArrayList<>();
 						final int[] int_coverage=getCoverage(inputBam.samReader,r);
-						final double[] norm_coverage =  new double[int_coverage.length];
-						for(int i=0;i< norm_coverage.length;++i) {
-							norm_coverage[i] = int_coverage[i]/inputBam.median_depth;
-							}
-						Arrays.sort(norm_coverage);
+						Arrays.sort(int_coverage);
 						// take best_idx coverage from the end
-						int best_idx= (int)(norm_coverage.length* this.fraction);
+						int best_idx= (int)(int_coverage.length* this.fraction);
 						// at least one position
 						if(best_idx<=0) best_idx=1;
-						for(int i=0;i< best_idx && i< norm_coverage.length;i++) {
-							vals.add(norm_coverage[(norm_coverage.length-1)-i]);
+						for(int i=0;i< best_idx && i< int_coverage.length;i++) {
+							vals.add(int_coverage[(int_coverage.length-1)-i]);
 							}
-						inputBam.local_norm_median_cov  = new Median().evaluate(vals.stream().mapToDouble(v->v).toArray());
+						final double median_cov =  new Median().evaluate(vals.stream().mapToDouble(v->v.doubleValue()).toArray());
+						if(median_cov>=this.min_depth) {
+							all_have_low_dp_flag=false;
+							}
+						
+						inputBam.local_norm_median_cov  = median_cov/inputBam.median_depth;
 						pw.print("\t");
-						pw.print(inputBam.local_norm_median_cov );
+						pw.print(inputBam.local_norm_median_cov);
 						}
 					final double control_depth = new Median().evaluate(inputBams.stream()
 								.filter(I->I.is_case==false)
@@ -204,76 +212,86 @@ public class AtacSeqDiff extends Launcher {
 								);
 					pw.print("\t");
 					pw.print(control_depth);
-
-					final double high_dp= control_depth*this.foldFactor;
-					int count_ctrl_ref = 0;
-					int count_ctrl_alt = 0;
-					int count_case_ref = 0;
-					int count_case_alt = 0;
-					for(InputBam inputBam : inputBams) {
-						if(inputBam.is_case) {
-							if(inputBam.local_norm_median_cov>=high_dp) {
-								count_case_alt++;
-								}
-							else
-								{
-								count_case_ref++;
-								}
-							}
-						else 
-							{
-							if(inputBam.local_norm_median_cov>=high_dp) {
-								count_ctrl_alt++;
-								}
-							else
-								{
-								count_ctrl_ref++;
-								}
-							}
+					if(all_have_low_dp_flag) {
+						pw.print("\t");
+						pw.print(1.0);
+						pw.print("\t");
+						pw.print(1.0);
+						pw.print("\t");
+						pw.print(1.0);
 						}
-					double fisher1 = FisherExactTest.compute(
-							count_case_ref,count_case_alt,
-							count_ctrl_ref,count_ctrl_alt
-							).getAsDouble();
-					pw.print("\t");
-					pw.print(fisher1);
-
-					
-					
-					final double low_dp= control_depth/this.foldFactor;
-					count_ctrl_ref = 0;
-					count_ctrl_alt = 0;
-					count_case_ref = 0;
-					count_case_alt = 0;
-					for(InputBam inputBam : inputBams) {
-						if(inputBam.is_case) {
-							if(inputBam.local_norm_median_cov<=low_dp) {
-								count_case_alt++;
+					else
+						{
+						final double high_dp= control_depth*this.foldFactor;
+						int count_ctrl_ref = 0;
+						int count_ctrl_alt = 0;
+						int count_case_ref = 0;
+						int count_case_alt = 0;
+						for(InputBam inputBam : inputBams) {
+							if(inputBam.is_case) {
+								if(inputBam.local_norm_median_cov>=high_dp) {
+									count_case_alt++;
+									}
+								else
+									{
+									count_case_ref++;
+									}
 								}
-							else
+							else 
 								{
-								count_case_ref++;
+								if(inputBam.local_norm_median_cov>=high_dp) {
+									count_ctrl_alt++;
+									}
+								else
+									{
+									count_ctrl_ref++;
+									}
 								}
 							}
-						else 
-							{
-							if(inputBam.local_norm_median_cov<=low_dp) {
-								count_ctrl_alt++;
+						double fisher1 = FisherExactTest.compute(
+								count_case_ref,count_case_alt,
+								count_ctrl_ref,count_ctrl_alt
+								).getAsDouble();
+						pw.print("\t");
+						pw.print(fisher1);
+	
+						
+						
+						final double low_dp= control_depth/this.foldFactor;
+						count_ctrl_ref = 0;
+						count_ctrl_alt = 0;
+						count_case_ref = 0;
+						count_case_alt = 0;
+						for(InputBam inputBam : inputBams) {
+							if(inputBam.is_case) {
+								if(inputBam.local_norm_median_cov<=low_dp) {
+									count_case_alt++;
+									}
+								else
+									{
+									count_case_ref++;
+									}
 								}
-							else
+							else 
 								{
-								count_ctrl_ref++;
+								if(inputBam.local_norm_median_cov<=low_dp) {
+									count_ctrl_alt++;
+									}
+								else
+									{
+									count_ctrl_ref++;
+									}
 								}
 							}
+						double fisher2 = FisherExactTest.compute(
+								count_case_ref,count_case_alt,
+								count_ctrl_ref,count_ctrl_alt
+								).getAsDouble();
+						pw.print("\t");
+						pw.print(fisher2);
+						pw.print("\t");
+						pw.print(Math.min(fisher1, fisher2));
 						}
-					double fisher2 = FisherExactTest.compute(
-							count_case_ref,count_case_alt,
-							count_ctrl_ref,count_ctrl_alt
-							).getAsDouble();
-					pw.print("\t");
-					pw.print(fisher2);
-					pw.print("\t");
-					pw.print(Math.min(fisher1, fisher2));
 					pw.println();
 					}
 			pw.flush();
