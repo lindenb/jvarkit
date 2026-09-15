@@ -37,7 +37,7 @@ public class SampleSheetFactory {
 	private Function<String,List<String>> _splitter = null;
 	
 	public SampleSheetFactory() {
-		splitter(CharSplitter.TAB);
+		_splitter= S->CharSplitter.TAB.splitAsStringList(S);
 	}
 	
 	public SampleSheetFactory setSplitter(final Function<String, List<String>> splitter) {

@@ -1796,8 +1796,8 @@ all2.add(task("jeter9", type: CompileJVarkit) {
         });
 
 all2.add(task("jeter10", type: CompileJVarkit) {
-        mainClass = "com.github.lindenb.jvarkit.tools.dict2xml.DictToXml"
-        jarLibs = combineLibs("htsjdk","testng","jcommander")
+        mainClass = "com.github.lindenb.jvarkit.tools.atacdiff.AtacSeqDiff"
+        jarLibs = combineLibs("htsjdk","testng","jcommander","math")
         });
 all2.add(task("jeter11", type: CompileJVarkit) {
         mainClass = "com.github.lindenb.jvarkit.tools.vcfstats.VcfStats2"
