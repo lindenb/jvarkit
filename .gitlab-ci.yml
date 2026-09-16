@@ -15,7 +15,6 @@ stages:          # List of stages for jobs, and their order of execution
   - build
   - test
 
-#  - apptainer
 
 build-job:       # This job will compile your project
   stage: build
@@ -31,17 +30,3 @@ test-job:        # This job will run tests on your project
   stage: test
   script:
     - make test JAVA_PROXY="-Dhttp.proxyHost=proxy-serveur.univ-nantes.prive -Dhttp.proxyPort=3128 -Dhttps.proxyHost=proxy-serveur.univ-nantes.prive -Dhttps.proxyPort=3128"
-
-apptainer-job:
-  stage: apptainer
-  script:
-    - apt install -y software-properties-common
-    - add-apt-repository -y ppa:apptainer/ppa
-    - apt update
-    - apt install -y fuse3 apptainer
-    - sysctl -w kernel.unprivileged_userns_clone=1 || true
-    - apptainer build jvarkit.sif apptainer.def
-  artifacts:
-    paths:
-        - jvarkit.sif
-

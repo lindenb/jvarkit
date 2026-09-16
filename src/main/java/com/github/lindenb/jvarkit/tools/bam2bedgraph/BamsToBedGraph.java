@@ -122,7 +122,7 @@ RF01	43	54	1.6070081
 ```
 
 
- END_DOC 
+ END_DOC
  */
 
 @Program(name="bams2bedgraph",
@@ -144,12 +144,14 @@ public class BamsToBedGraph extends Launcher {
 	protected int mapq=1;
 	@Parameter(names={"--per_base"},description="output every base in each interval, do not group positions with the same depth")
 	protected boolean per_base=false;
-	@Parameter(names={"--no-normalize"},description="do not divide by the number of bases (cumulative number of bases)")
+	@Parameter(names={"--no-normalize"},description="do not divide by the number of bases (instead produces cumulative number of bases)")
 	protected boolean do_not_normalize=false;
+	@Parameter(names={"--depth"},description="if greater than 0, switch to mode : print the fraction of samples with a depth greater or equal to 'x'")
+	protected int fraction_greater_than_depth=-1;
+
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile =null;
 
-	
 	private static class BamInput {
 		final Path bam;
 		double depth=1.0;
@@ -161,6 +163,7 @@ public class BamsToBedGraph extends Launcher {
 private String format(final double f) {
 	String s= String.format("%.02f", (float)f);
 	if(s.endsWith(".00")) s=s.substring(0,s.length()-3);
+	if(s.endsWith("0") && s.contains(".")) s=s.substring(0,s.length()-1);
 	return s;
 	}
 	
@@ -276,20 +279,20 @@ public int doWork(final List<String> args) {
 		final long n_expected = intervals.size()*(long)bam_inputs.size();
 		long n_count=0;
 		try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.outputFile)) {
-
+			final StopWatch stopWatch = new StopWatch();
+			stopWatch.start();
 			for(Locatable interval: intervals) {
 				System.gc();
 				final double[] coverage= new double[interval.getLengthOnReference()];
 				Arrays.fill(coverage, 0.0);
 				final int[] tmp_coverage= new int[interval.getLengthOnReference()];
 				
-		        final StopWatch stopWatch = new StopWatch();
-		        stopWatch.start();
-		
+		        
+		       
 				for(BamInput row :bam_inputs) {
 					Arrays.fill(tmp_coverage, 0);
 		            LOG.info(row.bam+" "+ interval.getContig()+":"+interval.getStart()+"-"+interval.getEnd() +" "+ StringUtils.niceInt(n_count)+"/"+StringUtils.niceInt(n_expected)+
-		                    " remains "+(n_count==0?"xxxxx":""+(int)(((n_expected-n_count)*(stopWatch.getElapsedTimeSecs()/(double)n_count))))+" secs");
+		                    " remains "+(n_count==0?"xxxxx":""+ StringUtils.niceDuration((long)(((n_expected-n_count)*(stopWatch.getElapsedTime()/(double)n_count))))));
 		            
 		            try(SamReader sr= srf.open(row.bam)) {
 		            	try(CloseableIterator<SAMRecord> iter= sr.query(interval.getContig(), interval.getStart(), interval.getEnd(), false)) {
@@ -307,12 +310,26 @@ public int doWork(final List<String> args) {
 		            			}
 		            		}
 		            	}
-		            for(int x=0;x< tmp_coverage.length;++x) {
-		            	coverage[x] +=  (tmp_coverage[x] / row.depth);
+		            
+		            // we just wan the fraction of sites with a depth greater than x
+		            if(this.fraction_greater_than_depth > 0) {
+			            for(int x=0;x< tmp_coverage.length;++x) {
+			            	if(tmp_coverage[x] >= this.fraction_greater_than_depth) {
+			            		coverage[x]++;
+			            		}
+			            	}
+
 		            	}
+		            else //normalize by mean depth of the sample
+			            {
+			            for(int x=0;x< tmp_coverage.length;++x) {
+			            	coverage[x] +=  (tmp_coverage[x] / row.depth);
+			            	}
+			            }
 		            ++n_count;
 					}
-				if(!this.do_not_normalize) {
+				// normalize by the number of samples
+				if(!this.do_not_normalize || this.fraction_greater_than_depth > 0) {
 					for(int x=0;x< coverage.length;++x) {
 						coverage[x]/=bam_inputs.size();
 			        	}

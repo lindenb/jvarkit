@@ -18,6 +18,10 @@ Usage: bams2bedgraph [options] Files
   Options:
     -B, --bed
       restrict to that input bed (or use --interval or reference dict)
+    --depth
+      if greater than 0, switch to mode : print the fraction of samples with a 
+      depth greater or equal to 'x'
+      Default: -1
     -h, --help
       print help and exit
     --helpFormat
@@ -29,7 +33,8 @@ Usage: bams2bedgraph [options] Files
       min mapping quality
       Default: 1
     --no-normalize
-      do not divide by the number of bases (cumulative number of bases)
+      do not divide by the number of bases (instead produces cumulative number 
+      of bases)
       Default: false
     --output, -o
       Output file. Optional . Default: stdout
