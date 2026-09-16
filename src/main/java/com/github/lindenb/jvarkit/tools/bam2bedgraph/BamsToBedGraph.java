@@ -149,6 +149,7 @@ public class BamsToBedGraph extends Launcher {
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	protected Path outputFile =null;
 
+	
 	private static class BamInput {
 		final Path bam;
 		double depth=1.0;
@@ -156,7 +157,16 @@ public class BamsToBedGraph extends Launcher {
 			this.bam=bam;
 		}
 	}
+
+private String format(final double f) {
+	String s= String.format("%.02f", (float)f);
+	if(s.endsWith(".00")) s=s.substring(0,s.length()-3);
+	return s;
+	}
 	
+private boolean sameDepth(double d1,double d2) {
+	return format(d1).equals(format(d2));
+	}
 	
 @Override
 public int doWork(final List<String> args) {
@@ -311,7 +321,7 @@ public int doWork(final List<String> args) {
 				int i=0;
 				while(i< coverage.length) {
 					int j=i+1;
-					while(!this.per_base && j< coverage.length && (float)coverage[i]==(float)coverage[j]) {
+					while(!this.per_base && j< coverage.length && sameDepth(coverage[i],coverage[j])) {
 						++j;
 						}
 					pw.print(interval.getContig());
@@ -320,7 +330,7 @@ public int doWork(final List<String> args) {
 					pw.print("\t");
 					pw.print((interval.getStart()-1)+j);
 					pw.print("\t");
-					pw.print((float)coverage[i]);
+					pw.print(format(coverage[i]));
 					pw.println();
 					i=j;
 					}

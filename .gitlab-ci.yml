@@ -14,7 +14,8 @@ before_script:
 stages:          # List of stages for jobs, and their order of execution
   - build
   - test
-  - apptainer
+
+#  - apptainer
 
 build-job:       # This job will compile your project
   stage: build
