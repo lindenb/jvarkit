@@ -969,6 +969,7 @@ public class IOUtils {
         		".pdf",".xml",
         		".interval_list",
         		".sql",//UCSC
+        		".narrowPeak",".broadPeak", // macs2
         		".sortedByCoord.out"//STAR
         		};
        boolean changed=true;

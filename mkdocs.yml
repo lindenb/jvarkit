@@ -31,6 +31,7 @@ nav:
         - "bammatrix" : BamMatrix.md
         - "bamphased01" : BamPhased01.md
         - "bamrenamechr" : ConvertBamChromosomes.md
+        - "bams2bedgraph" : BamsToBedGraph.md
         - "bamslicebed" : BamSliceBed.md
         - "bamstats04" : BamStats04.md
         - "bamstats05" : BamStats05.md

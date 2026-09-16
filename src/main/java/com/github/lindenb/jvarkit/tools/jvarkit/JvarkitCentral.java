@@ -43,6 +43,7 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.tools.allelebalance.VcfAlleleBalance;
 import com.github.lindenb.jvarkit.tools.backlocate.BackLocate;
+import com.github.lindenb.jvarkit.tools.bam2bedgraph.BamsToBedGraph;
 import com.github.lindenb.jvarkit.tools.bam2graphics.Bam2Raster;
 import com.github.lindenb.jvarkit.tools.bam2graphics.CoveragePlotter;
 import com.github.lindenb.jvarkit.tools.bam2graphics.LowResBam2Raster;
@@ -697,6 +698,7 @@ public class JvarkitCentral {
 		command(BatchIGVPictures.class);
 		command(SortSamRefName.class);
 		command(BaseCoverage.class);
+		command(BamsToBedGraph.class);
 		command(BamLeftAlign.class);
 		command(BlastToSam.class);
 		command(BlastNToSnp.class);

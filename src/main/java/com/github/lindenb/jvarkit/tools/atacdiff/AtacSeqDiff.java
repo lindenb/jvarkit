@@ -13,18 +13,14 @@ import org.apache.commons.math3.stat.descriptive.rank.Median;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
 import com.github.lindenb.jvarkit.io.FileHeader;
+import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.io.SampleSheet;
 import com.github.lindenb.jvarkit.io.SampleSheetFactory;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.log.Logger;
-import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.math.stats.FisherExactTest;
-import com.github.lindenb.jvarkit.samtools.SAMRecordDefaultFilter;
+import com.github.lindenb.jvarkit.wig.BigWigReader;
 
-import htsjdk.samtools.AlignmentBlock;
-import htsjdk.samtools.SAMRecord;
-import htsjdk.samtools.SamReader;
-import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalTreeMap;
@@ -38,47 +34,49 @@ public class AtacSeqDiff extends Launcher {
 
 	@Parameter(names={"--peaks","--bed"},description="Bed of all peaks",required = true)
 	private Path bedForPeaks;
-	@Parameter(names={"--mapq","-Q"},description="min mapq")
-	private int mapq = 1;
 	@Parameter(names={"--fraction","-f"},description="in an interval, take the x fraction of higest coverages")
 	private double fraction=0.1;
 	@Parameter(names={"--fold"},description="fold")
 	private double foldFactor=2.0;
 	@Parameter(names={"--output","-o"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private Path output;
-	@Parameter(names={"--min-dp","-D"},description="min DEPTH")
-	private int min_depth=20;
+	@Parameter(names={"--min-dp","-D"},description="min norm DEPTH")
+	private double min_depth=0.2;
 
 	
-	private static class InputBam  {
-		Path bam;
+	private static class InputBigWig {
+		String path;
+		String sampleName;
 		boolean is_case;
-		double median_depth;
-		SamReader samReader;
+		BigWigReader bigWigReader;
 		double local_norm_median_cov;
 		
 	}
 	
-	private int[] getCoverage(SamReader sr,final Locatable r) {
-		final int[] coverage=new int[r.getLengthOnReference()];
-		Arrays.fill(coverage, 0);
-		try(CloseableIterator<SAMRecord> iter = sr.query(r.getContig(), r.getStart(),r.getEnd(),false)) {
+	private double[] getCoverage(final BigWigReader reader,final Locatable loc) {
+		final double[] coverage=new double[loc.getLengthOnReference()];
+		Arrays.fill(coverage, 0.0);
+		try(CloseableIterator<BigWigReader.WigItem> iter = reader.query(loc)) {
 			while(iter.hasNext()) {
-				final SAMRecord rec= iter.next();
-				if(!SAMRecordDefaultFilter.accept(rec, mapq)) continue;
-				for(AlignmentBlock bloc : rec.getAlignmentBlocks()) {
-					for(int x=0;x< bloc.getLength();++x) {
-						final int p = (bloc.getReferenceStart()+x)- r.getStart();
-						if(p< 0) continue;
-						if(p>= coverage.length) break;
-						coverage[p]++;
+				final BigWigReader.WigItem rec= iter.next();
+				for(int x=0;x< rec.getLengthOnReference();++x) {
+						final int idx = (rec.getStart()+x)-loc.getStart();
+						if(idx<0) break;
+						if(idx>=coverage.length) continue;
+						coverage[idx]= rec.getValue();
 						}
 					}
-				}//end iter
 			}
 		return coverage;
 		}
 	
+	private double[] bestOf(final double[] array,double fraction) {
+		Arrays.sort(array);
+		int n= Math.max((int)(array.length*fraction),1);
+		final double[] a2 = new double[n];
+		System.arraycopy(array, array.length-n, a2, 0, n);
+		return a2;
+		}
 	
 	@Override
 	public int doWork(final List<String> args) {
@@ -99,16 +97,15 @@ public class AtacSeqDiff extends Launcher {
 			samplesheet = new SampleSheetFactory().of(Paths.get(sheetPath));
 				
 			
-			samplesheet.getHeader().assertColumnExists("bam");
+			samplesheet.getHeader().assertColumnExists("bigWig");
 			samplesheet.getHeader().assertColumnExists("status");
 			
-			final SamReaderFactory srf = super.createSamReaderFactory().referenceSequence(this.fasta);
 
-			final List<InputBam> inputBams = new ArrayList<>(samplesheet.size());
+			final List<InputBigWig> inputBigWigs = new ArrayList<>(samplesheet.size());
 
 			for(FileHeader.RowMap row: samplesheet ) {
-				InputBam input = new InputBam();
-				input.bam = Paths.get(row.get("bam"));
+				final InputBigWig input = new InputBigWig();
+				input.path = row.get("bigWig");
 				final String status = row.get("status");
 				if(status.equalsIgnoreCase("case")) {
 					input.is_case = true;
@@ -121,38 +118,19 @@ public class AtacSeqDiff extends Launcher {
 					LOG.error("illegal status in "+row);
 					return -1;
 					}
-				input.samReader = srf.open(input.bam);
-				inputBams.add(input);
+				input.bigWigReader = new BigWigReader(input.path);
+				if(row.containsKey("sample")) {
+					input.sampleName = row.get("sample");
+					}
+				else
+					{
+					input.sampleName = IOUtils.getFilenameWithoutCommonSuffixes(Paths.get(input.path));
+					}
+				inputBigWigs.add(input);
 				}
 			
 			
-			for(InputBam inputBam : inputBams) {
-				LOG.info("coverage for "+inputBam.bam);
-				final DiscreteMedian<Integer> median = new DiscreteMedian<>();
-				for(final Interval r: intervals) {
-					if(!r.getContig().matches("(chr)?[0-9]+")) continue;
-					final List<Integer> vals = new ArrayList<>();
-					final int[] coverage=getCoverage(inputBam.samReader,r);
-					//higest cov at the end
-					Arrays.sort(coverage);
-					// take best_idx coverage from the end
-					int best_idx= (int)(coverage.length* this.fraction);
-					// at least one position
-					if(best_idx<=0) best_idx=1;
-					for(int i=0;i< best_idx && i< coverage.length;i++) {
-						vals.add(coverage[(coverage.length-1)-i]);
-						}
-					if(vals.stream().mapToDouble(V->V.doubleValue()).average().orElse(0) < this.min_depth)  {
-						continue;
-						}
-					median.addAll(vals);
-					}
-				inputBam.median_depth = median.getMedian().getAsDouble();
-				LOG.info("coverage for "+inputBam.bam+" median cov:"+inputBam.median_depth);
-				if(inputBam.median_depth<=0 || Double.isNaN(inputBam.median_depth)) {
-					LOG.error("bad median depth for "+inputBam.bam);
-					}
-				}
+			
 			
 			try(PrintWriter pw = super.openPathOrStdoutAsPrintWriter(this.output)) {
 				
@@ -162,9 +140,10 @@ public class AtacSeqDiff extends Launcher {
 				pw.print("\t");
 				pw.print("end");
 				
-				for(InputBam inputBam : inputBams) {
+				for(InputBigWig inputWig : inputBigWigs) {
 					pw.print("\t");
-					pw.print(inputBam.bam);
+					pw.print(inputWig.sampleName);
+					pw.print(inputWig.is_case?"[case]":"[control]");
 					}
 				pw.print("\t");
 				pw.print("control_depth");
@@ -177,59 +156,48 @@ public class AtacSeqDiff extends Launcher {
 				pw.println();
 				
 				for(final Interval r: intervals) {
-					pw.print(r.getContig());
-					pw.print("\t");
-					pw.print(r.getStart()-1);
-					pw.print("\t");
-					pw.print(r.getEnd());
-					boolean all_have_low_dp_flag=true;
 
-					for(InputBam inputBam : inputBams) {
-						final List<Integer> vals = new ArrayList<>();
-						final int[] int_coverage=getCoverage(inputBam.samReader,r);
-						Arrays.sort(int_coverage);
-						// take best_idx coverage from the end
-						int best_idx= (int)(int_coverage.length* this.fraction);
-						// at least one position
-						if(best_idx<=0) best_idx=1;
-						for(int i=0;i< best_idx && i< int_coverage.length;i++) {
-							vals.add(int_coverage[(int_coverage.length-1)-i]);
-							}
-						final double median_cov =  new Median().evaluate(vals.stream().mapToDouble(v->v.doubleValue()).toArray());
-						if(median_cov>=this.min_depth) {
-							all_have_low_dp_flag=false;
-							}
+					for(InputBigWig inputWig : inputBigWigs) {
+						final double[] coverage=  bestOf( getCoverage(inputWig.bigWigReader,r), this.fraction);
 						
-						inputBam.local_norm_median_cov  = median_cov/inputBam.median_depth;
-						pw.print("\t");
-						pw.print(inputBam.local_norm_median_cov);
+						inputWig.local_norm_median_cov  = new Median().evaluate(coverage);
 						}
-					final double control_depth = new Median().evaluate(inputBams.stream()
+					
+					if(inputBigWigs.stream().allMatch(B->B.local_norm_median_cov< AtacSeqDiff.this.min_depth)) {
+						continue;
+						}
+					
+					final double control_depth = new Median().evaluate(inputBigWigs.stream()
 								.filter(I->I.is_case==false)
 								.mapToDouble(I->I.local_norm_median_cov)
 								.sorted()
 								.toArray()
 								);
-					pw.print("\t");
-					pw.print(control_depth);
-					if(all_have_low_dp_flag) {
+				
+			
+						
+						pw.print(r.getContig());
 						pw.print("\t");
-						pw.print(1.0);
+						pw.print(r.getStart()-1);
 						pw.print("\t");
-						pw.print(1.0);
+						pw.print(r.getEnd());
+
+						for(InputBigWig inputWig : inputBigWigs) {
+							pw.print("\t");
+							pw.print((float)inputWig.local_norm_median_cov);
+							}
 						pw.print("\t");
-						pw.print(1.0);
-						}
-					else
-						{
+						pw.print(control_depth);
+
+						
 						final double high_dp= control_depth*this.foldFactor;
 						int count_ctrl_ref = 0;
 						int count_ctrl_alt = 0;
 						int count_case_ref = 0;
 						int count_case_alt = 0;
-						for(InputBam inputBam : inputBams) {
-							if(inputBam.is_case) {
-								if(inputBam.local_norm_median_cov>=high_dp) {
+						for(InputBigWig inputWig : inputBigWigs) {
+							if(inputWig.is_case) {
+								if(inputWig.local_norm_median_cov>=high_dp) {
 									count_case_alt++;
 									}
 								else
@@ -239,7 +207,7 @@ public class AtacSeqDiff extends Launcher {
 								}
 							else 
 								{
-								if(inputBam.local_norm_median_cov>=high_dp) {
+								if(inputWig.local_norm_median_cov>=high_dp) {
 									count_ctrl_alt++;
 									}
 								else
@@ -248,7 +216,7 @@ public class AtacSeqDiff extends Launcher {
 									}
 								}
 							}
-						double fisher1 = FisherExactTest.compute(
+						final double fisher1 = FisherExactTest.compute(
 								count_case_ref,count_case_alt,
 								count_ctrl_ref,count_ctrl_alt
 								).getAsDouble();
@@ -262,9 +230,9 @@ public class AtacSeqDiff extends Launcher {
 						count_ctrl_alt = 0;
 						count_case_ref = 0;
 						count_case_alt = 0;
-						for(InputBam inputBam : inputBams) {
-							if(inputBam.is_case) {
-								if(inputBam.local_norm_median_cov<=low_dp) {
+						for(InputBigWig inputWig : inputBigWigs) {
+							if(inputWig.is_case) {
+								if(inputWig.local_norm_median_cov<=low_dp) {
 									count_case_alt++;
 									}
 								else
@@ -274,7 +242,7 @@ public class AtacSeqDiff extends Launcher {
 								}
 							else 
 								{
-								if(inputBam.local_norm_median_cov<=low_dp) {
+								if(inputWig.local_norm_median_cov<=low_dp) {
 									count_ctrl_alt++;
 									}
 								else
@@ -283,7 +251,7 @@ public class AtacSeqDiff extends Launcher {
 									}
 								}
 							}
-						double fisher2 = FisherExactTest.compute(
+						final double fisher2 = FisherExactTest.compute(
 								count_case_ref,count_case_alt,
 								count_ctrl_ref,count_ctrl_alt
 								).getAsDouble();
@@ -291,15 +259,16 @@ public class AtacSeqDiff extends Launcher {
 						pw.print(fisher2);
 						pw.print("\t");
 						pw.print(Math.min(fisher1, fisher2));
+						pw.println();
 						}
-					pw.println();
-					}
+					
+					
 			pw.flush();
 			}
 			
-			for(InputBam inputBam : inputBams) {
-				inputBam.samReader.close();
-			}
+			for(InputBigWig inputBam : inputBigWigs) {
+				inputBam.bigWigReader.close();
+				}
 			
 			return 0;
 			}
