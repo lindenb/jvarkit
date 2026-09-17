@@ -514,7 +514,7 @@ public class SwingVcfJexlFilter extends Launcher {
 					doMenuOpen(XFrame.this);
 					}
 				});
-			menu.add(new ActionIndexVcf());
+			menu.add(ActionIndexVcf.make());
 			menu.add(new JSeparator());
 			menu.add(new JMenuItem(new AbstractAction("Close")
 				{

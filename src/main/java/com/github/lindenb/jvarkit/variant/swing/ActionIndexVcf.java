@@ -56,10 +56,16 @@ import htsjdk.variant.vcf.VCFCodec;
 public class ActionIndexVcf extends AbstractAction {
 	private static final Logger LOG = Logger.of(ActionIndexVcf.class);
 
+	/** factory method that puts default values to the action */
+	public static ActionIndexVcf make() {
+		final ActionIndexVcf a = new ActionIndexVcf();
+		a.putValue(AbstractAction.SHORT_DESCRIPTION, "Index VCF files.");
+		a.putValue(AbstractAction.LONG_DESCRIPTION, "Index one or more vcf/vcf.gz file(s)");
+		return a;
+		}
+	
 	public ActionIndexVcf() {
 		super("Index VCF...");
-		this.putValue(AbstractAction.SHORT_DESCRIPTION, "Index VCF files.");
-		this.putValue(AbstractAction.LONG_DESCRIPTION, "Index one or more vcf/vcf.gz file(s)");
 		}
 
 	public static void indexVcf(final Path vcf,boolean overwrite) throws IOException {

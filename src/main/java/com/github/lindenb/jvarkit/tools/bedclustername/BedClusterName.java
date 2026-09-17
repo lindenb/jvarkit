@@ -138,6 +138,8 @@ public class BedClusterName
 	private boolean create_md5_dir_flag=false;
 	@Parameter(names={"--merge-distance","--merge"},description="if greater than -1 Merge overlapping record for the same name within a distance of 'x'. " + DistanceParser.OPT_DESCRIPTION, converter = DistanceParser.StringConverter.class)
 	private int merge_distance=-1;
+	@Parameter(names={"--prefix"},description="Files prefix")
+	private String file_prefix="";
 	
 	private int id_generator =0;
 	
@@ -353,7 +355,7 @@ public class BedClusterName
 				default: throw new IllegalArgumentException("err");
 				}
 			
-			final String filename = md5dir(String.format("%s.%09d%s",prefix, ++id_generator,suffix));
+			final String filename = md5dir(String.format("%s%s.%09d%s",this.file_prefix,prefix, ++id_generator,suffix));
 
 			manifest.print(archiveFactory.isTarOrZipArchive()?filename:this.outputFile.resolve(filename).toAbsolutePath());
 			manifest.print("\t");
@@ -490,7 +492,7 @@ public class BedClusterName
 					try(BedLineReader br = new BedLineReader(super.openBufferedReader(input),input)) {
 						br.setValidationStringency(ValidationStringency.LENIENT);
 						br.setContigNameConverter(converter);
-						final Map<String,Batch> name2batch = new HashMap<>();
+						final Map<String,Batch> name2batch = new HashMap<>(50_000);
 						
 						while(br.hasNext()) {
 							final BedLine bed = br.next();

@@ -481,7 +481,7 @@ public class SwingVcfView extends Launcher
 			menuBar.add(menu);
 			menu.add(actionGo);
 			menu.add(new JSeparator());
-			menu.add(new ActionIndexVcf());
+			menu.add(ActionIndexVcf.make());
 			menu.add(new JMenuItem(new AbstractAction("Quit")
 				{
 				@Override

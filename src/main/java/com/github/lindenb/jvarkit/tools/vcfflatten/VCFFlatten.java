@@ -27,7 +27,6 @@ package com.github.lindenb.jvarkit.tools.vcfflatten;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -65,7 +64,6 @@ import htsjdk.variant.vcf.VCFFilterHeaderLine;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
-import htsjdk.variant.vcf.VCFHeaderLineCount;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFIterator;
@@ -79,7 +77,7 @@ BEGIN_DOC
 flatten all variants to one variant. At the end, a Sample will be set to 1/1 if one or more of his Genotypes
 in the VCF is contains an NON-(REF|NO_CALL) allele
 The idea is to use the VCF output of this tool
-in order to pipe it into `bcftools contrast`: we'll get a p-value for the whole VCF
+in order to pipe it into `bcftools +contrast`: we'll get a p-value for the whole VCF
 
 
 # Example
@@ -110,24 +108,26 @@ END_DOC
 	description="Flatten variants to one variant",
 	keywords={"vcf","burden","contrast"},
 	creationDate = "20230222",
-	modificationDate  = "20260311",
+	modificationDate  = "20260917",
 	menu="VCF Manipulation",
 	jvarkit_amalgamion = true
 	)
 public class VCFFlatten extends OnePassVcfLauncher {
 	private static final Logger LOG = Logger.of(VCFFlatten.class);
-	@Parameter(names={"-i","--id"},description="Default Variant ID")
-	protected String default_variant_id = "FLATTEN_VARIANT";
+	@Parameter(names={"-i","--id"},description="Default Variant ID. This will be used as an ID when **all** variants will be flattened in the same group.")
+	private String default_variant_id = "FLATTEN_VARIANT";
 	@Parameter(names={"-X","--gene-extractors"},description="if not blanks, variants will be grouped by gene using snpeff/bcftools/vep annotations. "+GeneExtractorFactory.OPT_DESC)
-	protected String use_gene_extractors_names="";
+	private String use_gene_extractors_names="";
 	@Parameter(names={"-l"},description="list available Gene Extractor and exit")
-	protected boolean list_gene_extractors=false;
+	private boolean list_gene_extractors=false;
 	@Parameter(names={"--hom-var"},description="write homozygous alt genotypes instead of heterozygous")
-	protected boolean make_hom_var =false;
-	@Parameter(names={"--bed"},description="group variants using that bed file. The 4th column is the name of the cluster (or we use contig_start_end)")
-	protected Path bed_for_groups = null;
-	@Parameter(names={"--bed-id"},description="name for the INFO/METHOD when using the --bed parameter.")
-	protected String bed_for_groups_id = "BED";
+	private boolean make_hom_var =false;
+	@Parameter(names={"--bed"},description="Group variants using that bed file. The 4th column is the name of the cluster (or we use contig_start_end)")
+	private Path bed_for_groups = null;
+	@Parameter(names={"--bed-id"},description="label for the INFO/METHOD when using the --bed parameter.")
+	private String bed_method_for_groups_id = "BED";
+	@Parameter(names={"--debug"},description="debug",hidden = true)
+	private boolean debug_flag = false;
 
 	@Override
 	protected Logger getLogger() {
@@ -135,8 +135,9 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		}
 	private Group default_group = null;
 	private final List<GeneExtractorFactory.GeneExtractor> geneExtractors = new ArrayList<>();
-	private final Map<GeneExtractorFactory.KeyAndGene,Group> keyAndGeneToGroup = new HashMap<>();
-	private final Map<String,Group> intervalIdToGroup = new HashMap<>();
+	private final Map<GeneExtractorFactory.KeyAndGene,Group> keyAndGeneToGroup = new HashMap<>(50_000);
+	/** map for BED 4th column to group */
+	private final Map<String,Group> intervalIdToGroup = new HashMap<>(50_000);
 	
 	private static class Group implements Locatable {
 		final String method;
@@ -148,7 +149,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		boolean multiple_contigs = false;
 		int n_variants = 0;
 		
-		Group(final String method,final String key,int n_samples) {
+		Group(final String method,final String key,final int n_samples) {
 			this.method = method;
 			this.key = key;
 			this.count_ALT = new int[n_samples];
@@ -162,7 +163,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		
 		public String getName() {
 			if(this.method.equals(this.key)) return this.key;// for default Group default_variant_id
-			return String.join(":", method,key);
+			return String.join(":", this.method,this.key);
 			}
 		
 		Allele getAlt() {
@@ -190,6 +191,10 @@ public class VCFFlatten extends OnePassVcfLauncher {
 					}
 				}
 			}
+		@Override
+		public String toString() {
+			return String.join("|","method:"+this.method,"key:"+this.key,""+this.contig+":"+this.start+"-"+this.end,"N="+n_variants);
+			}
 		}
 	
 	private Collection<Group>  extractGroups(final VariantContext ctx, final IntervalTreeMap<List<Interval>> customIntervals) {
@@ -216,12 +221,20 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		customIntervals.getOverlapping(ctx).stream().flatMap(L->L.stream()).forEach(RGN->{
 			Group g =  this.intervalIdToGroup.get(RGN.getName());
 			if(g==null) {
-				g = new Group(this.bed_for_groups_id,RGN.getName(), ctx.getNSamples());
+				
+				g = new Group(this.bed_method_for_groups_id,RGN.getName(), ctx.getNSamples());
+				
+				if(this.debug_flag) {
+					LOG.debug("adding overlaping group for "+RGN+" group:"+g);
+					}
+				
 				this.intervalIdToGroup.put(RGN.getName(),g);
 				}
 			ret.add(g);
 			});
-		
+		if(this.debug_flag) {
+			LOG.debug("returning "+ret+ " for "+ctx.getContig()+":"+ctx.getStart());
+			}
 		return ret;
 		}
 	
@@ -231,6 +244,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(headerin);
 		final IntervalTreeMap<List<Interval>> interval2group=new IntervalTreeMap<>();
 		if(bed_for_groups!=null) {
+			if(this.debug_flag) LOG.debug("reading bed "+this.bed_for_groups);
 			try(BedLineReader blr = new BedLineReader(this.bed_for_groups)) {
 				blr.setContigNameConverter(ContigNameConverter.fromOneDictionary(dict));
 				blr.stream().forEach(BL->{
@@ -244,6 +258,7 @@ public class VCFFlatten extends OnePassVcfLauncher {
 						}
 					L.add(r);
 					});
+			if(this.debug_flag) LOG.debug("number of intervals in bed:"+interval2group.size());
 			}
 		}
 		
@@ -287,17 +302,27 @@ public class VCFFlatten extends OnePassVcfLauncher {
 		while(iterin.hasNext()) {
 			final VariantContext ctx = iterin.next();
 			for(final Group group: extractGroups(ctx, interval2group)) {
+				if(this.debug_flag) {
+					LOG.debug("adding "+ctx.getContig()+":"+ctx.getStart()+" in "+group);
+					}
 				group.visit(ctx);
 				}
 			}
 		
 		final List<Group> all_groups = new ArrayList<>(1+this.keyAndGeneToGroup.size());
-		all_groups.add(this.default_group);
+		if(this.default_group!=null) {
+			all_groups.add(this.default_group);
+			}
 		all_groups.addAll(this.keyAndGeneToGroup.values());
+		
+		all_groups.addAll(this.intervalIdToGroup.values());
 		
 		Collections.sort(all_groups, new ContigDictComparator(dict).createLocatableComparator());
 		
 		for(Group g:all_groups) {
+			if(this.debug_flag) {
+				LOG.debug("writing group "+g);
+				}
 			final Allele ALT= g.getAlt();
 			final Allele REF= Allele.REF_N;
 			final List<Allele> ALT_GEN = Arrays.asList((this.make_hom_var?ALT:REF),ALT);

@@ -23,10 +23,10 @@ Usage: vcfflatten [options] Files
       checked 2019-11-15)
       Default: false
     --bed
-      group variants using that bed file. The 4th column is the name of the 
+      Group variants using that bed file. The 4th column is the name of the 
       cluster (or we use contig_start_end)
     --bed-id
-      name for the INFO/METHOD when using the --bed parameter.
+      label for the INFO/METHOD when using the --bed parameter.
       Default: BED
     -X, --gene-extractors
       if not blanks, variants will be grouped by gene using 
@@ -47,7 +47,8 @@ Usage: vcfflatten [options] Files
       write homozygous alt genotypes instead of heterozygous
       Default: false
     -i, --id
-      Default Variant ID
+      Default Variant ID. This will be used as an ID when **all** variants 
+      will be flattened in the same group.
       Default: FLATTEN_VARIANT
     -o, --out
       Output file. Optional . Default: stdout
@@ -107,7 +108,7 @@ The current reference is:
 flatten all variants to one variant. At the end, a Sample will be set to 1/1 if one or more of his Genotypes
 in the VCF is contains an NON-(REF|NO_CALL) allele
 The idea is to use the VCF output of this tool
-in order to pipe it into `bcftools contrast`: we'll get a p-value for the whole VCF
+in order to pipe it into `bcftools +contrast`: we'll get a p-value for the whole VCF
 
 
 # Example
