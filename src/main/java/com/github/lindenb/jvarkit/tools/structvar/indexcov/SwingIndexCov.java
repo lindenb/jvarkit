@@ -96,6 +96,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
 import org.apache.commons.jexl2.JexlContext;
+import org.apache.commons.jexl2.Script;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
@@ -133,6 +134,7 @@ import htsjdk.tribble.readers.LineIterator;
 import htsjdk.tribble.readers.LineIteratorImpl;
 import htsjdk.tribble.readers.TabixIteratorLineReader;
 import htsjdk.tribble.readers.TabixReader;
+import htsjdk.variant.variantcontext.VariantContextUtils;
 /**
 BEGIN_DOC
 
@@ -151,12 +153,19 @@ java -jar dist/swingindexcov.jar -R reference.fa indexcov.bed.gz --gff indexed.g
 
 helper is based on jexl, it is used to colorize the peaks
 
-the following awk script generate a script where all samples must be nocall unless the sample starts with 'B':
+the following JEX scrip show dot for the samples below
 
-```
-gunzip -c indexcov.bed.gz | head  -n1 |\
-	tr "\t" "\n" | tail -n+4 |\
-	awk '{printf("(sample2call.get(\"%s\")!=null && %ssample2call.get(\"%s\").isVariant() ) && \n",$1,($1 ~/^B/?"":"!"),$1);}'
+```jexl
+var cases = ["SAMPLE1","SAMPLE2","SAMPLE3"];
+
+for(var c:calls) {
+        var is_case= cases.indexOf(c.getSample())!=-1;
+        var is_var = c.isVariant();
+        if(is_case && !is_var) return false;
+        if(!is_case && is_var) return false;
+        }
+
+return true;
 ```
 
 END_DOC
@@ -329,13 +338,14 @@ public class SwingIndexCov extends Launcher {
 	            }
 		}
 	
-	private class IndexCovJexlHandler extends BaseJexlHandler {
-		public IndexCovJexlHandler(String expr) {
-			super( expr);
+	private class IndexCovJexlHandler  {
+		private final Script jexlScript;
+		public IndexCovJexlHandler(final String expr) {
+			this.jexlScript =  VariantContextUtils.engine.get().createScript(expr);
 			}
 		
 		public Optional<Color> toColor(final IndexCovJexlContext ctx) {
-			Object o = super.eval(ctx);
+			final Object o = this.jexlScript.execute(ctx);
 			if(o==null || o.equals(Boolean.FALSE)) return Optional.empty();
 			if(o.equals(Boolean.TRUE)) return Optional.of(Color.BLACK);
 			if(o instanceof Color) return Optional.of(Color.class.cast(o));

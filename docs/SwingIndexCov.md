@@ -91,12 +91,19 @@ java -jar dist/swingindexcov.jar -R reference.fa indexcov.bed.gz --gff indexed.g
 
 helper is based on jexl, it is used to colorize the peaks
 
-the following awk script generate a script where all samples must be nocall unless the sample starts with 'B':
+the following JEX scrip show dot for the samples below
 
-```
-gunzip -c indexcov.bed.gz | head  -n1 |\
-	tr "\t" "\n" | tail -n+4 |\
-	awk '{printf("(sample2call.get(\"%s\")!=null && %ssample2call.get(\"%s\").isVariant() ) && \n",$1,($1 ~/^B/?"":"!"),$1);}'
+```jexl
+var cases = ["SAMPLE1","SAMPLE2","SAMPLE3"];
+
+for(var c:calls) {
+        var is_case= cases.indexOf(c.getSample())!=-1;
+        var is_var = c.isVariant();
+        if(is_case && !is_var) return false;
+        if(!is_case && is_var) return false;
+        }
+
+return true;
 ```
 
 
