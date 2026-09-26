@@ -16,15 +16,15 @@ Usage: java -jar dist/jvarkit.jar swingindexcov  [options] Files
 
 Usage: swingindexcov [options] Files
   Options:
-    --gtf, --gff, --gff3
+    --gff, --gff3
       GFF3 file indexed with tabix to plot the genes.
     -h, --help
       print help and exit
     --helpFormat
       What kind of help. One of [usage,markdown,xml].
-    --helper
-      For expert users only. java archive implenting Helper. Syntax 
-      "path/to/helper.jar package.helper.implementation.Name"
+    --jexl
+      JEXL code for highlighting. JEXL stands for Java EXpression Language.  
+      See https://commons.apache.org/proper/commons-jexl/reference/syntax.html
     -R, --reference
       A SAM Sequence dictionary source: it can be a *.dict file, a fasta file 
       indexed with 'picard CreateSequenceDictionary' or 'samtools dict', or 
@@ -86,83 +86,17 @@ or
 java -jar dist/swingindexcov.jar -R reference.fa indexcov.bed.gz --gff indexed.gff3.gz --helper "/TMP/myhelper.jar MyHelper"
 ```
 
-## Screenshots
-
-
-![https://pbs.twimg.com/media/FSkLDJdXwAEmZTO?format=png&name=small](https://pbs.twimg.com/media/FSkLDJdXwAEmZTO?format=png&name=small
-)
-
-![https://pbs.twimg.com/media/FSkLIGtXMAAizeK?format=jpg&name=small](https://pbs.twimg.com/media/FSkLIGtXMAAizeK?format=jpg&name=small)
 
 ## Helper
 
+helper is based on jexl, it is used to colorize the peaks
 
-### Helper Source code
+the following awk script generate a script where all samples must be nocall unless the sample starts with 'B':
 
-file `MyHelper.java`
-
-```java
-import com.github.lindenb.jvarkit.tools.structvar.indexcov.SwingIndexCov;
-import java.util.*;
-import java.awt.Color;
-
-public class MyHelper extends SwingIndexCov.DefaultHelper {
-	private final Set<String> cases = new HashSet<>(Arrays.asList("sample1,sample2,sample3,sample4".split("[,]")));
-	private final Set<Integer> cases_indexes = new HashSet<>();
-	@Override
-	public void initialize(final String[] header) {
-		super.initialize(header);
-		for(int i=3;i< header.length;i++) {
-			if(cases.contains(getNormName(header[i]))) cases_indexes.add(i);
-			}
-		}
-	private String getNormName(String sn) {
-		final String[] tokens = sn.split("[_]");
-		for(int i=0;i< tokens.length;i++) {
-			if(tokens[i].length()==7) {
-				return tokens[i];
-				}
-			}
-		return sn;
-		}
-	@Override
-	public String getDisplayName(final String sn) {
-		String s = getNormName(sn);
-		if(cases.contains(s)) return "*"+s;
-		return s;
-		}
-	@Override
-	public Optional<Colors> getColor(int[] indexes,float[] values) {
-		int n_cases = 0;
-		int n_other = 0;
-		float treshold =  0.45f;
-		for(int i=0;i< indexes.length;i++) {
-			final int idx = indexes[i];
-			float v  = values[i];
-			boolean is_cnv = v> (1.0f + treshold) || v< (1.0f - treshold);
-			if(!is_cnv) continue;
-			boolean is_case = cases_indexes.contains(idx);
-			if(is_case) {n_cases++;}
-			else {n_other++;}
-			}
-
-		if(n_cases>0 && n_other==0) return Optional.of(Colors.RED);
-		return Optional.empty();
-		}
-	}
 ```
-
-### Compiling the helper
-
-```make
-CP=/home/lindenb/src/jvarkit-git/dist/swingindexcov.jar
-
-myhelper.jar: MyHelper.java $(CP)
-	rm -rf tmp
-	mkdir -p tmp
-	javac -d tmp -cp "$(CP):." $<
-	jar cvf $@ -C tmp .
-	rm -rf tmp
+gunzip -c indexcov.bed.gz | head  -n1 |\
+	tr "\t" "\n" | tail -n+4 |\
+	awk '{printf("(sample2call.get(\"%s\")!=null && %ssample2call.get(\"%s\").isVariant() ) && \n",$1,($1 ~/^B/?"":"!"),$1);}'
 ```
 
 

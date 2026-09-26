@@ -27,16 +27,14 @@ package com.github.lindenb.jvarkit.math;
 import java.util.Arrays;
 import java.util.OptionalInt;
 import java.util.function.IntConsumer;
-import java.util.function.IntUnaryOperator;
 import java.util.stream.IntStream;
 
-public class MinMaxInteger implements IntConsumer, IntUnaryOperator {
+public class MinMaxInteger implements IntConsumer /*, IntUnaryOperator otherwise interface conflict */{
 	private long count=0L;
 	private int minV;
 	private int maxV;
 	
-	/** allow this class to be used in stream, returns the original value */
-	@Override
+	/* not IntUnaryOperator otherwise interface conflict */
 	public final int applyAsInt(int v) {
 		accept(v);
 		return v;

@@ -13,6 +13,7 @@
  * Garcia-Salinas O, Andrews K, Sanghvi R Landscape of parental postzygotic mutations across >11,000 rare disease trios The American Journal of Human Genetics, 2026; **samjdk**
  * Sawaswong & al. Genetic diversity of clinical Mycobacterium bovis BCG isolates from an immunocompromised patient with BCG infection https://doi.org/10.1016/j.meegid.2026.106014 **WGSCoveragePlotter**
  * Mandal, K., Malar C, M., Upadhyay, A. et al. Three-dimensional genome architecture of the pathogenic oomycete Phytophthora capsici provides insights into its chromatin architecture and regulatory complexity. Commun Biol (2026). https://doi.org/10.1038/s42003-026-10760-5 **WGSCoveragePlotter**
+ * Guiding Native Charr Conservation in the Lake Superior Basin in the Genomics Era. Kline, Benjamen Christopher Michigan State University ProQuest Dissertations & Theses,  2026. 32793593. 
 
 ## 2025
 
