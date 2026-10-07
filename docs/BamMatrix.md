@@ -58,7 +58,7 @@ Usage: bammatrix [options] Files
     -R, --reference
       Indexed fasta Reference file. This file must be indexed with samtools 
       faidx and with picard/gatk CreateSequenceDictionary or samtools dict
-  * -r, -r1, --region
+  * -r, -r1, --region, --region1
       first region.An interval as the following syntax : "chrom:start-end". 
       Some jvarkit programs also allow the following syntax : 
       "chrom:middle+extend"  or "chrom:start-end+extend" or 
@@ -100,11 +100,11 @@ Usage: bammatrix [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrix.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrix.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bammatrix/BamMatrix.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/bammatrix/BamMatrix.java)
 
 ### Unit Tests
 
-[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrixTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/cmpbams/BamMatrixTest.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bammatrix/BamMatrixTest.java](https://github.com/lindenb/jvarkit/tree/master/src/test/java/com/github/lindenb/jvarkit/tools/bammatrix/BamMatrixTest.java)
 
 
 ## Contribute
@@ -141,14 +141,4 @@ input with two bam files (for comparing mappers)
 ```
 java  -jar dist/bammatrix.jar -r "chr1:234-567" -o out.png sample.markdup.01.bam sample.markdup.02.bam
 ```
-
-https://twitter.com/yokofakun/status/1142088565326843904
-
-![https://twitter.com/yokofakun/status/1142088565326843904](https://pbs.twimg.com/media/D9mDYo4WsAAOaSK.jpg)
-
-
-https://twitter.com/yokofakun/status/1038060108373286912
-
-![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
-
 

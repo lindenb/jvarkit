@@ -23,7 +23,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.vcfviewgui;
+package com.github.lindenb.jvarkit.tools.swingbamcov;
 
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
@@ -58,10 +58,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.Vector;
 import java.util.function.IntFunction;
 import java.util.function.IntToDoubleFunction;
@@ -75,6 +76,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -104,6 +106,7 @@ import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
 import com.github.lindenb.jvarkit.hershey.Hershey;
+import com.github.lindenb.jvarkit.illumina.IlluminaConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
@@ -111,8 +114,8 @@ import com.github.lindenb.jvarkit.jcommander.Program;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
 import com.github.lindenb.jvarkit.log.Logger;
+import com.github.lindenb.jvarkit.math.DiscreteMedian;
 import com.github.lindenb.jvarkit.net.UrlSupplier;
-import com.github.lindenb.jvarkit.samtools.CoverageFactory;
 import com.github.lindenb.jvarkit.samtools.reference.SwingSequenceDictionaryTableModel;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.samtools.util.Pileup;
@@ -120,6 +123,7 @@ import com.github.lindenb.jvarkit.swing.PreferredDirectory;
 import com.github.lindenb.jvarkit.swing.ThrowablePane;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
 
+import htsjdk.samtools.AlignmentBlock;
 import htsjdk.samtools.Cigar;
 import htsjdk.samtools.CigarElement;
 import htsjdk.samtools.CigarOperator;
@@ -135,10 +139,10 @@ import htsjdk.samtools.reference.ReferenceSequenceFile;
 import htsjdk.samtools.reference.ReferenceSequenceFileFactory;
 import htsjdk.samtools.util.AbstractIterator;
 import htsjdk.samtools.util.CloseableIterator;
+import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IterableAdapter;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.StringUtil;
 import htsjdk.tribble.readers.TabixIteratorLineReader;
 import htsjdk.tribble.readers.TabixReader;
@@ -161,12 +165,10 @@ find dir -type f -name "*.bam" > all.list
 java -jar dist/jvarkit.jar swingbamcov -R ref.fa all.list
 ```
 
+## TruePath
 
-## Screenshot
+TruePath reads processed with Dragen are splitted in 3 parts: phase 1/ phase undetermined / phase 2.
 
- * https://twitter.com/yokofakun/status/1392173415684100105
- * https://twitter.com/yokofakun/status/1443187891480502279
- * https://twitter.com/yokofakun/status/1443208754229563392
 
 END_DOC
  */
@@ -174,7 +176,7 @@ END_DOC
 description="Bam coverage viewer using Java Swing UI",
 keywords={"bam","alignment","graphics","visualization","swing"},
 creationDate="20210420",
-modificationDate="20220513",
+modificationDate="20261007",
 biostars= {9603151},
 jvarkit_amalgamion =  true,
 menu="BAM Manipulation"
@@ -196,15 +198,38 @@ public class SwingBamCov extends Launcher
 	private int smallRegionLength = 200;
 	@Parameter(names={"--bed"},description="Load this bed file and use the intervals as a set of menus to jump to a specific location.")
 	private Path intervalBed = null;
+	@Parameter(names={"--disable-truepath"},description="Disable detection of phasing with illumina truepath.")
+	private boolean disable_illumina_truepath_detection = false;
 
 	private static class BamInfo {
 		final Path bamPath;
 		String sample;
+		/** activate splitting for phasing */
+		boolean is_illumina_truepath = false;
 		BamInfo(final Path bamPath) {
 			this.bamPath = bamPath;
 			}
 		}
-
+	
+	private static class HaplotypeData {
+		Rectangle2D rect;
+		final int[] coverage;
+		double[] norm_cov;
+		Color color;
+		boolean got_read=false;
+		HaplotypeData(int genomic_len) {
+			this.coverage=new int[genomic_len];
+			Arrays.fill(this.coverage, 0);
+		}
+	}
+	
+	private static class HaplotypePileup {
+		Rectangle2D rect;
+		Pileup<SAMRecord> pileup;
+		boolean got_read= false;
+		Color color;
+	}
+		
 	@SuppressWarnings("serial")
 	private static class XFrame extends JFrame {
 		final int smallRegionLength;
@@ -215,6 +240,7 @@ public class SwingBamCov extends Launcher
 		final JPanel drawingArea;
 		final JTextField jtextFieldLocation;
 		final JTextField jtextFieldCap;
+		final JCheckBoxMenuItem jcboxDisablePhasing;
 		final int minMapq;
 		Thread drawingThread = null;
 		BufferedImage offScreenImage = null;
@@ -223,6 +249,7 @@ public class SwingBamCov extends Launcher
 		private final JMenu jmenuHyperlinks;
 		private final SwingGff3TableModel gff3TableModel;
 
+		/** abstract action to change the genomic view (zooming/shifting) */
 		private abstract class ChangeViewAction extends AbstractAction {
 			final double factor;
 			ChangeViewAction(String title,double factor) {
@@ -230,7 +257,7 @@ public class SwingBamCov extends Launcher
 				this.factor=factor;
 				}
 			@Override
-			public Object getValue(String key)
+			public Object getValue(final String key)
 				{
 				if(key.equals(AbstractAction.SHORT_DESCRIPTION)) return getShortDesc();
 				return super.getValue(key);
@@ -261,8 +288,9 @@ public class SwingBamCov extends Launcher
 				}
 			}
 
+		/** action to zoom */
 		private class ZoomAction extends ChangeViewAction {
-			ZoomAction(double factor) {
+			ZoomAction(final double factor) {
 				super("x"+factor,factor);
 				}
 			@Override
@@ -280,13 +308,13 @@ public class SwingBamCov extends Launcher
 				return "Scale by "+factor;
 				}
 			}
-
+		/** action to shift genomic view */
 		private class ShiftAction extends ChangeViewAction {
 			ShiftAction(String title,double factor) {
 				super(title,factor);
 				}
 			@Override
-			Locatable change(SAMSequenceRecord ssr, Locatable r)
+			Locatable change(final SAMSequenceRecord ssr, Locatable r)
 				{
 				final double L= r.getLengthOnReference()*Math.abs(factor);
 				int x1,x2;
@@ -315,19 +343,22 @@ public class SwingBamCov extends Launcher
 			final OptionalInt optCap;
 			final List<BamInfo> bamInfos;
 			final SamReaderFactory srf;
+			final boolean disable_phasing;
 			DrawingThread(
 					BufferedImage img,
 					final SimpleInterval location,
 					final OptionalInt optCap,
-					final List<BamInfo> bamInfos
+					final List<BamInfo> bamInfos,
+					boolean disable_phasing
 					) {
 				this.img = img;
 				this.location=location;
 				this.optCap = optCap;
 				this.bamInfos = bamInfos;
-				this.srf = SamReaderFactory.makeDefault().
-						referenceSequence(XFrame.this.referenceFile).
-						validationStringency(ValidationStringency.LENIENT);
+				this.disable_phasing = disable_phasing;
+				this.srf = SamReaderFactory.makeDefault()
+						.referenceSequence(XFrame.this.referenceFile)
+						.validationStringency(ValidationStringency.LENIENT);
 				}
 			@Override
 			public void run()
@@ -395,11 +426,11 @@ public class SwingBamCov extends Launcher
 				final Rectangle2D rect
 				) {
 			if(loc.getLengthOnReference()<= XFrame.this.smallRegionLength ) {
-				paintShortBamSection(g,srf,bam,loc,rect);
+				paintShortBamSection(g,srf,bam,loc,rect,this.disable_phasing);
 				}
 			else
 				{
-				paintLargeBamSection(g,srf,bam,loc,rect);
+				paintLargeBamSection(g,srf,bam,loc,rect,this.disable_phasing);
 				}
 			}
 		
@@ -432,15 +463,32 @@ public class SwingBamCov extends Launcher
 				final SamReaderFactory srf,
 				final BamInfo bam,
 				final Locatable region,
-				final Rectangle2D rect
+				final Rectangle2D rect_frame,
+				final boolean disable_phasing
 				){
+			final boolean is_phased= (!disable_phasing && bam.is_illumina_truepath);
+			final List<HaplotypePileup> hapData= new ArrayList<>();
 			final Shape oldClip = g.getClip();
 			final Stroke oldStroke = g.getStroke();	
-			g.setClip(rect);
+			g.setClip(rect_frame); 
+		    final int margin_top=12;
 			try {
 				final Hershey hershey = new Hershey();
-				final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect.getWidth() + rect.getX();
-				final Pileup<SAMRecord> pileup = new Pileup<>((L,R)->position2pixel.applyAsDouble(L.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(R.getUnclippedStart()));
+				final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect_frame.getWidth() + rect_frame.getX();
+				final double hap_height = (rect_frame.getHeight()-margin_top)/ (is_phased?3.0:1.0);
+				for(int i=0;i< (is_phased?3:1);i++) {
+					final HaplotypePileup hap = new HaplotypePileup();
+					hap.pileup = new Pileup<>((L,R)->position2pixel.applyAsDouble(L.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(R.getUnclippedStart()));
+					hap.rect= new Rectangle2D.Double(
+						rect_frame.getX(),
+						rect_frame.getY()+(i*hap_height)+margin_top,
+						rect_frame.getWidth(),
+						hap_height
+						);
+					hap.color=(i%2==0? Color.WHITE: new Color(240,240,240));
+					hapData.add(hap);
+					}
+				
 				try(SamReader sr=srf.open(bam.bamPath)) {
 					 try(CloseableIterator<SAMRecord> iter=sr.query(
 							 region.getContig(),
@@ -453,10 +501,47 @@ public class SwingBamCov extends Launcher
 							 if(rec.getUnclippedStart() > region.getEnd()) continue;
 							 final Cigar cigar = rec.getCigar();
 							 if(cigar==null || cigar.isEmpty()) continue;
-							 pileup.add(rec);
+							 final int phase_idx;
+							 if(is_phased) {
+								 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
+									if(hp_tag==null || !(hp_tag instanceof Number)) {
+										phase_idx = 1;
+										}
+									else
+										{
+										final int hp_phase= Number.class.cast(hp_tag).intValue();
+										switch(hp_phase) {
+											case 1: phase_idx = 0; break;//top
+											case 2: phase_idx = 2; break;//bottom
+											default: phase_idx= 1 ;break;//middle
+											}
+										}
+									}
+								else
+									{
+									phase_idx = 0;
+									}
+							 final HaplotypePileup hap=hapData.get(phase_idx);
+							 hap.pileup.add(rec);
+							 hap.got_read=true;
 						 	 }
 						 }//end iterator
 					}//end samreader
+				
+				// phase 1 and 2 are empty, keep middle
+				if(hapData.size()==3 && !hapData.get(0).got_read  && !hapData.get(2).got_read) {
+					hapData.get(1).color = hapData.get(0).color;
+					hapData.remove(2);
+					hapData.remove(0);
+					hapData.get(0).rect= new Rectangle2D.Double(
+							rect_frame.getX(),
+							rect_frame.getY()+margin_top,
+							rect_frame.getWidth(),
+							rect_frame.getHeight()-margin_top
+							);
+					}
+				
+				
 				ReferenceSequence refInInterval=null;
 				 try (ReferenceSequenceFile refseq=ReferenceSequenceFileFactory.getReferenceSequenceFile(XFrame.this.referenceFile)) {
 					 final SAMSequenceRecord ssr = XFrame.this.dict.getSequence(region.getContig());
@@ -469,162 +554,171 @@ public class SwingBamCov extends Launcher
 					 	}
 				 	}
 				 /* clear rect */
-				 g.setColor(new Color(240,240,240));
-				 g.fill(rect);
+						     
 			     
-			     g.setStroke(new BasicStroke(0.5f));
-			     g.setColor(Color.WHITE);		     
 			     
-			     final int margin_top=12;
+			     double featureHeight= 20;
+			     for(HaplotypePileup hap: hapData) {
+			    	final double h= hap.rect.getHeight()/Math.max(1.0, hap.pileup.getRowCount());
+			    	featureHeight = Math.min(featureHeight, h);
+
+			     	}
 			     
-			     final double featureHeight= Math.min(20,(rect.getHeight()-margin_top)/Math.max(1.0,(double)pileup.getRowCount()));
-			     
-			     double y= rect.getMaxY()-featureHeight;
-			     
-			     for(final List<SAMRecord> row:pileup) {
-			    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
-	
-			    	for(final SAMRecord rec: row) {
-			    		final Cigar cigar=rec.getCigar();
-			    		if(cigar==null || cigar.isEmpty()) continue;
-			    		
-			    		/* draw rec itself */
-			    		final double midy=y+h2/2.0;
-			    		g.setColor(Color.DARK_GRAY);
-			    		g.draw(new Line2D.Double(
-			    				position2pixel.applyAsDouble(rec.getUnclippedStart()),
-			    				midy,
-			    				position2pixel.applyAsDouble(rec.getUnclippedEnd()),
-			    				midy));
-			    		final int unclipped_start = rec.getUnclippedStart();
-			    		int ref1 = unclipped_start;
-			    		final List<Double> insertions = new ArrayList<>();
-			    		for(final CigarElement ce: cigar.getCigarElements()) {
-			    			if(ref1> region.getEnd()) break;
-			    			final CigarOperator op=ce.getOperator();
-			    			Shape shape = null;
-			    			Color fill=null;
-			    			Color stroke=Color.DARK_GRAY;
-			    			switch(op) {
-			    				case P: break;
-			    				case M://through
-			    				case X://through
-			    				case EQ://through
-			    				case S: //through
-			    				case H: 
-			    						final double x1=position2pixel.applyAsDouble(ref1);
-			    						
-			    						shape = new Rectangle2D.Double(
-			    						x1, y,
-			    						position2pixel.applyAsDouble(ref1+ce.getLength())-x1,h2
-			    						);
-			    						
-			    						ref1+=ce.getLength();
-			    						switch(op) {
-			    							case H: case S: fill=Color.YELLOW;break;
-			    							case X: fill=Color.RED;break;
-			    							case EQ: case M: fill=Color.LIGHT_GRAY;break;
-			    							default:break;
-			    							}
-			    						break;
-			    				case N://through
-			    				case D: shape=null;fill=null;stroke=null;ref1+=ce.getLength();break;
-			    				case I: shape=null;fill=null;stroke=null;insertions.add(position2pixel.applyAsDouble(ref1));break;
-			    				default: throw new IllegalStateException(""+op);
-			    				}
-			    			if(ref1 < region.getStart()) continue;
-			    			
-			    			if(shape!=null) {
-			    				if(fill!=null) {g.setColor(fill);g.fill(shape);}
-			    				if(stroke!=null && h2>4)  {g.setColor(stroke);g.draw(shape);}
-			    				}
-			    			} // end loop cigar
-			    		
-			    		
-			    		
-			    		 /* draw mismatched bases */
-			   	     	if(refInInterval!=null && rec.getReadBases()!=null && rec.getReadBases()!=SAMRecord.NULL_SEQUENCE) {
-			   	     		final byte bases[]=rec.getReadBases();
-			   	     		final IntFunction<Character> baseRead= IDX-> IDX<0 || IDX>=bases.length || bases==SAMRecord.NULL_SEQUENCE?'N':(char)Character.toUpperCase(bases[IDX]);
-			   	     		int read0=0;
-			   	     		ref1 = rec.getAlignmentStart();
-				   	     	for(CigarElement ce: cigar.getCigarElements()) {
+			     for(int hap_idx=0;hap_idx< hapData.size();++hap_idx) {
+			    	 final HaplotypePileup hap = hapData.get(hap_idx);
+			    	 g.setColor(hap.color);
+					 g.fill(hap.rect);
+				     
+				     g.setStroke(new BasicStroke(0.5f));
+				     g.setColor(Color.WHITE);
+				     
+				     double y= hap.rect.getMaxY()-featureHeight;
+				     
+				     for(final List<SAMRecord> row: hap.pileup) {
+				    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
+		
+				    	
+				    	for(final SAMRecord rec: row) {
+				    		final Cigar cigar=rec.getCigar();
+				    		if(cigar==null || cigar.isEmpty()) continue;
+				    		
+				    		/* draw rec itself */
+				    		final double midy=y+h2/2.0;
+				    		g.setColor(Color.DARK_GRAY);
+				    		g.draw(new Line2D.Double(
+				    				position2pixel.applyAsDouble(rec.getUnclippedStart()),
+				    				midy,
+				    				position2pixel.applyAsDouble(rec.getUnclippedEnd()),
+				    				midy));
+				    		final int unclipped_start = rec.getUnclippedStart();
+				    		int ref1 = unclipped_start;
+				    		final List<Double> insertions = new ArrayList<>();
+				    		for(final CigarElement ce: cigar.getCigarElements()) {
 				    			if(ref1> region.getEnd()) break;
 				    			final CigarOperator op=ce.getOperator();
-				    			switch(op) {
-					    			case P:break;
-					    			case H:break;
-					    			case D: case N: ref1+=ce.getLength(); break;
-					    			case S: case I: read0+=ce.getLength(); break;
-					    			case EQ:case M: case X:
-					    				{
-					    				for(int j=0;j< ce.getLength();j++) {
-					    					if(ref1+j< region.getStart()) continue;
-					    					if(ref1+j>=region.getStart()+refInInterval.length()) break;
-					    					final int ref_base_idx = ref1-region.getStart()+j;
-					    					char ctgBase =(char)(ref_base_idx<0 || ref_base_idx>=refInInterval.length()?'N':Character.toUpperCase(refInInterval.getBases()[ref_base_idx]));
-					    					if(ctgBase=='N') continue;
-					    					char readBase = baseRead.apply(read0+j);
-					    					if(readBase=='N') continue;
-					    					if(readBase==ctgBase) continue;
-					    					g.setColor(Color.ORANGE);
-					    					final double x1 = position2pixel.applyAsDouble(ref1+j);
-					    					final double x2 = position2pixel.applyAsDouble(ref1+j+1);
-					    					g.fill( new Rectangle2D.Double( x1, y,x2-x1,h2));
-					    					}
-					    				read0+=ce.getLength();
-					    				ref1+=ce.getLength();
-					    				break;
-					    				}
-					    			default:break;
-				    				}
-				   	     		}
-			   	     		
-			   	     		/** draw bases */
-				    		ref1 = unclipped_start;
-				    		read0=0;
-					    	for(final CigarElement ce: cigar.getCigarElements()) {
-				    			if(ref1> region.getEnd()) break;
-				    			final CigarOperator op=ce.getOperator();
+				    			Shape shape = null;
+				    			Color fill=null;
+				    			Color stroke=Color.DARK_GRAY;
 				    			switch(op) {
 				    				case P: break;
-				    				case H: ref1+= ce.getLength();break;
-				    				case N:  case D: ref1+= ce.getLength(); break;
-				    				case I: read0+=ce.getLength();break;
-				    				case M: case X: case EQ: case S:
-						    			{
-						    			for(int j=0;j< ce.getLength();j++) {
-						    				final char readBase = baseRead.apply(read0+j);
-						    				double h3 = h2*0.9;
-					    					final double x1 = position2pixel.applyAsDouble(ref1+j);
-					    					final double x2 = position2pixel.applyAsDouble(ref1+j+1);
-					    					g.setColor(baseToColor(readBase));
-					    					hershey.paint(g, String.valueOf(readBase), x1,y+(h2-h3)/2.0,(x2-x1)*0.95,h3);
-							    			}
-					    				read0+=ce.getLength();
-					    				ref1+=ce.getLength();
-						    			break;
-						    			}
+				    				case M://through
+				    				case X://through
+				    				case EQ://through
+				    				case S: //through
+				    				case H: 
+				    						final double x1=position2pixel.applyAsDouble(ref1);
+				    						
+				    						shape = new Rectangle2D.Double(
+				    						x1, y,
+				    						position2pixel.applyAsDouble(ref1+ce.getLength())-x1,h2
+				    						);
+				    						
+				    						ref1+=ce.getLength();
+				    						switch(op) {
+				    							case H: case S: fill=Color.YELLOW;break;
+				    							case X: fill=Color.RED;break;
+				    							case EQ: case M: fill=Color.LIGHT_GRAY;break;
+				    							default:break;
+				    							}
+				    						break;
+				    				case N://through
+				    				case D: shape=null;fill=null;stroke=null;ref1+=ce.getLength();break;
+				    				case I: shape=null;fill=null;stroke=null;insertions.add(position2pixel.applyAsDouble(ref1));break;
 				    				default: throw new IllegalStateException(""+op);
 				    				}
 				    			if(ref1 < region.getStart()) continue;
 				    			
+				    			if(shape!=null) {
+				    				if(fill!=null) {g.setColor(fill);g.fill(shape);}
+				    				if(stroke!=null && h2>4)  {g.setColor(stroke);g.draw(shape);}
+				    				}
 				    			} // end loop cigar
-			   	     		}
-			    		
-			    		for(double px:insertions) {
-			    			g.setColor(Color.RED);
-			    			g.draw(new Line2D.Double(px,y-0.5,px,y+h2+0.5));
-			    			}
-			    		}
-			    	y-=featureHeight;
-			     	}
-			    
+				    		
+				    		
+				    		
+				    		 /* draw mismatched bases */
+				   	     	if(refInInterval!=null && rec.getReadBases()!=null && rec.getReadBases()!=SAMRecord.NULL_SEQUENCE) {
+				   	     		final byte bases[]=rec.getReadBases();
+				   	     		final IntFunction<Character> baseRead= IDX-> IDX<0 || IDX>=bases.length || bases==SAMRecord.NULL_SEQUENCE?'N':(char)Character.toUpperCase(bases[IDX]);
+				   	     		int read0=0;
+				   	     		ref1 = rec.getAlignmentStart();
+					   	     	for(CigarElement ce: cigar.getCigarElements()) {
+					    			if(ref1> region.getEnd()) break;
+					    			final CigarOperator op=ce.getOperator();
+					    			switch(op) {
+						    			case P:break;
+						    			case H:break;
+						    			case D: case N: ref1+=ce.getLength(); break;
+						    			case S: case I: read0+=ce.getLength(); break;
+						    			case EQ:case M: case X:
+						    				{
+						    				for(int j=0;j< ce.getLength();j++) {
+						    					if(ref1+j< region.getStart()) continue;
+						    					if(ref1+j>=region.getStart()+refInInterval.length()) break;
+						    					final int ref_base_idx = ref1-region.getStart()+j;
+						    					char ctgBase =(char)(ref_base_idx<0 || ref_base_idx>=refInInterval.length()?'N':Character.toUpperCase(refInInterval.getBases()[ref_base_idx]));
+						    					if(ctgBase=='N') continue;
+						    					char readBase = baseRead.apply(read0+j);
+						    					if(readBase=='N') continue;
+						    					if(readBase==ctgBase) continue;
+						    					g.setColor(Color.ORANGE);
+						    					final double x1 = position2pixel.applyAsDouble(ref1+j);
+						    					final double x2 = position2pixel.applyAsDouble(ref1+j+1);
+						    					g.fill( new Rectangle2D.Double( x1, y,x2-x1,h2));
+						    					}
+						    				read0+=ce.getLength();
+						    				ref1+=ce.getLength();
+						    				break;
+						    				}
+						    			default:break;
+					    				}
+					   	     		}
+				   	     		
+				   	     		/** draw bases */
+					    		ref1 = unclipped_start;
+					    		read0=0;
+						    	for(final CigarElement ce: cigar.getCigarElements()) {
+					    			if(ref1> region.getEnd()) break;
+					    			final CigarOperator op=ce.getOperator();
+					    			switch(op) {
+					    				case P: break;
+					    				case H: ref1+= ce.getLength();break;
+					    				case N:  case D: ref1+= ce.getLength(); break;
+					    				case I: read0+=ce.getLength();break;
+					    				case M: case X: case EQ: case S:
+							    			{
+							    			for(int j=0;j< ce.getLength();j++) {
+							    				final char readBase = baseRead.apply(read0+j);
+							    				double h3 = h2*0.9;
+						    					final double x1 = position2pixel.applyAsDouble(ref1+j);
+						    					final double x2 = position2pixel.applyAsDouble(ref1+j+1);
+						    					g.setColor(baseToColor(readBase));
+						    					hershey.paint(g, String.valueOf(readBase), x1,y+(h2-h3)/2.0,(x2-x1)*0.95,h3);
+								    			}
+						    				read0+=ce.getLength();
+						    				ref1+=ce.getLength();
+							    			break;
+							    			}
+					    				default: throw new IllegalStateException(""+op);
+					    				}
+					    			if(ref1 < region.getStart()) continue;
+					    			
+					    			} // end loop cigar
+				   	     		}
+				    		
+				    		for(double px:insertions) {
+				    			g.setColor(Color.RED);
+				    			g.draw(new Line2D.Double(px,y-0.5,px,y+h2+0.5));
+				    			}
+				    		}
+				    	y-=featureHeight;
+				     	}
+				     }
 			     
 			     g.setColor(Color.DARK_GRAY);
-			     g.drawString("Sample:"+ bam.sample +" "+new SimpleInterval(region).toNiceString() , (int)rect.getX()+10,(int)rect.getY()+ 10);
+			     g.drawString("Sample:"+ bam.sample +" "+new SimpleInterval(region).toNiceString() , (int)rect_frame.getX()+10,(int)rect_frame.getY()+ 10);
 			     g.setColor(Color.LIGHT_GRAY);
-			     g.draw(rect);
+			     g.draw(rect_frame);
 				}
 			catch(final IOException err) {
 			     g.drawString("Sample:"+ bam.sample +" Error "+err.getMessage() , 10, 10);
@@ -635,80 +729,244 @@ public class SwingBamCov extends Launcher
 			repaintDrawingArea();
 			}
 		
+		private double[] scaleMedian(final int[] coverage,final int width_pixel) {
+			final double[] array = new double[width_pixel];
+			final DiscreteMedian<Integer> med = new DiscreteMedian<>();
+			for(int i=0;i< array.length;i++) {
+				int idx0 = (int)(((i+0)/(double)width_pixel)*coverage.length);
+				int idx1 = (int)(((i+1)/(double)width_pixel)*coverage.length);
+				if(idx0==idx1) idx1++;
+				while(idx0<idx1 && idx0 < coverage.length) {
+					med.add(coverage[idx0]);
+					idx0++;
+					}
+				array[i]=med.getMedian().orElse(0.0);
+				med.clear();
+				}
+			return array;
+			}
+		
 		private void paintLargeBamSection(final Graphics2D g,
 				final SamReaderFactory srf,
 				final BamInfo bam,
 				final Locatable loc,
-				final Rectangle2D rect
+				final Rectangle2D rect_frame,
+				final boolean disable_phasing
 				) {
-			
+			final boolean is_phased  = bam.is_illumina_truepath && !disable_phasing;
 			final Shape oldClip = g.getClip();
-			g.setClip(rect);
+			g.setClip(rect_frame);
 			try {
+				
 				try(SamReader sr=this.srf.open(bam.bamPath)) {
-					if(!sr.hasIndex()) return;			
-					final CoverageFactory covFactory = new CoverageFactory().
-							setMappingQuality(XFrame.this.minMapq);
-					final CoverageFactory.SimpleCoverage cov = covFactory.getSimpleCoverage(sr, loc, bam.sample);
+					if(!sr.hasIndex()) return;
+					final List<HaplotypeData> hapData = new ArrayList<>();
+					final double hap_height= rect_frame.getHeight()/(is_phased?3.0:1.0);
+					// top , middle, bottom
+					for(int i=0;i< 3;i++) {
+						final HaplotypeData hap=new HaplotypeData(loc.getLengthOnReference());
+						
+						hap.rect = new Rectangle2D.Double(
+								rect_frame.getX(),
+								rect_frame.getY()+(hap_height*i),
+								rect_frame.getWidth(),
+								hap_height
+								);
+						hap.color = (i%2==0?Color.WHITE:new Color(240,240,240));
+						
+						hapData.add(hap);
+						
+						
+						
+						if(!is_phased) break;
+						}
 					
-					final double[] depths = cov.scaleMedian((int)rect.getWidth());
-					final double maxDepth0 = Arrays.stream(depths).max().orElse(1.0);
+					// create two arrays of depth for each phase (if any ) */
+					final Set<Integer> haplotype_blocks_positions= new HashSet<>();
+					Object prev_block_tag=null;
+
+					
+					try(CloseableIterator<SAMRecord> iter=sr.query(loc.getContig(),loc.getStart(),loc.getEnd(),false)) {
+						while(iter.hasNext()) {
+							final SAMRecord rec= iter.next();
+
+							if(!acceptRead(rec)) continue;
+							final Cigar cigar = rec.getCigar();
+							if(cigar==null || cigar.isEmpty()) continue;
+							final int phase_idx;
+							if(is_phased) {
+								// detect haplotype block boundaries
+								final Object block_tag =  rec.getAttribute(IlluminaConstants.TRUEPATH_PS);
+								if(block_tag!=null ) {
+									if(prev_block_tag!=null && !prev_block_tag.equals(block_tag)) {
+										final int p = rec.getStart();
+										if(p>=loc.getStart() && p<=loc.getEnd()) {
+											haplotype_blocks_positions.add(p);
+											}
+										}
+									prev_block_tag = block_tag;
+									}
+								
+								
+								final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
+								if(hp_tag==null || !(hp_tag instanceof Number)) {
+									phase_idx = 1;
+									}
+								else
+									{
+									final int hp_phase= Number.class.cast(hp_tag).intValue();
+									switch(hp_phase) {
+										case 1: phase_idx = 0; break;//top
+										case 2: phase_idx = 2; break;//bottom
+										default: phase_idx= 1 ;break;//middle
+										}
+									}
+								}
+							else
+								{
+								phase_idx = 0;
+								}
+							// loop over cigar string
+							final int[] coverage= hapData.get(phase_idx).coverage;
+							boolean got_read=false;
+							for(AlignmentBlock ab:rec.getAlignmentBlocks()) {
+								for(int x=0;x< ab.getLength();++x) {
+									final int ref_pos1 = ab.getReferenceStart()+x;
+									final int array_pos0= ref_pos1 - loc.getStart();
+									if(array_pos0<0) continue;
+									if(array_pos0>=coverage.length) break;
+									coverage[array_pos0]++;
+									got_read = true;
+									}
+								}
+							if(got_read) {
+								hapData.get(phase_idx).got_read=true;
+								}
+							} // end loop iterator		
+						} //end open iterator
+					
+					// no read phased in 0 or 1
+					if(hapData.size()==3 && !hapData.get(0).got_read && !hapData.get(1).got_read) {
+						hapData.remove(2);
+						hapData.remove(0);
+						hapData.get(0).rect=rect_frame;
+						hapData.get(0).color=Color.WHITE;
+						}
+					
+					
+					/* get median and average depth */
+					final DiscreteMedian<Integer> discrete_median = new DiscreteMedian<Integer>();
+					hapData.stream()
+						.flatMapToInt(H->Arrays.stream(H.coverage))
+						.forEach(DP->discrete_median.add(DP));
+					final int max_depth_any_phase= hapData.stream()
+							.flatMapToInt(H->Arrays.stream(H.coverage))
+							.max()
+							.orElse(1);
+
+					
+					final double median_cov = discrete_median.getMedian().orElse(0);
+					final double average_cov = discrete_median.getAverage().orElse(0);
+					//System.err.println(median_cov);
+					//System.err.println(average_cov);
+					//System.err.println(max_depth_any_phase);
+					
+					for(HaplotypeData hap: hapData) {
+						hap.norm_cov =  scaleMedian(hap.coverage,(int)rect_frame.getWidth());
+					}
+					
+					final double maxDepth0 =  hapData.stream()
+							.flatMapToDouble(H->Arrays.stream(H.norm_cov))
+							.max()
+							.orElse(1.0);
+					
 					final double maxDepth = this.optCap.isPresent()?
 							Math.min(optCap.getAsInt(), maxDepth0):
 							maxDepth0;
-					final ToDoubleFunction<Double> toYPixel = DP ->{
-						double y = rect.getMaxY() - (DP/maxDepth)*rect.getHeight();
-						return y;
-					};
 					
-					
-					final GeneralPath gp = new GeneralPath();
-					gp.moveTo(rect.getX(), rect.getMaxY());
-					for(int i=0;i< depths.length;i++) {
-						double y = toYPixel.applyAsDouble(depths[i]);
-						if(y<rect.getY()) y = rect.getY();//capping
-						gp.lineTo(rect.getX()+i, y );
-						}
-					gp.lineTo(rect.getMaxX(),rect.getMaxY());
-					gp.closePath();
-					g.setColor(Color.LIGHT_GRAY);
-					Color colors[]=new Color[]{Color.LIGHT_GRAY,Color.GRAY};
-					final Paint oldPaint = g.getPaint();
-					g.setPaint(new LinearGradientPaint(0,(float)rect.getY(),0,(float)rect.getMaxY(),new float[]{0.0f,1.0f},colors));
-					g.fill(gp);
-					g.setPaint(oldPaint);
-					
-					
-					OptionalDouble mean = cov.getMedian();
-					if(mean.isPresent()) {
-						g.setColor(Color.RED);
-						final double y = toYPixel.applyAsDouble(mean.getAsDouble());
-						if(y>=rect.getY()) g.draw(new Line2D.Double(rect.getX(), y, rect.getMaxX(), y));
-						}
-					
-					mean = cov.getAverage();
-					if(mean.isPresent()) {
-						g.setColor(Color.GREEN);
-						final double y = toYPixel.applyAsDouble(mean.getAsDouble());
-						if(y>=rect.getY()) g.draw(new Line2D.Double(rect.getX(), y, rect.getMaxX(), y));
-						}
-					
-					writeGenes(g,loc,rect);
-					
-					g.setColor(Color.BLUE);
-					final int fontSize=Math.min(12,(int)(rect.getHeight()/10.0));
-					g.setFont(new Font("Courier",Font.PLAIN,fontSize));
-					g.drawString(bam.sample+" (max DP: " + (int)maxDepth0+") "+ getGenes(loc).
-							filter(G->G.getType().equals("gene")).
-							map(G->G.getName()).
-							filter(S->!StringUtils.isBlank(S)).
-							collect(Collectors.toSet()).
-							stream().
-							collect(Collectors.joining(",")),
-							(int)rect.getX()+5,(int)rect.getMaxY()-1);
+					/* loop over each phase */
+					for(int phasing_side=0;phasing_side<hapData.size() ; phasing_side++) {
+						final HaplotypeData hap = hapData.get(phasing_side);
+						/* rect to display that phase */
+						final Rectangle2D rect = hap.rect;
+						final double[] depths = hap.norm_cov;
+						g.setClip(hap.rect);
+						g.setColor(hap.color);
+						g.fill(hap.rect);
+						g.setColor(new Color(240,240,240));
+						g.draw(hap.rect);
+						
+						
+						final ToDoubleFunction<Double> toYPixel = DP ->{
+							double y = rect.getMaxY() - (DP/maxDepth)*rect.getHeight();
+							return y;
+							};
+						@SuppressWarnings("unused")
+						final ToDoubleFunction<Integer> toXPixel = POS ->{
+							return rect.getX()+((POS-loc.getStart())/(double)loc.getLengthOnReference())*rect.getWidth();
+							};
+						
+							/*
+						for(int hap_block_pos: haplotype_blocks_positions) {
+							g.setColor(Color.GREEN);
+							final double x = toXPixel.applyAsDouble(hap_block_pos);
+							g.fillRect((int)x,(int)rect.getY(),1,(int)rect.getHeight());
+							}*/
+						
+						
+						final GeneralPath gp = new GeneralPath();
+						gp.moveTo(rect.getX(), rect.getMaxY());
+						for(int i=0;i< depths.length;i++) {
+							double y = toYPixel.applyAsDouble(depths[i]);
+							if(y<rect.getY()) y = rect.getY();//capping
+							gp.lineTo(rect.getX()+i, y );
+							}
+						gp.lineTo(rect.getMaxX(),rect.getMaxY());
+						gp.closePath();
+						g.setColor(Color.LIGHT_GRAY);
+						Color colors[]=new Color[]{Color.LIGHT_GRAY,Color.GRAY};
+						final Paint oldPaint = g.getPaint();
+						g.setPaint(new LinearGradientPaint(0,(float)rect.getY(),0,(float)rect.getMaxY(),new float[]{0.0f,1.0f},colors));
+						g.fill(gp);
+						g.setPaint(oldPaint);
+						
+						
+						if(average_cov>0) {
+							g.setColor(Color.RED);
+							final double y = toYPixel.applyAsDouble(average_cov);
+							if(y>=rect.getY()) g.draw(new Line2D.Double(rect.getX(), y, rect.getMaxX(), y));
+							}
+						
+						if(median_cov>0) {
+							g.setColor(Color.GREEN);
+							final double y = toYPixel.applyAsDouble(median_cov);
+							if(y>=rect.getY()) g.draw(new Line2D.Double(rect.getX(), y, rect.getMaxX(), y));
+							}
+						
+						// just draw genes and label for phase 1
+						if(phasing_side==0) {
+							writeGenes(g,loc,rect);
+							}
+						// draw label at the botom
+						if(phasing_side+1==hapData.size()) {
+							g.setColor(Color.BLUE);
+							final int fontSize=Math.min(12,(int)(rect.getHeight()/10.0));
+							g.setFont(new Font("Courier",Font.PLAIN,fontSize));
+							g.drawString(bam.sample+" (max DP: " + max_depth_any_phase+") "+ getGenes(loc).
+									filter(G->G.getType().equals("gene")).
+									map(G->G.getName()).
+									filter(S->!StringUtils.isBlank(S)).
+									collect(Collectors.toSet()).
+									stream().
+									collect(Collectors.joining(",")),
+									(int)rect.getX()+5,(int)rect.getMaxY()-1);
+							}
+						if(!isCurrentThread()) break;
+						} // end phasing
 					//frame
+					g.setClip(rect_frame);
 					g.setColor(Color.DARK_GRAY);
-					g.draw(rect);
+					g.draw(rect_frame);
 					}
 				repaintDrawingArea();
 				}
@@ -796,7 +1054,7 @@ public class SwingBamCov extends Launcher
 		
 		
 		XFrame(final Path referenceFile,
-				final List<Path> bamPaths,
+				final List<BamInfo> bamPaths,
 				String defaultLoc,
 				int minMapq,
 				final String gffPath,
@@ -808,28 +1066,8 @@ public class SwingBamCov extends Launcher
 			this.referenceFile = referenceFile;
 			this.gffPath = gffPath;
 			this.smallRegionLength = smallRegionLength;
-			final SamReaderFactory srf = SamReaderFactory.makeDefault().
-					referenceSequence(this.referenceFile).
-					validationStringency(ValidationStringency.LENIENT);
 			this.dict = SequenceDictionaryUtils.extractRequired(this.referenceFile);
-			this.bamPaths = bamPaths.stream().map(P->new BamInfo(P)).
-					collect(Collectors.toCollection(Vector::new));
-					new Vector<BamInfo>(bamPaths.size());
-			for(final BamInfo bi:this.bamPaths) {
-				try(SamReader sr= srf.open(bi.bamPath)) {
-					final SAMFileHeader header = sr.getFileHeader();
-					bi.sample = header.getReadGroups().stream().
-							map(S->S.getSample()).
-							filter(S->!StringUtil.isBlank(S)).
-							findFirst().
-							orElse(IOUtils.getFilenameWithoutCommonSuffixes(bi.bamPath));
-					}
-				catch(IOException err) {
-					throw new RuntimeIOException(err);
-					}
-				}
-			Collections.sort(this.bamPaths,(A,B)->A.sample.compareTo(B.sample));
-					
+			this.bamPaths = bamPaths;
 			this.minMapq=minMapq;
 			
 			
@@ -1043,6 +1281,12 @@ public class SwingBamCov extends Launcher
 					}
 				}
 			
+			final JMenu toolMenu=new JMenu("Tools");
+			menuBar.add(toolMenu);
+			this.jcboxDisablePhasing = new JCheckBoxMenuItem("Disable Phasing", false);
+			this.jcboxDisablePhasing.addActionListener(actionGo);
+			toolMenu.add(this.jcboxDisablePhasing);
+			
 			
 			/** gff3 tab */
 			
@@ -1117,10 +1361,16 @@ public class SwingBamCov extends Launcher
 			}
 		
 		final Optional<SimpleInterval> getUserInterval() {
-			final String s = this.jtextFieldLocation.getText(); 
+			final String s = this.jtextFieldLocation.getText().trim().replaceAll(",", "");
 			if(StringUtil.isBlank(s)) return Optional.empty();
-			return new IntervalParser(this.dict).
-					apply(s.trim());
+			
+			final String tokens[]=s.split("\\s+");
+			if(tokens.length==3 && StringUtils.isInteger(tokens[1]) && StringUtils.isInteger(tokens[2])) {
+				return  new IntervalParser(this.dict).
+						apply(tokens[0]+":"+tokens[1]+"-"+tokens[2]);
+				}
+			
+			return new IntervalParser(this.dict).apply(s);
 			}
 		
 		private void doMenuSaveIgvSession() {
@@ -1230,7 +1480,9 @@ public class SwingBamCov extends Launcher
 					drawingThread = new DrawingThread(this.offScreenImage,
 							location.orElse(null),
 							optCap,
-							paths);
+							paths,
+							this.jcboxDisablePhasing.isSelected()
+							);
 					this.progressBar.setIndeterminate(true);
 					drawingThread.start();
 					}
@@ -1249,13 +1501,52 @@ public class SwingBamCov extends Launcher
 	public int doWork(final List<String> args)
 		{
 		try {
-			final List<Path> paths = IOUtils.unrollPaths(args);
-			if(paths.isEmpty()) {
+			final SamReaderFactory srf = super.createSamReaderFactory()
+					.validationStringency(ValidationStringency.LENIENT)
+					.referenceSequence(this.referenceFile);
+			final List<BamInfo> bams = IOUtils.unrollPaths(args)
+				.stream()
+				.map(P->new BamInfo(P))
+				.collect(Collectors.toCollection(Vector::new));
+			
+			for(final BamInfo bi: bams) {
+				IOUtil.assertFileIsReadable(bi.bamPath);
+				try(SamReader sr= srf.open(bi.bamPath)) {
+					if(!sr.hasIndex()) {
+						LOG.error("file is not indexed: "+bi.bamPath);
+						return -1;
+						}
+					final SAMFileHeader header = sr.getFileHeader();
+					bi.sample = header.getReadGroups().stream().
+							map(S->S.getSample()).
+							filter(S->!StringUtil.isBlank(S)).
+							findFirst().
+							orElse(IOUtils.getFilenameWithoutCommonSuffixes(bi.bamPath));
+					
+					
+					
+					// detect illumina truepath
+					if(!this.disable_illumina_truepath_detection &&  IlluminaConstants.isDragenProximityEnabled(header)) {
+						bi.is_illumina_truepath = true;
+						LOG.info("TruePath detected for "+bi.bamPath);	
+						}
+					}
+				catch(final IOException err) {
+					LOG.error(err);
+					return -1;
+					}
+				}
+			Collections.sort(bams,(A,B)->A.sample.compareTo(B.sample));
+				
+			
+			if(bams.isEmpty()) {
 				LOG.error("no BAM/CRAM was provided");
 				return -1;
 				}
 			JFrame.setDefaultLookAndFeelDecorated(true);
-			final XFrame frame = new XFrame(this.referenceFile,paths,
+			final XFrame frame = new XFrame(
+					this.referenceFile,
+					bams,
 					this.defaultRegion,
 					this.minmapq,
 					this.gffPath,

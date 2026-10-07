@@ -19,6 +19,9 @@ Usage: swingbamcov [options] Files
     --bed
       Load this bed file and use the intervals as a set of menus to jump to a 
       specific location.
+    --disable-truepath
+      Disable detection of phasing with illumina truepath.
+      Default: false
     --gtf, --gff
       GFF3 file indexed with tabix to plot the genes.
     -h, --help
@@ -67,7 +70,7 @@ Usage: swingbamcov [options] Files
 
 ## Source code 
 
-[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/SwingBamCov.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/vcfviewgui/SwingBamCov.java)
+[https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/swingbamcov/SwingBamCov.java](https://github.com/lindenb/jvarkit/tree/master/src/main/java/com/github/lindenb/jvarkit/tools/swingbamcov/SwingBamCov.java)
 
 
 ## Contribute
@@ -103,11 +106,9 @@ find dir -type f -name "*.bam" > all.list
 java -jar dist/jvarkit.jar swingbamcov -R ref.fa all.list
 ```
 
+## TruePath
 
-## Screenshot
+TruePath reads processed with Dragen are splitted in 3 parts: phase 1/ phase undetermined / phase 2.
 
- * https://twitter.com/yokofakun/status/1392173415684100105
- * https://twitter.com/yokofakun/status/1443187891480502279
- * https://twitter.com/yokofakun/status/1443208754229563392
 
 

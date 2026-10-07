@@ -14,6 +14,8 @@
  * Sawaswong & al. Genetic diversity of clinical Mycobacterium bovis BCG isolates from an immunocompromised patient with BCG infection https://doi.org/10.1016/j.meegid.2026.106014 **WGSCoveragePlotter**
  * Mandal, K., Malar C, M., Upadhyay, A. et al. Three-dimensional genome architecture of the pathogenic oomycete Phytophthora capsici provides insights into its chromatin architecture and regulatory complexity. Commun Biol (2026). https://doi.org/10.1038/s42003-026-10760-5 **WGSCoveragePlotter**
  * Guiding Native Charr Conservation in the Lake Superior Basin in the Genomics Era. Kline, Benjamen Christopher Michigan State University ProQuest Dissertations & Theses,  2026. 32793593. 
+ * Wu, L., Yadavalli, A.D., McAuliffe, C.C. et al. Transcription pause and elongation regulators mediate somatic hypermutation. Nature (2026). https://doi.org/10.1038/s41586-026-11092-4 **SamToTsv**
+ * Yang, Y., Cao, Y., Liu, L. et al. FoxL2 exhibits two-stage expression and maintains the ovarian niche in a lophotrochozoan. Commun Biol (2026). https://doi.org/10.1038/s42003-026-11047-5
 
 ## 2025
 

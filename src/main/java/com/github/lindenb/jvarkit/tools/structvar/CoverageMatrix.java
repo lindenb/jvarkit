@@ -73,7 +73,6 @@ import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CloseableIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.SequenceUtil;
 import htsjdk.samtools.util.SortingCollection;
 import htsjdk.samtools.util.StringUtil;
@@ -109,7 +108,7 @@ END_DOC
 	description="generate a VCF file from bam coverage",
 	keywords={"cnv","bam","depth","coverage"},
 	creationDate="20200618",
-	modificationDate="20200618",
+	modificationDate="20261007",
 	generate_doc=false,
 	menu="BAM Visualization"
 	)
@@ -186,7 +185,6 @@ public class CoverageMatrix extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		
-		VariantContextWriter w = null;
 		try
 			{
 			final IndexCovUtils indexCovUtils = new IndexCovUtils(this.indexCovTreshold);
@@ -226,220 +224,220 @@ public class CoverageMatrix extends Launcher {
 			
 			final Set<VCFHeaderLine> metaData = new HashSet<>();
 			
-			w = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile);
-			
-			final VCFFormatHeaderLine fmtNormDepth = new VCFFormatHeaderLine("D",1,VCFHeaderLineType.Float,"norm Depth");
-			metaData.add(fmtNormDepth);
-			final VCFFormatHeaderLine fmtStdDev = new VCFFormatHeaderLine("STDDEV",1,VCFHeaderLineType.Float,"standard deviation");
-			metaData.add(fmtStdDev);
-
-			final VCFInfoHeaderLine infoStdDev = new VCFInfoHeaderLine(fmtStdDev.getID(),1,VCFHeaderLineType.Float,"standard deviation");
-			metaData.add(infoStdDev);
-			final VCFInfoHeaderLine infoMedianD = new VCFInfoHeaderLine("MEDIAN",1,VCFHeaderLineType.Float,"median depth");
-			metaData.add(infoMedianD);
-			final VCFInfoHeaderLine infoNSamples = new VCFInfoHeaderLine("NSAMPLES",1,VCFHeaderLineType.Integer,"number of samples");
-			metaData.add(infoNSamples);
-			final VCFInfoHeaderLine infoSamples = new VCFInfoHeaderLine("SAMPLES",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Samples");
-			metaData.add(infoSamples);
-			final VCFFilterHeaderLine filterAll = new VCFFilterHeaderLine("ALL_AFFECTED","All Samples carry a variant");
-			metaData.add(filterAll);
-			
-			
-			VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.END_KEY);
-			VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
-			final VCFHeader vcfheader= new VCFHeader(metaData,idx2samples);
-			vcfheader.setSequenceDictionary(dict);
-			JVarkitVersion.getInstance().addMetaData(this, vcfheader);
-			w.writeHeader(vcfheader);
-			
-			for(final SAMSequenceRecord ssr: dict.getSequences()) {
-				if(!StringUtils.isBlank(restrictContig) && !restrictContig.equals(ssr.getSequenceName())) continue;
-				final int depth[]= new int[ssr.getSequenceLength()];
-				final BitSet blackListedPositions = new BitSet(depth.length);
-								
-				// fill black listed regions
-				if(this.blackListedPath!=null) {
-					try(TabixReader tbr= new TabixReader(this.blackListedPath.toString())) {
-						final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
-						final String ctg = cvt.apply(ssr.getSequenceName());
-						if(!StringUtils.isBlank(ctg)) {
-							final BedLineCodec codec = new BedLineCodec();
-							final TabixReader.Iterator tbxr = tbr.query(ctg,1, ssr.getSequenceLength());
-							for(;;) {
-								final String line = tbxr.next();
-								if(line==null) break;
-								final BedLine bed = codec.decode(line);
-								if(bed==null) continue;
-								int p1 = Math.max(bed.getStart(),1);
-								while(p1 <= ssr.getSequenceLength()  && p1 <= bed.getEnd()) {
-									blackListedPositions.set(p1-1);
-									++p1;
+			try(VariantContextWriter w = this.writingVariantsDelegate.dictionary(dict).open(this.outputFile)) {
+				
+				final VCFFormatHeaderLine fmtNormDepth = new VCFFormatHeaderLine("D",1,VCFHeaderLineType.Float,"norm Depth");
+				metaData.add(fmtNormDepth);
+				final VCFFormatHeaderLine fmtStdDev = new VCFFormatHeaderLine("STDDEV",1,VCFHeaderLineType.Float,"standard deviation");
+				metaData.add(fmtStdDev);
+	
+				final VCFInfoHeaderLine infoStdDev = new VCFInfoHeaderLine(fmtStdDev.getID(),1,VCFHeaderLineType.Float,"standard deviation");
+				metaData.add(infoStdDev);
+				final VCFInfoHeaderLine infoMedianD = new VCFInfoHeaderLine("MEDIAN",1,VCFHeaderLineType.Float,"median depth");
+				metaData.add(infoMedianD);
+				final VCFInfoHeaderLine infoNSamples = new VCFInfoHeaderLine("NSAMPLES",1,VCFHeaderLineType.Integer,"number of samples");
+				metaData.add(infoNSamples);
+				final VCFInfoHeaderLine infoSamples = new VCFInfoHeaderLine("SAMPLES",VCFHeaderLineCount.UNBOUNDED,VCFHeaderLineType.String,"Samples");
+				metaData.add(infoSamples);
+				final VCFFilterHeaderLine filterAll = new VCFFilterHeaderLine("ALL_AFFECTED","All Samples carry a variant");
+				metaData.add(filterAll);
+				
+				
+				VCFStandardHeaderLines.addStandardInfoLines(metaData, true, VCFConstants.END_KEY);
+				VCFStandardHeaderLines.addStandardFormatLines(metaData, true, VCFConstants.GENOTYPE_KEY);
+				final VCFHeader vcfheader= new VCFHeader(metaData,idx2samples);
+				vcfheader.setSequenceDictionary(dict);
+				JVarkitVersion.getInstance().addMetaData(this, vcfheader);
+				w.writeHeader(vcfheader);
+				
+				for(final SAMSequenceRecord ssr: dict.getSequences()) {
+						if(!StringUtils.isBlank(restrictContig) && !restrictContig.equals(ssr.getSequenceName())) continue;
+						final int depth[]= new int[ssr.getSequenceLength()];
+						final BitSet blackListedPositions = new BitSet(depth.length);
+										
+						// fill black listed regions
+						if(this.blackListedPath!=null) {
+							try(TabixReader tbr= new TabixReader(this.blackListedPath.toString())) {
+								final ContigNameConverter cvt = ContigNameConverter.fromContigSet(tbr.getChromosomes());
+								final String ctg = cvt.apply(ssr.getSequenceName());
+								if(!StringUtils.isBlank(ctg)) {
+									final BedLineCodec codec = new BedLineCodec();
+									final TabixReader.Iterator tbxr = tbr.query(ctg,1, ssr.getSequenceLength());
+									for(;;) {
+										final String line = tbxr.next();
+										if(line==null) break;
+										final BedLine bed = codec.decode(line);
+										if(bed==null) continue;
+										int p1 = Math.max(bed.getStart(),1);
+										while(p1 <= ssr.getSequenceLength()  && p1 <= bed.getEnd()) {
+											blackListedPositions.set(p1-1);
+											++p1;
+											}
+										}
 									}
 								}
+							catch(Throwable err) {
+								LOG.warn(err);
+								}
 							}
-						}
-					catch(Throwable err) {
-						LOG.warn(err);
-						}
-					}
-				
-				final SortingCollection<CovItem> sorter = SortingCollection.newInstance(
-						CovItem.class, new CovItemCodec(),
-						(A,B)->A.compare0(B),
-						this.writingSortingCollection.getMaxRecordsInRam(),
-						this.writingSortingCollection.getTmpPaths()
-						);
-				
-				
-				for(int bam_idx=0;bam_idx<inputBams.size();++bam_idx) {
-					final Path path = inputBams.get(bam_idx);
-					LOG.info(ssr.getContig()+":"+path+" "+bam_idx+"/"+inputBams.size());
-					try(SamReader sr = samReaderFactory.open(path)) {
-						final SAMFileHeader header= sr.getFileHeader();
 						
-						SequenceUtil.assertSequenceDictionariesEqual(dict,header.getSequenceDictionary());
-						Arrays.fill(depth, 0);
-						try(CloseableIterator<SAMRecord> siter = sr.queryOverlapping(ssr.getContig(), 1, ssr.getLengthOnReference())) {
-							while(siter.hasNext()) {
-								final SAMRecord rec= siter.next();
-								if(rec.getReadUnmappedFlag()) continue;
-								if(!SAMRecordDefaultFilter.accept(rec, this.min_mapq)) continue;
-								int ref=rec.getStart();
-								final Cigar cigar = rec.getCigar();
-								if(cigar==null) continue;
+						final SortingCollection<CovItem> sorter = SortingCollection.newInstance(
+								CovItem.class, new CovItemCodec(),
+								(A,B)->A.compare0(B),
+								this.writingSortingCollection.getMaxRecordsInRam(),
+								this.writingSortingCollection.getTmpPaths()
+								);
+						
+						
+						for(int bam_idx=0;bam_idx<inputBams.size();++bam_idx) {
+							final Path path = inputBams.get(bam_idx);
+							LOG.info(ssr.getContig()+":"+path+" "+bam_idx+"/"+inputBams.size());
+							try(SamReader sr = samReaderFactory.open(path)) {
+								final SAMFileHeader header= sr.getFileHeader();
 								
-								for(CigarElement ce:cigar) {
-									final CigarOperator op = ce.getOperator();
-									final int len = ce.getLength();
-									if(op.consumesReferenceBases()) {
-										if(op.consumesReadBases()) {
-											for(int i=0;i< len;i++) {
-												final int pos = ref+i;
-												if(pos < 1) continue;
-												if(pos > ssr.getLengthOnReference()) break;
-												depth[pos-1]++;
+								SequenceUtil.assertSequenceDictionariesEqual(dict,header.getSequenceDictionary());
+								Arrays.fill(depth, 0);
+								try(CloseableIterator<SAMRecord> siter = sr.queryOverlapping(ssr.getContig(), 1, ssr.getLengthOnReference())) {
+									while(siter.hasNext()) {
+										final SAMRecord rec= siter.next();
+										if(rec.getReadUnmappedFlag()) continue;
+										if(!SAMRecordDefaultFilter.accept(rec, this.min_mapq)) continue;
+										int ref=rec.getStart();
+										final Cigar cigar = rec.getCigar();
+										if(cigar==null) continue;
+										
+										for(CigarElement ce:cigar) {
+											final CigarOperator op = ce.getOperator();
+											final int len = ce.getLength();
+											if(op.consumesReferenceBases()) {
+												if(op.consumesReadBases()) {
+													for(int i=0;i< len;i++) {
+														final int pos = ref+i;
+														if(pos < 1) continue;
+														if(pos > ssr.getLengthOnReference()) break;
+														depth[pos-1]++;
+														}
+													}
+												ref+=len;
 												}
-											}
-										ref+=len;
-										}
-									}// loop cigar
-								}// end samItere
-						} // try
-		
-					final DiscreteMedian<Integer> discreteMedian = new DiscreteMedian<>();
-					int pos=0;
-					while(pos< depth.length) {
-						if(!blackListedPositions.get(pos) && depth[pos]<=this.max_depth) {
-							discreteMedian.add(depth[pos]);
+											}// loop cigar
+										}// end samItere
+								} // try
+				
+							final DiscreteMedian<Integer> discreteMedian = new DiscreteMedian<>();
+							int pos=0;
+							while(pos< depth.length) {
+								if(!blackListedPositions.get(pos) && depth[pos]<=this.max_depth) {
+									discreteMedian.add(depth[pos]);
+									}
+								++pos;
+								}
+							final double median = discreteMedian.getMedian().orElse(1.0);
+							LOG.info(idx2samples.get(bam_idx)+ " :"+ssr.getSequenceName()+" median depth:"+median);
+							
+							final DiscreteMedian<Integer> localMedian = new DiscreteMedian<>();
+							pos=0;
+							while(pos< depth.length) {
+								if(blackListedPositions.get(pos) /* non pas maxdepth */) {
+									++pos;
+									continue;
+									}
+								int pos2=pos;
+								localMedian.clear();
+								while(pos2 -pos < this.bin_size && pos2< depth.length && !blackListedPositions.get(pos2)) {
+									// consider this.max_depth here ?
+									localMedian.add(depth[pos2]);
+									++pos2;
+									}
+								if(pos2 -pos == this.bin_size) {
+									final double localMed = localMedian.getMedian().orElse(0.0);
+									final CovItem item = new CovItem();
+									item.pos = pos;
+									item.sample_idx = bam_idx;
+									item.depth = (float)(localMed/median);
+									item.stddev = (float)localMedian.getStandardDeviation().orElse(-1.0);
+									sorter.add(item);
+									}
+								pos = pos2;
+								}
+							}//end loop over samples
+						}//end loop over bams
+					sorter.doneAdding();
+					sorter.setDestructiveIteration(true);
+						
+					final CloseableIterator<CovItem> iter = sorter.iterator();
+					final EqualRangeIterator<CovItem> iter2 = new EqualRangeIterator<>(iter,(A,B)->Integer.compare(A.pos, B.pos));
+					final Allele REF = Allele.create("N", true);
+					final Allele DEL = Allele.create("<DEL>", false);
+					final Allele DUP = Allele.create("<DUP>", false);
+					while(iter2.hasNext()) {
+						final List<CovItem> list = iter2.next();
+						final CovItem first = list.get(0);
+						final double avg_depth = list.stream().mapToDouble(F->F.depth).average().orElse(0);
+						final double sum =  list.stream().mapToDouble(F->F.depth).map(D->Math.pow(D - avg_depth,2.0)).sum();
+						final double stdDev = Math.sqrt(sum/list.size());
+						
+						final OptionalDouble optMedianOfmedian = Percentile.median().evaluate(list.stream().mapToDouble(I->I.depth));
+						final double medianOfmedian = optMedianOfmedian.orElse(1.0);
+						if(medianOfmedian<=0) continue;
+						for(int i=0;i< list.size();i++) {
+							list.get(i).depth/=(float)medianOfmedian;
 							}
-						++pos;
-						}
-					final double median = discreteMedian.getMedian().orElse(1.0);
-					LOG.info(idx2samples.get(bam_idx)+ " :"+ssr.getSequenceName()+" median depth:"+median);
+						if( list.stream().allMatch(F->Float.isNaN(F.depth) || Float.isInfinite(F.depth))) continue;
+						
+						final VariantContextBuilder vcb = new VariantContextBuilder();
+						vcb.chr(ssr.getContig());
+						vcb.start(first.pos+1);
+						vcb.stop(first.pos+this.bin_size);
+						vcb.attribute(VCFConstants.END_KEY, first.pos+this.bin_size);
+						vcb.attribute(infoStdDev.getID(), stdDev);
+						vcb.attribute(infoMedianD.getID(), medianOfmedian);
+						
+						final Set<Allele> alleles = new HashSet<>();
+						alleles.add(REF);
+						final List<Genotype> genotypes = new ArrayList<>(list.size());
+						final Set<String> affected= new TreeSet<>();
 					
-					final DiscreteMedian<Integer> localMedian = new DiscreteMedian<>();
-					pos=0;
-					while(pos< depth.length) {
-						if(blackListedPositions.get(pos) /* non pas maxdepth */) {
-							++pos;
-							continue;
+						for(int i=0;i< list.size();i++) {
+							final CovItem item = list.get(i);
+							final String sn = idx2samples.get(item.sample_idx);
+							final GenotypeBuilder gb;
+							switch(indexCovUtils.getType(item.depth))
+								{
+								case AMBIGOUS: gb = new GenotypeBuilder(sn,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));break;
+								case HET_DEL: alleles.add(DEL);gb = new GenotypeBuilder(sn,Arrays.asList(REF,DEL));affected.add(sn);break;
+								case HOM_DEL: alleles.add(DEL);gb = new GenotypeBuilder(sn,Arrays.asList(DEL,DEL));affected.add(sn);break;
+								case HET_DUP: alleles.add(DUP);gb = new GenotypeBuilder(sn,Arrays.asList(REF,DUP));affected.add(sn);break;
+								case HOM_DUP: alleles.add(DUP);gb = new GenotypeBuilder(sn,Arrays.asList(DUP,DUP));affected.add(sn);break;
+								case REF: gb = new GenotypeBuilder(sn,Arrays.asList(REF,REF));break;
+								default: throw new IllegalStateException();
+								}
+							gb.attribute(fmtNormDepth.getID(), item.depth);
+							gb.attribute(fmtStdDev.getID(), item.stddev);
+							genotypes.add(gb.make());
 							}
-						int pos2=pos;
-						localMedian.clear();
-						while(pos2 -pos < this.bin_size && pos2< depth.length && !blackListedPositions.get(pos2)) {
-							// consider this.max_depth here ?
-							localMedian.add(depth[pos2]);
-							++pos2;
+						if(affected.isEmpty()) continue;
+						
+						if(affected.size()==inputBams.size()) {
+							vcb.filter(filterAll.getID());
 							}
-						if(pos2 -pos == this.bin_size) {
-							final double localMed = localMedian.getMedian().orElse(0.0);
-							final CovItem item = new CovItem();
-							item.pos = pos;
-							item.sample_idx = bam_idx;
-							item.depth = (float)(localMed/median);
-							item.stddev = (float)localMedian.getStandardDeviation().orElse(-1.0);
-							sorter.add(item);
+						else
+							{
+							vcb.passFilters();
 							}
-						pos = pos2;
+						vcb.attribute(infoSamples.getID(), new ArrayList<>(affected));
+						vcb.attribute(infoNSamples.getID(), affected.size());
+						
+						vcb.genotypes(genotypes);
+						vcb.alleles(alleles);
+						w.add(vcb.make());
 						}
-					}//end loop over samples
-				}//end loop over bams
-			sorter.doneAdding();
-			sorter.setDestructiveIteration(true);
-				
-			final CloseableIterator<CovItem> iter = sorter.iterator();
-			final EqualRangeIterator<CovItem> iter2 = new EqualRangeIterator<>(iter,(A,B)->Integer.compare(A.pos, B.pos));
-			final Allele REF = Allele.create("N", true);
-			final Allele DEL = Allele.create("<DEL>", false);
-			final Allele DUP = Allele.create("<DUP>", false);
-			while(iter2.hasNext()) {
-				final List<CovItem> list = iter2.next();
-				final CovItem first = list.get(0);
-				final double avg_depth = list.stream().mapToDouble(F->F.depth).average().orElse(0);
-				final double sum =  list.stream().mapToDouble(F->F.depth).map(D->Math.pow(D - avg_depth,2.0)).sum();
-				final double stdDev = Math.sqrt(sum/list.size());
-				
-				final OptionalDouble optMedianOfmedian = Percentile.median().evaluate(list.stream().mapToDouble(I->I.depth));
-				final double medianOfmedian = optMedianOfmedian.orElse(1.0);
-				if(medianOfmedian<=0) continue;
-				for(int i=0;i< list.size();i++) {
-					list.get(i).depth/=(float)medianOfmedian;
-					}
-				if( list.stream().allMatch(F->Float.isNaN(F.depth) || Float.isInfinite(F.depth))) continue;
-				
-				final VariantContextBuilder vcb = new VariantContextBuilder();
-				vcb.chr(ssr.getContig());
-				vcb.start(first.pos+1);
-				vcb.stop(first.pos+this.bin_size);
-				vcb.attribute(VCFConstants.END_KEY, first.pos+this.bin_size);
-				vcb.attribute(infoStdDev.getID(), stdDev);
-				vcb.attribute(infoMedianD.getID(), medianOfmedian);
-				
-				final Set<Allele> alleles = new HashSet<>();
-				alleles.add(REF);
-				final List<Genotype> genotypes = new ArrayList<>(list.size());
-				final Set<String> affected= new TreeSet<>();
-			
-				for(int i=0;i< list.size();i++) {
-					final CovItem item = list.get(i);
-					final String sn = idx2samples.get(item.sample_idx);
-					final GenotypeBuilder gb;
-					switch(indexCovUtils.getType(item.depth))
-						{
-						case AMBIGOUS: gb = new GenotypeBuilder(sn,Arrays.asList(Allele.NO_CALL,Allele.NO_CALL));break;
-						case HET_DEL: alleles.add(DEL);gb = new GenotypeBuilder(sn,Arrays.asList(REF,DEL));affected.add(sn);break;
-						case HOM_DEL: alleles.add(DEL);gb = new GenotypeBuilder(sn,Arrays.asList(DEL,DEL));affected.add(sn);break;
-						case HET_DUP: alleles.add(DUP);gb = new GenotypeBuilder(sn,Arrays.asList(REF,DUP));affected.add(sn);break;
-						case HOM_DUP: alleles.add(DUP);gb = new GenotypeBuilder(sn,Arrays.asList(DUP,DUP));affected.add(sn);break;
-						case REF: gb = new GenotypeBuilder(sn,Arrays.asList(REF,REF));break;
-						default: throw new IllegalStateException();
-						}
-					gb.attribute(fmtNormDepth.getID(), item.depth);
-					gb.attribute(fmtStdDev.getID(), item.stddev);
-					genotypes.add(gb.make());
-					}
-				if(affected.isEmpty()) continue;
-				
-				if(affected.size()==inputBams.size()) {
-					vcb.filter(filterAll.getID());
-					}
-				else
-					{
-					vcb.passFilters();
-					}
-				vcb.attribute(infoSamples.getID(), new ArrayList<>(affected));
-				vcb.attribute(infoNSamples.getID(), affected.size());
-				
-				vcb.genotypes(genotypes);
-				vcb.alleles(alleles);
-				w.add(vcb.make());
-				}
-			iter2.close();
-			iter.close();
-			sorter.cleanup();
-			System.gc();
-			}// end while iter
-			w.close();w=null;
+					iter2.close();
+					iter.close();
+					sorter.cleanup();
+					System.gc();
+					}// end while iter
+				}// end variantContextWriter
 			return 0;
 			}
 		catch(final Throwable err)
@@ -447,10 +445,7 @@ public class CoverageMatrix extends Launcher {
 			LOG.error(err);
 			return -1;
 			}
-		finally
-			{
-			CloserUtil.close(w);
-			}
+		
 		}
 
 public static void main(final String[] args) {

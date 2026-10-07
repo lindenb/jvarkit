@@ -23,7 +23,7 @@ SOFTWARE.
 
 
 */
-package com.github.lindenb.jvarkit.tools.vcfviewgui;
+package com.github.lindenb.jvarkit.tools.swingbamview;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -164,10 +164,6 @@ public class SwingBamView extends Launcher {
 	@Parameter(names={"--gff","--gff3"},description="Tabix-Indexed GFF3 File")
 	private String gffFile = null;
 
-		
-	
-	
-	
 	private static class BamFile {
 		final Path path;
 		String sn;
@@ -177,7 +173,6 @@ public class SwingBamView extends Launcher {
 			this.path = path;
 			this.sn = IOUtils.getFilenameWithoutCommonSuffixes(path);
 			}
-		
 		String getName() {
 			return this.sn;
 		}

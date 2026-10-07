@@ -93,6 +93,7 @@
       <class name="com.github.lindenb.jvarkit.tools.vcfmulti2one.VcfMultiToOneTest"/>
       <class name="com.github.lindenb.jvarkit.tools.vcfcoocurrence.VcfCoOccurrenceTest"/>
       <class name="com.github.lindenb.jvarkit.tools.bam2bedgraph.BamsToBedGraphTest"/>
+      <class name="com.github.lindenb.jvarkit.tools.bammatrix.BamsMatrixTest"/>
     </classes>
   </test>
 </suite>

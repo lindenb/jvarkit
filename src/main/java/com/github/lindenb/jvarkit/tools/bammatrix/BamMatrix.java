@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 */
-package com.github.lindenb.jvarkit.tools.cmpbams;
+package com.github.lindenb.jvarkit.tools.bammatrix;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -78,7 +78,6 @@ import htsjdk.samtools.SamInputResource;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
@@ -105,16 +104,6 @@ input with two bam files (for comparing mappers)
 ```
 java  -jar dist/bammatrix.jar -r "chr1:234-567" -o out.png sample.markdup.01.bam sample.markdup.02.bam
 ```
-
-https://twitter.com/yokofakun/status/1142088565326843904
-
-![https://twitter.com/yokofakun/status/1142088565326843904](https://pbs.twimg.com/media/D9mDYo4WsAAOaSK.jpg)
-
-
-https://twitter.com/yokofakun/status/1038060108373286912
-
-![https://twitter.com/yokofakun/status/1038060108373286912](https://pbs.twimg.com/media/Dmft0cSXoAAp78l.jpg)
-
 END_DOC
 */
 
@@ -126,8 +115,7 @@ modificationDate="20211206",
 jvarkit_amalgamion = true,
 menu="CNV/SV"
 )
-public class BamMatrix  extends Launcher
-	{
+public class BamMatrix  extends Launcher {
 	private static final Logger LOG = Logger.of(BamMatrix.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
@@ -135,7 +123,7 @@ public class BamMatrix  extends Launcher
 	private Path faidx = null;
 	@Parameter(names={"-s","--size"},description="matrix size in pixel")
 	private int matrix_size = 1_000;
-	@Parameter(names={"-r","-r1","--region"},description="first region." + IntervalParser.OPT_DESC,required=true)
+	@Parameter(names={"-r","-r1","--region","--region1"},description="first region." + IntervalParser.OPT_DESC,required=true)
 	private String region1Str=null;
 	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParser.OPT_DESC)
 	private String region2Str=null;
@@ -725,8 +713,22 @@ public class BamMatrix  extends Launcher
 			}
 		finally
 			{
-			CloserUtil.close(this.samReaderX);
-			CloserUtil.close(this.samReaderY);
+			if(this.samReaderX!=null) {
+				try {
+					this.samReaderX.close();
+					}
+				catch(IOException err) {
+					//
+					}
+				}
+			if(this.samReaderY!=null) {
+				try {
+					this.samReaderY.close();
+					}
+				catch(IOException err) {
+					//
+					}
+				}
 			}
 		}
 	public static void main(final String[] args) {

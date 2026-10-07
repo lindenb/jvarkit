@@ -27,6 +27,7 @@ package com.github.lindenb.jvarkit.illumina;
 
 import java.util.Arrays;
 import com.github.lindenb.jvarkit.lang.CharSplitter;
+import com.github.lindenb.jvarkit.lang.StringUtils;
 
 import htsjdk.samtools.SAMRecord;
 
@@ -43,15 +44,9 @@ public class ShortReadName
 		
 		}
 	
-	private static boolean positiveInt(String s)
+	private static boolean positiveInt(final String s)
 		{
-		try {
-			Integer.parseInt(s);
-			return true;
-			} 
-		catch (NumberFormatException e) {
-			return false;
-			}
+		return StringUtils.isInteger(s);
 		}
 	
 	
