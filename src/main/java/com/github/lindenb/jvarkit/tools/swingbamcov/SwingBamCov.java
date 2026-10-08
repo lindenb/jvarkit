@@ -184,7 +184,12 @@ menu="BAM Manipulation"
 public class SwingBamCov extends Launcher
 	{
 	private static final int MAX_GFF3_ROWS = 10_000;
-
+	private static final Color[] HAP_COLORS = new Color[] {
+				new Color(245,249,252),
+				new Color(251,243,231),
+				new Color(237,246,241)
+				};
+	
 	private static final Logger LOG = Logger.of(SwingBamCov.class);
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
@@ -475,17 +480,10 @@ public class SwingBamCov extends Launcher
 			try {
 				final Hershey hershey = new Hershey();
 				final IntToDoubleFunction position2pixel = X->((X-region.getStart())/(double)region.getLengthOnReference())*rect_frame.getWidth() + rect_frame.getX();
-				final double hap_height = (rect_frame.getHeight()-margin_top)/ (is_phased?3.0:1.0);
 				for(int i=0;i< (is_phased?3:1);i++) {
 					final HaplotypePileup hap = new HaplotypePileup();
 					hap.pileup = new Pileup<>((L,R)->position2pixel.applyAsDouble(L.getUnclippedEnd()+1) +1  < position2pixel.applyAsDouble(R.getUnclippedStart()));
-					hap.rect= new Rectangle2D.Double(
-						rect_frame.getX(),
-						rect_frame.getY()+(i*hap_height)+margin_top,
-						rect_frame.getWidth(),
-						hap_height
-						);
-					hap.color=(i%2==0? Color.WHITE: new Color(240,240,240));
+					hap.color=(is_phased?HAP_COLORS[i]:Color.WHITE);
 					hapData.add(hap);
 					}
 				
@@ -530,17 +528,29 @@ public class SwingBamCov extends Launcher
 				
 				// phase 1 and 2 are empty, keep middle
 				if(hapData.size()==3 && !hapData.get(0).got_read  && !hapData.get(2).got_read) {
-					hapData.get(1).color = hapData.get(0).color;
+					hapData.get(1).color = Color.WHITE;
 					hapData.remove(2);
 					hapData.remove(0);
-					hapData.get(0).rect= new Rectangle2D.Double(
-							rect_frame.getX(),
-							rect_frame.getY()+margin_top,
-							rect_frame.getWidth(),
-							rect_frame.getHeight()-margin_top
-							);
 					}
-				
+				/** resize rectangles */
+
+				final double total_weight = hapData
+						.stream()
+						.mapToDouble(H->Math.max(1.0, (double)H.pileup.getRowCount()))
+						.max().orElse(1.0);								
+				double y = rect_frame.getY() + margin_top;
+				for(HaplotypePileup hap: hapData) {
+					// weight data
+					final double w = Math.max(1.0, (double)hap.pileup.getRowCount());
+					final double adjusted_height = (w/total_weight)*(rect_frame.getHeight()-margin_top);
+					hap.rect= new Rectangle2D.Double(
+							rect_frame.getX(),
+							y,
+							rect_frame.getWidth(),
+							adjusted_height*0.9
+							);
+					y+=adjusted_height;
+					}
 				
 				ReferenceSequence refInInterval=null;
 				 try (ReferenceSequenceFile refseq=ReferenceSequenceFileFactory.getReferenceSequenceFile(XFrame.this.referenceFile)) {
@@ -561,7 +571,6 @@ public class SwingBamCov extends Launcher
 			     for(HaplotypePileup hap: hapData) {
 			    	final double h= hap.rect.getHeight()/Math.max(1.0, hap.pileup.getRowCount());
 			    	featureHeight = Math.min(featureHeight, h);
-
 			     	}
 			     
 			     for(int hap_idx=0;hap_idx< hapData.size();++hap_idx) {
@@ -572,7 +581,7 @@ public class SwingBamCov extends Launcher
 				     g.setStroke(new BasicStroke(0.5f));
 				     g.setColor(Color.WHITE);
 				     
-				     double y= hap.rect.getMaxY()-featureHeight;
+				     y= hap.rect.getMaxY()-featureHeight;
 				     
 				     for(final List<SAMRecord> row: hap.pileup) {
 				    	final double h2= Math.min(featureHeight*0.9,featureHeight-2);
@@ -713,6 +722,10 @@ public class SwingBamCov extends Launcher
 				    		}
 				    	y-=featureHeight;
 				     	}
+				     if(is_phased) {
+				    	 g.setColor(Color.MAGENTA);
+						 g.draw(hap.rect);
+				     	}
 				     }
 			     
 			     g.setColor(Color.DARK_GRAY);
@@ -772,7 +785,7 @@ public class SwingBamCov extends Launcher
 								rect_frame.getWidth(),
 								hap_height
 								);
-						hap.color = (i%2==0?Color.WHITE:new Color(240,240,240));
+						hap.color = (is_phased? HAP_COLORS[i]: Color.WHITE);
 						
 						hapData.add(hap);
 						
@@ -950,7 +963,7 @@ public class SwingBamCov extends Launcher
 						// draw label at the botom
 						if(phasing_side+1==hapData.size()) {
 							g.setColor(Color.BLUE);
-							final int fontSize=Math.min(12,(int)(rect.getHeight()/10.0));
+							final int fontSize=Math.min(12,(int)(rect_frame.getHeight()/10.0));
 							g.setFont(new Font("Courier",Font.PLAIN,fontSize));
 							g.drawString(bam.sample+" (max DP: " + max_depth_any_phase+") "+ getGenes(loc).
 									filter(G->G.getType().equals("gene")).
