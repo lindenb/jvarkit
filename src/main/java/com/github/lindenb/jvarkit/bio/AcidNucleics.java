@@ -24,6 +24,7 @@ SOFTWARE.
 */
 package com.github.lindenb.jvarkit.bio;
 
+import java.awt.Color;
 import java.util.Set;
 
 import htsjdk.variant.variantcontext.Allele;
@@ -412,5 +413,15 @@ public static char basesToDegenerate(final Set<Character> bases) {
 		}
 	}
 
+/* convert base to color for GUI programs */
+public static Color baseToColor(char c) {
+	switch(c) {
+		case 'a': case 'A': return Color.RED;
+		case 't': case 'T': return Color.BLUE;
+		case 'c': case 'C': return Color.GREEN;
+		case 'g': case 'G': return Color.ORANGE;
+		default: return Color.BLACK;
+		}
+	}
 	
 }

@@ -102,6 +102,7 @@ import javax.xml.stream.XMLStreamWriter;
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLine;
 import com.github.lindenb.jvarkit.bed.BedLineReader;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.gff3.SwingGff3TableModel;
@@ -450,15 +451,7 @@ public class SwingBamCov extends Launcher
 			}
 		
 		private Color baseToColor(final char c) {
-			switch(c)
-				{
-				case 'A':case 'a': return Color.BLUE;
-				case 'T': case 't' : return Color.GREEN;
-				case 'C': case 'c': return Color.ORANGE;
-				case 'G': case 'g': return Color.RED;
-				default: break;
-				}
-			return Color.BLACK;
+			return  AcidNucleics.baseToColor(c);
 			}
 		
 		
@@ -1376,14 +1369,19 @@ public class SwingBamCov extends Launcher
 		final Optional<SimpleInterval> getUserInterval() {
 			final String s = this.jtextFieldLocation.getText().trim().replaceAll(",", "");
 			if(StringUtil.isBlank(s)) return Optional.empty();
-			
-			final String tokens[]=s.split("\\s+");
-			if(tokens.length==3 && StringUtils.isInteger(tokens[1]) && StringUtils.isInteger(tokens[2])) {
-				return  new IntervalParser(this.dict).
-						apply(tokens[0]+":"+tokens[1]+"-"+tokens[2]);
+			try {
+				final String tokens[]=s.split("\\s+");
+				if(tokens.length==3 && StringUtils.isInteger(tokens[1]) && StringUtils.isInteger(tokens[2])) {
+					return  new IntervalParser(this.dict).
+							apply(tokens[0]+":"+tokens[1]+"-"+tokens[2]);
+					}
+				
+				return new IntervalParser(this.dict).apply(s);
 				}
-			
-			return new IntervalParser(this.dict).apply(s);
+			catch(Throwable err) {
+				err.printStackTrace();
+				return Optional.empty();
+				}
 			}
 		
 		private void doMenuSaveIgvSession() {

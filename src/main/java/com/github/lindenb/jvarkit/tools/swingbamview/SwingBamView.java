@@ -80,8 +80,10 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 
 import com.beust.jcommander.Parameter;
+import com.github.lindenb.jvarkit.bio.AcidNucleics;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.hershey.Hershey;
+import com.github.lindenb.jvarkit.illumina.IlluminaConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.iterator.LineIterators;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
@@ -157,6 +159,11 @@ menu="BAM Manipulation"
 )
 public class SwingBamView extends Launcher {
 	private static final Logger LOG = Logger.of(SwingBamView.class);
+	private static final Color[] HAP_COLORS = new Color[] {
+			new Color(245,249,252),
+			new Color(251,243,231),
+			new Color(237,246,241)
+			};
 	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required=true)
 	private Path referenceFile = null;
 	@Parameter(names={"-V","--variant"},description="Indexed VCF File")
@@ -164,11 +171,13 @@ public class SwingBamView extends Launcher {
 	@Parameter(names={"--gff","--gff3"},description="Tabix-Indexed GFF3 File")
 	private String gffFile = null;
 
+	/** BAM/CRAM File */
 	private static class BamFile {
 		final Path path;
 		String sn;
 		SAMFileHeader header= null;
 		SamReader sr = null;
+		boolean is_truepath_phased=false;
 		BamFile(final Path path) {
 			this.path = path;
 			this.sn = IOUtils.getFilenameWithoutCommonSuffixes(path);
@@ -181,8 +190,9 @@ public class SwingBamView extends Launcher {
 			if(sr!=null) return;
 			final SamReaderFactory srf = SamReaderFactory.makeDefault();
 			srf.referenceSequence(referenceFile);
-			sr = srf.open(this.path);
-			header = sr.getFileHeader();
+			this.sr = srf.open(this.path);
+			this.header = sr.getFileHeader();
+			this.is_truepath_phased = IlluminaConstants.isDragenProximityEnabled(header);
 			}
 		
 		void close() {
@@ -201,6 +211,7 @@ public class SwingBamView extends Launcher {
 		}
 
 	
+	
 	@SuppressWarnings("serial")
 	private static class XFrame extends JFrame {
 		private final Path referenceFaidx;
@@ -216,7 +227,7 @@ public class SwingBamView extends Launcher {
 		private final JPanel drawingArea;
 		private final ReferenceSequenceFile referenceSequenceFile;
 		private String referenceStr = null;
-		private final List<List<Read>> rows = new Vector<>();
+		private final List<Haplotype> haplotypes = new Vector<>();
 		private final List<Gff3Feature> gff3features = new Vector<>();
 		private final JCheckBoxMenuItem jmenuShowClip;
 		private final JCheckBoxMenuItem jmenuShowDuplicates;
@@ -240,6 +251,11 @@ public class SwingBamView extends Launcher {
 		private final JMenuItem jmenuMappingQuality;
 		private final JMenu jMenuHyperlinks;
 		
+		/** haplotype for truepath phasing */
+		private static class Haplotype {
+			private final List<List<XFrame.Read>> rows = new Vector<>();
+			}
+		
 		private class Read extends Rectangle2D.Float implements Locatable {
 			private final SAMRecord rec;
 			Read(final SAMRecord rec) {
@@ -256,6 +272,23 @@ public class SwingBamView extends Launcher {
 			@Override
 			public int getEnd() {
 				return XFrame.this.isUsingClip()?rec.getUnclippedEnd():rec.getEnd();
+				}
+			
+			/** return Illumina TruePath haplotype 0 hap1, 1 undetermined, 2: hap 2*/
+			public int getHaplotype() {
+				 final Object hp_tag = rec.getAttribute(IlluminaConstants.TRUEPATH_HP);
+					if(hp_tag==null || !(hp_tag instanceof Number)) {
+						return 1;
+						}
+					else
+						{
+						final int hp_phase= Number.class.cast(hp_tag).intValue();
+						switch(hp_phase) {
+							case 1: return 0;//top
+							case 2: return 2;//bottom
+							default: return 1 ;//middle
+							}
+						}
 				}
 			
 			public String toHtml() {
@@ -403,6 +436,11 @@ public class SwingBamView extends Launcher {
 			this.referenceFaidx = referenceFaidx;
 			this.referenceSequenceFile = ReferenceSequenceFileFactory.getReferenceSequenceFile(this.referenceFaidx);
 			this.dict = SequenceDictionaryUtils.extractRequired(this.referenceSequenceFile);
+			for(int i=0;i<3;++i) {//phase 1, undetermined,phase 2
+				final Haplotype hap = new Haplotype();
+				this.haplotypes.add(hap);
+				}
+			
 			
 			final JPanel mainPanel=new JPanel(new BorderLayout());
 			this.setContentPane(mainPanel);
@@ -625,12 +663,14 @@ public class SwingBamView extends Launcher {
 			}/* END CONSTRUCTOR ********************************/
 		
 		private Optional<Read> findReadAt(final double x,final double y) {
-			for(List<Read> row: rows) {
-				if(row.isEmpty()) continue;
-				final Read first = row.get(0);
-				if(first.getMinY() > y ) continue;
-				if(first.getMaxY() < y ) continue;
-				return row.stream().filter(R->R.contains(x, y)).findAny();
+			for(Haplotype hap: this.haplotypes) {
+				for(List<Read> row: hap.rows) {
+					if(row.isEmpty()) continue;
+					final Read first = row.get(0);
+					if(first.getMinY() > y ) continue;
+					if(first.getMaxY() < y ) continue;
+					return row.stream().filter(R->R.contains(x, y)).findAny();
+					}
 				}
 			return Optional.empty();
 			}
@@ -686,13 +726,7 @@ public class SwingBamView extends Launcher {
 			}
 		
 		private Color base2color(char c) {
-			switch(c) {
-			case 'a': case 'A': return Color.RED;
-			case 't': case 'T': return Color.BLUE;
-			case 'c': case 'C': return Color.GREEN;
-			case 'g': case 'G': return Color.ORANGE;
-			default: return Color.BLACK;
-			}
+			return AcidNucleics.baseToColor(c);
 		}
 
 		private double getIntervalTitleHeight() { return jmenuShowIntervalTitle.isSelected()?12:0;}
@@ -830,142 +864,154 @@ public class SwingBamView extends Launcher {
 			final boolean show_bases = this.jmenuShowBases.isSelected();
 			final boolean show_insertions = this.jmenuShowInsertions.isSelected();
 			final boolean show_mismatches = this.jmenuShowMismatches.isSelected();
-
-			for(int rowidx= 0;rowidx< this.rows.size();rowidx++) {
-				final boolean row_is_visible=true;
-				final List<Read> row = this.rows.get(rowidx);
-				for(final Read read:row) {
-					read.x =  (float)pos2pixel(rgn,read.getStart());
-					read.y = (float)y;
-					read.width = (float)pos2pixel(rgn,read.getEnd()+1) - read.x;
-					read.height = (float)readRowHeight;					
-					
-					final Map<Integer,Integer> pos2insert_size = new HashMap<>();
-					final byte[] readBases = read.rec.getReadBases();
-					final Cigar cigar = read.rec.getCigar();
-					// horizontal line for deletions
-					if(row_is_visible && cigar.getCigarElements().stream().anyMatch(OP->OP.getOperator().equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
-						final double x0 = pos2pixel(rgn,read.rec.getStart());
-						final double x1 = pos2pixel(rgn,read.rec.getEnd());
-						g.setColor(Color.DARK_GRAY);
-						g.draw(new Line2D.Double(x0, y+readRowHeight/2.0, x1, y+readRowHeight/2.0));
-						}
-					
-					
-					int refpos = read.rec.getUnclippedStart();
-					int readpos=0;
-					int next_refpos=refpos;
-					int next_readpos=readpos;
-					for(int cx=0;cx<cigar.numCigarElements();++cx) {
-						// should we display an arrow at start/end ?
-						int arrow_type=0;
-						if(cx==0 && read.rec.getReadNegativeStrandFlag()) arrow_type=-1;
-						else if(cx+1==cigar.numCigarElements() && !read.rec.getReadNegativeStrandFlag()) arrow_type=1;
-						
-						final CigarElement ce = cigar.getCigarElement(cx);
-						final CigarOperator op = ce.getOperator();
-						final int len = ce.getLength();
-						Shape shape=null;
-						Color paper = Color.LIGHT_GRAY;
-						Color pen = Color.DARK_GRAY;
-						switch(op) {
-							case P:break;
-							case I: {
-								if(row_is_visible) {
-									pos2insert_size.put(refpos, len);
-									}
-								next_readpos+=len;
-								break;
-								}
-							case D: case N: {
-								if(row_is_visible) {
-									double x0 = pos2pixel(rgn,Math.max(rgn.getStart(), refpos));								
-									double x1 = pos2pixel(rgn,Math.min(rgn.getEnd(), refpos+len));
-									g.setColor(Color.BLACK);
-									String title = String.valueOf(len);
-									double dx = Math.min(title.length()*readRowHeight,(x1-x0));
-									hershey.paint(g, title, (x1-x0)/2.0-dx/2,y,dx,readRowHeight*0.95);
-									}
-								next_refpos+=len;
-								break;
-								}
-							case S: case H:{
-								if(row_is_visible && isUsingClip()) {
-									paper = Color.YELLOW;
-									shape = createShape(y,refpos,len,arrow_type);
-									}
-								if(op!=CigarOperator.H) next_readpos+= len;
-								next_refpos+= len;
-								break;
-								}
-							case M:case X: case EQ: {
-								if(row_is_visible) {
-									shape = createShape(y,refpos,len,arrow_type);
-									}
-								next_readpos+= len;
-								next_refpos+= len;
-								break;
-								}
-							default: throw new IllegalStateException();
-							}
-						
-						if(row_is_visible && shape!=null && paper!=null) {
-							g.setColor(paper);
-							g.fill(shape);
-							}
-						if(row_is_visible && shape!=null && pen!=null) {
-							g.setColor(pen);
-							g.draw(shape);
-							}
-						if(
-							((op.consumesReadBases() && !op.equals(CigarOperator.SOFT_CLIP)) ||
-							 (op.equals(CigarOperator.SOFT_CLIP) && isUsingClip())) &&
-							  readBases!=SAMRecord.NULL_SEQUENCE) {
-							for(int x=0;x< len;++x) {
-								if(refpos+x < rgn.getStart()) continue;
-								if(refpos+x > rgn.getEnd()) break;
-								char readBase = (char)readBases[readpos+x];
-								char refBase = referenceStr.charAt(refpos+x-rgn.getStart());
-								final boolean is_mimatch = Character.toUpperCase(readBase)!=Character.toUpperCase(refBase) && Character.toUpperCase(refBase)!='N';
-								final int[] coverage = base2coverage.get(Character.toLowerCase(readBase));
-								if(coverage!=null && refpos+x >= rgn.getStart() && refpos+x<=rgn.getEnd()) {
-									coverage[refpos+x-rgn.getStart()]++;
-									}
-								if(row_is_visible) {
-									if(is_mimatch && show_mismatches) {
-										g.setColor(Color.YELLOW);
-										double x0 = pos2pixel(rgn,refpos+x);								
-										double x1 = pos2pixel(rgn,refpos+x+1);
-										double y0 = y+ readRowHeight*0.05;
-										double y1 = y+ readRowHeight*0.95;
-										g.fill(new Rectangle2D.Double(x0, y0, (x1-x0), (y1-y0)));
-										}
-									if((is_mimatch && show_mismatches) || show_bases) {
-										g.setColor(base2color(readBase));					
-										hershey.paint(g,String.valueOf(readBase),
-											pos2pixel(rgn,refpos+x),
-											y,
-											getBasePixel(),
-											readRowHeight
-											);
-										}
-									}
-								}
-							}
-							
-						/* plot insertions */
-						if(row_is_visible && show_insertions) {
-							for(Integer pos:pos2insert_size.keySet()) {
-								final double x0 = pos2pixel(rgn,pos);
-								g.setColor(Color.RED);
-								g.fill(new Rectangle2D.Double(x0,y, 1, readRowHeight*0.95));
-								}
-							}
-						readpos= next_readpos;
-						refpos= next_refpos;
-						}
+			for(int hap_index=0;hap_index< this.haplotypes.size();++hap_index) {
+				final Haplotype hap =  haplotypes.get(hap_index);
+				if(bamFile.is_truepath_phased) {
+					g.setColor(HAP_COLORS[hap_index]);
+					g.fill(new Rectangle2D.Double(
+						this.drawingArea.getX(),
+						y,
+						this.drawingArea.getWidth(),
+						hap.rows.size()*readRowHeight
+						));
 					}
-				y+= readRowHeight;
+				
+				for(int rowidx= 0;rowidx< hap.rows.size();rowidx++) {
+					final boolean row_is_visible=true;
+					final List<Read> row = hap.rows.get(rowidx);
+					for(final Read read:row) {
+						read.x =  (float)pos2pixel(rgn,read.getStart());
+						read.y = (float)y;
+						read.width = (float)pos2pixel(rgn,read.getEnd()+1) - read.x;
+						read.height = (float)readRowHeight;					
+						
+						final Map<Integer,Integer> pos2insert_size = new HashMap<>();
+						final byte[] readBases = read.rec.getReadBases();
+						final Cigar cigar = read.rec.getCigar();
+						// horizontal line for deletions
+						if(row_is_visible && cigar.getCigarElements().stream().anyMatch(OP->OP.getOperator().equals(CigarOperator.D) || OP.equals(CigarOperator.N)) ) {
+							final double x0 = pos2pixel(rgn,read.rec.getStart());
+							final double x1 = pos2pixel(rgn,read.rec.getEnd());
+							g.setColor(Color.DARK_GRAY);
+							g.draw(new Line2D.Double(x0, y+readRowHeight/2.0, x1, y+readRowHeight/2.0));
+							}
+						
+						
+						int refpos = read.rec.getUnclippedStart();
+						int readpos=0;
+						int next_refpos=refpos;
+						int next_readpos=readpos;
+						for(int cx=0;cx<cigar.numCigarElements();++cx) {
+							// should we display an arrow at start/end ?
+							int arrow_type=0;
+							if(cx==0 && read.rec.getReadNegativeStrandFlag()) arrow_type=-1;
+							else if(cx+1==cigar.numCigarElements() && !read.rec.getReadNegativeStrandFlag()) arrow_type=1;
+							
+							final CigarElement ce = cigar.getCigarElement(cx);
+							final CigarOperator op = ce.getOperator();
+							final int len = ce.getLength();
+							Shape shape=null;
+							Color paper = Color.LIGHT_GRAY;
+							Color pen = Color.DARK_GRAY;
+							switch(op) {
+								case P:break;
+								case I: {
+									if(row_is_visible) {
+										pos2insert_size.put(refpos, len);
+										}
+									next_readpos+=len;
+									break;
+									}
+								case D: case N: {
+									if(row_is_visible) {
+										double x0 = pos2pixel(rgn,Math.max(rgn.getStart(), refpos));								
+										double x1 = pos2pixel(rgn,Math.min(rgn.getEnd(), refpos+len));
+										g.setColor(Color.BLACK);
+										String title = String.valueOf(len);
+										double dx = Math.min(title.length()*readRowHeight,(x1-x0));
+										hershey.paint(g, title, (x1-x0)/2.0-dx/2,y,dx,readRowHeight*0.95);
+										}
+									next_refpos+=len;
+									break;
+									}
+								case S: case H:{
+									if(row_is_visible && isUsingClip()) {
+										paper = Color.YELLOW;
+										shape = createShape(y,refpos,len,arrow_type);
+										}
+									if(op!=CigarOperator.H) next_readpos+= len;
+									next_refpos+= len;
+									break;
+									}
+								case M:case X: case EQ: {
+									if(row_is_visible) {
+										shape = createShape(y,refpos,len,arrow_type);
+										}
+									next_readpos+= len;
+									next_refpos+= len;
+									break;
+									}
+								default: throw new IllegalStateException();
+								}
+							
+							if(row_is_visible && shape!=null && paper!=null) {
+								g.setColor(paper);
+								g.fill(shape);
+								}
+							if(row_is_visible && shape!=null && pen!=null) {
+								g.setColor(pen);
+								g.draw(shape);
+								}
+							if(
+								((op.consumesReadBases() && !op.equals(CigarOperator.SOFT_CLIP)) ||
+								 (op.equals(CigarOperator.SOFT_CLIP) && isUsingClip())) &&
+								  readBases!=SAMRecord.NULL_SEQUENCE) {
+								for(int x=0;x< len;++x) {
+									if(refpos+x < rgn.getStart()) continue;
+									if(refpos+x > rgn.getEnd()) break;
+									char readBase = (char)readBases[readpos+x];
+									char refBase = referenceStr.charAt(refpos+x-rgn.getStart());
+									final boolean is_mimatch = Character.toUpperCase(readBase)!=Character.toUpperCase(refBase) && Character.toUpperCase(refBase)!='N';
+									final int[] coverage = base2coverage.get(Character.toLowerCase(readBase));
+									if(coverage!=null && refpos+x >= rgn.getStart() && refpos+x<=rgn.getEnd()) {
+										coverage[refpos+x-rgn.getStart()]++;
+										}
+									if(row_is_visible) {
+										if(is_mimatch && show_mismatches) {
+											g.setColor(Color.YELLOW);
+											double x0 = pos2pixel(rgn,refpos+x);								
+											double x1 = pos2pixel(rgn,refpos+x+1);
+											double y0 = y+ readRowHeight*0.05;
+											double y1 = y+ readRowHeight*0.95;
+											g.fill(new Rectangle2D.Double(x0, y0, (x1-x0), (y1-y0)));
+											}
+										if((is_mimatch && show_mismatches) || show_bases) {
+											g.setColor(base2color(readBase));					
+											hershey.paint(g,String.valueOf(readBase),
+												pos2pixel(rgn,refpos+x),
+												y,
+												getBasePixel(),
+												readRowHeight
+												);
+											}
+										}
+									}
+								}
+								
+							/* plot insertions */
+							if(row_is_visible && show_insertions) {
+								for(Integer pos:pos2insert_size.keySet()) {
+									final double x0 = pos2pixel(rgn,pos);
+									g.setColor(Color.RED);
+									g.fill(new Rectangle2D.Double(x0,y, 1, readRowHeight*0.95));
+									}
+								}
+							readpos= next_readpos;
+							refpos= next_refpos;
+							}
+						}
+					y+= readRowHeight;
+					}
 				}
 			if(coverage_top < coverage_bottom) {
 				double max_cov=0;
@@ -1016,7 +1062,9 @@ public class SwingBamView extends Launcher {
 				
 				final BamFile f = getSelectedBamFile();
 				if(f==null) return;
-				this.rows.clear();
+				for(Haplotype hap: this.haplotypes) {
+					hap.rows.clear();
+					}
 				this.all_variants_list.clear();
 				this.gff3features.clear();
 				
@@ -1058,25 +1106,28 @@ public class SwingBamView extends Launcher {
 				final List<Read> buffer= new ArrayList<>(fetchReads());
 				while(!buffer.isEmpty()) {
 					final Read read = buffer.remove(0);
+					final Haplotype hap = this.haplotypes.get(read.getHaplotype());
 					int y = 0;
-					for(y=0;y< this.rows.size();++y) {
-						final List<Read> row = this.rows.get(y);
+					for(y=0;y< hap.rows.size();++y) {
+						final List<Read> row = hap.rows.get(y);
 						final Read last = row.get(row.size()-1);
 						if(last.getEnd() + 1  >= read.getStart()) continue;
 						row.add(read);
 						break;
 						}
-					if(y==this.rows.size()) {
+					if(y==hap.rows.size()) {
 						final List<Read> row = new Vector<>();
 						row.add(read);
-						this.rows.add(row);
+						hap.rows.add(row);
 						}
 					}
 				}
 			else
 				{
 				this.referenceStr = "";
-				this.rows.clear();
+				for(Haplotype hap:this.haplotypes) {
+					hap.rows.clear();
+					}
 				this.gff3features.clear();
 				}
 			adjustScrollBar();
@@ -1084,15 +1135,15 @@ public class SwingBamView extends Launcher {
 			}
 
 		public void adjustScrollBar() {
-						
+			final int n_rows = this.haplotypes.stream().mapToInt(hap->hap.rows.size()).sum();
 			int n_visible = Math.max(1, (int)Math.floor((this.drawingArea.getHeight() - getMarginTop())/getReadRowHeight()));
-			if(n_visible<=rows.size()) {
+			if(n_visible<= n_rows) {
 				this.vScrollBar.setValues(0, 0, 0, 0);
 				}
 			else
 				{
 				this.vScrollBar.setValues(
-						0,n_visible,1, rows.size()-n_visible
+						0,n_visible,1, n_rows-n_visible
 						);
 				}
 			}
@@ -1112,8 +1163,9 @@ public class SwingBamView extends Launcher {
 			}
 		
 		final double getReadRowHeight() {
+			final int row_size = this.haplotypes.stream().mapToInt(H->H.rows.size()).sum();
 			final double remain_height = (drawingArea.getHeight()-5) - getMarginTop();
-			final double row_height = remain_height/ this.rows.size();
+			final double row_height = remain_height/ row_size;
 			return Math.min(row_height, 30);
 			}
 		
@@ -1126,19 +1178,23 @@ public class SwingBamView extends Launcher {
 			}
 			
 		final Optional<SimpleInterval> getUserInterval() {
-			final String s = this.jtextFieldLocation.getText().trim();
+			final String s = this.jtextFieldLocation.getText().trim().replaceAll(",", "");
 			if(StringUtil.isBlank(s)) return Optional.empty();
-			Optional<SimpleInterval> ret;
-
 			try {
-				ret = new IntervalParser(this.dict).
+				final String tokens[]=s.split("\\s+");
+				if(tokens.length==3 && StringUtils.isInteger(tokens[1]) && StringUtils.isInteger(tokens[2])) {
+					return  new IntervalParser(this.dict).
+							apply(tokens[0]+":"+tokens[1]+"-"+tokens[2]);
+					}
+			
+				return new IntervalParser(this.dict).
 					apply(s);
 				}
 			catch(Throwable err) {
+				err.printStackTrace();
 				return Optional.empty();
 				}
 		
-			return ret;
 			}
 	
 		/** fetch Read for current bam, and current interval **/
@@ -1204,23 +1260,15 @@ public class SwingBamView extends Launcher {
 	@Override
 	public int doWork(final List<String> args) {
 		try {
-			if(IOUtils.unrollPaths(args).isEmpty()) {
-				LOG.error("no BAM/CRAM was provided");
-				return -1;
-				}
-			
-			JFrame.setDefaultLookAndFeelDecorated(true);
-		
-			
 			final List<Path> paths = IOUtils.unrollPaths(args);
-			if(paths.isEmpty()) {
-				LOG.warn("No File was provided");
-				return -1 ;
-				}
 			final List<BamFile> bamFiles = new ArrayList<>(paths.size());
 			for(final Path p:paths) {
 				final BamFile bf = new BamFile(p);
 				bf.open(this.referenceFile);
+				if(!bf.sr.hasIndex()) {
+					LOG.error("index missing for "+p);
+					return -1;
+					}
 				bf.sn = bf.header.getReadGroups().
 					stream().
 					map(RG->RG.getSample()).
@@ -1230,6 +1278,12 @@ public class SwingBamView extends Launcher {
 				bf.close();
 				bamFiles.add(bf);
 				}
+			if(bamFiles.isEmpty()) {
+				LOG.error("no BAM/CRAM was provided");
+				return -1;
+				}
+			JFrame.setDefaultLookAndFeelDecorated(true);
+
 			
 			final XFrame frame = new XFrame(this.referenceFile,bamFiles,this.variantFile,this.gffFile);
 			final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
