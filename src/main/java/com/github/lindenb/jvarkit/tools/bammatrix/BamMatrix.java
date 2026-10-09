@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -57,12 +58,16 @@ import com.github.lindenb.jvarkit.bed.BedLineCodec;
 import com.github.lindenb.jvarkit.bio.DistanceParser;
 import com.github.lindenb.jvarkit.bio.SequenceDictionaryUtils;
 import com.github.lindenb.jvarkit.hershey.Hershey;
+import com.github.lindenb.jvarkit.illumina.IlluminaConstants;
 import com.github.lindenb.jvarkit.io.IOUtils;
 import com.github.lindenb.jvarkit.jcommander.Launcher;
 import com.github.lindenb.jvarkit.jcommander.NoSplitter;
 import com.github.lindenb.jvarkit.jcommander.Program;
+import com.github.lindenb.jvarkit.lang.HasName;
+import com.github.lindenb.jvarkit.lang.JvarkitException;
 import com.github.lindenb.jvarkit.lang.StringUtils;
 import com.github.lindenb.jvarkit.locatable.SimpleInterval;
+import com.github.lindenb.jvarkit.locatable.SimplePosition;
 import com.github.lindenb.jvarkit.log.Logger;
 import com.github.lindenb.jvarkit.samtools.util.IntervalParser;
 import com.github.lindenb.jvarkit.util.bio.fasta.ContigNameConverter;
@@ -111,7 +116,7 @@ END_DOC
 description="Bam matrix, inspired from 10x/loupe ",
 keywords={"sam","bam","compare","matrix"},
 creationDate="20190620",
-modificationDate="20211206",
+modificationDate="20261009",
 jvarkit_amalgamion = true,
 menu="CNV/SV"
 )
@@ -119,13 +124,13 @@ public class BamMatrix  extends Launcher {
 	private static final Logger LOG = Logger.of(BamMatrix.class);
 	@Parameter(names={"-o","--output"},description=OPT_OUPUT_FILE_OR_STDOUT)
 	private File outputFile = null;
-	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION)
+	@Parameter(names={"-R","--reference"},description=INDEXED_FASTA_REFERENCE_DESCRIPTION,required = true)
 	private Path faidx = null;
 	@Parameter(names={"-s","--size"},description="matrix size in pixel")
 	private int matrix_size = 1_000;
 	@Parameter(names={"-r","-r1","--region","--region1"},description="first region." + IntervalParser.OPT_DESC,required=true)
 	private String region1Str=null;
-	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. " + IntervalParser.OPT_DESC)
+	@Parameter(names={"-r2","--region2"},description="2nd region. Default: use first region. syntax: chrom:pos (starting of second region length of region1 will be added")
 	private String region2Str=null;
 	@Parameter(names={"--name","-name"},description="user read name or use 'BX:Z:'/'MI:i:' attribute from 10x genomics  as the read name. \"Chromium barcode sequence that is error-corrected and confirmed against a list of known-good barcode sequences.\". See https://support.10xgenomics.com/genome-exome/software/pipelines/latest/output/bam")
 	private NameExtractor nameExtractor = NameExtractor.READ_NAME;
@@ -141,7 +146,7 @@ public class BamMatrix  extends Launcher {
 	private Path gtfPath = null;
 	@Parameter(names={"--higligth","-B"},description="Optional Bed file to hightlight regions of interest")
 	private String highlightPath = null;
-	@Parameter(names={"-d","--distance"},description="Don't evaluate a point if the distance between the regions is lower than 'd'. Negative: don't consider distance.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
+	@Parameter(names={"-d","--distance"},description="Don't evaluate a point if the distance between the regions on X and Y is lower than 'd'. Negative: don't consider distance.",converter=DistanceParser.StringConverter.class,splitter=NoSplitter.class)
 	private int min_distance = -1;
 	@Parameter(names={"-C","--min-common"},description="Don't print a point if there are less than 'c' common names at the intersection")
 	private int min_common_names = 0;
@@ -161,14 +166,67 @@ public class BamMatrix  extends Launcher {
 	private SimpleInterval userIntervalX = null;
 	/* user interval Y axis */
 	private SimpleInterval userIntervalY = null;
+	
+	
+	private static class Matrix2D {
+		final int size;
+		final int[] array;
+		Matrix2D(int size) {
+			this.size = size;
+			this.array = new int[size*size];
+			Arrays.fill(this.array,0);
+			}
+		private int offset(int x,int y) {
+			return y*this.size+x;
+			}
+		int get(int x,int y)  { return this.array[offset(x,y)];}
+		void set(int x,int y,int v)  {  this.array[offset(x,y)]=v;}
+	}
+	
+	private static class Read extends SimpleInterval implements HasName {
+		final String name;
+		Read(final String contig,int start,int end,final String name) {
+			super(contig,start,end);
+			this.name=name;
+			}
+		
+		@Override
+		public boolean equals(final Object obj) {
+			if(obj==this) return true;
+			if(obj==null) return false;
+			final Read o=Read.class.cast(obj);
+			return getStart()==o.getStart() && 
+					getEnd()==o.getEnd() && 
+					getContig().equals(o.getContig()) &&
+					getName().equals(o.getName())
+					;
+			}
+		
+		@Override
+		public int hashCode() {
+			return Objects.hash(getContig(),getStart(),getEnd(),getName());
+			}
+		
+		@Override
+		public String getName() {
+			return name;
+			}
+		@Override
+		public String toString() {
+			return getContig()+":"+getStart()+"-"+getEnd()+" "+getName();
+			}
+		
+		}
 		
 	private enum NameExtractor {
-		READ_NAME,BX,MI;
+		READ_NAME,BX,MI,TRUEPATH_PHASE1,TRUEPATH_PHASE2;
 		String getName(final SAMRecord rec) {
 			switch(this) {
 				case READ_NAME :  return rec.getReadName();
 				case BX: return rec.hasAttribute("BX")?String.class.cast(rec.getAttribute("BX")):null;
 				case MI: return rec.hasAttribute("MI")?String.valueOf(rec.getAttribute("MI")):null;
+				case TRUEPATH_PHASE1: return (IlluminaConstants.getTruePathPhase(rec).equals(IlluminaConstants.TruePathPhase.Phase_1)? rec.getReadName():null);
+				case TRUEPATH_PHASE2: return (IlluminaConstants.getTruePathPhase(rec).equals(IlluminaConstants.TruePathPhase.Phase_2)? rec.getReadName():null);
 				default: throw new IllegalStateException(this.name());
 				}
 			}
@@ -182,7 +240,6 @@ public class BamMatrix  extends Launcher {
 	/**  get the reads names in a given interval */
 	private abstract class ReadCounter
 		{
-		protected ReadCounter() throws IOException {}
 		/** return the names of the Read names in the interval */
 		protected abstract Set<String> getNamesMatching(int side,final Locatable r) throws IOException;
 		void dispose() throws IOException {}
@@ -191,65 +248,72 @@ public class BamMatrix  extends Launcher {
 	/** in memory implementation of ReadCounter: the fastest */
 	private class MemoryReadCounter extends ReadCounter
 		{
-		private final IntervalTreeMap<List<Interval>> treeMapX  = new IntervalTreeMap<>();
-		private final IntervalTreeMap<List<Interval>> treeMapY;
-		MemoryReadCounter()  throws IOException{
-			this.treeMapY = (samReaderY==samReaderX?treeMapX:new IntervalTreeMap<>());
-			for(int side=0;side<2;++side) {
-				@SuppressWarnings("resource")
-				final SamReader sr  =(side==0?samReaderX:samReaderY);
-				final IntervalTreeMap<List<Interval>> treeMap  =(side==0?treeMapX:treeMapY);
-				final QueryInterval[] qArray;
-				
-				final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(sr.getFileHeader());
-				if(samReaderY==samReaderX && side==0) {
-					final QueryInterval qIntervalX = new QueryInterval(dict.getSequenceIndex(userIntervalX.getContig()), userIntervalX.getStart(), userIntervalX.getEnd());
-					final QueryInterval qIntervalY = new QueryInterval(dict.getSequenceIndex(userIntervalY.getContig()), userIntervalY.getStart(), userIntervalY.getEnd());
-					qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalX,qIntervalY});
-					}
-				else if(side==0) {
-					final QueryInterval qIntervalX = new QueryInterval(dict.getSequenceIndex(userIntervalX.getContig()), userIntervalX.getStart(), userIntervalX.getEnd());
-					qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalX});
-					}
-				else if(side==1) {
-					final QueryInterval qIntervalY = new QueryInterval(dict.getSequenceIndex(userIntervalY.getContig()), userIntervalY.getStart(), userIntervalY.getEnd());
-					qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalY});
-					}
-				else{
-					break;
-					}
-				try(final SAMRecordIterator iter= sr.query(qArray, false))
-					{
-					while(iter.hasNext()) {
-						final SAMRecord rec = iter.next();
-						for(final Interval r: BamMatrix.this.samRecordToIntervals(rec)) {
-							List<Interval> list = treeMap.get(r);
-							if(list==null) {
-								list=new ArrayList<>();
-								treeMap.put(r,list);
-								}
-							list.add(r);
-							}	
-						}
-					}
-				}
+		private final List<Read> readsX;
+		private final List<Read> readsY;
+		MemoryReadCounter(final List<Read> readsX,final List<Read> readsY) {
+			this.readsX = readsX;
+			this.readsY = readsY;
 			}
 
 		@Override
 		protected Set<String> getNamesMatching(final int side,final Locatable r) throws IOException
 			{
 			if (!(side==0 || side==1)) throw new IllegalArgumentException("not 0/1");
-			final IntervalTreeMap<List<Interval>> treeMap  =(side==0?treeMapX:treeMapY);
-			return treeMap.getOverlapping(r).
+			final List<Read> treeMap  =(side==0?this.readsX:this.readsY);
+			return treeMap.
 					stream().
-					flatMap(L->L.stream()).
+					filter(R->R.overlaps(r)).
 					map(R->R.getName()).
 					collect(Collectors.toCollection(()->new HashSet<>(10_000)));
 			}
 
 		}
 	
-	
+	private MemoryReadCounter makeMemoryReadCounter() throws IOException {
+		final Set<Read> treeMapX  = new HashSet<>(100_000);
+		final Set<Read> treeMapY  = (this.samReaderY==this.samReaderX?treeMapX:new HashSet<>(100_000));
+		for(int side=0;side<2;++side) {
+			@SuppressWarnings("resource")
+			final SamReader sr  =(side==0?samReaderX:samReaderY);
+			final Set<Read> treeMap  =(side==0?treeMapX:treeMapY);
+			final QueryInterval[] qArray;
+			
+			final SAMSequenceDictionary dict = SequenceDictionaryUtils.extractRequired(sr.getFileHeader());
+			if(samReaderY==samReaderX) {
+				final QueryInterval qIntervalX = new QueryInterval(dict.getSequenceIndex(userIntervalX.getContig()), userIntervalX.getStart(), userIntervalX.getEnd());
+				final QueryInterval qIntervalY = new QueryInterval(dict.getSequenceIndex(userIntervalY.getContig()), userIntervalY.getStart(), userIntervalY.getEnd());
+				qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalX,qIntervalY});
+				}
+			else if(side==0) {
+				final QueryInterval qIntervalX = new QueryInterval(dict.getSequenceIndex(userIntervalX.getContig()), userIntervalX.getStart(), userIntervalX.getEnd());
+				qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalX});
+				}
+			else if(side==1) {
+				final QueryInterval qIntervalY = new QueryInterval(dict.getSequenceIndex(userIntervalY.getContig()), userIntervalY.getStart(), userIntervalY.getEnd());
+				qArray = QueryInterval.optimizeIntervals(new QueryInterval[] {qIntervalY});
+				}
+			else
+				{
+				//should not happen
+				break;
+				}
+		
+			try(final SAMRecordIterator iter= sr.query(qArray, false))
+				{
+				while(iter.hasNext()) {
+					final SAMRecord rec = iter.next();
+					for(final Read r: BamMatrix.this.samRecordToIntervals(rec)) {
+						treeMap.add(r);
+						}	
+					}
+				}
+			if(samReaderY==samReaderX && side==0) break;
+			}
+		return new MemoryReadCounter(
+				new ArrayList<>(treeMapX),
+				new ArrayList<>(treeMapY)
+				);	
+		}
 	
 	private boolean accept(final SAMRecord rec) {
 		if(rec.getReadUnmappedFlag()) return false;
@@ -260,20 +324,19 @@ public class BamMatrix  extends Launcher {
 		return true;
 	}
 	
-	private List<Interval> samRecordToIntervals(final SAMRecord rec) {
+	private List<Read> samRecordToIntervals(final SAMRecord rec) {
 		if(!accept(rec)) return Collections.emptyList();
 		
 		final String name = this.nameExtractor.getName(rec);
 		if(StringUtils.isBlank(name)) return Collections.emptyList();
-		final List<Interval> list=new ArrayList<>();
+		final List<Read> list=new ArrayList<>();
 		
 		for(final AlignmentBlock ab:rec.getAlignmentBlocks())
 			{
-			final Interval r = new Interval(
+			final Read r = new Read(
 					rec.getReferenceName(),
 					ab.getReferenceStart(),
-					ab.getReferenceStart()+ab.getLength(),
-					rec.getReadNegativeStrandFlag(),
+					ab.getReferenceStart()+ab.getLength()-1,
 					name
 					);
 			list.add(r);
@@ -286,11 +349,10 @@ public class BamMatrix  extends Launcher {
 					continue;
 					}
 											
-				final Interval r = new Interval(
+				final Read r = new Read(
 						rec2.getReferenceName(),
 						rec2.getStart(),
 						rec2.getStart(),
-						rec2.getReadNegativeStrandFlag(),
 						name
 						);
 				list.add(r);
@@ -299,7 +361,7 @@ public class BamMatrix  extends Launcher {
 		return list;
 		}
 	
-	private boolean validateDisance(final Interval r1,final Interval r2) {
+	private boolean validateDisance(final Locatable r1,final Locatable r2) {
 		if(min_distance<0) return true;
 		if(r1.withinDistanceOf(r2, this.min_distance)) return false;
 		return true;
@@ -312,16 +374,16 @@ public class BamMatrix  extends Launcher {
 			LOG.error("pixel size is too small ("+this.pixel_size+")");
 			return -1;
 			}
-		if(StringUtils.isBlank(region2Str)) {
-			this.region2Str = region1Str;
-		}
+		
 		try {
 			
 			final SamReaderFactory srf = SamReaderFactory.makeDefault().
+					referenceSequence(this.faidx).
 					validationStringency(ValidationStringency.LENIENT)
 					;
-			if(this.faidx!=null) srf.referenceSequence(this.faidx);
-						
+
+			this.dict= SequenceDictionaryUtils.extractRequired(this.faidx);
+			
 			final String inputX;
 			final String inputY;
 			if(args.size()==1) {
@@ -336,13 +398,18 @@ public class BamMatrix  extends Launcher {
 				LOG.error("illegal number of arguments.");
 				return -1;
 				}
+			/* open first BAM file  */
 			this.samReaderX = srf.open(SamInputResource.of(inputX));
 			if(!this.samReaderX.hasIndex()) {
 				LOG.error("Input "+inputX+" is not indexed");
 				return -1;
 				}
-			this.dict = SequenceDictionaryUtils.extractRequired(this.samReaderX.getFileHeader());
-			
+			SequenceUtil.assertSequenceDictionariesEqual(
+					SequenceDictionaryUtils.extractRequired(this.samReaderX.getFileHeader()),
+					this.dict
+					);
+
+			/* open second BAM file if it is not the same */
 			if(inputY!=null) {
 				this.samReaderY = srf.open(SamInputResource.of(inputY));
 				if(!this.samReaderY.hasIndex()) {
@@ -351,7 +418,8 @@ public class BamMatrix  extends Launcher {
 					}
 				SequenceUtil.assertSequenceDictionariesEqual(
 					SequenceDictionaryUtils.extractRequired(this.samReaderY.getFileHeader()),
-					this.dict);
+					this.dict
+					);
 				}
 			else
 				{
@@ -360,56 +428,49 @@ public class BamMatrix  extends Launcher {
 			final ContigNameConverter converter = ContigNameConverter.fromOneDictionary(this.dict);
 			
 			final Function<String,Optional<SimpleInterval>> intervalParser = 
-					new IntervalParser(dict).
+					new IntervalParser(this.dict).
 					enableWholeContig();
 			this.userIntervalX = intervalParser.apply(this.region1Str).orElseThrow(IntervalParser.exception(this.region1Str));
-			this.userIntervalY = intervalParser.apply(this.region2Str).orElseThrow(IntervalParser.exception(this.region2Str));
+			final int genomic_distance= this.userIntervalX.getLengthOnReference();
 			
 			
-			// adjust intervals so they have the same length
-			if(this.userIntervalX.getLengthOnReference() > this.userIntervalY.getLengthOnReference()) {
-				final int mid =  this.userIntervalY.getStart()+ this.userIntervalY.getLengthOnReference()/2;
-				final int start = Math.max(1,mid- this.userIntervalX.getLengthOnReference()/2);
-				
-				this.userIntervalY = new SimpleInterval(
-						this.userIntervalY.getContig(),
-						start,
-						start + this.userIntervalX.getLengthOnReference()
-						);
-				LOG.warn("Adjusting interval Y to "+this.userIntervalY+" so both intervals have the same length");
+			if(StringUtils.isBlank(region2Str)) {
+				this.userIntervalY = userIntervalX;
 				}
-			else if(this.userIntervalY.getLengthOnReference() > this.userIntervalX.getLengthOnReference()) {
-				final int mid =  this.userIntervalX.getStart()+ this.userIntervalX.getLengthOnReference()/2;
-				final int start = Math.max(1,mid- this.userIntervalY.getLengthOnReference()/2);
-
-				this.userIntervalX = new SimpleInterval(
-						this.userIntervalX.getContig(),
-						start,
-						start + this.userIntervalY.getLengthOnReference()
-						);
-				LOG.warn("Adjusting interval X to "+this.userIntervalX+" so both intervals have the same length");
+			else
+				{
+				SimplePosition sp = new SimplePosition(this.region2Str);
+				if(this.dict.getSequence(sp.getContig())==null) {
+					LOG.error(JvarkitException.ContigNotFoundInDictionary.getMessage(sp.getContig(), this.dict));
+					return -1;
+					}
+				this.userIntervalY = new SimpleInterval(sp.getContig(),sp.getPosition(),sp.getPosition()+genomic_distance); 
 				}
-			LOG.info("One pixel is "+(this.userIntervalX.getLengthOnReference()/(double)matrix_size)+" bases");
+			
+			
+			if(this.matrix_size > genomic_distance) {
+				LOG.warn("adjusting size to "+genomic_distance);
+				this.matrix_size = genomic_distance;
+				}
+			LOG.info("One pixel is "+(genomic_distance/(double)matrix_size)+" bases");
 			
 			
 			
-			final int distance= Math.max(
-					this.userIntervalX.getLengthOnReference(),
-					this.userIntervalY.getLengthOnReference()
-					);
-			final double pixel2base = distance/(double)matrix_size;
-			short max_count=1;
-			final short counts[]=new short[this.matrix_size*this.matrix_size];
+			
+			
+			final double pixel2base = genomic_distance/(double)matrix_size;
+			int max_count=1;
+			final Matrix2D counts=new Matrix2D(this.matrix_size);
 
 			
-			final ReadCounter counter  = new MemoryReadCounter();
+			final ReadCounter counter  = makeMemoryReadCounter();
 			
 			/* loop over each pixel 1st axis */
 			for(int pixY=0;pixY< this.matrix_size;pixY++)
 				{				
 				final int start1 = (int)(this.userIntervalY.getStart() + pixY * pixel2base);
 				final int end1 = start1 + (int)pixel2base;
-				final Interval qy = new Interval(this.userIntervalY.getContig(), start1, end1);
+				final Locatable qy = new SimpleInterval(this.userIntervalY.getContig(), start1, end1);
 				if(!qy.overlaps(this.userIntervalY)) continue;
 				final Set<String> set1 = counter.getNamesMatching(1,qy);
 				if(set1.isEmpty()) continue;
@@ -419,13 +480,13 @@ public class BamMatrix  extends Launcher {
 					{
 					final int start2 = (int)(this.userIntervalX.getStart() + pixX* pixel2base);
 					final int end2 = start2 + (int)pixel2base;
-					final Interval qx = new Interval(this.userIntervalX.getContig(), start2, end2);
+					final Locatable qx = new SimpleInterval(this.userIntervalX.getContig(), start2, end2);
 					if(!qx.overlaps(this.userIntervalX)) continue;
 					if(!validateDisance(qy,qx)) continue;
 					
 					
 					final int count_common;
-					if(qx.compareTo(qy)==0) {
+					if(qx.contigsMatch(qy) && qx.getStart()==qy.getStart() && qx.getEnd()==qy.getEnd()) {
 						count_common = set1.size();
 						}
 					else
@@ -434,9 +495,8 @@ public class BamMatrix  extends Launcher {
 						common.retainAll(counter.getNamesMatching(0,qx));
 						count_common = common.size();
 						}
-					final short count =  count_common>Short.MAX_VALUE?Short.MAX_VALUE:(short)count_common;
-					max_count = (short)Math.max(count, max_count);
-					counts[pixY*this.matrix_size+pixX] = count;
+					max_count = Math.max(max_count, count_common);
+					counts.set(pixX, pixY,count_common);
 					}
 				}
 			counter.dispose();
@@ -447,8 +507,8 @@ public class BamMatrix  extends Launcher {
 			final Insets margins = new Insets(margin,margin, 10, 10);
 			
 			final Dimension drawingAreaDim = new Dimension(
-					this.matrix_size+margins.left+margins.right,
-					this.matrix_size+margins.top+margins.bottom
+					this.matrix_size*this.pixel_size+margins.left+margins.right,
+					this.matrix_size*this.pixel_size+margins.top+margins.bottom
 					);
 			
 			final BufferedImage img = new BufferedImage(
@@ -464,8 +524,20 @@ public class BamMatrix  extends Launcher {
 			// draw sample
 			final Hershey herschey = new Hershey();
 
-			final String sampleX = samReaderX.getFileHeader().getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(inputX);
-			final String sampleY = (samReaderX==samReaderY?sampleX:samReaderX.getFileHeader().getReadGroups().stream().map(R->R.getSample()).filter(S->!StringUtils.isBlank(S)).findFirst().orElse(inputY));
+			final String sampleX = samReaderX.getFileHeader()
+					.getReadGroups()
+					.stream()
+					.map(R->R.getSample())
+					.filter(S->!StringUtils.isBlank(S))
+					.findFirst()
+					.orElse(inputX);
+			final String sampleY = (samReaderX==samReaderY?sampleX:samReaderX.getFileHeader()
+					.getReadGroups()
+					.stream()
+					.map(R->R.getSample())
+					.filter(S->!StringUtils.isBlank(S))
+					.findFirst()
+					.orElse(inputY));
 			final String sample = (sampleX.equals(sampleY)?sampleX:String.join(" ", sampleX,sampleY));
 			
 			g.setColor(Color.DARK_GRAY);
@@ -487,12 +559,12 @@ public class BamMatrix  extends Launcher {
 							filter(B->B!=null).
 							filter(K->converter.apply(K.getContig())!=null && r.getContig().equals(converter.apply(K.getContig()))).
 							filter(K->CoordMath.overlaps(K.getStart(), K.getEnd(), r.getStart(), r.getEnd())).
-							map(E->new Interval(converter.apply(E.getContig()),E.getStart()+1,E.getEnd())).
+							map(E->new SimpleInterval(converter.apply(E.getContig()),E.getStart()+1,E.getEnd())).
 							filter(E->CoordMath.overlaps(E.getStart(), E.getEnd(), r.getStart(), r.getEnd())).
-							map(E->new Interval(E.getContig(),Math.max(r.getStart(),E.getStart()),Math.min(r.getEnd(),E.getEnd()))).
+							map(E->new SimpleInterval(E.getContig(),Math.max(r.getStart(),E.getStart()),Math.min(r.getEnd(),E.getEnd()))).
 							forEach(E->{
-								double d = ((E.getStart()-r.getStart())/(double)r.getLengthOnReference())*matrix_size;
-								double dL  = ((E.getLengthOnReference())/(double)r.getLengthOnReference())*matrix_size;
+								final double d = ((E.getStart()-r.getStart())/(double)r.getLengthOnReference())*matrix_size;
+								final double dL  = ((E.getLengthOnReference())/(double)r.getLengthOnReference())*matrix_size;
 								g.setColor(Color.YELLOW);
 								if(curr_side==0)
 									{
@@ -508,7 +580,7 @@ public class BamMatrix  extends Launcher {
 				g.setComposite(oldComposite);
 			}
 			
-			
+			/** draw the matrix itself */
 			g.translate(margins.left, margins.top);
 			
 			final double logMaxV =Math.log(max_count); 
@@ -516,22 +588,23 @@ public class BamMatrix  extends Launcher {
 				{
 				for(int pix2=0;pix2< this.matrix_size;pix2++)
 					{
-					final short count = counts[pix1*this.matrix_size+pix2];
+					final int count = counts.get(pix1,pix2);
 					if(count==0 || count < this.min_common_names) continue;
-					final int gray;
+					final Color c;
 					switch(color_scale) {
 						case LINEAR:
-							gray = 255-(int)(255*(count/(double)max_count));
+							c = new Color(Color.HSBtoRGB(count/(float)max_count, 0.4f, 0.3f));
 							break;
 						case LOG:
-							gray = 255-(int)(255*((Math.log(count))/logMaxV));
+							float gray = (float)((Math.log(count))/logMaxV);
+							c = new Color(Color.HSBtoRGB(gray, 0.8f, 0.8f));
 							break;
 						default: throw new IllegalStateException(color_scale.name());
 						}
-					g.setColor(new Color(gray,0,0));
+					g.setColor(c);
 					g.fill(new Rectangle2D.Double(
-						pix1 - pixel_size/2.0,
-						pix2 - pixel_size/2.0,
+						pix1*pixel_size,
+						pix2*pixel_size,
 						pixel_size,
 						pixel_size
 						));
