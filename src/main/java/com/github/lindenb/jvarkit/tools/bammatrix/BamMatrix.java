@@ -37,11 +37,14 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +55,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+import javax.xml.stream.XMLOutputFactory;
+import javax.xml.stream.XMLStreamWriter;
 
 import com.beust.jcommander.Parameter;
 import com.github.lindenb.jvarkit.bed.BedLineCodec;
@@ -86,9 +91,7 @@ import htsjdk.samtools.ValidationStringency;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
-import htsjdk.samtools.util.IntervalTreeMap;
 import htsjdk.samtools.util.Locatable;
-import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
 import htsjdk.samtools.util.SequenceUtil;
@@ -152,7 +155,7 @@ public class BamMatrix  extends Launcher {
 	private int min_common_names = 0;
 	@Parameter(names={"--no-coverage"},description="Don't print coverage")
 	private boolean hide_coverage = false;
-	@Parameter(names={"--pixel"},description="pixel size. Each dot at intersection will have the following size")
+	@Parameter(names={"--pixel"},description="pixel size. Each dot at intersection will have the following size",hidden = true)
 	private int pixel_size = 1;
 
 	
@@ -167,10 +170,10 @@ public class BamMatrix  extends Launcher {
 	/* user interval Y axis */
 	private SimpleInterval userIntervalY = null;
 	
-	
+	/** simple 2D int array */
 	private static class Matrix2D {
-		final int size;
-		final int[] array;
+		private final int size;
+		private final int[] array;
 		Matrix2D(int size) {
 			this.size = size;
 			this.array = new int[size*size];
@@ -363,6 +366,7 @@ public class BamMatrix  extends Launcher {
 	
 	private boolean validateDisance(final Locatable r1,final Locatable r2) {
 		if(min_distance<0) return true;
+		if(!r1.contigsMatch(r2)) return false;
 		if(r1.withinDistanceOf(r2, this.min_distance)) return false;
 		return true;
 		
@@ -612,7 +616,7 @@ public class BamMatrix  extends Launcher {
 				}
 			// draw frame
 			g.setColor(Color.GRAY);
-			g.drawRect(0, 0, this.matrix_size, this.matrix_size);
+			g.drawRect(0, 0, this.matrix_size*pixel_size, this.matrix_size*pixel_size);
 
 			g.translate(-margins.left,-margins.top);
 			
@@ -771,11 +775,35 @@ public class BamMatrix  extends Launcher {
 					}
 				else
 					{
-					ImageIO.write(img,this.outputFile.getName().endsWith(".png")?"PNG":"JPG", this.outputFile);
+					if(this.outputFile.getName().toLowerCase().endsWith(".html")) {
+						try(ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+							ImageIO.write(img, "png", baos);
+														
+							final XMLOutputFactory xof = XMLOutputFactory.newInstance();
+							try(OutputStream os = IOUtils.openFileForWriting(this.outputFile)) {
+								final XMLStreamWriter w = xof.createXMLStreamWriter(os, "UTF-8");
+								w.writeStartDocument("UTF-8", "1.0");
+								w.writeStartElement("html");
+								w.writeStartElement("body");
+								
+								w.writeEmptyElement("img");
+								w.writeAttribute("src","data:image/png;base64,"+ Base64.getEncoder().encodeToString(baos.toByteArray()));	
+								w.writeEndElement();//body
+								w.writeEndElement();//html
+								w.writeEndDocument();
+								os.flush();
+								}
+							}
+						}
+					else
+						{
+						ImageIO.write(img,this.outputFile.getName().endsWith(".png")?"PNG":"JPG", this.outputFile);
+						}
 					}
 				} catch(final IOException err)
 				{
-					throw new RuntimeIOException(err);
+					LOG.error(err);
+					return -1;
 				}
 			
 			return 0;

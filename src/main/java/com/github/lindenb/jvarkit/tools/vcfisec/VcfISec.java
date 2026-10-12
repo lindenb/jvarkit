@@ -154,7 +154,7 @@ public class VcfISec extends OnePassVcfLauncher
 				return -1;
 				}
 			
-		}
+			}
 		catch(final Throwable err ) {
 			return -1;
 			}
